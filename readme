@@ -1,0 +1,24 @@
+  BE 시작 방법
+
+  # 1. Docker로 DB 실행
+  docker compose up -d
+
+  # 2. 의존성 설치
+  cd backend && npm install
+
+  # 3. 환경 변수 설정
+  cp .env.example .env
+
+  # 4. Prisma 마이그레이션
+  npx prisma migrate dev --name init
+
+  # 5. 시드 데이터
+  npx prisma db seed
+
+  # 6. 개발 서버 실행
+  npm run dev
+
+  API는 http://localhost:3000/api/v1에서 실행됩니다. 컨트롤러들은 현재 스텁 상태이므로, 다음 단계로 인증(Auth) 기능부터 구현하면 됩니다.
+
+
+
