@@ -102,7 +102,7 @@ public class InviteService {
 
     @Transactional
     public InviteResponse.AcceptResult acceptInvite(String code, String userId) {
-        InviteLink link = inviteLinkRepository.findByCodeAndIsActiveTrue(code)
+        InviteLink link = inviteLinkRepository.findByCodeWithBoardAndCreator(code)
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVITE_LINK_NOT_FOUND));
 
         if (!link.isValid()) {
