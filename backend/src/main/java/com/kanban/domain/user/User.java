@@ -64,4 +64,12 @@ public class User extends BaseTimeEntity {
     public void updatePassword(String passwordHash) {
         this.passwordHash = passwordHash;
     }
+
+    public void linkGoogleAccount(String googleId, String profileImageUrl) {
+        this.authProvider = "GOOGLE";
+        this.authProviderId = googleId;
+        if (profileImageUrl != null && this.profileImage == null) {
+            this.profileImage = profileImageUrl;
+        }
+    }
 }

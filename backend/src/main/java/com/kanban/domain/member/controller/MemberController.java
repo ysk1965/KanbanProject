@@ -29,11 +29,11 @@ public class MemberController {
     }
 
     @PostMapping("/invite")
-    public ResponseEntity<MemberResponse.Detail> inviteMember(
+    public ResponseEntity<MemberResponse.InviteResult> inviteMember(
             @PathVariable String boardId,
             @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody MemberRequest.Invite request) {
-        MemberResponse.Detail response = memberService.inviteMember(boardId, principal.getUserId(), request);
+        MemberResponse.InviteResult response = memberService.inviteMember(boardId, principal.getUserId(), request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 

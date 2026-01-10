@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>보드 초대</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; background-color: #1d2125;">
+    <table role="presentation" style="width: 100%; border-collapse: collapse;">
+        <tr>
+            <td align="center" style="padding: 40px 0;">
+                <table role="presentation" style="width: 100%; max-width: 600px; border-collapse: collapse;">
+                    <!-- Header -->
+                    <tr>
+                        <td style="padding: 30px; background-color: #282e33; border-radius: 12px 12px 0 0;">
+                            <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: bold;">
+                                Team Kanban
+                            </h1>
+                        </td>
+                    </tr>
+
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding: 40px 30px; background-color: #282e33;">
+                            <!-- Icon -->
+                            <div style="text-align: center; margin-bottom: 30px;">
+                                <div style="width: 80px; height: 80px; background: linear-gradient(135deg, #3b82f6, #8b5cf6); border-radius: 50%; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
+                                    <span style="font-size: 36px; color: white;">&#x1F4E9;</span>
+                                </div>
+                            </div>
+
+                            <!-- Message -->
+                            <h2 style="margin: 0 0 20px 0; color: #ffffff; font-size: 20px; text-align: center;">
+                                보드에 초대되었습니다!
+                            </h2>
+
+                            <p style="margin: 0 0 30px 0; color: #9ca3af; font-size: 16px; line-height: 1.6; text-align: center;">
+                                <strong th:text="${inviterName}" style="color: #ffffff;">초대자</strong>님이
+                                <strong th:text="${boardName}" style="color: #3b82f6;">보드명</strong> 보드에
+                                <strong th:text="${role}" style="color: #8b5cf6;">역할</strong>로 초대했습니다.
+                            </p>
+
+                            <!-- Board Info Box -->
+                            <div style="background-color: #1d2125; border-radius: 8px; padding: 20px; margin-bottom: 30px;">
+                                <table role="presentation" style="width: 100%;">
+                                    <tr>
+                                        <td style="color: #9ca3af; font-size: 14px; padding-bottom: 8px;">보드 이름</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="color: #ffffff; font-size: 18px; font-weight: bold;" th:text="${boardName}">보드명</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding-top: 16px; color: #9ca3af; font-size: 14px; padding-bottom: 8px;">참여 역할</td>
+                                    </tr>
+                                    <tr>
+                                        <td>
+                                            <span style="display: inline-block; padding: 4px 12px; background-color: #3b82f6; color: white; border-radius: 4px; font-size: 14px;" th:text="${role}">역할</span>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </div>
+
+                            <!-- CTA Button -->
+                            <div style="text-align: center;">
+                                <a th:href="${inviteLink}"
+                                   style="display: inline-block; padding: 16px 48px; background-color: #3b82f6; color: #ffffff; text-decoration: none; border-radius: 8px; font-size: 16px; font-weight: bold;">
+                                    초대 수락하기
+                                </a>
+                            </div>
+
+                            <p style="margin: 30px 0 0 0; color: #6b7280; font-size: 14px; text-align: center;">
+                                버튼이 작동하지 않으면 아래 링크를 복사해서 브라우저에 붙여넣으세요:
+                            </p>
+                            <p style="margin: 10px 0 0 0; color: #3b82f6; font-size: 12px; text-align: center; word-break: break-all;">
+                                <a th:href="${inviteLink}" th:text="${inviteLink}" style="color: #3b82f6;">링크</a>
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="padding: 30px; background-color: #1d2125; border-radius: 0 0 12px 12px; text-align: center;">
+                            <p style="margin: 0 0 10px 0; color: #6b7280; font-size: 14px;">
+                                Team Kanban - 팀 협업을 위한 칸반보드
+                            </p>
+                            <p style="margin: 0; color: #4b5563; font-size: 12px;">
+                                이 이메일은 보드 초대를 위해 자동 발송되었습니다.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

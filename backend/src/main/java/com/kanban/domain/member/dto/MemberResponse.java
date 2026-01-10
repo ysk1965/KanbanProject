@@ -85,4 +85,29 @@ public class MemberResponse {
                     .build();
         }
     }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class InviteResult {
+        private String type;  // "DIRECT_ADD" or "EMAIL_SENT"
+        private Detail member;  // 직접 추가된 경우
+        private String email;   // 이메일 발송된 경우
+        private String role;    // 이메일 발송된 경우
+
+        public static InviteResult ofDirectAdd(BoardMember member) {
+            return InviteResult.builder()
+                    .type("DIRECT_ADD")
+                    .member(Detail.of(member))
+                    .build();
+        }
+
+        public static InviteResult ofEmailSent(String email, String role) {
+            return InviteResult.builder()
+                    .type("EMAIL_SENT")
+                    .email(email)
+                    .role(role)
+                    .build();
+        }
+    }
 }

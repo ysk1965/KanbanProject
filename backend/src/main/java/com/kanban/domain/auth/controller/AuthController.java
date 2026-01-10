@@ -1,5 +1,6 @@
 package com.kanban.domain.auth.controller;
 
+import com.kanban.domain.auth.dto.GoogleAuthRequest;
 import com.kanban.domain.auth.dto.LoginRequest;
 import com.kanban.domain.auth.dto.RefreshTokenRequest;
 import com.kanban.domain.auth.dto.SignupRequest;
@@ -31,6 +32,12 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<TokenResponse> login(@Valid @RequestBody LoginRequest request) {
         TokenResponse response = authService.login(request);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/google")
+    public ResponseEntity<TokenResponse> googleLogin(@Valid @RequestBody GoogleAuthRequest request) {
+        TokenResponse response = authService.googleLogin(request);
         return ResponseEntity.ok(response);
     }
 

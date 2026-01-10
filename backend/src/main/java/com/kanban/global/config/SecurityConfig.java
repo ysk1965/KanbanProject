@@ -38,7 +38,7 @@ public class SecurityConfig {
                         // Public endpoints
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/api/v1/pricing/**").permitAll()
-                        .requestMatchers("/api/v1/invite/**").permitAll()
+                        .requestMatchers("/api/v1/invites/**").permitAll()
                         // H2 Console
                         .requestMatchers("/h2-console/**").permitAll()
                         // Health check

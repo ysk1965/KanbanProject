@@ -30,6 +30,32 @@ jwt:
   access-expiration: 900000      # 15분
   refresh-expiration: 604800000  # 7일
 
+# Google OAuth2
+google:
+  oauth2:
+    client-id: ${GOOGLE_CLIENT_ID:573353962587-1r0l8otb51n8h0iuha5ek0e2sfqjft1j.apps.googleusercontent.com}
+
+# Email (Gmail SMTP)
+spring.mail:
+  host: smtp.gmail.com
+  port: 587
+  username: eobub15@gmail.com
+  password: olczyitjbmefpnok
+  properties:
+    mail:
+      smtp:
+        auth: true
+        starttls:
+          enable: true
+          required: true
+        connectiontimeout: 5000
+        timeout: 5000
+        writetimeout: 5000
+
+# App config
+app:
+  frontend-url: ${FRONTEND_URL:http://localhost:5173}
+
 ---
 # Local Profile (H2)
 spring:
