@@ -217,12 +217,32 @@ public class TaskService {
         String oldBlockId = task.getBlock().getId();
         task.moveToBlock(targetBlock);
 
-        // position 처리
+        // position 처리 - 블록 내 모든 task의 position을 정규화
+        int targetPosition;
         if (request.getPosition() != null) {
-            task.updatePosition(request.getPosition());
+            targetPosition = request.getPosition();
         } else {
-            Integer maxPosition = taskRepository.findMaxPositionByBlockId(targetBlock.getId());
-            task.updatePosition((maxPosition != null) ? maxPosition + 1 : 0);
+            // position이 없으면 맨 끝에 추가
+            int count = (int) taskRepository.findByBlockIdOrderByPositionAsc(targetBlock.getId())
+                    .stream().filter(t -> !t.getId().equals(taskId)).count();
+            targetPosition = count;
+        }
+
+        // 해당 블록의 모든 task를 가져와서 정렬 (현재 task 제외)
+        List<Task> tasksInBlock = taskRepository.findByBlockIdOrderByPositionAsc(targetBlock.getId())
+                .stream()
+                .filter(t -> !t.getId().equals(taskId))
+                .collect(Collectors.toList());
+
+        // targetPosition 위치에 현재 task 삽입
+        if (targetPosition > tasksInBlock.size()) {
+            targetPosition = tasksInBlock.size();
+        }
+        tasksInBlock.add(targetPosition, task);
+
+        // position을 0, 1, 2, 3... 으로 재정규화
+        for (int i = 0; i < tasksInBlock.size(); i++) {
+            tasksInBlock.get(i).updatePosition(i);
         }
 
         List<Tag> tags = taskTagRepository.findByTaskId(taskId).stream()
