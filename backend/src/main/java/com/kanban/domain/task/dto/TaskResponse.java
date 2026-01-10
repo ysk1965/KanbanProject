@@ -22,11 +22,12 @@ public class TaskResponse {
         private String featureTitle;
         private String featureColor;
         private String blockId;
+        private String blockName;
         private String title;
         private AssigneeInfo assignee;
         private LocalDate dueDate;
         private Integer estimatedMinutes;
-        private boolean isCompleted;
+        private boolean completed;
         private Integer position;
         private List<TagInfo> tags;
         private int checklistTotal;
@@ -39,11 +40,12 @@ public class TaskResponse {
                     .featureTitle(task.getFeature().getTitle())
                     .featureColor(task.getFeature().getColor())
                     .blockId(task.getBlock().getId())
+                    .blockName(task.getBlock().getName())
                     .title(task.getTitle())
                     .assignee(task.getAssignee() != null ? AssigneeInfo.of(task) : null)
                     .dueDate(task.getDueDate())
                     .estimatedMinutes(task.getEstimatedMinutes())
-                    .isCompleted(task.getIsCompleted())
+                    .completed(task.getIsCompleted())
                     .position(task.getPosition())
                     .tags(tags != null ? tags.stream().map(TagInfo::of).toList() : List.of())
                     .checklistTotal(checklistTotal)
@@ -67,7 +69,7 @@ public class TaskResponse {
         private AssigneeInfo assignee;
         private LocalDate dueDate;
         private Integer estimatedMinutes;
-        private boolean isCompleted;
+        private boolean completed;
         private Integer position;
         private List<TagInfo> tags;
         private CreatorInfo createdBy;
@@ -88,7 +90,7 @@ public class TaskResponse {
                     .assignee(task.getAssignee() != null ? AssigneeInfo.of(task) : null)
                     .dueDate(task.getDueDate())
                     .estimatedMinutes(task.getEstimatedMinutes())
-                    .isCompleted(task.getIsCompleted())
+                    .completed(task.getIsCompleted())
                     .position(task.getPosition())
                     .tags(tags != null ? tags.stream().map(TagInfo::of).toList() : List.of())
                     .createdBy(CreatorInfo.of(task))

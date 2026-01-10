@@ -1,6 +1,5 @@
 package com.kanban.domain.checklist.dto;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.kanban.domain.checklist.ChecklistItem;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -18,8 +17,7 @@ public class ChecklistResponse {
     public static class Detail {
         private String id;
         private String title;
-        @JsonProperty("is_completed")
-        private boolean isCompleted;
+        private boolean completed;
         private AssigneeInfo assignee;
         private LocalDate dueDate;
         private Integer position;
@@ -30,7 +28,7 @@ public class ChecklistResponse {
             return Detail.builder()
                     .id(item.getId())
                     .title(item.getTitle())
-                    .isCompleted(item.getIsCompleted())
+                    .completed(item.getIsCompleted())
                     .assignee(item.getAssignee() != null ? AssigneeInfo.of(item) : null)
                     .dueDate(item.getDueDate())
                     .position(item.getPosition())
