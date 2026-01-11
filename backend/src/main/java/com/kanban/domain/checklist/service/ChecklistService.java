@@ -67,6 +67,7 @@ public class ChecklistService {
                 .task(task)
                 .title(request.getTitle())
                 .assignee(assignee)
+                .startDate(request.getStartDate())
                 .dueDate(request.getDueDate())
                 .position(newPosition)
                 .build();
@@ -96,7 +97,7 @@ public class ChecklistService {
             throw new BusinessException(ErrorCode.CHECKLIST_ITEM_NOT_FOUND);
         }
 
-        item.updateInfo(request.getTitle(), request.getDueDate());
+        item.updateInfo(request.getTitle(), request.getStartDate(), request.getDueDate());
 
         if (request.getAssigneeId() != null) {
             User assignee = userRepository.findById(request.getAssigneeId())
@@ -155,5 +156,27 @@ public class ChecklistService {
         log.info("Checklist item toggled: {} to {} by user: {}", itemId, item.getIsCompleted(), userId);
 
         return ChecklistResponse.Detail.of(item);
+    }
+
+    public ChecklistResponse.BoardListResponse getBoardChecklistItems(String boardId, String userId, String assigneeId, Boolean isScheduled) {
+        boardService.checkViewerOrAbove(boardId, userId);
+
+        List<ChecklistItem> items;
+
+        if (isScheduled != null && !isScheduled) {
+            if (assigneeId != null) {
+                items = checklistItemRepository.findUnscheduledByBoardIdAndAssigneeId(boardId, assigneeId);
+            } else {
+                items = checklistItemRepository.findUnscheduledByBoardId(boardId);
+            }
+        } else {
+            if (assigneeId != null) {
+                items = checklistItemRepository.findByBoardIdAndAssigneeId(boardId, assigneeId);
+            } else {
+                items = checklistItemRepository.findByBoardId(boardId);
+            }
+        }
+
+        return ChecklistResponse.BoardListResponse.of(items);
     }
 }

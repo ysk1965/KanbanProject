@@ -9,6 +9,7 @@ import lombok.Builder;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 public class BoardResponse {
 
@@ -51,6 +52,7 @@ public class BoardResponse {
         private boolean isStarred;
         private int memberCount;
         private SubscriptionInfo subscription;
+        private ScheduleSettings scheduleSettings;
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;
 
@@ -64,6 +66,7 @@ public class BoardResponse {
                     .isStarred(isStarred)
                     .memberCount(memberCount)
                     .subscription(subscription != null ? SubscriptionInfo.of(subscription) : null)
+                    .scheduleSettings(ScheduleSettings.of(board))
                     .createdAt(board.getCreatedAt())
                     .updatedAt(board.getUpdatedAt())
                     .build();
@@ -114,5 +117,20 @@ public class BoardResponse {
     public static class StarToggle {
         private String boardId;
         private boolean isStarred;
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class ScheduleSettings {
+        private Integer workHoursPerDay;
+        private LocalTime workStartTime;
+
+        public static ScheduleSettings of(Board board) {
+            return ScheduleSettings.builder()
+                    .workHoursPerDay(board.getWorkHoursPerDay())
+                    .workStartTime(board.getWorkStartTime())
+                    .build();
+        }
     }
 }

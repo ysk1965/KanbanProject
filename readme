@@ -39,3 +39,7 @@
 
   이후 ./gradlew bootRun 정상 동작합니다.
 
+
+
+
+tail -100 /Users/yoo/Documents/GitHub/KanbanProject/backend/build/logs/*.log

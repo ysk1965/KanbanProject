@@ -5,6 +5,7 @@ import com.kanban.domain.user.User;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalTime;
 import java.util.UUID;
 
 @Entity
@@ -29,6 +30,14 @@ public class Board extends BaseTimeEntity {
     @JoinColumn(name = "owner_id", nullable = false)
     private User owner;
 
+    @Column(name = "work_hours_per_day")
+    @Builder.Default
+    private Integer workHoursPerDay = 8;
+
+    @Column(name = "work_start_time")
+    @Builder.Default
+    private LocalTime workStartTime = LocalTime.of(9, 0);
+
     @PrePersist
     public void prePersist() {
         if (this.id == null) {
@@ -47,5 +56,14 @@ public class Board extends BaseTimeEntity {
 
     public boolean isOwner(String userId) {
         return this.owner.getId().equals(userId);
+    }
+
+    public void updateScheduleSettings(Integer workHoursPerDay, LocalTime workStartTime) {
+        if (workHoursPerDay != null) {
+            this.workHoursPerDay = workHoursPerDay;
+        }
+        if (workStartTime != null) {
+            this.workStartTime = workStartTime;
+        }
     }
 }

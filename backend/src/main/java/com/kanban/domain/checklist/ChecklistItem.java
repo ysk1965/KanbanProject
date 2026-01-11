@@ -36,8 +36,14 @@ public class ChecklistItem {
     @JoinColumn(name = "assignee_id")
     private User assignee;
 
+    @Column(name = "start_date")
+    private LocalDate startDate;
+
     @Column(name = "due_date")
     private LocalDate dueDate;
+
+    @Column(name = "done_date")
+    private LocalDate doneDate;
 
     @Column(name = "position", nullable = false)
     @Builder.Default
@@ -59,8 +65,9 @@ public class ChecklistItem {
         }
     }
 
-    public void updateInfo(String title, LocalDate dueDate) {
+    public void updateInfo(String title, LocalDate startDate, LocalDate dueDate) {
         if (title != null) this.title = title;
+        this.startDate = startDate;
         this.dueDate = dueDate;
     }
 
@@ -76,9 +83,11 @@ public class ChecklistItem {
         if (this.isCompleted) {
             this.isCompleted = false;
             this.completedAt = null;
+            this.doneDate = null;
         } else {
             this.isCompleted = true;
             this.completedAt = LocalDateTime.now();
+            this.doneDate = LocalDate.now();
         }
     }
 
@@ -86,6 +95,7 @@ public class ChecklistItem {
         if (!this.isCompleted) {
             this.isCompleted = true;
             this.completedAt = LocalDateTime.now();
+            this.doneDate = LocalDate.now();
         }
     }
 
@@ -93,6 +103,7 @@ public class ChecklistItem {
         if (this.isCompleted) {
             this.isCompleted = false;
             this.completedAt = null;
+            this.doneDate = null;
         }
     }
 }

@@ -18,6 +18,8 @@ public class ChecklistRequest {
 
         private String assigneeId;
 
+        private LocalDate startDate;
+
         private LocalDate dueDate;
     }
 
@@ -28,6 +30,8 @@ public class ChecklistRequest {
         private String title;
 
         private String assigneeId;
+
+        private LocalDate startDate;
 
         private LocalDate dueDate;
     }
