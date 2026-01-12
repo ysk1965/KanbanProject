@@ -7,6 +7,7 @@ import com.kanban.domain.feature.Feature;
 import com.kanban.domain.feature.FeatureRepository;
 import com.kanban.domain.feature.dto.FeatureRequest;
 import com.kanban.domain.feature.dto.FeatureResponse;
+import com.kanban.domain.milestone.MilestoneFeatureRepository;
 import com.kanban.domain.tag.FeatureTag;
 import com.kanban.domain.tag.FeatureTagRepository;
 import com.kanban.domain.tag.Tag;
@@ -19,8 +20,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -34,11 +37,23 @@ public class FeatureService {
     private final BoardRepository boardRepository;
     private final UserRepository userRepository;
     private final BoardService boardService;
+    private final MilestoneFeatureRepository milestoneFeatureRepository;
 
-    public FeatureResponse.ListResponse getFeatures(String boardId, String userId) {
+    public FeatureResponse.ListResponse getFeatures(String boardId, String userId, String milestoneId) {
         boardService.checkViewerOrAbove(boardId, userId);
 
         List<Feature> features = featureRepository.findByBoardIdOrderByPositionAsc(boardId);
+
+        // 마일스톤 필터 적용
+        if (milestoneId != null && !milestoneId.isEmpty()) {
+            Set<String> milestoneFeatureIds = new HashSet<>(
+                    milestoneFeatureRepository.findFeatureIdsByMilestoneId(milestoneId)
+            );
+            features = features.stream()
+                    .filter(f -> milestoneFeatureIds.contains(f.getId()))
+                    .collect(Collectors.toList());
+        }
+
         Map<String, List<Tag>> featureTagsMap = getFeatureTagsMap(features);
 
         return FeatureResponse.ListResponse.of(features, featureTagsMap);

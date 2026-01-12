@@ -78,4 +78,20 @@ public class BoardController {
                 boardId, principal.getUserId(), request.getMilestoneId());
         return ResponseEntity.ok(response);
     }
+
+    @GetMapping("/{boardId}/tier")
+    public ResponseEntity<BoardResponse.TierInfo> getBoardTier(
+            @PathVariable String boardId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        BoardResponse.TierInfo response = boardService.getBoardTier(boardId, principal.getUserId());
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/{boardId}/limits")
+    public ResponseEntity<BoardResponse.Limits> getBoardLimits(
+            @PathVariable String boardId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        BoardResponse.Limits response = boardService.getBoardLimits(boardId, principal.getUserId());
+        return ResponseEntity.ok(response);
+    }
 }

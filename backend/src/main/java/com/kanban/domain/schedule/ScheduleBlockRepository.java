@@ -21,4 +21,10 @@ public interface ScheduleBlockRepository extends JpaRepository<ScheduleBlock, St
     List<ScheduleBlock> findAllByBoardIdAndDate(@Param("boardId") String boardId, @Param("date") LocalDate date);
 
     void deleteByChecklistItemId(String checklistItemId);
+
+    @Query("SELECT sb FROM ScheduleBlock sb WHERE sb.board.id = :boardId AND sb.scheduledDate BETWEEN :startDate AND :endDate ORDER BY sb.scheduledDate, sb.startTime")
+    List<ScheduleBlock> findByBoardIdAndScheduledDateBetween(
+            @Param("boardId") String boardId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
 }

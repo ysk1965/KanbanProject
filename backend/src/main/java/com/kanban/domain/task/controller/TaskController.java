@@ -25,8 +25,9 @@ public class TaskController {
             @PathVariable String boardId,
             @RequestParam(required = false) String blockId,
             @RequestParam(required = false) String featureId,
+            @RequestParam(required = false) String milestoneId,
             @AuthenticationPrincipal UserPrincipal principal) {
-        TaskResponse.ListResponse response = taskService.getTasks(boardId, principal.getUserId(), blockId, featureId);
+        TaskResponse.ListResponse response = taskService.getTasks(boardId, principal.getUserId(), blockId, featureId, milestoneId);
         return ResponseEntity.ok(response);
     }
 

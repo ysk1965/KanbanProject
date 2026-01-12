@@ -27,7 +27,7 @@ server:
 # JWT
 jwt:
   secret: ${JWT_SECRET:your-super-secret-jwt-key-for-development-only-change-in-production}
-  access-expiration: 900000      # 15분
+  access-expiration: 3600000     # 1시간
   refresh-expiration: 604800000  # 7일
 
 # Google OAuth2

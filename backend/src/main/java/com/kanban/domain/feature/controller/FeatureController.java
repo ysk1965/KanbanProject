@@ -23,8 +23,9 @@ public class FeatureController {
     @GetMapping
     public ResponseEntity<FeatureResponse.ListResponse> getFeatures(
             @PathVariable String boardId,
+            @RequestParam(required = false) String milestoneId,
             @AuthenticationPrincipal UserPrincipal principal) {
-        FeatureResponse.ListResponse response = featureService.getFeatures(boardId, principal.getUserId());
+        FeatureResponse.ListResponse response = featureService.getFeatures(boardId, principal.getUserId(), milestoneId);
         return ResponseEntity.ok(response);
     }
 

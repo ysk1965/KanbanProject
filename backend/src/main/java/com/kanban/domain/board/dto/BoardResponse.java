@@ -1,6 +1,7 @@
 package com.kanban.domain.board.dto;
 
 import com.kanban.domain.board.Board;
+import com.kanban.domain.board.BoardTier;
 import com.kanban.domain.board.Role;
 import com.kanban.domain.subscription.Subscription;
 import com.kanban.domain.subscription.SubscriptionStatus;
@@ -132,6 +133,44 @@ public class BoardResponse {
             return ScheduleSettings.builder()
                     .workHoursPerDay(board.getWorkHoursPerDay())
                     .workStartTime(board.getWorkStartTime())
+                    .build();
+        }
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class TierInfo {
+        private BoardTier tier;
+        private LocalDateTime trialEndsAt;
+        private boolean canAccessSchedule;
+        private boolean canAccessMilestone;
+
+        public static TierInfo of(Board board) {
+            return TierInfo.builder()
+                    .tier(board.getTier())
+                    .trialEndsAt(board.getTrialEndsAt())
+                    .canAccessSchedule(board.canAccessSchedule())
+                    .canAccessMilestone(board.canAccessMilestone())
+                    .build();
+        }
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class Limits {
+        private Integer taskLimit;
+        private int currentTaskCount;
+        private boolean canCreateTask;
+
+        public static Limits of(Board board, int currentTaskCount) {
+            Integer limit = board.getTaskLimit();
+            boolean canCreate = limit == null || currentTaskCount < limit;
+            return Limits.builder()
+                    .taskLimit(limit)
+                    .currentTaskCount(currentTaskCount)
+                    .canCreateTask(canCreate)
                     .build();
         }
     }

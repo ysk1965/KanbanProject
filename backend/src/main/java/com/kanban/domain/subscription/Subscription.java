@@ -15,6 +15,10 @@ import java.util.UUID;
 @Builder
 public class Subscription {
 
+    // Seat 기반 가격 상수 (USD 센트 단위)
+    public static final int MONTHLY_PRICE_PER_SEAT = 500;  // $5.00
+    public static final int YEARLY_PRICE_PER_SEAT = 5000;  // $50.00 (17% 할인)
+
     @Id
     @Column(name = "id", length = 36)
     private String id;
@@ -37,6 +41,13 @@ public class Subscription {
 
     @Column(name = "price")
     private Integer price;
+
+    @Column(name = "price_per_seat")
+    private Integer pricePerSeat;
+
+    @Column(name = "seat_count")
+    @Builder.Default
+    private Integer seatCount = 1;
 
     @Column(name = "trial_ends_at")
     private LocalDateTime trialEndsAt;
@@ -113,6 +124,44 @@ public class Subscription {
                 ? LocalDateTime.now().plusYears(1)
                 : LocalDateTime.now().plusMonths(1);
         this.nextPaymentAt = this.currentPeriodEnd;
+    }
+
+    /**
+     * Seat 기반 구독 활성화
+     */
+    public void activateSeatSubscription(BillingCycle billingCycle, int seatCount, String paymentMethodId) {
+        this.status = SubscriptionStatus.ACTIVE;
+        this.plan = "PREMIUM";
+        this.billingCycle = billingCycle;
+        this.seatCount = seatCount;
+        this.pricePerSeat = billingCycle == BillingCycle.YEARLY
+                ? YEARLY_PRICE_PER_SEAT
+                : MONTHLY_PRICE_PER_SEAT;
+        this.price = calculateTotalPrice();
+        this.paymentMethodId = paymentMethodId;
+        this.currentPeriodStart = LocalDateTime.now();
+        this.currentPeriodEnd = billingCycle == BillingCycle.YEARLY
+                ? LocalDateTime.now().plusYears(1)
+                : LocalDateTime.now().plusMonths(1);
+        this.nextPaymentAt = this.currentPeriodEnd;
+    }
+
+    /**
+     * 총 가격 계산 (seatCount * pricePerSeat)
+     */
+    public int calculateTotalPrice() {
+        if (this.pricePerSeat == null || this.seatCount == null) {
+            return 0;
+        }
+        return this.pricePerSeat * this.seatCount;
+    }
+
+    /**
+     * Seat 수 업데이트 및 가격 재계산
+     */
+    public void updateSeatCount(int seatCount) {
+        this.seatCount = seatCount;
+        this.price = calculateTotalPrice();
     }
 
     public void enterGracePeriod() {

@@ -8,6 +8,7 @@ import com.kanban.domain.board.dto.BoardRequest;
 import com.kanban.domain.board.dto.BoardResponse;
 import com.kanban.domain.subscription.Subscription;
 import com.kanban.domain.subscription.SubscriptionRepository;
+import com.kanban.domain.task.TaskRepository;
 import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
@@ -31,6 +32,7 @@ public class BoardService {
     private final UserBoardStarRepository userBoardStarRepository;
     private final BlockRepository blockRepository;
     private final SubscriptionRepository subscriptionRepository;
+    private final TaskRepository taskRepository;
     private final UserRepository userRepository;
 
     @Transactional
@@ -231,5 +233,39 @@ public class BoardService {
         if (!membership.isOwner()) {
             throw new BusinessException(ErrorCode.BOARD_ACCESS_DENIED);
         }
+    }
+
+    /**
+     * 보드 티어 정보 조회
+     */
+    @Transactional
+    public BoardResponse.TierInfo getBoardTier(String boardId, String userId) {
+        Board board = boardRepository.findById(boardId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+
+        // 멤버 확인
+        checkViewerOrAbove(boardId, userId);
+
+        // Trial 만료 체크 및 자동 전환
+        if (board.checkAndUpdateTierIfTrialExpired()) {
+            log.info("Board tier auto-downgraded to STANDARD: {}", boardId);
+        }
+
+        return BoardResponse.TierInfo.of(board);
+    }
+
+    /**
+     * 보드 제한 정보 조회 (Task 개수 등)
+     */
+    public BoardResponse.Limits getBoardLimits(String boardId, String userId) {
+        Board board = boardRepository.findById(boardId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+
+        // 멤버 확인
+        checkViewerOrAbove(boardId, userId);
+
+        int currentTaskCount = taskRepository.countByBoardId(boardId);
+
+        return BoardResponse.Limits.of(board, currentTaskCount);
     }
 }

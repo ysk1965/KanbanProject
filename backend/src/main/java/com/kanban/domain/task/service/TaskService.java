@@ -9,6 +9,7 @@ import com.kanban.domain.board.service.BoardService;
 import com.kanban.domain.checklist.ChecklistItemRepository;
 import com.kanban.domain.feature.Feature;
 import com.kanban.domain.feature.FeatureRepository;
+import com.kanban.domain.milestone.MilestoneFeatureRepository;
 import com.kanban.domain.tag.Tag;
 import com.kanban.domain.tag.TaskTag;
 import com.kanban.domain.tag.TaskTagRepository;
@@ -26,8 +27,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -44,8 +47,9 @@ public class TaskService {
     private final BoardRepository boardRepository;
     private final UserRepository userRepository;
     private final BoardService boardService;
+    private final MilestoneFeatureRepository milestoneFeatureRepository;
 
-    public TaskResponse.ListResponse getTasks(String boardId, String userId, String blockId, String featureId) {
+    public TaskResponse.ListResponse getTasks(String boardId, String userId, String blockId, String featureId, String milestoneId) {
         boardService.checkViewerOrAbove(boardId, userId);
 
         List<Task> tasks;
@@ -55,6 +59,16 @@ public class TaskService {
             tasks = taskRepository.findByFeatureIdOrderByPositionAsc(featureId);
         } else {
             tasks = taskRepository.findByBoardIdOrderByPositionAsc(boardId);
+        }
+
+        // 마일스톤 필터 적용: 해당 마일스톤에 속한 Feature의 Task만 필터링
+        if (milestoneId != null && !milestoneId.isEmpty()) {
+            Set<String> milestoneFeatureIds = new HashSet<>(
+                    milestoneFeatureRepository.findFeatureIdsByMilestoneId(milestoneId)
+            );
+            tasks = tasks.stream()
+                    .filter(t -> milestoneFeatureIds.contains(t.getFeature().getId()))
+                    .collect(Collectors.toList());
         }
 
         Map<String, List<Tag>> taskTagsMap = getTaskTagsMap(tasks);
@@ -86,6 +100,12 @@ public class TaskService {
 
         Board board = boardRepository.findById(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+
+        // Trial 만료 체크 및 자동 전환
+        board.checkAndUpdateTierIfTrialExpired();
+
+        // Standard 보드의 Task 제한 확인
+        validateTaskLimit(board);
 
         Feature feature = featureRepository.findById(featureId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.FEATURE_NOT_FOUND));
@@ -300,5 +320,21 @@ public class TaskService {
             result.put(task.getId(), new int[]{total, completed});
         }
         return result;
+    }
+
+    /**
+     * Standard 보드의 Task 생성 제한 확인
+     * Standard 보드는 최대 10개의 Task만 생성 가능
+     */
+    private void validateTaskLimit(Board board) {
+        Integer taskLimit = board.getTaskLimit();
+        if (taskLimit != null) {
+            int currentTaskCount = taskRepository.countByBoardId(board.getId());
+            if (currentTaskCount >= taskLimit) {
+                log.warn("Task limit exceeded for board: {} (current: {}, limit: {})",
+                        board.getId(), currentTaskCount, taskLimit);
+                throw new BusinessException(ErrorCode.TASK_LIMIT_EXCEEDED);
+            }
+        }
     }
 }

@@ -16,6 +16,9 @@ public interface MilestoneFeatureRepository extends JpaRepository<MilestoneFeatu
     @Query("SELECT mf.feature FROM MilestoneFeature mf WHERE mf.milestone.id = :milestoneId")
     List<Feature> findFeaturesByMilestoneId(@Param("milestoneId") String milestoneId);
 
+    @Query("SELECT mf.feature.id FROM MilestoneFeature mf WHERE mf.milestone.id = :milestoneId")
+    List<String> findFeatureIdsByMilestoneId(@Param("milestoneId") String milestoneId);
+
     boolean existsByMilestoneIdAndFeatureId(String milestoneId, String featureId);
 
     void deleteByMilestoneId(String milestoneId);

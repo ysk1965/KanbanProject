@@ -26,4 +26,6 @@ public interface TaskRepository extends JpaRepository<Task, String> {
     int countByFeatureId(String featureId);
 
     int countByFeatureIdAndIsCompletedTrue(String featureId);
+
+    int countByBoardId(String boardId);
 }
