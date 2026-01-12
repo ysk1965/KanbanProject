@@ -77,4 +77,14 @@ public class TaskController {
         TaskResponse.Detail response = taskService.moveTask(boardId, taskId, principal.getUserId(), request);
         return ResponseEntity.ok(response);
     }
+
+    @PutMapping("/tasks/{taskId}/dates")
+    public ResponseEntity<TaskResponse.Detail> updateTaskDates(
+            @PathVariable String boardId,
+            @PathVariable String taskId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestBody TaskRequest.UpdateDates request) {
+        TaskResponse.Detail response = taskService.updateTaskDates(boardId, taskId, principal.getUserId(), request);
+        return ResponseEntity.ok(response);
+    }
 }

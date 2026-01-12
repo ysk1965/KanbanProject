@@ -38,6 +38,13 @@ public class Board extends BaseTimeEntity {
     @Builder.Default
     private LocalTime workStartTime = LocalTime.of(9, 0);
 
+    @Column(name = "schedule_display_mode", length = 10)
+    @Builder.Default
+    private String scheduleDisplayMode = "TIME";
+
+    @Column(name = "selected_milestone_id", length = 36)
+    private String selectedMilestoneId;
+
     @PrePersist
     public void prePersist() {
         if (this.id == null) {
@@ -58,12 +65,19 @@ public class Board extends BaseTimeEntity {
         return this.owner.getId().equals(userId);
     }
 
-    public void updateScheduleSettings(Integer workHoursPerDay, LocalTime workStartTime) {
+    public void updateScheduleSettings(Integer workHoursPerDay, LocalTime workStartTime, String scheduleDisplayMode) {
         if (workHoursPerDay != null) {
             this.workHoursPerDay = workHoursPerDay;
         }
         if (workStartTime != null) {
             this.workStartTime = workStartTime;
         }
+        if (scheduleDisplayMode != null) {
+            this.scheduleDisplayMode = scheduleDisplayMode;
+        }
+    }
+
+    public void updateSelectedMilestone(String milestoneId) {
+        this.selectedMilestoneId = milestoneId;
     }
 }

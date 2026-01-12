@@ -53,6 +53,7 @@ public class BoardResponse {
         private int memberCount;
         private SubscriptionInfo subscription;
         private ScheduleSettings scheduleSettings;
+        private String selectedMilestoneId;
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;
 
@@ -67,6 +68,7 @@ public class BoardResponse {
                     .memberCount(memberCount)
                     .subscription(subscription != null ? SubscriptionInfo.of(subscription) : null)
                     .scheduleSettings(ScheduleSettings.of(board))
+                    .selectedMilestoneId(board.getSelectedMilestoneId())
                     .createdAt(board.getCreatedAt())
                     .updatedAt(board.getUpdatedAt())
                     .build();

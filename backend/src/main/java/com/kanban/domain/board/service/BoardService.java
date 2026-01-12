@@ -151,6 +151,25 @@ public class BoardService {
     }
 
     @Transactional
+    public BoardResponse.Detail updateSelectedMilestone(String boardId, String userId, String milestoneId) {
+        Board board = boardRepository.findById(boardId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+
+        BoardMember membership = boardMemberRepository.findByBoardIdAndUserId(boardId, userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_ACCESS_DENIED));
+
+        board.updateSelectedMilestone(milestoneId);
+
+        boolean isStarred = userBoardStarRepository.existsByUserIdAndBoardId(userId, boardId);
+        int memberCount = boardMemberRepository.countBillableMembers(boardId);
+        Subscription subscription = subscriptionRepository.findByBoardId(boardId).orElse(null);
+
+        log.info("Board selected milestone updated: {} to {} by user: {}", boardId, milestoneId, userId);
+
+        return BoardResponse.Detail.of(board, membership.getRole(), isStarred, memberCount, subscription);
+    }
+
+    @Transactional
     public BoardResponse.StarToggle toggleStar(String boardId, String userId) {
         Board board = boardRepository.findById(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));

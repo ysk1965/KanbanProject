@@ -117,6 +117,7 @@ public class TaskService {
                 .title(request.getTitle())
                 .description(request.getDescription())
                 .assignee(assignee)
+                .startDate(request.getStartDate())
                 .dueDate(request.getDueDate())
                 .estimatedMinutes(request.getEstimatedMinutes())
                 .position(newPosition)
@@ -147,6 +148,7 @@ public class TaskService {
         task.updateInfo(
                 request.getTitle(),
                 request.getDescription(),
+                request.getStartDate(),
                 request.getDueDate(),
                 request.getEstimatedMinutes()
         );
@@ -250,6 +252,29 @@ public class TaskService {
                 .toList();
 
         log.info("Task moved: {} from block {} to block {} by user: {}", taskId, oldBlockId, targetBlock.getId(), userId);
+
+        return TaskResponse.Detail.of(task, tags);
+    }
+
+    @Transactional
+    public TaskResponse.Detail updateTaskDates(String boardId, String taskId, String userId, TaskRequest.UpdateDates request) {
+        boardService.checkMemberOrAbove(boardId, userId);
+
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
+
+        if (!task.getBoard().getId().equals(boardId)) {
+            throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
+        }
+
+        task.updateDates(request.getStartDate(), request.getEndDate());
+
+        List<Tag> tags = taskTagRepository.findByTaskId(taskId).stream()
+                .map(TaskTag::getTag)
+                .toList();
+
+        log.info("Task dates updated: {} (start: {}, end: {}) by user: {}",
+                taskId, request.getStartDate(), request.getEndDate(), userId);
 
         return TaskResponse.Detail.of(task, tags);
     }

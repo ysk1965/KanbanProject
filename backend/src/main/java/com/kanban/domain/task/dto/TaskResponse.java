@@ -25,6 +25,7 @@ public class TaskResponse {
         private String blockName;
         private String title;
         private AssigneeInfo assignee;
+        private LocalDate startDate;
         private LocalDate dueDate;
         private Integer estimatedMinutes;
         private boolean completed;
@@ -43,6 +44,7 @@ public class TaskResponse {
                     .blockName(task.getBlock().getName())
                     .title(task.getTitle())
                     .assignee(task.getAssignee() != null ? AssigneeInfo.of(task) : null)
+                    .startDate(task.getStartDate())
                     .dueDate(task.getDueDate())
                     .estimatedMinutes(task.getEstimatedMinutes())
                     .completed(task.getIsCompleted())
@@ -67,6 +69,7 @@ public class TaskResponse {
         private String title;
         private String description;
         private AssigneeInfo assignee;
+        private LocalDate startDate;
         private LocalDate dueDate;
         private Integer estimatedMinutes;
         private boolean completed;
@@ -88,6 +91,7 @@ public class TaskResponse {
                     .title(task.getTitle())
                     .description(task.getDescription())
                     .assignee(task.getAssignee() != null ? AssigneeInfo.of(task) : null)
+                    .startDate(task.getStartDate())
                     .dueDate(task.getDueDate())
                     .estimatedMinutes(task.getEstimatedMinutes())
                     .completed(task.getIsCompleted())

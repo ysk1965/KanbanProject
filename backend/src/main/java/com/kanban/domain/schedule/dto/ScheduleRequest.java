@@ -76,5 +76,6 @@ public class ScheduleRequest {
     public static class UpdateSettings {
         private Integer workHoursPerDay;
         private LocalTime workStartTime;
+        private String scheduleDisplayMode;
     }
 }

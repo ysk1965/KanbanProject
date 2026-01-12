@@ -31,11 +31,13 @@ public class ScheduleResponse {
     public static class SettingsInfo {
         private Integer workHoursPerDay;
         private LocalTime workStartTime;
+        private String scheduleDisplayMode;
 
         public static SettingsInfo of(Board board) {
             return SettingsInfo.builder()
                     .workHoursPerDay(board.getWorkHoursPerDay())
                     .workStartTime(board.getWorkStartTime())
+                    .scheduleDisplayMode(board.getScheduleDisplayMode())
                     .build();
         }
     }

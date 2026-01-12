@@ -46,6 +46,9 @@ public class Task extends BaseTimeEntity {
     @JoinColumn(name = "assignee_id")
     private User assignee;
 
+    @Column(name = "start_date")
+    private LocalDate startDate;
+
     @Column(name = "due_date")
     private LocalDate dueDate;
 
@@ -74,11 +77,17 @@ public class Task extends BaseTimeEntity {
         }
     }
 
-    public void updateInfo(String title, String description, LocalDate dueDate, Integer estimatedMinutes) {
+    public void updateInfo(String title, String description, LocalDate startDate, LocalDate dueDate, Integer estimatedMinutes) {
         if (title != null) this.title = title;
         if (description != null) this.description = description;
+        this.startDate = startDate;
         this.dueDate = dueDate;
         this.estimatedMinutes = estimatedMinutes;
+    }
+
+    public void updateDates(LocalDate startDate, LocalDate dueDate) {
+        this.startDate = startDate;
+        this.dueDate = dueDate;
     }
 
     public void updateAssignee(User assignee) {

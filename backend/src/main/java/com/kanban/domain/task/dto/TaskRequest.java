@@ -21,6 +21,8 @@ public class TaskRequest {
 
         private String assigneeId;
 
+        private LocalDate startDate;
+
         private LocalDate dueDate;
 
         private Integer estimatedMinutes;
@@ -36,6 +38,8 @@ public class TaskRequest {
 
         private String assigneeId;
 
+        private LocalDate startDate;
+
         private LocalDate dueDate;
 
         private Integer estimatedMinutes;
@@ -48,5 +52,13 @@ public class TaskRequest {
         private String targetBlockId;
 
         private Integer position;
+    }
+
+    @Getter
+    @NoArgsConstructor
+    public static class UpdateDates {
+        private LocalDate startDate;
+
+        private LocalDate endDate;
     }
 }

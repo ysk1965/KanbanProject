@@ -25,4 +25,10 @@ public class BoardRequest {
 
         private String description;
     }
+
+    @Getter
+    @NoArgsConstructor
+    public static class UpdateSelectedMilestone {
+        private String milestoneId;
+    }
 }

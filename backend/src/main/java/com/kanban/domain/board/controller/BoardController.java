@@ -68,4 +68,14 @@ public class BoardController {
         BoardResponse.StarToggle response = boardService.toggleStar(boardId, principal.getUserId());
         return ResponseEntity.ok(response);
     }
+
+    @PatchMapping("/{boardId}/selected-milestone")
+    public ResponseEntity<BoardResponse.Detail> updateSelectedMilestone(
+            @PathVariable String boardId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestBody BoardRequest.UpdateSelectedMilestone request) {
+        BoardResponse.Detail response = boardService.updateSelectedMilestone(
+                boardId, principal.getUserId(), request.getMilestoneId());
+        return ResponseEntity.ok(response);
+    }
 }
