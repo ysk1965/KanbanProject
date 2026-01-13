@@ -42,10 +42,6 @@ public class Task extends BaseTimeEntity {
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "assignee_id")
-    private User assignee;
-
     @Column(name = "start_date")
     private LocalDate startDate;
 
@@ -88,10 +84,6 @@ public class Task extends BaseTimeEntity {
     public void updateDates(LocalDate startDate, LocalDate dueDate) {
         this.startDate = startDate;
         this.dueDate = dueDate;
-    }
-
-    public void updateAssignee(User assignee) {
-        this.assignee = assignee;
     }
 
     public void updatePosition(Integer position) {

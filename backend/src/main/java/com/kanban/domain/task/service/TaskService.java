@@ -121,12 +121,6 @@ public class TaskService {
         User creator = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        User assignee = null;
-        if (request.getAssigneeId() != null) {
-            assignee = userRepository.findById(request.getAssigneeId())
-                    .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        }
-
         Integer maxPosition = taskRepository.findMaxPositionByBlockId(taskBlock.getId());
         int newPosition = (maxPosition != null) ? maxPosition + 1 : 0;
 
@@ -136,7 +130,6 @@ public class TaskService {
                 .block(taskBlock)
                 .title(request.getTitle())
                 .description(request.getDescription())
-                .assignee(assignee)
                 .startDate(request.getStartDate())
                 .dueDate(request.getDueDate())
                 .estimatedMinutes(request.getEstimatedMinutes())
@@ -172,12 +165,6 @@ public class TaskService {
                 request.getDueDate(),
                 request.getEstimatedMinutes()
         );
-
-        if (request.getAssigneeId() != null) {
-            User assignee = userRepository.findById(request.getAssigneeId())
-                    .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-            task.updateAssignee(assignee);
-        }
 
         List<Tag> tags = taskTagRepository.findByTaskId(taskId).stream()
                 .map(TaskTag::getTag)

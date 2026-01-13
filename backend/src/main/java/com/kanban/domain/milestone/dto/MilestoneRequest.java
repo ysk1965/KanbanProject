@@ -61,4 +61,28 @@ public class MilestoneRequest {
         @NotNull(message = "Feature ID 목록은 필수입니다")
         private List<String> featureIds;
     }
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class CreateAllocation {
+        @NotBlank(message = "멤버 ID는 필수입니다")
+        private String memberId;
+
+        @NotNull(message = "참여 일수는 필수입니다")
+        private Integer workingDays;
+
+        @NotNull(message = "총 할당 시간은 필수입니다")
+        private Double totalAllocatedHours;
+    }
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class UpdateAllocation {
+        private Integer workingDays;
+        private Double totalAllocatedHours;
+    }
 }

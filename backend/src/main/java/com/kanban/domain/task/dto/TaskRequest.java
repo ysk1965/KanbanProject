@@ -19,8 +19,6 @@ public class TaskRequest {
 
         private String description;
 
-        private String assigneeId;
-
         private LocalDate startDate;
 
         private LocalDate dueDate;
@@ -35,8 +33,6 @@ public class TaskRequest {
         private String title;
 
         private String description;
-
-        private String assigneeId;
 
         private LocalDate startDate;
 

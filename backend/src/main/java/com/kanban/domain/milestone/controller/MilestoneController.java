@@ -85,4 +85,48 @@ public class MilestoneController {
         milestoneService.removeFeature(boardId, milestoneId, featureId, userPrincipal.getUserId());
         return ResponseEntity.ok().build();
     }
+
+    // ==================== Allocation Endpoints ====================
+
+    @GetMapping("/{milestoneId}/allocations")
+    public ResponseEntity<MilestoneResponse.AllocationListResponse> getAllocations(
+            @PathVariable String boardId,
+            @PathVariable String milestoneId,
+            @AuthenticationPrincipal UserPrincipal userPrincipal
+    ) {
+        return ResponseEntity.ok(milestoneService.getAllocations(boardId, milestoneId, userPrincipal.getUserId()));
+    }
+
+    @PostMapping("/{milestoneId}/allocations")
+    public ResponseEntity<MilestoneResponse.AllocationDto> createAllocation(
+            @PathVariable String boardId,
+            @PathVariable String milestoneId,
+            @Valid @RequestBody MilestoneRequest.CreateAllocation request,
+            @AuthenticationPrincipal UserPrincipal userPrincipal
+    ) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(milestoneService.createAllocation(boardId, milestoneId, userPrincipal.getUserId(), request));
+    }
+
+    @PutMapping("/{milestoneId}/allocations/{allocationId}")
+    public ResponseEntity<MilestoneResponse.AllocationDto> updateAllocation(
+            @PathVariable String boardId,
+            @PathVariable String milestoneId,
+            @PathVariable String allocationId,
+            @Valid @RequestBody MilestoneRequest.UpdateAllocation request,
+            @AuthenticationPrincipal UserPrincipal userPrincipal
+    ) {
+        return ResponseEntity.ok(milestoneService.updateAllocation(boardId, milestoneId, allocationId, userPrincipal.getUserId(), request));
+    }
+
+    @DeleteMapping("/{milestoneId}/allocations/{allocationId}")
+    public ResponseEntity<Void> deleteAllocation(
+            @PathVariable String boardId,
+            @PathVariable String milestoneId,
+            @PathVariable String allocationId,
+            @AuthenticationPrincipal UserPrincipal userPrincipal
+    ) {
+        milestoneService.deleteAllocation(boardId, milestoneId, allocationId, userPrincipal.getUserId());
+        return ResponseEntity.ok().build();
+    }
 }

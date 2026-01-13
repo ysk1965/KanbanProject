@@ -24,7 +24,6 @@ public class TaskResponse {
         private String blockId;
         private String blockName;
         private String title;
-        private AssigneeInfo assignee;
         private LocalDate startDate;
         private LocalDate dueDate;
         private Integer estimatedMinutes;
@@ -43,7 +42,6 @@ public class TaskResponse {
                     .blockId(task.getBlock().getId())
                     .blockName(task.getBlock().getName())
                     .title(task.getTitle())
-                    .assignee(task.getAssignee() != null ? AssigneeInfo.of(task) : null)
                     .startDate(task.getStartDate())
                     .dueDate(task.getDueDate())
                     .estimatedMinutes(task.getEstimatedMinutes())
@@ -68,7 +66,6 @@ public class TaskResponse {
         private String blockName;
         private String title;
         private String description;
-        private AssigneeInfo assignee;
         private LocalDate startDate;
         private LocalDate dueDate;
         private Integer estimatedMinutes;
@@ -90,7 +87,6 @@ public class TaskResponse {
                     .blockName(task.getBlock().getName())
                     .title(task.getTitle())
                     .description(task.getDescription())
-                    .assignee(task.getAssignee() != null ? AssigneeInfo.of(task) : null)
                     .startDate(task.getStartDate())
                     .dueDate(task.getDueDate())
                     .estimatedMinutes(task.getEstimatedMinutes())
@@ -101,25 +97,6 @@ public class TaskResponse {
                     .createdAt(task.getCreatedAt())
                     .updatedAt(task.getUpdatedAt())
                     .completedAt(task.getCompletedAt())
-                    .build();
-        }
-    }
-
-    @Getter
-    @Builder
-    @AllArgsConstructor
-    public static class AssigneeInfo {
-        private String id;
-        private String name;
-        private String email;
-        private String profileImage;
-
-        public static AssigneeInfo of(Task task) {
-            return AssigneeInfo.builder()
-                    .id(task.getAssignee().getId())
-                    .name(task.getAssignee().getName())
-                    .email(task.getAssignee().getEmail())
-                    .profileImage(task.getAssignee().getProfileImage())
                     .build();
         }
     }

@@ -41,10 +41,17 @@ public class Milestone extends BaseTimeEntity {
     @JoinColumn(name = "created_by", nullable = false)
     private User createdBy;
 
+    @Column(name = "default_hours_per_day")
+    @Builder.Default
+    private Double defaultHoursPerDay = 6.0;
+
     @PrePersist
     public void prePersist() {
         if (this.id == null) {
             this.id = UUID.randomUUID().toString();
+        }
+        if (this.defaultHoursPerDay == null) {
+            this.defaultHoursPerDay = 6.0;
         }
     }
 
@@ -60,6 +67,12 @@ public class Milestone extends BaseTimeEntity {
         }
         if (endDate != null) {
             this.endDate = endDate;
+        }
+    }
+
+    public void updateDefaultHoursPerDay(Double defaultHoursPerDay) {
+        if (defaultHoursPerDay != null) {
+            this.defaultHoursPerDay = defaultHoursPerDay;
         }
     }
 }

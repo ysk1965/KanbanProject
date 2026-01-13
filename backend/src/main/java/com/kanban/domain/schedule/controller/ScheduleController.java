@@ -92,4 +92,14 @@ public class ScheduleController {
                 boardId, principal.getUserId(), request);
         return ResponseEntity.ok(response);
     }
+
+    @GetMapping("/checklist-item/{checklistItemId}")
+    public ResponseEntity<List<ScheduleResponse.BlockDetail>> getSchedulesByChecklistItem(
+            @PathVariable String boardId,
+            @PathVariable String checklistItemId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        List<ScheduleResponse.BlockDetail> response = scheduleService.getSchedulesByChecklistItem(
+                boardId, checklistItemId, principal.getUserId());
+        return ResponseEntity.ok(response);
+    }
 }

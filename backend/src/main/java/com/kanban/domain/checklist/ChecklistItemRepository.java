@@ -1,10 +1,10 @@
 package com.kanban.domain.checklist;
 
-import com.kanban.domain.schedule.ScheduleBlock;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface ChecklistItemRepository extends JpaRepository<ChecklistItem, String> {
@@ -35,4 +35,47 @@ public interface ChecklistItemRepository extends JpaRepository<ChecklistItem, St
            "(SELECT sb.checklistItem.id FROM ScheduleBlock sb WHERE sb.checklistItem IS NOT NULL) " +
            "ORDER BY c.task.id, c.position")
     List<ChecklistItem> findUnscheduledByBoardIdAndAssigneeId(@Param("boardId") String boardId, @Param("assigneeId") String assigneeId);
+
+    // ==================== Management Statistics Queries ====================
+
+    /**
+     * 막힌 체크리스트 조회: N일 이상 미완료 상태인 체크리스트
+     * createdAt이 thresholdDate 이전이고 미완료인 ChecklistItem
+     */
+    @Query("SELECT c FROM ChecklistItem c WHERE c.task.board.id = :boardId " +
+           "AND c.isCompleted = false " +
+           "AND c.createdAt < :thresholdDate " +
+           "ORDER BY c.createdAt ASC")
+    List<ChecklistItem> findStuckChecklists(@Param("boardId") String boardId,
+                                             @Param("thresholdDate") LocalDateTime thresholdDate);
+
+    /**
+     * 특정 담당자의 막힌 체크리스트 조회
+     */
+    @Query("SELECT c FROM ChecklistItem c WHERE c.task.board.id = :boardId " +
+           "AND c.assignee.id = :assigneeId " +
+           "AND c.isCompleted = false " +
+           "AND c.createdAt < :thresholdDate " +
+           "ORDER BY c.createdAt ASC")
+    List<ChecklistItem> findStuckChecklistsByAssignee(@Param("boardId") String boardId,
+                                                       @Param("assigneeId") String assigneeId,
+                                                       @Param("thresholdDate") LocalDateTime thresholdDate);
+
+    /**
+     * 특정 Task의 체크리스트 완료 현황
+     */
+    @Query("SELECT COUNT(c) FROM ChecklistItem c WHERE c.task.id = :taskId AND c.isCompleted = true")
+    int countCompletedByTaskId(@Param("taskId") String taskId);
+
+    /**
+     * 특정 담당자의 보드 내 전체 체크리스트 수
+     */
+    @Query("SELECT COUNT(c) FROM ChecklistItem c WHERE c.task.board.id = :boardId AND c.assignee.id = :assigneeId")
+    int countByBoardIdAndAssigneeId(@Param("boardId") String boardId, @Param("assigneeId") String assigneeId);
+
+    /**
+     * 특정 담당자의 보드 내 완료 체크리스트 수
+     */
+    @Query("SELECT COUNT(c) FROM ChecklistItem c WHERE c.task.board.id = :boardId AND c.assignee.id = :assigneeId AND c.isCompleted = true")
+    int countCompletedByBoardIdAndAssigneeId(@Param("boardId") String boardId, @Param("assigneeId") String assigneeId);
 }

@@ -27,4 +27,56 @@ public interface ScheduleBlockRepository extends JpaRepository<ScheduleBlock, St
             @Param("boardId") String boardId,
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate);
+
+    // ==================== Management Statistics Queries ====================
+
+    /**
+     * 보드의 모든 ScheduleBlock 조회 (ChecklistItem 연결된 것만)
+     */
+    @Query("SELECT sb FROM ScheduleBlock sb " +
+           "WHERE sb.board.id = :boardId " +
+           "AND sb.checklistItem IS NOT NULL " +
+           "ORDER BY sb.scheduledDate")
+    List<ScheduleBlock> findAllWithChecklistByBoardId(@Param("boardId") String boardId);
+
+    /**
+     * 특정 Task의 ChecklistItem에 연결된 모든 ScheduleBlock 조회
+     */
+    @Query("SELECT sb FROM ScheduleBlock sb " +
+           "WHERE sb.checklistItem.task.id = :taskId " +
+           "ORDER BY sb.scheduledDate")
+    List<ScheduleBlock> findByTaskId(@Param("taskId") String taskId);
+
+    /**
+     * 특정 Feature의 Task들에 연결된 모든 ScheduleBlock 조회
+     */
+    @Query("SELECT sb FROM ScheduleBlock sb " +
+           "WHERE sb.checklistItem.task.feature.id = :featureId " +
+           "ORDER BY sb.scheduledDate")
+    List<ScheduleBlock> findByFeatureId(@Param("featureId") String featureId);
+
+    /**
+     * 특정 사용자가 수행한 모든 ScheduleBlock 조회 (보드 내)
+     */
+    @Query("SELECT sb FROM ScheduleBlock sb " +
+           "WHERE sb.board.id = :boardId " +
+           "AND sb.assignee.id = :userId " +
+           "AND sb.checklistItem IS NOT NULL " +
+           "ORDER BY sb.scheduledDate")
+    List<ScheduleBlock> findByBoardIdAndAssigneeId(
+            @Param("boardId") String boardId,
+            @Param("userId") String userId);
+
+    /**
+     * 특정 기간 내 완료된 ScheduleBlock 조회 (보드 내)
+     */
+    @Query("SELECT sb FROM ScheduleBlock sb " +
+           "WHERE sb.board.id = :boardId " +
+           "AND sb.checklistItem IS NOT NULL " +
+           "AND sb.scheduledDate BETWEEN :startDate AND :endDate " +
+           "ORDER BY sb.scheduledDate")
+    List<ScheduleBlock> findCompletedBlocksBetween(
+            @Param("boardId") String boardId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
 }

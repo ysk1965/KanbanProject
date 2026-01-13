@@ -5,6 +5,7 @@ import com.kanban.domain.board.BoardMember;
 import com.kanban.domain.board.BoardMemberRepository;
 import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.checklist.ChecklistItem;
+import com.kanban.domain.checklist.ChecklistItemRepository;
 import com.kanban.domain.feature.Feature;
 import com.kanban.domain.feature.FeatureRepository;
 import com.kanban.domain.milestone.MilestoneFeatureRepository;
@@ -45,6 +46,7 @@ public class StatisticsService {
     private final WeightLevelRepository weightLevelRepository;
     private final TaskWeightRepository taskWeightRepository;
     private final MilestoneFeatureRepository milestoneFeatureRepository;
+    private final ChecklistItemRepository checklistItemRepository;
 
     public StatisticsResponse.BoardStatistics getBoardStatistics(
             String boardId,
@@ -187,9 +189,11 @@ public class StatisticsService {
                 .filter(sb -> sb.getAssignee() != null && sb.getAssignee().getId().equals(userId))
                 .collect(Collectors.toList());
 
-        // 본인의 Task만
+        // v7.0: Task.assignee 제거 - ChecklistItem assignee 기준으로 Task 조회
+        // 본인이 담당한 ChecklistItem이 있는 Task 조회
         List<Task> myTasks = taskRepository.findByBoardIdOrderByPositionAsc(boardId).stream()
-                .filter(t -> t.getAssignee() != null && t.getAssignee().getId().equals(userId))
+                .filter(t -> checklistItemRepository.findByTaskIdOrderByPositionAsc(t.getId()).stream()
+                        .anyMatch(ci -> ci.getAssignee() != null && ci.getAssignee().getId().equals(userId)))
                 .collect(Collectors.toList());
 
         // Summary
@@ -351,9 +355,20 @@ public class StatisticsService {
                 .filter(sb -> sb.getAssignee() != null)
                 .collect(Collectors.groupingBy(sb -> sb.getAssignee().getId()));
 
-        Map<String, List<Task>> tasksByMember = tasks.stream()
-                .filter(t -> t.getAssignee() != null)
-                .collect(Collectors.groupingBy(t -> t.getAssignee().getId()));
+        // v7.0: Task.assignee 제거 - ChecklistItem assignee 기준으로 Task 그룹화
+        Map<String, List<Task>> tasksByMember = new HashMap<>();
+        for (Task t : tasks) {
+            List<ChecklistItem> items = checklistItemRepository.findByTaskIdOrderByPositionAsc(t.getId());
+            for (ChecklistItem ci : items) {
+                if (ci.getAssignee() != null) {
+                    String memberId = ci.getAssignee().getId();
+                    tasksByMember.computeIfAbsent(memberId, k -> new ArrayList<>());
+                    if (!tasksByMember.get(memberId).contains(t)) {
+                        tasksByMember.get(memberId).add(t);
+                    }
+                }
+            }
+        }
 
         return memberMap.entrySet().stream()
                 .map(entry -> {

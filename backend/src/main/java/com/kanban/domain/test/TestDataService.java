@@ -427,7 +427,7 @@ public class TestDataService {
                         .block(block)
                         .title(feature.getTitle() + " - " + templates[ti])
                         .description(templates[ti] + " 관련 작업")
-                        .assignee(members.get((fi + ti) % members.size()))
+                        // v7.0: Task.assignee 제거 - ChecklistItem에서 담당자 설정
                         .position(taskPosition++)
                         .startDate(LocalDate.now().minusDays(random.nextInt(14)))
                         .dueDate(LocalDate.now().plusDays(ti + 1))

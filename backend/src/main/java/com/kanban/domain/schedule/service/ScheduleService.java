@@ -219,4 +219,25 @@ public class ScheduleService {
 
         return ScheduleResponse.SettingsInfo.of(board);
     }
+
+    /**
+     * 체크리스트 아이템에 연결된 스케줄 블록 조회
+     */
+    public List<ScheduleResponse.BlockDetail> getSchedulesByChecklistItem(String boardId, String checklistItemId, String userId) {
+        boardService.checkViewerOrAbove(boardId, userId);
+
+        ChecklistItem checklistItem = checklistItemRepository.findById(checklistItemId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.CHECKLIST_ITEM_NOT_FOUND));
+
+        // 보드 소속 검증
+        if (!checklistItem.getTask().getBoard().getId().equals(boardId)) {
+            throw new BusinessException(ErrorCode.CHECKLIST_ITEM_NOT_FOUND);
+        }
+
+        List<ScheduleBlock> blocks = scheduleBlockRepository.findByChecklistItemId(checklistItemId);
+
+        return blocks.stream()
+                .map(ScheduleResponse.BlockDetail::of)
+                .collect(Collectors.toList());
+    }
 }

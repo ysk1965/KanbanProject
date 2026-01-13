@@ -5,6 +5,7 @@ import com.kanban.domain.checklist.ChecklistItem;
 import com.kanban.domain.checklist.ChecklistItemRepository;
 import com.kanban.domain.checklist.dto.ChecklistRequest;
 import com.kanban.domain.checklist.dto.ChecklistResponse;
+import com.kanban.domain.schedule.ScheduleBlockRepository;
 import com.kanban.domain.task.Task;
 import com.kanban.domain.task.TaskRepository;
 import com.kanban.domain.user.User;
@@ -28,6 +29,7 @@ public class ChecklistService {
     private final TaskRepository taskRepository;
     private final UserRepository userRepository;
     private final BoardService boardService;
+    private final ScheduleBlockRepository scheduleBlockRepository;
 
     public ChecklistResponse.ListResponse getChecklist(String boardId, String taskId, String userId) {
         boardService.checkViewerOrAbove(boardId, userId);
@@ -127,6 +129,9 @@ public class ChecklistService {
         if (!item.getTask().getId().equals(taskId)) {
             throw new BusinessException(ErrorCode.CHECKLIST_ITEM_NOT_FOUND);
         }
+
+        // 연관된 스케줄 블록 먼저 삭제
+        scheduleBlockRepository.deleteByChecklistItemId(itemId);
 
         checklistItemRepository.delete(item);
 
