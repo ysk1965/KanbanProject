@@ -27,6 +27,8 @@ import java.util.List;
 @Transactional(readOnly = true)
 public class BoardService {
 
+    private static final int MEMBER_PREVIEW_LIMIT = 10;
+
     private final BoardRepository boardRepository;
     private final BoardMemberRepository boardMemberRepository;
     private final UserBoardStarRepository userBoardStarRepository;
@@ -82,7 +84,6 @@ public class BoardService {
         List<BoardResponse.Simple> result = new ArrayList<>();
 
         // 내가 멤버인 모든 보드 조회
-        List<BoardMember> memberships = boardMemberRepository.findByBoardId(userId);
         List<Board> boards = boardRepository.findByMemberId(userId);
 
         for (Board board : boards) {
@@ -94,7 +95,20 @@ public class BoardService {
             int memberCount = boardMemberRepository.countBillableMembers(board.getId());
             Subscription subscription = subscriptionRepository.findByBoardId(board.getId()).orElse(null);
 
-            result.add(BoardResponse.Simple.of(board, membership.getRole(), isStarred, memberCount, subscription));
+            // 태스크 통계
+            int taskCount = taskRepository.countByBoardId(board.getId());
+            int completedTasks = taskRepository.countByBoardIdAndIsCompletedTrue(board.getId());
+
+            // 멤버 미리보기 (최대 10명)
+            List<BoardMember> previewMembers = boardMemberRepository.findTopMembersByBoardId(
+                    board.getId(), MEMBER_PREVIEW_LIMIT);
+            List<BoardResponse.MemberPreview> memberPreviews = previewMembers.stream()
+                    .map(BoardResponse.MemberPreview::of)
+                    .toList();
+
+            result.add(BoardResponse.Simple.of(
+                    board, membership.getRole(), isStarred, memberCount,
+                    taskCount, completedTasks, memberPreviews, subscription));
         }
 
         return result;

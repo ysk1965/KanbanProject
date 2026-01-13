@@ -19,4 +19,10 @@ public interface BoardMemberRepository extends JpaRepository<BoardMember, String
     int countBillableMembers(@Param("boardId") String boardId);
 
     void deleteByBoardIdAndUserId(String boardId, String userId);
+
+    /**
+     * 보드의 멤버를 최대 limit명까지 가입일 순으로 조회 (대시보드 미리보기용)
+     */
+    @Query("SELECT bm FROM BoardMember bm WHERE bm.board.id = :boardId ORDER BY bm.joinedAt ASC LIMIT :limit")
+    List<BoardMember> findTopMembersByBoardId(@Param("boardId") String boardId, @Param("limit") int limit);
 }

@@ -1,6 +1,7 @@
 package com.kanban.domain.board.dto;
 
 import com.kanban.domain.board.Board;
+import com.kanban.domain.board.BoardMember;
 import com.kanban.domain.board.BoardTier;
 import com.kanban.domain.board.Role;
 import com.kanban.domain.subscription.Subscription;
@@ -11,6 +12,7 @@ import lombok.Getter;
 
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.List;
 
 public class BoardResponse {
 
@@ -24,10 +26,15 @@ public class BoardResponse {
         private Role role;
         private boolean isStarred;
         private int memberCount;
+        private int taskCount;
+        private int completedTasks;
+        private List<MemberPreview> members;
         private SubscriptionInfo subscription;
         private LocalDateTime createdAt;
 
-        public static Simple of(Board board, Role role, boolean isStarred, int memberCount, Subscription subscription) {
+        public static Simple of(Board board, Role role, boolean isStarred, int memberCount,
+                                int taskCount, int completedTasks, List<MemberPreview> members,
+                                Subscription subscription) {
             return Simple.builder()
                     .id(board.getId())
                     .name(board.getName())
@@ -35,8 +42,28 @@ public class BoardResponse {
                     .role(role)
                     .isStarred(isStarred)
                     .memberCount(memberCount)
+                    .taskCount(taskCount)
+                    .completedTasks(completedTasks)
+                    .members(members)
                     .subscription(subscription != null ? SubscriptionInfo.of(subscription) : null)
                     .createdAt(board.getCreatedAt())
+                    .build();
+        }
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class MemberPreview {
+        private String id;
+        private String name;
+        private String profileImage;
+
+        public static MemberPreview of(BoardMember boardMember) {
+            return MemberPreview.builder()
+                    .id(boardMember.getUser().getId())
+                    .name(boardMember.getUser().getName())
+                    .profileImage(boardMember.getUser().getProfileImage())
                     .build();
         }
     }
