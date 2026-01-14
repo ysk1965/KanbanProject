@@ -388,23 +388,60 @@ public class StatisticsService {
                     Map<String, Feature> featureMap = features.stream()
                             .collect(Collectors.toMap(Feature::getId, f -> f, (a, b) -> a));
 
+                    // Feature 내 Task별 시간 계산을 위한 맵: featureId -> (taskId -> minutes)
+                    Map<String, Map<String, Long>> featureTaskMinutes = new HashMap<>();
+                    // Task 정보 저장: taskId -> Task
+                    Map<String, Task> taskInfoMap = new HashMap<>();
+
                     for (ScheduleBlock block : memberBlocks) {
                         if (block.getChecklistItem() != null && block.getChecklistItem().getTask() != null) {
                             Task task = block.getChecklistItem().getTask();
                             if (task.getFeature() != null) {
-                                featureMinutes.merge(task.getFeature().getId(), getBlockMinutes(block), Long::sum);
+                                String featureId = task.getFeature().getId();
+                                long blockMinutes = getBlockMinutes(block);
+
+                                featureMinutes.merge(featureId, blockMinutes, Long::sum);
+
+                                // Task별 시간 누적
+                                featureTaskMinutes.computeIfAbsent(featureId, k -> new HashMap<>());
+                                featureTaskMinutes.get(featureId).merge(task.getId(), blockMinutes, Long::sum);
+                                taskInfoMap.put(task.getId(), task);
                             }
                         }
                     }
 
                     List<StatisticsResponse.FeatureTime> byFeature = featureMinutes.entrySet().stream()
                             .map(fe -> {
-                                Feature f = featureMap.get(fe.getKey());
+                                String featureId = fe.getKey();
+                                Feature f = featureMap.get(featureId);
+                                long featureTotalMinutes = fe.getValue();
+
+                                // 해당 Feature 내 Task별 시간 리스트 생성
+                                Map<String, Long> taskMinutesMap = featureTaskMinutes.getOrDefault(featureId, Collections.emptyMap());
+                                List<StatisticsResponse.FeatureTaskTime> taskTimes = taskMinutesMap.entrySet().stream()
+                                        .map(te -> {
+                                            String taskId = te.getKey();
+                                            long taskMinutes = te.getValue();
+                                            Task t = taskInfoMap.get(taskId);
+                                            double percentage = featureTotalMinutes > 0
+                                                    ? (double) taskMinutes / featureTotalMinutes * 100
+                                                    : 0;
+                                            return StatisticsResponse.FeatureTaskTime.builder()
+                                                    .task_id(taskId)
+                                                    .task_title(t != null ? t.getTitle() : "Unknown")
+                                                    .minutes(taskMinutes)
+                                                    .percentage(Math.round(percentage * 100.0) / 100.0)
+                                                    .build();
+                                        })
+                                        .sorted((a, b) -> Long.compare(b.getMinutes(), a.getMinutes()))
+                                        .collect(Collectors.toList());
+
                                 return StatisticsResponse.FeatureTime.builder()
-                                        .feature_id(fe.getKey())
+                                        .feature_id(featureId)
                                         .feature_title(f != null ? f.getTitle() : "Unknown")
                                         .feature_color(f != null ? f.getColor() : "#6366f1")
-                                        .minutes(fe.getValue())
+                                        .minutes(featureTotalMinutes)
+                                        .tasks(taskTimes)
                                         .build();
                             })
                             .sorted((a, b) -> Long.compare(b.getMinutes(), a.getMinutes()))

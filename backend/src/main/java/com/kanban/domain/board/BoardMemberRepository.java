@@ -25,4 +25,6 @@ public interface BoardMemberRepository extends JpaRepository<BoardMember, String
      */
     @Query("SELECT bm FROM BoardMember bm WHERE bm.board.id = :boardId ORDER BY bm.joinedAt ASC LIMIT :limit")
     List<BoardMember> findTopMembersByBoardId(@Param("boardId") String boardId, @Param("limit") int limit);
+
+    long countByBoardId(String boardId);
 }

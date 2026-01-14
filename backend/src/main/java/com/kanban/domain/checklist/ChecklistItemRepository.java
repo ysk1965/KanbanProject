@@ -78,4 +78,10 @@ public interface ChecklistItemRepository extends JpaRepository<ChecklistItem, St
      */
     @Query("SELECT COUNT(c) FROM ChecklistItem c WHERE c.task.board.id = :boardId AND c.assignee.id = :assigneeId AND c.isCompleted = true")
     int countCompletedByBoardIdAndAssigneeId(@Param("boardId") String boardId, @Param("assigneeId") String assigneeId);
+
+    /**
+     * 보드 내 전체 체크리스트 수
+     */
+    @Query("SELECT COUNT(c) FROM ChecklistItem c WHERE c.task.board.id = :boardId")
+    long countByTaskBoardId(@Param("boardId") String boardId);
 }

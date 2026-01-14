@@ -79,4 +79,6 @@ public interface ScheduleBlockRepository extends JpaRepository<ScheduleBlock, St
             @Param("boardId") String boardId,
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate);
+
+    long countByBoardId(String boardId);
 }

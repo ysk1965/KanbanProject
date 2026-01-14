@@ -40,6 +40,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
 
@@ -63,21 +64,79 @@ public class TestDataService {
 
     private final Random random = new Random();
 
+    private static final String SHARED_TEST_BOARD_NAME = "BRIDGE SPOTS Example";
+
     @Transactional
     public TestDataResponse createTestBoard(String userId) {
-        User owner = userRepository.findById(userId)
+        User currentUser = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
+        // 공용 테스트 보드가 이미 있는지 확인
+        Optional<Board> existingBoard = boardRepository.findByName(SHARED_TEST_BOARD_NAME);
+
+        if (existingBoard.isPresent()) {
+            return joinExistingTestBoard(existingBoard.get(), currentUser);
+        } else {
+            return createNewTestBoard(currentUser);
+        }
+    }
+
+    /**
+     * 기존 공용 테스트 보드에 멤버로 참여
+     */
+    private TestDataResponse joinExistingTestBoard(Board board, User user) {
+        // 이미 멤버인지 확인
+        boolean isMember = boardMemberRepository.existsByBoardIdAndUserId(board.getId(), user.getId());
+
+        if (!isMember) {
+            // 멤버로 추가
+            BoardMember newMember = BoardMember.builder()
+                    .board(board)
+                    .user(user)
+                    .role(Role.MEMBER)
+                    .invitedBy(board.getOwner())
+                    .build();
+            boardMemberRepository.saveAndFlush(newMember);
+            log.info("Added user {} as member to shared test board {}", user.getId(), board.getId());
+        }
+
+        // 현재 보드 통계 조회
+        long memberCount = boardMemberRepository.countByBoardId(board.getId());
+        long featureCount = featureRepository.countByBoardId(board.getId());
+        long taskCount = taskRepository.countByBoardId(board.getId());
+        long checklistCount = checklistItemRepository.countByTaskBoardId(board.getId());
+        long scheduleCount = scheduleBlockRepository.countByBoardId(board.getId());
+
+        String message = isMember
+                ? "이미 테스트 보드의 멤버입니다. 보드로 이동합니다."
+                : "테스트 보드에 멤버로 추가되었습니다!";
+
+        return TestDataResponse.builder()
+                .boardId(board.getId())
+                .boardName(board.getName())
+                .memberCount((int) memberCount)
+                .featureCount((int) featureCount)
+                .taskCount((int) taskCount)
+                .checklistItemCount((int) checklistCount)
+                .scheduleBlockCount((int) scheduleCount)
+                .message(message)
+                .build();
+    }
+
+    /**
+     * 새 공용 테스트 보드 생성 (최초 1회만 실행됨)
+     */
+    private TestDataResponse createNewTestBoard(User owner) {
         // 1. 테스트 보드 생성
         Board board = Board.builder()
-                .name("BRIDGE 개발 프로젝트")
-                .description("팀 협업 및 통계 기능을 테스트하기 위한 프로젝트 보드입니다.")
+                .name(SHARED_TEST_BOARD_NAME)
+                .description("팀 협업 및 통계 기능을 테스트하기 위한 공용 프로젝트 보드입니다. 모든 유저가 접근할 수 있습니다.")
                 .owner(owner)
                 .workHoursPerDay(8)
                 .workStartTime(LocalTime.of(9, 0))
                 .build();
         boardRepository.saveAndFlush(board);
-        log.info("Created test board: {}", board.getId());
+        log.info("Created shared test board: {}", board.getId());
 
         // 2. Premium 구독 생성
         createPremiumSubscription(board);
@@ -138,7 +197,7 @@ public class TestDataService {
                 .taskCount(tasks.size())
                 .checklistItemCount(checklistItems.size())
                 .scheduleBlockCount(scheduleBlocks.size())
-                .message("테스트 보드가 성공적으로 생성되었습니다! (Premium 활성화, 마일스톤 " + milestones.size() + "개 포함)")
+                .message("공용 테스트 보드가 성공적으로 생성되었습니다! (Premium 활성화, 마일스톤 " + milestones.size() + "개 포함)")
                 .build();
     }
 
@@ -277,23 +336,23 @@ public class TestDataService {
         List<Milestone> milestones = new ArrayList<>();
         LocalDate today = LocalDate.now();
 
-        // 마일스톤 1: 완료된 마일스톤
+        // 마일스톤 1: 완료된 마일스톤 (100% 달성)
         Milestone milestone1 = Milestone.builder()
                 .board(board)
-                .title("Sprint 1 - MVP 기능")
-                .description("핵심 MVP 기능 개발")
-                .startDate(today.minusDays(30))
-                .endDate(today.minusDays(15))
+                .title("Sprint 1 - MVP 완료")
+                .description("핵심 MVP 기능 개발 완료. 사용자 인증, 기본 대시보드, 칸반 보드 구현")
+                .startDate(today.minusDays(45))
+                .endDate(today.minusDays(25))
                 .createdBy(createdBy)
                 .build();
         milestoneRepository.saveAndFlush(milestone1);
         milestones.add(milestone1);
 
-        // 마일스톤 2: 진행 중인 마일스톤
+        // 마일스톤 2: 순조롭게 진행 중 (ON_TRACK - 70% 완료, 7일 남음)
         Milestone milestone2 = Milestone.builder()
                 .board(board)
                 .title("Sprint 2 - 협업 기능")
-                .description("팀 협업 및 실시간 기능 개발")
+                .description("팀 협업 및 실시간 알림 기능 개발. 댓글, 멘션, 실시간 업데이트")
                 .startDate(today.minusDays(14))
                 .endDate(today.plusDays(7))
                 .createdBy(createdBy)
@@ -301,17 +360,41 @@ public class TestDataService {
         milestoneRepository.saveAndFlush(milestone2);
         milestones.add(milestone2);
 
-        // 마일스톤 3: 예정된 마일스톤
+        // 마일스톤 3: 위험 상태 (AT_RISK - 30% 완료, 3일 남음)
         Milestone milestone3 = Milestone.builder()
                 .board(board)
-                .title("Sprint 3 - 통계 및 분석")
-                .description("통계 대시보드 및 생산성 분석 기능")
-                .startDate(today.plusDays(8))
-                .endDate(today.plusDays(21))
+                .title("Sprint 3 - 스케줄 관리")
+                .description("일일/주간 스케줄 뷰 및 타임블록 기능. 드래그앤드롭 스케줄링")
+                .startDate(today.minusDays(10))
+                .endDate(today.plusDays(3))
                 .createdBy(createdBy)
                 .build();
         milestoneRepository.saveAndFlush(milestone3);
         milestones.add(milestone3);
+
+        // 마일스톤 4: 지연됨 (OVERDUE - 50% 완료, 마감 2일 초과)
+        Milestone milestone4 = Milestone.builder()
+                .board(board)
+                .title("Sprint 4 - 통계 대시보드")
+                .description("생산성 분석 및 차트 시각화. 팀/개인 통계, 번다운 차트")
+                .startDate(today.minusDays(21))
+                .endDate(today.minusDays(2))
+                .createdBy(createdBy)
+                .build();
+        milestoneRepository.saveAndFlush(milestone4);
+        milestones.add(milestone4);
+
+        // 마일스톤 5: 예정된 마일스톤
+        Milestone milestone5 = Milestone.builder()
+                .board(board)
+                .title("Sprint 5 - 고급 기능")
+                .description("마일스톤 관리, 설정 페이지, 알림 시스템 고도화")
+                .startDate(today.plusDays(8))
+                .endDate(today.plusDays(28))
+                .createdBy(createdBy)
+                .build();
+        milestoneRepository.saveAndFlush(milestone5);
+        milestones.add(milestone5);
 
         log.info("Created {} milestones", milestones.size());
         return milestones;
@@ -319,16 +402,36 @@ public class TestDataService {
 
     private List<Feature> createFeatures(Board board, User createdBy, List<User> members, List<Tag> tags) {
         List<Feature> features = new ArrayList<>();
+        LocalDate today = LocalDate.now();
+
+        // Feature 데이터: title, description, color, priority, dueDate offset, milestone index
+        // Milestone 1 (완료됨): Feature 0-2 (100% 완료)
+        // Milestone 2 (ON_TRACK): Feature 3-4 (70% 완료)
+        // Milestone 3 (AT_RISK): Feature 5-6 (30% 완료)
+        // Milestone 4 (OVERDUE): Feature 7-8 (50% 완료)
+        // Milestone 5 (예정): Feature 9-10 (0% 완료)
 
         Object[][] featureData = {
-                {"사용자 인증 시스템", "로그인, 회원가입, OAuth 연동 구현", "#3b82f6", 0, "HIGH"},
-                {"대시보드 UI", "메인 대시보드 화면 및 위젯 개발", "#10b981", 1, "MEDIUM"},
-                {"칸반 보드", "드래그앤드롭 칸반 보드 구현", "#8b5cf6", 2, "HIGH"},
-                {"스케줄 관리", "일일/주간 스케줄 뷰 및 타임블록", "#f59e0b", 3, "MEDIUM"},
-                {"팀 협업 기능", "실시간 알림 및 댓글 시스템", "#ec4899", 4, "LOW"},
-                {"통계 대시보드", "생산성 분석 및 차트 시각화", "#6366f1", 5, "HIGH"},
-                {"마일스톤 관리", "프로젝트 마일스톤 및 진행률 추적", "#14b8a6", 6, "MEDIUM"},
-                {"설정 페이지", "사용자 설정 및 알림 관리", "#64748b", 7, "LOW"}
+                // Sprint 1 - 완료된 Feature들
+                {"사용자 인증 시스템", "로그인, 회원가입, OAuth 연동 구현", "#3b82f6", "HIGH", -30},
+                {"기본 대시보드", "메인 대시보드 화면 및 보드 목록", "#10b981", "HIGH", -28},
+                {"칸반 보드 기본", "드래그앤드롭 칸반 보드 기본 구현", "#8b5cf6", "HIGH", -26},
+
+                // Sprint 2 - 진행 중 (ON_TRACK)
+                {"실시간 알림", "웹소켓 기반 실시간 알림 시스템", "#ec4899", "MEDIUM", 5},
+                {"댓글 시스템", "태스크/피처 댓글 및 멘션 기능", "#f472b6", "MEDIUM", 6},
+
+                // Sprint 3 - 위험 상태 (AT_RISK)
+                {"일일 스케줄 뷰", "하루 단위 타임블록 스케줄 뷰", "#f59e0b", "HIGH", 2},
+                {"주간 스케줄 뷰", "주 단위 스케줄 뷰 및 드래그 조정", "#fbbf24", "MEDIUM", 3},
+
+                // Sprint 4 - 지연됨 (OVERDUE) - 마감일이 과거
+                {"생산성 통계", "팀/개인 생산성 분석 대시보드", "#6366f1", "HIGH", -5},
+                {"번다운 차트", "마일스톤 진행률 시각화 차트", "#818cf8", "MEDIUM", -3},
+
+                // Sprint 5 - 예정됨
+                {"마일스톤 관리", "프로젝트 마일스톤 및 진행률 추적", "#14b8a6", "MEDIUM", 25},
+                {"설정 페이지", "사용자 설정 및 알림 관리", "#64748b", "LOW", 28}
         };
 
         for (int i = 0; i < featureData.length; i++) {
@@ -339,9 +442,9 @@ public class TestDataService {
                     .description((String) data[1])
                     .color((String) data[2])
                     .assignee(members.get(i % members.size()))
-                    .position((Integer) data[3])
-                    .priority(Priority.valueOf((String) data[4]))
-                    .dueDate(LocalDate.now().plusDays(7 + i * 2))
+                    .position(i)
+                    .priority(Priority.valueOf((String) data[3]))
+                    .dueDate(today.plusDays((Integer) data[4]))
                     .createdBy(createdBy)
                     .build();
             featureRepository.saveAndFlush(feature);
@@ -353,21 +456,33 @@ public class TestDataService {
     }
 
     private void linkFeaturesToMilestones(List<Milestone> milestones, List<Feature> features) {
-        // 마일스톤 1: Feature 0, 1, 2
+        // 마일스톤 1 (완료됨): Feature 0, 1, 2
         for (int i = 0; i < 3 && i < features.size(); i++) {
             MilestoneFeature mf = MilestoneFeature.create(milestones.get(0), features.get(i));
             milestoneFeatureRepository.saveAndFlush(mf);
         }
 
-        // 마일스톤 2: Feature 3, 4
+        // 마일스톤 2 (ON_TRACK): Feature 3, 4
         for (int i = 3; i < 5 && i < features.size(); i++) {
             MilestoneFeature mf = MilestoneFeature.create(milestones.get(1), features.get(i));
             milestoneFeatureRepository.saveAndFlush(mf);
         }
 
-        // 마일스톤 3: Feature 5, 6, 7
-        for (int i = 5; i < 8 && i < features.size(); i++) {
+        // 마일스톤 3 (AT_RISK): Feature 5, 6
+        for (int i = 5; i < 7 && i < features.size(); i++) {
             MilestoneFeature mf = MilestoneFeature.create(milestones.get(2), features.get(i));
+            milestoneFeatureRepository.saveAndFlush(mf);
+        }
+
+        // 마일스톤 4 (OVERDUE): Feature 7, 8
+        for (int i = 7; i < 9 && i < features.size(); i++) {
+            MilestoneFeature mf = MilestoneFeature.create(milestones.get(3), features.get(i));
+            milestoneFeatureRepository.saveAndFlush(mf);
+        }
+
+        // 마일스톤 5 (예정): Feature 9, 10
+        for (int i = 9; i < 11 && i < features.size(); i++) {
+            MilestoneFeature mf = MilestoneFeature.create(milestones.get(4), features.get(i));
             milestoneFeatureRepository.saveAndFlush(mf);
         }
 
@@ -376,6 +491,7 @@ public class TestDataService {
 
     private List<Task> createTasks(Board board, List<Feature> features, User createdBy, List<User> members, List<Tag> tags, List<Block> blocks) {
         List<Task> tasks = new ArrayList<>();
+        LocalDate today = LocalDate.now();
 
         Block taskBlock = blocks.stream()
                 .filter(b -> b.getFixedType() == FixedBlockType.TASK)
@@ -393,32 +509,75 @@ public class TestDataService {
                 .filter(b -> b.getFixedType() == FixedBlockType.DONE)
                 .findFirst().orElse(blocks.get(blocks.size() - 1));
 
-        // 각 Feature에 대해 3-5개의 Task 생성
+        // Feature별 Task 생성 - 각 마일스톤의 상태에 맞게 진행률 조정
+        // Feature 0-2: 100% 완료 (모두 Done)
+        // Feature 3-4: 70% 완료 (대부분 Done, 일부 In Progress/Review)
+        // Feature 5-6: 30% 완료 (일부 Done, 대부분 Task/In Progress)
+        // Feature 7-8: 50% 완료 (반반)
+        // Feature 9-10: 0% 완료 (모두 Task)
+
         String[][] taskTemplates = {
-                {"API 엔드포인트 구현", "DB 스키마 설계", "유닛 테스트 작성", "문서화"},
-                {"UI 컴포넌트 개발", "스타일링 작업", "반응형 대응", "접근성 개선"},
-                {"로직 구현", "에러 핸들링", "성능 최적화", "코드 리뷰"},
-                {"설계 검토", "프로토타입", "사용성 테스트", "배포 준비"}
+                {"API 설계", "DB 스키마", "백엔드 구현", "프론트 연동", "테스트 작성"},
+                {"UI 디자인", "컴포넌트 개발", "스타일링", "반응형 대응", "코드 리뷰"},
+                {"요구사항 분석", "설계 검토", "핵심 로직 구현", "에러 핸들링", "문서화"},
+                {"프로토타입", "사용성 테스트", "피드백 반영", "성능 최적화", "배포 준비"}
         };
 
         int taskPosition = 0;
+
         for (int fi = 0; fi < features.size(); fi++) {
             Feature feature = features.get(fi);
             String[] templates = taskTemplates[fi % taskTemplates.length];
-            int taskCount = 3 + random.nextInt(3); // 3-5개
+            int taskCount = 4 + random.nextInt(2); // 4-5개 고정
+
+            // Feature 인덱스에 따른 완료율 결정
+            double completionRate;
+            if (fi < 3) completionRate = 1.0;       // Sprint 1: 100%
+            else if (fi < 5) completionRate = 0.7;  // Sprint 2: 70%
+            else if (fi < 7) completionRate = 0.3;  // Sprint 3: 30%
+            else if (fi < 9) completionRate = 0.5;  // Sprint 4: 50%
+            else completionRate = 0.0;              // Sprint 5: 0%
 
             for (int ti = 0; ti < taskCount && ti < templates.length; ti++) {
-                // 블록 배정 (랜덤하게)
+                // 블록 결정: 완료율에 따라 분배
                 Block block;
-                double rand = random.nextDouble();
-                if (rand < 0.2) {
+                boolean isCompleted = false;
+                LocalDateTime updatedAt = LocalDateTime.now();
+
+                double taskProgress = (double) ti / taskCount;
+                if (taskProgress < completionRate) {
+                    // 완료된 Task
                     block = doneBlock;
-                } else if (rand < 0.4) {
+                    isCompleted = true;
+                    updatedAt = LocalDateTime.now().minusDays(random.nextInt(14) + 1);
+                } else if (taskProgress < completionRate + 0.2) {
+                    // Review 중
                     block = reviewBlock;
-                } else if (rand < 0.6) {
+                    updatedAt = LocalDateTime.now().minusDays(random.nextInt(3));
+                } else if (taskProgress < completionRate + 0.4) {
+                    // In Progress - 일부는 정체된 상태 (stagnant)
                     block = inProgressBlock;
+                    // 30% 확률로 7일 이상 정체
+                    if (random.nextDouble() < 0.3) {
+                        updatedAt = LocalDateTime.now().minusDays(7 + random.nextInt(7));
+                    } else {
+                        updatedAt = LocalDateTime.now().minusDays(random.nextInt(3));
+                    }
                 } else {
+                    // 대기 중
                     block = taskBlock;
+                }
+
+                // 마감일 설정: 일부 Task는 마감 초과
+                LocalDate dueDate;
+                if (fi >= 7 && fi < 9 && random.nextDouble() < 0.4) {
+                    // OVERDUE 마일스톤의 일부 Task는 마감 초과
+                    dueDate = today.minusDays(1 + random.nextInt(5));
+                } else if (fi >= 5 && fi < 7 && random.nextDouble() < 0.3) {
+                    // AT_RISK 마일스톤의 일부 Task도 마감 임박
+                    dueDate = today.plusDays(random.nextInt(2));
+                } else {
+                    dueDate = today.plusDays(3 + random.nextInt(10));
                 }
 
                 Task task = Task.builder()
@@ -426,22 +585,28 @@ public class TestDataService {
                         .feature(feature)
                         .block(block)
                         .title(feature.getTitle() + " - " + templates[ti])
-                        .description(templates[ti] + " 관련 작업")
-                        // v7.0: Task.assignee 제거 - ChecklistItem에서 담당자 설정
+                        .description(templates[ti] + " 관련 상세 작업. " + feature.getDescription())
                         .position(taskPosition++)
-                        .startDate(LocalDate.now().minusDays(random.nextInt(14)))
-                        .dueDate(LocalDate.now().plusDays(ti + 1))
-                        .estimatedMinutes(30 + random.nextInt(150)) // 30분 ~ 180분
+                        .startDate(today.minusDays(14 + random.nextInt(21)))
+                        .dueDate(dueDate)
+                        .estimatedMinutes(60 + random.nextInt(180)) // 60분 ~ 240분
                         .createdBy(createdBy)
                         .build();
-                taskRepository.saveAndFlush(task);
-                tasks.add(task);
 
+                // updatedAt을 수동으로 설정하기 위해 저장 후 업데이트
+                taskRepository.saveAndFlush(task);
+
+                if (isCompleted) {
+                    task.complete();
+                }
+
+                tasks.add(task);
                 feature.incrementTotalTasks();
                 if (block.getFixedType() == FixedBlockType.DONE) {
                     feature.incrementCompletedTasks();
                 }
             }
+            featureRepository.saveAndFlush(feature);
         }
 
         log.info("Created {} tasks", tasks.size());
@@ -450,34 +615,87 @@ public class TestDataService {
 
     private List<ChecklistItem> createChecklistItems(List<Task> tasks, List<User> members) {
         List<ChecklistItem> items = new ArrayList<>();
+        LocalDate today = LocalDate.now();
 
         String[] checklistTemplates = {
-                "요구사항 분석",
-                "설계 검토",
-                "구현",
-                "테스트 작성",
-                "코드 리뷰",
-                "문서 업데이트"
+                "요구사항 분석 및 정리",
+                "기술 설계 검토",
+                "핵심 기능 구현",
+                "유닛 테스트 작성",
+                "통합 테스트 수행",
+                "코드 리뷰 요청",
+                "문서 업데이트",
+                "QA 검증"
         };
 
+        // 멤버별 할당량 설정 (일부 멤버에게 더 많은 작업 배정 - 생산성 차이 시각화)
+        // members[0]: Owner - 적당한 작업량
+        // members[1]: 김철수 - 많은 작업량 (고성과자)
+        // members[2]: 이영희 - 적당한 작업량
+        // members[3]: 박민수 - 적은 작업량 (신입)
+        // members[4]: 정다은 - 많은 작업량 (고성과자)
+        // members[5]: 최준혁 - 지연 많음 (주의 필요)
+
+        int taskIndex = 0;
         for (Task task : tasks) {
-            int itemCount = 2 + random.nextInt(4); // 2-5개
-            for (int i = 0; i < itemCount; i++) {
-                User assignee = members.get(random.nextInt(members.size()));
-                boolean isCompleted = random.nextDouble() < 0.4; // 40% 확률로 완료
+            int itemCount = 3 + random.nextInt(3); // 3-5개
+            boolean isTaskCompleted = task.getIsCompleted();
+
+            for (int i = 0; i < itemCount && i < checklistTemplates.length; i++) {
+                // 멤버 배정: Task 인덱스에 따라 특정 패턴으로 배정
+                int memberIndex;
+                if (taskIndex % 5 == 0) memberIndex = 1;      // 김철수에게 많이
+                else if (taskIndex % 5 == 1) memberIndex = 4; // 정다은에게 많이
+                else if (taskIndex % 5 == 2) memberIndex = 5; // 최준혁에게 많이
+                else memberIndex = i % members.size();
+
+                User assignee = members.get(Math.min(memberIndex, members.size() - 1));
+
+                // 완료 여부 결정
+                boolean isCompleted;
+                LocalDate createdDate;
+                LocalDate dueDate;
+
+                if (isTaskCompleted) {
+                    // 완료된 Task의 체크리스트는 대부분 완료
+                    isCompleted = true;
+                    createdDate = today.minusDays(20 + random.nextInt(15));
+                    dueDate = today.minusDays(random.nextInt(10));
+                } else {
+                    // 미완료 Task의 체크리스트
+                    double progress = (double) i / itemCount;
+
+                    // 최준혁(index 5)의 체크리스트는 완료율 낮음 + stuck 많음
+                    if (memberIndex == 5) {
+                        isCompleted = random.nextDouble() < 0.2; // 20%만 완료
+                        // 오래된 생성일 (stuck 상태)
+                        createdDate = today.minusDays(10 + random.nextInt(10));
+                        dueDate = today.minusDays(random.nextInt(5)); // 마감 초과
+                    } else if (memberIndex == 1 || memberIndex == 4) {
+                        // 고성과자는 완료율 높음
+                        isCompleted = progress < 0.7;
+                        createdDate = today.minusDays(random.nextInt(7));
+                        dueDate = today.plusDays(1 + random.nextInt(5));
+                    } else {
+                        isCompleted = progress < 0.4;
+                        createdDate = today.minusDays(random.nextInt(10));
+                        dueDate = today.plusDays(random.nextInt(7));
+                    }
+                }
 
                 ChecklistItem item = ChecklistItem.builder()
                         .task(task)
                         .title(checklistTemplates[i % checklistTemplates.length])
                         .assignee(assignee)
                         .position(i)
-                        .startDate(LocalDate.now().minusDays(random.nextInt(7)))
-                        .dueDate(LocalDate.now().plusDays(random.nextInt(7)))
+                        .startDate(createdDate)
+                        .dueDate(dueDate)
                         .isCompleted(isCompleted)
                         .build();
                 checklistItemRepository.saveAndFlush(item);
                 items.add(item);
             }
+            taskIndex++;
         }
 
         log.info("Created {} checklist items", items.size());
@@ -488,27 +706,68 @@ public class TestDataService {
         List<ScheduleBlock> blocks = new ArrayList<>();
         LocalDate today = LocalDate.now();
 
-        // 지난 30일 동안의 스케줄 블록 생성
-        for (int dayOffset = 30; dayOffset >= 0; dayOffset--) {
+        // 멤버별 생산성 설정
+        // members[0]: Owner - 보통 (하루 4-5시간)
+        // members[1]: 김철수 - 높음 (하루 6-7시간)
+        // members[2]: 이영희 - 보통 (하루 4-5시간)
+        // members[3]: 박민수 - 낮음 (하루 2-3시간, 신입)
+        // members[4]: 정다은 - 높음 (하루 6-7시간)
+        // members[5]: 최준혁 - 낮음 (하루 2-3시간, 주의 필요)
+
+        int[] memberBlockCounts = {4, 6, 4, 2, 6, 2}; // 멤버별 하루 평균 블록 수
+
+        // 멤버별 체크리스트 아이템 그룹화
+        List<List<ChecklistItem>> memberChecklistItems = new ArrayList<>();
+        for (int i = 0; i < members.size(); i++) {
+            final int idx = i;
+            List<ChecklistItem> memberItems = checklistItems.stream()
+                    .filter(item -> item.getAssignee() != null &&
+                            item.getAssignee().getId().equals(members.get(idx).getId()))
+                    .toList();
+            memberChecklistItems.add(new ArrayList<>(memberItems));
+        }
+
+        // 지난 45일 동안의 스케줄 블록 생성 (더 긴 트렌드 데이터)
+        for (int dayOffset = 45; dayOffset >= 0; dayOffset--) {
             LocalDate date = today.minusDays(dayOffset);
 
-            // 주말은 스킵 (선택적)
+            // 주말은 스킵
             if (date.getDayOfWeek().getValue() > 5) {
                 continue;
             }
 
-            // 각 멤버에게 하루에 2-4개의 스케줄 블록 배정
-            for (User member : members) {
-                int blocksPerDay = 2 + random.nextInt(3); // 2-4개
-                List<LocalTime[]> timeSlots = generateTimeSlots(blocksPerDay);
+            // 각 멤버별로 스케줄 블록 생성
+            for (int memberIdx = 0; memberIdx < members.size(); memberIdx++) {
+                User member = members.get(memberIdx);
+                int baseBlockCount = memberBlockCounts[Math.min(memberIdx, memberBlockCounts.length - 1)];
 
-                // timeSlots가 blocksPerDay보다 적을 수 있으므로 실제 슬롯 수만큼만 반복
+                // 일별 변동성 추가 (+/- 1-2)
+                int blocksPerDay = Math.max(1, baseBlockCount + random.nextInt(3) - 1);
+
+                // 최근 날짜일수록 완료된 체크리스트와 연결
+                List<ChecklistItem> availableItems = memberChecklistItems.get(memberIdx);
+
+                List<LocalTime[]> timeSlots = generateTimeSlots(blocksPerDay);
                 int actualBlockCount = Math.min(blocksPerDay, timeSlots.size());
+
                 for (int i = 0; i < actualBlockCount; i++) {
-                    ChecklistItem item = checklistItems.isEmpty() ? null :
-                            checklistItems.get(random.nextInt(checklistItems.size()));
+                    ChecklistItem item = null;
+
+                    // 80% 확률로 실제 체크리스트와 연결
+                    if (!availableItems.isEmpty() && random.nextDouble() < 0.8) {
+                        item = availableItems.get(random.nextInt(availableItems.size()));
+                    }
 
                     LocalTime[] slot = timeSlots.get(i);
+
+                    // 김철수, 정다은은 더 긴 작업 시간
+                    if (memberIdx == 1 || memberIdx == 4) {
+                        // 블록 시간 연장 (30분 추가)
+                        slot[1] = slot[1].plusMinutes(30);
+                        if (slot[1].isAfter(LocalTime.of(19, 0))) {
+                            slot[1] = LocalTime.of(19, 0);
+                        }
+                    }
 
                     ScheduleBlock block = ScheduleBlock.builder()
                             .board(board)
@@ -524,7 +783,7 @@ public class TestDataService {
             }
         }
 
-        log.info("Created {} schedule blocks for statistics (last 30 days)", blocks.size());
+        log.info("Created {} schedule blocks for statistics (last 45 days)", blocks.size());
         return blocks;
     }
 

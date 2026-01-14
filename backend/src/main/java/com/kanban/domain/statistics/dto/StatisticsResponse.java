@@ -74,6 +74,18 @@ public class StatisticsResponse {
         private String feature_title;
         private String feature_color;
         private long minutes;
+        private List<FeatureTaskTime> tasks;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class FeatureTaskTime {
+        private String task_id;
+        private String task_title;
+        private long minutes;
+        private double percentage;
     }
 
     @Data
