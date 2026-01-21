@@ -12,6 +12,8 @@ import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,15 +32,18 @@ public class BlockService {
     private final BoardRepository boardRepository;
     private final BoardService boardService;
 
+    @Cacheable(value = "blocks", key = "#boardId", unless = "#result == null")
     public BlockResponse.ListResponse getBlocks(String boardId, String userId) {
         // 뷰어 이상 권한 확인
         boardService.checkViewerOrAbove(boardId, userId);
 
         List<Block> blocks = blockRepository.findByBoardIdOrderByPositionAsc(boardId);
+        log.debug("Blocks loaded from DB for board: {}", boardId);
         return BlockResponse.ListResponse.of(blocks);
     }
 
     @Transactional
+    @CacheEvict(value = "blocks", key = "#boardId")
     public BlockResponse.Detail createBlock(String boardId, String userId, BlockRequest.Create request) {
         // Admin 이상 권한 확인
         boardService.checkAdminOrAbove(boardId, userId);
@@ -71,6 +76,7 @@ public class BlockService {
     }
 
     @Transactional
+    @CacheEvict(value = "blocks", key = "#boardId")
     public BlockResponse.Detail updateBlock(String boardId, String blockId, String userId, BlockRequest.Update request) {
         // Admin 이상 권한 확인
         boardService.checkAdminOrAbove(boardId, userId);
@@ -96,6 +102,7 @@ public class BlockService {
     }
 
     @Transactional
+    @CacheEvict(value = "blocks", key = "#boardId")
     public void deleteBlock(String boardId, String blockId, String userId) {
         // Admin 이상 권한 확인
         boardService.checkAdminOrAbove(boardId, userId);
@@ -129,6 +136,7 @@ public class BlockService {
     }
 
     @Transactional
+    @CacheEvict(value = "blocks", key = "#boardId")
     public BlockResponse.ListResponse reorderBlocks(String boardId, String userId, BlockRequest.Reorder request) {
         // Admin 이상 권한 확인
         boardService.checkAdminOrAbove(boardId, userId);

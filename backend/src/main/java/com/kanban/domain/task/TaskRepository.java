@@ -15,6 +15,32 @@ public interface TaskRepository extends JpaRepository<Task, String> {
 
     List<Task> findByBlockIdOrderByPositionAsc(String blockId);
 
+    // ==================== Fetch Join Queries (N+1 방지) ====================
+
+    @Query("SELECT t FROM Task t " +
+           "JOIN FETCH t.feature " +
+           "JOIN FETCH t.block " +
+           "JOIN FETCH t.board " +
+           "LEFT JOIN FETCH t.createdBy " +
+           "WHERE t.board.id = :boardId ORDER BY t.position ASC")
+    List<Task> findByBoardIdWithFetch(@Param("boardId") String boardId);
+
+    @Query("SELECT t FROM Task t " +
+           "JOIN FETCH t.feature " +
+           "JOIN FETCH t.block " +
+           "JOIN FETCH t.board " +
+           "LEFT JOIN FETCH t.createdBy " +
+           "WHERE t.block.id = :blockId ORDER BY t.position ASC")
+    List<Task> findByBlockIdWithFetch(@Param("blockId") String blockId);
+
+    @Query("SELECT t FROM Task t " +
+           "JOIN FETCH t.feature " +
+           "JOIN FETCH t.block " +
+           "JOIN FETCH t.board " +
+           "LEFT JOIN FETCH t.createdBy " +
+           "WHERE t.feature.id = :featureId ORDER BY t.position ASC")
+    List<Task> findByFeatureIdWithFetch(@Param("featureId") String featureId);
+
     @Query("SELECT t FROM Task t WHERE t.board.id = :boardId AND t.isCompleted = :isCompleted ORDER BY t.position ASC")
     List<Task> findByBoardIdAndIsCompleted(@Param("boardId") String boardId, @Param("isCompleted") Boolean isCompleted);
 

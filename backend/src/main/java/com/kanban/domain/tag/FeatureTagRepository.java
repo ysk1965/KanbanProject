@@ -26,4 +26,16 @@ public interface FeatureTagRepository extends JpaRepository<FeatureTag, String> 
     void deleteByTagId(String tagId);
 
     List<FeatureTag> findByFeatureIdIn(List<String> featureIds);
+
+    // Fetch Join으로 N+1 방지
+    @Query("SELECT ft FROM FeatureTag ft " +
+           "JOIN FETCH ft.feature " +
+           "JOIN FETCH ft.tag " +
+           "WHERE ft.feature.id IN :featureIds")
+    List<FeatureTag> findByFeatureIdInWithFetch(@Param("featureIds") List<String> featureIds);
+
+    @Query("SELECT ft FROM FeatureTag ft " +
+           "JOIN FETCH ft.tag " +
+           "WHERE ft.feature.id = :featureId")
+    List<FeatureTag> findByFeatureIdWithFetch(@Param("featureId") String featureId);
 }

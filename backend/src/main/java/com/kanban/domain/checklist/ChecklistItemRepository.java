@@ -84,4 +84,14 @@ public interface ChecklistItemRepository extends JpaRepository<ChecklistItem, St
      */
     @Query("SELECT COUNT(c) FROM ChecklistItem c WHERE c.task.board.id = :boardId")
     long countByTaskBoardId(@Param("boardId") String boardId);
+
+    /**
+     * 여러 Task의 체크리스트 일괄 조회 (N+1 방지)
+     */
+    @Query("SELECT c FROM ChecklistItem c " +
+           "JOIN FETCH c.task t " +
+           "LEFT JOIN FETCH c.assignee " +
+           "WHERE t.id IN :taskIds " +
+           "ORDER BY t.id, c.position")
+    List<ChecklistItem> findByTaskIdIn(@Param("taskIds") List<String> taskIds);
 }

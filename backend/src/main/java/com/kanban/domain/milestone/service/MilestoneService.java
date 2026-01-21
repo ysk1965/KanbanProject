@@ -49,18 +49,31 @@ public class MilestoneService {
     public MilestoneResponse.ListResponse getMilestones(String boardId, String userId) {
         boardService.checkViewerOrAbove(boardId, userId);
 
-        List<Milestone> milestones = milestoneRepository.findByBoardIdOrderByStartDateAsc(boardId);
+        // 1회 쿼리로 마일스톤 + 연관 엔티티 조회
+        List<Milestone> milestones = milestoneRepository.findByBoardIdWithDetailsOrderByStartDateAsc(boardId);
 
-        Map<String, Integer> featureCountMap = new HashMap<>();
+        if (milestones.isEmpty()) {
+            return MilestoneResponse.ListResponse.of(milestones, Map.of(), Map.of());
+        }
+
+        // 1회 쿼리로 모든 마일스톤의 features 조회 (N+1 해결)
+        List<MilestoneFeature> allMilestoneFeatures = milestoneFeatureRepository.findByBoardIdWithFeatures(boardId);
+
+        // 마일스톤 ID별로 features 그룹핑
+        Map<String, List<Feature>> featuresMap = allMilestoneFeatures.stream()
+                .collect(Collectors.groupingBy(
+                        mf -> mf.getMilestone().getId(),
+                        Collectors.mapping(MilestoneFeature::getFeature, Collectors.toList())
+                ));
+
+        // 각 마일스톤의 진행률 계산
         Map<String, Integer> progressMap = new HashMap<>();
-
         for (Milestone milestone : milestones) {
-            List<Feature> features = milestoneFeatureRepository.findFeaturesByMilestoneId(milestone.getId());
-            featureCountMap.put(milestone.getId(), features.size());
+            List<Feature> features = featuresMap.getOrDefault(milestone.getId(), List.of());
             progressMap.put(milestone.getId(), calculateProgress(features));
         }
 
-        return MilestoneResponse.ListResponse.of(milestones, featureCountMap, progressMap);
+        return MilestoneResponse.ListResponse.of(milestones, featuresMap, progressMap);
     }
 
     public MilestoneResponse.Detail getMilestone(String boardId, String milestoneId, String userId) {

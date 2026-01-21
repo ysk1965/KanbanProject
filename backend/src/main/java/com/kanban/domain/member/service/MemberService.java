@@ -15,6 +15,8 @@ import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,14 +38,17 @@ public class MemberService {
     private final BoardService boardService;
     private final EmailService emailService;
 
+    @Cacheable(value = "members", key = "#boardId", unless = "#result == null")
     public MemberResponse.ListResponse getMembers(String boardId, String userId) {
         boardService.checkViewerOrAbove(boardId, userId);
 
+        log.debug("Members loaded from DB for board: {}", boardId);
         List<BoardMember> members = boardMemberRepository.findByBoardId(boardId);
         return MemberResponse.ListResponse.of(members);
     }
 
     @Transactional
+    @CacheEvict(value = "members", key = "#boardId")
     public MemberResponse.InviteResult inviteMember(String boardId, String userId, MemberRequest.Invite request) {
         boardService.checkAdminOrAbove(boardId, userId);
 
@@ -72,12 +77,15 @@ public class MemberService {
     }
 
     private MemberResponse.InviteResult addExistingUserAsMember(Board board, User inviter, User invitee, Role role, String boardId) {
+        // Pessimistic Lock으로 Board 조회 - 멤버 제한 동시성 제어
+        boardRepository.findByIdWithLock(boardId);
+
         // 이미 멤버인지 확인
         if (boardMemberRepository.existsByBoardIdAndUserId(boardId, invitee.getId())) {
             throw new BusinessException(ErrorCode.MEMBER_ALREADY_EXISTS);
         }
 
-        // 멤버 수 제한 확인 (billable 멤버 기준)
+        // 멤버 수 제한 확인 (billable 멤버 기준) - Lock 획득 후 체크하여 동시성 안전
         if (role != Role.VIEWER) {
             Subscription subscription = subscriptionRepository.findByBoardId(boardId).orElse(null);
             if (subscription != null) {
@@ -131,8 +139,12 @@ public class MemberService {
     }
 
     @Transactional
+    @CacheEvict(value = "members", key = "#boardId")
     public MemberResponse.Detail updateMemberRole(String boardId, String memberId, String userId, MemberRequest.UpdateRole request) {
         boardService.checkAdminOrAbove(boardId, userId);
+
+        // Pessimistic Lock으로 Board 조회 - 멤버 제한 동시성 제어
+        boardRepository.findByIdWithLock(boardId);
 
         BoardMember member = boardMemberRepository.findById(memberId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
@@ -151,7 +163,7 @@ public class MemberService {
             throw new BusinessException(ErrorCode.CANNOT_CHANGE_OWNER_ROLE);
         }
 
-        // Viewer에서 다른 역할로 변경 시 멤버 수 제한 확인
+        // Viewer에서 다른 역할로 변경 시 멤버 수 제한 확인 - Lock 획득 후 체크
         if (member.getRole() == Role.VIEWER && request.getRole() != Role.VIEWER) {
             Subscription subscription = subscriptionRepository.findByBoardId(boardId).orElse(null);
             if (subscription != null) {
@@ -171,6 +183,7 @@ public class MemberService {
     }
 
     @Transactional
+    @CacheEvict(value = "members", key = "#boardId")
     public void removeMember(String boardId, String memberId, String userId) {
         boardService.checkAdminOrAbove(boardId, userId);
 

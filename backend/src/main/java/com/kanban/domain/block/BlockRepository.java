@@ -1,6 +1,8 @@
 package com.kanban.domain.block;
 
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -21,4 +23,12 @@ public interface BlockRepository extends JpaRepository<Block, String> {
     List<Block> findCustomBlocksByBoardId(@Param("boardId") String boardId);
 
     int countByBoardId(String boardId);
+
+    /**
+     * Pessimistic Lock을 사용하여 Block 조회
+     * Task 생성 시 position 동시성 문제 방지
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT b FROM Block b WHERE b.id = :blockId")
+    Optional<Block> findByIdWithLock(@Param("blockId") String blockId);
 }

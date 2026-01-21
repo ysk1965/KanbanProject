@@ -5,6 +5,7 @@ public enum TargetType {
     BLOCK,
     FEATURE,
     TASK,
+    CHECKLIST,
     MEMBER,
     TAG,
     SUBSCRIPTION

@@ -27,6 +27,62 @@ public class EmailService {
     private String frontendUrl;
 
     @Async
+    public void sendVerificationEmail(String toEmail, String userName, String verificationToken) {
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+            helper.setFrom(fromEmail);
+            helper.setTo(toEmail);
+            helper.setSubject("[BRIDGE SPOTS] 이메일 인증을 완료해주세요");
+
+            // Create Thymeleaf context
+            Context context = new Context();
+            context.setVariable("userName", userName);
+            context.setVariable("verificationLink", frontendUrl + "/verify-email/" + verificationToken);
+
+            // Process template
+            String htmlContent = templateEngine.process("verification-email", context);
+            helper.setText(htmlContent, true);
+
+            mailSender.send(message);
+            log.info("Verification email sent to: {}", toEmail);
+
+        } catch (MessagingException e) {
+            log.error("Failed to send verification email to: {}", toEmail, e);
+            throw new RuntimeException("이메일 발송에 실패했습니다.", e);
+        }
+    }
+
+    @Async
+    public void sendPasswordResetEmail(String toEmail, String userName, String resetToken) {
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+            helper.setFrom(fromEmail);
+            helper.setTo(toEmail);
+            helper.setSubject("[BRIDGE SPOTS] 비밀번호 재설정");
+
+            // Create Thymeleaf context
+            Context context = new Context();
+            context.setVariable("userName", userName);
+            context.setVariable("resetLink", frontendUrl + "/reset-password/" + resetToken);
+
+            // Process template
+            String htmlContent = templateEngine.process("password-reset-email", context);
+            helper.setText(htmlContent, true);
+
+            mailSender.send(message);
+            log.info("Password reset email sent to: {}", toEmail);
+
+        } catch (MessagingException e) {
+            log.error("Failed to send password reset email to: {}", toEmail, e);
+            throw new RuntimeException("이메일 발송에 실패했습니다.", e);
+        }
+    }
+
+    @Async
     public void sendInviteEmail(String toEmail, String boardName, String inviterName, String inviteCode, String role) {
         try {
             MimeMessage message = mailSender.createMimeMessage();

@@ -27,4 +27,14 @@ public interface BoardMemberRepository extends JpaRepository<BoardMember, String
     List<BoardMember> findTopMembersByBoardId(@Param("boardId") String boardId, @Param("limit") int limit);
 
     long countByBoardId(String boardId);
+
+    /**
+     * 해당 사용자가 OWNER인 보드가 있는지 확인 (계정 탈퇴 시 사용)
+     */
+    boolean existsByUserIdAndRole(String userId, Role role);
+
+    /**
+     * 해당 사용자의 모든 멤버십 삭제 (계정 탈퇴 시 사용)
+     */
+    void deleteByUserId(String userId);
 }

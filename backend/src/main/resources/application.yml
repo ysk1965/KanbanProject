@@ -39,8 +39,8 @@ google:
 spring.mail:
   host: smtp.gmail.com
   port: 587
-  username: eobub15@gmail.com
-  password: olczyitjbmefpnok
+  username: ${MAIL_USERNAME:}
+  password: ${MAIL_PASSWORD:}
   properties:
     mail:
       smtp:
@@ -51,6 +51,20 @@ spring.mail:
         connectiontimeout: 5000
         timeout: 5000
         writetimeout: 5000
+
+# Redis Cache
+spring.data.redis:
+  host: ${REDIS_HOST:localhost}
+  port: ${REDIS_PORT:6379}
+  password: ${REDIS_PASSWORD:}
+  timeout: 2000ms
+
+# Cache
+spring.cache:
+  type: ${CACHE_TYPE:redis}
+  redis:
+    time-to-live: 600000  # 10분
+    cache-null-values: false
 
 # App config
 app:
@@ -77,6 +91,10 @@ spring:
   jpa:
     database-platform: org.hibernate.dialect.H2Dialect
 
+  # Local에서는 Simple 캐시 사용 (Redis 불필요)
+  cache:
+    type: simple
+
 ---
 # Dev Profile (PostgreSQL)
 spring:
@@ -85,9 +103,9 @@ spring:
       on-profile: dev
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/kanban_dev
-    username: kanban
-    password: kanban123
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/kanban_dev}
+    username: ${DB_USERNAME:kanban}
+    password: ${DB_PASSWORD:}
     driver-class-name: org.postgresql.Driver
 
   jpa:

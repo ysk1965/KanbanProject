@@ -26,4 +26,16 @@ public interface TaskTagRepository extends JpaRepository<TaskTag, String> {
     void deleteByTagId(String tagId);
 
     List<TaskTag> findByTaskIdIn(List<String> taskIds);
+
+    // Fetch Join으로 N+1 방지
+    @Query("SELECT tt FROM TaskTag tt " +
+           "JOIN FETCH tt.task " +
+           "JOIN FETCH tt.tag " +
+           "WHERE tt.task.id IN :taskIds")
+    List<TaskTag> findByTaskIdInWithFetch(@Param("taskIds") List<String> taskIds);
+
+    @Query("SELECT tt FROM TaskTag tt " +
+           "JOIN FETCH tt.tag " +
+           "WHERE tt.task.id = :taskId")
+    List<TaskTag> findByTaskIdWithFetch(@Param("taskId") String taskId);
 }

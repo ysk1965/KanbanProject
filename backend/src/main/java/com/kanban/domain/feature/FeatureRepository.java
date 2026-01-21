@@ -10,6 +10,14 @@ public interface FeatureRepository extends JpaRepository<Feature, String> {
 
     List<Feature> findByBoardIdOrderByPositionAsc(String boardId);
 
+    // Fetch Join으로 N+1 방지
+    @Query("SELECT f FROM Feature f " +
+           "JOIN FETCH f.board " +
+           "LEFT JOIN FETCH f.assignee " +
+           "LEFT JOIN FETCH f.createdBy " +
+           "WHERE f.board.id = :boardId ORDER BY f.position ASC")
+    List<Feature> findByBoardIdWithFetch(@Param("boardId") String boardId);
+
     @Query("SELECT f FROM Feature f WHERE f.board.id = :boardId AND f.assignee.id = :assigneeId ORDER BY f.position ASC")
     List<Feature> findByBoardIdAndAssigneeId(@Param("boardId") String boardId, @Param("assigneeId") String assigneeId);
 

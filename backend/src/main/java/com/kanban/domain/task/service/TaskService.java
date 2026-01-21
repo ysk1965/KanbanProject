@@ -1,5 +1,8 @@
 package com.kanban.domain.task.service;
 
+import com.kanban.domain.activity.ActivityAction;
+import com.kanban.domain.activity.TargetType;
+import com.kanban.domain.activity.service.ActivityService;
 import com.kanban.domain.block.Block;
 import com.kanban.domain.block.BlockRepository;
 import com.kanban.domain.block.FixedBlockType;
@@ -48,17 +51,19 @@ public class TaskService {
     private final UserRepository userRepository;
     private final BoardService boardService;
     private final MilestoneFeatureRepository milestoneFeatureRepository;
+    private final ActivityService activityService;
 
     public TaskResponse.ListResponse getTasks(String boardId, String userId, String blockId, String featureId, String milestoneId) {
         boardService.checkViewerOrAbove(boardId, userId);
 
+        // Fetch Join으로 N+1 방지
         List<Task> tasks;
         if (blockId != null) {
-            tasks = taskRepository.findByBlockIdOrderByPositionAsc(blockId);
+            tasks = taskRepository.findByBlockIdWithFetch(blockId);
         } else if (featureId != null) {
-            tasks = taskRepository.findByFeatureIdOrderByPositionAsc(featureId);
+            tasks = taskRepository.findByFeatureIdWithFetch(featureId);
         } else {
-            tasks = taskRepository.findByBoardIdOrderByPositionAsc(boardId);
+            tasks = taskRepository.findByBoardIdWithFetch(boardId);
         }
 
         // 마일스톤 필터 적용: 해당 마일스톤에 속한 Feature의 Task만 필터링
@@ -87,7 +92,8 @@ public class TaskService {
             throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
         }
 
-        List<Tag> tags = taskTagRepository.findByTaskId(taskId).stream()
+        // Fetch Join으로 N+1 방지
+        List<Tag> tags = taskTagRepository.findByTaskIdWithFetch(taskId).stream()
                 .map(TaskTag::getTag)
                 .toList();
 
@@ -98,7 +104,8 @@ public class TaskService {
     public TaskResponse.Detail createTask(String boardId, String featureId, String userId, TaskRequest.Create request) {
         boardService.checkMemberOrAbove(boardId, userId);
 
-        Board board = boardRepository.findById(boardId)
+        // Pessimistic Lock으로 Board 조회 - Task 제한 동시성 제어
+        Board board = boardRepository.findByIdWithLock(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
         // Trial 만료 체크 및 자동 전환
@@ -118,9 +125,13 @@ public class TaskService {
         Block taskBlock = blockRepository.findByBoardIdAndFixedType(boardId, FixedBlockType.TASK)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BLOCK_NOT_FOUND));
 
+        // Pessimistic Lock으로 Block 조회 - position 동시성 제어
+        blockRepository.findByIdWithLock(taskBlock.getId());
+
         User creator = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
+        // Lock 획득 후 position 조회 - 동시성 안전
         Integer maxPosition = taskRepository.findMaxPositionByBlockId(taskBlock.getId());
         int newPosition = (maxPosition != null) ? maxPosition + 1 : 0;
 
@@ -141,6 +152,20 @@ public class TaskService {
 
         // Feature의 totalTasks 증가
         feature.incrementTotalTasks();
+
+        // 활동 로그 기록
+        activityService.logActivity(
+                board,
+                creator,
+                ActivityAction.TASK_CREATED,
+                TargetType.TASK,
+                task.getId(),
+                Map.of(
+                        "taskTitle", task.getTitle(),
+                        "featureTitle", feature.getTitle(),
+                        "featureColor", feature.getColor()
+                )
+        );
 
         log.info("Task created: {} in feature: {} by user: {}", task.getId(), featureId, userId);
 
@@ -223,7 +248,9 @@ public class TaskService {
             throw new BusinessException(ErrorCode.TASK_INVALID_BLOCK);
         }
 
-        String oldBlockId = task.getBlock().getId();
+        Block oldBlock = task.getBlock();
+        String oldBlockId = oldBlock.getId();
+        String oldBlockName = oldBlock.getName();
         task.moveToBlock(targetBlock);
 
         // position 처리 - 블록 내 모든 task의 position을 정규화
@@ -258,6 +285,25 @@ public class TaskService {
                 .map(TaskTag::getTag)
                 .toList();
 
+        // 블록이 변경된 경우에만 활동 로그 기록
+        if (!oldBlockId.equals(targetBlock.getId())) {
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+            activityService.logActivity(
+                    task.getBoard(),
+                    user,
+                    ActivityAction.TASK_MOVED,
+                    TargetType.TASK,
+                    task.getId(),
+                    Map.of(
+                            "taskTitle", task.getTitle(),
+                            "fromBlock", oldBlockName,
+                            "toBlock", targetBlock.getName()
+                    )
+            );
+        }
+
         log.info("Task moved: {} from block {} to block {} by user: {}", taskId, oldBlockId, targetBlock.getId(), userId);
 
         return TaskResponse.Detail.of(task, tags);
@@ -290,7 +336,8 @@ public class TaskService {
         if (tasks.isEmpty()) return Map.of();
 
         List<String> taskIds = tasks.stream().map(Task::getId).toList();
-        List<TaskTag> taskTags = taskTagRepository.findByTaskIdIn(taskIds);
+        // Fetch Join으로 N+1 방지
+        List<TaskTag> taskTags = taskTagRepository.findByTaskIdInWithFetch(taskIds);
 
         return taskTags.stream()
                 .collect(Collectors.groupingBy(

@@ -41,6 +41,17 @@ public class User extends BaseTimeEntity {
     @Column(name = "last_login_at")
     private LocalDateTime lastLoginAt;
 
+    @Column(name = "email_verified", nullable = false)
+    @Builder.Default
+    private Boolean emailVerified = false;
+
+    @Column(name = "email_verified_at")
+    private LocalDateTime emailVerifiedAt;
+
+    @Column(name = "theme", length = 20)
+    @Builder.Default
+    private String theme = "dark";
+
     @PrePersist
     public void prePersist() {
         if (this.id == null) {
@@ -61,6 +72,12 @@ public class User extends BaseTimeEntity {
         }
     }
 
+    public void updateTheme(String theme) {
+        if (theme != null && (theme.equals("dark") || theme.equals("light"))) {
+            this.theme = theme;
+        }
+    }
+
     public void updatePassword(String passwordHash) {
         this.passwordHash = passwordHash;
     }
@@ -71,5 +88,10 @@ public class User extends BaseTimeEntity {
         if (profileImageUrl != null && this.profileImage == null) {
             this.profileImage = profileImageUrl;
         }
+    }
+
+    public void verifyEmail() {
+        this.emailVerified = true;
+        this.emailVerifiedAt = LocalDateTime.now();
     }
 }

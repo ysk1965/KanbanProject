@@ -17,6 +17,8 @@ import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,10 +41,13 @@ public class FeatureService {
     private final BoardService boardService;
     private final MilestoneFeatureRepository milestoneFeatureRepository;
 
+    @Cacheable(value = "features", key = "#boardId", condition = "#milestoneId == null", unless = "#result == null")
     public FeatureResponse.ListResponse getFeatures(String boardId, String userId, String milestoneId) {
         boardService.checkViewerOrAbove(boardId, userId);
 
-        List<Feature> features = featureRepository.findByBoardIdOrderByPositionAsc(boardId);
+        log.debug("Features loaded from DB for board: {}, milestone: {}", boardId, milestoneId);
+        // Fetch Join으로 N+1 방지
+        List<Feature> features = featureRepository.findByBoardIdWithFetch(boardId);
 
         // 마일스톤 필터 적용
         if (milestoneId != null && !milestoneId.isEmpty()) {
@@ -69,7 +74,7 @@ public class FeatureService {
             throw new BusinessException(ErrorCode.FEATURE_NOT_FOUND);
         }
 
-        List<Tag> tags = featureTagRepository.findByFeatureId(featureId).stream()
+        List<Tag> tags = featureTagRepository.findByFeatureIdWithFetch(featureId).stream()
                 .map(FeatureTag::getTag)
                 .toList();
 
@@ -77,6 +82,7 @@ public class FeatureService {
     }
 
     @Transactional
+    @CacheEvict(value = "features", key = "#boardId")
     public FeatureResponse.Detail createFeature(String boardId, String userId, FeatureRequest.Create request) {
         boardService.checkMemberOrAbove(boardId, userId);
 
@@ -115,6 +121,7 @@ public class FeatureService {
     }
 
     @Transactional
+    @CacheEvict(value = "features", key = "#boardId")
     public FeatureResponse.Detail updateFeature(String boardId, String featureId, String userId, FeatureRequest.Update request) {
         boardService.checkMemberOrAbove(boardId, userId);
 
@@ -139,7 +146,7 @@ public class FeatureService {
             feature.updateAssignee(assignee);
         }
 
-        List<Tag> tags = featureTagRepository.findByFeatureId(featureId).stream()
+        List<Tag> tags = featureTagRepository.findByFeatureIdWithFetch(featureId).stream()
                 .map(FeatureTag::getTag)
                 .toList();
 
@@ -149,6 +156,7 @@ public class FeatureService {
     }
 
     @Transactional
+    @CacheEvict(value = "features", key = "#boardId")
     public void deleteFeature(String boardId, String featureId, String userId) {
         boardService.checkMemberOrAbove(boardId, userId);
 
@@ -178,6 +186,7 @@ public class FeatureService {
     }
 
     @Transactional
+    @CacheEvict(value = "features", key = "#boardId")
     public FeatureResponse.ListResponse reorderFeatures(String boardId, String userId, FeatureRequest.Reorder request) {
         boardService.checkMemberOrAbove(boardId, userId);
 
@@ -206,15 +215,19 @@ public class FeatureService {
         log.info("Features reordered in board: {} by user: {}", boardId, userId);
 
         Map<String, List<Tag>> featureTagsMap = getFeatureTagsMap(allFeatures);
+        // Fetch Join으로 N+1 방지
         return FeatureResponse.ListResponse.of(
-                featureRepository.findByBoardIdOrderByPositionAsc(boardId),
+                featureRepository.findByBoardIdWithFetch(boardId),
                 featureTagsMap
         );
     }
 
     private Map<String, List<Tag>> getFeatureTagsMap(List<Feature> features) {
+        if (features.isEmpty()) return Map.of();
+
         List<String> featureIds = features.stream().map(Feature::getId).toList();
-        List<FeatureTag> featureTags = featureTagRepository.findByFeatureIdIn(featureIds);
+        // Fetch Join으로 N+1 방지
+        List<FeatureTag> featureTags = featureTagRepository.findByFeatureIdInWithFetch(featureIds);
 
         return featureTags.stream()
                 .collect(Collectors.groupingBy(

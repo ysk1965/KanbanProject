@@ -1,6 +1,8 @@
 package com.kanban.domain.board;
 
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -16,4 +18,12 @@ public interface BoardRepository extends JpaRepository<Board, String> {
     List<Board> findByMemberId(@Param("userId") String userId);
 
     Optional<Board> findByName(String name);
+
+    /**
+     * Pessimistic Lock을 사용하여 Board 조회
+     * Task 제한 검증 시 동시성 문제 방지
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT b FROM Board b WHERE b.id = :boardId")
+    Optional<Board> findByIdWithLock(@Param("boardId") String boardId);
 }

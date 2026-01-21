@@ -5,7 +5,10 @@ import com.kanban.domain.board.Role;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 
+import java.io.Serial;
+import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -13,8 +16,11 @@ public class MemberResponse {
 
     @Getter
     @Builder
+    @NoArgsConstructor
     @AllArgsConstructor
-    public static class Detail {
+    public static class Detail implements Serializable {
+        @Serial
+        private static final long serialVersionUID = 1L;
         private String id;
         private UserInfo user;
         private Role role;
@@ -34,8 +40,11 @@ public class MemberResponse {
 
     @Getter
     @Builder
+    @NoArgsConstructor
     @AllArgsConstructor
-    public static class UserInfo {
+    public static class UserInfo implements Serializable {
+        @Serial
+        private static final long serialVersionUID = 1L;
         private String id;
         private String name;
         private String email;
@@ -53,8 +62,11 @@ public class MemberResponse {
 
     @Getter
     @Builder
+    @NoArgsConstructor
     @AllArgsConstructor
-    public static class InvitedByInfo {
+    public static class InvitedByInfo implements Serializable {
+        @Serial
+        private static final long serialVersionUID = 1L;
         private String id;
         private String name;
 
@@ -68,8 +80,12 @@ public class MemberResponse {
 
     @Getter
     @Builder
+    @NoArgsConstructor
     @AllArgsConstructor
-    public static class ListResponse {
+    public static class ListResponse implements Serializable {
+        @Serial
+        private static final long serialVersionUID = 1L;
+
         private int total;
         private int billable;
         private List<Detail> members;
@@ -88,8 +104,12 @@ public class MemberResponse {
 
     @Getter
     @Builder
+    @NoArgsConstructor
     @AllArgsConstructor
-    public static class InviteResult {
+    public static class InviteResult implements Serializable {
+        @Serial
+        private static final long serialVersionUID = 1L;
+
         private String type;  // "DIRECT_ADD" or "EMAIL_SENT"
         private Detail member;  // 직접 추가된 경우
         private String email;   // 이메일 발송된 경우

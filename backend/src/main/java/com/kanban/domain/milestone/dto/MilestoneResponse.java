@@ -37,6 +37,45 @@ public class MilestoneResponse {
         }
     }
 
+    /**
+     * 상세 정보가 포함된 마일스톤 응답 (features 포함)
+     * N+1 문제 해결을 위해 getMilestones에서 사용
+     */
+    @Getter
+    @AllArgsConstructor
+    @Builder
+    public static class DetailSimple {
+        private String id;
+        private String title;
+        private String description;
+        private LocalDate startDate;
+        private LocalDate endDate;
+        private int featureCount;
+        private int progressPercentage;
+        private List<FeatureInfo> features;
+        private CreatorInfo createdBy;
+        private LocalDateTime createdAt;
+
+        public static DetailSimple of(Milestone milestone, List<Feature> features, int progressPercentage) {
+            List<FeatureInfo> featureInfos = features.stream()
+                    .map(FeatureInfo::of)
+                    .toList();
+
+            return DetailSimple.builder()
+                    .id(milestone.getId())
+                    .title(milestone.getTitle())
+                    .description(milestone.getDescription())
+                    .startDate(milestone.getStartDate())
+                    .endDate(milestone.getEndDate())
+                    .featureCount(features.size())
+                    .progressPercentage(progressPercentage)
+                    .features(featureInfos)
+                    .createdBy(CreatorInfo.of(milestone.getCreatedBy()))
+                    .createdAt(milestone.getCreatedAt())
+                    .build();
+        }
+    }
+
     @Getter
     @AllArgsConstructor
     @Builder
@@ -76,19 +115,22 @@ public class MilestoneResponse {
     @AllArgsConstructor
     @Builder
     public static class ListResponse {
-        private List<Simple> milestones;
+        private List<DetailSimple> milestones;
 
+        /**
+         * N+1 문제 해결을 위해 features를 포함한 상세 응답 생성
+         */
         public static ListResponse of(List<Milestone> milestones,
-                                      java.util.Map<String, Integer> featureCountMap,
+                                      java.util.Map<String, List<Feature>> featuresMap,
                                       java.util.Map<String, Integer> progressMap) {
-            List<Simple> simpleList = milestones.stream()
-                    .map(m -> Simple.of(
+            List<DetailSimple> detailList = milestones.stream()
+                    .map(m -> DetailSimple.of(
                             m,
-                            featureCountMap.getOrDefault(m.getId(), 0),
+                            featuresMap.getOrDefault(m.getId(), List.of()),
                             progressMap.getOrDefault(m.getId(), 0)
                     ))
                     .toList();
-            return new ListResponse(simpleList);
+            return new ListResponse(detailList);
         }
     }
 

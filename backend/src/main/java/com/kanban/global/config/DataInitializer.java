@@ -40,6 +40,6 @@ public class DataInitializer implements CommandLineRunner {
                 .build();
 
         userRepository.save(testUser);
-        log.info("Test account created: {} / {}", testEmail, testPassword);
+        log.info("Test account created: {}", testEmail);
     }
 }

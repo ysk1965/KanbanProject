@@ -7,7 +7,10 @@ import com.kanban.domain.tag.Tag;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 
+import java.io.Serial;
+import java.io.Serializable;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -16,8 +19,11 @@ public class FeatureResponse {
 
     @Getter
     @Builder
+    @NoArgsConstructor
     @AllArgsConstructor
-    public static class Simple {
+    public static class Simple implements Serializable {
+        @Serial
+        private static final long serialVersionUID = 1L;
         private String id;
         private String title;
         private String color;
@@ -51,8 +57,11 @@ public class FeatureResponse {
 
     @Getter
     @Builder
+    @NoArgsConstructor
     @AllArgsConstructor
-    public static class Detail {
+    public static class Detail implements Serializable {
+        @Serial
+        private static final long serialVersionUID = 1L;
         private String id;
         private String title;
         private String description;
@@ -96,8 +105,11 @@ public class FeatureResponse {
 
     @Getter
     @Builder
+    @NoArgsConstructor
     @AllArgsConstructor
-    public static class AssigneeInfo {
+    public static class AssigneeInfo implements Serializable {
+        @Serial
+        private static final long serialVersionUID = 1L;
         private String id;
         private String name;
         private String email;
@@ -115,8 +127,11 @@ public class FeatureResponse {
 
     @Getter
     @Builder
+    @NoArgsConstructor
     @AllArgsConstructor
-    public static class CreatorInfo {
+    public static class CreatorInfo implements Serializable {
+        @Serial
+        private static final long serialVersionUID = 1L;
         private String id;
         private String name;
 
@@ -130,8 +145,11 @@ public class FeatureResponse {
 
     @Getter
     @Builder
+    @NoArgsConstructor
     @AllArgsConstructor
-    public static class TagInfo {
+    public static class TagInfo implements Serializable {
+        @Serial
+        private static final long serialVersionUID = 1L;
         private String id;
         private String name;
         private String color;
@@ -147,8 +165,12 @@ public class FeatureResponse {
 
     @Getter
     @Builder
+    @NoArgsConstructor
     @AllArgsConstructor
-    public static class ListResponse {
+    public static class ListResponse implements Serializable {
+        @Serial
+        private static final long serialVersionUID = 1L;
+
         private List<Simple> features;
 
         public static ListResponse of(List<Feature> features, java.util.Map<String, List<Tag>> featureTagsMap) {

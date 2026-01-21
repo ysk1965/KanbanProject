@@ -6,15 +6,21 @@ import com.kanban.domain.block.FixedBlockType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 
+import java.io.Serial;
+import java.io.Serializable;
 import java.util.List;
 
 public class BlockResponse {
 
     @Getter
     @Builder
+    @NoArgsConstructor
     @AllArgsConstructor
-    public static class Detail {
+    public static class Detail implements Serializable {
+        @Serial
+        private static final long serialVersionUID = 1L;
         private String id;
         private String name;
         private BlockType type;
@@ -36,8 +42,12 @@ public class BlockResponse {
 
     @Getter
     @Builder
+    @NoArgsConstructor
     @AllArgsConstructor
-    public static class ListResponse {
+    public static class ListResponse implements Serializable {
+        @Serial
+        private static final long serialVersionUID = 1L;
+
         private List<Detail> blocks;
 
         public static ListResponse of(List<Block> blocks) {

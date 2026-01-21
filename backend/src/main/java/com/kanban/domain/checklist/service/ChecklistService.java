@@ -1,8 +1,13 @@
 package com.kanban.domain.checklist.service;
 
+import com.kanban.domain.activity.ActivityAction;
+import com.kanban.domain.activity.TargetType;
+import com.kanban.domain.activity.service.ActivityService;
 import com.kanban.domain.board.service.BoardService;
 import com.kanban.domain.checklist.ChecklistItem;
 import com.kanban.domain.checklist.ChecklistItemRepository;
+import com.kanban.domain.checklist.dto.ChecklistBatchRequest;
+import com.kanban.domain.checklist.dto.ChecklistBatchResponse;
 import com.kanban.domain.checklist.dto.ChecklistRequest;
 import com.kanban.domain.checklist.dto.ChecklistResponse;
 import com.kanban.domain.schedule.ScheduleBlockRepository;
@@ -18,6 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -30,6 +36,7 @@ public class ChecklistService {
     private final UserRepository userRepository;
     private final BoardService boardService;
     private final ScheduleBlockRepository scheduleBlockRepository;
+    private final ActivityService activityService;
 
     public ChecklistResponse.ListResponse getChecklist(String boardId, String taskId, String userId) {
         boardService.checkViewerOrAbove(boardId, userId);
@@ -75,6 +82,22 @@ public class ChecklistService {
                 .build();
 
         checklistItemRepository.save(item);
+
+        // 활동 로그 기록
+        User creator = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        activityService.logActivity(
+                task.getBoard(),
+                creator,
+                ActivityAction.CHECKLIST_CREATED,
+                TargetType.CHECKLIST,
+                item.getId(),
+                Map.of(
+                        "checklistTitle", item.getTitle(),
+                        "taskTitle", task.getTitle()
+                )
+        );
 
         log.info("Checklist item created: {} in task: {} by user: {}", item.getId(), taskId, userId);
 
@@ -183,5 +206,29 @@ public class ChecklistService {
         }
 
         return ChecklistResponse.BoardListResponse.of(items);
+    }
+
+    /**
+     * 여러 Task의 체크리스트를 일괄 조회
+     * IN 쿼리를 사용하여 N+1 문제 방지
+     */
+    public ChecklistBatchResponse getBatchChecklists(String boardId, String userId, ChecklistBatchRequest request) {
+        boardService.checkViewerOrAbove(boardId, userId);
+
+        if (request.getTaskIds() == null || request.getTaskIds().isEmpty()) {
+            return ChecklistBatchResponse.builder()
+                    .checklists(List.of())
+                    .build();
+        }
+
+        // IN 쿼리로 한 번에 조회 (N+1 방지)
+        List<ChecklistItem> items = checklistItemRepository.findByTaskIdIn(request.getTaskIds());
+
+        // 해당 보드에 속한 체크리스트만 필터링
+        List<ChecklistItem> filteredItems = items.stream()
+                .filter(item -> item.getTask().getBoard().getId().equals(boardId))
+                .toList();
+
+        return ChecklistBatchResponse.of(filteredItems);
     }
 }

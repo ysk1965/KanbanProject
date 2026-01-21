@@ -25,6 +25,9 @@ public enum ActivityAction {
     TASK_COMPLETED,
     TASK_REOPENED,
 
+    // Checklist actions
+    CHECKLIST_CREATED,
+
     // Member actions
     MEMBER_INVITED,
     MEMBER_JOINED,
