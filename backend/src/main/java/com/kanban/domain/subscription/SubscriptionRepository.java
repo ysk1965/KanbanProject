@@ -1,5 +1,7 @@
 package com.kanban.domain.subscription;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -20,4 +22,10 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Stri
 
     @Query("SELECT s FROM Subscription s WHERE s.status = 'ACTIVE' AND s.nextPaymentAt < :now")
     List<Subscription> findDueForPayment(@Param("now") LocalDateTime now);
+
+    // Admin용 메서드
+    @Query("SELECT s FROM Subscription s JOIN FETCH s.board b JOIN FETCH b.owner")
+    Page<Subscription> findAllWithBoardAndOwner(Pageable pageable);
+
+    long countByStatus(SubscriptionStatus status);
 }

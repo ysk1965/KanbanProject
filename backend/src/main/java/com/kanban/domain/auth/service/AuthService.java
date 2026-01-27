@@ -183,8 +183,9 @@ public class AuthService {
     }
 
     private TokenResponse createTokenResponse(User user) {
-        String accessToken = jwtProvider.createAccessToken(user.getId(), user.getEmail());
-        String refreshToken = jwtProvider.createRefreshToken(user.getId(), user.getEmail());
+        String systemRole = user.getSystemRole() != null ? user.getSystemRole().name() : "USER";
+        String accessToken = jwtProvider.createAccessToken(user.getId(), user.getEmail(), systemRole);
+        String refreshToken = jwtProvider.createRefreshToken(user.getId(), user.getEmail(), systemRole);
 
         // 리프레시 토큰 저장
         RefreshToken refreshTokenEntity = RefreshToken.builder()
@@ -196,12 +197,17 @@ public class AuthService {
 
         refreshTokenRepository.save(refreshTokenEntity);
 
+        // provider 값 변환: GOOGLE -> google, LOCAL/email -> email
+        String provider = "GOOGLE".equals(user.getAuthProvider()) ? "google" : "email";
+
         TokenResponse.UserInfo userInfo = TokenResponse.UserInfo.builder()
                 .id(user.getId())
                 .email(user.getEmail())
                 .name(user.getName())
                 .profileImage(user.getProfileImage())
                 .emailVerified(user.getEmailVerified())
+                .provider(provider)
+                .systemRole(systemRole)
                 .build();
 
         return TokenResponse.of(accessToken, refreshToken, userInfo);

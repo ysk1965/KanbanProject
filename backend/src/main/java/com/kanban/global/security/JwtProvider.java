@@ -33,21 +33,22 @@ public class JwtProvider {
         this.secretKey = Keys.hmacShaKeyFor(secretKeyString.getBytes(StandardCharsets.UTF_8));
     }
 
-    public String createAccessToken(String userId, String email) {
-        return createToken(userId, email, accessExpiration);
+    public String createAccessToken(String userId, String email, String systemRole) {
+        return createToken(userId, email, systemRole, accessExpiration);
     }
 
-    public String createRefreshToken(String userId, String email) {
-        return createToken(userId, email, refreshExpiration);
+    public String createRefreshToken(String userId, String email, String systemRole) {
+        return createToken(userId, email, systemRole, refreshExpiration);
     }
 
-    private String createToken(String userId, String email, long expiration) {
+    private String createToken(String userId, String email, String systemRole, long expiration) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + expiration);
 
         return Jwts.builder()
                 .subject(userId)
                 .claim("email", email)
+                .claim("systemRole", systemRole)
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(secretKey)
@@ -60,6 +61,11 @@ public class JwtProvider {
 
     public String getEmailFromToken(String token) {
         return getClaims(token).get("email", String.class);
+    }
+
+    public String getSystemRoleFromToken(String token) {
+        String role = getClaims(token).get("systemRole", String.class);
+        return role != null ? role : "USER";
     }
 
     public boolean validateToken(String token) {

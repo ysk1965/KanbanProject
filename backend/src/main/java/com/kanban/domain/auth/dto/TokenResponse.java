@@ -23,6 +23,8 @@ public class TokenResponse {
         private String name;
         private String profileImage;
         private Boolean emailVerified;
+        private String provider;
+        private String systemRole;
     }
 
     public static TokenResponse of(String accessToken, String refreshToken, UserInfo user) {

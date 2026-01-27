@@ -26,13 +26,15 @@ public class UserController {
     @GetMapping("/me")
     public ResponseEntity<Map<String, Object>> getMe(@AuthenticationPrincipal UserPrincipal principal) {
         User user = userService.getUser(principal.getUserId());
+        String provider = "GOOGLE".equals(user.getAuthProvider()) ? "google" : "email";
         return ResponseEntity.ok(Map.of(
                 "id", user.getId(),
                 "email", user.getEmail(),
                 "name", user.getName(),
                 "profile_image", user.getProfileImage() != null ? user.getProfileImage() : "",
                 "email_verified", user.getEmailVerified(),
-                "theme", user.getTheme() != null ? user.getTheme() : "dark"
+                "theme", user.getTheme() != null ? user.getTheme() : "dark",
+                "provider", provider
         ));
     }
 
@@ -45,13 +47,15 @@ public class UserController {
             @RequestBody UpdateProfileRequest request
     ) {
         User user = userService.updateProfile(principal.getUserId(), request);
+        String provider = "GOOGLE".equals(user.getAuthProvider()) ? "google" : "email";
         return ResponseEntity.ok(Map.of(
                 "id", user.getId(),
                 "email", user.getEmail(),
                 "name", user.getName(),
                 "profile_image", user.getProfileImage() != null ? user.getProfileImage() : "",
                 "email_verified", user.getEmailVerified(),
-                "theme", user.getTheme() != null ? user.getTheme() : "dark"
+                "theme", user.getTheme() != null ? user.getTheme() : "dark",
+                "provider", provider
         ));
     }
 

@@ -1,5 +1,6 @@
 package com.kanban.global.security;
 
+import com.kanban.domain.user.SystemRole;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -33,8 +34,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (StringUtils.hasText(token) && jwtProvider.validateToken(token)) {
             String userId = jwtProvider.getUserIdFromToken(token);
             String email = jwtProvider.getEmailFromToken(token);
+            String systemRoleStr = jwtProvider.getSystemRoleFromToken(token);
+            SystemRole systemRole = SystemRole.valueOf(systemRoleStr);
 
-            UserPrincipal principal = new UserPrincipal(userId, email);
+            UserPrincipal principal = new UserPrincipal(userId, email, systemRole);
 
             UsernamePasswordAuthenticationToken authentication =
                     new UsernamePasswordAuthenticationToken(principal, null, Collections.emptyList());

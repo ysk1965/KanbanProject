@@ -1,6 +1,8 @@
 package com.kanban.domain.board;
 
 import jakarta.persistence.LockModeType;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -26,4 +28,31 @@ public interface BoardRepository extends JpaRepository<Board, String> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT b FROM Board b WHERE b.id = :boardId")
     Optional<Board> findByIdWithLock(@Param("boardId") String boardId);
+
+    // Admin용 메서드
+    @Query("SELECT b FROM Board b WHERE " +
+           "(:search IS NULL OR :search = '' OR b.name LIKE %:search% OR b.description LIKE %:search%) AND " +
+           "(:tier IS NULL OR b.tier = :tier)")
+    Page<Board> findAllWithFilters(
+            @Param("search") String search,
+            @Param("tier") BoardTier tier,
+            Pageable pageable);
+
+    long countByTier(BoardTier tier);
+
+    /**
+     * 사용자가 소속된 보드 수 (owner + member)
+     */
+    @Query("SELECT COUNT(DISTINCT b) FROM Board b " +
+           "LEFT JOIN BoardMember bm ON b.id = bm.board.id " +
+           "WHERE b.owner.id = :userId OR bm.user.id = :userId")
+    int countByUserInvolvement(@Param("userId") String userId);
+
+    /**
+     * 사용자가 소속된 보드 목록 (owner + member)
+     */
+    @Query("SELECT DISTINCT b FROM Board b " +
+           "LEFT JOIN BoardMember bm ON b.id = bm.board.id " +
+           "WHERE b.owner.id = :userId OR bm.user.id = :userId")
+    List<Board> findByUserInvolvement(@Param("userId") String userId);
 }

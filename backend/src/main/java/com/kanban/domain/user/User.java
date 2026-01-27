@@ -52,6 +52,12 @@ public class User extends BaseTimeEntity {
     @Builder.Default
     private String theme = "dark";
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "system_role", length = 20)
+    @Builder.Default
+    // TODO: 라이브 서비스 전 SystemRole.USER로 변경 필요
+    private SystemRole systemRole = SystemRole.TESTER;
+
     @PrePersist
     public void prePersist() {
         if (this.id == null) {
@@ -93,5 +99,15 @@ public class User extends BaseTimeEntity {
     public void verifyEmail() {
         this.emailVerified = true;
         this.emailVerifiedAt = LocalDateTime.now();
+    }
+
+    public boolean isAdmin() {
+        return this.systemRole == SystemRole.ADMIN;
+    }
+
+    public void updateSystemRole(SystemRole systemRole) {
+        if (systemRole != null) {
+            this.systemRole = systemRole;
+        }
     }
 }
