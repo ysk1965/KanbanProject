@@ -1,0 +1,402 @@
+import { useState, useEffect, useMemo } from 'react';
+import { X, Clock, ChevronDown, Folder, FileText, Loader2, CheckSquare, Layers, Plus } from 'lucide-react';
+import { format } from 'date-fns';
+import { featureAPI, taskAPI, dailyChecklistAPI, FeatureResponse, TaskResponse, DailyChecklistItemResponse } from '../utils/api';
+
+interface ChecklistCreateModalProps {
+  boardId: string;
+  assigneeId: string;
+  startTime: string;
+  endTime: string;
+  displayMode: 'time' | 'block';
+  startBlockIndex?: number;
+  endBlockIndex?: number;
+  onCreate: (taskId: string, title: string) => void;
+  onSelectExisting: (checklistItemId: string) => void;
+  onClose: () => void;
+}
+
+export function ChecklistCreateModal({
+  boardId,
+  assigneeId,
+  startTime,
+  endTime,
+  displayMode,
+  startBlockIndex,
+  endBlockIndex,
+  onCreate,
+  onSelectExisting,
+  onClose,
+}: ChecklistCreateModalProps) {
+  // 오늘의 체크리스트 (먼저 표시)
+  const [todayChecklists, setTodayChecklists] = useState<DailyChecklistItemResponse[]>([]);
+  const [isLoadingToday, setIsLoadingToday] = useState(true);
+
+  // 새로 생성 모드 토글
+  const [showCreateForm, setShowCreateForm] = useState(false);
+
+  const [features, setFeatures] = useState<FeatureResponse[]>([]);
+  const [tasks, setTasks] = useState<TaskResponse[]>([]);
+  const [isLoadingFeatures, setIsLoadingFeatures] = useState(false);
+  const [isLoadingTasks, setIsLoadingTasks] = useState(false);
+
+  const [selectedFeatureId, setSelectedFeatureId] = useState<string>('');
+  const [selectedTaskId, setSelectedTaskId] = useState<string>('');
+  const [title, setTitle] = useState('');
+
+  const [isFeatureDropdownOpen, setIsFeatureDropdownOpen] = useState(false);
+  const [isTaskDropdownOpen, setIsTaskDropdownOpen] = useState(false);
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // 오늘의 체크리스트 로드
+  useEffect(() => {
+    const loadTodayChecklists = async () => {
+      setIsLoadingToday(true);
+      try {
+        const today = format(new Date(), 'yyyy-MM-dd');
+        const response = await dailyChecklistAPI.getDailyChecklist(boardId, today);
+        // 해당 assignee의 미완료 체크리스트만 필터링
+        const userColumn = response.columns?.find((c) => c.user.id === assigneeId);
+        const items = userColumn?.items?.filter((item) => !item.completed) || [];
+        setTodayChecklists(items);
+      } catch (error) {
+        console.error('Failed to load today checklists:', error);
+        setTodayChecklists([]);
+      } finally {
+        setIsLoadingToday(false);
+      }
+    };
+    loadTodayChecklists();
+  }, [boardId, assigneeId]);
+
+  // Feature 목록 로드 (새로 생성 모드일 때만)
+  useEffect(() => {
+    if (!showCreateForm) return;
+
+    const loadFeatures = async () => {
+      setIsLoadingFeatures(true);
+      try {
+        const response = await featureAPI.getFeatures(boardId);
+        setFeatures(response.features);
+      } catch (error) {
+        console.error('Failed to load features:', error);
+      } finally {
+        setIsLoadingFeatures(false);
+      }
+    };
+    loadFeatures();
+  }, [boardId, showCreateForm]);
+
+  // Feature 선택 시 Task 목록 로드
+  useEffect(() => {
+    if (!selectedFeatureId) {
+      setTasks([]);
+      setSelectedTaskId('');
+      return;
+    }
+
+    const loadTasks = async () => {
+      setIsLoadingTasks(true);
+      try {
+        const response = await taskAPI.getTasks(boardId, { feature_id: selectedFeatureId });
+        setTasks(response.tasks);
+        setSelectedTaskId('');
+      } catch (error) {
+        console.error('Failed to load tasks:', error);
+      } finally {
+        setIsLoadingTasks(false);
+      }
+    };
+    loadTasks();
+  }, [boardId, selectedFeatureId]);
+
+  const selectedFeature = useMemo(
+    () => features.find((f) => f.id === selectedFeatureId),
+    [features, selectedFeatureId]
+  );
+
+  const selectedTask = useMemo(
+    () => tasks.find((t) => t.id === selectedTaskId),
+    [tasks, selectedTaskId]
+  );
+
+  const canSubmit = selectedTaskId && title.trim();
+
+  const handleSubmit = async () => {
+    if (!canSubmit) return;
+
+    setIsSubmitting(true);
+    try {
+      onCreate(selectedTaskId, title.trim());
+    } catch (error) {
+      console.error('Failed to create checklist item:', error);
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-bridge-obsidian rounded-2xl shadow-2xl w-[560px] min-h-[700px] max-h-[90vh] flex flex-col overflow-hidden border border-white/10">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
+          <h2 className="text-lg font-bold text-white">타임블록 추가</h2>
+          <button
+            onClick={onClose}
+            className="text-slate-500 hover:text-white transition-colors"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Time/Block Display */}
+        <div className="px-6 py-3 border-b border-white/5">
+          <div className="bg-bridge-accent/20 rounded-xl px-4 py-2.5 flex items-center gap-3 border border-bridge-accent/30">
+            {displayMode === 'block' ? (
+              <>
+                <Layers className="h-4 w-4 text-bridge-accent" />
+                <span className="text-bridge-accent font-medium text-sm">
+                  {startBlockIndex !== undefined && endBlockIndex !== undefined
+                    ? startBlockIndex === endBlockIndex
+                      ? `${startBlockIndex + 1}번 블록`
+                      : `${startBlockIndex + 1}번 ~ ${endBlockIndex + 1}번 블록`
+                    : '블록 선택'}
+                </span>
+              </>
+            ) : (
+              <>
+                <Clock className="h-4 w-4 text-bridge-accent" />
+                <span className="text-bridge-accent font-medium text-sm">
+                  {startTime} - {endTime}
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Form */}
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
+          {/* 오늘의 체크리스트 (먼저 표시) */}
+          <div>
+            <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+              <CheckSquare className="inline h-4 w-4 mr-1 text-bridge-accent" />
+              오늘의 체크리스트에서 선택
+            </label>
+            <div className="border border-white/10 rounded-xl max-h-64 overflow-y-auto bg-white/5">
+              {isLoadingToday ? (
+                <div className="px-4 py-6 text-slate-500 flex items-center justify-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  로딩 중...
+                </div>
+              ) : todayChecklists.length === 0 ? (
+                <div className="px-4 py-6 text-slate-500 text-sm text-center">
+                  오늘의 체크리스트가 없습니다
+                </div>
+              ) : (
+                <div className="divide-y divide-white/5">
+                  {todayChecklists.map((item) => (
+                    <button
+                      key={item.id}
+                      onClick={() => onSelectExisting(item.checklist_item_id)}
+                      className="w-full px-4 py-3 flex items-center gap-3 hover:bg-bridge-accent/10 transition-colors text-left group"
+                    >
+                      <div className="w-4 h-4 rounded border border-white/20 flex-shrink-0 group-hover:border-bridge-accent/50" />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm text-white truncate">{item.title}</div>
+                        {item.feature && (
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <div
+                              className="w-2 h-2 rounded-full"
+                              style={{ backgroundColor: item.feature.color }}
+                            />
+                            <span className="text-[10px] text-slate-500 truncate">
+                              {item.feature.title} · {item.task?.title}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      <span className="text-xs text-bridge-accent font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                        선택
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 구분선 */}
+          <div className="flex items-center gap-3">
+            <div className="flex-1 border-t border-white/10" />
+            <button
+              onClick={() => setShowCreateForm(!showCreateForm)}
+              className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition-colors"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              {showCreateForm ? '접기' : '새로 생성'}
+            </button>
+            <div className="flex-1 border-t border-white/10" />
+          </div>
+
+          {/* 새로 생성 폼 (토글) */}
+          {showCreateForm && (
+            <>
+              {/* Feature Selection */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                  <Folder className="inline h-4 w-4 mr-1 text-amber-500" />
+                  Feature
+                </label>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsFeatureDropdownOpen(!isFeatureDropdownOpen)}
+                className="w-full flex items-center justify-between px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-left hover:border-white/20 transition-colors"
+              >
+                {isLoadingFeatures ? (
+                  <span className="text-slate-500 flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading...
+                  </span>
+                ) : selectedFeature ? (
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="w-3 h-3 rounded-full"
+                      style={{ backgroundColor: selectedFeature.color }}
+                    />
+                    <span className="text-white">{selectedFeature.title}</span>
+                  </div>
+                ) : (
+                  <span className="text-slate-500">Select a feature</span>
+                )}
+                <ChevronDown className={`h-4 w-4 text-slate-500 transition-transform ${isFeatureDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {isFeatureDropdownOpen && !isLoadingFeatures && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-bridge-obsidian border border-white/10 rounded-xl shadow-xl z-10 max-h-72 overflow-y-auto">
+                  {features.length === 0 ? (
+                    <div className="px-4 py-3 text-slate-500 text-sm">No features found</div>
+                  ) : (
+                    features.map((feature) => (
+                      <button
+                        key={feature.id}
+                        onClick={() => {
+                          setSelectedFeatureId(feature.id);
+                          setIsFeatureDropdownOpen(false);
+                        }}
+                        className={`w-full flex items-center gap-2 px-4 py-3 text-left hover:bg-white/5 transition-colors ${
+                          feature.id === selectedFeatureId ? 'bg-bridge-accent/20' : ''
+                        }`}
+                      >
+                        <div
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: feature.color }}
+                        />
+                        <span className="text-white">{feature.title}</span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Task Selection */}
+          <div>
+            <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+              <FileText className="inline h-4 w-4 mr-1 text-bridge-accent" />
+              Task
+            </label>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => selectedFeatureId && setIsTaskDropdownOpen(!isTaskDropdownOpen)}
+                disabled={!selectedFeatureId}
+                className={`w-full flex items-center justify-between px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-left transition-colors ${
+                  !selectedFeatureId ? 'opacity-50 cursor-not-allowed' : 'hover:border-white/20'
+                }`}
+              >
+                {isLoadingTasks ? (
+                  <span className="text-slate-500 flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading...
+                  </span>
+                ) : selectedTask ? (
+                  <span className="text-white">{selectedTask.title}</span>
+                ) : (
+                  <span className="text-slate-500">
+                    {selectedFeatureId ? 'Select a task' : 'Select a feature first'}
+                  </span>
+                )}
+                <ChevronDown className={`h-4 w-4 text-slate-500 transition-transform ${isTaskDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {isTaskDropdownOpen && !isLoadingTasks && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-bridge-obsidian border border-white/10 rounded-xl shadow-xl z-10 max-h-72 overflow-y-auto">
+                  {tasks.length === 0 ? (
+                    <div className="px-4 py-3 text-slate-500 text-sm">No tasks found</div>
+                  ) : (
+                    tasks.map((task) => (
+                      <button
+                        key={task.id}
+                        onClick={() => {
+                          setSelectedTaskId(task.id);
+                          setIsTaskDropdownOpen(false);
+                        }}
+                        className={`w-full px-4 py-3 text-left hover:bg-white/5 transition-colors ${
+                          task.id === selectedTaskId ? 'bg-bridge-accent/20' : ''
+                        }`}
+                      >
+                        <span className="text-white">{task.title}</span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+              {/* 새 체크리스트 생성 */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                  새 체크리스트 항목
+                </label>
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="새 체크리스트 제목 입력"
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+                />
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-white/5 flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 py-3 text-sm font-bold text-slate-400 hover:text-white transition-colors border border-white/10 rounded-xl hover:bg-white/5"
+          >
+            취소
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={!canSubmit || isSubmitting}
+            className="flex-1 py-3 bg-gradient-to-r from-bridge-accent to-purple-500 text-sm font-bold text-white rounded-xl shadow-lg shadow-bridge-accent/20 disabled:opacity-50 disabled:grayscale hover:shadow-bridge-accent/40 transition-all flex items-center justify-center gap-2"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                생성 중...
+              </>
+            ) : (
+              '생성'
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

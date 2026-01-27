@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:vercel.com)",
+      "WebFetch(domain:www.ui-skills.com)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfeat\\(subagents\\): Web SubAgents 강화 및 Realtime 추가\n\n변경 내용:\n- subagent-component: Vercel Guidelines, UI Skills 통합 \\(터치타겟, radius, GPU 애니메이션\\)\n- subagent-api-client: Query Keys 중앙관리, Optimistic Update, AbortController 추가\n- subagent-state-management: Slice 패턴, useShallow, Context+Reducer, 안티패턴 추가\n- subagent-testing: 접근성 테스트\\(vitest-axe\\), Provider 래퍼 패턴 추가\n- subagent-realtime: 신규 추가 \\(WebSocket, SSE, 폴링, React Query 통합\\)\n- registry.yaml: Web 13개로 업데이트 \\(v2.3.0\\)\n\n참조:\n- Vercel Interface Guidelines\n- UI Skills \\(baseline-ui, motion-performance, accessibility, metadata\\)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git push:*)",
+      "Bash(git commit:*)"
+    ]
+  }
+}

@@ -1,0 +1,67 @@
+API 네이밍 규칙
+공통 원칙
+
+API 필드: camelCase
+URL: kebab-case (/api/team-boards)
+날짜: ISO 8601 string (2025-01-11T09:00:00Z)
+
+BE (Spring)
+구분컨벤션예시클래스PascalCaseTaskController, BoardService메서드camelCasegetTasksByBoardId()필드/변수camelCasetaskName, createdAtDB 컬럼snake_casetask_name, created_at상수UPPER_SNAKEMAX_TASK_COUNT
+FE (React)
+구분컨벤션예시컴포넌트PascalCaseTaskCard.tsx, BoardColumn.tsx함수/변수camelCasehandleDragEnd, taskList훅use + PascalCaseuseBoard, useTasks타입/인터페이스PascalCaseTask, BoardResponseAPI 함수camelCasefetchTasks, createBoard
+주요 엔티티 필드명
+typescript// 이 필드명을 BE/FE 모두 동일하게 사용
+interface Board {
+  boardId: number;
+  boardName: string;
+  teamId: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface Feature {
+  featureId: number;
+  boardId: number;
+  featureName: string;
+  status: "TODO" | "IN_PROGRESS" | "DONE";
+  orderIndex: number;
+}
+
+interface Task {
+  taskId: number;
+  featureId: number;
+  taskName: string;
+  assigneeId: number | null;
+  status: "TODO" | "IN_PROGRESS" | "DONE";
+  orderIndex: number;
+}
+
+interface Member {
+  memberId: number;
+  teamId: number;
+  userId: number;
+  role: "OWNER" | "ADMIN" | "MEMBER";
+  displayName: string;
+}
+```
+
+### API 엔드포인트
+```
+GET    /api/boards/{boardId}
+POST   /api/boards
+PUT    /api/boards/{boardId}
+DELETE /api/boards/{boardId}
+
+GET    /api/boards/{boardId}/features
+POST   /api/boards/{boardId}/features
+PATCH  /api/features/{featureId}/status
+PATCH  /api/features/{featureId}/order
+
+GET    /api/features/{featureId}/tasks
+POST   /api/features/{featureId}/tasks
+PATCH  /api/tasks/{taskId}
+DELETE /api/tasks/{taskId}
+Boolean 필드 규칙
+
+is prefix 없이: active, deleted, visible
+BE/FE 동일하게 사용

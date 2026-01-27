@@ -1,0 +1,37 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(timeout 5 npm run dev:*)",
+      "Bash(tree:*)",
+      "Bash(npm run build:*)",
+      "Bash(curl:*)",
+      "Bash(npx tsc:*)",
+      "WebSearch",
+      "Bash(npm uninstall:*)",
+      "Bash(npm run dev:*)",
+      "Bash(npm install:*)",
+      "Bash(./gradlew compileJava:*)",
+      "Bash(ls:*)",
+      "Bash(./gradlew build:*)",
+      "Bash(./gradlew bootRun:*)",
+      "Bash(lsof:*)",
+      "Bash(xargs kill:*)",
+      "Bash(pkill:*)",
+      "Bash(awk:*)",
+      "Bash(cd /Users/cookapps/Documents/GitHub/KanbanProject:*)",
+      "Bash(sleep:*)",
+      "Bash(git pull:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push)",
+      "Bash(ssh:*)",
+      "Bash(git remote set-url:*)",
+      "Bash(ssh-add:*)",
+      "Bash(find:*)",
+      "Bash(MAIL_USERNAME=\"eobub15@gmail.com\" MAIL_PASSWORD=\"dhiclkonectyszvp\" ./gradlew bootRun:*)",
+      "Bash(./gradlew clean:*)",
+      "Bash(xargs:*)",
+      "Bash(wc:*)"
+    ]
+  }
+}

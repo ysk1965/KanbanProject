@@ -1,0 +1,822 @@
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import { ChevronLeft, ChevronRight, Settings, Plus, Loader2, Clock, CheckSquare, Check } from 'lucide-react';
+import { Button } from './ui/button';
+import { format, addDays, subDays, startOfDay, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval } from 'date-fns';
+import { ko } from 'date-fns/locale';
+import { BoardMember } from './ShareBoardModal';
+import { ScheduleBlock } from './ScheduleBlock';
+import { ScheduleDetailPanel } from './ScheduleDetailPanel';
+import { ChecklistCreateModal } from './ChecklistCreateModal';
+import { ScheduleSettingsModal, ScheduleDisplayMode } from './ScheduleSettingsModal';
+import { DailyChecklistView } from './DailyChecklistView';
+import { BoardMember as BoardMemberType } from '../types';
+import {
+  scheduleAPI,
+  dailyChecklistAPI,
+  ScheduleBlockInfo,
+  ScheduleColumnInfo,
+  ScheduleSettingsResponse,
+  DailyChecklistColumnResponse,
+} from '../utils/api';
+
+// 데일리 스크럼 세부 탭 타입
+type ScheduleSubTab = 'timeblock' | 'checklist';
+
+interface DailyScheduleViewProps {
+  boardId: string;
+  boardMembers: BoardMember[];
+  onViewFeature?: (featureId: string) => void;
+  onViewTask?: (taskId: string) => void;
+  refreshTrigger?: number;
+}
+
+const SLOT_HEIGHT = 40; // 30분 슬롯의 높이 (px)
+
+// 시간 슬롯 생성 (30분 단위)
+const generateTimeSlots = (startHour: number, endHour: number) => {
+  const slots: string[] = [];
+  for (let hour = startHour; hour < endHour; hour++) {
+    slots.push(`${hour.toString().padStart(2, '0')}:00`);
+    slots.push(`${hour.toString().padStart(2, '0')}:30`);
+  }
+  return slots;
+};
+
+// 시간 문자열에서 시간만 추출 (예: "09:00" 또는 "09:00:00" -> 9)
+const parseHour = (time: string): number => {
+  return parseInt(time.split(':')[0], 10);
+};
+
+type ScheduleViewMode = 'day' | 'week';
+
+export function DailyScheduleView({ boardId, boardMembers, onViewFeature, onViewTask, refreshTrigger }: DailyScheduleViewProps) {
+  // 세부 탭 상태 (타임블록 / 체크리스트)
+  const [subTab, setSubTab] = useState<ScheduleSubTab>('timeblock');
+
+  const [viewMode, setViewMode] = useState<ScheduleViewMode>('day');
+  const [selectedDate, setSelectedDate] = useState<Date>(startOfDay(new Date()));
+  const [isLoading, setIsLoading] = useState(false);
+  const [columns, setColumns] = useState<ScheduleColumnInfo[]>([]);
+  const [weeklyData, setWeeklyData] = useState<Map<string, ScheduleColumnInfo[]>>(new Map());
+  const [settings, setSettings] = useState<ScheduleSettingsResponse | null>(null);
+
+  // 데일리 체크리스트 데이터
+  const [dailyChecklists, setDailyChecklists] = useState<DailyChecklistColumnResponse[]>([]);
+
+  // 드래그 선택 상태
+  const [dragState, setDragState] = useState<{
+    userId: string;
+    startSlotIndex: number;
+    endSlotIndex: number;
+  } | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  // 선택된 블록 (상세 패널용)
+  const [selectedBlock, setSelectedBlock] = useState<ScheduleBlockInfo | null>(null);
+
+  // 대기 중인 블록 생성 (Action Choice 모달용)
+  const [pendingBlock, setPendingBlock] = useState<{
+    userId: string;
+    startTime: string;
+    endTime: string;
+    startSlotIndex: number;
+    endSlotIndex: number;
+  } | null>(null);
+
+  // 체크리스트 모달 상태 (선택 + 생성 통합)
+  const [showChecklistModal, setShowChecklistModal] = useState(false);
+
+  // 설정 모달 상태
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+
+  // 설정에서 표시 모드 가져오기 (TIME -> time, BLOCK -> block)
+  const displayMode: ScheduleDisplayMode = settings?.schedule_display_mode === 'BLOCK' ? 'block' : 'time';
+
+  // 설정에서 시간 범위 계산
+  const workStartHour = settings ? parseHour(settings.work_start_time) : 9;
+  const workEndHour = settings ? workStartHour + settings.work_hours_per_day : 18;
+
+  const timeSlots = useMemo(
+    () => generateTimeSlots(workStartHour, workEndHour),
+    [workStartHour, workEndHour]
+  );
+
+  // 주 단위 날짜 배열 계산
+  const weekDays = useMemo(() => {
+    const weekStart = startOfWeek(selectedDate, { weekStartsOn: 1 }); // 월요일 시작
+    const weekEnd = endOfWeek(selectedDate, { weekStartsOn: 1 });
+    return eachDayOfInterval({ start: weekStart, end: weekEnd });
+  }, [selectedDate]);
+
+  // 스케줄 데이터 로드
+  const loadSchedule = useCallback(async () => {
+    if (!boardId) return;
+
+    setIsLoading(true);
+    try {
+      const dateStr = format(selectedDate, 'yyyy-MM-dd');
+
+      if (viewMode === 'day') {
+        // 스케줄과 데일리 체크리스트 병렬 로드
+        const [scheduleResponse, checklistResponse] = await Promise.all([
+          scheduleAPI.getDailySchedule(boardId, dateStr),
+          dailyChecklistAPI.getDailyChecklist(boardId, dateStr).catch(() => ({ columns: [] })),
+        ]);
+        setColumns(scheduleResponse.columns);
+        setSettings(scheduleResponse.settings);
+        setDailyChecklists(checklistResponse.columns || []);
+      } else {
+        // 주 단위: 7일치 데이터 병렬 로드
+        const responses = await Promise.all(
+          weekDays.map(async (day) => {
+            const dayStr = format(day, 'yyyy-MM-dd');
+            const response = await scheduleAPI.getDailySchedule(boardId, dayStr);
+            return { date: dayStr, columns: response.columns, settings: response.settings };
+          })
+        );
+
+        const newWeeklyData = new Map<string, ScheduleColumnInfo[]>();
+        responses.forEach(({ date, columns: cols, settings: s }) => {
+          newWeeklyData.set(date, cols);
+          if (!settings && s) setSettings(s);
+        });
+        setWeeklyData(newWeeklyData);
+      }
+    } catch (error) {
+      console.error('Failed to load schedule:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [boardId, selectedDate, viewMode, weekDays]);
+
+  useEffect(() => {
+    loadSchedule();
+  }, [loadSchedule, refreshTrigger]);
+
+  // 스케줄 데이터가 변경되면 선택된 블록도 업데이트
+  useEffect(() => {
+    if (selectedBlock && columns.length > 0) {
+      // 모든 컬럼에서 선택된 블록 찾기
+      for (const col of columns) {
+        const updatedBlock = col.blocks.find((b) => b.id === selectedBlock.id);
+        if (updatedBlock) {
+          setSelectedBlock(updatedBlock);
+          break;
+        }
+      }
+    }
+  }, [columns]);
+
+  // 날짜 네비게이션
+  const handlePrev = () => {
+    if (viewMode === 'day') {
+      setSelectedDate(subDays(selectedDate, 1));
+    } else {
+      setSelectedDate(subWeeks(selectedDate, 1));
+    }
+  };
+  const handleNext = () => {
+    if (viewMode === 'day') {
+      setSelectedDate(addDays(selectedDate, 1));
+    } else {
+      setSelectedDate(addWeeks(selectedDate, 1));
+    }
+  };
+  const handleToday = () => setSelectedDate(startOfDay(new Date()));
+
+  const dayOfWeek = format(selectedDate, 'EEEE', { locale: ko });
+  const isToday = format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
+  const isTodayInWeek = weekDays.some(d => format(d, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd'));
+
+  // 멤버별 블록 매핑
+  const blocksByUser = useMemo(() => {
+    const map = new Map<string, ScheduleBlockInfo[]>();
+    columns.forEach((col) => {
+      map.set(col.user.id, col.blocks);
+    });
+    return map;
+  }, [columns]);
+
+  // 드래그 시작
+  const handleMouseDown = (userId: string, slotIndex: number) => {
+    setIsDragging(true);
+    setDragState({
+      userId,
+      startSlotIndex: slotIndex,
+      endSlotIndex: slotIndex,
+    });
+  };
+
+  // 드래그 중
+  const handleMouseEnter = (userId: string, slotIndex: number) => {
+    if (!isDragging || !dragState) return;
+    if (dragState.userId !== userId) return;
+
+    setDragState({
+      ...dragState,
+      endSlotIndex: slotIndex,
+    });
+  };
+
+  // 드래그 종료
+  const handleMouseUp = () => {
+    if (!isDragging || !dragState) {
+      setIsDragging(false);
+      setDragState(null);
+      return;
+    }
+
+    const { userId, startSlotIndex, endSlotIndex } = dragState;
+    const minIndex = Math.min(startSlotIndex, endSlotIndex);
+    const maxIndex = Math.max(startSlotIndex, endSlotIndex);
+
+    // 최소 1슬롯 이상 선택해야 함
+    if (maxIndex - minIndex >= 0) {
+      const startTime = timeSlots[minIndex];
+      const endTime = timeSlots[maxIndex + 1] || `${workEndHour}:00`;
+
+      // 체크리스트 모달 열기
+      setPendingBlock({
+        userId,
+        startTime,
+        endTime,
+        startSlotIndex: minIndex,
+        endSlotIndex: maxIndex,
+      });
+      setShowChecklistModal(true);
+    }
+
+    setIsDragging(false);
+    setDragState(null);
+  };
+
+  // 셀이 드래그 선택 영역에 포함되는지 확인
+  const isSlotSelected = (userId: string, slotIndex: number) => {
+    if (!dragState || dragState.userId !== userId) return false;
+    const minIndex = Math.min(dragState.startSlotIndex, dragState.endSlotIndex);
+    const maxIndex = Math.max(dragState.startSlotIndex, dragState.endSlotIndex);
+    return slotIndex >= minIndex && slotIndex <= maxIndex;
+  };
+
+  // 블록 클릭 핸들러
+  const handleBlockClick = (block: ScheduleBlockInfo) => {
+    setSelectedBlock(block);
+  };
+
+  // 패널 닫기
+  const handleClosePanel = () => {
+    setSelectedBlock(null);
+  };
+
+  // 블록 삭제 후 처리
+  const handleBlockDeleted = () => {
+    setSelectedBlock(null);
+    loadSchedule();
+  };
+
+  // 체크리스트 토글 후 처리
+  const handleChecklistToggled = () => {
+    loadSchedule();
+  };
+
+  // 새 체크리스트 아이템 생성 후 블록 생성
+  const handleChecklistCreate = async (taskId: string, title: string) => {
+    if (!pendingBlock) return;
+
+    try {
+      await scheduleAPI.createWithChecklistItem(boardId, {
+        assignee_id: pendingBlock.userId,
+        scheduled_date: format(selectedDate, 'yyyy-MM-dd'),
+        start_time: pendingBlock.startTime,
+        end_time: pendingBlock.endTime,
+        checklist_item: {
+          task_id: taskId,
+          title: title,
+        },
+      });
+      await loadSchedule();
+    } catch (error) {
+      console.error('Failed to create block with new checklist item:', error);
+    }
+    setShowChecklistModal(false);
+    setPendingBlock(null);
+  };
+
+  // 기존 체크리스트 아이템 선택 후 블록 생성
+  const handleChecklistItemSelect = async (checklistItemId: string) => {
+    if (!pendingBlock) return;
+
+    try {
+      await scheduleAPI.createBlock(boardId, {
+        checklist_item_id: checklistItemId,
+        assignee_id: pendingBlock.userId,
+        scheduled_date: format(selectedDate, 'yyyy-MM-dd'),
+        start_time: pendingBlock.startTime,
+        end_time: pendingBlock.endTime,
+      });
+      await loadSchedule();
+    } catch (error) {
+      console.error('Failed to create block with checklist item:', error);
+    }
+    setShowChecklistModal(false);
+    setPendingBlock(null);
+  };
+
+  // 체크리스트 모달 닫기
+  const handleCloseChecklistModal = () => {
+    setShowChecklistModal(false);
+    setPendingBlock(null);
+  };
+
+  // 블록 리사이즈 처리
+  const handleBlockResize = async (blockId: string, startTime: string, endTime: string) => {
+    try {
+      await scheduleAPI.updateBlock(boardId, blockId, {
+        start_time: startTime,
+        end_time: endTime,
+      });
+      // 선택된 블록이면 상세 패널도 업데이트
+      if (selectedBlock && selectedBlock.id === blockId) {
+        setSelectedBlock({
+          ...selectedBlock,
+          start_time: startTime,
+          end_time: endTime,
+        });
+      }
+      await loadSchedule();
+    } catch (error) {
+      console.error('Failed to resize block:', error);
+    }
+  };
+
+  return (
+    <div
+      className="h-full flex flex-col"
+      onMouseUp={handleMouseUp}
+      onMouseLeave={() => {
+        if (isDragging) {
+          setIsDragging(false);
+          setDragState(null);
+        }
+      }}
+    >
+      {/* 상단 날짜 네비게이션 */}
+      <div className="flex items-center justify-between px-6 py-3 bg-kanban-card border-b border-kanban-border">
+        <div className="flex items-center gap-4">
+          {/* 세부 탭: 타임블록 / 체크리스트 */}
+          <div className="flex bg-kanban-bg rounded-lg p-1">
+            <button
+              onClick={() => {
+                if (subTab !== 'timeblock') {
+                  setSubTab('timeblock');
+                  loadSchedule(); // 체크리스트에서 변경된 내용 반영
+                }
+              }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-all ${
+                subTab === 'timeblock'
+                  ? 'bg-bridge-accent text-white shadow-sm'
+                  : 'text-zinc-400 hover:text-zinc-300'
+              }`}
+            >
+              <Clock className="h-3.5 w-3.5" />
+              타임블록
+            </button>
+            <button
+              onClick={() => setSubTab('checklist')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-all ${
+                subTab === 'checklist'
+                  ? 'bg-bridge-accent text-white shadow-sm'
+                  : 'text-zinc-400 hover:text-zinc-300'
+              }`}
+            >
+              <CheckSquare className="h-3.5 w-3.5" />
+              체크리스트
+            </button>
+          </div>
+
+          {/* 구분선 */}
+          <div className="w-px h-6 bg-white/10" />
+
+          {/* 일/주 토글 (타임블록 탭에서만 표시) */}
+          {subTab === 'timeblock' && (
+            <div
+              className="flex bg-kanban-bg rounded-lg p-1 cursor-pointer"
+              onClick={() => setViewMode(viewMode === 'day' ? 'week' : 'day')}
+            >
+              <span
+                className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                  viewMode === 'day'
+                    ? 'bg-kanban-surface text-white'
+                    : 'text-zinc-400'
+                }`}
+              >
+                일
+              </span>
+              <span
+                className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                  viewMode === 'week'
+                    ? 'bg-kanban-surface text-white'
+                    : 'text-zinc-400'
+                }`}
+              >
+                주
+              </span>
+            </div>
+          )}
+
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handlePrev}
+              className="text-zinc-400 hover:text-foreground hover:bg-white/5 h-8 w-8 p-0"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="text-lg font-semibold text-foreground min-w-[280px] text-center">
+              {viewMode === 'day'
+                ? `${format(selectedDate, 'yyyy년 M월 d일', { locale: ko })} (${dayOfWeek})`
+                : `${format(weekDays[0], 'M월 d일', { locale: ko })} - ${format(weekDays[6], 'M월 d일', { locale: ko })}`
+              }
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleNext}
+              className="text-zinc-400 hover:text-foreground hover:bg-white/5 h-8 w-8 p-0"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+          <Button
+            variant={(viewMode === 'day' ? isToday : isTodayInWeek) ? 'default' : 'outline'}
+            size="sm"
+            onClick={handleToday}
+            className={
+              (viewMode === 'day' ? isToday : isTodayInWeek)
+                ? 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                : 'border-kanban-border text-zinc-300 hover:bg-white/5 hover:text-foreground'
+            }
+          >
+            오늘
+          </Button>
+          {isLoading && <Loader2 className="h-4 w-4 text-zinc-400 animate-spin" />}
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setShowSettingsModal(true)}
+          className="border-kanban-border text-zinc-300 hover:bg-white/5 hover:text-foreground"
+        >
+          <Settings className="h-4 w-4 mr-2" />
+          설정
+        </Button>
+      </div>
+
+      {/* 세부 탭에 따른 콘텐츠 렌더링 */}
+      {subTab === 'checklist' ? (
+        /* 체크리스트 탭 */
+        <DailyChecklistView
+          boardId={boardId}
+          boardMembers={boardMembers.map((m) => ({
+            id: m.id,
+            user: {
+              id: m.userId,
+              email: m.email,
+              name: m.name,
+              profile_image: m.profileImage ?? null,
+            },
+            role: m.role === 'owner' ? 'OWNER' : m.role === 'admin' ? 'ADMIN' : m.role === 'viewer' ? 'VIEWER' : 'MEMBER',
+            joined_at: new Date().toISOString(),
+          })) as BoardMemberType[]}
+          selectedDate={selectedDate}
+          onDateChange={setSelectedDate}
+        />
+      ) : (
+      /* 타임블록 탭 - 스케줄 그리드 */
+      <>
+      <div className="flex-1 overflow-auto">
+        {viewMode === 'day' ? (
+          /* 일 단위 뷰 */
+          <div className="min-w-max">
+            {/* 헤더: 시간/블록 + 멤버 컬럼 */}
+            <div className="flex sticky top-0 bg-kanban-card z-10 border-b border-kanban-border">
+              <div className="w-20 flex-shrink-0 p-3 text-sm font-medium text-zinc-400 border-r border-kanban-border">
+                {displayMode === 'block' ? '블록' : '시간'}
+              </div>
+              {boardMembers.map((member) => (
+                <div
+                  key={member.userId}
+                  className="w-48 flex-shrink-0 p-3 border-r border-kanban-border"
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-sm text-white font-medium">
+                      {member.name.charAt(0).toUpperCase()}
+                    </div>
+                    <span className="text-sm font-medium text-foreground">{member.name}</span>
+                  </div>
+                </div>
+              ))}
+              {boardMembers.length === 0 && (
+                <div className="flex-1 p-3 text-zinc-500 text-sm">보드에 멤버가 없습니다</div>
+              )}
+            </div>
+
+            {/* 데일리 체크리스트 요약 영역 */}
+            {dailyChecklists.length > 0 && (
+              <div className="flex border-b border-kanban-border bg-white/[0.02]">
+                <div className="w-20 flex-shrink-0 p-2 text-xs text-zinc-500 border-r border-kanban-border flex items-center justify-center">
+                  <CheckSquare className="h-3.5 w-3.5" />
+                </div>
+                {boardMembers.map((member) => {
+                  const memberChecklist = dailyChecklists.find(
+                    (c) => c.user.id === member.userId
+                  );
+                  const items = memberChecklist?.items || [];
+                  const completedCount = items.filter((i) => i.completed).length;
+                  const totalCount = items.length;
+
+                  return (
+                    <div
+                      key={`checklist-${member.userId}`}
+                      className="w-48 flex-shrink-0 p-2 border-r border-kanban-border"
+                    >
+                      {totalCount > 0 ? (
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-slate-400">오늘의 체크리스트</span>
+                            <span className={`font-medium ${completedCount === totalCount ? 'text-green-400' : 'text-bridge-accent'}`}>
+                              {completedCount}/{totalCount}
+                            </span>
+                          </div>
+                          <div className="space-y-0.5 mt-1">
+                            {items.slice(0, 4).map((item) => (
+                              <div
+                                key={item.id}
+                                className="flex items-center gap-1.5"
+                              >
+                                <div
+                                  className={`w-3 h-3 rounded flex-shrink-0 flex items-center justify-center ${
+                                    item.completed
+                                      ? 'bg-green-500/30 border border-green-500/50'
+                                      : 'border border-white/20 bg-white/5'
+                                  }`}
+                                >
+                                  {item.completed && (
+                                    <Check className="h-2 w-2 text-green-400" />
+                                  )}
+                                </div>
+                                <span
+                                  className={`text-[10px] truncate ${
+                                    item.completed
+                                      ? 'text-green-400/70 line-through'
+                                      : 'text-slate-400'
+                                  }`}
+                                >
+                                  {item.title}
+                                </span>
+                              </div>
+                            ))}
+                            {items.length > 4 && (
+                              <div className="text-[10px] text-slate-500 pl-4">
+                                +{items.length - 4}개 더
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-xs text-slate-600 text-center py-1">
+                          체크리스트 없음
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* 시간 그리드 */}
+            <div className="relative">
+              {timeSlots.map((time, slotIndex) => (
+                <div key={time} className="flex border-b border-kanban-border">
+                  {/* 시간/블록 라벨 */}
+                  <div className="w-20 flex-shrink-0 p-2 text-xs text-zinc-500 border-r border-kanban-border bg-kanban-bg">
+                    {displayMode === 'block'
+                      ? `${slotIndex + 1}`
+                      : time.endsWith(':00') ? time : ''}
+                  </div>
+                  {/* 멤버별 시간 셀 */}
+                  {boardMembers.map((member) => {
+                    const isSelected = isSlotSelected(member.userId, slotIndex);
+                    return (
+                      <div
+                        key={`${member.userId}-${time}`}
+                        className={`w-48 flex-shrink-0 border-r border-kanban-border transition-colors cursor-pointer group relative ${
+                          isSelected ? 'bg-indigo-500/30' : 'hover:bg-white/5'
+                        }`}
+                        style={{ height: `${SLOT_HEIGHT}px` }}
+                        onMouseDown={() => handleMouseDown(member.userId, slotIndex)}
+                        onMouseEnter={() => handleMouseEnter(member.userId, slotIndex)}
+                      >
+                        {/* 빈 셀 호버 시 + 버튼 표시 */}
+                        {!isSelected && (
+                          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                            <Plus className="h-4 w-4 text-zinc-500" />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                  {boardMembers.length === 0 && (
+                    <div className="flex-1 border-r border-kanban-border" style={{ height: `${SLOT_HEIGHT}px` }} />
+                  )}
+                </div>
+              ))}
+
+              {/* 스케줄 블록들 (각 멤버 컬럼 위에 absolute로 배치) */}
+              <div className="absolute top-0 left-20 right-0 pointer-events-none">
+                <div className="flex">
+                  {boardMembers.map((member) => {
+                    const blocks = blocksByUser.get(member.userId) || [];
+                    return (
+                      <div
+                        key={member.userId}
+                        className="w-48 flex-shrink-0 relative"
+                        style={{ height: `${timeSlots.length * SLOT_HEIGHT}px` }}
+                      >
+                        {blocks.map((block) => (
+                          <ScheduleBlock
+                            key={block.id}
+                            block={block}
+                            slotHeight={SLOT_HEIGHT}
+                            workStartHour={workStartHour}
+                            workEndHour={workEndHour}
+                            otherBlocks={blocks}
+                            onClick={handleBlockClick}
+                            onResize={handleBlockResize}
+                            onMove={handleBlockResize}
+                          />
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* 주 단위 뷰 */
+          <div className="min-w-max">
+            {/* 헤더: 멤버 + 요일 */}
+            <div className="flex sticky top-0 bg-kanban-card z-10 border-b border-kanban-border">
+              <div className="w-32 flex-shrink-0 p-3 text-sm font-medium text-zinc-400 border-r border-kanban-border">
+                멤버
+              </div>
+              {weekDays.map((day) => {
+                const dateStr = format(day, 'yyyy-MM-dd');
+                const isCurrentDay = dateStr === format(new Date(), 'yyyy-MM-dd');
+                return (
+                  <div
+                    key={dateStr}
+                    className={`w-36 flex-shrink-0 p-3 border-r border-kanban-border text-center ${
+                      isCurrentDay ? 'bg-indigo-900/30' : ''
+                    }`}
+                  >
+                    <div className={`text-sm font-medium ${isCurrentDay ? 'text-indigo-400' : 'text-foreground'}`}>
+                      {format(day, 'E', { locale: ko })}
+                    </div>
+                    <div className={`text-xs ${isCurrentDay ? 'text-indigo-400' : 'text-zinc-400'}`}>
+                      {format(day, 'M/d')}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* 멤버별 행 */}
+            {boardMembers.map((member) => (
+              <div key={member.userId} className="flex border-b border-kanban-border">
+                {/* 멤버 정보 */}
+                <div className="w-32 flex-shrink-0 p-3 border-r border-kanban-border bg-kanban-bg">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-sm text-white font-medium">
+                      {member.name.charAt(0).toUpperCase()}
+                    </div>
+                    <span className="text-sm font-medium text-foreground truncate">{member.name}</span>
+                  </div>
+                </div>
+                {/* 요일별 블록들 */}
+                {weekDays.map((day) => {
+                  const dateStr = format(day, 'yyyy-MM-dd');
+                  const isCurrentDay = dateStr === format(new Date(), 'yyyy-MM-dd');
+                  const dayColumns = weeklyData.get(dateStr) || [];
+                  const memberColumn = dayColumns.find((col) => col.user.id === member.userId);
+                  const blocks = memberColumn?.blocks || [];
+
+                  return (
+                    <div
+                      key={dateStr}
+                      className={`w-36 flex-shrink-0 p-2 border-r border-kanban-border min-h-[100px] ${
+                        isCurrentDay ? 'bg-indigo-900/20' : ''
+                      }`}
+                    >
+                      <div className="space-y-1">
+                        {blocks.map((block) => (
+                          <div
+                            key={block.id}
+                            onClick={() => handleBlockClick(block)}
+                            className="p-2 rounded bg-purple-600/80 hover:bg-purple-600 cursor-pointer transition-colors"
+                          >
+                            <div className="text-xs text-white font-medium truncate">
+                              {block.checklist_item.title}
+                            </div>
+                            <div className="text-xs text-purple-200">
+                              {block.start_time.slice(0, 5)} - {block.end_time.slice(0, 5)}
+                            </div>
+                          </div>
+                        ))}
+                        {blocks.length === 0 && (
+                          <div className="text-xs text-zinc-600 text-center py-4">-</div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+            {boardMembers.length === 0 && (
+              <div className="p-6 text-zinc-500 text-center">보드에 멤버가 없습니다</div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* 하단 안내 */}
+      <div className="px-6 py-3 bg-kanban-card border-t border-kanban-border">
+        <p className="text-sm text-zinc-500">
+          {viewMode === 'day'
+            ? '빈 영역을 세로로 드래그하여 새 타임블록을 생성하세요'
+            : '블록을 클릭하여 상세 정보를 확인하세요'
+          }
+        </p>
+      </div>
+      </>
+      )}
+
+      {/* 블록 상세 패널 (타임블록 탭에서만) */}
+      {subTab === 'timeblock' && selectedBlock && (
+        <ScheduleDetailPanel
+          block={selectedBlock}
+          boardId={boardId}
+          selectedDate={selectedDate}
+          displayMode={displayMode}
+          workStartHour={workStartHour}
+          onClose={handleClosePanel}
+          onDelete={handleBlockDeleted}
+          onChecklistToggle={handleChecklistToggled}
+          onViewFeature={onViewFeature}
+          onViewTask={onViewTask}
+        />
+      )}
+
+      {/* 체크리스트 모달 (타임블록 탭에서만, 선택 + 생성 통합) */}
+      {subTab === 'timeblock' && pendingBlock && showChecklistModal && (
+        <ChecklistCreateModal
+          boardId={boardId}
+          assigneeId={pendingBlock.userId}
+          startTime={pendingBlock.startTime}
+          endTime={pendingBlock.endTime}
+          displayMode={displayMode}
+          startBlockIndex={pendingBlock.startSlotIndex}
+          endBlockIndex={pendingBlock.endSlotIndex}
+          onCreate={handleChecklistCreate}
+          onSelectExisting={handleChecklistItemSelect}
+          onClose={handleCloseChecklistModal}
+        />
+      )}
+
+      {/* 설정 모달 (타임블록 탭에서만) */}
+      {subTab === 'timeblock' && showSettingsModal && settings && (
+        <ScheduleSettingsModal
+          currentStartTime={settings.work_start_time}
+          currentWorkHours={settings.work_hours_per_day}
+          currentDisplayMode={displayMode}
+          onSave={async (startTime, workHours, newDisplayMode) => {
+            try {
+              await scheduleAPI.updateSettings(boardId, {
+                work_start_time: startTime,
+                work_hours_per_day: workHours,
+                schedule_display_mode: newDisplayMode === 'block' ? 'BLOCK' : 'TIME',
+              });
+              await loadSchedule();
+              setShowSettingsModal(false);
+            } catch (error) {
+              console.error('Failed to update settings:', error);
+            }
+          }}
+          onClose={() => setShowSettingsModal(false)}
+        />
+      )}
+    </div>
+  );
+}

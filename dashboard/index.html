@@ -1,0 +1,123 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BridgeSpots - PM이 설계한 지능형 협업 오케스트레이션</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              jakarta: ['"Plus Jakarta Sans"', 'sans-serif'],
+              inter: ['"Inter"', 'sans-serif'],
+            },
+            colors: {
+              bridge: {
+                accent: '#6366F1', // Indigo
+                secondary: '#2DD4BF', // Teal/Cyan
+                dark: '#0A0E17', // Deep Slate Blue
+                obsidian: '#111827', // Rich Navy
+                slate: '#1E293B', // Lighter slate
+              }
+            },
+            animation: {
+              'spin-slow': 'spin 12s linear infinite',
+              'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      html {
+        scroll-behavior: smooth;
+        scroll-padding-top: 100px;
+      }
+      body {
+        background-color: #0A0E17;
+        color: #E2E8F0;
+        font-family: 'Inter', sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+      .font-jakarta { font-family: 'Plus Jakarta Sans', sans-serif; }
+      
+      .glass {
+        background: rgba(10, 14, 23, 0.75);
+        backdrop-filter: blur(40px);
+        -webkit-backdrop-filter: blur(40px);
+      }
+
+      /* Artistic Typography Utilities */
+      .text-shimmer {
+        background: linear-gradient(90deg, #818CF8 0%, #2DD4BF 50%, #818CF8 100%);
+        background-size: 200% auto;
+        color: transparent;
+        -webkit-background-clip: text;
+        background-clip: text;
+        animation: shimmer 6s linear infinite;
+      }
+      @keyframes shimmer {
+        to { background-position: 200% center; }
+      }
+
+      .text-outline {
+        -webkit-text-stroke: 1.5px rgba(45, 212, 191, 0.5);
+        color: transparent;
+      }
+      
+      .text-glow-cyan {
+        text-shadow: 0 0 15px rgba(45, 212, 191, 0.4), 0 0 30px rgba(45, 212, 191, 0.2);
+      }
+
+      .text-glow-indigo {
+        text-shadow: 0 0 15px rgba(99, 102, 241, 0.4), 0 0 30px rgba(99, 102, 241, 0.2);
+      }
+
+      .shadow-3xl {
+        box-shadow: 0 35px 60px -15px rgba(0, 0, 0, 0.7);
+      }
+
+      .spot-dot {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        background: #2DD4BF;
+        border-radius: 50%;
+        margin-left: 10px;
+        box-shadow: 0 0 15px #2DD4BF;
+        vertical-align: middle;
+      }
+
+      ::selection {
+        background: #6366F1;
+        color: white;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "@react-three/fiber": "https://aistudiocdn.com/@react-three/fiber@^9.4.0",
+    "@react-three/drei": "https://aistudiocdn.com/@react-three/drei@^10.7.7",
+    "three": "https://aistudiocdn.com/three@^0.181.1",
+    "framer-motion": "https://aistudiocdn.com/framer-motion@^12.23.24",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.553.0"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body>
+    <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>
