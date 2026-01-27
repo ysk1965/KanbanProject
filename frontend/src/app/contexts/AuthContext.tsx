@@ -6,32 +6,72 @@ interface User {
   email: string;
   name: string;
   profile_image?: string | null;
+  email_verified?: boolean;
+  theme?: 'dark' | 'light';
+  provider?: 'email' | 'google';
+  system_role?: 'USER' | 'TESTER' | 'ADMIN';
 }
 
 interface AuthContextType {
   isAuthenticated: boolean;
+  isEmailVerified: boolean;
+  isAdmin: boolean;
+  isTester: boolean;
+  hideBilling: boolean; // TESTER 사용자는 과금 UI 숨김
   currentUser: User | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string, name: string) => Promise<void>;
   googleLogin: (idToken: string) => Promise<void>;
   logout: () => Promise<void>;
+  resendVerificationEmail: () => Promise<void>;
+  updateCurrentUser: (updates: Partial<User>) => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [isAuthenticated, setIsAuthenticated] = useState(authService.isAuthenticated());
-  const [currentUser, setCurrentUser] = useState<User | null>(authService.getCurrentUser());
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // 초기 인증 상태 확인
-    const checkAuth = () => {
-      setIsAuthenticated(authService.isAuthenticated());
-      setCurrentUser(authService.getCurrentUser());
+    // 초기 인증 상태 확인 (토큰 유효성 검증 포함)
+    const checkAuth = async () => {
+      // 1. 토큰이 유효한 경우 - 바로 인증 상태로 설정
+      if (authService.isAuthenticated()) {
+        console.log('✅ [Auth] 유효한 토큰 확인');
+        setIsAuthenticated(true);
+        setCurrentUser(authService.getCurrentUser());
+        setIsLoading(false);
+        return;
+      }
+
+      // 2. 토큰이 존재하지만 만료된 경우 - 갱신 시도
+      if (authService.isTokenExpiredButExists()) {
+        console.log('🔄 [Auth] 만료된 토큰 감지, 갱신 시도...');
+        const refreshed = await authService.tryRefreshToken();
+
+        if (refreshed) {
+          console.log('✅ [Auth] 토큰 갱신 성공');
+          setIsAuthenticated(true);
+          setCurrentUser(authService.getCurrentUser());
+        } else {
+          console.log('❌ [Auth] 토큰 갱신 실패, 로그인 필요');
+          setIsAuthenticated(false);
+          setCurrentUser(null);
+        }
+        setIsLoading(false);
+        return;
+      }
+
+      // 3. 토큰이 없는 경우
+      console.log('🔒 [Auth] 토큰 없음, 미인증 상태');
+      setIsAuthenticated(false);
+      setCurrentUser(null);
       setIsLoading(false);
     };
+
     checkAuth();
   }, []);
 
@@ -59,16 +99,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setCurrentUser(null);
   };
 
+  const resendVerificationEmail = async () => {
+    if (!currentUser?.email) {
+      throw new Error('사용자 이메일을 찾을 수 없습니다');
+    }
+    await authService.resendVerificationEmail(currentUser.email);
+  };
+
+  const updateCurrentUser = (updates: Partial<User>) => {
+    setCurrentUser((prev) => {
+      if (!prev) return prev;
+      return { ...prev, ...updates };
+    });
+  };
+
+  const isEmailVerified = currentUser?.email_verified ?? false;
+  const isAdmin = currentUser?.system_role === 'ADMIN';
+  const isTester = currentUser?.system_role === 'TESTER';
+  const hideBilling = isTester; // TESTER는 과금 UI 숨김
+
   return (
     <AuthContext.Provider
       value={{
         isAuthenticated,
+        isEmailVerified,
+        isAdmin,
+        isTester,
+        hideBilling,
         currentUser,
         isLoading,
         login,
         signup,
         googleLogin,
         logout,
+        resendVerificationEmail,
+        updateCurrentUser,
       }}
     >
       {children}

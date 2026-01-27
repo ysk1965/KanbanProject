@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { GoogleLogin } from '@react-oauth/google';
-import { Mail, Lock, User, Users, ArrowLeft, Github, ArrowRight, Layout, Share2, Zap, BarChart3 } from 'lucide-react';
+import { Mail, Lock, User, Users, ArrowLeft, Github, ArrowRight, Layout, Share2, Zap, BarChart3, Check, X } from 'lucide-react';
 
 interface InviteInfo {
   boardName: string;
@@ -141,7 +141,20 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [isVisible, setIsVisible] = useState(false);
+  const [agreeToTerms, setAgreeToTerms] = useState(false);
+  const [passwordFocused, setPasswordFocused] = useState(false);
   const navigate = useNavigate();
+
+  // 비밀번호 검증 규칙
+  const passwordValidation = {
+    minLength: password.length >= 8,
+    hasUppercase: /[A-Z]/.test(password),
+    hasLowercase: /[a-z]/.test(password),
+    hasNumber: /\d/.test(password),
+    hasSpecialChar: /[@$!%*?&]/.test(password),
+  };
+
+  const isPasswordValid = Object.values(passwordValidation).every(Boolean);
 
   useEffect(() => {
     setIsVisible(true);
@@ -407,13 +420,84 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    onFocus={() => setPasswordFocused(true)}
+                    onBlur={() => setPasswordFocused(false)}
                     placeholder="Password"
                     className="w-full bg-white/[0.02] border border-white/10 text-white pl-12 pr-4 h-13 py-3 rounded-2xl focus:outline-none focus:border-[#6366F1] focus:ring-4 focus:ring-[#6366F1]/10 transition-all placeholder:text-slate-600"
                     required
-                    minLength={6}
+                    minLength={8}
                   />
                 </div>
+                {/* 비밀번호 요구사항 (회원가입 모드에서만 표시) */}
+                {mode === 'signup' && (passwordFocused || password.length > 0) && (
+                  <div className="bg-white/[0.02] border border-white/10 rounded-xl p-3 space-y-1.5 animate-fade-in">
+                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">비밀번호 요구사항</p>
+                    {[
+                      { key: 'minLength', label: '8자 이상', valid: passwordValidation.minLength },
+                      { key: 'hasUppercase', label: '대문자 포함 (A-Z)', valid: passwordValidation.hasUppercase },
+                      { key: 'hasLowercase', label: '소문자 포함 (a-z)', valid: passwordValidation.hasLowercase },
+                      { key: 'hasNumber', label: '숫자 포함 (0-9)', valid: passwordValidation.hasNumber },
+                      { key: 'hasSpecialChar', label: '특수문자 포함 (@$!%*?&)', valid: passwordValidation.hasSpecialChar },
+                    ].map(({ key, label, valid }) => (
+                      <div key={key} className="flex items-center gap-2">
+                        {valid ? (
+                          <Check className="w-4 h-4 text-emerald-400" />
+                        ) : (
+                          <X className="w-4 h-4 text-slate-500" />
+                        )}
+                        <span className={`text-sm ${valid ? 'text-emerald-400' : 'text-slate-500'}`}>
+                          {label}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {mode === 'login' && (
+                  <div className="text-right">
+                    <Link
+                      to="/forgot-password"
+                      className="text-sm text-slate-400 hover:text-bridge-accent transition-colors"
+                    >
+                      비밀번호를 잊으셨나요?
+                    </Link>
+                  </div>
+                )}
               </div>
+
+              {/* Terms Agreement Checkbox (Signup only) */}
+              {mode === 'signup' && (
+                <label className="flex items-start gap-3 cursor-pointer group">
+                  <div className="relative mt-0.5">
+                    <input
+                      type="checkbox"
+                      checked={agreeToTerms}
+                      onChange={(e) => setAgreeToTerms(e.target.checked)}
+                      className="sr-only"
+                    />
+                    <div className={`w-5 h-5 rounded-md border-2 transition-all flex items-center justify-center ${
+                      agreeToTerms
+                        ? 'bg-bridge-accent border-bridge-accent'
+                        : 'border-white/20 group-hover:border-white/40'
+                    }`}>
+                      {agreeToTerms && (
+                        <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </div>
+                  </div>
+                  <span className="text-sm text-slate-400 leading-relaxed">
+                    <Link to="/terms" className="text-bridge-accent hover:text-bridge-secondary transition-colors" target="_blank">
+                      이용약관
+                    </Link>
+                    {' '}및{' '}
+                    <Link to="/privacy" className="text-bridge-accent hover:text-bridge-secondary transition-colors" target="_blank">
+                      개인정보처리방침
+                    </Link>
+                    에 동의합니다
+                  </span>
+                </label>
+              )}
 
               {error && (
                 <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-4 text-red-400 text-sm">
@@ -423,7 +507,7 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
 
               <button
                 type="submit"
-                disabled={isLoading || isGoogleLoading}
+                disabled={isLoading || isGoogleLoading || (mode === 'signup' && (!agreeToTerms || !isPasswordValid))}
                 className={`w-full h-14 text-white rounded-2xl font-bold transition-all duration-300 flex items-center justify-center space-x-3 transform active:scale-[0.98] mt-6 group overflow-hidden relative disabled:opacity-50 disabled:cursor-not-allowed ${
                   inviteInfo && mode === 'signup'
                     ? 'bg-gradient-to-r from-[#6366F1] to-[#2DD4BF] shadow-[0_8px_24px_rgba(99,102,241,0.4)]'
