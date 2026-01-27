@@ -26,7 +26,12 @@
       "Bash(git push)",
       "Bash(ssh:*)",
       "Bash(git remote set-url:*)",
-      "Bash(ssh-add:*)"
+      "Bash(ssh-add:*)",
+      "Bash(find:*)",
+      "Bash(MAIL_USERNAME=\"eobub15@gmail.com\" MAIL_PASSWORD=\"dhiclkonectyszvp\" ./gradlew bootRun:*)",
+      "Bash(./gradlew clean:*)",
+      "Bash(xargs:*)",
+      "Bash(wc:*)"
     ]
   }
 }
