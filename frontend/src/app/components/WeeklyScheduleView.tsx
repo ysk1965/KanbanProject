@@ -1,6 +1,9 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { ChevronDown, ChevronRight as ChevronRightIcon, FileText, Calendar } from 'lucide-react';
+import { ChevronDown, ChevronRight as ChevronRightIcon, FileText, Calendar as CalendarIcon } from 'lucide-react';
 import { Button } from './ui/button';
+import { Calendar } from './ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { DateRange } from 'react-day-picker';
 import {
   format,
   addDays,
@@ -669,45 +672,46 @@ export function WeeklyScheduleView({
           </div>
 
           {/* 날짜 범위 선택 */}
-          <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-zinc-400" />
-            <input
-              type="date"
-              value={format(rangeStartDate, 'yyyy-MM-dd')}
-              onChange={(e) => {
-                if (e.target.value) {
-                  const newDate = parseLocalDate(e.target.value);
-                  setRangeStartDate(newDate);
-                }
-              }}
-              className="bg-kanban-surface border border-kanban-border rounded px-2 py-1 text-sm text-white focus:outline-none focus:border-indigo-500"
-            />
-            <span className="text-zinc-400">~</span>
-            <input
-              type="date"
-              value={format(rangeEndDate, 'yyyy-MM-dd')}
-              onChange={(e) => {
-                if (e.target.value) {
-                  const newDate = parseLocalDate(e.target.value);
-                  setRangeEndDate(newDate);
-                }
-              }}
-              className="bg-kanban-surface border border-kanban-border rounded px-2 py-1 text-sm text-white focus:outline-none focus:border-indigo-500"
-            />
-          </div>
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                className="flex items-center gap-2 px-3 py-1.5 text-sm bg-white/5 border border-white/10 rounded-lg text-zinc-300 hover:bg-white/10 hover:text-white transition-colors"
+              >
+                <CalendarIcon className="h-4 w-4 text-zinc-400" />
+                <span>
+                  {format(rangeStartDate, 'yyyy. MM. dd.')} ~ {format(rangeEndDate, 'yyyy. MM. dd.')}
+                </span>
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0 bg-bridge-obsidian border-white/10" align="start">
+              <Calendar
+                mode="range"
+                selected={{ from: rangeStartDate, to: rangeEndDate }}
+                onSelect={(range: DateRange | undefined) => {
+                  if (range?.from) {
+                    setRangeStartDate(range.from);
+                  }
+                  if (range?.to) {
+                    setRangeEndDate(range.to);
+                  }
+                }}
+                numberOfMonths={2}
+                locale={ko}
+                className="bg-bridge-obsidian text-white"
+              />
+            </PopoverContent>
+          </Popover>
 
           <span className="text-sm text-zinc-400">
             ({viewMode === 'day' ? `${totalDays}일` : `${weeks.length}주`})
           </span>
 
-          <Button
-            variant="outline"
-            size="sm"
+          <button
             onClick={handleGoToToday}
-            className="border-kanban-border text-zinc-300 hover:bg-white/5 hover:text-white"
+            className="px-3 py-1.5 text-sm bg-white/5 border border-white/10 rounded-lg text-zinc-300 hover:bg-white/10 hover:text-white transition-colors"
           >
             오늘
-          </Button>
+          </button>
         </div>
         <div className="flex items-center gap-2 text-xs text-zinc-500">
           <span className="inline-block w-3 h-3 bg-gray-400 rounded"></span> 진행 전
@@ -751,7 +755,7 @@ export function WeeklyScheduleView({
                       style={{ backgroundColor: feature.color }}
                     />
                     <span
-                      className="text-sm font-medium text-white truncate flex-1 hover:text-indigo-400"
+                      className="text-sm font-medium text-foreground truncate flex-1 hover:text-indigo-400"
                       onClick={(e) => {
                         e.stopPropagation();
                         onViewFeature?.(feature.id);

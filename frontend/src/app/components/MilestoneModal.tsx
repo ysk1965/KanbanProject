@@ -116,13 +116,13 @@ export function MilestoneModal({
         <div className="flex items-center justify-between p-5 border-b border-kanban-border bg-white/[0.02]">
           <div className="flex items-center gap-2">
             <Flag className="h-5 w-5 text-indigo-400" />
-            <h2 className="text-lg font-bold text-white">
+            <h2 className="text-lg font-bold text-foreground">
               {isEditMode ? '마일스톤 수정' : '새 마일스톤'}
             </h2>
           </div>
           <button
             onClick={onClose}
-            className="text-zinc-500 hover:text-white transition-colors"
+            className="text-zinc-500 hover:text-foreground transition-colors"
           >
             <X className="h-5 w-5" />
           </button>
@@ -243,7 +243,7 @@ export function MilestoneModal({
           <div className="flex items-center gap-4">
             <button
               onClick={onClose}
-              className="text-[11px] font-bold text-zinc-500 hover:text-white transition-all tracking-wider"
+              className="text-[11px] font-bold text-zinc-500 hover:text-foreground transition-all tracking-wider"
             >
               취소
             </button>

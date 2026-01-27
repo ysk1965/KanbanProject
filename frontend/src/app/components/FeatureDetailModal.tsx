@@ -157,7 +157,7 @@ export function FeatureDetailModal({
                 type="text"
                 value={editedFeature.title}
                 onChange={(e) => updateEditedFeature({ title: e.target.value })}
-                className="text-lg font-bold bg-transparent border-none focus:outline-none rounded w-full text-white placeholder-zinc-600"
+                className="text-lg font-bold bg-transparent border-none focus:outline-none rounded w-full text-foreground placeholder-zinc-600"
               />
             </div>
             <div className="flex items-center gap-1">
@@ -170,7 +170,7 @@ export function FeatureDetailModal({
               <div className="w-px h-4 bg-white/10 mx-1" />
               <button
                 onClick={handleClose}
-                className="p-2 text-zinc-500 hover:text-white transition-colors"
+                className="p-2 text-zinc-500 hover:text-foreground transition-colors"
               >
                 <X size={22} />
               </button>
@@ -288,7 +288,7 @@ export function FeatureDetailModal({
                         setShowTagInput(false);
                         setNewTagName('');
                       }}
-                      className="text-zinc-500 hover:text-white text-xs"
+                      className="text-zinc-500 hover:text-foreground text-xs"
                     >
                       취소
                     </button>
@@ -313,7 +313,7 @@ export function FeatureDetailModal({
                     )}
                     <button
                       onClick={() => setShowTagInput(true)}
-                      className="px-2.5 py-1 bg-white/5 text-zinc-400 text-[10px] font-bold rounded-lg border border-white/10 hover:bg-white/10 hover:text-white flex items-center gap-1"
+                      className="px-2.5 py-1 bg-white/5 text-zinc-400 text-[10px] font-bold rounded-lg border border-white/10 hover:bg-white/10 hover:text-foreground flex items-center gap-1"
                     >
                       <Plus size={10} />새 태그
                     </button>
@@ -368,7 +368,7 @@ export function FeatureDetailModal({
                             boxShadow: `0 0 8px ${selectedColor}44`,
                           }}
                         />
-                        <span className="text-xs font-semibold text-zinc-300 group-hover:text-white transition-colors">
+                        <span className="text-xs font-semibold text-zinc-300 group-hover:text-foreground transition-colors">
                           {task.title}
                         </span>
                       </div>
@@ -395,7 +395,7 @@ export function FeatureDetailModal({
                   />
                   <button
                     onClick={handleAddSubtask}
-                    className="px-4 py-2 bg-indigo-600/10 text-indigo-400 text-[10px] font-black uppercase tracking-widest rounded-lg border border-indigo-500/20 hover:bg-indigo-600/20 hover:text-white transition-all active:scale-95"
+                    className="px-4 py-2 bg-indigo-600/10 text-indigo-400 text-[10px] font-black uppercase tracking-widest rounded-lg border border-indigo-500/20 hover:bg-indigo-600/20 hover:text-foreground transition-all active:scale-95"
                   >
                     ADD
                   </button>
@@ -408,7 +408,7 @@ export function FeatureDetailModal({
           <div className="px-6 py-5 border-t border-white/5 bg-white/[0.02] flex justify-end items-center gap-4">
             <button
               onClick={handleClose}
-              className="text-[11px] font-bold text-zinc-500 hover:text-white transition-all tracking-wider"
+              className="text-[11px] font-bold text-zinc-500 hover:text-foreground transition-all tracking-wider"
             >
               취소
             </button>
@@ -427,14 +427,14 @@ export function FeatureDetailModal({
       {showConfirmDialog && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="w-full max-w-md bg-kanban-bg rounded-2xl border border-white/10 p-6 shadow-2xl">
-            <h3 className="text-lg font-bold text-white mb-2">변경사항을 저장하시겠습니까?</h3>
+            <h3 className="text-lg font-bold text-foreground mb-2">변경사항을 저장하시겠습니까?</h3>
             <p className="text-sm text-zinc-400 mb-6">
               저장하지 않은 변경사항이 있습니다. 저장하지 않고 닫으면 변경사항이 사라집니다.
             </p>
             <div className="flex gap-3">
               <button
                 onClick={handleDiscardAndClose}
-                className="flex-1 py-3 text-sm font-bold text-zinc-400 hover:text-white transition-colors border border-white/10 rounded-xl hover:bg-white/5"
+                className="flex-1 py-3 text-sm font-bold text-zinc-400 hover:text-foreground transition-colors border border-white/10 rounded-xl hover:bg-white/5"
               >
                 저장 안 함
               </button>
@@ -453,14 +453,14 @@ export function FeatureDetailModal({
       {showDeleteDialog && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="w-full max-w-md bg-kanban-bg rounded-2xl border border-white/10 p-6 shadow-2xl">
-            <h3 className="text-lg font-bold text-white mb-2">이 기능을 삭제하시겠습니까?</h3>
+            <h3 className="text-lg font-bold text-foreground mb-2">이 기능을 삭제하시겠습니까?</h3>
             <p className="text-sm text-zinc-400 mb-6">
               이 기능과 모든 서브태스크가 삭제됩니다. 이 작업은 되돌릴 수 없습니다.
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowDeleteDialog(false)}
-                className="flex-1 py-3 text-sm font-bold text-zinc-400 hover:text-white transition-colors border border-white/10 rounded-xl hover:bg-white/5"
+                className="flex-1 py-3 text-sm font-bold text-zinc-400 hover:text-foreground transition-colors border border-white/10 rounded-xl hover:bg-white/5"
               >
                 취소
               </button>

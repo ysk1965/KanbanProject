@@ -346,7 +346,7 @@ export function TaskDetailModal({
   return (
     <>
       <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto bg-kanban-bg border border-white/10 text-white kanban-scrollbar" onPointerDownOutside={(e) => {
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto bg-kanban-bg border border-white/10 text-foreground kanban-scrollbar" onPointerDownOutside={(e) => {
           if (hasChanges) {
             e.preventDefault();
             handleClose();
@@ -384,7 +384,7 @@ export function TaskDetailModal({
                           setIsEditingTitle(false);
                         }
                       }}
-                      className="text-lg font-semibold border border-white/20 px-2 py-1 rounded-lg focus-visible:ring-1 focus-visible:ring-bridge-accent bg-white/5 text-white"
+                      className="text-lg font-semibold border border-white/20 px-2 py-1 rounded-lg focus-visible:ring-1 focus-visible:ring-bridge-accent bg-white/5 text-foreground"
                       autoFocus
                     />
                   ) : (
@@ -392,7 +392,7 @@ export function TaskDetailModal({
                       className="flex items-center gap-2 cursor-pointer hover:bg-white/5 px-2 py-1 rounded-lg transition-colors"
                       onClick={() => setIsEditingTitle(true)}
                     >
-                      <span className="text-lg font-semibold text-white">
+                      <span className="text-lg font-semibold text-foreground">
                         {editedTask.title}
                       </span>
                       <Pencil className="h-4 w-4 text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -450,7 +450,7 @@ export function TaskDetailModal({
                 onChange={(e) => updateEditedTask({ description: e.target.value })}
                 placeholder="설명이 없습니다."
                 rows={3}
-                className="bg-white/5 border-white/10 text-white placeholder:text-slate-500 focus:ring-bridge-accent/50 focus:border-bridge-accent"
+                className="bg-white/5 border-white/10 text-foreground placeholder:text-slate-500 focus:ring-bridge-accent/50 focus:border-bridge-accent"
               />
             </div>
 
@@ -464,7 +464,7 @@ export function TaskDetailModal({
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className="w-full h-10 justify-start text-left font-normal bg-white/5 border-white/10 text-white hover:bg-white/10 hover:text-white"
+                    className="w-full h-10 justify-start text-left font-normal bg-white/5 border-white/10 text-foreground hover:bg-white/10 hover:text-foreground"
                   >
                     <CalendarIcon className="mr-2 h-4 w-4 text-slate-400" />
                     {editedTask.start_date || editedTask.due_date ? (
@@ -493,7 +493,7 @@ export function TaskDetailModal({
                     }}
                     numberOfMonths={2}
                     locale={ko}
-                    className="bg-bridge-obsidian text-white"
+                    className="bg-bridge-obsidian text-foreground"
                   />
                   {(editedTask.start_date || editedTask.due_date) && (
                     <div className="p-2 border-t border-white/10">
@@ -538,7 +538,7 @@ export function TaskDetailModal({
                       <div className="w-6 h-6 rounded-full bg-bridge-accent flex items-center justify-center text-xs text-white">
                         {assignee.name.charAt(0).toUpperCase()}
                       </div>
-                      <span className="text-sm text-white">{assignee.name}</span>
+                      <span className="text-sm text-foreground">{assignee.name}</span>
                     </div>
                   ));
                 })()}
@@ -574,7 +574,7 @@ export function TaskDetailModal({
                       value={newTagName}
                       onChange={(e) => setNewTagName(e.target.value)}
                       placeholder="태그 이름"
-                      className="h-7 w-32 text-sm bg-white/5 border-white/10 text-white placeholder:text-slate-500"
+                      className="h-7 w-32 text-sm bg-white/5 border-white/10 text-foreground placeholder:text-slate-500"
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
                           handleCreateNewTag();
@@ -591,7 +591,7 @@ export function TaskDetailModal({
                         setShowTagInput(false);
                         setNewTagName('');
                       }}
-                      className="text-slate-400 hover:text-white hover:bg-white/10"
+                      className="text-slate-400 hover:text-foreground hover:bg-white/10"
                     >
                       취소
                     </Button>
@@ -600,12 +600,12 @@ export function TaskDetailModal({
                   <div className="flex gap-1">
                     {availableTagsToAdd.length > 0 && (
                       <Select onValueChange={handleAddTag}>
-                        <SelectTrigger className="w-[120px] h-7 text-sm bg-white/5 border-white/10 text-white">
+                        <SelectTrigger className="w-[120px] h-7 text-sm bg-white/5 border-white/10 text-foreground">
                           <SelectValue placeholder="태그 추가" />
                         </SelectTrigger>
                         <SelectContent className="bg-bridge-obsidian border-white/10">
                           {availableTagsToAdd.map((tag) => (
-                            <SelectItem key={tag.id} value={tag.id} className="text-white hover:bg-white/10">
+                            <SelectItem key={tag.id} value={tag.id} className="text-foreground hover:bg-white/10">
                               <div className="flex items-center gap-2">
                                 <div
                                   className="w-3 h-3 rounded-full"
@@ -622,7 +622,7 @@ export function TaskDetailModal({
                       size="sm"
                       variant="outline"
                       onClick={() => setShowTagInput(true)}
-                      className="bg-white/5 border-white/10 text-white hover:bg-white/10"
+                      className="bg-white/5 border-white/10 text-foreground hover:bg-white/10"
                     >
                       <Plus className="h-3 w-3 mr-1" />
                       새 태그
@@ -638,7 +638,7 @@ export function TaskDetailModal({
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <CheckSquare className="h-5 w-5 text-indigo-400" />
-                <Label className="text-base font-semibold text-white">CheckList</Label>
+                <Label className="text-base font-semibold text-foreground">CheckList</Label>
               </div>
               <div className="flex items-center gap-3">
                 <div className="w-24 h-2 bg-zinc-700 rounded-full overflow-hidden">
@@ -677,7 +677,7 @@ export function TaskDetailModal({
           {/* 저장 버튼 - 변경사항이 있을 때만 표시 */}
           {hasChanges && (
             <div className="flex justify-end gap-2 pt-4 border-t border-white/10">
-              <Button variant="outline" onClick={handleClose} className="bg-white/5 border-white/10 text-white hover:bg-white/10">
+              <Button variant="outline" onClick={handleClose} className="bg-white/5 border-white/10 text-foreground hover:bg-white/10">
                 취소
               </Button>
               <Button onClick={handleSave} className="bg-bridge-accent hover:bg-bridge-accent/90">
@@ -692,13 +692,13 @@ export function TaskDetailModal({
       <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
         <AlertDialogContent className="bg-bridge-obsidian border-white/10">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-white">변경사항을 저장하시겠습니까?</AlertDialogTitle>
+            <AlertDialogTitle className="text-foreground">변경사항을 저장하시겠습니까?</AlertDialogTitle>
             <AlertDialogDescription className="text-slate-400">
               저장하지 않은 변경사항이 있습니다. 저장하지 않고 닫으면 변경사항이 사라집니다.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={handleDiscardAndClose} className="bg-white/5 border-white/10 text-white hover:bg-white/10">
+            <AlertDialogCancel onClick={handleDiscardAndClose} className="bg-white/5 border-white/10 text-foreground hover:bg-white/10">
               저장 안 함
             </AlertDialogCancel>
             <AlertDialogAction onClick={handleSaveAndClose} className="bg-bridge-accent hover:bg-bridge-accent/90">
@@ -712,13 +712,13 @@ export function TaskDetailModal({
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent className="bg-bridge-obsidian border-white/10">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-white">이 작업을 삭제하시겠습니까?</AlertDialogTitle>
+            <AlertDialogTitle className="text-foreground">이 작업을 삭제하시겠습니까?</AlertDialogTitle>
             <AlertDialogDescription className="text-slate-400">
               삭제된 작업은 복구할 수 없습니다.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setShowDeleteDialog(false)} className="bg-white/5 border-white/10 text-white hover:bg-white/10">
+            <AlertDialogCancel onClick={() => setShowDeleteDialog(false)} className="bg-white/5 border-white/10 text-foreground hover:bg-white/10">
               취소
             </AlertDialogCancel>
             <AlertDialogAction
@@ -741,13 +741,13 @@ export function TaskDetailModal({
       <AlertDialog open={showDoneDialog} onOpenChange={setShowDoneDialog}>
         <AlertDialogContent className="bg-bridge-obsidian border-white/10">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-white">이 작업을 완료 처리하시겠습니까?</AlertDialogTitle>
+            <AlertDialogTitle className="text-foreground">이 작업을 완료 처리하시겠습니까?</AlertDialogTitle>
             <AlertDialogDescription className="text-slate-400">
               작업이 Done 블록으로 이동됩니다.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setShowDoneDialog(false)} className="bg-white/5 border-white/10 text-white hover:bg-white/10">
+            <AlertDialogCancel onClick={() => setShowDoneDialog(false)} className="bg-white/5 border-white/10 text-foreground hover:bg-white/10">
               취소
             </AlertDialogCancel>
             <AlertDialogAction
@@ -768,9 +768,9 @@ export function TaskDetailModal({
 
       {/* 블록 이동 다이얼로그 */}
       <Dialog open={showMoveDialog} onOpenChange={setShowMoveDialog}>
-        <DialogContent className="max-w-sm bg-bridge-obsidian border-white/10 text-white">
+        <DialogContent className="max-w-sm bg-bridge-obsidian border-white/10 text-foreground">
           <DialogHeader>
-            <DialogTitle className="text-white">블록 이동</DialogTitle>
+            <DialogTitle className="text-foreground">블록 이동</DialogTitle>
             <DialogDescription className="text-slate-400">
               이동할 블록을 선택하세요.
             </DialogDescription>
@@ -789,7 +789,7 @@ export function TaskDetailModal({
                   }`}
                 >
                   <Layers className="h-4 w-4 text-slate-400" />
-                  <span className="text-white">{block.name}</span>
+                  <span className="text-foreground">{block.name}</span>
                 </button>
               ))}
           </div>
@@ -800,7 +800,7 @@ export function TaskDetailModal({
                 setShowMoveDialog(false);
                 setSelectedBlockId(null);
               }}
-              className="bg-white/5 border-white/10 text-white hover:bg-white/10"
+              className="bg-white/5 border-white/10 text-foreground hover:bg-white/10"
             >
               취소
             </Button>
@@ -826,13 +826,13 @@ export function TaskDetailModal({
       <AlertDialog open={!!checklistItemToDelete} onOpenChange={(open) => !open && setChecklistItemToDelete(null)}>
         <AlertDialogContent className="bg-bridge-obsidian border-white/10">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-white">체크리스트 항목을 삭제하시겠습니까?</AlertDialogTitle>
+            <AlertDialogTitle className="text-foreground">체크리스트 항목을 삭제하시겠습니까?</AlertDialogTitle>
             <AlertDialogDescription className="text-slate-400">
               삭제된 항목은 복구할 수 없습니다.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setChecklistItemToDelete(null)} className="bg-white/5 border-white/10 text-white hover:bg-white/10">
+            <AlertDialogCancel onClick={() => setChecklistItemToDelete(null)} className="bg-white/5 border-white/10 text-foreground hover:bg-white/10">
               취소
             </AlertDialogCancel>
             <AlertDialogAction
@@ -970,13 +970,13 @@ function ChecklistItemRow({
             onChange={(e) => setEditedTitle(e.target.value)}
             onBlur={handleSaveTitle}
             onKeyDown={handleKeyDown}
-            className="text-xs h-6 bg-white/5 border-white/10 text-white"
+            className="text-xs h-6 bg-white/5 border-white/10 text-foreground"
             autoFocus
           />
         ) : (
           <div
             className={`text-xs cursor-pointer truncate ${
-              item.completed ? 'line-through text-slate-500' : 'text-white'
+              item.completed ? 'line-through text-slate-500' : 'text-foreground'
             }`}
             onClick={() => setIsEditing(true)}
           >
@@ -1030,7 +1030,7 @@ function ChecklistItemRow({
               }}
               numberOfMonths={1}
               locale={ko}
-              className="bg-bridge-obsidian text-white"
+              className="bg-bridge-obsidian text-foreground"
             />
             {(item.start_date || item.due_date) && (
               <div className="p-2 border-t border-white/10">
@@ -1072,7 +1072,7 @@ function ChecklistItemRow({
               <button
                 onClick={() => onUpdate({ assignee: null })}
                 className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs hover:bg-white/10 transition-colors ${
-                  !item.assignee ? 'bg-white/10 text-white' : 'text-slate-300'
+                  !item.assignee ? 'bg-white/10 text-foreground' : 'text-slate-300'
                 }`}
               >
                 없음
@@ -1084,7 +1084,7 @@ function ChecklistItemRow({
                     key={member.userId}
                     onClick={() => onUpdate({ assignee: { id: member.userId, name: member.name, profile_image: member.avatar || null } })}
                     className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs hover:bg-white/10 transition-colors ${
-                      item.assignee?.id === member.userId ? 'bg-white/10 text-white' : 'text-slate-300'
+                      item.assignee?.id === member.userId ? 'bg-white/10 text-foreground' : 'text-slate-300'
                     }`}
                   >
                     <div className={`w-4 h-4 rounded-full ${memberColor.bg} flex items-center justify-center text-[9px] font-bold text-white`}>
@@ -1149,7 +1149,7 @@ function ChecklistItemRow({
                 {format(new Date(block.scheduled_date), 'M/d (E)', { locale: ko })}
               </span>
               <Clock className="h-3 w-3 text-slate-500" />
-              <span className="text-white font-medium">
+              <span className="text-foreground font-medium">
                 {block.start_time.slice(0, 5)} - {block.end_time.slice(0, 5)}
               </span>
               <span className="text-slate-500">
@@ -1234,7 +1234,7 @@ function AddChecklistItemInput({
       <Button
         variant="ghost"
         size="sm"
-        className="w-full justify-start text-slate-400 hover:text-white hover:bg-white/5"
+        className="w-full justify-start text-slate-400 hover:text-foreground hover:bg-white/5"
         onClick={handleStartAdding}
       >
         <Plus className="h-4 w-4 mr-2" />
@@ -1253,7 +1253,7 @@ function AddChecklistItemInput({
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="항목 입력..."
-            className="text-xs h-7 bg-white/5 border-white/10 text-white placeholder:text-slate-500"
+            className="text-xs h-7 bg-white/5 border-white/10 text-foreground placeholder:text-slate-500"
             autoFocus
           />
 
@@ -1266,7 +1266,7 @@ function AddChecklistItemInput({
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
-                      className="w-full h-7 text-xs justify-start text-left font-normal bg-white/5 border-white/10 text-white hover:bg-white/10"
+                      className="w-full h-7 text-xs justify-start text-left font-normal bg-white/5 border-white/10 text-foreground hover:bg-white/10"
                     >
                       <CalendarIcon className="mr-2 h-3 w-3" />
                       {dateRange?.from ? (
@@ -1290,7 +1290,7 @@ function AddChecklistItemInput({
                       onSelect={setDateRange}
                       numberOfMonths={1}
                       locale={ko}
-                      className="bg-bridge-obsidian text-white"
+                      className="bg-bridge-obsidian text-foreground"
                     />
                   </PopoverContent>
                 </Popover>
@@ -1303,7 +1303,7 @@ function AddChecklistItemInput({
                   value={assigneeId || 'none'}
                   onValueChange={(val) => setAssigneeId(val === 'none' ? '' : val)}
                 >
-                  <SelectTrigger className="h-7 text-xs bg-white/5 border-white/10 text-white">
+                  <SelectTrigger className="h-7 text-xs bg-white/5 border-white/10 text-foreground">
                     {selectedMember ? (
                       <div className="flex items-center gap-1">
                         <div className="w-4 h-4 rounded-full bg-bridge-accent flex items-center justify-center text-[10px] text-white flex-shrink-0">
@@ -1316,11 +1316,11 @@ function AddChecklistItemInput({
                     )}
                   </SelectTrigger>
                   <SelectContent className="bg-bridge-obsidian border-white/10">
-                    <SelectItem value="none" className="text-white hover:bg-white/10">
+                    <SelectItem value="none" className="text-foreground hover:bg-white/10">
                       <span className="text-xs">없음</span>
                     </SelectItem>
                     {boardMembers.map((member) => (
-                      <SelectItem key={member.userId} value={member.userId} className="text-white hover:bg-white/10">
+                      <SelectItem key={member.userId} value={member.userId} className="text-foreground hover:bg-white/10">
                         <div className="flex items-center gap-2">
                           <div className="w-4 h-4 rounded-full bg-bridge-accent flex items-center justify-center text-[10px] text-white flex-shrink-0">
                             {member.name.charAt(0).toUpperCase()}
@@ -1348,7 +1348,7 @@ function AddChecklistItemInput({
           size="sm"
           variant="ghost"
           onClick={handleCancel}
-          className="h-7 text-slate-400 hover:text-white hover:bg-white/10"
+          className="h-7 text-slate-400 hover:text-foreground hover:bg-white/10"
         >
           취소
         </Button>

@@ -221,10 +221,10 @@ export function FilterModal({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg bg-kanban-bg text-white border-kanban-border p-0 gap-0">
+      <DialogContent className="max-w-lg bg-kanban-bg text-foreground border-kanban-border p-0 gap-0">
         <DialogHeader className="px-4 py-3 border-b border-kanban-border">
           <div className="flex items-center justify-between">
-            <DialogTitle className="text-white text-lg font-semibold">필터</DialogTitle>
+            <DialogTitle className="text-foreground text-lg font-semibold">필터</DialogTitle>
             {isFilterActive && (
               <Badge className="bg-indigo-500/20 text-indigo-400 border-indigo-500/30">
                 {getActiveFilterCount()}개 활성
@@ -244,12 +244,12 @@ export function FilterModal({
               value={filters.keyword}
               onChange={(e) => setFilters({ ...filters, keyword: e.target.value })}
               placeholder="키워드로 검색..."
-              className="pl-9 bg-kanban-card border-kanban-border text-white placeholder:text-zinc-500 h-9"
+              className="pl-9 bg-kanban-card border-kanban-border text-foreground placeholder:text-zinc-500 h-9"
             />
             {filters.keyword && (
               <button
                 onClick={() => setFilters({ ...filters, keyword: '' })}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-foreground"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -611,7 +611,7 @@ export function FilterModal({
                   className="bg-purple-500/20 text-purple-400 border-purple-500/30 gap-1 pr-1"
                 >
                   {member === '__current_user__' ? '나에게 할당됨' : member === '__no_members__' ? '담당자 없음' : member}
-                  <button onClick={() => handleToggleMember(member)} className="hover:text-white">
+                  <button onClick={() => handleToggleMember(member)} className="hover:text-foreground">
                     <X className="h-3 w-3" />
                   </button>
                 </Badge>
@@ -624,7 +624,7 @@ export function FilterModal({
                     className="bg-indigo-500/20 text-indigo-400 border-indigo-500/30 gap-1 pr-1"
                   >
                     {featureId === '__no_feature__' ? 'Feature 없음' : feature?.title || featureId}
-                    <button onClick={() => handleToggleFeature(featureId)} className="hover:text-white">
+                    <button onClick={() => handleToggleFeature(featureId)} className="hover:text-foreground">
                       <X className="h-3 w-3" />
                     </button>
                   </Badge>
@@ -640,7 +640,7 @@ export function FilterModal({
                   }`}
                 >
                   {status === 'completed' ? '완료됨' : '미완료'}
-                  <button onClick={() => handleToggleCardStatus(status)} className="hover:text-white">
+                  <button onClick={() => handleToggleCardStatus(status)} className="hover:text-foreground">
                     <X className="h-3 w-3" />
                   </button>
                 </Badge>
@@ -658,7 +658,7 @@ export function FilterModal({
                    date === 'overdue' ? '마감 초과' :
                    date === 'next-day' ? '내일까지' :
                    date === 'next-week' ? '이번 주' : '이번 달'}
-                  <button onClick={() => handleToggleDueDate(date)} className="hover:text-white">
+                  <button onClick={() => handleToggleDueDate(date)} className="hover:text-foreground">
                     <X className="h-3 w-3" />
                   </button>
                 </Badge>

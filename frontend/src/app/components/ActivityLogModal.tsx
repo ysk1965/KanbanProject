@@ -42,14 +42,14 @@ export function ActivityLogModal({
       case 'board_created':
         return (
           <>
-            <span className="font-medium text-white">{user.name}</span>
+            <span className="font-medium text-foreground">{user.name}</span>
             <span className="text-zinc-400">님이 보드를 생성했습니다</span>
           </>
         );
       case 'feature_created':
         return (
           <>
-            <span className="font-medium text-white">{user.name}</span>
+            <span className="font-medium text-foreground">{user.name}</span>
             <span className="text-zinc-400">님이 Feature </span>
             <span className="font-medium text-indigo-400">{metadata.featureTitle}</span>
             <span className="text-zinc-400">를 생성했습니다</span>
@@ -58,7 +58,7 @@ export function ActivityLogModal({
       case 'task_created':
         return (
           <>
-            <span className="font-medium text-white">{user.name}</span>
+            <span className="font-medium text-foreground">{user.name}</span>
             <span className="text-zinc-400">님이 Task </span>
             <span className="font-medium text-indigo-400">{metadata.taskTitle}</span>
             <span className="text-zinc-400">를 생성했습니다</span>
@@ -67,7 +67,7 @@ export function ActivityLogModal({
       case 'task_moved':
         return (
           <>
-            <span className="font-medium text-white">{user.name}</span>
+            <span className="font-medium text-foreground">{user.name}</span>
             <span className="text-zinc-400">님이 </span>
             <span className="font-medium text-indigo-400">{metadata.taskTitle}</span>
             <span className="text-zinc-400">를 </span>
@@ -80,7 +80,7 @@ export function ActivityLogModal({
       case 'task_completed':
         return (
           <>
-            <span className="font-medium text-white">{user.name}</span>
+            <span className="font-medium text-foreground">{user.name}</span>
             <span className="text-zinc-400">님이 </span>
             <span className="font-medium text-indigo-400">{metadata.taskTitle}</span>
             <span className="text-zinc-400">를 완료했습니다</span>
@@ -89,7 +89,7 @@ export function ActivityLogModal({
       case 'member_added':
         return (
           <>
-            <span className="font-medium text-white">{user.name}</span>
+            <span className="font-medium text-foreground">{user.name}</span>
             <span className="text-zinc-400">님이 </span>
             <span className="font-medium text-indigo-400">{metadata.memberName}</span>
             <span className="text-zinc-400">님을 보드에 추가했습니다</span>
@@ -98,7 +98,7 @@ export function ActivityLogModal({
       case 'member_removed':
         return (
           <>
-            <span className="font-medium text-white">{user.name}</span>
+            <span className="font-medium text-foreground">{user.name}</span>
             <span className="text-zinc-400">님이 </span>
             <span className="font-medium text-indigo-400">{metadata.memberName}</span>
             <span className="text-zinc-400">님을 보드에서 제거했습니다</span>
@@ -107,7 +107,7 @@ export function ActivityLogModal({
       case 'block_created':
         return (
           <>
-            <span className="font-medium text-white">{user.name}</span>
+            <span className="font-medium text-foreground">{user.name}</span>
             <span className="text-zinc-400">님이 커스텀 블록 </span>
             <span className="font-medium text-purple-400">{metadata.blockName}</span>
             <span className="text-zinc-400">을 생성했습니다</span>
@@ -116,7 +116,7 @@ export function ActivityLogModal({
       case 'block_deleted':
         return (
           <>
-            <span className="font-medium text-white">{user.name}</span>
+            <span className="font-medium text-foreground">{user.name}</span>
             <span className="text-zinc-400">님이 커스텀 블록 </span>
             <span className="font-medium text-purple-400">{metadata.blockName}</span>
             <span className="text-zinc-400">을 삭제했습니다</span>
@@ -125,7 +125,7 @@ export function ActivityLogModal({
       default:
         return (
           <>
-            <span className="font-medium text-white">{user.name}</span>
+            <span className="font-medium text-foreground">{user.name}</span>
             <span className="text-zinc-400">님이 작업을 수행했습니다</span>
           </>
         );
@@ -156,7 +156,7 @@ export function ActivityLogModal({
         <div className="flex items-center justify-between p-6 border-b border-kanban-border">
           <div className="flex items-center gap-2">
             <Activity className="h-5 w-5 text-indigo-400" />
-            <h2 className="text-xl font-semibold text-white">활동 로그</h2>
+            <h2 className="text-xl font-semibold text-foreground">활동 로그</h2>
           </div>
           <button
             onClick={onClose}

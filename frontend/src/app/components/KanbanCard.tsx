@@ -180,7 +180,7 @@ export function KanbanCard({
               style={{ backgroundColor: task.completed ? '#22c55e' : cardColor }}
             />
           )}
-          <h4 className="font-bold text-white text-[14px] leading-snug group-hover:text-indigo-400 transition-colors truncate">
+          <h4 className="font-bold text-foreground text-[14px] leading-snug group-hover:text-indigo-400 transition-colors truncate">
             {displayTitle}
           </h4>
         </div>

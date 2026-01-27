@@ -94,7 +94,7 @@ export function UpgradeModal({
         <div className="relative px-6 pt-6 pb-4">
           <button
             onClick={onClose}
-            className="absolute right-4 top-4 text-slate-400 hover:text-white transition-colors"
+            className="absolute right-4 top-4 text-slate-400 hover:text-foreground transition-colors"
           >
             <X className="h-5 w-5" />
           </button>
@@ -103,12 +103,12 @@ export function UpgradeModal({
             <div className="p-2 bg-bridge-accent/20 rounded-xl">
               <Rocket className="h-6 w-6 text-bridge-accent" />
             </div>
-            <h2 className="text-xl font-bold text-white">Premium으로 업그레이드</h2>
+            <h2 className="text-xl font-bold text-foreground">Premium으로 업그레이드</h2>
           </div>
 
           {/* Trigger message */}
           <div className="bg-bridge-dark/50 rounded-xl p-4 border border-white/5">
-            <p className="text-white font-medium mb-1">{triggerMessage.title}</p>
+            <p className="text-foreground font-medium mb-1">{triggerMessage.title}</p>
             <p className="text-slate-400 text-sm">{triggerMessage.description}</p>
           </div>
         </div>
@@ -147,7 +147,7 @@ export function UpgradeModal({
             >
               <div className="text-left">
                 <p className="text-slate-400 text-xs mb-1">월 결제</p>
-                <p className="text-white text-xl font-bold">${monthlyPrice}</p>
+                <p className="text-foreground text-xl font-bold">${monthlyPrice}</p>
                 <p className="text-slate-500 text-xs">/month</p>
               </div>
               {billingCycle === 'MONTHLY' && (
@@ -173,7 +173,7 @@ export function UpgradeModal({
               </div>
               <div className="text-left">
                 <p className="text-slate-400 text-xs mb-1">연 결제</p>
-                <p className="text-white text-xl font-bold">${yearlyPrice}</p>
+                <p className="text-foreground text-xl font-bold">${yearlyPrice}</p>
                 <p className="text-slate-500 text-xs">/year (${yearlyMonthlyPrice.toFixed(2)}/mo)</p>
               </div>
               {billingCycle === 'YEARLY' && (
@@ -195,7 +195,7 @@ export function UpgradeModal({
         <div className="px-6 pb-6 flex gap-3">
           <button
             onClick={onClose}
-            className="flex-1 px-4 py-3 bg-white/5 border border-white/10 text-white rounded-xl font-medium hover:bg-white/10 transition-all"
+            className="flex-1 px-4 py-3 bg-white/5 border border-white/10 text-foreground rounded-xl font-medium hover:bg-white/10 transition-all"
           >
             나중에
           </button>

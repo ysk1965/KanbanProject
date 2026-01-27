@@ -143,7 +143,7 @@ export function BoardListPage({
               <div className="p-2 bg-yellow-500/10 rounded-lg">
                 <Star className="h-5 w-5 text-yellow-500" />
               </div>
-              <h2 className="text-lg font-serif font-bold text-white tracking-tight">
+              <h2 className="text-lg font-serif font-bold text-foreground tracking-tight">
                 Starred Boards
               </h2>
             </div>
@@ -168,7 +168,7 @@ export function BoardListPage({
             <div className="p-2 bg-bridge-accent/10 rounded-lg">
               <LayoutGrid className="h-5 w-5 text-bridge-accent" />
             </div>
-            <h2 className="text-lg font-serif font-bold text-white tracking-tight">Your Boards</h2>
+            <h2 className="text-lg font-serif font-bold text-foreground tracking-tight">Your Boards</h2>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {boards.map((board) => (
@@ -242,7 +242,7 @@ export function BoardListPage({
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent className="bg-bridge-obsidian border-white/10">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-white font-serif">Delete Board</AlertDialogTitle>
+            <AlertDialogTitle className="text-foreground font-serif">Delete Board</AlertDialogTitle>
             <AlertDialogDescription className="text-slate-400">
               Are you sure you want to delete "{selectedBoard?.name}"? This action cannot be undone and all data including tasks, features, and members will be permanently removed.
             </AlertDialogDescription>

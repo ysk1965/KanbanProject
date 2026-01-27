@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { HeroScene } from './BridgeScene';
 import { KanbanDiagram, GanttDiagram, DailyScheduleDiagram, PriceComparisonDiagram, ResourcePulseDiagram } from './Diagrams';
 import { motion, Variants } from 'framer-motion';
@@ -406,8 +406,8 @@ export const LandingPage: React.FC = () => {
               <h4 className="font-bold text-white mb-10 text-[11px] uppercase tracking-[0.5em] font-jakarta">Mission</h4>
               <ul className="text-lg space-y-6 font-light font-inter">
                 <li><a href="#" className="hover:text-bridge-secondary transition-all">Manifesto</a></li>
-                <li><a href="#" className="hover:text-bridge-secondary transition-all">Privacy</a></li>
-                <li><a href="#" className="hover:text-bridge-secondary transition-all">Terms</a></li>
+                <li><Link to="/privacy" className="hover:text-bridge-secondary transition-all">Privacy</Link></li>
+                <li><Link to="/terms" className="hover:text-bridge-secondary transition-all">Terms</Link></li>
               </ul>
             </div>
           </div>

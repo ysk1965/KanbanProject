@@ -59,7 +59,7 @@ export function FeatureCard({ feature, onClick, availableTags = [], tasks = [], 
               className="w-1.5 h-1.5 rounded-full"
               style={{ backgroundColor: isCompleted ? '#22c55e' : featureColor }}
             />
-            <h3 className="font-bold text-white text-[15px] group-hover:text-indigo-400 transition-colors">
+            <h3 className="font-bold text-foreground text-[15px] group-hover:text-indigo-400 transition-colors">
               {feature.title}
             </h3>
           </div>
@@ -99,7 +99,7 @@ export function FeatureCard({ feature, onClick, availableTags = [], tasks = [], 
           <span className="text-zinc-500 font-medium">
             {feature.completed_tasks}/{feature.total_tasks} 완료
           </span>
-          <span className={`font-bold ${isCompleted ? 'text-green-400' : 'text-white'}`}>
+          <span className={`font-bold ${isCompleted ? 'text-green-400' : 'text-foreground'}`}>
             {Math.round(progressPercent)}%
           </span>
         </div>
@@ -137,13 +137,13 @@ export function FeatureCard({ feature, onClick, availableTags = [], tasks = [], 
             onClick={handleExpandClick}
             className="flex items-center gap-1 group/sub"
           >
-            <span className="text-[10px] font-bold text-zinc-400 group-hover/sub:text-white transition-colors">
+            <span className="text-[10px] font-bold text-zinc-400 group-hover/sub:text-foreground transition-colors">
               서브태스크
             </span>
             {isExpanded ? (
-              <ChevronDown size={14} className="text-zinc-600 group-hover/sub:text-white transition-all" />
+              <ChevronDown size={14} className="text-zinc-600 group-hover/sub:text-foreground transition-all" />
             ) : (
-              <ChevronRight size={14} className="text-zinc-600 group-hover/sub:text-white transition-all" />
+              <ChevronRight size={14} className="text-zinc-600 group-hover/sub:text-foreground transition-all" />
             )}
           </button>
         )}

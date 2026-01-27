@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
-import { X, Clock, ChevronDown, Folder, FileText, Loader2, CheckSquare, Layers } from 'lucide-react';
-import { featureAPI, taskAPI, checklistAPI, FeatureResponse, TaskResponse, ChecklistItemResponse } from '../utils/api';
+import { X, Clock, ChevronDown, Folder, FileText, Loader2, CheckSquare, Layers, Plus } from 'lucide-react';
+import { format } from 'date-fns';
+import { featureAPI, taskAPI, dailyChecklistAPI, FeatureResponse, TaskResponse, DailyChecklistItemResponse } from '../utils/api';
 
 interface ChecklistCreateModalProps {
   boardId: string;
@@ -27,12 +28,17 @@ export function ChecklistCreateModal({
   onSelectExisting,
   onClose,
 }: ChecklistCreateModalProps) {
+  // 오늘의 체크리스트 (먼저 표시)
+  const [todayChecklists, setTodayChecklists] = useState<DailyChecklistItemResponse[]>([]);
+  const [isLoadingToday, setIsLoadingToday] = useState(true);
+
+  // 새로 생성 모드 토글
+  const [showCreateForm, setShowCreateForm] = useState(false);
+
   const [features, setFeatures] = useState<FeatureResponse[]>([]);
   const [tasks, setTasks] = useState<TaskResponse[]>([]);
-  const [checklistItems, setChecklistItems] = useState<ChecklistItemResponse[]>([]);
-  const [isLoadingFeatures, setIsLoadingFeatures] = useState(true);
+  const [isLoadingFeatures, setIsLoadingFeatures] = useState(false);
   const [isLoadingTasks, setIsLoadingTasks] = useState(false);
-  const [isLoadingChecklist, setIsLoadingChecklist] = useState(false);
 
   const [selectedFeatureId, setSelectedFeatureId] = useState<string>('');
   const [selectedTaskId, setSelectedTaskId] = useState<string>('');
@@ -43,8 +49,31 @@ export function ChecklistCreateModal({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Feature 목록 로드
+  // 오늘의 체크리스트 로드
   useEffect(() => {
+    const loadTodayChecklists = async () => {
+      setIsLoadingToday(true);
+      try {
+        const today = format(new Date(), 'yyyy-MM-dd');
+        const response = await dailyChecklistAPI.getDailyChecklist(boardId, today);
+        // 해당 assignee의 미완료 체크리스트만 필터링
+        const userColumn = response.columns?.find((c) => c.user.id === assigneeId);
+        const items = userColumn?.items?.filter((item) => !item.completed) || [];
+        setTodayChecklists(items);
+      } catch (error) {
+        console.error('Failed to load today checklists:', error);
+        setTodayChecklists([]);
+      } finally {
+        setIsLoadingToday(false);
+      }
+    };
+    loadTodayChecklists();
+  }, [boardId, assigneeId]);
+
+  // Feature 목록 로드 (새로 생성 모드일 때만)
+  useEffect(() => {
+    if (!showCreateForm) return;
+
     const loadFeatures = async () => {
       setIsLoadingFeatures(true);
       try {
@@ -57,7 +86,7 @@ export function ChecklistCreateModal({
       }
     };
     loadFeatures();
-  }, [boardId]);
+  }, [boardId, showCreateForm]);
 
   // Feature 선택 시 Task 목록 로드
   useEffect(() => {
@@ -81,27 +110,6 @@ export function ChecklistCreateModal({
     };
     loadTasks();
   }, [boardId, selectedFeatureId]);
-
-  // Task 선택 시 체크리스트 항목 로드
-  useEffect(() => {
-    if (!selectedTaskId) {
-      setChecklistItems([]);
-      return;
-    }
-
-    const loadChecklist = async () => {
-      setIsLoadingChecklist(true);
-      try {
-        const response = await checklistAPI.getChecklist(boardId, selectedTaskId);
-        setChecklistItems(response.items);
-      } catch (error) {
-        console.error('Failed to load checklist:', error);
-      } finally {
-        setIsLoadingChecklist(false);
-      }
-    };
-    loadChecklist();
-  }, [boardId, selectedTaskId]);
 
   const selectedFeature = useMemo(
     () => features.find((f) => f.id === selectedFeatureId),
@@ -168,12 +176,77 @@ export function ChecklistCreateModal({
 
         {/* Form */}
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
-          {/* Feature Selection */}
+          {/* 오늘의 체크리스트 (먼저 표시) */}
           <div>
             <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-              <Folder className="inline h-4 w-4 mr-1 text-amber-500" />
-              Feature
+              <CheckSquare className="inline h-4 w-4 mr-1 text-bridge-accent" />
+              오늘의 체크리스트에서 선택
             </label>
+            <div className="border border-white/10 rounded-xl max-h-64 overflow-y-auto bg-white/5">
+              {isLoadingToday ? (
+                <div className="px-4 py-6 text-slate-500 flex items-center justify-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  로딩 중...
+                </div>
+              ) : todayChecklists.length === 0 ? (
+                <div className="px-4 py-6 text-slate-500 text-sm text-center">
+                  오늘의 체크리스트가 없습니다
+                </div>
+              ) : (
+                <div className="divide-y divide-white/5">
+                  {todayChecklists.map((item) => (
+                    <button
+                      key={item.id}
+                      onClick={() => onSelectExisting(item.checklist_item_id)}
+                      className="w-full px-4 py-3 flex items-center gap-3 hover:bg-bridge-accent/10 transition-colors text-left group"
+                    >
+                      <div className="w-4 h-4 rounded border border-white/20 flex-shrink-0 group-hover:border-bridge-accent/50" />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm text-white truncate">{item.title}</div>
+                        {item.feature && (
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <div
+                              className="w-2 h-2 rounded-full"
+                              style={{ backgroundColor: item.feature.color }}
+                            />
+                            <span className="text-[10px] text-slate-500 truncate">
+                              {item.feature.title} · {item.task?.title}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      <span className="text-xs text-bridge-accent font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                        선택
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 구분선 */}
+          <div className="flex items-center gap-3">
+            <div className="flex-1 border-t border-white/10" />
+            <button
+              onClick={() => setShowCreateForm(!showCreateForm)}
+              className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition-colors"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              {showCreateForm ? '접기' : '새로 생성'}
+            </button>
+            <div className="flex-1 border-t border-white/10" />
+          </div>
+
+          {/* 새로 생성 폼 (토글) */}
+          {showCreateForm && (
+            <>
+              {/* Feature Selection */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                  <Folder className="inline h-4 w-4 mr-1 text-amber-500" />
+                  Feature
+                </label>
             <div className="relative">
               <button
                 type="button"
@@ -283,69 +356,21 @@ export function ChecklistCreateModal({
             </div>
           </div>
 
-          {/* 기존 체크리스트에서 선택 */}
-          {selectedTaskId && (
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-                  <CheckSquare className="inline h-4 w-4 mr-1 text-purple-400" />
-                  기존 체크리스트에서 선택
+              {/* 새 체크리스트 생성 */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                  새 체크리스트 항목
                 </label>
-                {checklistItems.filter(i => !i.completed).length > 0 && (
-                  <span className="text-xs text-slate-500">클릭하여 선택</span>
-                )}
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="새 체크리스트 제목 입력"
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+                />
               </div>
-              <div className="border border-white/10 rounded-xl max-h-48 overflow-y-auto bg-white/5">
-                {isLoadingChecklist ? (
-                  <div className="px-4 py-3 text-slate-500 flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Loading...
-                  </div>
-                ) : checklistItems.filter(i => !i.completed).length === 0 ? (
-                  <div className="px-4 py-3 text-slate-500 text-sm text-center">
-                    선택 가능한 체크리스트가 없습니다
-                  </div>
-                ) : (
-                  <div className="divide-y divide-white/5">
-                    {checklistItems.filter(i => !i.completed).map((item) => (
-                      <button
-                        key={item.id}
-                        onClick={() => onSelectExisting(item.id)}
-                        className="w-full px-4 py-3 flex items-center gap-3 hover:bg-bridge-accent/10 transition-colors text-left"
-                      >
-                        <div className="w-4 h-4 rounded border border-white/20 flex-shrink-0" />
-                        <span className="text-sm text-slate-300 flex-1">{item.title}</span>
-                        <span className="text-xs text-bridge-accent font-medium">선택</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
+            </>
           )}
-
-          {/* 구분선 */}
-          {selectedTaskId && checklistItems.filter(i => !i.completed).length > 0 && (
-            <div className="flex items-center gap-3">
-              <div className="flex-1 border-t border-white/10" />
-              <span className="text-xs text-slate-500">또는 새로 생성</span>
-              <div className="flex-1 border-t border-white/10" />
-            </div>
-          )}
-
-          {/* 새 체크리스트 생성 */}
-          <div>
-            <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-              새 체크리스트 항목
-            </label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="새 체크리스트 제목 입력"
-              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
-            />
-          </div>
         </div>
 
         {/* Footer */}

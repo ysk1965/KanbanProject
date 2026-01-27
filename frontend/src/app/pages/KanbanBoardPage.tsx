@@ -1,12 +1,13 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Plus, Users, Settings, Filter, ArrowLeft, Bell, LayoutGrid, Calendar, CalendarDays, Flag, Pencil, Lock, BarChart3, Search, X, User, ChevronDown, CheckCircle2, Circle, Tag as TagIcon, Layers, ChevronsDownUp, ChevronsUpDown, Shield } from 'lucide-react';
+import { format, parseISO } from 'date-fns';
 
 // 뷰 모드 타입
 type ViewMode = 'kanban' | 'weekly' | 'schedule' | 'statistics' | 'management';
 import { DragProvider } from '../contexts/DragContext';
 import { useAuth } from '../contexts/AuthContext';
-import { Block, Feature, Task, Priority, Tag, Board, InviteLink, Subscription, PricingPlan, ActivityLog, Milestone, BoardTierInfo, BoardLimits } from '../types';
+import { Block, Feature, Task, Priority, Tag, Board, InviteLink, Subscription, PricingPlan, ActivityLog, Milestone, BoardTierInfo, BoardLimits, ChecklistItem } from '../types';
 import { KanbanBlock } from '../components/KanbanBlock';
 import { FeatureCard } from '../components/FeatureCard';
 import { FeatureDetailModal } from '../components/FeatureDetailModal';
@@ -20,6 +21,7 @@ import { SubscriptionModal } from '../components/SubscriptionModal';
 import { ActivityLogModal } from '../components/ActivityLogModal';
 import { MilestoneModal } from '../components/MilestoneModal';
 import { UpgradeModal, UpgradeTrigger } from '../components/UpgradeModal';
+import { AlertModal } from '../components/AlertModal';
 import { UserMenu } from '../components/UserMenu';
 import { DailyScheduleView } from '../components/DailyScheduleView';
 import { WeeklyScheduleView } from '../components/WeeklyScheduleView';
@@ -49,7 +51,8 @@ import {
   subscriptionService,
   activityService,
   pricingService,
-  milestoneService
+  milestoneService,
+  checklistService
 } from '../utils/services';
 
 import { getRandomFeatureColor } from '../constants';
@@ -57,7 +60,7 @@ import { getRandomFeatureColor } from '../constants';
 export function KanbanBoardPage() {
   const { boardId } = useParams<{ boardId: string }>();
   const navigate = useNavigate();
-  const { currentUser, logout } = useAuth();
+  const { currentUser, logout, hideBilling } = useAuth();
 
   // 뷰 모드 상태
   const [viewMode, setViewMode] = useState<ViewMode>('kanban');
@@ -77,6 +80,8 @@ export function KanbanBoardPage() {
   const [hasMoreActivity, setHasMoreActivity] = useState(false);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  // 배치 로드된 체크리스트 데이터 (taskId -> ChecklistItem[])
+  const [checklistDataMap, setChecklistDataMap] = useState<{ [taskId: string]: ChecklistItem[] }>({});
 
   // Tier & Limits 상태
   const [tierInfo, setTierInfo] = useState<BoardTierInfo | null>(null);
@@ -116,6 +121,16 @@ export function KanbanBoardPage() {
     cardStatus: [],
     dueDate: [],
   });
+
+  // Alert Modal 상태
+  const [alertModal, setAlertModal] = useState<{
+    open: boolean;
+    type: 'premium' | 'permission';
+  }>({ open: false, type: 'premium' });
+
+  const showAlertModal = (type: 'premium' | 'permission') => {
+    setAlertModal({ open: true, type });
+  };
 
   // 보드 데이터 로드
   useEffect(() => {
@@ -180,6 +195,7 @@ export function KanbanBoardPage() {
         })));
 
         // 보드에 선택된 마일스톤이 있으면 해당 마일스톤으로 필터링된 데이터 로드
+        let finalTasks = tasksData;
         if (boardData.selected_milestone_id) {
           setKanbanSelectedMilestoneId(boardData.selected_milestone_id);
           const [filteredFeatures, filteredTasks] = await Promise.all([
@@ -188,9 +204,37 @@ export function KanbanBoardPage() {
           ]);
           setFeatures(filteredFeatures);
           setTasks(filteredTasks);
+          finalTasks = filteredTasks;
         } else {
           setFeatures(featuresData);
           setTasks(tasksData);
+        }
+
+        // 체크리스트가 있는 Task들의 ID 수집 후 배치 로드
+        const taskIdsWithChecklist = finalTasks
+          .filter((t: Task) => (t.checklist_total ?? 0) > 0)
+          .map((t: Task) => t.id);
+
+        if (taskIdsWithChecklist.length > 0) {
+          try {
+            const batchChecklistData = await checklistService.getBatchChecklists(boardId, taskIdsWithChecklist);
+            // API 응답을 ChecklistItem[] 형식으로 변환
+            const checklistMap: { [taskId: string]: ChecklistItem[] } = {};
+            Object.entries(batchChecklistData).forEach(([taskId, data]) => {
+              checklistMap[taskId] = data.items.map((item) => ({
+                id: item.id,
+                title: item.title,
+                completed: item.completed,
+                position: item.position,
+                due_date: item.due_date,
+                assignee: item.assignee ? { id: item.assignee.id, name: item.assignee.name } : null,
+              }));
+            });
+            setChecklistDataMap(checklistMap);
+          } catch (error) {
+            console.warn('Failed to load batch checklists:', error);
+            // 배치 로드 실패 시 개별 로드로 fallback (DraggableCard에서 처리)
+          }
         }
       } catch (error) {
         console.error('Failed to load board data:', error);
@@ -308,6 +352,33 @@ export function KanbanBoardPage() {
       ]);
       setFeatures(featuresData);
       setTasks(tasksData);
+
+      // 체크리스트 배치 로드
+      const taskIdsWithChecklist = tasksData
+        .filter((t: Task) => (t.checklist_total ?? 0) > 0)
+        .map((t: Task) => t.id);
+
+      if (taskIdsWithChecklist.length > 0) {
+        try {
+          const batchChecklistData = await checklistService.getBatchChecklists(boardId, taskIdsWithChecklist);
+          const checklistMap: { [taskId: string]: ChecklistItem[] } = {};
+          Object.entries(batchChecklistData).forEach(([taskId, data]) => {
+            checklistMap[taskId] = data.items.map((item) => ({
+              id: item.id,
+              title: item.title,
+              completed: item.completed,
+              position: item.position,
+              due_date: item.due_date,
+              assignee: item.assignee ? { id: item.assignee.id, name: item.assignee.name } : null,
+            }));
+          });
+          setChecklistDataMap(checklistMap);
+        } catch (error) {
+          console.warn('Failed to load batch checklists:', error);
+        }
+      } else {
+        setChecklistDataMap({});
+      }
     } catch (error) {
       console.error('Failed to reload features and tasks:', error);
     }
@@ -858,29 +929,55 @@ export function KanbanBoardPage() {
     }
 
     try {
-      await taskService.moveTask(boardId, taskId, targetBlockId, newPosition);
-      const milestoneParam = kanbanSelectedMilestoneId !== 'all' ? { milestone_id: kanbanSelectedMilestoneId } : undefined;
-      const tasksData = await taskService.getTasks(boardId, milestoneParam);
-      setTasks(tasksData);
+      // API 응답으로 해당 Task만 업데이트 (전체 재조회 제거)
+      const movedTask = await taskService.moveTask(boardId, taskId, targetBlockId, newPosition);
+      // 응답 데이터로 로컬 상태 업데이트 (이미 낙관적 업데이트로 처리됨, 서버 응답과 동기화)
+      setTasks((prevTasks) =>
+        prevTasks.map((t) =>
+          t.id === taskId
+            ? { ...t, ...movedTask }
+            : t
+        )
+      );
     } catch (error) {
       console.error('Failed to move task:', error);
+      // 실패 시 원래 상태로 롤백
+      setTasks((prevTasks) =>
+        prevTasks.map((t) =>
+          t.id === taskId
+            ? { ...t, block_id: task.block_id, completed: task.completed, position: task.position }
+            : t
+        )
+      );
     }
   };
 
   const handleReorderTask = async (taskId: string, blockId: string, newPosition: number) => {
     if (!boardId) return;
 
+    const task = tasks.find((t) => t.id === taskId);
+    const originalPosition = task?.position ?? newPosition;
+
     setTasks((prevTasks) =>
       prevTasks.map((t) => (t.id === taskId ? { ...t, position: newPosition } : t))
     );
 
     try {
-      await taskService.moveTask(boardId, taskId, blockId, newPosition);
-      const milestoneParam = kanbanSelectedMilestoneId !== 'all' ? { milestone_id: kanbanSelectedMilestoneId } : undefined;
-      const tasksData = await taskService.getTasks(boardId, milestoneParam);
-      setTasks(tasksData);
+      // API 응답으로 해당 Task만 업데이트 (전체 재조회 제거)
+      const movedTask = await taskService.moveTask(boardId, taskId, blockId, newPosition);
+      setTasks((prevTasks) =>
+        prevTasks.map((t) =>
+          t.id === taskId
+            ? { ...t, ...movedTask }
+            : t
+        )
+      );
     } catch (error) {
       console.error('Failed to reorder task:', error);
+      // 실패 시 원래 상태로 롤백
+      setTasks((prevTasks) =>
+        prevTasks.map((t) => (t.id === taskId ? { ...t, position: originalPosition } : t))
+      );
     }
   };
 
@@ -965,7 +1062,7 @@ export function KanbanBoardPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-bridge-dark flex items-center justify-center">
-        <div className="text-white text-lg font-light">로딩 중...</div>
+        <div className="text-foreground text-lg font-light">로딩 중...</div>
       </div>
     );
   }
@@ -982,6 +1079,7 @@ export function KanbanBoardPage() {
           }
           tier={tierInfo?.tier}
           onOpenSubscription={() => setIsSubscriptionModalOpen(true)}
+          hideBilling={hideBilling}
         />
 
         <header className="h-16 border-b border-kanban-border flex items-center justify-between px-6 bg-kanban-bg shrink-0 z-30">
@@ -989,13 +1087,13 @@ export function KanbanBoardPage() {
           <div className="flex items-center gap-6">
             <button
               onClick={() => navigate('/boards')}
-              className="p-2 hover:bg-kanban-surface rounded-lg transition-colors text-zinc-400 hover:text-white"
+              className="p-2 hover:bg-kanban-surface rounded-lg transition-colors text-zinc-400 hover:text-foreground"
             >
               <ArrowLeft size={18} />
             </button>
 
             <div className="flex items-center gap-3">
-              <h1 className="text-lg font-bold tracking-tight text-white">
+              <h1 className="text-lg font-bold tracking-tight text-foreground">
                 {board?.name || '팀 칸반보드'}
               </h1>
 
@@ -1004,22 +1102,29 @@ export function KanbanBoardPage() {
                 <Flag size={14} className="text-indigo-400" />
                 {milestones.length > 0 ? (
                   <Select value={kanbanSelectedMilestoneId} onValueChange={handleKanbanMilestoneSelect}>
-                    <SelectTrigger className="bg-transparent border-none text-xs font-medium text-white focus:ring-0 h-auto p-0 w-[120px] [&>svg]:text-zinc-400">
+                    <SelectTrigger className="bg-transparent border-none text-xs font-medium text-foreground focus:ring-0 h-auto p-0 w-[120px] [&>svg]:text-zinc-400">
                       <SelectValue placeholder="마일스톤 선택" />
                     </SelectTrigger>
                     <SelectContent className="bg-kanban-card border-kanban-border">
-                      <SelectItem value="all" className="text-zinc-300 hover:bg-white/10 focus:bg-white/10 focus:text-white text-xs">
+                      <SelectItem value="all" className="text-zinc-300 hover:bg-white/10 focus:bg-white/10 focus:text-foreground text-xs">
                         전체
                       </SelectItem>
-                      {milestones.map((milestone) => (
-                        <SelectItem
-                          key={milestone.id}
-                          value={milestone.id}
-                          className="text-zinc-300 hover:bg-white/10 focus:bg-white/10 focus:text-white text-xs"
-                        >
-                          {milestone.title}
-                        </SelectItem>
-                      ))}
+                      {milestones.map((milestone) => {
+                        const startDate = format(parseISO(milestone.start_date), 'M/d');
+                        const endDate = format(parseISO(milestone.end_date), 'M/d');
+                        return (
+                          <SelectItem
+                            key={milestone.id}
+                            value={milestone.id}
+                            className="text-zinc-300 hover:bg-white/10 focus:bg-white/10 focus:text-foreground text-xs"
+                          >
+                            <div className="flex flex-col">
+                              <span>{milestone.title}</span>
+                              <span className="text-zinc-500 text-[10px]">{startDate} ~ {endDate}</span>
+                            </div>
+                          </SelectItem>
+                        );
+                      })}
                     </SelectContent>
                   </Select>
                 ) : (
@@ -1033,7 +1138,7 @@ export function KanbanBoardPage() {
                     const milestone = milestones.find((m) => m.id === kanbanSelectedMilestoneId);
                     if (milestone) handleOpenMilestoneWithCheck(milestone);
                   }}
-                  className="p-1.5 text-zinc-400 hover:text-white transition-colors"
+                  className="p-1.5 text-zinc-400 hover:text-foreground transition-colors"
                   title="마일스톤 수정"
                 >
                   <Pencil size={14} />
@@ -1045,7 +1150,7 @@ export function KanbanBoardPage() {
                 className={`p-1.5 transition-colors ${
                   !canAccessMilestone
                     ? 'text-zinc-600 hover:text-zinc-500'
-                    : 'text-zinc-400 hover:text-white'
+                    : 'text-zinc-400 hover:text-foreground'
                 }`}
               >
                 <Plus size={18} />
@@ -1068,65 +1173,93 @@ export function KanbanBoardPage() {
               칸반보드
             </button>
             <button
-              onClick={() => handleViewModeChange('weekly')}
+              onClick={() => {
+                if (!canAccessSchedule) {
+                  showAlertModal('premium');
+                  return;
+                }
+                handleViewModeChange('weekly');
+              }}
               className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                 viewMode === 'weekly'
                   ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
                   : !canAccessSchedule
-                    ? 'text-zinc-600 hover:text-zinc-500 hover:bg-kanban-surface'
+                    ? 'text-zinc-600 cursor-not-allowed opacity-50'
                     : 'text-zinc-400 hover:text-zinc-200 hover:bg-kanban-surface'
               }`}
             >
               <CalendarDays size={14} />
               간트차트
-              {!canAccessSchedule && <Lock size={10} className="ml-0.5" />}
+              {!canAccessSchedule && <Lock size={10} className="ml-0.5 text-zinc-500" />}
             </button>
             <button
-              onClick={() => handleViewModeChange('schedule')}
+              onClick={() => {
+                if (!canAccessSchedule) {
+                  showAlertModal('premium');
+                  return;
+                }
+                handleViewModeChange('schedule');
+              }}
               className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                 viewMode === 'schedule'
                   ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
                   : !canAccessSchedule
-                    ? 'text-zinc-600 hover:text-zinc-500 hover:bg-kanban-surface'
+                    ? 'text-zinc-600 cursor-not-allowed opacity-50'
                     : 'text-zinc-400 hover:text-zinc-200 hover:bg-kanban-surface'
               }`}
             >
               <Calendar size={14} />
               데일리스케줄
-              {!canAccessSchedule && <Lock size={10} className="ml-0.5" />}
+              {!canAccessSchedule && <Lock size={10} className="ml-0.5 text-zinc-500" />}
             </button>
-            {isAdminOrOwner && (
-              <button
-                onClick={() => handleViewModeChange('statistics')}
-                className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                  viewMode === 'statistics'
-                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
-                    : !canAccessStatistics
-                      ? 'text-zinc-600 hover:text-zinc-500 hover:bg-kanban-surface'
-                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-kanban-surface'
-                }`}
-              >
-                <BarChart3 size={14} />
-                마일스톤
-                {!canAccessStatistics && <Lock size={10} className="ml-0.5" />}
-              </button>
-            )}
-            {isAdminOrOwner && (
-              <button
-                onClick={() => handleViewModeChange('management')}
-                className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                  viewMode === 'management'
-                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
-                    : !canAccessStatistics
-                      ? 'text-zinc-600 hover:text-zinc-500 hover:bg-kanban-surface'
-                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-kanban-surface'
-                }`}
-              >
-                <Shield size={14} />
-                관리
-                {!canAccessStatistics && <Lock size={10} className="ml-0.5" />}
-              </button>
-            )}
+            <button
+              onClick={() => {
+                if (!canAccessStatistics) {
+                  showAlertModal('premium');
+                  return;
+                }
+                if (!isAdminOrOwner) {
+                  showAlertModal('permission');
+                  return;
+                }
+                handleViewModeChange('statistics');
+              }}
+              className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all relative ${
+                viewMode === 'statistics'
+                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
+                  : !canAccessStatistics || !isAdminOrOwner
+                    ? 'text-zinc-600 cursor-not-allowed opacity-50'
+                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-kanban-surface'
+              }`}
+            >
+              <BarChart3 size={14} />
+              마일스톤
+              {(!canAccessStatistics || !isAdminOrOwner) && <Lock size={10} className="ml-0.5 text-zinc-500" />}
+            </button>
+            <button
+              onClick={() => {
+                if (!canAccessStatistics) {
+                  showAlertModal('premium');
+                  return;
+                }
+                if (!isAdminOrOwner) {
+                  showAlertModal('permission');
+                  return;
+                }
+                handleViewModeChange('management');
+              }}
+              className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all relative ${
+                viewMode === 'management'
+                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
+                  : !canAccessStatistics || !isAdminOrOwner
+                    ? 'text-zinc-600 cursor-not-allowed opacity-50'
+                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-kanban-surface'
+              }`}
+            >
+              <Shield size={14} />
+              관리
+              {(!canAccessStatistics || !isAdminOrOwner) && <Lock size={10} className="ml-0.5 text-zinc-500" />}
+            </button>
           </nav>
 
           {/* 우측 액션 영역 */}
@@ -1134,19 +1267,19 @@ export function KanbanBoardPage() {
             <div className="flex items-center gap-1 border-r border-kanban-border pr-3 mr-1">
               <button
                 onClick={() => setIsActivityLogModalOpen(true)}
-                className="flex items-center gap-2 px-3 py-2 text-zinc-400 hover:text-white hover:bg-kanban-surface rounded-lg transition-all"
+                className="flex items-center gap-2 px-3 py-2 text-zinc-400 hover:text-foreground hover:bg-kanban-surface rounded-lg transition-all"
               >
                 <Bell size={18} />
               </button>
                 <button
                 onClick={() => setIsShareBoardModalOpen(true)}
-                className="flex items-center gap-2 px-3 py-2 text-zinc-400 hover:text-white hover:bg-kanban-surface rounded-lg transition-all"
+                className="flex items-center gap-2 px-3 py-2 text-zinc-400 hover:text-foreground hover:bg-kanban-surface rounded-lg transition-all"
               >
                 <Users size={18} />
                 <span className="text-xs font-semibold">팀원</span>
               </button>
               <button
-                className="flex items-center gap-2 px-3 py-2 text-zinc-400 hover:text-white hover:bg-kanban-surface rounded-lg transition-all"
+                className="flex items-center gap-2 px-3 py-2 text-zinc-400 hover:text-foreground hover:bg-kanban-surface rounded-lg transition-all"
               >
                 <Settings size={18} />
               </button>
@@ -1158,6 +1291,7 @@ export function KanbanBoardPage() {
                 onOpenSubscription={() => setIsSubscriptionModalOpen(true)}
                 onOpenSettings={() => {}}
                 onLogout={logout}
+                hideBilling={hideBilling}
               />
             )}
           </div>
@@ -1217,7 +1351,7 @@ export function KanbanBoardPage() {
                       <span className="text-xs text-red-400 font-semibold">(한도 도달)</span>
                     )}
                   </div>
-                  {!boardLimits.can_create_task && (
+                  {!boardLimits.can_create_task && !hideBilling && (
                     <button
                       onClick={() => openUpgradeModal('task_limit')}
                       className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold transition-colors"
@@ -1238,12 +1372,12 @@ export function KanbanBoardPage() {
                   placeholder="검색..."
                   value={filterOptions.keyword}
                   onChange={(e) => setFilterOptions({ ...filterOptions, keyword: e.target.value })}
-                  className="w-full bg-kanban-surface border border-kanban-border rounded-lg py-2 pl-10 pr-8 text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all"
+                  className="w-full bg-kanban-surface border border-kanban-border rounded-lg py-2 pl-10 pr-8 text-sm text-foreground placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all"
                 />
                 {filterOptions.keyword && (
                   <button
                     onClick={() => setFilterOptions({ ...filterOptions, keyword: '' })}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white transition-colors"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-foreground transition-colors"
                   >
                     <X size={14} />
                   </button>
@@ -1259,7 +1393,7 @@ export function KanbanBoardPage() {
                     className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-all ${
                       filterOptions.members.length > 0
                         ? 'bg-purple-500/20 text-purple-400 border border-purple-500/50'
-                        : 'bg-kanban-surface border border-kanban-border text-zinc-400 hover:text-white hover:border-zinc-600'
+                        : 'bg-kanban-surface border border-kanban-border text-zinc-400 hover:text-foreground hover:border-zinc-600'
                     }`}
                   >
                     <User size={14} />
@@ -1286,7 +1420,7 @@ export function KanbanBoardPage() {
                       }}
                       className={`flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm transition-all ${
                         filterOptions.members.includes('__no_members__')
-                          ? 'bg-zinc-600 text-white'
+                          ? 'bg-zinc-600 text-foreground'
                           : 'text-zinc-300 hover:bg-white/5'
                       }`}
                     >
@@ -1331,7 +1465,7 @@ export function KanbanBoardPage() {
                     className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-all ${
                       filterOptions.features.length > 0
                         ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/50'
-                        : 'bg-kanban-surface border border-kanban-border text-zinc-400 hover:text-white hover:border-zinc-600'
+                        : 'bg-kanban-surface border border-kanban-border text-zinc-400 hover:text-foreground hover:border-zinc-600'
                     }`}
                   >
                     <Layers size={14} />
@@ -1388,7 +1522,7 @@ export function KanbanBoardPage() {
                     className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-all ${
                       filterOptions.tags.length > 0
                         ? 'bg-teal-500/20 text-teal-400 border border-teal-500/50'
-                        : 'bg-kanban-surface border border-kanban-border text-zinc-400 hover:text-white hover:border-zinc-600'
+                        : 'bg-kanban-surface border border-kanban-border text-zinc-400 hover:text-foreground hover:border-zinc-600'
                     }`}
                   >
                     <TagIcon size={14} />
@@ -1442,7 +1576,7 @@ export function KanbanBoardPage() {
                     className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-all ${
                       filterOptions.cardStatus.length > 0
                         ? 'bg-green-500/20 text-green-400 border border-green-500/50'
-                        : 'bg-kanban-surface border border-kanban-border text-zinc-400 hover:text-white hover:border-zinc-600'
+                        : 'bg-kanban-surface border border-kanban-border text-zinc-400 hover:text-foreground hover:border-zinc-600'
                     }`}
                   >
                     <CheckCircle2 size={14} />
@@ -1511,7 +1645,7 @@ export function KanbanBoardPage() {
                   <div className="h-6 w-px bg-kanban-border mx-1" />
                   <button
                     onClick={() => setFilterOptions({ keyword: '', members: [], features: [], tags: [], cardStatus: [], dueDate: [] })}
-                    className="flex items-center gap-1 px-3 py-2 text-xs text-zinc-500 hover:text-white transition-colors"
+                    className="flex items-center gap-1 px-3 py-2 text-xs text-zinc-500 hover:text-foreground transition-colors"
                   >
                     <X size={12} />
                     초기화
@@ -1635,6 +1769,7 @@ export function KanbanBoardPage() {
                       onToggleChecklistExpand={handleToggleChecklistExpand}
                       blockIndex={index}
                       onMoveBlockDrag={handleMoveBlockDrag}
+                      checklistDataMap={checklistDataMap}
                     />
                   )}
 
@@ -1776,15 +1911,17 @@ export function KanbanBoardPage() {
           onDeleteInviteLink={handleDeleteInviteLink}
         />
 
-        <SubscriptionModal
-          open={isSubscriptionModalOpen}
-          onClose={() => setIsSubscriptionModalOpen(false)}
-          subscription={subscription}
-          plans={pricingPlans}
-          onSubscribe={handleSubscribe}
-          onChangePlan={handleChangePlan}
-          onCancelSubscription={handleCancelSubscription}
-        />
+        {!hideBilling && (
+          <SubscriptionModal
+            open={isSubscriptionModalOpen}
+            onClose={() => setIsSubscriptionModalOpen(false)}
+            subscription={subscription}
+            plans={pricingPlans}
+            onSubscribe={handleSubscribe}
+            onChangePlan={handleChangePlan}
+            onCancelSubscription={handleCancelSubscription}
+          />
+        )}
 
         <ActivityLogModal
           open={isActivityLogModalOpen}
@@ -1807,12 +1944,20 @@ export function KanbanBoardPage() {
           onDelete={handleDeleteMilestone}
         />
 
-        <UpgradeModal
-          open={isUpgradeModalOpen}
-          onClose={() => setIsUpgradeModalOpen(false)}
-          trigger={upgradeTrigger}
-          seatCount={subscription?.billable_member_count || boardMembersData.filter(m => m.role !== 'observer').length || 1}
-          onUpgrade={handleSeatUpgrade}
+        {!hideBilling && (
+          <UpgradeModal
+            open={isUpgradeModalOpen}
+            onClose={() => setIsUpgradeModalOpen(false)}
+            trigger={upgradeTrigger}
+            seatCount={subscription?.billable_member_count || boardMembersData.filter(m => m.role !== 'observer').length || 1}
+            onUpgrade={handleSeatUpgrade}
+          />
+        )}
+
+        <AlertModal
+          open={alertModal.open}
+          onClose={() => setAlertModal({ ...alertModal, open: false })}
+          type={alertModal.type}
         />
       </div>
     </DragProvider>

@@ -48,10 +48,10 @@ export function AddFeatureModal({ open, onClose, onAdd }: AddFeatureModalProps) 
       >
         {/* 헤더 */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-white/5 bg-white/[0.02]">
-          <h2 className="text-lg font-bold text-white">새 Feature 추가</h2>
+          <h2 className="text-lg font-bold text-foreground">새 Feature 추가</h2>
           <button
             onClick={onClose}
-            className="p-2 text-zinc-500 hover:text-white transition-colors"
+            className="p-2 text-zinc-500 hover:text-foreground transition-colors"
           >
             <X size={20} />
           </button>
@@ -66,7 +66,7 @@ export function AddFeatureModal({ open, onClose, onAdd }: AddFeatureModalProps) 
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="예: 로그인 기능 구현"
-              className="w-full bg-kanban-input border border-white/5 rounded-xl p-3 text-white placeholder-zinc-600 focus:outline-none focus:border-indigo-500/50 transition-all text-sm"
+              className="w-full bg-kanban-input border border-white/5 rounded-xl p-3 text-foreground placeholder-zinc-600 focus:outline-none focus:border-indigo-500/50 transition-all text-sm"
               autoFocus
             />
           </div>
@@ -78,7 +78,7 @@ export function AddFeatureModal({ open, onClose, onAdd }: AddFeatureModalProps) 
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Feature에 대한 자세한 설명..."
               rows={3}
-              className="w-full bg-kanban-input border border-white/5 rounded-xl p-3 text-white placeholder-zinc-600 focus:outline-none focus:border-indigo-500/50 transition-all resize-none text-sm"
+              className="w-full bg-kanban-input border border-white/5 rounded-xl p-3 text-foreground placeholder-zinc-600 focus:outline-none focus:border-indigo-500/50 transition-all resize-none text-sm"
             />
           </div>
 
@@ -118,7 +118,7 @@ export function AddFeatureModal({ open, onClose, onAdd }: AddFeatureModalProps) 
         <div className="px-6 py-5 border-t border-white/5 bg-white/[0.02] flex justify-end items-center gap-4">
           <button
             onClick={onClose}
-            className="text-[11px] font-bold text-zinc-500 hover:text-white transition-all tracking-wider"
+            className="text-[11px] font-bold text-zinc-500 hover:text-foreground transition-all tracking-wider"
           >
             취소
           </button>

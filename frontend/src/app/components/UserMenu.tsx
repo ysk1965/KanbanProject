@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { User, CreditCard, LogOut, Settings as SettingsIcon, ChevronDown } from 'lucide-react';
 
 interface UserMenuProps {
@@ -11,11 +12,13 @@ interface UserMenuProps {
   onOpenSubscription: () => void;
   onOpenSettings: () => void;
   onLogout: () => void;
+  hideBilling?: boolean;
 }
 
-export function UserMenu({ user, onOpenSubscription, onOpenSettings, onLogout }: UserMenuProps) {
+export function UserMenu({ user, onOpenSubscription, onOpenSettings, onLogout, hideBilling }: UserMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -38,7 +41,7 @@ export function UserMenu({ user, onOpenSubscription, onOpenSettings, onLogout }:
       {/* 프로필 버튼 */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-[#3a4149] transition-colors"
+        className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-white/5 transition-colors"
       >
         {user.avatar ? (
           <img
@@ -51,17 +54,17 @@ export function UserMenu({ user, onOpenSubscription, onOpenSettings, onLogout }:
             {user.name[0].toUpperCase()}
           </div>
         )}
-        <span className="text-sm text-gray-300 hidden md:block">{user.name}</span>
-        <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <span className="text-sm text-slate-300 hidden md:block">{user.name}</span>
+        <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {/* 드롭다운 메뉴 */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-64 bg-[#282e33] rounded-lg shadow-xl border border-gray-700 py-2 z-50">
+        <div className="absolute right-0 mt-2 w-64 bg-bridge-obsidian rounded-lg shadow-xl border border-white/10 py-2 z-50">
           {/* 사용자 정보 */}
-          <div className="px-4 py-3 border-b border-gray-700">
-            <div className="font-medium text-white">{user.name}</div>
-            <div className="text-sm text-gray-400">{user.email}</div>
+          <div className="px-4 py-3 border-b border-white/10">
+            <div className="font-medium text-foreground">{user.name}</div>
+            <div className="text-sm text-slate-400">{user.email}</div>
           </div>
 
           {/* 메뉴 아이템 */}
@@ -71,7 +74,7 @@ export function UserMenu({ user, onOpenSubscription, onOpenSettings, onLogout }:
                 onOpenSettings();
                 setIsOpen(false);
               }}
-              className="w-full px-4 py-2 flex items-center gap-3 hover:bg-[#3a4149] transition-colors text-gray-300 hover:text-white"
+              className="w-full px-4 py-2 flex items-center gap-3 hover:bg-white/5 transition-colors text-muted-foreground hover:text-foreground"
             >
               <User className="h-4 w-4" />
               <span>내 정보</span>
@@ -79,18 +82,31 @@ export function UserMenu({ user, onOpenSubscription, onOpenSettings, onLogout }:
 
             <button
               onClick={() => {
-                onOpenSubscription();
+                navigate('/settings');
                 setIsOpen(false);
               }}
-              className="w-full px-4 py-2 flex items-center gap-3 hover:bg-[#3a4149] transition-colors text-gray-300 hover:text-white"
+              className="w-full px-4 py-2 flex items-center gap-3 hover:bg-white/5 transition-colors text-muted-foreground hover:text-foreground"
             >
-              <CreditCard className="h-4 w-4" />
-              <span>구독 관리</span>
+              <SettingsIcon className="h-4 w-4" />
+              <span>설정</span>
             </button>
+
+            {!hideBilling && (
+              <button
+                onClick={() => {
+                  onOpenSubscription();
+                  setIsOpen(false);
+                }}
+                className="w-full px-4 py-2 flex items-center gap-3 hover:bg-white/5 transition-colors text-muted-foreground hover:text-foreground"
+              >
+                <CreditCard className="h-4 w-4" />
+                <span>구독 관리</span>
+              </button>
+            )}
           </div>
 
           {/* 로그아웃 */}
-          <div className="border-t border-gray-700 pt-2">
+          <div className="border-t border-white/10 pt-2">
             <button
               onClick={() => {
                 onLogout();

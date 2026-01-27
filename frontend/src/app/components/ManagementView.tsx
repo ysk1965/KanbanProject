@@ -194,14 +194,14 @@ export function ManagementView({ boardId, milestones, members, onTaskClick, refr
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
               <Shield className="w-6 h-6 text-bridge-accent" />
-              <h1 className="text-xl font-bold text-white">관리 대시보드</h1>
+              <h1 className="text-xl font-bold text-foreground">관리 대시보드</h1>
             </div>
 
             {/* 마일스톤 필터 */}
             <select
               value={selectedMilestoneId || ''}
               onChange={(e) => setSelectedMilestoneId(e.target.value)}
-              className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white
+              className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-sm text-foreground
                 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
             >
               {milestones.map((m) => (
@@ -215,14 +215,14 @@ export function ManagementView({ boardId, milestones, members, onTaskClick, refr
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowSettings(!showSettings)}
-              className="p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+              className="p-2 text-slate-400 hover:text-foreground hover:bg-white/5 rounded-lg transition-colors"
               title="설정"
             >
               <Settings className="w-5 h-5" />
             </button>
             <button
               onClick={loadData}
-              className="p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+              className="p-2 text-slate-400 hover:text-foreground hover:bg-white/5 rounded-lg transition-colors"
               title="새로고침"
             >
               <RefreshCw className="w-5 h-5" />
@@ -233,14 +233,14 @@ export function ManagementView({ boardId, milestones, members, onTaskClick, refr
         {/* 설정 패널 */}
         {showSettings && (
           <div className="p-4 bg-bridge-obsidian rounded-xl border border-white/10">
-            <h3 className="text-sm font-semibold text-white mb-3">지연 판정 기준</h3>
+            <h3 className="text-sm font-semibold text-foreground mb-3">지연 판정 기준</h3>
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-2">
                 <label className="text-sm text-slate-400">정체 Task:</label>
                 <select
                   value={settings.stagnant_task_days}
                   onChange={(e) => setSettings({ ...settings, stagnant_task_days: Number(e.target.value) })}
-                  className="px-2 py-1 bg-white/5 border border-white/10 rounded text-sm text-white"
+                  className="px-2 py-1 bg-white/5 border border-white/10 rounded text-sm text-foreground"
                 >
                   {[1, 2, 3, 4, 5, 6, 7].map((d) => (
                     <option key={d} value={d}>{d}일</option>
@@ -253,7 +253,7 @@ export function ManagementView({ boardId, milestones, members, onTaskClick, refr
                 <select
                   value={settings.stuck_checklist_days}
                   onChange={(e) => setSettings({ ...settings, stuck_checklist_days: Number(e.target.value) })}
-                  className="px-2 py-1 bg-white/5 border border-white/10 rounded text-sm text-white"
+                  className="px-2 py-1 bg-white/5 border border-white/10 rounded text-sm text-foreground"
                 >
                   {[1, 2, 3, 4, 5].map((d) => (
                     <option key={d} value={d}>{d}일</option>
@@ -289,7 +289,7 @@ export function ManagementView({ boardId, milestones, members, onTaskClick, refr
             </div>
             {data.milestone_health.length > 0 ? (
               <>
-                <div className="text-3xl font-bold text-white">
+                <div className="text-3xl font-bold text-foreground">
                   {data.milestone_health[0].progress_percentage.toFixed(0)}%
                 </div>
                 <div className="mt-1 text-xs text-slate-500">
@@ -308,7 +308,7 @@ export function ManagementView({ boardId, milestones, members, onTaskClick, refr
               <Users className="w-4 h-4 text-slate-500" />
             </div>
             <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-bold text-white">{data.summary.members_on_track}</span>
+              <span className="text-3xl font-bold text-foreground">{data.summary.members_on_track}</span>
               <span className="text-slate-500">/ {data.summary.total_members}</span>
             </div>
             {data.summary.members_needing_attention > 0 && (
@@ -324,7 +324,7 @@ export function ManagementView({ boardId, milestones, members, onTaskClick, refr
               <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">지연 항목</span>
               <AlertTriangle className="w-4 h-4 text-slate-500" />
             </div>
-            <div className="text-3xl font-bold text-white">
+            <div className="text-3xl font-bold text-foreground">
               {data.summary.total_delayed_items}
               <span className="text-lg text-slate-500">건</span>
             </div>
@@ -343,7 +343,7 @@ export function ManagementView({ boardId, milestones, members, onTaskClick, refr
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               activeTab === 'health'
                 ? 'bg-bridge-accent text-white'
-                : 'text-slate-400 hover:text-white hover:bg-white/5'
+                : 'text-slate-400 hover:text-foreground hover:bg-white/5'
             }`}
           >
             <div className="flex items-center gap-2">
@@ -358,7 +358,7 @@ export function ManagementView({ boardId, milestones, members, onTaskClick, refr
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               activeTab === 'productivity'
                 ? 'bg-bridge-accent text-white'
-                : 'text-slate-400 hover:text-white hover:bg-white/5'
+                : 'text-slate-400 hover:text-foreground hover:bg-white/5'
             }`}
           >
             <div className="flex items-center gap-2">
@@ -371,7 +371,7 @@ export function ManagementView({ boardId, milestones, members, onTaskClick, refr
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               activeTab === 'delayed'
                 ? 'bg-bridge-accent text-white'
-                : 'text-slate-400 hover:text-white hover:bg-white/5'
+                : 'text-slate-400 hover:text-foreground hover:bg-white/5'
             }`}
           >
             <div className="flex items-center gap-2">
@@ -523,7 +523,7 @@ function MilestoneHealthSection({
             <div className="p-4 flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <div>
-                  <h3 className="font-semibold text-white">{health.milestone.title}</h3>
+                  <h3 className="font-semibold text-foreground">{health.milestone.title}</h3>
                   <div className="flex items-center gap-3 mt-1 text-xs text-slate-500">
                     <span>{health.milestone.start_date} ~ {health.milestone.end_date}</span>
                     <span>D{health.days_remaining >= 0 ? `-${health.days_remaining}` : `+${health.days_overdue}`}</span>
@@ -534,7 +534,7 @@ function MilestoneHealthSection({
               <div className="flex items-center gap-6">
                 {/* 진행률 */}
                 <div className="text-right">
-                  <div className="text-2xl font-bold text-white">
+                  <div className="text-2xl font-bold text-foreground">
                     {health.progress_percentage.toFixed(0)}%
                   </div>
                   <div className="text-xs text-slate-500">
@@ -601,7 +601,7 @@ function MilestoneHealthSection({
                               <h4 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">시간</h4>
                               <div className="flex justify-between text-sm gap-4">
                                 <span className="text-slate-500">예상</span>
-                                <span className="text-white">{formatMinutes(estimated)}</span>
+                                <span className="text-foreground">{formatMinutes(estimated)}</span>
                               </div>
                               <div className="flex justify-between text-sm items-center gap-4">
                                 <span className="text-slate-500">실제</span>
@@ -623,7 +623,7 @@ function MilestoneHealthSection({
                               <h4 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">속도</h4>
                               <div className="flex justify-between text-sm gap-4">
                                 <span className="text-slate-500">현재</span>
-                                <span className="text-white">
+                                <span className="text-foreground">
                                   {currentSpeedPerDay > 0 ? formatMinutesPerDay(currentSpeedPerDay) : '0분/일'}
                                 </span>
                               </div>
@@ -643,7 +643,7 @@ function MilestoneHealthSection({
                         <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Feature</h4>
                         <div className="flex justify-between text-sm">
                           <span className="text-slate-500">전체</span>
-                          <span className="text-white">{health.feature_summary.total_features}개</span>
+                          <span className="text-foreground">{health.feature_summary.total_features}개</span>
                         </div>
                         <div className="flex justify-between text-sm">
                           <span className="text-slate-500">완료</span>
@@ -727,7 +727,7 @@ function MilestoneHealthSection({
                 <div className="mt-4 pt-4 border-t border-white/5">
                   <button
                     onClick={() => toggleTaskList(health.milestone.id)}
-                    className="flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors"
+                    className="flex items-center gap-2 text-sm text-slate-400 hover:text-foreground transition-colors"
                   >
                     <ListTodo className="w-4 h-4" />
                     <span>Task 목록 ({health.tasks?.length || 0}개)</span>
@@ -778,7 +778,7 @@ function MilestoneHealthSection({
                               <div className="flex items-center gap-2 min-w-0">
                                 <button
                                   onClick={() => onTaskClick?.(task.task_id)}
-                                  className="text-white truncate hover:text-bridge-accent transition-colors text-left"
+                                  className="text-foreground truncate hover:text-bridge-accent transition-colors text-left"
                                 >
                                   {task.task_title}
                                 </button>
@@ -850,7 +850,7 @@ function MilestoneHealthSection({
                                       type="number"
                                       value={editingMinutes}
                                       onChange={(e) => setEditingMinutes(e.target.value)}
-                                      className="w-16 px-1 py-0.5 bg-white/10 border border-white/20 rounded text-xs text-white text-center"
+                                      className="w-16 px-1 py-0.5 bg-white/10 border border-white/20 rounded text-xs text-foreground text-center"
                                       placeholder="분"
                                       min="0"
                                       autoFocus
@@ -912,7 +912,7 @@ function MilestoneHealthSection({
                 <div className="mt-4 pt-4 border-t border-white/5">
                   <button
                     onClick={() => toggleAllocationSection(health.milestone.id)}
-                    className="flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors"
+                    className="flex items-center gap-2 text-sm text-slate-400 hover:text-foreground transition-colors"
                   >
                     <Users className="w-4 h-4" />
                     <span>팀원 할당 현황</span>
@@ -1120,7 +1120,7 @@ function TeamAllocationSubSection({
               <select
                 value={selectedMemberId}
                 onChange={(e) => setSelectedMemberId(e.target.value)}
-                className="w-full px-2 py-1.5 bg-white/5 border border-white/10 rounded text-sm text-white"
+                className="w-full px-2 py-1.5 bg-white/5 border border-white/10 rounded text-sm text-foreground"
               >
                 <option value="">선택</option>
                 {availableMembers.map((m) => (
@@ -1138,7 +1138,7 @@ function TeamAllocationSubSection({
                 onChange={(e) => setWorkingDays(e.target.value)}
                 placeholder="일"
                 min="1"
-                className="w-full px-2 py-1.5 bg-white/5 border border-white/10 rounded text-sm text-white"
+                className="w-full px-2 py-1.5 bg-white/5 border border-white/10 rounded text-sm text-foreground"
               />
             </div>
             <div>
@@ -1149,14 +1149,14 @@ function TeamAllocationSubSection({
                 onChange={(e) => setAllocatedHours(e.target.value)}
                 placeholder="시간"
                 min="1"
-                className="w-full px-2 py-1.5 bg-white/5 border border-white/10 rounded text-sm text-white"
+                className="w-full px-2 py-1.5 bg-white/5 border border-white/10 rounded text-sm text-foreground"
               />
             </div>
           </div>
           <div className="flex items-center justify-end gap-2">
             <button
               onClick={resetForm}
-              className="px-3 py-1 text-xs text-slate-400 hover:text-white transition-colors"
+              className="px-3 py-1 text-xs text-slate-400 hover:text-foreground transition-colors"
             >
               취소
             </button>
@@ -1199,7 +1199,7 @@ function TeamAllocationSubSection({
                       <User className="w-3 h-3 text-bridge-accent" />
                     </div>
                   )}
-                  <span className="text-white">{allocation.member.name}</span>
+                  <span className="text-foreground">{allocation.member.name}</span>
                 </div>
 
                 {/* Working days */}
@@ -1209,7 +1209,7 @@ function TeamAllocationSubSection({
                       type="number"
                       value={workingDays}
                       onChange={(e) => setWorkingDays(e.target.value)}
-                      className="w-14 px-1 py-0.5 bg-white/10 border border-white/20 rounded text-xs text-white text-center"
+                      className="w-14 px-1 py-0.5 bg-white/10 border border-white/20 rounded text-xs text-foreground text-center"
                       min="1"
                     />
                   ) : (
@@ -1224,7 +1224,7 @@ function TeamAllocationSubSection({
                       type="number"
                       value={allocatedHours}
                       onChange={(e) => setAllocatedHours(e.target.value)}
-                      className="w-14 px-1 py-0.5 bg-white/10 border border-white/20 rounded text-xs text-white text-center"
+                      className="w-14 px-1 py-0.5 bg-white/10 border border-white/20 rounded text-xs text-foreground text-center"
                       min="1"
                     />
                   ) : (
@@ -1288,7 +1288,7 @@ function TeamAllocationSubSection({
                     <>
                       <button
                         onClick={() => startEdit(allocation)}
-                        className="p-1 text-slate-400 hover:text-white hover:bg-white/10 rounded"
+                        className="p-1 text-slate-400 hover:text-foreground hover:bg-white/10 rounded"
                       >
                         <Edit3 className="w-3 h-3" />
                       </button>
@@ -1308,10 +1308,10 @@ function TeamAllocationSubSection({
             <div className="grid grid-cols-[1.5fr_0.8fr_0.8fr_0.8fr_0.8fr_0.6fr_60px] gap-2 px-3 py-2 items-center text-sm bg-white/[0.02] font-medium">
               <div className="text-slate-400">합계</div>
               <div className="text-center text-slate-400">-</div>
-              <div className="text-center text-white">{totalAllocatedHours}h</div>
-              <div className="text-center text-white">{totalActualHours.toFixed(1)}h</div>
+              <div className="text-center text-foreground">{totalAllocatedHours}h</div>
+              <div className="text-center text-foreground">{totalActualHours.toFixed(1)}h</div>
               <div className="text-center">
-                <span className={totalDifference > 0 ? 'text-red-400' : totalDifference < 0 ? 'text-emerald-400' : 'text-white'}>
+                <span className={totalDifference > 0 ? 'text-red-400' : totalDifference < 0 ? 'text-emerald-400' : 'text-foreground'}>
                   {totalDifference > 0 ? '+' : ''}{totalDifference.toFixed(1)}h
                 </span>
               </div>
@@ -1336,11 +1336,11 @@ function TeamAllocationSubSection({
           <div className="flex items-center justify-between text-sm">
             <div>
               <span className="text-slate-400">할당된 작업: </span>
-              <span className="text-white font-medium">{taskAllocatedHours}h</span>
+              <span className="text-foreground font-medium">{taskAllocatedHours}h</span>
             </div>
             <div>
               <span className="text-slate-400">총 가용시간: </span>
-              <span className="text-white font-medium">{availableHours}h</span>
+              <span className="text-foreground font-medium">{availableHours}h</span>
             </div>
             <div className={isOvercommitted ? 'text-red-400' : 'text-emerald-400'}>
               {isOvercommitted ? (
@@ -1434,14 +1434,14 @@ function TeamProductivitySection({
                   </div>
                 )}
                 <div>
-                  <div className="font-medium text-white">{member.member.name}</div>
+                  <div className="font-medium text-foreground">{member.member.name}</div>
                   {member.member.role && (
                     <div className="text-xs text-slate-500">{member.member.role}</div>
                   )}
                 </div>
               </div>
 
-              <div className="text-center text-white">{member.assigned_tasks}</div>
+              <div className="text-center text-foreground">{member.assigned_tasks}</div>
               <div className="text-center text-emerald-400">{member.completed_tasks}</div>
               <div className="text-center">
                 <span className={member.completion_rate >= 70 ? 'text-emerald-400' : member.completion_rate >= 40 ? 'text-yellow-400' : 'text-red-400'}>
@@ -1450,7 +1450,7 @@ function TeamProductivitySection({
               </div>
               <div className="text-center text-slate-400 text-xs">
                 <div>
-                  <div className="text-white">{formatMinutesShort(member.total_actual_minutes || 0)}</div>
+                  <div className="text-foreground">{formatMinutesShort(member.total_actual_minutes || 0)}</div>
                   <div className="text-slate-500">/ {member.total_estimated_minutes ? formatMinutesShort(member.total_estimated_minutes) : '-'}</div>
                 </div>
               </div>
@@ -1482,7 +1482,7 @@ function TeamProductivitySection({
                                 className="w-2 h-2 rounded-full"
                                 style={{ backgroundColor: task.feature_color }}
                               />
-                              <span className="text-white truncate">{task.task_title}</span>
+                              <span className="text-foreground truncate">{task.task_title}</span>
                               {task.current_block === 'Done' && (
                                 <CheckCircle2 className="w-3 h-3 text-emerald-400 flex-shrink-0" />
                               )}
@@ -1521,7 +1521,7 @@ function TeamProductivitySection({
                                 className="w-2 h-2 rounded-full"
                                 style={{ backgroundColor: item.feature_color }}
                               />
-                              <span className="text-white truncate">{item.checklist_title}</span>
+                              <span className="text-foreground truncate">{item.checklist_title}</span>
                               {item.is_completed && (
                                 <CheckCircle2 className="w-3 h-3 text-emerald-400 flex-shrink-0" />
                               )}
@@ -1554,7 +1554,7 @@ function TeamProductivitySection({
                                 className="w-2 h-2 rounded-full"
                                 style={{ backgroundColor: item.feature_color }}
                               />
-                              <span className="text-white truncate">{item.checklist_title}</span>
+                              <span className="text-foreground truncate">{item.checklist_title}</span>
                             </div>
                             <div className="flex items-center gap-2 mt-1 text-xs text-yellow-400">
                               <Clock className="w-3 h-3" />
@@ -1591,7 +1591,7 @@ function DelayedItemsSection({ delayedItems }: { delayedItems: DelayedItems }) {
     return (
       <div className="p-8 bg-bridge-obsidian rounded-xl border border-white/10 text-center">
         <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto mb-3" />
-        <p className="text-white font-medium">모든 항목이 정상입니다</p>
+        <p className="text-foreground font-medium">모든 항목이 정상입니다</p>
         <p className="text-slate-500 text-sm mt-1">지연된 항목이 없습니다.</p>
       </div>
     );
@@ -1614,7 +1614,7 @@ function DelayedItemsSection({ delayedItems }: { delayedItems: DelayedItems }) {
                   <User className="w-5 h-5 text-orange-400" />
                 </div>
                 <div>
-                  <div className="text-white font-medium">
+                  <div className="text-foreground font-medium">
                     {delayedItems.bottleneck_summary.most_delayed_member.member.name}
                   </div>
                   <div className="text-sm text-orange-400">
@@ -1631,7 +1631,7 @@ function DelayedItemsSection({ delayedItems }: { delayedItems: DelayedItems }) {
                 병목 블록
               </div>
               <div>
-                <div className="text-white font-medium">
+                <div className="text-foreground font-medium">
                   {delayedItems.bottleneck_summary.most_problematic_block.block_name}
                 </div>
                 <div className="text-sm text-red-400">
@@ -1651,7 +1651,7 @@ function DelayedItemsSection({ delayedItems }: { delayedItems: DelayedItems }) {
           className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
             activeSubTab === 'features'
               ? 'bg-red-500/20 text-red-400'
-              : 'text-slate-400 hover:text-white hover:bg-white/5'
+              : 'text-slate-400 hover:text-foreground hover:bg-white/5'
           }`}
         >
           마감초과 Feature ({delayedItems.overdue_features.length})
@@ -1661,7 +1661,7 @@ function DelayedItemsSection({ delayedItems }: { delayedItems: DelayedItems }) {
           className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
             activeSubTab === 'tasks'
               ? 'bg-orange-500/20 text-orange-400'
-              : 'text-slate-400 hover:text-white hover:bg-white/5'
+              : 'text-slate-400 hover:text-foreground hover:bg-white/5'
           }`}
         >
           정체 Task ({delayedItems.stagnant_tasks.length})
@@ -1671,7 +1671,7 @@ function DelayedItemsSection({ delayedItems }: { delayedItems: DelayedItems }) {
           className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
             activeSubTab === 'checklists'
               ? 'bg-yellow-500/20 text-yellow-400'
-              : 'text-slate-400 hover:text-white hover:bg-white/5'
+              : 'text-slate-400 hover:text-foreground hover:bg-white/5'
           }`}
         >
           막힌 체크리스트 ({delayedItems.stuck_checklists.length})
@@ -1691,7 +1691,7 @@ function DelayedItemsSection({ delayedItems }: { delayedItems: DelayedItems }) {
                       style={{ backgroundColor: feature.feature_color }}
                     />
                     <div>
-                      <div className="text-white font-medium">{feature.feature_title}</div>
+                      <div className="text-foreground font-medium">{feature.feature_title}</div>
                       <div className="flex items-center gap-3 mt-1 text-xs text-slate-500">
                         <span>마감: {feature.due_date}</span>
                         <span className="text-red-400">{feature.days_overdue}일 초과</span>
@@ -1700,7 +1700,7 @@ function DelayedItemsSection({ delayedItems }: { delayedItems: DelayedItems }) {
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-white font-medium">{feature.progress_percentage.toFixed(0)}%</div>
+                    <div className="text-foreground font-medium">{feature.progress_percentage.toFixed(0)}%</div>
                     <div className="text-xs text-slate-500">{feature.tasks_remaining}개 남음</div>
                   </div>
                 </div>
@@ -1722,7 +1722,7 @@ function DelayedItemsSection({ delayedItems }: { delayedItems: DelayedItems }) {
                       style={{ backgroundColor: task.feature_color }}
                     />
                     <div>
-                      <div className="text-white font-medium">{task.task_title}</div>
+                      <div className="text-foreground font-medium">{task.task_title}</div>
                       <div className="flex items-center gap-3 mt-1 text-xs text-slate-500">
                         <span>{task.feature_title}</span>
                         <span className="text-orange-400">{task.block_name}에서 {task.days_in_block}일</span>
@@ -1754,7 +1754,7 @@ function DelayedItemsSection({ delayedItems }: { delayedItems: DelayedItems }) {
                       style={{ backgroundColor: item.feature_color }}
                     />
                     <div>
-                      <div className="text-white font-medium">{item.checklist_title}</div>
+                      <div className="text-foreground font-medium">{item.checklist_title}</div>
                       <div className="flex items-center gap-3 mt-1 text-xs text-slate-500">
                         <span>{item.task_title}</span>
                         <span className="text-yellow-400">{item.days_stuck}일째 미완료</span>

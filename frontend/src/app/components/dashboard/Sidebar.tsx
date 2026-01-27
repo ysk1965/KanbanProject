@@ -6,9 +6,10 @@ interface SidebarProps {
   isOpen?: boolean;
   onClose?: () => void;
   onUpgradeClick?: () => void;
+  hideBilling?: boolean;
 }
 
-export function Sidebar({ isOpen = true, onClose, onUpgradeClick }: SidebarProps) {
+export function Sidebar({ isOpen = true, onClose, onUpgradeClick, hideBilling }: SidebarProps) {
   const navigate = useNavigate();
 
   const menuItems = [
@@ -71,27 +72,29 @@ export function Sidebar({ isOpen = true, onClose, onUpgradeClick }: SidebarProps
         </nav>
       </div>
 
-      {/* Upgrade Card */}
-      <div className="mt-auto p-6">
-        <div className="p-4 rounded-2xl bg-gradient-to-br from-bridge-accent to-purple-600 shadow-lg shadow-bridge-accent/20">
-          <div className="flex items-center gap-2 mb-2">
-            <Zap size={16} fill="white" />
-            <span className="text-xs font-bold uppercase tracking-tight">Upgrade Pro</span>
+      {/* Upgrade Card - TESTER 사용자는 숨김 */}
+      {!hideBilling && (
+        <div className="mt-auto p-6">
+          <div className="p-4 rounded-2xl bg-gradient-to-br from-bridge-accent to-purple-600 shadow-lg shadow-bridge-accent/20">
+            <div className="flex items-center gap-2 mb-2">
+              <Zap size={16} fill="white" />
+              <span className="text-xs font-bold uppercase tracking-tight">Upgrade Pro</span>
+            </div>
+            <p className="text-[10px] text-white/80 mb-3 leading-relaxed">
+              무제한 보드와 고급 통계 기능을 사용해보세요.
+            </p>
+            <button
+              onClick={() => {
+                onUpgradeClick?.();
+                onClose?.();
+              }}
+              className="w-full py-2 bg-white text-bridge-accent text-xs font-bold rounded-lg hover:bg-slate-100 transition-colors"
+            >
+              플랜 보기
+            </button>
           </div>
-          <p className="text-[10px] text-white/80 mb-3 leading-relaxed">
-            무제한 보드와 고급 통계 기능을 사용해보세요.
-          </p>
-          <button
-            onClick={() => {
-              onUpgradeClick?.();
-              onClose?.();
-            }}
-            className="w-full py-2 bg-white text-bridge-accent text-xs font-bold rounded-lg hover:bg-slate-100 transition-colors"
-          >
-            플랜 보기
-          </button>
         </div>
-      </div>
+      )}
     </div>
   );
 

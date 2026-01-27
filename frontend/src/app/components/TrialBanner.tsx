@@ -7,9 +7,12 @@ interface TrialBannerProps {
   daysRemaining?: number;
   onOpenSubscription?: () => void;
   tier?: BoardTier;
+  hideBilling?: boolean;
 }
 
-export function TrialBanner({ status, daysRemaining = 0, onOpenSubscription, tier }: TrialBannerProps) {
+export function TrialBanner({ status, daysRemaining = 0, onOpenSubscription, tier, hideBilling }: TrialBannerProps) {
+  // TESTER 사용자는 과금 배너 숨김
+  if (hideBilling) return null;
   // Standard tier: 간결한 알림 배너
   if (tier === 'STANDARD') {
     return (
@@ -80,7 +83,7 @@ export function TrialBanner({ status, daysRemaining = 0, onOpenSubscription, tie
           </div>
           <Button 
             size="sm" 
-            className="bg-yellow-500 hover:bg-yellow-600 text-gray-900"
+            className="bg-yellow-500 hover:bg-yellow-600 text-slate-900"
             onClick={onOpenSubscription}
           >
             지금 구독하기

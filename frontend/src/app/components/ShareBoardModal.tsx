@@ -133,7 +133,7 @@ export function ShareBoardModal({
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col bg-kanban-bg text-white border-kanban-border rounded-2xl">
         <DialogHeader>
-          <DialogTitle className="text-white">Share board</DialogTitle>
+          <DialogTitle className="text-foreground">Share board</DialogTitle>
           <DialogDescription className="sr-only">
             보드를 팀원과 공유합니다
           </DialogDescription>
@@ -204,7 +204,7 @@ export function ShareBoardModal({
                 size="sm"
                 onClick={handleCopyLink}
                 disabled={isCreatingLink}
-                className="text-zinc-300 hover:text-white hover:bg-white/5"
+                className="text-zinc-300 hover:text-foreground hover:bg-white/5"
               >
                 {isCreatingLink ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -220,7 +220,7 @@ export function ShareBoardModal({
           {/* 멤버 목록 */}
           <div className="space-y-3">
             <div className="flex items-center gap-2">
-              <h3 className="font-semibold text-white">Board members</h3>
+              <h3 className="font-semibold text-foreground">Board members</h3>
               <Badge variant="secondary" className="bg-kanban-surface text-zinc-300">
                 {members.length}
               </Badge>
@@ -245,7 +245,7 @@ export function ShareBoardModal({
                       {/* 정보 */}
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="font-medium text-white">
+                          <span className="font-medium text-foreground">
                             {member.name}
                           </span>
                           {isCurrentMember && (
@@ -302,7 +302,7 @@ export function ShareBoardModal({
 
           {/* 권한 설명 */}
           <div className="p-4 bg-kanban-card rounded-lg border border-kanban-border">
-            <h4 className="font-semibold text-white mb-2">역할 권한</h4>
+            <h4 className="font-semibold text-foreground mb-2">역할 권한</h4>
             <div className="space-y-2 text-sm text-zinc-400">
               <div>
                 <span className="font-medium text-purple-400">Admin:</span> 모든

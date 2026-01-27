@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useMemo } from 'react';
+import { useRef, useState, useMemo } from 'react';
 import { Task, Tag, Feature, ChecklistItem } from '../types';
 import { Calendar, ChevronDown, ChevronUp, CheckSquare } from 'lucide-react';
 import { checklistAPI } from '../utils/api';
@@ -35,6 +35,8 @@ interface DraggableCardProps {
   boardId?: string | null;
   isChecklistExpanded?: boolean;
   onToggleChecklistExpand?: (taskId: string) => void;
+  // 부모로부터 전달받는 체크리스트 데이터 (배치 로드용)
+  checklistData?: ChecklistItem[];
 }
 
 export function DraggableCard({
@@ -47,12 +49,17 @@ export function DraggableCard({
   boardId,
   isChecklistExpanded = false,
   onToggleChecklistExpand,
+  checklistData,
 }: DraggableCardProps) {
   const ref = useRef<HTMLDivElement>(null);
-  const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
+  // 부모에서 전달받은 체크리스트 데이터를 사용하거나 로컬 상태 사용
+  const [localChecklistItems, setLocalChecklistItems] = useState<ChecklistItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [hasLoaded, setHasLoaded] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+
+  // 부모에서 전달받은 데이터가 있으면 사용, 없으면 로컬 상태 사용
+  const checklistItems = checklistData || localChecklistItems;
+  const hasLoaded = checklistData !== undefined || localChecklistItems.length > 0;
 
   // 클릭 vs 드래그 판별을 위한 마우스 위치 추적
   const mouseStartRef = useRef<{ x: number; y: number } | null>(null);
@@ -62,56 +69,6 @@ export function DraggableCard({
 
   // 현재 이 카드가 드래그 중인지 확인
   const isThisCardDragging = state.draggedTask?.id === task.id;
-
-  // task의 체크리스트 카운트가 변경되면 데이터 다시 로드 (모달에서 변경 시 동기화)
-  useEffect(() => {
-    if (hasLoaded && isChecklistExpanded && boardId) {
-      const localCompleted = checklistItems.filter(item => item.completed).length;
-      // 외부에서 변경된 경우 (모달에서 토글한 경우) 데이터 다시 로드
-      if (task.checklist_completed !== localCompleted || task.checklist_total !== checklistItems.length) {
-        // API toggle이 완료될 시간을 주기 위해 약간의 딜레이 추가
-        const timer = setTimeout(() => {
-          checklistAPI.getChecklist(boardId, task.id)
-            .then((response) => {
-              const items: ChecklistItem[] = response.items.map((item) => ({
-                id: item.id,
-                title: item.title,
-                completed: item.completed,
-                position: item.position,
-                due_date: item.due_date,
-                assignee: item.assignee ? { id: item.assignee.id, name: item.assignee.name } : null,
-              }));
-              setChecklistItems(items);
-            })
-            .catch((error) => {
-              console.error('Failed to reload checklist:', error);
-            });
-        }, 300);
-        return () => clearTimeout(timer);
-      }
-    }
-  }, [task.checklist_completed, task.checklist_total]);
-
-  // 체크리스트 버전이 변경되면 다시 로드 (모달에서 제목 등 수정 시)
-  useEffect(() => {
-    if (hasLoaded && boardId && task.checklist_version) {
-      checklistAPI.getChecklist(boardId, task.id)
-        .then((response) => {
-          const items: ChecklistItem[] = response.items.map((item) => ({
-            id: item.id,
-            title: item.title,
-            completed: item.completed,
-            position: item.position,
-            due_date: item.due_date,
-            assignee: item.assignee ? { id: item.assignee.id, name: item.assignee.name } : null,
-          }));
-          setChecklistItems(items);
-        })
-        .catch((error) => {
-          console.error('Failed to reload checklist:', error);
-        });
-    }
-  }, [task.checklist_version]);
 
   // 마우스 다운 - 시작 위치 기록
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -220,9 +177,10 @@ export function DraggableCard({
     return dueDate >= today && dueDate <= threeDaysLater;
   };
 
-  // 체크리스트 로드
+  // 체크리스트 로드 (부모에서 데이터가 전달되지 않은 경우에만 사용)
   const loadChecklist = async () => {
-    if (!boardId) return;
+    // 부모에서 데이터가 전달되면 개별 API 호출하지 않음
+    if (!boardId || checklistData !== undefined) return;
 
     setIsLoading(true);
     try {
@@ -235,8 +193,7 @@ export function DraggableCard({
         due_date: item.due_date,
         assignee: item.assignee ? { id: item.assignee.id, name: item.assignee.name } : null,
       }));
-      setChecklistItems(items);
-      setHasLoaded(true);
+      setLocalChecklistItems(items);
     } catch (error) {
       console.error('Failed to load checklist:', error);
     } finally {
@@ -244,48 +201,38 @@ export function DraggableCard({
     }
   };
 
-  // 체크리스트가 있으면 마운트 시 로드 (담당자 표시용)
-  useEffect(() => {
-    const hasChecklistItems = (task.checklist_total ?? 0) > 0;
-    if (hasChecklistItems && boardId && !hasLoaded) {
-      loadChecklist();
-    }
-  }, [task.checklist_total, boardId]);
-
-  // 펼침 상태가 변경되면 체크리스트 로드
-  useEffect(() => {
-    if (isChecklistExpanded && boardId && !hasLoaded) {
-      loadChecklist();
-    }
-  }, [isChecklistExpanded, boardId]);
-
   // 확장 버튼 클릭 핸들러
   const handleExpandClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     onToggleChecklistExpand?.(task.id);
   };
 
-  // 체크리스트 토글
+  // 체크리스트 토글 (로컬 상태 사용 시에만 동작, 부모 데이터 사용 시 낙관적 업데이트 후 API 호출)
   const handleToggleItem = async (e: React.MouseEvent, itemId: string) => {
     e.stopPropagation();
     if (!boardId) return;
 
-    setChecklistItems(
-      checklistItems.map((item) =>
-        item.id === itemId ? { ...item, completed: !item.completed } : item
-      )
-    );
+    // 로컬 상태를 사용하는 경우에만 직접 업데이트
+    if (checklistData === undefined) {
+      setLocalChecklistItems(
+        localChecklistItems.map((item) =>
+          item.id === itemId ? { ...item, completed: !item.completed } : item
+        )
+      );
+    }
 
     try {
       await checklistAPI.toggleItem(boardId, task.id, itemId);
     } catch (error) {
       console.error('Failed to toggle checklist item:', error);
-      // 롤백
-      setChecklistItems(
-        checklistItems.map((item) =>
-          item.id === itemId ? { ...item, completed: !item.completed } : item
-        )
-      );
+      // 롤백 (로컬 상태 사용 시에만)
+      if (checklistData === undefined) {
+        setLocalChecklistItems(
+          localChecklistItems.map((item) =>
+            item.id === itemId ? { ...item, completed: !item.completed } : item
+          )
+        );
+      }
     }
   };
 
@@ -378,7 +325,7 @@ export function DraggableCard({
               style={{ backgroundColor: task.completed ? '#22c55e' : featureColor }}
             />
           )}
-          <h4 className="font-bold text-white text-[14px] leading-snug group-hover:text-indigo-400 transition-colors truncate">
+          <h4 className="font-bold text-foreground text-[14px] leading-snug group-hover:text-indigo-400 transition-colors truncate">
             {displayTitle}
           </h4>
         </div>
@@ -423,7 +370,7 @@ export function DraggableCard({
           {hasChecklist && boardId && (
             <button
               onClick={handleExpandClick}
-              className="flex items-center gap-2 text-zinc-400 hover:text-white transition-colors"
+              className="flex items-center gap-2 text-zinc-400 hover:text-foreground transition-colors"
             >
               <CheckSquare size={12} className="text-indigo-400" />
               <div className="flex items-center gap-2">

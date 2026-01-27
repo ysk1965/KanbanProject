@@ -59,7 +59,7 @@ export function AddBlockModal({
           </h2>
           <button
             onClick={onClose}
-            className="p-2 text-zinc-500 hover:text-white transition-colors"
+            className="p-2 text-zinc-500 hover:text-foreground transition-colors"
           >
             <X size={20} />
           </button>
@@ -112,7 +112,7 @@ export function AddBlockModal({
         <div className="px-6 py-5 border-t border-white/5 bg-white/[0.02] flex justify-end items-center gap-4">
           <button
             onClick={onClose}
-            className="text-[11px] font-bold text-zinc-500 hover:text-white transition-all tracking-wider"
+            className="text-[11px] font-bold text-zinc-500 hover:text-foreground transition-all tracking-wider"
           >
             취소
           </button>

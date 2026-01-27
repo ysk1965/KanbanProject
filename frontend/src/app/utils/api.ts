@@ -49,6 +49,15 @@ const isTokenExpiringSoon = (token: string): boolean => {
   return timeUntilExpiry < TEN_MINUTES;
 };
 
+// 토큰이 이미 만료되었는지 확인
+const isTokenExpired = (token: string): boolean => {
+  const decoded = decodeToken(token);
+  if (!decoded) return true;
+
+  const now = Math.floor(Date.now() / 1000);
+  return decoded.exp <= now;
+};
+
 // API 에러 타입
 export interface ApiError {
   code: string;
@@ -587,6 +596,22 @@ export const authAPI = {
     return response;
   },
 
+  verifyEmail: async (token: string) => {
+    return apiClient.get<{ message: string }>(`/auth/verify-email?token=${token}`, true);
+  },
+
+  resendVerificationEmail: async (email: string) => {
+    return apiClient.post<{ message: string }>('/auth/resend-verification', { email }, true);
+  },
+
+  forgotPassword: async (email: string) => {
+    return apiClient.post<{ message: string }>('/auth/forgot-password', { email }, true);
+  },
+
+  resetPassword: async (token: string, newPassword: string) => {
+    return apiClient.post<{ message: string }>('/auth/reset-password', { token, newPassword }, true);
+  },
+
   refresh: async (refreshToken: string) => {
     return apiClient.post<{ access_token: string; refresh_token: string; token_type: string }>(
       '/auth/refresh',
@@ -595,12 +620,96 @@ export const authAPI = {
     );
   },
 
+  // 토큰이 존재하고 유효한지 확인 (만료 여부 포함)
   isAuthenticated: () => {
-    return !!getAccessToken();
+    const token = getAccessToken();
+    if (!token) return false;
+    return !isTokenExpired(token);
+  },
+
+  // 토큰이 존재하지만 만료되었는지 확인 (갱신 필요 여부)
+  isTokenExpiredButExists: () => {
+    const token = getAccessToken();
+    if (!token) return false;
+    return isTokenExpired(token);
+  },
+
+  // refresh token으로 access token 갱신 시도
+  tryRefreshToken: async (): Promise<boolean> => {
+    const refreshToken = getRefreshToken();
+    if (!refreshToken) {
+      clearTokens();
+      return false;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setTokens(data.access_token, data.refresh_token);
+        console.log('✅ [Auth] 토큰 갱신 성공');
+        return true;
+      }
+    } catch (error) {
+      console.error('❌ [Auth] 토큰 갱신 실패:', error);
+    }
+
+    // 갱신 실패 시 토큰 정리
+    console.log('🔒 [Auth] 토큰 갱신 실패, 토큰 정리');
+    clearTokens();
+    localStorage.removeItem('user');
+    return false;
   },
 
   getAccessToken,
   clearTokens,
+};
+
+// ========================================
+// User API
+// ========================================
+
+export const userAPI = {
+  getMe: async () => {
+    return apiClient.get<{
+      id: string;
+      email: string;
+      name: string;
+      profile_image: string;
+      email_verified: boolean;
+    }>('/users/me');
+  },
+
+  updateProfile: async (data: { name?: string; profileImage?: string; theme?: 'dark' | 'light' }) => {
+    return apiClient.patch<{
+      id: string;
+      email: string;
+      name: string;
+      profile_image: string;
+      email_verified: boolean;
+      theme?: 'dark' | 'light';
+    }>('/users/me', {
+      name: data.name,
+      profile_image: data.profileImage,
+      theme: data.theme,
+    });
+  },
+
+  changePassword: async (currentPassword: string, newPassword: string) => {
+    return apiClient.post<{ message: string }>('/users/me/password', {
+      currentPassword,
+      newPassword,
+    });
+  },
+
+  deleteAccount: async () => {
+    return apiClient.delete<{ message: string }>('/users/me');
+  },
 };
 
 // ========================================
@@ -858,9 +967,18 @@ export const tagAPI = {
 // Checklist API
 // ========================================
 
+// Batch Checklist Response
+export interface BatchChecklistResponse {
+  [taskId: string]: ChecklistResponse;
+}
+
 export const checklistAPI = {
   getChecklist: async (boardId: string, taskId: string) => {
     return apiClient.get<ChecklistResponse>(`/boards/${boardId}/tasks/${taskId}/checklist`);
+  },
+
+  getBatchChecklists: async (boardId: string, taskIds: string[]) => {
+    return apiClient.post<BatchChecklistResponse>(`/boards/${boardId}/checklists/batch`, { task_ids: taskIds });
   },
 
   addItem: async (
@@ -1399,6 +1517,107 @@ export const testDataAPI = {
 };
 
 // ========================================
+// Daily Checklist API
+// ========================================
+
+export interface DailyChecklistItemResponse {
+  id: string;
+  checklist_item_id: string | null;
+  title: string;
+  assignee: {
+    id: string;
+    name: string;
+    profile_image: string | null;
+  };
+  assigned_date: string;
+  position: number;
+  completed: boolean;
+  task: {
+    id: string;
+    title: string;
+  } | null;
+  feature: {
+    id: string;
+    title: string;
+    color: string;
+  } | null;
+  created_at: string;
+}
+
+export interface DailyChecklistColumnResponse {
+  user: {
+    id: string;
+    name: string;
+    profile_image: string | null;
+  };
+  items: DailyChecklistItemResponse[];
+}
+
+export interface DailyChecklistResponse {
+  date: string;
+  columns: DailyChecklistColumnResponse[];
+}
+
+export const dailyChecklistAPI = {
+  // 일일 데일리 체크리스트 조회
+  getDailyChecklist: async (boardId: string, date: string) => {
+    return apiClient.get<DailyChecklistResponse>(
+      `/boards/${boardId}/daily-checklists?date=${date}`
+    );
+  },
+
+  // 기존 체크리스트 항목을 데일리 체크리스트로 추가
+  addItem: async (
+    boardId: string,
+    data: {
+      checklist_item_id: string;
+      assignee_id: string;
+      assigned_date: string;
+    }
+  ) => {
+    return apiClient.post<DailyChecklistItemResponse>(
+      `/boards/${boardId}/daily-checklists`,
+      data
+    );
+  },
+
+  // 새 체크리스트 생성 + 데일리 체크리스트로 추가
+  addWithNewItem: async (
+    boardId: string,
+    data: {
+      task_id: string;
+      title: string;
+      assignee_id: string;
+      assigned_date: string;
+    }
+  ) => {
+    return apiClient.post<DailyChecklistItemResponse>(
+      `/boards/${boardId}/daily-checklists/with-item`,
+      data
+    );
+  },
+
+  // 우선순위 순서 변경
+  updatePosition: async (
+    boardId: string,
+    itemId: string,
+    data: { position: number }
+  ) => {
+    return apiClient.put<DailyChecklistItemResponse>(
+      `/boards/${boardId}/daily-checklists/${itemId}/position`,
+      data
+    );
+  },
+
+  // 데일리 체크리스트에서 제거 (원본 체크리스트는 유지)
+  removeItem: async (boardId: string, itemId: string) => {
+    return apiClient.delete<{ message: string }>(
+      `/boards/${boardId}/daily-checklists/${itemId}`
+    );
+  },
+};
+
+// ========================================
 // Statistics API (Analytics & Productivity)
 // ========================================
 
@@ -1822,6 +2041,170 @@ export const statisticsAPI = {
   getTaskWeight: async (boardId: string, taskId: string) => {
     return apiClient.get<{ task_id: string; weight_level: WeightLevelResponse | null }>(
       `/boards/${boardId}/tasks/${taskId}/weight`
+    );
+  },
+};
+
+// ==================== Admin API ====================
+
+export interface AdminUserSummary {
+  id: string;
+  email: string;
+  name: string;
+  profile_image?: string | null;
+  system_role: 'USER' | 'TESTER' | 'ADMIN';
+  provider: 'email' | 'google';
+  email_verified: boolean;
+  created_at: string;
+  board_count: number;
+}
+
+export interface AdminUserDetail extends AdminUserSummary {
+  last_login_at?: string | null;
+  owned_board_count: number;
+  member_board_count: number;
+}
+
+export interface AdminBoardSummary {
+  id: string;
+  name: string;
+  description?: string | null;
+  tier: 'FREE' | 'STANDARD' | 'PREMIUM' | 'ENTERPRISE';
+  owner_id: string;
+  owner_name: string;
+  owner_email: string;
+  member_count: number;
+  task_count: number;
+  created_at: string;
+}
+
+export interface AdminBoardDetail extends AdminBoardSummary {
+  members: {
+    id: string;
+    name: string;
+    email: string;
+    profile_image?: string | null;
+    role: 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER';
+    joined_at: string;
+  }[];
+  subscription?: {
+    id: string;
+    status: 'ACTIVE' | 'CANCELLED' | 'EXPIRED' | 'PENDING';
+    started_at: string;
+    expires_at?: string | null;
+  } | null;
+}
+
+export interface AdminStatistics {
+  total_users: number;
+  active_users: number;
+  total_boards: number;
+  trial_boards: number;
+  standard_boards: number;
+  premium_boards: number;
+  active_subscriptions: number;
+}
+
+export interface AdminSubscriptionSummary {
+  id: string;
+  board_id: string;
+  board_name: string;
+  owner_id: string;
+  owner_name: string;
+  owner_email: string;
+  tier: 'FREE' | 'STANDARD' | 'PREMIUM' | 'ENTERPRISE';
+  status: 'ACTIVE' | 'CANCELLED' | 'EXPIRED' | 'PENDING';
+  started_at: string;
+  expires_at?: string | null;
+}
+
+export interface UserListResponse {
+  users: AdminUserSummary[];
+  total: number;
+  page: number;
+  size: number;
+}
+
+export interface BoardListResponse {
+  boards: AdminBoardSummary[];
+  total: number;
+  page: number;
+  size: number;
+}
+
+export interface SubscriptionListResponse {
+  subscriptions: AdminSubscriptionSummary[];
+  total: number;
+  page: number;
+  size: number;
+}
+
+export const adminAPI = {
+  // 사용자 목록 조회
+  getUsers: async (params: { page?: number; size?: number; search?: string }) => {
+    const searchParams = new URLSearchParams();
+    if (params.page !== undefined) searchParams.append('page', params.page.toString());
+    if (params.size !== undefined) searchParams.append('size', params.size.toString());
+    if (params.search) searchParams.append('search', params.search);
+    return apiClient.get<UserListResponse>(
+      `/admin/users?${searchParams.toString()}`
+    );
+  },
+
+  // 사용자 상세 조회
+  getUser: async (userId: string) => {
+    return apiClient.get<AdminUserDetail>(`/admin/users/${userId}`);
+  },
+
+  // 사용자 정보 수정
+  updateUser: async (userId: string, data: { system_role?: 'USER' | 'TESTER' | 'ADMIN' }) => {
+    return apiClient.patch<AdminUserSummary>(`/admin/users/${userId}`, data);
+  },
+
+  // 사용자의 보드 목록 조회
+  getUserBoards: async (userId: string) => {
+    return apiClient.get<{ boards: AdminBoardSummary[] }>(`/admin/users/${userId}/boards`);
+  },
+
+  // 보드 목록 조회
+  getBoards: async (params: { page?: number; size?: number; search?: string; tier?: string }) => {
+    const searchParams = new URLSearchParams();
+    if (params.page !== undefined) searchParams.append('page', params.page.toString());
+    if (params.size !== undefined) searchParams.append('size', params.size.toString());
+    if (params.search) searchParams.append('search', params.search);
+    if (params.tier) searchParams.append('tier', params.tier);
+    return apiClient.get<BoardListResponse>(
+      `/admin/boards?${searchParams.toString()}`
+    );
+  },
+
+  // 보드 상세 조회
+  getBoard: async (boardId: string) => {
+    return apiClient.get<AdminBoardDetail>(`/admin/boards/${boardId}`);
+  },
+
+  // 보드 삭제
+  deleteBoard: async (boardId: string) => {
+    return apiClient.delete<{ message: string }>(`/admin/boards/${boardId}`);
+  },
+
+  // 보드 티어 변경
+  updateBoardTier: async (boardId: string, tier: 'FREE' | 'STANDARD' | 'PREMIUM' | 'ENTERPRISE') => {
+    return apiClient.patch<AdminBoardSummary>(`/admin/boards/${boardId}/tier`, { tier });
+  },
+
+  // 통계 조회
+  getStatistics: async () => {
+    return apiClient.get<AdminStatistics>('/admin/statistics');
+  },
+
+  // 구독 목록 조회
+  getSubscriptions: async (params: { page?: number; size?: number }) => {
+    const searchParams = new URLSearchParams();
+    if (params.page !== undefined) searchParams.append('page', params.page.toString());
+    if (params.size !== undefined) searchParams.append('size', params.size.toString());
+    return apiClient.get<SubscriptionListResponse>(
+      `/admin/subscriptions?${searchParams.toString()}`
     );
   },
 };

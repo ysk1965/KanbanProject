@@ -85,7 +85,7 @@ export function Dashboard({
   onUpdateBoard,
   onRefreshBoards,
 }: DashboardProps) {
-  const { user, logout } = useAuth();
+  const { user, logout, hideBilling } = useAuth();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -167,6 +167,7 @@ export function Dashboard({
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
         onUpgradeClick={() => setIsUpgradeModalOpen(true)}
+        hideBilling={hideBilling}
       />
 
       {/* Main Content */}
@@ -199,13 +200,15 @@ export function Dashboard({
           </div>
 
           <div className="flex items-center gap-5">
-            {/* Upgrade Button */}
-            <button
-              onClick={() => setIsUpgradeModalOpen(true)}
-              className="hidden lg:flex items-center gap-2 px-4 py-1.5 bg-bridge-accent/10 text-bridge-accent rounded-full border border-bridge-accent/20 text-xs font-bold hover:bg-bridge-accent hover:text-white transition-all"
-            >
-              <Rocket size={14} /> Upgrade Pro
-            </button>
+            {/* Upgrade Button - TESTER 사용자는 숨김 */}
+            {!hideBilling && (
+              <button
+                onClick={() => setIsUpgradeModalOpen(true)}
+                className="hidden lg:flex items-center gap-2 px-4 py-1.5 bg-bridge-accent/10 text-bridge-accent rounded-full border border-bridge-accent/20 text-xs font-bold hover:bg-bridge-accent hover:text-white transition-all"
+              >
+                <Rocket size={14} /> Upgrade Pro
+              </button>
+            )}
 
             {/* Logout */}
             <button
@@ -345,12 +348,14 @@ export function Dashboard({
         onCreate={onCreateBoard}
       />
 
-      {/* Upgrade Modal */}
-      <UpgradeModal
-        isOpen={isUpgradeModalOpen}
-        onClose={() => setIsUpgradeModalOpen(false)}
-        memberCount={totalMembers}
-      />
+      {/* Upgrade Modal - TESTER 사용자는 숨김 */}
+      {!hideBilling && (
+        <UpgradeModal
+          isOpen={isUpgradeModalOpen}
+          onClose={() => setIsUpgradeModalOpen(false)}
+          memberCount={totalMembers}
+        />
+      )}
 
       {/* Edit Board Modal */}
       <EditBoardModal

@@ -6,6 +6,7 @@ import {
   tagAPI,
   memberAPI,
   authAPI,
+  userAPI,
   inviteLinkAPI,
   subscriptionAPI,
   activityAPI,
@@ -770,6 +771,25 @@ export const checklistService = {
     }
   },
 
+  getBatchChecklists: async (
+    boardId: string,
+    taskIds: string[]
+  ): Promise<{ [taskId: string]: { total: number; completed: number; items: ChecklistItem[] } }> => {
+    try {
+      if (taskIds.length === 0) {
+        return {};
+      }
+      const response = await checklistAPI.getBatchChecklists(boardId, taskIds);
+      return response;
+    } catch (error) {
+      console.warn('API failed, using empty data for batch checklists', error);
+      if (USE_MOCK_ON_ERROR) {
+        return {};
+      }
+      throw error;
+    }
+  },
+
   addItem: async (
     boardId: string,
     taskId: string,
@@ -920,6 +940,11 @@ export const memberService = {
 // Auth Service
 // ========================================
 
+// API 에러인지 확인 (code, message 필드가 있는 경우)
+const isApiError = (error: unknown): error is { code: string; message: string; errors?: Record<string, string> } => {
+  return typeof error === 'object' && error !== null && 'code' in error && 'message' in error;
+};
+
 export const authService = {
   signup: async (email: string, password: string, name: string) => {
     try {
@@ -927,6 +952,17 @@ export const authService = {
       localStorage.setItem('user', JSON.stringify(response.user));
       return response;
     } catch (error) {
+      // API 에러(4xx)는 mock 사용 안함 - 에러 메시지 그대로 전달
+      if (isApiError(error)) {
+        console.error('Signup validation error:', error);
+        // errors 필드에서 상세 메시지 추출
+        if (error.errors && Object.keys(error.errors).length > 0) {
+          const errorMessages = Object.values(error.errors).join('\n');
+          throw new Error(errorMessages);
+        }
+        throw new Error(error.message);
+      }
+      // 네트워크 에러 등은 mock 사용
       console.warn('API failed, using mock auth', error);
       if (USE_MOCK_ON_ERROR) {
         const mockUser: User = {
@@ -955,6 +991,12 @@ export const authService = {
       localStorage.setItem('user', JSON.stringify(response.user));
       return response;
     } catch (error) {
+      // API 에러(4xx)는 mock 사용 안함 - 에러 메시지 그대로 전달
+      if (isApiError(error)) {
+        console.error('Login error:', error);
+        throw new Error(error.message);
+      }
+      // 네트워크 에러 등은 mock 사용
       console.warn('API failed, using mock auth', error);
       if (USE_MOCK_ON_ERROR) {
         const mockUser: User = {
@@ -980,8 +1022,10 @@ export const authService = {
   googleLogin: async (idToken: string) => {
     try {
       const response = await authAPI.googleLogin(idToken);
-      localStorage.setItem('user', JSON.stringify(response.user));
-      return response;
+      // 구글 로그인 사용자임을 표시
+      const userWithProvider = { ...response.user, provider: 'google' as const };
+      localStorage.setItem('user', JSON.stringify(userWithProvider));
+      return { ...response, user: userWithProvider };
     } catch (error) {
       console.warn('Google login failed', error);
       throw error;
@@ -1006,6 +1050,76 @@ export const authService = {
 
   isAuthenticated: () => {
     return authAPI.isAuthenticated();
+  },
+
+  // 토큰이 존재하지만 만료되었는지 확인
+  isTokenExpiredButExists: () => {
+    return authAPI.isTokenExpiredButExists();
+  },
+
+  // refresh token으로 access token 갱신 시도
+  tryRefreshToken: async (): Promise<boolean> => {
+    return authAPI.tryRefreshToken();
+  },
+
+  // 이메일 인증
+  verifyEmail: async (token: string) => {
+    return authAPI.verifyEmail(token);
+  },
+
+  // 인증 이메일 재발송
+  resendVerificationEmail: async (email: string) => {
+    return authAPI.resendVerificationEmail(email);
+  },
+
+  // 비밀번호 재설정 요청
+  forgotPassword: async (email: string) => {
+    return authAPI.forgotPassword(email);
+  },
+
+  // 비밀번호 재설정
+  resetPassword: async (token: string, newPassword: string) => {
+    return authAPI.resetPassword(token, newPassword);
+  },
+};
+
+// ========================================
+// User Service
+// ========================================
+
+export const userService = {
+  // 현재 사용자 정보 조회
+  getMe: async () => {
+    return userAPI.getMe();
+  },
+
+  // 프로필 수정
+  updateProfile: async (data: { name?: string; profileImage?: string; theme?: 'dark' | 'light' }) => {
+    const response = await userAPI.updateProfile(data);
+    // 로컬 스토리지의 사용자 정보도 업데이트
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      if (data.name) user.name = data.name;
+      if (data.profileImage) user.profile_image = data.profileImage;
+      if (data.theme) user.theme = data.theme;
+      localStorage.setItem('user', JSON.stringify(user));
+    }
+    return response;
+  },
+
+  // 비밀번호 변경
+  changePassword: async (currentPassword: string, newPassword: string) => {
+    return userAPI.changePassword(currentPassword, newPassword);
+  },
+
+  // 계정 탈퇴
+  deleteAccount: async () => {
+    const response = await userAPI.deleteAccount();
+    // 로컬 스토리지 정리
+    authAPI.clearTokens();
+    localStorage.removeItem('user');
+    return response;
   },
 };
 
@@ -1250,37 +1364,17 @@ export const milestoneService = {
   getMilestones: async (boardId: string): Promise<Milestone[]> => {
     try {
       const response = await milestoneAPI.getMilestones(boardId);
-      // 각 마일스톤의 상세 정보(features 포함)를 가져옴
-      const milestonesWithDetails = await Promise.all(
-        response.milestones.map(async (m) => {
-          try {
-            const detail = await milestoneAPI.getMilestone(boardId, m.id);
-            return {
-              id: detail.id,
-              title: detail.title,
-              description: detail.description,
-              start_date: detail.start_date,
-              end_date: detail.end_date,
-              feature_count: detail.feature_count,
-              progress_percentage: detail.progress_percentage,
-              features: detail.features,
-              created_by: detail.created_by,
-              created_at: detail.created_at,
-            };
-          } catch {
-            // 상세 조회 실패 시 기본 정보만 반환
-            return {
-              id: m.id,
-              title: m.title,
-              start_date: m.start_date,
-              end_date: m.end_date,
-              feature_count: m.feature_count,
-              progress_percentage: m.progress_percentage,
-            };
-          }
-        })
-      );
-      return milestonesWithDetails;
+      // BE에서 상세 정보를 함께 반환하므로 추가 API 호출 없이 바로 반환
+      // N+1 문제 제거: 개별 getMilestone 호출 제거
+      return response.milestones.map((m) => ({
+        id: m.id,
+        title: m.title,
+        start_date: m.start_date,
+        end_date: m.end_date,
+        feature_count: m.feature_count,
+        progress_percentage: m.progress_percentage,
+        // 목록 조회 시에는 features가 없을 수 있음 (상세 조회 시에만 포함)
+      }));
     } catch (error) {
       console.warn('API failed, using empty array for milestones', error);
       if (USE_MOCK_ON_ERROR) {
@@ -1737,5 +1831,101 @@ export const managementService = {
       }
       throw error;
     }
+  },
+};
+
+// ========================================
+// Admin Service (시스템 관리)
+// ========================================
+
+import {
+  adminAPI,
+  AdminUserSummary,
+  AdminUserDetail,
+  AdminBoardSummary,
+  AdminBoardDetail,
+  AdminStatistics,
+  AdminSubscriptionSummary,
+  UserListResponse,
+  BoardListResponse,
+  SubscriptionListResponse,
+} from './api';
+
+export const adminService = {
+  // 사용자 목록 조회
+  getUsers: async (params: {
+    page?: number;
+    size?: number;
+    search?: string;
+  }): Promise<UserListResponse> => {
+    const response = await adminAPI.getUsers(params);
+    return response;
+  },
+
+  // 사용자 상세 조회
+  getUser: async (userId: string): Promise<AdminUserDetail> => {
+    const response = await adminAPI.getUser(userId);
+    return response;
+  },
+
+  // 사용자 정보 수정 (역할 변경)
+  updateUser: async (
+    userId: string,
+    data: { system_role?: 'USER' | 'TESTER' | 'ADMIN' }
+  ): Promise<AdminUserSummary> => {
+    const response = await adminAPI.updateUser(userId, data);
+    return response;
+  },
+
+  // 사용자의 보드 목록 조회
+  getUserBoards: async (userId: string): Promise<AdminBoardSummary[]> => {
+    const response = await adminAPI.getUserBoards(userId);
+    return response.boards;
+  },
+
+  // 보드 목록 조회
+  getBoards: async (params: {
+    page?: number;
+    size?: number;
+    search?: string;
+    tier?: string;
+  }): Promise<BoardListResponse> => {
+    const response = await adminAPI.getBoards(params);
+    return response;
+  },
+
+  // 보드 상세 조회
+  getBoard: async (boardId: string): Promise<AdminBoardDetail> => {
+    const response = await adminAPI.getBoard(boardId);
+    return response;
+  },
+
+  // 보드 삭제
+  deleteBoard: async (boardId: string): Promise<void> => {
+    await adminAPI.deleteBoard(boardId);
+  },
+
+  // 보드 티어 변경
+  updateBoardTier: async (
+    boardId: string,
+    tier: 'FREE' | 'STANDARD' | 'PREMIUM' | 'ENTERPRISE'
+  ): Promise<AdminBoardSummary> => {
+    const response = await adminAPI.updateBoardTier(boardId, tier);
+    return response;
+  },
+
+  // 통계 조회
+  getStatistics: async (): Promise<AdminStatistics> => {
+    const response = await adminAPI.getStatistics();
+    return response;
+  },
+
+  // 구독 목록 조회
+  getSubscriptions: async (params: {
+    page?: number;
+    size?: number;
+  }): Promise<SubscriptionListResponse> => {
+    const response = await adminAPI.getSubscriptions(params);
+    return response;
   },
 };

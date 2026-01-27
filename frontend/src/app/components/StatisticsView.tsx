@@ -256,7 +256,7 @@ export function StatisticsView({
                     setPeriodPreset('all');
                   }
                 }}
-                className="appearance-none bg-bridge-dark border border-white/10 rounded-xl py-2 pl-9 pr-8 text-sm text-white focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent cursor-pointer hover:border-white/20 transition-all"
+                className="appearance-none bg-bridge-dark border border-white/10 rounded-xl py-2 pl-9 pr-8 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent cursor-pointer hover:border-white/20 transition-all"
               >
                 <option value="">전체 마일스톤</option>
                 {milestones.map((m) => (
@@ -326,7 +326,7 @@ export function StatisticsView({
                       member_ids: e.target.value ? [e.target.value] : [],
                     }))
                   }
-                  className="w-full bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-white text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
+                  className="w-full bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
                 >
                   <option value="">전체</option>
                   {members.map((m) => (
@@ -350,7 +350,7 @@ export function StatisticsView({
                       tag_ids: e.target.value ? [e.target.value] : [],
                     }))
                   }
-                  className="w-full bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-white text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
+                  className="w-full bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
                 >
                   <option value="">전체</option>
                   {tags.map((t) => (
@@ -519,7 +519,7 @@ function OverviewDashboard({
         {/* 일별 작업 시간 트렌드 */}
         <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-white font-semibold flex items-center gap-2">
+            <h3 className="text-foreground font-semibold flex items-center gap-2">
               <Activity className="h-5 w-5 text-bridge-accent" />
               일별 작업 시간
             </h3>
@@ -587,7 +587,7 @@ function OverviewDashboard({
         {/* Feature별 시간 분포 */}
         <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-white font-semibold flex items-center gap-2">
+            <h3 className="text-foreground font-semibold flex items-center gap-2">
               <PieChart className="h-5 w-5 text-bridge-secondary" />
               Feature별 시간 분포
             </h3>
@@ -640,7 +640,7 @@ function OverviewDashboard({
         {/* 멤버별 기여도 */}
         <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-white font-semibold flex items-center gap-2">
+            <h3 className="text-foreground font-semibold flex items-center gap-2">
               <Users className="h-5 w-5 text-amber-500" />
               멤버별 작업 시간
             </h3>
@@ -685,7 +685,7 @@ function OverviewDashboard({
         {/* 요약 통계 카드 */}
         <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-white font-semibold flex items-center gap-2">
+            <h3 className="text-foreground font-semibold flex items-center gap-2">
               <BarChart3 className="h-5 w-5 text-violet-500" />
               상세 요약
             </h3>
@@ -773,7 +773,7 @@ function KPICard({ icon: Icon, label, value, subValue, trend, accentColor }: KPI
       case 'violet-500':
         return 'text-violet-500';
       default:
-        return 'text-white';
+        return 'text-foreground';
     }
   };
 
@@ -790,7 +790,7 @@ function KPICard({ icon: Icon, label, value, subValue, trend, accentColor }: KPI
         )}
       </div>
       <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">{label}</p>
-      <p className="text-2xl font-bold text-white">{value}</p>
+      <p className="text-2xl font-bold text-foreground">{value}</p>
       {subValue && <p className="text-sm text-slate-500 mt-1">{subValue}</p>}
     </div>
   );
@@ -812,7 +812,7 @@ function SummaryItem({ label, value, subValue, highlight }: SummaryItemProps) {
     <div className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
       <span className="text-slate-400 text-sm">{label}</span>
       <div className="text-right">
-        <span className={`font-semibold ${highlight ? 'text-amber-400' : 'text-white'}`}>{value}</span>
+        <span className={`font-semibold ${highlight ? 'text-amber-400' : 'text-foreground'}`}>{value}</span>
         {subValue && <span className="text-slate-500 text-xs ml-2">({subValue})</span>}
       </div>
     </div>
@@ -918,7 +918,7 @@ function WorkAnalysisView({ statistics, formatMinutes, formatPercent }: WorkAnal
       <div className="grid grid-cols-2 gap-6">
         {/* Task 상태 분포 */}
         <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-6">
-          <h3 className="text-white font-semibold flex items-center gap-2 mb-4">
+          <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
             <CheckCircle2 className="h-5 w-5 text-bridge-secondary" />
             Task 상태 분포
           </h3>
@@ -956,7 +956,7 @@ function WorkAnalysisView({ statistics, formatMinutes, formatPercent }: WorkAnal
 
         {/* 시간 상태 분포 */}
         <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-6">
-          <h3 className="text-white font-semibold flex items-center gap-2 mb-4">
+          <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
             <Clock className="h-5 w-5 text-amber-500" />
             시간 상태 분포
           </h3>
@@ -995,7 +995,7 @@ function WorkAnalysisView({ statistics, formatMinutes, formatPercent }: WorkAnal
 
       {/* 차트 Row 2: 태그별 분석 */}
       <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-6">
-        <h3 className="text-white font-semibold flex items-center gap-2 mb-4">
+        <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
           <PieChart className="h-5 w-5 text-violet-500" />
           태그별 작업 시간
         </h3>
@@ -1048,7 +1048,7 @@ function WorkAnalysisView({ statistics, formatMinutes, formatPercent }: WorkAnal
 
       {/* Feature별 상세 테이블 */}
       <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-6">
-        <h3 className="text-white font-semibold flex items-center gap-2 mb-4">
+        <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
           <ListTodo className="h-5 w-5 text-bridge-accent" />
           Feature별 상세 분석
         </h3>
@@ -1073,7 +1073,7 @@ function WorkAnalysisView({ statistics, formatMinutes, formatPercent }: WorkAnal
                         className="w-3 h-3 rounded-full"
                         style={{ backgroundColor: feature.color }}
                       />
-                      <span className="text-white text-sm font-medium">
+                      <span className="text-foreground text-sm font-medium">
                         {feature.title.length > 30 ? `${feature.title.slice(0, 30)}...` : feature.title}
                       </span>
                     </div>
@@ -1255,7 +1255,7 @@ function TeamProductivityView({ statistics, formatMinutes, formatPercent }: Team
       <div className="grid grid-cols-2 gap-6">
         {/* 멤버별 작업 시간 */}
         <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-6">
-          <h3 className="text-white font-semibold flex items-center gap-2 mb-4">
+          <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
             <Clock className="h-5 w-5 text-bridge-accent" />
             멤버별 작업 시간
           </h3>
@@ -1307,7 +1307,7 @@ function TeamProductivityView({ statistics, formatMinutes, formatPercent }: Team
 
         {/* 멤버별 Task 완료율 */}
         <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-6">
-          <h3 className="text-white font-semibold flex items-center gap-2 mb-4">
+          <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
             <CheckCircle2 className="h-5 w-5 text-bridge-secondary" />
             멤버별 Task 완료율
           </h3>
@@ -1359,7 +1359,7 @@ function TeamProductivityView({ statistics, formatMinutes, formatPercent }: Team
 
       {/* Feature 참여 현황 */}
       <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-6">
-        <h3 className="text-white font-semibold flex items-center gap-2 mb-4">
+        <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
           <Target className="h-5 w-5 text-violet-500" />
           Feature별 팀원 참여 현황
         </h3>
@@ -1372,7 +1372,7 @@ function TeamProductivityView({ statistics, formatMinutes, formatPercent }: Team
                     className="w-3 h-3 rounded-full"
                     style={{ backgroundColor: fp.color }}
                   />
-                  <span className="text-white font-medium">{fp.feature}</span>
+                  <span className="text-foreground font-medium">{fp.feature}</span>
                   <span className="text-slate-500 text-sm">
                     ({fp.members.length}명 참여)
                   </span>
@@ -1409,7 +1409,7 @@ function TeamProductivityView({ statistics, formatMinutes, formatPercent }: Team
 
       {/* 멤버별 상세 테이블 */}
       <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-6">
-        <h3 className="text-white font-semibold flex items-center gap-2 mb-4">
+        <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
           <Users className="h-5 w-5 text-bridge-accent" />
           팀원별 상세 분석
         </h3>
@@ -1443,7 +1443,7 @@ function TeamProductivityView({ statistics, formatMinutes, formatPercent }: Team
                           </span>
                         )}
                       </div>
-                      <span className="text-white text-sm font-medium">{member.name}</span>
+                      <span className="text-foreground text-sm font-medium">{member.name}</span>
                     </div>
                   </td>
                   <td className="py-3 px-4 text-right text-slate-300 text-sm">
@@ -1550,7 +1550,7 @@ function IndividualProductivityView({
     <div className="space-y-6">
       {/* 멤버 선택 */}
       <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-6">
-        <h3 className="text-white font-semibold flex items-center gap-2 mb-4">
+        <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
           <Users className="h-5 w-5 text-bridge-accent" />
           멤버 선택
         </h3>
@@ -1623,7 +1623,7 @@ function IndividualProductivityView({
           <div className="grid grid-cols-2 gap-6">
             {/* Feature별 작업 시간 */}
             <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-6">
-              <h3 className="text-white font-semibold flex items-center gap-2 mb-4">
+              <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
                 <PieChart className="h-5 w-5 text-bridge-accent" />
                 Feature별 작업 시간
               </h3>
@@ -1675,7 +1675,7 @@ function IndividualProductivityView({
 
             {/* 일별 작업 트렌드 */}
             <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-6">
-              <h3 className="text-white font-semibold flex items-center gap-2 mb-4">
+              <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
                 <Activity className="h-5 w-5 text-bridge-secondary" />
                 일별 작업 추이
               </h3>
@@ -1726,7 +1726,7 @@ function IndividualProductivityView({
 
           {/* Feature 상세 테이블 */}
           <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-6">
-            <h3 className="text-white font-semibold flex items-center gap-2 mb-4">
+            <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
               <ListTodo className="h-5 w-5 text-violet-500" />
               참여 Feature 상세
             </h3>
@@ -1767,7 +1767,7 @@ function IndividualProductivityView({
                                 className="w-3 h-3 rounded-full flex-shrink-0"
                                 style={{ backgroundColor: f.feature_color }}
                               />
-                              <span className="text-white text-sm">{f.feature_title}</span>
+                              <span className="text-foreground text-sm">{f.feature_title}</span>
                               {hasTasks && (
                                 <span className="text-slate-500 text-xs">({f.tasks?.length}개 Task)</span>
                               )}
@@ -1940,7 +1940,7 @@ function ImpactAnalysisView({
       <div className="grid grid-cols-2 gap-6">
         {/* 멤버별 임팩트 점수 */}
         <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-6">
-          <h3 className="text-white font-semibold flex items-center gap-2 mb-4">
+          <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
             <Zap className="h-5 w-5 text-bridge-accent" />
             멤버별 임팩트 점수
           </h3>
@@ -1995,7 +1995,7 @@ function ImpactAnalysisView({
 
         {/* 가중치 레벨별 분포 */}
         <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-6">
-          <h3 className="text-white font-semibold flex items-center gap-2 mb-4">
+          <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
             <Target className="h-5 w-5 text-amber-500" />
             가중치 레벨별 시간 분포
           </h3>
@@ -2044,7 +2044,7 @@ function ImpactAnalysisView({
       {/* 가중치 레벨 설명 */}
       <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-white font-semibold flex items-center gap-2">
+          <h3 className="text-foreground font-semibold flex items-center gap-2">
             <BarChart3 className="h-5 w-5 text-violet-500" />
             가중치 레벨 상세
           </h3>
@@ -2067,17 +2067,17 @@ function ImpactAnalysisView({
                   className="w-4 h-4 rounded-full"
                   style={{ backgroundColor: level.level.color || getWeightLevelColor(level.level.weight) }}
                 />
-                <span className="text-white font-medium">{level.level.name}</span>
+                <span className="text-foreground font-medium">{level.level.name}</span>
                 <span className="text-slate-500 text-xs ml-auto">×{level.level.weight}</span>
               </div>
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-400">작업 시간</span>
-                  <span className="text-white">{formatMinutes(level.total_minutes)}</span>
+                  <span className="text-foreground">{formatMinutes(level.total_minutes)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-400">Task 수</span>
-                  <span className="text-white">{level.task_count}개</span>
+                  <span className="text-foreground">{level.task_count}개</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-400">임팩트 기여</span>
@@ -2097,7 +2097,7 @@ function ImpactAnalysisView({
 
       {/* 멤버별 상세 테이블 */}
       <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-6">
-        <h3 className="text-white font-semibold flex items-center gap-2 mb-4">
+        <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
           <Users className="h-5 w-5 text-bridge-accent" />
           멤버별 임팩트 상세
         </h3>
@@ -2145,7 +2145,7 @@ function ImpactAnalysisView({
                             </span>
                           )}
                         </div>
-                        <span className="text-white text-sm font-medium">{member.member_name}</span>
+                        <span className="text-foreground text-sm font-medium">{member.member_name}</span>
                       </div>
                     </td>
                     <td className="py-3 px-4 text-right">
@@ -2190,7 +2190,7 @@ function ImpactAnalysisView({
             <Zap className="h-4 w-4 text-bridge-accent" />
           </div>
           <div>
-            <p className="text-white font-medium mb-1">임팩트 점수 계산 방식</p>
+            <p className="text-foreground font-medium mb-1">임팩트 점수 계산 방식</p>
             <p className="text-slate-400 text-sm">
               Impact Score = Σ (Task 작업 시간 × Task 가중치)
             </p>

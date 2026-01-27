@@ -140,15 +140,15 @@ export function ScheduleDetailPanel({
   };
 
   return (
-    <div className="fixed right-0 top-0 h-full w-96 bg-[#282e33] border-l border-gray-700 shadow-xl z-50 flex flex-col">
+    <div className="fixed right-0 top-0 h-full w-96 bg-bridge-obsidian border-l border-white/10 shadow-xl z-50 flex flex-col">
       {/* 헤더 */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-700">
+      <div className="flex items-center justify-between p-4 border-b border-white/10">
         <h2 className="text-lg font-semibold text-white">타임블록 상세</h2>
         <Button
           variant="ghost"
           size="sm"
           onClick={onClose}
-          className="text-gray-400 hover:text-white hover:bg-[#3a4149] h-8 w-8 p-0"
+          className="text-slate-400 hover:text-white hover:bg-white/5 h-8 w-8 p-0"
         >
           <X className="h-4 w-4" />
         </Button>
@@ -157,7 +157,7 @@ export function ScheduleDetailPanel({
       {/* 콘텐츠 */}
       <div className="flex-1 overflow-auto p-4 space-y-4">
         {/* 시간/블록 정보 */}
-        <div className="bg-[#1d2125] rounded-lg p-4">
+        <div className="bg-bridge-dark rounded-lg p-4">
           <div className="flex items-center gap-2 text-white mb-2">
             {displayMode === 'block' ? (
               <>
@@ -171,7 +171,7 @@ export function ScheduleDetailPanel({
                       : `${startBlock}번 ~ ${endBlock}번 블록`;
                   })()}
                 </span>
-                <span className="text-gray-400 text-sm">
+                <span className="text-slate-400 text-sm">
                   ({calculateBlockCount(block.start_time, block.end_time)}블록)
                 </span>
               </>
@@ -181,13 +181,13 @@ export function ScheduleDetailPanel({
                 <span className="text-lg font-medium">
                   {formatTime(block.start_time)} - {formatTime(block.end_time)}
                 </span>
-                <span className="text-gray-400 text-sm">
+                <span className="text-slate-400 text-sm">
                   ({calculateDuration(block.start_time, block.end_time)})
                 </span>
               </>
             )}
           </div>
-          <div className="flex items-center gap-4 text-sm text-gray-400">
+          <div className="flex items-center gap-4 text-sm text-slate-400">
             <div className="flex items-center gap-1">
               <Calendar className="h-4 w-4" />
               <span>{format(selectedDate, 'yyyy년 M월 d일', { locale: ko })}</span>
@@ -197,15 +197,15 @@ export function ScheduleDetailPanel({
 
         {/* Feature 정보 */}
         <div
-          className={`bg-[#1d2125] rounded-lg p-4 ${
-            feature && onViewFeature ? 'cursor-pointer hover:bg-[#252b30] transition-colors' : ''
+          className={`bg-bridge-dark rounded-lg p-4 ${
+            feature && onViewFeature ? 'cursor-pointer hover:bg-white/5 transition-colors' : ''
           }`}
           onClick={() => feature && onViewFeature && onViewFeature(feature.id)}
         >
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Folder className="h-4 w-4 text-yellow-400" />
-              <span className="text-sm font-medium text-gray-400">FEATURE</span>
+              <span className="text-sm font-medium text-slate-400">FEATURE</span>
             </div>
             {feature && onViewFeature && (
               <span className="text-xs text-blue-400">
@@ -223,7 +223,7 @@ export function ScheduleDetailPanel({
               <p className="text-white font-medium">{feature.title}</p>
             </div>
           ) : (
-            <div className="text-gray-500 text-sm text-center py-2">
+            <div className="text-slate-500 text-sm text-center py-2">
               연결된 Feature가 없습니다
             </div>
           )}
@@ -231,15 +231,15 @@ export function ScheduleDetailPanel({
 
         {/* Task 정보 */}
         <div
-          className={`bg-[#1d2125] rounded-lg p-4 ${
-            task && onViewTask ? 'cursor-pointer hover:bg-[#252b30] transition-colors' : ''
+          className={`bg-bridge-dark rounded-lg p-4 ${
+            task && onViewTask ? 'cursor-pointer hover:bg-white/5 transition-colors' : ''
           }`}
           onClick={() => task && onViewTask && onViewTask(task.id)}
         >
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <FileText className="h-4 w-4 text-blue-400" />
-              <span className="text-sm font-medium text-gray-400">TASK</span>
+              <span className="text-sm font-medium text-slate-400">TASK</span>
             </div>
             {task && onViewTask && (
               <span className="text-xs text-blue-400">
@@ -253,7 +253,7 @@ export function ScheduleDetailPanel({
               <p className="font-medium">{task.title}</p>
             </div>
           ) : (
-            <div className="text-gray-500 text-sm text-center py-2">
+            <div className="text-slate-500 text-sm text-center py-2">
               연결된 Task가 없습니다
             </div>
           )}
@@ -315,26 +315,26 @@ export function ScheduleDetailPanel({
 
         {/* Task의 전체 체크리스트 목록 */}
         {task && (
-          <div className="bg-[#1d2125] rounded-lg p-4">
+          <div className="bg-bridge-dark rounded-lg p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <CheckSquare className="h-4 w-4 text-gray-400" />
-                <span className="text-sm font-medium text-gray-400">TASK 체크리스트</span>
+                <CheckSquare className="h-4 w-4 text-slate-400" />
+                <span className="text-sm font-medium text-slate-400">TASK 체크리스트</span>
               </div>
               {allChecklistItems.length > 0 && (
-                <span className="text-xs text-gray-500">
+                <span className="text-xs text-slate-500">
                   {allChecklistItems.filter(i => i.completed).length}/{allChecklistItems.length} 완료
                 </span>
               )}
             </div>
 
             {isLoadingChecklist ? (
-              <div className="flex items-center justify-center py-4 text-gray-400">
+              <div className="flex items-center justify-center py-4 text-slate-400">
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
                 <span className="text-sm">로딩 중...</span>
               </div>
             ) : allChecklistItems.length === 0 ? (
-              <div className="text-gray-500 text-sm text-center py-4">
+              <div className="text-slate-500 text-sm text-center py-4">
                 체크리스트가 없습니다
               </div>
             ) : (
@@ -345,20 +345,37 @@ export function ScheduleDetailPanel({
                     <div
                       key={item.id}
                       className={`flex items-start gap-2 p-2 rounded ${
-                        isCurrent ? 'bg-purple-500/20 border border-purple-500/50' : 'bg-[#282e33]'
+                        isCurrent ? 'bg-purple-500/20 border border-purple-500/50' : 'bg-bridge-obsidian'
                       }`}
                     >
-                      <div
-                        className={`mt-0.5 w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center ${
+                      <button
+                        onClick={async () => {
+                          if (!task) return;
+                          // Optimistic update
+                          setAllChecklistItems(prev =>
+                            prev.map(i => i.id === item.id ? { ...i, completed: !i.completed } : i)
+                          );
+                          try {
+                            await checklistAPI.toggleItem(boardId, task.id, item.id);
+                            onChecklistToggle(); // 데일리 체크리스트 새로고침
+                          } catch (error) {
+                            // Rollback on error
+                            setAllChecklistItems(prev =>
+                              prev.map(i => i.id === item.id ? { ...i, completed: !i.completed } : i)
+                            );
+                            console.error('Failed to toggle checklist item:', error);
+                          }
+                        }}
+                        className={`mt-0.5 w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${
                           item.completed
                             ? 'bg-green-500 border-green-500'
-                            : 'border-gray-500'
+                            : 'border-slate-500 hover:border-green-400'
                         }`}
                       >
                         {item.completed && <Check className="h-2.5 w-2.5 text-white" />}
-                      </div>
+                      </button>
                       <div className="flex-1 min-w-0">
-                        <p className={`text-sm ${item.completed ? 'line-through text-gray-500' : 'text-gray-300'}`}>
+                        <p className={`text-sm ${item.completed ? 'line-through text-slate-500' : 'text-slate-300'}`}>
                           {item.title}
                           {isCurrent && (
                             <span className="ml-2 text-xs text-purple-400">(현재)</span>
@@ -375,7 +392,7 @@ export function ScheduleDetailPanel({
       </div>
 
       {/* 하단 삭제 버튼 */}
-      <div className="p-4 border-t border-gray-700">
+      <div className="p-4 border-t border-white/10">
         <Button
           variant="outline"
           onClick={handleDelete}

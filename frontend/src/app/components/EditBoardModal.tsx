@@ -50,9 +50,9 @@ export function EditBoardModal({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="bg-bridge-obsidian text-white border-white/10 max-w-md">
+      <DialogContent className="bg-bridge-obsidian text-foreground border-white/10 max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-white font-serif">Edit Board</DialogTitle>
+          <DialogTitle className="text-foreground font-serif">Edit Board</DialogTitle>
           <DialogDescription className="text-slate-400">
             Update your board information
           </DialogDescription>
@@ -69,7 +69,7 @@ export function EditBoardModal({
               value={boardName}
               onChange={(e) => setBoardName(e.target.value)}
               placeholder="e.g., Project Management"
-              className="bg-white/5 border-white/10 text-white placeholder:text-slate-600 focus:border-bridge-accent focus:ring-bridge-accent/50"
+              className="bg-white/5 border-white/10 text-foreground placeholder:text-slate-600 focus:border-bridge-accent focus:ring-bridge-accent/50"
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   handleUpdate();
@@ -88,7 +88,7 @@ export function EditBoardModal({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Brief description of the board (optional)"
-              className="bg-white/5 border-white/10 text-white placeholder:text-slate-600 focus:border-bridge-accent focus:ring-bridge-accent/50 resize-none"
+              className="bg-white/5 border-white/10 text-foreground placeholder:text-slate-600 focus:border-bridge-accent focus:ring-bridge-accent/50 resize-none"
               rows={3}
             />
           </div>
@@ -99,7 +99,7 @@ export function EditBoardModal({
           <Button
             variant="outline"
             onClick={handleClose}
-            className="border-white/10 text-slate-300 hover:bg-white/5 hover:text-white"
+            className="border-white/10 text-slate-300 hover:bg-white/5 hover:text-foreground"
           >
             Cancel
           </Button>

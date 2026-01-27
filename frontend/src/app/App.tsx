@@ -1,21 +1,32 @@
 import { Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { LoginPage } from './components/LoginPage';
 import { Dashboard } from './components/dashboard';
 import { InviteLandingPage } from './components/InviteLandingPage';
 import { LandingPage } from './components/landing/LandingPage';
 import { KanbanBoardPage } from './pages/KanbanBoardPage';
+import { EmailVerificationPendingPage } from './components/EmailVerificationPendingPage';
+import { EmailVerificationResultPage } from './components/EmailVerificationResultPage';
+import { ForgotPasswordPage } from './components/ForgotPasswordPage';
+import { ResetPasswordPage } from './components/ResetPasswordPage';
+import { TermsPage } from './components/TermsPage';
+import { PrivacyPage } from './components/PrivacyPage';
+import { SettingsPage } from './components/SettingsPage';
+import ErrorBoundary from './components/ErrorBoundary';
+import { AdminRoute } from './components/AdminRoute';
+import { AdminPage } from './pages/AdminPage';
 import { boardService, inviteLinkService } from './utils/services';
 import { useState, useEffect } from 'react';
 import { Board } from './types';
 
 // 인증이 필요한 라우트 래퍼
 function PrivateRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isEmailVerified, isLoading } = useAuth();
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#1d2125] flex items-center justify-center">
+      <div className="min-h-screen bg-bridge-dark flex items-center justify-center">
         <div className="text-white text-lg">로딩 중...</div>
       </div>
     );
@@ -23,6 +34,11 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
+  }
+
+  // 이메일 미인증 시 인증 대기 페이지로 리다이렉트
+  if (!isEmailVerified) {
+    return <Navigate to="/email-pending" replace />;
   }
 
   return <>{children}</>;
@@ -116,13 +132,13 @@ function LoginRoute() {
 
   if (isLoading || isProcessingInvite) {
     return (
-      <div className="min-h-screen bg-[#1d2125] flex items-center justify-center">
+      <div className="min-h-screen bg-bridge-dark flex items-center justify-center">
         <div className="text-center">
           <div className="text-white text-lg mb-2">
             {isProcessingInvite ? '초대를 수락하는 중...' : '로딩 중...'}
           </div>
           {isProcessingInvite && (
-            <div className="text-gray-400 text-sm">잠시만 기다려주세요</div>
+            <div className="text-slate-400 text-sm">잠시만 기다려주세요</div>
           )}
         </div>
       </div>
@@ -231,6 +247,31 @@ function BoardsRoute() {
   );
 }
 
+// 이메일 인증 대기 페이지 래퍼
+function EmailPendingRoute() {
+  const { isAuthenticated, isEmailVerified, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-bridge-dark flex items-center justify-center">
+        <div className="text-white text-lg">로딩 중...</div>
+      </div>
+    );
+  }
+
+  // 미인증 시 로그인 페이지로
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // 이미 이메일 인증 완료 시 보드 목록으로
+  if (isEmailVerified) {
+    return <Navigate to="/boards" replace />;
+  }
+
+  return <EmailVerificationPendingPage />;
+}
+
 // 초대 페이지 래퍼
 function InviteRoute() {
   const { code } = useParams<{ code: string }>();
@@ -263,15 +304,54 @@ function InviteRoute() {
   );
 }
 
+// 테마 동기화 컴포넌트 - 로그인 시 서버에서 가져온 테마 적용
+function ThemeSync() {
+  const { currentUser } = useAuth();
+  const { setTheme } = useTheme();
+
+  useEffect(() => {
+    // 유저 정보가 있고 테마가 설정되어 있으면 적용
+    if (currentUser?.theme) {
+      setTheme(currentUser.theme);
+    }
+  }, [currentUser?.theme, setTheme]);
+
+  return null;
+}
+
 // 메인 앱 라우터
 function AppRoutes() {
   return (
-    <Routes>
+    <>
+      <ThemeSync />
+      <Routes>
       {/* 랜딩 페이지 */}
       <Route path="/" element={<LandingPage />} />
 
       {/* 로그인 */}
       <Route path="/login" element={<LoginRoute />} />
+
+      {/* 이메일 인증 */}
+      <Route path="/verify-email/:token" element={<EmailVerificationResultPage />} />
+      <Route path="/email-pending" element={<EmailPendingRoute />} />
+
+      {/* 비밀번호 재설정 */}
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+
+      {/* 이용약관 및 개인정보처리방침 */}
+      <Route path="/terms" element={<TermsPage />} />
+      <Route path="/privacy" element={<PrivacyPage />} />
+
+      {/* 설정 */}
+      <Route
+        path="/settings"
+        element={
+          <PrivateRoute>
+            <SettingsPage />
+          </PrivateRoute>
+        }
+      />
 
       {/* 보드 목록 */}
       <Route
@@ -296,18 +376,33 @@ function AppRoutes() {
       {/* 초대 링크 */}
       <Route path="/invite/:code" element={<InviteRoute />} />
 
+      {/* Admin */}
+      <Route
+        path="/admin/*"
+        element={
+          <AdminRoute>
+            <AdminPage />
+          </AdminRoute>
+        }
+      />
+
       {/* 404 - 존재하지 않는 경로 */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </>
   );
 }
 
 // App 컴포넌트
 function App() {
   return (
-    <AuthProvider>
-      <AppRoutes />
-    </AuthProvider>
+    <ErrorBoundary>
+      <ThemeProvider defaultTheme="dark">
+        <AuthProvider>
+          <AppRoutes />
+        </AuthProvider>
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }
 

@@ -54,10 +54,10 @@ export function CreateBoardModal({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="bg-[#282e33] text-white border-gray-700 max-w-md">
+      <DialogContent className="bg-bridge-obsidian text-foreground border-white/10 max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-white">Create board</DialogTitle>
-          <DialogDescription className="text-gray-400">
+          <DialogTitle className="text-foreground">Create board</DialogTitle>
+          <DialogDescription className="text-slate-400">
             Create a new kanban board for your team
           </DialogDescription>
         </DialogHeader>
@@ -65,7 +65,7 @@ export function CreateBoardModal({
         <div className="space-y-6 py-4">
           {/* 보드 미리보기 */}
           <div className="space-y-2">
-            <Label className="text-gray-300">Board preview</Label>
+            <Label className="text-slate-300">Board preview</Label>
             <div
               className="h-28 rounded-lg flex items-center justify-center"
               style={{ background: selectedGradient }}
@@ -78,7 +78,7 @@ export function CreateBoardModal({
 
           {/* 보드 이름 */}
           <div className="space-y-2">
-            <Label htmlFor="board-name" className="text-gray-300">
+            <Label htmlFor="board-name" className="text-slate-300">
               Board name <span className="text-red-400">*</span>
             </Label>
             <Input
@@ -86,7 +86,7 @@ export function CreateBoardModal({
               value={boardName}
               onChange={(e) => setBoardName(e.target.value)}
               placeholder="e.g., Project Management"
-              className="bg-[#1d2125] border-gray-600 text-white placeholder:text-gray-500 focus:border-blue-500"
+              className="bg-bridge-dark border-white/10 text-foreground placeholder:text-slate-500 focus:border-blue-500"
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   handleCreate();
@@ -97,7 +97,7 @@ export function CreateBoardModal({
 
           {/* 설명 */}
           <div className="space-y-2">
-            <Label htmlFor="board-description" className="text-gray-300">
+            <Label htmlFor="board-description" className="text-slate-300">
               Description
             </Label>
             <Textarea
@@ -105,14 +105,14 @@ export function CreateBoardModal({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Brief description of the board (optional)"
-              className="bg-[#1d2125] border-gray-600 text-white placeholder:text-gray-500 focus:border-blue-500 resize-none"
+              className="bg-bridge-dark border-white/10 text-foreground placeholder:text-slate-500 focus:border-blue-500 resize-none"
               rows={3}
             />
           </div>
 
           {/* 색상 선택 (미리보기용) */}
           <div className="space-y-2">
-            <Label className="text-gray-300">Background color</Label>
+            <Label className="text-slate-300">Background color</Label>
             <div className="grid grid-cols-3 gap-2">
               {BOARD_GRADIENTS.map((gradient) => (
                 <button
@@ -120,7 +120,7 @@ export function CreateBoardModal({
                   onClick={() => setSelectedGradient(gradient.value)}
                   className={`h-12 rounded-lg transition-all ${
                     selectedGradient === gradient.value
-                      ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-[#282e33] scale-105'
+                      ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-bridge-obsidian scale-105'
                       : 'hover:scale-105'
                   }`}
                   style={{ background: gradient.value }}
@@ -133,11 +133,11 @@ export function CreateBoardModal({
         </div>
 
         {/* 액션 버튼 */}
-        <div className="flex justify-end gap-2 pt-4 border-t border-gray-700">
+        <div className="flex justify-end gap-2 pt-4 border-t border-white/10">
           <Button
             variant="outline"
             onClick={handleClose}
-            className="border-gray-600 text-gray-300 hover:bg-[#1d2125] hover:text-white"
+            className="border-white/10 text-slate-300 hover:bg-white/5 hover:text-foreground"
           >
             Cancel
           </Button>

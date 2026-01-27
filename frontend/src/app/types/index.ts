@@ -2,11 +2,79 @@
 // 사용자 타입
 // ========================================
 
+export type SystemRole = 'USER' | 'TESTER' | 'ADMIN';
+
 export interface User {
   id: string;
   email: string;
   name: string;
   profile_image?: string | null;
+  email_verified?: boolean;
+  theme?: 'dark' | 'light';
+  provider?: 'email' | 'google';
+  system_role?: SystemRole;
+}
+
+// ========================================
+// Admin 관련 타입
+// ========================================
+
+export interface AdminUser {
+  id: string;
+  email: string;
+  name: string;
+  profile_image: string | null;
+  email_verified: boolean;
+  auth_provider: string;
+  system_role: SystemRole;
+  board_count: number;
+  last_login_at: string | null;
+  created_at: string;
+}
+
+export interface AdminUserDetail extends AdminUser {
+  boards: AdminBoardSummary[];
+}
+
+export interface AdminBoardSummary {
+  id: string;
+  name: string;
+  description: string | null;
+  owner: { id: string; name: string; email: string; profile_image: string | null };
+  tier: BoardTier;
+  member_count: number;
+  task_count: number;
+  subscription_status: SubscriptionStatus | null;
+  trial_ends_at: string | null;
+  created_at: string;
+}
+
+export interface AdminBoardDetail extends AdminBoardSummary {
+  members: { id: string; name: string; email: string; profile_image: string | null; role: Role; joined_at: string }[];
+}
+
+export interface AdminStatistics {
+  total_users: number;
+  active_users: number;
+  total_boards: number;
+  trial_boards: number;
+  standard_boards: number;
+  premium_boards: number;
+  active_subscriptions: number;
+}
+
+export interface AdminSubscription {
+  id: string;
+  board_id: string;
+  board_name: string;
+  owner: { id: string; name: string; email: string; profile_image: string | null };
+  status: SubscriptionStatus;
+  plan: string | null;
+  price: number | null;
+  seat_count: number | null;
+  trial_ends_at: string | null;
+  current_period_end: string | null;
+  created_at: string;
 }
 
 // ========================================
@@ -730,6 +798,58 @@ export type StatisticsViewType =
   | 'team'        // 팀 생산성
   | 'work'        // 작업 분석
   | 'impact';     // 임팩트 분석
+
+// ========================================
+// 데일리 체크리스트 타입
+// ========================================
+
+/**
+ * 데일리 체크리스트 항목
+ * 특정 날짜에 특정 멤버에게 할당된 체크리스트
+ */
+export interface DailyChecklistItem {
+  id: string;
+  checklist_item_id: string | null;  // 원본 체크리스트 ID (삭제된 경우 null)
+  title: string;                      // 체크리스트 제목 (원본 삭제 시 백업용)
+  assignee: {
+    id: string;
+    name: string;
+    profile_image: string | null;
+  };
+  assigned_date: string;              // 할당 날짜 (yyyy-MM-dd)
+  position: number;                   // 우선순위 순서
+  completed: boolean;                 // 원본 체크리스트 완료 상태
+  task: {
+    id: string;
+    title: string;
+  } | null;
+  feature: {
+    id: string;
+    title: string;
+    color: string;
+  } | null;
+  created_at: string;
+}
+
+/**
+ * 멤버별 데일리 체크리스트 컬럼
+ */
+export interface DailyChecklistColumn {
+  user: {
+    id: string;
+    name: string;
+    profile_image: string | null;
+  };
+  items: DailyChecklistItem[];
+}
+
+/**
+ * 데일리 체크리스트 응답
+ */
+export interface DailyChecklistResponse {
+  date: string;
+  columns: DailyChecklistColumn[];
+}
 
 // ==================== Management Dashboard Types ====================
 

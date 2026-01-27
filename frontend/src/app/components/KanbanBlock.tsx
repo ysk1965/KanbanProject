@@ -1,5 +1,5 @@
 import { useRef, useCallback } from 'react';
-import { Block, Task, Tag, Feature } from '../types';
+import { Block, Task, Tag, Feature, ChecklistItem } from '../types';
 import { DraggableCard } from './DraggableCard';
 import { GripVertical, MoreVertical } from 'lucide-react';
 import { Button } from './ui/button';
@@ -31,6 +31,8 @@ interface KanbanBlockProps {
   // Block drag and drop
   blockIndex?: number;
   onMoveBlockDrag?: (dragIndex: number, hoverIndex: number) => void;
+  // 배치 로드된 체크리스트 데이터
+  checklistDataMap?: { [taskId: string]: ChecklistItem[] };
 }
 
 export function KanbanBlock({
@@ -47,6 +49,7 @@ export function KanbanBlock({
   onToggleChecklistExpand,
   blockIndex = 0,
   onMoveBlockDrag,
+  checklistDataMap,
 }: KanbanBlockProps) {
   const blockRef = useRef<HTMLDivElement>(null);
   const dragHandleRef = useRef<HTMLDivElement>(null);
@@ -305,22 +308,22 @@ export function KanbanBlock({
               style={{ backgroundColor: block.color }}
             />
           )}
-          <h3 className="font-bold text-sm text-white tracking-tight">{block.name}</h3>
+          <h3 className="font-bold text-sm text-foreground tracking-tight">{block.name}</h3>
           <span className="text-xs font-semibold text-zinc-500 bg-kanban-surface px-2 py-0.5 rounded-md">{tasks.length}</span>
         </div>
 
         {!isFixedBlock && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-zinc-500 hover:text-white hover:bg-kanban-surface opacity-0 group-hover:opacity-100 transition-all">
+              <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-zinc-500 hover:text-foreground hover:bg-kanban-surface opacity-0 group-hover:opacity-100 transition-all">
                 <MoreVertical className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="bg-kanban-card border-kanban-border">
-              <DropdownMenuItem onClick={onEditBlock} className="text-zinc-300 hover:bg-kanban-surface hover:text-white text-xs">
+              <DropdownMenuItem onClick={onEditBlock} className="text-zinc-300 hover:bg-kanban-surface hover:text-foreground text-xs">
                 이름 변경
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={onEditBlock} className="text-zinc-300 hover:bg-kanban-surface hover:text-white text-xs">
+              <DropdownMenuItem onClick={onEditBlock} className="text-zinc-300 hover:bg-kanban-surface hover:text-foreground text-xs">
                 색상 변경
               </DropdownMenuItem>
               <DropdownMenuSeparator className="bg-kanban-border" />
@@ -388,6 +391,7 @@ export function KanbanBlock({
               boardId={boardId}
               isChecklistExpanded={expandedChecklistTaskIds?.has(task.id)}
               onToggleChecklistExpand={onToggleChecklistExpand}
+              checklistData={checklistDataMap?.[task.id]}
             />
           </div>
         ))}

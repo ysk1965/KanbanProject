@@ -89,16 +89,16 @@ export function SubscriptionModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-[#282e33] rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="bg-bridge-obsidian rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
         {/* 헤더 */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-700">
+        <div className="flex items-center justify-between p-6 border-b border-white/10">
           <div className="flex items-center gap-2">
             <CreditCard className="h-5 w-5 text-blue-400" />
-            <h2 className="text-xl font-semibold text-white">구독 관리</h2>
+            <h2 className="text-xl font-semibold text-foreground">구독 관리</h2>
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-white transition-colors"
+            className="text-slate-400 hover:text-white transition-colors"
           >
             <X className="h-5 w-5" />
           </button>
@@ -108,24 +108,24 @@ export function SubscriptionModal({
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {/* 현재 구독 정보 */}
           {subscription && (
-            <div className="bg-[#1d2125] rounded-lg p-6 border border-gray-700">
+            <div className="bg-bridge-dark rounded-lg p-6 border border-white/10">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-white">현재 구독</h3>
+                <h3 className="text-lg font-semibold text-foreground">현재 구독</h3>
                 {getStatusBadge(subscription.status)}
               </div>
 
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <div className="text-gray-400 mb-1">플랜</div>
-                  <div className="text-white font-medium">
+                  <div className="text-slate-400 mb-1">플랜</div>
+                  <div className="text-foreground font-medium">
                     {currentPlanName}
                   </div>
                 </div>
 
                 {subscription.billing_cycle && (
                   <div>
-                    <div className="text-gray-400 mb-1">결제 주기</div>
-                    <div className="text-white font-medium">
+                    <div className="text-slate-400 mb-1">결제 주기</div>
+                    <div className="text-foreground font-medium">
                       {subscription.billing_cycle === 'MONTHLY' ? '월간' : '연간'}
                     </div>
                   </div>
@@ -133,8 +133,8 @@ export function SubscriptionModal({
 
                 {subscription.price != null && (
                   <div>
-                    <div className="text-gray-400 mb-1">가격</div>
-                    <div className="text-white font-medium">
+                    <div className="text-slate-400 mb-1">가격</div>
+                    <div className="text-foreground font-medium">
                       ₩{formatPrice(subscription.price)}
                     </div>
                   </div>
@@ -142,8 +142,8 @@ export function SubscriptionModal({
 
                 {subscription.billable_member_count != null && (
                   <div>
-                    <div className="text-gray-400 mb-1">멤버 수</div>
-                    <div className="text-white font-medium">
+                    <div className="text-slate-400 mb-1">멤버 수</div>
+                    <div className="text-foreground font-medium">
                       {subscription.billable_member_count}명 / {subscription.member_limit || '-'}명
                     </div>
                   </div>
@@ -151,8 +151,8 @@ export function SubscriptionModal({
 
                 {subscription.status === 'TRIAL' && subscription.trial_ends_at && (
                   <div className="col-span-2">
-                    <div className="text-gray-400 mb-1">체험 종료일</div>
-                    <div className="text-white font-medium">
+                    <div className="text-slate-400 mb-1">체험 종료일</div>
+                    <div className="text-foreground font-medium">
                       {formatDate(subscription.trial_ends_at)}
                     </div>
                   </div>
@@ -162,8 +162,8 @@ export function SubscriptionModal({
                   <>
                     {subscription.current_period_start && subscription.current_period_end && (
                       <div>
-                        <div className="text-gray-400 mb-1">현재 결제 기간</div>
-                        <div className="text-white font-medium">
+                        <div className="text-slate-400 mb-1">현재 결제 기간</div>
+                        <div className="text-foreground font-medium">
                           {formatDate(subscription.current_period_start)} -{' '}
                           {formatDate(subscription.current_period_end)}
                         </div>
@@ -172,8 +172,8 @@ export function SubscriptionModal({
 
                     {subscription.next_payment_at && (
                       <div>
-                        <div className="text-gray-400 mb-1">다음 결제일</div>
-                        <div className="text-white font-medium">
+                        <div className="text-slate-400 mb-1">다음 결제일</div>
+                        <div className="text-foreground font-medium">
                           {formatDate(subscription.next_payment_at)}
                         </div>
                       </div>
@@ -200,14 +200,14 @@ export function SubscriptionModal({
 
           {/* 결제 주기 선택 */}
           <div>
-            <h3 className="text-lg font-semibold text-white mb-4">결제 주기</h3>
+            <h3 className="text-lg font-semibold text-foreground mb-4">결제 주기</h3>
             <div className="flex gap-4">
               <button
                 onClick={() => setBillingCycle('monthly')}
                 className={`flex-1 py-3 px-4 rounded-lg border-2 transition-colors ${
                   billingCycle === 'monthly'
-                    ? 'border-blue-500 bg-blue-500/10 text-white'
-                    : 'border-gray-600 bg-[#1d2125] text-gray-400 hover:border-gray-500'
+                    ? 'border-blue-500 bg-blue-500/10 text-foreground'
+                    : 'border-white/10 bg-bridge-dark text-slate-400 hover:border-white/20'
                 }`}
               >
                 <div className="font-medium">월간 결제</div>
@@ -217,8 +217,8 @@ export function SubscriptionModal({
                 onClick={() => setBillingCycle('yearly')}
                 className={`flex-1 py-3 px-4 rounded-lg border-2 transition-colors relative ${
                   billingCycle === 'yearly'
-                    ? 'border-blue-500 bg-blue-500/10 text-white'
-                    : 'border-gray-600 bg-[#1d2125] text-gray-400 hover:border-gray-500'
+                    ? 'border-blue-500 bg-blue-500/10 text-foreground'
+                    : 'border-white/10 bg-bridge-dark text-slate-400 hover:border-white/20'
                 }`}
               >
                 <div className="absolute -top-2 -right-2 bg-green-500 text-white text-xs px-2 py-0.5 rounded-full">
@@ -232,7 +232,7 @@ export function SubscriptionModal({
 
           {/* 플랜 선택 */}
           <div>
-            <h3 className="text-lg font-semibold text-white mb-4">플랜 선택</h3>
+            <h3 className="text-lg font-semibold text-foreground mb-4">플랜 선택</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {plans.map((plan) => {
                 const price =
@@ -247,11 +247,11 @@ export function SubscriptionModal({
                     className={`text-left p-6 rounded-lg border-2 transition-colors ${
                       isSelected
                         ? 'border-blue-500 bg-blue-500/10'
-                        : 'border-gray-600 bg-[#1d2125] hover:border-gray-500'
+                        : 'border-white/10 bg-bridge-dark hover:border-white/20'
                     }`}
                   >
                     <div className="flex items-center justify-between mb-3">
-                      <h4 className="text-lg font-semibold text-white">{plan.name}</h4>
+                      <h4 className="text-lg font-semibold text-foreground">{plan.name}</h4>
                       {isCurrentPlan && (
                         <span className="bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded text-xs">
                           현재
@@ -260,10 +260,10 @@ export function SubscriptionModal({
                     </div>
 
                     <div className="mb-4">
-                      <div className="text-2xl font-bold text-white">
+                      <div className="text-2xl font-bold text-foreground">
                         ₩{formatPrice(price)}
                       </div>
-                      <div className="text-sm text-gray-400">
+                      <div className="text-sm text-slate-400">
                         / {billingCycle === 'monthly' ? '월' : '년'}
                       </div>
                       {billingCycle === 'yearly' && plan.discount_percentage > 0 && (
@@ -273,7 +273,7 @@ export function SubscriptionModal({
                       )}
                     </div>
 
-                    <div className="space-y-2 text-sm text-gray-300">
+                    <div className="space-y-2 text-sm text-slate-300">
                       <div className="flex items-center gap-2">
                         <Users className="h-4 w-4 text-blue-400" />
                         <span>
@@ -289,11 +289,11 @@ export function SubscriptionModal({
         </div>
 
         {/* 푸터 */}
-        <div className="border-t border-gray-700 p-4 bg-[#1d2125] flex gap-2">
+        <div className="border-t border-white/10 p-4 bg-bridge-dark flex gap-2">
           <Button
             onClick={onClose}
             variant="outline"
-            className="flex-1 border-gray-600 text-gray-300 hover:bg-[#3a4149] hover:text-white"
+            className="flex-1 border-white/10 text-slate-300 hover:bg-white/5 hover:text-white"
           >
             닫기
           </Button>
