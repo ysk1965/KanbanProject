@@ -1,6 +1,6 @@
 @custom-variant dark (&:is(.dark *));
 
-/* Bridge Theme Colors */
+/* Bridge Theme Colors - Dark Mode (Default) */
 :root {
   --bridge-dark: #0A0E17;
   --bridge-obsidian: #0F1419;
@@ -15,6 +15,7 @@
   --kanban-border-hover: #3a3a45;
   --kanban-surface: #252530;
   --kanban-input: #0a0a0d;
+
   --font-size: 16px;
   --background: #ffffff;
   --foreground: oklch(0.145 0 0);
@@ -90,6 +91,47 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(0.269 0 0);
   --sidebar-ring: oklch(0.439 0 0);
+}
+
+/* Light Mode Theme */
+.light {
+  /* Bridge Light Theme Colors */
+  --bridge-dark: #F8FAFC;
+  --bridge-obsidian: #FFFFFF;
+  --bridge-accent: #6366F1;
+  --bridge-secondary: #14B8A6;
+
+  /* Kanban Light Theme Colors */
+  --kanban-bg: #F1F5F9;
+  --kanban-card: #FFFFFF;
+  --kanban-card-hover: #F8FAFC;
+  --kanban-border: #E2E8F0;
+  --kanban-border-hover: #CBD5E1;
+  --kanban-surface: #F8FAFC;
+  --kanban-input: #FFFFFF;
+
+  /* shadcn/ui Light Colors */
+  --background: #FFFFFF;
+  --foreground: #0F172A;
+  --card: #FFFFFF;
+  --card-foreground: #0F172A;
+  --popover: #FFFFFF;
+  --popover-foreground: #0F172A;
+  --primary: #6366F1;
+  --primary-foreground: #FFFFFF;
+  --secondary: #F1F5F9;
+  --secondary-foreground: #0F172A;
+  --muted: #F1F5F9;
+  --muted-foreground: #64748B;
+  --accent: #F1F5F9;
+  --accent-foreground: #0F172A;
+  --destructive: #EF4444;
+  --destructive-foreground: #FFFFFF;
+  --border: #E2E8F0;
+  --input: #E2E8F0;
+  --ring: #6366F1;
+  --input-background: #F8FAFC;
+  --switch-background: #CBD5E1;
 }
 
 @theme inline {
@@ -214,6 +256,12 @@
 /* Glass morphism effect */
 .glass {
   background: rgba(15, 20, 25, 0.8);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.light .glass {
+  background: rgba(255, 255, 255, 0.8);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
 }
