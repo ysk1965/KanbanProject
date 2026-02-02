@@ -1101,7 +1101,11 @@ export const fileAPI = {
    */
   presign: async (data: { fileName: string; contentType: string; fileSize: number }) => {
     return apiClient.post<{ mode: string; tempKey?: string; uploadUrl?: string; message?: string }>(
-      '/files/presign', data
+      '/files/presign', {
+        file_name: data.fileName,
+        content_type: data.contentType,
+        file_size: data.fileSize,
+      }
     );
   },
 
@@ -1184,7 +1188,11 @@ export const commentAPI = {
   ) => {
     return apiClient.post<CommentDetailResponse>(
       `/boards/${boardId}/tasks/${taskId}/comments`,
-      data
+      {
+        content: data.content,
+        mentions: data.mentions,
+        file_keys: data.fileKeys,
+      }
     );
   },
 
@@ -1201,7 +1209,12 @@ export const commentAPI = {
   ) => {
     return apiClient.put<CommentDetailResponse>(
       `/boards/${boardId}/tasks/${taskId}/comments/${commentId}`,
-      data
+      {
+        content: data.content,
+        mentions: data.mentions,
+        keep_attachment_ids: data.keepAttachmentIds,
+        new_file_keys: data.newFileKeys,
+      }
     );
   },
 
