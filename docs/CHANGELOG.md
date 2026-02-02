@@ -1,6 +1,49 @@
 # Documentation Changelog
 
-## [2026-02-02]
+## [2026-02-02] v1.1.0
+
+### IA v1.1.0
+- Changed: 루트 라우트 `/` → 인증 상태별 리다이렉트 (인증: /boards, 미인증: /login)
+- Added: 랜딩 페이지 라우트 `/landing` (기존 `/`에서 이동)
+- Added: Comment 도메인 모듈 (`domain/comment/`)
+- Added: Notification 도메인 모듈 (`domain/notification/`)
+- Changed: Backend 도메인 패키지 18개 → 20개
+- Added: rds-simple Terraform 모듈
+- Changed: 칸반 보드 탭 순서 (칸반 → 데일리 → 간트차트 → 마일스톤 → 관리)
+- Changed: 마일스톤/관리 탭 Admin+ 전용으로 제한
+
+### Wireframe v1.1.0
+- Added: NotificationDropdown 컴포넌트 (알림 벨 + 읽지않은 수 뱃지, 알림/활동 탭)
+- Added: CommentPanel 컴포넌트 (Task 상세 모달 내 댓글 패널, @ 멘션 지원)
+- Changed: 칸반 보드 탭 순서 변경 (데일리 → 간트차트 → 마일스톤 → 관리)
+- Changed: 마일스톤/관리 탭 Admin+ 전용 표시
+- Changed: 랜딩 페이지 라우트 `/` → `/landing`
+
+### ERD v1.1.0
+- Added: Comment 테이블 (task_id, board_id, author_id, content, mentions)
+- Added: Notification 테이블 (recipient_id, board_id, type, title, message + 인덱스 2개)
+- Added: PricingPlan 테이블 (name, min/max_members, monthly/yearly_price)
+- Changed: Role enum → BoardRole enum 리네이밍 (BoardMember, InviteLink)
+- Added: Comment → Task/Board/User 관계
+- Added: Notification → User/Board 관계
+
+### API v1.1.0
+- Added: Comment API (4개 엔드포인트 - GET/POST/PUT/DELETE)
+- Added: Notification API (4개 엔드포인트 - 목록/읽지않은수/읽음처리/전체읽음)
+- Added: 에러 코드 CM001, CM002 (댓글)
+- Added: 에러 코드 N001 (알림)
+- Added: 에러 코드 MS001~MS004, W001, DC001~DC002, AD001
+- Changed: 섹션 번호 재정렬 (9: Comments, 16: Notifications 추가)
+
+### Design v1.0.0
+- No changes detected
+
+### Tech v1.0.0
+- No changes detected (rds-simple 모듈 추가는 IA에 반영)
+
+---
+
+## [2026-02-02] v1.0.0
 
 ### Initial Release (v1.0.0) - All Documents
 

@@ -6,11 +6,11 @@
 
 | Type | Latest | Last Updated | History |
 |------|--------|--------------|---------|
-| [IA](./IA/latest.md) | v1.0.0 | 2026-02-02 | [versions](./IA/) |
-| [Wireframe](./Wireframe/latest.md) | v1.0.0 | 2026-02-02 | [versions](./Wireframe/) |
+| [IA](./IA/latest.md) | v1.1.0 | 2026-02-02 | [versions](./IA/) |
+| [Wireframe](./Wireframe/latest.md) | v1.1.0 | 2026-02-02 | [versions](./Wireframe/) |
 | [Design](./Design/latest.md) | v1.0.0 | 2026-02-02 | [versions](./Design/) |
-| [ERD](./ERD/latest.md) | v1.0.0 | 2026-02-02 | [versions](./ERD/) |
-| [API](./API/latest.md) | v1.0.0 | 2026-02-02 | [versions](./API/) |
+| [ERD](./ERD/latest.md) | v1.1.0 | 2026-02-02 | [versions](./ERD/) |
+| [API](./API/latest.md) | v1.1.0 | 2026-02-02 | [versions](./API/) |
 | [Tech](./Tech/latest.md) | v1.0.0 | 2026-02-02 | [versions](./Tech/) |
 
 ## Quick Links

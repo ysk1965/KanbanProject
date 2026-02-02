@@ -706,22 +706,24 @@ Task 날짜 수정
 
 ---
 
-### 13. Schedule (`/api/v1/boards/{boardId}/schedule`)
+### 13. Schedule (`/api/v1/boards/{boardId}/schedules`)
 
 > Premium 전용
 
-#### GET /boards/{boardId}/schedule/blocks
-스케줄 블록 조회
+#### GET /boards/{boardId}/schedules
+데일리 스케줄 조회
 
 **Auth:** Board.Viewer+ (Premium)
 
 **Query Params:**
 | Param | Type | Description |
 |-------|------|-------------|
-| date | string | 날짜 (YYYY-MM-DD) |
-| assigneeId | string | 담당자 ID |
+| date | string | 날짜 (YYYY-MM-DD, 필수) |
+| assigneeIds | string[] | 담당자 ID 목록 (선택) |
 
-#### POST /boards/{boardId}/schedule/blocks
+**Response:** `ScheduleResponse.DailySchedule`
+
+#### POST /boards/{boardId}/schedules
 스케줄 블록 생성
 
 **Auth:** Board.Member+ (Premium)
@@ -730,20 +732,78 @@ Task 날짜 수정
 | Field | Type | Required | Description |
 |-------|------|:--------:|-------------|
 | assigneeId | string | O | 담당자 ID |
-| scheduledDate | string | O | 날짜 |
+| scheduledDate | string | O | 날짜 (YYYY-MM-DD) |
 | startTime | string | O | 시작 시간 (HH:mm) |
 | endTime | string | O | 종료 시간 (HH:mm) |
 | checklistItemId | string | X | 체크리스트 항목 ID |
 
-#### PUT /boards/{boardId}/schedule/blocks/{blockId}
+**Response:** `ScheduleResponse.BlockDetail`
+
+#### POST /boards/{boardId}/schedules/with-checklist-item
+체크리스트 항목 생성과 함께 스케줄 블록 생성
+
+**Auth:** Board.Member+ (Premium)
+
+**Request:**
+| Field | Type | Required | Description |
+|-------|------|:--------:|-------------|
+| assigneeId | string | O | 담당자 ID |
+| scheduledDate | string | O | 날짜 (YYYY-MM-DD) |
+| startTime | string | O | 시작 시간 (HH:mm) |
+| endTime | string | O | 종료 시간 (HH:mm) |
+| checklistItem | object | O | 체크리스트 항목 정보 |
+| checklistItem.taskId | string | O | Task ID |
+| checklistItem.title | string | O | 제목 (max 200) |
+| checklistItem.startDate | string | X | 시작일 |
+| checklistItem.dueDate | string | X | 마감일 |
+
+**Response:** `ScheduleResponse.BlockDetail`
+
+#### PUT /boards/{boardId}/schedules/{blockId}
 스케줄 블록 수정
 
 **Auth:** Board.Member+ (Premium)
 
-#### DELETE /boards/{boardId}/schedule/blocks/{blockId}
+**Request:**
+| Field | Type | Required | Description |
+|-------|------|:--------:|-------------|
+| startTime | string | X | 시작 시간 (HH:mm) |
+| endTime | string | X | 종료 시간 (HH:mm) |
+
+**Response:** `ScheduleResponse.BlockDetail`
+
+#### DELETE /boards/{boardId}/schedules/{blockId}
 스케줄 블록 삭제
 
 **Auth:** Board.Member+ (Premium)
+
+#### GET /boards/{boardId}/schedules/settings
+스케줄 설정 조회
+
+**Auth:** Board.Viewer+ (Premium)
+
+**Response:** `ScheduleResponse.SettingsInfo`
+
+#### PUT /boards/{boardId}/schedules/settings
+스케줄 설정 수정
+
+**Auth:** Board.Admin+ (Premium)
+
+**Request:**
+| Field | Type | Required | Description |
+|-------|------|:--------:|-------------|
+| workHoursPerDay | int | X | 일일 근무시간 |
+| workStartTime | string | X | 근무 시작 시간 (HH:mm) |
+| scheduleDisplayMode | string | X | 스케줄 표시 모드 |
+
+**Response:** `ScheduleResponse.SettingsInfo`
+
+#### GET /boards/{boardId}/schedules/checklist-item/{checklistItemId}
+특정 체크리스트 항목의 스케줄 블록 조회
+
+**Auth:** Board.Viewer+ (Premium)
+
+**Response:** `List<ScheduleResponse.BlockDetail>`
 
 ---
 
