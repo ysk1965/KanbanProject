@@ -1,6 +1,6 @@
 package com.kanban.domain.member.dto;
 
-import com.kanban.domain.board.Role;
+import com.kanban.domain.board.BoardRole;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -17,13 +17,13 @@ public class MemberRequest {
         private String email;
 
         @NotNull(message = "역할은 필수입니다")
-        private Role role;
+        private BoardRole role;
     }
 
     @Getter
     @NoArgsConstructor
     public static class UpdateRole {
         @NotNull(message = "역할은 필수입니다")
-        private Role role;
+        private BoardRole role;
     }
 }

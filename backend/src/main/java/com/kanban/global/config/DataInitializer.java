@@ -37,6 +37,7 @@ public class DataInitializer implements CommandLineRunner {
                 .passwordHash(passwordEncoder.encode(testPassword))
                 .name("Admin")
                 .authProvider("email")
+                .emailVerified(true)
                 .build();
 
         userRepository.save(testUser);

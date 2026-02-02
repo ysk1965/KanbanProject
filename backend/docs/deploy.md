@@ -1,372 +1,232 @@
-# ============================================
-# Team Kanban Board - CI/CD Pipeline
-# ============================================
+# CI/CD 파이프라인
 
-name: Deploy
+## 워크플로우 개요
 
-on:
-  push:
-    branches:
-      - main      # Production
-      - staging   # Staging
-      - develop   # Development
-  pull_request:
-    branches:
-      - main
-      - staging
+```
+.github/workflows/
+├── ci.yml          # PR/push 시 테스트 (Backend + Frontend)
+├── deploy-dev.yml  # develop push → Dev 환경 자동 배포
+├── deploy-prod.yml # main push → CI 테스트 → 승인 → Prod 환경 배포
+└── terraform.yml   # Terraform 변경 시 Plan/Apply
+```
+
+## 동시 배포 방지
+
+각 워크플로우는 브랜치 기반 concurrency group으로 중복 배포를 방지합니다.
+
+---
+
+## CI 워크플로우 (ci.yml)
+
+**트리거**: PR 또는 push to `main`, `develop`
+
+### Backend 테스트
+
+```yaml
+steps:
+  - Setup JDK 21 (temurin, Gradle cache)
+  - ./gradlew build test --no-daemon
+
+services:
+  - PostgreSQL 15-alpine (kanban_test)
+  - Redis 7-alpine
 
 env:
-  AWS_REGION: ap-northeast-2
+  SPRING_PROFILES_ACTIVE: dev
+  DATABASE_URL: jdbc:postgresql://localhost:5432/kanban_test
+  JWT_SECRET: test-jwt-secret-for-ci-minimum-32-characters
+```
 
-# 동시 배포 방지
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+### Frontend 테스트
 
-jobs:
-  # ============================================
-  # 환경 결정
-  # ============================================
-  setup:
-    runs-on: ubuntu-latest
-    outputs:
-      environment: ${{ steps.set-env.outputs.environment }}
-      should_deploy: ${{ steps.set-env.outputs.should_deploy }}
-    steps:
-      - name: Set environment
-        id: set-env
-        run: |
-          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-            echo "environment=prod" >> $GITHUB_OUTPUT
-            echo "should_deploy=true" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.ref }}" == "refs/heads/staging" ]]; then
-            echo "environment=staging" >> $GITHUB_OUTPUT
-            echo "should_deploy=true" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
-            echo "environment=dev" >> $GITHUB_OUTPUT
-            echo "should_deploy=true" >> $GITHUB_OUTPUT
-          else
-            echo "environment=dev" >> $GITHUB_OUTPUT
-            echo "should_deploy=false" >> $GITHUB_OUTPUT
-          fi
+```yaml
+steps:
+  - Setup Node.js 20 (npm cache)
+  - npm ci
+  - npm run build  # Type check + Build
 
-  # ============================================
-  # Backend 테스트
-  # ============================================
-  test-backend:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: backend
-    
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_USER: test
-          POSTGRES_PASSWORD: test
-          POSTGRES_DB: kanban_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-      
-      redis:
-        image: redis:7
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-    
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: backend/package-lock.json
-      
-      - name: Install dependencies
-        run: npm ci
-      
-      - name: Run linter
-        run: npm run lint
-      
-      - name: Run type check
-        run: npm run typecheck
-      
-      - name: Run tests
-        run: npm test
-        env:
-          DATABASE_URL: postgresql://test:test@localhost:5432/kanban_test
-          REDIS_URL: redis://localhost:6379
-          JWT_SECRET: test-secret
+env:
+  VITE_API_BASE_URL: http://localhost:8080/api/v1
+```
 
-  # ============================================
-  # Frontend 테스트
-  # ============================================
-  test-frontend:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
-    
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
-      
-      - name: Install dependencies
-        run: npm ci
-      
-      - name: Run linter
-        run: npm run lint
-      
-      - name: Run type check
-        run: npm run typecheck
-      
-      - name: Run tests
-        run: npm test -- --passWithNoTests
-      
-      - name: Build
-        run: npm run build
+---
 
-  # ============================================
-  # Backend 배포
-  # ============================================
-  deploy-backend:
-    needs: [setup, test-backend]
-    if: needs.setup.outputs.should_deploy == 'true'
-    runs-on: ubuntu-latest
-    environment: ${{ needs.setup.outputs.environment }}
-    
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-      
-      - name: Login to Amazon ECR
-        id: ecr-login
-        uses: aws-actions/amazon-ecr-login@v2
-      
-      - name: Build and push Docker image
-        env:
-          ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
-          ECR_REPOSITORY: kanban-backend
-          IMAGE_TAG: ${{ github.sha }}
-          ENV: ${{ needs.setup.outputs.environment }}
-        run: |
-          docker build \
-            --build-arg NODE_ENV=production \
-            -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
-            -t $ECR_REGISTRY/$ECR_REPOSITORY:$ENV-latest \
-            ./backend
-          
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$ENV-latest
-      
-      - name: Update ECS task definition
-        id: task-def
-        uses: aws-actions/amazon-ecs-render-task-definition@v1
-        with:
-          task-definition: backend/task-definition-${{ needs.setup.outputs.environment }}.json
-          container-name: backend
-          image: ${{ steps.ecr-login.outputs.registry }}/kanban-backend:${{ github.sha }}
-      
-      - name: Deploy to ECS
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
-        with:
-          task-definition: ${{ steps.task-def.outputs.task-definition }}
-          service: backend
-          cluster: kanban-${{ needs.setup.outputs.environment }}
-          wait-for-service-stability: true
-      
-      - name: Notify Slack
-        if: always()
-        uses: 8398a7/action-slack@v3
-        with:
-          status: ${{ job.status }}
-          text: "Backend deployed to ${{ needs.setup.outputs.environment }}"
-          fields: repo,message,commit,author,action,eventName,ref
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+## Dev 배포 (deploy-dev.yml)
 
-  # ============================================
-  # Frontend 배포
-  # ============================================
-  deploy-frontend:
-    needs: [setup, test-frontend]
-    if: needs.setup.outputs.should_deploy == 'true'
-    runs-on: ubuntu-latest
-    environment: ${{ needs.setup.outputs.environment }}
-    
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
-      
-      - name: Install dependencies
-        working-directory: frontend
-        run: npm ci
-      
-      - name: Build
-        working-directory: frontend
-        run: npm run build
-        env:
-          VITE_API_URL: ${{ vars.API_URL }}
-          VITE_ENV: ${{ needs.setup.outputs.environment }}
-      
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-      
-      - name: Deploy to S3
-        run: |
-          aws s3 sync frontend/dist s3://kanban-frontend-${{ needs.setup.outputs.environment }} \
-            --delete \
-            --cache-control "public, max-age=31536000, immutable" \
-            --exclude "index.html" \
-            --exclude "*.json"
-          
-          # index.html은 캐시하지 않음
-          aws s3 cp frontend/dist/index.html s3://kanban-frontend-${{ needs.setup.outputs.environment }}/index.html \
-            --cache-control "no-cache, no-store, must-revalidate"
-      
-      - name: Invalidate CloudFront
-        run: |
-          aws cloudfront create-invalidation \
-            --distribution-id ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }} \
-            --paths "/*"
-      
-      - name: Notify Slack
-        if: always()
-        uses: 8398a7/action-slack@v3
-        with:
-          status: ${{ job.status }}
-          text: "Frontend deployed to ${{ needs.setup.outputs.environment }}"
-          fields: repo,message,commit,author,action,eventName,ref
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+**트리거**: push to `develop` 또는 수동 (workflow_dispatch)
 
-  # ============================================
-  # DB 마이그레이션
-  # ============================================
-  run-migrations:
-    needs: [setup, deploy-backend]
-    if: needs.setup.outputs.should_deploy == 'true'
-    runs-on: ubuntu-latest
-    environment: ${{ needs.setup.outputs.environment }}
-    
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-      
-      - name: Run migrations via ECS task
-        run: |
-          aws ecs run-task \
-            --cluster kanban-${{ needs.setup.outputs.environment }} \
-            --task-definition kanban-migration-${{ needs.setup.outputs.environment }} \
-            --launch-type FARGATE \
-            --network-configuration "awsvpcConfiguration={subnets=[${{ vars.PRIVATE_SUBNET_IDS }}],securityGroups=[${{ vars.ECS_SECURITY_GROUP_ID }}],assignPublicIp=DISABLED}"
+### Backend → Elastic Beanstalk
 
-  # ============================================
-  # Production 배포 승인
-  # ============================================
-  approve-prod:
-    needs: [setup, deploy-backend, deploy-frontend]
-    if: needs.setup.outputs.environment == 'staging'
-    runs-on: ubuntu-latest
-    environment: 
-      name: production-approval
-    
-    steps:
-      - name: Approval gate
-        run: echo "Production deployment approved"
+```yaml
+steps:
+  1. Checkout
+  2. Setup JDK 21
+  3. ./gradlew bootJar --no-daemon
+  4. Configure AWS credentials
+  5. 배포 패키지 생성:
+     - build/libs/*.jar → deploy/application.jar
+     - Procfile + .ebextensions 복사
+     - ZIP 압축
+  6. EB 배포 (einaregilsson/beanstalk-deploy@v22)
+     - Application: kanban-dev
+     - Environment: kanban-dev-env
+     - Recovery wait: 120초
 
-  # ============================================
-  # Terraform (인프라 변경 시)
-  # ============================================
-  terraform:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-    defaults:
-      run:
-        working-directory: infrastructure/terraform/environments/${{ needs.setup.outputs.environment || 'dev' }}
-    
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.6.0
-      
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-      
-      - name: Terraform Init
-        run: terraform init
-      
-      - name: Terraform Format Check
-        run: terraform fmt -check
-      
-      - name: Terraform Plan
-        id: plan
-        run: terraform plan -no-color
-        continue-on-error: true
-      
-      - name: Comment PR with Plan
-        uses: actions/github-script@v7
-        if: github.event_name == 'pull_request'
-        with:
-          script: |
-            const output = `#### Terraform Plan 📖
-            
-            \`\`\`
-            ${{ steps.plan.outputs.stdout }}
-            \`\`\`
-            
-            *Pushed by: @${{ github.actor }}, Action: \`${{ github.event_name }}\`*`;
-            
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: output
-            })
+env:
+  EB_APPLICATION_NAME: kanban-dev
+  EB_ENVIRONMENT_NAME: kanban-dev-env
+```
+
+### Frontend → S3 + CloudFront
+
+```yaml
+steps:
+  1. Checkout
+  2. Setup Node.js 20
+  3. npm ci && npm run build
+  4. S3 Sync:
+     - Static assets: max-age=31536000,public
+     - index.html: no-cache,no-store,must-revalidate
+  5. CloudFront Invalidation (설정 시)
+
+env:
+  S3_BUCKET: kanban-dev-frontend
+  VITE_API_BASE_URL: ${{ vars.DEV_API_URL }}
+  VITE_GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+```
+
+**특이사항**: Backend와 Frontend는 **독립적으로 병렬 배포**됩니다.
+
+---
+
+## Prod 배포 (deploy-prod.yml)
+
+**트리거**: push to `main` 또는 수동 (workflow_dispatch)
+
+### 배포 흐름
+
+```
+CI 테스트 통과 → Backend 배포 (승인 필요) → Health Check → Frontend 배포 (승인 필요)
+```
+
+### 1단계: CI 테스트
+
+```yaml
+test:
+  uses: ./.github/workflows/ci.yml  # Backend + Frontend 테스트 재사용
+```
+
+### 2단계: Backend → Elastic Beanstalk
+
+```yaml
+environment: production  # GitHub Environment 수동 승인 필요
+
+steps:
+  1. CI 테스트 통과 후 실행
+  2. Gradle bootJar → 배포 패키지 생성
+  3. EB 배포 (kanban-prod / kanban-prod-env)
+  4. Health Check: curl /actuator/health
+
+env:
+  EB_APPLICATION_NAME: kanban-prod
+  EB_ENVIRONMENT_NAME: kanban-prod-env
+```
+
+### 3단계: Frontend → S3 + CloudFront
+
+```yaml
+needs: deploy-backend  # Backend 성공 후 실행
+
+steps:
+  1. npm ci && npm run build
+  2. S3 Sync (immutable cache for assets)
+  3. CloudFront Invalidation (필수)
+
+env:
+  S3_BUCKET: kanban-prod-frontend
+  VITE_API_BASE_URL: ${{ vars.PROD_API_URL }}
+```
+
+---
+
+## Terraform 워크플로우 (terraform.yml)
+
+**트리거**:
+- PR (terraform 파일 변경 시) → `terraform plan`
+- main push (terraform 파일 변경 시) → `terraform apply`
+- 수동: 환경(dev/prod) + 액션(plan/apply) 선택
+
+```yaml
+steps:
+  - Setup Terraform 1.6.0
+  - Configure AWS credentials
+  - terraform init
+  - terraform validate
+  - terraform plan / apply
+
+env:
+  TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
+  TF_VAR_jwt_secret: ${{ secrets.JWT_SECRET }}
+```
+
+---
+
+## 환경별 차이점
+
+| 항목 | Dev | Prod |
+|------|-----|------|
+| CI 테스트 | 스킵 | 필수 |
+| 수동 승인 | 불필요 | GitHub Environment |
+| 배포 방식 | AllAtOnce | Rolling (50%) |
+| Health Check | 없음 | `/actuator/health` |
+| CloudFront Invalidation | 조건부 | 필수 |
+| Backend-Frontend 순서 | 병렬 | 순차 (Backend → Frontend) |
+
+---
+
+## 필요 Secrets & Variables
+
+### GitHub Secrets
+
+| Name | 용도 |
+|------|------|
+| `AWS_ACCESS_KEY_ID` | AWS 인증 |
+| `AWS_SECRET_ACCESS_KEY` | AWS 인증 |
+| `GOOGLE_CLIENT_ID` | Google OAuth |
+| `DB_PASSWORD` | Terraform DB 패스워드 |
+| `JWT_SECRET` | Terraform JWT 시크릿 |
+
+### GitHub Variables
+
+| Name | 용도 |
+|------|------|
+| `DEV_API_URL` | Dev API 엔드포인트 |
+| `DEV_CLOUDFRONT_DISTRIBUTION_ID` | Dev CloudFront (선택) |
+| `PROD_API_URL` | Prod API 엔드포인트 |
+| `PROD_CLOUDFRONT_DISTRIBUTION_ID` | Prod CloudFront |
+| `PROD_FRONTEND_URL` | Prod Frontend URL |
+
+---
+
+## EB 배포 설정
+
+### Procfile (JVM 설정)
+
+```
+web: java -jar -Xmx768m -Xms512m -XX:+UseG1GC -XX:MaxMetaspaceSize=192m \
+  -Dspring.profiles.active=$SPRING_PROFILES_ACTIVE -Dserver.port=5000 \
+  application.jar
+```
+
+### .ebextensions/01-env.config
+
+- Health Check: `/actuator/health`
+- 배포 방식: Rolling (50% batch)
+- CloudWatch 로그: 30일 보관
+
+### .ebextensions/02-healthcheck.config
+
+- ALB Health Check: `/actuator/health` (30초 간격, 200 응답)
+- Enhanced Health Reporting
+- Auto Scaling Cooldown: 360초
+- Managed Updates: 매주 일요일 09:00 (minor)

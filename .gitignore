@@ -80,11 +80,16 @@ coverage/
 .terraform.lock.hcl
 *.tfvars
 !*.tfvars.example
+*.tfplan
+tfplan
 crash.log
 override.tf
 override.tf.json
 *_override.tf
 *_override.tf.json
+
+# ===== Scripts =====
+scripts/.env.rds
 
 # ===== Deployment =====
 backend/deploy/

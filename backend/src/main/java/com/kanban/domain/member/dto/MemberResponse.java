@@ -1,7 +1,7 @@
 package com.kanban.domain.member.dto;
 
 import com.kanban.domain.board.BoardMember;
-import com.kanban.domain.board.Role;
+import com.kanban.domain.board.BoardRole;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -23,7 +23,7 @@ public class MemberResponse {
         private static final long serialVersionUID = 1L;
         private String id;
         private UserInfo user;
-        private Role role;
+        private BoardRole role;
         private LocalDateTime joinedAt;
         private InvitedByInfo invitedBy;
 

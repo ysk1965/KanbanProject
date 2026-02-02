@@ -33,7 +33,8 @@ import {
 import { Badge } from './ui/badge';
 import { Calendar } from './ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import { X, Plus, Trash2, Clock, CheckSquare, CalendarIcon, FileText, Tags, Users, Layers, Pencil, CheckCircle2, Undo2, ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
+import { X, Plus, Trash2, Clock, CheckSquare, CalendarIcon, FileText, Tags, Users, Layers, Pencil, CheckCircle2, Undo2, ChevronDown, ChevronRight, Loader2, MessageSquare } from 'lucide-react';
+import { CommentPanel } from './CommentPanel';
 import { Progress } from './ui/progress';
 import { DateRange } from 'react-day-picker';
 import { format } from 'date-fns';
@@ -346,12 +347,15 @@ export function TaskDetailModal({
   return (
     <>
       <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto bg-kanban-bg border border-white/10 text-foreground kanban-scrollbar" onPointerDownOutside={(e) => {
+        <DialogContent className="sm:max-w-[1100px] max-h-[85vh] overflow-hidden bg-kanban-bg border border-white/10 text-foreground p-0 [&>button:last-child]:hidden" onPointerDownOutside={(e) => {
           if (hasChanges) {
             e.preventDefault();
             handleClose();
           }
         }}>
+          <div className="flex h-[85vh]">
+          {/* 왼쪽: 기존 태스크 상세 */}
+          <div className="flex-1 overflow-y-auto p-6 kanban-scrollbar">
           <DialogHeader>
             {/* 피처 & 블록 상태 표시 */}
             <div className="flex items-center gap-2 mb-3 flex-wrap">
@@ -685,6 +689,27 @@ export function TaskDetailModal({
               </Button>
             </div>
           )}
+          </div>
+
+          {/* 오른쪽: 댓글 패널 + 닫기 버튼 */}
+          {boardId && (
+            <div className="w-[420px] border-l border-white/10 flex-shrink-0 relative">
+              {/* 닫기 버튼 */}
+              <button
+                onClick={handleClose}
+                className="absolute top-3 right-3 z-10 p-1 rounded-sm opacity-70 hover:opacity-100 transition-opacity text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+              <CommentPanel
+                taskId={task.id}
+                boardId={boardId}
+                boardMembers={boardMembers}
+                currentUser={currentUser}
+              />
+            </div>
+          )}
+          </div>
         </DialogContent>
       </Dialog>
 

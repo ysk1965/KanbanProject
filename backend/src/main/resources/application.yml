@@ -120,6 +120,12 @@ spring:
     username: ${DB_USERNAME:kanban}
     password: ${DB_PASSWORD:}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 2
+      connection-timeout: 20000
+      idle-timeout: 300000
+      max-lifetime: 1200000
 
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
@@ -147,6 +153,12 @@ spring:
   datasource:
     url: ${DATABASE_URL}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 3
+      connection-timeout: 20000
+      idle-timeout: 300000
+      max-lifetime: 1200000
 
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect

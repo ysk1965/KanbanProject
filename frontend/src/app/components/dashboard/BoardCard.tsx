@@ -30,7 +30,7 @@ interface BoardCardProps {
 }
 
 export function BoardCard({ board, onToggleStar, onClick, onEdit }: BoardCardProps) {
-  const isTrial = board.subscription?.status === 'TRIAL';
+  const isTrial = board.subscription?.status === 'TRIAL' && board.tier !== 'PREMIUM';
   const taskCount = board.task_count ?? 0;
   const completedTasks = board.completed_tasks ?? 0;
   const progress = taskCount > 0 ? Math.round((completedTasks / taskCount) * 100) : 0;

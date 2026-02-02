@@ -137,11 +137,16 @@ public class StatisticsService {
         // 멤버 조회
         List<BoardMember> boardMembers = boardMemberRepository.findByBoardId(boardId);
 
+        // Batch load: 보드의 모든 체크리스트 아이템 (N+1 방지)
+        List<ChecklistItem> allChecklistItems = checklistItemRepository.findByBoardId(boardId);
+        Map<String, List<ChecklistItem>> checklistsByTaskId = allChecklistItems.stream()
+                .collect(Collectors.groupingBy(ci -> ci.getTask().getId()));
+
         // Summary 계산
         StatisticsResponse.Summary summary = calculateSummary(scheduleBlocks, features, tasks, startDate, endDate);
 
         // By Member 계산
-        List<StatisticsResponse.MemberStatistics> byMember = calculateByMember(scheduleBlocks, tasks, boardMembers, features);
+        List<StatisticsResponse.MemberStatistics> byMember = calculateByMember(scheduleBlocks, tasks, boardMembers, features, checklistsByTaskId);
 
         // By Feature 계산
         List<StatisticsResponse.FeatureStatistics> byFeature = calculateByFeature(scheduleBlocks, tasks, features, boardMembers);
@@ -190,9 +195,13 @@ public class StatisticsService {
                 .collect(Collectors.toList());
 
         // v7.0: Task.assignee 제거 - ChecklistItem assignee 기준으로 Task 조회
-        // 본인이 담당한 ChecklistItem이 있는 Task 조회
+        // 본인이 담당한 ChecklistItem이 있는 Task 조회 (N+1 방지: 배치 로드)
+        List<ChecklistItem> allBoardChecklists = checklistItemRepository.findByBoardId(boardId);
+        Map<String, List<ChecklistItem>> personalChecklistsByTaskId = allBoardChecklists.stream()
+                .collect(Collectors.groupingBy(ci -> ci.getTask().getId()));
+
         List<Task> myTasks = taskRepository.findByBoardIdOrderByPositionAsc(boardId).stream()
-                .filter(t -> checklistItemRepository.findByTaskIdOrderByPositionAsc(t.getId()).stream()
+                .filter(t -> personalChecklistsByTaskId.getOrDefault(t.getId(), Collections.emptyList()).stream()
                         .anyMatch(ci -> ci.getAssignee() != null && ci.getAssignee().getId().equals(userId)))
                 .collect(Collectors.toList());
 
@@ -346,7 +355,8 @@ public class StatisticsService {
             List<ScheduleBlock> blocks,
             List<Task> tasks,
             List<BoardMember> boardMembers,
-            List<Feature> features
+            List<Feature> features,
+            Map<String, List<ChecklistItem>> checklistsByTaskId
     ) {
         Map<String, User> memberMap = boardMembers.stream()
                 .collect(Collectors.toMap(bm -> bm.getUser().getId(), BoardMember::getUser, (a, b) -> a));
@@ -355,10 +365,10 @@ public class StatisticsService {
                 .filter(sb -> sb.getAssignee() != null)
                 .collect(Collectors.groupingBy(sb -> sb.getAssignee().getId()));
 
-        // v7.0: Task.assignee 제거 - ChecklistItem assignee 기준으로 Task 그룹화
+        // v7.0: Task.assignee 제거 - ChecklistItem assignee 기준으로 Task 그룹화 (N+1 방지: 배치 로드 사용)
         Map<String, List<Task>> tasksByMember = new HashMap<>();
         for (Task t : tasks) {
-            List<ChecklistItem> items = checklistItemRepository.findByTaskIdOrderByPositionAsc(t.getId());
+            List<ChecklistItem> items = checklistsByTaskId.getOrDefault(t.getId(), Collections.emptyList());
             for (ChecklistItem ci : items) {
                 if (ci.getAssignee() != null) {
                     String memberId = ci.getAssignee().getId();

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { GoogleLogin } from '@react-oauth/google';
-import { Mail, Lock, User, Users, ArrowLeft, Github, ArrowRight, Layout, Share2, Zap, BarChart3, Check, X } from 'lucide-react';
+import { Mail, Lock, User, Users, ArrowLeft, ArrowRight, Layout, Share2, Zap, BarChart3, Check, X } from 'lucide-react';
 
 interface InviteInfo {
   boardName: string;
@@ -226,10 +226,10 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
                 Working Spot.
               </span>
             </h1>
-            <p className="text-xl text-slate-400 max-w-lg leading-relaxed font-medium">
+            {/* <p className="text-xl text-slate-400 max-w-lg leading-relaxed font-medium">
               협업의 모든 순간을 연결하는 가장 완벽한 브릿지. <br/>
               <span className="text-white">BRIDGE SPOTS</span>는 단순한 도구를 넘어 팀의 리듬을 디자인합니다.
-            </p>
+            </p> */}
           </div>
 
           {/* Feature Grid */}
@@ -319,36 +319,34 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
             </div>
 
             {/* Social Auth Section */}
-            <div className="grid grid-cols-2 gap-4 mb-8">
+            <div className="flex justify-center mb-8">
               {onGoogleLogin ? (
-                <div className="col-span-2 flex justify-center">
-                  <GoogleLogin
-                    onSuccess={async (response) => {
-                      if (response.credential) {
-                        setIsGoogleLoading(true);
-                        setError('');
-                        try {
-                          await onGoogleLogin(response.credential);
-                        } catch (err: any) {
-                          setError(err.message || 'Google 로그인에 실패했습니다.');
-                        } finally {
-                          setIsGoogleLoading(false);
-                        }
+                <GoogleLogin
+                  onSuccess={async (response) => {
+                    if (response.credential) {
+                      setIsGoogleLoading(true);
+                      setError('');
+                      try {
+                        await onGoogleLogin(response.credential);
+                      } catch (err: any) {
+                        setError(err.message || 'Google 로그인에 실패했습니다.');
+                      } finally {
+                        setIsGoogleLoading(false);
                       }
-                    }}
-                    onError={() => {
-                      setError('Google 로그인에 실패했습니다.');
-                    }}
-                    theme="filled_black"
-                    text="continue_with"
-                    locale="ko"
-                    width="400"
-                  />
-                </div>
+                    }
+                  }}
+                  onError={() => {
+                    setError('Google 로그인에 실패했습니다.');
+                  }}
+                  theme="filled_black"
+                  text="continue_with"
+                  locale="ko"
+                  width="400"
+                />
               ) : (
                 <button
                   type="button"
-                  className="col-span-1 flex items-center justify-center space-x-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white h-12 rounded-2xl font-semibold transition-all duration-300 group"
+                  className="flex items-center justify-center space-x-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white h-12 rounded-2xl font-semibold transition-all duration-300 group w-full"
                   disabled
                 >
                   <img
@@ -356,17 +354,9 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
                     className="w-5 h-5 group-hover:scale-110 transition-transform"
                     alt="google"
                   />
-                  <span className="text-sm">Google</span>
+                  <span className="text-sm">Google 계정으로 계속하기</span>
                 </button>
               )}
-              <button
-                type="button"
-                className={`flex items-center justify-center space-x-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white h-12 rounded-2xl font-semibold transition-all duration-300 group disabled:opacity-50 ${onGoogleLogin ? 'col-span-2' : 'col-span-1'}`}
-                disabled
-              >
-                <Github className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                <span className="text-sm">GitHub</span>
-              </button>
             </div>
 
             {/* Divider */}
@@ -551,7 +541,7 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
             <p className="text-center text-[11px] text-slate-600 tracking-wide mt-6">
               {inviteInfo
                 ? '초대받은 보드에서 바로 협업을 시작하세요!'
-                : '7일 무료 체험 후 유료 전환됩니다.'}
+                : ''}
             </p>
           </motion.div>
         </div>

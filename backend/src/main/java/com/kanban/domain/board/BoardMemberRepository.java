@@ -29,9 +29,15 @@ public interface BoardMemberRepository extends JpaRepository<BoardMember, String
     long countByBoardId(String boardId);
 
     /**
+     * 여러 보드의 멤버 수 일괄 조회 (N+1 방지)
+     */
+    @Query("SELECT bm.board.id, COUNT(bm) FROM BoardMember bm WHERE bm.board.id IN :boardIds GROUP BY bm.board.id")
+    List<Object[]> countGroupedByBoardId(@Param("boardIds") List<String> boardIds);
+
+    /**
      * 해당 사용자가 OWNER인 보드가 있는지 확인 (계정 탈퇴 시 사용)
      */
-    boolean existsByUserIdAndRole(String userId, Role role);
+    boolean existsByUserIdAndRole(String userId, BoardRole role);
 
     /**
      * 해당 사용자의 모든 멤버십 삭제 (계정 탈퇴 시 사용)

@@ -31,7 +31,7 @@ public class BoardMember {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false, length = 20)
-    private Role role;
+    private BoardRole role;
 
     @Column(name = "joined_at", nullable = false)
     private LocalDateTime joinedAt;
@@ -50,27 +50,27 @@ public class BoardMember {
         }
     }
 
-    public void updateRole(Role role) {
+    public void updateRole(BoardRole role) {
         this.role = role;
     }
 
     public boolean isOwner() {
-        return this.role == Role.OWNER;
+        return this.role == BoardRole.OWNER;
     }
 
     public boolean isAdmin() {
-        return this.role == Role.ADMIN;
+        return this.role == BoardRole.ADMIN;
     }
 
     public boolean isAdminOrAbove() {
-        return this.role == Role.OWNER || this.role == Role.ADMIN;
+        return this.role == BoardRole.OWNER || this.role == BoardRole.ADMIN;
     }
 
     public boolean isMemberOrAbove() {
-        return this.role != Role.VIEWER;
+        return this.role != BoardRole.VIEWER;
     }
 
     public boolean isBillable() {
-        return this.role != Role.VIEWER;
+        return this.role != BoardRole.VIEWER;
     }
 }

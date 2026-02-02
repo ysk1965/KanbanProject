@@ -8,7 +8,7 @@ import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardMember;
 import com.kanban.domain.board.BoardMemberRepository;
 import com.kanban.domain.board.BoardRepository;
-import com.kanban.domain.board.Role;
+import com.kanban.domain.board.BoardRole;
 import com.kanban.domain.checklist.ChecklistItem;
 import com.kanban.domain.checklist.ChecklistItemRepository;
 import com.kanban.domain.feature.Feature;
@@ -93,7 +93,7 @@ public class TestDataService {
             BoardMember newMember = BoardMember.builder()
                     .board(board)
                     .user(user)
-                    .role(Role.MEMBER)
+                    .role(BoardRole.MEMBER)
                     .invitedBy(board.getOwner())
                     .build();
             boardMemberRepository.saveAndFlush(newMember);
@@ -151,7 +151,7 @@ public class TestDataService {
                 BoardMember boardMember = BoardMember.builder()
                         .board(board)
                         .user(member)
-                        .role(i == 1 ? Role.ADMIN : Role.MEMBER)
+                        .role(i == 1 ? BoardRole.ADMIN : BoardRole.MEMBER)
                         .invitedBy(owner)
                         .build();
                 boardMemberRepository.saveAndFlush(boardMember);
@@ -161,7 +161,7 @@ public class TestDataService {
         BoardMember ownerMember = BoardMember.builder()
                 .board(board)
                 .user(owner)
-                .role(Role.OWNER)
+                .role(BoardRole.OWNER)
                 .build();
         boardMemberRepository.saveAndFlush(ownerMember);
 
@@ -255,7 +255,6 @@ public class TestDataService {
                 .fixedType(FixedBlockType.FEATURE)
                 .position(0)
                 .build();
-        blockRepository.saveAndFlush(featureBlock);
         blocks.add(featureBlock);
 
         // Task 블록
@@ -266,7 +265,6 @@ public class TestDataService {
                 .fixedType(FixedBlockType.TASK)
                 .position(1)
                 .build();
-        blockRepository.saveAndFlush(taskBlock);
         blocks.add(taskBlock);
 
         // 커스텀 블록: In Progress
@@ -277,7 +275,6 @@ public class TestDataService {
                 .type(BlockType.CUSTOM)
                 .position(2)
                 .build();
-        blockRepository.saveAndFlush(inProgressBlock);
         blocks.add(inProgressBlock);
 
         // 커스텀 블록: Review
@@ -288,7 +285,6 @@ public class TestDataService {
                 .type(BlockType.CUSTOM)
                 .position(3)
                 .build();
-        blockRepository.saveAndFlush(reviewBlock);
         blocks.add(reviewBlock);
 
         // Done 블록
@@ -299,8 +295,9 @@ public class TestDataService {
                 .fixedType(FixedBlockType.DONE)
                 .position(4)
                 .build();
-        blockRepository.saveAndFlush(doneBlock);
         blocks.add(doneBlock);
+
+        blockRepository.saveAllAndFlush(blocks);
 
         return blocks;
     }
@@ -325,9 +322,10 @@ public class TestDataService {
                     .name(data[0])
                     .color(data[1])
                     .build();
-            tagRepository.saveAndFlush(tag);
             tags.add(tag);
         }
+
+        tagRepository.saveAllAndFlush(tags);
 
         return tags;
     }
@@ -345,7 +343,6 @@ public class TestDataService {
                 .endDate(today.minusDays(25))
                 .createdBy(createdBy)
                 .build();
-        milestoneRepository.saveAndFlush(milestone1);
         milestones.add(milestone1);
 
         // 마일스톤 2: 순조롭게 진행 중 (ON_TRACK - 70% 완료, 7일 남음)
@@ -357,7 +354,6 @@ public class TestDataService {
                 .endDate(today.plusDays(7))
                 .createdBy(createdBy)
                 .build();
-        milestoneRepository.saveAndFlush(milestone2);
         milestones.add(milestone2);
 
         // 마일스톤 3: 위험 상태 (AT_RISK - 30% 완료, 3일 남음)
@@ -369,7 +365,6 @@ public class TestDataService {
                 .endDate(today.plusDays(3))
                 .createdBy(createdBy)
                 .build();
-        milestoneRepository.saveAndFlush(milestone3);
         milestones.add(milestone3);
 
         // 마일스톤 4: 지연됨 (OVERDUE - 50% 완료, 마감 2일 초과)
@@ -381,7 +376,6 @@ public class TestDataService {
                 .endDate(today.minusDays(2))
                 .createdBy(createdBy)
                 .build();
-        milestoneRepository.saveAndFlush(milestone4);
         milestones.add(milestone4);
 
         // 마일스톤 5: 예정된 마일스톤
@@ -393,9 +387,9 @@ public class TestDataService {
                 .endDate(today.plusDays(28))
                 .createdBy(createdBy)
                 .build();
-        milestoneRepository.saveAndFlush(milestone5);
         milestones.add(milestone5);
 
+        milestoneRepository.saveAllAndFlush(milestones);
         log.info("Created {} milestones", milestones.size());
         return milestones;
     }
@@ -447,45 +441,43 @@ public class TestDataService {
                     .dueDate(today.plusDays((Integer) data[4]))
                     .createdBy(createdBy)
                     .build();
-            featureRepository.saveAndFlush(feature);
             features.add(feature);
         }
 
+        featureRepository.saveAllAndFlush(features);
         log.info("Created {} features", features.size());
         return features;
     }
 
     private void linkFeaturesToMilestones(List<Milestone> milestones, List<Feature> features) {
+        List<MilestoneFeature> allLinks = new ArrayList<>();
+
         // 마일스톤 1 (완료됨): Feature 0, 1, 2
         for (int i = 0; i < 3 && i < features.size(); i++) {
-            MilestoneFeature mf = MilestoneFeature.create(milestones.get(0), features.get(i));
-            milestoneFeatureRepository.saveAndFlush(mf);
+            allLinks.add(MilestoneFeature.create(milestones.get(0), features.get(i)));
         }
 
         // 마일스톤 2 (ON_TRACK): Feature 3, 4
         for (int i = 3; i < 5 && i < features.size(); i++) {
-            MilestoneFeature mf = MilestoneFeature.create(milestones.get(1), features.get(i));
-            milestoneFeatureRepository.saveAndFlush(mf);
+            allLinks.add(MilestoneFeature.create(milestones.get(1), features.get(i)));
         }
 
         // 마일스톤 3 (AT_RISK): Feature 5, 6
         for (int i = 5; i < 7 && i < features.size(); i++) {
-            MilestoneFeature mf = MilestoneFeature.create(milestones.get(2), features.get(i));
-            milestoneFeatureRepository.saveAndFlush(mf);
+            allLinks.add(MilestoneFeature.create(milestones.get(2), features.get(i)));
         }
 
         // 마일스톤 4 (OVERDUE): Feature 7, 8
         for (int i = 7; i < 9 && i < features.size(); i++) {
-            MilestoneFeature mf = MilestoneFeature.create(milestones.get(3), features.get(i));
-            milestoneFeatureRepository.saveAndFlush(mf);
+            allLinks.add(MilestoneFeature.create(milestones.get(3), features.get(i)));
         }
 
         // 마일스톤 5 (예정): Feature 9, 10
         for (int i = 9; i < 11 && i < features.size(); i++) {
-            MilestoneFeature mf = MilestoneFeature.create(milestones.get(4), features.get(i));
-            milestoneFeatureRepository.saveAndFlush(mf);
+            allLinks.add(MilestoneFeature.create(milestones.get(4), features.get(i)));
         }
 
+        milestoneFeatureRepository.saveAllAndFlush(allLinks);
         log.info("Linked features to milestones");
     }
 
@@ -593,9 +585,6 @@ public class TestDataService {
                         .createdBy(createdBy)
                         .build();
 
-                // updatedAt을 수동으로 설정하기 위해 저장 후 업데이트
-                taskRepository.saveAndFlush(task);
-
                 if (isCompleted) {
                     task.complete();
                 }
@@ -606,8 +595,10 @@ public class TestDataService {
                     feature.incrementCompletedTasks();
                 }
             }
-            featureRepository.saveAndFlush(feature);
         }
+
+        taskRepository.saveAllAndFlush(tasks);
+        featureRepository.saveAllAndFlush(features);
 
         log.info("Created {} tasks", tasks.size());
         return tasks;
@@ -692,11 +683,12 @@ public class TestDataService {
                         .dueDate(dueDate)
                         .isCompleted(isCompleted)
                         .build();
-                checklistItemRepository.saveAndFlush(item);
                 items.add(item);
             }
             taskIndex++;
         }
+
+        checklistItemRepository.saveAllAndFlush(items);
 
         log.info("Created {} checklist items", items.size());
         return items;
@@ -777,11 +769,12 @@ public class TestDataService {
                             .startTime(slot[0])
                             .endTime(slot[1])
                             .build();
-                    scheduleBlockRepository.saveAndFlush(block);
                     blocks.add(block);
                 }
             }
         }
+
+        scheduleBlockRepository.saveAllAndFlush(blocks);
 
         log.info("Created {} schedule blocks for statistics (last 45 days)", blocks.size());
         return blocks;

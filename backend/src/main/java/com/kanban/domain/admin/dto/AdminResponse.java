@@ -3,7 +3,7 @@ package com.kanban.domain.admin.dto;
 import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardMember;
 import com.kanban.domain.board.BoardTier;
-import com.kanban.domain.board.Role;
+import com.kanban.domain.board.BoardRole;
 import com.kanban.domain.subscription.Subscription;
 import com.kanban.domain.subscription.SubscriptionStatus;
 import com.kanban.domain.user.SystemRole;
@@ -193,7 +193,7 @@ public class AdminResponse {
         private String name;
         private String email;
         private String profileImage;
-        private Role role;
+        private BoardRole role;
         private LocalDateTime joinedAt;
 
         public static MemberInfo of(BoardMember boardMember) {

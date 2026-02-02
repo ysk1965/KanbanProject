@@ -85,7 +85,7 @@ export function Dashboard({
   onUpdateBoard,
   onRefreshBoards,
 }: DashboardProps) {
-  const { user, logout, hideBilling } = useAuth();
+  const { user, logout, hideBilling, isAdmin } = useAuth();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -374,16 +374,18 @@ export function Dashboard({
         onConfirm={handleDeleteConfirm}
       />
 
-      {/* Test Board Creation Button (Development Only) */}
-      <button
-        onClick={handleCreateTestBoard}
-        disabled={isCreatingTestBoard}
-        className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 bg-amber-500/90 hover:bg-amber-500 text-black font-bold text-sm rounded-xl shadow-lg shadow-amber-500/30 transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-        title="테스트 보드 생성 (개발용)"
-      >
-        <FlaskConical size={18} className={isCreatingTestBoard ? 'animate-pulse' : ''} />
-        <span className="hidden sm:inline">{isCreatingTestBoard ? '생성 중...' : 'Test Board'}</span>
-      </button>
+      {/* Test Board Creation Button (Admin Only) */}
+      {isAdmin && (
+        <button
+          onClick={handleCreateTestBoard}
+          disabled={isCreatingTestBoard}
+          className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 bg-amber-500/90 hover:bg-amber-500 text-black font-bold text-sm rounded-xl shadow-lg shadow-amber-500/30 transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+          title="테스트 보드 생성 (관리자 전용)"
+        >
+          <FlaskConical size={18} className={isCreatingTestBoard ? 'animate-pulse' : ''} />
+          <span className="hidden sm:inline">{isCreatingTestBoard ? '생성 중...' : 'Test Board'}</span>
+        </button>
+      )}
 
       {/* Custom Scrollbar Styles */}
       <style>{`
