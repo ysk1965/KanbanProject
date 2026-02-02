@@ -1,13 +1,13 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Plus, Users, Settings, Filter, ArrowLeft, Bell, LayoutGrid, Calendar, CalendarDays, Flag, Pencil, Lock, BarChart3, Search, X, User, ChevronDown, CheckCircle2, Circle, Tag as TagIcon, Layers, ChevronsDownUp, ChevronsUpDown, Shield } from 'lucide-react';
+import { Plus, Users, Settings, Filter, ArrowLeft, LayoutGrid, Calendar, CalendarDays, Flag, Pencil, Lock, BarChart3, Search, X, User, ChevronDown, CheckCircle2, Circle, Tag as TagIcon, Layers, ChevronsDownUp, ChevronsUpDown, Shield } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 
 // 뷰 모드 타입
 type ViewMode = 'kanban' | 'weekly' | 'schedule' | 'statistics' | 'management';
 import { DragProvider } from '../contexts/DragContext';
 import { useAuth } from '../contexts/AuthContext';
-import { Block, Feature, Task, Priority, Tag, Board, InviteLink, Subscription, PricingPlan, ActivityLog, Milestone, BoardTierInfo, BoardLimits, ChecklistItem } from '../types';
+import { Block, Feature, Task, Priority, Tag, Board, InviteLink, Subscription, PricingPlan, ActivityLog, Milestone, BoardTierInfo, BoardLimits, ChecklistItem, NotificationItem } from '../types';
 import { KanbanBlock } from '../components/KanbanBlock';
 import { FeatureCard } from '../components/FeatureCard';
 import { FeatureDetailModal } from '../components/FeatureDetailModal';
@@ -18,7 +18,8 @@ import { TrialBanner } from '../components/TrialBanner';
 import { FilterOptions } from '../components/FilterModal';
 import { ShareBoardModal, BoardMember as ShareBoardMember, MemberRole } from '../components/ShareBoardModal';
 import { SubscriptionModal } from '../components/SubscriptionModal';
-import { ActivityLogModal } from '../components/ActivityLogModal';
+// ActivityLogModal replaced by NotificationDropdown
+import { NotificationDropdown } from '../components/NotificationDropdown';
 import { MilestoneModal } from '../components/MilestoneModal';
 import { UpgradeModal, UpgradeTrigger } from '../components/UpgradeModal';
 import { AlertModal } from '../components/AlertModal';
@@ -54,6 +55,7 @@ import {
   milestoneService,
   checklistService
 } from '../utils/services';
+import { notificationAPI } from '../utils/api';
 
 import { getRandomFeatureColor } from '../constants';
 
@@ -110,6 +112,7 @@ export function KanbanBoardPage() {
   const [isShareBoardModalOpen, setIsShareBoardModalOpen] = useState(false);
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
   const [isActivityLogModalOpen, setIsActivityLogModalOpen] = useState(false);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
   const [isMilestoneModalOpen, setIsMilestoneModalOpen] = useState(false);
   const [selectedMilestone, setSelectedMilestone] = useState<Milestone | null>(null);
   const [kanbanSelectedMilestoneId, setKanbanSelectedMilestoneId] = useState<string>('all');
@@ -255,6 +258,22 @@ export function KanbanBoardPage() {
       setKanbanSelectedMilestoneId('all');
     }
   }, [board?.selected_milestone_id]);
+
+  // 알림 읽지 않은 수 폴링
+  useEffect(() => {
+    if (!boardId || !currentUser) return;
+    const fetchUnreadCount = async () => {
+      try {
+        const response = await notificationAPI.getUnreadCount();
+        setUnreadNotificationCount(response.unread_count);
+      } catch (error) {
+        /* silently fail */
+      }
+    };
+    fetchUnreadCount();
+    const interval = setInterval(fetchUnreadCount, 30000);
+    return () => clearInterval(interval);
+  }, [boardId, currentUser]);
 
   // Premium 기능 접근 제어 헬퍼
   const canAccessSchedule = tierInfo?.can_access_schedule ?? true;
@@ -727,6 +746,15 @@ export function KanbanBoardPage() {
     setIsTaskModalOpen(true);
   };
 
+  const handleNotificationClick = (notification: NotificationItem) => {
+    if (notification.task_id) {
+      const task = tasks.find(t => t.id === notification.task_id);
+      if (task) {
+        handleTaskClick(task);
+      }
+    }
+  };
+
   const handleUpdateTask = async (taskId: string, updates: Partial<Task>) => {
     if (!boardId) return;
 
@@ -1178,26 +1206,6 @@ export function KanbanBoardPage() {
                   showAlertModal('premium');
                   return;
                 }
-                handleViewModeChange('weekly');
-              }}
-              className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                viewMode === 'weekly'
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
-                  : !canAccessSchedule
-                    ? 'text-zinc-600 cursor-not-allowed opacity-50'
-                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-kanban-surface'
-              }`}
-            >
-              <CalendarDays size={14} />
-              간트차트
-              {!canAccessSchedule && <Lock size={10} className="ml-0.5 text-zinc-500" />}
-            </button>
-            <button
-              onClick={() => {
-                if (!canAccessSchedule) {
-                  showAlertModal('premium');
-                  return;
-                }
                 handleViewModeChange('schedule');
               }}
               className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
@@ -1214,63 +1222,82 @@ export function KanbanBoardPage() {
             </button>
             <button
               onClick={() => {
-                if (!canAccessStatistics) {
+                if (!canAccessSchedule) {
                   showAlertModal('premium');
                   return;
                 }
-                if (!isAdminOrOwner) {
-                  showAlertModal('permission');
-                  return;
-                }
-                handleViewModeChange('statistics');
+                handleViewModeChange('weekly');
               }}
-              className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all relative ${
-                viewMode === 'statistics'
+              className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                viewMode === 'weekly'
                   ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
-                  : !canAccessStatistics || !isAdminOrOwner
+                  : !canAccessSchedule
                     ? 'text-zinc-600 cursor-not-allowed opacity-50'
                     : 'text-zinc-400 hover:text-zinc-200 hover:bg-kanban-surface'
               }`}
             >
-              <BarChart3 size={14} />
-              마일스톤
-              {(!canAccessStatistics || !isAdminOrOwner) && <Lock size={10} className="ml-0.5 text-zinc-500" />}
+              <CalendarDays size={14} />
+              간트차트
+              {!canAccessSchedule && <Lock size={10} className="ml-0.5 text-zinc-500" />}
             </button>
-            <button
-              onClick={() => {
-                if (!canAccessStatistics) {
-                  showAlertModal('premium');
-                  return;
-                }
-                if (!isAdminOrOwner) {
-                  showAlertModal('permission');
-                  return;
-                }
-                handleViewModeChange('management');
-              }}
-              className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all relative ${
-                viewMode === 'management'
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
-                  : !canAccessStatistics || !isAdminOrOwner
-                    ? 'text-zinc-600 cursor-not-allowed opacity-50'
-                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-kanban-surface'
-              }`}
-            >
-              <Shield size={14} />
-              관리
-              {(!canAccessStatistics || !isAdminOrOwner) && <Lock size={10} className="ml-0.5 text-zinc-500" />}
-            </button>
+            {isAdminOrOwner && (
+              <button
+                onClick={() => {
+                  if (!canAccessStatistics) {
+                    showAlertModal('premium');
+                    return;
+                  }
+                  handleViewModeChange('statistics');
+                }}
+                className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all relative ${
+                  viewMode === 'statistics'
+                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
+                    : !canAccessStatistics
+                      ? 'text-zinc-600 cursor-not-allowed opacity-50'
+                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-kanban-surface'
+                }`}
+              >
+                <BarChart3 size={14} />
+                마일스톤
+                {!canAccessStatistics && <Lock size={10} className="ml-0.5 text-zinc-500" />}
+              </button>
+            )}
+            {isAdminOrOwner && (
+              <button
+                onClick={() => {
+                  if (!canAccessStatistics) {
+                    showAlertModal('premium');
+                    return;
+                  }
+                  handleViewModeChange('management');
+                }}
+                className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all relative ${
+                  viewMode === 'management'
+                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
+                    : !canAccessStatistics
+                      ? 'text-zinc-600 cursor-not-allowed opacity-50'
+                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-kanban-surface'
+                }`}
+              >
+                <Shield size={14} />
+                관리
+                {!canAccessStatistics && <Lock size={10} className="ml-0.5 text-zinc-500" />}
+              </button>
+            )}
           </nav>
 
           {/* 우측 액션 영역 */}
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1 border-r border-kanban-border pr-3 mr-1">
-              <button
-                onClick={() => setIsActivityLogModalOpen(true)}
-                className="flex items-center gap-2 px-3 py-2 text-zinc-400 hover:text-foreground hover:bg-kanban-surface rounded-lg transition-all"
-              >
-                <Bell size={18} />
-              </button>
+              <NotificationDropdown
+                boardId={boardId || ''}
+                unreadCount={unreadNotificationCount}
+                activities={activities}
+                hasMoreActivities={hasMoreActivity}
+                onLoadMoreActivities={handleLoadMoreActivity}
+                onNotificationClick={handleNotificationClick}
+                onUnreadCountChange={setUnreadNotificationCount}
+              />
                 <button
                 onClick={() => setIsShareBoardModalOpen(true)}
                 className="flex items-center gap-2 px-3 py-2 text-zinc-400 hover:text-foreground hover:bg-kanban-surface rounded-lg transition-all"
@@ -1923,14 +1950,7 @@ export function KanbanBoardPage() {
           />
         )}
 
-        <ActivityLogModal
-          open={isActivityLogModalOpen}
-          onClose={() => setIsActivityLogModalOpen(false)}
-          boardId={boardId || ''}
-          activities={activities}
-          hasMore={hasMoreActivity}
-          onLoadMore={handleLoadMoreActivity}
-        />
+        {/* ActivityLogModal replaced by NotificationDropdown */}
 
         <MilestoneModal
           isOpen={isMilestoneModalOpen}

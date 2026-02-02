@@ -1,7 +1,7 @@
 package com.kanban.domain.user.service;
 
 import com.kanban.domain.board.BoardMemberRepository;
-import com.kanban.domain.board.Role;
+import com.kanban.domain.board.BoardRole;
 import com.kanban.domain.user.EmailVerificationTokenRepository;
 import com.kanban.domain.user.PasswordResetTokenRepository;
 import com.kanban.domain.user.RefreshTokenRepository;
@@ -76,7 +76,7 @@ public class UserService {
         User user = getUser(userId);
 
         // 보드 Owner인 경우 탈퇴 불가
-        if (boardMemberRepository.existsByUserIdAndRole(userId, Role.OWNER)) {
+        if (boardMemberRepository.existsByUserIdAndRole(userId, BoardRole.OWNER)) {
             throw new BusinessException(ErrorCode.CANNOT_DELETE_BOARD_OWNER);
         }
 

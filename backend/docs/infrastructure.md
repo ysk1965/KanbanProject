@@ -1,4 +1,4 @@
-# 🏗️ AWS 인프라 및 배포 전략
+# AWS 인프라 및 배포 전략
 
 ## 아키텍처 개요
 
@@ -7,38 +7,36 @@
                                     │                        AWS Cloud                         │
                                     │                                                         │
     ┌──────────┐                    │  ┌─────────────────────────────────────────────────┐   │
-    │  Users   │                    │  │                   VPC (10.0.0.0/16)              │   │
+    │  Users   │                    │  │                   VPC                            │   │
     └────┬─────┘                    │  │                                                  │   │
          │                          │  │  ┌─────────────────┐    ┌─────────────────┐     │   │
          ▼                          │  │  │ Public Subnet A │    │ Public Subnet B │     │   │
-┌─────────────────┐                 │  │  │   10.0.1.0/24   │    │   10.0.2.0/24   │     │   │
-│   CloudFront    │                 │  │  │                 │    │                 │     │   │
-│      (CDN)      │                 │  │  │  ┌───────────┐  │    │  ┌───────────┐  │     │   │
-└────────┬────────┘                 │  │  │  │    ALB    │◄─┼────┼──┤    ALB    │  │     │   │
-         │                          │  │  │  └─────┬─────┘  │    │  └───────────┘  │     │   │
-         ├──────────────────┐       │  │  └────────┼────────┘    └─────────────────┘     │   │
-         ▼                  ▼       │  │           │                                      │   │
-┌─────────────────┐  ┌──────────┐   │  │  ┌────────┼────────┐    ┌─────────────────┐     │   │
-│    S3 Bucket    │  │   API    │   │  │  │ Private Subnet A│    │ Private Subnet B│     │   │
-│   (Frontend)    │  │ Gateway  │   │  │  │   10.0.3.0/24   │    │   10.0.4.0/24   │     │   │
-└─────────────────┘  └────┬─────┘   │  │  │                 │    │                 │     │   │
-                          │         │  │  │  ┌───────────┐  │    │  ┌───────────┐  │     │   │
-                          ▼         │  │  │  │ECS Fargate│  │    │  │ECS Fargate│  │     │   │
-                   ┌──────────┐     │  │  │  │ (Backend) │  │    │  │ (Backend) │  │     │   │
-                   │  Lambda  │     │  │  │  └─────┬─────┘  │    │  └───────────┘  │     │   │
-                   │(Optional)│     │  │  └────────┼────────┘    └─────────────────┘     │   │
-                   └──────────┘     │  │           │                                      │   │
-                                    │  │           ▼                                      │   │
-                                    │  │  ┌─────────────────┐    ┌─────────────────┐     │   │
-                                    │  │  │   RDS (Aurora   │    │   ElastiCache   │     │   │
+┌─────────────────┐                 │  │  │                 │    │                 │     │   │
+│   CloudFront    │                 │  │  │  ┌───────────┐  │    │  ┌───────────┐  │     │   │
+│      (CDN)      │                 │  │  │  │    ALB    │◄─┼────┼──┤    ALB    │  │     │   │
+└────────┬────────┘                 │  │  │  └─────┬─────┘  │    │  └───────────┘  │     │   │
+         │                          │  │  └────────┼────────┘    └─────────────────┘     │   │
+         ├──────────────────┐       │  │           │                                      │   │
+         ▼                  ▼       │  │  ┌────────┼────────┐    ┌─────────────────┐     │   │
+┌─────────────────┐  ┌──────────┐   │  │  │ Private Subnet A│    │ Private Subnet B│     │   │
+│    S3 Bucket    │  │   ALB    │   │  │  │                 │    │                 │     │   │
+│   (Frontend)    │  │          │   │  │  │  ┌───────────┐  │    │  ┌───────────┐  │     │   │
+└─────────────────┘  └────┬─────┘   │  │  │  │  EB EC2   │  │    │  │  EB EC2   │  │     │   │
+                          │         │  │  │  │ (Backend) │  │    │  │ (Backend) │  │     │   │
+                          ▼         │  │  │  └─────┬─────┘  │    │  └───────────┘  │     │   │
+                   ┌──────────┐     │  │  └────────┼────────┘    └─────────────────┘     │   │
+                   │Elastic   │     │  │           │                                      │   │
+                   │Beanstalk │     │  │           ▼                                      │   │
+                   └──────────┘     │  │  ┌─────────────────┐    ┌─────────────────┐     │   │
+                                    │  │  │   RDS (Aurora    │    │   ElastiCache   │     │   │
                                     │  │  │   PostgreSQL)   │    │    (Redis)      │     │   │
                                     │  │  └─────────────────┘    └─────────────────┘     │   │
                                     │  │                                                  │   │
                                     │  └──────────────────────────────────────────────────┘   │
                                     │                                                         │
                                     │  ┌──────────┐  ┌──────────┐  ┌──────────┐              │
-                                    │  │   SES    │  │   SQS    │  │ Secrets  │              │
-                                    │  │ (Email)  │  │ (Queue)  │  │ Manager  │              │
+                                    │  │   SES    │  │   ACM    │  │Route 53  │              │
+                                    │  │ (Email)  │  │ (SSL)    │  │ (DNS)    │              │
                                     │  └──────────┘  └──────────┘  └──────────┘              │
                                     └─────────────────────────────────────────────────────────┘
 ```
@@ -47,74 +45,86 @@
 
 ## 환경 구성
 
-| 환경 | 용도 | 도메인 |
-|------|------|--------|
-| **Production** | 실 서비스 | kanban.app |
-| **Staging** | QA/테스트 | staging.kanban.app |
-| **Development** | 개발 테스트 | dev.kanban.app |
+| 환경 | 용도 | 배포 브랜치 |
+|------|------|-------------|
+| **Production** | 실 서비스 | `main` |
+| **Development** | 개발 테스트 | `develop` |
 
 ---
 
 ## AWS 서비스 구성
 
 ### 1. 네트워크
+
 | 서비스 | 용도 | 설정 |
 |--------|------|------|
-| VPC | 격리된 네트워크 | 10.0.0.0/16 |
-| Public Subnet | ALB, NAT Gateway | 2개 AZ |
-| Private Subnet | ECS, RDS | 2개 AZ |
-| NAT Gateway | Private → Internet | AZ당 1개 |
+| VPC | 격리된 네트워크 | Dev: 10.0.0.0/16, Prod: 10.1.0.0/16 |
+| Public Subnet | ALB, EB EC2 (dev) | 2개 AZ |
+| Private Subnet | EB EC2 (prod), RDS, Redis | 2개 AZ |
+| NAT Gateway | Private → Internet | Prod만 사용 (비용 절감) |
 
 ### 2. 컴퓨팅
-| 서비스 | 용도 | 스펙 (Production) |
-|--------|------|-------------------|
-| ECS Fargate | Backend API | 0.5 vCPU, 1GB RAM × 2 |
-| Lambda | 스케줄러 (구독 상태 전환) | 128MB |
+
+| 서비스 | 용도 | 스펙 |
+|--------|------|------|
+| Elastic Beanstalk | Backend API (Spring Boot) | Dev: t3.small × 1-2, Prod: t3.small × 2-4 |
+| ALB | 로드 밸런싱, HTTPS 종료 | EB 자동 생성 |
 
 ### 3. 데이터베이스
-| 서비스 | 용도 | 스펙 (Production) |
-|--------|------|-------------------|
-| Aurora PostgreSQL | 메인 DB | db.t4g.medium |
-| ElastiCache Redis | 세션, 캐시 | cache.t4g.micro |
+
+| 서비스 | Dev | Prod |
+|--------|-----|------|
+| RDS PostgreSQL | db.t4g.micro (Standard) | Aurora Serverless v2 (0.5-4 ACU, Multi-AZ) |
+| ElastiCache Redis | 미사용 (Spring Simple Cache) | cache.t4g.micro |
+| 백업 보존 | 1일 | 7일 |
 
 ### 4. 스토리지 & CDN
+
 | 서비스 | 용도 |
 |--------|------|
-| S3 | Frontend 정적 파일, 프로필 이미지 |
-| CloudFront | CDN, HTTPS |
+| S3 | Frontend 정적 파일 호스팅 (OAC 접근 제어) |
+| CloudFront | CDN, HTTPS (Dev: PriceClass_100, Prod: PriceClass_All) |
 
 ### 5. 기타
+
 | 서비스 | 용도 |
 |--------|------|
-| ALB | 로드 밸런싱, HTTPS 종료 |
-| Route 53 | DNS |
-| ACM | SSL 인증서 |
-| SES | 이메일 발송 (초대) |
-| SQS | 비동기 작업 큐 |
-| Secrets Manager | DB 비밀번호, API 키 |
-| CloudWatch | 로그, 모니터링, 알람 |
+| Route 53 | DNS (커스텀 도메인, 선택사항) |
+| ACM | SSL 인증서 (ap-northeast-2 + us-east-1) |
+| SES | 이메일 발송 (초대, Gmail SMTP) |
+| CloudWatch | 로그 스트리밍, 30일 보관 |
 
 ---
 
 ## 예상 비용 (월간)
 
-### Production 환경
+### Development 환경 (~$45-50/월)
+
 | 서비스 | 예상 비용 |
 |--------|----------|
-| ECS Fargate (2 tasks) | ~$30 |
-| Aurora PostgreSQL | ~$60 |
-| ElastiCache Redis | ~$15 |
-| ALB | ~$20 |
+| EC2 (t3.small × 1) | ~$15-20 |
+| RDS (db.t4g.micro) | ~$10 |
+| ALB | ~$10 |
 | CloudFront + S3 | ~$5 |
-| NAT Gateway | ~$35 |
-| Route 53 | ~$1 |
-| 기타 (SES, SQS, Secrets) | ~$5 |
-| **합계** | **~$170/월** |
+| NAT Gateway | $0 (미사용) |
+| ElastiCache | $0 (미사용) |
+| **합계** | **~$45-50/월** |
+
+### Production 환경 (~$150-200/월)
+
+| 서비스 | 예상 비용 |
+|--------|----------|
+| EC2 (t3.small × 2-4) | ~$40-50 |
+| Aurora Serverless v2 (2 instances) | ~$50-80 |
+| ElastiCache Redis | ~$10 |
+| NAT Gateway | ~$45 |
+| ALB | ~$16 |
+| CloudFront + S3 | ~$10-20 |
+| **합계** | **~$150-200/월** |
 
 ### 비용 절감 옵션
-- **Dev/Staging**: 단일 AZ, 더 작은 인스턴스 → ~$50/월
-- **Reserved Instances**: Aurora, ElastiCache 1년 예약 시 30% 절감
-- **NAT Gateway → NAT Instance**: $35 → $5 (소규모 트래픽 시)
+- **Reserved Instances**: Aurora, EC2 1년 예약 시 30% 절감
+- **NAT Instance**: NAT Gateway 대체 시 $45 → ~$5
 
 ---
 
@@ -128,36 +138,31 @@ infrastructure/
 │   │   │   ├── main.tf
 │   │   │   ├── variables.tf
 │   │   │   └── terraform.tfvars
-│   │   ├── staging/
-│   │   │   └── ...
 │   │   └── prod/
-│   │       └── ...
+│   │       ├── main.tf
+│   │       ├── variables.tf
+│   │       └── terraform.tfvars
 │   │
 │   ├── modules/
-│   │   ├── vpc/
-│   │   │   ├── main.tf
-│   │   │   ├── variables.tf
-│   │   │   └── outputs.tf
-│   │   ├── ecs/
-│   │   ├── rds/
-│   │   ├── elasticache/
-│   │   ├── s3-cloudfront/
-│   │   ├── alb/
-│   │   └── secrets/
+│   │   ├── vpc/               # VPC, Subnet, NAT, IGW
+│   │   ├── security-groups/   # ALB, EC2, RDS, Redis SG
+│   │   ├── rds/               # Aurora PostgreSQL (Prod)
+│   │   ├── rds-simple/        # Standard PostgreSQL (Dev)
+│   │   ├── elasticache/       # Redis
+│   │   ├── elastic-beanstalk/ # EB App + Environment + ALB
+│   │   ├── s3-cloudfront/     # Frontend 정적 호스팅
+│   │   ├── route53/           # DNS
+│   │   └── acm-certificate/   # SSL 인증서
 │   │
 │   └── shared/
-│       ├── backend.tf        # S3 + DynamoDB for state
-│       └── providers.tf
+│       └── backend.tf         # S3 + DynamoDB for state
 │
-├── docker/
-│   ├── backend/
-│   │   └── Dockerfile
-│   └── frontend/
-│       └── Dockerfile
-│
-└── scripts/
-    ├── deploy.sh
-    └── destroy.sh
+└── backend/
+    ├── Dockerfile             # Multi-stage 빌드
+    ├── Procfile               # EB JVM 설정
+    └── .ebextensions/         # EB 환경 설정
+        ├── 01-env.config      # 환경변수, 배포 정책
+        └── 02-healthcheck.config  # ALB 헬스체크, 오토스케일링
 ```
 
 ---
@@ -166,229 +171,113 @@ infrastructure/
 
 ```
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   GitHub    │────▶│GitHub Action│────▶│    ECR      │────▶│ECS Fargate  │
-│   Push      │     │   Build     │     │   Push      │     │   Deploy    │
+│   GitHub    │────▶│GitHub Action│────▶│  Gradle     │────▶│  Elastic    │
+│   Push      │     │  CI/Build   │     │  bootJar    │     │ Beanstalk   │
 └─────────────┘     └─────────────┘     └─────────────┘     └─────────────┘
       │                                                            │
       │              ┌─────────────┐     ┌─────────────┐           │
-      └─────────────▶│   S3 Sync   │────▶│ CloudFront  │◀──────────┘
-        (Frontend)   │             │     │ Invalidate  │
-                     └─────────────┘     └─────────────┘
+      └─────────────▶│   S3 Sync   │────▶│ CloudFront  │           │
+        (Frontend)   │             │     │ Invalidate  │           │
+                     └─────────────┘     └─────────────┘           │
+
+Workflows:
+├── ci.yml          # PR/push → Backend Test + Frontend Build
+├── deploy-dev.yml  # develop push → Dev 환경 배포
+├── deploy-prod.yml # main push → CI → 승인 → Prod 환경 배포
+└── terraform.yml   # TF 변경 시 Plan/Apply
 ```
 
-### GitHub Actions Workflow
+### 배포 전략
 
-```yaml
-# .github/workflows/deploy.yml
-name: Deploy
+**Development**
+- develop 브랜치 push 시 자동 배포
+- Backend: Gradle bootJar → EB 배포 (AllAtOnce)
+- Frontend: Vite build → S3 Sync → CloudFront Invalidation (조건부)
 
-on:
-  push:
-    branches: [main, staging, develop]
-
-env:
-  AWS_REGION: ap-northeast-2
-
-jobs:
-  # Backend 배포
-  deploy-backend:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Configure AWS
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-      
-      - name: Login to ECR
-        id: ecr-login
-        uses: aws-actions/amazon-ecr-login@v2
-      
-      - name: Build & Push Docker
-        env:
-          ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
-        run: |
-          docker build -t $ECR_REGISTRY/kanban-backend:$IMAGE_TAG ./backend
-          docker push $ECR_REGISTRY/kanban-backend:$IMAGE_TAG
-      
-      - name: Deploy to ECS
-        run: |
-          aws ecs update-service \
-            --cluster kanban-${{ github.ref_name }} \
-            --service backend \
-            --force-new-deployment
-
-  # Frontend 배포
-  deploy-frontend:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
-      
-      - name: Install & Build
-        working-directory: frontend
-        run: |
-          npm ci
-          npm run build
-      
-      - name: Deploy to S3
-        run: |
-          aws s3 sync frontend/dist s3://kanban-frontend-${{ github.ref_name }} --delete
-      
-      - name: Invalidate CloudFront
-        run: |
-          aws cloudfront create-invalidation \
-            --distribution-id ${{ secrets.CLOUDFRONT_DIST_ID }} \
-            --paths "/*"
-```
-
----
-
-## 배포 전략
-
-### Blue-Green 배포 (Backend)
-```
-1. 새 Task Definition 등록
-2. 새 Task 시작 (Green)
-3. Health Check 통과 확인
-4. ALB Target Group 전환
-5. 이전 Task 종료 (Blue)
-```
-
-ECS는 기본적으로 Rolling Update를 지원하며, `minimumHealthyPercent`와 `maximumPercent`로 제어:
-
-```hcl
-deployment_configuration {
-  minimum_healthy_percent = 100
-  maximum_percent         = 200
-}
-```
-
-### Frontend 배포
-```
-1. npm run build
-2. S3 Sync (--delete)
-3. CloudFront Invalidation
-```
+**Production**
+- main 브랜치 push 시 자동 배포
+- CI 테스트 통과 필수 → GitHub Environment 승인 필요
+- Backend: Gradle bootJar → EB 배포 (Rolling, 50% batch) → Health Check
+- Frontend: Vite build → S3 Sync → CloudFront Invalidation
 
 ---
 
 ## 스케일링 정책
 
-### ECS Auto Scaling
-```hcl
-# CPU 70% 이상 시 스케일 아웃
-resource "aws_appautoscaling_policy" "cpu" {
-  name               = "cpu-scaling"
-  policy_type        = "TargetTrackingScaling"
-  resource_id        = aws_appautoscaling_target.ecs.resource_id
-  scalable_dimension = aws_appautoscaling_target.ecs.scalable_dimension
-  service_namespace  = aws_appautoscaling_target.ecs.service_namespace
+### Elastic Beanstalk Auto Scaling
 
-  target_tracking_scaling_policy_configuration {
-    predefined_metric_specification {
-      predefined_metric_type = "ECSServiceAverageCPUUtilization"
-    }
-    target_value       = 70.0
-    scale_in_cooldown  = 300
-    scale_out_cooldown = 60
-  }
-}
-```
+| 환경 | Min | Max | 배포 방식 |
+|------|-----|-----|----------|
+| Dev | 1 | 2 | AllAtOnce |
+| Prod | 2 | 4 | Rolling (50%) |
 
-### Aurora Auto Scaling
-- Reader 인스턴스 자동 추가 (읽기 부하 분산)
-- Production에서만 활성화
+- Health-based rolling update
+- Auto Scaling cooldown: 360초
+- Managed platform update: 매주 일요일 09:00 (minor)
 
----
-
-## 모니터링 및 알람
-
-### CloudWatch Alarms
-| 알람 | 조건 | 액션 |
-|------|------|------|
-| High CPU | ECS CPU > 80% (5분) | Slack 알림 |
-| High Memory | ECS Memory > 80% (5분) | Slack 알림 |
-| 5xx Errors | ALB 5xx > 10/분 | Slack + PagerDuty |
-| DB Connections | RDS 연결 > 80% | Slack 알림 |
-| DB Storage | RDS 스토리지 < 20% | Slack 알림 |
-
-### 로그 관리
-```
-ECS Container → CloudWatch Logs → (선택) S3 아카이브
-```
+### Aurora Auto Scaling (Prod)
+- Serverless v2: 0.5 ~ 4 ACU 자동 스케일링
+- Multi-AZ: 2 인스턴스
 
 ---
 
 ## 보안 설정
 
 ### Security Groups
+
 ```
 ┌─────────────┐
-│     ALB     │ ← 0.0.0.0/0:443
+│     ALB     │ ← 0.0.0.0/0:80,443
 └──────┬──────┘
-       │ :3000
+       │ :5000 (HTTP)
        ▼
 ┌─────────────┐
-│ ECS Fargate │ ← ALB SG only
+│   EB EC2    │ ← ALB SG only
 └──────┬──────┘
        │ :5432, :6379
        ▼
 ┌─────────────┐
-│  RDS/Redis  │ ← ECS SG only
+│  RDS/Redis  │ ← EC2 SG only
 └─────────────┘
 ```
 
-### IAM Roles
-| Role | 용도 | 권한 |
-|------|------|------|
-| ECS Task Role | 애플리케이션 | S3, SES, SQS, Secrets Manager |
-| ECS Execution Role | 컨테이너 시작 | ECR Pull, CloudWatch Logs |
-| GitHub Actions Role | CI/CD | ECR, ECS, S3, CloudFront |
+### 환경 변수 (Terraform → EB)
+
+| 변수 | 설명 |
+|------|------|
+| `SPRING_PROFILES_ACTIVE` | dev / prod |
+| `SERVER_PORT` | 5000 (EB ALB 연동) |
+| `DATABASE_URL` | JDBC PostgreSQL URL |
+| `DB_USERNAME` / `DB_PASSWORD` | DB 인증 |
+| `REDIS_HOST` / `REDIS_PORT` | Redis 연결 (Prod만) |
+| `JWT_SECRET` | JWT 서명 키 |
+| `FRONTEND_URL` | CORS 허용 Origin |
+| `CACHE_TYPE` | redis (Prod) / simple (Dev) |
 
 ### Secrets 관리
-```hcl
-# Secrets Manager에 저장
-- DATABASE_URL
-- REDIS_URL
-- JWT_SECRET
-- PG_API_KEY (결제)
-- OAUTH_CLIENT_SECRET
-```
+- Terraform 변수: `db_password`, `jwt_secret` (sensitive 표시)
+- GitHub Secrets: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `GOOGLE_CLIENT_ID`
+- GitHub Variables: `DEV_API_URL`, `PROD_API_URL`, CloudFront Distribution ID 등
 
 ---
 
 ## 재해 복구
 
 ### 백업 전략
-| 대상 | 주기 | 보존 기간 |
-|------|------|----------|
-| Aurora Snapshot | 자동 (1일) | 7일 |
-| Aurora Snapshot | 수동 (주 1회) | 30일 |
-| S3 (Frontend) | 버전 관리 | 30일 |
 
-### RTO/RPO
-| 환경 | RTO | RPO |
-|------|-----|-----|
-| Production | 1시간 | 1시간 |
-| Staging | 4시간 | 24시간 |
-| Development | 24시간 | 7일 |
+| 대상 | Dev | Prod |
+|------|-----|------|
+| RDS 자동 백업 | 1일 보존 | 7일 보존 |
+| RDS 삭제 보호 | 비활성 | 활성 |
+| Redis 스냅샷 | 없음 | 7일 보존 |
+| S3 Frontend | CloudFront 캐시 | CloudFront 캐시 |
 
 ---
 
 ## 빠른 시작 가이드
 
 ### 1. 사전 준비
+
 ```bash
 # AWS CLI 설정
 aws configure
@@ -397,10 +286,20 @@ aws configure
 brew install terraform
 
 # 상태 저장용 S3 버킷 생성
-aws s3 mb s3://kanban-terraform-state
+aws s3api create-bucket --bucket kanban-terraform-state --region ap-northeast-2 \
+  --create-bucket-configuration LocationConstraint=ap-northeast-2
+aws s3api put-bucket-versioning --bucket kanban-terraform-state \
+  --versioning-configuration Status=Enabled
+
+# DynamoDB 테이블 생성 (state locking)
+aws dynamodb create-table --table-name kanban-terraform-lock \
+  --attribute-definitions AttributeName=LockID,AttributeType=S \
+  --key-schema AttributeName=LockID,KeyType=HASH \
+  --billing-mode PAY_PER_REQUEST --region ap-northeast-2
 ```
 
 ### 2. Terraform 초기화 및 배포
+
 ```bash
 cd infrastructure/terraform/environments/dev
 
@@ -408,22 +307,22 @@ cd infrastructure/terraform/environments/dev
 terraform init
 
 # 계획 확인
-terraform plan
+terraform plan -var="db_password=YOUR_PASSWORD" -var="jwt_secret=YOUR_SECRET"
 
 # 배포
-terraform apply
+terraform apply -var="db_password=YOUR_PASSWORD" -var="jwt_secret=YOUR_SECRET"
 ```
 
 ### 3. 배포 순서
+
 ```
 1. VPC (네트워크)
 2. Security Groups
 3. RDS (DB)
-4. ElastiCache (Redis)
-5. Secrets Manager
-6. ECR (컨테이너 레지스트리)
-7. ECS Cluster + Service
-8. ALB
-9. S3 + CloudFront
-10. Route 53 (DNS)
+4. ElastiCache (Prod만 - Redis)
+5. ACM 인증서 (커스텀 도메인 사용 시)
+6. Route 53 (커스텀 도메인 사용 시)
+7. Elastic Beanstalk (ALB 포함)
+8. S3 + CloudFront
+9. DNS 레코드 (Frontend, API)
 ```

@@ -319,14 +319,36 @@ function ThemeSync() {
   return null;
 }
 
+// 루트 경로 래퍼 (인증 상태에 따라 리다이렉트)
+function HomeRoute() {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-bridge-dark flex items-center justify-center">
+        <div className="text-white text-lg">로딩 중...</div>
+      </div>
+    );
+  }
+
+  if (isAuthenticated) {
+    return <Navigate to="/boards" replace />;
+  }
+
+  return <Navigate to="/login" replace />;
+}
+
 // 메인 앱 라우터
 function AppRoutes() {
   return (
     <>
       <ThemeSync />
       <Routes>
+      {/* 루트: 로그인 상태면 /boards, 아니면 /login */}
+      <Route path="/" element={<HomeRoute />} />
+
       {/* 랜딩 페이지 */}
-      <Route path="/" element={<LandingPage />} />
+      <Route path="/landing" element={<LandingPage />} />
 
       {/* 로그인 */}
       <Route path="/login" element={<LoginRoute />} />

@@ -71,3 +71,26 @@ dist-ssr/
 coverage/
 .parcel-cache/
 .eslintcache
+
+# ===== Terraform =====
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+.terraform/
+.terraform.lock.hcl
+*.tfvars
+!*.tfvars.example
+*.tfplan
+tfplan
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# ===== Scripts =====
+scripts/.env.rds
+
+# ===== Deployment =====
+backend/deploy/
+backend/deploy.zip

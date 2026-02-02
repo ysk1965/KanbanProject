@@ -28,4 +28,10 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Stri
     Page<Subscription> findAllWithBoardAndOwner(Pageable pageable);
 
     long countByStatus(SubscriptionStatus status);
+
+    /**
+     * 여러 보드의 구독 정보 일괄 조회 (N+1 방지)
+     */
+    @Query("SELECT s FROM Subscription s WHERE s.board.id IN :boardIds")
+    List<Subscription> findByBoardIdIn(@Param("boardIds") List<String> boardIds);
 }

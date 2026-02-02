@@ -1,6 +1,6 @@
 package com.kanban.domain.invite.dto;
 
-import com.kanban.domain.board.Role;
+import com.kanban.domain.board.BoardRole;
 import com.kanban.domain.invite.InviteLink;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -17,7 +17,7 @@ public class InviteResponse {
     public static class Detail {
         private String id;
         private String code;
-        private Role role;
+        private BoardRole role;
         private Integer maxUses;
         private Integer usedCount;
         private LocalDateTime expiresAt;
@@ -74,7 +74,7 @@ public class InviteResponse {
     public static class Info {
         private String boardId;
         private String boardName;
-        private Role role;
+        private BoardRole role;
         private boolean isValid;
         private String message;
 
@@ -98,7 +98,7 @@ public class InviteResponse {
     public static class AcceptResult {
         private String boardId;
         private String boardName;
-        private Role role;
+        private BoardRole role;
         private String message;
     }
 }

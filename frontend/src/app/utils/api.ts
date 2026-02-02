@@ -978,7 +978,7 @@ export const checklistAPI = {
   },
 
   getBatchChecklists: async (boardId: string, taskIds: string[]) => {
-    return apiClient.post<BatchChecklistResponse>(`/boards/${boardId}/checklists/batch`, { task_ids: taskIds });
+    return apiClient.post<BatchChecklistResponse>(`/boards/${boardId}/checklist-items/batch`, { task_ids: taskIds });
   },
 
   addItem: async (
@@ -1013,6 +1013,66 @@ export const checklistAPI = {
   toggleItem: async (boardId: string, taskId: string, itemId: string) => {
     return apiClient.patch<ChecklistItemResponse>(
       `/boards/${boardId}/tasks/${taskId}/checklist/${itemId}/toggle`
+    );
+  },
+};
+
+// ========================================
+// Comment API
+// ========================================
+
+export interface CommentDetailResponse {
+  id: string;
+  task_id: string;
+  author: {
+    id: string;
+    name: string;
+    profile_image: string | null;
+  };
+  content: string;
+  mentions: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CommentListResponse {
+  comments: CommentDetailResponse[];
+  total_count: number;
+}
+
+export const commentAPI = {
+  getComments: async (boardId: string, taskId: string) => {
+    return apiClient.get<CommentListResponse>(
+      `/boards/${boardId}/tasks/${taskId}/comments`
+    );
+  },
+
+  createComment: async (
+    boardId: string,
+    taskId: string,
+    data: { content: string; mentions?: string[] }
+  ) => {
+    return apiClient.post<CommentDetailResponse>(
+      `/boards/${boardId}/tasks/${taskId}/comments`,
+      data
+    );
+  },
+
+  updateComment: async (
+    boardId: string,
+    taskId: string,
+    commentId: string,
+    data: { content: string; mentions?: string[] }
+  ) => {
+    return apiClient.put<CommentDetailResponse>(
+      `/boards/${boardId}/tasks/${taskId}/comments/${commentId}`,
+      data
+    );
+  },
+
+  deleteComment: async (boardId: string, taskId: string, commentId: string) => {
+    return apiClient.delete<{ message: string }>(
+      `/boards/${boardId}/tasks/${taskId}/comments/${commentId}`
     );
   },
 };
@@ -2206,5 +2266,49 @@ export const adminAPI = {
     return apiClient.get<SubscriptionListResponse>(
       `/admin/subscriptions?${searchParams.toString()}`
     );
+  },
+};
+
+// ========================================
+// Notification API
+// ========================================
+
+export const notificationAPI = {
+  getNotifications: async (params?: { cursor?: string; limit?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.cursor) query.set('cursor', params.cursor);
+    if (params?.limit) query.set('limit', params.limit.toString());
+    const queryString = query.toString();
+    return apiClient.get<{
+      notifications: Array<{
+        id: string;
+        type: string;
+        title: string;
+        message: string;
+        board_id: string;
+        board_name: string | null;
+        task_id: string | null;
+        comment_id: string | null;
+        sender: { id: string; name: string | null; profile_image: string | null };
+        read: boolean;
+        read_at: string | null;
+        created_at: string;
+      }>;
+      unread_count: number;
+      has_more: boolean;
+      next_cursor: string | null;
+    }>(`/notifications${queryString ? `?${queryString}` : ''}`);
+  },
+
+  getUnreadCount: async () => {
+    return apiClient.get<{ unread_count: number }>('/notifications/unread-count');
+  },
+
+  markAsRead: async (notificationId: string) => {
+    return apiClient.put<Record<string, unknown>>(`/notifications/${notificationId}/read`);
+  },
+
+  markAllAsRead: async () => {
+    return apiClient.put<{ message: string }>('/notifications/read-all');
   },
 };

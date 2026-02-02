@@ -261,11 +261,17 @@ public class ManagementService {
                             f.getCompletedTasks() < f.getTotalTasks())
                     .count();
 
+            // Batch load: 마일스톤 Task들의 ChecklistItem (N+1 방지)
+            List<ChecklistItem> allMilestoneChecklistItems = milestoneTaskIds.isEmpty() ?
+                    Collections.emptyList() : checklistItemRepository.findByTaskIdIn(new ArrayList<>(milestoneTaskIds));
+            Map<String, List<ChecklistItem>> milestoneChecklistsByTaskId = allMilestoneChecklistItems.stream()
+                    .collect(Collectors.groupingBy(ci -> ci.getTask().getId()));
+
             // Task 목록 생성 (ChecklistItem 담당자 수집)
             List<MilestoneTask> milestonTaskList = milestoneTasks.stream()
                     .map(t -> {
-                        // ChecklistItem들의 담당자 수집 (중복 제거)
-                        List<ChecklistItem> checklistItems = checklistItemRepository.findByTaskIdOrderByPositionAsc(t.getId());
+                        // ChecklistItem들의 담당자 수집 (중복 제거) - 배치 로드 사용
+                        List<ChecklistItem> checklistItems = milestoneChecklistsByTaskId.getOrDefault(t.getId(), Collections.emptyList());
                         List<MemberInfo> assignees = checklistItems.stream()
                                 .filter(c -> c.getAssignee() != null)
                                 .map(c -> c.getAssignee())
@@ -556,6 +562,13 @@ public class ManagementService {
                         filteredTaskIds.contains(sb.getChecklistItem().getTask().getId()))
                 .collect(Collectors.groupingBy(sb -> sb.getAssignee().getId()));
 
+        // Batch load: 모든 필터링된 Task의 ChecklistItem (N+1 방지)
+        List<String> allFilteredTaskIdList = new ArrayList<>(filteredTaskIds);
+        List<ChecklistItem> allBatchedChecklistItems = allFilteredTaskIdList.isEmpty() ?
+                Collections.emptyList() : checklistItemRepository.findByTaskIdIn(allFilteredTaskIdList);
+        Map<String, List<ChecklistItem>> batchedChecklistsByTaskId = allBatchedChecklistItems.stream()
+                .collect(Collectors.groupingBy(ci -> ci.getTask().getId()));
+
         for (BoardMember member : members) {
             User user = member.getUser();
             if (user == null) continue;
@@ -625,8 +638,9 @@ public class ManagementService {
                     .map(t -> {
                         int daysInProgress = (int) ChronoUnit.DAYS.between(
                                 t.getCreatedAt().toLocalDate(), LocalDate.now());
-                        int checklistTotal = checklistItemRepository.countByTaskId(t.getId());
-                        int checklistCompleted = checklistItemRepository.countCompletedByTaskId(t.getId());
+                        List<ChecklistItem> taskChecklistItems = batchedChecklistsByTaskId.getOrDefault(t.getId(), Collections.emptyList());
+                        int checklistTotal = taskChecklistItems.size();
+                        int checklistCompleted = (int) taskChecklistItems.stream().filter(ChecklistItem::getIsCompleted).count();
                         Integer estimatedMinutes = t.getEstimatedMinutes();
                         Integer actualMinutes = taskActualMinutes.getOrDefault(t.getId(), 0L).intValue();
                         Double taskTimeEfficiency = null;

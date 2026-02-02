@@ -50,10 +50,10 @@ public class InviteService {
         User creator = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        Role role = request.getRole() != null ? request.getRole() : Role.MEMBER;
+        BoardRole role = request.getRole() != null ? request.getRole() : BoardRole.MEMBER;
 
         // Owner 역할로 초대 링크 생성 불가
-        if (role == Role.OWNER) {
+        if (role == BoardRole.OWNER) {
             throw new BusinessException(ErrorCode.CANNOT_CHANGE_OWNER_ROLE);
         }
 
@@ -123,7 +123,7 @@ public class InviteService {
         }
 
         // 멤버 수 제한 확인
-        if (link.getRole() != Role.VIEWER) {
+        if (link.getRole() != BoardRole.VIEWER) {
             Subscription subscription = subscriptionRepository.findByBoardId(board.getId()).orElse(null);
             if (subscription != null) {
                 int currentBillable = boardMemberRepository.countBillableMembers(board.getId());

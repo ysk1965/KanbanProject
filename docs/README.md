@@ -1,32 +1,46 @@
-# 프로젝트 문서
+# Project Documentation
 
-이 폴더는 팀 칸반보드 프로젝트의 기획 및 설계 문서를 관리합니다.
+> Last updated: 2026-02-02
 
-## 폴더 구조
+## Documents
 
+| Type | Latest | Last Updated | History |
+|------|--------|--------------|---------|
+| [IA](./IA/latest.md) | v1.0.0 | 2026-02-02 | [versions](./IA/) |
+| [Wireframe](./Wireframe/latest.md) | v1.0.0 | 2026-02-02 | [versions](./Wireframe/) |
+| [Design](./Design/latest.md) | v1.0.0 | 2026-02-02 | [versions](./Design/) |
+| [ERD](./ERD/latest.md) | v1.0.0 | 2026-02-02 | [versions](./ERD/) |
+| [API](./API/latest.md) | v1.0.0 | 2026-02-02 | [versions](./API/) |
+| [Tech](./Tech/latest.md) | v1.0.0 | 2026-02-02 | [versions](./Tech/) |
+
+## Quick Links
+
+- [Full Changelog](./CHANGELOG.md)
+- [API Endpoints](./API/latest.md#endpoints)
+- [Database Schema](./ERD/latest.md#er-diagram)
+- [Design System](./Design/latest.md)
+- [Architecture](./Tech/latest.md#아키텍처-개요)
+
+## Legacy Documents
+
+이전 버전 문서는 `versions/` 폴더에 보관되어 있습니다:
+
+| 폴더 | 내용 |
+|------|------|
+| [versions/design/](./versions/design/) | 기획서 v7.0 ~ v9.0 |
+| [versions/tech/](./versions/tech/) | 기술 문서 v7.0 ~ v9.0 |
+| [versions/feature/](./versions/feature/) | Feature 기획서 |
+
+## How to Update
+
+```bash
+# 전체 문서 업데이트
+/write-docs
+
+# 특정 문서만 업데이트
+/write-docs api
+/write-docs erd api
+
+# 상태 확인
+/write-docs status
 ```
-docs/
-├── README.md           # 이 파일
-├── design.md           # 최신 기획서 (현재 작업용)
-└── versions/           # 버전별 기획서 아카이브
-    ├── design-v3.0.md  # v3.0 기획서
-    └── design-v4.0.md  # v4.0 기획서
-```
-
-## 버전 관리 규칙
-
-1. **최신 문서**: `docs/design.md`에서 작업
-2. **버전 릴리즈**: 주요 변경 시 `versions/design-vX.X.md`로 복사
-3. **버전 번호**: Major.Minor 형식 (예: v4.0, v4.1)
-
-## 버전 히스토리
-
-| 버전 | 날짜 | 주요 변경 |
-|------|------|----------|
-| v3.0 | 2025-01 | 데일리 스케줄 시스템 추가 |
-| v4.0 | 2026-01 | 스케줄 블록/시간 표시 모드, 타임블록 이동/중복감지, 통합 체크리스트 모달 |
-
-## 참고
-
-- 기획서는 Markdown 형식으로 작성
-- 다이어그램은 ASCII Art 또는 Mermaid 사용

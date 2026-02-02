@@ -101,9 +101,16 @@ public enum ErrorCode {
     // Weight Level
     WEIGHT_LEVEL_NOT_FOUND(HttpStatus.NOT_FOUND, "W001", "가중치 레벨을 찾을 수 없습니다"),
 
+    // Comment
+    COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "CM001", "댓글을 찾을 수 없습니다"),
+    COMMENT_NOT_AUTHOR(HttpStatus.FORBIDDEN, "CM002", "본인의 댓글만 수정/삭제할 수 있습니다"),
+
     // Daily Checklist
     DAILY_CHECKLIST_NOT_FOUND(HttpStatus.NOT_FOUND, "DC001", "데일리 체크리스트 항목을 찾을 수 없습니다"),
     DAILY_CHECKLIST_ALREADY_EXISTS(HttpStatus.CONFLICT, "DC002", "해당 날짜에 이미 추가된 체크리스트입니다"),
+
+    // Notification
+    NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "N001", "알림을 찾을 수 없습니다"),
 
     // Admin
     ADMIN_ACCESS_DENIED(HttpStatus.FORBIDDEN, "AD001", "관리자 권한이 필요합니다");

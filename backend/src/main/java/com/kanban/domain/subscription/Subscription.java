@@ -93,6 +93,33 @@ public class Subscription {
                 .build();
     }
 
+    public static Subscription createPremium(Board board) {
+        return Subscription.builder()
+                .board(board)
+                .status(SubscriptionStatus.ACTIVE)
+                .plan("PREMIUM")
+                .billableMemberCount(1)
+                .build();
+    }
+
+    /**
+     * Admin에 의한 PREMIUM 전환 시 구독 상태 동기화
+     */
+    public void upgradeByAdmin() {
+        this.status = SubscriptionStatus.ACTIVE;
+        this.plan = "PREMIUM";
+        this.trialEndsAt = null;
+    }
+
+    /**
+     * Admin에 의한 STANDARD 전환 시 구독 상태 동기화
+     */
+    public void downgradeByAdmin() {
+        this.status = SubscriptionStatus.TRIAL;
+        this.plan = null;
+        this.trialEndsAt = LocalDateTime.now().plusDays(7);
+    }
+
     public boolean isActive() {
         return this.status == SubscriptionStatus.ACTIVE;
     }

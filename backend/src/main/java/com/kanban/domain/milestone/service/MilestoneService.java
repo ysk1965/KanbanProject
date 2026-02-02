@@ -25,6 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -113,19 +114,21 @@ public class MilestoneService {
 
         milestoneRepository.save(milestone);
 
-        // Feature 연결
+        // Feature 연결 (N+1 방지: 배치 조회)
         if (request.getFeatureIds() != null && !request.getFeatureIds().isEmpty()) {
-            for (String featureId : request.getFeatureIds()) {
-                Feature feature = featureRepository.findById(featureId)
-                        .orElseThrow(() -> new BusinessException(ErrorCode.FEATURE_NOT_FOUND));
+            List<Feature> featuresToLink = featureRepository.findAllById(request.getFeatureIds());
+            if (featuresToLink.size() != request.getFeatureIds().size()) {
+                throw new BusinessException(ErrorCode.FEATURE_NOT_FOUND);
+            }
 
+            List<MilestoneFeature> links = new ArrayList<>();
+            for (Feature feature : featuresToLink) {
                 if (!feature.getBoard().getId().equals(boardId)) {
                     throw new BusinessException(ErrorCode.FEATURE_NOT_FOUND);
                 }
-
-                MilestoneFeature milestoneFeature = MilestoneFeature.create(milestone, feature);
-                milestoneFeatureRepository.save(milestoneFeature);
+                links.add(MilestoneFeature.create(milestone, feature));
             }
+            milestoneFeatureRepository.saveAll(links);
         }
 
         List<Feature> features = milestoneFeatureRepository.findFeaturesByMilestoneId(milestone.getId());
@@ -192,21 +195,25 @@ public class MilestoneService {
             throw new BusinessException(ErrorCode.MILESTONE_NOT_FOUND);
         }
 
-        for (String featureId : request.getFeatureIds()) {
-            // 이미 연결되어 있는지 확인
-            if (milestoneFeatureRepository.existsByMilestoneIdAndFeatureId(milestoneId, featureId)) {
-                continue; // 이미 연결된 경우 스킵
+        // 이미 연결된 Feature ID 배치 조회 (N+1 방지)
+        Set<String> existingFeatureIds = milestoneFeatureRepository.findFeatureIdsByMilestoneId(milestoneId)
+                .stream().collect(Collectors.toSet());
+
+        List<String> newFeatureIds = request.getFeatureIds().stream()
+                .filter(id -> !existingFeatureIds.contains(id))
+                .collect(Collectors.toList());
+
+        if (!newFeatureIds.isEmpty()) {
+            List<Feature> featuresToAdd = featureRepository.findAllById(newFeatureIds);
+            List<MilestoneFeature> newLinks = new ArrayList<>();
+
+            for (Feature feature : featuresToAdd) {
+                if (!feature.getBoard().getId().equals(boardId)) {
+                    throw new BusinessException(ErrorCode.FEATURE_NOT_FOUND);
+                }
+                newLinks.add(MilestoneFeature.create(milestone, feature));
             }
-
-            Feature feature = featureRepository.findById(featureId)
-                    .orElseThrow(() -> new BusinessException(ErrorCode.FEATURE_NOT_FOUND));
-
-            if (!feature.getBoard().getId().equals(boardId)) {
-                throw new BusinessException(ErrorCode.FEATURE_NOT_FOUND);
-            }
-
-            MilestoneFeature milestoneFeature = MilestoneFeature.create(milestone, feature);
-            milestoneFeatureRepository.save(milestoneFeature);
+            milestoneFeatureRepository.saveAll(newLinks);
         }
 
         List<Feature> features = milestoneFeatureRepository.findFeaturesByMilestoneId(milestoneId);

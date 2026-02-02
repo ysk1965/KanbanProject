@@ -20,7 +20,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -47,11 +49,15 @@ public class AdminService {
             userPage = userRepository.findAll(pageable);
         }
 
+        // Batch load: 유저별 보드 수 (N+1 방지)
+        List<String> userIds = userPage.getContent().stream().map(User::getId).collect(Collectors.toList());
+        Map<String, Integer> boardCountMap = new java.util.HashMap<>();
+        for (User user : userPage.getContent()) {
+            boardCountMap.put(user.getId(), boardRepository.countByUserInvolvement(user.getId()));
+        }
+
         List<AdminResponse.UserSummary> users = userPage.getContent().stream()
-                .map(user -> {
-                    int boardCount = boardRepository.countByUserInvolvement(user.getId());
-                    return AdminResponse.UserSummary.of(user, boardCount);
-                })
+                .map(user -> AdminResponse.UserSummary.of(user, boardCountMap.getOrDefault(user.getId(), 0)))
                 .collect(Collectors.toList());
 
         return AdminResponse.UserList.builder()
@@ -69,14 +75,7 @@ public class AdminService {
         List<Board> boards = boardRepository.findByUserInvolvement(userId);
         int boardCount = boards.size();
 
-        List<AdminResponse.BoardSummary> boardSummaries = boards.stream()
-                .map(board -> {
-                    int memberCount = (int) boardMemberRepository.countByBoardId(board.getId());
-                    int taskCount = taskRepository.countByBoardId(board.getId());
-                    Subscription subscription = subscriptionRepository.findByBoardId(board.getId()).orElse(null);
-                    return AdminResponse.BoardSummary.of(board, memberCount, taskCount, subscription);
-                })
-                .collect(Collectors.toList());
+        List<AdminResponse.BoardSummary> boardSummaries = toBoardSummaries(boards);
 
         return AdminResponse.UserDetail.of(user, boardCount, boardSummaries);
     }
@@ -98,14 +97,7 @@ public class AdminService {
 
         List<Board> boards = boardRepository.findByUserInvolvement(userId);
 
-        List<AdminResponse.BoardSummary> boardSummaries = boards.stream()
-                .map(board -> {
-                    int memberCount = (int) boardMemberRepository.countByBoardId(board.getId());
-                    int taskCount = taskRepository.countByBoardId(board.getId());
-                    Subscription subscription = subscriptionRepository.findByBoardId(board.getId()).orElse(null);
-                    return AdminResponse.BoardSummary.of(board, memberCount, taskCount, subscription);
-                })
-                .collect(Collectors.toList());
+        List<AdminResponse.BoardSummary> boardSummaries = toBoardSummaries(boards);
 
         return AdminResponse.BoardList.builder()
                 .boards(boardSummaries)
@@ -122,14 +114,7 @@ public class AdminService {
 
         Page<Board> boardPage = boardRepository.findAllWithFilters(search, tier, pageable);
 
-        List<AdminResponse.BoardSummary> boards = boardPage.getContent().stream()
-                .map(board -> {
-                    int memberCount = (int) boardMemberRepository.countByBoardId(board.getId());
-                    int taskCount = taskRepository.countByBoardId(board.getId());
-                    Subscription subscription = subscriptionRepository.findByBoardId(board.getId()).orElse(null);
-                    return AdminResponse.BoardSummary.of(board, memberCount, taskCount, subscription);
-                })
-                .collect(Collectors.toList());
+        List<AdminResponse.BoardSummary> boards = toBoardSummaries(boardPage.getContent());
 
         return AdminResponse.BoardList.builder()
                 .boards(boards)
@@ -177,17 +162,53 @@ public class AdminService {
 
         // Tier 업데이트 로직
         BoardTier newTier = request.getTier();
+        Subscription subscription = subscriptionRepository.findByBoardId(boardId).orElse(null);
+
         if (newTier == BoardTier.PREMIUM) {
             board.upgradeToPremium();
+            if (subscription != null) {
+                subscription.upgradeByAdmin();
+            }
         } else if (newTier == BoardTier.STANDARD) {
             board.downgradeToStandard();
+            if (subscription != null) {
+                subscription.downgradeByAdmin();
+            }
         }
 
         int memberCount = (int) boardMemberRepository.countByBoardId(boardId);
         int taskCount = taskRepository.countByBoardId(boardId);
-        Subscription subscription = subscriptionRepository.findByBoardId(boardId).orElse(null);
 
         return AdminResponse.BoardSummary.of(board, memberCount, taskCount, subscription);
+    }
+
+    // ==================== Helper Methods ====================
+
+    /**
+     * 여러 보드의 요약 정보를 배치 조회하여 생성 (N+1 방지)
+     */
+    private List<AdminResponse.BoardSummary> toBoardSummaries(List<Board> boards) {
+        if (boards.isEmpty()) return Collections.emptyList();
+
+        List<String> boardIds = boards.stream().map(Board::getId).collect(Collectors.toList());
+
+        // 배치 조회: memberCount, taskCount, subscription
+        Map<String, Long> memberCountMap = boardMemberRepository.countGroupedByBoardId(boardIds).stream()
+                .collect(Collectors.toMap(row -> (String) row[0], row -> (Long) row[1]));
+
+        Map<String, Long> taskCountMap = taskRepository.countGroupedByBoardId(boardIds).stream()
+                .collect(Collectors.toMap(row -> (String) row[0], row -> (Long) row[1]));
+
+        Map<String, Subscription> subscriptionMap = subscriptionRepository.findByBoardIdIn(boardIds).stream()
+                .collect(Collectors.toMap(s -> s.getBoard().getId(), s -> s, (a, b) -> a));
+
+        return boards.stream()
+                .map(board -> AdminResponse.BoardSummary.of(
+                        board,
+                        memberCountMap.getOrDefault(board.getId(), 0L).intValue(),
+                        taskCountMap.getOrDefault(board.getId(), 0L).intValue(),
+                        subscriptionMap.get(board.getId())))
+                .collect(Collectors.toList());
     }
 
     // ==================== Statistics ====================

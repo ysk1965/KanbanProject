@@ -3,7 +3,7 @@ package com.kanban.domain.board.dto;
 import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardMember;
 import com.kanban.domain.board.BoardTier;
-import com.kanban.domain.board.Role;
+import com.kanban.domain.board.BoardRole;
 import com.kanban.domain.subscription.Subscription;
 import com.kanban.domain.subscription.SubscriptionStatus;
 import lombok.AllArgsConstructor;
@@ -23,7 +23,7 @@ public class BoardResponse {
         private String id;
         private String name;
         private String description;
-        private Role role;
+        private BoardRole role;
         private boolean isStarred;
         private int memberCount;
         private int taskCount;
@@ -32,7 +32,7 @@ public class BoardResponse {
         private SubscriptionInfo subscription;
         private LocalDateTime createdAt;
 
-        public static Simple of(Board board, Role role, boolean isStarred, int memberCount,
+        public static Simple of(Board board, BoardRole role, boolean isStarred, int memberCount,
                                 int taskCount, int completedTasks, List<MemberPreview> members,
                                 Subscription subscription) {
             return Simple.builder()
@@ -76,7 +76,7 @@ public class BoardResponse {
         private String name;
         private String description;
         private OwnerInfo owner;
-        private Role myRole;
+        private BoardRole myRole;
         private boolean isStarred;
         private int memberCount;
         private SubscriptionInfo subscription;
@@ -85,7 +85,7 @@ public class BoardResponse {
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;
 
-        public static Detail of(Board board, Role myRole, boolean isStarred, int memberCount, Subscription subscription) {
+        public static Detail of(Board board, BoardRole myRole, boolean isStarred, int memberCount, Subscription subscription) {
             return Detail.builder()
                     .id(board.getId())
                     .name(board.getName())

@@ -9,6 +9,7 @@ import com.kanban.domain.board.dto.BoardResponse;
 import com.kanban.domain.subscription.Subscription;
 import com.kanban.domain.subscription.SubscriptionRepository;
 import com.kanban.domain.task.TaskRepository;
+import com.kanban.domain.user.SystemRole;
 import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
@@ -42,11 +43,14 @@ public class BoardService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        // 보드 생성
+        boolean isTester = user.getSystemRole() == SystemRole.TESTER;
+
+        // 보드 생성 (TESTER는 PREMIUM 티어)
         Board board = Board.builder()
                 .name(request.getName())
                 .description(request.getDescription())
                 .owner(user)
+                .tier(isTester ? BoardTier.PREMIUM : BoardTier.TRIAL)
                 .build();
         boardRepository.save(board);
 
@@ -54,20 +58,22 @@ public class BoardService {
         BoardMember ownerMember = BoardMember.builder()
                 .board(board)
                 .user(user)
-                .role(Role.OWNER)
+                .role(BoardRole.OWNER)
                 .build();
         boardMemberRepository.save(ownerMember);
 
         // 기본 블록 3개 생성 (Feature, Task, Done)
         createDefaultBlocks(board);
 
-        // Trial 구독 생성
-        Subscription subscription = Subscription.createTrial(board);
+        // 구독 생성 (TESTER는 PREMIUM, 일반 사용자는 Trial)
+        Subscription subscription = isTester
+                ? Subscription.createPremium(board)
+                : Subscription.createTrial(board);
         subscriptionRepository.save(subscription);
 
         log.info("Board created: {} by user: {}", board.getId(), userId);
 
-        return BoardResponse.Detail.of(board, Role.OWNER, false, 1, subscription);
+        return BoardResponse.Detail.of(board, BoardRole.OWNER, false, 1, subscription);
     }
 
     private void createDefaultBlocks(Board board) {

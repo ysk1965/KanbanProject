@@ -59,7 +59,7 @@ public class MemberService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         // Owner 역할은 부여 불가
-        if (request.getRole() == Role.OWNER) {
+        if (request.getRole() == BoardRole.OWNER) {
             throw new BusinessException(ErrorCode.CANNOT_CHANGE_OWNER_ROLE);
         }
 
@@ -76,7 +76,7 @@ public class MemberService {
         }
     }
 
-    private MemberResponse.InviteResult addExistingUserAsMember(Board board, User inviter, User invitee, Role role, String boardId) {
+    private MemberResponse.InviteResult addExistingUserAsMember(Board board, User inviter, User invitee, BoardRole role, String boardId) {
         // Pessimistic Lock으로 Board 조회 - 멤버 제한 동시성 제어
         boardRepository.findByIdWithLock(boardId);
 
@@ -86,7 +86,7 @@ public class MemberService {
         }
 
         // 멤버 수 제한 확인 (billable 멤버 기준) - Lock 획득 후 체크하여 동시성 안전
-        if (role != Role.VIEWER) {
+        if (role != BoardRole.VIEWER) {
             Subscription subscription = subscriptionRepository.findByBoardId(boardId).orElse(null);
             if (subscription != null) {
                 int currentBillable = boardMemberRepository.countBillableMembers(boardId);
@@ -111,7 +111,7 @@ public class MemberService {
         return MemberResponse.InviteResult.ofDirectAdd(newMember);
     }
 
-    private MemberResponse.InviteResult sendEmailInvitation(Board board, User inviter, String email, Role role) {
+    private MemberResponse.InviteResult sendEmailInvitation(Board board, User inviter, String email, BoardRole role) {
         // 초대 링크 생성 (7일 후 만료, 1회 사용)
         InviteLink inviteLink = InviteLink.builder()
                 .board(board)
@@ -159,12 +159,12 @@ public class MemberService {
         }
 
         // Owner 역할로 변경 불가
-        if (request.getRole() == Role.OWNER) {
+        if (request.getRole() == BoardRole.OWNER) {
             throw new BusinessException(ErrorCode.CANNOT_CHANGE_OWNER_ROLE);
         }
 
         // Viewer에서 다른 역할로 변경 시 멤버 수 제한 확인 - Lock 획득 후 체크
-        if (member.getRole() == Role.VIEWER && request.getRole() != Role.VIEWER) {
+        if (member.getRole() == BoardRole.VIEWER && request.getRole() != BoardRole.VIEWER) {
             Subscription subscription = subscriptionRepository.findByBoardId(boardId).orElse(null);
             if (subscription != null) {
                 int currentBillable = boardMemberRepository.countBillableMembers(boardId);

@@ -55,6 +55,12 @@ public interface TaskRepository extends JpaRepository<Task, String> {
 
     int countByBoardIdAndIsCompletedTrue(String boardId);
 
+    /**
+     * 여러 보드의 Task 수 일괄 조회 (N+1 방지)
+     */
+    @Query("SELECT t.board.id, COUNT(t) FROM Task t WHERE t.board.id IN :boardIds GROUP BY t.board.id")
+    List<Object[]> countGroupedByBoardId(@Param("boardIds") List<String> boardIds);
+
     // ==================== Management Statistics Queries ====================
 
     /**

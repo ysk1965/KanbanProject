@@ -1,7 +1,7 @@
 package com.kanban.domain.invite;
 
 import com.kanban.domain.board.Board;
-import com.kanban.domain.board.Role;
+import com.kanban.domain.board.BoardRole;
 import com.kanban.domain.user.User;
 import jakarta.persistence.*;
 import lombok.*;
@@ -31,7 +31,7 @@ public class InviteLink {
     @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false, length = 20)
     @Builder.Default
-    private Role role = Role.MEMBER;
+    private BoardRole role = BoardRole.MEMBER;
 
     @Column(name = "max_uses")
     private Integer maxUses;

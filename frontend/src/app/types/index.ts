@@ -50,7 +50,7 @@ export interface AdminBoardSummary {
 }
 
 export interface AdminBoardDetail extends AdminBoardSummary {
-  members: { id: string; name: string; email: string; profile_image: string | null; role: Role; joined_at: string }[];
+  members: { id: string; name: string; email: string; profile_image: string | null; role: BoardRole; joined_at: string }[];
 }
 
 export interface AdminStatistics {
@@ -81,7 +81,9 @@ export interface AdminSubscription {
 // 역할 타입
 // ========================================
 
-export type Role = 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER';
+export type BoardRole = 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER';
+/** @deprecated Use BoardRole instead */
+export type Role = BoardRole;
 
 // ========================================
 // 구독 관련 타입
@@ -136,8 +138,8 @@ export interface Board {
   name: string;
   description?: string | null;
   owner?: BoardOwner;
-  role?: Role;
-  my_role?: Role;
+  role?: BoardRole;
+  my_role?: BoardRole;
   is_starred: boolean;
   member_count: number;
   task_count?: number;
@@ -172,7 +174,7 @@ export interface BoardLimits {
 export interface BoardMember {
   id: string;
   user: User;
-  role: Role;
+  role: BoardRole;
   joined_at: string;
   invited_by?: { id: string; name: string } | null;
 }
@@ -384,6 +386,29 @@ export interface InviteResult {
 }
 
 // ========================================
+// 댓글 타입
+// ========================================
+
+export interface TaskComment {
+  id: string;
+  task_id: string;
+  author: {
+    id: string;
+    name: string;
+    profile_image: string | null;
+  };
+  content: string;
+  mentions: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TaskCommentListResponse {
+  comments: TaskComment[];
+  total_count: number;
+}
+
+// ========================================
 // 활동 로그 타입
 // ========================================
 
@@ -427,6 +452,42 @@ export interface ActivityLog {
   target_id: string;
   metadata: Record<string, unknown>;
   created_at: string;
+}
+
+// ========================================
+// 알림(Notification) 타입
+// ========================================
+
+export type NotificationType = 'COMMENT_MENTION';
+
+export interface NotificationItem {
+  id: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  board_id: string;
+  board_name: string | null;
+  task_id: string | null;
+  comment_id: string | null;
+  sender: {
+    id: string;
+    name: string | null;
+    profile_image: string | null;
+  };
+  read: boolean;
+  read_at: string | null;
+  created_at: string;
+}
+
+export interface NotificationListResponse {
+  notifications: NotificationItem[];
+  unread_count: number;
+  has_more: boolean;
+  next_cursor: string | null;
+}
+
+export interface UnreadCountResponse {
+  unread_count: number;
 }
 
 // ========================================
@@ -542,6 +603,8 @@ export const ERROR_CODES = {
   S002: '체험 기간 만료',
   S003: '결제 필요',
   S004: '멤버 수 제한 초과',
+  // 알림
+  N001: '알림 없음',
 } as const;
 
 // ========================================
