@@ -37,6 +37,20 @@ provider "aws" {
   }
 }
 
+# Provider for ACM certificate (CloudFront requires us-east-1)
+provider "aws" {
+  alias  = "us_east_1"
+  region = "us-east-1"
+
+  default_tags {
+    tags = {
+      Project     = var.project_name
+      Environment = var.environment
+      ManagedBy   = "terraform"
+    }
+  }
+}
+
 # VPC Module - No NAT Gateway for cost savings
 module "vpc" {
   source = "../../modules/vpc"
@@ -83,7 +97,7 @@ module "elastic_beanstalk" {
   alb_security_group_id = module.security_groups.alb_security_group_id
   ec2_security_group_id = module.security_groups.eb_ec2_security_group_id
 
-  instance_type       = "t3.micro"
+  instance_type       = "t3.small"
   min_instances       = 1
   max_instances       = 2
   associate_public_ip = "true"  # Public subnet, no NAT
@@ -100,10 +114,107 @@ module "elastic_beanstalk" {
   depends_on = [module.rds]
 }
 
+# ACM Certificate Module (us-east-1 for CloudFront)
+module "acm_certificate" {
+  count  = var.domain_name != "" ? 1 : 0
+  source = "../../modules/acm-certificate"
+
+  providers = {
+    aws = aws.us_east_1
+  }
+
+  project_name              = var.project_name
+  environment               = var.environment
+  domain_name               = var.domain_name
+  subject_alternative_names = ["*.${var.domain_name}"]
+}
+
+# Route 53 Hosted Zone
+module "route53" {
+  count  = var.domain_name != "" ? 1 : 0
+  source = "../../modules/route53"
+
+  project_name = var.project_name
+  environment  = var.environment
+  domain_name  = var.domain_name
+}
+
 # S3 + CloudFront Module
 module "s3_cloudfront" {
   source = "../../modules/s3-cloudfront"
 
-  project_name = var.project_name
-  environment  = var.environment
+  project_name        = var.project_name
+  environment         = var.environment
+  acm_certificate_arn = var.domain_name != "" ? module.acm_certificate[0].validated_certificate_arn : ""
+  domain_aliases      = var.domain_name != "" ? [var.domain_name, "www.${var.domain_name}"] : []
+
+  depends_on = [module.acm_certificate]
+}
+
+# ACM Certificate Validation Records
+resource "aws_route53_record" "cert_validation" {
+  for_each = var.domain_name != "" ? {
+    for dvo in module.acm_certificate[0].domain_validation_options : dvo.domain_name => {
+      name   = dvo.resource_record_name
+      record = dvo.resource_record_value
+      type   = dvo.resource_record_type
+    }
+  } : {}
+
+  allow_overwrite = true
+  name            = each.value.name
+  records         = [each.value.record]
+  ttl             = 60
+  type            = each.value.type
+  zone_id         = module.route53[0].zone_id
+}
+
+# Frontend Domain Records
+resource "aws_route53_record" "frontend_root" {
+  count = var.domain_name != "" ? 1 : 0
+
+  zone_id = module.route53[0].zone_id
+  name    = var.domain_name
+  type    = "A"
+
+  alias {
+    name                   = module.s3_cloudfront.cloudfront_domain_name
+    zone_id                = module.s3_cloudfront.cloudfront_hosted_zone_id
+    evaluate_target_health = false
+  }
+
+  depends_on = [module.s3_cloudfront]
+}
+
+resource "aws_route53_record" "frontend_www" {
+  count = var.domain_name != "" ? 1 : 0
+
+  zone_id = module.route53[0].zone_id
+  name    = "www.${var.domain_name}"
+  type    = "A"
+
+  alias {
+    name                   = module.s3_cloudfront.cloudfront_domain_name
+    zone_id                = module.s3_cloudfront.cloudfront_hosted_zone_id
+    evaluate_target_health = false
+  }
+
+  depends_on = [module.s3_cloudfront]
+}
+
+# Backend API Domain Record
+resource "aws_route53_record" "backend_api" {
+  count = var.domain_name != "" ? 1 : 0
+
+  zone_id = module.route53[0].zone_id
+  name    = "api.${var.domain_name}"
+  type    = "A"
+
+  alias {
+    name                   = module.elastic_beanstalk.alb_dns_name
+    zone_id                = module.elastic_beanstalk.alb_zone_id
+    evaluate_target_health = true
+  }
+
+  depends_on = [module.elastic_beanstalk]
 }

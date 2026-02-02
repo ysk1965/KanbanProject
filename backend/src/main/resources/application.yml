@@ -66,6 +66,16 @@ spring.cache:
     time-to-live: 600000  # 10분
     cache-null-values: false
 
+# Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+
 # App config
 app:
   frontend-url: ${FRONTEND_URL:http://localhost:5173}
