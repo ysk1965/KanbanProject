@@ -66,7 +66,8 @@ jobs:
           region: ${{ env.AWS_REGION }}
           deployment_package: backend/deploy.zip
           wait_for_deployment: true
-          wait_for_recovery: 120
+          wait_for_environment_recovery: 120
+          use_existing_version_if_available: true
 
   # Deploy Frontend to S3
   deploy-frontend:
