@@ -37,9 +37,6 @@ public class LocalFileUploadService implements FileUploadService {
     @Value("${app.file.upload-dir:comments}")
     private String uploadDir;
 
-    @Value("${server.port:8080}")
-    private int serverPort;
-
     @Value("${app.file.thumbnail.max-width:400}")
     private int thumbnailMaxWidth;
 
@@ -84,7 +81,7 @@ public class LocalFileUploadService implements FileUploadService {
             Files.createDirectories(filePath.getParent());
             Files.write(filePath, file.getBytes());
 
-            String url = String.format("http://localhost:%d/uploads/%s", serverPort, tempKey);
+            String url = String.format("/uploads/%s", tempKey);
             log.info("Temp file saved locally: {} -> {}", file.getOriginalFilename(), filePath);
 
             return new TempUploadResult(tempKey, url);
@@ -127,14 +124,14 @@ public class LocalFileUploadService implements FileUploadService {
                 byte[] thumbnailBytes = ImageUtils.generateThumbnail(fileBytes, thumbnailMaxWidth, thumbnailMaxHeight);
                 Path thumbnailPath = Paths.get(localDir, thumbnailKey);
                 Files.write(thumbnailPath, thumbnailBytes);
-                thumbnailUrl = String.format("http://localhost:%d/uploads/%s", serverPort, thumbnailKey);
+                thumbnailUrl = String.format("/uploads/%s", thumbnailKey);
                 log.info("Thumbnail generated: {}", thumbnailPath);
             } catch (Exception e) {
                 log.warn("Failed to generate thumbnail for {}: {}", tempKey, e.getMessage());
                 thumbnailKey = null;
             }
 
-            String url = String.format("http://localhost:%d/uploads/%s", serverPort, permanentKey);
+            String url = String.format("/uploads/%s", permanentKey);
             log.info("File moved to permanent: {} -> {}", tempPath, permanentPath);
 
             return new PermanentResult(permanentKey, url, thumbnailKey, thumbnailUrl, contentType, fileBytes.length);
