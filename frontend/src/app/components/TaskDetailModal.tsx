@@ -384,6 +384,7 @@ export function TaskDetailModal({
                       onChange={(e) => updateEditedTask({ title: e.target.value })}
                       onBlur={() => setIsEditingTitle(false)}
                       onKeyDown={(e) => {
+                        if (e.nativeEvent.isComposing) return;
                         if (e.key === 'Enter' || e.key === 'Escape') {
                           setIsEditingTitle(false);
                         }
@@ -580,6 +581,7 @@ export function TaskDetailModal({
                       placeholder="태그 이름"
                       className="h-7 w-32 text-sm bg-white/5 border-white/10 text-foreground placeholder:text-slate-500"
                       onKeyDown={(e) => {
+                        if (e.nativeEvent.isComposing) return;
                         if (e.key === 'Enter') {
                           handleCreateNewTag();
                         }
@@ -946,6 +948,7 @@ function ChecklistItemRow({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.nativeEvent.isComposing) return;
     if (e.key === 'Enter') {
       handleSaveTitle();
     } else if (e.key === 'Escape') {
@@ -1234,6 +1237,7 @@ function AddChecklistItemInput({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.nativeEvent.isComposing) return;
     if (e.key === 'Enter') {
       handleAdd();
     } else if (e.key === 'Escape') {

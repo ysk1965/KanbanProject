@@ -1,6 +1,7 @@
 package com.kanban.domain.board;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -17,4 +18,8 @@ public interface UserBoardStarRepository extends JpaRepository<UserBoardStar, St
 
     @Query("SELECT ubs.board FROM UserBoardStar ubs WHERE ubs.user.id = :userId")
     List<Board> findStarredBoardsByUserId(@Param("userId") String userId);
+
+    @Modifying
+    @Query("DELETE FROM UserBoardStar ubs WHERE ubs.board.id = :boardId")
+    void deleteByBoardId(@Param("boardId") String boardId);
 }

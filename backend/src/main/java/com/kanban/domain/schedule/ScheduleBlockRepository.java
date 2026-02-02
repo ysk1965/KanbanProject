@@ -1,6 +1,7 @@
 package com.kanban.domain.schedule;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -81,4 +82,8 @@ public interface ScheduleBlockRepository extends JpaRepository<ScheduleBlock, St
             @Param("endDate") LocalDate endDate);
 
     long countByBoardId(String boardId);
+
+    @Modifying
+    @Query("DELETE FROM ScheduleBlock sb WHERE sb.board.id = :boardId")
+    void deleteByBoardId(@Param("boardId") String boardId);
 }

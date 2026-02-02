@@ -30,10 +30,16 @@
 ### API v1.1.0
 - Added: Comment API (4개 엔드포인트 - GET/POST/PUT/DELETE)
 - Added: Notification API (4개 엔드포인트 - 목록/읽지않은수/읽음처리/전체읽음)
-- Added: 에러 코드 CM001, CM002 (댓글)
-- Added: 에러 코드 N001 (알림)
-- Added: 에러 코드 MS001~MS004, W001, DC001~DC002, AD001
-- Changed: 섹션 번호 재정렬 (9: Comments, 16: Notifications 추가)
+- Added: Board Checklists API (2개 엔드포인트 - 보드 전체 조회/배치 조회)
+- Added: Daily Checklists API (5개 엔드포인트 - Premium 전용)
+- Added: Weight Levels API (4개 엔드포인트 - 보드 가중치/Task 가중치)
+- Added: Admin API (10개 엔드포인트 - 사용자/보드/통계/구독 관리)
+- Added: Test Data API (1개 엔드포인트 - 개발 환경 전용)
+- Changed: Schedule API 확장 (4 → 8개 엔드포인트, with-checklist-item/settings/checklist-item 조회 추가)
+- Changed: Schedule 경로 `/schedule` → `/schedules` 수정
+- Added: 에러 코드 R001, A006~A018, U002~U003, SC001, CM001~CM002, DC001~DC002, N001, AD001, MS001~MS004, W001
+- Changed: 에러 코드 전체 재정리 (ErrorCode.java 기반 40+ 코드)
+- Changed: 섹션 번호 재정렬 (23개 섹션)
 
 ### Design v1.0.0
 - No changes detected

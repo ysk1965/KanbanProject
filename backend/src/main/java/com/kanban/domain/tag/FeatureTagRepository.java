@@ -9,6 +9,10 @@ import java.util.List;
 
 public interface FeatureTagRepository extends JpaRepository<FeatureTag, String> {
 
+    @Modifying
+    @Query("DELETE FROM FeatureTag ft WHERE ft.feature.id IN (SELECT f.id FROM Feature f WHERE f.board.id = :boardId)")
+    void deleteAllByBoardId(@Param("boardId") String boardId);
+
     List<FeatureTag> findByFeatureId(String featureId);
 
     @Query("SELECT ft.tag FROM FeatureTag ft WHERE ft.feature.id = :featureId")

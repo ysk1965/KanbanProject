@@ -2,6 +2,7 @@ package com.kanban.domain.milestone;
 
 import com.kanban.domain.feature.Feature;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -45,4 +46,8 @@ public interface MilestoneFeatureRepository extends JpaRepository<MilestoneFeatu
     void deleteByFeatureId(String featureId);
 
     int countByMilestoneId(String milestoneId);
+
+    @Modifying
+    @Query("DELETE FROM MilestoneFeature mf WHERE mf.milestone.id IN (SELECT m.id FROM Milestone m WHERE m.board.id = :boardId)")
+    void deleteAllByBoardId(@Param("boardId") String boardId);
 }

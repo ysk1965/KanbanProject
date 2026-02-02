@@ -1,6 +1,7 @@
 package com.kanban.domain.checklist;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -8,6 +9,10 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public interface ChecklistItemRepository extends JpaRepository<ChecklistItem, String> {
+
+    @Modifying
+    @Query("DELETE FROM ChecklistItem ci WHERE ci.task.id IN (SELECT t.id FROM Task t WHERE t.board.id = :boardId)")
+    void deleteAllByBoardId(@Param("boardId") String boardId);
 
     List<ChecklistItem> findByTaskIdOrderByPositionAsc(String taskId);
 

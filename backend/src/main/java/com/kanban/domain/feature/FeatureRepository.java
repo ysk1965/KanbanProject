@@ -1,6 +1,7 @@
 package com.kanban.domain.feature;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -28,4 +29,8 @@ public interface FeatureRepository extends JpaRepository<Feature, String> {
     Integer findMaxPositionByBoardId(@Param("boardId") String boardId);
 
     int countByBoardId(String boardId);
+
+    @Modifying
+    @Query("DELETE FROM Feature f WHERE f.board.id = :boardId")
+    void deleteByBoardId(@Param("boardId") String boardId);
 }

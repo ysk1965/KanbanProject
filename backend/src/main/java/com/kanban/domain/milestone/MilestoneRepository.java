@@ -1,6 +1,7 @@
 package com.kanban.domain.milestone;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -25,4 +26,8 @@ public interface MilestoneRepository extends JpaRepository<Milestone, String> {
            "LEFT JOIN FETCH m.createdBy " +
            "WHERE m.id = :milestoneId")
     Optional<Milestone> findByIdWithDetails(@Param("milestoneId") String milestoneId);
+
+    @Modifying
+    @Query("DELETE FROM Milestone m WHERE m.board.id = :boardId")
+    void deleteByBoardId(@Param("boardId") String boardId);
 }

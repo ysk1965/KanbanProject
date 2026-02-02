@@ -135,7 +135,7 @@ export function FeatureDetailModal({
     <>
       {/* Main Modal */}
       <div
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4"
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
         onClick={handleClose}
       >
         <div
@@ -274,6 +274,7 @@ export function FeatureDetailModal({
                       placeholder="태그 이름"
                       className="h-7 w-24 text-xs bg-kanban-input border border-white/10 rounded-lg px-2 focus:outline-none focus:border-indigo-500/50"
                       onKeyDown={(e) => {
+                        if (e.nativeEvent.isComposing) return;
                         if (e.key === 'Enter') handleCreateNewTag();
                       }}
                     />
@@ -389,6 +390,7 @@ export function FeatureDetailModal({
                     value={newSubtaskTitle}
                     onChange={(e) => setNewSubtaskTitle(e.target.value)}
                     onKeyDown={(e) => {
+                      if (e.nativeEvent.isComposing) return;
                       if (e.key === 'Enter') handleAddSubtask();
                     }}
                     className="flex-1 bg-transparent border-none rounded-lg px-3 py-2 text-xs focus:outline-none text-zinc-300 placeholder-zinc-600"
@@ -425,7 +427,7 @@ export function FeatureDetailModal({
 
       {/* Confirm Dialog */}
       {showConfirmDialog && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="w-full max-w-md bg-kanban-bg rounded-2xl border border-white/10 p-6 shadow-2xl">
             <h3 className="text-lg font-bold text-foreground mb-2">변경사항을 저장하시겠습니까?</h3>
             <p className="text-sm text-zinc-400 mb-6">
@@ -451,7 +453,7 @@ export function FeatureDetailModal({
 
       {/* Delete Dialog */}
       {showDeleteDialog && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="w-full max-w-md bg-kanban-bg rounded-2xl border border-white/10 p-6 shadow-2xl">
             <h3 className="text-lg font-bold text-foreground mb-2">이 기능을 삭제하시겠습니까?</h3>
             <p className="text-sm text-zinc-400 mb-6">

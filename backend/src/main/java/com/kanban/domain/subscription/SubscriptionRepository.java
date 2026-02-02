@@ -3,6 +3,7 @@ package com.kanban.domain.subscription;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -34,4 +35,8 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Stri
      */
     @Query("SELECT s FROM Subscription s WHERE s.board.id IN :boardIds")
     List<Subscription> findByBoardIdIn(@Param("boardIds") List<String> boardIds);
+
+    @Modifying
+    @Query("DELETE FROM Subscription s WHERE s.board.id = :boardId")
+    void deleteByBoardId(@Param("boardId") String boardId);
 }

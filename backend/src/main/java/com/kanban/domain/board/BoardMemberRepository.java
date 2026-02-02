@@ -1,6 +1,7 @@
 package com.kanban.domain.board;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -43,4 +44,8 @@ public interface BoardMemberRepository extends JpaRepository<BoardMember, String
      * 해당 사용자의 모든 멤버십 삭제 (계정 탈퇴 시 사용)
      */
     void deleteByUserId(String userId);
+
+    @Modifying
+    @Query("DELETE FROM BoardMember bm WHERE bm.board.id = :boardId")
+    void deleteByBoardId(@Param("boardId") String boardId);
 }

@@ -1,6 +1,7 @@
 package com.kanban.domain.task;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -113,4 +114,8 @@ public interface TaskRepository extends JpaRepository<Task, String> {
            "AND t.dueDate < CURRENT_DATE " +
            "ORDER BY t.dueDate ASC")
     List<Task> findOverdueTasks(@Param("boardId") String boardId);
+
+    @Modifying
+    @Query("DELETE FROM Task t WHERE t.board.id = :boardId")
+    void deleteByBoardId(@Param("boardId") String boardId);
 }

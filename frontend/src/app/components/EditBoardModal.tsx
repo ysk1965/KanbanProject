@@ -71,6 +71,7 @@ export function EditBoardModal({
               placeholder="e.g., Project Management"
               className="bg-white/5 border-white/10 text-foreground placeholder:text-slate-600 focus:border-bridge-accent focus:ring-bridge-accent/50"
               onKeyDown={(e) => {
+                if (e.nativeEvent.isComposing) return;
                 if (e.key === 'Enter' && !e.shiftKey) {
                   handleUpdate();
                 }

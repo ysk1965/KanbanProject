@@ -149,6 +149,7 @@ export function ShareBoardModal({
                 placeholder="Email address or name"
                 className="flex-1 bg-kanban-card border-kanban-border text-white placeholder:text-zinc-500"
                 onKeyDown={(e) => {
+                  if (e.nativeEvent.isComposing) return;
                   if (e.key === 'Enter') {
                     handleInvite();
                   }

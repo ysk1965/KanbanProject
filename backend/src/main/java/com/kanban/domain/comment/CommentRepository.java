@@ -1,6 +1,7 @@
 package com.kanban.domain.comment;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -17,4 +18,8 @@ public interface CommentRepository extends JpaRepository<Comment, String> {
     int countByTaskId(String taskId);
 
     void deleteByTaskId(String taskId);
+
+    @Modifying
+    @Query("DELETE FROM Comment c WHERE c.board.id = :boardId")
+    void deleteByBoardId(@Param("boardId") String boardId);
 }

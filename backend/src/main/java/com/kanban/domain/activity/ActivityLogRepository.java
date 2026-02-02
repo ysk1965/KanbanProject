@@ -3,6 +3,7 @@ package com.kanban.domain.activity;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -18,4 +19,8 @@ public interface ActivityLogRepository extends JpaRepository<ActivityLog, String
 
     @Query("SELECT a FROM ActivityLog a WHERE a.board.id = :boardId AND a.targetType = :targetType AND a.targetId = :targetId ORDER BY a.createdAt DESC")
     List<ActivityLog> findByTarget(@Param("boardId") String boardId, @Param("targetType") TargetType targetType, @Param("targetId") String targetId);
+
+    @Modifying
+    @Query("DELETE FROM ActivityLog a WHERE a.board.id = :boardId")
+    void deleteByBoardId(@Param("boardId") String boardId);
 }

@@ -88,6 +88,7 @@ export function CreateBoardModal({
               placeholder="e.g., Project Management"
               className="bg-bridge-dark border-white/10 text-foreground placeholder:text-slate-500 focus:border-blue-500"
               onKeyDown={(e) => {
+                if (e.nativeEvent.isComposing) return;
                 if (e.key === 'Enter' && !e.shiftKey) {
                   handleCreate();
                 }

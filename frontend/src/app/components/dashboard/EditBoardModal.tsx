@@ -118,6 +118,7 @@ export function EditBoardModal({ isOpen, board, onClose, onUpdate, onDelete }: E
                   placeholder="보드 이름을 입력하세요"
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-bridge-accent focus:ring-2 focus:ring-bridge-accent/20 transition-all"
                   onKeyDown={(e) => {
+                    if (e.nativeEvent.isComposing) return;
                     if (e.key === 'Enter' && !e.shiftKey) {
                       handleUpdate();
                     }

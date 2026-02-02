@@ -1,6 +1,7 @@
 package com.kanban.domain.weight;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -8,6 +9,10 @@ import java.util.List;
 import java.util.Optional;
 
 public interface TaskWeightRepository extends JpaRepository<TaskWeight, String> {
+
+    @Modifying
+    @Query("DELETE FROM TaskWeight tw WHERE tw.task.id IN (SELECT t.id FROM Task t WHERE t.board.id = :boardId)")
+    void deleteAllByBoardId(@Param("boardId") String boardId);
 
     Optional<TaskWeight> findByTaskId(String taskId);
 

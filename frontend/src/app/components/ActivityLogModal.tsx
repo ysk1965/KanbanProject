@@ -133,7 +133,7 @@ export function ActivityLogModal({
   };
 
   const getTimeAgo = (dateStr: string) => {
-    const date = new Date(dateStr);
+    const date = new Date(dateStr.endsWith('Z') ? dateStr : dateStr + 'Z');
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffSecs = Math.floor(diffMs / 1000);

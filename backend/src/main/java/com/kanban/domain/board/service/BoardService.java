@@ -1,17 +1,33 @@
 package com.kanban.domain.board.service;
 
+import com.kanban.domain.activity.ActivityLogRepository;
 import com.kanban.domain.block.Block;
 import com.kanban.domain.block.BlockRepository;
 import com.kanban.domain.block.FixedBlockType;
 import com.kanban.domain.board.*;
 import com.kanban.domain.board.dto.BoardRequest;
 import com.kanban.domain.board.dto.BoardResponse;
+import com.kanban.domain.checklist.ChecklistItemRepository;
+import com.kanban.domain.comment.CommentRepository;
+import com.kanban.domain.dailychecklist.DailyChecklistRepository;
+import com.kanban.domain.feature.FeatureRepository;
+import com.kanban.domain.invite.InviteLinkRepository;
+import com.kanban.domain.milestone.MilestoneAllocationRepository;
+import com.kanban.domain.milestone.MilestoneFeatureRepository;
+import com.kanban.domain.milestone.MilestoneRepository;
+import com.kanban.domain.notification.NotificationRepository;
+import com.kanban.domain.schedule.ScheduleBlockRepository;
 import com.kanban.domain.subscription.Subscription;
 import com.kanban.domain.subscription.SubscriptionRepository;
+import com.kanban.domain.tag.FeatureTagRepository;
+import com.kanban.domain.tag.TagRepository;
+import com.kanban.domain.tag.TaskTagRepository;
 import com.kanban.domain.task.TaskRepository;
 import com.kanban.domain.user.SystemRole;
 import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
+import com.kanban.domain.weight.TaskWeightRepository;
+import com.kanban.domain.weight.WeightLevelRepository;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -37,6 +53,22 @@ public class BoardService {
     private final SubscriptionRepository subscriptionRepository;
     private final TaskRepository taskRepository;
     private final UserRepository userRepository;
+    private final FeatureRepository featureRepository;
+    private final CommentRepository commentRepository;
+    private final ChecklistItemRepository checklistItemRepository;
+    private final NotificationRepository notificationRepository;
+    private final ActivityLogRepository activityLogRepository;
+    private final InviteLinkRepository inviteLinkRepository;
+    private final TagRepository tagRepository;
+    private final TaskTagRepository taskTagRepository;
+    private final FeatureTagRepository featureTagRepository;
+    private final TaskWeightRepository taskWeightRepository;
+    private final WeightLevelRepository weightLevelRepository;
+    private final MilestoneRepository milestoneRepository;
+    private final MilestoneFeatureRepository milestoneFeatureRepository;
+    private final MilestoneAllocationRepository milestoneAllocationRepository;
+    private final ScheduleBlockRepository scheduleBlockRepository;
+    private final DailyChecklistRepository dailyChecklistRepository;
 
     @Transactional
     public BoardResponse.Detail createBoard(String userId, BoardRequest.Create request) {
@@ -166,8 +198,47 @@ public class BoardService {
             throw new BusinessException(ErrorCode.BOARD_ACCESS_DENIED);
         }
 
-        // TODO: 관련 데이터 삭제 (blocks, features, tasks, etc.)
+        // 관련 데이터 삭제 (FK 의존성 순서: leaf → parent)
+        // 1) 마일스톤 하위 (milestone_id FK)
+        milestoneAllocationRepository.deleteAllByBoardId(boardId);
+        milestoneFeatureRepository.deleteAllByBoardId(boardId);
 
+        // 2) 태그 연결 테이블 (feature_id, task_id FK)
+        featureTagRepository.deleteAllByBoardId(boardId);
+        taskTagRepository.deleteAllByBoardId(boardId);
+
+        // 3) Task 가중치 (task_id, weight_level_id FK)
+        taskWeightRepository.deleteAllByBoardId(boardId);
+
+        // 4) 스케줄/데일리 (checklist_item_id FK)
+        dailyChecklistRepository.deleteByBoardId(boardId);
+        scheduleBlockRepository.deleteByBoardId(boardId);
+
+        // 5) 체크리스트 아이템 (task_id FK)
+        checklistItemRepository.deleteAllByBoardId(boardId);
+
+        // 6) 댓글, 알림, 활동로그, 초대링크
+        commentRepository.deleteByBoardId(boardId);
+        notificationRepository.deleteByBoardId(boardId);
+        activityLogRepository.deleteByBoardId(boardId);
+        inviteLinkRepository.deleteByBoardId(boardId);
+
+        // 7) Task → Feature → Block 순서
+        taskRepository.deleteByBoardId(boardId);
+        featureRepository.deleteByBoardId(boardId);
+        blockRepository.deleteByBoardId(boardId);
+
+        // 8) 태그, 가중치 레벨, 마일스톤
+        tagRepository.deleteByBoardId(boardId);
+        weightLevelRepository.deleteByBoardId(boardId);
+        milestoneRepository.deleteByBoardId(boardId);
+
+        // 9) 보드 멤버십 관련
+        userBoardStarRepository.deleteByBoardId(boardId);
+        boardMemberRepository.deleteByBoardId(boardId);
+        subscriptionRepository.deleteByBoardId(boardId);
+
+        // 10) 보드 삭제
         boardRepository.delete(board);
         log.info("Board deleted: {} by user: {}", boardId, userId);
     }

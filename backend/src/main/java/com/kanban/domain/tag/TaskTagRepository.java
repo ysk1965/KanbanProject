@@ -9,6 +9,10 @@ import java.util.List;
 
 public interface TaskTagRepository extends JpaRepository<TaskTag, String> {
 
+    @Modifying
+    @Query("DELETE FROM TaskTag tt WHERE tt.task.id IN (SELECT t.id FROM Task t WHERE t.board.id = :boardId)")
+    void deleteAllByBoardId(@Param("boardId") String boardId);
+
     List<TaskTag> findByTaskId(String taskId);
 
     @Query("SELECT tt.tag FROM TaskTag tt WHERE tt.task.id = :taskId")

@@ -65,4 +65,8 @@ public interface DailyChecklistRepository extends JpaRepository<DailyChecklist, 
     @Modifying
     @Query("UPDATE DailyChecklist dc SET dc.checklistItem = null WHERE dc.checklistItem.id = :checklistItemId")
     void unlinkByChecklistItemId(@Param("checklistItemId") String checklistItemId);
+
+    @Modifying
+    @Query("DELETE FROM DailyChecklist dc WHERE dc.board.id = :boardId")
+    void deleteByBoardId(@Param("boardId") String boardId);
 }

@@ -3,6 +3,7 @@ package com.kanban.domain.block;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -31,4 +32,8 @@ public interface BlockRepository extends JpaRepository<Block, String> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT b FROM Block b WHERE b.id = :blockId")
     Optional<Block> findByIdWithLock(@Param("blockId") String blockId);
+
+    @Modifying
+    @Query("DELETE FROM Block b WHERE b.board.id = :boardId")
+    void deleteByBoardId(@Param("boardId") String boardId);
 }

@@ -463,6 +463,7 @@ export function AddDailyChecklistModal({
                                       value={newItemTitle}
                                       onChange={(e) => setNewItemTitle(e.target.value)}
                                       onKeyDown={(e) => {
+                                        if (e.nativeEvent.isComposing) return;
                                         if (e.key === 'Enter' && newItemTitle.trim()) {
                                           handleAddPendingItem(taskData.task.id);
                                         } else if (e.key === 'Escape') {
@@ -667,6 +668,7 @@ export function AddDailyChecklistModal({
                                       value={newItemTitle}
                                       onChange={(e) => setNewItemTitle(e.target.value)}
                                       onKeyDown={(e) => {
+                                        if (e.nativeEvent.isComposing) return;
                                         if (e.key === 'Enter' && newItemTitle.trim()) {
                                           handleAddPendingItem(taskData.task.id);
                                         } else if (e.key === 'Escape') {

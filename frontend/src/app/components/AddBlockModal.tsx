@@ -45,7 +45,7 @@ export function AddBlockModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
       onClick={onClose}
     >
       <div
@@ -76,6 +76,7 @@ export function AddBlockModal({
               placeholder="예: In Progress"
               className="w-full bg-kanban-input border border-white/5 rounded-xl p-3 text-white placeholder-zinc-600 focus:outline-none focus:border-indigo-500/50 transition-all text-sm"
               onKeyDown={(e) => {
+                if (e.nativeEvent.isComposing) return;
                 if (e.key === 'Enter') {
                   handleSubmit();
                 }
