@@ -188,6 +188,43 @@ resource "aws_elastic_beanstalk_environment" "main" {
     value     = var.alb_security_group_id
   }
 
+  # HTTPS Listener (conditional)
+  dynamic "setting" {
+    for_each = var.ssl_certificate_arn != "" ? [1] : []
+    content {
+      namespace = "aws:elbv2:listener:443"
+      name      = "ListenerEnabled"
+      value     = "true"
+    }
+  }
+
+  dynamic "setting" {
+    for_each = var.ssl_certificate_arn != "" ? [1] : []
+    content {
+      namespace = "aws:elbv2:listener:443"
+      name      = "Protocol"
+      value     = "HTTPS"
+    }
+  }
+
+  dynamic "setting" {
+    for_each = var.ssl_certificate_arn != "" ? [1] : []
+    content {
+      namespace = "aws:elbv2:listener:443"
+      name      = "SSLCertificateArns"
+      value     = var.ssl_certificate_arn
+    }
+  }
+
+  dynamic "setting" {
+    for_each = var.ssl_certificate_arn != "" ? [1] : []
+    content {
+      namespace = "aws:elbv2:listener:443"
+      name      = "SSLPolicy"
+      value     = "ELBSecurityPolicy-TLS13-1-2-2021-06"
+    }
+  }
+
   # Health Check
   setting {
     namespace = "aws:elasticbeanstalk:environment:process:default"
@@ -300,4 +337,9 @@ resource "aws_elastic_beanstalk_environment" "main" {
     Name        = "${var.project_name}-${var.environment}-env"
     Environment = var.environment
   }
+}
+
+# Look up the actual ALB created by Elastic Beanstalk
+data "aws_lb" "eb_alb" {
+  arn = one(aws_elastic_beanstalk_environment.main.load_balancers)
 }

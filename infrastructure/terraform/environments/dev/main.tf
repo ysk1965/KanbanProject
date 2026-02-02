@@ -109,9 +109,22 @@ module "elastic_beanstalk" {
   redis_host     = ""      # No Redis - using Simple Cache
   redis_port     = ""
   jwt_secret     = var.jwt_secret
-  frontend_url   = module.s3_cloudfront.cloudfront_url
+  frontend_url   = var.domain_name != "" ? "https://${var.domain_name}" : module.s3_cloudfront.cloudfront_url
 
-  depends_on = [module.rds]
+  ssl_certificate_arn = var.domain_name != "" ? module.acm_certificate_alb[0].validated_certificate_arn : ""
+
+  depends_on = [module.rds, module.acm_certificate_alb]
+}
+
+# ACM Certificate (ap-northeast-2 for ALB)
+module "acm_certificate_alb" {
+  count  = var.domain_name != "" ? 1 : 0
+  source = "../../modules/acm-certificate"
+
+  project_name              = var.project_name
+  environment               = "${var.environment}-alb"
+  domain_name               = var.domain_name
+  subject_alternative_names = ["*.${var.domain_name}"]
 }
 
 # ACM Certificate Module (us-east-1 for CloudFront)
@@ -151,7 +164,25 @@ module "s3_cloudfront" {
   depends_on = [module.acm_certificate]
 }
 
-# ACM Certificate Validation Records
+# ACM Certificate Validation Records (ALB - ap-northeast-2)
+resource "aws_route53_record" "cert_validation_alb" {
+  for_each = var.domain_name != "" ? {
+    for dvo in module.acm_certificate_alb[0].domain_validation_options : dvo.domain_name => {
+      name   = dvo.resource_record_name
+      record = dvo.resource_record_value
+      type   = dvo.resource_record_type
+    }
+  } : {}
+
+  allow_overwrite = true
+  name            = each.value.name
+  records         = [each.value.record]
+  ttl             = 60
+  type            = each.value.type
+  zone_id         = module.route53[0].zone_id
+}
+
+# ACM Certificate Validation Records (CloudFront - us-east-1)
 resource "aws_route53_record" "cert_validation" {
   for_each = var.domain_name != "" ? {
     for dvo in module.acm_certificate[0].domain_validation_options : dvo.domain_name => {

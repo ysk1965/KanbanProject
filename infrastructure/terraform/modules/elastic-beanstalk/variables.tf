@@ -106,3 +106,9 @@ variable "associate_public_ip" {
   type        = string
   default     = "false"
 }
+
+variable "ssl_certificate_arn" {
+  description = "ACM certificate ARN for HTTPS listener (empty to disable HTTPS)"
+  type        = string
+  default     = ""
+}

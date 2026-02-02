@@ -43,6 +43,35 @@ output "frontend_cloudfront_distribution_id" {
   value       = module.s3_cloudfront.cloudfront_distribution_id
 }
 
+# Route 53 Outputs
+output "route53_zone_id" {
+  description = "Route 53 hosted zone ID"
+  value       = var.domain_name != "" ? module.route53[0].zone_id : null
+}
+
+output "route53_name_servers" {
+  description = "Route 53 name servers (configure these in your domain registrar)"
+  value       = var.domain_name != "" ? module.route53[0].name_servers : null
+}
+
+# ACM Certificate Outputs
+output "acm_certificate_arn" {
+  description = "ACM certificate ARN"
+  value       = var.domain_name != "" ? module.acm_certificate[0].certificate_arn : null
+  sensitive   = true
+}
+
+# Domain URLs
+output "frontend_url" {
+  description = "Frontend URL"
+  value       = var.domain_name != "" ? "https://${var.domain_name}" : module.s3_cloudfront.cloudfront_url
+}
+
+output "backend_api_url" {
+  description = "Backend API URL"
+  value       = var.domain_name != "" ? "https://api.${var.domain_name}" : "https://${module.elastic_beanstalk.cname}"
+}
+
 # Cost info
 output "estimated_monthly_cost" {
   description = "Estimated monthly cost"

@@ -1,0 +1,19 @@
+output "zone_id" {
+  description = "Route 53 hosted zone ID"
+  value       = aws_route53_zone.main.zone_id
+}
+
+output "name_servers" {
+  description = "Route 53 name servers (set these in your domain registrar)"
+  value       = aws_route53_zone.main.name_servers
+}
+
+output "zone_arn" {
+  description = "Route 53 hosted zone ARN"
+  value       = aws_route53_zone.main.arn
+}
+
+output "domain_name" {
+  description = "Domain name"
+  value       = var.domain_name
+}

@@ -128,12 +128,14 @@ resource "aws_cloudfront_distribution" "frontend" {
     }
   }
 
+  # Custom domain support
+  aliases = var.domain_aliases
+
   viewer_certificate {
-    cloudfront_default_certificate = true
-    # For custom domain, use ACM certificate:
-    # acm_certificate_arn      = var.acm_certificate_arn
-    # ssl_support_method       = "sni-only"
-    # minimum_protocol_version = "TLSv1.2_2021"
+    cloudfront_default_certificate = var.acm_certificate_arn == "" ? true : false
+    acm_certificate_arn            = var.acm_certificate_arn != "" ? var.acm_certificate_arn : null
+    ssl_support_method             = var.acm_certificate_arn != "" ? "sni-only" : null
+    minimum_protocol_version       = var.acm_certificate_arn != "" ? "TLSv1.2_2021" : "TLSv1"
   }
 
   tags = {

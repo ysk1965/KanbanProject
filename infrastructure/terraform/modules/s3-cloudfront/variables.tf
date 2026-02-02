@@ -19,3 +19,9 @@ variable "domain_name" {
   type        = string
   default     = null
 }
+
+variable "domain_aliases" {
+  description = "List of domain aliases for CloudFront (e.g., ['bridgespots.com', 'www.bridgespots.com'])"
+  type        = list(string)
+  default     = []
+}

@@ -27,3 +27,13 @@ output "load_balancers" {
   description = "Load balancer ARNs"
   value       = aws_elastic_beanstalk_environment.main.load_balancers
 }
+
+output "alb_dns_name" {
+  description = "Application Load Balancer DNS name (for Route 53 alias)"
+  value       = data.aws_lb.eb_alb.dns_name
+}
+
+output "alb_zone_id" {
+  description = "Application Load Balancer hosted zone ID (for Route 53 alias)"
+  value       = data.aws_lb.eb_alb.zone_id
+}

@@ -33,3 +33,9 @@ variable "jwt_secret" {
   type        = string
   sensitive   = true
 }
+
+variable "domain_name" {
+  description = "Domain name (e.g., bridgespots.com)"
+  type        = string
+  default     = ""  # Set this to enable custom domain
+}
