@@ -33,7 +33,7 @@ jwt:
 # Google OAuth2
 google:
   oauth2:
-    client-id: ${GOOGLE_CLIENT_ID:573353962587-1r0l8otb51n8h0iuha5ek0e2sfqjft1j.apps.googleusercontent.com}
+    client-id: ${GOOGLE_CLIENT_ID:573353962587-q8ia0hajgcsr7ehgaeu85fth5h9stlqt.apps.googleusercontent.com}
 
 # Email (Gmail SMTP)
 spring.mail:
