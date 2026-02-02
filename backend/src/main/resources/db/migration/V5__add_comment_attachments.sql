@@ -5,6 +5,8 @@ CREATE TABLE IF NOT EXISTS comment_attachments (
     original_file_name VARCHAR(255) NOT NULL,
     s3_key VARCHAR(500) NOT NULL,
     url VARCHAR(500) NOT NULL,
+    thumbnail_s3_key VARCHAR(500),
+    thumbnail_url VARCHAR(500),
     content_type VARCHAR(100) NOT NULL,
     file_size BIGINT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

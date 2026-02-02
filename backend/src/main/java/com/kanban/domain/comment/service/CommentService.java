@@ -21,10 +21,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -54,16 +55,25 @@ public class CommentService {
     }
 
     /**
-     * 댓글 작성 (이미지 첨부 포함)
+     * 댓글 작성 (fileKeys: 미리 업로드된 임시 파일 키 목록)
      */
     @Transactional
     public CommentResponse.Detail createComment(String boardId, String taskId, String userId,
-                                                  String content, String mentionsStr, List<MultipartFile> files) {
+                                                  CommentRequest.Create request) {
         boardService.checkMemberOrAbove(boardId, userId);
 
-        // 첨부파일 개수 제한
-        if (files != null && files.size() > MAX_ATTACHMENTS) {
+        List<String> fileKeys = request.getFileKeys();
+        if (fileKeys != null && fileKeys.size() > MAX_ATTACHMENTS) {
             throw new BusinessException(ErrorCode.ATTACHMENT_LIMIT_EXCEEDED);
+        }
+
+        // content가 비어있으면서 첨부파일도 없으면 에러
+        String content = request.getContent();
+        if ((content == null || content.isBlank()) && (fileKeys == null || fileKeys.isEmpty())) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
+        }
+        if (content == null || content.isBlank()) {
+            content = ""; // 이미지만 첨부한 경우
         }
 
         Task task = taskRepository.findById(taskId)
@@ -72,6 +82,10 @@ public class CommentService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        String mentionsStr = request.getMentions() != null && !request.getMentions().isEmpty()
+                ? String.join(",", request.getMentions())
+                : null;
 
         Comment comment = Comment.builder()
                 .task(task)
@@ -83,34 +97,9 @@ public class CommentService {
 
         commentRepository.save(comment);
 
-        // 파일 업로드 처리
-        if (files != null && !files.isEmpty()) {
-            List<String> uploadedKeys = new ArrayList<>();
-            try {
-                for (MultipartFile file : files) {
-                    fileUploadService.validateImageFile(file);
-                    FileUploadService.UploadResult result = fileUploadService.upload(file, boardId, comment.getId());
-                    uploadedKeys.add(result.getS3Key());
-
-                    CommentAttachment attachment = CommentAttachment.builder()
-                            .comment(comment)
-                            .originalFileName(file.getOriginalFilename())
-                            .s3Key(result.getS3Key())
-                            .url(result.getUrl())
-                            .contentType(file.getContentType())
-                            .fileSize(file.getSize())
-                            .build();
-
-                    commentAttachmentRepository.save(attachment);
-                    comment.getAttachments().add(attachment);
-                }
-            } catch (Exception e) {
-                // 롤백: 이미 업로드된 파일들 삭제
-                for (String key : uploadedKeys) {
-                    fileUploadService.delete(key);
-                }
-                throw e;
-            }
+        // 임시 파일 → 영구 저장 + 썸네일 생성
+        if (fileKeys != null && !fileKeys.isEmpty()) {
+            processFileKeys(fileKeys, boardId, comment);
         }
 
         notificationService.createMentionNotifications(comment, user, board);
@@ -121,10 +110,11 @@ public class CommentService {
     }
 
     /**
-     * 댓글 수정 (본인 댓글만)
+     * 댓글 수정 (텍스트 + 첨부파일 추가/삭제)
      */
     @Transactional
-    public CommentResponse.Detail updateComment(String boardId, String commentId, String userId, CommentRequest.Update request) {
+    public CommentResponse.Detail updateComment(String boardId, String commentId, String userId,
+                                                  CommentRequest.Update request) {
         boardService.checkMemberOrAbove(boardId, userId);
 
         Comment comment = commentRepository.findById(commentId)
@@ -140,12 +130,38 @@ public class CommentService {
 
         comment.updateContent(request.getContent(), mentionsStr);
 
-        log.info("Comment updated: {} by user: {}", commentId, userId);
+        // 첨부파일 처리: keepAttachmentIds에 없는 기존 첨부파일은 삭제
+        if (request.getKeepAttachmentIds() != null) {
+            Set<String> keepIds = Set.copyOf(request.getKeepAttachmentIds());
+            List<CommentAttachment> toRemove = comment.getAttachments().stream()
+                    .filter(att -> !keepIds.contains(att.getId()))
+                    .toList();
+
+            for (CommentAttachment att : toRemove) {
+                fileUploadService.delete(att.getS3Key());
+                comment.getAttachments().remove(att);
+                commentAttachmentRepository.delete(att);
+                log.info("Attachment removed during edit: {}", att.getId());
+            }
+        }
+
+        // 새 파일 추가
+        List<String> newFileKeys = request.getNewFileKeys();
+        if (newFileKeys != null && !newFileKeys.isEmpty()) {
+            int totalAfter = comment.getAttachments().size() + newFileKeys.size();
+            if (totalAfter > MAX_ATTACHMENTS) {
+                throw new BusinessException(ErrorCode.ATTACHMENT_LIMIT_EXCEEDED);
+            }
+            processFileKeys(newFileKeys, boardId, comment);
+        }
+
+        log.info("Comment updated: {} by user: {} (attachments: {})",
+                commentId, userId, comment.getAttachments().size());
         return CommentResponse.Detail.of(comment);
     }
 
     /**
-     * 댓글 삭제 (본인 댓글 또는 ADMIN 이상)
+     * 댓글 삭제 (본인 또는 ADMIN 이상)
      */
     @Transactional
     public void deleteComment(String boardId, String commentId, String userId) {
@@ -158,7 +174,7 @@ public class CommentService {
             boardService.checkAdminOrAbove(boardId, userId);
         }
 
-        // S3에서 첨부파일 삭제
+        // 첨부파일 S3/로컬 삭제
         for (CommentAttachment attachment : comment.getAttachments()) {
             fileUploadService.delete(attachment.getS3Key());
         }
@@ -184,10 +200,60 @@ public class CommentService {
         CommentAttachment attachment = commentAttachmentRepository.findById(attachmentId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ATTACHMENT_NOT_FOUND));
 
+        // ★ 소속 검증: 첨부파일이 해당 댓글에 속하는지 확인
+        if (!attachment.getComment().getId().equals(commentId)) {
+            throw new BusinessException(ErrorCode.ATTACHMENT_NOT_FOUND);
+        }
+
         fileUploadService.delete(attachment.getS3Key());
         comment.getAttachments().remove(attachment);
         commentAttachmentRepository.delete(attachment);
 
         log.info("Attachment deleted: {} from comment: {} by user: {}", attachmentId, commentId, userId);
+    }
+
+    /**
+     * 임시 파일 키들을 영구 저장소로 이동 + 첨부파일 레코드 생성
+     */
+    private void processFileKeys(List<String> fileKeys, String boardId, Comment comment) {
+        List<String> processedKeys = new ArrayList<>();
+
+        try {
+            for (String tempKey : fileKeys) {
+                // 임시 파일 존재 확인
+                if (!fileUploadService.tempFileExists(tempKey)) {
+                    throw new BusinessException(ErrorCode.TEMP_FILE_NOT_FOUND);
+                }
+
+                FileUploadService.PermanentResult result =
+                        fileUploadService.moveToPermanent(tempKey, boardId, comment.getId());
+                processedKeys.add(result.getS3Key());
+
+                // 원본 파일명 추출 (temp key에서 확장자 추출)
+                String originalName = tempKey.contains("/")
+                        ? tempKey.substring(tempKey.lastIndexOf("/") + 1)
+                        : tempKey;
+
+                CommentAttachment attachment = CommentAttachment.builder()
+                        .comment(comment)
+                        .originalFileName(originalName)
+                        .s3Key(result.getS3Key())
+                        .url(result.getUrl())
+                        .thumbnailS3Key(result.getThumbnailS3Key())
+                        .thumbnailUrl(result.getThumbnailUrl())
+                        .contentType(result.getContentType())
+                        .fileSize(result.getFileSize())
+                        .build();
+
+                commentAttachmentRepository.save(attachment);
+                comment.getAttachments().add(attachment);
+            }
+        } catch (Exception e) {
+            // 롤백: 이미 이동된 파일들 삭제
+            for (String key : processedKeys) {
+                fileUploadService.delete(key);
+            }
+            throw e;
+        }
     }
 }

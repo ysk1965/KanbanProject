@@ -33,6 +33,12 @@ public class CommentAttachment extends BaseTimeEntity {
     @Column(name = "url", nullable = false, length = 500)
     private String url;
 
+    @Column(name = "thumbnail_s3_key", length = 500)
+    private String thumbnailS3Key;
+
+    @Column(name = "thumbnail_url", length = 500)
+    private String thumbnailUrl;
+
     @Column(name = "content_type", nullable = false, length = 100)
     private String contentType;
 

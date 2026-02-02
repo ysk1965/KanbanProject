@@ -7,13 +7,10 @@ import com.kanban.global.security.UserPrincipal;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
-import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -32,34 +29,24 @@ public class CommentController {
         return ResponseEntity.ok(response);
     }
 
-    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    /**
+     * 댓글 생성 (JSON)
+     * 파일은 미리 /api/v1/files/upload 또는 /presign으로 업로드 후 fileKeys로 참조
+     */
+    @PostMapping
     public ResponseEntity<CommentResponse.Detail> createComment(
-            @PathVariable String boardId,
-            @PathVariable String taskId,
-            @AuthenticationPrincipal UserPrincipal principal,
-            @RequestPart("content") String content,
-            @RequestPart(value = "mentions", required = false) String mentions,
-            @RequestPart(value = "files", required = false) List<MultipartFile> files) {
-        CommentResponse.Detail response = commentService.createComment(
-                boardId, taskId, principal.getUserId(), content, mentions, files);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
-    }
-
-    /** JSON 방식도 유지 (이미지 없는 댓글) */
-    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<CommentResponse.Detail> createCommentJson(
             @PathVariable String boardId,
             @PathVariable String taskId,
             @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody CommentRequest.Create request) {
         CommentResponse.Detail response = commentService.createComment(
-                boardId, taskId, principal.getUserId(),
-                request.getContent(),
-                request.getMentions() != null ? String.join(",", request.getMentions()) : null,
-                null);
+                boardId, taskId, principal.getUserId(), request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
+    /**
+     * 댓글 수정 (텍스트 + 첨부파일 추가/삭제)
+     */
     @PutMapping("/{commentId}")
     public ResponseEntity<CommentResponse.Detail> updateComment(
             @PathVariable String boardId,
@@ -67,7 +54,8 @@ public class CommentController {
             @PathVariable String commentId,
             @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody CommentRequest.Update request) {
-        CommentResponse.Detail response = commentService.updateComment(boardId, commentId, principal.getUserId(), request);
+        CommentResponse.Detail response = commentService.updateComment(
+                boardId, commentId, principal.getUserId(), request);
         return ResponseEntity.ok(response);
     }
 

@@ -67,6 +67,7 @@ public class CommentResponse {
         private String id;
         private String fileName;
         private String url;
+        private String thumbnailUrl;
         private String contentType;
         private Long fileSize;
         private LocalDateTime createdAt;
@@ -76,6 +77,7 @@ public class CommentResponse {
                     .id(attachment.getId())
                     .fileName(attachment.getOriginalFileName())
                     .url(attachment.getUrl())
+                    .thumbnailUrl(attachment.getThumbnailUrl())
                     .contentType(attachment.getContentType())
                     .fileSize(attachment.getFileSize())
                     .createdAt(attachment.getCreatedAt())

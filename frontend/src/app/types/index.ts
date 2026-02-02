@@ -393,6 +393,7 @@ export interface CommentAttachment {
   id: string;
   file_name: string;
   url: string;
+  thumbnail_url: string | null;
   content_type: string;
   file_size: number;
   created_at: string;

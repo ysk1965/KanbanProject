@@ -95,6 +95,11 @@ app:
     s3-bucket: ${S3_BUCKET:kanban-attachments}
     cloudfront-domain: ${CLOUDFRONT_DOMAIN:}
     upload-dir: comments
+    local-dir: ${FILE_LOCAL_DIR:./uploads}
+    temp-expiry-minutes: 60
+    thumbnail:
+      max-width: 400
+      max-height: 400
 
 ---
 # Local Profile (H2)
@@ -183,3 +188,9 @@ spring:
     hibernate:
       ddl-auto: validate
     show-sql: false
+
+app:
+  file:
+    s3-enabled: true
+    s3-bucket: ${S3_BUCKET}
+    cloudfront-domain: ${CLOUDFRONT_DOMAIN:}
