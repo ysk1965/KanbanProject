@@ -44,6 +44,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/api/v1/pricing/**").permitAll()
                         .requestMatchers("/api/v1/invites/**").permitAll()
+                        // Local uploaded files (dev)
+                        .requestMatchers("/uploads/**").permitAll()
                         // H2 Console
                         .requestMatchers("/h2-console/**").permitAll()
                         // Health check

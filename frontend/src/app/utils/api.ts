@@ -1021,6 +1021,15 @@ export const checklistAPI = {
 // Comment API
 // ========================================
 
+export interface CommentAttachmentResponse {
+  id: string;
+  file_name: string;
+  url: string;
+  content_type: string;
+  file_size: number;
+  created_at: string;
+}
+
 export interface CommentDetailResponse {
   id: string;
   task_id: string;
@@ -1031,6 +1040,7 @@ export interface CommentDetailResponse {
   };
   content: string;
   mentions: string[];
+  attachments: CommentAttachmentResponse[];
   created_at: string;
   updated_at: string;
 }
@@ -1050,8 +1060,40 @@ export const commentAPI = {
   createComment: async (
     boardId: string,
     taskId: string,
-    data: { content: string; mentions?: string[] }
+    data: { content: string; mentions?: string[] },
+    files?: File[]
   ) => {
+    // 파일이 있으면 multipart/form-data로 전송
+    if (files && files.length > 0) {
+      const formData = new FormData();
+      formData.append('content', data.content);
+      if (data.mentions && data.mentions.length > 0) {
+        formData.append('mentions', data.mentions.join(','));
+      }
+      files.forEach(file => formData.append('files', file));
+
+      const token = getAccessToken();
+      const response = await fetch(
+        `${API_BASE_URL}/boards/${boardId}/tasks/${taskId}/comments`,
+        {
+          method: 'POST',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          body: formData,
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({
+          code: 'UNKNOWN',
+          message: response.statusText,
+        }));
+        throw errorData;
+      }
+
+      return response.json() as Promise<CommentDetailResponse>;
+    }
+
+    // 파일 없으면 기존 JSON 방식
     return apiClient.post<CommentDetailResponse>(
       `/boards/${boardId}/tasks/${taskId}/comments`,
       data
@@ -1073,6 +1115,17 @@ export const commentAPI = {
   deleteComment: async (boardId: string, taskId: string, commentId: string) => {
     return apiClient.delete<{ message: string }>(
       `/boards/${boardId}/tasks/${taskId}/comments/${commentId}`
+    );
+  },
+
+  deleteAttachment: async (
+    boardId: string,
+    taskId: string,
+    commentId: string,
+    attachmentId: string
+  ) => {
+    return apiClient.delete<{ message: string }>(
+      `/boards/${boardId}/tasks/${taskId}/comments/${commentId}/attachments/${attachmentId}`
     );
   },
 };

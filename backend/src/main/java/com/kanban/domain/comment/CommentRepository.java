@@ -9,8 +9,9 @@ import java.util.List;
 
 public interface CommentRepository extends JpaRepository<Comment, String> {
 
-    @Query("SELECT c FROM Comment c " +
+    @Query("SELECT DISTINCT c FROM Comment c " +
            "JOIN FETCH c.author " +
+           "LEFT JOIN FETCH c.attachments " +
            "WHERE c.task.id = :taskId " +
            "ORDER BY c.createdAt ASC")
     List<Comment> findByTaskIdWithAuthor(@Param("taskId") String taskId);
