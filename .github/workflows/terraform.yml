@@ -1,0 +1,115 @@
+# Terraform Infrastructure Management
+name: Terraform
+
+on:
+  pull_request:
+    paths:
+      - 'infrastructure/terraform/**'
+  push:
+    branches: [main]
+    paths:
+      - 'infrastructure/terraform/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - prod
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'plan'
+        type: choice
+        options:
+          - plan
+          - apply
+
+env:
+  TF_VERSION: '1.6.0'
+  AWS_REGION: ap-northeast-2
+
+jobs:
+  # Terraform Plan on PR
+  terraform-plan:
+    name: Terraform Plan
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    strategy:
+      matrix:
+        environment: [dev, prod]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terraform Init
+        working-directory: infrastructure/terraform/environments/${{ matrix.environment }}
+        run: terraform init
+
+      - name: Terraform Validate
+        working-directory: infrastructure/terraform/environments/${{ matrix.environment }}
+        run: terraform validate
+
+      - name: Terraform Plan
+        working-directory: infrastructure/terraform/environments/${{ matrix.environment }}
+        run: terraform plan -no-color -input=false
+        env:
+          TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
+          TF_VAR_jwt_secret: ${{ secrets.JWT_SECRET }}
+
+  # Terraform Apply (Manual or on main branch)
+  terraform-apply:
+    name: Terraform Apply
+    runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply') ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terraform Init
+        working-directory: infrastructure/terraform/environments/${{ github.event.inputs.environment || 'dev' }}
+        run: terraform init
+
+      - name: Terraform Apply
+        working-directory: infrastructure/terraform/environments/${{ github.event.inputs.environment || 'dev' }}
+        run: terraform apply -auto-approve -input=false
+        env:
+          TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
+          TF_VAR_jwt_secret: ${{ secrets.JWT_SECRET }}
+
+      - name: Output Terraform Values
+        working-directory: infrastructure/terraform/environments/${{ github.event.inputs.environment || 'dev' }}
+        run: terraform output

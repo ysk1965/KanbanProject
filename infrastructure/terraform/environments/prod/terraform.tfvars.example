@@ -1,0 +1,19 @@
+# Production Environment Variables
+# Copy this file to terraform.tfvars and fill in the values
+# DO NOT commit terraform.tfvars to version control
+
+aws_region   = "ap-northeast-2"
+project_name = "kanban"
+environment  = "prod"
+vpc_cidr     = "10.1.0.0/16"
+
+# Sensitive values - NEVER commit these
+# Use environment variables or AWS Secrets Manager for production
+#
+# Option 1: Environment variables
+# export TF_VAR_db_password="your-very-secure-production-db-password"
+# export TF_VAR_jwt_secret="your-very-secure-jwt-secret-minimum-32-chars"
+#
+# Option 2: terraform.tfvars (local only, never commit)
+# db_password = "your-very-secure-production-db-password"
+# jwt_secret  = "your-very-secure-jwt-secret-minimum-32-chars"
