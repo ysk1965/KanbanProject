@@ -249,6 +249,45 @@ class ApiClient {
 
 export const apiClient = new ApiClient(API_BASE_URL);
 
+/**
+ * 인증된 fetch 래퍼 (토큰 만료 시 자동 갱신 + 재시도)
+ * multipart/form-data 등 apiClient로 처리 안 되는 요청에 사용
+ */
+export async function authenticatedFetch(
+  url: string,
+  options: RequestInit = {}
+): Promise<Response> {
+  let token = getAccessToken();
+
+  // 토큰 만료 임박 시 선제적 갱신
+  if (token && isTokenExpiringSoon(token)) {
+    const refreshed = await apiClient['tryRefreshToken']();
+    if (refreshed) token = getAccessToken();
+  }
+
+  const headers: Record<string, string> = {
+    ...(options.headers as Record<string, string>),
+  };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  let response = await fetch(url, { ...options, headers });
+
+  // 401 + 토큰 만료 → 갱신 후 재시도
+  if (response.status === 401) {
+    const errData = await response.json().catch(() => null);
+    if (errData?.code === 'A004') {
+      const refreshed = await apiClient['tryRefreshToken']();
+      if (refreshed) {
+        token = getAccessToken();
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        response = await fetch(url, { ...options, headers });
+      }
+    }
+  }
+
+  return response;
+}
+
 // ========================================
 // Types - BE 응답 형식에 맞춤 (snake_case)
 // ========================================
@@ -1021,6 +1060,16 @@ export const checklistAPI = {
 // Comment API
 // ========================================
 
+export interface CommentAttachmentResponse {
+  id: string;
+  file_name: string;
+  url: string;
+  thumbnail_url: string | null;
+  content_type: string;
+  file_size: number;
+  created_at: string;
+}
+
 export interface CommentDetailResponse {
   id: string;
   task_id: string;
@@ -1031,6 +1080,7 @@ export interface CommentDetailResponse {
   };
   content: string;
   mentions: string[];
+  attachments: CommentAttachmentResponse[];
   created_at: string;
   updated_at: string;
 }
@@ -1039,6 +1089,86 @@ export interface CommentListResponse {
   comments: CommentDetailResponse[];
   total_count: number;
 }
+
+// ========================================
+// File Upload API
+// ========================================
+
+export const fileAPI = {
+  /**
+   * Presigned URL 요청 (S3 모드에서만)
+   * mode="direct"이면 presigned 미지원 → upload() 사용
+   */
+  presign: async (data: { fileName: string; contentType: string; fileSize: number }) => {
+    return apiClient.post<{ mode: string; tempKey?: string; uploadUrl?: string; message?: string }>(
+      '/files/presign', data
+    );
+  },
+
+  /**
+   * 서버 직접 업로드 (Local/S3 모두 지원)
+   * 인증된 multipart 요청
+   */
+  upload: async (file: File): Promise<{ tempKey: string; previewUrl: string }> => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await authenticatedFetch(`${API_BASE_URL}/files/upload`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({
+        code: 'UNKNOWN', message: response.statusText,
+      }));
+      throw errData;
+    }
+
+    return response.json();
+  },
+
+  /**
+   * 파일 업로드 (presigned URL 시도 → fallback: 직접 업로드)
+   * 항상 tempKey를 반환
+   */
+  smartUpload: async (file: File): Promise<{ tempKey: string; previewUrl: string }> => {
+    try {
+      // 1. presigned URL 시도
+      const presign = await fileAPI.presign({
+        fileName: file.name,
+        contentType: file.type,
+        fileSize: file.size,
+      });
+
+      if (presign.mode === 'presigned' && presign.uploadUrl && presign.tempKey) {
+        // 2. S3에 직접 업로드
+        const putResponse = await fetch(presign.uploadUrl, {
+          method: 'PUT',
+          body: file,
+          headers: { 'Content-Type': file.type },
+        });
+
+        if (putResponse.ok) {
+          return {
+            tempKey: presign.tempKey,
+            previewUrl: URL.createObjectURL(file), // 로컬 미리보기
+          };
+        }
+        // presigned 실패 시 fallback
+      }
+    } catch {
+      // presign 실패 → fallback
+    }
+
+    // Fallback: 서버 직접 업로드
+    return fileAPI.upload(file);
+  },
+};
+
+// ========================================
+// Comment API
+// ========================================
 
 export const commentAPI = {
   getComments: async (boardId: string, taskId: string) => {
@@ -1050,7 +1180,7 @@ export const commentAPI = {
   createComment: async (
     boardId: string,
     taskId: string,
-    data: { content: string; mentions?: string[] }
+    data: { content: string; mentions?: string[]; fileKeys?: string[] }
   ) => {
     return apiClient.post<CommentDetailResponse>(
       `/boards/${boardId}/tasks/${taskId}/comments`,
@@ -1062,7 +1192,12 @@ export const commentAPI = {
     boardId: string,
     taskId: string,
     commentId: string,
-    data: { content: string; mentions?: string[] }
+    data: {
+      content: string;
+      mentions?: string[];
+      keepAttachmentIds?: string[];
+      newFileKeys?: string[];
+    }
   ) => {
     return apiClient.put<CommentDetailResponse>(
       `/boards/${boardId}/tasks/${taskId}/comments/${commentId}`,
@@ -1073,6 +1208,17 @@ export const commentAPI = {
   deleteComment: async (boardId: string, taskId: string, commentId: string) => {
     return apiClient.delete<{ message: string }>(
       `/boards/${boardId}/tasks/${taskId}/comments/${commentId}`
+    );
+  },
+
+  deleteAttachment: async (
+    boardId: string,
+    taskId: string,
+    commentId: string,
+    attachmentId: string
+  ) => {
+    return apiClient.delete<{ message: string }>(
+      `/boards/${boardId}/tasks/${taskId}/comments/${commentId}/attachments/${attachmentId}`
     );
   },
 };

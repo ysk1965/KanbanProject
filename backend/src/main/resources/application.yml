@@ -79,9 +79,27 @@ management:
     mail:
       enabled: false
 
+# Multipart
+spring.servlet.multipart:
+  max-file-size: 5MB
+  max-request-size: 25MB
+
 # App config
 app:
   frontend-url: ${FRONTEND_URL:http://localhost:5173}
+  file:
+    s3-enabled: ${S3_ENABLED:false}
+    max-size: 5242880
+    max-count: 5
+    allowed-types: image/jpeg,image/png,image/gif,image/webp
+    s3-bucket: ${S3_BUCKET:kanban-attachments}
+    cloudfront-domain: ${CLOUDFRONT_DOMAIN:}
+    upload-dir: comments
+    local-dir: ${FILE_LOCAL_DIR:./uploads}
+    temp-expiry-minutes: 60
+    thumbnail:
+      max-width: 400
+      max-height: 400
 
 ---
 # Local Profile (H2)
@@ -107,6 +125,11 @@ spring:
   # Local에서는 Simple 캐시 사용 (Redis 불필요)
   cache:
     type: simple
+
+app:
+  file:
+    s3-enabled: false
+    local-dir: ./uploads
 
 ---
 # Dev Profile (PostgreSQL, No Redis)
@@ -165,3 +188,9 @@ spring:
     hibernate:
       ddl-auto: validate
     show-sql: false
+
+app:
+  file:
+    s3-enabled: true
+    s3-bucket: ${S3_BUCKET}
+    cloudfront-domain: ${CLOUDFRONT_DOMAIN:}

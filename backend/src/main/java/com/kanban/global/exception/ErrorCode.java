@@ -112,6 +112,13 @@ public enum ErrorCode {
     // Notification
     NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "N001", "알림을 찾을 수 없습니다"),
 
+    // File Upload
+    FILE_TOO_LARGE(HttpStatus.BAD_REQUEST, "FL001", "파일 크기가 5MB를 초과합니다"),
+    FILE_TYPE_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "FL002", "허용되지 않는 파일 형식입니다 (jpg/png/gif/webp만 가능)"),
+    ATTACHMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "FL003", "첨부파일을 찾을 수 없습니다"),
+    ATTACHMENT_LIMIT_EXCEEDED(HttpStatus.BAD_REQUEST, "FL004", "첨부파일은 최대 5개까지 가능합니다"),
+    TEMP_FILE_NOT_FOUND(HttpStatus.BAD_REQUEST, "FL005", "업로드된 임시 파일을 찾을 수 없습니다"),
+
     // Admin
     ADMIN_ACCESS_DENIED(HttpStatus.FORBIDDEN, "AD001", "관리자 권한이 필요합니다");
 

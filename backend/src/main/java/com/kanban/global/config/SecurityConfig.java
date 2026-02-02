@@ -44,6 +44,10 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/api/v1/pricing/**").permitAll()
                         .requestMatchers("/api/v1/invites/**").permitAll()
+                        // Local uploaded files (dev)
+                        .requestMatchers("/uploads/**").permitAll()
+                        // File upload API (인증 필요하지만 multipart 허용)
+                        // /api/v1/files/** 는 anyRequest().authenticated()에 의해 보호됨
                         // H2 Console
                         .requestMatchers("/h2-console/**").permitAll()
                         // Health check

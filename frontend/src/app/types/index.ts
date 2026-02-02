@@ -389,6 +389,16 @@ export interface InviteResult {
 // 댓글 타입
 // ========================================
 
+export interface CommentAttachment {
+  id: string;
+  file_name: string;
+  url: string;
+  thumbnail_url: string | null;
+  content_type: string;
+  file_size: number;
+  created_at: string;
+}
+
 export interface TaskComment {
   id: string;
   task_id: string;
@@ -399,6 +409,7 @@ export interface TaskComment {
   };
   content: string;
   mentions: string[];
+  attachments: CommentAttachment[];
   created_at: string;
   updated_at: string;
 }

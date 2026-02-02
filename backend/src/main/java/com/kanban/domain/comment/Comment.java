@@ -7,6 +7,8 @@ import com.kanban.domain.user.User;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -39,6 +41,10 @@ public class Comment extends BaseTimeEntity {
     /** 멘션된 사용자 ID를 쉼표로 저장 (예: "userId1,userId2") */
     @Column(name = "mentions", columnDefinition = "TEXT")
     private String mentions;
+
+    @OneToMany(mappedBy = "comment", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<CommentAttachment> attachments = new ArrayList<>();
 
     @PrePersist
     public void prePersist() {
