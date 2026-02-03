@@ -72,7 +72,7 @@ export function Sidebar({ isOpen = true, onClose, onUpgradeClick, hideBilling }:
         </nav>
       </div>
 
-      {/* Upgrade Card - TESTER 사용자는 숨김 */}
+      {/* Upgrade Card - TESTER/ADMIN 사용자는 숨김 */}
       {!hideBilling && (
         <div className="mt-auto p-6">
           <div className="p-4 rounded-2xl bg-gradient-to-br from-bridge-accent to-purple-600 shadow-lg shadow-bridge-accent/20">

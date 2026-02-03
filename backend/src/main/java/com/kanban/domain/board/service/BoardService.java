@@ -75,14 +75,15 @@ public class BoardService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        boolean isTester = user.getSystemRole() == SystemRole.TESTER;
+        boolean skipBilling = user.getSystemRole() == SystemRole.TESTER
+                || user.getSystemRole() == SystemRole.ADMIN;
 
-        // 보드 생성 (TESTER는 PREMIUM 티어)
+        // 보드 생성 (TESTER/ADMIN은 PREMIUM 티어)
         Board board = Board.builder()
                 .name(request.getName())
                 .description(request.getDescription())
                 .owner(user)
-                .tier(isTester ? BoardTier.PREMIUM : BoardTier.TRIAL)
+                .tier(skipBilling ? BoardTier.PREMIUM : BoardTier.TRIAL)
                 .build();
         boardRepository.save(board);
 
@@ -97,8 +98,8 @@ public class BoardService {
         // 기본 블록 3개 생성 (Feature, Task, Done)
         createDefaultBlocks(board);
 
-        // 구독 생성 (TESTER는 PREMIUM, 일반 사용자는 Trial)
-        Subscription subscription = isTester
+        // 구독 생성 (TESTER/ADMIN은 PREMIUM, 일반 사용자는 Trial)
+        Subscription subscription = skipBilling
                 ? Subscription.createPremium(board)
                 : Subscription.createTrial(board);
         subscriptionRepository.save(subscription);

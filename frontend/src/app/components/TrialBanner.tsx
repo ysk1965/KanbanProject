@@ -11,7 +11,7 @@ interface TrialBannerProps {
 }
 
 export function TrialBanner({ status, daysRemaining = 0, onOpenSubscription, tier, hideBilling }: TrialBannerProps) {
-  // TESTER 사용자는 과금 배너 숨김
+  // TESTER/ADMIN 사용자는 과금 배너 숨김
   if (hideBilling) return null;
   // Standard tier: 간결한 알림 배너
   if (tier === 'STANDARD') {

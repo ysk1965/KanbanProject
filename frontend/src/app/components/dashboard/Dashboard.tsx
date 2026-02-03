@@ -200,7 +200,7 @@ export function Dashboard({
           </div>
 
           <div className="flex items-center gap-5">
-            {/* Upgrade Button - TESTER 사용자는 숨김 */}
+            {/* Upgrade Button - TESTER/ADMIN 사용자는 숨김 */}
             {!hideBilling && (
               <button
                 onClick={() => setIsUpgradeModalOpen(true)}
@@ -348,7 +348,7 @@ export function Dashboard({
         onCreate={onCreateBoard}
       />
 
-      {/* Upgrade Modal - TESTER 사용자는 숨김 */}
+      {/* Upgrade Modal - TESTER/ADMIN 사용자는 숨김 */}
       {!hideBilling && (
         <UpgradeModal
           isOpen={isUpgradeModalOpen}

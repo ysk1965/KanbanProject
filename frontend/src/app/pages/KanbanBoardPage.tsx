@@ -275,10 +275,10 @@ export function KanbanBoardPage() {
     return () => clearInterval(interval);
   }, [boardId, currentUser]);
 
-  // Premium 기능 접근 제어 헬퍼
-  const canAccessSchedule = tierInfo?.can_access_schedule ?? true;
-  const canAccessMilestone = tierInfo?.can_access_milestone ?? true;
-  const isStandardTier = tierInfo?.tier === 'STANDARD';
+  // Premium 기능 접근 제어 헬퍼 (hideBilling 사용자는 제한 없음)
+  const canAccessSchedule = hideBilling || (tierInfo?.can_access_schedule ?? true);
+  const canAccessMilestone = hideBilling || (tierInfo?.can_access_milestone ?? true);
+  const isStandardTier = hideBilling ? false : tierInfo?.tier === 'STANDARD';
 
   // Upgrade Modal 열기 헬퍼
   const openUpgradeModal = (trigger: UpgradeTrigger) => {
@@ -286,8 +286,8 @@ export function KanbanBoardPage() {
     setIsUpgradeModalOpen(true);
   };
 
-  // 통계 접근 권한 (Premium 보드 + Admin 이상)
-  const canAccessStatistics = tierInfo?.can_access_statistics ?? true;
+  // 통계 접근 권한 (Premium 보드 + Admin 이상, hideBilling 사용자는 제한 없음)
+  const canAccessStatistics = hideBilling || (tierInfo?.can_access_statistics ?? true);
   const isAdminOrOwner = boardMembersData?.some(
     (m) => m.userId === currentUser?.id && (m.role === 'owner' || m.role === 'admin')
   ) ?? false;
@@ -347,8 +347,8 @@ export function KanbanBoardPage() {
     }
   };
 
-  // Task 생성 가능 여부 확인
-  const canCreateTask = boardLimits?.can_create_task ?? true;
+  // Task 생성 가능 여부 확인 (hideBilling 사용자는 제한 없음)
+  const canCreateTask = hideBilling || (boardLimits?.can_create_task ?? true);
 
   // boardLimits 갱신 함수 (Task 생성/삭제 후 호출)
   const refreshBoardLimits = async () => {
@@ -1975,7 +1975,7 @@ export function KanbanBoardPage() {
         )}
 
         <AlertModal
-          open={alertModal.open}
+          open={alertModal.open && !(hideBilling && alertModal.type === 'premium')}
           onClose={() => setAlertModal({ ...alertModal, open: false })}
           type={alertModal.type}
         />

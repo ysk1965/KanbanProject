@@ -17,7 +17,7 @@ interface AuthContextType {
   isEmailVerified: boolean;
   isAdmin: boolean;
   isTester: boolean;
-  hideBilling: boolean; // TESTER 사용자는 과금 UI 숨김
+  hideBilling: boolean; // TESTER/ADMIN 사용자는 과금 UI 숨김
   currentUser: User | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
@@ -116,7 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isEmailVerified = currentUser?.email_verified ?? false;
   const isAdmin = currentUser?.system_role === 'ADMIN';
   const isTester = currentUser?.system_role === 'TESTER';
-  const hideBilling = isTester; // TESTER는 과금 UI 숨김
+  const hideBilling = isTester || isAdmin; // TESTER, ADMIN은 과금 UI 숨김
 
   return (
     <AuthContext.Provider
