@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { TaskComment, CommentAttachment, User } from '../types';
-import { commentAPI, fileAPI } from '../utils/api';
+import { commentAPI, fileAPI, resolveFileUrl } from '../utils/api';
 import { BoardMember } from './ShareBoardModal';
 import {
   AlertDialog,
@@ -501,9 +501,9 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser }: Com
     return (
       <div className="flex flex-wrap gap-1.5 mt-1.5">
         {attachments.map(att => (
-          <button key={att.id} onClick={() => setLightboxUrl(att.url)}
+          <button key={att.id} onClick={() => setLightboxUrl(resolveFileUrl(att.url))}
             className="relative group/img rounded-md overflow-hidden border border-white/10 hover:border-white/20 transition-colors">
-            <img src={att.thumbnail_url || att.url} alt={att.file_name}
+            <img src={resolveFileUrl(att.thumbnail_url || att.url)} alt={att.file_name}
               className="h-20 w-auto max-w-[160px] object-cover" loading="lazy" />
             <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/20 transition-colors" />
           </button>
@@ -529,7 +529,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser }: Com
         {/* 기존 첨부파일 (수정 모드) */}
         {keptExisting.map(att => (
           <div key={att.id} className="relative group/preview">
-            <img src={att.thumbnail_url || att.url} alt={att.file_name}
+            <img src={resolveFileUrl(att.thumbnail_url || att.url)} alt={att.file_name}
               className="h-16 w-auto max-w-[120px] object-cover rounded-md border border-white/10" />
             {onRemoveExisting && (
               <button onClick={() => onRemoveExisting(att.id)}

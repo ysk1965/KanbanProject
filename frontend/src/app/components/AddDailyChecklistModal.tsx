@@ -444,10 +444,10 @@ export function AddDailyChecklistModal({
                                     setAddingTaskId(addingTaskId === taskData.task.id ? null : taskData.task.id);
                                     setNewItemTitle('');
                                   }}
-                                  className={`p-1 rounded-md transition-colors ${
+                                  className={`p-1 rounded-md border transition-colors ${
                                     addingTaskId === taskData.task.id
-                                      ? 'bg-bridge-accent text-white'
-                                      : 'text-slate-500 hover:text-white hover:bg-white/10'
+                                      ? 'bg-bridge-accent text-white border-bridge-accent'
+                                      : 'text-slate-300 border-white/15 bg-white/5 hover:text-white hover:bg-white/10 hover:border-white/25'
                                   }`}
                                 >
                                   <Plus className="h-3.5 w-3.5" />
@@ -649,10 +649,10 @@ export function AddDailyChecklistModal({
                                     setAddingTaskId(addingTaskId === taskData.task.id ? null : taskData.task.id);
                                     setNewItemTitle('');
                                   }}
-                                  className={`p-1 rounded-md transition-colors ${
+                                  className={`p-1 rounded-md border transition-colors ${
                                     addingTaskId === taskData.task.id
-                                      ? 'bg-bridge-accent text-white'
-                                      : 'text-slate-600 hover:text-white hover:bg-white/10'
+                                      ? 'bg-bridge-accent text-white border-bridge-accent'
+                                      : 'text-slate-300 border-white/15 bg-white/5 hover:text-white hover:bg-white/10 hover:border-white/25'
                                   }`}
                                 >
                                   <Plus className="h-3.5 w-3.5" />

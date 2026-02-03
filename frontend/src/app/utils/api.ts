@@ -1,6 +1,28 @@
 // API Base URL - BE 서버
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1';
 
+// 백엔드 Origin (파일 URL 해석용)
+const BACKEND_ORIGIN = (() => {
+  try {
+    return new URL(API_BASE_URL).origin;
+  } catch {
+    return 'http://localhost:8080';
+  }
+})();
+
+/**
+ * 백엔드에서 반환한 상대 경로 파일 URL을 절대 URL로 변환
+ * - 이미 절대 URL(http/https/blob/data)이면 그대로 반환
+ * - 상대 경로(/uploads/...)이면 백엔드 origin을 앞에 붙임
+ */
+export const resolveFileUrl = (url: string | null | undefined): string => {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('blob:') || url.startsWith('data:')) {
+    return url;
+  }
+  return `${BACKEND_ORIGIN}${url}`;
+};
+
 // 토큰 관리
 const getAccessToken = (): string | null => {
   return localStorage.getItem('access_token');

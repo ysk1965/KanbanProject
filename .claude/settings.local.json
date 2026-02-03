@@ -31,7 +31,16 @@
       "Bash(MAIL_USERNAME=\"eobub15@gmail.com\" MAIL_PASSWORD=\"dhiclkonectyszvp\" ./gradlew bootRun:*)",
       "Bash(./gradlew clean:*)",
       "Bash(xargs:*)",
-      "Bash(wc:*)"
+      "Bash(wc:*)",
+      "Bash(git checkout:*)",
+      "Bash(git merge:*)",
+      "Bash(git push:*)",
+      "Bash(git stash drop:*)",
+      "Bash(aws ec2 authorize-security-group-ingress:*)",
+      "Bash(aws ec2-instance-connect send-ssh-public-key:*)",
+      "Bash(PGPASSWORD='KanbanDev2026Secure' /opt/homebrew/opt/libpq/bin/psql:*)",
+      "Bash(aws ec2 revoke-security-group-ingress:*)",
+      "Bash(git fetch:*)"
     ]
   }
 }
