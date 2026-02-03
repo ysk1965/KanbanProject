@@ -393,7 +393,7 @@ export function FeatureDetailModal({
                       if (e.nativeEvent.isComposing) return;
                       if (e.key === 'Enter') handleAddSubtask();
                     }}
-                    className="flex-1 bg-transparent border-none rounded-lg px-3 py-2 text-xs focus:outline-none text-zinc-300 placeholder-zinc-600"
+                    className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-bridge-accent/50 focus:border-bridge-accent text-zinc-300 placeholder-zinc-500 transition-all"
                   />
                   <button
                     onClick={handleAddSubtask}

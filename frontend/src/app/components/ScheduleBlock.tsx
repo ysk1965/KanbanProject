@@ -42,6 +42,17 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
   const dragStartY = useRef<number>(0);
   const blockRef = useRef<HTMLDivElement>(null);
 
+  // Ref로 최신 offset/overlap 값 추적 (state updater 내 사이드이펙트 방지)
+  const resizeOffsetRef = useRef(0);
+  const dragOffsetRef = useRef(0);
+  const hasOverlapRef = useRef(false);
+
+  // 최신 콜백 참조
+  const onResizeRef = useRef(onResize);
+  const onMoveRef = useRef(onMove);
+  useEffect(() => { onResizeRef.current = onResize; }, [onResize]);
+  useEffect(() => { onMoveRef.current = onMove; }, [onMove]);
+
   const { top, height, displayInfo, startMinutes, endMinutes, workStartMinutes, workEndMinutes } = useMemo(() => {
     const startMinutes = timeToMinutes(block.start_time);
     const endMinutes = timeToMinutes(block.end_time);
@@ -110,6 +121,8 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
 
     setIsResizing(handle);
     setResizeOffset(0);
+    resizeOffsetRef.current = 0;
+    document.body.style.userSelect = 'none';
 
     const startY = e.clientY;
 
@@ -118,45 +131,49 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
       // 30분 단위로 스냅 (slotHeight px = 30분)
       const snappedDelta = Math.round(deltaY / slotHeight) * slotHeight;
       setResizeOffset(snappedDelta);
+      resizeOffsetRef.current = snappedDelta;
     };
 
     const handleMouseUp = () => {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.userSelect = '';
 
-      // 최종 시간 계산
-      setResizeOffset((currentOffset) => {
-        if (currentOffset !== 0 && onResize) {
-          const deltaMinutes = Math.round(currentOffset / slotHeight) * 30;
+      // Ref에서 최신값 읽기 (state updater 내 사이드이펙트 방지)
+      const finalOffset = resizeOffsetRef.current;
 
-          let newStartMinutes = startMinutes;
-          let newEndMinutes = endMinutes;
-
-          if (handle === 'top') {
-            newStartMinutes = startMinutes + deltaMinutes;
-            // 최소 30분 유지, 근무 시작 시간 이후
-            newStartMinutes = Math.max(workStartMinutes, newStartMinutes);
-            newStartMinutes = Math.min(newEndMinutes - 30, newStartMinutes);
-          } else {
-            newEndMinutes = endMinutes + deltaMinutes;
-            // 최소 30분 유지, 근무 종료 시간 이전
-            newEndMinutes = Math.min(workEndMinutes, newEndMinutes);
-            newEndMinutes = Math.max(newStartMinutes + 30, newEndMinutes);
-          }
-
-          const newStartTime = minutesToTime(newStartMinutes);
-          const newEndTime = minutesToTime(newEndMinutes);
-
-          onResize(block.id, newStartTime, newEndTime);
-        }
-        return 0;
-      });
+      // 시각 상태 리셋
+      setResizeOffset(0);
+      resizeOffsetRef.current = 0;
       setIsResizing(null);
+
+      // 콜백은 state updater 바깥에서 호출
+      if (finalOffset !== 0 && onResizeRef.current) {
+        const deltaMinutes = Math.round(finalOffset / slotHeight) * 30;
+
+        let newStartMinutes = startMinutes;
+        let newEndMinutes = endMinutes;
+
+        if (handle === 'top') {
+          newStartMinutes = startMinutes + deltaMinutes;
+          newStartMinutes = Math.max(workStartMinutes, newStartMinutes);
+          newStartMinutes = Math.min(newEndMinutes - 30, newStartMinutes);
+        } else {
+          newEndMinutes = endMinutes + deltaMinutes;
+          newEndMinutes = Math.min(workEndMinutes, newEndMinutes);
+          newEndMinutes = Math.max(newStartMinutes + 30, newEndMinutes);
+        }
+
+        const newStartTime = minutesToTime(newStartMinutes);
+        const newEndTime = minutesToTime(newEndMinutes);
+
+        onResizeRef.current(block.id, newStartTime, newEndTime);
+      }
     };
 
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
-  }, [block.id, slotHeight, startMinutes, endMinutes, workStartMinutes, workEndMinutes, onResize]);
+  }, [block.id, slotHeight, startMinutes, endMinutes, workStartMinutes, workEndMinutes]);
 
   // 겹침 체크 함수
   const checkOverlap = useCallback((newStartMinutes: number, newEndMinutes: number): boolean => {
@@ -176,13 +193,18 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
     // 리사이즈 핸들 영역이면 무시
     if ((e.target as HTMLElement).dataset.resizeHandle) return;
 
+    e.preventDefault();
+
     dragStartY.current = e.clientY;
 
-    // 0.2초 후 드래그 모드 활성화
+    // 0.15초 후 드래그 모드 활성화
     longPressTimer.current = setTimeout(() => {
       setIsDragging(true);
       setDragOffset(0);
       setHasOverlap(false);
+      dragOffsetRef.current = 0;
+      hasOverlapRef.current = false;
+      document.body.style.userSelect = 'none';
 
       // 드래그 중 마우스 이동 핸들러
       const handleDragMove = (moveEvent: MouseEvent) => {
@@ -190,6 +212,7 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
         // 30분 단위로 스냅
         const snappedDelta = Math.round(deltaY / slotHeight) * slotHeight;
         setDragOffset(snappedDelta);
+        dragOffsetRef.current = snappedDelta;
 
         // 겹침 체크
         const deltaMinutes = Math.round(snappedDelta / slotHeight) * 30;
@@ -209,54 +232,58 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
 
         const overlap = checkOverlap(newStartMinutes, newEndMinutes);
         setHasOverlap(overlap);
+        hasOverlapRef.current = overlap;
       };
 
       // 드래그 종료 핸들러
       const handleDragEnd = () => {
         document.removeEventListener('mousemove', handleDragMove);
         document.removeEventListener('mouseup', handleDragEnd);
+        document.body.style.userSelect = '';
 
-        setDragOffset((currentOffset) => {
-          setHasOverlap((currentHasOverlap) => {
-            // 겹침이 있으면 이동 취소
-            if (currentHasOverlap) {
-              setIsDragging(false);
-              return false;
-            }
+        // Ref에서 최신값 읽기
+        const finalOffset = dragOffsetRef.current;
+        const finalHasOverlap = hasOverlapRef.current;
 
-            if (currentOffset !== 0 && onMove) {
-              const deltaMinutes = Math.round(currentOffset / slotHeight) * 30;
-              const duration = endMinutes - startMinutes;
+        // 시각 상태 리셋
+        setDragOffset(0);
+        setHasOverlap(false);
+        setIsDragging(false);
+        dragOffsetRef.current = 0;
+        hasOverlapRef.current = false;
 
-              let newStartMinutes = startMinutes + deltaMinutes;
-              let newEndMinutes = endMinutes + deltaMinutes;
+        // 겹침이면 이동 취소
+        if (finalHasOverlap) return;
 
-              // 근무 시간 범위 내로 제한
-              if (newStartMinutes < workStartMinutes) {
-                newStartMinutes = workStartMinutes;
-                newEndMinutes = workStartMinutes + duration;
-              }
-              if (newEndMinutes > workEndMinutes) {
-                newEndMinutes = workEndMinutes;
-                newStartMinutes = workEndMinutes - duration;
-              }
+        // 콜백은 state updater 바깥에서 호출
+        if (finalOffset !== 0 && onMoveRef.current) {
+          const deltaMinutes = Math.round(finalOffset / slotHeight) * 30;
+          const duration = endMinutes - startMinutes;
 
-              const newStartTime = minutesToTime(newStartMinutes);
-              const newEndTime = minutesToTime(newEndMinutes);
+          let newStartMinutes = startMinutes + deltaMinutes;
+          let newEndMinutes = endMinutes + deltaMinutes;
 
-              onMove(block.id, newStartTime, newEndTime);
-            }
-            setIsDragging(false);
-            return false;
-          });
-          return 0;
-        });
+          // 근무 시간 범위 내로 제한
+          if (newStartMinutes < workStartMinutes) {
+            newStartMinutes = workStartMinutes;
+            newEndMinutes = workStartMinutes + duration;
+          }
+          if (newEndMinutes > workEndMinutes) {
+            newEndMinutes = workEndMinutes;
+            newStartMinutes = workEndMinutes - duration;
+          }
+
+          const newStartTime = minutesToTime(newStartMinutes);
+          const newEndTime = minutesToTime(newEndMinutes);
+
+          onMoveRef.current(block.id, newStartTime, newEndTime);
+        }
       };
 
       document.addEventListener('mousemove', handleDragMove);
       document.addEventListener('mouseup', handleDragEnd);
-    }, 150); // 0.2초 long press
-  }, [block.id, slotHeight, startMinutes, endMinutes, workStartMinutes, workEndMinutes, onMove, checkOverlap]);
+    }, 150); // 0.15초 long press
+  }, [block.id, slotHeight, startMinutes, endMinutes, workStartMinutes, workEndMinutes, checkOverlap]);
 
   // 마우스 업 시 long press 타이머 취소
   const handleMouseUp = useCallback(() => {

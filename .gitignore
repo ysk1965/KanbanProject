@@ -91,6 +91,9 @@ override.tf.json
 # ===== Scripts =====
 scripts/.env.rds
 
+# ===== Uploads =====
+backend/uploads/
+
 # ===== Deployment =====
 backend/deploy/
 backend/deploy.zip

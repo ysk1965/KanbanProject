@@ -10,10 +10,15 @@ spring:
     hibernate:
       ddl-auto: update
     show-sql: true
+    defer-datasource-initialization: true
     properties:
       hibernate:
         format_sql: true
         default_batch_fetch_size: 100
+
+  sql:
+    init:
+      mode: always
 
   # Jackson
   jackson:

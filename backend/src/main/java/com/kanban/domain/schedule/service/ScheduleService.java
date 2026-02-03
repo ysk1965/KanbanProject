@@ -174,7 +174,10 @@ public class ScheduleService {
             throw new BusinessException(ErrorCode.SCHEDULE_BLOCK_NOT_FOUND);
         }
 
+        log.info("Schedule block update request: blockId={}, startTime={}, endTime={}", blockId, request.getStartTime(), request.getEndTime());
+
         block.updateTimes(request.getStartTime(), request.getEndTime());
+        scheduleBlockRepository.save(block);
 
         log.info("Schedule block updated: {} by user: {}", blockId, userId);
 

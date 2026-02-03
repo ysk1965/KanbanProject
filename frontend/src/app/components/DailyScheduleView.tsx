@@ -8,6 +8,7 @@ import { ScheduleBlock } from './ScheduleBlock';
 import { ScheduleDetailPanel } from './ScheduleDetailPanel';
 import { ChecklistCreateModal } from './ChecklistCreateModal';
 import { ScheduleSettingsModal, ScheduleDisplayMode } from './ScheduleSettingsModal';
+import { WeeklySummaryModal } from './WeeklySummaryModal';
 import { DailyChecklistView } from './DailyChecklistView';
 import { BoardMember as BoardMemberType } from '../types';
 import {
@@ -88,6 +89,9 @@ export function DailyScheduleView({ boardId, boardMembers, onViewFeature, onView
 
   // 설정 모달 상태
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+
+  // 주간 요약 모달 대상 멤버
+  const [summaryMember, setSummaryMember] = useState<BoardMember | null>(null);
 
   // 설정에서 표시 모드 가져오기 (TIME -> time, BLOCK -> block)
   const displayMode: ScheduleDisplayMode = settings?.schedule_display_mode === 'BLOCK' ? 'block' : 'time';
@@ -198,7 +202,8 @@ export function DailyScheduleView({ boardId, boardMembers, onViewFeature, onView
   }, [columns]);
 
   // 드래그 시작
-  const handleMouseDown = (userId: string, slotIndex: number) => {
+  const handleMouseDown = (e: React.MouseEvent, userId: string, slotIndex: number) => {
+    e.preventDefault(); // 텍스트 선택 방지
     setIsDragging(true);
     setDragState({
       userId,
@@ -328,8 +333,8 @@ export function DailyScheduleView({ boardId, boardMembers, onViewFeature, onView
     setPendingBlock(null);
   };
 
-  // 블록 리사이즈 처리
-  const handleBlockResize = async (blockId: string, startTime: string, endTime: string) => {
+  // 블록 리사이즈/이동 처리
+  const handleBlockResize = useCallback(async (blockId: string, startTime: string, endTime: string) => {
     try {
       await scheduleAPI.updateBlock(boardId, blockId, {
         start_time: startTime,
@@ -343,11 +348,13 @@ export function DailyScheduleView({ boardId, boardMembers, onViewFeature, onView
           end_time: endTime,
         });
       }
-      await loadSchedule();
     } catch (error) {
       console.error('Failed to resize block:', error);
+    } finally {
+      // 성공/실패 모두 데이터 새로고침 (에러 시 원래 상태 복구)
+      await loadSchedule();
     }
-  };
+  }, [boardId, selectedBlock, loadSchedule]);
 
   return (
     <div
@@ -615,7 +622,7 @@ export function DailyScheduleView({ boardId, boardMembers, onViewFeature, onView
                           isSelected ? 'bg-indigo-500/30' : 'hover:bg-white/5'
                         }`}
                         style={{ height: `${SLOT_HEIGHT}px` }}
-                        onMouseDown={() => handleMouseDown(member.userId, slotIndex)}
+                        onMouseDown={(e) => handleMouseDown(e, member.userId, slotIndex)}
                         onMouseEnter={() => handleMouseEnter(member.userId, slotIndex)}
                       >
                         {/* 빈 셀 호버 시 + 버튼 표시 */}
@@ -702,7 +709,15 @@ export function DailyScheduleView({ boardId, boardMembers, onViewFeature, onView
                     <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-sm text-white font-medium">
                       {member.name.charAt(0).toUpperCase()}
                     </div>
-                    <span className="text-sm font-medium text-foreground truncate">{member.name}</span>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm font-medium text-foreground truncate block">{member.name}</span>
+                      <button
+                        onClick={() => setSummaryMember(member)}
+                        className="text-[10px] text-bridge-accent hover:text-bridge-accent/80 transition-colors mt-0.5"
+                      >
+                        요약
+                      </button>
+                    </div>
                   </div>
                 </div>
                 {/* 요일별 블록들 */}
@@ -815,6 +830,16 @@ export function DailyScheduleView({ boardId, boardMembers, onViewFeature, onView
             }
           }}
           onClose={() => setShowSettingsModal(false)}
+        />
+      )}
+
+      {/* 주간 요약 모달 */}
+      {summaryMember && viewMode === 'week' && (
+        <WeeklySummaryModal
+          member={summaryMember}
+          weekDays={weekDays}
+          weeklyData={weeklyData}
+          onClose={() => setSummaryMember(null)}
         />
       )}
     </div>
