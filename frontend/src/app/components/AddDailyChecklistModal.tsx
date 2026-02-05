@@ -320,34 +320,34 @@ export function AddDailyChecklistModal({
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-bridge-obsidian rounded-2xl shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden border border-white/10">
+      <div className="bg-bridge-obsidian rounded-2xl shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden border border-white/20">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-white/15">
           <div>
             <h2 className="text-lg font-bold text-white">
               데일리 체크리스트 추가
             </h2>
-            <p className="text-sm text-slate-500 mt-0.5">
+            <p className="text-sm text-slate-400 mt-0.5">
               추가할 체크리스트를 선택하세요
             </p>
           </div>
           <button
             onClick={handleClose}
-            className="text-slate-500 hover:text-white transition-colors p-2 hover:bg-white/5 rounded-lg"
+            className="text-slate-400 hover:text-white transition-colors p-2 hover:bg-white/5 rounded-lg"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
         {/* Milestone Filter & Search */}
-        <div className="px-6 py-3 border-b border-white/5 flex gap-3">
+        <div className="px-6 py-3 border-b border-white/15 flex gap-3">
           {/* 마일스톤 필터 */}
           <div className="w-48">
             <select
               value={selectedMilestoneId || ''}
               onChange={(e) => setSelectedMilestoneId(e.target.value || null)}
               disabled={isLoading}
-              className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all disabled:opacity-50"
+              className="w-full px-3 py-2.5 bg-white/5 border border-white/20 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all disabled:opacity-50"
             >
               <option value="">전체 마일스톤</option>
               {milestones.map((milestone) => (
@@ -358,13 +358,13 @@ export function AddDailyChecklistModal({
             </select>
           </div>
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="체크리스트 검색..."
-              className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all text-sm"
+              className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/20 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all text-sm"
             />
           </div>
         </div>
@@ -384,13 +384,13 @@ export function AddDailyChecklistModal({
             </div>
           ) : myTasksFeaturesData.length === 0 && othersTasksFeaturesData.length === 0 ? (
             <div className="text-center py-12">
-              <CheckSquare className="h-12 w-12 text-slate-600 mx-auto mb-3" />
-              <p className="text-slate-500">
+              <CheckSquare className="h-12 w-12 text-slate-400 mx-auto mb-3" />
+              <p className="text-slate-400">
                 {searchQuery
                   ? '검색 결과가 없습니다'
                   : '체크리스트가 없습니다'}
               </p>
-              <p className="text-sm text-slate-600 mt-1">
+              <p className="text-sm text-slate-400 mt-1">
                 {!searchQuery && '새로 생성 버튼을 눌러 체크리스트를 추가하세요'}
               </p>
             </div>
@@ -402,7 +402,7 @@ export function AddDailyChecklistModal({
                   <div className="flex items-center gap-2 mb-3">
                     <div className="w-2 h-2 rounded-full bg-bridge-accent" />
                     <h3 className="text-sm font-bold text-white">내가 포함된 Task</h3>
-                    <span className="text-xs text-slate-500">
+                    <span className="text-xs text-slate-400">
                       ({myTasksFeaturesData.reduce((acc, f) => acc + f.tasks.reduce((a, t) => a + t.checklistItems.length, 0), 0)}개)
                     </span>
                   </div>
@@ -410,7 +410,7 @@ export function AddDailyChecklistModal({
                     {myTasksFeaturesData.map((featureData) => (
                       <div
                         key={featureData.feature.id}
-                        className="bg-white/[0.03] border border-white/5 rounded-xl overflow-hidden"
+                        className="bg-white/[0.03] border border-white/15 rounded-xl overflow-hidden"
                       >
                         {/* Feature Header */}
                         <div className="flex items-center gap-2 px-4 py-3">
@@ -424,11 +424,11 @@ export function AddDailyChecklistModal({
                         </div>
 
                         {/* Feature Content */}
-                        <div className="border-t border-white/5">
+                        <div className="border-t border-white/15">
                           {featureData.tasks.map((taskData) => (
                             <div
                               key={taskData.task.id}
-                              className="border-b border-white/5 last:border-b-0"
+                              className="border-b border-white/15 last:border-b-0"
                             >
                               {/* Task Header */}
                               <div className="flex items-center gap-2 px-4 py-2.5">
@@ -473,7 +473,7 @@ export function AddDailyChecklistModal({
                                       }}
                                       placeholder="새 체크리스트 제목..."
                                       autoFocus
-                                      className="flex-1 px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-600 text-sm focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
+                                      className="flex-1 px-3 py-1.5 bg-white/5 border border-white/20 rounded-lg text-white placeholder-slate-400 text-sm focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
                                     />
                                     <button
                                       onClick={() => handleAddPendingItem(taskData.task.id)}
@@ -546,7 +546,7 @@ export function AddDailyChecklistModal({
                                           isAlreadyAdded
                                             ? 'bg-slate-600 border-slate-600'
                                             : !isMyItem
-                                            ? 'border-white/10 bg-white/5'
+                                            ? 'border-white/20 bg-white/5'
                                             : isSelected
                                             ? 'bg-bridge-accent border-bridge-accent'
                                             : 'border-white/20 bg-white/5'
@@ -560,9 +560,9 @@ export function AddDailyChecklistModal({
                                       <span
                                         className={`text-sm flex-1 truncate ${
                                           isAlreadyAdded
-                                            ? 'text-slate-500 line-through'
+                                            ? 'text-slate-400 line-through'
                                             : !isMyItem
-                                            ? 'text-slate-500'
+                                            ? 'text-slate-400'
                                             : isSelected
                                             ? 'text-white font-medium'
                                             : 'text-slate-300'
@@ -576,7 +576,7 @@ export function AddDailyChecklistModal({
                                           className={`text-[10px] px-1.5 py-0.5 rounded ${
                                             isMyItem
                                               ? 'bg-bridge-accent/20 text-bridge-accent'
-                                              : 'bg-white/5 text-slate-500'
+                                              : 'bg-white/5 text-slate-400'
                                           }`}
                                         >
                                           {item.assignee.name}
@@ -607,7 +607,7 @@ export function AddDailyChecklistModal({
                   <div className="flex items-center gap-2 mb-3">
                     <div className="w-2 h-2 rounded-full bg-slate-500" />
                     <h3 className="text-sm font-bold text-slate-400">다른 Task</h3>
-                    <span className="text-xs text-slate-600">
+                    <span className="text-xs text-slate-400">
                       ({othersTasksFeaturesData.reduce((acc, f) => acc + f.tasks.reduce((a, t) => a + t.checklistItems.length, 0), 0)}개)
                     </span>
                   </div>
@@ -615,7 +615,7 @@ export function AddDailyChecklistModal({
                     {othersTasksFeaturesData.map((featureData) => (
                       <div
                         key={featureData.feature.id}
-                        className="bg-white/[0.02] border border-white/5 rounded-xl overflow-hidden"
+                        className="bg-white/[0.02] border border-white/15 rounded-xl overflow-hidden"
                       >
                         {/* Feature Header */}
                         <div className="flex items-center gap-2 px-4 py-3">
@@ -629,18 +629,18 @@ export function AddDailyChecklistModal({
                         </div>
 
                         {/* Feature Content */}
-                        <div className="border-t border-white/5">
+                        <div className="border-t border-white/15">
                           {featureData.tasks.map((taskData) => (
                             <div
                               key={taskData.task.id}
-                              className="border-b border-white/5 last:border-b-0"
+                              className="border-b border-white/15 last:border-b-0"
                             >
                               {/* Task Header */}
                               <div className="flex items-center gap-2 px-4 py-2.5">
-                                <span className="text-sm text-slate-500 flex-1 truncate">
+                                <span className="text-sm text-slate-400 flex-1 truncate">
                                   {taskData.task.title}
                                 </span>
-                                <span className="text-xs text-slate-600 font-medium">
+                                <span className="text-xs text-slate-400 font-medium">
                                   {taskData.checklistItems.length}
                                 </span>
                                 {/* + 버튼 */}
@@ -678,7 +678,7 @@ export function AddDailyChecklistModal({
                                       }}
                                       placeholder="새 체크리스트 제목..."
                                       autoFocus
-                                      className="flex-1 px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-600 text-sm focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
+                                      className="flex-1 px-3 py-1.5 bg-white/5 border border-white/20 rounded-lg text-white placeholder-slate-400 text-sm focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
                                     />
                                     <button
                                       onClick={() => handleAddPendingItem(taskData.task.id)}
@@ -735,30 +735,30 @@ export function AddDailyChecklistModal({
                                       }`}
                                     >
                                       {/* 체크박스 (비활성) */}
-                                      <div className="w-4 h-4 rounded border border-white/10 bg-white/5 flex-shrink-0 flex items-center justify-center">
+                                      <div className="w-4 h-4 rounded border border-white/20 bg-white/5 flex-shrink-0 flex items-center justify-center">
                                         {isAlreadyAdded && (
-                                          <Check className="h-3 w-3 text-slate-500" />
+                                          <Check className="h-3 w-3 text-slate-400" />
                                         )}
                                       </div>
                                       {/* 제목 */}
                                       <span
                                         className={`text-sm flex-1 truncate ${
                                           isAlreadyAdded
-                                            ? 'text-slate-600 line-through'
-                                            : 'text-slate-500'
+                                            ? 'text-slate-400 line-through'
+                                            : 'text-slate-400'
                                         }`}
                                       >
                                         {item.title}
                                       </span>
                                       {/* 담당자 표시 */}
                                       {item.assignee && (
-                                        <span className="text-[10px] px-1.5 py-0.5 bg-white/5 text-slate-500 rounded">
+                                        <span className="text-[10px] px-1.5 py-0.5 bg-white/5 text-slate-400 rounded">
                                           {item.assignee.name}
                                         </span>
                                       )}
                                       {/* 이미 추가됨 배지 */}
                                       {isAlreadyAdded && (
-                                        <span className="text-[10px] px-1.5 py-0.5 bg-slate-700 text-slate-500 rounded">
+                                        <span className="text-[10px] px-1.5 py-0.5 bg-slate-700 text-slate-400 rounded">
                                           추가됨
                                         </span>
                                       )}
@@ -779,8 +779,8 @@ export function AddDailyChecklistModal({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-white/5 flex items-center justify-between">
-          <div className="text-sm text-slate-500">
+        <div className="px-6 py-4 border-t border-white/15 flex items-center justify-between">
+          <div className="text-sm text-slate-400">
             {selectedItems.size > 0 ? (
               <span>
                 <span className="text-bridge-accent font-medium">
@@ -795,7 +795,7 @@ export function AddDailyChecklistModal({
           <div className="flex gap-3">
             <button
               onClick={handleClose}
-              className="px-5 py-2.5 text-sm font-medium text-slate-400 hover:text-white transition-colors border border-white/10 rounded-xl hover:bg-white/5"
+              className="px-5 py-2.5 text-sm font-medium text-slate-400 hover:text-white transition-colors border border-white/20 rounded-xl hover:bg-white/5"
             >
               닫기
             </button>

@@ -40,11 +40,11 @@ export function AlertModal({ open, onClose, type, title, message }: AlertModalPr
       />
 
       {/* Modal */}
-      <div className="relative bg-bridge-obsidian border border-white/10 rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div className="relative bg-bridge-obsidian border border-white/20 rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         {/* Close button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-1 text-zinc-500 hover:text-foreground transition-colors"
+          className="absolute top-4 right-4 p-1 text-zinc-400 hover:text-foreground transition-colors"
         >
           <X size={18} />
         </button>
@@ -71,7 +71,7 @@ export function AlertModal({ open, onClose, type, title, message }: AlertModalPr
         <div className="px-6 pb-6">
           <button
             onClick={onClose}
-            className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-sm font-semibold text-foreground transition-all"
+            className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/20 rounded-xl text-sm font-semibold text-foreground transition-all"
           >
             확인
           </button>

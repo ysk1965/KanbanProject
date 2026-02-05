@@ -140,9 +140,9 @@ export function ScheduleDetailPanel({
   };
 
   return (
-    <div className="fixed right-0 top-0 h-full w-96 bg-bridge-obsidian border-l border-white/10 shadow-xl z-50 flex flex-col">
+    <div className="fixed right-0 top-0 h-full w-96 bg-bridge-obsidian border-l border-white/20 shadow-xl z-50 flex flex-col">
       {/* 헤더 */}
-      <div className="flex items-center justify-between p-4 border-b border-white/10">
+      <div className="flex items-center justify-between p-4 border-b border-white/20">
         <h2 className="text-lg font-semibold text-white">타임블록 상세</h2>
         <Button
           variant="ghost"
@@ -223,7 +223,7 @@ export function ScheduleDetailPanel({
               <p className="text-white font-medium">{feature.title}</p>
             </div>
           ) : (
-            <div className="text-slate-500 text-sm text-center py-2">
+            <div className="text-slate-400 text-sm text-center py-2">
               연결된 Feature가 없습니다
             </div>
           )}
@@ -253,7 +253,7 @@ export function ScheduleDetailPanel({
               <p className="font-medium">{task.title}</p>
             </div>
           ) : (
-            <div className="text-slate-500 text-sm text-center py-2">
+            <div className="text-slate-400 text-sm text-center py-2">
               연결된 Task가 없습니다
             </div>
           )}
@@ -322,7 +322,7 @@ export function ScheduleDetailPanel({
                 <span className="text-sm font-medium text-slate-400">TASK 체크리스트</span>
               </div>
               {allChecklistItems.length > 0 && (
-                <span className="text-xs text-slate-500">
+                <span className="text-xs text-slate-400">
                   {allChecklistItems.filter(i => i.completed).length}/{allChecklistItems.length} 완료
                 </span>
               )}
@@ -334,7 +334,7 @@ export function ScheduleDetailPanel({
                 <span className="text-sm">로딩 중...</span>
               </div>
             ) : allChecklistItems.length === 0 ? (
-              <div className="text-slate-500 text-sm text-center py-4">
+              <div className="text-slate-400 text-sm text-center py-4">
                 체크리스트가 없습니다
               </div>
             ) : (
@@ -375,7 +375,7 @@ export function ScheduleDetailPanel({
                         {item.completed && <Check className="h-2.5 w-2.5 text-white" />}
                       </button>
                       <div className="flex-1 min-w-0">
-                        <p className={`text-sm ${item.completed ? 'line-through text-slate-500' : 'text-slate-300'}`}>
+                        <p className={`text-sm ${item.completed ? 'line-through text-slate-400' : 'text-slate-300'}`}>
                           {item.title}
                           {isCurrent && (
                             <span className="ml-2 text-xs text-purple-400">(현재)</span>
@@ -392,7 +392,7 @@ export function ScheduleDetailPanel({
       </div>
 
       {/* 하단 삭제 버튼 */}
-      <div className="p-4 border-t border-white/10">
+      <div className="p-4 border-t border-white/20">
         <Button
           variant="outline"
           onClick={handleDelete}

@@ -89,7 +89,7 @@ export function UpgradeModal({
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-bridge-obsidian rounded-2xl shadow-2xl w-full max-w-lg border border-white/10 overflow-hidden">
+      <div className="bg-bridge-obsidian rounded-2xl shadow-2xl w-full max-w-lg border border-white/20 overflow-hidden">
         {/* Header */}
         <div className="relative px-6 pt-6 pb-4">
           <button
@@ -107,7 +107,7 @@ export function UpgradeModal({
           </div>
 
           {/* Trigger message */}
-          <div className="bg-bridge-dark/50 rounded-xl p-4 border border-white/5">
+          <div className="bg-bridge-dark/50 rounded-xl p-4 border border-white/15">
             <p className="text-foreground font-medium mb-1">{triggerMessage.title}</p>
             <p className="text-slate-400 text-sm">{triggerMessage.description}</p>
           </div>
@@ -142,13 +142,13 @@ export function UpgradeModal({
               className={`relative p-4 rounded-xl border transition-all ${
                 billingCycle === 'MONTHLY'
                   ? 'border-bridge-accent bg-bridge-accent/10'
-                  : 'border-white/10 hover:border-white/20 hover:bg-white/5'
+                  : 'border-white/20 hover:border-white/20 hover:bg-white/5'
               }`}
             >
               <div className="text-left">
                 <p className="text-slate-400 text-xs mb-1">월 결제</p>
                 <p className="text-foreground text-xl font-bold">${monthlyPrice}</p>
-                <p className="text-slate-500 text-xs">/month</p>
+                <p className="text-slate-400 text-xs">/month</p>
               </div>
               {billingCycle === 'MONTHLY' && (
                 <div className="absolute top-3 right-3">
@@ -163,7 +163,7 @@ export function UpgradeModal({
               className={`relative p-4 rounded-xl border transition-all ${
                 billingCycle === 'YEARLY'
                   ? 'border-bridge-accent bg-bridge-accent/10'
-                  : 'border-white/10 hover:border-white/20 hover:bg-white/5'
+                  : 'border-white/20 hover:border-white/20 hover:bg-white/5'
               }`}
             >
               <div className="absolute -top-2 -right-2">
@@ -174,7 +174,7 @@ export function UpgradeModal({
               <div className="text-left">
                 <p className="text-slate-400 text-xs mb-1">연 결제</p>
                 <p className="text-foreground text-xl font-bold">${yearlyPrice}</p>
-                <p className="text-slate-500 text-xs">/year (${yearlyMonthlyPrice.toFixed(2)}/mo)</p>
+                <p className="text-slate-400 text-xs">/year (${yearlyMonthlyPrice.toFixed(2)}/mo)</p>
               </div>
               {billingCycle === 'YEARLY' && (
                 <div className="absolute top-3 right-3">
@@ -185,7 +185,7 @@ export function UpgradeModal({
           </div>
 
           {/* Seat info */}
-          <p className="text-slate-500 text-xs mt-3 text-center">
+          <p className="text-slate-400 text-xs mt-3 text-center">
             현재 유료 멤버: {seatCount}명 × ${billingCycle === 'MONTHLY' ? PRICE_PER_SEAT.monthly : PRICE_PER_SEAT.yearly}
             {billingCycle === 'YEARLY' ? '/year' : '/month'}
           </p>
@@ -195,7 +195,7 @@ export function UpgradeModal({
         <div className="px-6 pb-6 flex gap-3">
           <button
             onClick={onClose}
-            className="flex-1 px-4 py-3 bg-white/5 border border-white/10 text-foreground rounded-xl font-medium hover:bg-white/10 transition-all"
+            className="flex-1 px-4 py-3 bg-white/5 border border-white/20 text-foreground rounded-xl font-medium hover:bg-white/10 transition-all"
           >
             나중에
           </button>

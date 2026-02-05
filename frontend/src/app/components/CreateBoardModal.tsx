@@ -54,7 +54,7 @@ export function CreateBoardModal({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="bg-bridge-obsidian text-foreground border-white/10 max-w-md">
+      <DialogContent className="bg-bridge-obsidian text-foreground border-white/20 max-w-md">
         <DialogHeader>
           <DialogTitle className="text-foreground">Create board</DialogTitle>
           <DialogDescription className="text-slate-400">
@@ -86,7 +86,7 @@ export function CreateBoardModal({
               value={boardName}
               onChange={(e) => setBoardName(e.target.value)}
               placeholder="e.g., Project Management"
-              className="bg-bridge-dark border-white/10 text-foreground placeholder:text-slate-500 focus:border-blue-500"
+              className="bg-bridge-dark border-white/20 text-foreground placeholder:text-slate-400 focus:border-blue-500"
               onKeyDown={(e) => {
                 if (e.nativeEvent.isComposing) return;
                 if (e.key === 'Enter' && !e.shiftKey) {
@@ -106,7 +106,7 @@ export function CreateBoardModal({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Brief description of the board (optional)"
-              className="bg-bridge-dark border-white/10 text-foreground placeholder:text-slate-500 focus:border-blue-500 resize-none"
+              className="bg-bridge-dark border-white/20 text-foreground placeholder:text-slate-400 focus:border-blue-500 resize-none"
               rows={3}
             />
           </div>
@@ -134,11 +134,11 @@ export function CreateBoardModal({
         </div>
 
         {/* 액션 버튼 */}
-        <div className="flex justify-end gap-2 pt-4 border-t border-white/10">
+        <div className="flex justify-end gap-2 pt-4 border-t border-white/20">
           <Button
             variant="outline"
             onClick={handleClose}
-            className="border-white/10 text-slate-300 hover:bg-white/5 hover:text-foreground"
+            className="border-white/20 text-slate-300 hover:bg-white/5 hover:text-foreground"
           >
             Cancel
           </Button>

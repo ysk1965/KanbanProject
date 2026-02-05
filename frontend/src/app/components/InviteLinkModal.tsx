@@ -80,7 +80,7 @@ export function InviteLinkModal({
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-bridge-obsidian rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
         {/* 헤더 */}
-        <div className="flex items-center justify-between p-6 border-b border-white/10">
+        <div className="flex items-center justify-between p-6 border-b border-white/20">
           <div className="flex items-center gap-2">
             <LinkIcon className="h-5 w-5 text-blue-400" />
             <h2 className="text-xl font-semibold text-foreground">초대 링크 관리</h2>
@@ -108,7 +108,7 @@ export function InviteLinkModal({
 
           {/* 링크 생성 폼 */}
           {isCreating && (
-            <div className="bg-bridge-dark rounded-lg p-4 space-y-4 border border-white/10">
+            <div className="bg-bridge-dark rounded-lg p-4 space-y-4 border border-white/20">
               <h3 className="font-medium text-foreground">새 초대 링크 설정</h3>
 
               <div>
@@ -118,7 +118,7 @@ export function InviteLinkModal({
                 <select
                   value={role}
                   onChange={(e) => setRole(e.target.value as any)}
-                  className="w-full px-3 py-2 bg-bridge-obsidian border border-white/10 rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 bg-bridge-obsidian border border-white/20 rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="viewer">뷰어 (읽기 전용)</option>
                   <option value="member">멤버 (편집 가능)</option>
@@ -135,7 +135,7 @@ export function InviteLinkModal({
                   onChange={(e) => setMaxUses(parseInt(e.target.value) || 1)}
                   min="1"
                   max="100"
-                  className="w-full px-3 py-2 bg-bridge-obsidian border border-white/10 rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 bg-bridge-obsidian border border-white/20 rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
@@ -146,7 +146,7 @@ export function InviteLinkModal({
                 <select
                   value={expiresIn}
                   onChange={(e) => setExpiresIn(e.target.value)}
-                  className="w-full px-3 py-2 bg-bridge-obsidian border border-white/10 rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 bg-bridge-obsidian border border-white/20 rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="1d">1일</option>
                   <option value="7d">7일</option>
@@ -165,7 +165,7 @@ export function InviteLinkModal({
                 <Button
                   onClick={() => setIsCreating(false)}
                   variant="outline"
-                  className="flex-1 border-white/10 text-slate-300 hover:bg-white/5 hover:text-foreground"
+                  className="flex-1 border-white/20 text-slate-300 hover:bg-white/5 hover:text-foreground"
                 >
                   취소
                 </Button>
@@ -175,7 +175,7 @@ export function InviteLinkModal({
 
           {/* 초대 링크 목록 */}
           {inviteLinks.length === 0 && !isCreating && (
-            <div className="text-center py-12 text-slate-500">
+            <div className="text-center py-12 text-slate-400">
               <LinkIcon className="h-12 w-12 mx-auto mb-3 opacity-50" />
               <p>생성된 초대 링크가 없습니다.</p>
             </div>
@@ -190,7 +190,7 @@ export function InviteLinkModal({
               <div
                 key={link.id}
                 className={`bg-bridge-dark rounded-lg p-4 border ${
-                  isInactive ? 'border-white/10 opacity-60' : 'border-white/10'
+                  isInactive ? 'border-white/20 opacity-60' : 'border-white/20'
                 }`}
               >
                 <div className="flex items-start justify-between gap-4 mb-3">
@@ -219,7 +219,7 @@ export function InviteLinkModal({
                       size="sm"
                       variant="outline"
                       onClick={() => handleCopyLink(link.url, link.id)}
-                      className="border-white/10 text-slate-300 hover:bg-white/5 hover:text-foreground"
+                      className="border-white/20 text-slate-300 hover:bg-white/5 hover:text-foreground"
                       disabled={isInactive}
                     >
                       {copiedLinkId === link.id ? (
@@ -254,11 +254,11 @@ export function InviteLinkModal({
         </div>
 
         {/* 푸터 */}
-        <div className="border-t border-white/10 p-4 bg-bridge-dark">
+        <div className="border-t border-white/20 p-4 bg-bridge-dark">
           <Button
             onClick={onClose}
             variant="outline"
-            className="w-full border-white/10 text-slate-300 hover:bg-white/5 hover:text-foreground"
+            className="w-full border-white/20 text-slate-300 hover:bg-white/5 hover:text-foreground"
           >
             닫기
           </Button>

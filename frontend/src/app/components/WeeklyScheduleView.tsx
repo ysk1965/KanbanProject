@@ -675,7 +675,7 @@ export function WeeklyScheduleView({
           <Popover>
             <PopoverTrigger asChild>
               <button
-                className="flex items-center gap-2 px-3 py-1.5 text-sm bg-white/5 border border-white/10 rounded-lg text-zinc-300 hover:bg-white/10 hover:text-white transition-colors"
+                className="flex items-center gap-2 px-3 py-1.5 text-sm bg-white/5 border border-white/20 rounded-lg text-zinc-300 hover:bg-white/10 hover:text-white transition-colors"
               >
                 <CalendarIcon className="h-4 w-4 text-zinc-400" />
                 <span>
@@ -683,7 +683,7 @@ export function WeeklyScheduleView({
                 </span>
               </button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0 bg-bridge-obsidian border-white/10" align="start">
+            <PopoverContent className="w-auto p-0 bg-bridge-obsidian border-white/20" align="start">
               <Calendar
                 mode="range"
                 selected={{ from: rangeStartDate, to: rangeEndDate }}
@@ -708,12 +708,12 @@ export function WeeklyScheduleView({
 
           <button
             onClick={handleGoToToday}
-            className="px-3 py-1.5 text-sm bg-white/5 border border-white/10 rounded-lg text-zinc-300 hover:bg-white/10 hover:text-white transition-colors"
+            className="px-3 py-1.5 text-sm bg-white/5 border border-white/20 rounded-lg text-zinc-300 hover:bg-white/10 hover:text-white transition-colors"
           >
             오늘
           </button>
         </div>
-        <div className="flex items-center gap-2 text-xs text-zinc-500">
+        <div className="flex items-center gap-2 text-xs text-zinc-400">
           <span className="inline-block w-3 h-3 bg-gray-400 rounded"></span> 진행 전
           <span className="inline-block w-3 h-3 bg-indigo-500 rounded ml-2"></span> 진행 중
           <span className="inline-block w-3 h-3 bg-orange-500 rounded ml-2"></span> 마감 임박
@@ -746,9 +746,9 @@ export function WeeklyScheduleView({
                     onClick={() => toggleFeature(feature.id)}
                   >
                     {isCollapsed ? (
-                      <ChevronRightIcon className="h-4 w-4 text-zinc-500 flex-shrink-0" />
+                      <ChevronRightIcon className="h-4 w-4 text-zinc-400 flex-shrink-0" />
                     ) : (
-                      <ChevronDown className="h-4 w-4 text-zinc-500 flex-shrink-0" />
+                      <ChevronDown className="h-4 w-4 text-zinc-400 flex-shrink-0" />
                     )}
                     <div
                       className="w-3 h-3 rounded-full flex-shrink-0"
@@ -763,7 +763,7 @@ export function WeeklyScheduleView({
                     >
                       {feature.title}
                     </span>
-                    <span className="text-xs text-zinc-500">
+                    <span className="text-xs text-zinc-400">
                       {completedTasks}/{featureTasks.length}
                     </span>
                   </div>
@@ -775,10 +775,10 @@ export function WeeklyScheduleView({
                         key={task.id}
                         className="h-10 p-3 border-b border-r border-kanban-border flex items-center gap-2 pl-10 hover:bg-white/5"
                       >
-                        <FileText className="h-3 w-3 text-zinc-500 flex-shrink-0" />
+                        <FileText className="h-3 w-3 text-zinc-400 flex-shrink-0" />
                         <span
                           className={`text-sm truncate flex-1 cursor-pointer hover:text-indigo-400 ${
-                            task.completed ? 'text-zinc-500 line-through' : 'text-zinc-300'
+                            task.completed ? 'text-zinc-400 line-through' : 'text-zinc-300'
                           }`}
                           onClick={() => onViewTask?.(task.id)}
                         >
@@ -792,7 +792,7 @@ export function WeeklyScheduleView({
             })}
 
             {displayedFeatures.length === 0 && (
-              <div className="flex items-center justify-center h-64 text-zinc-500">
+              <div className="flex items-center justify-center h-64 text-zinc-400">
                 {selectedMilestoneId === 'all' ? 'Feature가 없습니다' : '연결된 Feature가 없습니다'}
               </div>
             )}
@@ -822,10 +822,10 @@ export function WeeklyScheduleView({
                       }`}
                       style={{ width: DAY_WIDTH }}
                     >
-                      <div className={`text-xs font-medium ${dayIsToday ? 'text-indigo-400' : isWeekend ? 'text-zinc-500' : 'text-zinc-400'}`}>
+                      <div className={`text-xs font-medium ${dayIsToday ? 'text-indigo-400' : isWeekend ? 'text-zinc-400' : 'text-zinc-400'}`}>
                         {format(day, 'EEE', { locale: ko })}
                       </div>
-                      <div className={`text-xs ${dayIsToday ? 'text-indigo-300' : 'text-zinc-500'}`}>
+                      <div className={`text-xs ${dayIsToday ? 'text-indigo-300' : 'text-zinc-400'}`}>
                         {format(day, 'M/d')}
                       </div>
                     </div>
@@ -848,7 +848,7 @@ export function WeeklyScheduleView({
                       <div className={`text-xs font-medium ${isCurrentWeek ? 'text-indigo-400' : 'text-zinc-400'}`}>
                         {format(week.start, 'M/d')}
                       </div>
-                      <div className={`text-xs ${isCurrentWeek ? 'text-indigo-300' : 'text-zinc-500'}`}>
+                      <div className={`text-xs ${isCurrentWeek ? 'text-indigo-300' : 'text-zinc-400'}`}>
                         ~{format(week.end, 'M/d')}
                       </div>
                     </div>

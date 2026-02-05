@@ -99,15 +99,15 @@ export function AdminSubscriptionsTab() {
       {!isLoading && !error && subscriptions && (
         <>
           {subscriptions.subscriptions.length === 0 ? (
-            <div className="bg-bridge-obsidian rounded-xl border border-white/5 p-12 text-center">
+            <div className="bg-bridge-obsidian rounded-xl border border-white/15 p-12 text-center">
               <CreditCard className="h-12 w-12 text-slate-400 mx-auto mb-4" />
               <p className="text-slate-400">구독 내역이 없습니다</p>
             </div>
           ) : (
-            <div className="bg-bridge-obsidian rounded-xl border border-white/5 overflow-hidden">
+            <div className="bg-bridge-obsidian rounded-xl border border-white/15 overflow-hidden">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-white/5">
+                  <tr className="border-b border-white/15">
                     <th className="text-left px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
                       보드
                     </th>
@@ -132,7 +132,7 @@ export function AdminSubscriptionsTab() {
                   {subscriptions.subscriptions.map((subscription) => (
                     <tr
                       key={subscription.id}
-                      className="border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors"
+                      className="border-b border-white/15 last:border-0 hover:bg-white/5 transition-colors"
                     >
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
@@ -195,7 +195,7 @@ export function AdminSubscriptionsTab() {
                 <button
                   onClick={() => setPage(Math.max(0, page - 1))}
                   disabled={page === 0}
-                  className="p-2 bg-bridge-obsidian border border-white/10 rounded-lg
+                  className="p-2 bg-bridge-obsidian border border-white/20 rounded-lg
                     text-slate-400 hover:text-white hover:bg-white/5
                     disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
@@ -207,7 +207,7 @@ export function AdminSubscriptionsTab() {
                 <button
                   onClick={() => setPage(Math.min(Math.ceil(subscriptions.total / subscriptions.size) - 1, page + 1))}
                   disabled={page >= Math.ceil(subscriptions.total / subscriptions.size) - 1}
-                  className="p-2 bg-bridge-obsidian border border-white/10 rounded-lg
+                  className="p-2 bg-bridge-obsidian border border-white/20 rounded-lg
                     text-slate-400 hover:text-white hover:bg-white/5
                     disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >

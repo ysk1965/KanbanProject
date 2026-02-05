@@ -128,9 +128,9 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
       {/* Modal */}
-      <div className="relative bg-bridge-obsidian rounded-2xl border border-white/10 w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl">
+      <div className="relative bg-bridge-obsidian rounded-2xl border border-white/20 w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-white/15">
           <h2 className="text-xl font-bold text-white">보드 상세</h2>
           <button
             onClick={onClose}
@@ -289,7 +289,7 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
               )}
 
               {/* Danger Zone */}
-              <div className="border-t border-white/5 pt-6">
+              <div className="border-t border-white/15 pt-6">
                 <h4 className="text-lg font-bold text-red-400 mb-4">위험 영역</h4>
                 <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4">
                   <div className="flex items-center justify-between">

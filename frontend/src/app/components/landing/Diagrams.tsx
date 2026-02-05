@@ -11,7 +11,7 @@ export const ResourcePulseDiagram: React.FC = () => {
   ];
 
   return (
-    <div className="flex flex-col p-10 bg-bridge-obsidian rounded-[3.5rem] border border-white/10 shadow-3xl w-full text-stone-100 overflow-hidden relative font-inter">
+    <div className="flex flex-col p-10 bg-bridge-obsidian rounded-[3.5rem] border border-white/20 shadow-3xl w-full text-stone-100 overflow-hidden relative font-inter">
       <div className="flex justify-between items-center mb-12">
         <h3 className="font-jakarta font-bold text-2xl text-white flex items-center gap-4 tracking-tight">
           <Users2 size={22} className="text-bridge-accent" />
@@ -31,7 +31,7 @@ export const ResourcePulseDiagram: React.FC = () => {
                 <span className="text-lg font-bold text-white block mb-1">{member.name}</span>
                 <span className={`text-[10px] font-extrabold uppercase tracking-[0.2em] ${member.color}`}>{member.status}</span>
               </div>
-              <span className="text-xs font-mono text-slate-500">{member.load}% Load</span>
+              <span className="text-xs font-mono text-slate-400">{member.load}% Load</span>
             </div>
             <div className="h-2.5 bg-white/5 rounded-full overflow-hidden">
               <motion.div
@@ -48,19 +48,19 @@ export const ResourcePulseDiagram: React.FC = () => {
         ))}
       </div>
 
-      <div className="mt-12 pt-8 border-t border-white/5 grid grid-cols-2 gap-4">
-        <div className="p-5 bg-white/5 rounded-3xl border border-white/5">
-          <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest block mb-2">Sprint Health</span>
+      <div className="mt-12 pt-8 border-t border-white/15 grid grid-cols-2 gap-4">
+        <div className="p-5 bg-white/5 rounded-3xl border border-white/15">
+          <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block mb-2">Sprint Health</span>
           <div className="flex items-center gap-2">
             <div className="w-2.5 h-2.5 rounded-full bg-bridge-secondary shadow-[0_0_10px_rgba(45,212,191,0.5)]" />
             <span className="text-2xl font-jakarta font-extrabold text-white tracking-tighter">94.2%</span>
           </div>
         </div>
         <div className="p-5 bg-white/5 rounded-3xl border border-red-400/10">
-          <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest block mb-2 text-red-400/80">Risk Level</span>
+          <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block mb-2 text-red-400/80">Risk Level</span>
           <div className="flex items-center gap-2">
              <span className="text-2xl font-jakarta font-extrabold text-red-400 tracking-tighter">Low</span>
-             <span className="text-[10px] text-slate-600 font-bold uppercase tracking-widest">3 Alerts</span>
+             <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">3 Alerts</span>
           </div>
         </div>
       </div>
@@ -71,7 +71,7 @@ export const ResourcePulseDiagram: React.FC = () => {
 // --- PRICE COMPARISON DIAGRAM ---
 export const PriceComparisonDiagram: React.FC = () => {
   return (
-    <div className="flex flex-col p-10 bg-bridge-obsidian rounded-[3rem] border border-white/10 shadow-2xl w-full text-stone-100 overflow-hidden relative font-inter">
+    <div className="flex flex-col p-10 bg-bridge-obsidian rounded-[3rem] border border-white/20 shadow-2xl w-full text-stone-100 overflow-hidden relative font-inter">
       <div className="absolute top-0 right-0 p-8">
         <TrendingDown size={40} className="text-bridge-secondary opacity-20" />
       </div>
@@ -87,8 +87,8 @@ export const PriceComparisonDiagram: React.FC = () => {
         ].map((item, i) => (
           <div key={i} className="space-y-3">
             <div className="flex justify-between text-[11px] font-extrabold uppercase tracking-[0.15em]">
-              <span className={item.highlight ? 'text-bridge-secondary' : 'text-slate-500'}>{item.name}</span>
-              <span className={item.highlight ? 'text-white' : 'text-slate-500'}>${item.cost} / Year</span>
+              <span className={item.highlight ? 'text-bridge-secondary' : 'text-slate-400'}>{item.name}</span>
+              <span className={item.highlight ? 'text-white' : 'text-slate-400'}>${item.cost} / Year</span>
             </div>
             <div className="h-4 bg-white/5 rounded-full overflow-hidden">
               <motion.div
@@ -130,7 +130,7 @@ export const KanbanDiagram: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col items-center p-8 bg-bridge-obsidian rounded-[2.5rem] border border-white/5 shadow-2xl w-full font-inter">
+    <div className="flex flex-col items-center p-8 bg-bridge-obsidian rounded-[2.5rem] border border-white/15 shadow-2xl w-full font-inter">
       <h3 className="font-jakarta font-bold text-xl mb-8 text-white flex items-center gap-4 tracking-tight">
         <Columns size={22} className="text-bridge-accent" />
         Core Orchestration Flow
@@ -139,10 +139,10 @@ export const KanbanDiagram: React.FC = () => {
       <div className="grid grid-cols-4 gap-3 w-full">
         {['Task', 'In Progress', 'Review', 'Done'].map(status => (
           <div key={status} className={`flex flex-col gap-3 min-h-[180px] p-3 rounded-2xl border transition-all ${
-            ['Task', 'In Progress', 'Done'].includes(status) ? 'bg-white/5 border-white/10' : 'bg-bridge-accent/5 border-bridge-accent/20'
+            ['Task', 'In Progress', 'Done'].includes(status) ? 'bg-white/5 border-white/20' : 'bg-bridge-accent/5 border-bridge-accent/20'
           }`}>
             <span className={`text-[10px] font-extrabold uppercase tracking-[0.2em] text-center mb-2 ${
-              ['Task', 'In Progress', 'Done'].includes(status) ? 'text-slate-600' : 'text-bridge-accent'
+              ['Task', 'In Progress', 'Done'].includes(status) ? 'text-slate-400' : 'text-bridge-accent'
             }`}>{status}</span>
             <AnimatePresence mode="popLayout">
               {tasks.filter(t => t.status === status).map(task => (
@@ -170,14 +170,14 @@ export const KanbanDiagram: React.FC = () => {
 // --- GANTT CHART DIAGRAM ---
 export const GanttDiagram: React.FC = () => {
   return (
-    <div className="flex flex-col p-10 bg-bridge-dark rounded-[2.5rem] border border-white/10 shadow-2xl w-full text-stone-100 overflow-hidden font-inter">
+    <div className="flex flex-col p-10 bg-bridge-dark rounded-[2.5rem] border border-white/20 shadow-2xl w-full text-stone-100 overflow-hidden font-inter">
       <h3 className="font-jakarta font-bold text-xl mb-10 text-bridge-secondary flex items-center gap-4 tracking-tight">
         <Calendar size={22} className="text-bridge-secondary" />
         Unified Roadmap
       </h3>
 
       <div className="flex flex-col gap-5">
-        <div className="grid grid-cols-8 gap-1.5 border-b border-white/5 pb-5">
+        <div className="grid grid-cols-8 gap-1.5 border-b border-white/15 pb-5">
           <div className="col-span-2 text-[10px] text-stone-600 font-extrabold uppercase tracking-widest">Milestone</div>
           {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, i) => (
             <div key={i} className="text-center text-[10px] text-stone-600 font-extrabold">{day}</div>
@@ -198,7 +198,7 @@ export const GanttDiagram: React.FC = () => {
                 initial={{ width: 0 }}
                 whileInView={{ width: `${(item.span / 6) * 100}%`, left: `${(item.start / 6) * 100}%` }}
                 transition={{ duration: 1.2, delay: i * 0.15, ease: "circOut" }}
-                className={`absolute top-1 bottom-1 rounded-full ${item.color} ${item.type === 'feature' ? 'opacity-30 border border-white/10' : 'shadow-[0_0_15px_rgba(99,102,241,0.2)]'}`}
+                className={`absolute top-1 bottom-1 rounded-full ${item.color} ${item.type === 'feature' ? 'opacity-30 border border-white/20' : 'shadow-[0_0_15px_rgba(99,102,241,0.2)]'}`}
               >
                 {item.type === 'task' && <div className="absolute right-1.5 top-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-white rounded-full opacity-60 shadow-[0_0_8px_white]" />}
               </motion.div>
@@ -213,7 +213,7 @@ export const GanttDiagram: React.FC = () => {
 // --- DAILY SCHEDULE DIAGRAM ---
 export const DailyScheduleDiagram: React.FC = () => {
   return (
-    <div className="flex flex-col p-8 bg-bridge-obsidian rounded-[2.5rem] border border-white/10 shadow-2xl w-full max-w-md mx-auto font-inter">
+    <div className="flex flex-col p-8 bg-bridge-obsidian rounded-[2.5rem] border border-white/20 shadow-2xl w-full max-w-md mx-auto font-inter">
       <h3 className="font-jakarta font-bold text-xl mb-6 text-white flex items-center gap-3 tracking-tight">
         <Clock size={20} className="text-bridge-secondary" />
         Daily Temporal Flow

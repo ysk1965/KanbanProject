@@ -1,29 +1,12 @@
-import { useRef, useState, useMemo } from 'react';
+import { useRef, useState, useMemo, useEffect } from 'react';
 import { Task, Tag, Feature, ChecklistItem } from '../types';
-import { Calendar, ChevronDown, ChevronUp, CheckSquare } from 'lucide-react';
+import { Calendar, ChevronDown, ChevronUp, CheckSquare, Check } from 'lucide-react';
 import { checklistAPI } from '../utils/api';
 import { useDragContext } from '../contexts/DragContext';
+import { getAssigneeHex, getInitials } from '../utils/assigneeColor';
 
 // 클릭으로 인정할 최대 이동 거리 (픽셀)
 const CLICK_THRESHOLD = 5;
-
-// 담당자 색상 생성 함수
-const ASSIGNEE_COLORS = [
-  '#6366F1', // indigo
-  '#8B5CF6', // purple
-  '#14B8A6', // teal
-  '#F43F5E', // rose
-  '#F59E0B', // amber
-  '#10B981', // emerald
-];
-
-function getAssigneeColor(name: string): string {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return ASSIGNEE_COLORS[Math.abs(hash) % ASSIGNEE_COLORS.length];
-}
 
 interface DraggableCardProps {
   task: Task;
@@ -37,6 +20,8 @@ interface DraggableCardProps {
   onToggleChecklistExpand?: (taskId: string) => void;
   // 부모로부터 전달받는 체크리스트 데이터 (배치 로드용)
   checklistData?: ChecklistItem[];
+  memberColorMap?: Record<string, string | null>;
+  showFeatureLabel?: boolean;
 }
 
 export function DraggableCard({
@@ -50,6 +35,8 @@ export function DraggableCard({
   isChecklistExpanded = false,
   onToggleChecklistExpand,
   checklistData,
+  memberColorMap,
+  showFeatureLabel = false,
 }: DraggableCardProps) {
   const ref = useRef<HTMLDivElement>(null);
   // 부모에서 전달받은 체크리스트 데이터를 사용하거나 로컬 상태 사용
@@ -239,6 +226,13 @@ export function DraggableCard({
   const completedCount = checklistItems.filter((item) => item.completed).length;
   const hasChecklist = (task.checklist_total ?? 0) > 0;
 
+  // 체크리스트 펼칠 때 데이터가 없으면 자동 로드
+  useEffect(() => {
+    if (isChecklistExpanded && hasChecklist && boardId && checklistData === undefined && localChecklistItems.length === 0 && !isLoading) {
+      loadChecklist();
+    }
+  }, [isChecklistExpanded]);
+
   // 모든 담당자 수집 (task 담당자 + 체크리스트 담당자)
   const allAssignees = useMemo(() => {
     const assigneeMap = new Map<string, { id: string; name: string }>();
@@ -271,7 +265,7 @@ export function DraggableCard({
         isDragging || isThisCardDragging
           ? 'opacity-30 scale-95 border-2 border-dashed border-indigo-400'
           : ''
-      } ${task.completed ? 'border-green-500/30' : ''} ${
+      } ${task.completed ? 'opacity-60' : ''} ${
         shouldDisablePointerEvents ? 'pointer-events-none' : ''
       }`}
       onMouseDown={handleMouseDown}
@@ -293,15 +287,22 @@ export function DraggableCard({
       {/* 좌측 컬러 바 */}
       <div
         className="absolute top-0 left-0 bottom-0 w-1.5"
-        style={{ backgroundColor: task.completed ? '#22c55e' : featureColor }}
+        style={{ backgroundColor: featureColor }}
       />
+
+      {/* 완료 체크 배지 */}
+      {task.completed && (
+        <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-green-500 flex items-center justify-center shadow-[0_0_8px_rgba(34,197,94,0.4)]">
+          <Check className="w-3 h-3 text-white" strokeWidth={3} />
+        </div>
+      )}
 
       {/* 제목 영역 */}
       <div className="flex items-start justify-between mb-3 pl-3">
         <div className="flex items-center gap-2 flex-1 min-w-0">
-          {/* Feature 표시: 닫혀있으면 동그라미, 펼쳐있으면 태그 */}
+          {/* Feature 표시: showFeatureLabel이면 항상 태그, 아니면 기존 로직 */}
           {linkedFeature ? (
-            isChecklistExpanded ? (
+            (showFeatureLabel || isChecklistExpanded) ? (
               <span
                 className="text-[10px] font-bold px-2 py-0.5 rounded-full border flex-shrink-0"
                 style={{
@@ -315,7 +316,7 @@ export function DraggableCard({
             ) : (
               <div
                 className="w-2 h-2 rounded-full flex-shrink-0"
-                style={{ backgroundColor: task.completed ? '#22c55e' : featureColor }}
+                style={{ backgroundColor: featureColor }}
                 title={linkedFeature.title}
               />
             )
@@ -390,9 +391,9 @@ export function DraggableCard({
                 </span>
               </div>
               {isChecklistExpanded ? (
-                <ChevronUp size={12} className="text-zinc-600" />
+                <ChevronUp size={12} className="text-zinc-400" />
               ) : (
-                <ChevronDown size={12} className="text-zinc-600" />
+                <ChevronDown size={12} className="text-zinc-400" />
               )}
             </button>
           )}
@@ -407,12 +408,12 @@ export function DraggableCard({
                   key={assignee.id}
                   className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white border-2 border-kanban-card-hover"
                   style={{
-                    backgroundColor: getAssigneeColor(assignee.name),
+                    backgroundColor: getAssigneeHex(assignee.name, memberColorMap?.[assignee.id]),
                     zIndex: 3 - index,
                   }}
                   title={assignee.name}
                 >
-                  {assignee.name.charAt(0).toUpperCase()}
+                  {getInitials(assignee.name)}
                 </div>
               ))}
               {allAssignees.length > 3 && (
@@ -436,7 +437,7 @@ export function DraggableCard({
       {isChecklistExpanded && hasChecklist && boardId && (
         <div className="mt-3 pt-3 border-t border-kanban-border space-y-1.5 pl-3">
           {isLoading ? (
-            <div className="text-xs text-zinc-500">로딩 중...</div>
+            <div className="text-xs text-zinc-400">로딩 중...</div>
           ) : (
             checklistItems
               .sort((a, b) => a.position - b.position)
@@ -469,7 +470,7 @@ export function DraggableCard({
                   </div>
                   <span
                     className={`text-xs flex-1 ${
-                      item.completed ? 'text-zinc-500 line-through' : 'text-zinc-300'
+                      item.completed ? 'text-zinc-400 line-through' : 'text-zinc-300'
                     }`}
                   >
                     {item.title}
@@ -477,10 +478,10 @@ export function DraggableCard({
                   {item.assignee && (
                     <div
                       className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0 border border-white/20"
-                      style={{ backgroundColor: featureColor }}
+                      style={{ backgroundColor: getAssigneeHex(item.assignee.name, item.assignee?.id ? memberColorMap?.[item.assignee.id] : undefined) }}
                       title={item.assignee.name}
                     >
-                      {item.assignee.name.charAt(0).toUpperCase()}
+                      {getInitials(item.assignee.name)}
                     </div>
                   )}
                 </div>

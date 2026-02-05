@@ -6,7 +6,7 @@ export function TermsPage() {
   return (
     <div className="min-h-screen w-full bg-bridge-dark text-white">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-bridge-obsidian/80 backdrop-blur-xl border-b border-white/5">
+      <header className="sticky top-0 z-50 bg-bridge-obsidian/80 backdrop-blur-xl border-b border-white/15">
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
           <Link
             to="/"
@@ -39,7 +39,7 @@ export function TermsPage() {
           </div>
 
           {/* Content Box */}
-          <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-8 space-y-8">
+          <div className="bg-bridge-obsidian rounded-2xl border border-white/15 p-8 space-y-8">
             {/* Section 1 */}
             <section>
               <h2 className="text-xl font-bold text-white mb-4">제 1 조 (목적)</h2>
@@ -182,7 +182,7 @@ export function TermsPage() {
             >
               개인정보처리방침
             </Link>
-            <span className="text-slate-600">|</span>
+            <span className="text-slate-400">|</span>
             <Link
               to="/login"
               className="text-bridge-accent hover:text-bridge-secondary transition-colors"

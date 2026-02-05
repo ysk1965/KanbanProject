@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { TaskComment, CommentAttachment, User } from '../types';
 import { commentAPI, fileAPI, resolveFileUrl } from '../utils/api';
 import { BoardMember } from './ShareBoardModal';
+import { getAssigneeClasses, getInitials } from '../utils/assigneeColor';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,26 +17,9 @@ import { MessageSquare, Send, RefreshCw, Pencil, Trash2, X, Check, Loader2, Pape
 
 // ========== 상수 & 유틸 ==========
 
-const ASSIGNEE_COLORS = [
-  { bg: 'bg-indigo-500', text: 'text-indigo-300' },
-  { bg: 'bg-purple-500', text: 'text-purple-300' },
-  { bg: 'bg-teal-500', text: 'text-teal-300' },
-  { bg: 'bg-rose-500', text: 'text-rose-300' },
-  { bg: 'bg-amber-500', text: 'text-amber-300' },
-  { bg: 'bg-emerald-500', text: 'text-emerald-300' },
-];
-
 const MAX_FILES = 5;
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-
-function getAssigneeColor(name: string) {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return ASSIGNEE_COLORS[Math.abs(hash) % ASSIGNEE_COLORS.length];
-}
 
 function formatRelativeTime(dateStr: string): string {
   const date = new Date(dateStr.endsWith('Z') ? dateStr : dateStr + 'Z');
@@ -69,7 +53,7 @@ function renderContent(content: string, boardMembers: BoardMember[]) {
     if (part.startsWith('@')) {
       const name = part.slice(1);
       if (memberNames.includes(name)) {
-        const color = getAssigneeColor(name);
+        const color = getAssigneeClasses(name);
         return <span key={i} className={`${color.text} font-medium`}>{part}</span>;
       }
     }
@@ -474,9 +458,9 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser }: Com
   const InlineMentionDropdown = ({ isEdit }: { isEdit: boolean }) => {
     if (!showInlineMention || inlineMentionForEdit !== isEdit || filteredMembers.length === 0) return null;
     return (
-      <div className="absolute bottom-full left-0 mb-1 w-full bg-bridge-obsidian border border-white/10 rounded-lg shadow-lg z-50 py-1 max-h-40 overflow-y-auto kanban-scrollbar">
+      <div className="absolute bottom-full left-0 mb-1 w-full bg-bridge-obsidian border border-white/20 rounded-lg shadow-lg z-50 py-1 max-h-40 overflow-y-auto kanban-scrollbar">
         {filteredMembers.map((member, idx) => {
-          const color = getAssigneeColor(member.name);
+          const color = getAssigneeClasses(member.name);
           return (
             <button key={member.userId}
               onMouseDown={e => { e.preventDefault(); insertMention(member, isEdit); }}
@@ -484,10 +468,10 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser }: Com
               className={`flex items-center gap-2 w-full px-3 py-1.5 text-xs transition-colors text-slate-300 ${idx === mentionIndex ? 'bg-white/10' : 'hover:bg-white/5'}`}
             >
               <div className={`w-5 h-5 rounded-full ${color.bg} flex items-center justify-center text-[10px] font-bold text-white`}>
-                {member.name.charAt(0).toUpperCase()}
+                {getInitials(member.name)}
               </div>
               <span className={idx === mentionIndex ? 'text-foreground' : ''}>{member.name}</span>
-              {member.userId === currentUser?.id && <span className="text-[10px] text-slate-500">(나)</span>}
+              {member.userId === currentUser?.id && <span className="text-[10px] text-slate-400">(나)</span>}
             </button>
           );
         })}
@@ -502,7 +486,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser }: Com
       <div className="flex flex-wrap gap-1.5 mt-1.5">
         {attachments.map(att => (
           <button key={att.id} onClick={() => setLightboxUrl(resolveFileUrl(att.url))}
-            className="relative group/img rounded-md overflow-hidden border border-white/10 hover:border-white/20 transition-colors">
+            className="relative group/img rounded-md overflow-hidden border border-white/20 hover:border-white/20 transition-colors">
             <img src={resolveFileUrl(att.thumbnail_url || att.url)} alt={att.file_name}
               className="h-20 w-auto max-w-[160px] object-cover" loading="lazy" />
             <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/20 transition-colors" />
@@ -530,7 +514,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser }: Com
         {keptExisting.map(att => (
           <div key={att.id} className="relative group/preview">
             <img src={resolveFileUrl(att.thumbnail_url || att.url)} alt={att.file_name}
-              className="h-16 w-auto max-w-[120px] object-cover rounded-md border border-white/10" />
+              className="h-16 w-auto max-w-[120px] object-cover rounded-md border border-white/20" />
             {onRemoveExisting && (
               <button onClick={() => onRemoveExisting(att.id)}
                 className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover/preview:opacity-100 transition-opacity">
@@ -543,7 +527,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser }: Com
         {files.map(pf => (
           <div key={pf.id} className="relative group/preview">
             <img src={pf.previewUrl} alt={pf.file.name}
-              className={`h-16 w-auto max-w-[120px] object-cover rounded-md border ${pf.error ? 'border-red-500/50' : 'border-white/10'}`} />
+              className={`h-16 w-auto max-w-[120px] object-cover rounded-md border ${pf.error ? 'border-red-500/50' : 'border-white/20'}`} />
             {pf.uploading && (
               <div className="absolute inset-0 bg-black/40 rounded-md flex items-center justify-center">
                 <Loader2 className="h-4 w-4 animate-spin text-white" />
@@ -584,13 +568,13 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser }: Com
       )}
 
       {/* 헤더 */}
-      <div className="flex items-center px-4 py-3 border-b border-white/10">
+      <div className="flex items-center px-4 py-3 border-b border-white/20">
         <div className="flex items-center gap-2">
           <MessageSquare className="h-4 w-4 text-slate-400" />
           <span className="text-sm font-medium text-foreground">댓글</span>
-          {comments.length > 0 && <span className="text-xs text-slate-500">{comments.length}</span>}
+          {comments.length > 0 && <span className="text-xs text-slate-400">{comments.length}</span>}
           <button onClick={() => loadComments(false)} disabled={isRefreshing}
-            className="p-0.5 text-slate-500 hover:text-foreground transition-colors disabled:opacity-50" title="새로고침">
+            className="p-0.5 text-slate-400 hover:text-foreground transition-colors disabled:opacity-50" title="새로고침">
             <RefreshCw className={`h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`} />
           </button>
         </div>
@@ -604,14 +588,14 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser }: Com
           </div>
         ) : comments.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-8 text-center">
-            <MessageSquare className="h-8 w-8 text-slate-600 mb-2" />
-            <p className="text-sm text-slate-500">아직 댓글이 없습니다</p>
-            <p className="text-xs text-slate-600 mt-1">첫 댓글을 남겨보세요</p>
+            <MessageSquare className="h-8 w-8 text-slate-400 mb-2" />
+            <p className="text-sm text-slate-400">아직 댓글이 없습니다</p>
+            <p className="text-xs text-slate-400 mt-1">첫 댓글을 남겨보세요</p>
           </div>
         ) : (
           comments.map(comment => {
             const isAuthor = currentUser?.id === comment.author.id;
-            const color = getAssigneeColor(comment.author.name);
+            const color = getAssigneeClasses(comment.author.name);
             const isEdited = comment.created_at !== comment.updated_at;
             const isBeingEdited = editingId === comment.id;
 
@@ -619,23 +603,23 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser }: Com
               <div key={comment.id} className="group">
                 <div className="flex gap-2.5">
                   <div className={`w-7 h-7 rounded-full ${color.bg} flex items-center justify-center text-xs font-bold text-white flex-shrink-0 mt-0.5`}>
-                    {comment.author.name.charAt(0).toUpperCase()}
+                    {getInitials(comment.author.name)}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-xs font-medium text-foreground">{comment.author.name}</span>
-                      <span className="text-[10px] text-slate-500">
+                      <span className="text-[10px] text-slate-400">
                         {formatRelativeTime(comment.created_at)}
                         {isEdited && ' (수정됨)'}
                       </span>
                       {isAuthor && !isBeingEdited && (
                         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity ml-auto">
                           <button onClick={() => startEditing(comment)}
-                            className="p-1 rounded hover:bg-white/10 text-slate-500 hover:text-slate-300">
+                            className="p-1 rounded hover:bg-white/10 text-slate-400 hover:text-slate-300">
                             <Pencil className="h-3 w-3" />
                           </button>
                           <button onClick={() => setDeleteTarget(comment.id)}
-                            className="p-1 rounded hover:bg-red-500/10 text-slate-500 hover:text-red-400">
+                            className="p-1 rounded hover:bg-red-500/10 text-slate-400 hover:text-red-400">
                             <Trash2 className="h-3 w-3" />
                           </button>
                         </div>
@@ -661,7 +645,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser }: Com
                             onKeyDown={e => handleEditKeyDown(e, comment.id)}
                             onPaste={e => handlePaste(e, true)}
                             onBlur={() => setTimeout(() => setShowInlineMention(false), 150)}
-                            className="w-full text-xs bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-foreground placeholder:text-slate-500 resize-none focus:outline-none focus:ring-1 focus:ring-bridge-accent"
+                            className="w-full text-xs bg-white/5 border border-white/20 rounded-lg px-3 py-2 text-foreground placeholder:text-slate-400 resize-none focus:outline-none focus:ring-1 focus:ring-bridge-accent"
                             rows={3} autoFocus />
                         </div>
                         <div className="flex items-center gap-1">
@@ -674,7 +658,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser }: Com
                           </button>
                           <div className="flex-1" />
                           <button onClick={cancelEditing}
-                            className="p-1 rounded hover:bg-white/10 text-slate-500 hover:text-slate-300">
+                            className="p-1 rounded hover:bg-white/10 text-slate-400 hover:text-slate-300">
                             <X className="h-3.5 w-3.5" />
                           </button>
                           <button onClick={() => handleUpdate(comment.id)} disabled={isEditSubmitting}
@@ -702,7 +686,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser }: Com
       </div>
 
       {/* 입력 영역 */}
-      <div className="px-4 py-3 border-t border-white/10">
+      <div className="px-4 py-3 border-t border-white/20">
         <FilePreviewList files={pendingFiles}
           onRemoveFile={(id) => removePendingFile(id, setPendingFiles)} />
 
@@ -716,7 +700,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser }: Com
             onPaste={e => handlePaste(e, false)}
             onBlur={() => setTimeout(() => setShowInlineMention(false), 150)}
             placeholder="댓글을 입력하세요... @로 멘션"
-            className="w-full text-xs bg-white/5 border border-white/10 rounded-lg pl-3 pr-20 py-2.5 text-foreground placeholder:text-slate-500 resize-none focus:outline-none focus:ring-1 focus:ring-bridge-accent"
+            className="w-full text-xs bg-white/5 border border-white/20 rounded-lg pl-3 pr-20 py-2.5 text-foreground placeholder:text-slate-400 resize-none focus:outline-none focus:ring-1 focus:ring-bridge-accent"
             rows={2} />
           <div className="absolute right-2 bottom-2 flex items-center gap-1">
             <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp"
@@ -733,7 +717,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser }: Com
             </button>
           </div>
         </div>
-        <p className="text-[9px] text-slate-600 mt-1">이미지: 붙여넣기, 드래그, 또는 📎 클릭 (jpg/png/gif/webp, 5MB, 최대 5개)</p>
+        <p className="text-[9px] text-slate-400 mt-1">이미지: 붙여넣기, 드래그, 또는 📎 클릭 (jpg/png/gif/webp, 5MB, 최대 5개)</p>
       </div>
 
       {/* 이미지 라이트박스 */}
@@ -752,13 +736,13 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser }: Com
 
       {/* 삭제 확인 */}
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <AlertDialogContent className="bg-bridge-obsidian border-white/10">
+        <AlertDialogContent className="bg-bridge-obsidian border-white/20">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-foreground">댓글을 삭제하시겠습니까?</AlertDialogTitle>
             <AlertDialogDescription className="text-slate-400">삭제된 댓글은 복구할 수 없습니다.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setDeleteTarget(null)} className="bg-white/5 border-white/10 text-foreground hover:bg-white/10">취소</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setDeleteTarget(null)} className="bg-white/5 border-white/20 text-foreground hover:bg-white/10">취소</AlertDialogCancel>
             <AlertDialogAction onClick={() => deleteTarget && handleDelete(deleteTarget)} className="bg-red-500 hover:bg-red-600 text-white">삭제</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

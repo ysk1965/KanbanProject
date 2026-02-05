@@ -11,7 +11,7 @@
   --kanban-bg: #0c0c0f;
   --kanban-card: #121216;
   --kanban-card-hover: #1e1e24;
-  --kanban-border: #2a2a32;
+  --kanban-border: #363640;
   --kanban-border-hover: #3a3a45;
   --kanban-surface: #252530;
   --kanban-input: #0a0a0d;
@@ -68,7 +68,7 @@
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
+  --muted-foreground: oklch(0.75 0 0);
   --accent: oklch(0.269 0 0);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.396 0.141 25.723);
@@ -343,7 +343,7 @@ html {
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.2em;
-  color: #71717a;
+  color: #9ca3af;
 }
 
 /* Login Page Animations */

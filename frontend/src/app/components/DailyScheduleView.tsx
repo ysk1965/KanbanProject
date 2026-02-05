@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Settings, Plus, Loader2, Clock, CheckSquare, Check } from 'lucide-react';
 import { Button } from './ui/button';
 import { format, addDays, subDays, startOfDay, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval } from 'date-fns';
@@ -19,6 +19,7 @@ import {
   ScheduleSettingsResponse,
   DailyChecklistColumnResponse,
 } from '../utils/api';
+import { getInitials } from '../utils/assigneeColor';
 
 // 데일리 스크럼 세부 탭 타입
 type ScheduleSubTab = 'timeblock' | 'checklist';
@@ -333,28 +334,44 @@ export function DailyScheduleView({ boardId, boardMembers, onViewFeature, onView
     setPendingBlock(null);
   };
 
+  // selectedBlock을 ref로 추적 (handleBlockResize의 stale closure 방지)
+  const selectedBlockRef = useRef(selectedBlock);
+  useEffect(() => {
+    selectedBlockRef.current = selectedBlock;
+  }, [selectedBlock]);
+
   // 블록 리사이즈/이동 처리
   const handleBlockResize = useCallback(async (blockId: string, startTime: string, endTime: string) => {
+    // Optimistic update: 로컬 state를 먼저 업데이트하여 깜빡임 방지
+    setColumns(prev => prev.map(col => ({
+      ...col,
+      blocks: col.blocks.map(b =>
+        b.id === blockId ? { ...b, start_time: startTime, end_time: endTime } : b
+      ),
+    })));
+
+    // 선택된 블록이면 상세 패널도 즉시 업데이트
+    const currentSelected = selectedBlockRef.current;
+    if (currentSelected && currentSelected.id === blockId) {
+      setSelectedBlock({
+        ...currentSelected,
+        start_time: startTime,
+        end_time: endTime,
+      });
+    }
+
     try {
       await scheduleAPI.updateBlock(boardId, blockId, {
         start_time: startTime,
         end_time: endTime,
       });
-      // 선택된 블록이면 상세 패널도 업데이트
-      if (selectedBlock && selectedBlock.id === blockId) {
-        setSelectedBlock({
-          ...selectedBlock,
-          start_time: startTime,
-          end_time: endTime,
-        });
-      }
     } catch (error) {
-      console.error('Failed to resize block:', error);
+      console.error('[Schedule] Failed to update block:', error);
     } finally {
-      // 성공/실패 모두 데이터 새로고침 (에러 시 원래 상태 복구)
+      // 성공/실패 모두 서버 데이터로 동기화 (에러 시 원래 상태 복구)
       await loadSchedule();
     }
-  }, [boardId, selectedBlock, loadSchedule]);
+  }, [boardId, loadSchedule]);
 
   return (
     <div
@@ -518,21 +535,21 @@ export function DailyScheduleView({ boardId, boardMembers, onViewFeature, onView
                 >
                   <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-sm text-white font-medium">
-                      {member.name.charAt(0).toUpperCase()}
+                      {getInitials(member.name)}
                     </div>
                     <span className="text-sm font-medium text-foreground">{member.name}</span>
                   </div>
                 </div>
               ))}
               {boardMembers.length === 0 && (
-                <div className="flex-1 p-3 text-zinc-500 text-sm">보드에 멤버가 없습니다</div>
+                <div className="flex-1 p-3 text-zinc-400 text-sm">보드에 멤버가 없습니다</div>
               )}
             </div>
 
             {/* 데일리 체크리스트 요약 영역 */}
             {dailyChecklists.length > 0 && (
               <div className="flex border-b border-kanban-border bg-white/[0.02]">
-                <div className="w-20 flex-shrink-0 p-2 text-xs text-zinc-500 border-r border-kanban-border flex items-center justify-center">
+                <div className="w-20 flex-shrink-0 p-2 text-xs text-zinc-400 border-r border-kanban-border flex items-center justify-center">
                   <CheckSquare className="h-3.5 w-3.5" />
                 </div>
                 {boardMembers.map((member) => {
@@ -585,14 +602,14 @@ export function DailyScheduleView({ boardId, boardMembers, onViewFeature, onView
                               </div>
                             ))}
                             {items.length > 4 && (
-                              <div className="text-[10px] text-slate-500 pl-4">
+                              <div className="text-[10px] text-slate-400 pl-4">
                                 +{items.length - 4}개 더
                               </div>
                             )}
                           </div>
                         </div>
                       ) : (
-                        <div className="text-xs text-slate-600 text-center py-1">
+                        <div className="text-xs text-slate-400 text-center py-1">
                           체크리스트 없음
                         </div>
                       )}
@@ -607,7 +624,7 @@ export function DailyScheduleView({ boardId, boardMembers, onViewFeature, onView
               {timeSlots.map((time, slotIndex) => (
                 <div key={time} className="flex border-b border-kanban-border">
                   {/* 시간/블록 라벨 */}
-                  <div className="w-20 flex-shrink-0 p-2 text-xs text-zinc-500 border-r border-kanban-border bg-kanban-bg">
+                  <div className="w-20 flex-shrink-0 p-2 text-xs text-zinc-400 border-r border-kanban-border bg-kanban-bg">
                     {displayMode === 'block'
                       ? `${slotIndex + 1}`
                       : time.endsWith(':00') ? time : ''}
@@ -628,7 +645,7 @@ export function DailyScheduleView({ boardId, boardMembers, onViewFeature, onView
                         {/* 빈 셀 호버 시 + 버튼 표시 */}
                         {!isSelected && (
                           <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                            <Plus className="h-4 w-4 text-zinc-500" />
+                            <Plus className="h-4 w-4 text-zinc-400" />
                           </div>
                         )}
                       </div>
@@ -707,7 +724,7 @@ export function DailyScheduleView({ boardId, boardMembers, onViewFeature, onView
                 <div className="w-32 flex-shrink-0 p-3 border-r border-kanban-border bg-kanban-bg">
                   <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-sm text-white font-medium">
-                      {member.name.charAt(0).toUpperCase()}
+                      {getInitials(member.name)}
                     </div>
                     <div className="flex-1 min-w-0">
                       <span className="text-sm font-medium text-foreground truncate block">{member.name}</span>
@@ -736,22 +753,44 @@ export function DailyScheduleView({ boardId, boardMembers, onViewFeature, onView
                       }`}
                     >
                       <div className="space-y-1">
-                        {blocks.map((block) => (
+                        {blocks.map((block) => {
+                          const isCompleted = block.checklist_item?.completed ?? false;
+                          const dueDate = block.checklist_item?.due_date ? new Date(block.checklist_item.due_date) : null;
+                          const today = new Date();
+                          today.setHours(0, 0, 0, 0);
+                          const threeDaysLater = new Date(today);
+                          threeDaysLater.setDate(today.getDate() + 3);
+
+                          let blockBg = 'bg-blue-500/30 hover:bg-blue-500/50';
+                          let timeColor = 'text-blue-200';
+                          if (isCompleted) {
+                            blockBg = 'bg-green-500/30 hover:bg-green-500/50';
+                            timeColor = 'text-green-200';
+                          } else if (dueDate && dueDate < today) {
+                            blockBg = 'bg-red-500/30 hover:bg-red-500/50';
+                            timeColor = 'text-red-200';
+                          } else if (dueDate && dueDate <= threeDaysLater) {
+                            blockBg = 'bg-yellow-500/30 hover:bg-yellow-500/50';
+                            timeColor = 'text-yellow-200';
+                          }
+
+                          return (
                           <div
                             key={block.id}
                             onClick={() => handleBlockClick(block)}
-                            className="p-2 rounded bg-purple-600/80 hover:bg-purple-600 cursor-pointer transition-colors"
+                            className={`p-2 rounded ${blockBg} cursor-pointer transition-colors`}
                           >
-                            <div className="text-xs text-white font-medium truncate">
-                              {block.checklist_item.title}
+                            <div className={`text-xs text-white font-medium truncate ${isCompleted ? 'line-through opacity-70' : ''}`}>
+                              {block.checklist_item?.title || '(제목 없음)'}
                             </div>
-                            <div className="text-xs text-purple-200">
+                            <div className={`text-xs ${timeColor}`}>
                               {block.start_time.slice(0, 5)} - {block.end_time.slice(0, 5)}
                             </div>
                           </div>
-                        ))}
+                          );
+                        })}
                         {blocks.length === 0 && (
-                          <div className="text-xs text-zinc-600 text-center py-4">-</div>
+                          <div className="text-xs text-zinc-400 text-center py-4">-</div>
                         )}
                       </div>
                     </div>
@@ -760,7 +799,7 @@ export function DailyScheduleView({ boardId, boardMembers, onViewFeature, onView
               </div>
             ))}
             {boardMembers.length === 0 && (
-              <div className="p-6 text-zinc-500 text-center">보드에 멤버가 없습니다</div>
+              <div className="p-6 text-zinc-400 text-center">보드에 멤버가 없습니다</div>
             )}
           </div>
         )}
@@ -768,7 +807,7 @@ export function DailyScheduleView({ boardId, boardMembers, onViewFeature, onView
 
       {/* 하단 안내 */}
       <div className="px-6 py-3 bg-kanban-card border-t border-kanban-border">
-        <p className="text-sm text-zinc-500">
+        <p className="text-sm text-zinc-400">
           {viewMode === 'day'
             ? '빈 영역을 세로로 드래그하여 새 타임블록을 생성하세요'
             : '블록을 클릭하여 상세 정보를 확인하세요'
@@ -836,6 +875,7 @@ export function DailyScheduleView({ boardId, boardMembers, onViewFeature, onView
       {/* 주간 요약 모달 */}
       {summaryMember && viewMode === 'week' && (
         <WeeklySummaryModal
+          boardId={boardId}
           member={summaryMember}
           weekDays={weekDays}
           weeklyData={weeklyData}

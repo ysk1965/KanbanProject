@@ -16,10 +16,10 @@ export function TrialBanner({ status, daysRemaining = 0, onOpenSubscription, tie
   // Standard tier: 간결한 알림 배너
   if (tier === 'STANDARD') {
     return (
-      <div className="bg-bridge-obsidian border-b border-white/5 px-6 py-2">
+      <div className="bg-bridge-obsidian border-b border-white/15 px-6 py-2">
         <div className="flex items-center justify-between max-w-7xl mx-auto">
           <div className="flex items-center gap-2">
-            <Lock className="h-4 w-4 text-slate-500" />
+            <Lock className="h-4 w-4 text-slate-400" />
             <span className="text-sm text-slate-400">
               Standard 플랜 - Task 10개 제한, 스케줄/마일스톤 기능 잠금
             </span>

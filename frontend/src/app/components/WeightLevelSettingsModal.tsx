@@ -129,9 +129,9 @@ export function WeightLevelSettingsModal({
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-bridge-obsidian rounded-2xl shadow-2xl w-full max-w-2xl border border-white/10 overflow-hidden">
+      <div className="bg-bridge-obsidian rounded-2xl shadow-2xl w-full max-w-2xl border border-white/20 overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-white/20">
           <h2 className="text-lg font-bold text-white">가중치 레벨 설정</h2>
           <button
             onClick={onClose}
@@ -157,9 +157,9 @@ export function WeightLevelSettingsModal({
                 {levels.map((level, index) => (
                   <div
                     key={level.id}
-                    className="flex items-center gap-3 p-4 bg-bridge-dark rounded-xl border border-white/5"
+                    className="flex items-center gap-3 p-4 bg-bridge-dark rounded-xl border border-white/15"
                   >
-                    <GripVertical className="h-4 w-4 text-slate-600 cursor-grab" />
+                    <GripVertical className="h-4 w-4 text-slate-400 cursor-grab" />
 
                     {/* Color Picker */}
                     <div className="relative">
@@ -177,7 +177,7 @@ export function WeightLevelSettingsModal({
                       type="text"
                       value={level.name}
                       onChange={(e) => handleUpdateLevel(level.id, { name: e.target.value })}
-                      className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent"
+                      className="flex-1 bg-white/5 border border-white/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent"
                       placeholder="레벨 이름"
                     />
 
@@ -191,7 +191,7 @@ export function WeightLevelSettingsModal({
                         step="0.1"
                         min="0.1"
                         max="10"
-                        className="w-20 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm text-center focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent"
+                        className="w-20 bg-white/5 border border-white/20 rounded-lg px-3 py-2 text-white text-sm text-center focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent"
                       />
                     </div>
 
@@ -231,7 +231,7 @@ export function WeightLevelSettingsModal({
 
               {/* Preset Examples */}
               <div className="mt-6 p-4 bg-bridge-dark/50 rounded-xl">
-                <p className="text-xs text-slate-500 mb-3">추천 프리셋</p>
+                <p className="text-xs text-slate-400 mb-3">추천 프리셋</p>
                 <div className="flex flex-wrap gap-2">
                   <button
                     onClick={() => {
@@ -243,7 +243,7 @@ export function WeightLevelSettingsModal({
                       ]);
                       setDefaultLevelId('p2');
                     }}
-                    className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-slate-400 hover:text-white hover:bg-white/10 transition-all"
+                    className="px-3 py-1.5 bg-white/5 border border-white/20 rounded-lg text-xs text-slate-400 hover:text-white hover:bg-white/10 transition-all"
                   >
                     4단계 (Low ~ Critical)
                   </button>
@@ -256,7 +256,7 @@ export function WeightLevelSettingsModal({
                       ]);
                       setDefaultLevelId('p1');
                     }}
-                    className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-slate-400 hover:text-white hover:bg-white/10 transition-all"
+                    className="px-3 py-1.5 bg-white/5 border border-white/20 rounded-lg text-xs text-slate-400 hover:text-white hover:bg-white/10 transition-all"
                   >
                     3단계 (일반/중요/긴급)
                   </button>
@@ -271,7 +271,7 @@ export function WeightLevelSettingsModal({
                       ]);
                       setDefaultLevelId('p3');
                     }}
-                    className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-slate-400 hover:text-white hover:bg-white/10 transition-all"
+                    className="px-3 py-1.5 bg-white/5 border border-white/20 rounded-lg text-xs text-slate-400 hover:text-white hover:bg-white/10 transition-all"
                   >
                     5단계 (P0 ~ P4)
                   </button>
@@ -282,10 +282,10 @@ export function WeightLevelSettingsModal({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-white/10 flex justify-end gap-3">
+        <div className="px-6 py-4 border-t border-white/20 flex justify-end gap-3">
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-white/5 border border-white/10 text-white rounded-xl font-medium hover:bg-white/10 transition-all"
+            className="px-4 py-2 bg-white/5 border border-white/20 text-white rounded-xl font-medium hover:bg-white/10 transition-all"
           >
             취소
           </button>

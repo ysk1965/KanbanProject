@@ -17,12 +17,12 @@ const FeatureCard = ({ icon: Icon, title, desc, delay, highlight = false }: { ic
     className={`flex flex-col p-10 rounded-[3rem] border transition-all duration-700 group relative overflow-hidden ${
       highlight
       ? 'bg-bridge-accent/10 border-bridge-accent/30 shadow-[0_0_80px_rgba(99,102,241,0.1)]'
-      : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20 shadow-2xl'
+      : 'bg-white/5 border-white/20 hover:bg-white/10 hover:border-white/20 shadow-2xl'
     }`}
   >
     {highlight && <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity"><Activity size={80} className="text-bridge-accent" /></div>}
     <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-10 border transition-all duration-700 ${
-      highlight ? 'bg-bridge-accent text-white border-bridge-accent shadow-xl scale-110' : 'bg-white/5 text-bridge-secondary border-white/10 shadow-inner'
+      highlight ? 'bg-bridge-accent text-white border-bridge-accent shadow-xl scale-110' : 'bg-white/5 text-bridge-secondary border-white/20 shadow-inner'
     }`}>
       <Icon size={28} />
     </div>
@@ -112,7 +112,7 @@ export const LandingPage: React.FC = () => {
     <div className="min-h-screen bg-bridge-dark text-slate-200 selection:bg-bridge-accent selection:text-white font-inter overflow-x-hidden">
 
       {/* Navigation */}
-      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-700 ${scrolled ? 'glass border-b border-white/5 py-4' : 'bg-transparent py-8'}`}>
+      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-700 ${scrolled ? 'glass border-b border-white/15 py-4' : 'bg-transparent py-8'}`}>
         <div className="container mx-auto px-8 flex justify-between items-center">
           <div className="flex items-center gap-3 cursor-pointer group" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
             <div className="w-10 h-10 bg-bridge-accent rounded-xl flex items-center justify-center text-white font-jakarta font-extrabold text-lg shadow-[0_0_20px_rgba(99,102,241,0.6)] group-hover:scale-110 transition-all duration-500">BS</div>
@@ -184,7 +184,7 @@ export const LandingPage: React.FC = () => {
             <button onClick={handleGetStarted} className="px-16 py-7 bg-bridge-accent text-white rounded-full font-bold uppercase tracking-widest text-[12px] shadow-[0_0_60px_rgba(99,102,241,0.5)] hover:bg-white hover:text-bridge-dark transition-all transform hover:-translate-y-2 duration-500 flex items-center gap-3 mx-auto md:mx-0 font-jakarta">
               Try 7 Days Free Premium <ArrowRight size={20} />
             </button>
-            <button onClick={handleGetStarted} className="px-16 py-7 bg-white/5 border border-white/10 text-white rounded-full font-bold uppercase tracking-widest text-[12px] shadow-xl backdrop-blur-md hover:bg-white/10 transition-all transform hover:-translate-y-1 duration-500 mx-auto md:mx-0 font-jakarta">
+            <button onClick={handleGetStarted} className="px-16 py-7 bg-white/5 border border-white/20 text-white rounded-full font-bold uppercase tracking-widest text-[12px] shadow-xl backdrop-blur-md hover:bg-white/10 transition-all transform hover:-translate-y-1 duration-500 mx-auto md:mx-0 font-jakarta">
               Basic Board Forever Free
             </button>
           </motion.div>
@@ -193,7 +193,7 @@ export const LandingPage: React.FC = () => {
 
       <main>
         {/* Core Values Section */}
-        <section id="core" className="py-64 bg-bridge-obsidian/40 border-y border-white/5 relative overflow-hidden">
+        <section id="core" className="py-64 bg-bridge-obsidian/40 border-y border-white/15 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-[1000px] h-[1000px] bg-bridge-accent/5 blur-[250px] rounded-full -mr-96 -mt-96" />
           <div className="container mx-auto px-8">
             <div className="max-w-5xl mb-32">
@@ -238,7 +238,7 @@ export const LandingPage: React.FC = () => {
           <div className="container mx-auto px-8">
             <div className="max-w-4xl mx-auto text-center mb-32">
               <h2 className="font-jakarta text-4xl md:text-8xl mb-10 text-white tracking-tighter font-extrabold">Visual Connectivity<span className="spot-dot scale-150 ml-4" /></h2>
-              <p className="text-xl text-slate-500 leading-relaxed font-light font-inter">
+              <p className="text-xl text-slate-400 leading-relaxed font-light font-inter">
                 흩어져 있는 태스크들이 하나의 목표를 향해 정렬되는 과정.<br/>
                 BridgeSpots의 지능형 칸반 시스템이 이를 현실로 만듭니다.
               </p>
@@ -259,12 +259,12 @@ export const LandingPage: React.FC = () => {
                     key={i}
                     className="flex gap-10 group cursor-default"
                   >
-                    <div className="flex-shrink-0 w-20 h-20 rounded-3xl border border-white/10 bg-white/5 flex items-center justify-center font-jakarta text-3xl font-bold text-bridge-accent group-hover:bg-bridge-accent group-hover:text-white transition-all duration-700 shadow-2xl">
+                    <div className="flex-shrink-0 w-20 h-20 rounded-3xl border border-white/20 bg-white/5 flex items-center justify-center font-jakarta text-3xl font-bold text-bridge-accent group-hover:bg-bridge-accent group-hover:text-white transition-all duration-700 shadow-2xl">
                       {item.num}
                     </div>
                     <div>
                       <h4 className="text-3xl font-jakarta font-bold text-white mb-4 tracking-tight group-hover:text-bridge-secondary transition-colors duration-500">{item.title}</h4>
-                      <p className="text-slate-500 leading-relaxed text-lg font-light font-inter">{item.text}</p>
+                      <p className="text-slate-400 leading-relaxed text-lg font-light font-inter">{item.text}</p>
                     </div>
                   </motion.div>
                 ))}
@@ -274,7 +274,7 @@ export const LandingPage: React.FC = () => {
         </section>
 
         {/* Scheduling Section */}
-        <section id="scheduling" className="py-48 bg-bridge-obsidian border-y border-white/5">
+        <section id="scheduling" className="py-48 bg-bridge-obsidian border-y border-white/15">
           <div className="container mx-auto px-8">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-28 items-center">
               <div className="lg:col-span-5">
@@ -306,7 +306,7 @@ export const LandingPage: React.FC = () => {
                 <h2 className="font-jakarta text-7xl md:text-[11rem] mb-16 text-white tracking-tighter leading-none font-extrabold">
                   Price.<br/>Reinvented<span className="spot-dot scale-150" />
                 </h2>
-                <div className="bg-bridge-obsidian/60 backdrop-blur-3xl rounded-[3rem] p-12 border border-white/10 max-w-4xl mx-auto flex flex-col md:flex-row items-center justify-center gap-12">
+                <div className="bg-bridge-obsidian/60 backdrop-blur-3xl rounded-[3rem] p-12 border border-white/20 max-w-4xl mx-auto flex flex-col md:flex-row items-center justify-center gap-12">
                   <RefreshCcw size={48} className="text-bridge-secondary animate-spin-slow flex-shrink-0" />
                   <p className="text-left text-xl leading-relaxed text-slate-300 font-inter font-light">
                     <strong className="text-white block mb-3 font-jakarta text-2xl font-bold italic">Continuous Momentum.</strong>
@@ -316,18 +316,18 @@ export const LandingPage: React.FC = () => {
              </div>
 
              <div className="grid grid-cols-1 md:grid-cols-2 gap-12 max-w-6xl mx-auto items-stretch">
-                <div className="p-16 bg-white/5 backdrop-blur-xl rounded-[4rem] border border-white/10 flex flex-col items-center text-center hover:bg-white/10 transition-all duration-700">
-                  <span className="text-[12px] font-black text-slate-500 uppercase tracking-[0.6em] mb-12 font-jakarta">Basic Spots</span>
+                <div className="p-16 bg-white/5 backdrop-blur-xl rounded-[4rem] border border-white/20 flex flex-col items-center text-center hover:bg-white/10 transition-all duration-700">
+                  <span className="text-[12px] font-black text-slate-400 uppercase tracking-[0.6em] mb-12 font-jakarta">Basic Spots</span>
                   <div className="flex items-baseline gap-2 mb-8">
                     <span className="text-8xl font-jakarta font-extrabold text-white">Free</span>
                   </div>
-                  <p className="text-lg text-slate-500 mb-16 font-inter">Infinite Collaboration. Zero Cost.</p>
-                  <ul className="text-base space-y-8 text-slate-400 mb-20 text-left w-full border-t border-white/5 pt-16 font-light font-inter">
+                  <p className="text-lg text-slate-400 mb-16 font-inter">Infinite Collaboration. Zero Cost.</p>
+                  <ul className="text-base space-y-8 text-slate-400 mb-20 text-left w-full border-t border-white/15 pt-16 font-light font-inter">
                     <li className="flex items-center gap-5"><CheckCircle size={22} className="text-bridge-secondary/50" /> 핵심 칸반 아키텍처 무제한</li>
                     <li className="flex items-center gap-5"><CheckCircle size={22} className="text-bridge-secondary/50" /> 실시간 데이터 동기화 및 팀 공유</li>
                     <li className="flex items-center gap-5 text-slate-700 line-through"><CheckCircle size={22} /> 지능형 대시보드 및 정체 감지</li>
                   </ul>
-                  <button onClick={handleGetStarted} className="w-full py-8 bg-white/10 border border-white/10 rounded-full text-[12px] font-black uppercase tracking-widest text-white hover:bg-white hover:text-bridge-dark transition-all font-jakarta">START FREE</button>
+                  <button onClick={handleGetStarted} className="w-full py-8 bg-white/10 border border-white/20 rounded-full text-[12px] font-black uppercase tracking-widest text-white hover:bg-white hover:text-bridge-dark transition-all font-jakarta">START FREE</button>
                 </div>
 
                 <div className="p-16 bg-bridge-slate rounded-[4rem] border-2 border-bridge-secondary/40 shadow-[0_0_120px_rgba(45,212,191,0.2)] flex flex-col items-center text-center transform scale-105 relative z-10 transition-all duration-700">
@@ -337,7 +337,7 @@ export const LandingPage: React.FC = () => {
                     <span className="text-9xl font-jakarta font-extrabold text-white">5</span>
                   </div>
                   <p className="text-lg text-slate-400 mb-16 font-inter">per user / month (Annual $50)</p>
-                  <ul className="text-base space-y-8 text-slate-100 mb-20 text-left w-full border-t border-white/10 pt-16 font-medium font-inter">
+                  <ul className="text-base space-y-8 text-slate-100 mb-20 text-left w-full border-t border-white/20 pt-16 font-medium font-inter">
                     <li className="flex items-center gap-5 text-bridge-secondary font-bold"><CheckCircle size={26} /> 지능형 PM 대시보드 무제한 접근</li>
                     <li className="flex items-center gap-5"><CheckCircle size={26} className="text-bridge-secondary" /> 리소스 병목 및 정체 자동 알림</li>
                     <li className="flex items-center gap-5"><CheckCircle size={26} className="text-bridge-secondary" /> Gantt & Daily 통합 뷰 무제한</li>
@@ -372,7 +372,7 @@ export const LandingPage: React.FC = () => {
         </section>
       </main>
 
-      <footer className="bg-bridge-obsidian text-slate-500 py-48 border-t border-white/5">
+      <footer className="bg-bridge-obsidian text-slate-400 py-48 border-t border-white/15">
         <div className="container mx-auto px-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-24 mb-32">
             <div className="col-span-1 md:col-span-1">
@@ -382,7 +382,7 @@ export const LandingPage: React.FC = () => {
                    <span className="text-white">Bridge</span><span className="text-bridge-secondary">Spots</span><span className="spot-dot w-2 h-2 ml-1" />
                  </div>
               </div>
-              <p className="text-lg leading-relaxed text-slate-500 font-normal font-inter">
+              <p className="text-lg leading-relaxed text-slate-400 font-normal font-inter">
                 Built by PMs for Absolute Mastery.<br/>Precision Collaboration, Redefined.
               </p>
             </div>
@@ -411,7 +411,7 @@ export const LandingPage: React.FC = () => {
               </ul>
             </div>
           </div>
-          <div className="pt-20 border-t border-white/5 text-center text-[11px] tracking-[0.8em] uppercase font-black text-slate-700 font-jakarta">
+          <div className="pt-20 border-t border-white/15 text-center text-[11px] tracking-[0.8em] uppercase font-black text-slate-700 font-jakarta">
             &copy; 2026 BRIDGESPOTS INC. ORCHESTRATING SUPREME FLOW.
           </div>
         </div>

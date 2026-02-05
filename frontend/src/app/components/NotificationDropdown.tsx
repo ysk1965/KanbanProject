@@ -4,24 +4,7 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { notificationAPI } from '../utils/api';
 import { NotificationItem, ActivityLog } from '../types';
 import { Button } from './ui/button';
-
-// 담당자 색상 함수 (CommentPanel과 동일)
-const ASSIGNEE_COLORS = [
-  { bg: 'bg-indigo-500', text: 'text-indigo-300' },
-  { bg: 'bg-purple-500', text: 'text-purple-300' },
-  { bg: 'bg-teal-500', text: 'text-teal-300' },
-  { bg: 'bg-rose-500', text: 'text-rose-300' },
-  { bg: 'bg-amber-500', text: 'text-amber-300' },
-  { bg: 'bg-emerald-500', text: 'text-emerald-300' },
-];
-
-function getAssigneeColor(name: string) {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return ASSIGNEE_COLORS[Math.abs(hash) % ASSIGNEE_COLORS.length];
-}
+import { getAssigneeClasses } from '../utils/assigneeColor';
 
 function getTimeAgo(dateStr: string) {
   const date = new Date(dateStr.endsWith('Z') ? dateStr : dateStr + 'Z');
@@ -48,90 +31,90 @@ function getActionText(activity: ActivityLog) {
       return (
         <>
           <span className="font-medium text-foreground">{user.name}</span>
-          <span className="text-zinc-400">님이 보드를 생성했습니다</span>
+          <span className="text-zinc-300">님이 보드를 생성했습니다</span>
         </>
       );
     case 'feature_created':
       return (
         <>
           <span className="font-medium text-foreground">{user.name}</span>
-          <span className="text-zinc-400">님이 Feature </span>
+          <span className="text-zinc-300">님이 Feature </span>
           <span className="font-medium text-indigo-400">{metadata.featureTitle as string}</span>
-          <span className="text-zinc-400">를 생성했습니다</span>
+          <span className="text-zinc-300">를 생성했습니다</span>
         </>
       );
     case 'task_created':
       return (
         <>
           <span className="font-medium text-foreground">{user.name}</span>
-          <span className="text-zinc-400">님이 Task </span>
+          <span className="text-zinc-300">님이 Task </span>
           <span className="font-medium text-indigo-400">{metadata.taskTitle as string}</span>
-          <span className="text-zinc-400">를 생성했습니다</span>
+          <span className="text-zinc-300">를 생성했습니다</span>
         </>
       );
     case 'task_moved':
       return (
         <>
           <span className="font-medium text-foreground">{user.name}</span>
-          <span className="text-zinc-400">님이 </span>
+          <span className="text-zinc-300">님이 </span>
           <span className="font-medium text-indigo-400">{metadata.taskTitle as string}</span>
-          <span className="text-zinc-400">를 </span>
+          <span className="text-zinc-300">를 </span>
           <span className="font-medium text-green-400">{metadata.fromBlock as string}</span>
-          <span className="text-zinc-400">에서 </span>
+          <span className="text-zinc-300">에서 </span>
           <span className="font-medium text-green-400">{metadata.toBlock as string}</span>
-          <span className="text-zinc-400">로 이동했습니다</span>
+          <span className="text-zinc-300">로 이동했습니다</span>
         </>
       );
     case 'task_completed':
       return (
         <>
           <span className="font-medium text-foreground">{user.name}</span>
-          <span className="text-zinc-400">님이 </span>
+          <span className="text-zinc-300">님이 </span>
           <span className="font-medium text-indigo-400">{metadata.taskTitle as string}</span>
-          <span className="text-zinc-400">를 완료했습니다</span>
+          <span className="text-zinc-300">를 완료했습니다</span>
         </>
       );
     case 'member_added':
       return (
         <>
           <span className="font-medium text-foreground">{user.name}</span>
-          <span className="text-zinc-400">님이 </span>
+          <span className="text-zinc-300">님이 </span>
           <span className="font-medium text-indigo-400">{metadata.memberName as string}</span>
-          <span className="text-zinc-400">님을 보드에 추가했습니다</span>
+          <span className="text-zinc-300">님을 보드에 추가했습니다</span>
         </>
       );
     case 'member_removed':
       return (
         <>
           <span className="font-medium text-foreground">{user.name}</span>
-          <span className="text-zinc-400">님이 </span>
+          <span className="text-zinc-300">님이 </span>
           <span className="font-medium text-indigo-400">{metadata.memberName as string}</span>
-          <span className="text-zinc-400">님을 보드에서 제거했습니다</span>
+          <span className="text-zinc-300">님을 보드에서 제거했습니다</span>
         </>
       );
     case 'block_created':
       return (
         <>
           <span className="font-medium text-foreground">{user.name}</span>
-          <span className="text-zinc-400">님이 커스텀 블록 </span>
+          <span className="text-zinc-300">님이 커스텀 블록 </span>
           <span className="font-medium text-purple-400">{metadata.blockName as string}</span>
-          <span className="text-zinc-400">을 생성했습니다</span>
+          <span className="text-zinc-300">을 생성했습니다</span>
         </>
       );
     case 'block_deleted':
       return (
         <>
           <span className="font-medium text-foreground">{user.name}</span>
-          <span className="text-zinc-400">님이 커스텀 블록 </span>
+          <span className="text-zinc-300">님이 커스텀 블록 </span>
           <span className="font-medium text-purple-400">{metadata.blockName as string}</span>
-          <span className="text-zinc-400">을 삭제했습니다</span>
+          <span className="text-zinc-300">을 삭제했습니다</span>
         </>
       );
     default:
       return (
         <>
           <span className="font-medium text-foreground">{user.name}</span>
-          <span className="text-zinc-400">님이 작업을 수행했습니다</span>
+          <span className="text-zinc-300">님이 작업을 수행했습니다</span>
         </>
       );
   }
@@ -254,12 +237,12 @@ export function NotificationDropdown({
         </button>
       </PopoverTrigger>
       <PopoverContent
-        className="w-[400px] bg-bridge-obsidian border-white/10 p-0 shadow-2xl"
+        className="w-[400px] bg-bridge-obsidian border-white/20 p-0 shadow-2xl"
         align="end"
         sideOffset={8}
       >
         {/* Tab Header */}
-        <div className="flex border-b border-white/10">
+        <div className="flex border-b border-white/15">
           <button
             onClick={() => setActiveTab('notifications')}
             className={`flex-1 px-4 py-3 text-xs font-medium transition-colors relative ${
@@ -299,7 +282,7 @@ export function NotificationDropdown({
             <>
               {/* Notifications Header with Mark All Read */}
               {notifications.length > 0 && unreadCount > 0 && (
-                <div className="flex items-center justify-end px-4 py-2 border-b border-white/5">
+                <div className="flex items-center justify-end px-4 py-2 border-b border-white/20">
                   <button
                     onClick={handleMarkAllAsRead}
                     className="flex items-center gap-1 text-xs text-slate-400 hover:text-foreground transition-colors"
@@ -316,7 +299,7 @@ export function NotificationDropdown({
                   <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
                 </div>
               ) : notifications.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-slate-500">
+                <div className="flex flex-col items-center justify-center py-12 text-slate-400">
                   <Bell className="h-8 w-8 mb-2 opacity-40" />
                   <p className="text-xs">새로운 알림이 없습니다</p>
                 </div>
@@ -324,7 +307,7 @@ export function NotificationDropdown({
                 <div>
                   {notifications.map((notification) => {
                     const senderName = notification.sender?.name || '?';
-                    const color = getAssigneeColor(senderName);
+                    const color = getAssigneeClasses(senderName);
                     return (
                       <div
                         key={notification.id}
@@ -357,10 +340,10 @@ export function NotificationDropdown({
                           <p className="text-xs font-medium text-foreground leading-snug">
                             {notification.title}
                           </p>
-                          <p className="text-xs text-slate-500 truncate mt-0.5">
+                          <p className="text-xs text-slate-400 truncate mt-0.5">
                             {notification.message}
                           </p>
-                          <p className="text-[10px] text-slate-600 mt-1">
+                          <p className="text-[10px] text-slate-400 mt-1">
                             {getTimeAgo(notification.created_at)}
                           </p>
                         </div>
@@ -370,7 +353,7 @@ export function NotificationDropdown({
 
                   {/* Load More Button */}
                   {hasMore && (
-                    <div className="px-4 py-2 border-t border-white/5">
+                    <div className="px-4 py-2 border-t border-white/20">
                       <Button
                         onClick={handleLoadMore}
                         disabled={isLoadingMore}
@@ -393,7 +376,7 @@ export function NotificationDropdown({
             /* Activity Log Tab */
             <>
               {activities.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-slate-500">
+                <div className="flex flex-col items-center justify-center py-12 text-slate-400">
                   <Activity className="h-8 w-8 mb-2 opacity-40" />
                   <p className="text-xs">아직 활동 기록이 없습니다</p>
                 </div>
@@ -401,7 +384,7 @@ export function NotificationDropdown({
                 <div>
                   {activities.map((activity) => {
                     const activityUserName = activity.user?.name || '?';
-                    const activityColor = getAssigneeColor(activityUserName);
+                    const activityColor = getAssigneeClasses(activityUserName);
                     return (
                       <div
                         key={activity.id}
@@ -429,7 +412,7 @@ export function NotificationDropdown({
                           <div className="text-xs leading-snug">
                             {getActionText(activity)}
                           </div>
-                          <p className="text-[10px] text-slate-600 mt-1">
+                          <p className="text-[10px] text-slate-400 mt-1">
                             {getTimeAgo(activity.created_at)}
                           </p>
                         </div>
@@ -439,7 +422,7 @@ export function NotificationDropdown({
 
                   {/* Load More Activities Button */}
                   {hasMoreActivities && (
-                    <div className="px-4 py-2 border-t border-white/5">
+                    <div className="px-4 py-2 border-t border-white/20">
                       <Button
                         onClick={handleLoadMoreActivities}
                         disabled={isLoadingMoreActivities}

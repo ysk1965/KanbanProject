@@ -47,6 +47,16 @@ public class MemberController {
         return ResponseEntity.ok(response);
     }
 
+    @PutMapping("/{memberId}/color")
+    public ResponseEntity<MemberResponse.Detail> updateMemberColor(
+            @PathVariable String boardId,
+            @PathVariable String memberId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody MemberRequest.UpdateColor request) {
+        MemberResponse.Detail response = memberService.updateMemberColor(boardId, memberId, principal.getUserId(), request);
+        return ResponseEntity.ok(response);
+    }
+
     @DeleteMapping("/{memberId}")
     public ResponseEntity<Map<String, String>> removeMember(
             @PathVariable String boardId,

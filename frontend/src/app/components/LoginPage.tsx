@@ -98,7 +98,7 @@ const Logo = ({ className = '' }: { className?: string }) => {
     <div className={`flex items-center space-x-4 group cursor-default ${className}`}>
       <div className="relative w-12 h-12">
         <div className="absolute inset-0 bg-[#6366F1] blur-xl opacity-20 group-hover:opacity-40 transition-opacity duration-500"></div>
-        <div className="absolute inset-0 bg-gradient-to-br from-[#1E293B] to-[#0F172A] rounded-2xl border border-white/10 shadow-2xl overflow-hidden transition-transform duration-500 group-hover:scale-110">
+        <div className="absolute inset-0 bg-gradient-to-br from-[#1E293B] to-[#0F172A] rounded-2xl border border-white/20 shadow-2xl overflow-hidden transition-transform duration-500 group-hover:scale-110">
           <div className="absolute inset-0 bg-gradient-to-tr from-[#6366F1]/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
           <svg viewBox="0 0 40 40" className="w-full h-full p-2.5" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path
@@ -235,12 +235,12 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
           {/* Feature Grid */}
           <div className="grid grid-cols-2 gap-4">
             {features.map((feature, idx) => (
-              <div key={idx} className="login-glass p-5 rounded-[24px] border border-white/5 hover:border-white/20 transition-all duration-500 group cursor-default">
+              <div key={idx} className="login-glass p-5 rounded-[24px] border border-white/15 hover:border-white/20 transition-all duration-500 group cursor-default">
                 <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
                   <feature.icon className="w-5 h-5 text-[#2DD4BF]" />
                 </div>
                 <h4 className="text-white font-bold text-sm mb-1">{feature.label}</h4>
-                <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest">{feature.desc}</p>
+                <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest">{feature.desc}</p>
               </div>
             ))}
           </div>
@@ -269,7 +269,7 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
             className="login-glass w-full max-w-[460px] rounded-[40px] p-8 md:p-12 relative overflow-hidden shadow-[0_32px_64px_-16px_rgba(0,0,0,0.5)]"
           >
             {/* Dynamic Border Glow */}
-            <div className="absolute inset-0 border border-white/10 rounded-[40px] pointer-events-none"></div>
+            <div className="absolute inset-0 border border-white/20 rounded-[40px] pointer-events-none"></div>
 
             {/* Subtle Internal Glow */}
             <div className="absolute -bottom-12 -left-12 w-32 h-32 bg-[#2DD4BF] opacity-[0.08] blur-[40px] rounded-full animate-pulse"></div>
@@ -302,7 +302,7 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
 
             {/* Header */}
             <div className="mb-10 text-center md:text-left space-y-2">
-              <div className="inline-flex items-center space-x-2 bg-white/5 border border-white/10 px-3 py-1 rounded-full mb-2">
+              <div className="inline-flex items-center space-x-2 bg-white/5 border border-white/20 px-3 py-1 rounded-full mb-2">
                 <span className="flex h-2 w-2 rounded-full bg-[#2DD4BF]"></span>
                 <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Workspace Access</span>
               </div>
@@ -346,7 +346,7 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
               ) : (
                 <button
                   type="button"
-                  className="flex items-center justify-center space-x-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white h-12 rounded-2xl font-semibold transition-all duration-300 group w-full"
+                  className="flex items-center justify-center space-x-2 bg-white/5 hover:bg-white/10 border border-white/20 text-white h-12 rounded-2xl font-semibold transition-all duration-300 group w-full"
                   disabled
                 >
                   <img
@@ -364,8 +364,8 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-white/[0.06]"></div>
               </div>
-              <div className="relative flex justify-center text-[10px] uppercase font-bold tracking-[0.2em] text-slate-500">
-                <span className="bg-[#0A0E17]/80 backdrop-blur-md px-4 py-1 rounded-full border border-white/5">
+              <div className="relative flex justify-center text-[10px] uppercase font-bold tracking-[0.2em] text-slate-400">
+                <span className="bg-[#0A0E17]/80 backdrop-blur-md px-4 py-1 rounded-full border border-white/15">
                   {mode === 'login' ? 'Secure Login' : 'Create Account'}
                 </span>
               </div>
@@ -376,13 +376,13 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
               {mode === 'signup' && (
                 <div className="space-y-2">
                   <div className="relative group">
-                    <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-[#2DD4BF] transition-colors" />
+                    <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-[#2DD4BF] transition-colors" />
                     <input
                       type="text"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder="이름"
-                      className="w-full bg-white/[0.02] border border-white/10 text-white pl-12 pr-4 h-13 py-3 rounded-2xl focus:outline-none focus:border-[#2DD4BF] focus:ring-4 focus:ring-[#2DD4BF]/10 transition-all placeholder:text-slate-600"
+                      className="w-full bg-white/[0.02] border border-white/20 text-white pl-12 pr-4 h-13 py-3 rounded-2xl focus:outline-none focus:border-[#2DD4BF] focus:ring-4 focus:ring-[#2DD4BF]/10 transition-all placeholder:text-slate-400"
                       required
                     />
                   </div>
@@ -391,13 +391,13 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
 
               <div className="space-y-2">
                 <div className="relative group">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-[#6366F1] transition-colors" />
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-[#6366F1] transition-colors" />
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="Email address"
-                    className="w-full bg-white/[0.02] border border-white/10 text-white pl-12 pr-4 h-13 py-3 rounded-2xl focus:outline-none focus:border-[#6366F1] focus:ring-4 focus:ring-[#6366F1]/10 transition-all placeholder:text-slate-600"
+                    className="w-full bg-white/[0.02] border border-white/20 text-white pl-12 pr-4 h-13 py-3 rounded-2xl focus:outline-none focus:border-[#6366F1] focus:ring-4 focus:ring-[#6366F1]/10 transition-all placeholder:text-slate-400"
                     required
                   />
                 </div>
@@ -405,7 +405,7 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
 
               <div className="space-y-2">
                 <div className="relative group">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-[#6366F1] transition-colors" />
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-[#6366F1] transition-colors" />
                   <input
                     type="password"
                     value={password}
@@ -413,14 +413,14 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
                     onFocus={() => setPasswordFocused(true)}
                     onBlur={() => setPasswordFocused(false)}
                     placeholder="Password"
-                    className="w-full bg-white/[0.02] border border-white/10 text-white pl-12 pr-4 h-13 py-3 rounded-2xl focus:outline-none focus:border-[#6366F1] focus:ring-4 focus:ring-[#6366F1]/10 transition-all placeholder:text-slate-600"
+                    className="w-full bg-white/[0.02] border border-white/20 text-white pl-12 pr-4 h-13 py-3 rounded-2xl focus:outline-none focus:border-[#6366F1] focus:ring-4 focus:ring-[#6366F1]/10 transition-all placeholder:text-slate-400"
                     required
                     minLength={8}
                   />
                 </div>
                 {/* 비밀번호 요구사항 (회원가입 모드에서만 표시) */}
                 {mode === 'signup' && (passwordFocused || password.length > 0) && (
-                  <div className="bg-white/[0.02] border border-white/10 rounded-xl p-3 space-y-1.5 animate-fade-in">
+                  <div className="bg-white/[0.02] border border-white/20 rounded-xl p-3 space-y-1.5 animate-fade-in">
                     <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">비밀번호 요구사항</p>
                     {[
                       { key: 'minLength', label: '8자 이상', valid: passwordValidation.minLength },
@@ -433,9 +433,9 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
                         {valid ? (
                           <Check className="w-4 h-4 text-emerald-400" />
                         ) : (
-                          <X className="w-4 h-4 text-slate-500" />
+                          <X className="w-4 h-4 text-slate-400" />
                         )}
-                        <span className={`text-sm ${valid ? 'text-emerald-400' : 'text-slate-500'}`}>
+                        <span className={`text-sm ${valid ? 'text-emerald-400' : 'text-slate-400'}`}>
                           {label}
                         </span>
                       </div>
@@ -526,7 +526,7 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
 
             {/* Mode Toggle */}
             <div className="mt-10 pt-6 border-t border-white/[0.05] text-center">
-              <p className="text-slate-500 text-sm font-medium">
+              <p className="text-slate-400 text-sm font-medium">
                 {mode === 'login' ? "Don't have an account?" : 'Already using BRIDGE SPOTS?'}
                 <button
                   onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
@@ -538,7 +538,7 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
             </div>
 
             {/* Footer Note */}
-            <p className="text-center text-[11px] text-slate-600 tracking-wide mt-6">
+            <p className="text-center text-[11px] text-slate-400 tracking-wide mt-6">
               {inviteInfo
                 ? '초대받은 보드에서 바로 협업을 시작하세요!'
                 : ''}
@@ -556,7 +556,7 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
 
       {/* Footer */}
       <footer className="absolute bottom-6 right-8 text-right pointer-events-none opacity-40 hidden md:block">
-        <p className="text-[10px] text-slate-500 font-bold tracking-widest uppercase">
+        <p className="text-[10px] text-slate-400 font-bold tracking-widest uppercase">
           BRIDGE SPOTS &copy; 2026 / Version 7.2.4
         </p>
       </footer>

@@ -22,6 +22,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -43,6 +45,22 @@ public class CommentService {
     private final FileUploadService fileUploadService;
 
     private static final int MAX_ATTACHMENTS = 5;
+
+    /**
+     * 특정 보드 + 작성자의 기간별 댓글 조회 (주간 요약용)
+     */
+    public CommentResponse.SummaryListResponse getCommentsByAuthorAndDateRange(
+            String boardId, String authorId, String requesterId,
+            LocalDate startDate, LocalDate endDate) {
+        boardService.checkViewerOrAbove(boardId, requesterId);
+
+        LocalDateTime startDateTime = startDate.atStartOfDay();
+        LocalDateTime endDateTime = endDate.plusDays(1).atStartOfDay();
+
+        List<Comment> comments = commentRepository.findByBoardAndAuthorAndDateRange(
+                boardId, authorId, startDateTime, endDateTime);
+        return CommentResponse.SummaryListResponse.of(comments);
+    }
 
     /**
      * 댓글 목록 조회

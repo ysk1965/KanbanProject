@@ -6,7 +6,7 @@ export function PrivacyPage() {
   return (
     <div className="min-h-screen w-full bg-bridge-dark text-white">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-bridge-obsidian/80 backdrop-blur-xl border-b border-white/5">
+      <header className="sticky top-0 z-50 bg-bridge-obsidian/80 backdrop-blur-xl border-b border-white/15">
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
           <Link
             to="/"
@@ -39,7 +39,7 @@ export function PrivacyPage() {
           </div>
 
           {/* Content Box */}
-          <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-8 space-y-8">
+          <div className="bg-bridge-obsidian rounded-2xl border border-white/15 p-8 space-y-8">
             {/* Intro */}
             <section>
               <p className="text-slate-400 leading-relaxed">
@@ -200,7 +200,7 @@ export function PrivacyPage() {
             >
               이용약관
             </Link>
-            <span className="text-slate-600">|</span>
+            <span className="text-slate-400">|</span>
             <Link
               to="/login"
               className="text-bridge-accent hover:text-bridge-secondary transition-colors"

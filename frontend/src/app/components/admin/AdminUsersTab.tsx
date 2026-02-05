@@ -66,8 +66,8 @@ export function AdminUsersTab() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="이름 또는 이메일로 검색..."
-            className="w-full bg-bridge-obsidian border border-white/10 rounded-xl py-3 pl-12 pr-4
-              text-white placeholder-slate-600
+            className="w-full bg-bridge-obsidian border border-white/20 rounded-xl py-3 pl-12 pr-4
+              text-white placeholder-slate-400
               focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent
               transition-all"
           />
@@ -104,10 +104,10 @@ export function AdminUsersTab() {
       {/* Users Table */}
       {!isLoading && !error && users && (
         <>
-          <div className="bg-bridge-obsidian rounded-xl border border-white/5 overflow-hidden">
+          <div className="bg-bridge-obsidian rounded-xl border border-white/15 overflow-hidden">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-white/5">
+                <tr className="border-b border-white/15">
                   <th className="text-left px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
                     사용자
                   </th>
@@ -130,7 +130,7 @@ export function AdminUsersTab() {
                   <tr
                     key={user.id}
                     onClick={() => setSelectedUserId(user.id)}
-                    className="border-b border-white/5 last:border-0 hover:bg-white/5 cursor-pointer transition-colors"
+                    className="border-b border-white/15 last:border-0 hover:bg-white/5 cursor-pointer transition-colors"
                   >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
@@ -203,7 +203,7 @@ export function AdminUsersTab() {
               <button
                 onClick={() => setPage(Math.max(0, page - 1))}
                 disabled={page === 0}
-                className="p-2 bg-bridge-obsidian border border-white/10 rounded-lg
+                className="p-2 bg-bridge-obsidian border border-white/20 rounded-lg
                   text-slate-400 hover:text-white hover:bg-white/5
                   disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
@@ -215,7 +215,7 @@ export function AdminUsersTab() {
               <button
                 onClick={() => setPage(Math.min(Math.ceil(users.total / users.size) - 1, page + 1))}
                 disabled={page >= Math.ceil(users.total / users.size) - 1}
-                className="p-2 bg-bridge-obsidian border border-white/10 rounded-lg
+                className="p-2 bg-bridge-obsidian border border-white/20 rounded-lg
                   text-slate-400 hover:text-white hover:bg-white/5
                   disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >

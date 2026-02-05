@@ -91,7 +91,7 @@ export function SubscriptionModal({
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-bridge-obsidian rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
         {/* 헤더 */}
-        <div className="flex items-center justify-between p-6 border-b border-white/10">
+        <div className="flex items-center justify-between p-6 border-b border-white/20">
           <div className="flex items-center gap-2">
             <CreditCard className="h-5 w-5 text-blue-400" />
             <h2 className="text-xl font-semibold text-foreground">구독 관리</h2>
@@ -108,7 +108,7 @@ export function SubscriptionModal({
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {/* 현재 구독 정보 */}
           {subscription && (
-            <div className="bg-bridge-dark rounded-lg p-6 border border-white/10">
+            <div className="bg-bridge-dark rounded-lg p-6 border border-white/20">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-foreground">현재 구독</h3>
                 {getStatusBadge(subscription.status)}
@@ -207,7 +207,7 @@ export function SubscriptionModal({
                 className={`flex-1 py-3 px-4 rounded-lg border-2 transition-colors ${
                   billingCycle === 'monthly'
                     ? 'border-blue-500 bg-blue-500/10 text-foreground'
-                    : 'border-white/10 bg-bridge-dark text-slate-400 hover:border-white/20'
+                    : 'border-white/20 bg-bridge-dark text-slate-400 hover:border-white/20'
                 }`}
               >
                 <div className="font-medium">월간 결제</div>
@@ -218,7 +218,7 @@ export function SubscriptionModal({
                 className={`flex-1 py-3 px-4 rounded-lg border-2 transition-colors relative ${
                   billingCycle === 'yearly'
                     ? 'border-blue-500 bg-blue-500/10 text-foreground'
-                    : 'border-white/10 bg-bridge-dark text-slate-400 hover:border-white/20'
+                    : 'border-white/20 bg-bridge-dark text-slate-400 hover:border-white/20'
                 }`}
               >
                 <div className="absolute -top-2 -right-2 bg-green-500 text-white text-xs px-2 py-0.5 rounded-full">
@@ -247,7 +247,7 @@ export function SubscriptionModal({
                     className={`text-left p-6 rounded-lg border-2 transition-colors ${
                       isSelected
                         ? 'border-blue-500 bg-blue-500/10'
-                        : 'border-white/10 bg-bridge-dark hover:border-white/20'
+                        : 'border-white/20 bg-bridge-dark hover:border-white/20'
                     }`}
                   >
                     <div className="flex items-center justify-between mb-3">
@@ -289,11 +289,11 @@ export function SubscriptionModal({
         </div>
 
         {/* 푸터 */}
-        <div className="border-t border-white/10 p-4 bg-bridge-dark flex gap-2">
+        <div className="border-t border-white/20 p-4 bg-bridge-dark flex gap-2">
           <Button
             onClick={onClose}
             variant="outline"
-            className="flex-1 border-white/10 text-slate-300 hover:bg-white/5 hover:text-white"
+            className="flex-1 border-white/20 text-slate-300 hover:bg-white/5 hover:text-white"
           >
             닫기
           </Button>

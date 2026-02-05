@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { X, Activity, ChevronDown } from 'lucide-react';
 import { Button } from './ui/button';
 import { ActivityLog } from '../utils/api';
+import { getInitials } from '../utils/assigneeColor';
 
 interface ActivityLogModalProps {
   open: boolean;
@@ -169,7 +170,7 @@ export function ActivityLogModal({
         {/* 콘텐츠 */}
         <div className="flex-1 overflow-y-auto p-6">
           {activities.length === 0 ? (
-            <div className="text-center py-12 text-zinc-500">
+            <div className="text-center py-12 text-zinc-400">
               <Activity className="h-12 w-12 mx-auto mb-3 opacity-50" />
               <p>아직 활동 기록이 없습니다.</p>
             </div>
@@ -190,7 +191,7 @@ export function ActivityLogModal({
                       />
                     ) : (
                       <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-medium">
-                        {activity.user.name[0]}
+                        {getInitials(activity.user.name)}
                       </div>
                     )}
                   </div>
@@ -198,7 +199,7 @@ export function ActivityLogModal({
                   {/* 내용 */}
                   <div className="flex-1 min-w-0">
                     <div className="text-sm mb-1">{getActionText(activity)}</div>
-                    <div className="text-xs text-zinc-500">
+                    <div className="text-xs text-zinc-400">
                       {getTimeAgo(activity.createdAt)}
                     </div>
                   </div>

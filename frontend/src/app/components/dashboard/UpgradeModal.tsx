@@ -31,7 +31,7 @@ export function UpgradeModal({ isOpen, onClose, memberCount = 1 }: UpgradeModalP
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="relative w-full max-w-2xl overflow-hidden bg-bridge-obsidian rounded-2xl shadow-2xl border border-white/10"
+          className="relative w-full max-w-2xl overflow-hidden bg-bridge-obsidian rounded-2xl shadow-2xl border border-white/20"
         >
           {/* Header */}
           <div className="p-8 text-center bg-gradient-to-b from-bridge-accent/10 to-transparent">
@@ -66,13 +66,13 @@ export function UpgradeModal({ isOpen, onClose, memberCount = 1 }: UpgradeModalP
             {/* Pricing Options */}
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               {/* Monthly */}
-              <button className="flex flex-col items-center p-6 transition-all border group rounded-xl border-white/10 hover:border-bridge-accent/50 bg-white/5">
-                <span className="mb-1 text-xs font-semibold tracking-widest text-slate-500 uppercase">
+              <button className="flex flex-col items-center p-6 transition-all border group rounded-xl border-white/20 hover:border-bridge-accent/50 bg-white/5">
+                <span className="mb-1 text-xs font-semibold tracking-widest text-slate-400 uppercase">
                   Monthly
                 </span>
                 <span className="text-2xl font-bold text-white">
                   ${monthlyPrice}
-                  <span className="text-sm font-normal text-slate-500">/user/month</span>
+                  <span className="text-sm font-normal text-slate-400">/user/month</span>
                 </span>
                 <div className="px-4 py-2 mt-4 text-sm font-medium transition-colors border border-white/20 rounded-lg text-white group-hover:bg-white group-hover:text-bridge-dark">
                   선택
@@ -89,7 +89,7 @@ export function UpgradeModal({ isOpen, onClose, memberCount = 1 }: UpgradeModalP
                 </span>
                 <span className="text-2xl font-bold text-white">
                   ${yearlyPrice}
-                  <span className="text-sm font-normal text-slate-500">/user/year</span>
+                  <span className="text-sm font-normal text-slate-400">/user/year</span>
                 </span>
                 <span className="mt-1 text-[10px] text-bridge-secondary font-bold uppercase tracking-wider">
                   {discountPercent}% DISCOUNT
@@ -105,7 +105,7 @@ export function UpgradeModal({ isOpen, onClose, memberCount = 1 }: UpgradeModalP
               <p className="text-sm text-slate-400">
                 현재 유료 멤버: <span className="font-bold text-white">{memberCount}명</span>
               </p>
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-xs text-slate-400 mt-1">
                 예상 비용: ${memberCount * monthlyPrice}/month 또는 $
                 {memberCount * yearlyPrice}/year
               </p>
@@ -113,10 +113,10 @@ export function UpgradeModal({ isOpen, onClose, memberCount = 1 }: UpgradeModalP
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-between p-8 border-t border-white/5 bg-white/[0.02]">
+          <div className="flex items-center justify-between p-8 border-t border-white/15 bg-white/[0.02]">
             <button
               onClick={onClose}
-              className="text-sm font-medium text-slate-500 hover:text-white transition-colors"
+              className="text-sm font-medium text-slate-400 hover:text-white transition-colors"
             >
               나중에 하기
             </button>

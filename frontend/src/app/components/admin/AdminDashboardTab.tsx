@@ -99,14 +99,14 @@ export function AdminDashboardTab() {
         {statCards.map((card) => (
           <div
             key={card.label}
-            className="bg-bridge-obsidian rounded-xl border border-white/5 p-6"
+            className="bg-bridge-obsidian rounded-xl border border-white/15 p-6"
           >
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-slate-400 text-sm mb-1">{card.label}</p>
                 <p className="text-3xl font-bold text-white">{card.value.toLocaleString()}</p>
                 {card.subValue && (
-                  <p className="text-sm text-slate-500 mt-1">{card.subValue}</p>
+                  <p className="text-sm text-slate-400 mt-1">{card.subValue}</p>
                 )}
               </div>
               <div className={`${card.bgColor} p-3 rounded-xl`}>
@@ -118,7 +118,7 @@ export function AdminDashboardTab() {
       </div>
 
       {/* Tier Distribution */}
-      <div className="bg-bridge-obsidian rounded-xl border border-white/5 p-6">
+      <div className="bg-bridge-obsidian rounded-xl border border-white/15 p-6">
         <div className="flex items-center gap-2 mb-6">
           <TrendingUp className="h-5 w-5 text-bridge-accent" />
           <h3 className="text-lg font-bold text-white">보드 티어 분포</h3>

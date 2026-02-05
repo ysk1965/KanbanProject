@@ -201,7 +201,7 @@ export function ManagementView({ boardId, milestones, members, onTaskClick, refr
             <select
               value={selectedMilestoneId || ''}
               onChange={(e) => setSelectedMilestoneId(e.target.value)}
-              className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-sm text-foreground
+              className="px-3 py-1.5 bg-white/5 border border-white/20 rounded-lg text-sm text-foreground
                 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
             >
               {milestones.map((m) => (
@@ -232,7 +232,7 @@ export function ManagementView({ boardId, milestones, members, onTaskClick, refr
 
         {/* 설정 패널 */}
         {showSettings && (
-          <div className="p-4 bg-bridge-obsidian rounded-xl border border-white/10">
+          <div className="p-4 bg-bridge-obsidian rounded-xl border border-white/20">
             <h3 className="text-sm font-semibold text-foreground mb-3">지연 판정 기준</h3>
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-2">
@@ -240,26 +240,26 @@ export function ManagementView({ boardId, milestones, members, onTaskClick, refr
                 <select
                   value={settings.stagnant_task_days}
                   onChange={(e) => setSettings({ ...settings, stagnant_task_days: Number(e.target.value) })}
-                  className="px-2 py-1 bg-white/5 border border-white/10 rounded text-sm text-foreground"
+                  className="px-2 py-1 bg-white/5 border border-white/20 rounded text-sm text-foreground"
                 >
                   {[1, 2, 3, 4, 5, 6, 7].map((d) => (
                     <option key={d} value={d}>{d}일</option>
                   ))}
                 </select>
-                <span className="text-xs text-slate-500">이상 같은 블록</span>
+                <span className="text-xs text-slate-400">이상 같은 블록</span>
               </div>
               <div className="flex items-center gap-2">
                 <label className="text-sm text-slate-400">막힌 체크리스트:</label>
                 <select
                   value={settings.stuck_checklist_days}
                   onChange={(e) => setSettings({ ...settings, stuck_checklist_days: Number(e.target.value) })}
-                  className="px-2 py-1 bg-white/5 border border-white/10 rounded text-sm text-foreground"
+                  className="px-2 py-1 bg-white/5 border border-white/20 rounded text-sm text-foreground"
                 >
                   {[1, 2, 3, 4, 5].map((d) => (
                     <option key={d} value={d}>{d}일</option>
                   ))}
                 </select>
-                <span className="text-xs text-slate-500">이상 미완료</span>
+                <span className="text-xs text-slate-400">이상 미완료</span>
               </div>
             </div>
           </div>
@@ -268,48 +268,48 @@ export function ManagementView({ boardId, milestones, members, onTaskClick, refr
         {/* 요약 카드들 */}
         <div className="grid grid-cols-4 gap-4">
           {/* 전체 건강 점수 */}
-          <div className="p-4 bg-bridge-obsidian rounded-xl border border-white/10">
+          <div className="p-4 bg-bridge-obsidian rounded-xl border border-white/20">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">건강 점수</span>
-              <Activity className="w-4 h-4 text-slate-500" />
+              <Activity className="w-4 h-4 text-slate-400" />
             </div>
             <div className={`text-3xl font-bold ${getHealthScoreColor(data.summary.overall_health_score)}`}>
               {data.summary.overall_health_score}
-              <span className="text-lg text-slate-500">/100</span>
+              <span className="text-lg text-slate-400">/100</span>
             </div>
           </div>
 
           {/* 마일스톤 진행 */}
-          <div className="p-4 bg-bridge-obsidian rounded-xl border border-white/10">
+          <div className="p-4 bg-bridge-obsidian rounded-xl border border-white/20">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
                 마일스톤 진행
               </span>
-              <Target className="w-4 h-4 text-slate-500" />
+              <Target className="w-4 h-4 text-slate-400" />
             </div>
             {data.milestone_health.length > 0 ? (
               <>
                 <div className="text-3xl font-bold text-foreground">
                   {data.milestone_health[0].progress_percentage.toFixed(0)}%
                 </div>
-                <div className="mt-1 text-xs text-slate-500">
+                <div className="mt-1 text-xs text-slate-400">
                   {data.milestone_health[0].velocity.tasks_completed}/{data.milestone_health[0].velocity.tasks_total} Task
                 </div>
               </>
             ) : (
-              <div className="text-3xl font-bold text-slate-500">-</div>
+              <div className="text-3xl font-bold text-slate-400">-</div>
             )}
           </div>
 
           {/* 팀원 현황 */}
-          <div className="p-4 bg-bridge-obsidian rounded-xl border border-white/10">
+          <div className="p-4 bg-bridge-obsidian rounded-xl border border-white/20">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">팀원</span>
-              <Users className="w-4 h-4 text-slate-500" />
+              <Users className="w-4 h-4 text-slate-400" />
             </div>
             <div className="flex items-baseline gap-2">
               <span className="text-3xl font-bold text-foreground">{data.summary.members_on_track}</span>
-              <span className="text-slate-500">/ {data.summary.total_members}</span>
+              <span className="text-slate-400">/ {data.summary.total_members}</span>
             </div>
             {data.summary.members_needing_attention > 0 && (
               <div className="mt-1 text-xs text-orange-400">
@@ -319,14 +319,14 @@ export function ManagementView({ boardId, milestones, members, onTaskClick, refr
           </div>
 
           {/* 지연 항목 */}
-          <div className="p-4 bg-bridge-obsidian rounded-xl border border-white/10">
+          <div className="p-4 bg-bridge-obsidian rounded-xl border border-white/20">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">지연 항목</span>
-              <AlertTriangle className="w-4 h-4 text-slate-500" />
+              <AlertTriangle className="w-4 h-4 text-slate-400" />
             </div>
             <div className="text-3xl font-bold text-foreground">
               {data.summary.total_delayed_items}
-              <span className="text-lg text-slate-500">건</span>
+              <span className="text-lg text-slate-400">건</span>
             </div>
             {data.summary.total_delayed_items > 0 && (
               <div className="mt-1 text-xs text-red-400">
@@ -337,7 +337,7 @@ export function ManagementView({ boardId, milestones, members, onTaskClick, refr
         </div>
 
         {/* 탭 네비게이션 */}
-        <div className="flex items-center gap-1 p-1 bg-bridge-obsidian rounded-xl border border-white/10 w-fit">
+        <div className="flex items-center gap-1 p-1 bg-bridge-obsidian rounded-xl border border-white/20 w-fit">
           <button
             onClick={() => setActiveTab('health')}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -493,8 +493,8 @@ function MilestoneHealthSection({
 
   if (milestoneHealth.length === 0) {
     return (
-      <div className="p-8 bg-bridge-obsidian rounded-xl border border-white/10 text-center">
-        <Target className="w-12 h-12 text-slate-600 mx-auto mb-3" />
+      <div className="p-8 bg-bridge-obsidian rounded-xl border border-white/20 text-center">
+        <Target className="w-12 h-12 text-slate-400 mx-auto mb-3" />
         <p className="text-slate-400">마일스톤이 없습니다.</p>
       </div>
     );
@@ -505,7 +505,7 @@ function MilestoneHealthSection({
       {/* 새로고침 중 오버레이 */}
       {isRefreshing && (
         <div className="absolute inset-0 bg-bridge-dark/50 backdrop-blur-[1px] z-10 flex items-start justify-center pt-20">
-          <div className="flex items-center gap-2 text-slate-400 bg-bridge-obsidian px-4 py-2 rounded-lg border border-white/10">
+          <div className="flex items-center gap-2 text-slate-400 bg-bridge-obsidian px-4 py-2 rounded-lg border border-white/20">
             <Loader2 className="w-4 h-4 animate-spin" />
             <span className="text-sm">업데이트 중...</span>
           </div>
@@ -517,14 +517,14 @@ function MilestoneHealthSection({
         return (
           <div
             key={health.milestone.id}
-            className="bg-bridge-obsidian rounded-xl border border-white/10 overflow-hidden"
+            className="bg-bridge-obsidian rounded-xl border border-white/20 overflow-hidden"
           >
             {/* 헤더 */}
             <div className="p-4 flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <div>
                   <h3 className="font-semibold text-foreground">{health.milestone.title}</h3>
-                  <div className="flex items-center gap-3 mt-1 text-xs text-slate-500">
+                  <div className="flex items-center gap-3 mt-1 text-xs text-slate-400">
                     <span>{health.milestone.start_date} ~ {health.milestone.end_date}</span>
                     <span>D{health.days_remaining >= 0 ? `-${health.days_remaining}` : `+${health.days_overdue}`}</span>
                   </div>
@@ -537,7 +537,7 @@ function MilestoneHealthSection({
                   <div className="text-2xl font-bold text-foreground">
                     {health.progress_percentage.toFixed(0)}%
                   </div>
-                  <div className="text-xs text-slate-500">
+                  <div className="text-xs text-slate-400">
                     {health.velocity.tasks_completed}/{health.velocity.tasks_total} Task
                     {health.velocity.estimated_total_minutes ? (
                       <span className="ml-1">
@@ -555,7 +555,7 @@ function MilestoneHealthSection({
             </div>
 
             {/* 상세 콘텐츠 */}
-            <div className="px-4 pb-4 border-t border-white/5">
+            <div className="px-4 pb-4 border-t border-white/15">
                 <div className="grid grid-cols-2 gap-6 pt-4">
                   {/* 속도 & 추정 정확도 통합 */}
                   <div className="space-y-4">
@@ -593,18 +593,18 @@ function MilestoneHealthSection({
                               <div className={`text-2xl font-bold ${getEfficiencyColor(efficiency)}`}>
                                 {efficiency > 0 ? `${efficiency.toFixed(0)}%` : '-'}
                               </div>
-                              <div className="text-[10px] text-slate-500 mt-1">추정 정확도</div>
+                              <div className="text-[10px] text-slate-400 mt-1">추정 정확도</div>
                             </div>
 
                             {/* 시간 정보 */}
                             <div className="space-y-2">
-                              <h4 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">시간</h4>
+                              <h4 className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">시간</h4>
                               <div className="flex justify-between text-sm gap-4">
-                                <span className="text-slate-500">예상</span>
+                                <span className="text-slate-400">예상</span>
                                 <span className="text-foreground">{formatMinutes(estimated)}</span>
                               </div>
                               <div className="flex justify-between text-sm items-center gap-4">
-                                <span className="text-slate-500">실제</span>
+                                <span className="text-slate-400">실제</span>
                                 <div className="flex items-center gap-1.5">
                                   <span className={isOverBudget ? 'text-red-400' : 'text-emerald-400'}>
                                     {formatMinutes(actual)}
@@ -620,15 +620,15 @@ function MilestoneHealthSection({
 
                             {/* 속도 정보 */}
                             <div className="space-y-2">
-                              <h4 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">속도</h4>
+                              <h4 className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">속도</h4>
                               <div className="flex justify-between text-sm gap-4">
-                                <span className="text-slate-500">현재</span>
+                                <span className="text-slate-400">현재</span>
                                 <span className="text-foreground">
                                   {currentSpeedPerDay > 0 ? formatMinutesPerDay(currentSpeedPerDay) : '0분/일'}
                                 </span>
                               </div>
                               <div className="flex justify-between text-sm gap-4">
-                                <span className="text-slate-500">필요</span>
+                                <span className="text-slate-400">필요</span>
                                 <span className={requiredSpeed > currentSpeedPerDay ? 'text-orange-400' : 'text-emerald-400'}>
                                   {requiredSpeed > 0 ? formatMinutesPerDay(requiredSpeed) : '-'}
                                 </span>
@@ -642,16 +642,16 @@ function MilestoneHealthSection({
                       <div className="space-y-2">
                         <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Feature</h4>
                         <div className="flex justify-between text-sm">
-                          <span className="text-slate-500">전체</span>
+                          <span className="text-slate-400">전체</span>
                           <span className="text-foreground">{health.feature_summary.total_features}개</span>
                         </div>
                         <div className="flex justify-between text-sm">
-                          <span className="text-slate-500">완료</span>
+                          <span className="text-slate-400">완료</span>
                           <span className="text-emerald-400">{health.feature_summary.completed_features}개</span>
                         </div>
                         <div className="flex justify-between text-sm">
-                          <span className="text-slate-500">위험</span>
-                          <span className={health.feature_summary.at_risk_features > 0 ? 'text-red-400' : 'text-slate-600'}>
+                          <span className="text-slate-400">위험</span>
+                          <span className={health.feature_summary.at_risk_features > 0 ? 'text-red-400' : 'text-slate-400'}>
                             {health.feature_summary.at_risk_features}개
                           </span>
                         </div>
@@ -716,7 +716,7 @@ function MilestoneHealthSection({
                         </ResponsiveContainer>
                       </div>
                     ) : (
-                      <div className="h-36 flex items-center justify-center text-slate-600 text-sm">
+                      <div className="h-36 flex items-center justify-center text-slate-400 text-sm">
                         {health.burndown.length > 0 ? '예상 시간 데이터 없음' : '데이터 없음'}
                       </div>
                     )}
@@ -724,7 +724,7 @@ function MilestoneHealthSection({
                 </div>
 
                 {/* Task 목록 토글 버튼 */}
-                <div className="mt-4 pt-4 border-t border-white/5">
+                <div className="mt-4 pt-4 border-t border-white/15">
                   <button
                     onClick={() => toggleTaskList(health.milestone.id)}
                     className="flex items-center gap-2 text-sm text-slate-400 hover:text-foreground transition-colors"
@@ -753,7 +753,7 @@ function MilestoneHealthSection({
 
                       {/* Task 테이블 */}
                       <div className="bg-white/[0.02] rounded-lg overflow-hidden">
-                        <div className="grid grid-cols-[1.5fr_1fr_0.8fr_140px_90px] gap-2 px-3 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-white/5">
+                        <div className="grid grid-cols-[1.5fr_1fr_0.8fr_140px_90px] gap-2 px-3 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wider border-b border-white/15">
                           <div>Task</div>
                           <div>Feature</div>
                           <div>담당자</div>
@@ -772,7 +772,7 @@ function MilestoneHealthSection({
                             .map((task) => (
                             <div
                               key={task.task_id}
-                              className="grid grid-cols-[1.5fr_1fr_0.8fr_140px_90px] gap-2 px-3 py-2 items-center text-sm border-b border-white/5 last:border-0"
+                              className="grid grid-cols-[1.5fr_1fr_0.8fr_140px_90px] gap-2 px-3 py-2 items-center text-sm border-b border-white/15 last:border-0"
                             >
                               {/* Task 정보 (클릭 시 모달 열기) */}
                               <div className="flex items-center gap-2 min-w-0">
@@ -838,7 +838,7 @@ function MilestoneHealthSection({
                                     )}
                                   </div>
                                 ) : (
-                                  <span className="text-slate-600 text-xs">-</span>
+                                  <span className="text-slate-400 text-xs">-</span>
                                 )}
                               </div>
 
@@ -875,14 +875,14 @@ function MilestoneHealthSection({
                                     onClick={() => startEditing(task.task_id, task.estimated_minutes)}
                                     className="flex items-center justify-center gap-1 text-xs group w-full"
                                   >
-                                    <span className={task.current_block === 'Done' ? 'text-emerald-400 font-medium' : task.actual_minutes ? 'text-slate-300' : 'text-slate-600'}>
+                                    <span className={task.current_block === 'Done' ? 'text-emerald-400 font-medium' : task.actual_minutes ? 'text-slate-300' : 'text-slate-400'}>
                                       {task.actual_minutes ? formatMinutesShort(task.actual_minutes) : '-'}
                                     </span>
-                                    <span className="text-slate-600">/</span>
-                                    <span className={task.estimated_minutes ? 'text-slate-300' : 'text-slate-600'}>
+                                    <span className="text-slate-400">/</span>
+                                    <span className={task.estimated_minutes ? 'text-slate-300' : 'text-slate-400'}>
                                       {task.estimated_minutes ? formatMinutesShort(task.estimated_minutes) : '-'}
                                     </span>
-                                    <Edit3 className="w-3 h-3 text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                                    <Edit3 className="w-3 h-3 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
                                   </button>
                                 )}
                               </div>
@@ -909,7 +909,7 @@ function MilestoneHealthSection({
                 </div>
 
                 {/* 팀원 할당 현황 토글 버튼 */}
-                <div className="mt-4 pt-4 border-t border-white/5">
+                <div className="mt-4 pt-4 border-t border-white/15">
                   <button
                     onClick={() => toggleAllocationSection(health.milestone.id)}
                     className="flex items-center gap-2 text-sm text-slate-400 hover:text-foreground transition-colors"
@@ -1116,11 +1116,11 @@ function TeamAllocationSubSection({
         <div className="p-3 bg-bridge-accent/5 border border-bridge-accent/20 rounded-lg space-y-3">
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="text-[10px] text-slate-500 uppercase tracking-wider mb-1 block">팀원</label>
+              <label className="text-[10px] text-slate-400 uppercase tracking-wider mb-1 block">팀원</label>
               <select
                 value={selectedMemberId}
                 onChange={(e) => setSelectedMemberId(e.target.value)}
-                className="w-full px-2 py-1.5 bg-white/5 border border-white/10 rounded text-sm text-foreground"
+                className="w-full px-2 py-1.5 bg-white/5 border border-white/20 rounded text-sm text-foreground"
               >
                 <option value="">선택</option>
                 {availableMembers.map((m) => (
@@ -1131,25 +1131,25 @@ function TeamAllocationSubSection({
               </select>
             </div>
             <div>
-              <label className="text-[10px] text-slate-500 uppercase tracking-wider mb-1 block">참여일수</label>
+              <label className="text-[10px] text-slate-400 uppercase tracking-wider mb-1 block">참여일수</label>
               <input
                 type="number"
                 value={workingDays}
                 onChange={(e) => setWorkingDays(e.target.value)}
                 placeholder="일"
                 min="1"
-                className="w-full px-2 py-1.5 bg-white/5 border border-white/10 rounded text-sm text-foreground"
+                className="w-full px-2 py-1.5 bg-white/5 border border-white/20 rounded text-sm text-foreground"
               />
             </div>
             <div>
-              <label className="text-[10px] text-slate-500 uppercase tracking-wider mb-1 block">할당시간</label>
+              <label className="text-[10px] text-slate-400 uppercase tracking-wider mb-1 block">할당시간</label>
               <input
                 type="number"
                 value={allocatedHours}
                 onChange={(e) => setAllocatedHours(e.target.value)}
                 placeholder="시간"
                 min="1"
-                className="w-full px-2 py-1.5 bg-white/5 border border-white/10 rounded text-sm text-foreground"
+                className="w-full px-2 py-1.5 bg-white/5 border border-white/20 rounded text-sm text-foreground"
               />
             </div>
           </div>
@@ -1174,7 +1174,7 @@ function TeamAllocationSubSection({
       {/* Allocation table */}
       {allocations.length > 0 ? (
         <div className="bg-white/[0.02] rounded-lg overflow-hidden">
-          <div className="grid grid-cols-[1.5fr_0.8fr_0.8fr_0.8fr_0.8fr_0.6fr_60px] gap-2 px-3 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-white/5">
+          <div className="grid grid-cols-[1.5fr_0.8fr_0.8fr_0.8fr_0.8fr_0.6fr_60px] gap-2 px-3 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wider border-b border-white/15">
             <div>팀원</div>
             <div className="text-center">참여일수</div>
             <div className="text-center">할당시간</div>
@@ -1246,7 +1246,7 @@ function TeamAllocationSubSection({
                       {allocation.difference > 0 ? '+' : ''}{Number(allocation.difference).toFixed(1)}h
                     </span>
                   ) : (
-                    <span className="text-slate-600">-</span>
+                    <span className="text-slate-400">-</span>
                   )}
                 </div>
 
@@ -1262,7 +1262,7 @@ function TeamAllocationSubSection({
                     <span className="text-slate-400 text-xs">정상</span>
                   )}
                   {!allocation.status && (
-                    <span className="text-slate-600 text-xs">-</span>
+                    <span className="text-slate-400 text-xs">-</span>
                   )}
                 </div>
 
@@ -1325,7 +1325,7 @@ function TeamAllocationSubSection({
           </div>
         </div>
       ) : (
-        <div className="p-4 bg-white/[0.02] rounded-lg text-center text-slate-500 text-sm">
+        <div className="p-4 bg-white/[0.02] rounded-lg text-center text-slate-400 text-sm">
           할당된 팀원이 없습니다.
         </div>
       )}
@@ -1387,17 +1387,17 @@ function TeamProductivitySection({
 
   if (teamProductivity.length === 0) {
     return (
-      <div className="p-8 bg-bridge-obsidian rounded-xl border border-white/10 text-center">
-        <Users className="w-12 h-12 text-slate-600 mx-auto mb-3" />
+      <div className="p-8 bg-bridge-obsidian rounded-xl border border-white/20 text-center">
+        <Users className="w-12 h-12 text-slate-400 mx-auto mb-3" />
         <p className="text-slate-400">팀원 데이터가 없습니다.</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-bridge-obsidian rounded-xl border border-white/10 overflow-hidden">
+    <div className="bg-bridge-obsidian rounded-xl border border-white/20 overflow-hidden">
       {/* 테이블 헤더 */}
-      <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_100px] gap-4 px-4 py-3 border-b border-white/10 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+      <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_100px] gap-4 px-4 py-3 border-b border-white/20 text-xs font-semibold text-slate-400 uppercase tracking-wider">
         <div>팀원</div>
         <div className="text-center">할당</div>
         <div className="text-center">완료</div>
@@ -1412,7 +1412,7 @@ function TeamProductivitySection({
         const statusConfig = STATUS_CONFIG[member.status];
 
         return (
-          <div key={member.member.id} className="border-b border-white/5 last:border-0">
+          <div key={member.member.id} className="border-b border-white/15 last:border-0">
             {/* 행 */}
             <div
               onClick={() => toggleExpand(member.member.id)}
@@ -1436,7 +1436,7 @@ function TeamProductivitySection({
                 <div>
                   <div className="font-medium text-foreground">{member.member.name}</div>
                   {member.member.role && (
-                    <div className="text-xs text-slate-500">{member.member.role}</div>
+                    <div className="text-xs text-slate-400">{member.member.role}</div>
                   )}
                 </div>
               </div>
@@ -1451,7 +1451,7 @@ function TeamProductivitySection({
               <div className="text-center text-slate-400 text-xs">
                 <div>
                   <div className="text-foreground">{formatMinutesShort(member.total_actual_minutes || 0)}</div>
-                  <div className="text-slate-500">/ {member.total_estimated_minutes ? formatMinutesShort(member.total_estimated_minutes) : '-'}</div>
+                  <div className="text-slate-400">/ {member.total_estimated_minutes ? formatMinutesShort(member.total_estimated_minutes) : '-'}</div>
                 </div>
               </div>
               <div className="text-center">
@@ -1487,7 +1487,7 @@ function TeamProductivitySection({
                                 <CheckCircle2 className="w-3 h-3 text-emerald-400 flex-shrink-0" />
                               )}
                             </div>
-                            <div className="flex items-center gap-3 mt-1 text-xs text-slate-500">
+                            <div className="flex items-center gap-3 mt-1 text-xs text-slate-400">
                               <span>{task.current_block}</span>
                               <span>체크 {task.checklist_completed}/{task.checklist_total}</span>
                               {task.estimated_minutes && (
@@ -1499,7 +1499,7 @@ function TeamProductivitySection({
                           </div>
                         ))
                       ) : (
-                        <p className="text-slate-600 text-sm">없음</p>
+                        <p className="text-slate-400 text-sm">없음</p>
                       )}
                     </div>
                   </div>
@@ -1526,13 +1526,13 @@ function TeamProductivitySection({
                                 <CheckCircle2 className="w-3 h-3 text-emerald-400 flex-shrink-0" />
                               )}
                             </div>
-                            <div className="flex items-center gap-2 mt-1 text-xs text-slate-500">
+                            <div className="flex items-center gap-2 mt-1 text-xs text-slate-400">
                               <span className="truncate">{item.task_title}</span>
                             </div>
                           </div>
                         ))
                       ) : (
-                        <p className="text-slate-600 text-sm">없음</p>
+                        <p className="text-slate-400 text-sm">없음</p>
                       )}
                     </div>
                   </div>
@@ -1563,7 +1563,7 @@ function TeamProductivitySection({
                           </div>
                         ))
                       ) : (
-                        <p className="text-slate-600 text-sm">없음</p>
+                        <p className="text-slate-400 text-sm">없음</p>
                       )}
                     </div>
                   </div>
@@ -1589,10 +1589,10 @@ function DelayedItemsSection({ delayedItems }: { delayedItems: DelayedItems }) {
 
   if (totalItems === 0) {
     return (
-      <div className="p-8 bg-bridge-obsidian rounded-xl border border-white/10 text-center">
+      <div className="p-8 bg-bridge-obsidian rounded-xl border border-white/20 text-center">
         <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto mb-3" />
         <p className="text-foreground font-medium">모든 항목이 정상입니다</p>
-        <p className="text-slate-500 text-sm mt-1">지연된 항목이 없습니다.</p>
+        <p className="text-slate-400 text-sm mt-1">지연된 항목이 없습니다.</p>
       </div>
     );
   }
@@ -1679,7 +1679,7 @@ function DelayedItemsSection({ delayedItems }: { delayedItems: DelayedItems }) {
       </div>
 
       {/* 콘텐츠 */}
-      <div className="bg-bridge-obsidian rounded-xl border border-white/10 overflow-hidden">
+      <div className="bg-bridge-obsidian rounded-xl border border-white/20 overflow-hidden">
         {activeSubTab === 'features' && (
           <div className="divide-y divide-white/5">
             {delayedItems.overdue_features.length > 0 ? (
@@ -1692,7 +1692,7 @@ function DelayedItemsSection({ delayedItems }: { delayedItems: DelayedItems }) {
                     />
                     <div>
                       <div className="text-foreground font-medium">{feature.feature_title}</div>
-                      <div className="flex items-center gap-3 mt-1 text-xs text-slate-500">
+                      <div className="flex items-center gap-3 mt-1 text-xs text-slate-400">
                         <span>마감: {feature.due_date}</span>
                         <span className="text-red-400">{feature.days_overdue}일 초과</span>
                         {feature.assignee && <span>담당: {feature.assignee.name}</span>}
@@ -1701,12 +1701,12 @@ function DelayedItemsSection({ delayedItems }: { delayedItems: DelayedItems }) {
                   </div>
                   <div className="text-right">
                     <div className="text-foreground font-medium">{feature.progress_percentage.toFixed(0)}%</div>
-                    <div className="text-xs text-slate-500">{feature.tasks_remaining}개 남음</div>
+                    <div className="text-xs text-slate-400">{feature.tasks_remaining}개 남음</div>
                   </div>
                 </div>
               ))
             ) : (
-              <div className="p-8 text-center text-slate-500">마감 초과 Feature가 없습니다.</div>
+              <div className="p-8 text-center text-slate-400">마감 초과 Feature가 없습니다.</div>
             )}
           </div>
         )}
@@ -1723,7 +1723,7 @@ function DelayedItemsSection({ delayedItems }: { delayedItems: DelayedItems }) {
                     />
                     <div>
                       <div className="text-foreground font-medium">{task.task_title}</div>
-                      <div className="flex items-center gap-3 mt-1 text-xs text-slate-500">
+                      <div className="flex items-center gap-3 mt-1 text-xs text-slate-400">
                         <span>{task.feature_title}</span>
                         <span className="text-orange-400">{task.block_name}에서 {task.days_in_block}일</span>
                         {task.assignee && <span>담당: {task.assignee.name}</span>}
@@ -1738,7 +1738,7 @@ function DelayedItemsSection({ delayedItems }: { delayedItems: DelayedItems }) {
                 </div>
               ))
             ) : (
-              <div className="p-8 text-center text-slate-500">정체된 Task가 없습니다.</div>
+              <div className="p-8 text-center text-slate-400">정체된 Task가 없습니다.</div>
             )}
           </div>
         )}
@@ -1755,7 +1755,7 @@ function DelayedItemsSection({ delayedItems }: { delayedItems: DelayedItems }) {
                     />
                     <div>
                       <div className="text-foreground font-medium">{item.checklist_title}</div>
-                      <div className="flex items-center gap-3 mt-1 text-xs text-slate-500">
+                      <div className="flex items-center gap-3 mt-1 text-xs text-slate-400">
                         <span>{item.task_title}</span>
                         <span className="text-yellow-400">{item.days_stuck}일째 미완료</span>
                         {item.assignee && <span>담당: {item.assignee.name}</span>}
@@ -1765,7 +1765,7 @@ function DelayedItemsSection({ delayedItems }: { delayedItems: DelayedItems }) {
                 </div>
               ))
             ) : (
-              <div className="p-8 text-center text-slate-500">막힌 체크리스트가 없습니다.</div>
+              <div className="p-8 text-center text-slate-400">막힌 체크리스트가 없습니다.</div>
             )}
           </div>
         )}

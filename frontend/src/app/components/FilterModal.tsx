@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { Tag, Feature } from '../types';
 import { Button } from './ui/button';
+import { getInitials, getAssigneeHex } from '../utils/assigneeColor';
 
 export interface FilterOptions {
   keyword: string;
@@ -42,6 +43,7 @@ interface FilterModalProps {
   availableTags: Tag[];
   availableFeatures: Feature[];
   currentFilters: FilterOptions;
+  memberColorMap?: Record<string, string | null>;
 }
 
 type TabType = 'quick' | 'members' | 'features' | 'status' | 'labels';
@@ -54,6 +56,7 @@ export function FilterModal({
   availableTags,
   availableFeatures,
   currentFilters,
+  memberColorMap,
 }: FilterModalProps) {
   const [filters, setFilters] = useState<FilterOptions>(currentFilters);
   const [activeTab, setActiveTab] = useState<TabType>('quick');
@@ -244,7 +247,7 @@ export function FilterModal({
               value={filters.keyword}
               onChange={(e) => setFilters({ ...filters, keyword: e.target.value })}
               placeholder="키워드로 검색..."
-              className="pl-9 bg-kanban-card border-kanban-border text-foreground placeholder:text-zinc-500 h-9"
+              className="pl-9 bg-kanban-card border-kanban-border text-foreground placeholder:text-zinc-400 h-9"
             />
             {filters.keyword && (
               <button
@@ -303,7 +306,7 @@ export function FilterModal({
 
               {/* 이번 주 마감 */}
               <div className="pt-2">
-                <p className="text-xs text-zinc-500 mb-2">마감 기한</p>
+                <p className="text-xs text-zinc-400 mb-2">마감 기한</p>
                 <div className="flex flex-wrap gap-2">
                   <button
                     onClick={() => handleToggleDueDate('no-date')}
@@ -374,7 +377,7 @@ export function FilterModal({
               {/* 멤버 목록 */}
               {availableMembers.length > 0 && (
                 <div>
-                  <p className="text-xs text-zinc-500 mb-2">팀 멤버</p>
+                  <p className="text-xs text-zinc-400 mb-2">팀 멤버</p>
                   <div className="grid grid-cols-2 gap-2">
                     {availableMembers.map((member) => (
                       <button
@@ -382,12 +385,15 @@ export function FilterModal({
                         onClick={() => handleToggleMember(member)}
                         className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm text-left transition-all ${
                           filters.members.includes(member)
-                            ? 'bg-purple-500 text-white border-purple-500'
+                            ? 'bg-white/10 text-white border-white/20'
                             : 'bg-kanban-surface text-zinc-300 border-kanban-border hover:bg-white/5'
                         }`}
                       >
-                        <div className="w-6 h-6 rounded-full bg-purple-500 flex items-center justify-center text-xs text-white flex-shrink-0">
-                          {member.charAt(0).toUpperCase()}
+                        <div
+                          className="w-6 h-6 rounded-full flex items-center justify-center text-xs text-white flex-shrink-0"
+                          style={{ backgroundColor: getAssigneeHex(member, memberColorMap?.[member]) }}
+                        >
+                          {getInitials(member)}
                         </div>
                         <span className="truncate">{member}</span>
                       </button>
@@ -397,7 +403,7 @@ export function FilterModal({
               )}
 
               {availableMembers.length === 0 && (
-                <p className="text-sm text-zinc-500 text-center py-4">
+                <p className="text-sm text-zinc-400 text-center py-4">
                   등록된 팀 멤버가 없습니다
                 </p>
               )}
@@ -421,7 +427,7 @@ export function FilterModal({
 
               {availableFeatures.length > 0 && (
                 <div>
-                  <p className="text-xs text-zinc-500 mb-2">Feature 선택</p>
+                  <p className="text-xs text-zinc-400 mb-2">Feature 선택</p>
                   <div className="space-y-1.5">
                     {availableFeatures.map((feature) => (
                       <button
@@ -448,7 +454,7 @@ export function FilterModal({
               )}
 
               {availableFeatures.length === 0 && (
-                <p className="text-sm text-zinc-500 text-center py-4">
+                <p className="text-sm text-zinc-400 text-center py-4">
                   등록된 Feature가 없습니다
                 </p>
               )}
@@ -460,7 +466,7 @@ export function FilterModal({
             <div className="space-y-4">
               {/* 완료 상태 */}
               <div>
-                <p className="text-xs text-zinc-500 mb-2">완료 상태</p>
+                <p className="text-xs text-zinc-400 mb-2">완료 상태</p>
                 <div className="flex gap-2">
                   <button
                     onClick={() => handleToggleCardStatus('completed')}
@@ -489,7 +495,7 @@ export function FilterModal({
 
               {/* 마감일 */}
               <div>
-                <p className="text-xs text-zinc-500 mb-2">마감 기한</p>
+                <p className="text-xs text-zinc-400 mb-2">마감 기한</p>
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => handleToggleDueDate('no-date')}
@@ -568,7 +574,7 @@ export function FilterModal({
 
               {availableTags.length > 0 && (
                 <div>
-                  <p className="text-xs text-zinc-500 mb-2">라벨 선택</p>
+                  <p className="text-xs text-zinc-400 mb-2">라벨 선택</p>
                   <div className="flex flex-wrap gap-2">
                     {availableTags.map((tag) => (
                       <button
@@ -592,7 +598,7 @@ export function FilterModal({
               )}
 
               {availableTags.length === 0 && (
-                <p className="text-sm text-zinc-500 text-center py-4">
+                <p className="text-sm text-zinc-400 text-center py-4">
                   등록된 라벨이 없습니다
                 </p>
               )}
@@ -608,7 +614,7 @@ export function FilterModal({
               {filters.members.map((member) => (
                 <Badge
                   key={member}
-                  className="bg-purple-500/20 text-purple-400 border-purple-500/30 gap-1 pr-1"
+                  className="bg-indigo-500/20 text-indigo-400 border-indigo-500/30 gap-1 pr-1"
                 >
                   {member === '__current_user__' ? '나에게 할당됨' : member === '__no_members__' ? '담당자 없음' : member}
                   <button onClick={() => handleToggleMember(member)} className="hover:text-foreground">

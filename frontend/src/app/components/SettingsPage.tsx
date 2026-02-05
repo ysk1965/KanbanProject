@@ -171,7 +171,7 @@ export function SettingsPage() {
   return (
     <div className="min-h-screen w-full bg-bridge-dark text-foreground">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-bridge-obsidian/80 backdrop-blur-xl border-b border-white/5">
+      <header className="sticky top-0 z-50 bg-bridge-obsidian/80 backdrop-blur-xl border-b border-white/15">
         <div className="max-w-3xl mx-auto px-6 py-4 flex items-center gap-4">
           <button
             onClick={() => navigate(-1)}
@@ -185,7 +185,7 @@ export function SettingsPage() {
             </div>
             <div>
               <h1 className="text-xl font-bold text-foreground">설정</h1>
-              <p className="text-xs text-slate-500">{currentUser?.email}</p>
+              <p className="text-xs text-slate-400">{currentUser?.email}</p>
             </div>
           </div>
         </div>
@@ -197,7 +197,7 @@ export function SettingsPage() {
         <motion.section
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-bridge-obsidian rounded-2xl border border-white/5 p-6"
+          className="bg-bridge-obsidian rounded-2xl border border-white/15 p-6"
         >
           <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 bg-bridge-accent/20 rounded-xl flex items-center justify-center">
@@ -205,7 +205,7 @@ export function SettingsPage() {
             </div>
             <div>
               <h2 className="text-lg font-bold text-foreground">프로필</h2>
-              <p className="text-sm text-slate-500">기본 정보를 수정합니다</p>
+              <p className="text-sm text-slate-400">기본 정보를 수정합니다</p>
             </div>
           </div>
 
@@ -218,9 +218,9 @@ export function SettingsPage() {
                 type="email"
                 value={currentUser?.email || ''}
                 disabled
-                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-slate-500 cursor-not-allowed"
+                className="w-full bg-white/5 border border-white/20 rounded-xl py-3 px-4 text-slate-400 cursor-not-allowed"
               />
-              <p className="text-xs text-slate-600 mt-1">이메일은 변경할 수 없습니다</p>
+              <p className="text-xs text-slate-400 mt-1">이메일은 변경할 수 없습니다</p>
             </div>
 
             <div>
@@ -232,7 +232,7 @@ export function SettingsPage() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="이름을 입력해주세요"
-                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-foreground placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+                className="w-full bg-white/5 border border-white/20 rounded-xl py-3 px-4 text-foreground placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
               />
             </div>
 
@@ -269,7 +269,7 @@ export function SettingsPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-bridge-obsidian rounded-2xl border border-white/5 p-6"
+          className="bg-bridge-obsidian rounded-2xl border border-white/15 p-6"
         >
           <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 bg-bridge-accent/20 rounded-xl flex items-center justify-center">
@@ -277,7 +277,7 @@ export function SettingsPage() {
             </div>
             <div>
               <h2 className="text-lg font-bold text-foreground">테마</h2>
-              <p className="text-sm text-slate-500">화면 테마를 변경합니다</p>
+              <p className="text-sm text-slate-400">화면 테마를 변경합니다</p>
             </div>
           </div>
           <div className="flex items-center justify-between">
@@ -292,7 +292,7 @@ export function SettingsPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="bg-bridge-obsidian rounded-2xl border border-white/5 p-6"
+            className="bg-bridge-obsidian rounded-2xl border border-white/15 p-6"
           >
             <div className="flex items-center gap-3 mb-6">
               <div className="w-10 h-10 bg-bridge-accent/20 rounded-xl flex items-center justify-center">
@@ -300,7 +300,7 @@ export function SettingsPage() {
               </div>
               <div>
                 <h2 className="text-lg font-bold text-foreground">비밀번호 변경</h2>
-                <p className="text-sm text-slate-500">계정 보안을 위해 비밀번호를 변경합니다</p>
+                <p className="text-sm text-slate-400">계정 보안을 위해 비밀번호를 변경합니다</p>
               </div>
             </div>
 
@@ -315,7 +315,7 @@ export function SettingsPage() {
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
                     placeholder="현재 비밀번호"
-                    className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 pr-12 text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+                    className="w-full bg-white/5 border border-white/20 rounded-xl py-3 px-4 pr-12 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
                   />
                   <button
                     type="button"
@@ -337,7 +337,7 @@ export function SettingsPage() {
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     placeholder="8자 이상, 영문+숫자"
-                    className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 pr-12 text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+                    className="w-full bg-white/5 border border-white/20 rounded-xl py-3 px-4 pr-12 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
                   />
                   <button
                     type="button"
@@ -358,7 +358,7 @@ export function SettingsPage() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="새 비밀번호를 다시 입력해주세요"
-                  className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-foreground placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+                  className="w-full bg-white/5 border border-white/20 rounded-xl py-3 px-4 text-foreground placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
                 />
               </div>
 
@@ -404,7 +404,7 @@ export function SettingsPage() {
             </div>
             <div>
               <h2 className="text-lg font-bold text-red-400">위험 구역</h2>
-              <p className="text-sm text-slate-500">이 작업은 되돌릴 수 없습니다</p>
+              <p className="text-sm text-slate-400">이 작업은 되돌릴 수 없습니다</p>
             </div>
           </div>
 
@@ -467,7 +467,7 @@ export function SettingsPage() {
                     setDeleteConfirmText('');
                     setDeleteError('');
                   }}
-                  className="px-6 py-3 bg-white/5 border border-white/10 text-foreground rounded-xl font-bold hover:bg-white/10 transition-all"
+                  className="px-6 py-3 bg-white/5 border border-white/20 text-foreground rounded-xl font-bold hover:bg-white/10 transition-all"
                 >
                   취소
                 </button>

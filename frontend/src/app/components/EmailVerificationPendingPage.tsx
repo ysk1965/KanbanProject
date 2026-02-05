@@ -60,7 +60,7 @@ export function EmailVerificationPendingPage() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-[500px] bg-bridge-obsidian rounded-[32px] p-8 md:p-12 border border-white/10 shadow-2xl"
+        className="w-full max-w-[500px] bg-bridge-obsidian rounded-[32px] p-8 md:p-12 border border-white/20 shadow-2xl"
       >
         {/* Icon */}
         <div className="flex justify-center mb-8">
@@ -84,14 +84,14 @@ export function EmailVerificationPendingPage() {
         </p>
 
         {/* Info Box */}
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 mb-8">
+        <div className="bg-white/5 border border-white/20 rounded-2xl p-4 mb-8">
           <div className="flex items-start gap-3">
             <div className="w-8 h-8 bg-bridge-accent/20 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
               <span className="text-sm">&#x23F0;</span>
             </div>
             <div>
               <p className="text-sm text-slate-300 font-medium mb-1">인증 링크 유효 시간</p>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-400">
                 인증 링크는 24시간 동안 유효합니다. 시간이 지나면 재발송해주세요.
               </p>
             </div>
@@ -118,7 +118,7 @@ export function EmailVerificationPendingPage() {
           <button
             onClick={handleResend}
             disabled={isResending || cooldown > 0}
-            className="w-full h-14 bg-white/5 border border-white/10 text-white rounded-2xl font-bold transition-all duration-300 flex items-center justify-center gap-2 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full h-14 bg-white/5 border border-white/20 text-white rounded-2xl font-bold transition-all duration-300 flex items-center justify-center gap-2 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isResending ? (
               <RefreshCw className="w-5 h-5 animate-spin" />
@@ -138,7 +138,7 @@ export function EmailVerificationPendingPage() {
         </div>
 
         {/* Footer Note */}
-        <p className="text-center text-xs text-slate-600 mt-8">
+        <p className="text-center text-xs text-slate-400 mt-8">
           스팸 메일함도 확인해주세요.
         </p>
       </motion.div>

@@ -167,7 +167,7 @@ export function DailyChecklistView({
   return (
     <div className="h-full flex flex-col bg-bridge-dark">
       {/* 상단 네비게이션 */}
-      <div className="flex items-center justify-between px-6 py-4 bg-bridge-obsidian border-b border-white/5">
+      <div className="flex items-center justify-between px-6 py-4 bg-bridge-obsidian border-b border-white/15">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-1">
             <Button
@@ -198,7 +198,7 @@ export function DailyChecklistView({
             className={
               isTodaySelected
                 ? 'bg-bridge-accent hover:bg-bridge-accent/90 text-white'
-                : 'border-white/10 text-slate-300 hover:bg-white/5 hover:text-white'
+                : 'border-white/20 text-slate-300 hover:bg-white/5 hover:text-white'
             }
           >
             <Calendar className="h-4 w-4 mr-2" />
@@ -221,7 +221,7 @@ export function DailyChecklistView({
             className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
               useMockData
                 ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                : 'bg-white/5 text-slate-500 border border-white/10'
+                : 'bg-white/5 text-slate-400 border border-white/20'
             }`}
           >
             {useMockData ? 'Mock ON' : 'Mock OFF'}
@@ -247,10 +247,10 @@ export function DailyChecklistView({
       {boardMembers.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
           <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mb-4">
-            <Users className="h-8 w-8 text-slate-500" />
+            <Users className="h-8 w-8 text-slate-400" />
           </div>
           <h3 className="text-lg font-semibold text-white mb-2">멤버가 없습니다</h3>
-          <p className="text-sm text-slate-500 max-w-md">
+          <p className="text-sm text-slate-400 max-w-md">
             보드에 멤버를 초대하면 데일리 체크리스트를 사용할 수 있습니다.
           </p>
         </div>
@@ -277,8 +277,8 @@ export function DailyChecklistView({
       )}
 
       {/* 하단 안내 */}
-      <div className="px-6 py-3 bg-bridge-obsidian border-t border-white/5">
-        <p className="text-sm text-slate-500">
+      <div className="px-6 py-3 bg-bridge-obsidian border-t border-white/15">
+        <p className="text-sm text-slate-400">
           {isReadOnly
             ? '과거 날짜의 체크리스트는 읽기 전용입니다.'
             : '드래그하여 우선순위를 변경하거나, + 버튼으로 새 항목을 추가하세요.'}

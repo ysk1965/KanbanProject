@@ -80,7 +80,7 @@ export function EditBoardModal({ isOpen, board, onClose, onUpdate, onDelete }: E
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.95 }}
-          className="w-full max-w-lg bg-bridge-obsidian rounded-2xl overflow-hidden shadow-2xl border border-white/10"
+          className="w-full max-w-lg bg-bridge-obsidian rounded-2xl overflow-hidden shadow-2xl border border-white/20"
         >
           {/* Preview Section */}
           <div
@@ -98,7 +98,7 @@ export function EditBoardModal({ isOpen, board, onClose, onUpdate, onDelete }: E
               <h2 className="text-lg font-bold text-white">보드 수정</h2>
               <button
                 onClick={handleClose}
-                className="text-slate-500 hover:text-white transition-colors"
+                className="text-slate-400 hover:text-white transition-colors"
               >
                 <X size={20} />
               </button>
@@ -116,7 +116,7 @@ export function EditBoardModal({ isOpen, board, onClose, onUpdate, onDelete }: E
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="보드 이름을 입력하세요"
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-bridge-accent focus:ring-2 focus:ring-bridge-accent/20 transition-all"
+                  className="w-full bg-white/5 border border-white/20 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-bridge-accent focus:ring-2 focus:ring-bridge-accent/20 transition-all"
                   onKeyDown={(e) => {
                     if (e.nativeEvent.isComposing) return;
                     if (e.key === 'Enter' && !e.shiftKey) {
@@ -136,7 +136,7 @@ export function EditBoardModal({ isOpen, board, onClose, onUpdate, onDelete }: E
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="보드에 대한 간단한 설명 (선택)"
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-bridge-accent focus:ring-2 focus:ring-bridge-accent/20 transition-all resize-none"
+                  className="w-full bg-white/5 border border-white/20 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-bridge-accent focus:ring-2 focus:ring-bridge-accent/20 transition-all resize-none"
                 />
               </div>
             </div>
@@ -145,7 +145,7 @@ export function EditBoardModal({ isOpen, board, onClose, onUpdate, onDelete }: E
             <div className="flex gap-3 pt-4">
               <button
                 onClick={handleClose}
-                className="flex-1 py-3 text-sm font-bold text-slate-400 hover:text-white transition-colors border border-white/10 rounded-xl hover:bg-white/5"
+                className="flex-1 py-3 text-sm font-bold text-slate-400 hover:text-white transition-colors border border-white/20 rounded-xl hover:bg-white/5"
               >
                 취소
               </button>
@@ -160,7 +160,7 @@ export function EditBoardModal({ isOpen, board, onClose, onUpdate, onDelete }: E
 
             {/* Delete Section - Owner Only */}
             {canDelete && (
-              <div className="mt-6 pt-6 border-t border-white/5">
+              <div className="mt-6 pt-6 border-t border-white/15">
                 {!showDeleteConfirm ? (
                   <button
                     onClick={() => setShowDeleteConfirm(true)}
@@ -208,7 +208,7 @@ export function EditBoardModal({ isOpen, board, onClose, onUpdate, onDelete }: E
                         value={deleteConfirmText}
                         onChange={(e) => setDeleteConfirmText(e.target.value)}
                         placeholder={board.name}
-                        className="w-full bg-white/5 border border-rose-500/30 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 transition-all"
+                        className="w-full bg-white/5 border border-rose-500/30 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 transition-all"
                       />
                     </div>
 
@@ -219,7 +219,7 @@ export function EditBoardModal({ isOpen, board, onClose, onUpdate, onDelete }: E
                           setShowDeleteConfirm(false);
                           setDeleteConfirmText('');
                         }}
-                        className="flex-1 py-3 text-sm font-bold text-slate-400 hover:text-white transition-colors border border-white/10 rounded-xl hover:bg-white/5"
+                        className="flex-1 py-3 text-sm font-bold text-slate-400 hover:text-white transition-colors border border-white/20 rounded-xl hover:bg-white/5"
                       >
                         취소
                       </button>

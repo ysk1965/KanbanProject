@@ -4,6 +4,7 @@ import com.kanban.domain.board.BoardRole;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -25,5 +26,13 @@ public class MemberRequest {
     public static class UpdateRole {
         @NotNull(message = "역할은 필수입니다")
         private BoardRole role;
+    }
+
+    @Getter
+    @NoArgsConstructor
+    public static class UpdateColor {
+        @Pattern(regexp = "^(indigo|purple|teal|rose|amber|emerald|#[0-9A-Fa-f]{6})$",
+                 message = "올바른 색상이 아닙니다")
+        private String assigneeColor;
     }
 }

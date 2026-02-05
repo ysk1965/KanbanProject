@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
 import { Board } from '../../types';
 import { testDataAPI } from '../../utils/api';
+import { getInitials } from '../../utils/assigneeColor';
 import { Sidebar } from './Sidebar';
 import { BoardCard, CreateBoardCard } from './BoardCard';
 import { CreateBoardModal } from './CreateBoardModal';
@@ -41,7 +42,7 @@ function DeleteConfirmModal({
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.95 }}
-          className="w-full max-w-md bg-bridge-obsidian rounded-2xl overflow-hidden shadow-2xl border border-white/10 p-6"
+          className="w-full max-w-md bg-bridge-obsidian rounded-2xl overflow-hidden shadow-2xl border border-white/20 p-6"
         >
           <div className="flex items-center gap-3 mb-4">
             <div className="p-2 bg-rose-500/20 rounded-full">
@@ -59,7 +60,7 @@ function DeleteConfirmModal({
           <div className="flex gap-3">
             <button
               onClick={onClose}
-              className="flex-1 py-3 text-sm font-bold text-slate-400 hover:text-white transition-colors border border-white/10 rounded-xl hover:bg-white/5"
+              className="flex-1 py-3 text-sm font-bold text-slate-400 hover:text-white transition-colors border border-white/20 rounded-xl hover:bg-white/5"
             >
               취소
             </button>
@@ -173,7 +174,7 @@ export function Dashboard({
       {/* Main Content */}
       <div className="flex-1 flex flex-col relative z-10">
         {/* Header */}
-        <header className="h-16 border-b border-white/5 bg-bridge-dark/60 backdrop-blur-sm px-4 md:px-8 flex items-center justify-between">
+        <header className="h-16 border-b border-white/15 bg-bridge-dark/60 backdrop-blur-sm px-4 md:px-8 flex items-center justify-between">
           <div className="flex items-center gap-4 flex-1">
             {/* 모바일 햄버거 메뉴 */}
             <button
@@ -186,13 +187,13 @@ export function Dashboard({
             {/* Search */}
             <div className="relative w-full max-w-sm hidden md:block">
               <Search
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
                 size={16}
               />
               <input
                 type="text"
                 placeholder="Quick search projects..."
-                className="w-full bg-white/5 border border-white/5 rounded-xl py-2 pl-10 pr-4 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-bridge-accent/50 focus:bg-white/10 transition-all"
+                className="w-full bg-white/5 border border-white/15 rounded-xl py-2 pl-10 pr-4 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-bridge-accent/50 focus:bg-white/10 transition-all"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -220,7 +221,7 @@ export function Dashboard({
             </button>
 
             {/* Profile Avatar */}
-            <div className="w-10 h-10 rounded-xl overflow-hidden border border-white/10 bg-slate-700">
+            <div className="w-10 h-10 rounded-xl overflow-hidden border border-white/20 bg-slate-700">
               {user?.profile_image ? (
                 <img
                   src={user.profile_image}
@@ -229,7 +230,7 @@ export function Dashboard({
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-sm font-bold bg-gradient-to-br from-bridge-accent to-purple-500">
-                  {user?.name?.charAt(0).toUpperCase() || 'U'}
+                  {getInitials(user?.name || 'U')}
                 </div>
               )}
             </div>
@@ -243,7 +244,7 @@ export function Dashboard({
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
                 <h1 className="text-3xl font-bold font-serif mb-1">Your Projects</h1>
-                <p className="text-slate-500 text-sm">
+                <p className="text-slate-400 text-sm">
                   Managing{' '}
                   <span className="text-bridge-accent font-bold">{boards.length}</span>{' '}
                   active workspaces
@@ -259,8 +260,8 @@ export function Dashboard({
 
             {/* Empty State */}
             {filteredBoards.length === 0 && searchQuery && (
-              <div className="h-64 flex flex-col items-center justify-center bg-bridge-obsidian/30 border-2 border-dashed rounded-3xl border-white/10">
-                <Package2 size={48} className="text-slate-600 mb-4" />
+              <div className="h-64 flex flex-col items-center justify-center bg-bridge-obsidian/30 border-2 border-dashed rounded-3xl border-white/20">
+                <Package2 size={48} className="text-slate-400 mb-4" />
                 <p className="text-slate-400 font-medium">
                   No boards found for "{searchQuery}"
                 </p>
@@ -275,8 +276,8 @@ export function Dashboard({
 
             {/* No boards at all */}
             {boards.length === 0 && !searchQuery && (
-              <div className="h-64 flex flex-col items-center justify-center bg-bridge-obsidian/30 border-2 border-dashed rounded-3xl border-white/10">
-                <Package2 size={48} className="text-slate-600 mb-4" />
+              <div className="h-64 flex flex-col items-center justify-center bg-bridge-obsidian/30 border-2 border-dashed rounded-3xl border-white/20">
+                <Package2 size={48} className="text-slate-400 mb-4" />
                 <p className="text-slate-400 font-medium">아직 보드가 없습니다</p>
                 <button
                   onClick={() => setIsCreateModalOpen(true)}
@@ -292,7 +293,7 @@ export function Dashboard({
               <section>
                 <div className="flex items-center gap-2 mb-6">
                   <Star size={18} className="text-amber-500" fill="#F59E0B" />
-                  <h2 className="text-xs font-bold text-slate-500 uppercase tracking-[0.2em]">
+                  <h2 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">
                     Starred Boards
                   </h2>
                 </div>
@@ -316,7 +317,7 @@ export function Dashboard({
               <section>
                 <div className="flex items-center gap-2 mb-6">
                   <LayoutGrid size={18} className="text-bridge-accent" />
-                  <h2 className="text-xs font-bold text-slate-500 uppercase tracking-[0.2em]">
+                  <h2 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">
                     Workspace Boards
                   </h2>
                 </div>

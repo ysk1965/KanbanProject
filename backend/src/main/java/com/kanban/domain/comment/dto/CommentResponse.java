@@ -99,4 +99,40 @@ public class CommentResponse {
                     .build();
         }
     }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class SummaryItem {
+        private String id;
+        private String taskId;
+        private String taskTitle;
+        private String content;
+        private LocalDateTime createdAt;
+
+        public static SummaryItem of(Comment comment) {
+            return SummaryItem.builder()
+                    .id(comment.getId())
+                    .taskId(comment.getTask().getId())
+                    .taskTitle(comment.getTask().getTitle())
+                    .content(comment.getContent())
+                    .createdAt(comment.getCreatedAt())
+                    .build();
+        }
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class SummaryListResponse {
+        private List<SummaryItem> comments;
+        private int totalCount;
+
+        public static SummaryListResponse of(List<Comment> comments) {
+            return SummaryListResponse.builder()
+                    .comments(comments.stream().map(SummaryItem::of).toList())
+                    .totalCount(comments.size())
+                    .build();
+        }
+    }
 }

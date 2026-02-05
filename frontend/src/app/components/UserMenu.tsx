@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, CreditCard, LogOut, Settings as SettingsIcon, ChevronDown } from 'lucide-react';
+import { getInitials } from '../utils/assigneeColor';
 
 interface UserMenuProps {
   user: {
@@ -51,20 +52,20 @@ export function UserMenu({ user, onOpenSubscription, onOpenSettings, onLogout, h
           />
         ) : (
           <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-medium">
-            {user.name[0].toUpperCase()}
+            {getInitials(user.name)}
           </div>
         )}
-        <span className="text-sm text-slate-300 hidden md:block">{user.name}</span>
-        <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <span className="text-sm text-slate-200 hidden md:block">{user.name}</span>
+        <ChevronDown className={`h-4 w-4 text-slate-300 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {/* 드롭다운 메뉴 */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-64 bg-bridge-obsidian rounded-lg shadow-xl border border-white/10 py-2 z-50">
+        <div className="absolute right-0 mt-2 w-64 bg-bridge-obsidian rounded-lg shadow-xl border border-white/20 py-2 z-50">
           {/* 사용자 정보 */}
-          <div className="px-4 py-3 border-b border-white/10">
+          <div className="px-4 py-3 border-b border-white/15">
             <div className="font-medium text-foreground">{user.name}</div>
-            <div className="text-sm text-slate-400">{user.email}</div>
+            <div className="text-sm text-slate-300">{user.email}</div>
           </div>
 
           {/* 메뉴 아이템 */}
@@ -106,7 +107,7 @@ export function UserMenu({ user, onOpenSubscription, onOpenSettings, onLogout, h
           </div>
 
           {/* 로그아웃 */}
-          <div className="border-t border-white/10 pt-2">
+          <div className="border-t border-white/15 pt-2">
             <button
               onClick={() => {
                 onLogout();

@@ -16,8 +16,11 @@ import {
   SelectValue,
 } from './ui/select';
 import { Badge } from './ui/badge';
-import { X, Link as LinkIcon, Copy, Check, UserPlus, Trash2, Plus, Loader2 } from 'lucide-react';
+import { X, Link as LinkIcon, Copy, Check, UserPlus, Trash2, Plus, Loader2, Palette } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { HexColorPicker } from 'react-colorful';
 import { InviteLink } from '../utils/api';
+import { ASSIGNEE_COLOR_NAMES, getAssigneeClasses, getAssigneeHex, getInitials } from '../utils/assigneeColor';
 
 export type MemberRole = 'owner' | 'admin' | 'member' | 'observer';
 
@@ -28,6 +31,7 @@ export interface BoardMember {
   email: string;
   role: MemberRole;
   avatar?: string;
+  assigneeColor?: string | null;
 }
 
 interface ShareBoardModalProps {
@@ -37,6 +41,7 @@ interface ShareBoardModalProps {
   onAddMember: (email: string, role: MemberRole) => void;
   onUpdateMemberRole: (memberId: string, role: MemberRole) => void;
   onRemoveMember: (memberId: string) => void;
+  onUpdateMemberColor?: (memberId: string, color: string | null) => void;
   currentUserId: string;
   // 초대 링크 관련
   inviteLinks?: InviteLink[];
@@ -65,6 +70,7 @@ export function ShareBoardModal({
   onAddMember,
   onUpdateMemberRole,
   onRemoveMember,
+  onUpdateMemberColor,
   currentUserId,
   // 초대 링크 관련
   inviteLinks,
@@ -76,6 +82,8 @@ export function ShareBoardModal({
   const [linkCopied, setLinkCopied] = useState(false);
   const [isCreatingLink, setIsCreatingLink] = useState(false);
   const [copyMessage, setCopyMessage] = useState<string | null>(null);
+  const [customPickerMemberId, setCustomPickerMemberId] = useState<string | null>(null);
+  const [customPickerColor, setCustomPickerColor] = useState('#6366F1');
 
   const handleInvite = () => {
     if (inviteEmail.trim()) {
@@ -147,7 +155,7 @@ export function ShareBoardModal({
                 value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
                 placeholder="Email address or name"
-                className="flex-1 bg-kanban-card border-kanban-border text-white placeholder:text-zinc-500"
+                className="flex-1 bg-kanban-card border-kanban-border text-white placeholder:text-zinc-400"
                 onKeyDown={(e) => {
                   if (e.nativeEvent.isComposing) return;
                   if (e.key === 'Enter') {
@@ -189,7 +197,7 @@ export function ShareBoardModal({
                     <button className="text-sm text-indigo-400 hover:underline">
                       Observer
                     </button>
-                    <span className="text-zinc-500">•</span>
+                    <span className="text-zinc-400">•</span>
                     <button
                       className="text-sm text-indigo-400 hover:underline disabled:opacity-50"
                       onClick={handleCopyLink}
@@ -238,10 +246,115 @@ export function ShareBoardModal({
                     className="flex items-center justify-between p-3 rounded-lg hover:bg-white/5 border border-transparent hover:border-kanban-border"
                   >
                     <div className="flex items-center gap-3">
-                      {/* 아바타 */}
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white font-semibold">
-                        {member.name.charAt(0).toUpperCase()}
-                      </div>
+                      {/* 아바타 + 색상 피커 */}
+                      <Popover onOpenChange={(open) => {
+                        if (!open) setCustomPickerMemberId(null);
+                      }}>
+                        <PopoverTrigger asChild>
+                          <button
+                            className={`relative w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold group/avatar ${
+                              getAssigneeClasses(member.name, member.assigneeColor).bg || ''
+                            }`}
+                            style={
+                              member.assigneeColor?.startsWith('#')
+                                ? { backgroundColor: member.assigneeColor }
+                                : undefined
+                            }
+                            title="색상 변경"
+                          >
+                            {getInitials(member.name)}
+                            {onUpdateMemberColor && (
+                              <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-bridge-obsidian border border-white/20 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity">
+                                <Palette className="h-2.5 w-2.5 text-slate-400" />
+                              </div>
+                            )}
+                          </button>
+                        </PopoverTrigger>
+                        {onUpdateMemberColor && (
+                          <PopoverContent className="w-auto p-2 bg-bridge-obsidian border-white/20" align="start">
+                            <div className="flex gap-1.5">
+                              {ASSIGNEE_COLOR_NAMES.map((colorName) => {
+                                const cls = getAssigneeClasses(colorName, colorName);
+                                const currentHex = getAssigneeHex(member.name, member.assigneeColor);
+                                const isSelected = cls.hex === currentHex;
+                                return (
+                                  <button
+                                    key={colorName}
+                                    onClick={() => {
+                                      onUpdateMemberColor(member.id, colorName);
+                                      setCustomPickerMemberId(null);
+                                    }}
+                                    className={`w-7 h-7 rounded-full ${cls.bg} flex items-center justify-center transition-all ${
+                                      isSelected ? 'ring-2 ring-white ring-offset-2 ring-offset-bridge-obsidian' : 'hover:scale-110'
+                                    }`}
+                                    title={colorName}
+                                  >
+                                    {isSelected && <Check className="h-3.5 w-3.5 text-white" />}
+                                  </button>
+                                );
+                              })}
+                              {/* 커스텀 컬러 + 버튼 */}
+                              <button
+                                onClick={() => {
+                                  const currentHex = getAssigneeHex(member.name, member.assigneeColor);
+                                  setCustomPickerColor(currentHex);
+                                  setCustomPickerMemberId(
+                                    customPickerMemberId === member.id ? null : member.id
+                                  );
+                                }}
+                                className={`w-7 h-7 rounded-full border border-dashed border-white/30 flex items-center justify-center transition-all hover:scale-110 hover:border-white/60 ${
+                                  customPickerMemberId === member.id ? 'ring-2 ring-white ring-offset-2 ring-offset-bridge-obsidian border-solid' : ''
+                                }`}
+                                style={
+                                  member.assigneeColor?.startsWith('#')
+                                    ? { backgroundColor: member.assigneeColor + '40', borderColor: member.assigneeColor }
+                                    : undefined
+                                }
+                                title="커스텀 색상"
+                              >
+                                <Plus className="h-3.5 w-3.5 text-slate-400" />
+                              </button>
+                            </div>
+                            {/* 커스텀 컬러 피커 패널 */}
+                            {customPickerMemberId === member.id && (
+                              <div className="mt-2 pt-2 border-t border-white/10 space-y-2">
+                                <HexColorPicker
+                                  color={customPickerColor}
+                                  onChange={setCustomPickerColor}
+                                  style={{ width: '100%', height: 140 }}
+                                />
+                                <div className="flex items-center gap-2">
+                                  <div
+                                    className="w-7 h-7 rounded-full border border-white/20 shrink-0"
+                                    style={{ backgroundColor: customPickerColor }}
+                                  />
+                                  <input
+                                    type="text"
+                                    value={customPickerColor}
+                                    onChange={(e) => {
+                                      const v = e.target.value;
+                                      if (/^#[0-9A-Fa-f]{0,6}$/.test(v)) setCustomPickerColor(v);
+                                    }}
+                                    className="flex-1 bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white font-mono focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
+                                    maxLength={7}
+                                  />
+                                  <button
+                                    onClick={() => {
+                                      if (/^#[0-9A-Fa-f]{6}$/.test(customPickerColor)) {
+                                        onUpdateMemberColor(member.id, customPickerColor);
+                                        setCustomPickerMemberId(null);
+                                      }
+                                    }}
+                                    className="px-2.5 py-1 bg-bridge-accent text-white text-xs rounded-lg hover:bg-bridge-accent/90 transition-colors font-medium"
+                                  >
+                                    적용
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </PopoverContent>
+                        )}
+                      </Popover>
 
                       {/* 정보 */}
                       <div>

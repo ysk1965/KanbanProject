@@ -1,7 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Feature, Task, Tag, Priority } from '../types';
 import { FEATURE_COLORS } from '../constants';
-import { X, Trash2, ChevronDown, Calendar, Plus, ClipboardList, CheckCircle2 } from 'lucide-react';
+import { X, Trash2, ChevronDown, Plus, ClipboardList, Lightbulb, ArrowRight, Pipette, FileText, CalendarIcon, Tags, Layers } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { Calendar } from './ui/calendar';
+import { format } from 'date-fns';
+import { ko } from 'date-fns/locale';
 
 interface FeatureDetailModalProps {
   feature: Feature | null;
@@ -36,6 +42,8 @@ export function FeatureDetailModal({
   const [hasChanges, setHasChanges] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [flyingTask, setFlyingTask] = useState<{ title: string; x: number; y: number } | null>(null);
+  const addBtnRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (feature && open) {
@@ -69,9 +77,9 @@ export function FeatureDetailModal({
   const handleSave = () => {
     if (hasChanges && editedFeature) {
       onUpdateFeature(editedFeature);
+      setInitialFeature(JSON.parse(JSON.stringify(editedFeature)));
       setHasChanges(false);
     }
-    onClose();
   };
 
   const handleDiscardAndClose = () => {
@@ -93,6 +101,16 @@ export function FeatureDetailModal({
 
   const handleAddSubtask = () => {
     if (newSubtaskTitle.trim()) {
+      // 날아가는 애니메이션 트리거
+      if (addBtnRef.current) {
+        const rect = addBtnRef.current.getBoundingClientRect();
+        setFlyingTask({
+          title: newSubtaskTitle.trim(),
+          x: rect.left + rect.width / 2,
+          y: rect.top,
+        });
+        setTimeout(() => setFlyingTask(null), 800);
+      }
       onAddSubtask(newSubtaskTitle.trim());
       setNewSubtaskTitle('');
     }
@@ -139,112 +157,167 @@ export function FeatureDetailModal({
         onClick={handleClose}
       >
         <div
-          className="w-full max-w-xl bg-kanban-bg text-zinc-300 rounded-2xl border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden animate-in zoom-in-95 duration-200"
+          className="w-full max-w-xl bg-kanban-bg text-zinc-300 rounded-2xl border border-white/20 shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden animate-in zoom-in-95 duration-200"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Top Control Bar */}
-          <div className="flex items-center justify-between px-6 py-5 border-b border-white/5 bg-white/[0.02]">
+          <div className="flex items-center justify-between px-6 py-5 border-b border-white/20 bg-white/[0.02]">
             <div className="flex items-center gap-3 flex-1">
-              <div
-                className="w-5 h-5 rounded-md shadow-lg flex-shrink-0 transition-all duration-300"
-                style={{
-                  backgroundColor: selectedColor,
-                  boxShadow: `0 0 15px ${selectedColor}88`,
-                  border: '1px solid rgba(255,255,255,0.2)',
-                }}
-              />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    className="w-5 h-5 rounded-md shadow-lg flex-shrink-0 transition-all duration-300 hover:scale-125 cursor-pointer"
+                    style={{
+                      backgroundColor: selectedColor,
+                      boxShadow: `0 0 15px ${selectedColor}88`,
+                      border: '1px solid rgba(255,255,255,0.2)',
+                    }}
+                  />
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-3 bg-bridge-obsidian border-white/20" align="start" sideOffset={8}>
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-5 gap-2">
+                      {FEATURE_COLORS.map((color) => (
+                        <button
+                          key={color}
+                          onClick={() => updateEditedFeature({ color })}
+                          className={`w-7 h-7 rounded-full transition-all duration-200 ${
+                            selectedColor === color
+                              ? 'ring-2 ring-white ring-offset-2 ring-offset-bridge-obsidian scale-110'
+                              : 'opacity-50 hover:opacity-100 hover:scale-110'
+                          }`}
+                          style={{
+                            backgroundColor: color,
+                            boxShadow: selectedColor === color ? `0 0 12px ${color}` : 'none',
+                          }}
+                        />
+                      ))}
+                    </div>
+                    <div className="border-t border-white/10 pt-3">
+                      <label className="flex items-center gap-2 cursor-pointer group">
+                        <Pipette size={14} className="text-slate-400 group-hover:text-white transition-colors" />
+                        <span className="text-[11px] text-slate-400 group-hover:text-white transition-colors">커스텀 색상</span>
+                        <input
+                          type="color"
+                          value={selectedColor}
+                          onChange={(e) => updateEditedFeature({ color: e.target.value })}
+                          className="w-6 h-6 rounded cursor-pointer border-none bg-transparent ml-auto [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:rounded [&::-webkit-color-swatch]:border-white/20 [&::-webkit-color-swatch]:border"
+                        />
+                      </label>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
               <input
                 type="text"
                 value={editedFeature.title}
                 onChange={(e) => updateEditedFeature({ title: e.target.value })}
-                className="text-lg font-bold bg-transparent border-none focus:outline-none rounded w-full text-foreground placeholder-zinc-600"
+                className="text-lg font-bold bg-transparent border-none focus:outline-none rounded w-full text-foreground placeholder-zinc-400"
               />
             </div>
             <div className="flex items-center gap-1">
               <button
                 onClick={() => setShowDeleteDialog(true)}
-                className="p-2 text-zinc-500 hover:text-red-400 transition-colors"
+                className="p-2 text-zinc-400 hover:text-red-400 transition-colors"
               >
                 <Trash2 size={18} />
               </button>
               <div className="w-px h-4 bg-white/10 mx-1" />
               <button
                 onClick={handleClose}
-                className="p-2 text-zinc-500 hover:text-foreground transition-colors"
+                className="p-2 text-zinc-400 hover:text-foreground transition-colors"
               >
                 <X size={22} />
               </button>
             </div>
           </div>
 
-          <div className="px-6 py-6 space-y-8 max-h-[80vh] overflow-y-auto kanban-scrollbar">
+          <div className="px-6 py-6 space-y-5 max-h-[80vh] overflow-y-auto kanban-scrollbar">
             {/* Description Module */}
-            <section>
-              <label className="kanban-label block mb-3">설명</label>
+            <section className="space-y-2">
+              <div className="flex items-center gap-2">
+                <FileText className="h-4 w-4 text-slate-400" />
+                <label className="text-slate-400 font-medium">설명</label>
+              </div>
               <textarea
                 placeholder="FEATURE 설명을 입력하세요..."
                 value={editedFeature.description || ''}
                 onChange={(e) => updateEditedFeature({ description: e.target.value })}
-                className="w-full min-h-[100px] bg-kanban-input border border-white/5 rounded-xl p-4 text-zinc-300 focus:outline-none focus:border-indigo-500/50 transition-all resize-none text-sm leading-relaxed"
+                className="w-full min-h-[100px] bg-white/5 border border-white/20 rounded-xl p-4 text-zinc-300 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all resize-none text-sm leading-relaxed"
               />
             </section>
 
             {/* Core Specs Grid */}
             <div className="grid grid-cols-2 gap-6">
-              <section>
-                <label className="kanban-label block mb-3">우선순위</label>
+              <section className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Layers className="h-4 w-4 text-slate-400" />
+                  <label className="text-slate-400 font-medium">우선순위</label>
+                </div>
                 <div className="relative">
                   <select
                     value={editedFeature.priority || 'MEDIUM'}
                     onChange={(e) => updateEditedFeature({ priority: e.target.value as Priority })}
-                    className="w-full bg-kanban-card-hover border border-white/5 rounded-lg px-4 py-2.5 appearance-none focus:outline-none focus:border-indigo-500/50 text-xs font-bold text-zinc-200"
+                    className="w-full bg-white/5 border border-white/20 rounded-lg px-4 py-2.5 appearance-none focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent text-xs font-bold text-zinc-200"
                   >
                     <option value="HIGH" className="bg-kanban-bg">높음</option>
                     <option value="MEDIUM" className="bg-kanban-bg">보통</option>
                     <option value="LOW" className="bg-kanban-bg">낮음</option>
                   </select>
-                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-600 pointer-events-none" size={14} />
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" size={14} />
                 </div>
               </section>
-              <section>
-                <label className="kanban-label block mb-3">마감일</label>
-                <div className="relative">
-                  <input
-                    type="date"
-                    value={editedFeature.due_date || ''}
-                    onChange={(e) => updateEditedFeature({ due_date: e.target.value })}
-                    className="w-full bg-kanban-card-hover border border-white/5 rounded-lg px-4 py-2.5 focus:outline-none focus:border-indigo-500/50 text-xs font-bold text-zinc-200"
-                  />
-                  <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-600 pointer-events-none" size={14} />
+              <section className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <CalendarIcon className="h-4 w-4 text-slate-400" />
+                  <label className="text-slate-400 font-medium">마감일</label>
                 </div>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      className="w-full h-10 flex items-center gap-2 text-left bg-white/5 border border-white/20 rounded-lg px-4 py-2.5 text-xs font-bold text-zinc-200 hover:bg-white/10 transition-colors"
+                    >
+                      <CalendarIcon className="h-4 w-4 text-slate-400" />
+                      {editedFeature.due_date ? (
+                        format(new Date(editedFeature.due_date), 'yyyy. MM. dd.', { locale: ko })
+                      ) : (
+                        <span className="text-slate-400 font-normal">날짜를 선택하세요</span>
+                      )}
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 bg-bridge-obsidian border-white/20" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={editedFeature.due_date ? new Date(editedFeature.due_date) : undefined}
+                      onSelect={(date: Date | undefined) => {
+                        updateEditedFeature({
+                          due_date: date ? format(date, 'yyyy-MM-dd') : null,
+                        });
+                      }}
+                      locale={ko}
+                      className="bg-bridge-obsidian text-foreground"
+                    />
+                    {editedFeature.due_date && (
+                      <div className="p-2 border-t border-white/20">
+                        <button
+                          className="w-full text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 px-3 py-1.5 rounded transition-colors"
+                          onClick={() => updateEditedFeature({ due_date: null })}
+                        >
+                          날짜 삭제
+                        </button>
+                      </div>
+                    )}
+                  </PopoverContent>
+                </Popover>
               </section>
             </div>
 
-            {/* Color Spectrum Selection */}
-            <section>
-              <label className="kanban-label block mb-4">FEATURE 색상</label>
-              <div className="flex flex-wrap gap-2.5">
-                {FEATURE_COLORS.map((color) => (
-                  <button
-                    key={color}
-                    onClick={() => updateEditedFeature({ color })}
-                    className={`w-7 h-7 rounded-full transition-all duration-300 ${
-                      selectedColor === color
-                        ? 'ring-2 ring-white ring-offset-2 ring-offset-kanban-bg scale-110'
-                        : 'opacity-40 hover:opacity-100 hover:scale-110'
-                    }`}
-                    style={{
-                      backgroundColor: color,
-                      boxShadow: selectedColor === color ? `0 0 15px ${color}` : 'none',
-                    }}
-                  />
-                ))}
-              </div>
-            </section>
-
             {/* Tags Section */}
-            <section>
-              <label className="kanban-label block mb-3">태그</label>
+            <section className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Tags className="h-4 w-4 text-slate-400" />
+                <label className="text-slate-400 font-medium">태그</label>
+              </div>
               <div className="flex flex-wrap gap-2">
                 {featureTags.map((tag) => (
                   <span
@@ -272,7 +345,7 @@ export function FeatureDetailModal({
                       value={newTagName}
                       onChange={(e) => setNewTagName(e.target.value)}
                       placeholder="태그 이름"
-                      className="h-7 w-24 text-xs bg-kanban-input border border-white/10 rounded-lg px-2 focus:outline-none focus:border-indigo-500/50"
+                      className="h-7 w-24 text-xs bg-white/5 border border-white/20 rounded-lg px-2 focus:outline-none focus:ring-1 focus:ring-bridge-accent/50 focus:border-bridge-accent"
                       onKeyDown={(e) => {
                         if (e.nativeEvent.isComposing) return;
                         if (e.key === 'Enter') handleCreateNewTag();
@@ -289,7 +362,7 @@ export function FeatureDetailModal({
                         setShowTagInput(false);
                         setNewTagName('');
                       }}
-                      className="text-zinc-500 hover:text-foreground text-xs"
+                      className="text-zinc-400 hover:text-foreground text-xs"
                     >
                       취소
                     </button>
@@ -302,7 +375,7 @@ export function FeatureDetailModal({
                           if (e.target.value) handleAddTag(e.target.value);
                           e.target.value = '';
                         }}
-                        className="h-7 text-xs bg-kanban-card border border-white/10 rounded-lg px-2 focus:outline-none appearance-none cursor-pointer"
+                        className="h-7 text-xs bg-white/5 border border-white/20 rounded-lg px-2 focus:outline-none appearance-none cursor-pointer"
                       >
                         <option value="">태그 추가</option>
                         {availableTagsToAdd.map((tag) => (
@@ -314,7 +387,7 @@ export function FeatureDetailModal({
                     )}
                     <button
                       onClick={() => setShowTagInput(true)}
-                      className="px-2.5 py-1 bg-white/5 text-zinc-400 text-[10px] font-bold rounded-lg border border-white/10 hover:bg-white/10 hover:text-foreground flex items-center gap-1"
+                      className="px-2.5 py-1 bg-white/5 text-zinc-400 text-[10px] font-bold rounded-lg border border-white/20 hover:bg-white/10 hover:text-foreground flex items-center gap-1"
                     >
                       <Plus size={10} />새 태그
                     </button>
@@ -325,37 +398,42 @@ export function FeatureDetailModal({
 
             {/* Subtask Module */}
             <section className="space-y-4">
-              <div className="flex items-center justify-between border-b border-white/5 pb-2">
+              <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <ClipboardList size={14} className="text-indigo-400" />
-                  <span className="kanban-label">서브태스크 리스트</span>
+                  <span className="text-slate-400 font-medium">서브태스크 리스트</span>
                 </div>
-                <span className="text-[11px] font-bold text-indigo-400 tabular-nums">
-                  {completedCount}/{totalCount} 완료
-                </span>
-              </div>
-
-              <div className="bg-kanban-input border border-white/5 rounded-xl overflow-hidden">
-                {/* Progress Bar */}
-                <div className="p-5">
-                  <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                <div className="flex items-center gap-3">
+                  <div className="w-24 h-2 bg-zinc-700 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-indigo-500 transition-all duration-1000 ease-out"
-                      style={{
-                        width: `${progressPercent}%`,
-                        boxShadow: '0 0 15px rgba(99,102,241,0.5)',
-                      }}
+                      className="h-full bg-indigo-500 rounded-full transition-all duration-300"
+                      style={{ width: `${progressPercent}%` }}
                     />
                   </div>
-                  <div className="mt-2 text-right">
-                    <span className="text-[9px] font-black text-zinc-600 tracking-tighter uppercase">
-                      {Math.round(progressPercent)}% PROGRESS
-                    </span>
-                  </div>
+                  <span className="text-sm font-semibold text-indigo-400">
+                    {Math.round(progressPercent)}%
+                  </span>
                 </div>
+              </div>
 
+              <div className="bg-white/5 border border-white/20 rounded-xl overflow-hidden">
                 {/* Task Entries */}
-                <div className="border-t border-white/5 divide-y divide-white/5">
+                <div className="divide-y divide-white/5">
+                  {tasks.length === 0 && (
+                    <div className="px-5 py-6 flex items-start gap-3">
+                      <div className="w-7 h-7 rounded-lg bg-indigo-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <Lightbulb size={14} className="text-indigo-400" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-zinc-300 mb-1">
+                          아래에서 서브태스크를 추가해보세요
+                        </p>
+                        <p className="text-[11px] text-zinc-500 leading-relaxed">
+                          서브태스크는 칸반보드의 Task 블록에 카드로 나타나며, 블록 간 드래그로 진행 상태를 관리할 수 있어요.
+                        </p>
+                      </div>
+                    </div>
+                  )}
                   {tasks.map((task) => (
                     <div
                       key={task.id}
@@ -373,7 +451,7 @@ export function FeatureDetailModal({
                           {task.title}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2 text-[10px] font-black text-zinc-600">
+                      <div className="flex items-center gap-2 text-[10px] font-black text-zinc-400">
                         <span className="tracking-widest group-hover:text-indigo-400 transition-colors">
                           → {getBlockName(task.block_id).toUpperCase()}
                         </span>
@@ -383,7 +461,7 @@ export function FeatureDetailModal({
                 </div>
 
                 {/* Quick Add Dock */}
-                <div className="bg-white/[0.02] p-2 flex gap-2 border-t border-white/5">
+                <div className="bg-white/[0.02] p-2 flex gap-2 border-t border-white/20">
                   <input
                     type="text"
                     placeholder="새 서브태스크 추가..."
@@ -393,9 +471,10 @@ export function FeatureDetailModal({
                       if (e.nativeEvent.isComposing) return;
                       if (e.key === 'Enter') handleAddSubtask();
                     }}
-                    className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-bridge-accent/50 focus:border-bridge-accent text-zinc-300 placeholder-zinc-500 transition-all"
+                    className="flex-1 bg-white/5 border border-white/20 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-bridge-accent/50 focus:border-bridge-accent text-zinc-300 placeholder-zinc-500 transition-all"
                   />
                   <button
+                    ref={addBtnRef}
                     onClick={handleAddSubtask}
                     className="px-4 py-2 bg-indigo-600/10 text-indigo-400 text-[10px] font-black uppercase tracking-widest rounded-lg border border-indigo-500/20 hover:bg-indigo-600/20 hover:text-foreground transition-all active:scale-95"
                   >
@@ -404,23 +483,27 @@ export function FeatureDetailModal({
                 </div>
               </div>
             </section>
-          </div>
 
-          {/* Action Footer */}
-          <div className="px-6 py-5 border-t border-white/5 bg-white/[0.02] flex justify-end items-center gap-4">
-            <button
-              onClick={handleClose}
-              className="text-[11px] font-bold text-zinc-500 hover:text-foreground transition-all tracking-wider"
-            >
-              취소
-            </button>
-            <button
-              onClick={handleSave}
-              className="px-6 py-2.5 bg-white text-black font-black text-[11px] rounded-lg tracking-widest hover:bg-zinc-200 transition-all flex items-center gap-2 active:scale-[0.98]"
-            >
-              변경사항 저장
-              <CheckCircle2 size={14} className="text-indigo-600" />
-            </button>
+            {/* 저장 버튼 - 변경사항이 있을 때만 표시 */}
+            {hasChanges && (
+              <div className="flex justify-end gap-3 pt-4 border-t border-white/20">
+                <button
+                  onClick={() => {
+                    setEditedFeature(JSON.parse(JSON.stringify(initialFeature)));
+                    setHasChanges(false);
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-zinc-400 hover:text-foreground bg-white/5 border border-white/20 rounded-lg hover:bg-white/10 transition-all"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={handleSave}
+                  className="px-5 py-2 bg-bridge-accent text-white text-sm font-bold rounded-lg hover:bg-bridge-accent/90 transition-all"
+                >
+                  저장
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -428,7 +511,7 @@ export function FeatureDetailModal({
       {/* Confirm Dialog */}
       {showConfirmDialog && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md bg-kanban-bg rounded-2xl border border-white/10 p-6 shadow-2xl">
+          <div className="w-full max-w-md bg-kanban-bg rounded-2xl border border-white/20 p-6 shadow-2xl">
             <h3 className="text-lg font-bold text-foreground mb-2">변경사항을 저장하시겠습니까?</h3>
             <p className="text-sm text-zinc-400 mb-6">
               저장하지 않은 변경사항이 있습니다. 저장하지 않고 닫으면 변경사항이 사라집니다.
@@ -436,13 +519,13 @@ export function FeatureDetailModal({
             <div className="flex gap-3">
               <button
                 onClick={handleDiscardAndClose}
-                className="flex-1 py-3 text-sm font-bold text-zinc-400 hover:text-foreground transition-colors border border-white/10 rounded-xl hover:bg-white/5"
+                className="flex-1 py-3 text-sm font-bold text-zinc-400 hover:text-foreground transition-colors border border-white/20 rounded-xl hover:bg-white/5"
               >
                 저장 안 함
               </button>
               <button
                 onClick={handleSaveAndClose}
-                className="flex-1 py-3 bg-indigo-600 text-sm font-bold rounded-xl hover:bg-indigo-700 transition-colors text-white"
+                className="flex-1 py-3 bg-bridge-accent text-sm font-bold rounded-xl hover:bg-bridge-accent/90 transition-colors text-white"
               >
                 저장
               </button>
@@ -454,7 +537,7 @@ export function FeatureDetailModal({
       {/* Delete Dialog */}
       {showDeleteDialog && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md bg-kanban-bg rounded-2xl border border-white/10 p-6 shadow-2xl">
+          <div className="w-full max-w-md bg-kanban-bg rounded-2xl border border-white/20 p-6 shadow-2xl">
             <h3 className="text-lg font-bold text-foreground mb-2">이 기능을 삭제하시겠습니까?</h3>
             <p className="text-sm text-zinc-400 mb-6">
               이 기능과 모든 서브태스크가 삭제됩니다. 이 작업은 되돌릴 수 없습니다.
@@ -462,7 +545,7 @@ export function FeatureDetailModal({
             <div className="flex gap-3">
               <button
                 onClick={() => setShowDeleteDialog(false)}
-                className="flex-1 py-3 text-sm font-bold text-zinc-400 hover:text-foreground transition-colors border border-white/10 rounded-xl hover:bg-white/5"
+                className="flex-1 py-3 text-sm font-bold text-zinc-400 hover:text-foreground transition-colors border border-white/20 rounded-xl hover:bg-white/5"
               >
                 취소
               </button>
@@ -479,6 +562,34 @@ export function FeatureDetailModal({
           </div>
         </div>
       )}
+
+      {/* Flying task animation (portal) */}
+      {flyingTask &&
+        createPortal(
+          <AnimatePresence>
+            <motion.div
+              key="flying-task"
+              initial={{ x: flyingTask.x, y: flyingTask.y, opacity: 1, scale: 1 }}
+              animate={{
+                x: window.innerWidth * 0.15,
+                y: flyingTask.y - 120,
+                opacity: 0,
+                scale: 0.7,
+              }}
+              transition={{ duration: 0.65, ease: [0.32, 0.72, 0, 1] }}
+              className="fixed z-[100] pointer-events-none"
+              style={{ top: 0, left: 0 }}
+            >
+              <div className="flex items-center gap-2 px-4 py-2 bg-indigo-600 rounded-lg shadow-[0_0_20px_rgba(99,102,241,0.5)]">
+                <ArrowRight size={12} className="text-white" />
+                <span className="text-xs font-bold text-white whitespace-nowrap">
+                  TASK
+                </span>
+              </div>
+            </motion.div>
+          </AnimatePresence>,
+          document.body
+        )}
     </>
   );
 }

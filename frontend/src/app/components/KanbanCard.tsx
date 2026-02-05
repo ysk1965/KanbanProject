@@ -3,6 +3,7 @@ import { useDrag } from 'react-dnd';
 import { Task, DragItem, Tag, ChecklistItem } from '../types';
 import { GripVertical, ChevronDown, ChevronUp, CheckSquare, Calendar } from 'lucide-react';
 import { checklistAPI } from '../utils/api';
+import { getInitials } from '../utils/assigneeColor';
 
 interface KanbanCardProps {
   task: Task;
@@ -148,7 +149,7 @@ export function KanbanCard({
 
       {/* 드래그 핸들 */}
       <div className="absolute top-4 left-3 cursor-grab opacity-0 group-hover:opacity-100 transition-opacity">
-        <GripVertical size={14} className="text-zinc-600" />
+        <GripVertical size={14} className="text-zinc-400" />
       </div>
 
       {/* 제목 영역 */}
@@ -219,16 +220,16 @@ export function KanbanCard({
           {hasChecklist && (
             <button
               onClick={handleExpandClick}
-              className="flex items-center gap-1.5 text-zinc-400 hover:text-white transition-colors"
+              className="flex items-center gap-1.5 text-zinc-300 hover:text-white transition-colors"
             >
               <CheckSquare size={12} />
               <span className="text-[10px] font-semibold">
                 체크리스트 {hasLoaded ? `${completedCount}/${checklistItems.length}` : `${completedChecklistItems}/${task.checklist_total}`}
               </span>
               {isExpanded ? (
-                <ChevronUp size={12} className="text-zinc-600" />
+                <ChevronUp size={12} className="text-zinc-400" />
               ) : (
-                <ChevronDown size={12} className="text-zinc-600" />
+                <ChevronDown size={12} className="text-zinc-400" />
               )}
             </button>
           )}
@@ -245,11 +246,11 @@ export function KanbanCard({
                   style={{ backgroundColor: cardColor }}
                   title={assignee.name}
                 >
-                  {assignee.name.charAt(0).toUpperCase()}
+                  {getInitials(assignee.name)}
                 </div>
               ))}
               {checklistAssignees.length > 3 && (
-                <div className="w-6 h-6 rounded-full bg-zinc-700 flex items-center justify-center text-[10px] font-bold text-zinc-300 border border-white/10">
+                <div className="w-6 h-6 rounded-full bg-zinc-700 flex items-center justify-center text-[10px] font-bold text-zinc-300 border border-white/20">
                   +{checklistAssignees.length - 3}
                 </div>
               )}
@@ -262,7 +263,7 @@ export function KanbanCard({
       {isExpanded && hasChecklist && boardId && (
         <div className="mt-3 pt-3 border-t border-kanban-border space-y-1.5 pl-4">
           {isLoading ? (
-            <div className="text-xs text-zinc-500">로딩 중...</div>
+            <div className="text-xs text-zinc-400">로딩 중...</div>
           ) : (
             checklistItems
               .sort((a, b) => a.position - b.position)
@@ -276,7 +277,7 @@ export function KanbanCard({
                     className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 border transition-colors ${
                       item.completed
                         ? 'bg-green-500 border-green-500'
-                        : 'bg-transparent border-zinc-500 hover:border-zinc-400'
+                        : 'bg-transparent border-zinc-400 hover:border-zinc-300'
                     }`}
                   >
                     {item.completed && (
@@ -295,7 +296,7 @@ export function KanbanCard({
                   </div>
                   <span
                     className={`text-xs flex-1 ${
-                      item.completed ? 'text-zinc-500 line-through' : 'text-zinc-300'
+                      item.completed ? 'text-zinc-400 line-through' : 'text-zinc-200'
                     }`}
                   >
                     {item.title}
@@ -306,7 +307,7 @@ export function KanbanCard({
                       style={{ backgroundColor: cardColor }}
                       title={item.assignee.name}
                     >
-                      {item.assignee.name.charAt(0).toUpperCase()}
+                      {getInitials(item.assignee.name)}
                     </div>
                   )}
                 </div>

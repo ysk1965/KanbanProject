@@ -40,6 +40,9 @@ public class BoardMember {
     @JoinColumn(name = "invited_by")
     private User invitedBy;
 
+    @Column(name = "assignee_color", length = 20)
+    private String assigneeColor;
+
     @PrePersist
     public void prePersist() {
         if (this.id == null) {
@@ -52,6 +55,10 @@ public class BoardMember {
 
     public void updateRole(BoardRole role) {
         this.role = role;
+    }
+
+    public void updateAssigneeColor(String assigneeColor) {
+        this.assigneeColor = assigneeColor;
     }
 
     public boolean isOwner() {

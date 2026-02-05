@@ -101,7 +101,7 @@ export function BoardListPage({
   return (
     <div className="min-h-screen bg-bridge-dark text-white">
       {/* 헤더 */}
-      <header className="border-b border-white/5 glass">
+      <header className="border-b border-white/15 glass">
         <div className="max-w-7xl mx-auto px-8 py-6">
           <div className="flex items-center justify-between">
             <div
@@ -117,7 +117,7 @@ export function BoardListPage({
                   <span className="px-2 py-0.5 bg-bridge-accent/20 text-bridge-secondary rounded-full text-[10px] font-bold tracking-wider uppercase">
                     Premium
                   </span>
-                  <span className="text-slate-500">Workspace</span>
+                  <span className="text-slate-400">Workspace</span>
                 </div>
               </div>
             </div>
@@ -125,7 +125,7 @@ export function BoardListPage({
               variant="ghost"
               size="sm"
               onClick={onLogout}
-              className="text-slate-400 hover:text-white hover:bg-white/5 border border-white/10 rounded-full px-4"
+              className="text-slate-400 hover:text-white hover:bg-white/5 border border-white/20 rounded-full px-4"
             >
               <LogOut className="h-4 w-4 mr-2" />
               Logout
@@ -185,7 +185,7 @@ export function BoardListPage({
             {/* 새 보드 생성 카드 */}
             <button
               onClick={() => setIsCreateModalOpen(true)}
-              className="h-28 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-bridge-accent/50 rounded-2xl flex flex-col items-center justify-center text-slate-400 hover:text-white transition-all duration-300 group"
+              className="h-28 bg-white/5 hover:bg-white/10 border border-white/20 hover:border-bridge-accent/50 rounded-2xl flex flex-col items-center justify-center text-slate-400 hover:text-white transition-all duration-300 group"
             >
               <div className="p-3 bg-white/5 rounded-xl group-hover:bg-bridge-accent/20 transition-colors mb-2">
                 <Plus className="h-6 w-6 group-hover:text-bridge-accent" />
@@ -240,7 +240,7 @@ export function BoardListPage({
 
       {/* 보드 삭제 확인 다이얼로그 */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent className="bg-bridge-obsidian border-white/10">
+        <AlertDialogContent className="bg-bridge-obsidian border-white/20">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-foreground font-serif">Delete Board</AlertDialogTitle>
             <AlertDialogDescription className="text-slate-400">
@@ -248,7 +248,7 @@ export function BoardListPage({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="border-white/10 text-slate-300 hover:bg-white/5 hover:text-white">
+            <AlertDialogCancel className="border-white/20 text-slate-300 hover:bg-white/5 hover:text-white">
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
@@ -342,7 +342,7 @@ function BoardCard({ board, onClick, onToggleStar, onEdit, onDelete }: BoardCard
 
           {/* 드롭다운 메뉴 */}
           {isMenuOpen && (
-            <div className="absolute top-full right-0 mt-1 w-36 bg-bridge-obsidian border border-white/10 rounded-xl shadow-xl overflow-hidden z-20">
+            <div className="absolute top-full right-0 mt-1 w-36 bg-bridge-obsidian border border-white/20 rounded-xl shadow-xl overflow-hidden z-20">
               <button
                 onClick={(e) => {
                   e.stopPropagation();

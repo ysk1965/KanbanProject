@@ -184,6 +184,32 @@ public class MemberService {
 
     @Transactional
     @CacheEvict(value = "members", key = "#boardId")
+    public MemberResponse.Detail updateMemberColor(String boardId, String memberId, String userId, MemberRequest.UpdateColor request) {
+        boardService.checkViewerOrAbove(boardId, userId);
+
+        BoardMember member = boardMemberRepository.findById(memberId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+
+        if (!member.getBoard().getId().equals(boardId)) {
+            throw new BusinessException(ErrorCode.MEMBER_NOT_FOUND);
+        }
+
+        // 본인 또는 Admin 이상만 색상 변경 가능
+        boolean isSelf = member.getUser().getId().equals(userId);
+        if (!isSelf) {
+            boardService.checkAdminOrAbove(boardId, userId);
+        }
+
+        member.updateAssigneeColor(request.getAssigneeColor());
+
+        log.info("Member color updated: {} to {} in board: {} by user: {}",
+                memberId, request.getAssigneeColor(), boardId, userId);
+
+        return MemberResponse.Detail.of(member);
+    }
+
+    @Transactional
+    @CacheEvict(value = "members", key = "#boardId")
     public void removeMember(String boardId, String memberId, String userId) {
         boardService.checkAdminOrAbove(boardId, userId);
 

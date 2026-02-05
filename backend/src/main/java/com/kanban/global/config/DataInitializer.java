@@ -1,5 +1,6 @@
 package com.kanban.global.config;
 
+import com.kanban.domain.user.SystemRole;
 import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +29,13 @@ public class DataInitializer implements CommandLineRunner {
         String testPassword = "admin123";
 
         if (userRepository.existsByEmail(testEmail)) {
+            userRepository.findByEmail(testEmail).ifPresent(user -> {
+                if (user.getSystemRole() != SystemRole.ADMIN) {
+                    user.updateSystemRole(SystemRole.ADMIN);
+                    userRepository.save(user);
+                    log.info("Test account system_role updated to ADMIN: {}", testEmail);
+                }
+            });
             log.info("Test account already exists: {}", testEmail);
             return;
         }
@@ -38,6 +46,7 @@ public class DataInitializer implements CommandLineRunner {
                 .name("Admin")
                 .authProvider("email")
                 .emailVerified(true)
+                .systemRole(SystemRole.ADMIN)
                 .build();
 
         userRepository.save(testUser);

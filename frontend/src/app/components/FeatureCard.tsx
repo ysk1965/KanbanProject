@@ -41,14 +41,12 @@ export function FeatureCard({ feature, onClick, availableTags = [], tasks = [], 
   return (
     <div
       onClick={onClick}
-      className={`group relative bg-kanban-card-hover rounded-2xl border border-kanban-border p-5 hover:border-indigo-500/50 hover:shadow-2xl hover:shadow-indigo-500/10 transition-all cursor-pointer overflow-hidden kanban-glow ${
-        isCompleted ? 'border-green-500/30' : ''
-      }`}
+      className="group relative bg-kanban-card-hover rounded-2xl border border-kanban-border p-5 hover:border-indigo-500/50 hover:shadow-2xl hover:shadow-indigo-500/10 transition-all cursor-pointer overflow-hidden kanban-glow"
     >
       {/* 좌측 컬러 바 */}
       <div
         className="absolute top-0 left-0 bottom-0 w-1.5"
-        style={{ backgroundColor: isCompleted ? '#22c55e' : featureColor }}
+        style={{ backgroundColor: featureColor }}
       />
 
       {/* 제목 영역 */}
@@ -57,7 +55,7 @@ export function FeatureCard({ feature, onClick, availableTags = [], tasks = [], 
           <div className="flex items-center gap-2 mb-1">
             <div
               className="w-1.5 h-1.5 rounded-full"
-              style={{ backgroundColor: isCompleted ? '#22c55e' : featureColor }}
+              style={{ backgroundColor: featureColor }}
             />
             <h3 className="font-bold text-foreground text-[15px] group-hover:text-indigo-400 transition-colors">
               {feature.title}
@@ -96,7 +94,7 @@ export function FeatureCard({ feature, onClick, availableTags = [], tasks = [], 
       {/* 진행률 */}
       <div className="mb-4 pl-2">
         <div className="flex justify-between text-[11px] mb-1.5">
-          <span className="text-zinc-500 font-medium">
+          <span className="text-zinc-400 font-medium">
             {feature.completed_tasks}/{feature.total_tasks} 완료
           </span>
           <span className={`font-bold ${isCompleted ? 'text-green-400' : 'text-foreground'}`}>
@@ -125,7 +123,7 @@ export function FeatureCard({ feature, onClick, availableTags = [], tasks = [], 
             </div>
           )}
           {feature.due_date && (
-            <div className="flex items-center gap-1.5 text-zinc-500">
+            <div className="flex items-center gap-1.5 text-zinc-400">
               <Calendar size={12} />
               <span className="text-[10px] font-medium">{feature.due_date}</span>
             </div>
@@ -137,13 +135,13 @@ export function FeatureCard({ feature, onClick, availableTags = [], tasks = [], 
             onClick={handleExpandClick}
             className="flex items-center gap-1 group/sub"
           >
-            <span className="text-[10px] font-bold text-zinc-400 group-hover/sub:text-foreground transition-colors">
+            <span className="text-[10px] font-bold text-zinc-300 group-hover/sub:text-foreground transition-colors">
               서브태스크
             </span>
             {isExpanded ? (
-              <ChevronDown size={14} className="text-zinc-600 group-hover/sub:text-foreground transition-all" />
+              <ChevronDown size={14} className="text-zinc-400 group-hover/sub:text-foreground transition-all" />
             ) : (
-              <ChevronRight size={14} className="text-zinc-600 group-hover/sub:text-foreground transition-all" />
+              <ChevronRight size={14} className="text-zinc-400 group-hover/sub:text-foreground transition-all" />
             )}
           </button>
         )}
@@ -159,7 +157,7 @@ export function FeatureCard({ feature, onClick, availableTags = [], tasks = [], 
             >
               <div
                 className={`w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 ${
-                  task.completed ? 'bg-green-500' : 'bg-zinc-600'
+                  task.completed ? 'bg-green-500' : 'bg-zinc-500'
                 }`}
               >
                 {task.completed && (
@@ -178,12 +176,12 @@ export function FeatureCard({ feature, onClick, availableTags = [], tasks = [], 
               </div>
               <span
                 className={`text-xs flex-1 ${
-                  task.completed ? 'text-zinc-500 line-through' : 'text-zinc-300'
+                  task.completed ? 'text-zinc-400 line-through' : 'text-zinc-200'
                 }`}
               >
                 {task.title}
               </span>
-              <span className="text-[10px] font-bold text-zinc-600 tracking-wider">
+              <span className="text-[10px] font-bold text-zinc-400 tracking-wider">
                 → {task.block_name || task.block_id}
               </span>
             </div>

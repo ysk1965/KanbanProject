@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface CommentRepository extends JpaRepository<Comment, String> {
@@ -23,4 +24,18 @@ public interface CommentRepository extends JpaRepository<Comment, String> {
     @Modifying
     @Query("DELETE FROM Comment c WHERE c.board.id = :boardId")
     void deleteByBoardId(@Param("boardId") String boardId);
+
+    @Query("SELECT c FROM Comment c " +
+           "JOIN FETCH c.author " +
+           "JOIN FETCH c.task " +
+           "WHERE c.board.id = :boardId " +
+           "AND c.author.id = :authorId " +
+           "AND c.createdAt >= :startDate " +
+           "AND c.createdAt < :endDate " +
+           "ORDER BY c.createdAt ASC")
+    List<Comment> findByBoardAndAuthorAndDateRange(
+            @Param("boardId") String boardId,
+            @Param("authorId") String authorId,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate);
 }

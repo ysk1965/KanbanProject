@@ -10,6 +10,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Block, Feature, Task, Priority, Tag, Board, InviteLink, Subscription, PricingPlan, ActivityLog, Milestone, BoardTierInfo, BoardLimits, ChecklistItem, NotificationItem } from '../types';
 import { KanbanBlock } from '../components/KanbanBlock';
 import { FeatureCard } from '../components/FeatureCard';
+import { FeatureChipSelector } from '../components/FeatureChipSelector';
 import { FeatureDetailModal } from '../components/FeatureDetailModal';
 import { TaskDetailModal } from '../components/TaskDetailModal';
 import { AddBlockModal } from '../components/AddBlockModal';
@@ -28,6 +29,7 @@ import { DailyScheduleView } from '../components/DailyScheduleView';
 import { WeeklyScheduleView } from '../components/WeeklyScheduleView';
 import { StatisticsView } from '../components/StatisticsView';
 import { ManagementView } from '../components/ManagementView';
+import { EmptyBoardGuide } from '../components/EmptyBoardGuide';
 import { Button } from '../components/ui/button';
 import {
   Popover,
@@ -58,6 +60,7 @@ import {
 import { notificationAPI } from '../utils/api';
 
 import { getRandomFeatureColor } from '../constants';
+import { getInitials, getAssigneeHex } from '../utils/assigneeColor';
 
 export function KanbanBoardPage() {
   const { boardId } = useParams<{ boardId: string }>();
@@ -100,6 +103,12 @@ export function KanbanBoardPage() {
   const [boardMembersData, setBoardMembersData] = useState<ShareBoardMember[]>([]);
   const currentUserId = currentUser?.id || '';
 
+  const memberColorMap = useMemo(() => {
+    const map: Record<string, string | null> = {};
+    boardMembersData.forEach((m) => { map[m.userId] = m.assigneeColor || null; });
+    return map;
+  }, [boardMembersData]);
+
   // 모달 상태
   const [selectedFeature, setSelectedFeature] = useState<Feature | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -124,6 +133,9 @@ export function KanbanBoardPage() {
     cardStatus: [],
     dueDate: [],
   });
+
+  // Feature 칩 선택 상태 (null = 전체, [] = 없음, [ids] = 개별 선택)
+  const [selectedFeatureIds, setSelectedFeatureIds] = useState<string[] | null>(null);
 
   // Alert Modal 상태
   const [alertModal, setAlertModal] = useState<{
@@ -195,6 +207,7 @@ export function KanbanBoardPage() {
           name: m.user.name,
           email: m.user.email,
           role: (m.role === 'VIEWER' ? 'observer' : m.role.toLowerCase()) as MemberRole,
+          assigneeColor: m.assignee_color || null,
         })));
 
         // 보드에 선택된 마일스톤이 있으면 해당 마일스톤으로 필터링된 데이터 로드
@@ -477,6 +490,20 @@ export function KanbanBoardPage() {
     }
   };
 
+  const handleUpdateMemberColor = async (memberId: string, color: string | null) => {
+    if (!boardId) return;
+    const prevMembers = [...boardMembersData];
+    setBoardMembersData(
+      boardMembersData.map((m) => (m.id === memberId ? { ...m, assigneeColor: color } : m))
+    );
+    try {
+      await memberService.updateMemberColor(boardId, memberId, color);
+    } catch (error: any) {
+      console.error('Failed to update member color:', error);
+      setBoardMembersData(prevMembers);
+    }
+  };
+
   const handleRemoveMember = async (memberId: string) => {
     if (!boardId) return;
 
@@ -667,6 +694,9 @@ export function KanbanBoardPage() {
       });
       setFeatures([...features, newFeature]);
       setAllFeatures([...allFeatures, newFeature]); // 전체 Feature 목록에도 추가
+      // Feature 생성 후 바로 상세 모달 열기
+      setSelectedFeature(newFeature);
+      setIsFeatureModalOpen(true);
     } catch (error) {
       console.error('Failed to create feature:', error);
     }
@@ -675,6 +705,23 @@ export function KanbanBoardPage() {
   const handleFeatureClick = (feature: Feature) => {
     setSelectedFeature(feature);
     setIsFeatureModalOpen(true);
+  };
+
+  // Feature 칩 토글
+  const handleToggleFeatureChip = (featureId: string) => {
+    setSelectedFeatureIds((prev) => {
+      // 전체 모드(null)에서 클릭 → 해당 Feature만 제외
+      if (prev === null) {
+        return features.map((f) => f.id).filter((id) => id !== featureId);
+      }
+      if (prev.includes(featureId)) {
+        const next = prev.filter((id) => id !== featureId);
+        return next;
+      }
+      const next = [...prev, featureId];
+      // 모두 선택되면 전체 모드로 전환
+      return next.length === features.length ? null : next;
+    });
   };
 
   const handleUpdateFeature = async (updates: Partial<Feature>) => {
@@ -1018,10 +1065,16 @@ export function KanbanBoardPage() {
     });
   };
 
+  // Feature 칩 선택에 따른 태스크 필터링 여부
+  const showFeatureLabel = selectedFeatureIds === null || selectedFeatureIds.length !== 1;
+
   const getTasksForBlock = (blockId: string) => {
-    return filteredTasks
-      .filter((task) => task.block_id === blockId)
-      .sort((a, b) => a.position - b.position);
+    let blockTasks = filteredTasks.filter((task) => task.block_id === blockId);
+    // Feature 칩 필터 적용 (null = 전체, 필터 안 함)
+    if (selectedFeatureIds !== null) {
+      blockTasks = blockTasks.filter((task) => selectedFeatureIds.includes(task.feature_id));
+    }
+    return blockTasks.sort((a, b) => a.position - b.position);
   };
 
   const handleCreateTag = async (name: string, color: string) => {
@@ -1363,6 +1416,10 @@ export function KanbanBoardPage() {
           </main>
         ) : viewMode === 'kanban' ? (
           <main className="flex-1 flex flex-col overflow-hidden bg-kanban-bg">
+            {features.length === 0 ? (
+              <EmptyBoardGuide onCreateFeature={() => setIsAddFeatureModalOpen(true)} />
+            ) : (
+            <>
             {/* Task 카운터 (Standard 보드) */}
             {isStandardTier && boardLimits && (
               <div className="px-6 py-2 bg-kanban-card border-b border-kanban-border">
@@ -1468,16 +1525,19 @@ export function KanbanBoardPage() {
                         }}
                         className={`flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm transition-all ${
                           filterOptions.members.includes(member.name)
-                            ? 'bg-purple-500/20 text-purple-300'
+                            ? 'bg-white/10 text-white'
                             : 'text-zinc-300 hover:bg-white/5'
                         }`}
                       >
-                        <div className="w-5 h-5 rounded-full bg-purple-500 flex items-center justify-center text-[10px] text-white font-bold">
-                          {member.name.charAt(0).toUpperCase()}
+                        <div
+                          className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] text-white font-bold"
+                          style={{ backgroundColor: getAssigneeHex(member.name, member.assigneeColor) }}
+                        >
+                          {getInitials(member.name)}
                         </div>
                         <span className="truncate">{member.name}</span>
                         {filterOptions.members.includes(member.name) && (
-                          <CheckCircle2 size={14} className="ml-auto text-purple-400" />
+                          <CheckCircle2 size={14} className="ml-auto text-indigo-400" />
                         )}
                       </button>
                     ))}
@@ -1715,58 +1775,26 @@ export function KanbanBoardPage() {
                 </button>
               </div>
             </div>
+            {/* Feature 칩 선택 영역 */}
+            <FeatureChipSelector
+              features={filteredFeatures}
+              selectedFeatureIds={selectedFeatureIds ?? []}
+              isAllSelected={selectedFeatureIds === null}
+              onToggleFeature={handleToggleFeatureChip}
+              onSelectAll={() => setSelectedFeatureIds((prev) => prev === null ? [] : null)}
+              onFeatureInfoClick={handleFeatureClick}
+              onAddFeature={() => setIsAddFeatureModalOpen(true)}
+            />
+
             {/* 칸반 보드 */}
             <div className="flex-1 p-6 overflow-x-auto kanban-scrollbar">
               <div className="flex gap-4 min-w-max">
-              {sortedBlocks.map((block, index) => {
+              {sortedBlocks.filter((b) => b.fixed_type !== 'FEATURE').map((block, index) => {
               const customBlocks = sortedBlocks.filter((b) => b.type === 'CUSTOM');
               const customBlockIndex = customBlocks.findIndex((b) => b.id === block.id);
 
               return (
                 <div key={block.id} className="flex items-start gap-4">
-                  {block.fixed_type === 'FEATURE' ? (
-                    <div className="flex flex-col bg-kanban-card rounded-2xl min-w-[320px] max-w-[320px] border border-kanban-border">
-                      <div className="flex items-center justify-between px-4 py-3 border-b border-kanban-border">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-bold text-sm text-white tracking-tight">{block.name}</h3>
-                          <span className="text-xs font-semibold text-zinc-500 bg-kanban-surface px-2 py-0.5 rounded-md">{filteredFeatures.length}</span>
-                        </div>
-                      </div>
-                      <div className="flex-1 p-3 space-y-3 overflow-y-auto max-h-[calc(100vh-250px)] kanban-scrollbar">
-                        {filteredFeatures.map((feature) => (
-                          <FeatureCard
-                            key={feature.id}
-                            feature={feature}
-                            onClick={() => handleFeatureClick(feature)}
-                            availableTags={tags}
-                            tasks={filteredTasks.filter((task) => task.feature_id === feature.id)}
-                            milestone={getFeatureMilestone(feature.id)}
-                            isExpanded={expandedFeatureIds.has(feature.id)}
-                            onToggleExpand={() => {
-                              setExpandedFeatureIds(prev => {
-                                const newSet = new Set(prev);
-                                if (newSet.has(feature.id)) {
-                                  newSet.delete(feature.id);
-                                } else {
-                                  newSet.add(feature.id);
-                                }
-                                return newSet;
-                              });
-                            }}
-                          />
-                        ))}
-                      </div>
-                      <div className="p-3 border-t border-kanban-border">
-                        <button
-                          onClick={() => setIsAddFeatureModalOpen(true)}
-                          className="w-full flex items-center justify-center gap-2 py-2 text-zinc-500 hover:text-white hover:bg-kanban-surface rounded-lg transition-all text-xs font-semibold"
-                        >
-                          <Plus className="h-4 w-4" />
-                          Feature 추가
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
                     <KanbanBlock
                       block={block}
                       tasks={getTasksForBlock(block.id).map((task) => ({
@@ -1797,8 +1825,9 @@ export function KanbanBoardPage() {
                       blockIndex={index}
                       onMoveBlockDrag={handleMoveBlockDrag}
                       checklistDataMap={checklistDataMap}
+                      memberColorMap={memberColorMap}
+                      showFeatureLabel={showFeatureLabel}
                     />
-                  )}
 
                   {block.fixed_type === 'TASK' && (
                     <button
@@ -1813,6 +1842,8 @@ export function KanbanBoardPage() {
             })}
               </div>
             </div>
+            </>
+            )}
           </main>
         ) : viewMode === 'schedule' ? (
           <main className="flex-1 overflow-hidden">
@@ -1932,6 +1963,7 @@ export function KanbanBoardPage() {
           onAddMember={handleAddMember}
           onUpdateMemberRole={handleUpdateMemberRole}
           onRemoveMember={handleRemoveMember}
+          onUpdateMemberColor={handleUpdateMemberColor}
           currentUserId={currentUserId}
           inviteLinks={inviteLinks}
           onCreateInviteLink={handleCreateInviteLink}

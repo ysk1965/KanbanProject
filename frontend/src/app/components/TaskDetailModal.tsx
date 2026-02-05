@@ -33,8 +33,9 @@ import {
 import { Badge } from './ui/badge';
 import { Calendar } from './ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import { X, Plus, Trash2, Clock, CheckSquare, CalendarIcon, FileText, Tags, Users, Layers, Pencil, CheckCircle2, Undo2, ChevronDown, ChevronRight, Loader2, MessageSquare } from 'lucide-react';
+import { X, Plus, Trash2, Clock, CheckSquare, CalendarIcon, FileText, Tags, Users, Layers, Pencil, CheckCircle2, Undo2, ChevronDown, ChevronRight, Loader2, MessageSquare, Lightbulb } from 'lucide-react';
 import { CommentPanel } from './CommentPanel';
+import { getAssigneeClasses, getInitials } from '../utils/assigneeColor';
 import { Progress } from './ui/progress';
 import { DateRange } from 'react-day-picker';
 import { format } from 'date-fns';
@@ -347,7 +348,7 @@ export function TaskDetailModal({
   return (
     <>
       <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="sm:max-w-[1100px] max-h-[85vh] overflow-hidden bg-kanban-bg border border-white/10 text-foreground p-0 [&>button:last-child]:hidden" onPointerDownOutside={(e) => {
+        <DialogContent className="sm:max-w-[1100px] max-h-[85vh] overflow-hidden bg-kanban-bg border border-white/20 text-foreground p-0 [&>button:last-child]:hidden" onPointerDownOutside={(e) => {
           if (hasChanges) {
             e.preventDefault();
             handleClose();
@@ -369,7 +370,7 @@ export function TaskDetailModal({
               </div>
               {/* 현재 블록 상태 */}
               {task.block_name && (
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-white/10 text-slate-300 border border-white/10">
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-white/10 text-slate-300 border border-white/20">
                   <Layers className="h-3 w-3" />
                   {task.block_name}
                 </div>
@@ -400,7 +401,7 @@ export function TaskDetailModal({
                       <span className="text-lg font-semibold text-foreground">
                         {editedTask.title}
                       </span>
-                      <Pencil className="h-4 w-4 text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <Pencil className="h-4 w-4 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
                   )}
                 </div>
@@ -455,7 +456,7 @@ export function TaskDetailModal({
                 onChange={(e) => updateEditedTask({ description: e.target.value })}
                 placeholder="설명이 없습니다."
                 rows={3}
-                className="bg-white/5 border-white/10 text-foreground placeholder:text-slate-500 focus:ring-bridge-accent/50 focus:border-bridge-accent"
+                className="bg-white/5 border-white/20 text-foreground placeholder:text-slate-400 focus:ring-bridge-accent/50 focus:border-bridge-accent"
               />
             </div>
 
@@ -469,7 +470,7 @@ export function TaskDetailModal({
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className="w-full h-10 justify-start text-left font-normal bg-white/5 border-white/10 text-foreground hover:bg-white/10 hover:text-foreground"
+                    className="w-full h-10 justify-start text-left font-normal bg-white/5 border-white/20 text-foreground hover:bg-white/10 hover:text-foreground"
                   >
                     <CalendarIcon className="mr-2 h-4 w-4 text-slate-400" />
                     {editedTask.start_date || editedTask.due_date ? (
@@ -479,11 +480,11 @@ export function TaskDetailModal({
                         {editedTask.due_date ? format(new Date(editedTask.due_date), 'yyyy. MM. dd.', { locale: ko }) : '종료일 미정'}
                       </>
                     ) : (
-                      <span className="text-slate-500">날짜를 선택하세요</span>
+                      <span className="text-slate-400">날짜를 선택하세요</span>
                     )}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 bg-bridge-obsidian border-white/10" align="start">
+                <PopoverContent className="w-auto p-0 bg-bridge-obsidian border-white/20" align="start">
                   <Calendar
                     mode="range"
                     selected={{
@@ -501,7 +502,7 @@ export function TaskDetailModal({
                     className="bg-bridge-obsidian text-foreground"
                   />
                   {(editedTask.start_date || editedTask.due_date) && (
-                    <div className="p-2 border-t border-white/10">
+                    <div className="p-2 border-t border-white/20">
                       <Button
                         variant="ghost"
                         size="sm"
@@ -535,17 +536,25 @@ export function TaskDetailModal({
                     }, [] as Array<{ id: string; name: string; profile_image: string | null }>);
 
                   if (uniqueAssignees.length === 0) {
-                    return <span className="text-sm text-slate-500">체크리스트에 담당자를 추가하세요</span>;
+                    return <span className="text-sm text-slate-400">체크리스트에 담당자를 추가하세요</span>;
                   }
 
-                  return uniqueAssignees.map((assignee) => (
-                    <div key={assignee.id} className="flex items-center gap-2 px-3 py-2 bg-bridge-accent/20 border border-bridge-accent/30 rounded-lg">
-                      <div className="w-6 h-6 rounded-full bg-bridge-accent flex items-center justify-center text-xs text-white">
-                        {assignee.name.charAt(0).toUpperCase()}
+                  return uniqueAssignees.map((assignee) => {
+                    const memberData = boardMembers.find((m) => m.userId === assignee.id);
+                    const color = getAssigneeClasses(assignee.name, memberData?.assigneeColor);
+                    return (
+                      <div key={assignee.id} className={`flex items-center gap-2 px-3 py-2 ${color.bgLight} border border-white/10 rounded-lg`}
+                        style={!color.bgLight ? { backgroundColor: color.hex + '20' } : undefined}
+                      >
+                        <div className={`w-6 h-6 rounded-full ${color.bg} flex items-center justify-center text-xs text-white`}
+                          style={!color.bg ? { backgroundColor: color.hex } : undefined}
+                        >
+                          {getInitials(assignee.name)}
+                        </div>
+                        <span className="text-sm text-foreground">{assignee.name}</span>
                       </div>
-                      <span className="text-sm text-foreground">{assignee.name}</span>
-                    </div>
-                  ));
+                    );
+                  });
                 })()}
               </div>
             </div>
@@ -558,10 +567,14 @@ export function TaskDetailModal({
               </div>
               <div className="flex flex-wrap gap-2">
                 {taskTags.map((tag) => (
-                  <Badge
+                  <span
                     key={tag.id}
-                    style={{ backgroundColor: tag.color }}
-                    className="text-white flex items-center gap-1"
+                    className="text-[10px] font-bold px-2.5 py-1 rounded-full border flex items-center gap-1.5"
+                    style={{
+                      backgroundColor: `${tag.color}15`,
+                      borderColor: `${tag.color}44`,
+                      color: tag.color,
+                    }}
                   >
                     {tag.name}
                     <button
@@ -570,7 +583,7 @@ export function TaskDetailModal({
                     >
                       <X className="h-3 w-3" />
                     </button>
-                  </Badge>
+                  </span>
                 ))}
 
                 {showTagInput ? (
@@ -579,7 +592,7 @@ export function TaskDetailModal({
                       value={newTagName}
                       onChange={(e) => setNewTagName(e.target.value)}
                       placeholder="태그 이름"
-                      className="h-7 w-32 text-sm bg-white/5 border-white/10 text-foreground placeholder:text-slate-500"
+                      className="h-7 w-32 text-sm bg-white/5 border-white/20 text-foreground placeholder:text-slate-400"
                       onKeyDown={(e) => {
                         if (e.nativeEvent.isComposing) return;
                         if (e.key === 'Enter') {
@@ -606,10 +619,10 @@ export function TaskDetailModal({
                   <div className="flex gap-1">
                     {availableTagsToAdd.length > 0 && (
                       <Select onValueChange={handleAddTag}>
-                        <SelectTrigger className="w-[120px] h-7 text-sm bg-white/5 border-white/10 text-foreground">
+                        <SelectTrigger className="w-[120px] h-7 text-sm bg-white/5 border-white/20 text-foreground">
                           <SelectValue placeholder="태그 추가" />
                         </SelectTrigger>
-                        <SelectContent className="bg-bridge-obsidian border-white/10">
+                        <SelectContent className="bg-bridge-obsidian border-white/20">
                           {availableTagsToAdd.map((tag) => (
                             <SelectItem key={tag.id} value={tag.id} className="text-foreground hover:bg-white/10">
                               <div className="flex items-center gap-2">
@@ -628,7 +641,7 @@ export function TaskDetailModal({
                       size="sm"
                       variant="outline"
                       onClick={() => setShowTagInput(true)}
-                      className="bg-white/5 border-white/10 text-foreground hover:bg-white/10"
+                      className="bg-white/5 border-white/20 text-foreground hover:bg-white/10"
                     >
                       <Plus className="h-3 w-3 mr-1" />
                       새 태그
@@ -640,7 +653,7 @@ export function TaskDetailModal({
           </div>
 
           {/* 체크리스트 섹션 */}
-          <div className="mt-6 pt-6 border-t border-white/10">
+          <div className="mt-6 pt-6 border-t border-white/20">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <CheckSquare className="h-5 w-5 text-indigo-400" />
@@ -661,6 +674,21 @@ export function TaskDetailModal({
 
             {/* 체크리스트 항목들 */}
             <div className="space-y-2">
+              {checklistItems.length === 0 && (
+                <div className="flex items-start gap-3 px-1 py-3">
+                  <div className="w-7 h-7 rounded-lg bg-indigo-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <Lightbulb size={14} className="text-indigo-400" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-zinc-300 mb-1">
+                      체크리스트를 추가해보세요
+                    </p>
+                    <p className="text-[11px] text-zinc-500 leading-relaxed">
+                      이 태스크를 완수하기 위한 세부 항목을 체크리스트로 관리하세요. 담당자와 기한도 설정할 수 있어요.
+                    </p>
+                  </div>
+                </div>
+              )}
               {checklistItems
                 .sort((a, b) => a.position - b.position)
                 .map((item) => (
@@ -682,8 +710,8 @@ export function TaskDetailModal({
 
           {/* 저장 버튼 - 변경사항이 있을 때만 표시 */}
           {hasChanges && (
-            <div className="flex justify-end gap-2 pt-4 border-t border-white/10">
-              <Button variant="outline" onClick={handleClose} className="bg-white/5 border-white/10 text-foreground hover:bg-white/10">
+            <div className="flex justify-end gap-2 pt-4 border-t border-white/20">
+              <Button variant="outline" onClick={handleClose} className="bg-white/5 border-white/20 text-foreground hover:bg-white/10">
                 취소
               </Button>
               <Button onClick={handleSave} className="bg-bridge-accent hover:bg-bridge-accent/90">
@@ -695,7 +723,7 @@ export function TaskDetailModal({
 
           {/* 오른쪽: 댓글 패널 + 닫기 버튼 */}
           {boardId && (
-            <div className="w-[420px] border-l border-white/10 flex-shrink-0 relative">
+            <div className="w-[420px] border-l border-white/20 flex-shrink-0 relative">
               {/* 닫기 버튼 */}
               <button
                 onClick={handleClose}
@@ -717,7 +745,7 @@ export function TaskDetailModal({
 
       {/* 확인 다이얼로그 */}
       <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-        <AlertDialogContent className="bg-bridge-obsidian border-white/10">
+        <AlertDialogContent className="bg-bridge-obsidian border-white/20">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-foreground">변경사항을 저장하시겠습니까?</AlertDialogTitle>
             <AlertDialogDescription className="text-slate-400">
@@ -725,7 +753,7 @@ export function TaskDetailModal({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={handleDiscardAndClose} className="bg-white/5 border-white/10 text-foreground hover:bg-white/10">
+            <AlertDialogCancel onClick={handleDiscardAndClose} className="bg-white/5 border-white/20 text-foreground hover:bg-white/10">
               저장 안 함
             </AlertDialogCancel>
             <AlertDialogAction onClick={handleSaveAndClose} className="bg-bridge-accent hover:bg-bridge-accent/90">
@@ -737,7 +765,7 @@ export function TaskDetailModal({
 
       {/* 삭제 다이얼로그 */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent className="bg-bridge-obsidian border-white/10">
+        <AlertDialogContent className="bg-bridge-obsidian border-white/20">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-foreground">이 작업을 삭제하시겠습니까?</AlertDialogTitle>
             <AlertDialogDescription className="text-slate-400">
@@ -745,7 +773,7 @@ export function TaskDetailModal({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setShowDeleteDialog(false)} className="bg-white/5 border-white/10 text-foreground hover:bg-white/10">
+            <AlertDialogCancel onClick={() => setShowDeleteDialog(false)} className="bg-white/5 border-white/20 text-foreground hover:bg-white/10">
               취소
             </AlertDialogCancel>
             <AlertDialogAction
@@ -766,7 +794,7 @@ export function TaskDetailModal({
 
       {/* 완료 처리 다이얼로그 */}
       <AlertDialog open={showDoneDialog} onOpenChange={setShowDoneDialog}>
-        <AlertDialogContent className="bg-bridge-obsidian border-white/10">
+        <AlertDialogContent className="bg-bridge-obsidian border-white/20">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-foreground">이 작업을 완료 처리하시겠습니까?</AlertDialogTitle>
             <AlertDialogDescription className="text-slate-400">
@@ -774,7 +802,7 @@ export function TaskDetailModal({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setShowDoneDialog(false)} className="bg-white/5 border-white/10 text-foreground hover:bg-white/10">
+            <AlertDialogCancel onClick={() => setShowDoneDialog(false)} className="bg-white/5 border-white/20 text-foreground hover:bg-white/10">
               취소
             </AlertDialogCancel>
             <AlertDialogAction
@@ -795,7 +823,7 @@ export function TaskDetailModal({
 
       {/* 블록 이동 다이얼로그 */}
       <Dialog open={showMoveDialog} onOpenChange={setShowMoveDialog}>
-        <DialogContent className="max-w-sm bg-bridge-obsidian border-white/10 text-foreground">
+        <DialogContent className="max-w-sm bg-bridge-obsidian border-white/20 text-foreground">
           <DialogHeader>
             <DialogTitle className="text-foreground">블록 이동</DialogTitle>
             <DialogDescription className="text-slate-400">
@@ -812,7 +840,7 @@ export function TaskDetailModal({
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg border transition-all ${
                     selectedBlockId === block.id
                       ? 'border-bridge-accent bg-bridge-accent/10'
-                      : 'border-white/10 hover:border-white/20 hover:bg-white/5'
+                      : 'border-white/20 hover:border-white/20 hover:bg-white/5'
                   }`}
                 >
                   <Layers className="h-4 w-4 text-slate-400" />
@@ -827,7 +855,7 @@ export function TaskDetailModal({
                 setShowMoveDialog(false);
                 setSelectedBlockId(null);
               }}
-              className="bg-white/5 border-white/10 text-foreground hover:bg-white/10"
+              className="bg-white/5 border-white/20 text-foreground hover:bg-white/10"
             >
               취소
             </Button>
@@ -851,7 +879,7 @@ export function TaskDetailModal({
 
       {/* 체크리스트 아이템 삭제 확인 다이얼로그 */}
       <AlertDialog open={!!checklistItemToDelete} onOpenChange={(open) => !open && setChecklistItemToDelete(null)}>
-        <AlertDialogContent className="bg-bridge-obsidian border-white/10">
+        <AlertDialogContent className="bg-bridge-obsidian border-white/20">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-foreground">체크리스트 항목을 삭제하시겠습니까?</AlertDialogTitle>
             <AlertDialogDescription className="text-slate-400">
@@ -859,7 +887,7 @@ export function TaskDetailModal({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setChecklistItemToDelete(null)} className="bg-white/5 border-white/10 text-foreground hover:bg-white/10">
+            <AlertDialogCancel onClick={() => setChecklistItemToDelete(null)} className="bg-white/5 border-white/20 text-foreground hover:bg-white/10">
               취소
             </AlertDialogCancel>
             <AlertDialogAction
@@ -878,24 +906,6 @@ export function TaskDetailModal({
       </AlertDialog>
     </>
   );
-}
-
-// 담당자 색상 생성 함수
-const ASSIGNEE_COLORS = [
-  { bg: 'bg-indigo-500', bgLight: 'bg-indigo-500/20', text: 'text-indigo-300' },
-  { bg: 'bg-purple-500', bgLight: 'bg-purple-500/20', text: 'text-purple-300' },
-  { bg: 'bg-teal-500', bgLight: 'bg-teal-500/20', text: 'text-teal-300' },
-  { bg: 'bg-rose-500', bgLight: 'bg-rose-500/20', text: 'text-rose-300' },
-  { bg: 'bg-amber-500', bgLight: 'bg-amber-500/20', text: 'text-amber-300' },
-  { bg: 'bg-emerald-500', bgLight: 'bg-emerald-500/20', text: 'text-emerald-300' },
-];
-
-function getAssigneeColor(name: string) {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return ASSIGNEE_COLORS[Math.abs(hash) % ASSIGNEE_COLORS.length];
 }
 
 // 체크리스트 항목 컴포넌트
@@ -922,21 +932,27 @@ function ChecklistItemRow({
   const [isLoadingTimeBlocks, setIsLoadingTimeBlocks] = useState(false);
 
   // 담당자 색상
-  const assigneeColor = item.assignee ? getAssigneeColor(item.assignee.name) : null;
+  const memberData = item.assignee ? boardMembers.find((m) => m.userId === item.assignee!.id) : null;
+  const assigneeColor = item.assignee ? getAssigneeClasses(item.assignee.name, memberData?.assigneeColor) : null;
 
-  // 타임블록 토글 및 로드
-  const handleToggleTimeBlocks = async () => {
-    if (!showTimeBlocks && boardId && timeBlocks.length === 0) {
+  // 마운트 시 타임블록 자동 로드
+  useEffect(() => {
+    if (boardId) {
       setIsLoadingTimeBlocks(true);
-      try {
-        const blocks = await scheduleAPI.getByChecklistItem(boardId, item.id);
-        setTimeBlocks(blocks);
-      } catch (error) {
-        console.error('Failed to load time blocks:', error);
-      } finally {
-        setIsLoadingTimeBlocks(false);
-      }
+      scheduleAPI.getByChecklistItem(boardId, item.id)
+        .then(setTimeBlocks)
+        .catch(() => {})
+        .finally(() => setIsLoadingTimeBlocks(false));
     }
+  }, [boardId, item.id]);
+
+  // 타임블록 총합 시간 (분)
+  const totalTimeMinutes = timeBlocks.reduce((sum, block) => {
+    return sum + Math.round((new Date(`2000-01-01T${block.end_time}`).getTime() - new Date(`2000-01-01T${block.start_time}`).getTime()) / 60000);
+  }, 0);
+
+  // 타임블록 토글
+  const handleToggleTimeBlocks = () => {
     setShowTimeBlocks(!showTimeBlocks);
   };
 
@@ -967,7 +983,7 @@ function ChecklistItemRow({
 
   return (
     <>
-    <div className="group flex items-center gap-2 p-2 rounded hover:bg-white/5 border border-transparent hover:border-white/10">
+    <div className="group flex items-center gap-2 p-2 rounded hover:bg-white/5 border border-transparent hover:border-white/20">
       {/* 체크박스 */}
       <button
         onClick={onToggle}
@@ -998,13 +1014,13 @@ function ChecklistItemRow({
             onChange={(e) => setEditedTitle(e.target.value)}
             onBlur={handleSaveTitle}
             onKeyDown={handleKeyDown}
-            className="text-xs h-6 bg-white/5 border-white/10 text-foreground"
+            className="text-xs h-6 bg-white/5 border-white/20 text-foreground"
             autoFocus
           />
         ) : (
           <div
             className={`text-xs cursor-pointer truncate ${
-              item.completed ? 'line-through text-slate-500' : 'text-foreground'
+              item.completed ? 'line-through text-slate-400' : 'text-foreground'
             }`}
             onClick={() => setIsEditing(true)}
           >
@@ -1028,22 +1044,23 @@ function ChecklistItemRow({
               }`}
             >
               <CalendarIcon className="h-3 w-3" />
-              {item.start_date || item.due_date ? (
-                item.start_date && item.due_date ? (
-                  <>
-                    {format(new Date(item.start_date), 'M/d', { locale: ko })} - {format(new Date(item.due_date), 'M/d', { locale: ko })}
-                  </>
-                ) : item.start_date ? (
-                  <>{format(new Date(item.start_date), 'M/d', { locale: ko })} ~</>
-                ) : (
-                  <>~ {format(new Date(item.due_date!), 'M/d', { locale: ko })}</>
-                )
-              ) : (
-                <span className="text-slate-500">날짜</span>
-              )}
+              {(() => {
+                // 완료 시 done_date를 끝 날짜로 표시, 미완료 시 due_date 표시
+                const endDate = item.completed && item.done_date ? item.done_date : item.due_date;
+                if (item.start_date || endDate) {
+                  if (item.start_date && endDate) {
+                    return <>{format(new Date(item.start_date), 'M/d', { locale: ko })} - {format(new Date(endDate), 'M/d', { locale: ko })}</>;
+                  } else if (item.start_date) {
+                    return <>{format(new Date(item.start_date), 'M/d', { locale: ko })} ~</>;
+                  } else {
+                    return <>~ {format(new Date(endDate!), 'M/d', { locale: ko })}</>;
+                  }
+                }
+                return <span className="text-slate-400">날짜</span>;
+              })()}
             </button>
           </PopoverTrigger>
-          <PopoverContent className="w-auto p-0 bg-bridge-obsidian border-white/10" align="end">
+          <PopoverContent className="w-auto p-0 bg-bridge-obsidian border-white/20" align="end">
             <Calendar
               mode="range"
               selected={{
@@ -1061,7 +1078,7 @@ function ChecklistItemRow({
               className="bg-bridge-obsidian text-foreground"
             />
             {(item.start_date || item.due_date) && (
-              <div className="p-2 border-t border-white/10">
+              <div className="p-2 border-t border-white/20">
                 <Button
                   variant="ghost"
                   size="sm"
@@ -1081,21 +1098,21 @@ function ChecklistItemRow({
             {item.assignee && assigneeColor ? (
               <button className={`flex items-center gap-1 ${assigneeColor.bgLight} rounded-full px-1.5 py-0.5 hover:opacity-80 transition-opacity`}>
                 <div className={`w-4 h-4 rounded-full ${assigneeColor.bg} flex items-center justify-center text-[9px] font-bold text-white`}>
-                  {item.assignee.name.charAt(0).toUpperCase()}
+                  {getInitials(item.assignee.name)}
                 </div>
                 <span className={`text-[10px] font-medium ${assigneeColor.text}`}>
                   {item.assignee.name}
                 </span>
               </button>
             ) : (
-              <button className="flex items-center gap-1 text-[11px] text-slate-500 px-1.5 py-0.5 rounded hover:bg-white/10 transition-colors">
+              <button className="flex items-center gap-1 text-[11px] text-slate-400 px-1.5 py-0.5 rounded hover:bg-white/10 transition-colors">
                 <div className="w-4 h-4 rounded-full bg-slate-600 flex items-center justify-center text-[9px] text-slate-400">
                   ?
                 </div>
               </button>
             )}
           </PopoverTrigger>
-          <PopoverContent className="w-40 p-1 bg-bridge-obsidian border-white/10" align="end">
+          <PopoverContent className="w-40 p-1 bg-bridge-obsidian border-white/20" align="end">
             <div className="space-y-0.5">
               <button
                 onClick={() => onUpdate({ assignee: null })}
@@ -1106,7 +1123,7 @@ function ChecklistItemRow({
                 없음
               </button>
               {boardMembers.map((member) => {
-                const memberColor = getAssigneeColor(member.name);
+                const memberColor = getAssigneeClasses(member.name, member.assigneeColor);
                 return (
                   <button
                     key={member.userId}
@@ -1115,8 +1132,10 @@ function ChecklistItemRow({
                       item.assignee?.id === member.userId ? 'bg-white/10 text-foreground' : 'text-slate-300'
                     }`}
                   >
-                    <div className={`w-4 h-4 rounded-full ${memberColor.bg} flex items-center justify-center text-[9px] font-bold text-white`}>
-                      {member.name.charAt(0).toUpperCase()}
+                    <div className={`w-4 h-4 rounded-full ${memberColor.bg} flex items-center justify-center text-[9px] font-bold text-white`}
+                      style={!memberColor.bg ? { backgroundColor: memberColor.hex } : undefined}
+                    >
+                      {getInitials(member.name)}
                     </div>
                     {member.name}
                   </button>
@@ -1127,13 +1146,22 @@ function ChecklistItemRow({
         </Popover>
       </div>
 
-      {/* 타임블록 토글 버튼 */}
+      {/* 타임블록 총합 시간 + 토글 버튼 */}
+      {totalTimeMinutes > 0 && (
+        <span className="text-[11px] text-bridge-accent font-medium whitespace-nowrap">
+          {(() => {
+            const h = Math.floor(totalTimeMinutes / 60);
+            const m = totalTimeMinutes % 60;
+            return h > 0 ? `${h}h ${m > 0 ? `${m}m` : ''}` : `${totalTimeMinutes}m`;
+          })()}
+        </span>
+      )}
       <button
         onClick={handleToggleTimeBlocks}
         className={`flex items-center justify-center w-6 h-6 rounded transition-colors ${
           showTimeBlocks || timeBlocks.length > 0
             ? 'text-bridge-accent bg-bridge-accent/10'
-            : 'text-slate-500 hover:text-slate-400 hover:bg-white/5'
+            : 'text-slate-400 hover:text-slate-400 hover:bg-white/5'
         }`}
         title="타임블록 보기"
       >
@@ -1163,28 +1191,30 @@ function ChecklistItemRow({
     {showTimeBlocks && (
       <div className="ml-6 mt-1 mb-2 space-y-1">
         {timeBlocks.length === 0 ? (
-          <div className="text-xs text-slate-500 py-1 px-2">
+          <div className="text-xs text-slate-400 py-1 px-2">
             등록된 타임블록이 없습니다
           </div>
         ) : (
-          timeBlocks.map((block) => (
-            <div
-              key={block.id}
-              className="flex items-center gap-2 text-xs py-1 px-2 rounded bg-white/[0.02] border border-white/5"
-            >
-              <CalendarIcon className="h-3 w-3 text-slate-500" />
-              <span className="text-slate-400">
-                {format(new Date(block.scheduled_date), 'M/d (E)', { locale: ko })}
-              </span>
-              <Clock className="h-3 w-3 text-slate-500" />
-              <span className="text-foreground font-medium">
-                {block.start_time.slice(0, 5)} - {block.end_time.slice(0, 5)}
-              </span>
-              <span className="text-slate-500">
-                ({Math.round((new Date(`2000-01-01T${block.end_time}`).getTime() - new Date(`2000-01-01T${block.start_time}`).getTime()) / 60000)}분)
-              </span>
-            </div>
-          ))
+          <>
+            {timeBlocks.map((block) => (
+              <div
+                key={block.id}
+                className="flex items-center gap-2 text-xs py-1 px-2 rounded bg-white/[0.02] border border-white/15"
+              >
+                <CalendarIcon className="h-3 w-3 text-slate-400" />
+                <span className="text-slate-400">
+                  {format(new Date(block.scheduled_date), 'M/d (E)', { locale: ko })}
+                </span>
+                <Clock className="h-3 w-3 text-slate-400" />
+                <span className="text-foreground font-medium">
+                  {block.start_time.slice(0, 5)} - {block.end_time.slice(0, 5)}
+                </span>
+                <span className="text-slate-400">
+                  ({Math.round((new Date(`2000-01-01T${block.end_time}`).getTime() - new Date(`2000-01-01T${block.start_time}`).getTime()) / 60000)}분)
+                </span>
+              </div>
+            ))}
+          </>
         )}
       </div>
     )}
@@ -1267,13 +1297,13 @@ function AddChecklistItemInput({
         onClick={handleStartAdding}
       >
         <Plus className="h-4 w-4 mr-2" />
-        Add an item
+        체크리스트 항목 추가
       </Button>
     );
   }
 
   return (
-    <div className="p-3 border border-white/10 rounded-lg bg-white/5">
+    <div className="p-3 border border-white/20 rounded-lg bg-white/5">
       <div className="flex gap-2 items-start">
         <div className="w-4 h-4 rounded bg-slate-600 flex-shrink-0 mt-1.5" />
         <div className="flex-1 space-y-2">
@@ -1282,12 +1312,12 @@ function AddChecklistItemInput({
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="항목 입력..."
-            className="text-xs h-7 bg-white/5 border-white/10 text-foreground placeholder:text-slate-500"
+            className="text-xs h-7 bg-white/5 border-white/20 text-foreground placeholder:text-slate-400"
             autoFocus
           />
 
           {/* 옵션 필드들 */}
-          <div className="flex gap-2 pt-2 border-t border-white/10">
+          <div className="flex gap-2 pt-2 border-t border-white/20">
               {/* 날짜 범위 선택 */}
               <div className="flex-1">
                 <label className="text-xs text-slate-400 block mb-1">기간</label>
@@ -1295,7 +1325,7 @@ function AddChecklistItemInput({
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
-                      className="w-full h-7 text-xs justify-start text-left font-normal bg-white/5 border-white/10 text-foreground hover:bg-white/10"
+                      className="w-full h-7 text-xs justify-start text-left font-normal bg-white/5 border-white/20 text-foreground hover:bg-white/10"
                     >
                       <CalendarIcon className="mr-2 h-3 w-3" />
                       {dateRange?.from ? (
@@ -1308,11 +1338,11 @@ function AddChecklistItemInput({
                           format(dateRange.from, 'MM/dd', { locale: ko })
                         )
                       ) : (
-                        <span className="text-slate-500">날짜 선택</span>
+                        <span className="text-slate-400">날짜 선택</span>
                       )}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 bg-bridge-obsidian border-white/10" align="start">
+                  <PopoverContent className="w-auto p-0 bg-bridge-obsidian border-white/20" align="start">
                     <Calendar
                       mode="range"
                       selected={dateRange}
@@ -1332,11 +1362,11 @@ function AddChecklistItemInput({
                   value={assigneeId || 'none'}
                   onValueChange={(val) => setAssigneeId(val === 'none' ? '' : val)}
                 >
-                  <SelectTrigger className="h-7 text-xs bg-white/5 border-white/10 text-foreground">
+                  <SelectTrigger className="h-7 text-xs bg-white/5 border-white/20 text-foreground">
                     {selectedMember ? (
                       <div className="flex items-center gap-1">
                         <div className="w-4 h-4 rounded-full bg-bridge-accent flex items-center justify-center text-[10px] text-white flex-shrink-0">
-                          {selectedMember.name.charAt(0).toUpperCase()}
+                          {getInitials(selectedMember.name)}
                         </div>
                         <span>{selectedMember.name}</span>
                       </div>
@@ -1344,7 +1374,7 @@ function AddChecklistItemInput({
                       <SelectValue placeholder="없음" />
                     )}
                   </SelectTrigger>
-                  <SelectContent className="bg-bridge-obsidian border-white/10">
+                  <SelectContent className="bg-bridge-obsidian border-white/20">
                     <SelectItem value="none" className="text-foreground hover:bg-white/10">
                       <span className="text-xs">없음</span>
                     </SelectItem>
@@ -1352,11 +1382,11 @@ function AddChecklistItemInput({
                       <SelectItem key={member.userId} value={member.userId} className="text-foreground hover:bg-white/10">
                         <div className="flex items-center gap-2">
                           <div className="w-4 h-4 rounded-full bg-bridge-accent flex items-center justify-center text-[10px] text-white flex-shrink-0">
-                            {member.name.charAt(0).toUpperCase()}
+                            {getInitials(member.name)}
                           </div>
                           <span className="text-xs">{member.name}</span>
                           {member.userId === currentUser?.id && (
-                            <span className="text-[10px] text-slate-500">(나)</span>
+                            <span className="text-[10px] text-slate-400">(나)</span>
                           )}
                         </div>
                       </SelectItem>

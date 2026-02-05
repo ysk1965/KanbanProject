@@ -920,6 +920,10 @@ export const memberService = {
     }
   },
 
+  updateMemberColor: async (boardId: string, memberId: string, assigneeColor: string | null) => {
+    return memberAPI.updateMemberColor(boardId, memberId, assigneeColor);
+  },
+
   removeMember: async (boardId: string, memberId: string): Promise<void> => {
     try {
       await memberAPI.removeMember(boardId, memberId);

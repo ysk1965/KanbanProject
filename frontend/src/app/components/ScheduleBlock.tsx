@@ -18,11 +18,11 @@ const timeToMinutes = (time: string): number => {
   return hours * 60 + minutes;
 };
 
-// 분을 시간 문자열로 변환 (HH:mm)
+// 분을 시간 문자열로 변환 (HH:mm:ss) - 백엔드 LocalTime 형식과 일치
 const minutesToTime = (minutes: number): string => {
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
-  return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+  return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:00`;
 };
 
 // 두 시간 범위가 겹치는지 체크

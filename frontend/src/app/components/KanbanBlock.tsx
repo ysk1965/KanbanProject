@@ -33,6 +33,8 @@ interface KanbanBlockProps {
   onMoveBlockDrag?: (dragIndex: number, hoverIndex: number) => void;
   // 배치 로드된 체크리스트 데이터
   checklistDataMap?: { [taskId: string]: ChecklistItem[] };
+  memberColorMap?: Record<string, string | null>;
+  showFeatureLabel?: boolean;
 }
 
 export function KanbanBlock({
@@ -50,6 +52,8 @@ export function KanbanBlock({
   blockIndex = 0,
   onMoveBlockDrag,
   checklistDataMap,
+  memberColorMap,
+  showFeatureLabel,
 }: KanbanBlockProps) {
   const blockRef = useRef<HTMLDivElement>(null);
   const dragHandleRef = useRef<HTMLDivElement>(null);
@@ -298,7 +302,7 @@ export function KanbanBlock({
             className="cursor-grab active:cursor-grabbing p-1 -ml-1 mr-1 rounded-lg hover:bg-kanban-surface opacity-40 group-hover:opacity-100 transition-all"
             title="드래그하여 블록 이동"
           >
-            <GripVertical className="h-4 w-4 text-zinc-500" />
+            <GripVertical className="h-4 w-4 text-zinc-400" />
           </div>
         )}
         <div className="flex items-center gap-2 flex-1">
@@ -309,13 +313,13 @@ export function KanbanBlock({
             />
           )}
           <h3 className="font-bold text-sm text-foreground tracking-tight">{block.name}</h3>
-          <span className="text-xs font-semibold text-zinc-500 bg-kanban-surface px-2 py-0.5 rounded-md">{tasks.length}</span>
+          <span className="text-xs font-semibold text-zinc-400 bg-kanban-surface px-2 py-0.5 rounded-md">{tasks.length}</span>
         </div>
 
         {!isFixedBlock && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-zinc-500 hover:text-foreground hover:bg-kanban-surface opacity-0 group-hover:opacity-100 transition-all">
+              <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-zinc-400 hover:text-foreground hover:bg-kanban-surface opacity-0 group-hover:opacity-100 transition-all">
                 <MoreVertical className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -392,6 +396,8 @@ export function KanbanBlock({
               isChecklistExpanded={expandedChecklistTaskIds?.has(task.id)}
               onToggleChecklistExpand={onToggleChecklistExpand}
               checklistData={checklistDataMap?.[task.id]}
+              memberColorMap={memberColorMap}
+              showFeatureLabel={showFeatureLabel}
             />
           </div>
         ))}

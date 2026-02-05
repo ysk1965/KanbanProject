@@ -49,17 +49,17 @@ export function AddBlockModal({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md bg-kanban-bg text-zinc-300 rounded-2xl border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden animate-in zoom-in-95 duration-200"
+        className="w-full max-w-md bg-kanban-bg text-zinc-300 rounded-2xl border border-white/20 shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         {/* 헤더 */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-white/5 bg-white/[0.02]">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-white/15 bg-white/[0.02]">
           <h2 className="text-lg font-bold text-white">
             {isEdit ? '블록 수정' : '새 블록 추가'}
           </h2>
           <button
             onClick={onClose}
-            className="p-2 text-zinc-500 hover:text-foreground transition-colors"
+            className="p-2 text-zinc-400 hover:text-foreground transition-colors"
           >
             <X size={20} />
           </button>
@@ -74,7 +74,7 @@ export function AddBlockModal({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="예: In Progress"
-              className="w-full bg-kanban-input border border-white/5 rounded-xl p-3 text-white placeholder-zinc-600 focus:outline-none focus:border-indigo-500/50 transition-all text-sm"
+              className="w-full bg-kanban-input border border-white/15 rounded-xl p-3 text-white placeholder-zinc-400 focus:outline-none focus:border-indigo-500/50 transition-all text-sm"
               onKeyDown={(e) => {
                 if (e.nativeEvent.isComposing) return;
                 if (e.key === 'Enter') {
@@ -110,10 +110,10 @@ export function AddBlockModal({
         </div>
 
         {/* 푸터 */}
-        <div className="px-6 py-5 border-t border-white/5 bg-white/[0.02] flex justify-end items-center gap-4">
+        <div className="px-6 py-5 border-t border-white/15 bg-white/[0.02] flex justify-end items-center gap-4">
           <button
             onClick={onClose}
-            className="text-[11px] font-bold text-zinc-500 hover:text-foreground transition-all tracking-wider"
+            className="text-[11px] font-bold text-zinc-400 hover:text-foreground transition-all tracking-wider"
           >
             취소
           </button>

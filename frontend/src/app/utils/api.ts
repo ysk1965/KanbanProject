@@ -511,6 +511,7 @@ export interface MemberResponse {
   role: 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER';
   joined_at: string;
   invited_by: { id: string; name: string } | null;
+  assignee_color?: string | null;
 }
 
 export interface MembersListResponse {
@@ -1112,6 +1113,19 @@ export interface CommentListResponse {
   total_count: number;
 }
 
+export interface CommentSummaryItem {
+  id: string;
+  task_id: string;
+  task_title: string;
+  content: string;
+  created_at: string;
+}
+
+export interface CommentSummaryResponse {
+  comments: CommentSummaryItem[];
+  total_count: number;
+}
+
 // ========================================
 // File Upload API
 // ========================================
@@ -1256,6 +1270,17 @@ export const commentAPI = {
       `/boards/${boardId}/tasks/${taskId}/comments/${commentId}/attachments/${attachmentId}`
     );
   },
+
+  getCommentSummary: async (
+    boardId: string,
+    authorId: string,
+    startDate: string,
+    endDate: string
+  ) => {
+    return apiClient.get<CommentSummaryResponse>(
+      `/boards/${boardId}/comments/summary?authorId=${authorId}&startDate=${startDate}&endDate=${endDate}`
+    );
+  },
 };
 
 // ========================================
@@ -1281,6 +1306,13 @@ export const memberAPI = {
 
   removeMember: async (boardId: string, memberId: string) => {
     return apiClient.delete<{ message: string }>(`/boards/${boardId}/members/${memberId}`);
+  },
+
+  updateMemberColor: async (boardId: string, memberId: string, assigneeColor: string | null) => {
+    return apiClient.put<MemberResponse>(
+      `/boards/${boardId}/members/${memberId}/color`,
+      { assignee_color: assigneeColor },
+    );
   },
 };
 

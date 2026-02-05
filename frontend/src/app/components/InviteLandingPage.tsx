@@ -134,7 +134,7 @@ export function InviteLandingPage({
               {roleInfo.label}
             </span>
           </div>
-          <p className="text-xs text-slate-500 mt-2">{roleInfo.description}</p>
+          <p className="text-xs text-slate-400 mt-2">{roleInfo.description}</p>
         </div>
 
         {/* 액션 버튼 */}
@@ -165,15 +165,15 @@ export function InviteLandingPage({
               보드 참여하기
               <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
-            <p className="text-xs text-slate-500 text-center">
+            <p className="text-xs text-slate-400 text-center">
               로그인 또는 회원가입 후 자동으로 보드에 참여됩니다
             </p>
           </div>
         )}
 
         {/* 푸터 */}
-        <div className="mt-6 pt-4 border-t border-white/10 text-center">
-          <p className="text-xs text-slate-500">
+        <div className="mt-6 pt-4 border-t border-white/20 text-center">
+          <p className="text-xs text-slate-400">
             Team Kanban - 팀 협업을 위한 칸반보드
           </p>
         </div>

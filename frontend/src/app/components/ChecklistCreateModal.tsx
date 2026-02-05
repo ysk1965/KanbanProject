@@ -137,20 +137,20 @@ export function ChecklistCreateModal({
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-bridge-obsidian rounded-2xl shadow-2xl w-[560px] min-h-[700px] max-h-[90vh] flex flex-col overflow-hidden border border-white/10">
+      <div className="bg-bridge-obsidian rounded-2xl shadow-2xl w-[560px] min-h-[700px] max-h-[90vh] flex flex-col overflow-hidden border border-white/20">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-white/15">
           <h2 className="text-lg font-bold text-white">타임블록 추가</h2>
           <button
             onClick={onClose}
-            className="text-slate-500 hover:text-white transition-colors"
+            className="text-slate-400 hover:text-white transition-colors"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
         {/* Time/Block Display */}
-        <div className="px-6 py-3 border-b border-white/5">
+        <div className="px-6 py-3 border-b border-white/15">
           <div className="bg-bridge-accent/20 rounded-xl px-4 py-2.5 flex items-center gap-3 border border-bridge-accent/30">
             {displayMode === 'block' ? (
               <>
@@ -182,14 +182,14 @@ export function ChecklistCreateModal({
               <CheckSquare className="inline h-4 w-4 mr-1 text-bridge-accent" />
               오늘의 체크리스트에서 선택
             </label>
-            <div className="border border-white/10 rounded-xl max-h-64 overflow-y-auto bg-white/5">
+            <div className="border border-white/20 rounded-xl max-h-64 overflow-y-auto bg-white/5">
               {isLoadingToday ? (
-                <div className="px-4 py-6 text-slate-500 flex items-center justify-center gap-2">
+                <div className="px-4 py-6 text-slate-400 flex items-center justify-center gap-2">
                   <Loader2 className="h-4 w-4 animate-spin" />
                   로딩 중...
                 </div>
               ) : todayChecklists.length === 0 ? (
-                <div className="px-4 py-6 text-slate-500 text-sm text-center">
+                <div className="px-4 py-6 text-slate-400 text-sm text-center">
                   오늘의 체크리스트가 없습니다
                 </div>
               ) : (
@@ -209,7 +209,7 @@ export function ChecklistCreateModal({
                               className="w-2 h-2 rounded-full"
                               style={{ backgroundColor: item.feature.color }}
                             />
-                            <span className="text-[10px] text-slate-500 truncate">
+                            <span className="text-[10px] text-slate-400 truncate">
                               {item.feature.title} · {item.task?.title}
                             </span>
                           </div>
@@ -227,7 +227,7 @@ export function ChecklistCreateModal({
 
           {/* 구분선 */}
           <div className="flex items-center gap-3">
-            <div className="flex-1 border-t border-white/10" />
+            <div className="flex-1 border-t border-white/20" />
             <button
               onClick={() => setShowCreateForm(!showCreateForm)}
               className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition-colors"
@@ -235,7 +235,7 @@ export function ChecklistCreateModal({
               <Plus className="h-3.5 w-3.5" />
               {showCreateForm ? '접기' : '새로 생성'}
             </button>
-            <div className="flex-1 border-t border-white/10" />
+            <div className="flex-1 border-t border-white/20" />
           </div>
 
           {/* 새로 생성 폼 (토글) */}
@@ -251,10 +251,10 @@ export function ChecklistCreateModal({
               <button
                 type="button"
                 onClick={() => setIsFeatureDropdownOpen(!isFeatureDropdownOpen)}
-                className="w-full flex items-center justify-between px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-left hover:border-white/20 transition-colors"
+                className="w-full flex items-center justify-between px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-left hover:border-white/20 transition-colors"
               >
                 {isLoadingFeatures ? (
-                  <span className="text-slate-500 flex items-center gap-2">
+                  <span className="text-slate-400 flex items-center gap-2">
                     <Loader2 className="h-4 w-4 animate-spin" />
                     Loading...
                   </span>
@@ -267,15 +267,15 @@ export function ChecklistCreateModal({
                     <span className="text-white">{selectedFeature.title}</span>
                   </div>
                 ) : (
-                  <span className="text-slate-500">Select a feature</span>
+                  <span className="text-slate-400">Select a feature</span>
                 )}
-                <ChevronDown className={`h-4 w-4 text-slate-500 transition-transform ${isFeatureDropdownOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${isFeatureDropdownOpen ? 'rotate-180' : ''}`} />
               </button>
 
               {isFeatureDropdownOpen && !isLoadingFeatures && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-bridge-obsidian border border-white/10 rounded-xl shadow-xl z-10 max-h-72 overflow-y-auto">
+                <div className="absolute top-full left-0 right-0 mt-1 bg-bridge-obsidian border border-white/20 rounded-xl shadow-xl z-10 max-h-72 overflow-y-auto">
                   {features.length === 0 ? (
-                    <div className="px-4 py-3 text-slate-500 text-sm">No features found</div>
+                    <div className="px-4 py-3 text-slate-400 text-sm">No features found</div>
                   ) : (
                     features.map((feature) => (
                       <button
@@ -312,29 +312,29 @@ export function ChecklistCreateModal({
                 type="button"
                 onClick={() => selectedFeatureId && setIsTaskDropdownOpen(!isTaskDropdownOpen)}
                 disabled={!selectedFeatureId}
-                className={`w-full flex items-center justify-between px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-left transition-colors ${
+                className={`w-full flex items-center justify-between px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-left transition-colors ${
                   !selectedFeatureId ? 'opacity-50 cursor-not-allowed' : 'hover:border-white/20'
                 }`}
               >
                 {isLoadingTasks ? (
-                  <span className="text-slate-500 flex items-center gap-2">
+                  <span className="text-slate-400 flex items-center gap-2">
                     <Loader2 className="h-4 w-4 animate-spin" />
                     Loading...
                   </span>
                 ) : selectedTask ? (
                   <span className="text-white">{selectedTask.title}</span>
                 ) : (
-                  <span className="text-slate-500">
+                  <span className="text-slate-400">
                     {selectedFeatureId ? 'Select a task' : 'Select a feature first'}
                   </span>
                 )}
-                <ChevronDown className={`h-4 w-4 text-slate-500 transition-transform ${isTaskDropdownOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${isTaskDropdownOpen ? 'rotate-180' : ''}`} />
               </button>
 
               {isTaskDropdownOpen && !isLoadingTasks && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-bridge-obsidian border border-white/10 rounded-xl shadow-xl z-10 max-h-72 overflow-y-auto">
+                <div className="absolute top-full left-0 right-0 mt-1 bg-bridge-obsidian border border-white/20 rounded-xl shadow-xl z-10 max-h-72 overflow-y-auto">
                   {tasks.length === 0 ? (
-                    <div className="px-4 py-3 text-slate-500 text-sm">No tasks found</div>
+                    <div className="px-4 py-3 text-slate-400 text-sm">No tasks found</div>
                   ) : (
                     tasks.map((task) => (
                       <button
@@ -366,7 +366,7 @@ export function ChecklistCreateModal({
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="새 체크리스트 제목 입력"
-                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+                  className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
                 />
               </div>
             </>
@@ -374,10 +374,10 @@ export function ChecklistCreateModal({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-white/5 flex gap-3">
+        <div className="px-6 py-4 border-t border-white/15 flex gap-3">
           <button
             onClick={onClose}
-            className="flex-1 py-3 text-sm font-bold text-slate-400 hover:text-white transition-colors border border-white/10 rounded-xl hover:bg-white/5"
+            className="flex-1 py-3 text-sm font-bold text-slate-400 hover:text-white transition-colors border border-white/20 rounded-xl hover:bg-white/5"
           >
             취소
           </button>

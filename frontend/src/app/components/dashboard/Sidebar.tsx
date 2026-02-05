@@ -39,7 +39,7 @@ export function Sidebar({ isOpen = true, onClose, onUpgradeClick, hideBilling }:
             <span className="text-xl font-bold tracking-tighter font-serif">BRIDGE</span>
             <ChevronRight
               size={14}
-              className="text-slate-500 group-hover:translate-x-1 transition-transform"
+              className="text-slate-400 group-hover:translate-x-1 transition-transform"
             />
           </div>
           {/* 모바일에서 닫기 버튼 */}
@@ -101,7 +101,7 @@ export function Sidebar({ isOpen = true, onClose, onUpgradeClick, hideBilling }:
   return (
     <>
       {/* 데스크탑 사이드바 */}
-      <aside className="w-64 h-full hidden lg:flex flex-col border-r border-white/5 bg-bridge-dark/40 backdrop-blur-sm">
+      <aside className="w-64 h-full hidden lg:flex flex-col border-r border-white/15 bg-bridge-dark/40 backdrop-blur-sm">
         {sidebarContent}
       </aside>
 
@@ -124,7 +124,7 @@ export function Sidebar({ isOpen = true, onClose, onUpgradeClick, hideBilling }:
               animate={{ x: 0 }}
               exit={{ x: -280 }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed left-0 top-0 w-64 h-full bg-bridge-dark border-r border-white/5 z-50 lg:hidden"
+              className="fixed left-0 top-0 w-64 h-full bg-bridge-dark border-r border-white/15 z-50 lg:hidden"
             >
               {sidebarContent}
             </motion.aside>

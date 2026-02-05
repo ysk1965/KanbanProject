@@ -109,9 +109,9 @@ export function DailyChecklistColumn({
   const totalCount = localItems.length;
 
   return (
-    <div className="flex flex-col w-72 flex-shrink-0 bg-bridge-obsidian rounded-2xl border border-white/5 overflow-hidden">
+    <div className="flex flex-col w-72 flex-shrink-0 bg-bridge-obsidian rounded-2xl border border-white/15 overflow-hidden">
       {/* 헤더 */}
-      <div className="px-4 py-3 border-b border-white/5">
+      <div className="px-4 py-3 border-b border-white/15">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             {user.profile_image ? (
@@ -127,7 +127,7 @@ export function DailyChecklistColumn({
             )}
             <div>
               <h3 className="text-sm font-semibold text-white">{user.name}</h3>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-400">
                 {completedCount}/{totalCount} 완료
               </p>
             </div>
@@ -137,7 +137,7 @@ export function DailyChecklistColumn({
           {!isReadOnly && (
             <button
               onClick={onAddClick}
-              className="p-2 rounded-lg text-slate-500 hover:text-bridge-accent hover:bg-bridge-accent/10 transition-colors"
+              className="p-2 rounded-lg text-slate-400 hover:text-bridge-accent hover:bg-bridge-accent/10 transition-colors"
             >
               <Plus className="h-4 w-4" />
             </button>
@@ -149,8 +149,8 @@ export function DailyChecklistColumn({
       <div className="flex-1 p-3 space-y-2 overflow-y-auto max-h-[calc(100vh-300px)]">
         {localItems.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-8 text-center">
-            <ClipboardList className="h-10 w-10 text-slate-600 mb-3" />
-            <p className="text-sm text-slate-500">오늘의 체크리스트가 없습니다</p>
+            <ClipboardList className="h-10 w-10 text-slate-400 mb-3" />
+            <p className="text-sm text-slate-400">오늘의 체크리스트가 없습니다</p>
             {!isReadOnly && (
               <button
                 onClick={onAddClick}

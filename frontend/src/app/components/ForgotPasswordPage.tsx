@@ -50,7 +50,7 @@ export function ForgotPasswordPage() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-[500px] bg-bridge-obsidian rounded-[32px] p-8 md:p-12 border border-white/10 shadow-2xl"
+        className="w-full max-w-[500px] bg-bridge-obsidian rounded-[32px] p-8 md:p-12 border border-white/20 shadow-2xl"
       >
         {!isSent ? (
           <>
@@ -83,7 +83,7 @@ export function ForgotPasswordPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="your@email.com"
-                  className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+                  className="w-full bg-white/5 border border-white/20 rounded-xl py-3 px-4 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
                 />
               </div>
 
@@ -141,14 +141,14 @@ export function ForgotPasswordPage() {
             </p>
 
             {/* Info Box */}
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-4 mb-8">
+            <div className="bg-white/5 border border-white/20 rounded-2xl p-4 mb-8">
               <div className="flex items-start gap-3">
                 <div className="w-8 h-8 bg-bridge-accent/20 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
                   <span className="text-sm">&#x23F0;</span>
                 </div>
                 <div>
                   <p className="text-sm text-slate-300 font-medium mb-1">링크 유효 시간</p>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-slate-400">
                     재설정 링크는 1시간 동안 유효합니다.
                   </p>
                 </div>
@@ -158,22 +158,22 @@ export function ForgotPasswordPage() {
             {/* Back to Login */}
             <button
               onClick={() => navigate('/login')}
-              className="w-full h-14 bg-white/5 border border-white/10 text-white rounded-2xl font-bold transition-all duration-300 flex items-center justify-center gap-2 hover:bg-white/10"
+              className="w-full h-14 bg-white/5 border border-white/20 text-white rounded-2xl font-bold transition-all duration-300 flex items-center justify-center gap-2 hover:bg-white/10"
             >
               <ArrowLeft className="w-5 h-5" />
               로그인으로 돌아가기
             </button>
 
             {/* Footer Note */}
-            <p className="text-center text-xs text-slate-600 mt-8">
+            <p className="text-center text-xs text-slate-400 mt-8">
               이메일이 도착하지 않으면 스팸 메일함도 확인해주세요.
             </p>
           </>
         )}
 
         {/* Footer */}
-        <div className="mt-8 pt-6 border-t border-white/5">
-          <Link to="/" className="block text-center text-sm text-slate-500 hover:text-white transition-colors">
+        <div className="mt-8 pt-6 border-t border-white/15">
+          <Link to="/" className="block text-center text-sm text-slate-400 hover:text-white transition-colors">
             BRIDGE SPOTS 홈으로
           </Link>
         </div>

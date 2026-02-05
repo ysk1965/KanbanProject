@@ -1,6 +1,7 @@
 import { Star, Users, MoreHorizontal, ShieldCheck } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Board } from '../../types';
+import { getInitials } from '../../utils/assigneeColor';
 
 // 보드 배경 그라데이션 색상
 const GRADIENTS = [
@@ -41,7 +42,7 @@ export function BoardCard({ board, onToggleStar, onClick, onEdit }: BoardCardPro
   return (
     <motion.div
       whileHover={{ y: -6, transition: { duration: 0.2 } }}
-      className="relative flex flex-col h-52 w-full bg-bridge-obsidian/60 backdrop-blur-sm rounded-2xl overflow-hidden group border border-white/5 hover:border-white/20 transition-all shadow-xl cursor-pointer"
+      className="relative flex flex-col h-52 w-full bg-bridge-obsidian/60 backdrop-blur-sm rounded-2xl overflow-hidden group border border-white/15 hover:border-white/20 transition-all shadow-xl cursor-pointer"
       onClick={() => onClick(board)}
     >
       {/* Dynamic Background Header */}
@@ -95,14 +96,14 @@ export function BoardCard({ board, onToggleStar, onClick, onEdit }: BoardCardPro
           {isOwner && <ShieldCheck size={14} className="text-bridge-accent mt-1 shrink-0" />}
         </div>
 
-        <p className="text-[11px] text-slate-500 mb-4 line-clamp-1 h-4">
+        <p className="text-[11px] text-slate-400 mb-4 line-clamp-1 h-4">
           {board.description || 'No description provided'}
         </p>
 
         {/* Progress Section */}
         <div className="space-y-1.5 mt-auto">
           <div className="flex justify-between items-center text-[10px] font-bold">
-            <span className="text-slate-500 uppercase tracking-tighter">Tasks Progress</span>
+            <span className="text-slate-400 uppercase tracking-tighter">Tasks Progress</span>
             <span className="text-slate-300">{progress}%</span>
           </div>
           <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
@@ -136,7 +137,7 @@ export function BoardCard({ board, onToggleStar, onClick, onEdit }: BoardCardPro
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-[10px] font-bold text-white bg-gradient-to-br from-bridge-accent to-purple-500">
-                    {member.name.charAt(0).toUpperCase()}
+                    {getInitials(member.name)}
                   </div>
                 )}
               </div>
@@ -159,7 +160,7 @@ export function CreateBoardCard({ onClick }: { onClick: () => void }) {
     <motion.div
       whileHover={{ scale: 1.02 }}
       onClick={onClick}
-      className="h-52 flex flex-col items-center justify-center bg-bridge-obsidian/30 backdrop-blur-sm border-2 border-dashed border-white/5 rounded-2xl cursor-pointer hover:border-bridge-accent/30 hover:bg-white/[0.02] transition-all group"
+      className="h-52 flex flex-col items-center justify-center bg-bridge-obsidian/30 backdrop-blur-sm border-2 border-dashed border-white/15 rounded-2xl cursor-pointer hover:border-bridge-accent/30 hover:bg-white/[0.02] transition-all group"
     >
       <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-3 group-hover:bg-bridge-accent/20 group-hover:text-bridge-accent transition-colors">
         <svg
@@ -177,7 +178,7 @@ export function CreateBoardCard({ onClick }: { onClick: () => void }) {
           <path d="M12 5v14" />
         </svg>
       </div>
-      <span className="text-xs font-bold text-slate-500 group-hover:text-slate-300 uppercase tracking-widest">
+      <span className="text-xs font-bold text-slate-400 group-hover:text-slate-300 uppercase tracking-widest">
         New Board
       </span>
     </motion.div>

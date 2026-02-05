@@ -54,7 +54,7 @@ export function DailyChecklistItem({
     <div
       ref={setNodeRef}
       style={style}
-      className={`group relative rounded-xl border border-white/10 bg-white/5 overflow-hidden transition-all ${
+      className={`group relative rounded-xl border border-white/15 bg-white/5 overflow-hidden transition-all ${
         isDragging ? 'shadow-2xl ring-2 ring-bridge-accent' : 'hover:border-white/20'
       } ${item.completed ? 'opacity-60' : ''}`}
       onMouseEnter={() => setIsHovered(true)}
@@ -72,7 +72,7 @@ export function DailyChecklistItem({
           <div
             {...attributes}
             {...listeners}
-            className="flex-shrink-0 cursor-grab active:cursor-grabbing text-slate-500 hover:text-slate-300 transition-colors pt-0.5"
+            className="flex-shrink-0 cursor-grab active:cursor-grabbing text-slate-400 hover:text-slate-200 transition-colors pt-0.5"
           >
             <GripVertical className="h-4 w-4" />
           </div>
@@ -101,7 +101,7 @@ export function DailyChecklistItem({
 
           {/* Task 정보 */}
           {item.task && (
-            <p className="text-xs text-slate-500 mt-1 truncate">
+            <p className="text-xs text-slate-400 mt-1 truncate">
               {item.task.title}
             </p>
           )}
@@ -125,7 +125,7 @@ export function DailyChecklistItem({
           <button
             onClick={handleRemove}
             disabled={isRemoving}
-            className="flex-shrink-0 p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+            className="flex-shrink-0 p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
           >
             <X className="h-4 w-4" />
           </button>

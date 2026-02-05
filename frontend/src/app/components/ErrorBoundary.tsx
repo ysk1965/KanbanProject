@@ -64,7 +64,7 @@ class ErrorBoundary extends Component<Props, State> {
       // 기본 에러 UI
       return (
         <div className="min-h-screen bg-bridge-dark flex items-center justify-center p-4">
-          <div className="max-w-md w-full bg-bridge-obsidian rounded-2xl border border-white/10 p-8 text-center">
+          <div className="max-w-md w-full bg-bridge-obsidian rounded-2xl border border-white/20 p-8 text-center">
             <div className="flex justify-center mb-6">
               <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center">
                 <AlertTriangle className="w-8 h-8 text-red-500" />
@@ -85,7 +85,7 @@ class ErrorBoundary extends Component<Props, State> {
                   {this.state.error.message}
                 </p>
                 {this.state.errorInfo && (
-                  <pre className="mt-2 text-xs text-slate-500 overflow-auto max-h-32">
+                  <pre className="mt-2 text-xs text-slate-400 overflow-auto max-h-32">
                     {this.state.errorInfo.componentStack}
                   </pre>
                 )}
@@ -104,7 +104,7 @@ class ErrorBoundary extends Component<Props, State> {
 
               <button
                 onClick={this.handleRefresh}
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 text-white rounded-xl
+                className="w-full px-4 py-3 bg-white/5 border border-white/20 text-white rounded-xl
                   hover:bg-white/10 transition-colors"
               >
                 페이지 새로고침

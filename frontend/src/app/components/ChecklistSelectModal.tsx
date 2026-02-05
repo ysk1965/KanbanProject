@@ -76,9 +76,9 @@ export function ChecklistSelectModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-bridge-obsidian rounded-2xl shadow-2xl w-[500px] max-h-[80vh] flex flex-col overflow-hidden border border-white/10">
+      <div className="bg-bridge-obsidian rounded-2xl shadow-2xl w-[500px] max-h-[80vh] flex flex-col overflow-hidden border border-white/20">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-white/20">
           <h2 className="text-xl font-semibold text-foreground">Connect Existing Item</h2>
           <button
             onClick={onClose}
@@ -89,7 +89,7 @@ export function ChecklistSelectModal({
         </div>
 
         {/* Time Display */}
-        <div className="px-6 py-3 border-b border-white/10">
+        <div className="px-6 py-3 border-b border-white/20">
           <div className="bg-bridge-accent/20 rounded-lg px-4 py-2 flex items-center gap-3">
             <Clock className="h-4 w-4 text-bridge-accent" />
             <span className="text-bridge-accent font-medium text-sm">
@@ -99,7 +99,7 @@ export function ChecklistSelectModal({
         </div>
 
         {/* Search */}
-        <div className="px-6 py-3 border-b border-white/10">
+        <div className="px-6 py-3 border-b border-white/20">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input
@@ -107,7 +107,7 @@ export function ChecklistSelectModal({
               placeholder="Search checklist items..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+              className="w-full pl-10 pr-4 py-2 bg-white/5 border border-white/20 rounded-xl text-sm text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
             />
           </div>
         </div>
@@ -128,7 +128,7 @@ export function ChecklistSelectModal({
                 <Collapsible
                   key={group.task?.id || 'no-task'}
                   defaultOpen={true}
-                  className="border border-white/10 rounded-xl overflow-hidden"
+                  className="border border-white/20 rounded-xl overflow-hidden"
                 >
                   {/* Task Header - Collapsible Trigger */}
                   <CollapsibleTrigger className="w-full flex items-center justify-between px-4 py-3 bg-white/5 hover:bg-white/10 transition-colors group">
@@ -141,19 +141,19 @@ export function ChecklistSelectModal({
                       )}
                       <div className="flex items-center gap-1.5 min-w-0 flex-1">
                         {group.feature && (
-                          <span className="text-xs text-slate-500 flex-shrink-0">
+                          <span className="text-xs text-slate-400 flex-shrink-0">
                             {group.feature.title}
                           </span>
                         )}
                         {group.feature && group.task && (
-                          <span className="text-xs text-slate-600 flex-shrink-0">/</span>
+                          <span className="text-xs text-slate-400 flex-shrink-0">/</span>
                         )}
                         {group.task ? (
                           <span className="text-sm font-medium text-slate-300 truncate">
                             {group.task.title}
                           </span>
                         ) : (
-                          <span className="text-sm font-medium text-slate-500">
+                          <span className="text-sm font-medium text-slate-400">
                             No Task
                           </span>
                         )}
@@ -172,7 +172,7 @@ export function ChecklistSelectModal({
                         <button
                           key={item.id}
                           onClick={() => onSelect(item.id)}
-                          className="w-full text-left p-3 border border-white/10 rounded-xl hover:border-bridge-accent/50 hover:bg-bridge-accent/10 transition-all group"
+                          className="w-full text-left p-3 border border-white/20 rounded-xl hover:border-bridge-accent/50 hover:bg-bridge-accent/10 transition-all group"
                         >
                           <div className="flex items-start gap-3">
                             <CheckSquare className="h-5 w-5 text-slate-400 group-hover:text-bridge-accent mt-0.5 flex-shrink-0" />
@@ -181,7 +181,7 @@ export function ChecklistSelectModal({
                                 {item.title}
                               </div>
                               {(item.start_date || item.due_date) && (
-                                <div className="text-xs text-slate-500 mt-1">
+                                <div className="text-xs text-slate-400 mt-1">
                                   {item.start_date && `Start: ${item.start_date}`}
                                   {item.start_date && item.due_date && ' · '}
                                   {item.due_date && `Due: ${item.due_date}`}
@@ -200,8 +200,8 @@ export function ChecklistSelectModal({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-3 border-t border-white/10 bg-white/5">
-          <p className="text-xs text-slate-500 text-center">
+        <div className="px-6 py-3 border-t border-white/20 bg-white/5">
+          <p className="text-xs text-slate-400 text-center">
             Select a checklist item to schedule in this time slot
           </p>
         </div>
