@@ -3,8 +3,8 @@
  * Firebase Analytics, Performance Monitoring 설정
  */
 import { initializeApp, FirebaseApp, getApps } from 'firebase/app';
-import { getAnalytics, Analytics, isSupported } from 'firebase/analytics';
-import { getPerformance, FirebasePerformance } from 'firebase/performance';
+import type { Analytics } from 'firebase/analytics';
+import type { FirebasePerformance } from 'firebase/performance';
 
 // Firebase configuration from environment variables
 const firebaseConfig = {
@@ -67,6 +67,7 @@ export const initializeAnalytics = async (): Promise<Analytics | null> => {
   if (!firebaseApp) return null;
 
   try {
+    const { getAnalytics, isSupported } = await import('firebase/analytics');
     // Analytics가 지원되는 환경인지 확인 (SSR, 브라우저 확장 등에서 실패할 수 있음)
     const supported = await isSupported();
     if (!supported) {
@@ -86,13 +87,14 @@ export const initializeAnalytics = async (): Promise<Analytics | null> => {
 /**
  * Firebase Performance 초기화
  */
-export const initializePerformance = (): FirebasePerformance | null => {
+export const initializePerformance = async (): Promise<FirebasePerformance | null> => {
   if (performance) return performance;
 
   const firebaseApp = initializeFirebase();
   if (!firebaseApp) return null;
 
   try {
+    const { getPerformance } = await import('firebase/performance');
     performance = getPerformance(firebaseApp);
     console.log('[Firebase] Performance initialized successfully');
     return performance;
@@ -113,7 +115,7 @@ export const initializeAllFirebaseServices = async (): Promise<{
   const firebaseApp = initializeFirebase();
   const [analyticsInstance, performanceInstance] = await Promise.all([
     initializeAnalytics(),
-    Promise.resolve(initializePerformance()),
+    initializePerformance(),
   ]);
 
   return {

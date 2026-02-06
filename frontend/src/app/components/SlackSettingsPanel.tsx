@@ -208,22 +208,35 @@ export function SlackSettingsPanel({ boardId }: SlackSettingsPanelProps) {
   // Connected state
   if (config) {
     return (
-      <div className="mx-3 mt-3 mb-2 px-3 py-2 bg-white/[0.03] rounded-lg border border-white/10 flex items-center justify-between">
-        <div className="flex items-center gap-2 min-w-0">
-          <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${config.enabled ? 'bg-green-400' : 'bg-slate-500'}`} />
-          <span className="text-[11px] text-slate-300 truncate">
-            Slack {config.enabled ? '연결됨' : '비활성'}
-            {config.channel_name && (
-              <span className="text-slate-400 ml-1">{config.channel_name}</span>
-            )}
-          </span>
+      <div className="mx-3 mt-3 mb-2 p-3 bg-white/[0.03] rounded-xl border border-white/10">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-1.5">
+            <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${config.enabled ? 'bg-green-400' : 'bg-slate-500'}`} />
+            <span className="text-[11px] font-medium text-green-400">
+              {config.enabled ? '연동 완료' : 'Slack 비활성'}
+            </span>
+          </div>
+          <button
+            onClick={handleStartEdit}
+            className="text-slate-400 hover:text-foreground transition-colors flex-shrink-0"
+            title="설정 수정"
+          >
+            <Settings size={13} />
+          </button>
         </div>
-        <button
-          onClick={handleStartEdit}
-          className="text-slate-400 hover:text-foreground transition-colors flex-shrink-0 ml-2"
-        >
-          <Settings size={13} />
-        </button>
+        <div className="space-y-1">
+          <div className="flex items-center gap-1.5">
+            <Link2 size={10} className="text-slate-500 flex-shrink-0" />
+            <span className="text-[10px] text-slate-400 truncate" title={config.webhook_url_masked}>
+              {config.webhook_url_masked}
+            </span>
+          </div>
+          {config.channel_name && (
+            <div className="text-[10px] text-slate-500 pl-[16px]">
+              {config.channel_name}
+            </div>
+          )}
+        </div>
       </div>
     );
   }
@@ -232,7 +245,7 @@ export function SlackSettingsPanel({ boardId }: SlackSettingsPanelProps) {
   return (
     <div className="mx-3 mt-3 mb-2 px-3 py-2 bg-bridge-accent/5 rounded-lg border border-bridge-accent/20 flex items-center justify-between">
       <span className="text-[11px] text-slate-300">
-        Slack으로 멘션 알림 받기
+        Slack으로 알림 받기
       </span>
       <button
         onClick={handleStartEdit}

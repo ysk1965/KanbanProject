@@ -1,0 +1,104 @@
+package com.kanban.domain.notification;
+
+import com.kanban.domain.board.Board;
+import com.kanban.domain.user.User;
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.UUID;
+
+@Entity
+@Table(name = "notification_preferences",
+    uniqueConstraints = @UniqueConstraint(name = "uk_notif_pref_board_user", columnNames = {"board_id", "user_id"}),
+    indexes = {
+        @Index(name = "idx_notif_pref_board_user", columnList = "board_id, user_id")
+    })
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor
+@Builder
+public class NotificationPreference {
+
+    @Id
+    @Column(name = "id", length = 36)
+    private String id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "board_id", nullable = false)
+    private Board board;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
+
+    @Column(name = "comment_mention_enabled", nullable = false)
+    @Builder.Default
+    private Boolean commentMentionEnabled = true;
+
+    @Column(name = "checklist_assigned_enabled", nullable = false)
+    @Builder.Default
+    private Boolean checklistAssignedEnabled = true;
+
+    @Column(name = "task_comment_enabled", nullable = false)
+    @Builder.Default
+    private Boolean taskCommentEnabled = true;
+
+    @Column(name = "slack_comment_mention_enabled", nullable = false)
+    @Builder.Default
+    private Boolean slackCommentMentionEnabled = true;
+
+    @Column(name = "slack_checklist_assigned_enabled", nullable = false)
+    @Builder.Default
+    private Boolean slackChecklistAssignedEnabled = true;
+
+    @Column(name = "slack_task_comment_enabled", nullable = false)
+    @Builder.Default
+    private Boolean slackTaskCommentEnabled = true;
+
+    @Column(name = "created_at", nullable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
+
+    @PrePersist
+    public void prePersist() {
+        if (this.id == null) this.id = UUID.randomUUID().toString();
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+        if (this.createdAt == null) this.createdAt = now;
+        if (this.updatedAt == null) this.updatedAt = now;
+    }
+
+    @PreUpdate
+    public void preUpdate() {
+        this.updatedAt = LocalDateTime.now(ZoneOffset.UTC);
+    }
+
+    public void update(Boolean commentMentionEnabled, Boolean checklistAssignedEnabled, Boolean taskCommentEnabled,
+                       Boolean slackCommentMentionEnabled, Boolean slackChecklistAssignedEnabled, Boolean slackTaskCommentEnabled) {
+        if (commentMentionEnabled != null) this.commentMentionEnabled = commentMentionEnabled;
+        if (checklistAssignedEnabled != null) this.checklistAssignedEnabled = checklistAssignedEnabled;
+        if (taskCommentEnabled != null) this.taskCommentEnabled = taskCommentEnabled;
+        if (slackCommentMentionEnabled != null) this.slackCommentMentionEnabled = slackCommentMentionEnabled;
+        if (slackChecklistAssignedEnabled != null) this.slackChecklistAssignedEnabled = slackChecklistAssignedEnabled;
+        if (slackTaskCommentEnabled != null) this.slackTaskCommentEnabled = slackTaskCommentEnabled;
+    }
+
+    public boolean isInAppEnabled(NotificationType type) {
+        return switch (type) {
+            case COMMENT_MENTION -> commentMentionEnabled;
+            case CHECKLIST_ASSIGNED -> checklistAssignedEnabled;
+            case TASK_COMMENT -> taskCommentEnabled;
+        };
+    }
+
+    public boolean isSlackEnabled(NotificationType type) {
+        return switch (type) {
+            case COMMENT_MENTION -> slackCommentMentionEnabled;
+            case CHECKLIST_ASSIGNED -> slackChecklistAssignedEnabled;
+            case TASK_COMMENT -> slackTaskCommentEnabled;
+        };
+    }
+}

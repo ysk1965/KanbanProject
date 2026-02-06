@@ -1,8 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { authService } from '../utils/services';
 import { setSentryUser } from '../../lib/sentry';
-import { setUserId, setUserProperties } from 'firebase/analytics';
-import { analytics } from '../../lib/firebase';
 
 interface User {
   id: string;
@@ -47,21 +45,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSentryUser(null);
     }
 
-    // Firebase Analytics 사용자 설정
-    if (analytics) {
-      try {
-        setUserId(analytics, user?.id || null);
-        if (user) {
-          setUserProperties(analytics, {
-            user_role: user.system_role?.toLowerCase() || 'user',
-            theme: user.theme || 'dark',
-            provider: user.provider || 'email',
-          });
-        }
-      } catch (error) {
-        console.debug('[Analytics] Failed to set user:', error);
-      }
-    }
+    // Firebase Analytics 사용자 설정 (동적 import로 광고 차단기 대응)
+    import('firebase/analytics')
+      .then(({ setUserId, setUserProperties }) => {
+        return import('../../lib/firebase').then(({ analytics }) => {
+          if (!analytics) return;
+          setUserId(analytics, user?.id || null);
+          if (user) {
+            setUserProperties(analytics, {
+              user_role: user.system_role?.toLowerCase() || 'user',
+              theme: user.theme || 'dark',
+              provider: user.provider || 'email',
+            });
+          }
+        });
+      })
+      .catch(() => {
+        console.debug('[Analytics] Firebase Analytics unavailable');
+      });
   };
 
   useEffect(() => {

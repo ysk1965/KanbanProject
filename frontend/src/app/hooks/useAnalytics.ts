@@ -4,13 +4,19 @@
  */
 import { useCallback, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
-import {
-  logEvent,
-  setUserId,
-  setUserProperties,
-  Analytics,
-} from 'firebase/analytics';
-import { analytics as firebaseAnalytics } from '../../lib/firebase';
+import type { Analytics } from 'firebase/analytics';
+
+// 동적 import 캐시 (광고 차단기 대응)
+let _analyticsModule: typeof import('firebase/analytics') | null = null;
+let _analyticsInstance: Analytics | null = null;
+const getAnalyticsModule = async () => {
+  if (!_analyticsModule) {
+    _analyticsModule = await import('firebase/analytics');
+    const { analytics } = await import('../../lib/firebase');
+    _analyticsInstance = analytics;
+  }
+  return { module: _analyticsModule, analytics: _analyticsInstance };
+};
 
 // ============================================
 // Analytics Event Types
@@ -108,13 +114,19 @@ interface UseAnalyticsReturn {
 
 export const useAnalytics = (): UseAnalyticsReturn => {
   const location = useLocation();
-  const analyticsRef = useRef<Analytics | null>(firebaseAnalytics);
+  const analyticsRef = useRef<Analytics | null>(null);
   const lastPageRef = useRef<string>('');
 
-  // Analytics 인스턴스 업데이트 (lazy initialization 대응)
+  // Analytics 인스턴스 초기화 (동적 import)
   useEffect(() => {
-    if (!analyticsRef.current && firebaseAnalytics) {
-      analyticsRef.current = firebaseAnalytics;
+    if (!analyticsRef.current) {
+      getAnalyticsModule()
+        .then(({ analytics }) => {
+          analyticsRef.current = analytics;
+        })
+        .catch(() => {
+          console.debug('[Analytics] Firebase Analytics unavailable');
+        });
     }
   }, []);
 
@@ -129,12 +141,16 @@ export const useAnalytics = (): UseAnalyticsReturn => {
     // 페이지 이름 추출 (경로에서)
     const pageName = getPageNameFromPath(location.pathname);
 
-    if (analyticsRef.current) {
-      logEvent(analyticsRef.current, 'page_view', {
-        page_name: pageName,
-        page_path: pagePath,
-      });
-    }
+    getAnalyticsModule()
+      .then(({ module, analytics }) => {
+        if (analytics) {
+          module.logEvent(analytics, 'page_view', {
+            page_name: pageName,
+            page_path: pagePath,
+          });
+        }
+      })
+      .catch(() => {});
   }, [location]);
 
   // 이벤트 추적
@@ -143,43 +159,42 @@ export const useAnalytics = (): UseAnalyticsReturn => {
       eventName: K,
       params: AnalyticsEvents[K]
     ): void => {
-      if (!analyticsRef.current) {
-        console.debug(`[Analytics] Event (not initialized): ${eventName}`, params);
-        return;
-      }
-
-      try {
-        logEvent(analyticsRef.current, eventName as string, params as Record<string, unknown>);
-        console.debug(`[Analytics] Event: ${eventName}`, params);
-      } catch (error) {
-        console.error(`[Analytics] Failed to track event: ${eventName}`, error);
-      }
+      getAnalyticsModule()
+        .then(({ module, analytics }) => {
+          if (!analytics) {
+            console.debug(`[Analytics] Event (not initialized): ${eventName}`, params);
+            return;
+          }
+          module.logEvent(analytics, eventName as string, params as Record<string, unknown>);
+          console.debug(`[Analytics] Event: ${eventName}`, params);
+        })
+        .catch(() => {
+          console.debug(`[Analytics] Firebase unavailable for: ${eventName}`);
+        });
     },
     []
   );
 
   // 사용자 ID 설정
   const setUser = useCallback((userId: string | null): void => {
-    if (!analyticsRef.current) return;
-
-    try {
-      setUserId(analyticsRef.current, userId);
-      console.debug(`[Analytics] User ID set: ${userId || 'cleared'}`);
-    } catch (error) {
-      console.error('[Analytics] Failed to set user ID:', error);
-    }
+    getAnalyticsModule()
+      .then(({ module, analytics }) => {
+        if (!analytics) return;
+        module.setUserId(analytics, userId);
+        console.debug(`[Analytics] User ID set: ${userId || 'cleared'}`);
+      })
+      .catch(() => {});
   }, []);
 
   // 사용자 속성 설정
   const setProperties = useCallback((properties: UserProperties): void => {
-    if (!analyticsRef.current) return;
-
-    try {
-      setUserProperties(analyticsRef.current, properties);
-      console.debug('[Analytics] User properties set:', properties);
-    } catch (error) {
-      console.error('[Analytics] Failed to set user properties:', error);
-    }
+    getAnalyticsModule()
+      .then(({ module, analytics }) => {
+        if (!analytics) return;
+        module.setUserProperties(analytics, properties);
+        console.debug('[Analytics] User properties set:', properties);
+      })
+      .catch(() => {});
   }, []);
 
   // 수동 페이지뷰 추적 (SPA 내 가상 페이지 등)

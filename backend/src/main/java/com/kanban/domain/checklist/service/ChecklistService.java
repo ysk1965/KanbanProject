@@ -11,6 +11,8 @@ import com.kanban.domain.checklist.dto.ChecklistBatchResponse;
 import com.kanban.domain.checklist.dto.ChecklistRequest;
 import com.kanban.domain.checklist.dto.ChecklistResponse;
 import com.kanban.domain.dailychecklist.DailyChecklistRepository;
+import com.kanban.domain.integration.slack.service.SlackNotificationService;
+import com.kanban.domain.notification.service.NotificationService;
 import com.kanban.domain.schedule.ScheduleBlockRepository;
 import com.kanban.domain.task.Task;
 import com.kanban.domain.task.TaskRepository;
@@ -39,6 +41,8 @@ public class ChecklistService {
     private final ScheduleBlockRepository scheduleBlockRepository;
     private final DailyChecklistRepository dailyChecklistRepository;
     private final ActivityService activityService;
+    private final NotificationService notificationService;
+    private final SlackNotificationService slackNotificationService;
 
     public ChecklistResponse.ListResponse getChecklist(String boardId, String taskId, String userId) {
         boardService.checkViewerOrAbove(boardId, userId);
@@ -101,6 +105,12 @@ public class ChecklistService {
                 )
         );
 
+        // 배정자가 있으면 알림 발송
+        if (assignee != null) {
+            notificationService.createChecklistAssignedNotification(item, creator, task.getBoard());
+            slackNotificationService.sendChecklistAssignedNotification(item, creator, task.getBoard());
+        }
+
         log.info("Checklist item created: {} in task: {} by user: {}", item.getId(), taskId, userId);
 
         return ChecklistResponse.Detail.of(item);
@@ -124,12 +134,22 @@ public class ChecklistService {
             throw new BusinessException(ErrorCode.CHECKLIST_ITEM_NOT_FOUND);
         }
 
+        String oldAssigneeId = item.getAssignee() != null ? item.getAssignee().getId() : null;
+
         item.updateInfo(request.getTitle(), request.getStartDate(), request.getDueDate());
 
         if (request.getAssigneeId() != null) {
             User assignee = userRepository.findById(request.getAssigneeId())
                     .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
             item.updateAssignee(assignee);
+
+            // 배정자가 변경된 경우 알림 발송
+            if (!request.getAssigneeId().equals(oldAssigneeId)) {
+                User assigner = userRepository.findById(userId)
+                        .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+                notificationService.createChecklistAssignedNotification(item, assigner, task.getBoard());
+                slackNotificationService.sendChecklistAssignedNotification(item, assigner, task.getBoard());
+            }
         }
 
         log.info("Checklist item updated: {} by user: {}", itemId, userId);

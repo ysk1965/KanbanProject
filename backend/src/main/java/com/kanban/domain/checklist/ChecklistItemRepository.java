@@ -100,6 +100,9 @@ public interface ChecklistItemRepository extends JpaRepository<ChecklistItem, St
            "ORDER BY t.id, c.position")
     List<ChecklistItem> findByTaskIdIn(@Param("taskIds") List<String> taskIds);
 
+    @Query("SELECT DISTINCT c.assignee.id FROM ChecklistItem c WHERE c.task.id = :taskId AND c.assignee IS NOT NULL")
+    List<String> findDistinctAssigneeIdsByTaskId(@Param("taskId") String taskId);
+
     @Modifying
     @Query("UPDATE ChecklistItem ci SET ci.assignee = null WHERE ci.assignee.id = :userId")
     void nullifyAssigneeByUserId(@Param("userId") String userId);

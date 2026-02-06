@@ -2874,6 +2874,41 @@ export interface SlackTestResult {
   message: string;
 }
 
+export const notificationPreferenceAPI = {
+  getMyPreferences: async (boardId: string) => {
+    return apiClient.get<{
+      id: string | null;
+      board_id: string;
+      comment_mention_enabled: boolean;
+      checklist_assigned_enabled: boolean;
+      task_comment_enabled: boolean;
+      slack_comment_mention_enabled: boolean;
+      slack_checklist_assigned_enabled: boolean;
+      slack_task_comment_enabled: boolean;
+      created_at: string | null;
+      updated_at: string | null;
+    }>(`/boards/${boardId}/notification-preferences/me`);
+  },
+
+  upsertMyPreferences: async (boardId: string, data: {
+    commentMentionEnabled?: boolean;
+    checklistAssignedEnabled?: boolean;
+    taskCommentEnabled?: boolean;
+    slackCommentMentionEnabled?: boolean;
+    slackChecklistAssignedEnabled?: boolean;
+    slackTaskCommentEnabled?: boolean;
+  }) => {
+    return apiClient.put(`/boards/${boardId}/notification-preferences/me`, {
+      comment_mention_enabled: data.commentMentionEnabled,
+      checklist_assigned_enabled: data.checklistAssignedEnabled,
+      task_comment_enabled: data.taskCommentEnabled,
+      slack_comment_mention_enabled: data.slackCommentMentionEnabled,
+      slack_checklist_assigned_enabled: data.slackChecklistAssignedEnabled,
+      slack_task_comment_enabled: data.slackTaskCommentEnabled,
+    });
+  },
+};
+
 export const slackWebhookAPI = {
   getMyConfig: async (boardId: string) => {
     return apiClient.get<SlackWebhookConfig>(`/boards/${boardId}/slack-webhook/me`);

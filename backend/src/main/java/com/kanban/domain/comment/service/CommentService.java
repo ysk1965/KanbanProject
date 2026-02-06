@@ -3,6 +3,7 @@ package com.kanban.domain.comment.service;
 import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.checklist.ChecklistItemRepository;
 import com.kanban.domain.comment.Comment;
 import com.kanban.domain.comment.CommentAttachment;
 import com.kanban.domain.comment.CommentAttachmentRepository;
@@ -25,10 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
+import java.util.*;
 
 @Slf4j
 @Service
@@ -45,6 +43,7 @@ public class CommentService {
     private final NotificationService notificationService;
     private final SlackNotificationService slackNotificationService;
     private final FileUploadService fileUploadService;
+    private final ChecklistItemRepository checklistItemRepository;
 
     private static final int MAX_ATTACHMENTS = 5;
 
@@ -124,6 +123,32 @@ public class CommentService {
 
         notificationService.createMentionNotifications(comment, user, board);
         slackNotificationService.sendMentionNotifications(comment, user, board);
+
+        // TASK_COMMENT: 태스크 관련자에게 알림 (생성자 + 체크리스트 배정자, 멘션 수신자 제외)
+        Set<String> mentionedUserIds = new HashSet<>();
+        if (comment.getMentions() != null && !comment.getMentions().isEmpty()) {
+            Arrays.stream(comment.getMentions().split(","))
+                    .map(String::trim)
+                    .forEach(mentionedUserIds::add);
+        }
+
+        List<String> taskRelatedUserIds = new ArrayList<>();
+        // 태스크 생성자
+        if (task.getCreatedBy() != null) {
+            taskRelatedUserIds.add(task.getCreatedBy().getId());
+        }
+        // 체크리스트 배정자들
+        List<String> checklistAssigneeIds = checklistItemRepository.findDistinctAssigneeIdsByTaskId(taskId);
+        for (String assigneeId : checklistAssigneeIds) {
+            if (!taskRelatedUserIds.contains(assigneeId)) {
+                taskRelatedUserIds.add(assigneeId);
+            }
+        }
+
+        if (!taskRelatedUserIds.isEmpty()) {
+            notificationService.createTaskCommentNotifications(comment, user, board, taskRelatedUserIds, mentionedUserIds);
+            slackNotificationService.sendTaskCommentNotifications(comment, user, board, taskRelatedUserIds, mentionedUserIds);
+        }
 
         log.info("Comment created: {} on task: {} by user: {} with {} attachments",
                 comment.getId(), taskId, userId, comment.getAttachments().size());

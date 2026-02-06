@@ -471,7 +471,7 @@ export interface ActivityLog {
 // 알림(Notification) 타입
 // ========================================
 
-export type NotificationType = 'COMMENT_MENTION';
+export type NotificationType = 'COMMENT_MENTION' | 'CHECKLIST_ASSIGNED' | 'TASK_COMMENT';
 
 export interface NotificationItem {
   id: string;
@@ -501,6 +501,19 @@ export interface NotificationListResponse {
 
 export interface UnreadCountResponse {
   unread_count: number;
+}
+
+export interface NotificationPreferences {
+  id: string | null;
+  board_id: string;
+  comment_mention_enabled: boolean;
+  checklist_assigned_enabled: boolean;
+  task_comment_enabled: boolean;
+  slack_comment_mention_enabled: boolean;
+  slack_checklist_assigned_enabled: boolean;
+  slack_task_comment_enabled: boolean;
+  created_at: string | null;
+  updated_at: string | null;
 }
 
 // ========================================

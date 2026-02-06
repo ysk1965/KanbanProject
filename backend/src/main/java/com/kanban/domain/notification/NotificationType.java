@@ -1,5 +1,7 @@
 package com.kanban.domain.notification;
 
 public enum NotificationType {
-    COMMENT_MENTION
+    COMMENT_MENTION,
+    CHECKLIST_ASSIGNED,
+    TASK_COMMENT
 }

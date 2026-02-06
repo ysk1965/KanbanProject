@@ -3,8 +3,6 @@
  * Firebase Analytics 이벤트 추적을 위한 전역 Context
  */
 import { createContext, useContext, useCallback, ReactNode } from 'react';
-import { logEvent } from 'firebase/analytics';
-import { analytics } from '../../lib/firebase';
 import { addBreadcrumb } from '../../lib/sentry';
 
 // ============================================
@@ -76,14 +74,18 @@ export function AnalyticsProvider({ children }: { children: ReactNode }) {
       eventName: K,
       params: AnalyticsEventParams[K]
     ): void => {
-      // Firebase Analytics로 이벤트 전송
-      if (analytics) {
-        try {
-          logEvent(analytics, eventName as string, params as Record<string, unknown>);
-        } catch (error) {
-          console.debug(`[Analytics] Failed to track: ${eventName}`, error);
-        }
-      }
+      // Firebase Analytics로 이벤트 전송 (동적 import로 광고 차단기 대응)
+      import('firebase/analytics')
+        .then(({ logEvent }) => {
+          return import('../../lib/firebase').then(({ analytics }) => {
+            if (analytics) {
+              logEvent(analytics, eventName as string, params as Record<string, unknown>);
+            }
+          });
+        })
+        .catch(() => {
+          console.debug(`[Analytics] Firebase unavailable for: ${eventName}`);
+        });
 
       // Sentry breadcrumb으로도 기록 (디버깅용)
       addBreadcrumb({
@@ -135,13 +137,17 @@ export function trackEvent<K extends keyof AnalyticsEventParams>(
   eventName: K,
   params: AnalyticsEventParams[K]
 ): void {
-  if (analytics) {
-    try {
-      logEvent(analytics, eventName as string, params as Record<string, unknown>);
-    } catch (error) {
-      console.debug(`[Analytics] Failed to track: ${eventName}`, error);
-    }
-  }
+  import('firebase/analytics')
+    .then(({ logEvent }) => {
+      return import('../../lib/firebase').then(({ analytics }) => {
+        if (analytics) {
+          logEvent(analytics, eventName as string, params as Record<string, unknown>);
+        }
+      });
+    })
+    .catch(() => {
+      console.debug(`[Analytics] Firebase unavailable for: ${eventName}`);
+    });
 
   addBreadcrumb({
     category: 'analytics',

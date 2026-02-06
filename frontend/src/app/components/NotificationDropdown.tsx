@@ -1,12 +1,26 @@
 import { useState, useCallback } from 'react';
-import { Bell, CheckCheck, Loader2, Activity, ChevronDown } from 'lucide-react';
+import { Bell, CheckCheck, Loader2, Activity, ChevronDown, AtSign, ClipboardList, MessageSquare } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { notificationAPI } from '../utils/api';
 import { SlackSettingsPanel } from './SlackSettingsPanel';
-import { NotificationItem, ActivityLog } from '../types';
+import { NotificationPreferencesPanel } from './NotificationPreferencesPanel';
+import { NotificationItem, ActivityLog, NotificationType } from '../types';
 import { Button } from './ui/button';
 import { getAssigneeClasses } from '../utils/assigneeColor';
 import { formatDate, formatRelativeTime as dateUtilsFormatRelativeTime } from '../utils/dateUtils';
+
+function getNotificationIcon(type: NotificationType) {
+  switch (type) {
+    case 'COMMENT_MENTION':
+      return <AtSign size={14} className="text-bridge-accent" />;
+    case 'CHECKLIST_ASSIGNED':
+      return <ClipboardList size={14} className="text-bridge-secondary" />;
+    case 'TASK_COMMENT':
+      return <MessageSquare size={14} className="text-amber-400" />;
+    default:
+      return <Bell size={14} className="text-slate-400" />;
+  }
+}
 
 function getTimeAgo(dateStr: string) {
   const date = new Date(dateStr.endsWith('Z') ? dateStr : dateStr + 'Z');
@@ -332,6 +346,9 @@ export function NotificationDropdown({
               {/* Slack Integration Banner */}
               <SlackSettingsPanel boardId={boardId} />
 
+              {/* Notification Preferences */}
+              <NotificationPreferencesPanel boardId={boardId} />
+
               {/* Notifications Header with Mark All Read */}
               {notifications.length > 0 && unreadCount > 0 && (
                 <div className="flex items-center justify-end px-4 py-2 border-b border-white/20">
@@ -371,7 +388,7 @@ export function NotificationDropdown({
                         }`}
                       >
                         {/* Avatar */}
-                        <div className="flex-shrink-0">
+                        <div className="flex-shrink-0 relative">
                           {notification.sender?.profile_image ? (
                             <img
                               src={notification.sender.profile_image}
@@ -385,6 +402,9 @@ export function NotificationDropdown({
                               {senderName[0]?.toUpperCase() || '?'}
                             </div>
                           )}
+                          <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-bridge-obsidian flex items-center justify-center">
+                            {getNotificationIcon(notification.type)}
+                          </div>
                         </div>
 
                         {/* Content */}
