@@ -2884,7 +2884,11 @@ export const slackWebhookAPI = {
     channelName?: string;
     enabled?: boolean;
   }) => {
-    return apiClient.put<SlackWebhookConfig>(`/boards/${boardId}/slack-webhook/me`, data);
+    return apiClient.put<SlackWebhookConfig>(`/boards/${boardId}/slack-webhook/me`, {
+      webhook_url: data.webhookUrl,
+      channel_name: data.channelName,
+      enabled: data.enabled,
+    });
   },
 
   deleteMyConfig: async (boardId: string) => {
