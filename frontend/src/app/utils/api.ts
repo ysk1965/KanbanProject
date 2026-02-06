@@ -618,6 +618,42 @@ export interface BoardLimitsResponse {
   can_create_task: boolean;
 }
 
+/**
+ * 보드 진입 시 필요한 모든 데이터를 한 번에 반환하는 통합 응답
+ * 기존 13개 개별 API 호출을 1개로 통합
+ */
+export interface BoardFullResponse {
+  // 기본 보드 정보
+  id: string;
+  name: string;
+  description: string | null;
+  owner: BoardOwner;
+  my_role: 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER';
+  is_starred: boolean;
+  member_count: number;
+  subscription: BoardSubscription;
+  schedule_settings: {
+    work_hours_per_day: number;
+    work_start_time: string;
+  };
+  selected_milestone_id: string | null;
+  created_at: string;
+  updated_at: string;
+
+  // 통합 데이터
+  blocks: BlockResponse[];
+  features: FeatureResponse[];
+  tasks: TaskResponse[];
+  tags: TagResponse[];
+  invite_links: InviteLinkResponse[];  // Admin+ 권한 없으면 빈 배열
+  subscription_detail: SubscriptionResponse | null;
+  activities: ActivitiesResponse;
+  members: MembersListResponse;
+  milestones: { milestones: MilestoneDetailResponse[] };
+  tier_info: BoardTierResponse;
+  limits: BoardLimitsResponse;
+}
+
 // Seat Pricing Response
 export interface SeatPricingResponse {
   price_per_seat: {
@@ -817,6 +853,14 @@ export const boardAPI = {
 
   getBoardLimits: async (boardId: string) => {
     return apiClient.get<BoardLimitsResponse>(`/boards/${boardId}/limits`);
+  },
+
+  /**
+   * 보드 진입 시 필요한 모든 데이터를 한 번에 조회
+   * 기존 13개 개별 API 호출을 1개로 통합하여 서버 부하 감소
+   */
+  getBoardFull: async (boardId: string) => {
+    return apiClient.get<BoardFullResponse>(`/boards/${boardId}/full`);
   },
 };
 
@@ -1478,6 +1522,16 @@ export interface DailyScheduleResponse {
   columns: ScheduleColumnInfo[];
 }
 
+export interface WeeklyScheduleResponse {
+  start_date: string;
+  end_date: string;
+  settings: ScheduleSettingsResponse;
+  days: {
+    date: string;
+    columns: ScheduleColumnInfo[];
+  }[];
+}
+
 export interface ScheduleBlockDetailResponse {
   id: string;
   assignee_id: string;
@@ -1533,6 +1587,27 @@ export const scheduleAPI = {
     }
     return apiClient.get<DailyScheduleResponse>(
       `/boards/${boardId}/schedules?${query.toString()}`
+    );
+  },
+
+  /**
+   * 주간 스케줄 조회 (7일치 데이터 한 번에)
+   * 기존 7개 API 호출 → 1개로 통합
+   */
+  getWeeklySchedule: async (
+    boardId: string,
+    startDate: string,
+    endDate: string,
+    assigneeIds?: string[]
+  ) => {
+    const query = new URLSearchParams();
+    query.set('startDate', startDate);
+    query.set('endDate', endDate);
+    if (assigneeIds && assigneeIds.length > 0) {
+      assigneeIds.forEach(id => query.append('assigneeIds', id));
+    }
+    return apiClient.get<WeeklyScheduleResponse>(
+      `/boards/${boardId}/schedules/weekly?${query.toString()}`
     );
   },
 

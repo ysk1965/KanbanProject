@@ -84,6 +84,83 @@ public class ScheduleService {
                 .build();
     }
 
+    /**
+     * 주간 스케줄 조회 (7일치 데이터 한 번에)
+     * 기존 7개 API 호출 → 1개로 통합하여 86% 감소
+     */
+    public ScheduleResponse.WeeklySchedule getWeeklySchedule(String boardId, LocalDate startDate, LocalDate endDate, List<String> assigneeIds, String userId) {
+        boardService.checkViewerOrAbove(boardId, userId);
+
+        Board board = boardRepository.findById(boardId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+
+        // 대상 담당자 목록
+        List<String> targetAssigneeIds = assigneeIds;
+        if (targetAssigneeIds == null || targetAssigneeIds.isEmpty()) {
+            targetAssigneeIds = boardMemberRepository.findByBoardId(boardId)
+                    .stream()
+                    .map(bm -> bm.getUser().getId())
+                    .collect(Collectors.toList());
+        }
+
+        // 기간 내 모든 블록 조회 (1회 쿼리)
+        List<ScheduleBlock> allBlocks = scheduleBlockRepository
+                .findByBoardIdAndScheduledDateBetween(boardId, startDate, endDate);
+
+        // 날짜별 + 담당자별로 그룹핑
+        Map<LocalDate, Map<String, List<ScheduleBlock>>> blocksByDateAndAssignee = allBlocks.stream()
+                .collect(Collectors.groupingBy(
+                        ScheduleBlock::getScheduledDate,
+                        Collectors.groupingBy(b -> b.getAssignee().getId())
+                ));
+
+        // 담당자 정보 캐싱
+        Map<String, User> userCache = new java.util.HashMap<>();
+        for (String assigneeId : targetAssigneeIds) {
+            userRepository.findById(assigneeId).ifPresent(u -> userCache.put(assigneeId, u));
+        }
+
+        // 날짜별 DayData 생성
+        List<ScheduleResponse.DayData> days = new ArrayList<>();
+        LocalDate current = startDate;
+        while (!current.isAfter(endDate)) {
+            final LocalDate date = current;
+            Map<String, List<ScheduleBlock>> blocksByAssignee = blocksByDateAndAssignee.getOrDefault(date, Map.of());
+
+            List<ScheduleResponse.ColumnInfo> columns = new ArrayList<>();
+            for (String assigneeId : targetAssigneeIds) {
+                User user = userCache.get(assigneeId);
+                if (user == null) continue;
+
+                List<ScheduleBlock> userBlocks = blocksByAssignee.getOrDefault(assigneeId, new ArrayList<>());
+                List<ScheduleResponse.BlockInfo> blockInfos = userBlocks.stream()
+                        .map(ScheduleResponse.BlockInfo::of)
+                        .collect(Collectors.toList());
+
+                columns.add(ScheduleResponse.ColumnInfo.builder()
+                        .user(ScheduleResponse.UserInfo.of(user))
+                        .blocks(blockInfos)
+                        .build());
+            }
+
+            days.add(ScheduleResponse.DayData.builder()
+                    .date(date)
+                    .columns(columns)
+                    .build());
+
+            current = current.plusDays(1);
+        }
+
+        log.info("Weekly schedule loaded: {} ({} to {}) by user: {}", boardId, startDate, endDate, userId);
+
+        return ScheduleResponse.WeeklySchedule.builder()
+                .startDate(startDate)
+                .endDate(endDate)
+                .settings(ScheduleResponse.SettingsInfo.of(board))
+                .days(days)
+                .build();
+    }
+
     @Transactional
     public ScheduleResponse.BlockDetail createScheduleBlock(String boardId, String userId, ScheduleRequest.Create request) {
         boardService.checkMemberOrAbove(boardId, userId);

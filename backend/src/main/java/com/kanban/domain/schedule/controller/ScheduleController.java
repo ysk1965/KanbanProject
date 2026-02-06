@@ -34,6 +34,22 @@ public class ScheduleController {
         return ResponseEntity.ok(response);
     }
 
+    /**
+     * 주간 스케줄 조회 (7일치 데이터 한 번에)
+     * 기존 7개 API 호출 → 1개로 통합
+     */
+    @GetMapping("/weekly")
+    public ResponseEntity<ScheduleResponse.WeeklySchedule> getWeeklySchedule(
+            @PathVariable String boardId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(required = false) List<String> assigneeIds,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        ScheduleResponse.WeeklySchedule response = scheduleService.getWeeklySchedule(
+                boardId, startDate, endDate, assigneeIds, principal.getUserId());
+        return ResponseEntity.ok(response);
+    }
+
     @PostMapping
     public ResponseEntity<ScheduleResponse.BlockDetail> createScheduleBlock(
             @PathVariable String boardId,

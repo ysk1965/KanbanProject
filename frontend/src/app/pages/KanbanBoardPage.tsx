@@ -154,7 +154,7 @@ export function KanbanBoardPage() {
     setAlertModal({ open: true, type });
   };
 
-  // 보드 데이터 로드
+  // 보드 데이터 로드 - 통합 API 사용 (기존 13개 → 2개로 감소)
   useEffect(() => {
     const loadBoardData = async () => {
       if (!boardId) {
@@ -165,54 +165,39 @@ export function KanbanBoardPage() {
       try {
         setIsLoading(true);
 
-        const [
-          boardData,
-          blocksData,
-          featuresData,
-          tasksData,
-          tagsData,
-          inviteLinksData,
-          subscriptionData,
-          activitiesResponse,
-          membersData,
-          pricingResponse,
-          milestonesData,
-          tierData,
-          limitsData,
-        ] = await Promise.all([
-          boardService.getBoard(boardId),
-          blockService.getBlocks(boardId),
-          featureService.getFeatures(boardId),
-          taskService.getTasks(boardId),
-          tagService.getTags(boardId),
-          // Viewer는 invite links 권한이 없으므로 403 에러 시 빈 배열 반환
-          inviteLinkService.getInviteLinks(boardId).catch((err) => {
-            if (err?.response?.status === 403) return [];
-            throw err;
-          }),
-          subscriptionService.getSubscription(boardId),
-          activityService.getActivities(boardId),
-          memberService.getMembers(boardId),
+        // 통합 API 호출 (pricing은 전역 데이터이므로 별도 유지)
+        const [fullData, pricingResponse] = await Promise.all([
+          boardService.getBoardFull(boardId),
           pricingService.getPlans(),
-          milestoneService.getMilestones(boardId),
-          boardService.getBoardTier(boardId),
-          boardService.getBoardLimits(boardId),
         ]);
 
-        setBoard(boardData);
-        setBlocks(blocksData);
-        setTags(tagsData);
-        setInviteLinks(inviteLinksData);
-        setSubscription(subscriptionData);
-        setActivities(activitiesResponse.activities);
-        setActivityCursor(activitiesResponse.next_cursor || undefined);
-        setHasMoreActivity(activitiesResponse.has_more);
+        // 통합 응답 분배
+        setBoard({
+          id: fullData.id,
+          name: fullData.name,
+          description: fullData.description,
+          owner: fullData.owner,
+          my_role: fullData.my_role,
+          is_starred: fullData.is_starred,
+          member_count: fullData.member_count,
+          subscription: fullData.subscription,
+          selected_milestone_id: fullData.selected_milestone_id,
+          created_at: fullData.created_at,
+          updated_at: fullData.updated_at,
+        });
+        setBlocks(fullData.blocks);
+        setTags(fullData.tags);
+        setInviteLinks(fullData.invite_links || []);
+        setSubscription(fullData.subscription_detail);
+        setActivities(fullData.activities.activities);
+        setActivityCursor(fullData.activities.next_cursor || undefined);
+        setHasMoreActivity(fullData.activities.has_more);
         setPricingPlans(pricingResponse.plans);
-        setMilestones(milestonesData);
-        setTierInfo(tierData);
-        setBoardLimits(limitsData);
-        setAllFeatures(featuresData); // 마일스톤 모달용 전체 Feature 저장
-        setBoardMembersData(membersData.members.map((m: any) => ({
+        setMilestones(fullData.milestones.milestones);
+        setTierInfo(fullData.tier_info);
+        setBoardLimits(fullData.limits);
+        setAllFeatures(fullData.features); // 마일스톤 모달용 전체 Feature 저장
+        setBoardMembersData(fullData.members.members.map((m) => ({
           id: m.id,
           userId: m.user.id,
           name: m.user.name,
@@ -222,19 +207,19 @@ export function KanbanBoardPage() {
         })));
 
         // 보드에 선택된 마일스톤이 있으면 해당 마일스톤으로 필터링된 데이터 로드
-        let finalTasks = tasksData;
-        if (boardData.selected_milestone_id) {
-          setKanbanSelectedMilestoneId(boardData.selected_milestone_id);
+        let finalTasks = fullData.tasks;
+        if (fullData.selected_milestone_id) {
+          setKanbanSelectedMilestoneId(fullData.selected_milestone_id);
           const [filteredFeatures, filteredTasks] = await Promise.all([
-            featureService.getFeatures(boardId, boardData.selected_milestone_id),
-            taskService.getTasks(boardId, { milestone_id: boardData.selected_milestone_id }),
+            featureService.getFeatures(boardId, fullData.selected_milestone_id),
+            taskService.getTasks(boardId, { milestone_id: fullData.selected_milestone_id }),
           ]);
           setFeatures(filteredFeatures);
           setTasks(filteredTasks);
           finalTasks = filteredTasks;
         } else {
-          setFeatures(featuresData);
-          setTasks(tasksData);
+          setFeatures(fullData.features);
+          setTasks(fullData.tasks);
         }
 
         // 체크리스트가 있는 Task들의 ID 수집 후 배치 로드
@@ -362,12 +347,22 @@ export function KanbanBoardPage() {
   };
 
   // 마일스톤 열기 핸들러 (Premium 기능 체크)
-  const handleOpenMilestoneWithCheck = (milestone?: Milestone) => {
+  const handleOpenMilestoneWithCheck = async (milestone?: Milestone) => {
     if (!canAccessMilestone) {
       openUpgradeModal('milestone');
       return;
     }
-    setSelectedMilestone(milestone || null);
+    if (milestone && boardId) {
+      // 목록 조회에는 features가 없으므로 상세 조회로 features 포함된 데이터를 가져옴
+      try {
+        const detailed = await milestoneService.getMilestone(boardId, milestone.id);
+        setSelectedMilestone(detailed);
+      } catch {
+        setSelectedMilestone(milestone);
+      }
+    } else {
+      setSelectedMilestone(null);
+    }
     setIsMilestoneModalOpen(true);
   };
 

@@ -132,20 +132,17 @@ export function DailyScheduleView({ boardId, boardMembers, onViewFeature, onView
         setSettings(scheduleResponse.settings);
         setDailyChecklists(checklistResponse.columns || []);
       } else {
-        // 주 단위: 7일치 데이터 병렬 로드
-        const responses = await Promise.all(
-          weekDays.map(async (day) => {
-            const dayStr = format(day, 'yyyy-MM-dd');
-            const response = await scheduleAPI.getDailySchedule(boardId, dayStr);
-            return { date: dayStr, columns: response.columns, settings: response.settings };
-          })
-        );
+        // 주 단위: 통합 API로 7일치 데이터 1회 로드 (기존 7회 → 1회)
+        const startDateStr = format(weekDays[0], 'yyyy-MM-dd');
+        const endDateStr = format(weekDays[weekDays.length - 1], 'yyyy-MM-dd');
+
+        const response = await scheduleAPI.getWeeklySchedule(boardId, startDateStr, endDateStr);
 
         const newWeeklyData = new Map<string, ScheduleColumnInfo[]>();
-        responses.forEach(({ date, columns: cols, settings: s }) => {
+        response.days.forEach(({ date, columns: cols }) => {
           newWeeklyData.set(date, cols);
-          if (!settings && s) setSettings(s);
         });
+        if (response.settings) setSettings(response.settings);
         setWeeklyData(newWeeklyData);
       }
     } catch (error) {

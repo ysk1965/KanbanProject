@@ -2,6 +2,7 @@ package com.kanban.domain.board.controller;
 
 import com.kanban.domain.board.dto.BoardRequest;
 import com.kanban.domain.board.dto.BoardResponse;
+import com.kanban.domain.board.service.BoardFacadeService;
 import com.kanban.domain.board.service.BoardService;
 import com.kanban.global.security.UserPrincipal;
 import jakarta.validation.Valid;
@@ -20,6 +21,7 @@ import java.util.Map;
 public class BoardController {
 
     private final BoardService boardService;
+    private final BoardFacadeService boardFacadeService;
 
     @PostMapping
     public ResponseEntity<BoardResponse.Detail> createBoard(
@@ -41,6 +43,18 @@ public class BoardController {
             @PathVariable String boardId,
             @AuthenticationPrincipal UserPrincipal principal) {
         BoardResponse.Detail response = boardService.getBoard(boardId, principal.getUserId());
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * 보드 진입 시 필요한 모든 데이터를 한 번에 조회
+     * 기존 13개 개별 API 호출을 1개로 통합하여 서버 부하 감소
+     */
+    @GetMapping("/{boardId}/full")
+    public ResponseEntity<BoardResponse.Full> getBoardFull(
+            @PathVariable String boardId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        BoardResponse.Full response = boardFacadeService.getBoardFull(boardId, principal.getUserId());
         return ResponseEntity.ok(response);
     }
 

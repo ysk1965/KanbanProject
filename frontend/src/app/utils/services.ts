@@ -219,6 +219,15 @@ export const boardService = {
       throw error;
     }
   },
+
+  /**
+   * 보드 진입 시 필요한 모든 데이터를 한 번에 조회
+   * 기존 13개 개별 API 호출을 1개로 통합하여 서버 부하 감소
+   */
+  getBoardFull: async (boardId: string) => {
+    const data = await boardAPI.getBoardFull(boardId);
+    return data;
+  },
 };
 
 // ========================================

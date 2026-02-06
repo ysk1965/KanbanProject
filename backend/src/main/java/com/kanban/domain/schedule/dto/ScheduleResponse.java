@@ -25,6 +25,28 @@ public class ScheduleResponse {
         private List<ColumnInfo> columns;
     }
 
+    /**
+     * 주간 스케줄 응답 DTO
+     * 7개 API 호출 → 1개로 통합
+     */
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class WeeklySchedule {
+        private LocalDate startDate;
+        private LocalDate endDate;
+        private SettingsInfo settings;
+        private List<DayData> days;
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class DayData {
+        private LocalDate date;
+        private List<ColumnInfo> columns;
+    }
+
     @Getter
     @Builder
     @AllArgsConstructor

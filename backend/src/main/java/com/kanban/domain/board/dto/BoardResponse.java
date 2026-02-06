@@ -1,11 +1,20 @@
 package com.kanban.domain.board.dto;
 
+import com.kanban.domain.activity.dto.ActivityResponse;
+import com.kanban.domain.block.dto.BlockResponse;
 import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardMember;
 import com.kanban.domain.board.BoardTier;
 import com.kanban.domain.board.BoardRole;
+import com.kanban.domain.feature.dto.FeatureResponse;
+import com.kanban.domain.invite.dto.InviteResponse;
+import com.kanban.domain.member.dto.MemberResponse;
+import com.kanban.domain.milestone.dto.MilestoneResponse;
 import com.kanban.domain.subscription.Subscription;
 import com.kanban.domain.subscription.SubscriptionStatus;
+import com.kanban.domain.subscription.dto.SubscriptionResponse;
+import com.kanban.domain.tag.dto.TagResponse;
+import com.kanban.domain.task.dto.TaskResponse;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -200,5 +209,41 @@ public class BoardResponse {
                     .canCreateTask(canCreate)
                     .build();
         }
+    }
+
+    /**
+     * 보드 진입 시 필요한 모든 데이터를 한 번에 반환하는 통합 응답
+     * 기존 13개 개별 API 호출을 1개로 통합하여 서버 부하 감소
+     */
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class Full {
+        // 기본 보드 정보
+        private String id;
+        private String name;
+        private String description;
+        private OwnerInfo owner;
+        private BoardRole myRole;
+        private boolean isStarred;
+        private int memberCount;
+        private SubscriptionInfo subscription;
+        private ScheduleSettings scheduleSettings;
+        private String selectedMilestoneId;
+        private LocalDateTime createdAt;
+        private LocalDateTime updatedAt;
+
+        // 통합 데이터
+        private List<BlockResponse.Detail> blocks;
+        private List<FeatureResponse.Simple> features;
+        private List<TaskResponse.Simple> tasks;
+        private List<TagResponse.Detail> tags;
+        private List<InviteResponse.Detail> inviteLinks;  // Admin+ 권한 없으면 빈 리스트
+        private SubscriptionResponse.Detail subscriptionDetail;
+        private ActivityResponse.ListResponse activities;
+        private MemberResponse.ListResponse members;
+        private MilestoneResponse.ListResponse milestones;
+        private TierInfo tierInfo;
+        private Limits limits;
     }
 }
