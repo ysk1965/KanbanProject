@@ -1,4 +1,4 @@
-Backend 저장소 경로: /Users/cookapps/Documents/GitHub/KanbanProject
+Backend 저장소 경로: /Users/yoo/Documents/GitHub/KanbanProject
 
 1. Backend 저장소로 이동해서 `git pull` 실행
    - 충돌이나 문제 발생하면 바로 중단하고 알려줘

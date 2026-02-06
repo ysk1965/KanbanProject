@@ -1,10 +1,10 @@
 Frontend와 Backend 저장소를 모두 푸시합니다.
 
 ## Frontend (현재 디렉토리)
-경로: /Users/cookapps/Documents/GitHub/KanbanProject_FE
+경로: /Users/yoo/Documents/GitHub/KanbanProject_FE
 
 ## Backend
-경로: /Users/cookapps/Documents/GitHub/KanbanProject
+경로: /Users/yoo/Documents/GitHub/KanbanProject
 
 ## 실행 순서
 

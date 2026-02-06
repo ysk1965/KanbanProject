@@ -18,7 +18,7 @@
       "Bash(xargs kill:*)",
       "Bash(pkill:*)",
       "Bash(awk:*)",
-      "Bash(cd /Users/cookapps/Documents/GitHub/KanbanProject:*)",
+      "Bash(cd /Users/yoo/Documents/GitHub/KanbanProject:*)",
       "Bash(sleep:*)",
       "Bash(git pull:*)",
       "Bash(git add:*)",
@@ -46,7 +46,13 @@
       "Bash(npx vue-tsc:*)",
       "Bash(git reset:*)",
       "Bash(git stash:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(brew services:*)",
+      "Bash(redis-server:*)",
+      "Bash(docker compose:*)",
+      "Bash(brew install:*)",
+      "Bash(gh run list:*)",
+      "Bash(gh run view:*)"
     ]
   }
 }

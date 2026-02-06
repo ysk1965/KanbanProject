@@ -42,7 +42,7 @@
 - `frontend/src/app/pages/` - 페이지 변경
 - `frontend/src/app/contexts/` - Context 변경
 
-**Backend 변경사항** (별도 저장소: `/Users/cookapps/Documents/GitHub/KanbanProject/backend/`):
+**Backend 변경사항** (별도 저장소: `/Users/yoo/Documents/GitHub/KanbanProject/backend/`):
 - `backend/src/main/java/com/kanban/domain/` - 도메인 변경
 - 새로운 엔티티, Repository, Service, Controller 확인
 
