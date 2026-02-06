@@ -1,5 +1,8 @@
 package com.kanban.domain.feature.service;
 
+import com.kanban.domain.activity.ActivityAction;
+import com.kanban.domain.activity.TargetType;
+import com.kanban.domain.activity.service.ActivityService;
 import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.board.service.BoardService;
@@ -61,6 +64,7 @@ public class FeatureService {
     private final DailyChecklistRepository dailyChecklistRepository;
     private final NotificationRepository notificationRepository;
     private final FileUploadService fileUploadService;
+    private final ActivityService activityService;
 
     @Cacheable(value = "features", key = "#boardId", condition = "#milestoneId == null", unless = "#result == null")
     public FeatureResponse.ListResponse getFeatures(String boardId, String userId, String milestoneId) {
@@ -136,6 +140,9 @@ public class FeatureService {
 
         featureRepository.save(feature);
 
+        activityService.logActivity(board, creator, ActivityAction.FEATURE_CREATED, TargetType.FEATURE, feature.getId(),
+                Map.of("featureTitle", feature.getTitle(), "featureColor", feature.getColor()));
+
         log.info("Feature created: {} in board: {} by user: {}", feature.getId(), boardId, userId);
 
         return FeatureResponse.Detail.of(feature, List.of());
@@ -167,6 +174,11 @@ public class FeatureService {
             feature.updateAssignee(assignee);
         }
 
+        User updater = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        activityService.logActivity(feature.getBoard(), updater, ActivityAction.FEATURE_UPDATED, TargetType.FEATURE, featureId,
+                Map.of("featureTitle", feature.getTitle()));
+
         List<Tag> tags = featureTagRepository.findByFeatureIdWithFetch(featureId).stream()
                 .map(FeatureTag::getTag)
                 .toList();
@@ -187,6 +199,13 @@ public class FeatureService {
         if (!feature.getBoard().getId().equals(boardId)) {
             throw new BusinessException(ErrorCode.FEATURE_NOT_FOUND);
         }
+
+        // 활동 로그 기록 (삭제 전에 기록)
+        String featureTitle = feature.getTitle();
+        User deleter = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        activityService.logActivity(feature.getBoard(), deleter, ActivityAction.FEATURE_DELETED, TargetType.FEATURE, featureId,
+                Map.of("featureTitle", featureTitle));
 
         // 관련 데이터 삭제 (FK 의존성 순서: leaf → parent)
         // 1) 마일스톤-피처 연결 삭제

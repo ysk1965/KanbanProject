@@ -21,6 +21,10 @@ public interface ActivityLogRepository extends JpaRepository<ActivityLog, String
     List<ActivityLog> findByTarget(@Param("boardId") String boardId, @Param("targetType") TargetType targetType, @Param("targetId") String targetId);
 
     @Modifying
+    @Query("DELETE FROM ActivityLog a WHERE a.createdAt < :cutoff")
+    int deleteByCreatedAtBefore(@Param("cutoff") LocalDateTime cutoff);
+
+    @Modifying
     @Query("DELETE FROM ActivityLog a WHERE a.board.id = :boardId")
     void deleteByBoardId(@Param("boardId") String boardId);
 

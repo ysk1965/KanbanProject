@@ -27,6 +27,7 @@ public enum ActivityAction {
 
     // Checklist actions
     CHECKLIST_CREATED,
+    CHECKLIST_CHECKED,
 
     // Member actions
     MEMBER_INVITED,

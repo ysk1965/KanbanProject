@@ -1,5 +1,8 @@
 package com.kanban.domain.block.service;
 
+import com.kanban.domain.activity.ActivityAction;
+import com.kanban.domain.activity.TargetType;
+import com.kanban.domain.activity.service.ActivityService;
 import com.kanban.domain.block.Block;
 import com.kanban.domain.block.BlockRepository;
 import com.kanban.domain.block.FixedBlockType;
@@ -9,6 +12,8 @@ import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.board.service.BoardService;
 import com.kanban.domain.task.TaskRepository;
+import com.kanban.domain.user.User;
+import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +38,8 @@ public class BlockService {
     private final BoardRepository boardRepository;
     private final BoardService boardService;
     private final TaskRepository taskRepository;
+    private final UserRepository userRepository;
+    private final ActivityService activityService;
 
     @Cacheable(value = "blocks", key = "#boardId", unless = "#result == null")
     public BlockResponse.ListResponse getBlocks(String boardId, String userId) {
@@ -72,6 +79,11 @@ public class BlockService {
         Block newBlock = Block.createCustomBlock(board, request.getName(), request.getColor(), newPosition);
         blockRepository.save(newBlock);
 
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        activityService.logActivity(board, user, ActivityAction.BLOCK_CREATED, TargetType.BLOCK, newBlock.getId(),
+                Map.of("blockName", newBlock.getName()));
+
         log.info("Block created: {} in board: {} by user: {}", newBlock.getId(), boardId, userId);
 
         return BlockResponse.Detail.of(newBlock);
@@ -98,6 +110,11 @@ public class BlockService {
 
         block.updateInfo(request.getName(), request.getColor());
 
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        activityService.logActivity(block.getBoard(), user, ActivityAction.BLOCK_UPDATED, TargetType.BLOCK, blockId,
+                Map.of("blockName", block.getName()));
+
         log.info("Block updated: {} by user: {}", blockId, userId);
 
         return BlockResponse.Detail.of(block);
@@ -121,6 +138,13 @@ public class BlockService {
         if (block.isFixed()) {
             throw new BusinessException(ErrorCode.BLOCK_CANNOT_DELETE_FIXED);
         }
+
+        // 활동 로그 기록 (삭제 전에 기록)
+        String blockName = block.getName();
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        activityService.logActivity(block.getBoard(), user, ActivityAction.BLOCK_DELETED, TargetType.BLOCK, blockId,
+                Map.of("blockName", blockName));
 
         // 블록 내 Task들을 Task 고정 블록으로 이동
         Block taskBlock = blockRepository.findByBoardIdAndFixedType(boardId, FixedBlockType.TASK)

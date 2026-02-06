@@ -185,7 +185,11 @@ export function KanbanBoardPage() {
           featureService.getFeatures(boardId),
           taskService.getTasks(boardId),
           tagService.getTags(boardId),
-          inviteLinkService.getInviteLinks(boardId),
+          // Viewer는 invite links 권한이 없으므로 403 에러 시 빈 배열 반환
+          inviteLinkService.getInviteLinks(boardId).catch((err) => {
+            if (err?.response?.status === 403) return [];
+            throw err;
+          }),
           subscriptionService.getSubscription(boardId),
           activityService.getActivities(boardId),
           memberService.getMembers(boardId),
@@ -1419,11 +1423,6 @@ export function KanbanBoardPage() {
               >
                 <Users size={18} />
                 <span className="text-xs font-semibold">팀원</span>
-              </button>
-              <button
-                className="flex items-center gap-2 px-3 py-2 text-zinc-400 hover:text-foreground hover:bg-kanban-surface rounded-lg transition-all"
-              >
-                <Settings size={18} />
               </button>
             </div>
 

@@ -37,6 +37,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.kanban.domain.feature.FeatureStatus;
+
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -206,6 +208,11 @@ public class TaskService {
                 request.getEstimatedMinutes()
         );
 
+        User updater = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        activityService.logActivity(task.getBoard(), updater, ActivityAction.TASK_UPDATED, TargetType.TASK, taskId,
+                Map.of("taskTitle", task.getTitle()));
+
         List<Tag> tags = taskTagRepository.findByTaskId(taskId).stream()
                 .map(TaskTag::getTag)
                 .toList();
@@ -227,6 +234,13 @@ public class TaskService {
         }
 
         Feature feature = task.getFeature();
+
+        // 활동 로그 기록 (삭제 전에 기록)
+        String taskTitle = task.getTitle();
+        User deleter = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        activityService.logActivity(task.getBoard(), deleter, ActivityAction.TASK_DELETED, TargetType.TASK, taskId,
+                Map.of("taskTitle", taskTitle, "featureTitle", feature.getTitle()));
 
         // 완료된 Task였으면 completedTasks 감소
         if (task.getIsCompleted()) {
@@ -286,6 +300,7 @@ public class TaskService {
         Block oldBlock = task.getBlock();
         String oldBlockId = oldBlock.getId();
         String oldBlockName = oldBlock.getName();
+        FeatureStatus featureStatusBefore = task.getFeature().getStatus();
         task.moveToBlock(targetBlock);
 
         // position 처리 - 블록 내 모든 task의 position을 정규화
@@ -325,18 +340,21 @@ public class TaskService {
             User user = userRepository.findById(userId)
                     .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-            activityService.logActivity(
-                    task.getBoard(),
-                    user,
-                    ActivityAction.TASK_MOVED,
-                    TargetType.TASK,
-                    task.getId(),
-                    Map.of(
-                            "taskTitle", task.getTitle(),
-                            "fromBlock", oldBlockName,
-                            "toBlock", targetBlock.getName()
-                    )
-            );
+            // Done 블록으로 이동 시 TASK_COMPLETED 로그
+            if (targetBlock.isDoneBlock()) {
+                activityService.logActivity(task.getBoard(), user, ActivityAction.TASK_COMPLETED, TargetType.TASK, task.getId(),
+                        Map.of("taskTitle", task.getTitle(), "featureTitle", task.getFeature().getTitle()));
+
+                // Feature의 모든 Task가 완료되면 FEATURE_COMPLETED 로그
+                Feature feature = task.getFeature();
+                if (featureStatusBefore != FeatureStatus.COMPLETED && feature.getStatus() == FeatureStatus.COMPLETED) {
+                    activityService.logActivity(task.getBoard(), user, ActivityAction.FEATURE_COMPLETED, TargetType.FEATURE, feature.getId(),
+                            Map.of("featureTitle", feature.getTitle()));
+                }
+            } else {
+                activityService.logActivity(task.getBoard(), user, ActivityAction.TASK_MOVED, TargetType.TASK, task.getId(),
+                        Map.of("taskTitle", task.getTitle(), "fromBlock", oldBlockName, "toBlock", targetBlock.getName()));
+            }
         }
 
         log.info("Task moved: {} from block {} to block {} by user: {}", taskId, oldBlockId, targetBlock.getId(), userId);

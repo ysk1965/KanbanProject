@@ -186,6 +186,11 @@ public class ChecklistService {
 
         item.toggle();
 
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        activityService.logActivity(task.getBoard(), user, ActivityAction.CHECKLIST_CHECKED, TargetType.CHECKLIST, itemId,
+                Map.of("checklistTitle", item.getTitle(), "taskTitle", task.getTitle(), "isCompleted", item.getIsCompleted()));
+
         log.info("Checklist item toggled: {} to {} by user: {}", itemId, item.getIsCompleted(), userId);
 
         return ChecklistResponse.Detail.of(item);

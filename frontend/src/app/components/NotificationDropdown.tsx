@@ -28,14 +28,34 @@ function getActionText(activity: ActivityLog) {
   const { action, user, metadata } = activity;
 
   switch (action) {
-    case 'board_created':
+    case 'BLOCK_CREATED':
       return (
         <>
           <span className="font-medium text-foreground">{user.name}</span>
-          <span className="text-zinc-300">님이 보드를 생성했습니다</span>
+          <span className="text-zinc-300">님이 블록 </span>
+          <span className="font-medium text-purple-400">{metadata.blockName as string}</span>
+          <span className="text-zinc-300">을 생성했습니다</span>
         </>
       );
-    case 'feature_created':
+    case 'BLOCK_UPDATED':
+      return (
+        <>
+          <span className="font-medium text-foreground">{user.name}</span>
+          <span className="text-zinc-300">님이 블록 </span>
+          <span className="font-medium text-purple-400">{metadata.blockName as string}</span>
+          <span className="text-zinc-300">을 수정했습니다</span>
+        </>
+      );
+    case 'BLOCK_DELETED':
+      return (
+        <>
+          <span className="font-medium text-foreground">{user.name}</span>
+          <span className="text-zinc-300">님이 블록 </span>
+          <span className="font-medium text-purple-400">{metadata.blockName as string}</span>
+          <span className="text-zinc-300">을 삭제했습니다</span>
+        </>
+      );
+    case 'FEATURE_CREATED':
       return (
         <>
           <span className="font-medium text-foreground">{user.name}</span>
@@ -44,7 +64,34 @@ function getActionText(activity: ActivityLog) {
           <span className="text-zinc-300">를 생성했습니다</span>
         </>
       );
-    case 'task_created':
+    case 'FEATURE_UPDATED':
+      return (
+        <>
+          <span className="font-medium text-foreground">{user.name}</span>
+          <span className="text-zinc-300">님이 Feature </span>
+          <span className="font-medium text-indigo-400">{metadata.featureTitle as string}</span>
+          <span className="text-zinc-300">를 수정했습니다</span>
+        </>
+      );
+    case 'FEATURE_DELETED':
+      return (
+        <>
+          <span className="font-medium text-foreground">{user.name}</span>
+          <span className="text-zinc-300">님이 Feature </span>
+          <span className="font-medium text-indigo-400">{metadata.featureTitle as string}</span>
+          <span className="text-zinc-300">를 삭제했습니다</span>
+        </>
+      );
+    case 'FEATURE_COMPLETED':
+      return (
+        <>
+          <span className="font-medium text-foreground">{user.name}</span>
+          <span className="text-zinc-300">님이 Feature </span>
+          <span className="font-medium text-emerald-400">{metadata.featureTitle as string}</span>
+          <span className="text-zinc-300">를 완료했습니다</span>
+        </>
+      );
+    case 'TASK_CREATED':
       return (
         <>
           <span className="font-medium text-foreground">{user.name}</span>
@@ -53,7 +100,25 @@ function getActionText(activity: ActivityLog) {
           <span className="text-zinc-300">를 생성했습니다</span>
         </>
       );
-    case 'task_moved':
+    case 'TASK_UPDATED':
+      return (
+        <>
+          <span className="font-medium text-foreground">{user.name}</span>
+          <span className="text-zinc-300">님이 Task </span>
+          <span className="font-medium text-indigo-400">{metadata.taskTitle as string}</span>
+          <span className="text-zinc-300">를 수정했습니다</span>
+        </>
+      );
+    case 'TASK_DELETED':
+      return (
+        <>
+          <span className="font-medium text-foreground">{user.name}</span>
+          <span className="text-zinc-300">님이 Task </span>
+          <span className="font-medium text-indigo-400">{metadata.taskTitle as string}</span>
+          <span className="text-zinc-300">를 삭제했습니다</span>
+        </>
+      );
+    case 'TASK_MOVED':
       return (
         <>
           <span className="font-medium text-foreground">{user.name}</span>
@@ -66,49 +131,31 @@ function getActionText(activity: ActivityLog) {
           <span className="text-zinc-300">로 이동했습니다</span>
         </>
       );
-    case 'task_completed':
+    case 'TASK_COMPLETED':
       return (
         <>
           <span className="font-medium text-foreground">{user.name}</span>
-          <span className="text-zinc-300">님이 </span>
-          <span className="font-medium text-indigo-400">{metadata.taskTitle as string}</span>
+          <span className="text-zinc-300">님이 Task </span>
+          <span className="font-medium text-emerald-400">{metadata.taskTitle as string}</span>
           <span className="text-zinc-300">를 완료했습니다</span>
         </>
       );
-    case 'member_added':
+    case 'CHECKLIST_CREATED':
       return (
         <>
           <span className="font-medium text-foreground">{user.name}</span>
-          <span className="text-zinc-300">님이 </span>
-          <span className="font-medium text-indigo-400">{metadata.memberName as string}</span>
-          <span className="text-zinc-300">님을 보드에 추가했습니다</span>
+          <span className="text-zinc-300">님이 체크리스트 </span>
+          <span className="font-medium text-indigo-400">{metadata.checklistTitle as string}</span>
+          <span className="text-zinc-300">를 생성했습니다</span>
         </>
       );
-    case 'member_removed':
+    case 'CHECKLIST_CHECKED':
       return (
         <>
           <span className="font-medium text-foreground">{user.name}</span>
-          <span className="text-zinc-300">님이 </span>
-          <span className="font-medium text-indigo-400">{metadata.memberName as string}</span>
-          <span className="text-zinc-300">님을 보드에서 제거했습니다</span>
-        </>
-      );
-    case 'block_created':
-      return (
-        <>
-          <span className="font-medium text-foreground">{user.name}</span>
-          <span className="text-zinc-300">님이 커스텀 블록 </span>
-          <span className="font-medium text-purple-400">{metadata.blockName as string}</span>
-          <span className="text-zinc-300">을 생성했습니다</span>
-        </>
-      );
-    case 'block_deleted':
-      return (
-        <>
-          <span className="font-medium text-foreground">{user.name}</span>
-          <span className="text-zinc-300">님이 커스텀 블록 </span>
-          <span className="font-medium text-purple-400">{metadata.blockName as string}</span>
-          <span className="text-zinc-300">을 삭제했습니다</span>
+          <span className="text-zinc-300">님이 체크리스트 </span>
+          <span className="font-medium text-indigo-400">{metadata.checklistTitle as string}</span>
+          <span className="text-zinc-300">를 {metadata.isCompleted ? '완료' : '미완료'}했습니다</span>
         </>
       );
     default:

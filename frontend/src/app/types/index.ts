@@ -440,6 +440,8 @@ export type ActivityAction =
   | 'TASK_MOVED'
   | 'TASK_COMPLETED'
   | 'TASK_REOPENED'
+  | 'CHECKLIST_CREATED'
+  | 'CHECKLIST_CHECKED'
   | 'TAG_CREATED'
   | 'TAG_DELETED'
   | 'MEMBER_INVITED'
