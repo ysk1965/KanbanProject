@@ -43,6 +43,7 @@ import {
 import { statisticsService } from '../utils/services';
 import { getInitials } from '../utils/assigneeColor';
 import { WeightLevelSettingsModal } from './WeightLevelSettingsModal';
+import { formatDate, formatDateShort } from '../utils/dateUtils';
 
 interface StatisticsViewProps {
   boardId: string;
@@ -125,8 +126,8 @@ export function StatisticsView({
 
     setFilter((prev) => ({
       ...prev,
-      start_date: startDate ? startDate.toISOString().split('T')[0] : null,
-      end_date: endDate.toISOString().split('T')[0],
+      start_date: startDate ? formatDateShort(startDate) : null,
+      end_date: formatDateShort(endDate),
     }));
   }, [periodPreset]);
 
@@ -165,7 +166,7 @@ export function StatisticsView({
     if (!statistics?.daily_trend) return [];
     return statistics.daily_trend.map((d) => ({
       ...d,
-      date: new Date(d.date).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }),
+      date: formatDate(d.date, 'M월 d일'),
       hours: Number((d.total_minutes / 60).toFixed(1)),
       completed_hours: Number((d.completed_minutes / 60).toFixed(1)),
     }));
@@ -1542,7 +1543,7 @@ function IndividualProductivityView({
       : 0;
 
     return statistics.daily_trend.slice(-14).map((d) => ({
-      date: new Date(d.date).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }),
+      date: formatDate(d.date, 'M월 d일'),
       hours: Number(((d.total_minutes * memberRatio) / 60).toFixed(1)),
     }));
   }, [statistics, selectedMemberStats]);

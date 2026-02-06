@@ -114,6 +114,19 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
     return 'bg-blue-500/20 border-blue-500';
   };
 
+  // 겹침 체크 함수
+  const checkOverlap = useCallback((newStartMinutes: number, newEndMinutes: number): boolean => {
+    for (const other of otherBlocks) {
+      if (other.id === block.id) continue;
+      const otherStart = timeToMinutes(other.start_time);
+      const otherEnd = timeToMinutes(other.end_time);
+      if (isOverlapping(newStartMinutes, newEndMinutes, otherStart, otherEnd)) {
+        return true;
+      }
+    }
+    return false;
+  }, [otherBlocks, block.id]);
+
   // 리사이즈 시작 핸들러
   const handleResizeStart = useCallback((e: React.MouseEvent, handle: 'top' | 'bottom') => {
     e.stopPropagation();
@@ -128,10 +141,40 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
 
     const handleMouseMove = (moveEvent: MouseEvent) => {
       const deltaY = moveEvent.clientY - startY;
-      // 30분 단위로 스냅 (slotHeight px = 30분)
-      const snappedDelta = Math.round(deltaY / slotHeight) * slotHeight;
+      let snappedDelta: number;
+
+      if (handle === 'top') {
+        // 상단 핸들: 새 top 위치를 30분 그리드에 정확히 스냅
+        const newAbsoluteTop = top + deltaY;
+        const snappedTop = Math.round(newAbsoluteTop / slotHeight) * slotHeight;
+        snappedDelta = snappedTop - top;
+      } else {
+        // 하단 핸들: 새 bottom 위치를 30분 그리드에 정확히 스냅
+        const newAbsoluteBottom = top + height + deltaY;
+        const snappedBottom = Math.round(newAbsoluteBottom / slotHeight) * slotHeight;
+        snappedDelta = snappedBottom - (top + height);
+      }
+
       setResizeOffset(snappedDelta);
       resizeOffsetRef.current = snappedDelta;
+
+      // 겹침 체크
+      let newStartMin = startMinutes;
+      let newEndMin = endMinutes;
+      if (handle === 'top') {
+        const snappedSlots = Math.round((top + snappedDelta) / slotHeight);
+        newStartMin = workStartMinutes + snappedSlots * 30;
+        newStartMin = Math.max(workStartMinutes, newStartMin);
+        newStartMin = Math.min(newEndMin - 30, newStartMin);
+      } else {
+        const snappedSlots = Math.round((top + height + snappedDelta) / slotHeight);
+        newEndMin = workStartMinutes + snappedSlots * 30;
+        newEndMin = Math.min(workEndMinutes, newEndMin);
+        newEndMin = Math.max(newStartMin + 30, newEndMin);
+      }
+      const overlap = checkOverlap(newStartMin, newEndMin);
+      setHasOverlap(overlap);
+      hasOverlapRef.current = overlap;
     };
 
     const handleMouseUp = () => {
@@ -139,27 +182,34 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
       document.removeEventListener('mouseup', handleMouseUp);
       document.body.style.userSelect = '';
 
-      // Ref에서 최신값 읽기 (state updater 내 사이드이펙트 방지)
+      // Ref에서 최신값 읽기
       const finalOffset = resizeOffsetRef.current;
+      const finalHasOverlap = hasOverlapRef.current;
 
       // 시각 상태 리셋
       setResizeOffset(0);
       resizeOffsetRef.current = 0;
       setIsResizing(null);
+      setHasOverlap(false);
+      hasOverlapRef.current = false;
+
+      // 겹침이면 리사이즈 취소
+      if (finalHasOverlap) return;
 
       // 콜백은 state updater 바깥에서 호출
       if (finalOffset !== 0 && onResizeRef.current) {
-        const deltaMinutes = Math.round(finalOffset / slotHeight) * 30;
-
         let newStartMinutes = startMinutes;
         let newEndMinutes = endMinutes;
 
         if (handle === 'top') {
-          newStartMinutes = startMinutes + deltaMinutes;
+          // 절대 위치에서 30분 단위 시간 계산
+          const snappedSlots = Math.round((top + finalOffset) / slotHeight);
+          newStartMinutes = workStartMinutes + snappedSlots * 30;
           newStartMinutes = Math.max(workStartMinutes, newStartMinutes);
           newStartMinutes = Math.min(newEndMinutes - 30, newStartMinutes);
         } else {
-          newEndMinutes = endMinutes + deltaMinutes;
+          const snappedSlots = Math.round((top + height + finalOffset) / slotHeight);
+          newEndMinutes = workStartMinutes + snappedSlots * 30;
           newEndMinutes = Math.min(workEndMinutes, newEndMinutes);
           newEndMinutes = Math.max(newStartMinutes + 30, newEndMinutes);
         }
@@ -173,20 +223,7 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
 
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
-  }, [block.id, slotHeight, startMinutes, endMinutes, workStartMinutes, workEndMinutes]);
-
-  // 겹침 체크 함수
-  const checkOverlap = useCallback((newStartMinutes: number, newEndMinutes: number): boolean => {
-    for (const other of otherBlocks) {
-      if (other.id === block.id) continue;
-      const otherStart = timeToMinutes(other.start_time);
-      const otherEnd = timeToMinutes(other.end_time);
-      if (isOverlapping(newStartMinutes, newEndMinutes, otherStart, otherEnd)) {
-        return true;
-      }
-    }
-    return false;
-  }, [otherBlocks, block.id]);
+  }, [block.id, slotHeight, startMinutes, endMinutes, workStartMinutes, workEndMinutes, checkOverlap, top, height]);
 
   // Long press 시작 핸들러
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -209,16 +246,18 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
       // 드래그 중 마우스 이동 핸들러
       const handleDragMove = (moveEvent: MouseEvent) => {
         const deltaY = moveEvent.clientY - dragStartY.current;
-        // 30분 단위로 스냅
-        const snappedDelta = Math.round(deltaY / slotHeight) * slotHeight;
+        // 절대 위치를 30분 그리드에 정확히 스냅
+        const newAbsoluteTop = top + deltaY;
+        const snappedTop = Math.round(newAbsoluteTop / slotHeight) * slotHeight;
+        const snappedDelta = snappedTop - top;
         setDragOffset(snappedDelta);
         dragOffsetRef.current = snappedDelta;
 
-        // 겹침 체크
-        const deltaMinutes = Math.round(snappedDelta / slotHeight) * 30;
+        // 겹침 체크 (절대 위치에서 시간 계산)
+        const snappedSlots = Math.round(snappedTop / slotHeight);
         const duration = endMinutes - startMinutes;
-        let newStartMinutes = startMinutes + deltaMinutes;
-        let newEndMinutes = endMinutes + deltaMinutes;
+        let newStartMinutes = workStartMinutes + snappedSlots * 30;
+        let newEndMinutes = newStartMinutes + duration;
 
         // 근무 시간 범위 내로 제한
         if (newStartMinutes < workStartMinutes) {
@@ -257,11 +296,12 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
 
         // 콜백은 state updater 바깥에서 호출
         if (finalOffset !== 0 && onMoveRef.current) {
-          const deltaMinutes = Math.round(finalOffset / slotHeight) * 30;
+          // 절대 위치에서 30분 단위 시간 계산
+          const snappedSlots = Math.round((top + finalOffset) / slotHeight);
           const duration = endMinutes - startMinutes;
 
-          let newStartMinutes = startMinutes + deltaMinutes;
-          let newEndMinutes = endMinutes + deltaMinutes;
+          let newStartMinutes = workStartMinutes + snappedSlots * 30;
+          let newEndMinutes = newStartMinutes + duration;
 
           // 근무 시간 범위 내로 제한
           if (newStartMinutes < workStartMinutes) {
@@ -283,7 +323,7 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
       document.addEventListener('mousemove', handleDragMove);
       document.addEventListener('mouseup', handleDragEnd);
     }, 150); // 0.15초 long press
-  }, [block.id, slotHeight, startMinutes, endMinutes, workStartMinutes, workEndMinutes, checkOverlap]);
+  }, [block.id, slotHeight, startMinutes, endMinutes, workStartMinutes, workEndMinutes, checkOverlap, top]);
 
   // 마우스 업 시 long press 타이머 취소
   const handleMouseUp = useCallback(() => {
@@ -322,8 +362,8 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
       ref={blockRef}
       className={`absolute left-1 right-1 rounded-md border-l-4 px-2 py-1 pointer-events-auto
         overflow-hidden ${getBackgroundColor()} ${isResizing || isDragging ? 'z-20' : ''}
-        ${isDragging && hasOverlap ? 'cursor-not-allowed shadow-2xl ring-2 ring-red-500 bg-red-500/30' : isDragging ? 'cursor-grabbing shadow-2xl ring-2 ring-white/50' : 'cursor-pointer hover:shadow-lg'}
-        ${isDragging ? '' : 'transition-shadow'}`}
+        ${(isDragging || isResizing) && hasOverlap ? 'cursor-not-allowed shadow-2xl ring-2 ring-red-500 bg-red-500/30' : isDragging ? 'cursor-grabbing shadow-2xl ring-2 ring-white/50' : isResizing ? 'cursor-ns-resize shadow-lg' : 'cursor-pointer hover:shadow-lg'}
+        ${isDragging || isResizing ? '' : 'transition-shadow'}`}
       style={{ top: `${displayTop}px`, height: `${Math.max(displayHeight, slotHeight)}px` }}
       onClick={() => !isResizing && !isDragging && onClick?.(block)}
       onMouseDown={handleMouseDown}
@@ -360,9 +400,9 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
       </div>
 
       {/* 겹침 시 경고 오버레이 */}
-      {isDragging && hasOverlap && (
+      {(isDragging || isResizing) && hasOverlap && (
         <div className="absolute inset-0 bg-red-500/60 flex items-center justify-center rounded-md">
-          <span className="text-white text-xs font-bold">이동 불가</span>
+          <span className="text-white text-xs font-bold">{isDragging ? '이동 불가' : '변경 불가'}</span>
         </div>
       )}
 

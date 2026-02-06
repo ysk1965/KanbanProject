@@ -5,6 +5,7 @@ import { notificationAPI } from '../utils/api';
 import { NotificationItem, ActivityLog } from '../types';
 import { Button } from './ui/button';
 import { getAssigneeClasses } from '../utils/assigneeColor';
+import { formatDate, formatRelativeTime as dateUtilsFormatRelativeTime } from '../utils/dateUtils';
 
 function getTimeAgo(dateStr: string) {
   const date = new Date(dateStr.endsWith('Z') ? dateStr : dateStr + 'Z');
@@ -20,7 +21,7 @@ function getTimeAgo(dateStr: string) {
   if (diffHours < 24) return `${diffHours}시간 전`;
   if (diffDays < 7) return `${diffDays}일 전`;
 
-  return date.toLocaleDateString('ko-KR');
+  return formatDate(dateStr, 'yyyy-MM-dd');
 }
 
 function getActionText(activity: ActivityLog) {

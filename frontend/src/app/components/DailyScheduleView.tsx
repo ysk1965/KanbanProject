@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Settings, Plus, Loader2, Clock, CheckSquare, Check } from 'lucide-react';
 import { Button } from './ui/button';
 import { format, addDays, subDays, startOfDay, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval } from 'date-fns';
-import { ko } from 'date-fns/locale';
+import { formatDate } from '../utils/dateUtils';
 import { BoardMember } from './ShareBoardModal';
 import { ScheduleBlock } from './ScheduleBlock';
 import { ScheduleDetailPanel } from './ScheduleDetailPanel';
@@ -190,7 +190,7 @@ export function DailyScheduleView({ boardId, boardMembers, onViewFeature, onView
   };
   const handleToday = () => setSelectedDate(startOfDay(new Date()));
 
-  const dayOfWeek = format(selectedDate, 'EEEE', { locale: ko });
+  const dayOfWeek = formatDate(selectedDate, 'EEEE');
   const isToday = format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
   const isTodayInWeek = weekDays.some(d => format(d, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd'));
 
@@ -203,8 +203,14 @@ export function DailyScheduleView({ boardId, boardMembers, onViewFeature, onView
     return map;
   }, [columns]);
 
+  // Viewer 권한 여부
+  const isViewer = currentUserRole === 'viewer';
+
   // 드래그 시작
   const handleMouseDown = (e: React.MouseEvent, userId: string, slotIndex: number) => {
+    // Viewer는 타임블록 생성 불가
+    if (isViewer) return;
+
     e.preventDefault(); // 텍스트 선택 방지
     setIsDragging(true);
     setDragState({
@@ -460,8 +466,8 @@ export function DailyScheduleView({ boardId, boardMembers, onViewFeature, onView
             </Button>
             <span className="text-lg font-semibold text-foreground min-w-[280px] text-center">
               {viewMode === 'day'
-                ? `${format(selectedDate, 'yyyy년 M월 d일', { locale: ko })} (${dayOfWeek})`
-                : `${format(weekDays[0], 'M월 d일', { locale: ko })} - ${format(weekDays[6], 'M월 d일', { locale: ko })}`
+                ? `${formatDate(selectedDate, 'yyyy년 M월 d일')} (${dayOfWeek})`
+                : `${formatDate(weekDays[0], 'M월 d일')} - ${formatDate(weekDays[6], 'M월 d일')}`
               }
             </span>
             <Button
@@ -518,6 +524,7 @@ export function DailyScheduleView({ boardId, boardMembers, onViewFeature, onView
           })) as BoardMemberType[]}
           selectedDate={selectedDate}
           onDateChange={setSelectedDate}
+          currentUserRole={currentUserRole}
         />
       ) : (
       /* 타임블록 탭 - 스케줄 그리드 */
@@ -638,15 +645,17 @@ export function DailyScheduleView({ boardId, boardMembers, onViewFeature, onView
                     return (
                       <div
                         key={`${member.userId}-${time}`}
-                        className={`w-48 flex-shrink-0 border-r border-kanban-border transition-colors cursor-pointer group relative ${
-                          isSelected ? 'bg-indigo-500/30' : 'hover:bg-white/5'
+                        className={`w-48 flex-shrink-0 border-r border-kanban-border transition-colors group relative ${
+                          isViewer ? 'cursor-default' : 'cursor-pointer'
+                        } ${
+                          isSelected ? 'bg-indigo-500/30' : isViewer ? '' : 'hover:bg-white/5'
                         }`}
                         style={{ height: `${SLOT_HEIGHT}px` }}
                         onMouseDown={(e) => handleMouseDown(e, member.userId, slotIndex)}
                         onMouseEnter={() => handleMouseEnter(member.userId, slotIndex)}
                       >
-                        {/* 빈 셀 호버 시 + 버튼 표시 */}
-                        {!isSelected && (
+                        {/* 빈 셀 호버 시 + 버튼 표시 (Viewer 제외) */}
+                        {!isSelected && !isViewer && (
                           <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                             <Plus className="h-4 w-4 text-zinc-400" />
                           </div>
@@ -710,10 +719,10 @@ export function DailyScheduleView({ boardId, boardMembers, onViewFeature, onView
                     }`}
                   >
                     <div className={`text-sm font-medium ${isCurrentDay ? 'text-indigo-400' : 'text-foreground'}`}>
-                      {format(day, 'E', { locale: ko })}
+                      {formatDate(day, 'E')}
                     </div>
                     <div className={`text-xs ${isCurrentDay ? 'text-indigo-400' : 'text-zinc-400'}`}>
-                      {format(day, 'M/d')}
+                      {formatDate(day, 'M/d')}
                     </div>
                   </div>
                 );
@@ -811,7 +820,9 @@ export function DailyScheduleView({ boardId, boardMembers, onViewFeature, onView
       {/* 하단 안내 */}
       <div className="px-6 py-3 bg-kanban-card border-t border-kanban-border">
         <p className="text-sm text-zinc-400">
-          {viewMode === 'day'
+          {isViewer
+            ? 'Viewer 권한은 타임블록을 조회만 할 수 있습니다'
+            : viewMode === 'day'
             ? '빈 영역을 세로로 드래그하여 새 타임블록을 생성하세요'
             : '블록을 클릭하여 상세 정보를 확인하세요'
           }

@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Plus, Users, Settings, Filter, ArrowLeft, LayoutGrid, Calendar, CalendarDays, Flag, Pencil, Lock, BarChart3, Search, X, User, ChevronDown, CheckCircle2, Circle, Tag as TagIcon, Layers, ChevronsDownUp, ChevronsUpDown, Shield } from 'lucide-react';
+import { Plus, Users, Settings, Filter, ArrowLeft, LayoutGrid, Calendar, CalendarDays, Flag, Pencil, Lock, BarChart3, Search, X, User, ChevronDown, CheckCircle2, Circle, Tag as TagIcon, Layers, ChevronsDownUp, ChevronsUpDown, Shield, Lightbulb, MessageSquare } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 
 // 뷰 모드 타입
@@ -22,6 +22,7 @@ import { SubscriptionModal } from '../components/SubscriptionModal';
 // ActivityLogModal replaced by NotificationDropdown
 import { NotificationDropdown } from '../components/NotificationDropdown';
 import { MilestoneModal } from '../components/MilestoneModal';
+import { MilestoneOnboardingModal } from '../components/MilestoneOnboardingModal';
 import { UpgradeModal, UpgradeTrigger } from '../components/UpgradeModal';
 import { AlertModal } from '../components/AlertModal';
 import { UserMenu } from '../components/UserMenu';
@@ -30,6 +31,8 @@ import { WeeklyScheduleView } from '../components/WeeklyScheduleView';
 import { StatisticsView } from '../components/StatisticsView';
 import { ManagementView } from '../components/ManagementView';
 import { EmptyBoardGuide } from '../components/EmptyBoardGuide';
+import { InquiryModal } from '../components/InquiryModal';
+import { AnnouncementDisplay } from '../components/AnnouncementDisplay';
 import { Button } from '../components/ui/button';
 import {
   Popover,
@@ -55,7 +58,8 @@ import {
   activityService,
   pricingService,
   milestoneService,
-  checklistService
+  checklistService,
+  inquiryService
 } from '../utils/services';
 import { notificationAPI } from '../utils/api';
 
@@ -120,10 +124,13 @@ export function KanbanBoardPage() {
   const [isAddFeatureModalOpen, setIsAddFeatureModalOpen] = useState(false);
   const [isShareBoardModalOpen, setIsShareBoardModalOpen] = useState(false);
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
+  const [isInquiryModalOpen, setIsInquiryModalOpen] = useState(false);
   const [isActivityLogModalOpen, setIsActivityLogModalOpen] = useState(false);
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
+  const [unreadInquiryCount, setUnreadInquiryCount] = useState(0);
   const [isMilestoneModalOpen, setIsMilestoneModalOpen] = useState(false);
   const [selectedMilestone, setSelectedMilestone] = useState<Milestone | null>(null);
+  const [isMilestoneOnboardingOpen, setIsMilestoneOnboardingOpen] = useState(false);
   const [kanbanSelectedMilestoneId, setKanbanSelectedMilestoneId] = useState<string>('all');
   const [filterOptions, setFilterOptions] = useState<FilterOptions>({
     keyword: '',
@@ -287,6 +294,20 @@ export function KanbanBoardPage() {
     const interval = setInterval(fetchUnreadCount, 30000);
     return () => clearInterval(interval);
   }, [boardId, currentUser]);
+
+  // 문의 읽지 않은 답변 수 로드
+  useEffect(() => {
+    if (!currentUser) return;
+    const fetchUnreadInquiryCount = async () => {
+      try {
+        const count = await inquiryService.getUnreadReplyCount();
+        setUnreadInquiryCount(count);
+      } catch (error) {
+        /* silently fail */
+      }
+    };
+    fetchUnreadInquiryCount();
+  }, [currentUser, isInquiryModalOpen]);
 
   // Premium 기능 접근 제어 헬퍼 (hideBilling 사용자는 제한 없음)
   const canAccessSchedule = hideBilling || (tierInfo?.can_access_schedule ?? true);
@@ -655,10 +676,14 @@ export function KanbanBoardPage() {
     const dragBlock = sortedBlocks[dragIndex];
     if (!dragBlock || dragBlock.type === 'FIXED') return;
 
+    // Task(FIXED) 블록 앞으로는 이동 불가
+    const taskFixedIdx = sortedBlocks.findIndex((b) => b.fixed_type === 'TASK');
+    const minInsert = taskFixedIdx >= 0 ? taskFixedIdx + 1 : 0;
+
     const otherBlocks = sortedBlocks.filter((_, index) => index !== dragIndex);
     let insertIndex = targetIndex;
     if (dragIndex < targetIndex) insertIndex = targetIndex - 1;
-    if (insertIndex < 0) insertIndex = 0;
+    if (insertIndex < minInsert) insertIndex = minInsert;
     if (insertIndex > otherBlocks.length) insertIndex = otherBlocks.length;
 
     const newBlockOrder = [
@@ -754,12 +779,21 @@ export function KanbanBoardPage() {
     }
   };
 
-  const handleDeleteFeature = (featureId: string) => {
+  const handleDeleteFeature = async (featureId: string) => {
+    if (!boardId) return;
+
+    // Optimistic UI update
     setFeatures(features.filter((f) => f.id !== featureId));
-    setAllFeatures(allFeatures.filter((f) => f.id !== featureId)); // 전체 Feature 목록에서도 삭제
+    setAllFeatures(allFeatures.filter((f) => f.id !== featureId));
     setTasks(tasks.filter((t) => t.feature_id !== featureId));
     setIsFeatureModalOpen(false);
     setSelectedFeature(null);
+
+    try {
+      await featureService.deleteFeature(boardId, featureId);
+    } catch (error) {
+      console.error('Failed to delete feature:', error);
+    }
   };
 
   // Task 관리
@@ -1157,6 +1191,7 @@ export function KanbanBoardPage() {
 
   return (
     <DragProvider>
+      <AnnouncementDisplay />
       <div className="min-h-screen bg-bridge-dark flex flex-col">
         <TrialBanner
           status={subscription?.status || 'TRIAL'}
@@ -1215,6 +1250,14 @@ export function KanbanBoardPage() {
                       })}
                     </SelectContent>
                   </Select>
+                ) : allFeatures.length > 0 ? (
+                  <button
+                    onClick={() => setIsMilestoneOnboardingOpen(true)}
+                    className="flex items-center gap-1.5 group"
+                  >
+                    <Lightbulb size={12} className="text-indigo-400 animate-pulse" />
+                    <span className="text-xs text-indigo-400 group-hover:text-indigo-300 transition-colors">마일스톤을 시작해보세요</span>
+                  </button>
                 ) : (
                   <span className="text-xs text-zinc-500">마일스톤 없음</span>
                 )}
@@ -1358,6 +1401,18 @@ export function KanbanBoardPage() {
                 onNotificationClick={handleNotificationClick}
                 onUnreadCountChange={setUnreadNotificationCount}
               />
+              <button
+                onClick={() => setIsInquiryModalOpen(true)}
+                className="relative flex items-center gap-2 px-3 py-2 text-zinc-400 hover:text-foreground hover:bg-kanban-surface rounded-lg transition-all"
+                title="문의하기"
+              >
+                <MessageSquare size={18} />
+                {unreadInquiryCount > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+                    {unreadInquiryCount > 99 ? '99+' : unreadInquiryCount}
+                  </span>
+                )}
+              </button>
                 <button
                 onClick={() => setIsShareBoardModalOpen(true)}
                 className="flex items-center gap-2 px-3 py-2 text-zinc-400 hover:text-foreground hover:bg-kanban-surface rounded-lg transition-all"
@@ -1797,9 +1852,10 @@ export function KanbanBoardPage() {
             {/* 칸반 보드 */}
             <div className="flex-1 p-6 overflow-x-auto kanban-scrollbar">
               <div className="flex gap-4 min-w-max">
-              {sortedBlocks.filter((b) => b.fixed_type !== 'FEATURE').map((block, index) => {
+              {sortedBlocks.filter((b) => b.fixed_type !== 'FEATURE').map((block) => {
               const customBlocks = sortedBlocks.filter((b) => b.type === 'CUSTOM');
               const customBlockIndex = customBlocks.findIndex((b) => b.id === block.id);
+              const sortedBlockIndex = sortedBlocks.findIndex((b) => b.id === block.id);
 
               return (
                 <div key={block.id} className="flex items-start gap-4">
@@ -1830,7 +1886,7 @@ export function KanbanBoardPage() {
                       boardId={boardId || ''}
                       expandedChecklistTaskIds={expandedChecklistTaskIds}
                       onToggleChecklistExpand={handleToggleChecklistExpand}
-                      blockIndex={index}
+                      blockIndex={sortedBlockIndex}
                       onMoveBlockDrag={handleMoveBlockDrag}
                       checklistDataMap={checklistDataMap}
                       memberColorMap={memberColorMap}
@@ -1993,6 +2049,11 @@ export function KanbanBoardPage() {
           />
         )}
 
+        <InquiryModal
+          isOpen={isInquiryModalOpen}
+          onClose={() => setIsInquiryModalOpen(false)}
+        />
+
         {/* ActivityLogModal replaced by NotificationDropdown */}
 
         <MilestoneModal
@@ -2005,6 +2066,12 @@ export function KanbanBoardPage() {
           features={allFeatures}
           onSave={handleSaveMilestone}
           onDelete={handleDeleteMilestone}
+        />
+
+        <MilestoneOnboardingModal
+          isOpen={isMilestoneOnboardingOpen}
+          onClose={() => setIsMilestoneOnboardingOpen(false)}
+          onCreateMilestone={() => handleOpenMilestoneWithCheck()}
         />
 
         {!hideBilling && (

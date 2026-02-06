@@ -1,16 +1,24 @@
 import { useState } from 'react';
 import { Routes, Route, NavLink, Navigate } from 'react-router-dom';
-import { LayoutDashboard, Users, Folder, CreditCard, ArrowLeft } from 'lucide-react';
+import { LayoutDashboard, Users, Folder, CreditCard, BarChart3, Megaphone, Shield, ArrowLeft, MessageSquare } from 'lucide-react';
 import { AdminDashboardTab } from '../components/admin/AdminDashboardTab';
 import { AdminUsersTab } from '../components/admin/AdminUsersTab';
 import { AdminBoardsTab } from '../components/admin/AdminBoardsTab';
 import { AdminSubscriptionsTab } from '../components/admin/AdminSubscriptionsTab';
+import { AdminAnalyticsTab } from '../components/admin/AdminAnalyticsTab';
+import { AdminAnnouncementsTab } from '../components/admin/AdminAnnouncementsTab';
+import { AdminSystemTab } from '../components/admin/AdminSystemTab';
+import { AdminInquiriesTab } from '../components/admin/AdminInquiriesTab';
 
 const navItems = [
   { path: 'dashboard', label: '대시보드', icon: LayoutDashboard },
+  { path: 'analytics', label: '분석 / 리포트', icon: BarChart3 },
   { path: 'users', label: '사용자 관리', icon: Users },
   { path: 'boards', label: '보드 관리', icon: Folder },
   { path: 'subscriptions', label: '구독 관리', icon: CreditCard },
+  { path: 'announcements', label: '공지사항', icon: Megaphone },
+  { path: 'system', label: '시스템 관리', icon: Shield },
+  { path: 'inquiries', label: '문의 관리', icon: MessageSquare },
 ];
 
 export function AdminPage() {
@@ -62,9 +70,13 @@ export function AdminPage() {
             <Routes>
               <Route path="/" element={<Navigate to="dashboard" replace />} />
               <Route path="dashboard" element={<AdminDashboardTab />} />
+              <Route path="analytics" element={<AdminAnalyticsTab />} />
               <Route path="users" element={<AdminUsersTab />} />
               <Route path="boards" element={<AdminBoardsTab />} />
               <Route path="subscriptions" element={<AdminSubscriptionsTab />} />
+              <Route path="announcements" element={<AdminAnnouncementsTab />} />
+              <Route path="system" element={<AdminSystemTab />} />
+              <Route path="inquiries" element={<AdminInquiriesTab />} />
             </Routes>
           </main>
         </div>

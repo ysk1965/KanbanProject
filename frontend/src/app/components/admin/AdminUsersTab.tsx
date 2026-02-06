@@ -3,6 +3,7 @@ import { Search, ChevronLeft, ChevronRight, Shield, User as UserIcon, Mail, Cale
 import { adminService } from '../../utils/services';
 import { UserListResponse } from '../../utils/api';
 import { AdminUserDetailModal } from './AdminUserDetailModal';
+import { formatDate as dateUtilsFormatDate } from '../../utils/dateUtils';
 
 export function AdminUsersTab() {
   const [users, setUsers] = useState<UserListResponse | null>(null);
@@ -41,11 +42,7 @@ export function AdminUsersTab() {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('ko-KR', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
+    return dateUtilsFormatDate(dateString, 'yyyy년 M월 d일');
   };
 
   return (

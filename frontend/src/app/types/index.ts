@@ -1241,3 +1241,80 @@ export interface ManagementStatistics {
   summary: ManagementSummary;
   settings: ManagementSettings;
 }
+
+// ========================================
+// 문의사항 타입
+// ========================================
+
+export type InquiryStatus = 'PENDING' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
+
+export interface InquiryAttachment {
+  id: string;
+  original_file_name: string;
+  url: string;
+  thumbnail_url: string | null;
+  content_type: string;
+  file_size: number;
+}
+
+export type InquiryReplyType = 'ADMIN' | 'USER';
+
+export interface InquiryReply {
+  id: string;
+  admin: {
+    id: string;
+    name: string;
+    email: string;
+    profile_image: string | null;
+  } | null;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    profile_image: string | null;
+  } | null;
+  reply_type: InquiryReplyType;
+  content: string;
+  created_at: string;
+}
+
+export interface InquirySummary {
+  id: string;
+  title: string;
+  status: InquiryStatus;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    profile_image: string | null;
+  };
+  reply_count: number;
+  attachment_count: number;
+  has_new_reply: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InquiryDetail {
+  id: string;
+  title: string;
+  content: string;
+  status: InquiryStatus;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    profile_image: string | null;
+  };
+  attachments: InquiryAttachment[];
+  replies: InquiryReply[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InquiryListResponse {
+  inquiries: InquirySummary[];
+  total: number;
+  page: number;
+  size: number;
+}

@@ -3,6 +3,7 @@ import { X, Activity, ChevronDown } from 'lucide-react';
 import { Button } from './ui/button';
 import { ActivityLog } from '../utils/api';
 import { getInitials } from '../utils/assigneeColor';
+import { formatRelativeTime } from '../utils/dateUtils';
 
 interface ActivityLogModalProps {
   open: boolean;
@@ -134,20 +135,7 @@ export function ActivityLogModal({
   };
 
   const getTimeAgo = (dateStr: string) => {
-    const date = new Date(dateStr.endsWith('Z') ? dateStr : dateStr + 'Z');
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffSecs = Math.floor(diffMs / 1000);
-    const diffMins = Math.floor(diffSecs / 60);
-    const diffHours = Math.floor(diffMins / 60);
-    const diffDays = Math.floor(diffHours / 24);
-
-    if (diffSecs < 60) return '방금 전';
-    if (diffMins < 60) return `${diffMins}분 전`;
-    if (diffHours < 24) return `${diffHours}시간 전`;
-    if (diffDays < 7) return `${diffDays}일 전`;
-    
-    return date.toLocaleDateString('ko-KR');
+    return formatRelativeTime(dateStr);
   };
 
   return (

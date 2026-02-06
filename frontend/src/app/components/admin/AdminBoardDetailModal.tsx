@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { X, Folder, Users, ListTodo, Calendar, Trash2, Crown, Shield, User as UserIcon, Eye } from 'lucide-react';
+import { X, Folder, Users, ListTodo, Calendar, Trash2, Crown, Shield, User as UserIcon, Eye, ArrowRightLeft, CalendarPlus, AlertTriangle } from 'lucide-react';
 import { adminService } from '../../utils/services';
 import { AdminBoardDetail } from '../../utils/api';
+import { formatDateTime, formatDate } from '../../utils/dateUtils';
 
 interface AdminBoardDetailModalProps {
   boardId: string;
@@ -9,7 +10,7 @@ interface AdminBoardDetailModalProps {
   onUpdate: () => void;
 }
 
-const TIER_OPTIONS = ['FREE', 'STANDARD', 'PREMIUM', 'ENTERPRISE'] as const;
+const TIER_OPTIONS = ['FREE', 'TRIAL', 'STANDARD', 'PREMIUM', 'ENTERPRISE'] as const;
 
 export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoardDetailModalProps) {
   const [board, setBoard] = useState<AdminBoardDetail | null>(null);
@@ -81,20 +82,82 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
     }
   };
 
-  const formatDate = (dateString: string | null | undefined) => {
-    if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString('ko-KR', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+  const handleTransferOwnership = async () => {
+    if (!board) return;
+
+    // 멤버 목록에서 현재 OWNER가 아닌 멤버만 필터링
+    const eligibleMembers = board.members?.filter(m => m.role !== 'OWNER') || [];
+    if (eligibleMembers.length === 0) {
+      alert('소유권을 이전할 수 있는 멤버가 없습니다.');
+      return;
+    }
+
+    const memberList = eligibleMembers.map((m, i) => `${i + 1}. ${m.name} (${m.email})`).join('\n');
+    const selection = prompt(
+      `소유권을 이전할 멤버 번호를 입력하세요:\n\n${memberList}`
+    );
+
+    if (!selection) return;
+
+    const index = parseInt(selection, 10) - 1;
+    if (isNaN(index) || index < 0 || index >= eligibleMembers.length) {
+      alert('유효하지 않은 선택입니다.');
+      return;
+    }
+
+    const newOwner = eligibleMembers[index];
+    if (!confirm(`${newOwner.name}님에게 보드 소유권을 이전하시겠습니까?\n현재 소유자는 Admin으로 변경됩니다.`)) return;
+
+    try {
+      setIsUpdating(true);
+      const updated = await adminService.transferBoardOwnership(boardId, newOwner.id);
+      setBoard(updated);
+      onUpdate();
+      alert('소유권이 이전되었습니다.');
+    } catch (err) {
+      console.error('Failed to transfer ownership:', err);
+      alert('소유권 이전에 실패했습니다.');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleExtendTrial = async () => {
+    if (!board) return;
+
+    const daysStr = prompt('연장할 일수를 입력하세요 (기본: 7일):', '7');
+    if (!daysStr) return;
+
+    const days = parseInt(daysStr, 10);
+    if (isNaN(days) || days < 1) {
+      alert('유효한 일수를 입력하세요.');
+      return;
+    }
+
+    if (!confirm(`Trial 기간을 ${days}일 연장하시겠습니까?`)) return;
+
+    try {
+      setIsUpdating(true);
+      const updated = await adminService.extendTrial(boardId, days);
+      setBoard({ ...board, tier: updated.tier, trial_ends_at: updated.trial_ends_at });
+      onUpdate();
+      alert(`Trial 기간이 ${days}일 연장되었습니다.`);
+    } catch (err) {
+      console.error('Failed to extend trial:', err);
+      alert('Trial 연장에 실패했습니다.');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const formatDateLocal = (dateString: string | null | undefined) => {
+    return formatDateTime(dateString);
   };
 
   const getTierStyle = (tier: string) => {
     switch (tier) {
       case 'FREE':
+      case 'TRIAL':
         return 'bg-slate-500/20 text-slate-400';
       case 'STANDARD':
         return 'bg-blue-500/20 text-blue-400';
@@ -226,7 +289,7 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                   </p>
                   <p className="text-white flex items-center gap-2">
                     <Calendar className="h-4 w-4 text-slate-400" />
-                    {formatDate(board.created_at)}
+                    {formatDateLocal(board.created_at)}
                   </p>
                 </div>
 
@@ -287,6 +350,41 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                   </div>
                 </div>
               )}
+
+              {/* Admin Actions */}
+              <div className="border-t border-white/10 pt-6 space-y-4">
+                <h4 className="text-lg font-bold text-white flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-amber-400" />
+                  관리자 작업
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {/* 소유권 이전 */}
+                  <button
+                    onClick={handleTransferOwnership}
+                    disabled={isUpdating || !board.members || board.members.length <= 1}
+                    className="flex items-center justify-center gap-2 px-4 py-3 bg-purple-500/10 border border-purple-500/30 rounded-xl text-purple-400 hover:bg-purple-500/20 transition-colors disabled:opacity-50"
+                    title={!board.members || board.members.length <= 1 ? '이전할 멤버가 없습니다' : undefined}
+                  >
+                    <ArrowRightLeft className="h-4 w-4" />
+                    소유권 이전
+                  </button>
+
+                  {/* Trial 연장 */}
+                  <button
+                    onClick={handleExtendTrial}
+                    disabled={isUpdating}
+                    className="flex items-center justify-center gap-2 px-4 py-3 bg-teal-500/10 border border-teal-500/30 rounded-xl text-teal-400 hover:bg-teal-500/20 transition-colors disabled:opacity-50"
+                  >
+                    <CalendarPlus className="h-4 w-4" />
+                    Trial 기간 연장
+                    {board.trial_ends_at && (
+                      <span className="text-xs text-teal-400/70">
+                        ({formatDateLocal(board.trial_ends_at).split(' ')[0]})
+                      </span>
+                    )}
+                  </button>
+                </div>
+              </div>
 
               {/* Danger Zone */}
               <div className="border-t border-white/15 pt-6">

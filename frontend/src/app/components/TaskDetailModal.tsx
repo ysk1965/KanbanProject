@@ -40,6 +40,7 @@ import { Progress } from './ui/progress';
 import { DateRange } from 'react-day-picker';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
+import { getTodayDateString } from '../utils/dateUtils';
 
 interface TaskDetailModalProps {
   task: Task | null;
@@ -260,7 +261,7 @@ export function TaskDetailModal({
     if (!targetItem) return;
 
     const newCompleted = !targetItem.completed;
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD 형식
+    const today = getTodayDateString();
 
     // 낙관적 업데이트 - done_date도 함께 업데이트
     const newItems = checklistItems.map((item) =>

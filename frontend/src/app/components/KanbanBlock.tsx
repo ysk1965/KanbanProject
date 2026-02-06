@@ -197,8 +197,6 @@ export function KanbanBlock({
       return;
     }
 
-    if (!isCustomBlock) return;
-
     const draggedBlock = state.draggedBlock;
     if (!draggedBlock || draggedBlock.id === block.id) return;
 
@@ -207,10 +205,15 @@ export function KanbanBlock({
     if (!rect) return;
 
     const midX = rect.left + rect.width / 2;
-    const newIndex = e.clientX < midX ? blockIndex : blockIndex + 1;
+    let newIndex = e.clientX < midX ? blockIndex : blockIndex + 1;
+
+    // Task 블록 앞으로는 placeholder 표시 안 함
+    if (block.fixed_type === 'TASK') {
+      newIndex = blockIndex + 1;
+    }
 
     updateBlockPlaceholder(newIndex);
-  }, [state.draggedBlock, block.id, blockIndex, isCustomBlock, updateBlockPlaceholder]);
+  }, [state.draggedBlock, block.id, block.fixed_type, blockIndex, updateBlockPlaceholder]);
 
   // 블록 드롭 핸들러
   const handleBlockDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {

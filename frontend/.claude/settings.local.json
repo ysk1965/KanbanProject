@@ -20,7 +20,28 @@
       "Bash(aws rds modify-db-subnet-group:*)",
       "Bash(aws rds modify-db-instance:*)",
       "Bash(aws ec2 authorize-security-group-ingress:*)",
-      "Bash(PGPASSWORD=KanbanDev2026Secure psql:*)"
+      "Bash(PGPASSWORD=KanbanDev2026Secure psql:*)",
+      "Bash(nslookup:*)",
+      "Bash(aws ec2 describe-security-groups:*)",
+      "Bash(PGPASSWORD=KanbanDev2026Secure PGCONNECT_TIMEOUT=10 psql:*)",
+      "Bash(aws ec2 describe-network-interfaces:*)",
+      "Bash(aws ec2 create-route:*)",
+      "Bash(aws ec2-instance-connect send-ssh-public-key:*)",
+      "Bash(pkill:*)",
+      "Bash(ssh:*)",
+      "Bash(PGPASSWORD='KanbanDev2026Secure' /opt/homebrew/opt/libpq/bin/psql:*)",
+      "Bash(PGPASSWORD='KanbanDev2026Secure' /opt/homebrew/opt/libpq/bin/psql -h localhost -p 15432 -U kanban_admin -d kanban -c \"\nSELECT id, email, name, created_at FROM users ORDER BY id;\n\")",
+      "Bash(PGPASSWORD='KanbanDev2026Secure' /opt/homebrew/opt/libpq/bin/psql -h localhost -p 15432 -U kanban_admin -d kanban -c \"\nSELECT id, name, description, created_at FROM boards ORDER BY id;\n\")",
+      "Bash(PGPASSWORD='KanbanDev2026Secure' /opt/homebrew/opt/libpq/bin/psql -h localhost -p 15432 -U kanban_admin -d kanban -c \"\nSELECT column_name, data_type FROM information_schema.columns \nWHERE table_name IN \\(''features'', ''tasks'', ''blocks''\\) \nORDER BY table_name, ordinal_position;\n\")",
+      "Bash(PGPASSWORD='KanbanDev2026Secure' /opt/homebrew/opt/libpq/bin/psql -h localhost -p 15432 -U kanban_admin -d kanban -c \"\nSELECT f.id, f.title, f.priority, f.status, u.name AS assignee, f.completed_tasks, f.total_tasks\nFROM features f \nLEFT JOIN users u ON f.assignee_id = u.id\nORDER BY f.created_at\nLIMIT 20;\n\")",
+      "Bash(PGPASSWORD='KanbanDev2026Secure' /opt/homebrew/opt/libpq/bin/psql -h localhost -p 15432 -U kanban_admin -d kanban -c \"\nSELECT bl.name, bl.type, bl.fixed_type, bl.position, b.name AS board_name\nFROM blocks bl \nJOIN boards b ON bl.board_id = b.id \nORDER BY b.name, bl.position;\n\")",
+      "Bash(open \"https://ap-northeast-2.console.aws.amazon.com/rds/home?region=ap-northeast-2#query-editor:\")",
+      "Bash(open \"https://ap-northeast-2.console.aws.amazon.com/sqlworkbench/home?region=ap-northeast-2\")",
+      "Bash(open:*)",
+      "Bash(aws ec2 delete-route:*)",
+      "Bash(aws ec2 revoke-security-group-ingress:*)",
+      "Bash(aws ec2 describe-instances:*)",
+      "Bash(aws ce get-cost-and-usage:*)"
     ]
   }
 }

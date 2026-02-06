@@ -3,6 +3,7 @@ import { Search, ChevronLeft, ChevronRight, Folder, Users, ListTodo, Calendar, F
 import { adminService } from '../../utils/services';
 import { BoardListResponse } from '../../utils/api';
 import { AdminBoardDetailModal } from './AdminBoardDetailModal';
+import { formatDate as dateUtilsFormatDate } from '../../utils/dateUtils';
 
 const TIER_OPTIONS = [
   { value: '', label: '전체 티어' },
@@ -55,11 +56,7 @@ export function AdminBoardsTab() {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('ko-KR', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
+    return dateUtilsFormatDate(dateString, 'yyyy년 M월 d일');
   };
 
   const getTierStyle = (tier: string) => {

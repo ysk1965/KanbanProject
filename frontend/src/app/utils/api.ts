@@ -1,3 +1,5 @@
+import { nowUTC } from './dateUtils';
+
 // API Base URL - BE 서버
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1';
 
@@ -144,7 +146,7 @@ class ApiClient {
         const errorData: ApiError = await response.json().catch(() => ({
           code: 'UNKNOWN',
           message: response.statusText,
-          timestamp: new Date().toISOString(),
+          timestamp: nowUTC(),
         }));
 
         // Error Response 로깅
@@ -2330,25 +2332,31 @@ export interface AdminUserSummary {
   email_verified: boolean;
   created_at: string;
   board_count: number;
+  is_active: boolean;
+  deactivated_at?: string | null;
+  deactivated_reason?: string | null;
 }
 
 export interface AdminUserDetail extends AdminUserSummary {
   last_login_at?: string | null;
   owned_board_count: number;
   member_board_count: number;
+  auth_provider_id?: string | null;
+  email_verified_at?: string | null;
 }
 
 export interface AdminBoardSummary {
   id: string;
   name: string;
   description?: string | null;
-  tier: 'FREE' | 'STANDARD' | 'PREMIUM' | 'ENTERPRISE';
+  tier: 'FREE' | 'TRIAL' | 'STANDARD' | 'PREMIUM' | 'ENTERPRISE';
   owner_id: string;
   owner_name: string;
   owner_email: string;
   member_count: number;
   task_count: number;
   created_at: string;
+  trial_ends_at?: string | null;
 }
 
 export interface AdminBoardDetail extends AdminBoardSummary {
@@ -2376,6 +2384,69 @@ export interface AdminStatistics {
   standard_boards: number;
   premium_boards: number;
   active_subscriptions: number;
+}
+
+// Analytics Types
+export interface SignupTrendData {
+  date: string;
+  count: number;
+  email_count: number;
+  google_count: number;
+}
+
+export interface SignupTrend {
+  data: SignupTrendData[];
+  total: number;
+}
+
+export interface DailyActiveData {
+  date: string;
+  count: number;
+}
+
+export interface ActiveUserStats {
+  dau: number;
+  wau: number;
+  mau: number;
+  trend: DailyActiveData[];
+}
+
+export interface MonthlyConversion {
+  month: string;
+  trial_started: number;
+  converted: number;
+  rate: number;
+}
+
+export interface ConversionStats {
+  total_trial_started: number;
+  total_converted: number;
+  conversion_rate: number;
+  trial_in_progress: number;
+  trial_expired_not_converted: number;
+  trend: MonthlyConversion[];
+}
+
+// Announcement Types
+export interface AnnouncementDetail {
+  id: string;
+  title: string;
+  content: string;
+  type: 'POPUP' | 'BANNER' | 'NOTICE';
+  is_active: boolean;
+  start_at: string | null;
+  end_at: string | null;
+  priority: number;
+  target_role: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MaintenanceStatus {
+  enabled: boolean;
+  message: string | null;
+  estimated_end_at: string | null;
+  started_at: string | null;
 }
 
 export interface AdminSubscriptionSummary {
@@ -2439,6 +2510,26 @@ export const adminAPI = {
     return apiClient.get<{ boards: AdminBoardSummary[] }>(`/admin/users/${userId}/boards`);
   },
 
+  // 사용자 비활성화
+  deactivateUser: async (userId: string, reason?: string) => {
+    return apiClient.post<AdminUserSummary>(`/admin/users/${userId}/deactivate`, { reason });
+  },
+
+  // 사용자 활성화
+  activateUser: async (userId: string) => {
+    return apiClient.post<AdminUserSummary>(`/admin/users/${userId}/activate`, {});
+  },
+
+  // 이메일 강제 인증
+  verifyUserEmail: async (userId: string) => {
+    return apiClient.post<AdminUserSummary>(`/admin/users/${userId}/verify-email`, {});
+  },
+
+  // 비밀번호 리셋 메일 발송
+  sendPasswordResetEmail: async (userId: string) => {
+    return apiClient.post<{ message: string }>(`/admin/users/${userId}/send-password-reset`, {});
+  },
+
   // 보드 목록 조회
   getBoards: async (params: { page?: number; size?: number; search?: string; tier?: string }) => {
     const searchParams = new URLSearchParams();
@@ -2466,9 +2557,34 @@ export const adminAPI = {
     return apiClient.patch<AdminBoardSummary>(`/admin/boards/${boardId}/tier`, { tier });
   },
 
+  // 소유권 이전
+  transferBoardOwnership: async (boardId: string, newOwnerId: string) => {
+    return apiClient.post<AdminBoardDetail>(`/admin/boards/${boardId}/transfer-ownership`, { newOwnerId });
+  },
+
+  // Trial 기간 연장
+  extendTrial: async (boardId: string, extendDays: number) => {
+    return apiClient.patch<AdminBoardSummary>(`/admin/boards/${boardId}/extend-trial`, { extendDays });
+  },
+
   // 통계 조회
   getStatistics: async () => {
     return apiClient.get<AdminStatistics>('/admin/statistics');
+  },
+
+  // Analytics: 가입자 추이
+  getSignupTrend: async (days: number = 30) => {
+    return apiClient.get<SignupTrend>(`/admin/statistics/signups?days=${days}`);
+  },
+
+  // Analytics: DAU/WAU/MAU
+  getActiveUserStats: async (days: number = 30) => {
+    return apiClient.get<ActiveUserStats>(`/admin/statistics/active-users?days=${days}`);
+  },
+
+  // Analytics: 결제 전환율
+  getConversionStats: async (days: number = 365) => {
+    return apiClient.get<ConversionStats>(`/admin/statistics/conversion?days=${days}`);
   },
 
   // 구독 목록 조회
@@ -2479,6 +2595,114 @@ export const adminAPI = {
     return apiClient.get<SubscriptionListResponse>(
       `/admin/subscriptions?${searchParams.toString()}`
     );
+  },
+
+  // 공지사항 관리
+  getAnnouncements: async () => {
+    return apiClient.get<AnnouncementDetail[]>('/admin/announcements');
+  },
+
+  createAnnouncement: async (data: {
+    title: string;
+    content?: string;
+    type?: 'POPUP' | 'BANNER' | 'NOTICE';
+    is_active?: boolean;
+    start_at?: string | null;
+    end_at?: string | null;
+    priority?: number;
+    target_role?: string | null;
+  }) => {
+    return apiClient.post<AnnouncementDetail>('/admin/announcements', data);
+  },
+
+  updateAnnouncement: async (id: string, data: {
+    title: string;
+    content?: string;
+    type?: 'POPUP' | 'BANNER' | 'NOTICE';
+    is_active?: boolean;
+    start_at?: string | null;
+    end_at?: string | null;
+    priority?: number;
+    target_role?: string | null;
+  }) => {
+    return apiClient.put<AnnouncementDetail>(`/admin/announcements/${id}`, data);
+  },
+
+  deleteAnnouncement: async (id: string) => {
+    return apiClient.delete<{ message: string }>(`/admin/announcements/${id}`);
+  },
+
+  // 점검 모드
+  getMaintenanceStatus: async () => {
+    return apiClient.get<MaintenanceStatus>('/admin/system/maintenance');
+  },
+
+  setMaintenanceMode: async (data: {
+    enabled: boolean;
+    message?: string;
+    estimated_end_at?: string | null;
+  }) => {
+    return apiClient.post<MaintenanceStatus>('/admin/system/maintenance', data);
+  },
+
+  // 문의 관리
+  getInquiries: async (params: { page?: number; size?: number; status?: string }) => {
+    const searchParams = new URLSearchParams();
+    if (params.page !== undefined) searchParams.append('page', params.page.toString());
+    if (params.size !== undefined) searchParams.append('size', params.size.toString());
+    if (params.status) searchParams.append('status', params.status);
+    return apiClient.get<import('../types').InquiryListResponse>(
+      `/admin/inquiries?${searchParams.toString()}`
+    );
+  },
+
+  getInquiryDetail: async (inquiryId: string) => {
+    return apiClient.get<import('../types').InquiryDetail>(`/admin/inquiries/${inquiryId}`);
+  },
+
+  replyToInquiry: async (inquiryId: string, content: string) => {
+    return apiClient.post<import('../types').InquiryReply>(`/admin/inquiries/${inquiryId}/reply`, { content });
+  },
+
+  updateInquiryStatus: async (inquiryId: string, status: string) => {
+    return apiClient.patch<import('../types').InquiryDetail>(`/admin/inquiries/${inquiryId}/status`, { status });
+  },
+};
+
+// ========================================
+// Inquiry API (유저용)
+// ========================================
+
+export const inquiryAPI = {
+  createInquiry: async (data: { title: string; content: string; fileKeys?: string[] }) => {
+    return apiClient.post<import('../types').InquiryDetail>('/inquiries', data);
+  },
+
+  getMyInquiries: async () => {
+    return apiClient.get<import('../types').InquirySummary[]>('/inquiries');
+  },
+
+  getInquiry: async (inquiryId: string) => {
+    return apiClient.get<import('../types').InquiryDetail>(`/inquiries/${inquiryId}`);
+  },
+
+  replyToInquiry: async (inquiryId: string, content: string) => {
+    return apiClient.post<import('../types').InquiryReply>(`/inquiries/${inquiryId}/replies`, { content });
+  },
+
+  getUnreadReplyCount: async () => {
+    return apiClient.get<number>('/inquiries/unread-count');
+  },
+};
+
+// System API (공개)
+export const systemAPI = {
+  getStatus: async () => {
+    return apiClient.get<MaintenanceStatus>('/system/status');
+  },
+
+  getActiveAnnouncements: async () => {
+    return apiClient.get<AnnouncementDetail[]>('/system/announcements/active');
   },
 };
 

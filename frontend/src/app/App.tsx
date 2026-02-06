@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { AnalyticsProvider } from './contexts/AnalyticsContext';
@@ -17,9 +17,13 @@ import { SettingsPage } from './components/SettingsPage';
 import ErrorBoundary from './components/ErrorBoundary';
 import { AdminRoute } from './components/AdminRoute';
 import { AdminPage } from './pages/AdminPage';
-import { boardService, inviteLinkService } from './utils/services';
-import { useState, useEffect } from 'react';
+import { AnnouncementsPage } from './pages/AnnouncementsPage';
+import { AnnouncementDisplay } from './components/AnnouncementDisplay';
+import { MaintenancePage } from './components/MaintenancePage';
+import { boardService, inviteLinkService, systemService } from './utils/services';
+import { useState, useEffect, useCallback } from 'react';
 import { Board } from './types';
+import type { MaintenanceStatus } from './utils/api';
 import { trackEvent } from './contexts/AnalyticsContext';
 
 // 인증이 필요한 라우트 래퍼
@@ -374,6 +378,9 @@ function AppRoutes() {
       <Route path="/terms" element={<TermsPage />} />
       <Route path="/privacy" element={<PrivacyPage />} />
 
+      {/* 공지사항 */}
+      <Route path="/announcements" element={<AnnouncementsPage />} />
+
       {/* 설정 */}
       <Route
         path="/settings"
@@ -424,16 +431,71 @@ function AppRoutes() {
   );
 }
 
+// 점검 모드에서도 허용되는 경로들
+const MAINTENANCE_ALLOWED_PATHS = [
+  '/login',
+  '/signup',
+  '/admin',
+  '/forgot-password',
+  '/reset-password',
+  '/verify-email',
+];
+
+// 점검 모드 + 공지사항 래퍼
+function MaintenanceGuard({ children }: { children: React.ReactNode }) {
+  const location = useLocation();
+  const [maintenanceStatus, setMaintenanceStatus] = useState<MaintenanceStatus | null>(null);
+  const [isChecking, setIsChecking] = useState(true);
+
+  const checkMaintenance = useCallback(async () => {
+    try {
+      const status = await systemService.getStatus();
+      setMaintenanceStatus(status);
+    } catch {
+      // 503 에러 시에도 점검 모드로 간주하지 않음 (서버 장애일 수 있음)
+      setMaintenanceStatus(null);
+    } finally {
+      setIsChecking(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    checkMaintenance();
+  }, [checkMaintenance]);
+
+  // 점검 모드에서도 허용된 경로인지 확인
+  const isAllowedPath = MAINTENANCE_ALLOWED_PATHS.some(
+    path => location.pathname === path || location.pathname.startsWith(path + '/')
+  );
+
+  if (isChecking) {
+    return (
+      <div className="min-h-screen bg-bridge-dark flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-bridge-accent" />
+      </div>
+    );
+  }
+
+  // 점검 모드이지만 허용된 경로면 정상 렌더링
+  if (maintenanceStatus?.enabled && !isAllowedPath) {
+    return <MaintenancePage status={maintenanceStatus} onRetry={checkMaintenance} />;
+  }
+
+  return <>{children}</>;
+}
+
 // App 컴포넌트
 function App() {
   return (
     <ErrorBoundary>
       <ThemeProvider defaultTheme="dark">
-        <AuthProvider>
-          <AnalyticsProvider>
-            <AppRoutes />
-          </AnalyticsProvider>
-        </AuthProvider>
+        <MaintenanceGuard>
+          <AuthProvider>
+            <AnalyticsProvider>
+              <AppRoutes />
+            </AnalyticsProvider>
+          </AuthProvider>
+        </MaintenanceGuard>
       </ThemeProvider>
     </ErrorBoundary>
   );

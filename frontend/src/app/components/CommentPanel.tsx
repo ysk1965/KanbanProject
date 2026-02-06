@@ -4,6 +4,7 @@ import { TaskComment, CommentAttachment, User } from '../types';
 import { commentAPI, fileAPI, resolveFileUrl } from '../utils/api';
 import { BoardMember } from './ShareBoardModal';
 import { getAssigneeClasses, getInitials } from '../utils/assigneeColor';
+import { formatDate } from '../utils/dateUtils';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,7 +35,7 @@ function formatRelativeTime(dateStr: string): string {
   if (diffMinutes < 60) return `${diffMinutes}분 전`;
   if (diffHours < 24) return `${diffHours}시간 전`;
   if (diffDays < 7) return `${diffDays}일 전`;
-  return date.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
+  return formatDate(dateStr, 'M월 d일');
 }
 
 function formatFileSize(bytes: number): string {

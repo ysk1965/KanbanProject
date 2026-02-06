@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, Loader2, Calendar, AlertCircle, Users } from 'lucide-react';
 import { format, addDays, subDays, startOfDay, isToday, isBefore } from 'date-fns';
-import { ko } from 'date-fns/locale';
+import { formatDate } from '../utils/dateUtils';
 import { Button } from './ui/button';
 import { DailyChecklistColumn } from './DailyChecklistColumn';
 import { AddDailyChecklistModal } from './AddDailyChecklistModal';
@@ -13,6 +13,7 @@ interface DailyChecklistViewProps {
   boardMembers: BoardMember[];
   selectedDate: Date;
   onDateChange: (date: Date) => void;
+  currentUserRole?: string;
 }
 
 // Mock 데이터 생성 함수 (BE 완료 전 테스트용)
@@ -69,6 +70,7 @@ export function DailyChecklistView({
   boardMembers,
   selectedDate,
   onDateChange,
+  currentUserRole,
 }: DailyChecklistViewProps) {
   const [columns, setColumns] = useState<DailyChecklistColumnResponse[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -81,11 +83,13 @@ export function DailyChecklistView({
   // Mock 데이터 사용 여부 (BE 완료 전 테스트용)
   const [useMockData, setUseMockData] = useState(false);
 
-  // 과거 날짜 여부 (읽기 전용)
+  // 과거 날짜 또는 Viewer 권한 (읽기 전용)
+  const isViewer = currentUserRole === 'viewer';
   const isReadOnly = useMemo(() => {
+    if (isViewer) return true;
     const today = startOfDay(new Date());
     return isBefore(selectedDate, today);
-  }, [selectedDate]);
+  }, [selectedDate, isViewer]);
 
   // 데이터 로드
   const loadData = useCallback(async () => {
@@ -134,7 +138,7 @@ export function DailyChecklistView({
   const handleToday = () => onDateChange(startOfDay(new Date()));
 
   const isTodaySelected = isToday(selectedDate);
-  const dayOfWeek = format(selectedDate, 'EEEE', { locale: ko });
+  const dayOfWeek = formatDate(selectedDate, 'EEEE');
 
   // 추가 모달 열기
   const handleOpenAddModal = (assigneeId: string) => {
@@ -179,7 +183,7 @@ export function DailyChecklistView({
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <span className="text-lg font-semibold text-white min-w-[280px] text-center">
-              {format(selectedDate, 'yyyy년 M월 d일', { locale: ko })} ({dayOfWeek})
+              {formatDate(selectedDate, 'yyyy년 M월 d일')} ({dayOfWeek})
             </span>
             <Button
               variant="ghost"
@@ -209,7 +213,7 @@ export function DailyChecklistView({
 
           {isReadOnly && (
             <span className="px-3 py-1 text-xs font-medium text-amber-400 bg-amber-500/10 rounded-full border border-amber-500/20">
-              읽기 전용
+              {isViewer ? 'Viewer 권한' : '읽기 전용'}
             </span>
           )}
         </div>
@@ -279,7 +283,9 @@ export function DailyChecklistView({
       {/* 하단 안내 */}
       <div className="px-6 py-3 bg-bridge-obsidian border-t border-white/15">
         <p className="text-sm text-slate-400">
-          {isReadOnly
+          {isViewer
+            ? 'Viewer 권한은 체크리스트를 조회만 할 수 있습니다.'
+            : isReadOnly
             ? '과거 날짜의 체크리스트는 읽기 전용입니다.'
             : '드래그하여 우선순위를 변경하거나, + 버튼으로 새 항목을 추가하세요.'}
         </p>

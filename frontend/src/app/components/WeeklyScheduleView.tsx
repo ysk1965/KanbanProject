@@ -14,16 +14,15 @@ import {
   isSameDay,
   differenceInDays,
   differenceInWeeks,
-  parseISO,
   isBefore,
   isAfter,
   getDay,
-  startOfDay,
   startOfWeek,
   endOfWeek,
   isWithinInterval,
 } from 'date-fns';
 import { ko } from 'date-fns/locale';
+import { formatDate } from '../utils/dateUtils';
 import { Feature, Task, Milestone } from '../types';
 
 type ScheduleViewMode = 'day' | 'week';
@@ -823,7 +822,7 @@ export function WeeklyScheduleView({
                       style={{ width: DAY_WIDTH }}
                     >
                       <div className={`text-xs font-medium ${dayIsToday ? 'text-indigo-400' : isWeekend ? 'text-zinc-400' : 'text-zinc-400'}`}>
-                        {format(day, 'EEE', { locale: ko })}
+                        {formatDate(day, 'EEE')}
                       </div>
                       <div className={`text-xs ${dayIsToday ? 'text-indigo-300' : 'text-zinc-400'}`}>
                         {format(day, 'M/d')}

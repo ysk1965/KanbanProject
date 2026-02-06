@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, CreditCard, Calendar, Folder } from 'lucide-react';
 import { adminService } from '../../utils/services';
 import { SubscriptionListResponse } from '../../utils/api';
+import { formatDate as dateUtilsFormatDate } from '../../utils/dateUtils';
 
 export function AdminSubscriptionsTab() {
   const [subscriptions, setSubscriptions] = useState<SubscriptionListResponse | null>(null);
@@ -29,11 +30,7 @@ export function AdminSubscriptionsTab() {
 
   const formatDate = (dateString: string | null | undefined) => {
     if (!dateString) return '-';
-    return new Date(dateString).toLocaleDateString('ko-KR', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
+    return dateUtilsFormatDate(dateString, 'yyyy년 M월 d일');
   };
 
   const getStatusStyle = (status: string) => {

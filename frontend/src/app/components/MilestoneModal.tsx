@@ -110,7 +110,7 @@ export function MilestoneModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
       <div className="bg-kanban-bg rounded-2xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col border border-white/20 shadow-[0_0_50px_rgba(0,0,0,0.5)]">
         {/* 헤더 */}
         <div className="flex items-center justify-between p-5 border-b border-kanban-border bg-white/[0.02]">

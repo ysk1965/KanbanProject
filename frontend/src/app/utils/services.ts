@@ -15,6 +15,7 @@ import {
   milestoneAPI,
   statisticsAPI,
   testDataAPI,
+  inquiryAPI,
 } from './api';
 import {
   mockBoards,
@@ -26,6 +27,7 @@ import {
   loadFromLocalStorage,
   saveToLocalStorage,
 } from './mockData';
+import { nowUTC, getTodayDateString } from './dateUtils';
 import type {
   Board,
   Feature,
@@ -109,7 +111,7 @@ export const boardService = {
             trial_ends_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
             current_period_end: null,
           },
-          created_at: new Date().toISOString(),
+          created_at: nowUTC(),
         };
         const updatedBoards = [...boards, newBoard];
         saveToLocalStorage('kanban_boards', updatedBoards);
@@ -383,7 +385,7 @@ export const featureService = {
           progress_percentage: 0,
           position: features.length,
           tags: [],
-          created_at: new Date().toISOString(),
+          created_at: nowUTC(),
         };
         const updatedFeatures = [...features, newFeature];
         saveToLocalStorage('kanban_features', updatedFeatures);
@@ -557,7 +559,7 @@ export const taskService = {
           completed: false,
           position: tasks.filter((t: Task) => t.feature_id === featureId).length,
           tags: [],
-          created_at: new Date().toISOString(),
+          created_at: nowUTC(),
         };
         const updatedTasks = [...tasks, newTask];
         saveToLocalStorage('kanban_tasks', updatedTasks);
@@ -720,7 +722,7 @@ export const tagService = {
           id: `tag-${Date.now()}`,
           name: data.name,
           color: data.color,
-          created_at: new Date().toISOString(),
+          created_at: nowUTC(),
         };
         const updatedTags = [...tags, newTag];
         saveToLocalStorage('kanban_tags', updatedTags);
@@ -1623,8 +1625,8 @@ const EMPTY_BOARD_STATISTICS: BoardStatistics = {
     completed_features: 0,
     average_feature_progress: 0,
     focus_rate: 0,
-    period_start: new Date().toISOString().split('T')[0],
-    period_end: new Date().toISOString().split('T')[0],
+    period_start: getTodayDateString(),
+    period_end: getTodayDateString(),
   },
   by_member: [],
   by_feature: [],
@@ -1862,6 +1864,7 @@ export const managementService = {
 
 import {
   adminAPI,
+  systemAPI,
   AdminUserSummary,
   AdminUserDetail,
   AdminBoardSummary,
@@ -1871,6 +1874,11 @@ import {
   UserListResponse,
   BoardListResponse,
   SubscriptionListResponse,
+  SignupTrend,
+  ActiveUserStats,
+  ConversionStats,
+  AnnouncementDetail,
+  MaintenanceStatus,
 } from './api';
 
 export const adminService = {
@@ -1905,6 +1913,26 @@ export const adminService = {
     return response.boards;
   },
 
+  // 사용자 비활성화
+  deactivateUser: async (userId: string, reason?: string): Promise<AdminUserSummary> => {
+    return adminAPI.deactivateUser(userId, reason);
+  },
+
+  // 사용자 활성화
+  activateUser: async (userId: string): Promise<AdminUserSummary> => {
+    return adminAPI.activateUser(userId);
+  },
+
+  // 이메일 강제 인증
+  verifyUserEmail: async (userId: string): Promise<AdminUserSummary> => {
+    return adminAPI.verifyUserEmail(userId);
+  },
+
+  // 비밀번호 리셋 메일 발송
+  sendPasswordResetEmail: async (userId: string): Promise<{ message: string }> => {
+    return adminAPI.sendPasswordResetEmail(userId);
+  },
+
   // 보드 목록 조회
   getBoards: async (params: {
     page?: number;
@@ -1936,6 +1964,19 @@ export const adminService = {
     return response;
   },
 
+  // 소유권 이전
+  transferBoardOwnership: async (
+    boardId: string,
+    newOwnerId: string
+  ): Promise<AdminBoardDetail> => {
+    return adminAPI.transferBoardOwnership(boardId, newOwnerId);
+  },
+
+  // Trial 기간 연장
+  extendTrial: async (boardId: string, extendDays: number): Promise<AdminBoardSummary> => {
+    return adminAPI.extendTrial(boardId, extendDays);
+  },
+
   // 통계 조회
   getStatistics: async (): Promise<AdminStatistics> => {
     const response = await adminAPI.getStatistics();
@@ -1949,5 +1990,129 @@ export const adminService = {
   }): Promise<SubscriptionListResponse> => {
     const response = await adminAPI.getSubscriptions(params);
     return response;
+  },
+
+  // Analytics: 가입자 추이
+  getSignupTrend: async (days: number = 30): Promise<SignupTrend> => {
+    return await adminAPI.getSignupTrend(days);
+  },
+
+  // Analytics: DAU/WAU/MAU
+  getActiveUserStats: async (days: number = 30): Promise<ActiveUserStats> => {
+    return await adminAPI.getActiveUserStats(days);
+  },
+
+  // Analytics: 결제 전환율
+  getConversionStats: async (days: number = 365): Promise<ConversionStats> => {
+    return await adminAPI.getConversionStats(days);
+  },
+
+  // 공지사항 관리
+  getAnnouncements: async (): Promise<AnnouncementDetail[]> => {
+    return await adminAPI.getAnnouncements();
+  },
+
+  createAnnouncement: async (data: {
+    title: string;
+    content?: string;
+    type?: 'POPUP' | 'BANNER' | 'NOTICE';
+    is_active?: boolean;
+    start_at?: string | null;
+    end_at?: string | null;
+    priority?: number;
+    target_role?: string | null;
+  }): Promise<AnnouncementDetail> => {
+    return await adminAPI.createAnnouncement(data);
+  },
+
+  updateAnnouncement: async (id: string, data: {
+    title: string;
+    content?: string;
+    type?: 'POPUP' | 'BANNER' | 'NOTICE';
+    is_active?: boolean;
+    start_at?: string | null;
+    end_at?: string | null;
+    priority?: number;
+    target_role?: string | null;
+  }): Promise<AnnouncementDetail> => {
+    return await adminAPI.updateAnnouncement(id, data);
+  },
+
+  deleteAnnouncement: async (id: string): Promise<void> => {
+    await adminAPI.deleteAnnouncement(id);
+  },
+
+  // 점검 모드
+  getMaintenanceStatus: async (): Promise<MaintenanceStatus> => {
+    return await adminAPI.getMaintenanceStatus();
+  },
+
+  setMaintenanceMode: async (data: {
+    enabled: boolean;
+    message?: string;
+    estimated_end_at?: string | null;
+  }): Promise<MaintenanceStatus> => {
+    return await adminAPI.setMaintenanceMode(data);
+  },
+
+  // 문의 관리
+  getInquiries: async (params: {
+    page?: number;
+    size?: number;
+    status?: string;
+  }) => {
+    return await adminAPI.getInquiries(params);
+  },
+
+  getInquiryDetail: async (inquiryId: string) => {
+    return await adminAPI.getInquiryDetail(inquiryId);
+  },
+
+  replyToInquiry: async (inquiryId: string, content: string) => {
+    return await adminAPI.replyToInquiry(inquiryId, content);
+  },
+
+  updateInquiryStatus: async (inquiryId: string, status: string) => {
+    return await adminAPI.updateInquiryStatus(inquiryId, status);
+  },
+};
+
+// ========================================
+// System Service (공개 API)
+// ========================================
+
+// ========================================
+// Inquiry Service (유저용)
+// ========================================
+
+export const inquiryService = {
+  createInquiry: async (data: { title: string; content: string; fileKeys?: string[] }) => {
+    return await inquiryAPI.createInquiry(data);
+  },
+
+  getMyInquiries: async () => {
+    return await inquiryAPI.getMyInquiries();
+  },
+
+  getInquiry: async (inquiryId: string) => {
+    return await inquiryAPI.getInquiry(inquiryId);
+  },
+
+  replyToInquiry: async (inquiryId: string, content: string) => {
+    return await inquiryAPI.replyToInquiry(inquiryId, content);
+  },
+
+  getUnreadReplyCount: async () => {
+    return await inquiryAPI.getUnreadReplyCount();
+  },
+};
+
+export const systemService = {
+  getStatus: async (): Promise<MaintenanceStatus> => {
+    return await systemAPI.getStatus();
+  },
+
+  getActiveAnnouncements: async (): Promise<AnnouncementDetail[]> => {
+    return await systemAPI.getActiveAnnouncements();
   },
 };

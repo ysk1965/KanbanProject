@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { X, CreditCard, Users, Check } from 'lucide-react';
 import { Button } from './ui/button';
 import { Subscription, PricingPlan } from '../types';
+import { formatDate as dateUtilsFormatDate } from '../utils/dateUtils';
 
 interface SubscriptionModalProps {
   open: boolean;
@@ -77,7 +78,7 @@ export function SubscriptionModal({
 
   const formatDate = (dateStr: string | null | undefined) => {
     if (!dateStr) return '-';
-    return new Date(dateStr).toLocaleDateString('ko-KR');
+    return dateUtilsFormatDate(dateStr, 'yyyy-MM-dd');
   };
 
   const formatPrice = (price: number) => {
