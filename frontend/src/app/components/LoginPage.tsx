@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { GoogleLogin } from '@react-oauth/google';
 import { Mail, Lock, User, Users, ArrowLeft, ArrowRight, Layout, Share2, Zap, BarChart3, Check, X } from 'lucide-react';
+import { trackEvent } from '../contexts/AnalyticsContext';
 
 interface InviteInfo {
   boardName: string;
@@ -168,11 +169,17 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
     try {
       if (mode === 'login') {
         await onLogin(email, password);
+        trackEvent('login', { method: 'email' });
       } else {
         await onSignup(email, password, name);
+        trackEvent('sign_up', { method: 'email' });
       }
     } catch (err: any) {
       setError(err.message || '오류가 발생했습니다.');
+      trackEvent('error', {
+        error_type: mode === 'login' ? 'login_failed' : 'signup_failed',
+        error_message: err.message || 'Unknown error'
+      });
     } finally {
       setIsLoading(false);
     }
@@ -328,8 +335,13 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
                       setError('');
                       try {
                         await onGoogleLogin(response.credential);
+                        trackEvent(mode === 'login' ? 'login' : 'sign_up', { method: 'google' });
                       } catch (err: any) {
                         setError(err.message || 'Google 로그인에 실패했습니다.');
+                        trackEvent('error', {
+                          error_type: 'google_auth_failed',
+                          error_message: err.message || 'Google login failed'
+                        });
                       } finally {
                         setIsGoogleLoading(false);
                       }
@@ -337,6 +349,10 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
                   }}
                   onError={() => {
                     setError('Google 로그인에 실패했습니다.');
+                    trackEvent('error', {
+                      error_type: 'google_auth_error',
+                      error_message: 'Google OAuth error'
+                    });
                   }}
                   theme="filled_black"
                   text="continue_with"

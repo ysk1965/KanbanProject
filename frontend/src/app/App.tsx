@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
+import { AnalyticsProvider } from './contexts/AnalyticsContext';
 import { LoginPage } from './components/LoginPage';
 import { Dashboard } from './components/dashboard';
 import { InviteLandingPage } from './components/InviteLandingPage';
@@ -19,6 +20,7 @@ import { AdminPage } from './pages/AdminPage';
 import { boardService, inviteLinkService } from './utils/services';
 import { useState, useEffect } from 'react';
 import { Board } from './types';
+import { trackEvent } from './contexts/AnalyticsContext';
 
 // 인증이 필요한 라우트 래퍼
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -178,6 +180,7 @@ function BoardsRoute() {
   }, []);
 
   const handleSelectBoard = (boardId: string) => {
+    trackEvent('board_view', { board_id: boardId });
     navigate(`/boards/${boardId}`);
   };
 
@@ -185,8 +188,13 @@ function BoardsRoute() {
     try {
       const newBoard = await boardService.createBoard(name, description);
       setBoards([...boards, newBoard]);
+      trackEvent('board_create', { board_id: newBoard.id });
     } catch (error) {
       console.error('Failed to create board:', error);
+      trackEvent('error', {
+        error_type: 'board_create_failed',
+        error_message: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   };
 
@@ -212,6 +220,7 @@ function BoardsRoute() {
     try {
       await boardService.deleteBoard(boardId);
       setBoards(boards.filter((b) => b.id !== boardId));
+      trackEvent('board_delete', { board_id: boardId });
     } catch (error) {
       console.error('Failed to delete board:', error);
     }
@@ -421,7 +430,9 @@ function App() {
     <ErrorBoundary>
       <ThemeProvider defaultTheme="dark">
         <AuthProvider>
-          <AppRoutes />
+          <AnalyticsProvider>
+            <AppRoutes />
+          </AnalyticsProvider>
         </AuthProvider>
       </ThemeProvider>
     </ErrorBoundary>

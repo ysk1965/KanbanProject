@@ -1,5 +1,6 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
+import { captureException, setContext } from '../../lib/sentry';
 
 interface Props {
   children: ReactNode;
@@ -10,11 +11,13 @@ interface State {
   hasError: boolean;
   error: Error | null;
   errorInfo: ErrorInfo | null;
+  eventId: string | null;
 }
 
 /**
  * React Error Boundary 컴포넌트
  * 하위 컴포넌트에서 발생하는 에러를 캐치하여 앱 전체가 다운되는 것을 방지
+ * Sentry 연동으로 에러 자동 수집
  */
 class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
@@ -23,6 +26,7 @@ class ErrorBoundary extends Component<Props, State> {
       hasError: false,
       error: null,
       errorInfo: null,
+      eventId: null,
     };
   }
 
@@ -33,11 +37,23 @@ class ErrorBoundary extends Component<Props, State> {
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     this.setState({ errorInfo });
 
-    // 프로덕션에서는 에러 로깅 서비스로 전송
-    if (process.env.NODE_ENV === 'production') {
-      // TODO: Sentry, LogRocket 등 에러 추적 서비스 연동
-      console.error('Error caught by boundary:', error.message);
-    } else {
+    // Sentry에 에러 컨텍스트 추가
+    setContext('errorBoundary', {
+      componentStack: errorInfo.componentStack,
+    });
+
+    // Sentry에 에러 전송
+    const eventId = captureException(error, {
+      componentStack: errorInfo.componentStack,
+      source: 'ErrorBoundary',
+    });
+
+    if (eventId) {
+      this.setState({ eventId });
+    }
+
+    // 콘솔에도 로깅 (개발 환경에서 디버깅용)
+    if (import.meta.env.DEV) {
       console.error('Error caught by boundary:', error, errorInfo);
     }
   }
@@ -78,8 +94,15 @@ class ErrorBoundary extends Component<Props, State> {
               예상치 못한 오류가 발생했습니다. 페이지를 새로고침하거나 잠시 후 다시 시도해주세요.
             </p>
 
+            {/* Sentry Event ID 표시 (프로덕션에서 지원 문의 시 사용) */}
+            {this.state.eventId && (
+              <p className="text-xs text-slate-500 mb-4">
+                Error ID: {this.state.eventId}
+              </p>
+            )}
+
             {/* 개발 환경에서만 에러 상세 정보 표시 */}
-            {process.env.NODE_ENV !== 'production' && this.state.error && (
+            {import.meta.env.DEV && this.state.error && (
               <div className="mb-6 p-4 bg-red-500/10 rounded-xl border border-red-500/20 text-left">
                 <p className="text-red-400 text-sm font-mono break-all">
                   {this.state.error.message}

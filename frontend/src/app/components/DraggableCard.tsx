@@ -261,7 +261,7 @@ export function DraggableCard({
       data-task-id={task.id}
       data-task-index={index}
       draggable={!shouldDisablePointerEvents}
-      className={`group relative bg-kanban-card-hover rounded-2xl border border-kanban-border p-4 hover:border-indigo-500/50 hover:shadow-2xl hover:shadow-indigo-500/10 transition-all cursor-pointer overflow-hidden kanban-glow select-none ${
+      className={`group relative bg-kanban-card-hover rounded-xl border border-kanban-border px-3 py-2.5 hover:border-indigo-500/50 hover:shadow-2xl hover:shadow-indigo-500/10 transition-all cursor-pointer overflow-hidden kanban-glow select-none ${
         isDragging || isThisCardDragging
           ? 'opacity-30 scale-95 border-2 border-dashed border-indigo-400'
           : ''
@@ -298,13 +298,13 @@ export function DraggableCard({
       )}
 
       {/* 제목 영역 */}
-      <div className="flex items-start justify-between mb-3 pl-3">
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          {/* Feature 표시: showFeatureLabel이면 항상 태그, 아니면 기존 로직 */}
-          {linkedFeature ? (
-            (showFeatureLabel || isChecklistExpanded) ? (
+      <div className="mb-2 pl-2.5">
+        {/* Feature 표시: showFeatureLabel이면 뱃지를 윗줄에, 아니면 dot + 제목 한 줄 */}
+        {linkedFeature ? (
+          (showFeatureLabel || isChecklistExpanded) ? (
+            <div className="flex flex-col gap-1">
               <span
-                className="text-[10px] font-bold px-2 py-0.5 rounded-full border flex-shrink-0"
+                className="text-[9px] font-bold px-1.5 py-px rounded-full border self-start"
                 style={{
                   backgroundColor: `${featureColor}15`,
                   borderColor: `${featureColor}44`,
@@ -313,28 +313,38 @@ export function DraggableCard({
               >
                 {linkedFeature.title}
               </span>
-            ) : (
+              <h4 className="font-bold text-foreground text-[13px] leading-snug group-hover:text-indigo-400 transition-colors line-clamp-2">
+                {displayTitle}
+              </h4>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 min-w-0">
               <div
-                className="w-2 h-2 rounded-full flex-shrink-0"
+                className="w-1.5 h-1.5 rounded-full flex-shrink-0"
                 style={{ backgroundColor: featureColor }}
                 title={linkedFeature.title}
               />
-            )
-          ) : (
+              <h4 className="font-bold text-foreground text-[13px] leading-snug group-hover:text-indigo-400 transition-colors truncate">
+                {displayTitle}
+              </h4>
+            </div>
+          )
+        ) : (
+          <div className="flex items-center gap-1.5 min-w-0">
             <div
               className="w-1.5 h-1.5 rounded-full flex-shrink-0"
               style={{ backgroundColor: task.completed ? '#22c55e' : featureColor }}
             />
-          )}
-          <h4 className="font-bold text-foreground text-[14px] leading-snug group-hover:text-indigo-400 transition-colors truncate">
-            {displayTitle}
-          </h4>
-        </div>
+            <h4 className="font-bold text-foreground text-[13px] leading-snug group-hover:text-indigo-400 transition-colors truncate">
+              {displayTitle}
+            </h4>
+          </div>
+        )}
       </div>
 
       {/* 태그 표시 (펼쳐졌을 때만) */}
       {isChecklistExpanded && taskTags.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 mb-3 pl-3">
+        <div className="flex flex-wrap gap-1 mb-2 pl-2.5">
           {taskTags.map((tag) => (
             <span
               key={tag.id}
@@ -353,7 +363,7 @@ export function DraggableCard({
 
       {/* 마감일 표시 */}
       {task.due_date && (
-        <div className="flex items-center gap-1.5 mb-3 pl-3">
+        <div className="flex items-center gap-1.5 mb-2 pl-2.5">
           <Calendar size={12} className={`${
             isOverdue(task.due_date) ? 'text-red-400' : isDueSoon(task.due_date) ? 'text-amber-400' : 'text-amber-400'
           }`} />
@@ -366,7 +376,7 @@ export function DraggableCard({
       )}
 
       {/* 체크리스트 & 담당자 */}
-      <div className="flex items-center justify-between border-t border-kanban-border pt-3 mt-1 pl-3">
+      <div className="flex items-center justify-between border-t border-kanban-border pt-2 pl-2.5">
         <div className="flex items-center gap-3">
           {hasChecklist && boardId && (
             <button
@@ -375,7 +385,7 @@ export function DraggableCard({
             >
               <CheckSquare size={12} className="text-indigo-400" />
               <div className="flex items-center gap-2">
-                <div className="w-16 h-1.5 bg-zinc-700 rounded-full overflow-hidden">
+                <div className="w-12 h-1 bg-zinc-700 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-indigo-500 rounded-full transition-all duration-300"
                     style={{
@@ -406,7 +416,7 @@ export function DraggableCard({
               {allAssignees.slice(0, 3).map((assignee, index) => (
                 <div
                   key={assignee.id}
-                  className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white border-2 border-kanban-card-hover"
+                  className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white border-2 border-kanban-card-hover"
                   style={{
                     backgroundColor: getAssigneeHex(assignee.name, memberColorMap?.[assignee.id]),
                     zIndex: 3 - index,
@@ -418,7 +428,7 @@ export function DraggableCard({
               ))}
               {allAssignees.length > 3 && (
                 <div
-                  className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white bg-zinc-600 border-2 border-kanban-card-hover"
+                  className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold text-white bg-zinc-600 border-2 border-kanban-card-hover"
                   style={{ zIndex: 0 }}
                   title={allAssignees.slice(3).map(a => a.name).join(', ')}
                 >
@@ -427,7 +437,7 @@ export function DraggableCard({
               )}
             </div>
             {allAssignees.length === 1 && (
-              <span className="text-[11px] font-medium text-zinc-400 ml-2">{allAssignees[0].name}</span>
+              <span className="text-[10px] font-medium text-zinc-400 ml-1.5">{allAssignees[0].name}</span>
             )}
           </div>
         )}
@@ -435,7 +445,7 @@ export function DraggableCard({
 
       {/* 체크리스트 펼침 */}
       {isChecklistExpanded && hasChecklist && boardId && (
-        <div className="mt-3 pt-3 border-t border-kanban-border space-y-1.5 pl-3">
+        <div className="mt-2 pt-2 border-t border-kanban-border space-y-1 pl-2.5">
           {isLoading ? (
             <div className="text-xs text-zinc-400">로딩 중...</div>
           ) : (

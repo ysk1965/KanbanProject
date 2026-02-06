@@ -420,17 +420,49 @@ export function FeatureDetailModal({
                 {/* Task Entries */}
                 <div className="divide-y divide-white/5">
                   {tasks.length === 0 && (
-                    <div className="px-5 py-6 flex items-start gap-3">
-                      <div className="w-7 h-7 rounded-lg bg-indigo-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <Lightbulb size={14} className="text-indigo-400" />
+                    <div className="relative">
+                      {/* 안내 메시지 */}
+                      <div className="px-5 pt-5 pb-3 flex items-start gap-3">
+                        <div className="w-7 h-7 rounded-lg bg-indigo-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <Lightbulb size={14} className="text-indigo-400" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-zinc-300 mb-1">
+                            아래에서 서브태스크를 추가해보세요
+                          </p>
+                          <p className="text-[11px] text-zinc-500 leading-relaxed">
+                            서브태스크는 칸반보드의 Task 블록에 카드로 나타나며, 블록 간 드래그로 진행 상태를 관리할 수 있어요.
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-xs font-semibold text-zinc-300 mb-1">
-                          아래에서 서브태스크를 추가해보세요
-                        </p>
-                        <p className="text-[11px] text-zinc-500 leading-relaxed">
-                          서브태스크는 칸반보드의 Task 블록에 카드로 나타나며, 블록 간 드래그로 진행 상태를 관리할 수 있어요.
-                        </p>
+                      {/* 예시 서브태스크 (시각적 가이드) */}
+                      <div className="mx-4 mb-4 rounded-lg border border-dashed border-white/10 overflow-hidden opacity-40 pointer-events-none select-none">
+                        <div className="px-3 py-1.5 bg-white/[0.02]">
+                          <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-500">예시</span>
+                        </div>
+                        <div className="divide-y divide-white/5">
+                          <div className="flex items-center justify-between px-4 py-3">
+                            <div className="flex items-center gap-3">
+                              <div className="w-2 h-2 rounded-full bg-indigo-400 flex-shrink-0" style={{ boxShadow: '0 0 8px rgba(129,140,248,0.27)' }} />
+                              <span className="text-xs font-semibold text-zinc-400">API 엔드포인트 설계</span>
+                            </div>
+                            <span className="text-[10px] font-black tracking-widest text-zinc-500">→ TASK</span>
+                          </div>
+                          <div className="flex items-center justify-between px-4 py-3">
+                            <div className="flex items-center gap-3">
+                              <div className="w-2 h-2 rounded-full bg-indigo-400 flex-shrink-0" style={{ boxShadow: '0 0 8px rgba(129,140,248,0.27)' }} />
+                              <span className="text-xs font-semibold text-zinc-400">화면 UI 구현</span>
+                            </div>
+                            <span className="text-[10px] font-black tracking-widest text-zinc-500">→ IN PROGRESS</span>
+                          </div>
+                          <div className="flex items-center justify-between px-4 py-3">
+                            <div className="flex items-center gap-3">
+                              <div className="w-2 h-2 rounded-full bg-indigo-400 flex-shrink-0" style={{ boxShadow: '0 0 8px rgba(129,140,248,0.27)' }} />
+                              <span className="text-xs font-semibold text-zinc-400">테스트 코드 작성</span>
+                            </div>
+                            <span className="text-[10px] font-black tracking-widest text-zinc-500">→ DONE ✓</span>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   )}

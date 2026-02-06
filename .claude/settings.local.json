@@ -42,7 +42,11 @@
       "Bash(aws ec2 revoke-security-group-ingress:*)",
       "Bash(git fetch:*)",
       "Bash(SPRING_PROFILES_ACTIVE=local ./gradlew bootRun:*)",
-      "Bash(PGPASSWORD='KanbanDev2026Secure' /opt/homebrew/opt/libpq/bin/psql -h kanban-dev-db.ctwc2yiy6d30.ap-northeast-2.rds.amazonaws.com -U kanban -d kanban_dev -c \"SELECT id, email, name, system_role FROM users WHERE email = ''admin@test.com'';\")"
+      "Bash(PGPASSWORD='KanbanDev2026Secure' /opt/homebrew/opt/libpq/bin/psql -h kanban-dev-db.ctwc2yiy6d30.ap-northeast-2.rds.amazonaws.com -U kanban -d kanban_dev -c \"SELECT id, email, name, system_role FROM users WHERE email = ''admin@test.com'';\")",
+      "Bash(npx vue-tsc:*)",
+      "Bash(git reset:*)",
+      "Bash(git stash:*)",
+      "Bash(grep:*)"
     ]
   }
 }

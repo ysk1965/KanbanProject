@@ -1,5 +1,8 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { authService } from '../utils/services';
+import { setSentryUser } from '../../lib/sentry';
+import { setUserId, setUserProperties } from 'firebase/analytics';
+import { analytics } from '../../lib/firebase';
 
 interface User {
   id: string;
@@ -35,14 +38,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Analytics/Sentry 사용자 동기화
+  const syncAnalyticsUser = (user: User | null) => {
+    // Sentry 사용자 설정
+    if (user) {
+      setSentryUser({ id: user.id, email: user.email, name: user.name });
+    } else {
+      setSentryUser(null);
+    }
+
+    // Firebase Analytics 사용자 설정
+    if (analytics) {
+      try {
+        setUserId(analytics, user?.id || null);
+        if (user) {
+          setUserProperties(analytics, {
+            user_role: user.system_role?.toLowerCase() || 'user',
+            theme: user.theme || 'dark',
+            provider: user.provider || 'email',
+          });
+        }
+      } catch (error) {
+        console.debug('[Analytics] Failed to set user:', error);
+      }
+    }
+  };
+
   useEffect(() => {
     // 초기 인증 상태 확인 (토큰 유효성 검증 포함)
     const checkAuth = async () => {
       // 1. 토큰이 유효한 경우 - 바로 인증 상태로 설정
       if (authService.isAuthenticated()) {
         console.log('✅ [Auth] 유효한 토큰 확인');
+        const user = authService.getCurrentUser();
         setIsAuthenticated(true);
-        setCurrentUser(authService.getCurrentUser());
+        setCurrentUser(user);
+        syncAnalyticsUser(user);
         setIsLoading(false);
         return;
       }
@@ -54,12 +85,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (refreshed) {
           console.log('✅ [Auth] 토큰 갱신 성공');
+          const user = authService.getCurrentUser();
           setIsAuthenticated(true);
-          setCurrentUser(authService.getCurrentUser());
+          setCurrentUser(user);
+          syncAnalyticsUser(user);
         } else {
           console.log('❌ [Auth] 토큰 갱신 실패, 로그인 필요');
           setIsAuthenticated(false);
           setCurrentUser(null);
+          syncAnalyticsUser(null);
         }
         setIsLoading(false);
         return;
@@ -69,6 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log('🔒 [Auth] 토큰 없음, 미인증 상태');
       setIsAuthenticated(false);
       setCurrentUser(null);
+      syncAnalyticsUser(null);
       setIsLoading(false);
     };
 
@@ -79,24 +114,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const response = await authService.login(email, password);
     setIsAuthenticated(true);
     setCurrentUser(response.user);
+    syncAnalyticsUser(response.user);
   };
 
   const signup = async (email: string, password: string, name: string) => {
     const response = await authService.signup(email, password, name);
     setIsAuthenticated(true);
     setCurrentUser(response.user);
+    syncAnalyticsUser(response.user);
   };
 
   const googleLogin = async (idToken: string) => {
     const response = await authService.googleLogin(idToken);
     setIsAuthenticated(true);
     setCurrentUser(response.user);
+    syncAnalyticsUser(response.user);
   };
 
   const logout = async () => {
     await authService.logout();
     setIsAuthenticated(false);
     setCurrentUser(null);
+    syncAnalyticsUser(null);
   };
 
   const resendVerificationEmail = async () => {
