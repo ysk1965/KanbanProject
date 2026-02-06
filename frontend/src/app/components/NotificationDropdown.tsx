@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { Bell, CheckCheck, Loader2, Activity, ChevronDown } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { notificationAPI } from '../utils/api';
+import { SlackSettingsPanel } from './SlackSettingsPanel';
 import { NotificationItem, ActivityLog } from '../types';
 import { Button } from './ui/button';
 import { getAssigneeClasses } from '../utils/assigneeColor';
@@ -328,6 +329,9 @@ export function NotificationDropdown({
         <div className="max-h-[440px] overflow-y-auto">
           {activeTab === 'notifications' ? (
             <>
+              {/* Slack Integration Banner */}
+              <SlackSettingsPanel boardId={boardId} />
+
               {/* Notifications Header with Mark All Read */}
               {notifications.length > 0 && unreadCount > 0 && (
                 <div className="flex items-center justify-end px-4 py-2 border-b border-white/20">

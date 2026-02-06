@@ -9,6 +9,7 @@ import com.kanban.domain.comment.CommentAttachmentRepository;
 import com.kanban.domain.comment.CommentRepository;
 import com.kanban.domain.comment.dto.CommentRequest;
 import com.kanban.domain.comment.dto.CommentResponse;
+import com.kanban.domain.integration.slack.service.SlackNotificationService;
 import com.kanban.domain.notification.service.NotificationService;
 import com.kanban.domain.task.Task;
 import com.kanban.domain.task.TaskRepository;
@@ -42,6 +43,7 @@ public class CommentService {
     private final UserRepository userRepository;
     private final BoardService boardService;
     private final NotificationService notificationService;
+    private final SlackNotificationService slackNotificationService;
     private final FileUploadService fileUploadService;
 
     private static final int MAX_ATTACHMENTS = 5;
@@ -121,6 +123,7 @@ public class CommentService {
         }
 
         notificationService.createMentionNotifications(comment, user, board);
+        slackNotificationService.sendMentionNotifications(comment, user, board);
 
         log.info("Comment created: {} on task: {} by user: {} with {} attachments",
                 comment.getId(), taskId, userId, comment.getAttachments().size());

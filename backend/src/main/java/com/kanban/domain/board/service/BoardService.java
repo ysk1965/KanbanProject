@@ -10,6 +10,7 @@ import com.kanban.domain.board.dto.BoardResponse;
 import com.kanban.domain.checklist.ChecklistItemRepository;
 import com.kanban.domain.comment.CommentAttachmentRepository;
 import com.kanban.domain.comment.CommentRepository;
+import com.kanban.domain.integration.slack.MemberSlackWebhookRepository;
 import com.kanban.domain.dailychecklist.DailyChecklistRepository;
 import com.kanban.domain.feature.FeatureRepository;
 import com.kanban.domain.invite.InviteLinkRepository;
@@ -75,6 +76,7 @@ public class BoardService {
     private final ScheduleBlockRepository scheduleBlockRepository;
     private final DailyChecklistRepository dailyChecklistRepository;
     private final PaymentHistoryRepository paymentHistoryRepository;
+    private final MemberSlackWebhookRepository memberSlackWebhookRepository;
     private final FileUploadService fileUploadService;
 
     @Transactional
@@ -246,13 +248,16 @@ public class BoardService {
         weightLevelRepository.deleteByBoardId(boardId);
         milestoneRepository.deleteByBoardId(boardId);
 
-        // 9) 결제 이력 → 구독 → 보드 멤버십
+        // 9) Slack 웹훅
+        memberSlackWebhookRepository.deleteByBoardId(boardId);
+
+        // 10) 결제 이력 → 구독 → 보드 멤버십
         paymentHistoryRepository.deleteByBoardId(boardId);
         userBoardStarRepository.deleteByBoardId(boardId);
         boardMemberRepository.deleteByBoardId(boardId);
         subscriptionRepository.deleteByBoardId(boardId);
 
-        // 10) 보드 삭제
+        // 11) 보드 삭제
         boardRepository.delete(board);
         log.info("Board deleted: {} by user: {}", boardId, userId);
     }
@@ -292,6 +297,8 @@ public class BoardService {
         tagRepository.deleteByBoardId(boardId);
         weightLevelRepository.deleteByBoardId(boardId);
         milestoneRepository.deleteByBoardId(boardId);
+
+        memberSlackWebhookRepository.deleteByBoardId(boardId);
 
         paymentHistoryRepository.deleteByBoardId(boardId);
         userBoardStarRepository.deleteByBoardId(boardId);

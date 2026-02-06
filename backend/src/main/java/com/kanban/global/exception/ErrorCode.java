@@ -132,6 +132,11 @@ public enum ErrorCode {
     INQUIRY_ACCESS_DENIED(HttpStatus.FORBIDDEN, "IQ002", "해당 문의에 접근할 수 없습니다"),
     INQUIRY_CLOSED(HttpStatus.BAD_REQUEST, "IQ003", "종료된 문의에는 답변할 수 없습니다"),
 
+    // Slack Integration
+    SLACK_WEBHOOK_NOT_FOUND(HttpStatus.NOT_FOUND, "SK001", "Slack 웹훅 설정을 찾을 수 없습니다"),
+    SLACK_WEBHOOK_INVALID_URL(HttpStatus.BAD_REQUEST, "SK002", "유효하지 않은 Slack 웹훅 URL입니다"),
+    SLACK_WEBHOOK_TEST_FAILED(HttpStatus.BAD_GATEWAY, "SK003", "Slack 테스트 메시지 전송에 실패했습니다"),
+
     // System
     ANNOUNCEMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "SY001", "공지사항을 찾을 수 없습니다"),
     SYSTEM_UNDER_MAINTENANCE(HttpStatus.SERVICE_UNAVAILABLE, "SY002", "시스템 점검 중입니다"),

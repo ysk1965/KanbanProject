@@ -1532,6 +1532,17 @@ export interface WeeklyScheduleResponse {
   }[];
 }
 
+/**
+ * Day 모드 통합 응답 (스케줄 + 데일리 체크리스트)
+ * 2개 API 호출 → 1개로 통합
+ */
+export interface DailyFullResponse {
+  date: string;
+  settings: ScheduleSettingsResponse;
+  columns: ScheduleColumnInfo[];
+  daily_checklists: DailyChecklistColumnResponse[];
+}
+
 export interface ScheduleBlockDetailResponse {
   id: string;
   assignee_id: string;
@@ -1608,6 +1619,25 @@ export const scheduleAPI = {
     }
     return apiClient.get<WeeklyScheduleResponse>(
       `/boards/${boardId}/schedules/weekly?${query.toString()}`
+    );
+  },
+
+  /**
+   * Day 모드 통합 조회 (스케줄 + 데일리 체크리스트)
+   * 기존 2개 API 호출 → 1개로 통합
+   */
+  getDailyFull: async (
+    boardId: string,
+    date: string,
+    assigneeIds?: string[]
+  ) => {
+    const query = new URLSearchParams();
+    query.set('date', date);
+    if (assigneeIds && assigneeIds.length > 0) {
+      assigneeIds.forEach(id => query.append('assigneeIds', id));
+    }
+    return apiClient.get<DailyFullResponse>(
+      `/boards/${boardId}/schedules/daily-full?${query.toString()}`
     );
   },
 
@@ -2822,5 +2852,46 @@ export const notificationAPI = {
 
   markAllAsRead: async () => {
     return apiClient.put<{ message: string }>('/notifications/read-all');
+  },
+};
+
+// ========================================
+// Slack Webhook API
+// ========================================
+
+export interface SlackWebhookConfig {
+  id: string;
+  board_id: string;
+  webhook_url_masked: string;
+  channel_name: string | null;
+  enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SlackTestResult {
+  success: boolean;
+  message: string;
+}
+
+export const slackWebhookAPI = {
+  getMyConfig: async (boardId: string) => {
+    return apiClient.get<SlackWebhookConfig>(`/boards/${boardId}/slack-webhook/me`);
+  },
+
+  upsertMyConfig: async (boardId: string, data: {
+    webhookUrl: string;
+    channelName?: string;
+    enabled?: boolean;
+  }) => {
+    return apiClient.put<SlackWebhookConfig>(`/boards/${boardId}/slack-webhook/me`, data);
+  },
+
+  deleteMyConfig: async (boardId: string) => {
+    return apiClient.delete<{ message: string }>(`/boards/${boardId}/slack-webhook/me`);
+  },
+
+  testMyWebhook: async (boardId: string) => {
+    return apiClient.post<SlackTestResult>(`/boards/${boardId}/slack-webhook/me/test`);
   },
 };
