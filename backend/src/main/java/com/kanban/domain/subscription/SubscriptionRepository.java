@@ -39,4 +39,24 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Stri
     @Modifying
     @Query("DELETE FROM Subscription s WHERE s.board.id = :boardId")
     void deleteByBoardId(@Param("boardId") String boardId);
+
+    // Analytics: 전환율 통계
+    long countByStatusIn(java.util.Collection<SubscriptionStatus> statuses);
+
+    @Query("SELECT COUNT(s) FROM Subscription s WHERE s.status = 'TRIAL' AND s.trialEndsAt < :now")
+    long countTrialExpiredNotConverted(@Param("now") LocalDateTime now);
+
+    // 월별 구독 생성 추이 (전체 Trial 시작) - FORMATDATETIME for H2 compatibility
+    @Query(value = "SELECT FORMATDATETIME(created_at, 'yyyy-MM') as m, COUNT(*) as cnt " +
+            "FROM subscriptions WHERE created_at >= :startDate " +
+            "GROUP BY FORMATDATETIME(created_at, 'yyyy-MM') ORDER BY m",
+            nativeQuery = true)
+    List<Object[]> getMonthlyTrialStarted(@Param("startDate") LocalDateTime startDate);
+
+    // 월별 전환 추이 (ACTIVE 전환)
+    @Query(value = "SELECT FORMATDATETIME(current_period_start, 'yyyy-MM') as m, COUNT(*) as cnt " +
+            "FROM subscriptions WHERE status = 'ACTIVE' AND current_period_start >= :startDate " +
+            "GROUP BY FORMATDATETIME(current_period_start, 'yyyy-MM') ORDER BY m",
+            nativeQuery = true)
+    List<Object[]> getMonthlyConverted(@Param("startDate") LocalDateTime startDate);
 }

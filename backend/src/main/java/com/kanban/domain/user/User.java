@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 @Entity
@@ -41,6 +42,9 @@ public class User extends BaseTimeEntity {
     @Column(name = "last_login_at")
     private LocalDateTime lastLoginAt;
 
+    @Column(name = "last_active_at")
+    private LocalDateTime lastActiveAt;
+
     @Column(name = "email_verified", nullable = false)
     @Builder.Default
     private Boolean emailVerified = false;
@@ -58,6 +62,16 @@ public class User extends BaseTimeEntity {
     // TODO: 라이브 서비스 전 SystemRole.USER로 변경 필요
     private SystemRole systemRole = SystemRole.TESTER;
 
+    @Column(name = "is_active", nullable = false)
+    @Builder.Default
+    private Boolean isActive = true;
+
+    @Column(name = "deactivated_at")
+    private LocalDateTime deactivatedAt;
+
+    @Column(name = "deactivated_reason", length = 500)
+    private String deactivatedReason;
+
     @PrePersist
     public void prePersist() {
         if (this.id == null) {
@@ -66,7 +80,12 @@ public class User extends BaseTimeEntity {
     }
 
     public void updateLastLoginAt() {
-        this.lastLoginAt = LocalDateTime.now();
+        this.lastLoginAt = LocalDateTime.now(ZoneOffset.UTC);
+        this.lastActiveAt = LocalDateTime.now(ZoneOffset.UTC);
+    }
+
+    public void updateLastActiveAt() {
+        this.lastActiveAt = LocalDateTime.now(ZoneOffset.UTC);
     }
 
     public void updateProfile(String name, String profileImage) {
@@ -98,7 +117,7 @@ public class User extends BaseTimeEntity {
 
     public void verifyEmail() {
         this.emailVerified = true;
-        this.emailVerifiedAt = LocalDateTime.now();
+        this.emailVerifiedAt = LocalDateTime.now(ZoneOffset.UTC);
     }
 
     public boolean isAdmin() {
@@ -109,5 +128,17 @@ public class User extends BaseTimeEntity {
         if (systemRole != null) {
             this.systemRole = systemRole;
         }
+    }
+
+    public void deactivate(String reason) {
+        this.isActive = false;
+        this.deactivatedAt = LocalDateTime.now(ZoneOffset.UTC);
+        this.deactivatedReason = reason;
+    }
+
+    public void activate() {
+        this.isActive = true;
+        this.deactivatedAt = null;
+        this.deactivatedReason = null;
     }
 }

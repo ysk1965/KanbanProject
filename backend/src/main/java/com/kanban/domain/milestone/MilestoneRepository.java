@@ -30,4 +30,8 @@ public interface MilestoneRepository extends JpaRepository<Milestone, String> {
     @Modifying
     @Query("DELETE FROM Milestone m WHERE m.board.id = :boardId")
     void deleteByBoardId(@Param("boardId") String boardId);
+
+    @Modifying
+    @Query("UPDATE Milestone m SET m.createdBy = null WHERE m.createdBy.id = :userId")
+    void nullifyCreatedByUserId(@Param("userId") String userId);
 }

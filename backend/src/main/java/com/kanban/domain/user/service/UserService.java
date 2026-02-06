@@ -1,7 +1,19 @@
 package com.kanban.domain.user.service;
 
+import com.kanban.domain.activity.ActivityLogRepository;
 import com.kanban.domain.board.BoardMemberRepository;
 import com.kanban.domain.board.BoardRole;
+import com.kanban.domain.board.UserBoardStarRepository;
+import com.kanban.domain.checklist.ChecklistItemRepository;
+import com.kanban.domain.comment.CommentRepository;
+import com.kanban.domain.dailychecklist.DailyChecklistRepository;
+import com.kanban.domain.feature.FeatureRepository;
+import com.kanban.domain.invite.InviteLinkRepository;
+import com.kanban.domain.milestone.MilestoneAllocationRepository;
+import com.kanban.domain.milestone.MilestoneRepository;
+import com.kanban.domain.notification.NotificationRepository;
+import com.kanban.domain.schedule.ScheduleBlockRepository;
+import com.kanban.domain.task.TaskRepository;
 import com.kanban.domain.user.EmailVerificationTokenRepository;
 import com.kanban.domain.user.PasswordResetTokenRepository;
 import com.kanban.domain.user.RefreshTokenRepository;
@@ -29,6 +41,18 @@ public class UserService {
     private final EmailVerificationTokenRepository emailVerificationTokenRepository;
     private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final PasswordEncoder passwordEncoder;
+    private final NotificationRepository notificationRepository;
+    private final ActivityLogRepository activityLogRepository;
+    private final UserBoardStarRepository userBoardStarRepository;
+    private final MilestoneAllocationRepository milestoneAllocationRepository;
+    private final ScheduleBlockRepository scheduleBlockRepository;
+    private final DailyChecklistRepository dailyChecklistRepository;
+    private final FeatureRepository featureRepository;
+    private final TaskRepository taskRepository;
+    private final CommentRepository commentRepository;
+    private final MilestoneRepository milestoneRepository;
+    private final ChecklistItemRepository checklistItemRepository;
+    private final InviteLinkRepository inviteLinkRepository;
 
     public User getUser(String userId) {
         return userRepository.findById(userId)
@@ -80,15 +104,29 @@ public class UserService {
             throw new BusinessException(ErrorCode.CANNOT_DELETE_BOARD_OWNER);
         }
 
-        // 관련 데이터 정리
-        // 1. 리프레시 토큰 삭제
+        // 관련 데이터 정리 (FK 의존성 순서: leaf → parent)
+        // 1. 인증 토큰 삭제
         refreshTokenRepository.deleteByUserId(userId);
-
-        // 2. 이메일 인증 토큰 삭제
         emailVerificationTokenRepository.deleteByUserId(userId);
-
-        // 3. 비밀번호 재설정 토큰 삭제
         passwordResetTokenRepository.deleteByUserId(userId);
+
+        // 2. 사용자 전용 데이터 삭제 (다른 사용자와 무관한 데이터)
+        notificationRepository.deleteByRecipientId(userId);
+        activityLogRepository.deleteByUserId(userId);
+        userBoardStarRepository.deleteByUserId(userId);
+        milestoneAllocationRepository.deleteByMemberId(userId);
+        scheduleBlockRepository.deleteByAssigneeId(userId);
+        dailyChecklistRepository.deleteByAssigneeId(userId);
+
+        // 3. 참조 필드 NULL 처리 (다른 사용자의 데이터는 보존, 참조만 해제)
+        featureRepository.nullifyAssigneeByUserId(userId);
+        featureRepository.nullifyCreatedByUserId(userId);
+        taskRepository.nullifyCreatedByUserId(userId);
+        commentRepository.nullifyAuthorByUserId(userId);
+        milestoneRepository.nullifyCreatedByUserId(userId);
+        checklistItemRepository.nullifyAssigneeByUserId(userId);
+        inviteLinkRepository.nullifyCreatedByUserId(userId);
+        boardMemberRepository.nullifyInvitedByUserId(userId);
 
         // 4. 보드 멤버십 삭제 (Owner가 아닌 것은 이미 확인됨)
         boardMemberRepository.deleteByUserId(userId);

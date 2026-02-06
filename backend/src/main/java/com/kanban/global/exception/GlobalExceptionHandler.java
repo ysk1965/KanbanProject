@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -87,7 +88,7 @@ public class GlobalExceptionHandler {
                     errorCode.getCode(),
                     errorCode.getMessage(),
                     null,
-                    LocalDateTime.now()
+                    LocalDateTime.now(ZoneOffset.UTC)
             );
         }
 
@@ -96,7 +97,7 @@ public class GlobalExceptionHandler {
                     errorCode.getCode(),
                     errorCode.getMessage(),
                     errors,
-                    LocalDateTime.now()
+                    LocalDateTime.now(ZoneOffset.UTC)
             );
         }
     }

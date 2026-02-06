@@ -10,6 +10,7 @@ import lombok.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 @Entity
@@ -60,7 +61,7 @@ public class Task extends BaseTimeEntity {
     private Integer position = 0;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "created_by", nullable = false)
+    @JoinColumn(name = "created_by")
     private User createdBy;
 
     @Column(name = "completed_at")
@@ -97,7 +98,7 @@ public class Task extends BaseTimeEntity {
         // Done 블록으로 이동 시 완료 처리
         if (newBlock.isDoneBlock() && !wasCompleted) {
             this.isCompleted = true;
-            this.completedAt = LocalDateTime.now();
+            this.completedAt = LocalDateTime.now(ZoneOffset.UTC);
             this.feature.incrementCompletedTasks();
         }
         // Done 블록에서 다른 블록으로 이동 시 완료 해제
@@ -111,7 +112,7 @@ public class Task extends BaseTimeEntity {
     public void complete() {
         if (!this.isCompleted) {
             this.isCompleted = true;
-            this.completedAt = LocalDateTime.now();
+            this.completedAt = LocalDateTime.now(ZoneOffset.UTC);
         }
     }
 

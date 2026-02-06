@@ -24,4 +24,9 @@ public interface TaskWeightRepository extends JpaRepository<TaskWeight, String> 
     void deleteByTaskId(String taskId);
 
     void deleteByWeightLevelId(String weightLevelId);
+
+    @Modifying
+    @Query("DELETE FROM TaskWeight tw WHERE tw.task.id IN " +
+           "(SELECT t.id FROM Task t WHERE t.feature.id = :featureId)")
+    void deleteByFeatureId(@Param("featureId") String featureId);
 }

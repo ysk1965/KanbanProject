@@ -23,6 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 @Slf4j
@@ -76,6 +77,11 @@ public class AuthService {
         // 사용자 조회
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_CREDENTIALS));
+
+        // 비활성화된 계정 체크
+        if (!user.getIsActive()) {
+            throw new BusinessException(ErrorCode.USER_DEACTIVATED);
+        }
 
         // 비밀번호 검증
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
@@ -137,6 +143,10 @@ public class AuthService {
                 .orElse(null);
 
         if (user != null) {
+            // 비활성화된 계정 체크
+            if (!user.getIsActive()) {
+                throw new BusinessException(ErrorCode.USER_DEACTIVATED);
+            }
             // 기존 Google 사용자 - 로그인 처리
             user.updateLastLoginAt();
             userRepository.save(user);
@@ -192,7 +202,7 @@ public class AuthService {
                 .id(UUID.randomUUID().toString())
                 .user(user)
                 .token(refreshToken)
-                .expiresAt(LocalDateTime.now().plusSeconds(jwtProvider.getRefreshExpiration() / 1000))
+                .expiresAt(LocalDateTime.now(ZoneOffset.UTC).plusSeconds(jwtProvider.getRefreshExpiration() / 1000))
                 .build();
 
         refreshTokenRepository.save(refreshTokenEntity);
@@ -261,7 +271,7 @@ public class AuthService {
         emailVerificationTokenRepository.findByUserIdAndUsedAtIsNull(user.getId())
                 .ifPresent(existingToken -> {
                     // 1분 이내에 발송된 토큰이 있으면 재발송 불가
-                    if (existingToken.getCreatedAt().plusMinutes(1).isAfter(LocalDateTime.now())) {
+                    if (existingToken.getCreatedAt().plusMinutes(1).isAfter(LocalDateTime.now(ZoneOffset.UTC))) {
                         throw new BusinessException(ErrorCode.VERIFICATION_EMAIL_RATE_LIMITED);
                     }
                     // 기존 토큰 삭제
@@ -297,7 +307,7 @@ public class AuthService {
         passwordResetTokenRepository.findByUserIdAndUsedAtIsNull(user.getId())
                 .ifPresent(existingToken -> {
                     // 1분 이내에 발송된 토큰이 있으면 재발송 불가
-                    if (existingToken.getCreatedAt().plusMinutes(1).isAfter(LocalDateTime.now())) {
+                    if (existingToken.getCreatedAt().plusMinutes(1).isAfter(LocalDateTime.now(ZoneOffset.UTC))) {
                         throw new BusinessException(ErrorCode.PASSWORD_RESET_EMAIL_RATE_LIMITED);
                     }
                     // 기존 토큰 삭제

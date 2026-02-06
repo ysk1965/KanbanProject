@@ -42,4 +42,9 @@ public interface TaskTagRepository extends JpaRepository<TaskTag, String> {
            "JOIN FETCH tt.tag " +
            "WHERE tt.task.id = :taskId")
     List<TaskTag> findByTaskIdWithFetch(@Param("taskId") String taskId);
+
+    @Modifying
+    @Query("DELETE FROM TaskTag tt WHERE tt.task.id IN " +
+           "(SELECT t.id FROM Task t WHERE t.feature.id = :featureId)")
+    void deleteByFeatureId(@Param("featureId") String featureId);
 }

@@ -26,4 +26,12 @@ public interface MilestoneAllocationRepository extends JpaRepository<MilestoneAl
     List<MilestoneAllocation> findByMilestoneIdWithMember(@Param("milestoneId") String milestoneId);
 
     boolean existsByMilestoneIdAndMemberId(String milestoneId, String memberId);
+
+    @Modifying
+    @Query("DELETE FROM MilestoneAllocation ma WHERE ma.milestone.id = :milestoneId")
+    void deleteByMilestoneId(@Param("milestoneId") String milestoneId);
+
+    @Modifying
+    @Query("DELETE FROM MilestoneAllocation ma WHERE ma.member.id = :userId")
+    void deleteByMemberId(@Param("userId") String userId);
 }

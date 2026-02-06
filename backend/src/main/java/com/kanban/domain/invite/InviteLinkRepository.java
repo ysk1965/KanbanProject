@@ -24,4 +24,8 @@ public interface InviteLinkRepository extends JpaRepository<InviteLink, String> 
     @Modifying
     @Query("DELETE FROM InviteLink i WHERE i.board.id = :boardId")
     void deleteByBoardId(@Param("boardId") String boardId);
+
+    @Modifying
+    @Query("UPDATE InviteLink il SET il.createdBy = null WHERE il.createdBy.id = :userId")
+    void nullifyCreatedByUserId(@Param("userId") String userId);
 }

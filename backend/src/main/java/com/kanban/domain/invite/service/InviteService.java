@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 
 @Slf4j
@@ -59,7 +60,7 @@ public class InviteService {
 
         LocalDateTime expiresAt = null;
         if (request.getExpiresInHours() != null && request.getExpiresInHours() > 0) {
-            expiresAt = LocalDateTime.now().plusHours(request.getExpiresInHours());
+            expiresAt = LocalDateTime.now(ZoneOffset.UTC).plusHours(request.getExpiresInHours());
         }
 
         InviteLink link = InviteLink.builder()
@@ -106,7 +107,7 @@ public class InviteService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVITE_LINK_NOT_FOUND));
 
         if (!link.isValid()) {
-            if (link.getExpiresAt() != null && LocalDateTime.now().isAfter(link.getExpiresAt())) {
+            if (link.getExpiresAt() != null && LocalDateTime.now(ZoneOffset.UTC).isAfter(link.getExpiresAt())) {
                 throw new BusinessException(ErrorCode.INVITE_LINK_EXPIRED);
             }
             throw new BusinessException(ErrorCode.INVITE_LINK_INVALID);

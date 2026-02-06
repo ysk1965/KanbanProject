@@ -22,4 +22,8 @@ public interface UserBoardStarRepository extends JpaRepository<UserBoardStar, St
     @Modifying
     @Query("DELETE FROM UserBoardStar ubs WHERE ubs.board.id = :boardId")
     void deleteByBoardId(@Param("boardId") String boardId);
+
+    @Modifying
+    @Query("DELETE FROM UserBoardStar ubs WHERE ubs.user.id = :userId")
+    void deleteByUserId(@Param("userId") String userId);
 }

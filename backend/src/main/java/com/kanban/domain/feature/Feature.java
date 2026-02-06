@@ -8,6 +8,7 @@ import lombok.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 @Entity
@@ -64,7 +65,7 @@ public class Feature extends BaseTimeEntity {
     private Integer position = 0;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "created_by", nullable = false)
+    @JoinColumn(name = "created_by")
     private User createdBy;
 
     @Column(name = "completed_at")
@@ -121,7 +122,7 @@ public class Feature extends BaseTimeEntity {
     private void checkCompletion() {
         if (this.totalTasks > 0 && this.completedTasks.equals(this.totalTasks)) {
             this.status = FeatureStatus.COMPLETED;
-            this.completedAt = LocalDateTime.now();
+            this.completedAt = LocalDateTime.now(ZoneOffset.UTC);
         }
     }
 

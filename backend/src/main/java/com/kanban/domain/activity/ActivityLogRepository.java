@@ -23,4 +23,8 @@ public interface ActivityLogRepository extends JpaRepository<ActivityLog, String
     @Modifying
     @Query("DELETE FROM ActivityLog a WHERE a.board.id = :boardId")
     void deleteByBoardId(@Param("boardId") String boardId);
+
+    @Modifying
+    @Query("DELETE FROM ActivityLog a WHERE a.user.id = :userId")
+    void deleteByUserId(@Param("userId") String userId);
 }

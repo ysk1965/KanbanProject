@@ -10,6 +10,7 @@ import com.kanban.domain.checklist.dto.ChecklistBatchRequest;
 import com.kanban.domain.checklist.dto.ChecklistBatchResponse;
 import com.kanban.domain.checklist.dto.ChecklistRequest;
 import com.kanban.domain.checklist.dto.ChecklistResponse;
+import com.kanban.domain.dailychecklist.DailyChecklistRepository;
 import com.kanban.domain.schedule.ScheduleBlockRepository;
 import com.kanban.domain.task.Task;
 import com.kanban.domain.task.TaskRepository;
@@ -36,6 +37,7 @@ public class ChecklistService {
     private final UserRepository userRepository;
     private final BoardService boardService;
     private final ScheduleBlockRepository scheduleBlockRepository;
+    private final DailyChecklistRepository dailyChecklistRepository;
     private final ActivityService activityService;
 
     public ChecklistResponse.ListResponse getChecklist(String boardId, String taskId, String userId) {
@@ -153,7 +155,10 @@ public class ChecklistService {
             throw new BusinessException(ErrorCode.CHECKLIST_ITEM_NOT_FOUND);
         }
 
-        // 연관된 스케줄 블록 먼저 삭제
+        // 연관된 데일리 체크리스트 연결 해제
+        dailyChecklistRepository.unlinkByChecklistItemId(itemId);
+
+        // 연관된 스케줄 블록 삭제
         scheduleBlockRepository.deleteByChecklistItemId(itemId);
 
         checklistItemRepository.delete(item);

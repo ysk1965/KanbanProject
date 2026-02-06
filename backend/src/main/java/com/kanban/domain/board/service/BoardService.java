@@ -18,6 +18,8 @@ import com.kanban.domain.milestone.MilestoneFeatureRepository;
 import com.kanban.domain.milestone.MilestoneRepository;
 import com.kanban.domain.notification.NotificationRepository;
 import com.kanban.domain.schedule.ScheduleBlockRepository;
+import com.kanban.domain.comment.CommentAttachment;
+import com.kanban.domain.subscription.PaymentHistoryRepository;
 import com.kanban.domain.subscription.Subscription;
 import com.kanban.domain.subscription.SubscriptionRepository;
 import com.kanban.domain.tag.FeatureTagRepository;
@@ -31,6 +33,7 @@ import com.kanban.domain.weight.TaskWeightRepository;
 import com.kanban.domain.weight.WeightLevelRepository;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
+import com.kanban.global.service.FileUploadService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -71,6 +74,8 @@ public class BoardService {
     private final MilestoneAllocationRepository milestoneAllocationRepository;
     private final ScheduleBlockRepository scheduleBlockRepository;
     private final DailyChecklistRepository dailyChecklistRepository;
+    private final PaymentHistoryRepository paymentHistoryRepository;
+    private final FileUploadService fileUploadService;
 
     @Transactional
     public BoardResponse.Detail createBoard(String userId, BoardRequest.Create request) {
@@ -220,7 +225,11 @@ public class BoardService {
         // 5) 체크리스트 아이템 (task_id FK)
         checklistItemRepository.deleteAllByBoardId(boardId);
 
-        // 6) 댓글 첨부파일 → 댓글, 알림, 활동로그, 초대링크
+        // 6) 댓글 첨부파일 S3 삭제 → DB 삭제 → 댓글, 알림, 활동로그, 초대링크
+        List<CommentAttachment> attachments = commentAttachmentRepository.findByBoardId(boardId);
+        for (CommentAttachment attachment : attachments) {
+            fileUploadService.delete(attachment.getS3Key());
+        }
         commentAttachmentRepository.deleteByBoardId(boardId);
         commentRepository.deleteByBoardId(boardId);
         notificationRepository.deleteByBoardId(boardId);
@@ -237,7 +246,8 @@ public class BoardService {
         weightLevelRepository.deleteByBoardId(boardId);
         milestoneRepository.deleteByBoardId(boardId);
 
-        // 9) 보드 멤버십 관련
+        // 9) 결제 이력 → 구독 → 보드 멤버십
+        paymentHistoryRepository.deleteByBoardId(boardId);
         userBoardStarRepository.deleteByBoardId(boardId);
         boardMemberRepository.deleteByBoardId(boardId);
         subscriptionRepository.deleteByBoardId(boardId);
@@ -245,6 +255,51 @@ public class BoardService {
         // 10) 보드 삭제
         boardRepository.delete(board);
         log.info("Board deleted: {} by user: {}", boardId, userId);
+    }
+
+    /**
+     * Admin 전용 보드 삭제 (Owner 권한 검사 없이 전체 데이터 정리)
+     */
+    @Transactional
+    public void deleteBoardByAdmin(String boardId) {
+        Board board = boardRepository.findById(boardId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+
+        // 관련 데이터 삭제 (FK 의존성 순서: leaf → parent)
+        milestoneAllocationRepository.deleteAllByBoardId(boardId);
+        milestoneFeatureRepository.deleteAllByBoardId(boardId);
+        featureTagRepository.deleteAllByBoardId(boardId);
+        taskTagRepository.deleteAllByBoardId(boardId);
+        taskWeightRepository.deleteAllByBoardId(boardId);
+        dailyChecklistRepository.deleteByBoardId(boardId);
+        scheduleBlockRepository.deleteByBoardId(boardId);
+        checklistItemRepository.deleteAllByBoardId(boardId);
+
+        List<CommentAttachment> attachments = commentAttachmentRepository.findByBoardId(boardId);
+        for (CommentAttachment attachment : attachments) {
+            fileUploadService.delete(attachment.getS3Key());
+        }
+        commentAttachmentRepository.deleteByBoardId(boardId);
+        commentRepository.deleteByBoardId(boardId);
+        notificationRepository.deleteByBoardId(boardId);
+        activityLogRepository.deleteByBoardId(boardId);
+        inviteLinkRepository.deleteByBoardId(boardId);
+
+        taskRepository.deleteByBoardId(boardId);
+        featureRepository.deleteByBoardId(boardId);
+        blockRepository.deleteByBoardId(boardId);
+
+        tagRepository.deleteByBoardId(boardId);
+        weightLevelRepository.deleteByBoardId(boardId);
+        milestoneRepository.deleteByBoardId(boardId);
+
+        paymentHistoryRepository.deleteByBoardId(boardId);
+        userBoardStarRepository.deleteByBoardId(boardId);
+        boardMemberRepository.deleteByBoardId(boardId);
+        subscriptionRepository.deleteByBoardId(boardId);
+
+        boardRepository.delete(board);
+        log.info("Board deleted by admin: {}", boardId);
     }
 
     @Transactional

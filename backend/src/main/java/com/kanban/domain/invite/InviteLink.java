@@ -7,6 +7,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 @Entity
@@ -48,7 +49,7 @@ public class InviteLink {
     private Boolean isActive = true;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "created_by", nullable = false)
+    @JoinColumn(name = "created_by")
     private User createdBy;
 
     @Column(name = "created_at", nullable = false)
@@ -63,7 +64,7 @@ public class InviteLink {
             this.code = generateCode();
         }
         if (this.createdAt == null) {
-            this.createdAt = LocalDateTime.now();
+            this.createdAt = LocalDateTime.now(ZoneOffset.UTC);
         }
     }
 
@@ -75,7 +76,7 @@ public class InviteLink {
         if (!this.isActive) {
             return false;
         }
-        if (this.expiresAt != null && LocalDateTime.now().isAfter(this.expiresAt)) {
+        if (this.expiresAt != null && LocalDateTime.now(ZoneOffset.UTC).isAfter(this.expiresAt)) {
             return false;
         }
         if (this.maxUses != null && this.usedCount >= this.maxUses) {

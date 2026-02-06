@@ -118,4 +118,16 @@ public interface TaskRepository extends JpaRepository<Task, String> {
     @Modifying
     @Query("DELETE FROM Task t WHERE t.board.id = :boardId")
     void deleteByBoardId(@Param("boardId") String boardId);
+
+    @Modifying
+    @Query("DELETE FROM Task t WHERE t.feature.id = :featureId")
+    void deleteByFeatureId(@Param("featureId") String featureId);
+
+    @Modifying
+    @Query("UPDATE Task t SET t.createdBy = null WHERE t.createdBy.id = :userId")
+    void nullifyCreatedByUserId(@Param("userId") String userId);
+
+    @Modifying
+    @Query("UPDATE Task t SET t.block = :targetBlock WHERE t.block.id = :sourceBlockId")
+    int moveTasksToBlock(@Param("sourceBlockId") String sourceBlockId, @Param("targetBlock") com.kanban.domain.block.Block targetBlock);
 }

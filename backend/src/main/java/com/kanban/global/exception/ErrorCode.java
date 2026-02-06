@@ -45,6 +45,11 @@ public enum ErrorCode {
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "U001", "사용자를 찾을 수 없습니다"),
     CURRENT_PASSWORD_MISMATCH(HttpStatus.BAD_REQUEST, "U002", "현재 비밀번호가 일치하지 않습니다"),
     CANNOT_DELETE_BOARD_OWNER(HttpStatus.BAD_REQUEST, "U003", "보드 Owner는 탈퇴할 수 없습니다. 먼저 보드를 삭제하거나 Owner를 양도해주세요"),
+    USER_DEACTIVATED(HttpStatus.FORBIDDEN, "U004", "비활성화된 계정입니다. 관리자에게 문의하세요"),
+    USER_ALREADY_ACTIVE(HttpStatus.BAD_REQUEST, "U005", "이미 활성화된 계정입니다"),
+    USER_ALREADY_DEACTIVATED(HttpStatus.BAD_REQUEST, "U006", "이미 비활성화된 계정입니다"),
+    GOOGLE_USER_NO_PASSWORD(HttpStatus.BAD_REQUEST, "U007", "Google 계정은 비밀번호를 사용하지 않습니다"),
+    CANNOT_DEACTIVATE_ADMIN(HttpStatus.BAD_REQUEST, "U008", "관리자 계정은 비활성화할 수 없습니다"),
 
     // Board
     BOARD_NOT_FOUND(HttpStatus.NOT_FOUND, "B001", "보드를 찾을 수 없습니다"),
@@ -120,7 +125,17 @@ public enum ErrorCode {
     TEMP_FILE_NOT_FOUND(HttpStatus.BAD_REQUEST, "FL005", "업로드된 임시 파일을 찾을 수 없습니다"),
 
     // Admin
-    ADMIN_ACCESS_DENIED(HttpStatus.FORBIDDEN, "AD001", "관리자 권한이 필요합니다");
+    ADMIN_ACCESS_DENIED(HttpStatus.FORBIDDEN, "AD001", "관리자 권한이 필요합니다"),
+
+    // Inquiry
+    INQUIRY_NOT_FOUND(HttpStatus.NOT_FOUND, "IQ001", "문의사항을 찾을 수 없습니다"),
+    INQUIRY_ACCESS_DENIED(HttpStatus.FORBIDDEN, "IQ002", "해당 문의에 접근할 수 없습니다"),
+    INQUIRY_CLOSED(HttpStatus.BAD_REQUEST, "IQ003", "종료된 문의에는 답변할 수 없습니다"),
+
+    // System
+    ANNOUNCEMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "SY001", "공지사항을 찾을 수 없습니다"),
+    SYSTEM_UNDER_MAINTENANCE(HttpStatus.SERVICE_UNAVAILABLE, "SY002", "시스템 점검 중입니다"),
+    SYSTEM_CONFIG_NOT_FOUND(HttpStatus.NOT_FOUND, "SY003", "시스템 설정을 찾을 수 없습니다");
 
     private final HttpStatus status;
     private final String code;

@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 
@@ -117,7 +118,7 @@ public class MemberService {
                 .board(board)
                 .role(role)
                 .maxUses(1)
-                .expiresAt(LocalDateTime.now().plusDays(7))
+                .expiresAt(LocalDateTime.now(ZoneOffset.UTC).plusDays(7))
                 .createdBy(inviter)
                 .build();
 

@@ -33,4 +33,12 @@ public interface FeatureRepository extends JpaRepository<Feature, String> {
     @Modifying
     @Query("DELETE FROM Feature f WHERE f.board.id = :boardId")
     void deleteByBoardId(@Param("boardId") String boardId);
+
+    @Modifying
+    @Query("UPDATE Feature f SET f.assignee = null WHERE f.assignee.id = :userId")
+    void nullifyAssigneeByUserId(@Param("userId") String userId);
+
+    @Modifying
+    @Query("UPDATE Feature f SET f.createdBy = null WHERE f.createdBy.id = :userId")
+    void nullifyCreatedByUserId(@Param("userId") String userId);
 }

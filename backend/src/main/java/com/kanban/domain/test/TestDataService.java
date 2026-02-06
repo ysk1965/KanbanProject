@@ -38,6 +38,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -210,8 +211,8 @@ public class TestDataService {
                 .pricePerSeat(5000)
                 .seatCount(5)
                 .price(25000)
-                .currentPeriodStart(LocalDateTime.now())
-                .currentPeriodEnd(LocalDateTime.now().plusYears(1))
+                .currentPeriodStart(LocalDateTime.now(ZoneOffset.UTC))
+                .currentPeriodEnd(LocalDateTime.now(ZoneOffset.UTC).plusYears(1))
                 .billableMemberCount(5)
                 .build();
         subscriptionRepository.saveAndFlush(subscription);
@@ -534,26 +535,26 @@ public class TestDataService {
                 // 블록 결정: 완료율에 따라 분배
                 Block block;
                 boolean isCompleted = false;
-                LocalDateTime updatedAt = LocalDateTime.now();
+                LocalDateTime updatedAt = LocalDateTime.now(ZoneOffset.UTC);
 
                 double taskProgress = (double) ti / taskCount;
                 if (taskProgress < completionRate) {
                     // 완료된 Task
                     block = doneBlock;
                     isCompleted = true;
-                    updatedAt = LocalDateTime.now().minusDays(random.nextInt(14) + 1);
+                    updatedAt = LocalDateTime.now(ZoneOffset.UTC).minusDays(random.nextInt(14) + 1);
                 } else if (taskProgress < completionRate + 0.2) {
                     // Review 중
                     block = reviewBlock;
-                    updatedAt = LocalDateTime.now().minusDays(random.nextInt(3));
+                    updatedAt = LocalDateTime.now(ZoneOffset.UTC).minusDays(random.nextInt(3));
                 } else if (taskProgress < completionRate + 0.4) {
                     // In Progress - 일부는 정체된 상태 (stagnant)
                     block = inProgressBlock;
                     // 30% 확률로 7일 이상 정체
                     if (random.nextDouble() < 0.3) {
-                        updatedAt = LocalDateTime.now().minusDays(7 + random.nextInt(7));
+                        updatedAt = LocalDateTime.now(ZoneOffset.UTC).minusDays(7 + random.nextInt(7));
                     } else {
-                        updatedAt = LocalDateTime.now().minusDays(random.nextInt(3));
+                        updatedAt = LocalDateTime.now(ZoneOffset.UTC).minusDays(random.nextInt(3));
                     }
                 } else {
                     // 대기 중

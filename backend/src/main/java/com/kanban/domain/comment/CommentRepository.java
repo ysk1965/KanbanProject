@@ -19,11 +19,21 @@ public interface CommentRepository extends JpaRepository<Comment, String> {
 
     int countByTaskId(String taskId);
 
-    void deleteByTaskId(String taskId);
+    @Modifying
+    @Query("DELETE FROM Comment c WHERE c.task.id = :taskId")
+    void deleteByTaskId(@Param("taskId") String taskId);
 
     @Modifying
     @Query("DELETE FROM Comment c WHERE c.board.id = :boardId")
     void deleteByBoardId(@Param("boardId") String boardId);
+
+    @Modifying
+    @Query("DELETE FROM Comment c WHERE c.task.feature.id = :featureId")
+    void deleteByFeatureId(@Param("featureId") String featureId);
+
+    @Modifying
+    @Query("UPDATE Comment c SET c.author = null WHERE c.author.id = :userId")
+    void nullifyAuthorByUserId(@Param("userId") String userId);
 
     @Query("SELECT c FROM Comment c " +
            "JOIN FETCH c.author " +

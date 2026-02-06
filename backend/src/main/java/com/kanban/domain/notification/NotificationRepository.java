@@ -38,4 +38,12 @@ public interface NotificationRepository extends JpaRepository<Notification, Stri
     @Modifying
     @Query("DELETE FROM Notification n WHERE n.board.id = :boardId")
     void deleteByBoardId(@Param("boardId") String boardId);
+
+    @Modifying
+    @Query("DELETE FROM Notification n WHERE n.taskId = :taskId")
+    void deleteByTaskId(@Param("taskId") String taskId);
+
+    @Modifying
+    @Query("DELETE FROM Notification n WHERE n.recipient.id = :userId")
+    void deleteByRecipientId(@Param("userId") String userId);
 }

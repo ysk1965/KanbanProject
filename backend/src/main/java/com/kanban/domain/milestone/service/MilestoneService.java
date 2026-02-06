@@ -176,8 +176,15 @@ public class MilestoneService {
             throw new BusinessException(ErrorCode.MILESTONE_NOT_FOUND);
         }
 
-        // 연결된 MilestoneFeature 먼저 삭제
+        // 관련 데이터 삭제 (FK 의존성 순서: leaf → parent)
+        milestoneAllocationRepository.deleteByMilestoneId(milestoneId);
         milestoneFeatureRepository.deleteByMilestoneId(milestoneId);
+
+        // Board의 selectedMilestoneId가 이 마일스톤을 참조하면 해제
+        Board board = milestone.getBoard();
+        if (milestoneId.equals(board.getSelectedMilestoneId())) {
+            board.updateSelectedMilestone(null);
+        }
 
         milestoneRepository.delete(milestone);
 

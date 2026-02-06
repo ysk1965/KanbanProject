@@ -48,4 +48,8 @@ public interface BoardMemberRepository extends JpaRepository<BoardMember, String
     @Modifying
     @Query("DELETE FROM BoardMember bm WHERE bm.board.id = :boardId")
     void deleteByBoardId(@Param("boardId") String boardId);
+
+    @Modifying
+    @Query("UPDATE BoardMember bm SET bm.invitedBy = null WHERE bm.invitedBy.id = :userId")
+    void nullifyInvitedByUserId(@Param("userId") String userId);
 }

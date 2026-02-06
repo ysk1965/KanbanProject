@@ -99,4 +99,12 @@ public interface ChecklistItemRepository extends JpaRepository<ChecklistItem, St
            "WHERE t.id IN :taskIds " +
            "ORDER BY t.id, c.position")
     List<ChecklistItem> findByTaskIdIn(@Param("taskIds") List<String> taskIds);
+
+    @Modifying
+    @Query("UPDATE ChecklistItem ci SET ci.assignee = null WHERE ci.assignee.id = :userId")
+    void nullifyAssigneeByUserId(@Param("userId") String userId);
+
+    @Modifying
+    @Query("DELETE FROM ChecklistItem ci WHERE ci.task.feature.id = :featureId")
+    void deleteByFeatureId(@Param("featureId") String featureId);
 }

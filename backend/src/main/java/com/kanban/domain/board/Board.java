@@ -7,6 +7,7 @@ import lombok.*;
 
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 @Entity
@@ -60,7 +61,7 @@ public class Board extends BaseTimeEntity {
             this.id = UUID.randomUUID().toString();
         }
         if (this.tier == BoardTier.TRIAL && this.trialEndsAt == null) {
-            this.trialEndsAt = LocalDateTime.now().plusDays(7);
+            this.trialEndsAt = LocalDateTime.now(ZoneOffset.UTC).plusDays(7);
         }
     }
 
@@ -152,10 +153,37 @@ public class Board extends BaseTimeEntity {
     public boolean checkAndUpdateTierIfTrialExpired() {
         if (this.tier == BoardTier.TRIAL &&
             this.trialEndsAt != null &&
-            LocalDateTime.now().isAfter(this.trialEndsAt)) {
+            LocalDateTime.now(ZoneOffset.UTC).isAfter(this.trialEndsAt)) {
             this.tier = BoardTier.STANDARD;
             return true;
         }
         return false;
+    }
+
+    /**
+     * 보드 소유자 변경 (관리자용)
+     */
+    public void updateOwner(User newOwner) {
+        this.owner = newOwner;
+    }
+
+    /**
+     * Trial 기간 연장 (관리자용)
+     */
+    public void extendTrial(LocalDateTime newTrialEndsAt) {
+        this.trialEndsAt = newTrialEndsAt;
+        if (this.tier != BoardTier.TRIAL) {
+            this.tier = BoardTier.TRIAL;
+        }
+    }
+
+    /**
+     * 티어 직접 변경 (관리자용)
+     */
+    public void updateTier(BoardTier tier) {
+        this.tier = tier;
+        if (tier != BoardTier.TRIAL) {
+            this.trialEndsAt = null;
+        }
     }
 }

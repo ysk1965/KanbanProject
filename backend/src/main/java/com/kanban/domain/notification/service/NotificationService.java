@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -123,6 +124,6 @@ public class NotificationService {
 
     @Transactional
     public void markAllAsRead(String userId) {
-        notificationRepository.markAllAsRead(userId, LocalDateTime.now());
+        notificationRepository.markAllAsRead(userId, LocalDateTime.now(ZoneOffset.UTC));
     }
 }

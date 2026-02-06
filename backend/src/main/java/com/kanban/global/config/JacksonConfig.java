@@ -10,6 +10,7 @@ import java.time.format.DateTimeFormatter;
 @Configuration
 public class JacksonConfig {
 
+    // ISO 8601 UTC format with 'Z' suffix
     private static final DateTimeFormatter ISO_UTC_FORMATTER =
             DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'");
 

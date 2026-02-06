@@ -32,6 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
@@ -386,7 +387,7 @@ public class ManagementService {
     }
 
     private double calculateAverageVelocity(String boardId, int days) {
-        LocalDateTime endDate = LocalDateTime.now();
+        LocalDateTime endDate = LocalDateTime.now(ZoneOffset.UTC);
         LocalDateTime startDate = endDate.minusDays(days);
 
         List<Task> completedTasks = taskRepository.findCompletedTasksBetween(boardId, startDate, endDate);
@@ -539,7 +540,7 @@ public class ManagementService {
             Map<String, Long> taskActualMinutes
     ) {
         List<MemberProductivity> productivityList = new ArrayList<>();
-        LocalDateTime stuckThreshold = LocalDateTime.now().minusDays(stuckChecklistDays);
+        LocalDateTime stuckThreshold = LocalDateTime.now(ZoneOffset.UTC).minusDays(stuckChecklistDays);
 
         // allTasks에 포함된 Task의 ID 집합 (마일스톤 필터 적용된 상태)
         Set<String> filteredTaskIds = allTasks.stream()
@@ -810,8 +811,8 @@ public class ManagementService {
             int stagnantTaskDays,
             int stuckChecklistDays
     ) {
-        LocalDateTime stagnantThreshold = LocalDateTime.now().minusDays(stagnantTaskDays);
-        LocalDateTime stuckThreshold = LocalDateTime.now().minusDays(stuckChecklistDays);
+        LocalDateTime stagnantThreshold = LocalDateTime.now(ZoneOffset.UTC).minusDays(stagnantTaskDays);
+        LocalDateTime stuckThreshold = LocalDateTime.now(ZoneOffset.UTC).minusDays(stuckChecklistDays);
 
         // 1. 마감 초과 Feature
         List<OverdueFeature> overdueFeatures = allFeatures.stream()

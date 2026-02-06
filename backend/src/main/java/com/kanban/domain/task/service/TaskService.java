@@ -10,9 +10,15 @@ import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.board.service.BoardService;
 import com.kanban.domain.checklist.ChecklistItemRepository;
+import com.kanban.domain.comment.CommentAttachment;
+import com.kanban.domain.comment.CommentAttachmentRepository;
+import com.kanban.domain.comment.CommentRepository;
+import com.kanban.domain.dailychecklist.DailyChecklistRepository;
 import com.kanban.domain.feature.Feature;
 import com.kanban.domain.feature.FeatureRepository;
 import com.kanban.domain.milestone.MilestoneFeatureRepository;
+import com.kanban.domain.notification.NotificationRepository;
+import com.kanban.domain.schedule.ScheduleBlockRepository;
 import com.kanban.domain.tag.Tag;
 import com.kanban.domain.tag.TaskTag;
 import com.kanban.domain.tag.TaskTagRepository;
@@ -22,6 +28,8 @@ import com.kanban.domain.task.dto.TaskRequest;
 import com.kanban.domain.task.dto.TaskResponse;
 import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
+import com.kanban.domain.weight.TaskWeightRepository;
+import com.kanban.global.service.FileUploadService;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -52,6 +60,13 @@ public class TaskService {
     private final BoardService boardService;
     private final MilestoneFeatureRepository milestoneFeatureRepository;
     private final ActivityService activityService;
+    private final ScheduleBlockRepository scheduleBlockRepository;
+    private final DailyChecklistRepository dailyChecklistRepository;
+    private final TaskWeightRepository taskWeightRepository;
+    private final CommentAttachmentRepository commentAttachmentRepository;
+    private final CommentRepository commentRepository;
+    private final NotificationRepository notificationRepository;
+    private final FileUploadService fileUploadService;
 
     public TaskResponse.ListResponse getTasks(String boardId, String userId, String blockId, String featureId, String milestoneId) {
         boardService.checkViewerOrAbove(boardId, userId);
@@ -220,10 +235,30 @@ public class TaskService {
         // totalTasks 감소
         feature.decrementTotalTasks();
 
-        // 관련 데이터 삭제
-        taskTagRepository.deleteByTaskId(taskId);
+        // 관련 데이터 삭제 (FK 의존성 순서: leaf → parent)
+        // 1) 알림 (task_id는 VARCHAR 참조이지만 orphan 방지)
+        notificationRepository.deleteByTaskId(taskId);
+
+        // 2) 스케줄/데일리 (checklist_item_id FK)
+        scheduleBlockRepository.deleteByTaskId(taskId);
+        dailyChecklistRepository.deleteByTaskId(taskId);
+
+        // 3) 체크리스트 아이템
         checklistItemRepository.deleteByTaskId(taskId);
 
+        // 4) 태그 연결, 가중치
+        taskTagRepository.deleteByTaskId(taskId);
+        taskWeightRepository.deleteByTaskId(taskId);
+
+        // 5) 댓글 첨부파일 S3 삭제 → 댓글 첨부파일 DB 삭제 → 댓글 삭제
+        List<CommentAttachment> attachments = commentAttachmentRepository.findByTaskId(taskId);
+        for (CommentAttachment attachment : attachments) {
+            fileUploadService.delete(attachment.getS3Key());
+        }
+        commentAttachmentRepository.deleteByTaskId(taskId);
+        commentRepository.deleteByTaskId(taskId);
+
+        // 6) Task 삭제
         taskRepository.delete(task);
 
         log.info("Task deleted: {} by user: {}", taskId, userId);

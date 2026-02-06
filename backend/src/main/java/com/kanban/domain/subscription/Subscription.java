@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 @Entity
@@ -80,7 +81,7 @@ public class Subscription {
             this.id = UUID.randomUUID().toString();
         }
         if (this.createdAt == null) {
-            this.createdAt = LocalDateTime.now();
+            this.createdAt = LocalDateTime.now(ZoneOffset.UTC);
         }
     }
 
@@ -88,7 +89,7 @@ public class Subscription {
         return Subscription.builder()
                 .board(board)
                 .status(SubscriptionStatus.TRIAL)
-                .trialEndsAt(LocalDateTime.now().plusDays(7))
+                .trialEndsAt(LocalDateTime.now(ZoneOffset.UTC).plusDays(7))
                 .billableMemberCount(1)
                 .build();
     }
@@ -117,7 +118,7 @@ public class Subscription {
     public void downgradeByAdmin() {
         this.status = SubscriptionStatus.TRIAL;
         this.plan = null;
-        this.trialEndsAt = LocalDateTime.now().plusDays(7);
+        this.trialEndsAt = LocalDateTime.now(ZoneOffset.UTC).plusDays(7);
     }
 
     public boolean isActive() {
@@ -146,10 +147,10 @@ public class Subscription {
         this.billingCycle = billingCycle;
         this.price = price;
         this.paymentMethodId = paymentMethodId;
-        this.currentPeriodStart = LocalDateTime.now();
+        this.currentPeriodStart = LocalDateTime.now(ZoneOffset.UTC);
         this.currentPeriodEnd = billingCycle == BillingCycle.YEARLY
-                ? LocalDateTime.now().plusYears(1)
-                : LocalDateTime.now().plusMonths(1);
+                ? LocalDateTime.now(ZoneOffset.UTC).plusYears(1)
+                : LocalDateTime.now(ZoneOffset.UTC).plusMonths(1);
         this.nextPaymentAt = this.currentPeriodEnd;
     }
 
@@ -166,10 +167,10 @@ public class Subscription {
                 : MONTHLY_PRICE_PER_SEAT;
         this.price = calculateTotalPrice();
         this.paymentMethodId = paymentMethodId;
-        this.currentPeriodStart = LocalDateTime.now();
+        this.currentPeriodStart = LocalDateTime.now(ZoneOffset.UTC);
         this.currentPeriodEnd = billingCycle == BillingCycle.YEARLY
-                ? LocalDateTime.now().plusYears(1)
-                : LocalDateTime.now().plusMonths(1);
+                ? LocalDateTime.now(ZoneOffset.UTC).plusYears(1)
+                : LocalDateTime.now(ZoneOffset.UTC).plusMonths(1);
         this.nextPaymentAt = this.currentPeriodEnd;
     }
 
@@ -193,7 +194,7 @@ public class Subscription {
 
     public void enterGracePeriod() {
         this.status = SubscriptionStatus.GRACE;
-        this.graceEndsAt = LocalDateTime.now().plusDays(3);
+        this.graceEndsAt = LocalDateTime.now(ZoneOffset.UTC).plusDays(3);
     }
 
     public void suspend() {

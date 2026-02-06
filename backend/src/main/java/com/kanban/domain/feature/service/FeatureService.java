@@ -3,16 +3,27 @@ package com.kanban.domain.feature.service;
 import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.checklist.ChecklistItemRepository;
+import com.kanban.domain.comment.CommentAttachment;
+import com.kanban.domain.comment.CommentAttachmentRepository;
+import com.kanban.domain.comment.CommentRepository;
+import com.kanban.domain.dailychecklist.DailyChecklistRepository;
 import com.kanban.domain.feature.Feature;
 import com.kanban.domain.feature.FeatureRepository;
 import com.kanban.domain.feature.dto.FeatureRequest;
 import com.kanban.domain.feature.dto.FeatureResponse;
 import com.kanban.domain.milestone.MilestoneFeatureRepository;
+import com.kanban.domain.notification.NotificationRepository;
+import com.kanban.domain.schedule.ScheduleBlockRepository;
 import com.kanban.domain.tag.FeatureTag;
 import com.kanban.domain.tag.FeatureTagRepository;
 import com.kanban.domain.tag.Tag;
+import com.kanban.domain.tag.TaskTagRepository;
+import com.kanban.domain.task.TaskRepository;
 import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
+import com.kanban.domain.weight.TaskWeightRepository;
+import com.kanban.global.service.FileUploadService;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +51,16 @@ public class FeatureService {
     private final UserRepository userRepository;
     private final BoardService boardService;
     private final MilestoneFeatureRepository milestoneFeatureRepository;
+    private final TaskRepository taskRepository;
+    private final TaskTagRepository taskTagRepository;
+    private final TaskWeightRepository taskWeightRepository;
+    private final ChecklistItemRepository checklistItemRepository;
+    private final CommentAttachmentRepository commentAttachmentRepository;
+    private final CommentRepository commentRepository;
+    private final ScheduleBlockRepository scheduleBlockRepository;
+    private final DailyChecklistRepository dailyChecklistRepository;
+    private final NotificationRepository notificationRepository;
+    private final FileUploadService fileUploadService;
 
     @Cacheable(value = "features", key = "#boardId", condition = "#milestoneId == null", unless = "#result == null")
     public FeatureResponse.ListResponse getFeatures(String boardId, String userId, String milestoneId) {
@@ -167,9 +188,44 @@ public class FeatureService {
             throw new BusinessException(ErrorCode.FEATURE_NOT_FOUND);
         }
 
-        // 관련 태그 연결 삭제
+        // 관련 데이터 삭제 (FK 의존성 순서: leaf → parent)
+        // 1) 마일스톤-피처 연결 삭제
+        milestoneFeatureRepository.deleteByFeatureId(featureId);
+
+        // 2) 피처 태그 연결 삭제
         featureTagRepository.deleteByFeatureId(featureId);
 
+        // 3) Task 하위 데이터 벌크 삭제 (feature의 모든 task에 대해)
+        // 3-1) 알림 (task_id는 VARCHAR 참조)
+        List<String> taskIds = taskRepository.findByFeatureIdOrderByPositionAsc(featureId)
+                .stream().map(t -> t.getId()).toList();
+        for (String taskId : taskIds) {
+            notificationRepository.deleteByTaskId(taskId);
+        }
+
+        // 3-2) 스케줄/데일리 (checklist_item_id FK)
+        scheduleBlockRepository.deleteByFeatureId(featureId);
+        dailyChecklistRepository.deleteByFeatureId(featureId);
+
+        // 3-3) 체크리스트 아이템
+        checklistItemRepository.deleteByFeatureId(featureId);
+
+        // 3-4) 태그 연결, 가중치
+        taskTagRepository.deleteByFeatureId(featureId);
+        taskWeightRepository.deleteByFeatureId(featureId);
+
+        // 3-5) 댓글 첨부파일 S3 삭제 → DB 삭제 → 댓글 삭제
+        List<CommentAttachment> attachments = commentAttachmentRepository.findByFeatureId(featureId);
+        for (CommentAttachment attachment : attachments) {
+            fileUploadService.delete(attachment.getS3Key());
+        }
+        commentAttachmentRepository.deleteByFeatureId(featureId);
+        commentRepository.deleteByFeatureId(featureId);
+
+        // 4) Task 삭제
+        taskRepository.deleteByFeatureId(featureId);
+
+        // 5) Feature 삭제
         int deletedPosition = feature.getPosition();
         featureRepository.delete(feature);
 

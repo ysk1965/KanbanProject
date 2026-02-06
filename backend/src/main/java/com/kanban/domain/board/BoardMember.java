@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 @Entity
@@ -49,7 +50,7 @@ public class BoardMember {
             this.id = UUID.randomUUID().toString();
         }
         if (this.joinedAt == null) {
-            this.joinedAt = LocalDateTime.now();
+            this.joinedAt = LocalDateTime.now(ZoneOffset.UTC);
         }
     }
 

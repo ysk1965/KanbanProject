@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 @Entity
@@ -40,7 +41,7 @@ public class PasswordResetToken {
             this.id = UUID.randomUUID().toString();
         }
         if (this.createdAt == null) {
-            this.createdAt = LocalDateTime.now();
+            this.createdAt = LocalDateTime.now(ZoneOffset.UTC);
         }
     }
 
@@ -48,13 +49,13 @@ public class PasswordResetToken {
         return PasswordResetToken.builder()
                 .user(user)
                 .token(UUID.randomUUID().toString().replace("-", ""))
-                .expiresAt(LocalDateTime.now().plusHours(expirationHours))
-                .createdAt(LocalDateTime.now())
+                .expiresAt(LocalDateTime.now(ZoneOffset.UTC).plusHours(expirationHours))
+                .createdAt(LocalDateTime.now(ZoneOffset.UTC))
                 .build();
     }
 
     public boolean isExpired() {
-        return LocalDateTime.now().isAfter(this.expiresAt);
+        return LocalDateTime.now(ZoneOffset.UTC).isAfter(this.expiresAt);
     }
 
     public boolean isUsed() {
@@ -66,6 +67,6 @@ public class PasswordResetToken {
     }
 
     public void markAsUsed() {
-        this.usedAt = LocalDateTime.now();
+        this.usedAt = LocalDateTime.now(ZoneOffset.UTC);
     }
 }

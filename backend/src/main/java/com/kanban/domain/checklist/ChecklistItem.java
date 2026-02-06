@@ -7,6 +7,7 @@ import lombok.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 @Entity
@@ -61,7 +62,7 @@ public class ChecklistItem {
             this.id = UUID.randomUUID().toString();
         }
         if (this.createdAt == null) {
-            this.createdAt = LocalDateTime.now();
+            this.createdAt = LocalDateTime.now(ZoneOffset.UTC);
         }
     }
 
@@ -86,7 +87,7 @@ public class ChecklistItem {
             this.doneDate = null;
         } else {
             this.isCompleted = true;
-            this.completedAt = LocalDateTime.now();
+            this.completedAt = LocalDateTime.now(ZoneOffset.UTC);
             this.doneDate = LocalDate.now();
         }
     }
@@ -94,7 +95,7 @@ public class ChecklistItem {
     public void complete() {
         if (!this.isCompleted) {
             this.isCompleted = true;
-            this.completedAt = LocalDateTime.now();
+            this.completedAt = LocalDateTime.now(ZoneOffset.UTC);
             this.doneDate = LocalDate.now();
         }
     }

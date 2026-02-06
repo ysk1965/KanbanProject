@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 @Entity
@@ -60,14 +61,14 @@ public class PaymentHistory {
             this.id = UUID.randomUUID().toString();
         }
         if (this.createdAt == null) {
-            this.createdAt = LocalDateTime.now();
+            this.createdAt = LocalDateTime.now(ZoneOffset.UTC);
         }
     }
 
     public void markAsPaid(String pgTransactionId) {
         this.status = PaymentStatus.PAID;
         this.pgTransactionId = pgTransactionId;
-        this.paidAt = LocalDateTime.now();
+        this.paidAt = LocalDateTime.now(ZoneOffset.UTC);
     }
 
     public void markAsFailed() {

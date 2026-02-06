@@ -8,6 +8,7 @@ import com.kanban.domain.block.dto.BlockResponse;
 import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.task.TaskRepository;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +32,7 @@ public class BlockService {
     private final BlockRepository blockRepository;
     private final BoardRepository boardRepository;
     private final BoardService boardService;
+    private final TaskRepository taskRepository;
 
     @Cacheable(value = "blocks", key = "#boardId", unless = "#result == null")
     public BlockResponse.ListResponse getBlocks(String boardId, String userId) {
@@ -119,6 +121,11 @@ public class BlockService {
         if (block.isFixed()) {
             throw new BusinessException(ErrorCode.BLOCK_CANNOT_DELETE_FIXED);
         }
+
+        // 블록 내 Task들을 Task 고정 블록으로 이동
+        Block taskBlock = blockRepository.findByBoardIdAndFixedType(boardId, FixedBlockType.TASK)
+                .orElseThrow(() -> new BusinessException(ErrorCode.BLOCK_NOT_FOUND));
+        taskRepository.moveTasksToBlock(blockId, taskBlock);
 
         int deletedPosition = block.getPosition();
         blockRepository.delete(block);
