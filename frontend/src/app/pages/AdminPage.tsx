@@ -25,41 +25,41 @@ export function AdminPage() {
   return (
     <div className="min-h-screen bg-bridge-dark">
       {/* Header */}
-      <header className="bg-bridge-obsidian border-b border-white/5 px-6 py-4">
+      <header className="bg-bridge-obsidian border-b border-white/5 px-3 md:px-6 py-3 md:py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 md:gap-4">
             <NavLink
               to="/boards"
               className="text-slate-400 hover:text-white transition-colors flex items-center gap-2"
             >
               <ArrowLeft className="h-4 w-4" />
-              <span>보드로 돌아가기</span>
+              <span className="hidden sm:inline">보드로 돌아가기</span>
             </NavLink>
             <div className="h-6 w-px bg-white/10" />
-            <h1 className="text-xl font-bold text-white">Admin</h1>
+            <h1 className="text-lg md:text-xl font-bold text-white">Admin</h1>
           </div>
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="flex gap-8">
-          {/* Sidebar Navigation */}
-          <nav className="w-56 flex-shrink-0">
-            <div className="bg-bridge-obsidian rounded-xl border border-white/5 p-2">
+      <div className="max-w-7xl mx-auto px-3 md:px-6 py-4 md:py-8">
+        <div className="flex flex-col md:flex-row gap-4 md:gap-8">
+          {/* Sidebar Navigation - horizontal on mobile, vertical on md+ */}
+          <nav className="md:w-56 flex-shrink-0">
+            <div className="bg-bridge-obsidian rounded-xl border border-white/5 p-1.5 md:p-2 flex md:flex-col gap-1 overflow-x-auto md:overflow-visible">
               {navItems.map((item) => (
                 <NavLink
                   key={item.path}
                   to={`/admin/${item.path}`}
                   className={({ isActive }) =>
-                    `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                    `flex items-center gap-2 md:gap-3 px-3 md:px-4 py-2 md:py-3 rounded-lg transition-colors whitespace-nowrap flex-shrink-0 ${
                       isActive
                         ? 'bg-bridge-accent text-white'
                         : 'text-slate-400 hover:text-white hover:bg-white/5'
                     }`
                   }
                 >
-                  <item.icon className="h-5 w-5" />
-                  <span className="font-medium">{item.label}</span>
+                  <item.icon className="h-4 w-4 md:h-5 md:w-5" />
+                  <span className="text-sm md:text-base font-medium">{item.label}</span>
                 </NavLink>
               ))}
             </div>

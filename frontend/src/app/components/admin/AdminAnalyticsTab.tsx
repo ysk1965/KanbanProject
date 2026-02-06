@@ -174,7 +174,7 @@ export function AdminAnalyticsTab() {
 
       {/* Signup Trend Chart */}
       {signupTrend && (
-        <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-6">
+        <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-4 md:p-6">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-bridge-accent" />
@@ -227,7 +227,7 @@ export function AdminAnalyticsTab() {
 
       {/* DAU Trend Chart */}
       {activeUserStats && activeUserStats.trend.length > 0 && (
-        <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-6">
+        <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-4 md:p-6">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
               <Users className="h-5 w-5 text-bridge-secondary" />
@@ -268,7 +268,7 @@ export function AdminAnalyticsTab() {
 
       {/* Conversion Stats */}
       {conversionStats && (
-        <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-6">
+        <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-4 md:p-6">
           <div className="flex items-center gap-2 mb-6">
             <ArrowUpRight className="h-5 w-5 text-amber-400" />
             <h3 className="text-lg font-bold text-white">결제 전환율</h3>
@@ -372,7 +372,7 @@ function MetricCard({
   bgColor: string;
 }) {
   return (
-    <div className="bg-bridge-obsidian rounded-xl border border-white/15 p-6">
+    <div className="bg-bridge-obsidian rounded-xl border border-white/15 p-4 md:p-6">
       <div className="flex items-start justify-between">
         <div>
           <p className="text-slate-400 text-sm mb-1">{label}</p>

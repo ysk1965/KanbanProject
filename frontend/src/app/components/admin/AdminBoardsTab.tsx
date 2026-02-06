@@ -84,7 +84,7 @@ export function AdminBoardsTab() {
       </div>
 
       {/* Search and Filters */}
-      <div className="flex gap-3">
+      <div className="flex flex-col sm:flex-row gap-3">
         <form onSubmit={handleSearch} className="flex gap-3 flex-1">
           <div className="relative flex-1">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
@@ -152,26 +152,26 @@ export function AdminBoardsTab() {
       {/* Boards Table */}
       {!isLoading && !error && boards && (
         <>
-          <div className="bg-bridge-obsidian rounded-xl border border-white/15 overflow-hidden">
-            <table className="w-full">
+          <div className="bg-bridge-obsidian rounded-xl border border-white/15 overflow-x-auto">
+            <table className="w-full min-w-[720px]">
               <thead>
                 <tr className="border-b border-white/15">
-                  <th className="text-left px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                  <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
                     보드
                   </th>
-                  <th className="text-left px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                  <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
                     소유자
                   </th>
-                  <th className="text-left px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                  <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
                     티어
                   </th>
-                  <th className="text-left px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                  <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
                     멤버
                   </th>
-                  <th className="text-left px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                  <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
                     태스크
                   </th>
-                  <th className="text-left px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                  <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
                     생성일
                   </th>
                 </tr>
@@ -183,7 +183,7 @@ export function AdminBoardsTab() {
                     onClick={() => setSelectedBoardId(board.id)}
                     className="border-b border-white/15 last:border-0 hover:bg-white/5 cursor-pointer transition-colors"
                   >
-                    <td className="px-6 py-4">
+                    <td className="px-3 py-3 md:px-6 md:py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg bg-bridge-accent/20 flex items-center justify-center">
                           <Folder className="h-5 w-5 text-bridge-accent" />
@@ -198,13 +198,13 @@ export function AdminBoardsTab() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-3 py-3 md:px-6 md:py-4">
                       <div>
                         <p className="text-white">{board.owner_name}</p>
                         <p className="text-slate-400 text-sm">{board.owner_email}</p>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-3 py-3 md:px-6 md:py-4">
                       <span
                         className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getTierStyle(
                           board.tier
@@ -213,19 +213,19 @@ export function AdminBoardsTab() {
                         {board.tier}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-3 py-3 md:px-6 md:py-4">
                       <span className="text-white flex items-center gap-1">
                         <Users className="h-4 w-4 text-slate-400" />
                         {board.member_count}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-3 py-3 md:px-6 md:py-4">
                       <span className="text-white flex items-center gap-1">
                         <ListTodo className="h-4 w-4 text-slate-400" />
                         {board.task_count}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-3 py-3 md:px-6 md:py-4">
                       <span className="text-slate-400 flex items-center gap-1">
                         <Calendar className="h-3 w-3" />
                         {formatDate(board.created_at)}

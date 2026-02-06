@@ -172,7 +172,7 @@ export function AdminSystemTab() {
       </div>
 
       {/* Current Status */}
-      <div className={`rounded-2xl border p-6 ${
+      <div className={`rounded-2xl border p-4 md:p-6 ${
         isActive
           ? 'bg-red-500/10 border-red-500/20'
           : 'bg-emerald-500/10 border-emerald-500/20'
@@ -216,7 +216,7 @@ export function AdminSystemTab() {
 
       {/* 점검 중이 아닐 때: 점검 시작 폼 */}
       {!isActive && (
-        <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-6">
+        <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-4 md:p-6">
           <div className="flex items-center gap-2 mb-6">
             <Play className="h-5 w-5 text-bridge-accent" />
             <h3 className="text-lg font-bold text-white">점검 시작</h3>
@@ -266,7 +266,7 @@ export function AdminSystemTab() {
 
       {/* 점검 중일 때: 관리 패널 */}
       {isActive && (
-        <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-6">
+        <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-4 md:p-6">
           <div className="flex items-center gap-2 mb-6">
             <Timer className="h-5 w-5 text-orange-400" />
             <h3 className="text-lg font-bold text-white">점검 관리</h3>
@@ -324,7 +324,7 @@ export function AdminSystemTab() {
             </div>
 
             {/* Action Buttons */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <button
                 onClick={handleExtendMaintenance}
                 disabled={isSaving || !hasChanges}

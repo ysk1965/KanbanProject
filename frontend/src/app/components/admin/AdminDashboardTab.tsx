@@ -99,7 +99,7 @@ export function AdminDashboardTab() {
         {statCards.map((card) => (
           <div
             key={card.label}
-            className="bg-bridge-obsidian rounded-xl border border-white/15 p-6"
+            className="bg-bridge-obsidian rounded-xl border border-white/15 p-4 md:p-6"
           >
             <div className="flex items-start justify-between">
               <div>
@@ -118,7 +118,7 @@ export function AdminDashboardTab() {
       </div>
 
       {/* Tier Distribution */}
-      <div className="bg-bridge-obsidian rounded-xl border border-white/15 p-6">
+      <div className="bg-bridge-obsidian rounded-xl border border-white/15 p-4 md:p-6">
         <div className="flex items-center gap-2 mb-6">
           <TrendingUp className="h-5 w-5 text-bridge-accent" />
           <h3 className="text-lg font-bold text-white">보드 티어 분포</h3>

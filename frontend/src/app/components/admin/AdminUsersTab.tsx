@@ -101,23 +101,23 @@ export function AdminUsersTab() {
       {/* Users Table */}
       {!isLoading && !error && users && (
         <>
-          <div className="bg-bridge-obsidian rounded-xl border border-white/15 overflow-hidden">
-            <table className="w-full">
+          <div className="bg-bridge-obsidian rounded-xl border border-white/15 overflow-x-auto">
+            <table className="w-full min-w-[640px]">
               <thead>
                 <tr className="border-b border-white/15">
-                  <th className="text-left px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                  <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
                     사용자
                   </th>
-                  <th className="text-left px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                  <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
                     역할
                   </th>
-                  <th className="text-left px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                  <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
                     가입방식
                   </th>
-                  <th className="text-left px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                  <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
                     보드
                   </th>
-                  <th className="text-left px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                  <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
                     가입일
                   </th>
                 </tr>
@@ -129,7 +129,7 @@ export function AdminUsersTab() {
                     onClick={() => setSelectedUserId(user.id)}
                     className="border-b border-white/15 last:border-0 hover:bg-white/5 cursor-pointer transition-colors"
                   >
-                    <td className="px-6 py-4">
+                    <td className="px-3 py-3 md:px-6 md:py-4">
                       <div className="flex items-center gap-3">
                         {user.profile_image ? (
                           <img
@@ -151,7 +151,7 @@ export function AdminUsersTab() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-3 py-3 md:px-6 md:py-4">
                       <span
                         className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${
                           user.system_role === 'ADMIN'
@@ -165,7 +165,7 @@ export function AdminUsersTab() {
                         {user.system_role}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-3 py-3 md:px-6 md:py-4">
                       <span
                         className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
                           user.provider === 'google'
@@ -176,10 +176,10 @@ export function AdminUsersTab() {
                         {user.provider === 'google' ? 'Google' : 'Email'}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-3 py-3 md:px-6 md:py-4">
                       <span className="text-white">{user.board_count}</span>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-3 py-3 md:px-6 md:py-4">
                       <span className="text-slate-400 flex items-center gap-1">
                         <Calendar className="h-3 w-3" />
                         {formatDate(user.created_at)}

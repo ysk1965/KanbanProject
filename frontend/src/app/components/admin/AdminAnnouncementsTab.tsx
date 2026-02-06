@@ -265,7 +265,7 @@ function AnnouncementFormModal({
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1 block">유형</label>
               <select
@@ -290,7 +290,7 @@ function AnnouncementFormModal({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1 block">시작일</label>
               <input

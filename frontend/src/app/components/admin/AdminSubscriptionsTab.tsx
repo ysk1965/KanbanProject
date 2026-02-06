@@ -101,26 +101,26 @@ export function AdminSubscriptionsTab() {
               <p className="text-slate-400">구독 내역이 없습니다</p>
             </div>
           ) : (
-            <div className="bg-bridge-obsidian rounded-xl border border-white/15 overflow-hidden">
-              <table className="w-full">
+            <div className="bg-bridge-obsidian rounded-xl border border-white/15 overflow-x-auto">
+              <table className="w-full min-w-[720px]">
                 <thead>
                   <tr className="border-b border-white/15">
-                    <th className="text-left px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                    <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
                       보드
                     </th>
-                    <th className="text-left px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                    <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
                       소유자
                     </th>
-                    <th className="text-left px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                    <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
                       티어
                     </th>
-                    <th className="text-left px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                    <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
                       상태
                     </th>
-                    <th className="text-left px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                    <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
                       시작일
                     </th>
-                    <th className="text-left px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                    <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
                       만료일
                     </th>
                   </tr>
@@ -131,7 +131,7 @@ export function AdminSubscriptionsTab() {
                       key={subscription.id}
                       className="border-b border-white/15 last:border-0 hover:bg-white/5 transition-colors"
                     >
-                      <td className="px-6 py-4">
+                      <td className="px-3 py-3 md:px-6 md:py-4">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-lg bg-bridge-accent/20 flex items-center justify-center">
                             <Folder className="h-5 w-5 text-bridge-accent" />
@@ -139,13 +139,13 @@ export function AdminSubscriptionsTab() {
                           <span className="text-white font-medium">{subscription.board_name}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-3 py-3 md:px-6 md:py-4">
                         <div>
                           <p className="text-white">{subscription.owner_name}</p>
                           <p className="text-slate-400 text-sm">{subscription.owner_email}</p>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-3 py-3 md:px-6 md:py-4">
                         <span
                           className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getTierStyle(
                             subscription.tier
@@ -154,7 +154,7 @@ export function AdminSubscriptionsTab() {
                           {subscription.tier}
                         </span>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-3 py-3 md:px-6 md:py-4">
                         <span
                           className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusStyle(
                             subscription.status
@@ -163,13 +163,13 @@ export function AdminSubscriptionsTab() {
                           {subscription.status}
                         </span>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-3 py-3 md:px-6 md:py-4">
                         <span className="text-slate-400 flex items-center gap-1">
                           <Calendar className="h-3 w-3" />
                           {formatDate(subscription.started_at)}
                         </span>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-3 py-3 md:px-6 md:py-4">
                         <span className="text-slate-400 flex items-center gap-1">
                           <Calendar className="h-3 w-3" />
                           {formatDate(subscription.expires_at)}

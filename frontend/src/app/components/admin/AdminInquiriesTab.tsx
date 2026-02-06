@@ -116,7 +116,7 @@ export function AdminInquiriesTab() {
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 md:gap-3 overflow-x-auto pb-1">
         {STATUS_OPTIONS.map(option => (
           <button
             key={option.value}
@@ -156,15 +156,15 @@ export function AdminInquiriesTab() {
       ) : (
         <>
           {/* Table */}
-          <div className="bg-bridge-obsidian rounded-xl border border-white/5 overflow-hidden">
-            <table className="w-full">
+          <div className="bg-bridge-obsidian rounded-xl border border-white/5 overflow-x-auto">
+            <table className="w-full min-w-[640px]">
               <thead>
                 <tr className="border-b border-white/5">
-                  <th className="text-left px-6 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest">제목</th>
-                  <th className="text-left px-6 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest">작성자</th>
-                  <th className="text-left px-6 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest">상태</th>
-                  <th className="text-left px-6 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest">답변</th>
-                  <th className="text-left px-6 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest">날짜</th>
+                  <th className="text-left px-3 py-3 md:px-6 md:py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest">제목</th>
+                  <th className="text-left px-3 py-3 md:px-6 md:py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest">작성자</th>
+                  <th className="text-left px-3 py-3 md:px-6 md:py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest">상태</th>
+                  <th className="text-left px-3 py-3 md:px-6 md:py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest">답변</th>
+                  <th className="text-left px-3 py-3 md:px-6 md:py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest">날짜</th>
                 </tr>
               </thead>
               <tbody>
@@ -176,13 +176,13 @@ export function AdminInquiriesTab() {
                       onClick={() => loadDetail(inquiry.id)}
                       className="border-b border-white/5 last:border-0 hover:bg-white/5 cursor-pointer transition-colors"
                     >
-                      <td className="px-6 py-4">
+                      <td className="px-3 py-3 md:px-6 md:py-4">
                         <span className="text-white font-medium">{inquiry.title}</span>
                         {inquiry.attachment_count > 0 && (
                           <Paperclip size={12} className="inline ml-2 text-slate-500" />
                         )}
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-3 py-3 md:px-6 md:py-4">
                         <div className="flex items-center gap-2">
                           <div className="w-6 h-6 rounded-full bg-bridge-accent/20 flex items-center justify-center">
                             <span className="text-xs text-bridge-accent font-bold">
@@ -192,15 +192,15 @@ export function AdminInquiriesTab() {
                           <span className="text-slate-300 text-sm">{inquiry.user?.name || '-'}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-3 py-3 md:px-6 md:py-4">
                         <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${statusConfig.color} ${statusConfig.bgColor}`}>
                           {statusConfig.label}
                         </span>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-3 py-3 md:px-6 md:py-4">
                         <span className="text-slate-400 text-sm">{inquiry.reply_count}건</span>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-3 py-3 md:px-6 md:py-4">
                         <span className="text-slate-500 text-sm">
                           {formatDate(inquiry.created_at, 'yyyy-MM-dd')}
                         </span>
@@ -283,7 +283,7 @@ function InquiryDetailPanel({
       </div>
 
       {/* Inquiry Info Card */}
-      <div className="bg-bridge-obsidian rounded-xl border border-white/5 p-6 space-y-4">
+      <div className="bg-bridge-obsidian rounded-xl border border-white/5 p-4 md:p-6 space-y-4">
         <div className="flex items-start justify-between">
           <div>
             <h3 className="text-white font-bold text-lg">{inquiry.title}</h3>
@@ -365,7 +365,7 @@ function InquiryDetailPanel({
       )}
 
       {/* Reply Form */}
-      <div className="bg-bridge-obsidian rounded-xl border border-white/5 p-4 space-y-3">
+      <div className="bg-bridge-obsidian rounded-xl border border-white/5 p-3 md:p-4 space-y-3">
         <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">답변 작성</h4>
         <textarea
           value={replyContent}
