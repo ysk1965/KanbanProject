@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Settings, ChevronDown, ChevronUp } from 'lucide-react';
-import { notificationPreferenceAPI, slackWebhookAPI } from '../utils/api';
+import { notificationPreferenceAPI } from '../utils/api';
 import { NotificationPreferences } from '../types';
 
 interface NotificationPreferencesPanelProps {
   boardId: string;
+  hasSlack: boolean;
 }
 
 const NOTIFICATION_TYPES = [
@@ -15,29 +16,17 @@ const NOTIFICATION_TYPES = [
 
 type PrefKey = typeof NOTIFICATION_TYPES[number]['key'];
 
-export function NotificationPreferencesPanel({ boardId }: NotificationPreferencesPanelProps) {
+export function NotificationPreferencesPanel({ boardId, hasSlack }: NotificationPreferencesPanelProps) {
   const [prefs, setPrefs] = useState<NotificationPreferences | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [hasSlack, setHasSlack] = useState(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchPreferences = useCallback(async () => {
     try {
-      const [prefData] = await Promise.all([
-        notificationPreferenceAPI.getMyPreferences(boardId),
-      ]);
+      const prefData = await notificationPreferenceAPI.getMyPreferences(boardId);
       setPrefs(prefData);
-
-      // Check if slack is connected
-      try {
-        const slackConfig = await slackWebhookAPI.getMyConfig(boardId);
-        setHasSlack(!!slackConfig?.enabled);
-      } catch {
-        setHasSlack(false);
-      }
     } catch {
-      // Use defaults if fetch fails
       setPrefs({
         id: null,
         board_id: boardId,

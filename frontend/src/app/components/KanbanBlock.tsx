@@ -282,7 +282,7 @@ export function KanbanBlock({
         handleTaskDrop(e);
         handleBlockDrop(e);
       }}
-      className={`relative flex flex-col bg-kanban-card rounded-2xl border border-kanban-border min-w-[280px] max-w-[280px] transition-all duration-200 ${
+      className={`relative flex flex-col bg-kanban-card rounded-2xl border border-kanban-border min-w-[260px] max-w-[260px] md:min-w-[280px] md:max-w-[280px] transition-all duration-200 ${
         taskPlaceholderInThisBlock ? 'ring-2 ring-indigo-500/50 bg-indigo-500/5' : ''
       } ${isThisBlockDragging ? 'opacity-40 scale-95 rotate-1' : ''} ${
         state.blockPlaceholderIndex === blockIndex && state.draggedBlock ? 'ring-2 ring-indigo-500' : ''

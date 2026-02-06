@@ -22,7 +22,7 @@ export function FeatureChipSelector({
 }: FeatureChipSelectorProps) {
 
   return (
-    <div className="px-6 py-3 border-b border-kanban-border bg-kanban-bg">
+    <div className="px-3 md:px-6 py-2 md:py-3 border-b border-kanban-border bg-kanban-bg">
       <div className="flex items-stretch gap-2.5 overflow-x-auto pb-1 kanban-scrollbar">
         {/* 전체 보기 칩 */}
         <button

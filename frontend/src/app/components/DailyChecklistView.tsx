@@ -171,8 +171,8 @@ export function DailyChecklistView({
   return (
     <div className="h-full flex flex-col bg-bridge-dark">
       {/* 상단 네비게이션 */}
-      <div className="flex items-center justify-between px-6 py-4 bg-bridge-obsidian border-b border-white/15">
-        <div className="flex items-center gap-4">
+      <div className="flex items-center justify-between px-3 md:px-6 py-3 md:py-4 bg-bridge-obsidian border-b border-white/15 gap-2">
+        <div className="flex items-center gap-2 md:gap-4 flex-wrap min-w-0">
           <div className="flex items-center gap-1">
             <Button
               variant="ghost"
@@ -182,7 +182,7 @@ export function DailyChecklistView({
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <span className="text-lg font-semibold text-white min-w-[280px] text-center">
+            <span className="text-sm md:text-lg font-semibold text-white min-w-0 sm:min-w-[280px] text-center whitespace-nowrap">
               {formatDate(selectedDate, 'yyyy년 M월 d일')} ({dayOfWeek})
             </span>
             <Button
@@ -235,7 +235,7 @@ export function DailyChecklistView({
 
       {/* 에러 메시지 */}
       {error && (
-        <div className="mx-6 mt-4 px-4 py-3 bg-red-500/10 border border-red-500/30 rounded-xl flex items-center gap-3">
+        <div className="mx-3 md:mx-6 mt-4 px-4 py-3 bg-red-500/10 border border-red-500/30 rounded-xl flex items-center gap-3">
           <AlertCircle className="h-5 w-5 text-red-400 flex-shrink-0" />
           <p className="text-sm text-red-400">{error}</p>
           <button
@@ -260,8 +260,8 @@ export function DailyChecklistView({
         </div>
       ) : (
         /* 컬럼 그리드 */
-        <div className="flex-1 overflow-x-auto p-6">
-          <div className="flex gap-4 min-w-max">
+        <div className="flex-1 overflow-x-auto p-3 md:p-6">
+          <div className="flex gap-3 md:gap-4 min-w-max">
             {sortedColumns.map((column) => (
               <DailyChecklistColumn
                 key={column.user.id}
@@ -281,7 +281,7 @@ export function DailyChecklistView({
       )}
 
       {/* 하단 안내 */}
-      <div className="px-6 py-3 bg-bridge-obsidian border-t border-white/15">
+      <div className="px-3 md:px-6 py-2 md:py-3 bg-bridge-obsidian border-t border-white/15">
         <p className="text-sm text-slate-400">
           {isViewer
             ? 'Viewer 권한은 체크리스트를 조회만 할 수 있습니다.'

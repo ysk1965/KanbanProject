@@ -109,7 +109,7 @@ export function DailyChecklistColumn({
   const totalCount = localItems.length;
 
   return (
-    <div className="flex flex-col w-72 flex-shrink-0 bg-bridge-obsidian rounded-2xl border border-white/15 overflow-hidden">
+    <div className="flex flex-col w-64 md:w-72 flex-shrink-0 bg-bridge-obsidian rounded-2xl border border-white/15 overflow-hidden">
       {/* 헤더 */}
       <div className="px-4 py-3 border-b border-white/15">
         <div className="flex items-center justify-between">

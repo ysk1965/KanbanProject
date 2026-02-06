@@ -203,6 +203,7 @@ export function NotificationDropdown({
   onUnreadCountChange,
 }: NotificationDropdownProps) {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [slackConnected, setSlackConnected] = useState(false);
   const [cursor, setCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -344,10 +345,10 @@ export function NotificationDropdown({
           {activeTab === 'notifications' ? (
             <>
               {/* Slack Integration Banner */}
-              <SlackSettingsPanel boardId={boardId} />
+              <SlackSettingsPanel boardId={boardId} onSlackStatusChange={setSlackConnected} />
 
               {/* Notification Preferences */}
-              <NotificationPreferencesPanel boardId={boardId} />
+              <NotificationPreferencesPanel boardId={boardId} hasSlack={slackConnected} />
 
               {/* Notifications Header with Mark All Read */}
               {notifications.length > 0 && unreadCount > 0 && (

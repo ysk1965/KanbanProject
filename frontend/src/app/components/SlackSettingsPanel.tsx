@@ -4,9 +4,10 @@ import { slackWebhookAPI, SlackWebhookConfig } from '../utils/api';
 
 interface SlackSettingsPanelProps {
   boardId: string;
+  onSlackStatusChange?: (connected: boolean) => void;
 }
 
-export function SlackSettingsPanel({ boardId }: SlackSettingsPanelProps) {
+export function SlackSettingsPanel({ boardId, onSlackStatusChange }: SlackSettingsPanelProps) {
   const [config, setConfig] = useState<SlackWebhookConfig | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
@@ -23,12 +24,14 @@ export function SlackSettingsPanel({ boardId }: SlackSettingsPanelProps) {
     try {
       const data = await slackWebhookAPI.getMyConfig(boardId);
       setConfig(data);
+      onSlackStatusChange?.(!!data?.enabled);
     } catch {
       setConfig(null);
+      onSlackStatusChange?.(false);
     } finally {
       setIsLoading(false);
     }
-  }, [boardId]);
+  }, [boardId, onSlackStatusChange]);
 
   useEffect(() => {
     fetchConfig();
@@ -65,6 +68,7 @@ export function SlackSettingsPanel({ boardId }: SlackSettingsPanelProps) {
       setConfig(data);
       setIsEditing(false);
       setTestResult(null);
+      onSlackStatusChange?.(!!data?.enabled);
     } catch (err: unknown) {
       const apiErr = err as { response?: { data?: { message?: string } } };
       setError(apiErr?.response?.data?.message || '저장에 실패했습니다');
@@ -93,6 +97,7 @@ export function SlackSettingsPanel({ boardId }: SlackSettingsPanelProps) {
       setConfig(null);
       setIsEditing(false);
       setTestResult(null);
+      onSlackStatusChange?.(false);
     } catch {
       setError('삭제에 실패했습니다');
     } finally {
@@ -208,12 +213,16 @@ export function SlackSettingsPanel({ boardId }: SlackSettingsPanelProps) {
   // Connected state
   if (config) {
     return (
-      <div className="mx-3 mt-3 mb-2 p-3 bg-white/[0.03] rounded-xl border border-white/10">
+      <div className={`mx-3 mt-3 mb-2 p-3 rounded-xl border ${
+        config.enabled
+          ? 'bg-white/[0.03] border-white/10'
+          : 'bg-amber-500/5 border-amber-500/20'
+      }`}>
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-1.5">
-            <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${config.enabled ? 'bg-green-400' : 'bg-slate-500'}`} />
-            <span className="text-[11px] font-medium text-green-400">
-              {config.enabled ? '연동 완료' : 'Slack 비활성'}
+            <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${config.enabled ? 'bg-green-400' : 'bg-amber-400'}`} />
+            <span className={`text-[11px] font-medium ${config.enabled ? 'text-green-400' : 'text-amber-400'}`}>
+              {config.enabled ? 'Slack 연동 완료' : 'Slack 비활성'}
             </span>
           </div>
           <button
@@ -237,23 +246,38 @@ export function SlackSettingsPanel({ boardId }: SlackSettingsPanelProps) {
             </div>
           )}
         </div>
+        {!config.enabled && (
+          <p className="text-[10px] text-amber-400/70 mt-2">
+            Slack 알림이 비활성 상태입니다. 설정에서 활성화해주세요.
+          </p>
+        )}
       </div>
     );
   }
 
   // Not connected state
   return (
-    <div className="mx-3 mt-3 mb-2 px-3 py-2 bg-bridge-accent/5 rounded-lg border border-bridge-accent/20 flex items-center justify-between">
-      <span className="text-[11px] text-slate-300">
-        Slack으로 알림 받기
-      </span>
-      <button
-        onClick={handleStartEdit}
-        className="flex items-center gap-1 px-2 py-1 text-[11px] text-bridge-accent hover:text-white bg-bridge-accent/10 hover:bg-bridge-accent/20 rounded-md transition-all"
-      >
-        <Link2 size={11} />
-        연결
-      </button>
+    <div className="mx-3 mt-3 mb-2 p-3 bg-red-500/5 rounded-xl border border-red-500/20">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-1.5">
+          <div className="w-1.5 h-1.5 rounded-full flex-shrink-0 bg-red-400" />
+          <span className="text-[11px] font-medium text-red-400">Slack 연동 필요</span>
+        </div>
+        <button
+          onClick={handleStartEdit}
+          className="flex items-center gap-1 px-2 py-1 text-[11px] text-bridge-accent hover:text-white bg-bridge-accent/10 hover:bg-bridge-accent/20 rounded-md transition-all"
+        >
+          <Link2 size={11} />
+          연결
+        </button>
+      </div>
+      <div className="flex items-center gap-1.5 mb-1.5">
+        <Link2 size={10} className="text-red-400/50 flex-shrink-0" />
+        <span className="text-[10px] text-red-400/60">Slack Webhook URL이 필요합니다</span>
+      </div>
+      <p className="text-[10px] text-slate-500 leading-relaxed">
+        Slack과 연동하면 멘션, 체크리스트 배정, 태스크 댓글 알림을 Slack으로도 받을 수 있습니다.
+      </p>
     </div>
   );
 }

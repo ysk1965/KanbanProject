@@ -1204,9 +1204,9 @@ export function KanbanBoardPage() {
           hideBilling={hideBilling}
         />
 
-        <header className="h-16 border-b border-kanban-border flex items-center justify-between px-6 bg-kanban-bg shrink-0 z-30">
+        <header className="min-h-[3.5rem] md:h-16 border-b border-kanban-border flex items-center justify-between px-3 md:px-6 bg-kanban-bg shrink-0 z-30 gap-2">
           {/* 좌측 영역 */}
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2 md:gap-6 min-w-0">
             <button
               onClick={() => navigate('/boards')}
               className="p-2 hover:bg-kanban-surface rounded-lg transition-colors text-zinc-400 hover:text-foreground"
@@ -1214,13 +1214,13 @@ export function KanbanBoardPage() {
               <ArrowLeft size={18} />
             </button>
 
-            <div className="flex items-center gap-3">
-              <h1 className="text-lg font-bold tracking-tight text-foreground">
+            <div className="flex items-center gap-2 md:gap-3 min-w-0">
+              <h1 className="text-sm md:text-lg font-bold tracking-tight text-foreground truncate max-w-[100px] sm:max-w-[160px] md:max-w-none">
                 {board?.name || '팀 칸반보드'}
               </h1>
 
               {/* 마일스톤 셀렉터 */}
-              <div className="flex items-center gap-2 bg-kanban-card px-3 py-1.5 rounded-md border border-kanban-border hover:border-indigo-500/50 cursor-pointer transition-all">
+              <div className="hidden sm:flex items-center gap-2 bg-kanban-card px-3 py-1.5 rounded-md border border-kanban-border hover:border-indigo-500/50 cursor-pointer transition-all">
                 <Flag size={14} className="text-indigo-400" />
                 {milestones.length > 0 ? (
                   <Select value={kanbanSelectedMilestoneId} onValueChange={handleKanbanMilestoneSelect}>
@@ -1290,17 +1290,17 @@ export function KanbanBoardPage() {
           </div>
 
           {/* 중앙 탭 영역 */}
-          <nav className="flex items-center gap-1 bg-kanban-card p-1 rounded-xl border border-kanban-border">
+          <nav className="flex items-center gap-0.5 md:gap-1 bg-kanban-card p-1 rounded-xl border border-kanban-border overflow-x-auto shrink-0">
             <button
               onClick={() => handleViewModeChange('kanban')}
-              className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
                 viewMode === 'kanban'
                   ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
                   : 'text-zinc-400 hover:text-zinc-200 hover:bg-kanban-surface'
               }`}
             >
               <LayoutGrid size={14} />
-              칸반보드
+              <span className="hidden md:inline">칸반보드</span>
             </button>
             <button
               onClick={() => {
@@ -1310,7 +1310,7 @@ export function KanbanBoardPage() {
                 }
                 handleViewModeChange('schedule');
               }}
-              className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
                 viewMode === 'schedule'
                   ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
                   : !canAccessSchedule
@@ -1319,7 +1319,7 @@ export function KanbanBoardPage() {
               }`}
             >
               <Calendar size={14} />
-              데일리스케줄
+              <span className="hidden md:inline">데일리스케줄</span>
               {!canAccessSchedule && <Lock size={10} className="ml-0.5 text-zinc-500" />}
             </button>
             <button
@@ -1330,7 +1330,7 @@ export function KanbanBoardPage() {
                 }
                 handleViewModeChange('weekly');
               }}
-              className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
                 viewMode === 'weekly'
                   ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
                   : !canAccessSchedule
@@ -1339,7 +1339,7 @@ export function KanbanBoardPage() {
               }`}
             >
               <CalendarDays size={14} />
-              간트차트
+              <span className="hidden md:inline">간트차트</span>
               {!canAccessSchedule && <Lock size={10} className="ml-0.5 text-zinc-500" />}
             </button>
             {isAdminOrOwner && (
@@ -1351,7 +1351,7 @@ export function KanbanBoardPage() {
                   }
                   handleViewModeChange('statistics');
                 }}
-                className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all relative ${
+                className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all relative whitespace-nowrap ${
                   viewMode === 'statistics'
                     ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
                     : !canAccessStatistics
@@ -1360,7 +1360,7 @@ export function KanbanBoardPage() {
                 }`}
               >
                 <BarChart3 size={14} />
-                마일스톤
+                <span className="hidden md:inline">마일스톤</span>
                 {!canAccessStatistics && <Lock size={10} className="ml-0.5 text-zinc-500" />}
               </button>
             )}
@@ -1373,7 +1373,7 @@ export function KanbanBoardPage() {
                   }
                   handleViewModeChange('management');
                 }}
-                className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all relative ${
+                className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all relative whitespace-nowrap ${
                   viewMode === 'management'
                     ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
                     : !canAccessStatistics
@@ -1382,15 +1382,15 @@ export function KanbanBoardPage() {
                 }`}
               >
                 <Shield size={14} />
-                관리
+                <span className="hidden md:inline">관리</span>
                 {!canAccessStatistics && <Lock size={10} className="ml-0.5 text-zinc-500" />}
               </button>
             )}
           </nav>
 
           {/* 우측 액션 영역 */}
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1 border-r border-kanban-border pr-3 mr-1">
+          <div className="flex items-center gap-1 md:gap-2 shrink-0">
+            <div className="flex items-center gap-0.5 md:gap-1 border-r border-kanban-border pr-2 md:pr-3 mr-0.5 md:mr-1">
               <NotificationDropdown
                 boardId={boardId || ''}
                 unreadCount={unreadNotificationCount}
@@ -1417,7 +1417,7 @@ export function KanbanBoardPage() {
                 className="flex items-center gap-2 px-3 py-2 text-zinc-400 hover:text-foreground hover:bg-kanban-surface rounded-lg transition-all"
               >
                 <Users size={18} />
-                <span className="text-xs font-semibold">팀원</span>
+                <span className="hidden md:inline text-xs font-semibold">팀원</span>
               </button>
             </div>
 
@@ -1479,7 +1479,7 @@ export function KanbanBoardPage() {
             <>
             {/* Task 카운터 (Standard 보드) */}
             {isStandardTier && boardLimits && (
-              <div className="px-6 py-2 bg-kanban-card border-b border-kanban-border">
+              <div className="px-3 md:px-6 py-2 bg-kanban-card border-b border-kanban-border">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-zinc-400">
@@ -1504,9 +1504,9 @@ export function KanbanBoardPage() {
               </div>
             )}
             {/* 검색 + 필터 툴바 */}
-            <div className="px-6 py-3 border-b border-kanban-border flex items-center gap-2 flex-wrap">
+            <div className="px-3 md:px-6 py-2 md:py-3 border-b border-kanban-border flex items-center gap-2 flex-wrap">
               {/* 검색 */}
-              <div className="relative w-80">
+              <div className="relative w-full sm:w-80">
                 <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
                 <input
                   type="text"
@@ -1538,7 +1538,7 @@ export function KanbanBoardPage() {
                     }`}
                   >
                     <User size={14} />
-                    담당자
+                    <span className="hidden sm:inline">담당자</span>
                     {filterOptions.members.length > 0 && (
                       <span className="bg-purple-500 text-white text-xs px-1.5 py-0.5 rounded-full min-w-[18px]">
                         {filterOptions.members.length}
@@ -1613,7 +1613,7 @@ export function KanbanBoardPage() {
                     }`}
                   >
                     <Layers size={14} />
-                    Feature
+                    <span className="hidden sm:inline">Feature</span>
                     {filterOptions.features.length > 0 && (
                       <span className="bg-indigo-500 text-white text-xs px-1.5 py-0.5 rounded-full min-w-[18px]">
                         {filterOptions.features.length}
@@ -1670,7 +1670,7 @@ export function KanbanBoardPage() {
                     }`}
                   >
                     <TagIcon size={14} />
-                    라벨
+                    <span className="hidden sm:inline">라벨</span>
                     {filterOptions.tags.length > 0 && (
                       <span className="bg-teal-500 text-white text-xs px-1.5 py-0.5 rounded-full min-w-[18px]">
                         {filterOptions.tags.length}
@@ -1724,7 +1724,7 @@ export function KanbanBoardPage() {
                     }`}
                   >
                     <CheckCircle2 size={14} />
-                    상태
+                    <span className="hidden sm:inline">상태</span>
                     {filterOptions.cardStatus.length > 0 && (
                       <span className="bg-green-500 text-white text-xs px-1.5 py-0.5 rounded-full min-w-[18px]">
                         {filterOptions.cardStatus.length}
@@ -1815,7 +1815,7 @@ export function KanbanBoardPage() {
                   title="모두 펼치기"
                 >
                   <ChevronsUpDown size={14} />
-                  펼치기
+                  <span className="hidden sm:inline">펼치기</span>
                 </button>
                 <button
                   onClick={() => {
@@ -1828,7 +1828,7 @@ export function KanbanBoardPage() {
                   title="모두 닫기"
                 >
                   <ChevronsDownUp size={14} />
-                  닫기
+                  <span className="hidden sm:inline">닫기</span>
                 </button>
               </div>
             </div>
@@ -1844,8 +1844,8 @@ export function KanbanBoardPage() {
             />
 
             {/* 칸반 보드 */}
-            <div className="flex-1 p-6 overflow-x-auto kanban-scrollbar">
-              <div className="flex gap-4 min-w-max">
+            <div className="flex-1 p-3 md:p-6 overflow-x-auto kanban-scrollbar">
+              <div className="flex gap-3 md:gap-4 min-w-max">
               {sortedBlocks.filter((b) => b.fixed_type !== 'FEATURE').map((block) => {
               const customBlocks = sortedBlocks.filter((b) => b.type === 'CUSTOM');
               const customBlockIndex = customBlocks.findIndex((b) => b.id === block.id);

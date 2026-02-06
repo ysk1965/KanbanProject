@@ -385,8 +385,8 @@ export function DailyScheduleView({ boardId, boardMembers, onViewFeature, onView
       }}
     >
       {/* 상단 날짜 네비게이션 */}
-      <div className="flex items-center justify-between px-6 py-3 bg-kanban-card border-b border-kanban-border">
-        <div className="flex items-center gap-4">
+      <div className="flex items-center justify-between px-3 md:px-6 py-2 md:py-3 bg-kanban-card border-b border-kanban-border gap-2">
+        <div className="flex items-center gap-2 md:gap-4 flex-wrap min-w-0">
           {/* 세부 탭: 타임블록 / 체크리스트 */}
           <div className="flex bg-kanban-bg rounded-lg p-1">
             <button
@@ -403,7 +403,7 @@ export function DailyScheduleView({ boardId, boardMembers, onViewFeature, onView
               }`}
             >
               <Clock className="h-3.5 w-3.5" />
-              타임블록
+              <span className="hidden sm:inline">타임블록</span>
             </button>
             <button
               onClick={() => setSubTab('checklist')}
@@ -414,7 +414,7 @@ export function DailyScheduleView({ boardId, boardMembers, onViewFeature, onView
               }`}
             >
               <CheckSquare className="h-3.5 w-3.5" />
-              체크리스트
+              <span className="hidden sm:inline">체크리스트</span>
             </button>
           </div>
 
@@ -457,7 +457,7 @@ export function DailyScheduleView({ boardId, boardMembers, onViewFeature, onView
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <span className="text-lg font-semibold text-foreground min-w-[280px] text-center">
+            <span className="text-sm md:text-lg font-semibold text-foreground min-w-0 sm:min-w-[280px] text-center whitespace-nowrap">
               {viewMode === 'day'
                 ? `${formatDate(selectedDate, 'yyyy년 M월 d일')} (${dayOfWeek})`
                 : `${formatDate(weekDays[0], 'M월 d일')} - ${formatDate(weekDays[6], 'M월 d일')}`
@@ -493,8 +493,8 @@ export function DailyScheduleView({ boardId, boardMembers, onViewFeature, onView
             onClick={() => setShowSettingsModal(true)}
             className="border-kanban-border text-zinc-300 hover:bg-white/5 hover:text-foreground"
           >
-            <Settings className="h-4 w-4 mr-2" />
-            설정
+            <Settings className="h-4 w-4 md:mr-2" />
+            <span className="hidden md:inline">설정</span>
           </Button>
         )}
       </div>
@@ -528,13 +528,13 @@ export function DailyScheduleView({ boardId, boardMembers, onViewFeature, onView
           <div className="min-w-max">
             {/* 헤더: 시간/블록 + 멤버 컬럼 */}
             <div className="flex sticky top-0 bg-kanban-card z-10 border-b border-kanban-border">
-              <div className="w-20 flex-shrink-0 p-3 text-sm font-medium text-zinc-400 border-r border-kanban-border">
+              <div className="w-14 md:w-20 flex-shrink-0 p-2 md:p-3 text-xs md:text-sm font-medium text-zinc-400 border-r border-kanban-border">
                 {displayMode === 'block' ? '블록' : '시간'}
               </div>
               {boardMembers.map((member) => (
                 <div
                   key={member.userId}
-                  className="w-48 flex-shrink-0 p-3 border-r border-kanban-border"
+                  className="w-36 md:w-48 flex-shrink-0 p-2 md:p-3 border-r border-kanban-border"
                 >
                   <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-sm text-white font-medium">
@@ -552,7 +552,7 @@ export function DailyScheduleView({ boardId, boardMembers, onViewFeature, onView
             {/* 데일리 체크리스트 요약 영역 */}
             {dailyChecklists.length > 0 && (
               <div className="flex border-b border-kanban-border bg-white/[0.02]">
-                <div className="w-20 flex-shrink-0 p-2 text-xs text-zinc-400 border-r border-kanban-border flex items-center justify-center">
+                <div className="w-14 md:w-20 flex-shrink-0 p-2 text-xs text-zinc-400 border-r border-kanban-border flex items-center justify-center">
                   <CheckSquare className="h-3.5 w-3.5" />
                 </div>
                 {boardMembers.map((member) => {
@@ -566,7 +566,7 @@ export function DailyScheduleView({ boardId, boardMembers, onViewFeature, onView
                   return (
                     <div
                       key={`checklist-${member.userId}`}
-                      className="w-48 flex-shrink-0 p-2 border-r border-kanban-border"
+                      className="w-36 md:w-48 flex-shrink-0 p-2 border-r border-kanban-border"
                     >
                       {totalCount > 0 ? (
                         <div className="space-y-1">
@@ -627,7 +627,7 @@ export function DailyScheduleView({ boardId, boardMembers, onViewFeature, onView
               {timeSlots.map((time, slotIndex) => (
                 <div key={time} className="flex border-b border-kanban-border">
                   {/* 시간/블록 라벨 */}
-                  <div className="w-20 flex-shrink-0 p-2 text-xs text-zinc-400 border-r border-kanban-border bg-kanban-bg">
+                  <div className="w-14 md:w-20 flex-shrink-0 p-2 text-xs text-zinc-400 border-r border-kanban-border bg-kanban-bg">
                     {displayMode === 'block'
                       ? `${slotIndex + 1}`
                       : time.endsWith(':00') ? time : ''}
@@ -638,7 +638,7 @@ export function DailyScheduleView({ boardId, boardMembers, onViewFeature, onView
                     return (
                       <div
                         key={`${member.userId}-${time}`}
-                        className={`w-48 flex-shrink-0 border-r border-kanban-border transition-colors group relative ${
+                        className={`w-36 md:w-48 flex-shrink-0 border-r border-kanban-border transition-colors group relative ${
                           isViewer ? 'cursor-default' : 'cursor-pointer'
                         } ${
                           isSelected ? 'bg-indigo-500/30' : isViewer ? '' : 'hover:bg-white/5'
@@ -663,14 +663,14 @@ export function DailyScheduleView({ boardId, boardMembers, onViewFeature, onView
               ))}
 
               {/* 스케줄 블록들 (각 멤버 컬럼 위에 absolute로 배치) */}
-              <div className="absolute top-0 left-20 right-0 pointer-events-none">
+              <div className="absolute top-0 left-14 md:left-20 right-0 pointer-events-none">
                 <div className="flex">
                   {boardMembers.map((member) => {
                     const blocks = blocksByUser.get(member.userId) || [];
                     return (
                       <div
                         key={member.userId}
-                        className="w-48 flex-shrink-0 relative"
+                        className="w-36 md:w-48 flex-shrink-0 relative"
                         style={{ height: `${timeSlots.length * SLOT_HEIGHT}px` }}
                       >
                         {blocks.map((block) => (
@@ -698,7 +698,7 @@ export function DailyScheduleView({ boardId, boardMembers, onViewFeature, onView
           <div className="min-w-max">
             {/* 헤더: 멤버 + 요일 */}
             <div className="flex sticky top-0 bg-kanban-card z-10 border-b border-kanban-border">
-              <div className="w-32 flex-shrink-0 p-3 text-sm font-medium text-zinc-400 border-r border-kanban-border">
+              <div className="w-24 md:w-32 flex-shrink-0 p-2 md:p-3 text-xs md:text-sm font-medium text-zinc-400 border-r border-kanban-border">
                 멤버
               </div>
               {weekDays.map((day) => {
@@ -707,7 +707,7 @@ export function DailyScheduleView({ boardId, boardMembers, onViewFeature, onView
                 return (
                   <div
                     key={dateStr}
-                    className={`w-36 flex-shrink-0 p-3 border-r border-kanban-border text-center ${
+                    className={`w-28 md:w-36 flex-shrink-0 p-2 md:p-3 border-r border-kanban-border text-center ${
                       isCurrentDay ? 'bg-indigo-900/30' : ''
                     }`}
                   >
@@ -726,7 +726,7 @@ export function DailyScheduleView({ boardId, boardMembers, onViewFeature, onView
             {boardMembers.map((member) => (
               <div key={member.userId} className="flex border-b border-kanban-border">
                 {/* 멤버 정보 */}
-                <div className="w-32 flex-shrink-0 p-3 border-r border-kanban-border bg-kanban-bg">
+                <div className="w-24 md:w-32 flex-shrink-0 p-2 md:p-3 border-r border-kanban-border bg-kanban-bg">
                   <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-sm text-white font-medium">
                       {getInitials(member.name)}
@@ -753,7 +753,7 @@ export function DailyScheduleView({ boardId, boardMembers, onViewFeature, onView
                   return (
                     <div
                       key={dateStr}
-                      className={`w-36 flex-shrink-0 p-2 border-r border-kanban-border min-h-[100px] ${
+                      className={`w-28 md:w-36 flex-shrink-0 p-2 border-r border-kanban-border min-h-[100px] ${
                         isCurrentDay ? 'bg-indigo-900/20' : ''
                       }`}
                     >
@@ -811,7 +811,7 @@ export function DailyScheduleView({ boardId, boardMembers, onViewFeature, onView
       </div>
 
       {/* 하단 안내 */}
-      <div className="px-6 py-3 bg-kanban-card border-t border-kanban-border">
+      <div className="px-3 md:px-6 py-2 md:py-3 bg-kanban-card border-t border-kanban-border">
         <p className="text-sm text-zinc-400">
           {isViewer
             ? 'Viewer 권한은 타임블록을 조회만 할 수 있습니다'

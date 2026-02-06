@@ -643,8 +643,8 @@ export function WeeklyScheduleView({
   return (
     <div className="h-full flex flex-col bg-kanban-bg">
       {/* 상단 네비게이션 */}
-      <div className="flex items-center justify-between px-6 py-3 bg-kanban-card border-b border-kanban-border">
-        <div className="flex items-center gap-4">
+      <div className="flex items-center justify-between px-3 md:px-6 py-2 md:py-3 bg-kanban-card border-b border-kanban-border gap-2">
+        <div className="flex items-center gap-2 md:gap-4 flex-wrap min-w-0">
           {/* 일/주 토글 */}
           <div
             className="flex bg-kanban-bg rounded-lg p-1 cursor-pointer"
@@ -712,7 +712,7 @@ export function WeeklyScheduleView({
             오늘
           </button>
         </div>
-        <div className="flex items-center gap-2 text-xs text-zinc-400">
+        <div className="hidden md:flex items-center gap-2 text-xs text-zinc-400 shrink-0">
           <span className="inline-block w-3 h-3 bg-gray-400 rounded"></span> 진행 전
           <span className="inline-block w-3 h-3 bg-indigo-500 rounded ml-2"></span> 진행 중
           <span className="inline-block w-3 h-3 bg-orange-500 rounded ml-2"></span> 마감 임박
@@ -724,7 +724,7 @@ export function WeeklyScheduleView({
       {/* 메인 그리드 */}
       <div className="flex-1 flex overflow-hidden">
         {/* 왼쪽 고정 열 (Feature/Task 이름) */}
-        <div className="flex-shrink-0 flex flex-col" style={{ width: LEFT_COLUMN_WIDTH }}>
+        <div className="flex-shrink-0 flex flex-col w-[200px] md:w-[280px]">
           {/* 헤더 */}
           <div className="h-14 p-3 bg-kanban-card border-b border-r border-kanban-border flex items-center">
             <span className="text-sm font-medium text-zinc-400">Feature / Task</span>
@@ -741,7 +741,7 @@ export function WeeklyScheduleView({
                 <div key={feature.id}>
                   {/* Feature 행 */}
                   <div
-                    className="h-12 p-3 border-b border-r border-kanban-border flex items-center gap-2 cursor-pointer hover:bg-white/5"
+                    className="h-10 md:h-12 p-2 md:p-3 border-b border-r border-kanban-border flex items-center gap-2 cursor-pointer hover:bg-white/5"
                     onClick={() => toggleFeature(feature.id)}
                   >
                     {isCollapsed ? (
@@ -772,7 +772,7 @@ export function WeeklyScheduleView({
                     featureTasks.map((task) => (
                       <div
                         key={task.id}
-                        className="h-10 p-3 border-b border-r border-kanban-border flex items-center gap-2 pl-10 hover:bg-white/5"
+                        className="h-10 p-2 md:p-3 border-b border-r border-kanban-border flex items-center gap-2 pl-7 md:pl-10 hover:bg-white/5"
                       >
                         <FileText className="h-3 w-3 text-zinc-400 flex-shrink-0" />
                         <span
