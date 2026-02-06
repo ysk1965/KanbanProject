@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, CreditCard, LogOut, Settings as SettingsIcon, ChevronDown } from 'lucide-react';
-import { getInitials } from '../utils/assigneeColor';
+import { getInitials, getAssigneeHex } from '../utils/assigneeColor';
 
 interface UserMenuProps {
   user: {
@@ -10,13 +10,14 @@ interface UserMenuProps {
     email: string;
     avatar?: string;
   };
+  assigneeColor?: string | null;
   onOpenSubscription: () => void;
   onOpenSettings: () => void;
   onLogout: () => void;
   hideBilling?: boolean;
 }
 
-export function UserMenu({ user, onOpenSubscription, onOpenSettings, onLogout, hideBilling }: UserMenuProps) {
+export function UserMenu({ user, assigneeColor, onOpenSubscription, onOpenSettings, onLogout, hideBilling }: UserMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -51,7 +52,10 @@ export function UserMenu({ user, onOpenSubscription, onOpenSettings, onLogout, h
             className="w-8 h-8 rounded-full"
           />
         ) : (
-          <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-medium">
+          <div
+            className="w-8 h-8 rounded-full flex items-center justify-center text-white font-medium"
+            style={{ backgroundColor: getAssigneeHex(user.name, assigneeColor) }}
+          >
             {getInitials(user.name)}
           </div>
         )}

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { TaskComment, CommentAttachment, User } from '../types';
 import { commentAPI, fileAPI, resolveFileUrl } from '../utils/api';
 import { BoardMember } from './ShareBoardModal';
@@ -52,8 +53,9 @@ function renderContent(content: string, boardMembers: BoardMember[]) {
   return parts.map((part, i) => {
     if (part.startsWith('@')) {
       const name = part.slice(1);
-      if (memberNames.includes(name)) {
-        const color = getAssigneeClasses(name);
+      const member = boardMembers.find(m => m.name === name);
+      if (member) {
+        const color = getAssigneeClasses(name, member.assigneeColor);
         return <span key={i} className={`${color.text} font-medium`}>{part}</span>;
       }
     }
@@ -77,11 +79,12 @@ interface CommentPanelProps {
   boardId: string;
   boardMembers: BoardMember[];
   currentUser: User | null;
+  canEdit?: boolean;
 }
 
 // ========== 컴포넌트 ==========
 
-export function CommentPanel({ taskId, boardId, boardMembers, currentUser }: CommentPanelProps) {
+export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEdit = true }: CommentPanelProps) {
   // 댓글 목록
   const [comments, setComments] = useState<TaskComment[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -460,7 +463,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser }: Com
     return (
       <div className="absolute bottom-full left-0 mb-1 w-full bg-bridge-obsidian border border-white/20 rounded-lg shadow-lg z-50 py-1 max-h-40 overflow-y-auto kanban-scrollbar">
         {filteredMembers.map((member, idx) => {
-          const color = getAssigneeClasses(member.name);
+          const color = getAssigneeClasses(member.name, member.assigneeColor);
           return (
             <button key={member.userId}
               onMouseDown={e => { e.preventDefault(); insertMention(member, isEdit); }}
@@ -595,7 +598,8 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser }: Com
         ) : (
           comments.map(comment => {
             const isAuthor = currentUser?.id === comment.author.id;
-            const color = getAssigneeClasses(comment.author.name);
+            const authorMember = boardMembers.find(m => m.userId === comment.author.id);
+            const color = getAssigneeClasses(comment.author.name, authorMember?.assigneeColor);
             const isEdited = comment.created_at !== comment.updated_at;
             const isBeingEdited = editingId === comment.id;
 
@@ -612,7 +616,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser }: Com
                         {formatRelativeTime(comment.created_at)}
                         {isEdited && ' (수정됨)'}
                       </span>
-                      {isAuthor && !isBeingEdited && (
+                      {canEdit && isAuthor && !isBeingEdited && (
                         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity ml-auto">
                           <button onClick={() => startEditing(comment)}
                             className="p-1 rounded hover:bg-white/10 text-slate-400 hover:text-slate-300">
@@ -685,44 +689,50 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser }: Com
         )}
       </div>
 
-      {/* 입력 영역 */}
-      <div className="px-4 py-3 border-t border-white/20">
-        <FilePreviewList files={pendingFiles}
-          onRemoveFile={(id) => removePendingFile(id, setPendingFiles)} />
+      {/* 입력 영역 - Viewer는 댓글 작성 불가 */}
+      {canEdit ? (
+        <div className="px-4 py-3 border-t border-white/20">
+          <FilePreviewList files={pendingFiles}
+            onRemoveFile={(id) => removePendingFile(id, setPendingFiles)} />
 
-        {fileError && !editingId && <p className="text-[10px] text-red-400 mb-1">{fileError}</p>}
+          {fileError && !editingId && <p className="text-[10px] text-red-400 mb-1">{fileError}</p>}
 
-        <div className="relative">
-          <InlineMentionDropdown isEdit={false} />
-          <textarea ref={textareaRef} value={newComment}
-            onChange={e => handleTextChange(e.target.value, false)}
-            onKeyDown={handleKeyDown}
-            onPaste={e => handlePaste(e, false)}
-            onBlur={() => setTimeout(() => setShowInlineMention(false), 150)}
-            placeholder="댓글을 입력하세요... @로 멘션"
-            className="w-full text-xs bg-white/5 border border-white/20 rounded-lg pl-3 pr-20 py-2.5 text-foreground placeholder:text-slate-400 resize-none focus:outline-none focus:ring-1 focus:ring-bridge-accent"
-            rows={2} />
-          <div className="absolute right-2 bottom-2 flex items-center gap-1">
-            <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp"
-              multiple className="hidden" onChange={e => handleFileSelect(e, false)} />
-            <button onClick={() => fileInputRef.current?.click()} disabled={pendingFiles.length >= MAX_FILES}
-              className="p-1.5 rounded text-slate-400 hover:text-slate-200 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-              title="이미지 첨부 (최대 5개)">
-              <Paperclip className="h-3.5 w-3.5" />
-            </button>
-            <button onClick={handleSubmit}
-              disabled={(!newComment.trim() && pendingFiles.length === 0) || isSubmitting || pendingFiles.some(f => f.uploading)}
-              className="p-1.5 rounded bg-bridge-accent hover:bg-bridge-accent/80 text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
-              {isSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-            </button>
+          <div className="relative">
+            <InlineMentionDropdown isEdit={false} />
+            <textarea ref={textareaRef} value={newComment}
+              onChange={e => handleTextChange(e.target.value, false)}
+              onKeyDown={handleKeyDown}
+              onPaste={e => handlePaste(e, false)}
+              onBlur={() => setTimeout(() => setShowInlineMention(false), 150)}
+              placeholder="댓글을 입력하세요... @로 멘션"
+              className="w-full text-xs bg-white/5 border border-white/20 rounded-lg pl-3 pr-20 py-2.5 text-foreground placeholder:text-slate-400 resize-none focus:outline-none focus:ring-1 focus:ring-bridge-accent"
+              rows={2} />
+            <div className="absolute right-2 bottom-2 flex items-center gap-1">
+              <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp"
+                multiple className="hidden" onChange={e => handleFileSelect(e, false)} />
+              <button onClick={() => fileInputRef.current?.click()} disabled={pendingFiles.length >= MAX_FILES}
+                className="p-1.5 rounded text-slate-400 hover:text-slate-200 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                title="이미지 첨부 (최대 5개)">
+                <Paperclip className="h-3.5 w-3.5" />
+              </button>
+              <button onClick={handleSubmit}
+                disabled={(!newComment.trim() && pendingFiles.length === 0) || isSubmitting || pendingFiles.some(f => f.uploading)}
+                className="p-1.5 rounded bg-bridge-accent hover:bg-bridge-accent/80 text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+                {isSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+              </button>
+            </div>
           </div>
+          <p className="text-[9px] text-slate-400 mt-1">이미지: 붙여넣기, 드래그, 또는 📎 클릭 (jpg/png/gif/webp, 5MB, 최대 5개)</p>
         </div>
-        <p className="text-[9px] text-slate-400 mt-1">이미지: 붙여넣기, 드래그, 또는 📎 클릭 (jpg/png/gif/webp, 5MB, 최대 5개)</p>
-      </div>
+      ) : (
+        <div className="px-4 py-3 border-t border-white/20">
+          <p className="text-xs text-slate-400 text-center">관찰자는 댓글을 작성할 수 없습니다</p>
+        </div>
+      )}
 
-      {/* 이미지 라이트박스 */}
-      {lightboxUrl && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 cursor-pointer"
+      {/* 이미지 라이트박스 - Portal로 body에 렌더링 (모달 transform 영향 회피) */}
+      {lightboxUrl && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 cursor-pointer"
           onClick={() => setLightboxUrl(null)}>
           <button onClick={() => setLightboxUrl(null)}
             className="absolute top-4 right-4 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors">
@@ -731,7 +741,8 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser }: Com
           <img src={lightboxUrl} alt="첨부 이미지"
             className="max-h-[90vh] max-w-[90vw] object-contain rounded-lg"
             onClick={e => e.stopPropagation()} />
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* 삭제 확인 */}

@@ -8,6 +8,7 @@ import com.kanban.domain.board.*;
 import com.kanban.domain.board.dto.BoardRequest;
 import com.kanban.domain.board.dto.BoardResponse;
 import com.kanban.domain.checklist.ChecklistItemRepository;
+import com.kanban.domain.comment.CommentAttachmentRepository;
 import com.kanban.domain.comment.CommentRepository;
 import com.kanban.domain.dailychecklist.DailyChecklistRepository;
 import com.kanban.domain.feature.FeatureRepository;
@@ -56,6 +57,7 @@ public class BoardService {
     private final FeatureRepository featureRepository;
     private final CommentRepository commentRepository;
     private final ChecklistItemRepository checklistItemRepository;
+    private final CommentAttachmentRepository commentAttachmentRepository;
     private final NotificationRepository notificationRepository;
     private final ActivityLogRepository activityLogRepository;
     private final InviteLinkRepository inviteLinkRepository;
@@ -218,7 +220,8 @@ public class BoardService {
         // 5) 체크리스트 아이템 (task_id FK)
         checklistItemRepository.deleteAllByBoardId(boardId);
 
-        // 6) 댓글, 알림, 활동로그, 초대링크
+        // 6) 댓글 첨부파일 → 댓글, 알림, 활동로그, 초대링크
+        commentAttachmentRepository.deleteByBoardId(boardId);
         commentRepository.deleteByBoardId(boardId);
         notificationRepository.deleteByBoardId(boardId);
         activityLogRepository.deleteByBoardId(boardId);

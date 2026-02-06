@@ -55,6 +55,7 @@ interface TaskDetailModalProps {
   boardMembers: BoardMember[];
   currentUser: User | null;
   boardId: string | null;
+  canEdit?: boolean;
 }
 
 export function TaskDetailModal({
@@ -71,6 +72,7 @@ export function TaskDetailModal({
   boardMembers,
   currentUser,
   boardId,
+  canEdit = true,
 }: TaskDetailModalProps) {
   const [showTagInput, setShowTagInput] = useState(false);
   const [newTagName, setNewTagName] = useState('');
@@ -379,7 +381,7 @@ export function TaskDetailModal({
             <DialogTitle>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 flex-1 group">
-                  {isEditingTitle ? (
+                  {canEdit && isEditingTitle ? (
                     <Input
                       value={editedTask.title}
                       onChange={(e) => updateEditedTask({ title: e.target.value })}
@@ -395,48 +397,50 @@ export function TaskDetailModal({
                     />
                   ) : (
                     <div
-                      className="flex items-center gap-2 cursor-pointer hover:bg-white/5 px-2 py-1 rounded-lg transition-colors"
-                      onClick={() => setIsEditingTitle(true)}
+                      className={`flex items-center gap-2 px-2 py-1 rounded-lg transition-colors ${canEdit ? 'cursor-pointer hover:bg-white/5' : ''}`}
+                      onClick={() => canEdit && setIsEditingTitle(true)}
                     >
                       <span className="text-lg font-semibold text-foreground">
                         {editedTask.title}
                       </span>
-                      <Pencil className="h-4 w-4 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      {canEdit && <Pencil className="h-4 w-4 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />}
                     </div>
                   )}
                 </div>
-                <div className="flex items-center gap-1">
-                  {onMoveToDone && task.block_name !== 'Done' && (
+                {canEdit && (
+                  <div className="flex items-center gap-1">
+                    {onMoveToDone && task.block_name !== 'Done' && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowDoneDialog(true)}
+                        className="text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
+                        title="완료 처리"
+                      >
+                        <CheckCircle2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {onMoveToBlock && task.block_name === 'Done' && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowMoveDialog(true)}
+                        className="text-orange-400 hover:text-orange-300 hover:bg-orange-500/10"
+                        title="블록 이동"
+                      >
+                        <Undo2 className="h-4 w-4" />
+                      </Button>
+                    )}
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => setShowDoneDialog(true)}
-                      className="text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
-                      title="완료 처리"
+                      onClick={() => setShowDeleteDialog(true)}
+                      className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
                     >
-                      <CheckCircle2 className="h-4 w-4" />
+                      <Trash2 className="h-4 w-4" />
                     </Button>
-                  )}
-                  {onMoveToBlock && task.block_name === 'Done' && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setShowMoveDialog(true)}
-                      className="text-orange-400 hover:text-orange-300 hover:bg-orange-500/10"
-                      title="블록 이동"
-                    >
-                      <Undo2 className="h-4 w-4" />
-                    </Button>
-                  )}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowDeleteDialog(true)}
-                    className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
+                  </div>
+                )}
               </div>
             </DialogTitle>
             <DialogDescription className="sr-only">
@@ -453,10 +457,11 @@ export function TaskDetailModal({
               </div>
               <Textarea
                 value={editedTask.description || ''}
-                onChange={(e) => updateEditedTask({ description: e.target.value })}
+                onChange={(e) => canEdit && updateEditedTask({ description: e.target.value })}
                 placeholder="설명이 없습니다."
                 rows={3}
-                className="bg-white/5 border-white/20 text-foreground placeholder:text-slate-400 focus:ring-bridge-accent/50 focus:border-bridge-accent"
+                readOnly={!canEdit}
+                className={`bg-white/5 border-white/20 text-foreground placeholder:text-slate-400 focus:ring-bridge-accent/50 focus:border-bridge-accent ${!canEdit ? 'cursor-default' : ''}`}
               />
             </div>
 
@@ -466,55 +471,70 @@ export function TaskDetailModal({
                 <CalendarIcon className="h-4 w-4 text-slate-400" />
                 <Label className="text-slate-400 font-medium">기간</Label>
               </div>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full h-10 justify-start text-left font-normal bg-white/5 border-white/20 text-foreground hover:bg-white/10 hover:text-foreground"
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4 text-slate-400" />
-                    {editedTask.start_date || editedTask.due_date ? (
-                      <>
-                        {editedTask.start_date ? format(new Date(editedTask.start_date), 'yyyy. MM. dd.', { locale: ko }) : '시작일 미정'}
-                        {' ~ '}
-                        {editedTask.due_date ? format(new Date(editedTask.due_date), 'yyyy. MM. dd.', { locale: ko }) : '종료일 미정'}
-                      </>
-                    ) : (
-                      <span className="text-slate-400">날짜를 선택하세요</span>
+              {canEdit ? (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full h-10 justify-start text-left font-normal bg-white/5 border-white/20 text-foreground hover:bg-white/10 hover:text-foreground"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4 text-slate-400" />
+                      {editedTask.start_date || editedTask.due_date ? (
+                        <>
+                          {editedTask.start_date ? format(new Date(editedTask.start_date), 'yyyy. MM. dd.', { locale: ko }) : '시작일 미정'}
+                          {' ~ '}
+                          {editedTask.due_date ? format(new Date(editedTask.due_date), 'yyyy. MM. dd.', { locale: ko }) : '종료일 미정'}
+                        </>
+                      ) : (
+                        <span className="text-slate-400">날짜를 선택하세요</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 bg-bridge-obsidian border-white/20" align="start">
+                    <Calendar
+                      mode="range"
+                      selected={{
+                        from: editedTask.start_date ? new Date(editedTask.start_date) : undefined,
+                        to: editedTask.due_date ? new Date(editedTask.due_date) : undefined,
+                      }}
+                      onSelect={(range) => {
+                        updateEditedTask({
+                          start_date: range?.from ? format(range.from, 'yyyy-MM-dd') : null,
+                          due_date: range?.to ? format(range.to, 'yyyy-MM-dd') : null,
+                        });
+                      }}
+                      numberOfMonths={2}
+                      locale={ko}
+                      className="bg-bridge-obsidian text-foreground"
+                    />
+                    {(editedTask.start_date || editedTask.due_date) && (
+                      <div className="p-2 border-t border-white/20">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="w-full text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                          onClick={() => updateEditedTask({ start_date: null, due_date: null })}
+                        >
+                          날짜 삭제
+                        </Button>
+                      </div>
                     )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 bg-bridge-obsidian border-white/20" align="start">
-                  <Calendar
-                    mode="range"
-                    selected={{
-                      from: editedTask.start_date ? new Date(editedTask.start_date) : undefined,
-                      to: editedTask.due_date ? new Date(editedTask.due_date) : undefined,
-                    }}
-                    onSelect={(range) => {
-                      updateEditedTask({
-                        start_date: range?.from ? format(range.from, 'yyyy-MM-dd') : null,
-                        due_date: range?.to ? format(range.to, 'yyyy-MM-dd') : null,
-                      });
-                    }}
-                    numberOfMonths={2}
-                    locale={ko}
-                    className="bg-bridge-obsidian text-foreground"
-                  />
-                  {(editedTask.start_date || editedTask.due_date) && (
-                    <div className="p-2 border-t border-white/20">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="w-full text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                        onClick={() => updateEditedTask({ start_date: null, due_date: null })}
-                      >
-                        날짜 삭제
-                      </Button>
-                    </div>
+                  </PopoverContent>
+                </Popover>
+              ) : (
+                <div className="w-full h-10 flex items-center bg-white/5 border border-white/20 rounded-md px-3 text-foreground opacity-70">
+                  <CalendarIcon className="mr-2 h-4 w-4 text-slate-400" />
+                  {editedTask.start_date || editedTask.due_date ? (
+                    <>
+                      {editedTask.start_date ? format(new Date(editedTask.start_date), 'yyyy. MM. dd.', { locale: ko }) : '시작일 미정'}
+                      {' ~ '}
+                      {editedTask.due_date ? format(new Date(editedTask.due_date), 'yyyy. MM. dd.', { locale: ko }) : '종료일 미정'}
+                    </>
+                  ) : (
+                    <span className="text-slate-400">날짜 없음</span>
                   )}
-                </PopoverContent>
-              </Popover>
+                </div>
+              )}
             </div>
 
             {/* 담당자 섹션 (체크리스트 담당자들) */}
@@ -577,16 +597,18 @@ export function TaskDetailModal({
                     }}
                   >
                     {tag.name}
-                    <button
-                      onClick={() => handleRemoveTag(tag.id)}
-                      className="hover:opacity-80"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
+                    {canEdit && (
+                      <button
+                        onClick={() => handleRemoveTag(tag.id)}
+                        className="hover:opacity-80"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    )}
                   </span>
                 ))}
 
-                {showTagInput ? (
+                {canEdit && (showTagInput ? (
                   <div className="flex gap-1 items-center">
                     <Input
                       value={newTagName}
@@ -647,7 +669,7 @@ export function TaskDetailModal({
                       새 태그
                     </Button>
                   </div>
-                )}
+                ))}
               </div>
             </div>
           </div>
@@ -700,16 +722,17 @@ export function TaskDetailModal({
                     onDelete={() => setChecklistItemToDelete(item.id)}
                     boardMembers={boardMembers}
                     boardId={boardId}
+                    canEdit={canEdit}
                   />
                 ))}
 
-              {/* 새 항목 추가 */}
-              <AddChecklistItemInput onAdd={handleAddChecklistItem} boardMembers={boardMembers} currentUser={currentUser} />
+              {/* 새 항목 추가 - Viewer는 추가 불가 */}
+              {canEdit && <AddChecklistItemInput onAdd={handleAddChecklistItem} boardMembers={boardMembers} currentUser={currentUser} />}
             </div>
           </div>
 
-          {/* 저장 버튼 - 변경사항이 있을 때만 표시 */}
-          {hasChanges && (
+          {/* 저장 버튼 - 변경사항이 있을 때만 표시 (Viewer는 저장 불가) */}
+          {canEdit && hasChanges && (
             <div className="flex justify-end gap-2 pt-4 border-t border-white/20">
               <Button variant="outline" onClick={handleClose} className="bg-white/5 border-white/20 text-foreground hover:bg-white/10">
                 취소
@@ -736,6 +759,7 @@ export function TaskDetailModal({
                 boardId={boardId}
                 boardMembers={boardMembers}
                 currentUser={currentUser}
+                canEdit={canEdit}
               />
             </div>
           )}
@@ -916,6 +940,7 @@ function ChecklistItemRow({
   onDelete,
   boardMembers,
   boardId,
+  canEdit = true,
 }: {
   item: ChecklistItem;
   onToggle: () => void;
@@ -923,6 +948,7 @@ function ChecklistItemRow({
   onDelete: () => void;
   boardMembers: BoardMember[];
   boardId: string | null;
+  canEdit?: boolean;
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editedTitle, setEditedTitle] = useState(item.title);
@@ -986,10 +1012,11 @@ function ChecklistItemRow({
     <div className="group flex items-center gap-2 p-2 rounded hover:bg-white/5 border border-transparent hover:border-white/20">
       {/* 체크박스 */}
       <button
-        onClick={onToggle}
+        onClick={canEdit ? onToggle : undefined}
+        disabled={!canEdit}
         className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 ${
           item.completed ? 'bg-green-500' : 'bg-slate-600 hover:bg-slate-500'
-        }`}
+        } ${!canEdit ? 'cursor-default' : ''}`}
       >
         {item.completed && (
           <svg
@@ -1008,7 +1035,7 @@ function ChecklistItemRow({
 
       {/* 제목 - 왼쪽 정렬 */}
       <div className="flex-1 min-w-0">
-        {isEditing ? (
+        {canEdit && isEditing ? (
           <Input
             value={editedTitle}
             onChange={(e) => setEditedTitle(e.target.value)}
@@ -1019,10 +1046,10 @@ function ChecklistItemRow({
           />
         ) : (
           <div
-            className={`text-xs cursor-pointer truncate ${
+            className={`text-xs truncate ${
               item.completed ? 'line-through text-slate-400' : 'text-foreground'
-            }`}
-            onClick={() => setIsEditing(true)}
+            } ${canEdit ? 'cursor-pointer' : ''}`}
+            onClick={() => canEdit && setIsEditing(true)}
           >
             {item.title}
           </div>
@@ -1031,119 +1058,161 @@ function ChecklistItemRow({
 
       {/* 오른쪽 정렬: 기간 + 담당자 (클릭해서 수정) */}
       <div className="flex items-center gap-2 flex-shrink-0">
-        {/* 기간 - 클릭하면 수정 */}
-        <Popover>
-          <PopoverTrigger asChild>
-            <button
-              className={`flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded hover:bg-white/10 transition-colors ${
-                isOverdue
-                  ? 'text-red-400'
-                  : isDueSoon
-                  ? 'text-orange-400'
-                  : 'text-slate-400'
-              }`}
-            >
-              <CalendarIcon className="h-3 w-3" />
-              {(() => {
-                // 완료 시 done_date를 끝 날짜로 표시, 미완료 시 due_date 표시
-                const endDate = item.completed && item.done_date ? item.done_date : item.due_date;
-                if (item.start_date || endDate) {
-                  if (item.start_date && endDate) {
-                    return <>{format(new Date(item.start_date), 'M/d', { locale: ko })} - {format(new Date(endDate), 'M/d', { locale: ko })}</>;
-                  } else if (item.start_date) {
-                    return <>{format(new Date(item.start_date), 'M/d', { locale: ko })} ~</>;
-                  } else {
-                    return <>~ {format(new Date(endDate!), 'M/d', { locale: ko })}</>;
-                  }
-                }
-                return <span className="text-slate-400">날짜</span>;
-              })()}
-            </button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0 bg-bridge-obsidian border-white/20" align="end">
-            <Calendar
-              mode="range"
-              selected={{
-                from: item.start_date ? new Date(item.start_date) : undefined,
-                to: item.due_date ? new Date(item.due_date) : undefined,
-              }}
-              onSelect={(range) => {
-                onUpdate({
-                  start_date: range?.from ? format(range.from, 'yyyy-MM-dd') : null,
-                  due_date: range?.to ? format(range.to, 'yyyy-MM-dd') : null,
-                });
-              }}
-              numberOfMonths={1}
-              locale={ko}
-              className="bg-bridge-obsidian text-foreground"
-            />
-            {(item.start_date || item.due_date) && (
-              <div className="p-2 border-t border-white/20">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="w-full text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                  onClick={() => onUpdate({ start_date: null, due_date: null })}
-                >
-                  날짜 삭제
-                </Button>
-              </div>
-            )}
-          </PopoverContent>
-        </Popover>
-
-        {/* 담당자 - 클릭하면 수정 */}
-        <Popover>
-          <PopoverTrigger asChild>
-            {item.assignee && assigneeColor ? (
-              <button className={`flex items-center gap-1 ${assigneeColor.bgLight} rounded-full px-1.5 py-0.5 hover:opacity-80 transition-opacity`}>
-                <div className={`w-4 h-4 rounded-full ${assigneeColor.bg} flex items-center justify-center text-[9px] font-bold text-white`}>
-                  {getInitials(item.assignee.name)}
-                </div>
-                <span className={`text-[10px] font-medium ${assigneeColor.text}`}>
-                  {item.assignee.name}
-                </span>
-              </button>
-            ) : (
-              <button className="flex items-center gap-1 text-[11px] text-slate-400 px-1.5 py-0.5 rounded hover:bg-white/10 transition-colors">
-                <div className="w-4 h-4 rounded-full bg-slate-600 flex items-center justify-center text-[9px] text-slate-400">
-                  ?
-                </div>
-              </button>
-            )}
-          </PopoverTrigger>
-          <PopoverContent className="w-40 p-1 bg-bridge-obsidian border-white/20" align="end">
-            <div className="space-y-0.5">
+        {/* 기간 - 클릭하면 수정 (Viewer는 읽기 전용) */}
+        {canEdit ? (
+          <Popover>
+            <PopoverTrigger asChild>
               <button
-                onClick={() => onUpdate({ assignee: null })}
-                className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs hover:bg-white/10 transition-colors ${
-                  !item.assignee ? 'bg-white/10 text-foreground' : 'text-slate-300'
+                className={`flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded hover:bg-white/10 transition-colors ${
+                  isOverdue
+                    ? 'text-red-400'
+                    : isDueSoon
+                    ? 'text-orange-400'
+                    : 'text-slate-400'
                 }`}
               >
-                없음
+                <CalendarIcon className="h-3 w-3" />
+                {(() => {
+                  const endDate = item.completed && item.done_date ? item.done_date : item.due_date;
+                  if (item.start_date || endDate) {
+                    if (item.start_date && endDate) {
+                      return <>{format(new Date(item.start_date), 'M/d', { locale: ko })} - {format(new Date(endDate), 'M/d', { locale: ko })}</>;
+                    } else if (item.start_date) {
+                      return <>{format(new Date(item.start_date), 'M/d', { locale: ko })} ~</>;
+                    } else {
+                      return <>~ {format(new Date(endDate!), 'M/d', { locale: ko })}</>;
+                    }
+                  }
+                  return <span className="text-slate-400">날짜</span>;
+                })()}
               </button>
-              {boardMembers.map((member) => {
-                const memberColor = getAssigneeClasses(member.name, member.assigneeColor);
-                return (
-                  <button
-                    key={member.userId}
-                    onClick={() => onUpdate({ assignee: { id: member.userId, name: member.name, profile_image: member.avatar || null } })}
-                    className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs hover:bg-white/10 transition-colors ${
-                      item.assignee?.id === member.userId ? 'bg-white/10 text-foreground' : 'text-slate-300'
-                    }`}
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0 bg-bridge-obsidian border-white/20" align="end">
+              <Calendar
+                mode="range"
+                selected={{
+                  from: item.start_date ? new Date(item.start_date) : undefined,
+                  to: item.due_date ? new Date(item.due_date) : undefined,
+                }}
+                onSelect={(range) => {
+                  onUpdate({
+                    start_date: range?.from ? format(range.from, 'yyyy-MM-dd') : null,
+                    due_date: range?.to ? format(range.to, 'yyyy-MM-dd') : null,
+                  });
+                }}
+                numberOfMonths={1}
+                locale={ko}
+                className="bg-bridge-obsidian text-foreground"
+              />
+              {(item.start_date || item.due_date) && (
+                <div className="p-2 border-t border-white/20">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                    onClick={() => onUpdate({ start_date: null, due_date: null })}
                   >
-                    <div className={`w-4 h-4 rounded-full ${memberColor.bg} flex items-center justify-center text-[9px] font-bold text-white`}
-                      style={!memberColor.bg ? { backgroundColor: memberColor.hex } : undefined}
+                    날짜 삭제
+                  </Button>
+                </div>
+              )}
+            </PopoverContent>
+          </Popover>
+        ) : (
+          <div
+            className={`flex items-center gap-1 text-[11px] px-1.5 py-0.5 ${
+              isOverdue ? 'text-red-400' : isDueSoon ? 'text-orange-400' : 'text-slate-400'
+            }`}
+          >
+            <CalendarIcon className="h-3 w-3" />
+            {(() => {
+              const endDate = item.completed && item.done_date ? item.done_date : item.due_date;
+              if (item.start_date || endDate) {
+                if (item.start_date && endDate) {
+                  return <>{format(new Date(item.start_date), 'M/d', { locale: ko })} - {format(new Date(endDate), 'M/d', { locale: ko })}</>;
+                } else if (item.start_date) {
+                  return <>{format(new Date(item.start_date), 'M/d', { locale: ko })} ~</>;
+                } else {
+                  return <>~ {format(new Date(endDate!), 'M/d', { locale: ko })}</>;
+                }
+              }
+              return <span className="text-slate-400">-</span>;
+            })()}
+          </div>
+        )}
+
+        {/* 담당자 - 클릭하면 수정 (Viewer는 읽기 전용) */}
+        {canEdit ? (
+          <Popover>
+            <PopoverTrigger asChild>
+              {item.assignee && assigneeColor ? (
+                <button className={`flex items-center gap-1 ${assigneeColor.bgLight} rounded-full px-1.5 py-0.5 hover:opacity-80 transition-opacity`}>
+                  <div className={`w-4 h-4 rounded-full ${assigneeColor.bg} flex items-center justify-center text-[9px] font-bold text-white`}>
+                    {getInitials(item.assignee.name)}
+                  </div>
+                  <span className={`text-[10px] font-medium ${assigneeColor.text}`}>
+                    {item.assignee.name}
+                  </span>
+                </button>
+              ) : (
+                <button className="flex items-center gap-1 text-[11px] text-slate-400 px-1.5 py-0.5 rounded hover:bg-white/10 transition-colors">
+                  <div className="w-4 h-4 rounded-full bg-slate-600 flex items-center justify-center text-[9px] text-slate-400">
+                    ?
+                  </div>
+                </button>
+              )}
+            </PopoverTrigger>
+            <PopoverContent className="w-40 p-1 bg-bridge-obsidian border-white/20" align="end">
+              <div className="space-y-0.5">
+                <button
+                  onClick={() => onUpdate({ assignee: null })}
+                  className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs hover:bg-white/10 transition-colors ${
+                    !item.assignee ? 'bg-white/10 text-foreground' : 'text-slate-300'
+                  }`}
+                >
+                  없음
+                </button>
+                {boardMembers.map((member) => {
+                  const memberColor = getAssigneeClasses(member.name, member.assigneeColor);
+                  return (
+                    <button
+                      key={member.userId}
+                      onClick={() => onUpdate({ assignee: { id: member.userId, name: member.name, profile_image: member.avatar || null } })}
+                      className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs hover:bg-white/10 transition-colors ${
+                        item.assignee?.id === member.userId ? 'bg-white/10 text-foreground' : 'text-slate-300'
+                      }`}
                     >
-                      {getInitials(member.name)}
-                    </div>
-                    {member.name}
-                  </button>
-                );
-              })}
+                      <div className={`w-4 h-4 rounded-full ${memberColor.bg} flex items-center justify-center text-[9px] font-bold text-white`}
+                        style={!memberColor.bg ? { backgroundColor: memberColor.hex } : undefined}
+                      >
+                        {getInitials(member.name)}
+                      </div>
+                      {member.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </PopoverContent>
+          </Popover>
+        ) : (
+          // Viewer: 읽기 전용 담당자 표시
+          item.assignee && assigneeColor ? (
+            <div className={`flex items-center gap-1 ${assigneeColor.bgLight} rounded-full px-1.5 py-0.5`}>
+              <div className={`w-4 h-4 rounded-full ${assigneeColor.bg} flex items-center justify-center text-[9px] font-bold text-white`}>
+                {getInitials(item.assignee.name)}
+              </div>
+              <span className={`text-[10px] font-medium ${assigneeColor.text}`}>
+                {item.assignee.name}
+              </span>
             </div>
-          </PopoverContent>
-        </Popover>
+          ) : (
+            <div className="flex items-center gap-1 text-[11px] text-slate-400 px-1.5 py-0.5">
+              <div className="w-4 h-4 rounded-full bg-slate-600 flex items-center justify-center text-[9px] text-slate-400">
+                ?
+              </div>
+            </div>
+          )
+        )}
       </div>
 
       {/* 타임블록 총합 시간 + 토글 버튼 */}
@@ -1174,17 +1243,19 @@ function ChecklistItemRow({
         )}
       </button>
 
-      {/* 삭제 버튼 */}
-      <div className="flex items-center opacity-0 group-hover:opacity-100">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-6 w-6 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/10"
-          onClick={onDelete}
-        >
-          <Trash2 className="h-3 w-3" />
-        </Button>
-      </div>
+      {/* 삭제 버튼 - Viewer는 삭제 불가 */}
+      {canEdit && (
+        <div className="flex items-center opacity-0 group-hover:opacity-100">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 w-6 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+            onClick={onDelete}
+          >
+            <Trash2 className="h-3 w-3" />
+          </Button>
+        </div>
+      )}
     </div>
 
     {/* 타임블록 리스트 */}

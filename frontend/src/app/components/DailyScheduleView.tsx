@@ -30,6 +30,7 @@ interface DailyScheduleViewProps {
   onViewFeature?: (featureId: string) => void;
   onViewTask?: (taskId: string) => void;
   refreshTrigger?: number;
+  currentUserRole?: string;
 }
 
 const SLOT_HEIGHT = 40; // 30분 슬롯의 높이 (px)
@@ -51,7 +52,7 @@ const parseHour = (time: string): number => {
 
 type ScheduleViewMode = 'day' | 'week';
 
-export function DailyScheduleView({ boardId, boardMembers, onViewFeature, onViewTask, refreshTrigger }: DailyScheduleViewProps) {
+export function DailyScheduleView({ boardId, boardMembers, onViewFeature, onViewTask, refreshTrigger, currentUserRole }: DailyScheduleViewProps) {
   // 세부 탭 상태 (타임블록 / 체크리스트)
   const [subTab, setSubTab] = useState<ScheduleSubTab>('timeblock');
 
@@ -486,15 +487,17 @@ export function DailyScheduleView({ boardId, boardMembers, onViewFeature, onView
           </Button>
           {isLoading && <Loader2 className="h-4 w-4 text-zinc-400 animate-spin" />}
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setShowSettingsModal(true)}
-          className="border-kanban-border text-zinc-300 hover:bg-white/5 hover:text-foreground"
-        >
-          <Settings className="h-4 w-4 mr-2" />
-          설정
-        </Button>
+        {(currentUserRole === 'owner' || currentUserRole === 'admin') && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowSettingsModal(true)}
+            className="border-kanban-border text-zinc-300 hover:bg-white/5 hover:text-foreground"
+          >
+            <Settings className="h-4 w-4 mr-2" />
+            설정
+          </Button>
+        )}
       </div>
 
       {/* 세부 탭에 따른 콘텐츠 렌더링 */}

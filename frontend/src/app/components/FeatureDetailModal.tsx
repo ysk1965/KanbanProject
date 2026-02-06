@@ -20,6 +20,7 @@ interface FeatureDetailModalProps {
   onDelete: (featureId: string) => void;
   availableTags: Tag[];
   onCreateTag: (name: string, color: string) => void;
+  canEdit?: boolean;
 }
 
 export function FeatureDetailModal({
@@ -33,6 +34,7 @@ export function FeatureDetailModal({
   onDelete,
   availableTags,
   onCreateTag,
+  canEdit = true,
 }: FeatureDetailModalProps) {
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
   const [showTagInput, setShowTagInput] = useState(false);
@@ -163,17 +165,18 @@ export function FeatureDetailModal({
           {/* Top Control Bar */}
           <div className="flex items-center justify-between px-6 py-5 border-b border-white/20 bg-white/[0.02]">
             <div className="flex items-center gap-3 flex-1">
-              <Popover>
-                <PopoverTrigger asChild>
-                  <button
-                    className="w-5 h-5 rounded-md shadow-lg flex-shrink-0 transition-all duration-300 hover:scale-125 cursor-pointer"
-                    style={{
-                      backgroundColor: selectedColor,
-                      boxShadow: `0 0 15px ${selectedColor}88`,
-                      border: '1px solid rgba(255,255,255,0.2)',
-                    }}
-                  />
-                </PopoverTrigger>
+              {canEdit ? (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      className="w-5 h-5 rounded-md shadow-lg flex-shrink-0 transition-all duration-300 hover:scale-125 cursor-pointer"
+                      style={{
+                        backgroundColor: selectedColor,
+                        boxShadow: `0 0 15px ${selectedColor}88`,
+                        border: '1px solid rgba(255,255,255,0.2)',
+                      }}
+                    />
+                  </PopoverTrigger>
                 <PopoverContent className="w-auto p-3 bg-bridge-obsidian border-white/20" align="start" sideOffset={8}>
                   <div className="space-y-3">
                     <div className="grid grid-cols-5 gap-2">
@@ -207,22 +210,37 @@ export function FeatureDetailModal({
                     </div>
                   </div>
                 </PopoverContent>
-              </Popover>
+                </Popover>
+              ) : (
+                <div
+                  className="w-5 h-5 rounded-md shadow-lg flex-shrink-0"
+                  style={{
+                    backgroundColor: selectedColor,
+                    boxShadow: `0 0 15px ${selectedColor}88`,
+                    border: '1px solid rgba(255,255,255,0.2)',
+                  }}
+                />
+              )}
               <input
                 type="text"
                 value={editedFeature.title}
-                onChange={(e) => updateEditedFeature({ title: e.target.value })}
-                className="text-lg font-bold bg-transparent border-none focus:outline-none rounded w-full text-foreground placeholder-zinc-400"
+                onChange={(e) => canEdit && updateEditedFeature({ title: e.target.value })}
+                readOnly={!canEdit}
+                className={`text-lg font-bold bg-transparent border-none focus:outline-none rounded w-full text-foreground placeholder-zinc-400 ${!canEdit ? 'cursor-default' : ''}`}
               />
             </div>
             <div className="flex items-center gap-1">
-              <button
-                onClick={() => setShowDeleteDialog(true)}
-                className="p-2 text-zinc-400 hover:text-red-400 transition-colors"
-              >
-                <Trash2 size={18} />
-              </button>
-              <div className="w-px h-4 bg-white/10 mx-1" />
+              {canEdit && (
+                <>
+                  <button
+                    onClick={() => setShowDeleteDialog(true)}
+                    className="p-2 text-zinc-400 hover:text-red-400 transition-colors"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                  <div className="w-px h-4 bg-white/10 mx-1" />
+                </>
+              )}
               <button
                 onClick={handleClose}
                 className="p-2 text-zinc-400 hover:text-foreground transition-colors"
@@ -242,8 +260,9 @@ export function FeatureDetailModal({
               <textarea
                 placeholder="FEATURE 설명을 입력하세요..."
                 value={editedFeature.description || ''}
-                onChange={(e) => updateEditedFeature({ description: e.target.value })}
-                className="w-full min-h-[100px] bg-white/5 border border-white/20 rounded-xl p-4 text-zinc-300 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all resize-none text-sm leading-relaxed"
+                onChange={(e) => canEdit && updateEditedFeature({ description: e.target.value })}
+                readOnly={!canEdit}
+                className={`w-full min-h-[100px] bg-white/5 border border-white/20 rounded-xl p-4 text-zinc-300 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all resize-none text-sm leading-relaxed ${!canEdit ? 'cursor-default' : ''}`}
               />
             </section>
 
@@ -257,8 +276,9 @@ export function FeatureDetailModal({
                 <div className="relative">
                   <select
                     value={editedFeature.priority || 'MEDIUM'}
-                    onChange={(e) => updateEditedFeature({ priority: e.target.value as Priority })}
-                    className="w-full bg-white/5 border border-white/20 rounded-lg px-4 py-2.5 appearance-none focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent text-xs font-bold text-zinc-200"
+                    onChange={(e) => canEdit && updateEditedFeature({ priority: e.target.value as Priority })}
+                    disabled={!canEdit}
+                    className={`w-full bg-white/5 border border-white/20 rounded-lg px-4 py-2.5 appearance-none focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent text-xs font-bold text-zinc-200 ${!canEdit ? 'cursor-default opacity-70' : ''}`}
                   >
                     <option value="HIGH" className="bg-kanban-bg">높음</option>
                     <option value="MEDIUM" className="bg-kanban-bg">보통</option>
@@ -272,43 +292,54 @@ export function FeatureDetailModal({
                   <CalendarIcon className="h-4 w-4 text-slate-400" />
                   <label className="text-slate-400 font-medium">마감일</label>
                 </div>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <button
-                      className="w-full h-10 flex items-center gap-2 text-left bg-white/5 border border-white/20 rounded-lg px-4 py-2.5 text-xs font-bold text-zinc-200 hover:bg-white/10 transition-colors"
-                    >
-                      <CalendarIcon className="h-4 w-4 text-slate-400" />
-                      {editedFeature.due_date ? (
-                        format(new Date(editedFeature.due_date), 'yyyy. MM. dd.', { locale: ko })
-                      ) : (
-                        <span className="text-slate-400 font-normal">날짜를 선택하세요</span>
+                {canEdit ? (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button
+                        className="w-full h-10 flex items-center gap-2 text-left bg-white/5 border border-white/20 rounded-lg px-4 py-2.5 text-xs font-bold text-zinc-200 hover:bg-white/10 transition-colors"
+                      >
+                        <CalendarIcon className="h-4 w-4 text-slate-400" />
+                        {editedFeature.due_date ? (
+                          format(new Date(editedFeature.due_date), 'yyyy. MM. dd.', { locale: ko })
+                        ) : (
+                          <span className="text-slate-400 font-normal">날짜를 선택하세요</span>
+                        )}
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0 bg-bridge-obsidian border-white/20" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={editedFeature.due_date ? new Date(editedFeature.due_date) : undefined}
+                        onSelect={(date: Date | undefined) => {
+                          updateEditedFeature({
+                            due_date: date ? format(date, 'yyyy-MM-dd') : null,
+                          });
+                        }}
+                        locale={ko}
+                        className="bg-bridge-obsidian text-foreground"
+                      />
+                      {editedFeature.due_date && (
+                        <div className="p-2 border-t border-white/20">
+                          <button
+                            className="w-full text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 px-3 py-1.5 rounded transition-colors"
+                            onClick={() => updateEditedFeature({ due_date: null })}
+                          >
+                            날짜 삭제
+                          </button>
+                        </div>
                       )}
-                    </button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 bg-bridge-obsidian border-white/20" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={editedFeature.due_date ? new Date(editedFeature.due_date) : undefined}
-                      onSelect={(date: Date | undefined) => {
-                        updateEditedFeature({
-                          due_date: date ? format(date, 'yyyy-MM-dd') : null,
-                        });
-                      }}
-                      locale={ko}
-                      className="bg-bridge-obsidian text-foreground"
-                    />
-                    {editedFeature.due_date && (
-                      <div className="p-2 border-t border-white/20">
-                        <button
-                          className="w-full text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 px-3 py-1.5 rounded transition-colors"
-                          onClick={() => updateEditedFeature({ due_date: null })}
-                        >
-                          날짜 삭제
-                        </button>
-                      </div>
+                    </PopoverContent>
+                  </Popover>
+                ) : (
+                  <div className="w-full h-10 flex items-center gap-2 bg-white/5 border border-white/20 rounded-lg px-4 py-2.5 text-xs font-bold text-zinc-200 opacity-70">
+                    <CalendarIcon className="h-4 w-4 text-slate-400" />
+                    {editedFeature.due_date ? (
+                      format(new Date(editedFeature.due_date), 'yyyy. MM. dd.', { locale: ko })
+                    ) : (
+                      <span className="text-slate-400 font-normal">날짜 없음</span>
                     )}
-                  </PopoverContent>
-                </Popover>
+                  </div>
+                )}
               </section>
             </div>
 
@@ -330,16 +361,18 @@ export function FeatureDetailModal({
                     }}
                   >
                     {tag.name}
-                    <button
-                      onClick={() => handleRemoveTag(tag.id)}
-                      className="hover:opacity-80"
-                    >
-                      <X size={10} />
-                    </button>
+                    {canEdit && (
+                      <button
+                        onClick={() => handleRemoveTag(tag.id)}
+                        className="hover:opacity-80"
+                      >
+                        <X size={10} />
+                      </button>
+                    )}
                   </span>
                 ))}
 
-                {showTagInput ? (
+                {canEdit && (showTagInput ? (
                   <div className="flex gap-1.5 items-center">
                     <input
                       value={newTagName}
@@ -392,7 +425,7 @@ export function FeatureDetailModal({
                       <Plus size={10} />새 태그
                     </button>
                   </div>
-                )}
+                ))}
               </div>
             </section>
 
@@ -492,32 +525,34 @@ export function FeatureDetailModal({
                   ))}
                 </div>
 
-                {/* Quick Add Dock */}
-                <div className="bg-white/[0.02] p-2 flex gap-2 border-t border-white/20">
-                  <input
-                    type="text"
-                    placeholder="새 서브태스크 추가..."
-                    value={newSubtaskTitle}
-                    onChange={(e) => setNewSubtaskTitle(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.nativeEvent.isComposing) return;
-                      if (e.key === 'Enter') handleAddSubtask();
-                    }}
-                    className="flex-1 bg-white/5 border border-white/20 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-bridge-accent/50 focus:border-bridge-accent text-zinc-300 placeholder-zinc-500 transition-all"
-                  />
-                  <button
-                    ref={addBtnRef}
-                    onClick={handleAddSubtask}
-                    className="px-4 py-2 bg-indigo-600/10 text-indigo-400 text-[10px] font-black uppercase tracking-widest rounded-lg border border-indigo-500/20 hover:bg-indigo-600/20 hover:text-foreground transition-all active:scale-95"
-                  >
-                    ADD
-                  </button>
-                </div>
+                {/* Quick Add Dock - Viewer는 서브태스크 추가 불가 */}
+                {canEdit && (
+                  <div className="bg-white/[0.02] p-2 flex gap-2 border-t border-white/20">
+                    <input
+                      type="text"
+                      placeholder="새 서브태스크 추가..."
+                      value={newSubtaskTitle}
+                      onChange={(e) => setNewSubtaskTitle(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.nativeEvent.isComposing) return;
+                        if (e.key === 'Enter') handleAddSubtask();
+                      }}
+                      className="flex-1 bg-white/5 border border-white/20 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-bridge-accent/50 focus:border-bridge-accent text-zinc-300 placeholder-zinc-500 transition-all"
+                    />
+                    <button
+                      ref={addBtnRef}
+                      onClick={handleAddSubtask}
+                      className="px-4 py-2 bg-indigo-600/10 text-indigo-400 text-[10px] font-black uppercase tracking-widest rounded-lg border border-indigo-500/20 hover:bg-indigo-600/20 hover:text-foreground transition-all active:scale-95"
+                    >
+                      ADD
+                    </button>
+                  </div>
+                )}
               </div>
             </section>
 
-            {/* 저장 버튼 - 변경사항이 있을 때만 표시 */}
-            {hasChanges && (
+            {/* 저장 버튼 - 변경사항이 있을 때만 표시 (Viewer는 저장 불가) */}
+            {canEdit && hasChanges && (
               <div className="flex justify-end gap-3 pt-4 border-t border-white/20">
                 <button
                   onClick={() => {

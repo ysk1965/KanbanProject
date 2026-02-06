@@ -306,6 +306,13 @@ export function KanbanBoardPage() {
   ) ?? false;
   const canViewStatistics = canAccessStatistics && isAdminOrOwner;
 
+  // Viewer(Observer) 권한 체크 - Viewer는 수정 불가
+  const currentUserRole = boardMembersData?.find(
+    (m) => m.userId === currentUser?.id
+  )?.role;
+  const isViewer = currentUserRole === 'observer';
+  const canEdit = !isViewer;
+
   // 뷰 모드 변경 핸들러 (Premium 기능 체크)
   const handleViewModeChange = (mode: ViewMode) => {
     if (mode === 'weekly' && !canAccessSchedule) {
@@ -1368,6 +1375,7 @@ export function KanbanBoardPage() {
             {currentUser && (
               <UserMenu
                 user={currentUser}
+                assigneeColor={memberColorMap[currentUser.id]}
                 onOpenSubscription={() => setIsSubscriptionModalOpen(true)}
                 onOpenSettings={() => {}}
                 onLogout={logout}
@@ -1859,6 +1867,7 @@ export function KanbanBoardPage() {
                 if (task) handleTaskClick(task);
               }}
               refreshTrigger={scheduleRefreshKey}
+              currentUserRole={currentUserRole}
             />
           </main>
         ) : viewMode === 'statistics' ? (
@@ -1917,6 +1926,7 @@ export function KanbanBoardPage() {
           onDelete={handleDeleteFeature}
           availableTags={tags}
           onCreateTag={handleCreateTag}
+          canEdit={canEdit}
         />
 
         <TaskDetailModal
@@ -1942,6 +1952,7 @@ export function KanbanBoardPage() {
           boardMembers={boardMembersData}
           currentUser={currentUser}
           boardId={boardId || ''}
+          canEdit={canEdit}
         />
 
         <AddBlockModal
