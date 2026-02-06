@@ -214,6 +214,83 @@ import { Plus, Users, Settings } from 'lucide-react';
 - 프론트엔드 서비스: `frontend/src/app/utils/services.ts`
 - API 호출: `frontend/src/app/utils/api.ts`
 
+---
+
+## 타임존 처리 (글로벌 서비스)
+
+**핵심 원칙: UTC 저장, 클라이언트 타임존 표시**
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  저장: UTC (서버, DB 모두)                               │
+│  API 응답: 2026-02-06T05:30:00Z (UTC + 'Z' suffix)      │
+│  클라이언트: 브라우저 타임존으로 자동 변환하여 표시        │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Backend 규칙
+
+```java
+// ✅ 올바른 사용
+LocalDateTime.now(ZoneOffset.UTC)
+
+// ❌ 사용 금지
+LocalDateTime.now()                    // 서버 타임존 의존
+LocalDateTime.now(ZoneId.of("Asia/Seoul"))  // 특정 지역 하드코딩
+```
+
+**설정 파일 (application.yml)**
+```yaml
+spring:
+  jpa:
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC   # 반드시 UTC
+  jackson:
+    time-zone: UTC         # 반드시 UTC
+```
+
+**JacksonConfig**: ISO 8601 + 'Z' suffix 사용
+```java
+DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'")
+```
+
+### Frontend 규칙
+
+**dateUtils 사용 (필수)**: `frontend/src/app/utils/dateUtils.ts`
+
+```typescript
+// ✅ 올바른 사용
+import { formatDate, formatDateTime, formatRelativeTime, getTodayDateString } from '../utils/dateUtils';
+
+formatDate(serverDate)              // 로컬 타임존으로 표시
+formatDateTime(serverDate)          // 날짜+시간 표시
+formatRelativeTime(serverDate)      // "3일 전", "방금 전"
+getTodayDateString()                // 오늘 날짜 (yyyy-MM-dd)
+
+// datetime-local input 처리
+toDateTimeLocalValue(serverDate)    // 서버 → input value
+fromDateTimeLocalValue(inputValue)  // input → 서버 (UTC ISO)
+
+// ❌ 사용 금지
+new Date().toISOString().split('T')[0]     // → getTodayDateString()
+new Date(x).toLocaleDateString('ko-KR')    // → formatDate(x)
+new Date(x).toLocaleString('ko-KR', {...}) // → formatDateTime(x)
+```
+
+**지원 로케일**: ko-KR, en-US, ja-JP, zh-CN (브라우저 언어 자동 감지)
+
+### 체크리스트 (새 시간 관련 코드 작성 시)
+
+- [ ] Backend: `LocalDateTime.now(ZoneOffset.UTC)` 사용
+- [ ] Backend: 특정 지역 타임존 하드코딩 금지
+- [ ] Frontend: `dateUtils` 함수 사용
+- [ ] Frontend: `'ko-KR'` 하드코딩 금지
+- [ ] API 응답: ISO 8601 + 'Z' suffix 확인
+
+---
+
 ## Task Orchestration Workflow                                                        
  복잡한 작업(3개 이상 하위 태스크, 다중 파일 수정, 시스템 분석 등) 요청 시 다음 워크플 
  로우를 따른다:   
