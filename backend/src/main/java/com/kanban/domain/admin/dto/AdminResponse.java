@@ -1,5 +1,7 @@
 package com.kanban.domain.admin.dto;
 
+import com.kanban.domain.announcement.Announcement;
+import com.kanban.domain.announcement.AnnouncementType;
 import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardMember;
 import com.kanban.domain.board.BoardTier;
@@ -41,6 +43,9 @@ public class AdminResponse {
         private int boardCount;
         private LocalDateTime lastLoginAt;
         private LocalDateTime createdAt;
+        private Boolean isActive;
+        private LocalDateTime deactivatedAt;
+        private String deactivatedReason;
 
         public static UserSummary of(User user, int boardCount) {
             return UserSummary.builder()
@@ -54,6 +59,9 @@ public class AdminResponse {
                     .boardCount(boardCount)
                     .lastLoginAt(user.getLastLoginAt())
                     .createdAt(user.getCreatedAt())
+                    .isActive(user.getIsActive())
+                    .deactivatedAt(user.getDeactivatedAt())
+                    .deactivatedReason(user.getDeactivatedReason())
                     .build();
         }
     }
@@ -68,10 +76,15 @@ public class AdminResponse {
         private String profileImage;
         private Boolean emailVerified;
         private String authProvider;
+        private String authProviderId;
         private SystemRole systemRole;
         private int boardCount;
         private LocalDateTime lastLoginAt;
         private LocalDateTime createdAt;
+        private LocalDateTime emailVerifiedAt;
+        private Boolean isActive;
+        private LocalDateTime deactivatedAt;
+        private String deactivatedReason;
         private List<BoardSummary> boards;
 
         public static UserDetail of(User user, int boardCount, List<BoardSummary> boards) {
@@ -82,10 +95,15 @@ public class AdminResponse {
                     .profileImage(user.getProfileImage())
                     .emailVerified(user.getEmailVerified())
                     .authProvider(user.getAuthProvider())
+                    .authProviderId(user.getAuthProviderId())
                     .systemRole(user.getSystemRole() != null ? user.getSystemRole() : SystemRole.USER)
                     .boardCount(boardCount)
                     .lastLoginAt(user.getLastLoginAt())
                     .createdAt(user.getCreatedAt())
+                    .emailVerifiedAt(user.getEmailVerifiedAt())
+                    .isActive(user.getIsActive())
+                    .deactivatedAt(user.getDeactivatedAt())
+                    .deactivatedReason(user.getDeactivatedReason())
                     .boards(boards)
                     .build();
         }
@@ -232,6 +250,66 @@ public class AdminResponse {
         private int size;
     }
 
+    // ==================== Analytics DTOs ====================
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class SignupTrend {
+        private List<SignupTrendData> data;
+        private long total;
+
+        @Getter
+        @Builder
+        @AllArgsConstructor
+        public static class SignupTrendData {
+            private String date;
+            private long count;
+            private long emailCount;
+            private long googleCount;
+        }
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class ActiveUserStats {
+        private long dau;
+        private long wau;
+        private long mau;
+        private List<DailyActiveData> trend;
+
+        @Getter
+        @Builder
+        @AllArgsConstructor
+        public static class DailyActiveData {
+            private String date;
+            private long count;
+        }
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class ConversionStats {
+        private long totalTrialStarted;
+        private long totalConverted;
+        private double conversionRate;
+        private long trialInProgress;
+        private long trialExpiredNotConverted;
+        private List<MonthlyConversion> trend;
+
+        @Getter
+        @Builder
+        @AllArgsConstructor
+        public static class MonthlyConversion {
+            private String month;
+            private long trialStarted;
+            private long converted;
+            private double rate;
+        }
+    }
+
     @Getter
     @Builder
     @AllArgsConstructor
@@ -263,5 +341,52 @@ public class AdminResponse {
                     .createdAt(subscription.getCreatedAt())
                     .build();
         }
+    }
+
+    // ==================== Announcement ====================
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class AnnouncementDetail {
+        private String id;
+        private String title;
+        private String content;
+        private AnnouncementType type;
+        private Boolean isActive;
+        private LocalDateTime startAt;
+        private LocalDateTime endAt;
+        private Integer priority;
+        private String targetRole;
+        private LocalDateTime createdAt;
+        private LocalDateTime updatedAt;
+
+        public static AnnouncementDetail of(Announcement announcement) {
+            return AnnouncementDetail.builder()
+                    .id(announcement.getId())
+                    .title(announcement.getTitle())
+                    .content(announcement.getContent())
+                    .type(announcement.getType())
+                    .isActive(announcement.getIsActive())
+                    .startAt(announcement.getStartAt())
+                    .endAt(announcement.getEndAt())
+                    .priority(announcement.getPriority())
+                    .targetRole(announcement.getTargetRole())
+                    .createdAt(announcement.getCreatedAt())
+                    .updatedAt(announcement.getUpdatedAt())
+                    .build();
+        }
+    }
+
+    // ==================== System ====================
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class MaintenanceStatus {
+        private boolean enabled;
+        private String message;
+        private LocalDateTime estimatedEndAt;
+        private LocalDateTime startedAt;
     }
 }

@@ -1,11 +1,16 @@
 package com.kanban.domain.admin.dto;
 
+import com.kanban.domain.announcement.AnnouncementType;
 import com.kanban.domain.board.BoardTier;
 import com.kanban.domain.user.SystemRole;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+
+import java.time.LocalDateTime;
 
 public class AdminRequest {
 
@@ -23,5 +28,54 @@ public class AdminRequest {
     public static class UpdateBoardTier {
         @NotNull(message = "Tier는 필수입니다")
         private BoardTier tier;
+    }
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class DeactivateUser {
+        private String reason;
+    }
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class TransferOwnership {
+        @NotBlank(message = "새 소유자 ID는 필수입니다")
+        private String newOwnerId;
+    }
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ExtendTrial {
+        @Min(value = 1, message = "연장 일수는 최소 1일 이상이어야 합니다")
+        private Integer extendDays;
+        private LocalDateTime newTrialEndsAt;
+    }
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class CreateAnnouncement {
+        @NotBlank(message = "제목은 필수입니다")
+        private String title;
+        private String content;
+        private AnnouncementType type;
+        private Boolean isActive;
+        private LocalDateTime startAt;
+        private LocalDateTime endAt;
+        private Integer priority;
+        private String targetRole;
+    }
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class SetMaintenance {
+        @NotNull(message = "활성화 여부는 필수입니다")
+        private Boolean enabled;
+        private String message;
+        private LocalDateTime estimatedEndAt;
     }
 }
