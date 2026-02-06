@@ -2,6 +2,7 @@ package com.kanban.domain.schedule.controller;
 
 import com.kanban.domain.schedule.dto.ScheduleRequest;
 import com.kanban.domain.schedule.dto.ScheduleResponse;
+import com.kanban.domain.schedule.service.ScheduleFacadeService;
 import com.kanban.domain.schedule.service.ScheduleService;
 import com.kanban.global.security.UserPrincipal;
 import jakarta.validation.Valid;
@@ -22,6 +23,7 @@ import java.util.Map;
 public class ScheduleController {
 
     private final ScheduleService scheduleService;
+    private final ScheduleFacadeService scheduleFacadeService;
 
     @GetMapping
     public ResponseEntity<ScheduleResponse.DailySchedule> getDailySchedule(
@@ -47,6 +49,21 @@ public class ScheduleController {
             @AuthenticationPrincipal UserPrincipal principal) {
         ScheduleResponse.WeeklySchedule response = scheduleService.getWeeklySchedule(
                 boardId, startDate, endDate, assigneeIds, principal.getUserId());
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Day 모드 통합 조회 (스케줄 + 데일리 체크리스트)
+     * 기존 2개 API 호출 → 1개로 통합
+     */
+    @GetMapping("/daily-full")
+    public ResponseEntity<ScheduleResponse.DailyFull> getDailyFull(
+            @PathVariable String boardId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(required = false) List<String> assigneeIds,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        ScheduleResponse.DailyFull response = scheduleFacadeService.getDailyFull(
+                boardId, date, assigneeIds, principal.getUserId());
         return ResponseEntity.ok(response);
     }
 

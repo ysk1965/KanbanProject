@@ -13,7 +13,6 @@ import { DailyChecklistView } from './DailyChecklistView';
 import { BoardMember as BoardMemberType } from '../types';
 import {
   scheduleAPI,
-  dailyChecklistAPI,
   ScheduleBlockInfo,
   ScheduleColumnInfo,
   ScheduleSettingsResponse,
@@ -123,14 +122,11 @@ export function DailyScheduleView({ boardId, boardMembers, onViewFeature, onView
       const dateStr = format(selectedDate, 'yyyy-MM-dd');
 
       if (viewMode === 'day') {
-        // 스케줄과 데일리 체크리스트 병렬 로드
-        const [scheduleResponse, checklistResponse] = await Promise.all([
-          scheduleAPI.getDailySchedule(boardId, dateStr),
-          dailyChecklistAPI.getDailyChecklist(boardId, dateStr).catch(() => ({ columns: [] })),
-        ]);
-        setColumns(scheduleResponse.columns);
-        setSettings(scheduleResponse.settings);
-        setDailyChecklists(checklistResponse.columns || []);
+        // 통합 API로 스케줄 + 데일리 체크리스트 1회 로드 (기존 2회 → 1회)
+        const response = await scheduleAPI.getDailyFull(boardId, dateStr);
+        setColumns(response.columns);
+        setSettings(response.settings);
+        setDailyChecklists(response.daily_checklists || []);
       } else {
         // 주 단위: 통합 API로 7일치 데이터 1회 로드 (기존 7회 → 1회)
         const startDateStr = format(weekDays[0], 'yyyy-MM-dd');

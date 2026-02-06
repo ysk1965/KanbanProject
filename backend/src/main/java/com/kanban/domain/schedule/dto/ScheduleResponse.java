@@ -47,6 +47,43 @@ public class ScheduleResponse {
         private List<ColumnInfo> columns;
     }
 
+    /**
+     * Day 모드 통합 응답 DTO
+     * 스케줄 + 데일리 체크리스트 (2개 API 호출 → 1개)
+     */
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class DailyFull {
+        private LocalDate date;
+        private SettingsInfo settings;
+        private List<ColumnInfo> columns;  // 스케줄 블록
+        private List<DailyChecklistColumnInfo> dailyChecklists;  // 데일리 체크리스트
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class DailyChecklistColumnInfo {
+        private UserInfo user;
+        private List<DailyChecklistItemInfo> items;
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class DailyChecklistItemInfo {
+        private String id;
+        private String checklistItemId;
+        private String title;
+        private UserInfo assignee;
+        private LocalDate assignedDate;
+        private Integer position;
+        private Boolean completed;
+        private TaskInfo task;
+        private FeatureInfo feature;
+    }
+
     @Getter
     @Builder
     @AllArgsConstructor
