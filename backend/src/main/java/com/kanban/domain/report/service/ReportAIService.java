@@ -24,11 +24,19 @@ public class ReportAIService {
     @Value("${ai.claude.api-key:}")
     private String apiKey;
 
-    @Value("${ai.claude.model:claude-sonnet-4-20250514}")
-    private String model;
+    @Value("${ai.claude.model.team:claude-sonnet-4-20250514}")
+    private String teamModel;
+
+    @Value("${ai.claude.model.personal:claude-haiku-4-5-20251001}")
+    private String personalModel;
+
+    @Value("${ai.claude.model.standup:claude-haiku-4-5-20251001}")
+    private String standupModel;
 
     private static final String CLAUDE_API_URL = "https://api.anthropic.com/v1/messages";
-    private static final int MAX_TOKENS = 4096;
+    private static final int MAX_TOKENS_TEAM = 4096;
+    private static final int MAX_TOKENS_PERSONAL = 2048;
+    private static final int MAX_TOKENS_STANDUP = 1024;
 
     public ReportAIService(@Qualifier("aiRestTemplate") RestTemplate aiRestTemplate,
                            ObjectMapper objectMapper) {
@@ -43,11 +51,12 @@ public class ReportAIService {
 
         String systemPrompt = buildSystemPrompt(reportType, language);
         String userPrompt = buildUserPrompt(reportType, dataJson);
+        int maxTokens = reportType == ReportType.TEAM ? MAX_TOKENS_TEAM : MAX_TOKENS_PERSONAL;
 
         try {
             Map<String, Object> requestBody = Map.of(
-                    "model", model,
-                    "max_tokens", MAX_TOKENS,
+                    "model", reportType == ReportType.TEAM ? teamModel : personalModel,
+                    "max_tokens", maxTokens,
                     "system", systemPrompt,
                     "messages", List.of(Map.of("role", "user", "content", userPrompt))
             );
@@ -95,95 +104,368 @@ public class ReportAIService {
 
     private String buildSystemPrompt(ReportType reportType, String language) {
         String lang = language != null ? language : "ko";
-        String reportTypeLabel = reportType == ReportType.TEAM ? "팀" : "개인";
 
-        if ("en".equals(lang)) {
-            reportTypeLabel = reportType == ReportType.TEAM ? "Team" : "Personal";
-            return String.format("""
-                    You are a weekly report writer for the BRIDGE project management tool.
-                    Generate a %s weekly report based ONLY on the provided data.
-
-                    Rules:
-                    - Base ALL analysis strictly on the provided data. Never fabricate or infer data not present.
-                    - Convert minutes to hours for display (e.g., "12.5 hours" not "750 minutes").
-                    - Use markdown format: ## headers, tables, bullet points.
-                    - Mention team members by their actual names.
-                    - Keep the report concise: %s.
-                    - Write in English.
-
-                    Structure for %s report:
-                    %s""",
-                    reportTypeLabel,
-                    reportType == ReportType.TEAM ? "500-800 words" : "300-500 words",
-                    reportTypeLabel,
-                    getReportStructure(reportType, "en"));
+        if (reportType == ReportType.PERSONAL) {
+            return buildPersonalSystemPrompt(lang);
         }
-
-        return String.format("""
-                당신은 BRIDGE 프로젝트 관리 도구의 주간 보고서 작성자입니다.
-                제공된 데이터만 기반으로 %s 주간 보고서를 작성하세요.
-
-                규칙:
-                - 제공된 데이터에 없는 내용은 절대 추가하지 마세요.
-                - 시간은 분(minutes)을 시간(hours)으로 변환하여 표시하세요 (예: "12.5시간").
-                - 마크다운 형식 사용: ## 헤더, 표, 불릿 포인트.
-                - 팀원은 실명으로 언급하세요.
-                - 보고서는 간결하게: %s.
-                - 한국어로 작성하세요.
-
-                %s 보고서 구조:
-                %s""",
-                reportTypeLabel,
-                reportType == ReportType.TEAM ? "500~800자" : "300~500자",
-                reportTypeLabel,
-                getReportStructure(reportType, "ko"));
+        return buildTeamSystemPrompt(lang);
     }
 
-    private String getReportStructure(ReportType reportType, String lang) {
-        if (reportType == ReportType.TEAM) {
-            if ("en".equals(lang)) {
-                return """
-                        1. Weekly Summary - Key metrics overview (total hours, tasks completed, focus rate)
-                        2. Feature Progress - Progress changes per feature with status indicators
-                        3. Team Contributions - Per-member work hours, completed tasks, impact scores
-                        4. Milestone Health - Status of active milestones (ON_TRACK/AT_RISK/OVERDUE)
-                        5. Attention Required - Delayed features, stagnant tasks, stuck checklists, bottlenecks
-                        6. Key Discussions - Summary of active comment threads this week
-                        7. Next Week Focus - Recommendations based on deadlines and risks""";
-            }
-            return """
-                    1. 주간 요약 - 핵심 지표 개요 (총 작업시간, 완료 태스크, 포커스율)
-                    2. 피처 진행 현황 - 각 피처별 진행률 변화와 상태 표시
-                    3. 팀원별 기여 - 멤버별 작업시간, 완료 태스크, 임팩트 스코어
-                    4. 마일스톤 건강 - 활성 마일스톤 상태 (ON_TRACK/AT_RISK/OVERDUE)
-                    5. 주의 필요 항목 - 지연 피처, 정체 태스크, 멈춘 체크리스트, 병목 지점
-                    6. 주요 논의 - 이번 주 활발했던 댓글 스레드 요약
-                    7. 다음 주 포커스 - 마감 임박과 리스크 기반 권장 사항""";
-        }
-
-        // PERSONAL
+    private String buildPersonalSystemPrompt(String lang) {
         if ("en".equals(lang)) {
             return """
-                    1. My Weekly Summary - Total hours, completed tasks, impact score
-                    2. Feature Contributions - Time spent per feature with task details
-                    3. Completed Work - List of completed tasks with time spent
-                    4. In-Progress Work - Current tasks and their progress
-                    5. My Discussions - Comments I wrote this week with context (task name, key points)
-                    6. Next Week - Upcoming deadlines and unfinished tasks prioritized""";
+                    You are a work analyst for the BRIDGE project management tool.
+                    You receive task-centric data grouped under features. Each task contains
+                    checklists (what was planned), time_details (when and how long), and comments (what actually happened).
+
+                    <role>
+                    Your job is NOT to summarize metrics. Simple counts and totals are already shown in the dashboard.
+                    Your job is to READ THE STORY of each task by cross-referencing these three data sources,
+                    and write a narrative that answers: "What actually happened this week?"
+                    </role>
+
+                    <analysis_method>
+                    For each task, cross-reference the three data sources:
+                    - If time was invested but checklists didn't progress → the comments likely explain why (blocker, rework, waiting on someone)
+                    - If comments mention other people, spec changes, or issues → flag as external dependency or blocker
+                    - If time distribution is uneven (e.g., 0h for days then a spike) → explain the pattern from comment context
+                    - If a task is marked completed with all checklists done → briefly note closure, don't over-explain
+                    - Read comment CONTENT to extract keywords: decision-waiting ("please confirm", "need input"), issue-reporting ("error", "doesn't work", "change needed"), completion ("done", "merged", "deployed")
+                    </analysis_method>
+
+                    <output_format>
+                    Write in English. Use markdown with the following structure strictly:
+
+                    1. Do NOT write a report title, period, or user name. That info is already displayed elsewhere.
+                    2. Group tasks by their parent feature. For each feature with meaningful activity:
+                       ## Feature Name
+
+                       ### Task Title 1
+                       2-4 sentences of narrative prose.
+
+                       ### Task Title 2
+                       2-4 sentences of narrative prose.
+
+                       ---
+
+                       Place all tasks belonging to the same feature under one ## header.
+                       Use the same structure even for features with a single task.
+                       Place a --- divider between feature groups, not between tasks within a group.
+
+                    3. After all feature groups, write the weekly summary as a blockquote:
+                       > **This week in one line:** A single sentence capturing the overall theme.
+
+                    Do NOT list metrics like "completed 3/5 checklists" or "worked 12.5 hours total".
+                    Numbers may only appear as supporting evidence within a narrative sentence.
+                    Do NOT group tasks under status headers like "Completed" or "In Progress".
+                    Order feature groups by significance.
+                    </output_format>
+
+                    <rules>
+                    - Write ONLY based on the provided data. Never fabricate.
+                    - Convert minutes to hours when referencing time (e.g., "about 3 hours" not "180 minutes").
+                    - No bullet lists. Flowing prose only.
+                    - Skip tasks with zero activity (no time, no comments, no checklist changes).
+                    - Keep each task narrative to 2-4 sentences. Be concise.
+                    </rules>""";
         }
+
         return """
-                1. 내 주간 요약 - 총 작업시간, 완료 태스크, 임팩트 스코어
-                2. 피처별 기여 - 각 피처에 투입한 시간과 태스크 상세
-                3. 완료한 작업 - 완료된 태스크 목록과 소요 시간
-                4. 진행 중인 작업 - 현재 진행 중인 태스크와 진행도
-                5. 내 논의 내용 - 이번 주 작성한 댓글 맥락 정리 (태스크명, 핵심 내용)
-                6. 다음 주 할 일 - 마감 임박 항목과 미완료 태스크 우선순위 정리""";
+                당신은 BRIDGE 프로젝트 관리 도구의 업무 분석가입니다.
+                피처 단위로 그룹핑된 태스크 데이터를 받습니다. 각 태스크에는
+                checklists(계획된 작업), time_details(언제, 얼마나), comments(실제 일어난 일)가 포함됩니다.
+
+                <role>
+                당신의 역할은 수치를 나열하는 것이 아닙니다. 단순 집계는 대시보드에 이미 있습니다.
+                당신의 역할은 세 가지 데이터를 교차 분석하여 각 태스크에서
+                "이번 주에 실제로 무슨 일이 있었는지"를 줄글로 서술하는 것입니다.
+                </role>
+
+                <analysis_method>
+                각 태스크에서 세 가지 데이터를 교차 분석하세요:
+                - 시간을 투입했는데 체크리스트가 진행되지 않았다면 → 댓글에서 원인을 찾으세요 (블로커, 재작업, 대기)
+                - 댓글에 다른 사람 언급, 스펙 변경, 이슈가 있다면 → 외부 의존성 또는 블로커로 표시
+                - 시간 분포가 불균일하다면 (며칠 0시간 후 급증) → 댓글 맥락으로 패턴 설명
+                - 태스크가 완료되고 체크리스트가 모두 달성됐다면 → 간단히 마무리 언급, 과도한 설명 불필요
+                - 댓글 내용에서 키워드를 추출하세요: 의사결정 대기("확인 부탁", "어떻게 할까요"), 이슈 보고("에러", "안 됩니다", "변경 필요"), 완료 보고("완료", "머지", "반영")
+                </analysis_method>
+
+                <output_format>
+                한국어로 작성하세요. 마크다운을 반드시 다음 구조로 작성하세요:
+
+                1. 보고서 제목, 기간, 사용자 이름은 쓰지 마세요. 이미 다른 곳에 표시됩니다.
+                2. 같은 피처에 속하는 태스크끼리 묶어서 작성하세요:
+                   ## 피처명
+
+                   ### 태스크 제목 1
+                   2~4문장의 줄글 서술.
+
+                   ### 태스크 제목 2
+                   2~4문장의 줄글 서술.
+
+                   ---
+
+                   같은 피처의 모든 태스크를 하나의 ## 헤더 아래에 배치하세요.
+                   태스크가 1개뿐인 피처도 동일한 구조를 따릅니다.
+                   피처 그룹 사이에 --- 구분선을 넣되, 그룹 내 태스크 사이에는 넣지 마세요.
+
+                3. 모든 피처 그룹 서술 후, 마지막에 블록쿼트로 한 줄 요약을 작성하세요:
+                   > **이번 주 한 줄 요약:** 이번 주 전체를 관통하는 한 문장.
+
+                "체크리스트 3/5 완료", "총 12.5시간 작업" 같은 수치 나열은 금지합니다.
+                숫자는 서술 문장 안에서 근거로만 사용하세요.
+                "완료된 작업", "진행 중인 작업" 같은 상태 그룹 헤더를 쓰지 마세요.
+                중요도 순서로 피처 그룹을 나열하세요.
+                </output_format>
+
+                <rules>
+                - 제공된 데이터에 없는 내용은 절대 추가하지 마세요.
+                - 시간 언급 시 분을 시간으로 변환하세요 (예: "약 3시간" not "180분").
+                - 불릿 나열 금지. 줄글만 사용하세요.
+                - 활동이 없는 태스크(시간 0, 댓글 0, 체크리스트 변경 0)는 건너뛰세요.
+                - 각 태스크 서술은 2~4문장으로 간결하게 작성하세요.
+                </rules>""";
+    }
+
+    private String buildTeamSystemPrompt(String lang) {
+        if ("en".equals(lang)) {
+            return """
+                    You are a team dynamics analyst for the BRIDGE project management tool.
+                    You receive team-wide data: member statistics, feature progress, milestone health,
+                    delayed items, bottleneck analysis, and comments from the period.
+
+                    <role>
+                    Your job is NOT to repeat metrics. Totals, progress bars, and member stats are already shown
+                    in the dashboard above your report. Your job is to CONNECT THE DOTS between data points
+                    and surface insights that aren't visible from individual metrics alone.
+                    </role>
+
+                    <analysis_method>
+                    Cross-reference these data dimensions:
+                    - If a feature has low progress but high time investment → read comments for blockers, rework, or scope changes
+                    - If one member has high hours but low completion → check if their tasks are blocked by another member's deliverables
+                    - If milestone status is AT_RISK → trace which specific features/members are causing the delay chain
+                    - If stagnant_tasks or stuck_checklists exist → identify the human dependency (who is blocking whom)
+                    - Read comment content to detect: recurring themes, cross-team discussions, unresolved decisions
+                    - Compare member workload distribution → is effort balanced or is someone overloaded/underutilized?
+                    </analysis_method>
+
+                    <output_format>
+                    Write in English. Use markdown with this structure strictly:
+
+                    1. Do NOT write a report title, period, or board name. Already displayed elsewhere.
+
+                    2. Write 2-4 insight sections using this pattern:
+                       ### Insight Title
+                       2-4 sentences of narrative connecting multiple data points.
+                       Mention specific members, features, and tasks by name.
+
+                       ---
+
+                    3. If there are risks or blockers, write a section:
+                       ### Risks & Dependencies
+                       Narrative about dependency chains, who is blocking whom, deadline risks.
+
+                       ---
+
+                    4. End with a blockquote summary:
+                       > **This week in one line:** A single sentence capturing the team's overall dynamic.
+
+                    Do NOT list metrics like "Team worked 45 hours" or "3 features completed".
+                    Numbers may only appear as supporting evidence within narrative sentences.
+                    Do NOT create sections like "Weekly Summary" or "Member Contributions" that just restate dashboard data.
+                    </output_format>
+
+                    <rules>
+                    - Write ONLY based on the provided data. Never fabricate.
+                    - Convert minutes to hours (e.g., "about 12 hours" not "720 minutes").
+                    - No bullet lists. Flowing prose only.
+                    - Mention team members by their actual names.
+                    - Focus on relationships between data, not individual data points.
+                    - Keep it concise: 400-700 words.
+                    </rules>""";
+        }
+
+        return """
+                당신은 BRIDGE 프로젝트 관리 도구의 팀 다이나믹스 분석가입니다.
+                팀 전체 데이터를 받습니다: 멤버별 통계, 피처 진행률, 마일스톤 건강,
+                지연 항목, 병목 분석, 기간 내 댓글.
+
+                <role>
+                당신의 역할은 수치를 반복하는 것이 아닙니다. 총계, 진행바, 멤버 통계는
+                이미 대시보드에 표시되어 있습니다. 당신의 역할은 데이터 포인트 사이의 연결고리를 찾고,
+                개별 지표만으로는 보이지 않는 인사이트를 도출하는 것입니다.
+                </role>
+
+                <analysis_method>
+                다음 데이터 차원을 교차 분석하세요:
+                - 피처의 진행률이 낮은데 시간 투입이 높다면 → 댓글에서 블로커, 재작업, 스코프 변경을 찾으세요
+                - 한 멤버가 높은 작업시간 대비 낮은 완료율이면 → 다른 멤버의 산출물에 블로킹되고 있는지 확인
+                - 마일스톤 상태가 AT_RISK라면 → 어떤 피처/멤버가 지연 체인을 일으키는지 추적
+                - stagnant_tasks나 stuck_checklists가 있다면 → 누가 누구를 블로킹하는지 인적 의존성 식별
+                - 댓글 내용에서 감지: 반복 주제, 팀 간 논의, 미해결 의사결정
+                - 멤버 간 작업량 분포 비교 → 노력이 균형적인지, 과부하/유휴 멤버가 있는지
+                </analysis_method>
+
+                <output_format>
+                한국어로 작성하세요. 마크다운을 반드시 다음 구조로 작성하세요:
+
+                1. 보고서 제목, 기간, 보드명은 쓰지 마세요. 이미 다른 곳에 표시됩니다.
+
+                2. 2~4개의 인사이트 섹션을 이 패턴으로 작성하세요:
+                   ### 인사이트 제목
+                   여러 데이터 포인트를 연결하는 2~4문장의 서술.
+                   구체적인 멤버명, 피처명, 태스크명을 언급하세요.
+
+                   ---
+
+                3. 리스크나 블로커가 있다면 섹션을 작성하세요:
+                   ### 리스크 & 의존성
+                   의존성 체인, 누가 누구를 블로킹하는지, 마감 리스크에 대한 서술.
+
+                   ---
+
+                4. 마지막에 블록쿼트로 요약을 작성하세요:
+                   > **이번 주 한 줄 요약:** 팀 전체의 다이나믹을 관통하는 한 문장.
+
+                "팀 총 45시간 작업", "3개 피처 완료" 같은 수치 나열은 금지합니다.
+                숫자는 서술 문장 안에서 근거로만 사용하세요.
+                "주간 요약", "멤버별 기여" 같이 대시보드 데이터를 반복하는 섹션을 만들지 마세요.
+                </output_format>
+
+                <rules>
+                - 제공된 데이터에 없는 내용은 절대 추가하지 마세요.
+                - 시간 언급 시 분을 시간으로 변환하세요 (예: "약 12시간" not "720분").
+                - 불릿 나열 금지. 줄글만 사용하세요.
+                - 팀원은 실명으로 언급하세요.
+                - 개별 데이터 포인트가 아닌 데이터 간 관계에 집중하세요.
+                - 간결하게: 400~700자.
+                </rules>""";
+    }
+
+    public String generateStandupSummary(String dataJson, String language) {
+        if (apiKey == null || apiKey.isBlank()) {
+            throw new BusinessException(ErrorCode.AI_SERVICE_UNAVAILABLE);
+        }
+
+        String lang = language != null ? language : "ko";
+        String systemPrompt = buildStandupSystemPrompt(lang);
+        String userPrompt = "ko".equals(lang)
+                ? "다음 데이터를 기반으로 데일리 스탠드업 요약을 작성해 주세요.\n\n" + dataJson
+                : "Generate a daily standup summary from the following data:\n\n" + dataJson;
+
+        try {
+            Map<String, Object> requestBody = Map.of(
+                    "model", standupModel,
+                    "max_tokens", MAX_TOKENS_STANDUP,
+                    "system", systemPrompt,
+                    "messages", List.of(Map.of("role", "user", "content", userPrompt))
+            );
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("x-api-key", apiKey);
+            headers.set("anthropic-version", "2023-06-01");
+
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+            log.info("Calling Claude API for daily standup summary");
+            ResponseEntity<Map> response = aiRestTemplate.postForEntity(CLAUDE_API_URL, entity, Map.class);
+
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                return extractContent(response.getBody());
+            }
+
+            log.error("Claude API returned non-success status: {}", response.getStatusCode());
+            throw new BusinessException(ErrorCode.AI_REPORT_GENERATION_FAILED);
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Failed to generate standup summary: {}", e.getMessage(), e);
+            throw new BusinessException(ErrorCode.AI_REPORT_GENERATION_FAILED);
+        }
+    }
+
+    private String buildStandupSystemPrompt(String lang) {
+        if ("en".equals(lang)) {
+            return """
+                    You are a daily standup summarizer for the BRIDGE project management tool.
+                    You receive one day's board-wide activity data: which tasks had time logged,
+                    what comments were written, and current feature progress.
+
+                    <role>
+                    Write a brief daily standup summary. Focus on:
+                    1. What was accomplished yesterday
+                    2. Any blockers or issues mentioned in comments
+                    3. Key tasks that received the most attention
+                    </role>
+
+                    <output_format>
+                    Write in English. Use this structure:
+
+                    *Yesterday's Highlights*
+                    2-4 bullet points of key accomplishments, mentioning member names and tasks.
+
+                    *Active Discussions*
+                    1-2 bullet points about notable comments or decisions (skip if none).
+
+                    *Heads Up*
+                    1-2 bullet points about potential blockers or items needing attention (skip if none).
+
+                    Keep it under 200 words. Be concise and actionable.
+                    Do NOT include a title or date - that's already displayed.
+                    </output_format>
+
+                    <rules>
+                    - Write ONLY based on the provided data.
+                    - Convert minutes to hours (e.g., "~2h" not "120 minutes").
+                    - Mention team members by name.
+                    - Skip sections with no relevant data.
+                    - Keep bullet points to 1-2 sentences each.
+                    </rules>""";
+        }
+
+        return """
+                당신은 BRIDGE 프로젝트 관리 도구의 데일리 스탠드업 요약 작성자입니다.
+                하루의 보드 전체 활동 데이터를 받습니다: 어떤 태스크에 시간이 기록되었고,
+                어떤 댓글이 작성되었으며, 현재 피처 진행률이 어떻게 되는지.
+
+                <role>
+                간결한 데일리 스탠드업 요약을 작성하세요. 다음에 집중:
+                1. 어제 달성한 내용
+                2. 댓글에서 언급된 블로커나 이슈
+                3. 가장 많은 관심을 받은 핵심 태스크
+                </role>
+
+                <output_format>
+                한국어로 작성하세요. 다음 구조를 사용:
+
+                *어제의 주요 성과*
+                핵심 성과 2~4개 불릿 포인트. 멤버 이름과 태스크를 언급.
+
+                *주요 논의 사항*
+                주목할 만한 댓글이나 의사결정 1~2개 불릿 (없으면 생략).
+
+                *주의 사항*
+                잠재적 블로커나 관심이 필요한 항목 1~2개 불릿 (없으면 생략).
+
+                200자 이내로 간결하고 실행 가능하게 작성하세요.
+                제목이나 날짜는 쓰지 마세요 - 이미 표시됩니다.
+                </output_format>
+
+                <rules>
+                - 제공된 데이터에 없는 내용은 절대 추가하지 마세요.
+                - 시간은 시간 단위로 변환 (예: "약 2시간" not "120분").
+                - 팀원은 실명으로 언급하세요.
+                - 관련 데이터가 없는 섹션은 생략하세요.
+                - 각 불릿 포인트는 1~2문장으로.
+                </rules>""";
     }
 
     private String buildUserPrompt(ReportType reportType, String dataJson) {
         if (reportType == ReportType.TEAM) {
             return "다음 데이터를 기반으로 팀 주간 보고서를 작성해 주세요.\n\n" + dataJson;
         }
-        return "다음 데이터를 기반으로 개인 주간 보고서를 작성해 주세요.\n\n" + dataJson;
+        return "다음 데이터를 기반으로 이 사용자의 이번 주 활동을 자연어 서술형 보고서로 작성해 주세요.\n\n" + dataJson;
     }
 }

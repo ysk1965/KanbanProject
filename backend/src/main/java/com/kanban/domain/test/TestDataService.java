@@ -11,6 +11,8 @@ import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.board.BoardRole;
 import com.kanban.domain.checklist.ChecklistItem;
 import com.kanban.domain.checklist.ChecklistItemRepository;
+import com.kanban.domain.comment.Comment;
+import com.kanban.domain.comment.CommentRepository;
 import com.kanban.domain.feature.Feature;
 import com.kanban.domain.feature.FeatureRepository;
 import com.kanban.domain.milestone.Milestone;
@@ -61,6 +63,7 @@ public class TestDataService {
     private final MilestoneRepository milestoneRepository;
     private final MilestoneFeatureRepository milestoneFeatureRepository;
     private final SubscriptionRepository subscriptionRepository;
+    private final CommentRepository commentRepository;
 
     private final Random random = new Random();
 
@@ -189,6 +192,9 @@ public class TestDataService {
         // 12. Schedule Blocks 생성 (최근 30일치 데이터)
         List<ScheduleBlock> scheduleBlocks = createScheduleBlocksForStatistics(board, checklistItems, members);
 
+        // 13. Comments 생성 (이번 주 활동 데이터)
+        List<Comment> comments = createComments(board, tasks, members);
+
         return TestDataResponse.builder()
                 .boardId(board.getId())
                 .boardName(board.getName())
@@ -197,7 +203,8 @@ public class TestDataService {
                 .taskCount(tasks.size())
                 .checklistItemCount(checklistItems.size())
                 .scheduleBlockCount(scheduleBlocks.size())
-                .message("공용 테스트 보드가 성공적으로 생성되었습니다! (Premium 활성화, 마일스톤 " + milestones.size() + "개 포함)")
+                .commentCount(comments.size())
+                .message("공용 테스트 보드가 성공적으로 생성되었습니다! (Premium 활성화, 마일스톤 " + milestones.size() + "개 포함, 댓글 " + comments.size() + "개)")
                 .build();
     }
 
@@ -801,5 +808,170 @@ public class TestDataService {
         }
 
         return slots;
+    }
+
+    private List<Comment> createComments(Board board, List<Task> tasks, List<User> members) {
+        List<Comment> comments = new ArrayList<>();
+
+        // 진행 상황 업데이트 댓글
+        String[] progressUpdates = {
+                "작업 시작했습니다. 예상보다 복잡한 부분이 있어서 조금 더 걸릴 것 같습니다.",
+                "1차 구현 완료했습니다. 리뷰 부탁드립니다!",
+                "현재 약 70% 정도 진행되었습니다. 내일까지 마무리할 수 있을 것 같아요.",
+                "구현 완료하고 테스트 코드 작성 중입니다.",
+                "기본 기능 구현 끝났고, 엣지 케이스 처리 진행 중입니다.",
+                "오늘 중으로 마무리 가능할 것 같습니다. 현재 마지막 디버깅 단계입니다."
+        };
+
+        // 코드 리뷰 관련 댓글
+        String[] reviewComments = {
+                "코드 리뷰 완료했습니다. 전체적으로 깔끔한데, 에러 핸들링 부분만 보완하면 좋겠어요.",
+                "LGTM! 다만 null 체크 한 곳 추가하면 좋을 것 같습니다.",
+                "리뷰 반영 완료했습니다. 다시 한번 확인 부탁드려요.",
+                "성능 관련 의견 남겼습니다. N+1 쿼리가 발생할 수 있는 부분이 있어요.",
+                "테스트 커버리지 80% 이상 확인했습니다. 머지해도 될 것 같아요.",
+                "리팩토링 제안 드립니다. 이 로직은 서비스 레이어로 분리하는 게 좋을 것 같아요."
+        };
+
+        // 질문/논의 댓글
+        String[] questionComments = {
+                "이 부분 기획서랑 좀 다른 것 같은데, 확인 부탁드립니다.",
+                "API 응답 형식을 어떻게 할지 논의가 필요할 것 같아요.",
+                "이 기능은 기존 코드와 호환성 이슈가 있을 수 있는데, 어떻게 처리할까요?",
+                "디자인 시안이 아직 안 나온 부분이 있어서, 임시로 작업해도 될까요?",
+                "테스트 환경에서 간헐적으로 실패하는 케이스가 있는데 원인 파악 중입니다.",
+                "이 부분 다른 팀에서도 비슷한 기능을 개발 중인데, 중복 작업이 아닌지 확인해주세요."
+        };
+
+        // 블로커/긴급 댓글
+        String[] blockerComments = {
+                "외부 API 연동 부분에서 블로커가 있습니다. 인증 토큰 발급이 지연되고 있어요.",
+                "DB 마이그레이션이 먼저 완료되어야 이 작업을 진행할 수 있습니다.",
+                "이 작업 우선순위를 올려야 할 것 같습니다. 다른 작업에 의존성이 있어요.",
+                "긴급: 프로덕션에서 관련 버그가 발견되어 핫픽스가 필요합니다.",
+                "스케줄 지연되고 있습니다. 추가 리소스 투입이 필요할 수 있어요."
+        };
+
+        // 완료/마무리 댓글
+        String[] completionComments = {
+                "모든 테스트 통과 확인했습니다. 배포 준비 완료!",
+                "QA 검증 완료되었습니다. 이슈 없습니다.",
+                "문서 업데이트까지 완료했습니다. 클로즈합니다.",
+                "리뷰 반영 완료 후 머지했습니다. 수고하셨습니다!",
+                "스테이징 환경에서 정상 동작 확인했습니다."
+        };
+
+        // 멘션이 포함된 댓글 템플릿 (멘션 대상 인덱스와 함께)
+        String[][] mentionComments = {
+                {"%s 이 부분 한번 봐주실 수 있을까요? 설계 방향이 맞는지 확인 부탁드립니다.", "1"},
+                {"%s 리뷰 요청드립니다. PR 올려두었습니다.", "4"},
+                {"%s %s 이 이슈 관련해서 같이 논의 필요합니다. 잠깐 시간 되실까요?", "1,4"},
+                {"%s 체크리스트 업데이트 부탁드려요. 진행 상황이 궁금합니다.", "5"},
+                {"%s 이 작업 인수인계 받았습니다. 추가 컨텍스트 있으면 공유 부탁드려요.", "2"},
+                {"%s 배포 일정 확인 부탁드립니다. 이번 스프린트에 포함 가능한가요?", "0"},
+        };
+
+        for (int ti = 0; ti < tasks.size(); ti++) {
+            Task task = tasks.get(ti);
+            int featureIndex = ti / 4; // 대략적 feature 인덱스 (feature당 4-5개 task)
+
+            // Feature 인덱스에 따라 댓글 수와 유형 결정
+            int commentCount;
+            if (featureIndex < 3) {
+                // Sprint 1 (완료): 1-2개 완료 관련 댓글
+                commentCount = 1 + random.nextInt(2);
+            } else if (featureIndex < 5) {
+                // Sprint 2 (ON_TRACK, 70%): 2-4개 활발한 댓글
+                commentCount = 2 + random.nextInt(3);
+            } else if (featureIndex < 7) {
+                // Sprint 3 (AT_RISK, 30%): 2-3개 긴급/질문 댓글
+                commentCount = 2 + random.nextInt(2);
+            } else if (featureIndex < 9) {
+                // Sprint 4 (OVERDUE, 50%): 3-4개 블로커/긴급 댓글
+                commentCount = 3 + random.nextInt(2);
+            } else {
+                // Sprint 5 (예정): 0-1개 계획 관련 댓글
+                commentCount = random.nextInt(2);
+            }
+
+            for (int ci = 0; ci < commentCount; ci++) {
+                String content;
+                String mentionIds = null;
+                User author;
+
+                // 댓글 유형 결정
+                if (featureIndex < 3) {
+                    // 완료된 Sprint: 완료 댓글
+                    content = completionComments[random.nextInt(completionComments.length)];
+                    author = members.get(random.nextInt(members.size()));
+                } else if (featureIndex >= 7 && featureIndex < 9 && ci == 0) {
+                    // OVERDUE Sprint 첫 댓글: 블로커
+                    content = blockerComments[random.nextInt(blockerComments.length)];
+                    author = members.get(Math.min(5, members.size() - 1)); // 최준혁
+                } else if (random.nextDouble() < 0.25) {
+                    // 25% 확률로 멘션 댓글
+                    int mentionIdx = random.nextInt(mentionComments.length);
+                    String[] mc = mentionComments[mentionIdx];
+                    String[] targetIndices = mc[1].split(",");
+                    List<String> mentionUserIds = new ArrayList<>();
+                    List<String> mentionNames = new ArrayList<>();
+
+                    for (String idx : targetIndices) {
+                        int memberIdx = Integer.parseInt(idx.trim());
+                        if (memberIdx < members.size()) {
+                            mentionUserIds.add(members.get(memberIdx).getId());
+                            mentionNames.add("@" + members.get(memberIdx).getName());
+                        }
+                    }
+
+                    mentionIds = String.join(",", mentionUserIds);
+                    content = String.format(mc[0], mentionNames.toArray());
+
+                    // 멘션 대상이 아닌 사람이 작성
+                    do {
+                        author = members.get(random.nextInt(members.size()));
+                    } while (mentionUserIds.contains(author.getId()) && members.size() > mentionUserIds.size());
+                } else {
+                    // 일반 댓글: 진행상황, 리뷰, 질문 중 랜덤
+                    double typeRoll = random.nextDouble();
+                    if (typeRoll < 0.35) {
+                        content = progressUpdates[random.nextInt(progressUpdates.length)];
+                    } else if (typeRoll < 0.65) {
+                        content = reviewComments[random.nextInt(reviewComments.length)];
+                    } else {
+                        content = questionComments[random.nextInt(questionComments.length)];
+                    }
+
+                    // 작성자: 멤버 중 랜덤 (고성과자가 더 많이 작성)
+                    double authorRoll = random.nextDouble();
+                    if (authorRoll < 0.25) {
+                        author = members.get(1); // 김철수 (고성과자)
+                    } else if (authorRoll < 0.45) {
+                        author = members.get(4); // 정다은 (고성과자)
+                    } else if (authorRoll < 0.60) {
+                        author = members.get(0); // Owner
+                    } else if (authorRoll < 0.75) {
+                        author = members.get(2); // 이영희
+                    } else if (authorRoll < 0.88) {
+                        author = members.get(3); // 박민수
+                    } else {
+                        author = members.get(Math.min(5, members.size() - 1)); // 최준혁
+                    }
+                }
+
+                Comment comment = Comment.builder()
+                        .task(task)
+                        .board(board)
+                        .author(author)
+                        .content(content)
+                        .mentions(mentionIds)
+                        .build();
+                comments.add(comment);
+            }
+        }
+
+        commentRepository.saveAllAndFlush(comments);
+        log.info("Created {} comments", comments.size());
+        return comments;
     }
 }

@@ -25,6 +25,7 @@ public class ReportResponse {
         private String periodStart;
         private String periodEnd;
         private String content;
+        private String dataSnapshot;
         private String generatedBy;
         private String generatedByName;
         private String createdAt;
@@ -37,6 +38,7 @@ public class ReportResponse {
                     .periodStart(report.getPeriodStart().format(DATE_FORMATTER))
                     .periodEnd(report.getPeriodEnd().format(DATE_FORMATTER))
                     .content(report.getContent())
+                    .dataSnapshot(report.getDataSnapshot())
                     .generatedBy(report.getGeneratedBy().getId())
                     .generatedByName(report.getGeneratedBy().getName())
                     .createdAt(report.getCreatedAt().format(DATETIME_FORMATTER))
@@ -51,6 +53,8 @@ public class ReportResponse {
     public static class ListItem {
         private String id;
         private String reportType;
+        private String targetUserId;
+        private String targetUserName;
         private String periodStart;
         private String periodEnd;
         private String generatedByName;
@@ -60,6 +64,8 @@ public class ReportResponse {
             return ListItem.builder()
                     .id(report.getId())
                     .reportType(report.getReportType().name())
+                    .targetUserId(report.getTargetUserId())
+                    .targetUserName(report.getTargetUserName())
                     .periodStart(report.getPeriodStart().format(DATE_FORMATTER))
                     .periodEnd(report.getPeriodEnd().format(DATE_FORMATTER))
                     .generatedByName(report.getGeneratedBy().getName())
@@ -74,5 +80,6 @@ public class ReportResponse {
     @AllArgsConstructor
     public static class ListResponse {
         private List<ListItem> reports;
+        private boolean canGenerateToday;
     }
 }

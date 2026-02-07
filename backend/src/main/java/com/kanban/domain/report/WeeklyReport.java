@@ -37,6 +37,9 @@ public class WeeklyReport extends BaseTimeEntity {
     @Column(name = "target_user_id", length = 36)
     private String targetUserId;
 
+    @Column(name = "target_user_name", length = 100)
+    private String targetUserName;
+
     @Column(name = "period_start", nullable = false)
     private LocalDate periodStart;
 
@@ -49,6 +52,10 @@ public class WeeklyReport extends BaseTimeEntity {
     @Column(name = "data_snapshot", columnDefinition = "TEXT")
     private String dataSnapshot;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "last_regenerated_by")
+    private User lastRegeneratedBy;
+
     @PrePersist
     public void prePersist() {
         if (this.id == null) {
@@ -58,20 +65,23 @@ public class WeeklyReport extends BaseTimeEntity {
 
     @Builder
     public WeeklyReport(Board board, User generatedBy, ReportType reportType,
-                        String targetUserId, LocalDate periodStart, LocalDate periodEnd,
+                        String targetUserId, String targetUserName,
+                        LocalDate periodStart, LocalDate periodEnd,
                         String content, String dataSnapshot) {
         this.board = board;
         this.generatedBy = generatedBy;
         this.reportType = reportType;
         this.targetUserId = targetUserId;
+        this.targetUserName = targetUserName;
         this.periodStart = periodStart;
         this.periodEnd = periodEnd;
         this.content = content;
         this.dataSnapshot = dataSnapshot;
     }
 
-    public void updateContent(String content, String dataSnapshot) {
+    public void updateContent(String content, String dataSnapshot, User regeneratedBy) {
         this.content = content;
         this.dataSnapshot = dataSnapshot;
+        this.lastRegeneratedBy = regeneratedBy;
     }
 }

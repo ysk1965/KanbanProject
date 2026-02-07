@@ -11,6 +11,7 @@ import com.kanban.domain.checklist.ChecklistItemRepository;
 import com.kanban.domain.comment.CommentAttachmentRepository;
 import com.kanban.domain.comment.CommentRepository;
 import com.kanban.domain.integration.slack.MemberSlackWebhookRepository;
+import com.kanban.domain.standup.DailyStandupConfigRepository;
 import com.kanban.domain.dailychecklist.DailyChecklistRepository;
 import com.kanban.domain.feature.FeatureRepository;
 import com.kanban.domain.invite.InviteLinkRepository;
@@ -77,6 +78,7 @@ public class BoardService {
     private final DailyChecklistRepository dailyChecklistRepository;
     private final PaymentHistoryRepository paymentHistoryRepository;
     private final MemberSlackWebhookRepository memberSlackWebhookRepository;
+    private final DailyStandupConfigRepository dailyStandupConfigRepository;
     private final FileUploadService fileUploadService;
 
     @Transactional
@@ -248,7 +250,8 @@ public class BoardService {
         weightLevelRepository.deleteByBoardId(boardId);
         milestoneRepository.deleteByBoardId(boardId);
 
-        // 9) Slack 웹훅
+        // 9) Slack 웹훅 + 스탠드업 설정
+        dailyStandupConfigRepository.deleteByBoardId(boardId);
         memberSlackWebhookRepository.deleteByBoardId(boardId);
 
         // 10) 결제 이력 → 구독 → 보드 멤버십
@@ -298,6 +301,7 @@ public class BoardService {
         weightLevelRepository.deleteByBoardId(boardId);
         milestoneRepository.deleteByBoardId(boardId);
 
+        dailyStandupConfigRepository.deleteByBoardId(boardId);
         memberSlackWebhookRepository.deleteByBoardId(boardId);
 
         paymentHistoryRepository.deleteByBoardId(boardId);

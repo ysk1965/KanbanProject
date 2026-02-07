@@ -110,7 +110,10 @@ spring.servlet.multipart:
 ai:
   claude:
     api-key: ${CLAUDE_API_KEY:}
-    model: ${CLAUDE_MODEL:claude-sonnet-4-20250514}
+    model:
+      team: ${CLAUDE_MODEL_TEAM:claude-sonnet-4-20250514}
+      personal: ${CLAUDE_MODEL_PERSONAL:claude-haiku-4-5-20251001}
+      standup: ${CLAUDE_MODEL_STANDUP:claude-haiku-4-5-20251001}
 
 # App config
 app:

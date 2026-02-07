@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ChevronLeft, ChevronRight, Settings, Plus, Loader2, Clock, CheckSquare, Check } from 'lucide-react';
 import { Button } from './ui/button';
 import { format, addDays, subDays, startOfDay, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval } from 'date-fns';
@@ -53,6 +54,7 @@ const parseHour = (time: string): number => {
 type ScheduleViewMode = 'day' | 'week';
 
 export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onViewFeature, onViewTask, refreshTrigger, currentUserRole }: DailyScheduleViewProps) {
+  const { t } = useTranslation();
   // 세부 탭 상태 (타임블록 / 체크리스트)
   const [subTab, setSubTab] = useState<ScheduleSubTab>('timeblock');
 
@@ -404,7 +406,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
               }`}
             >
               <Clock className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">타임블록</span>
+              <span className="hidden sm:inline">{t('dailySchedule.timeblock')}</span>
             </button>
             <button
               onClick={() => setSubTab('checklist')}
@@ -415,7 +417,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
               }`}
             >
               <CheckSquare className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">체크리스트</span>
+              <span className="hidden sm:inline">{t('dailySchedule.checklist')}</span>
             </button>
           </div>
 
@@ -435,7 +437,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
                     : 'text-zinc-400'
                 }`}
               >
-                일
+                {t('dailySchedule.day')}
               </span>
               <span
                 className={`px-3 py-1 text-sm rounded-md transition-colors ${
@@ -444,7 +446,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
                     : 'text-zinc-400'
                 }`}
               >
-                주
+                {t('dailySchedule.week')}
               </span>
             </div>
           )}
@@ -460,8 +462,8 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
             </Button>
             <span className="text-sm md:text-lg font-semibold text-foreground min-w-0 sm:min-w-[280px] text-center whitespace-nowrap">
               {viewMode === 'day'
-                ? `${formatDate(selectedDate, 'yyyy년 M월 d일')} (${dayOfWeek})`
-                : `${formatDate(weekDays[0], 'M월 d일')} - ${formatDate(weekDays[6], 'M월 d일')}`
+                ? `${formatDate(selectedDate, t('dailySchedule.dateFormatDay'))} (${dayOfWeek})`
+                : `${formatDate(weekDays[0], t('dailySchedule.dateFormatWeek'))} - ${formatDate(weekDays[6], t('dailySchedule.dateFormatWeek'))}`
               }
             </span>
             <Button
@@ -483,7 +485,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
                 : 'border-kanban-border text-zinc-300 hover:bg-white/5 hover:text-foreground'
             }
           >
-            오늘
+            {t('dailySchedule.today')}
           </Button>
           {isLoading && <Loader2 className="h-4 w-4 text-zinc-400 animate-spin" />}
         </div>
@@ -495,7 +497,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
             className="border-kanban-border text-zinc-300 hover:bg-white/5 hover:text-foreground"
           >
             <Settings className="h-4 w-4 md:mr-2" />
-            <span className="hidden md:inline">설정</span>
+            <span className="hidden md:inline">{t('dailySchedule.settings')}</span>
           </Button>
         )}
       </div>
@@ -532,7 +534,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
             {/* 헤더: 시간/블록 + 멤버 컬럼 */}
             <div className="flex sticky top-0 bg-kanban-card z-10 border-b border-kanban-border">
               <div className="w-14 md:w-20 flex-shrink-0 p-2 md:p-3 text-xs md:text-sm font-medium text-zinc-400 border-r border-kanban-border">
-                {displayMode === 'block' ? '블록' : '시간'}
+                {displayMode === 'block' ? t('dailySchedule.block') : t('dailySchedule.time')}
               </div>
               {boardMembers.map((member) => (
                 <div
@@ -551,7 +553,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
                 </div>
               ))}
               {boardMembers.length === 0 && (
-                <div className="flex-1 p-3 text-zinc-400 text-sm">보드에 멤버가 없습니다</div>
+                <div className="flex-1 p-3 text-zinc-400 text-sm">{t('dailySchedule.noMembers')}</div>
               )}
             </div>
 
@@ -577,7 +579,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
                       {totalCount > 0 ? (
                         <div className="space-y-1">
                           <div className="flex items-center justify-between text-xs">
-                            <span className="text-slate-400">오늘의 체크리스트</span>
+                            <span className="text-slate-400">{t('dailySchedule.todayChecklist')}</span>
                             <span className={`font-medium ${completedCount === totalCount ? 'text-green-400' : 'text-bridge-accent'}`}>
                               {completedCount}/{totalCount}
                             </span>
@@ -612,14 +614,14 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
                             ))}
                             {items.length > 4 && (
                               <div className="text-[10px] text-slate-400 pl-4">
-                                +{items.length - 4}개 더
+                                {t('dailySchedule.moreItems', { count: items.length - 4 })}
                               </div>
                             )}
                           </div>
                         </div>
                       ) : (
                         <div className="text-xs text-slate-400 text-center py-1">
-                          체크리스트 없음
+                          {t('dailySchedule.noChecklist')}
                         </div>
                       )}
                     </div>
@@ -813,7 +815,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
               </div>
             ))}
             {boardMembers.length === 0 && (
-              <div className="p-6 text-zinc-400 text-center">보드에 멤버가 없습니다</div>
+              <div className="p-6 text-zinc-400 text-center">{t('dailySchedule.noMembers')}</div>
             )}
           </div>
         )}
@@ -823,10 +825,10 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
       <div className="px-3 md:px-6 py-2 md:py-3 bg-kanban-card border-t border-kanban-border">
         <p className="text-sm text-zinc-400">
           {isViewer
-            ? 'Viewer 권한은 타임블록을 조회만 할 수 있습니다'
+            ? t('dailySchedule.viewerGuide')
             : viewMode === 'day'
-            ? '빈 영역을 세로로 드래그하여 새 타임블록을 생성하세요'
-            : '블록을 클릭하여 상세 정보를 확인하세요'
+            ? t('dailySchedule.dragGuide')
+            : t('dailySchedule.clickGuide')
           }
         </p>
       </div>

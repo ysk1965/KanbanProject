@@ -14,6 +14,7 @@ import {
   AlertTriangle,
   Settings,
   Moon,
+  Globe,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
@@ -23,7 +24,7 @@ import { Switch } from './ui/switch';
 
 export function SettingsPage() {
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { currentUser, logout, updateCurrentUser } = useAuth();
   const { theme, setTheme, isDark } = useTheme();
 
@@ -285,6 +286,43 @@ export function SettingsPage() {
           <div className="flex items-center justify-between">
             <label className="text-sm text-slate-300">{t('settings.darkMode')}</label>
             <Switch checked={isDark} onCheckedChange={handleThemeChange} />
+          </div>
+        </motion.section>
+
+        {/* Language Section */}
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          className="bg-bridge-obsidian rounded-2xl border border-white/15 p-6"
+        >
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 bg-bridge-accent/20 rounded-xl flex items-center justify-center">
+              <Globe className="w-5 h-5 text-bridge-accent" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-foreground">{t('settings.language')}</h2>
+              <p className="text-sm text-slate-400">{t('settings.languageDesc')}</p>
+            </div>
+          </div>
+          <div className="flex gap-3">
+            {[
+              { code: 'ko', label: '한국어', flag: '🇰🇷' },
+              { code: 'en', label: 'English', flag: '🇺🇸' },
+            ].map((lang) => (
+              <button
+                key={lang.code}
+                onClick={() => i18n.changeLanguage(lang.code)}
+                className={`flex items-center gap-2.5 px-5 py-3 rounded-xl text-sm font-medium transition-all ${
+                  i18n.language === lang.code
+                    ? 'bg-bridge-accent/15 border border-bridge-accent/50 text-bridge-accent'
+                    : 'bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                <span className="text-base">{lang.flag}</span>
+                <span>{lang.label}</span>
+              </button>
+            ))}
           </div>
         </motion.section>
 

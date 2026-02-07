@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import ReactMarkdown from 'react-markdown';
 import {
@@ -13,10 +13,29 @@ import {
   User,
   Clock,
   AlertCircle,
+  CheckSquare,
+  Square,
+  MessageSquare,
+  Timer,
+  Layers,
+  ChevronDown,
+  ChevronUp,
+  AlertTriangle,
+  Activity,
+  Target,
+  TrendingUp,
 } from 'lucide-react';
 import { reportAPI } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
-import type { ReportType, WeeklyReport, WeeklyReportListItem, BoardMember } from '../types';
+import type {
+  ReportType,
+  WeeklyReport,
+  WeeklyReportListItem,
+  BoardMember,
+  PersonalReportData,
+  PersonalReportFeature,
+  TeamReportData,
+} from '../types';
 import { formatDateTime } from '../utils/dateUtils';
 
 interface AIReportPanelProps {
@@ -46,6 +65,60 @@ function formatDisplayDate(date: Date): string {
   return `${m}/${d}`;
 }
 
+/* ─── Custom Markdown Components for AI Report ─── */
+const markdownComponents = {
+  // h2: feature group header with accent left border
+  h2: ({ children }: { children?: React.ReactNode }) => (
+    <div className="flex items-center gap-3 mt-8 mb-3 first:mt-0">
+      <div className="w-1 h-5 bg-bridge-accent rounded-full" />
+      <h2 className="text-lg font-bold text-white tracking-tight">{children}</h2>
+    </div>
+  ),
+  // h3: task title within a feature group
+  h3: ({ children }: { children?: React.ReactNode }) => (
+    <div className="mt-4 mb-1 first:mt-0">
+      <h3 className="text-[15px] font-semibold text-slate-200 flex items-center gap-2">
+        <div className="w-1.5 h-1.5 rounded-full bg-bridge-secondary flex-shrink-0" />
+        {children}
+      </h3>
+    </div>
+  ),
+  // p: prose paragraphs with relaxed spacing
+  p: ({ children }: { children?: React.ReactNode }) => (
+    <p className="text-slate-300 text-sm leading-[1.8] mb-4">{children}</p>
+  ),
+  // em: feature name subtitle
+  em: ({ children }: { children?: React.ReactNode }) => (
+    <span className="text-[11px] font-medium text-bridge-accent/70 tracking-wide not-italic">{children}</span>
+  ),
+  // strong: accent bold
+  strong: ({ children }: { children?: React.ReactNode }) => (
+    <strong className="text-white font-semibold">{children}</strong>
+  ),
+  // hr: feature group divider
+  hr: () => (
+    <div className="my-6 flex items-center gap-3">
+      <div className="flex-1 h-px bg-white/[0.06]" />
+      <div className="w-1 h-1 rounded-full bg-white/10" />
+      <div className="flex-1 h-px bg-white/[0.06]" />
+    </div>
+  ),
+  // blockquote: highlighted summary callout
+  blockquote: ({ children }: { children?: React.ReactNode }) => (
+    <div className="mt-6 bg-bridge-accent/[0.06] border border-bridge-accent/20 rounded-xl p-5 relative overflow-hidden">
+      <div className="absolute top-0 left-0 w-1 h-full bg-bridge-accent rounded-l-xl" />
+      <div className="pl-3 text-sm text-slate-200 leading-relaxed [&>p]:mb-0">{children}</div>
+    </div>
+  ),
+  // ul/li for any lists that sneak through
+  ul: ({ children }: { children?: React.ReactNode }) => (
+    <ul className="text-slate-300 text-sm space-y-1 mb-4 pl-4">{children}</ul>
+  ),
+  li: ({ children }: { children?: React.ReactNode }) => (
+    <li className="text-slate-300">{children}</li>
+  ),
+};
+
 export function AIReportPanel({ boardId, members }: AIReportPanelProps) {
   const { t } = useTranslation();
   const { currentUser } = useAuth();
@@ -59,10 +132,17 @@ export function AIReportPanel({ boardId, members }: AIReportPanelProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [selectedMemberId, setSelectedMemberId] = useState<string>(currentUser?.id || '');
+  const [canGenerateToday, setCanGenerateToday] = useState(true);
 
   // User role check
   const currentMember = members.find((m) => m.user.id === currentUser?.id);
   const isAdminOrOwner = currentMember?.role === 'OWNER' || currentMember?.role === 'ADMIN';
+
+  // Effective target user for personal reports
+  const targetUserId = reportType === 'PERSONAL' && isAdminOrOwner
+    ? selectedMemberId
+    : currentUser?.id || '';
 
   // Calculate week range
   const weekRange = React.useMemo(() => {
@@ -79,8 +159,10 @@ export function AIReportPanel({ boardId, members }: AIReportPanelProps) {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await reportAPI.getReports(boardId, reportType);
+      const effectiveTarget = reportType === 'PERSONAL' ? targetUserId : undefined;
+      const response = await reportAPI.getReports(boardId, reportType, effectiveTarget);
       setReportHistory(response.reports || []);
+      setCanGenerateToday(response.can_generate_today ?? true);
 
       // Find matching report for current period
       const matching = (response.reports || []).find(
@@ -98,14 +180,15 @@ export function AIReportPanel({ boardId, members }: AIReportPanelProps) {
     } finally {
       setIsLoading(false);
     }
-  }, [boardId, reportType, periodStart, periodEnd]);
+  }, [boardId, reportType, targetUserId, periodStart, periodEnd]);
 
   useEffect(() => {
     loadReport();
   }, [loadReport]);
 
-  // Generate report
+  // Generate report (with confirmation)
   const handleGenerate = async () => {
+    if (!window.confirm(t('aiReport.confirmGenerate'))) return;
     setIsGenerating(true);
     setError(null);
     try {
@@ -116,8 +199,10 @@ export function AIReportPanel({ boardId, members }: AIReportPanelProps) {
         periodStart,
         periodEnd,
         language: lang,
+        targetUserId: reportType === 'PERSONAL' ? targetUserId : undefined,
       });
       setReport(result);
+      setCanGenerateToday(false);
       loadReport(); // refresh history
     } catch (e: any) {
       const msg = e?.response?.data?.message || e?.message || t('aiReport.error');
@@ -127,14 +212,20 @@ export function AIReportPanel({ boardId, members }: AIReportPanelProps) {
     }
   };
 
-  // Regenerate
+  // Regenerate (with confirmation)
   const handleRegenerate = async () => {
     if (!report) return;
+    if (!canGenerateToday) {
+      alert(t('aiReport.dailyLimitReached'));
+      return;
+    }
+    if (!window.confirm(t('aiReport.confirmRegenerate'))) return;
     setIsGenerating(true);
     setError(null);
     try {
       const result = await reportAPI.regenerateReport(boardId, report.id);
       setReport(result);
+      setCanGenerateToday(false);
     } catch (e: any) {
       const msg = e?.response?.data?.message || e?.message || t('aiReport.error');
       setError(msg);
@@ -199,32 +290,56 @@ export function AIReportPanel({ boardId, members }: AIReportPanelProps) {
               </button>
             </div>
 
-            {/* Report type toggle */}
-            <div className="flex items-center gap-1 bg-bridge-dark rounded-xl p-1 border border-white/20">
-              <button
-                onClick={() => setReportType('PERSONAL')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                  reportType === 'PERSONAL'
-                    ? 'bg-bridge-accent text-white shadow-lg'
-                    : 'text-slate-400 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                <User className="h-4 w-4" />
-                {t('aiReport.personalReport')}
-              </button>
-              {isAdminOrOwner && (
+            <div className="flex items-center gap-3">
+              {/* Member selector for personal reports (Admin/Owner only) */}
+              {reportType === 'PERSONAL' && isAdminOrOwner && (
+                <div className="relative">
+                  <select
+                    value={selectedMemberId}
+                    onChange={(e) => setSelectedMemberId(e.target.value)}
+                    className="appearance-none bg-white/5 border border-white/10 rounded-xl pl-3 pr-8 py-2 text-sm text-white
+                      focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent
+                      transition-all cursor-pointer"
+                  >
+                    {members.map((m) => (
+                      <option key={m.user.id} value={m.user.id} className="bg-bridge-obsidian text-white">
+                        {m.user.id === currentUser?.id
+                          ? `${m.user.name} (${t('aiReport.me')})`
+                          : m.user.name}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+                </div>
+              )}
+
+              {/* Report type toggle */}
+              <div className="flex items-center gap-1 bg-bridge-dark rounded-xl p-1 border border-white/20">
                 <button
-                  onClick={() => setReportType('TEAM')}
+                  onClick={() => setReportType('PERSONAL')}
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                    reportType === 'TEAM'
+                    reportType === 'PERSONAL'
                       ? 'bg-bridge-accent text-white shadow-lg'
                       : 'text-slate-400 hover:text-white hover:bg-white/5'
                   }`}
                 >
-                  <Users className="h-4 w-4" />
-                  {t('aiReport.teamReport')}
+                  <User className="h-4 w-4" />
+                  {t('aiReport.personalReport')}
                 </button>
-              )}
+                {isAdminOrOwner && (
+                  <button
+                    onClick={() => setReportType('TEAM')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                      reportType === 'TEAM'
+                        ? 'bg-bridge-accent text-white shadow-lg'
+                        : 'text-slate-400 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    <Users className="h-4 w-4" />
+                    {t('aiReport.teamReport')}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -270,7 +385,13 @@ export function AIReportPanel({ boardId, members }: AIReportPanelProps) {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={handleRegenerate}
-                    className="flex items-center gap-2 px-3 py-1.5 text-xs text-slate-400 hover:text-white hover:bg-white/5 rounded-lg border border-white/10 transition-all"
+                    disabled={!canGenerateToday}
+                    className={`flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg border border-white/10 transition-all ${
+                      canGenerateToday
+                        ? 'text-slate-400 hover:text-white hover:bg-white/5'
+                        : 'text-slate-600 cursor-not-allowed opacity-50'
+                    }`}
+                    title={!canGenerateToday ? t('aiReport.dailyLimitReached') : ''}
                   >
                     <RefreshCw className="h-3.5 w-3.5" />
                     {t('aiReport.regenerate')}
@@ -285,21 +406,26 @@ export function AIReportPanel({ boardId, members }: AIReportPanelProps) {
                 </div>
               </div>
 
-              {/* Markdown content */}
-              <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-8">
-                <div className="prose prose-invert prose-sm max-w-none
-                  prose-headings:text-white prose-headings:font-bold
-                  prose-h2:text-lg prose-h2:mt-6 prose-h2:mb-3 prose-h2:border-b prose-h2:border-white/10 prose-h2:pb-2
-                  prose-h3:text-base prose-h3:mt-4 prose-h3:mb-2
-                  prose-p:text-slate-300 prose-p:leading-relaxed
-                  prose-li:text-slate-300
-                  prose-strong:text-white
-                  prose-table:border-collapse
-                  prose-th:bg-white/5 prose-th:px-3 prose-th:py-2 prose-th:text-left prose-th:text-slate-300 prose-th:text-xs prose-th:font-bold prose-th:uppercase prose-th:tracking-wider prose-th:border prose-th:border-white/10
-                  prose-td:px-3 prose-td:py-2 prose-td:text-slate-400 prose-td:border prose-td:border-white/10
-                ">
-                  <ReactMarkdown>{report.content}</ReactMarkdown>
+              {/* Structured data section (Personal or Team) */}
+              {report.report_type === 'PERSONAL' && report.data_snapshot && (
+                <PersonalDataSection dataSnapshot={report.data_snapshot} t={t} />
+              )}
+              {report.report_type === 'TEAM' && report.data_snapshot && (
+                <TeamDataSection dataSnapshot={report.data_snapshot} t={t} />
+              )}
+
+              {/* AI Analysis section header */}
+              {report.data_snapshot && (
+                <div className="flex items-center gap-3 mt-8 mb-4">
+                  <Sparkles className="h-4 w-4 text-bridge-accent" />
+                  <h3 className="text-sm font-bold text-white uppercase tracking-widest">{t('aiReport.aiAnalysis')}</h3>
+                  <div className="flex-1 h-px bg-white/10" />
                 </div>
+              )}
+
+              {/* Markdown content */}
+              <div className="space-y-0">
+                <ReactMarkdown components={markdownComponents}>{report.content}</ReactMarkdown>
               </div>
             </div>
           ) : (
@@ -314,10 +440,15 @@ export function AIReportPanel({ boardId, members }: AIReportPanelProps) {
               </p>
               <button
                 onClick={handleGenerate}
-                className="flex items-center gap-2 px-6 py-3 bg-bridge-accent text-white rounded-xl font-bold hover:bg-bridge-accent/90 hover:shadow-[0_0_30px_rgba(99,102,241,0.3)] transition-all"
+                disabled={!canGenerateToday}
+                className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all ${
+                  canGenerateToday
+                    ? 'bg-bridge-accent text-white hover:bg-bridge-accent/90 hover:shadow-[0_0_30px_rgba(99,102,241,0.3)]'
+                    : 'bg-white/5 text-slate-600 cursor-not-allowed'
+                }`}
               >
                 <Sparkles className="h-4 w-4" />
-                {t('aiReport.generate')}
+                {canGenerateToday ? t('aiReport.generate') : t('aiReport.dailyLimitReached')}
               </button>
             </div>
           )}
@@ -353,6 +484,560 @@ export function AIReportPanel({ boardId, members }: AIReportPanelProps) {
               </button>
             ))}
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Personal Report Structured Data Section ─── */
+
+function formatMinutesToHours(minutes: number): string {
+  if (minutes < 60) return `${minutes}m`;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return m > 0 ? `${h}h ${m}m` : `${h}h`;
+}
+
+function CircularProgress({ value, max, size = 52, strokeWidth = 4, color }: {
+  value: number;
+  max: number;
+  size?: number;
+  strokeWidth?: number;
+  color: string;
+}) {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const percentage = max > 0 ? value / max : 0;
+  const offset = circumference * (1 - percentage);
+
+  return (
+    <div className="relative flex-shrink-0" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="transform -rotate-90">
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={strokeWidth}
+          className="text-white/5"
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke={color}
+          strokeWidth={strokeWidth}
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+          className="transition-all duration-1000 ease-out"
+        />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <span className="text-[10px] font-bold text-white">
+          {max > 0 ? Math.round((value / max) * 100) : 0}%
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function PersonalDataSection({ dataSnapshot, t }: { dataSnapshot: string; t: (key: string) => string }) {
+  let data: PersonalReportData;
+  try {
+    data = JSON.parse(dataSnapshot);
+  } catch {
+    return null;
+  }
+
+  if (!data.features || !data.summary) return null;
+
+  const { summary, features } = data;
+  const totalTasks = features.reduce((acc, f) => acc + f.tasks.length, 0);
+
+  const doneCount = features.filter(f => f.status === 'DONE').length;
+  const activeCount = features.filter(f => f.status === 'IN_PROGRESS').length;
+  const notStartedCount = features.filter(f => f.status === 'NOT_STARTED').length;
+
+  return (
+    <div>
+      {/* Section header */}
+      <div className="flex items-center gap-3 mb-4">
+        <Layers className="h-4 w-4 text-bridge-secondary" />
+        <h3 className="text-sm font-bold text-white uppercase tracking-widest">{t('aiReport.activityData')}</h3>
+        <div className="flex-1 h-px bg-white/10" />
+      </div>
+
+      {/* Summary cards - 2x2 grid */}
+      <div className="grid grid-cols-2 gap-3 mb-6">
+        {/* 총 작업시간 */}
+        <div className="bg-bridge-obsidian rounded-xl border border-white/5 p-5 relative overflow-hidden">
+          <div className="absolute -top-6 -right-6 w-28 h-28 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none" />
+          <div className="relative">
+            <div className="flex items-center gap-2 mb-3">
+              <Timer className="h-4 w-4 text-bridge-accent" />
+              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{t('aiReport.totalTime')}</span>
+            </div>
+            <div className="text-2xl font-bold text-white tracking-tight">
+              {formatMinutesToHours(summary.total_minutes)}
+            </div>
+          </div>
+        </div>
+
+        {/* 체크리스트 */}
+        <div className="bg-bridge-obsidian rounded-xl border border-white/5 p-5 relative overflow-hidden">
+          <div className="absolute -top-6 -right-6 w-28 h-28 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
+          <div className="relative">
+            <div className="flex items-center gap-2 mb-3">
+              <CheckSquare className="h-4 w-4 text-emerald-400" />
+              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{t('aiReport.checklists')}</span>
+            </div>
+            <div className="flex items-center gap-4">
+              <CircularProgress
+                value={summary.completed_checklists}
+                max={summary.total_checklists}
+                color="#34d399"
+              />
+              <div>
+                <div className="text-2xl font-bold text-white tracking-tight">
+                  {summary.completed_checklists}/{summary.total_checklists}
+                </div>
+                {summary.total_checklists > 0 && summary.completed_checklists === summary.total_checklists && (
+                  <div className="text-[10px] text-emerald-400 font-medium mt-0.5">{t('aiReport.allComplete')}</div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 참여 피처 */}
+        <div className="bg-bridge-obsidian rounded-xl border border-white/5 p-5 relative overflow-hidden">
+          <div className="absolute -top-6 -right-6 w-28 h-28 bg-teal-500/10 rounded-full blur-2xl pointer-events-none" />
+          <div className="relative">
+            <div className="flex items-center gap-2 mb-3">
+              <Layers className="h-4 w-4 text-bridge-secondary" />
+              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{t('aiReport.featuresLabel')}</span>
+            </div>
+            <div className="flex items-baseline gap-2 mb-2.5">
+              <span className="text-2xl font-bold text-white tracking-tight">{features.length}</span>
+              <span className="text-[11px] text-slate-500">{totalTasks} {t('aiReport.taskCount')}</span>
+            </div>
+            {features.length > 0 && (
+              <>
+                <div className="flex rounded-full overflow-hidden h-1.5 bg-white/5 mb-2">
+                  {doneCount > 0 && (
+                    <div className="bg-emerald-400 h-full" style={{ width: `${(doneCount / features.length) * 100}%` }} />
+                  )}
+                  {activeCount > 0 && (
+                    <div className="bg-bridge-accent h-full" style={{ width: `${(activeCount / features.length) * 100}%` }} />
+                  )}
+                  {notStartedCount > 0 && (
+                    <div className="bg-slate-600 h-full" style={{ width: `${(notStartedCount / features.length) * 100}%` }} />
+                  )}
+                </div>
+                <div className="flex items-center gap-3">
+                  {doneCount > 0 && (
+                    <span className="flex items-center gap-1 text-[10px] text-emerald-400">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />{doneCount} {t('aiReport.done')}
+                    </span>
+                  )}
+                  {activeCount > 0 && (
+                    <span className="flex items-center gap-1 text-[10px] text-bridge-accent">
+                      <span className="w-1.5 h-1.5 rounded-full bg-bridge-accent" />{activeCount} {t('aiReport.active')}
+                    </span>
+                  )}
+                  {notStartedCount > 0 && (
+                    <span className="flex items-center gap-1 text-[10px] text-slate-500">
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-600" />{notStartedCount} {t('aiReport.notStarted')}
+                    </span>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* 댓글 */}
+        <div className="bg-bridge-obsidian rounded-xl border border-white/5 p-5 relative overflow-hidden">
+          <div className="absolute -top-6 -right-6 w-28 h-28 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
+          <div className="relative">
+            <div className="flex items-center gap-2 mb-3">
+              <MessageSquare className="h-4 w-4 text-amber-400" />
+              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{t('aiReport.commentsLabel')}</span>
+            </div>
+            <div className="text-2xl font-bold text-white tracking-tight">{summary.total_comments}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Feature → Task breakdown */}
+      <div className="space-y-3">
+        {features.map((feature, fi) => (
+          <FeatureCard key={fi} feature={feature} t={t} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Team Report Structured Data Section ─── */
+
+function TeamDataSection({ dataSnapshot, t }: { dataSnapshot: string; t: (key: string) => string }) {
+  let data: TeamReportData;
+  try {
+    data = JSON.parse(dataSnapshot);
+  } catch {
+    return null;
+  }
+
+  if (!data.statistics?.summary || !data.management) return null;
+
+  const { statistics, management } = data;
+  const { summary } = statistics;
+  const healthScore = management.summary?.overall_health_score ?? 0;
+  const delayed = management.delayed_items?.bottleneck_summary;
+  const totalDelayed = (delayed?.total_overdue_features ?? 0) + (delayed?.total_stagnant_tasks ?? 0) + (delayed?.total_stuck_checklists ?? 0);
+
+  return (
+    <div>
+      {/* Section header */}
+      <div className="flex items-center gap-3 mb-4">
+        <Layers className="h-4 w-4 text-bridge-secondary" />
+        <h3 className="text-sm font-bold text-white uppercase tracking-widest">{t('aiReport.activityData')}</h3>
+        <div className="flex-1 h-px bg-white/10" />
+      </div>
+
+      {/* Summary cards - 2x2 grid */}
+      <div className="grid grid-cols-2 gap-3 mb-6">
+        {/* 총 작업시간 */}
+        <div className="bg-bridge-obsidian rounded-xl border border-white/5 p-5 relative overflow-hidden">
+          <div className="absolute -top-6 -right-6 w-28 h-28 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none" />
+          <div className="relative">
+            <div className="flex items-center gap-2 mb-3">
+              <Timer className="h-4 w-4 text-bridge-accent" />
+              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{t('aiReport.totalTime')}</span>
+            </div>
+            <div className="text-2xl font-bold text-white tracking-tight">
+              {formatMinutesToHours(summary.total_work_minutes)}
+            </div>
+            <div className="text-[10px] text-slate-600 mt-1">
+              {t('aiReport.focusRate')} {Math.round(summary.focus_rate * 100)}%
+            </div>
+          </div>
+        </div>
+
+        {/* 태스크 완료 */}
+        <div className="bg-bridge-obsidian rounded-xl border border-white/5 p-5 relative overflow-hidden">
+          <div className="absolute -top-6 -right-6 w-28 h-28 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
+          <div className="relative">
+            <div className="flex items-center gap-2 mb-3">
+              <Target className="h-4 w-4 text-emerald-400" />
+              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{t('aiReport.tasksCompleted')}</span>
+            </div>
+            <div className="flex items-center gap-4">
+              <CircularProgress
+                value={summary.completed_tasks}
+                max={summary.total_tasks}
+                color="#34d399"
+              />
+              <div>
+                <div className="text-2xl font-bold text-white tracking-tight">
+                  {summary.completed_tasks}/{summary.total_tasks}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 프로젝트 건강도 */}
+        <div className="bg-bridge-obsidian rounded-xl border border-white/5 p-5 relative overflow-hidden">
+          <div className={`absolute -top-6 -right-6 w-28 h-28 rounded-full blur-2xl pointer-events-none ${
+            healthScore >= 70 ? 'bg-emerald-500/10' : healthScore >= 40 ? 'bg-amber-500/10' : 'bg-red-500/10'
+          }`} />
+          <div className="relative">
+            <div className="flex items-center gap-2 mb-3">
+              <Activity className="h-4 w-4 text-bridge-secondary" />
+              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{t('aiReport.healthScore')}</span>
+            </div>
+            <div className={`text-2xl font-bold tracking-tight ${
+              healthScore >= 70 ? 'text-emerald-400' : healthScore >= 40 ? 'text-amber-400' : 'text-red-400'
+            }`}>
+              {Math.round(healthScore)}
+            </div>
+            <div className="w-full h-1.5 rounded-full bg-white/5 mt-2 overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-500 ${
+                  healthScore >= 70 ? 'bg-emerald-400' : healthScore >= 40 ? 'bg-amber-400' : 'bg-red-400'
+                }`}
+                style={{ width: `${healthScore}%` }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* 주의 필요 항목 */}
+        <div className="bg-bridge-obsidian rounded-xl border border-white/5 p-5 relative overflow-hidden">
+          <div className={`absolute -top-6 -right-6 w-28 h-28 rounded-full blur-2xl pointer-events-none ${
+            totalDelayed > 0 ? 'bg-red-500/10' : 'bg-emerald-500/10'
+          }`} />
+          <div className="relative">
+            <div className="flex items-center gap-2 mb-3">
+              <AlertTriangle className={`h-4 w-4 ${totalDelayed > 0 ? 'text-amber-400' : 'text-emerald-400'}`} />
+              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{t('aiReport.attentionItems')}</span>
+            </div>
+            <div className={`text-2xl font-bold tracking-tight ${totalDelayed > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
+              {totalDelayed}
+            </div>
+            {delayed && totalDelayed > 0 && (
+              <div className="flex items-center gap-2 mt-1 flex-wrap">
+                {delayed.total_overdue_features > 0 && (
+                  <span className="text-[10px] text-red-400/80">{t('aiReport.overdueFeatures')} {delayed.total_overdue_features}</span>
+                )}
+                {delayed.total_stagnant_tasks > 0 && (
+                  <span className="text-[10px] text-amber-400/80">{t('aiReport.stagnantTasks')} {delayed.total_stagnant_tasks}</span>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Feature progress */}
+      {statistics.by_feature && statistics.by_feature.length > 0 && (
+        <div className="bg-bridge-obsidian rounded-xl border border-white/5 p-5 mb-4">
+          <div className="flex items-center gap-2 mb-4">
+            <TrendingUp className="h-4 w-4 text-bridge-accent" />
+            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{t('aiReport.featureProgress')}</span>
+          </div>
+          <div className="space-y-3">
+            {statistics.by_feature.map((f, i) => (
+              <div key={i}>
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-2">
+                    {f.feature.color && (
+                      <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: f.feature.color }} />
+                    )}
+                    <span className="text-xs text-slate-300 truncate">{f.feature.title}</span>
+                  </div>
+                  <div className="flex items-center gap-3 flex-shrink-0">
+                    <span className="text-[10px] text-slate-600">
+                      {f.completed_task_count}/{f.task_count} {t('aiReport.taskCount')}
+                    </span>
+                    <span className="text-[10px] text-slate-500 font-medium w-8 text-right">
+                      {Math.round(f.progress_percentage)}%
+                    </span>
+                  </div>
+                </div>
+                <div className="w-full h-1.5 rounded-full bg-white/5 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-bridge-accent transition-all duration-500"
+                    style={{ width: `${f.progress_percentage}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Member contributions */}
+      {statistics.by_member && statistics.by_member.length > 0 && (
+        <div className="bg-bridge-obsidian rounded-xl border border-white/5 p-5 mb-4">
+          <div className="flex items-center gap-2 mb-4">
+            <Users className="h-4 w-4 text-bridge-secondary" />
+            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{t('aiReport.memberContributions')}</span>
+          </div>
+          <div className="space-y-3">
+            {statistics.by_member
+              .sort((a, b) => b.total_minutes - a.total_minutes)
+              .map((m, i) => {
+                const maxMinutes = statistics.by_member[0]?.total_minutes || 1;
+                const barWidth = (m.total_minutes / maxMinutes) * 100;
+                return (
+                  <div key={i} className="flex items-center gap-3">
+                    <span className="text-xs text-slate-300 w-20 truncate flex-shrink-0">{m.member.name}</span>
+                    <div className="flex-1 h-2 rounded-full bg-white/5 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-bridge-secondary/60 transition-all duration-500"
+                        style={{ width: `${barWidth}%` }}
+                      />
+                    </div>
+                    <span className="text-[10px] text-slate-500 w-12 text-right flex-shrink-0">
+                      {formatMinutesToHours(m.total_minutes)}
+                    </span>
+                    <span className="text-[10px] text-slate-600 w-16 text-right flex-shrink-0">
+                      {m.completed_task_count}/{m.task_count} {t('aiReport.taskCount')}
+                    </span>
+                  </div>
+                );
+              })}
+          </div>
+        </div>
+      )}
+
+      {/* Milestone health */}
+      {management.milestone_health && management.milestone_health.length > 0 && (
+        <div className="bg-bridge-obsidian rounded-xl border border-white/5 p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <Target className="h-4 w-4 text-bridge-accent" />
+            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{t('aiReport.milestoneHealth')}</span>
+          </div>
+          <div className="space-y-2.5">
+            {management.milestone_health.map((ms, i) => {
+              const statusStyle: Record<string, { text: string; bg: string; dot: string }> = {
+                ON_TRACK: { text: 'text-emerald-400', bg: 'bg-emerald-400/10', dot: 'bg-emerald-400' },
+                SLOW: { text: 'text-amber-400', bg: 'bg-amber-400/10', dot: 'bg-amber-400' },
+                AT_RISK: { text: 'text-orange-400', bg: 'bg-orange-400/10', dot: 'bg-orange-400' },
+                OVERDUE: { text: 'text-red-400', bg: 'bg-red-400/10', dot: 'bg-red-400' },
+              };
+              const s = statusStyle[ms.status] || statusStyle.ON_TRACK;
+              return (
+                <div key={i} className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
+                    <span className="text-xs text-slate-300">{ms.milestone.title}</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${s.text} ${s.bg}`}>
+                      {ms.status.replace('_', ' ')}
+                    </span>
+                    <span className="text-[10px] text-slate-600 w-10 text-right">
+                      {Math.round(ms.progress_percentage)}%
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FeatureCard({ feature, t }: { feature: PersonalReportFeature; t: (key: string) => string }) {
+  const [expanded, setExpanded] = useState(true);
+
+  // Parse progress "2/4"
+  const progressParts = feature.progress.split('/');
+  const completed = parseInt(progressParts[0]) || 0;
+  const total = parseInt(progressParts[1]) || 0;
+  const progressPercent = total > 0 ? (completed / total) * 100 : 0;
+
+  const statusConfig: Record<string, { color: string; bg: string; border: string }> = {
+    NOT_STARTED: { color: 'text-slate-400', bg: 'bg-slate-500/10', border: 'border-l-slate-500/50' },
+    IN_PROGRESS: { color: 'text-bridge-accent', bg: 'bg-bridge-accent/10', border: 'border-l-bridge-accent' },
+    DONE: { color: 'text-emerald-400', bg: 'bg-emerald-400/10', border: 'border-l-emerald-400' },
+  };
+
+  const status = statusConfig[feature.status] || statusConfig.NOT_STARTED;
+
+  return (
+    <div className={`bg-bridge-obsidian rounded-xl border border-white/5 overflow-hidden border-l-2 ${status.border}`}>
+      {/* Feature header */}
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-white/[0.02] transition-colors"
+      >
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md flex-shrink-0 ${status.color} ${status.bg}`}>
+            {feature.status.replace('_', ' ')}
+          </span>
+          <span className="text-sm font-medium text-white truncate">{feature.title}</span>
+        </div>
+        <div className="flex items-center gap-3 flex-shrink-0 ml-3">
+          <div className="flex items-center gap-2">
+            <div className="w-20 h-1.5 rounded-full bg-white/5 overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-500 ${
+                  feature.status === 'DONE' ? 'bg-emerald-400' : 'bg-bridge-accent'
+                }`}
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+            <span className="text-xs text-slate-500 font-medium w-8 text-right">{feature.progress}</span>
+          </div>
+          {expanded ? (
+            <ChevronUp className="h-4 w-4 text-slate-600" />
+          ) : (
+            <ChevronDown className="h-4 w-4 text-slate-600" />
+          )}
+        </div>
+      </button>
+
+      {/* Tasks */}
+      {expanded && (
+        <div className="border-t border-white/5">
+          {feature.tasks.map((task, ti) => (
+            <div
+              key={ti}
+              className="px-5 py-3 border-b border-white/[0.03] last:border-b-0"
+            >
+              {/* Task header */}
+              <div className="flex items-center gap-2 mb-2">
+                {task.completed ? (
+                  <CheckSquare className="h-3.5 w-3.5 text-emerald-400 flex-shrink-0" />
+                ) : (
+                  <Square className="h-3.5 w-3.5 text-slate-600 flex-shrink-0" />
+                )}
+                <span className={`text-sm ${task.completed ? 'text-slate-500 line-through' : 'text-slate-200'}`}>
+                  {task.title}
+                </span>
+                <span className="text-[10px] text-slate-600 bg-white/5 px-2 py-0.5 rounded-full">{task.block}</span>
+                {task.time_minutes != null && task.time_minutes > 0 && (
+                  <span className="text-[10px] text-bridge-accent ml-auto flex-shrink-0">
+                    {formatMinutesToHours(task.time_minutes)}
+                  </span>
+                )}
+              </div>
+
+              {/* Checklists */}
+              {task.checklists && task.checklists.length > 0 && (
+                <div className="ml-5 flex flex-wrap gap-x-4 gap-y-1 mb-1.5">
+                  {task.checklists.map((cl, ci) => (
+                    <div key={ci} className="flex items-center gap-1.5 text-[11px]">
+                      {cl.completed ? (
+                        <CheckSquare className="h-3 w-3 text-emerald-400/70" />
+                      ) : (
+                        <Square className="h-3 w-3 text-slate-700" />
+                      )}
+                      <span className={cl.completed ? 'text-slate-500' : 'text-slate-400'}>{cl.title}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Time details */}
+              {task.time_details && task.time_details.length > 0 && (
+                <div className="ml-5 flex items-center gap-1 flex-wrap mb-1.5">
+                  <Timer className="h-3 w-3 text-slate-700 mr-1" />
+                  {task.time_details.map((td, tdi) => (
+                    <span
+                      key={tdi}
+                      className="text-[10px] text-slate-600 bg-white/[0.03] px-1.5 py-0.5 rounded"
+                    >
+                      {td.date.slice(5)} {formatMinutesToHours(td.minutes)}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Comments */}
+              {task.comments && task.comments.length > 0 && (
+                <div className="ml-5 space-y-1">
+                  {task.comments.map((cm, cmi) => (
+                    <div key={cmi} className="flex items-start gap-1.5 text-[11px]">
+                      <MessageSquare className="h-3 w-3 text-slate-700 mt-0.5 flex-shrink-0" />
+                      <span className="text-slate-500 leading-relaxed">{cm.content}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       )}
     </div>

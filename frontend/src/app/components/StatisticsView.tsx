@@ -17,7 +17,7 @@ import {
   Activity,
   Settings,
   Flag,
-  Sparkles,
+  Shield,
 } from 'lucide-react';
 import {
   LineChart,
@@ -45,7 +45,7 @@ import {
 import { statisticsService } from '../utils/services';
 import { getInitials } from '../utils/assigneeColor';
 import { WeightLevelSettingsModal } from './WeightLevelSettingsModal';
-import { AIReportPanel } from './AIReportPanel';
+import { ManagementView } from './ManagementView';
 import { formatDate, formatDateShort } from '../utils/dateUtils';
 
 interface StatisticsViewProps {
@@ -53,6 +53,8 @@ interface StatisticsViewProps {
   milestones: Milestone[];
   tags: Tag[];
   members: BoardMember[];
+  onTaskClick?: (taskId: string) => void;
+  managementRefreshTrigger?: number;
 }
 
 // 기본 필터 상태
@@ -91,6 +93,8 @@ export function StatisticsView({
   milestones,
   tags,
   members,
+  onTaskClick,
+  managementRefreshTrigger,
 }: StatisticsViewProps) {
   const [activeView, setActiveView] = useState<StatisticsViewType>('overview');
   const [filter, setFilter] = useState<StatisticsFilter>(DEFAULT_FILTER);
@@ -209,7 +213,7 @@ export function StatisticsView({
     { type: 'team', labelKey: 'statistics.tabTeam', icon: Target },
     { type: 'work', labelKey: 'statistics.tabWork', icon: ListTodo },
     { type: 'impact', labelKey: 'statistics.tabImpact', icon: Zap },
-    { type: 'ai_report', labelKey: 'statistics.tabAIReport', icon: Sparkles },
+    { type: 'management', labelKey: 'statistics.tabManagement', icon: Shield },
   ];
 
   if (isLoading && !statistics) {
@@ -436,8 +440,14 @@ export function StatisticsView({
           />
         )}
 
-        {activeView === 'ai_report' && (
-          <AIReportPanel boardId={boardId} members={members} />
+        {activeView === 'management' && (
+          <ManagementView
+            boardId={boardId}
+            milestones={milestones}
+            members={members}
+            onTaskClick={onTaskClick}
+            refreshTrigger={managementRefreshTrigger}
+          />
         )}
       </div>
     </div>

@@ -69,7 +69,10 @@
       "Bash(/tmp/count_without_translation.sh:*)",
       "Bash(/tmp/count_without_translation.sh)",
       "Bash(node -e:*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(node:*)",
+      "Bash(kill:*)",
+      "Bash(sips:*)"
     ]
   }
 }

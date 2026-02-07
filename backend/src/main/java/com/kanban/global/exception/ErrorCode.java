@@ -148,7 +148,8 @@ public enum ErrorCode {
     // AI Report
     AI_REPORT_NOT_FOUND(HttpStatus.NOT_FOUND, "AR001", "보고서를 찾을 수 없습니다"),
     AI_REPORT_GENERATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "AR002", "AI 보고서 생성에 실패했습니다"),
-    AI_SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "AR003", "AI 서비스가 일시적으로 이용 불가합니다");
+    AI_SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "AR003", "AI 서비스가 일시적으로 이용 불가합니다"),
+    AI_REPORT_DAILY_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "AR004", "일일 AI 보고서 생성 횟수를 초과했습니다 (1일 1회)");
 
     private final HttpStatus status;
     private final String code;

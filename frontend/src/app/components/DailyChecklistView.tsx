@@ -128,7 +128,7 @@ export function DailyChecklistView({
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <span className="text-sm md:text-lg font-semibold text-white min-w-0 sm:min-w-[280px] text-center whitespace-nowrap">
-              {formatDate(selectedDate, 'yyyy년 M월 d일')} ({dayOfWeek})
+              {formatDate(selectedDate, t('dailySchedule.dateFormatDay'))} ({dayOfWeek})
             </span>
             <Button
               variant="ghost"

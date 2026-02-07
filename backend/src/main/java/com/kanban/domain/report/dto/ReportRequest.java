@@ -20,5 +20,7 @@ public class ReportRequest {
         private LocalDate periodEnd;
 
         private String language;
+
+        private String targetUserId;
     }
 }

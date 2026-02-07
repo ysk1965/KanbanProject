@@ -189,48 +189,69 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
         </div>
 
         {/* Social Auth Section */}
-        <div ref={googleContainerRef} className="mb-6 sm:mb-8 [&_iframe]:!w-full [&>div]:!w-full">
+        <div ref={googleContainerRef} className="mb-6 sm:mb-8 relative h-[44px]">
           {onGoogleLogin ? (
-            <GoogleLogin
-              onSuccess={async (response) => {
-                if (response.credential) {
-                  setIsGoogleLoading(true);
-                  setError('');
-                  try {
-                    await onGoogleLogin(response.credential);
-                    trackEvent(mode === 'login' ? 'login' : 'sign_up', { method: 'google' });
-                  } catch (err: any) {
-                    setError(err.message || t('auth.googleLoginFailed'));
+            <>
+              {/* Custom styled button - visual layer */}
+              <div className="absolute inset-0 flex items-center justify-center gap-3 bg-white/[0.03] border border-white/[0.08] text-white rounded-xl pointer-events-none transition-all">
+                {isGoogleLoading ? (
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                ) : (
+                  <>
+                    <img
+                      src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg"
+                      className="w-5 h-5"
+                      alt="google"
+                    />
+                    <span className="text-sm font-semibold">{t('auth.continueWithGoogle')}</span>
+                  </>
+                )}
+              </div>
+              {/* Invisible GoogleLogin iframe - click layer */}
+              <div className="absolute inset-0 z-10 opacity-0 overflow-hidden cursor-pointer [&_iframe]:!w-full [&_iframe]:!h-[44px] [&>div]:!w-full [&>div]:!h-full">
+                <GoogleLogin
+                  onSuccess={async (response) => {
+                    if (response.credential) {
+                      setIsGoogleLoading(true);
+                      setError('');
+                      try {
+                        await onGoogleLogin(response.credential);
+                        trackEvent(mode === 'login' ? 'login' : 'sign_up', { method: 'google' });
+                      } catch (err: any) {
+                        setError(err.message || t('auth.googleLoginFailed'));
+                        trackEvent('error', {
+                          error_type: 'google_auth_failed',
+                          error_message: err.message || 'Google login failed'
+                        });
+                      } finally {
+                        setIsGoogleLoading(false);
+                      }
+                    }
+                  }}
+                  onError={() => {
+                    setError(t('auth.googleLoginFailed'));
                     trackEvent('error', {
-                      error_type: 'google_auth_failed',
-                      error_message: err.message || 'Google login failed'
+                      error_type: 'google_auth_error',
+                      error_message: 'Google OAuth error'
                     });
-                  } finally {
-                    setIsGoogleLoading(false);
-                  }
-                }
-              }}
-              onError={() => {
-                setError(t('auth.googleLoginFailed'));
-                trackEvent('error', {
-                  error_type: 'google_auth_error',
-                  error_message: 'Google OAuth error'
-                });
-              }}
-              theme="filled_black"
-              text="continue_with"
-              locale={i18n.language === 'ko' ? 'ko' : 'en'}
-              width={googleBtnWidth}
-            />
+                  }}
+                  theme="filled_black"
+                  text="continue_with"
+                  locale={i18n.language === 'ko' ? 'ko' : 'en'}
+                  width={googleBtnWidth}
+                  size="large"
+                />
+              </div>
+            </>
           ) : (
             <button
               type="button"
-              className="flex items-center justify-center space-x-2 bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.08] text-white h-12 rounded-xl font-semibold transition-all duration-300 group w-full"
+              className="flex items-center justify-center gap-3 bg-white/[0.03] border border-white/[0.08] text-white h-[44px] rounded-xl font-semibold w-full cursor-not-allowed opacity-50"
               disabled
             >
               <img
                 src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg"
-                className="w-5 h-5 group-hover:scale-110 transition-transform"
+                className="w-5 h-5"
                 alt="google"
               />
               <span className="text-sm">{t('auth.continueWithGoogle')}</span>

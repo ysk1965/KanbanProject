@@ -1,10 +1,10 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Plus, Users, Settings, Filter, ArrowLeft, LayoutGrid, Calendar, CalendarDays, Flag, Pencil, Lock, BarChart3, Search, X, User, ChevronDown, CheckCircle2, Circle, Tag as TagIcon, Layers, ChevronsDownUp, ChevronsUpDown, Shield, Lightbulb, MessageSquare } from 'lucide-react';
+import { Plus, Users, Settings, Filter, ArrowLeft, LayoutGrid, Calendar, CalendarDays, Flag, Pencil, Lock, BarChart3, Search, X, User, ChevronDown, CheckCircle2, Circle, Tag as TagIcon, Layers, ChevronsDownUp, ChevronsUpDown, Sparkles, Lightbulb, MessageSquare } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 
 // 뷰 모드 타입
-type ViewMode = 'kanban' | 'weekly' | 'schedule' | 'statistics' | 'management';
+type ViewMode = 'kanban' | 'weekly' | 'schedule' | 'statistics' | 'ai_report';
 import { DragProvider } from '../contexts/DragContext';
 import { useAuth } from '../contexts/AuthContext';
 import { Block, Feature, Task, Tag, Board, InviteLink, Subscription, PricingPlan, ActivityLog, Milestone, BoardTierInfo, BoardLimits, ChecklistItem, NotificationItem } from '../types';
@@ -29,7 +29,7 @@ import { UserMenu } from '../components/UserMenu';
 import { DailyScheduleView } from '../components/DailyScheduleView';
 import { WeeklyScheduleView } from '../components/WeeklyScheduleView';
 import { StatisticsView } from '../components/StatisticsView';
-import { ManagementView } from '../components/ManagementView';
+import { AIReportPanel } from '../components/AIReportPanel';
 import { EmptyBoardGuide } from '../components/EmptyBoardGuide';
 import { InquiryModal } from '../components/InquiryModal';
 import { AnnouncementDisplay } from '../components/AnnouncementDisplay';
@@ -1358,18 +1358,18 @@ export function KanbanBoardPage() {
                     showAlertModal('premium');
                     return;
                   }
-                  handleViewModeChange('management');
+                  handleViewModeChange('ai_report');
                 }}
                 className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all relative whitespace-nowrap ${
-                  viewMode === 'management'
+                  viewMode === 'ai_report'
                     ? 'bg-gradient-to-r from-[#2DD4BF] to-[#6366F1] text-white shadow-lg shadow-[#2DD4BF]/20'
                     : !canAccessStatistics
                       ? 'text-zinc-600 cursor-not-allowed opacity-50'
                       : 'text-zinc-400 hover:text-zinc-200 hover:bg-kanban-surface'
                 }`}
               >
-                <Shield size={14} />
-                <span className="hidden md:inline">{t('kanban.viewManagement')}</span>
+                <Sparkles size={14} />
+                <span className="hidden md:inline">{t('kanban.viewAIReport')}</span>
                 {!canAccessStatistics && <Lock size={10} className="ml-0.5 text-zinc-500" />}
               </button>
             )}
@@ -1388,6 +1388,7 @@ export function KanbanBoardPage() {
                 onUnreadCountChange={setUnreadNotificationCount}
                 canAccessSlack={canAccessSlack}
                 onSlackUpgrade={() => openUpgradeModal('slack')}
+                isAdmin={isAdminOrOwner}
               />
               <button
                 onClick={() => setIsInquiryModalOpen(true)}
@@ -1901,13 +1902,17 @@ export function KanbanBoardPage() {
                 role: m.role === 'observer' ? 'VIEWER' : m.role.toUpperCase() as any,
                 joined_at: '',
               }))}
+              onTaskClick={(taskId) => {
+                const task = tasks.find(t => t.id === taskId);
+                if (task) handleTaskClick(task);
+              }}
+              managementRefreshTrigger={managementRefreshKey}
             />
           </main>
-        ) : viewMode === 'management' ? (
+        ) : viewMode === 'ai_report' ? (
           <main className="flex-1 overflow-hidden">
-            <ManagementView
+            <AIReportPanel
               boardId={boardId || ''}
-              milestones={milestones}
               members={boardMembersData.map(m => ({
                 id: m.id,
                 user: {
@@ -1919,11 +1924,6 @@ export function KanbanBoardPage() {
                 role: m.role === 'observer' ? 'VIEWER' : m.role.toUpperCase() as any,
                 joined_at: '',
               }))}
-              onTaskClick={(taskId) => {
-                const task = tasks.find(t => t.id === taskId);
-                if (task) handleTaskClick(task);
-              }}
-              refreshTrigger={managementRefreshKey}
             />
           </main>
         ) : null}

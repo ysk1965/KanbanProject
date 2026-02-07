@@ -511,6 +511,23 @@ export interface NotificationPreferences {
 }
 
 // ========================================
+// 데일리 스탠드업 설정
+// ========================================
+
+export interface StandupConfig {
+  id: string;
+  board_id: string;
+  enabled: boolean;
+  send_hour_utc: number;
+  send_minute_utc: number;
+  timezone: string;
+  language: string;
+  last_sent_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// ========================================
 // 요금제 타입
 // ========================================
 
@@ -881,7 +898,7 @@ export type StatisticsViewType =
   | 'team'        // 팀 생산성
   | 'work'        // 작업 분석
   | 'impact'      // 임팩트 분석
-  | 'ai_report';  // AI 주간 보고서
+  | 'management'; // 관리 대시보드
 
 // ========================================
 // AI 주간 보고서 타입
@@ -896,14 +913,119 @@ export interface WeeklyReport {
   period_start: string;
   period_end: string;
   content: string;
+  data_snapshot: string | null;
   generated_by: string;
   generated_by_name: string;
   created_at: string;
 }
 
+export interface PersonalReportData {
+  board_name: string;
+  period: { start: string; end: string };
+  user_name: string;
+  features: PersonalReportFeature[];
+  summary: {
+    total_minutes: number;
+    completed_checklists: number;
+    total_checklists: number;
+    total_comments: number;
+  };
+}
+
+export interface PersonalReportFeature {
+  title: string;
+  status: string;
+  progress: string;
+  tasks: PersonalReportTask[];
+}
+
+export interface PersonalReportTask {
+  title: string;
+  block: string;
+  completed: boolean;
+  checklists?: { title: string; completed: boolean }[];
+  time_minutes?: number;
+  time_details?: { date: string; minutes: number }[];
+  comments?: { content: string }[];
+}
+
+export interface TeamReportData {
+  board_name: string;
+  period: { start: string; end: string };
+  statistics: {
+    summary: {
+      total_work_minutes: number;
+      completed_work_minutes: number;
+      total_tasks: number;
+      completed_tasks: number;
+      total_features: number;
+      completed_features: number;
+      average_feature_progress: number;
+      focus_rate: number;
+    };
+    by_member: Array<{
+      member: { id: string; name: string; profile_image: string };
+      total_minutes: number;
+      completed_minutes: number;
+      task_count: number;
+      completed_task_count: number;
+      impact_score: number;
+    }>;
+    by_feature: Array<{
+      feature: { id: string; title: string; color: string };
+      total_minutes: number;
+      task_count: number;
+      completed_task_count: number;
+      progress_percentage: number;
+    }>;
+  };
+  management: {
+    milestone_health: Array<{
+      milestone: { title: string; end_date: string };
+      progress_percentage: number;
+      status: string;
+      days_remaining: number;
+      days_overdue: number;
+    }>;
+    delayed_items: {
+      bottleneck_summary: {
+        total_overdue_features: number;
+        total_stagnant_tasks: number;
+        total_stuck_checklists: number;
+      };
+      overdue_features: Array<{
+        feature_title: string;
+        days_overdue: number;
+        assignee?: { name: string };
+        progress_percentage: number;
+      }>;
+      stagnant_tasks: Array<{
+        task_title: string;
+        feature_title: string;
+        days_in_block: number;
+        block_name: string;
+        assignee?: { name: string };
+      }>;
+    };
+    summary: {
+      overall_health_score: number;
+      total_delayed_items: number;
+      total_members: number;
+    };
+  };
+  comments: Array<{
+    author: string;
+    task_title: string;
+    content: string;
+    created_at: string;
+  }>;
+}
+
 export interface WeeklyReportListItem {
   id: string;
   report_type: ReportType;
+  target_user_id: string | null;
+  target_user_name: string | null;
   period_start: string;
   period_end: string;
   generated_by_name: string;

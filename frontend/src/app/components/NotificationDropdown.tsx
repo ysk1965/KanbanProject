@@ -5,6 +5,7 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { notificationAPI } from '../utils/api';
 import { SlackSettingsPanel } from './SlackSettingsPanel';
 import { NotificationPreferencesPanel } from './NotificationPreferencesPanel';
+import { StandupConfigPanel } from './StandupConfigPanel';
 import { NotificationItem, ActivityLog, NotificationType } from '../types';
 import { Button } from './ui/button';
 import { getAssigneeClasses } from '../utils/assigneeColor';
@@ -185,6 +186,7 @@ interface NotificationDropdownProps {
   onUnreadCountChange: (count: number) => void;
   canAccessSlack?: boolean;
   onSlackUpgrade?: () => void;
+  isAdmin?: boolean;
 }
 
 export function NotificationDropdown({
@@ -197,6 +199,7 @@ export function NotificationDropdown({
   onUnreadCountChange,
   canAccessSlack = true,
   onSlackUpgrade,
+  isAdmin = false,
 }: NotificationDropdownProps) {
   const { t } = useTranslation();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
@@ -346,6 +349,9 @@ export function NotificationDropdown({
 
               {/* Notification Preferences */}
               <NotificationPreferencesPanel boardId={boardId} hasSlack={slackConnected} />
+
+              {/* Daily Standup Config (Admin only) */}
+              <StandupConfigPanel boardId={boardId} isAdmin={isAdmin} canAccessSlack={canAccessSlack} hasSlack={slackConnected} />
 
               {/* Notifications Header with Mark All Read */}
               {notifications.length > 0 && unreadCount > 0 && (

@@ -2934,6 +2934,34 @@ export const slackWebhookAPI = {
 };
 
 // ========================================
+// Daily Standup Config API
+// ========================================
+
+import type { StandupConfig } from '../types';
+
+export const standupConfigAPI = {
+  getConfig: async (boardId: string) => {
+    return apiClient.get<StandupConfig>(`/boards/${boardId}/standup-config`);
+  },
+
+  upsertConfig: async (boardId: string, data: {
+    enabled: boolean;
+    sendHour: number;
+    sendMinute: number;
+    timezone: string;
+    language?: string;
+  }) => {
+    return apiClient.put<StandupConfig>(`/boards/${boardId}/standup-config`, {
+      enabled: data.enabled,
+      send_hour: data.sendHour,
+      send_minute: data.sendMinute,
+      timezone: data.timezone,
+      language: data.language,
+    });
+  },
+};
+
+// ========================================
 // AI Report API
 // ========================================
 
@@ -2942,19 +2970,23 @@ import type { ReportType, WeeklyReport, WeeklyReportListItem } from '../types';
 export const reportAPI = {
   generateReport: async (
     boardId: string,
-    data: { reportType: ReportType; periodStart: string; periodEnd: string; language?: string }
+    data: { reportType: ReportType; periodStart: string; periodEnd: string; language?: string; targetUserId?: string }
   ) => {
     return apiClient.post<WeeklyReport>(`/boards/${boardId}/reports`, {
       report_type: data.reportType,
       period_start: data.periodStart,
       period_end: data.periodEnd,
       language: data.language,
+      target_user_id: data.targetUserId,
     });
   },
 
-  getReports: async (boardId: string, reportType?: ReportType) => {
-    const query = reportType ? `?report_type=${reportType}` : '';
-    return apiClient.get<{ reports: WeeklyReportListItem[] }>(
+  getReports: async (boardId: string, reportType?: ReportType, targetUserId?: string) => {
+    const params = new URLSearchParams();
+    if (reportType) params.set('report_type', reportType);
+    if (targetUserId) params.set('target_user_id', targetUserId);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return apiClient.get<{ reports: WeeklyReportListItem[]; can_generate_today: boolean }>(
       `/boards/${boardId}/reports${query}`
     );
   },

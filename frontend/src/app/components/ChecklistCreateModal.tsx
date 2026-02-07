@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, Clock, ChevronDown, Folder, FileText, Loader2, CheckSquare, Layers, Plus } from 'lucide-react';
 import { format } from 'date-fns';
 import { featureAPI, taskAPI, dailyChecklistAPI, FeatureResponse, TaskResponse, DailyChecklistItemResponse } from '../utils/api';
@@ -28,6 +29,7 @@ export function ChecklistCreateModal({
   onSelectExisting,
   onClose,
 }: ChecklistCreateModalProps) {
+  const { t } = useTranslation();
   // 오늘의 체크리스트 (먼저 표시)
   const [todayChecklists, setTodayChecklists] = useState<DailyChecklistItemResponse[]>([]);
   const [isLoadingToday, setIsLoadingToday] = useState(true);
@@ -140,7 +142,7 @@ export function ChecklistCreateModal({
       <div className="bg-kanban-bg rounded-2xl shadow-2xl w-[560px] min-h-[700px] max-h-[90vh] flex flex-col overflow-hidden border border-white/10">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
-          <h2 className="text-lg font-bold text-white">타임블록 추가</h2>
+          <h2 className="text-lg font-bold text-white">{t('dailySchedule.addTimeblock')}</h2>
           <button
             onClick={onClose}
             className="text-slate-400 hover:text-white transition-colors"
@@ -158,9 +160,9 @@ export function ChecklistCreateModal({
                 <span className="text-bridge-accent font-medium text-sm">
                   {startBlockIndex !== undefined && endBlockIndex !== undefined
                     ? startBlockIndex === endBlockIndex
-                      ? `${startBlockIndex + 1}번 블록`
-                      : `${startBlockIndex + 1}번 ~ ${endBlockIndex + 1}번 블록`
-                    : '블록 선택'}
+                      ? t('dailySchedule.blockN', { n: startBlockIndex + 1 })
+                      : t('dailySchedule.blockRange', { start: startBlockIndex + 1, end: endBlockIndex + 1 })
+                    : t('dailySchedule.selectBlock')}
                 </span>
               </>
             ) : (
@@ -180,17 +182,17 @@ export function ChecklistCreateModal({
           <div>
             <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
               <CheckSquare className="inline h-4 w-4 mr-1 text-bridge-accent" />
-              오늘의 체크리스트에서 선택
+              {t('dailySchedule.selectFromToday')}
             </label>
             <div className="border border-white/10 rounded-xl max-h-64 overflow-y-auto bg-kanban-card">
               {isLoadingToday ? (
                 <div className="px-4 py-6 text-slate-400 flex items-center justify-center gap-2">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  로딩 중...
+                  {t('common.loading')}
                 </div>
               ) : todayChecklists.length === 0 ? (
                 <div className="px-4 py-6 text-slate-400 text-sm text-center">
-                  오늘의 체크리스트가 없습니다
+                  {t('dailySchedule.noTodayChecklist')}
                 </div>
               ) : (
                 <div className="divide-y divide-white/5">
@@ -216,7 +218,7 @@ export function ChecklistCreateModal({
                         )}
                       </div>
                       <span className="text-xs text-bridge-accent font-medium opacity-0 group-hover:opacity-100 transition-opacity">
-                        선택
+                        {t('dailySchedule.select')}
                       </span>
                     </button>
                   ))}
@@ -233,7 +235,7 @@ export function ChecklistCreateModal({
               className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition-colors"
             >
               <Plus className="h-3.5 w-3.5" />
-              {showCreateForm ? '접기' : '새로 생성'}
+              {showCreateForm ? t('dailySchedule.collapse') : t('dailySchedule.createNew')}
             </button>
             <div className="flex-1 border-t border-white/10" />
           </div>
@@ -267,7 +269,7 @@ export function ChecklistCreateModal({
                     <span className="text-white">{selectedFeature.title}</span>
                   </div>
                 ) : (
-                  <span className="text-slate-400">Select a feature</span>
+                  <span className="text-slate-400">{t('dailySchedule.selectFeature')}</span>
                 )}
                 <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${isFeatureDropdownOpen ? 'rotate-180' : ''}`} />
               </button>
@@ -275,7 +277,7 @@ export function ChecklistCreateModal({
               {isFeatureDropdownOpen && !isLoadingFeatures && (
                 <div className="absolute top-full left-0 right-0 mt-1 bg-kanban-card border border-white/10 rounded-xl shadow-xl z-10 max-h-72 overflow-y-auto">
                   {features.length === 0 ? (
-                    <div className="px-4 py-3 text-slate-400 text-sm">No features found</div>
+                    <div className="px-4 py-3 text-slate-400 text-sm">{t('dailySchedule.noFeatures')}</div>
                   ) : (
                     features.map((feature) => (
                       <button
@@ -325,7 +327,7 @@ export function ChecklistCreateModal({
                   <span className="text-white">{selectedTask.title}</span>
                 ) : (
                   <span className="text-slate-400">
-                    {selectedFeatureId ? 'Select a task' : 'Select a feature first'}
+                    {selectedFeatureId ? t('dailySchedule.selectTask') : t('dailySchedule.selectFeatureFirst')}
                   </span>
                 )}
                 <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${isTaskDropdownOpen ? 'rotate-180' : ''}`} />
@@ -334,7 +336,7 @@ export function ChecklistCreateModal({
               {isTaskDropdownOpen && !isLoadingTasks && (
                 <div className="absolute top-full left-0 right-0 mt-1 bg-kanban-card border border-white/10 rounded-xl shadow-xl z-10 max-h-72 overflow-y-auto">
                   {tasks.length === 0 ? (
-                    <div className="px-4 py-3 text-slate-400 text-sm">No tasks found</div>
+                    <div className="px-4 py-3 text-slate-400 text-sm">{t('dailySchedule.noTasks')}</div>
                   ) : (
                     tasks.map((task) => (
                       <button
@@ -359,13 +361,13 @@ export function ChecklistCreateModal({
               {/* 새 체크리스트 생성 */}
               <div>
                 <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-                  새 체크리스트 항목
+                  {t('dailySchedule.newChecklistItem')}
                 </label>
                 <input
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder="새 체크리스트 제목 입력"
+                  placeholder={t('dailySchedule.newChecklistPlaceholder')}
                   className="w-full px-4 py-3 bg-kanban-card border border-white/10 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
                 />
               </div>
@@ -379,7 +381,7 @@ export function ChecklistCreateModal({
             onClick={onClose}
             className="flex-1 py-3 text-sm font-bold text-slate-400 hover:text-white transition-colors border border-white/10 rounded-xl hover:bg-white/5"
           >
-            취소
+            {t('common.cancel')}
           </button>
           <button
             onClick={handleSubmit}
@@ -389,10 +391,10 @@ export function ChecklistCreateModal({
             {isSubmitting ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                생성 중...
+                {t('dailySchedule.creating')}
               </>
             ) : (
-              '생성'
+              t('common.create')
             )}
           </button>
         </div>

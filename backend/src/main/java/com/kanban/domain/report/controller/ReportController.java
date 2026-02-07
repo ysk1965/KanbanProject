@@ -35,9 +35,10 @@ public class ReportController {
     public ResponseEntity<ReportResponse.ListResponse> getReports(
             @PathVariable String boardId,
             @RequestParam(required = false) ReportType report_type,
+            @RequestParam(required = false) String target_user_id,
             @AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(
-                reportService.getReports(boardId, principal.getUserId(), report_type));
+                reportService.getReports(boardId, principal.getUserId(), report_type, target_user_id));
     }
 
     @GetMapping("/{reportId}")
