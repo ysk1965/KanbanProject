@@ -1,5 +1,31 @@
 # Documentation Changelog
 
+## [2026-02-07] v1.4.0
+
+### IA v1.4.0
+- Added: AnalyticsContext (Firebase Analytics 이벤트 추적 Context)
+- Added: NotificationPreferencesPanel 컴포넌트
+
+### Wireframe v1.4.0
+- Added: NotificationPreferencesPanel 컴포넌트 (NotificationDropdown 내 알림 설정 패널)
+- Changed: NotificationDropdown 구조 업데이트
+
+### ERD v1.4.0
+- Added: notification_preferences 테이블 (유저별/보드별 인앱+Slack 알림 설정)
+- Changed: Notification.type enum 확장 (COMMENT_MENTION → +CHECKLIST_ASSIGNED, +TASK_COMMENT)
+
+### API v1.4.0
+- Added: Notification Preferences API (2개 엔드포인트 - GET/PUT /notification-preferences/me)
+- Changed: 섹션 번호 재정렬 (29개 섹션)
+
+### Design v1.2.0
+- No changes detected
+
+### Tech v1.2.0
+- No changes detected
+
+---
+
 ## [2026-02-02] v1.1.0
 
 ### IA v1.1.0

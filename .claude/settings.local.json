@@ -52,7 +52,8 @@
       "Bash(docker compose:*)",
       "Bash(brew install:*)",
       "Bash(gh run list:*)",
-      "Bash(gh run view:*)"
+      "Bash(gh run view:*)",
+      "Bash(git status:*)"
     ]
   }
 }
