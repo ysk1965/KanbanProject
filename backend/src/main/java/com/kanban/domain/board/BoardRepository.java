@@ -40,6 +40,9 @@ public interface BoardRepository extends JpaRepository<Board, String> {
 
     long countByTier(BoardTier tier);
 
+    @Query("SELECT b.tier, COUNT(b) FROM Board b GROUP BY b.tier")
+    List<Object[]> countGroupedByTier();
+
     /**
      * 사용자가 소속된 보드 수 (owner + member)
      */
@@ -47,6 +50,16 @@ public interface BoardRepository extends JpaRepository<Board, String> {
            "LEFT JOIN BoardMember bm ON b.id = bm.board.id " +
            "WHERE b.owner.id = :userId OR bm.user.id = :userId")
     int countByUserInvolvement(@Param("userId") String userId);
+
+    /**
+     * 여러 사용자의 소속 보드 수를 배치 조회 (N+1 방지)
+     */
+    @Query("SELECT u.id, COUNT(DISTINCT b.id) FROM User u " +
+           "LEFT JOIN Board b ON b.owner.id = u.id " +
+           "LEFT JOIN BoardMember bm ON bm.user.id = u.id " +
+           "WHERE u.id IN :userIds " +
+           "GROUP BY u.id")
+    List<Object[]> countByUserInvolvementBatch(@Param("userIds") List<String> userIds);
 
     /**
      * 사용자가 소속된 보드 목록 (owner + member)

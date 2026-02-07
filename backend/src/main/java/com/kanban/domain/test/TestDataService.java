@@ -13,7 +13,6 @@ import com.kanban.domain.checklist.ChecklistItem;
 import com.kanban.domain.checklist.ChecklistItemRepository;
 import com.kanban.domain.feature.Feature;
 import com.kanban.domain.feature.FeatureRepository;
-import com.kanban.domain.feature.Priority;
 import com.kanban.domain.milestone.Milestone;
 import com.kanban.domain.milestone.MilestoneFeature;
 import com.kanban.domain.milestone.MilestoneFeatureRepository;
@@ -399,7 +398,7 @@ public class TestDataService {
         List<Feature> features = new ArrayList<>();
         LocalDate today = LocalDate.now();
 
-        // Feature 데이터: title, description, color, priority, dueDate offset, milestone index
+        // Feature 데이터: title, description, color, dueDate offset
         // Milestone 1 (완료됨): Feature 0-2 (100% 완료)
         // Milestone 2 (ON_TRACK): Feature 3-4 (70% 완료)
         // Milestone 3 (AT_RISK): Feature 5-6 (30% 완료)
@@ -408,25 +407,25 @@ public class TestDataService {
 
         Object[][] featureData = {
                 // Sprint 1 - 완료된 Feature들
-                {"사용자 인증 시스템", "로그인, 회원가입, OAuth 연동 구현", "#3b82f6", "HIGH", -30},
-                {"기본 대시보드", "메인 대시보드 화면 및 보드 목록", "#10b981", "HIGH", -28},
-                {"칸반 보드 기본", "드래그앤드롭 칸반 보드 기본 구현", "#8b5cf6", "HIGH", -26},
+                {"사용자 인증 시스템", "로그인, 회원가입, OAuth 연동 구현", "#3b82f6", -30},
+                {"기본 대시보드", "메인 대시보드 화면 및 보드 목록", "#10b981", -28},
+                {"칸반 보드 기본", "드래그앤드롭 칸반 보드 기본 구현", "#8b5cf6", -26},
 
                 // Sprint 2 - 진행 중 (ON_TRACK)
-                {"실시간 알림", "웹소켓 기반 실시간 알림 시스템", "#ec4899", "MEDIUM", 5},
-                {"댓글 시스템", "태스크/피처 댓글 및 멘션 기능", "#f472b6", "MEDIUM", 6},
+                {"실시간 알림", "웹소켓 기반 실시간 알림 시스템", "#ec4899", 5},
+                {"댓글 시스템", "태스크/피처 댓글 및 멘션 기능", "#f472b6", 6},
 
                 // Sprint 3 - 위험 상태 (AT_RISK)
-                {"일일 스케줄 뷰", "하루 단위 타임블록 스케줄 뷰", "#f59e0b", "HIGH", 2},
-                {"주간 스케줄 뷰", "주 단위 스케줄 뷰 및 드래그 조정", "#fbbf24", "MEDIUM", 3},
+                {"일일 스케줄 뷰", "하루 단위 타임블록 스케줄 뷰", "#f59e0b", 2},
+                {"주간 스케줄 뷰", "주 단위 스케줄 뷰 및 드래그 조정", "#fbbf24", 3},
 
                 // Sprint 4 - 지연됨 (OVERDUE) - 마감일이 과거
-                {"생산성 통계", "팀/개인 생산성 분석 대시보드", "#6366f1", "HIGH", -5},
-                {"번다운 차트", "마일스톤 진행률 시각화 차트", "#818cf8", "MEDIUM", -3},
+                {"생산성 통계", "팀/개인 생산성 분석 대시보드", "#6366f1", -5},
+                {"번다운 차트", "마일스톤 진행률 시각화 차트", "#818cf8", -3},
 
                 // Sprint 5 - 예정됨
-                {"마일스톤 관리", "프로젝트 마일스톤 및 진행률 추적", "#14b8a6", "MEDIUM", 25},
-                {"설정 페이지", "사용자 설정 및 알림 관리", "#64748b", "LOW", 28}
+                {"마일스톤 관리", "프로젝트 마일스톤 및 진행률 추적", "#14b8a6", 25},
+                {"설정 페이지", "사용자 설정 및 알림 관리", "#64748b", 28}
         };
 
         for (int i = 0; i < featureData.length; i++) {
@@ -438,8 +437,7 @@ public class TestDataService {
                     .color((String) data[2])
                     .assignee(members.get(i % members.size()))
                     .position(i)
-                    .priority(Priority.valueOf((String) data[3]))
-                    .dueDate(today.plusDays((Integer) data[4]))
+                    .dueDate(today.plusDays((Integer) data[3]))
                     .createdBy(createdBy)
                     .build();
             features.add(feature);

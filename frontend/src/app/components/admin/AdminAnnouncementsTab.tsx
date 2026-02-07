@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Plus,
   Edit3,
@@ -11,13 +12,17 @@ import {
 import { adminService } from '../../utils/services';
 import type { AnnouncementDetail } from '../../utils/api';
 import { formatDate, formatDateTime, toDateTimeLocalValue, fromDateTimeLocalValue } from '../../utils/dateUtils';
+import { ConfirmModal, Toast } from './AdminConfirmModal';
 
 export function AdminAnnouncementsTab() {
+  const { t } = useTranslation();
   const [announcements, setAnnouncements] = useState<AnnouncementDetail[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editingAnnouncement, setEditingAnnouncement] = useState<AnnouncementDetail | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   useEffect(() => {
     loadAnnouncements();
@@ -31,20 +36,23 @@ export function AdminAnnouncementsTab() {
       setAnnouncements(data);
     } catch (err) {
       console.error('Failed to load announcements:', err);
-      setError('공지사항을 불러오는데 실패했습니다');
+      setError(t('admin.announcements.loadFailed'));
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('정말 삭제하시겠습니까?')) return;
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
     try {
-      await adminService.deleteAnnouncement(id);
-      setAnnouncements(announcements.filter((a) => a.id !== id));
+      await adminService.deleteAnnouncement(deleteTarget);
+      setAnnouncements(announcements.filter((a) => a.id !== deleteTarget));
+      setToast({ message: t('admin.announcements.deleted'), type: 'success' });
     } catch (err) {
       console.error('Failed to delete announcement:', err);
-      alert('삭제에 실패했습니다');
+      setToast({ message: t('admin.announcements.deleteFailed'), type: 'error' });
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
@@ -59,9 +67,10 @@ export function AdminAnnouncementsTab() {
         setAnnouncements([created, ...announcements]);
         setIsCreateOpen(false);
       }
+      setToast({ message: t('admin.announcements.saved'), type: 'success' });
     } catch (err) {
       console.error('Failed to save announcement:', err);
-      alert('저장에 실패했습니다');
+      setToast({ message: t('admin.announcements.saveFailed'), type: 'error' });
     }
   };
 
@@ -78,13 +87,13 @@ export function AdminAnnouncementsTab() {
       <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-6 text-center">
         <p className="text-red-400">{error}</p>
         <button onClick={loadAnnouncements} className="mt-4 px-4 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors">
-          다시 시도
+          {t('common.retry')}
         </button>
       </div>
     );
   }
 
-  const typeLabel: Record<string, string> = { POPUP: '팝업', BANNER: '배너', NOTICE: '공지' };
+  const typeLabel: Record<string, string> = { POPUP: t('admin.announcements.typePopup'), BANNER: t('admin.announcements.typeBanner'), NOTICE: t('admin.announcements.typeNotice') };
   const typeBadge: Record<string, string> = {
     POPUP: 'bg-purple-500/20 text-purple-400',
     BANNER: 'bg-amber-500/20 text-amber-400',
@@ -95,15 +104,15 @@ export function AdminAnnouncementsTab() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white mb-2">공지사항 관리</h2>
-          <p className="text-slate-400">시스템 공지사항을 관리하세요</p>
+          <h2 className="text-2xl font-bold text-white mb-2">{t('admin.announcements.title')}</h2>
+          <p className="text-slate-400">{t('admin.announcements.subtitle')}</p>
         </div>
         <button
           onClick={() => { setIsCreateOpen(true); setEditingAnnouncement(null); }}
           className="flex items-center gap-2 px-4 py-2 bg-bridge-accent text-white rounded-xl font-medium hover:bg-bridge-accent/90 transition-colors"
         >
           <Plus className="h-4 w-4" />
-          새 공지사항
+          {t('admin.announcements.newAnnouncement')}
         </button>
       </div>
 
@@ -118,7 +127,7 @@ export function AdminAnnouncementsTab() {
       {announcements.length === 0 ? (
         <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-12 text-center">
           <Megaphone className="h-12 w-12 text-slate-600 mx-auto mb-4" />
-          <p className="text-slate-400">등록된 공지사항이 없습니다</p>
+          <p className="text-slate-400">{t('admin.announcements.noAnnouncements')}</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -132,15 +141,15 @@ export function AdminAnnouncementsTab() {
                     </span>
                     {ann.is_active ? (
                       <span className="flex items-center gap-1 text-[11px] text-emerald-400">
-                        <Eye className="h-3 w-3" /> 활성
+                        <Eye className="h-3 w-3" /> {t('admin.announcements.active')}
                       </span>
                     ) : (
                       <span className="flex items-center gap-1 text-[11px] text-slate-500">
-                        <EyeOff className="h-3 w-3" /> 비활성
+                        <EyeOff className="h-3 w-3" /> {t('admin.announcements.inactive')}
                       </span>
                     )}
                     {ann.priority > 0 && (
-                      <span className="text-[11px] text-amber-400">우선순위: {ann.priority}</span>
+                      <span className="text-[11px] text-amber-400">{t('admin.announcements.priority')}: {ann.priority}</span>
                     )}
                   </div>
                   <h3 className="text-white font-medium mb-1">{ann.title}</h3>
@@ -148,9 +157,9 @@ export function AdminAnnouncementsTab() {
                     <p className="text-slate-400 text-sm line-clamp-2">{ann.content}</p>
                   )}
                   <div className="flex gap-4 mt-2 text-[11px] text-slate-500">
-                    {ann.start_at && <span>시작: {formatDateTime(ann.start_at)}</span>}
-                    {ann.end_at && <span>종료: {formatDateTime(ann.end_at)}</span>}
-                    <span>생성: {formatDate(ann.created_at)}</span>
+                    {ann.start_at && <span>{t('admin.announcements.start')}: {formatDateTime(ann.start_at)}</span>}
+                    {ann.end_at && <span>{t('admin.announcements.end')}: {formatDateTime(ann.end_at)}</span>}
+                    <span>{t('admin.announcements.created')}: {formatDate(ann.created_at)}</span>
                   </div>
                 </div>
                 <div className="flex gap-1 ml-4">
@@ -161,7 +170,7 @@ export function AdminAnnouncementsTab() {
                     <Edit3 className="h-4 w-4" />
                   </button>
                   <button
-                    onClick={() => handleDelete(ann.id)}
+                    onClick={() => setDeleteTarget(ann.id)}
                     className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
                   >
                     <Trash2 className="h-4 w-4" />
@@ -171,6 +180,25 @@ export function AdminAnnouncementsTab() {
             </div>
           ))}
         </div>
+      )}
+
+      <ConfirmModal
+        isOpen={!!deleteTarget}
+        title={t('admin.announcements.deleteTitle')}
+        message={t('admin.announcements.confirmDelete')}
+        variant="danger"
+        confirmLabel={t('common.delete')}
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setDeleteTarget(null)}
+      />
+
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          isVisible={!!toast}
+          onClose={() => setToast(null)}
+        />
       )}
     </div>
   );
@@ -198,6 +226,7 @@ function AnnouncementFormModal({
   onSave: (data: AnnouncementFormData) => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [title, setTitle] = useState(announcement?.title || '');
   const [content, setContent] = useState(announcement?.content || '');
   const [type, setType] = useState<'POPUP' | 'BANNER' | 'NOTICE'>(announcement?.type || 'NOTICE');
@@ -232,11 +261,11 @@ function AnnouncementFormModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
       <div className="bg-bridge-obsidian rounded-2xl border border-white/10 p-6 shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-lg font-bold text-white">
-            {announcement ? '공지사항 수정' : '새 공지사항'}
+            {announcement ? t('admin.announcements.editAnnouncement') : t('admin.announcements.newAnnouncement')}
           </h3>
           <button onClick={onClose} className="p-1 text-slate-400 hover:text-white transition-colors">
             <X className="h-5 w-5" />
@@ -245,41 +274,41 @@ function AnnouncementFormModal({
 
         <div className="space-y-4">
           <div>
-            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1 block">제목 *</label>
+            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1 block">{t('admin.announcements.titleLabel')} *</label>
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
-              placeholder="공지 제목"
+              placeholder={t('admin.announcements.titlePlaceholder')}
             />
           </div>
 
           <div>
-            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1 block">내용</label>
+            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1 block">{t('admin.announcements.contentLabel')}</label>
             <textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
               rows={4}
               className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all resize-none"
-              placeholder="공지 내용"
+              placeholder={t('admin.announcements.contentPlaceholder')}
             />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1 block">유형</label>
+              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1 block">{t('admin.announcements.typeLabel')}</label>
               <select
                 value={type}
                 onChange={(e) => setType(e.target.value as 'POPUP' | 'BANNER' | 'NOTICE')}
                 className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
               >
-                <option value="NOTICE">공지</option>
-                <option value="BANNER">배너</option>
-                <option value="POPUP">팝업</option>
+                <option value="NOTICE">{t('admin.announcements.typeNotice')}</option>
+                <option value="BANNER">{t('admin.announcements.typeBanner')}</option>
+                <option value="POPUP">{t('admin.announcements.typePopup')}</option>
               </select>
             </div>
             <div>
-              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1 block">우선순위</label>
+              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1 block">{t('admin.announcements.priority')}</label>
               <input
                 type="number"
                 value={priority}
@@ -292,7 +321,7 @@ function AnnouncementFormModal({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1 block">시작일</label>
+              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1 block">{t('admin.announcements.startDate')}</label>
               <input
                 type="datetime-local"
                 value={startAt}
@@ -301,7 +330,7 @@ function AnnouncementFormModal({
               />
             </div>
             <div>
-              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1 block">종료일</label>
+              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1 block">{t('admin.announcements.endDate')}</label>
               <input
                 type="datetime-local"
                 value={endAt}
@@ -318,7 +347,7 @@ function AnnouncementFormModal({
             >
               <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${isActive ? 'left-5' : 'left-1'}`} />
             </div>
-            <span className="text-sm text-slate-300">{isActive ? '활성' : '비활성'}</span>
+            <span className="text-sm text-slate-300">{isActive ? t('admin.announcements.active') : t('admin.announcements.inactive')}</span>
           </label>
         </div>
 
@@ -327,14 +356,14 @@ function AnnouncementFormModal({
             onClick={onClose}
             className="flex-1 px-4 py-3 bg-white/5 border border-white/10 text-white rounded-xl hover:bg-white/10 transition-all"
           >
-            취소
+            {t('common.cancel')}
           </button>
           <button
             onClick={handleSubmit}
             disabled={!title.trim() || isSaving}
             className="flex-1 px-4 py-3 bg-bridge-accent text-white rounded-xl font-bold hover:bg-bridge-accent/90 disabled:opacity-50 transition-all"
           >
-            {isSaving ? '저장 중...' : announcement ? '수정' : '생성'}
+            {isSaving ? t('admin.announcements.saving') : announcement ? t('common.edit') : t('common.create')}
           </button>
         </div>
       </div>

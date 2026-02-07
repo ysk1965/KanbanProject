@@ -159,6 +159,7 @@ export interface BoardTierInfo {
   can_access_schedule: boolean;
   can_access_milestone: boolean;
   can_access_statistics: boolean;
+  can_access_slack: boolean;
 }
 
 export interface BoardLimits {
@@ -218,12 +219,6 @@ export interface Assignee {
 }
 
 // ========================================
-// 우선순위 타입
-// ========================================
-
-export type Priority = 'HIGH' | 'MEDIUM' | 'LOW';
-
-// ========================================
 // Feature 타입
 // ========================================
 
@@ -235,7 +230,6 @@ export interface Feature {
   description?: string;
   color: string;
   assignee: Assignee | null;
-  priority: Priority | null;
   due_date: string | null;
   status: FeatureStatus;
   total_tasks: number;
@@ -886,7 +880,35 @@ export type StatisticsViewType =
   | 'individual'  // 개인 생산성
   | 'team'        // 팀 생산성
   | 'work'        // 작업 분석
-  | 'impact';     // 임팩트 분석
+  | 'impact'      // 임팩트 분석
+  | 'ai_report';  // AI 주간 보고서
+
+// ========================================
+// AI 주간 보고서 타입
+// ========================================
+
+export type ReportType = 'TEAM' | 'PERSONAL';
+
+export interface WeeklyReport {
+  id: string;
+  report_type: ReportType;
+  target_user_id: string | null;
+  period_start: string;
+  period_end: string;
+  content: string;
+  generated_by: string;
+  generated_by_name: string;
+  created_at: string;
+}
+
+export interface WeeklyReportListItem {
+  id: string;
+  report_type: ReportType;
+  period_start: string;
+  period_end: string;
+  generated_by_name: string;
+  created_at: string;
+}
 
 // ========================================
 // 데일리 체크리스트 타입

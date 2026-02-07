@@ -2,7 +2,6 @@ package com.kanban.domain.feature.dto;
 
 import com.kanban.domain.feature.Feature;
 import com.kanban.domain.feature.FeatureStatus;
-import com.kanban.domain.feature.Priority;
 import com.kanban.domain.tag.Tag;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -28,7 +27,6 @@ public class FeatureResponse {
         private String title;
         private String color;
         private AssigneeInfo assignee;
-        private Priority priority;
         private LocalDate dueDate;
         private FeatureStatus status;
         private int totalTasks;
@@ -43,7 +41,6 @@ public class FeatureResponse {
                     .title(feature.getTitle())
                     .color(feature.getColor())
                     .assignee(feature.getAssignee() != null ? AssigneeInfo.of(feature) : null)
-                    .priority(feature.getPriority())
                     .dueDate(feature.getDueDate())
                     .status(feature.getStatus())
                     .totalTasks(feature.getTotalTasks())
@@ -67,7 +64,6 @@ public class FeatureResponse {
         private String description;
         private String color;
         private AssigneeInfo assignee;
-        private Priority priority;
         private LocalDate dueDate;
         private FeatureStatus status;
         private int totalTasks;
@@ -87,7 +83,6 @@ public class FeatureResponse {
                     .description(feature.getDescription())
                     .color(feature.getColor())
                     .assignee(feature.getAssignee() != null ? AssigneeInfo.of(feature) : null)
-                    .priority(feature.getPriority())
                     .dueDate(feature.getDueDate())
                     .status(feature.getStatus())
                     .totalTasks(feature.getTotalTasks())

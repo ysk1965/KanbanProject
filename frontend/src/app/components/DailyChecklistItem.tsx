@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Check, X, GripVertical } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { DailyChecklistItem as DailyChecklistItemType } from '../types';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';

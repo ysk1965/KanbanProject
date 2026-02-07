@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate, useNavigate, useParams, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { AnalyticsProvider } from './contexts/AnalyticsContext';
@@ -29,11 +30,12 @@ import { trackEvent } from './contexts/AnalyticsContext';
 // 인증이 필요한 라우트 래퍼
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isEmailVerified, isLoading } = useAuth();
+  const { t } = useTranslation();
 
   if (isLoading) {
     return (
       <div className="min-h-screen bg-bridge-dark flex items-center justify-center">
-        <div className="text-white text-lg">로딩 중...</div>
+        <div className="text-white text-lg">{t('app.loading')}</div>
       </div>
     );
   }
@@ -61,6 +63,7 @@ interface InviteInfo {
 function LoginRoute() {
   const { isAuthenticated, isLoading, login: authLogin, signup: authSignup, googleLogin: authGoogleLogin } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [isProcessingInvite, setIsProcessingInvite] = useState(false);
   const [justLoggedIn, setJustLoggedIn] = useState(false);
   const [inviteInfo, setInviteInfo] = useState<InviteInfo | null>(null);
@@ -121,7 +124,7 @@ function LoginRoute() {
             navigate(`/boards/${result.board_id}`);
           } catch (error: any) {
             console.error('Failed to accept invite:', error);
-            alert(error?.message || '초대 수락에 실패했습니다. 보드 목록으로 이동합니다.');
+            alert(error?.message || t('app.inviteAcceptFailed'));
             navigate('/boards');
           } finally {
             setIsProcessingInvite(false);
@@ -141,10 +144,10 @@ function LoginRoute() {
       <div className="min-h-screen bg-bridge-dark flex items-center justify-center">
         <div className="text-center">
           <div className="text-white text-lg mb-2">
-            {isProcessingInvite ? '초대를 수락하는 중...' : '로딩 중...'}
+            {isProcessingInvite ? t('app.processingInvite') : t('app.loading')}
           </div>
           {isProcessingInvite && (
-            <div className="text-slate-400 text-sm">잠시만 기다려주세요</div>
+            <div className="text-slate-400 text-sm">{t('app.pleaseWait')}</div>
           )}
         </div>
       </div>
@@ -165,6 +168,7 @@ function LoginRoute() {
 function BoardsRoute() {
   const navigate = useNavigate();
   const { logout } = useAuth();
+  const { t } = useTranslation();
   const [boards, setBoards] = useState<Board[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -242,7 +246,7 @@ function BoardsRoute() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-bridge-dark flex items-center justify-center">
-        <div className="text-white text-lg">로딩 중...</div>
+        <div className="text-white text-lg">{t('app.loading')}</div>
       </div>
     );
   }
@@ -263,11 +267,12 @@ function BoardsRoute() {
 // 이메일 인증 대기 페이지 래퍼
 function EmailPendingRoute() {
   const { isAuthenticated, isEmailVerified, isLoading } = useAuth();
+  const { t } = useTranslation();
 
   if (isLoading) {
     return (
       <div className="min-h-screen bg-bridge-dark flex items-center justify-center">
-        <div className="text-white text-lg">로딩 중...</div>
+        <div className="text-white text-lg">{t('app.loading')}</div>
       </div>
     );
   }
@@ -335,11 +340,12 @@ function ThemeSync() {
 // 루트 경로 래퍼 (인증 상태에 따라 리다이렉트)
 function HomeRoute() {
   const { isAuthenticated, isLoading } = useAuth();
+  const { t } = useTranslation();
 
   if (isLoading) {
     return (
       <div className="min-h-screen bg-bridge-dark flex items-center justify-center">
-        <div className="text-white text-lg">로딩 중...</div>
+        <div className="text-white text-lg">{t('app.loading')}</div>
       </div>
     );
   }

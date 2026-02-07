@@ -3,6 +3,7 @@ import { BrowserRouter } from "react-router-dom";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import App from "./app/App.tsx";
 import "./styles/index.css";
+import "./app/i18n";
 
 // Firebase & Sentry initialization (dynamic import to prevent ad blockers from breaking the app)
 import("./lib/sentry")

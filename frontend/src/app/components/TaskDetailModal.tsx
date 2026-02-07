@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Task, Tag, ChecklistItem, User, Block } from '../types';
 import { checklistAPI, taskAPI, scheduleAPI, ScheduleBlockDetailResponse } from '../utils/api';
 import { BoardMember } from './ShareBoardModal';
@@ -35,6 +36,7 @@ import { Calendar } from './ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { X, Plus, Trash2, Clock, CheckSquare, CalendarIcon, FileText, Tags, Users, Layers, Pencil, CheckCircle2, Undo2, ChevronDown, ChevronRight, Loader2, MessageSquare, Lightbulb } from 'lucide-react';
 import { CommentPanel } from './CommentPanel';
+import { TagPickerPopover } from './TagPickerPopover';
 import { getAssigneeClasses, getInitials } from '../utils/assigneeColor';
 import { Progress } from './ui/progress';
 import { DateRange } from 'react-day-picker';
@@ -52,7 +54,9 @@ interface TaskDetailModalProps {
   onMoveToBlock?: (taskId: string, blockId: string) => void;
   blocks?: Block[];
   availableTags: Tag[];
-  onCreateTag: (name: string, color: string) => void;
+  onCreateTag: (name: string, color: string) => Promise<string | undefined>;
+  onUpdateTag: (tagId: string, data: { name?: string; color?: string }) => Promise<void>;
+  onDeleteTag: (tagId: string) => Promise<void>;
   boardMembers: BoardMember[];
   currentUser: User | null;
   boardId: string | null;
@@ -70,13 +74,14 @@ export function TaskDetailModal({
   blocks = [],
   availableTags,
   onCreateTag,
+  onUpdateTag,
+  onDeleteTag,
   boardMembers,
   currentUser,
   boardId,
   canEdit = true,
 }: TaskDetailModalProps) {
-  const [showTagInput, setShowTagInput] = useState(false);
-  const [newTagName, setNewTagName] = useState('');
+  const { t } = useTranslation();
 
   // 변경사항 추적
   const [initialTask, setInitialTask] = useState<Task | null>(null);
@@ -203,13 +208,13 @@ export function TaskDetailModal({
     }
   };
 
-  const handleCreateNewTag = () => {
-    if (newTagName.trim()) {
-      const colors = ['#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6'];
-      const randomColor = colors[Math.floor(Math.random() * colors.length)];
-      onCreateTag(newTagName.trim(), randomColor);
-      setNewTagName('');
-      setShowTagInput(false);
+  const handleToggleTag = (tagId: string) => {
+    const currentTags = editedTask.tags || [];
+    const isSelected = currentTags.some((t) => t.id === tagId);
+    if (isSelected) {
+      handleRemoveTag(tagId);
+    } else {
+      handleAddTag(tagId);
     }
   };
 
@@ -344,22 +349,21 @@ export function TaskDetailModal({
     : 0;
 
   const taskTags = editedTask.tags || [];
-  const availableTagsToAdd = availableTags.filter(
-    (tag) => !taskTags.some((t) => t.id === tag.id)
-  );
 
   return (
     <>
       <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="sm:max-w-[1100px] max-h-[85vh] overflow-hidden bg-kanban-bg border border-white/20 text-foreground p-0 [&>button:last-child]:hidden" onPointerDownOutside={(e) => {
+        <DialogContent className="sm:max-w-[1100px] max-h-[85vh] flex flex-col overflow-hidden bg-kanban-card border border-kanban-border/50 shadow-[0_0_60px_rgba(0,0,0,0.5)] text-foreground p-0 [&>button:last-child]:hidden" onPointerDownOutside={(e) => {
           if (hasChanges) {
             e.preventDefault();
             handleClose();
           }
         }}>
-          <div className="flex h-[85vh]">
+          {/* Feature color accent line */}
+          <div className="h-[3px] w-full flex-shrink-0 rounded-t-lg" style={{ backgroundColor: task.feature_color }} />
+          <div className="flex flex-1 min-h-0">
           {/* 왼쪽: 기존 태스크 상세 */}
-          <div className="flex-1 overflow-y-auto p-6 kanban-scrollbar">
+          <div className="flex-1 overflow-y-auto p-6 pb-10 kanban-scrollbar">
           <DialogHeader>
             {/* 피처 & 블록 상태 표시 */}
             <div className="flex items-center gap-2 mb-3 flex-wrap">
@@ -373,7 +377,7 @@ export function TaskDetailModal({
               </div>
               {/* 현재 블록 상태 */}
               {task.block_name && (
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-white/10 text-slate-300 border border-white/20">
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-white/10 text-slate-300 border border-white/10">
                   <Layers className="h-3 w-3" />
                   {task.block_name}
                 </div>
@@ -393,7 +397,7 @@ export function TaskDetailModal({
                           setIsEditingTitle(false);
                         }
                       }}
-                      className="text-lg font-semibold border border-white/20 px-2 py-1 rounded-lg focus-visible:ring-1 focus-visible:ring-bridge-accent bg-white/5 text-foreground"
+                      className="text-lg font-semibold border border-white/10 px-2 py-1 rounded-lg focus-visible:ring-1 focus-visible:ring-bridge-accent bg-white/5 text-foreground"
                       autoFocus
                     />
                   ) : (
@@ -416,7 +420,7 @@ export function TaskDetailModal({
                         size="sm"
                         onClick={() => setShowDoneDialog(true)}
                         className="text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
-                        title="완료 처리"
+                        title={t('task.markComplete')}
                       >
                         <CheckCircle2 className="h-4 w-4" />
                       </Button>
@@ -427,7 +431,7 @@ export function TaskDetailModal({
                         size="sm"
                         onClick={() => setShowMoveDialog(true)}
                         className="text-orange-400 hover:text-orange-300 hover:bg-orange-500/10"
-                        title="블록 이동"
+                        title={t('task.moveBlock')}
                       >
                         <Undo2 className="h-4 w-4" />
                       </Button>
@@ -445,7 +449,7 @@ export function TaskDetailModal({
               </div>
             </DialogTitle>
             <DialogDescription className="sr-only">
-              작업 세부 정보를 편집합니다
+              {t('task.editDescription')}
             </DialogDescription>
           </DialogHeader>
 
@@ -454,15 +458,15 @@ export function TaskDetailModal({
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <FileText className="h-4 w-4 text-slate-400" />
-                <Label className="text-slate-400 font-medium">설명</Label>
+                <Label className="text-[11px] font-bold uppercase tracking-widest text-slate-400">{t('task.description')}</Label>
               </div>
               <Textarea
                 value={editedTask.description || ''}
                 onChange={(e) => canEdit && updateEditedTask({ description: e.target.value })}
-                placeholder="설명이 없습니다."
+                placeholder={t('task.noDescription')}
                 rows={3}
                 readOnly={!canEdit}
-                className={`bg-white/5 border-white/20 text-foreground placeholder:text-slate-400 focus:ring-bridge-accent/50 focus:border-bridge-accent ${!canEdit ? 'cursor-default' : ''}`}
+                className={`bg-kanban-bg/50 border-kanban-border/30 text-foreground placeholder:text-slate-500 focus:ring-bridge-accent/50 focus:border-bridge-accent ${!canEdit ? 'cursor-default' : ''}`}
               />
             </div>
 
@@ -470,28 +474,28 @@ export function TaskDetailModal({
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <CalendarIcon className="h-4 w-4 text-slate-400" />
-                <Label className="text-slate-400 font-medium">기간</Label>
+                <Label className="text-[11px] font-bold uppercase tracking-widest text-slate-400">{t('task.period')}</Label>
               </div>
               {canEdit ? (
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
-                      className="w-full h-10 justify-start text-left font-normal bg-white/5 border-white/20 text-foreground hover:bg-white/10 hover:text-foreground"
+                      className="w-full h-10 justify-start text-left font-normal bg-kanban-bg/50 border-kanban-border/30 text-foreground hover:bg-kanban-bg/70 hover:text-foreground"
                     >
                       <CalendarIcon className="mr-2 h-4 w-4 text-slate-400" />
                       {editedTask.start_date || editedTask.due_date ? (
                         <>
-                          {editedTask.start_date ? format(new Date(editedTask.start_date), 'yyyy. MM. dd.', { locale: ko }) : '시작일 미정'}
+                          {editedTask.start_date ? format(new Date(editedTask.start_date), 'yyyy. MM. dd.', { locale: ko }) : t('task.startDateTbd')}
                           {' ~ '}
-                          {editedTask.due_date ? format(new Date(editedTask.due_date), 'yyyy. MM. dd.', { locale: ko }) : '종료일 미정'}
+                          {editedTask.due_date ? format(new Date(editedTask.due_date), 'yyyy. MM. dd.', { locale: ko }) : t('task.endDateTbd')}
                         </>
                       ) : (
-                        <span className="text-slate-400">날짜를 선택하세요</span>
+                        <span className="text-slate-400">{t('task.selectDate')}</span>
                       )}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 bg-bridge-obsidian border-white/20" align="start">
+                  <PopoverContent className="w-auto p-0 bg-bridge-obsidian border-white/10" align="start">
                     <Calendar
                       mode="range"
                       selected={{
@@ -509,30 +513,30 @@ export function TaskDetailModal({
                       className="bg-bridge-obsidian text-foreground"
                     />
                     {(editedTask.start_date || editedTask.due_date) && (
-                      <div className="p-2 border-t border-white/20">
+                      <div className="p-2 border-t border-white/10">
                         <Button
                           variant="ghost"
                           size="sm"
                           className="w-full text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10"
                           onClick={() => updateEditedTask({ start_date: null, due_date: null })}
                         >
-                          날짜 삭제
+                          {t('task.deleteDate')}
                         </Button>
                       </div>
                     )}
                   </PopoverContent>
                 </Popover>
               ) : (
-                <div className="w-full h-10 flex items-center bg-white/5 border border-white/20 rounded-md px-3 text-foreground opacity-70">
+                <div className="w-full h-10 flex items-center bg-kanban-bg/50 border border-kanban-border/30 rounded-md px-3 text-foreground opacity-70">
                   <CalendarIcon className="mr-2 h-4 w-4 text-slate-400" />
                   {editedTask.start_date || editedTask.due_date ? (
                     <>
-                      {editedTask.start_date ? format(new Date(editedTask.start_date), 'yyyy. MM. dd.', { locale: ko }) : '시작일 미정'}
+                      {editedTask.start_date ? format(new Date(editedTask.start_date), 'yyyy. MM. dd.', { locale: ko }) : t('task.startDateTbd')}
                       {' ~ '}
-                      {editedTask.due_date ? format(new Date(editedTask.due_date), 'yyyy. MM. dd.', { locale: ko }) : '종료일 미정'}
+                      {editedTask.due_date ? format(new Date(editedTask.due_date), 'yyyy. MM. dd.', { locale: ko }) : t('task.endDateTbd')}
                     </>
                   ) : (
-                    <span className="text-slate-400">날짜 없음</span>
+                    <span className="text-slate-400">{t('task.noDate')}</span>
                   )}
                 </div>
               )}
@@ -542,7 +546,7 @@ export function TaskDetailModal({
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Users className="h-4 w-4 text-slate-400" />
-                <Label className="text-slate-400 font-medium">담당자</Label>
+                <Label className="text-[11px] font-bold uppercase tracking-widest text-slate-400">{t('task.assignee')}</Label>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
                 {(() => {
@@ -557,7 +561,7 @@ export function TaskDetailModal({
                     }, [] as Array<{ id: string; name: string; profile_image: string | null }>);
 
                   if (uniqueAssignees.length === 0) {
-                    return <span className="text-sm text-slate-400">체크리스트에 담당자를 추가하세요</span>;
+                    return <span className="text-sm text-slate-400">{t('task.addAssigneeToChecklist')}</span>;
                   }
 
                   return uniqueAssignees.map((assignee) => {
@@ -584,9 +588,9 @@ export function TaskDetailModal({
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Tags className="h-4 w-4 text-slate-400" />
-                <Label className="text-slate-400 font-medium">태그</Label>
+                <Label className="text-[11px] font-bold uppercase tracking-widest text-slate-400">{t('task.tags')}</Label>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 items-center">
                 {taskTags.map((tag) => (
                   <span
                     key={tag.id}
@@ -608,82 +612,29 @@ export function TaskDetailModal({
                     )}
                   </span>
                 ))}
-
-                {canEdit && (showTagInput ? (
-                  <div className="flex gap-1 items-center">
-                    <Input
-                      value={newTagName}
-                      onChange={(e) => setNewTagName(e.target.value)}
-                      placeholder="태그 이름"
-                      className="h-7 w-32 text-sm bg-white/5 border-white/20 text-foreground placeholder:text-slate-400"
-                      onKeyDown={(e) => {
-                        if (e.nativeEvent.isComposing) return;
-                        if (e.key === 'Enter') {
-                          handleCreateNewTag();
-                        }
-                      }}
-                    />
-                    <Button size="sm" onClick={handleCreateNewTag} className="bg-bridge-accent hover:bg-bridge-accent/90">
-                      생성
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => {
-                        setShowTagInput(false);
-                        setNewTagName('');
-                      }}
-                      className="text-slate-400 hover:text-foreground hover:bg-white/10"
-                    >
-                      취소
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="flex gap-1">
-                    {availableTagsToAdd.length > 0 && (
-                      <Select onValueChange={handleAddTag}>
-                        <SelectTrigger className="w-[120px] h-7 text-sm bg-white/5 border-white/20 text-foreground">
-                          <SelectValue placeholder="태그 추가" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-bridge-obsidian border-white/20">
-                          {availableTagsToAdd.map((tag) => (
-                            <SelectItem key={tag.id} value={tag.id} className="text-foreground hover:bg-white/10">
-                              <div className="flex items-center gap-2">
-                                <div
-                                  className="w-3 h-3 rounded-full"
-                                  style={{ backgroundColor: tag.color }}
-                                />
-                                {tag.name}
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setShowTagInput(true)}
-                      className="bg-white/5 border-white/20 text-foreground hover:bg-white/10"
-                    >
-                      <Plus className="h-3 w-3 mr-1" />
-                      새 태그
-                    </Button>
-                  </div>
-                ))}
+                {canEdit && (
+                  <TagPickerPopover
+                    selectedTagIds={taskTags.map((t) => t.id)}
+                    availableTags={availableTags}
+                    onToggleTag={handleToggleTag}
+                    onCreateTag={onCreateTag}
+                    onUpdateTag={onUpdateTag}
+                    onDeleteTag={onDeleteTag}
+                  />
+                )}
               </div>
             </div>
           </div>
 
           {/* 체크리스트 섹션 */}
-          <div className="mt-6 pt-6 border-t border-white/20">
+          <div className="mt-6 pt-6 border-t border-white/10">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <CheckSquare className="h-5 w-5 text-indigo-400" />
                 <Label className="text-base font-semibold text-foreground">CheckList</Label>
               </div>
               <div className="flex items-center gap-3">
-                <div className="w-24 h-2 bg-zinc-700 rounded-full overflow-hidden">
+                <div className="w-24 h-2 bg-white/10 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-indigo-500 rounded-full transition-all duration-300"
                     style={{ width: `${checklistProgress}%` }}
@@ -704,10 +655,10 @@ export function TaskDetailModal({
                   </div>
                   <div>
                     <p className="text-xs font-semibold text-zinc-300 mb-1">
-                      체크리스트를 추가해보세요
+                      {t('task.addChecklistHint')}
                     </p>
                     <p className="text-[11px] text-zinc-500 leading-relaxed">
-                      이 태스크를 완수하기 위한 세부 항목을 체크리스트로 관리하세요. 담당자와 기한도 설정할 수 있어요.
+                      {t('task.addChecklistDesc')}
                     </p>
                   </div>
                 </div>
@@ -734,12 +685,12 @@ export function TaskDetailModal({
 
           {/* 저장 버튼 - 변경사항이 있을 때만 표시 (Viewer는 저장 불가) */}
           {canEdit && hasChanges && (
-            <div className="flex justify-end gap-2 pt-4 border-t border-white/20">
-              <Button variant="outline" onClick={handleClose} className="bg-white/5 border-white/20 text-foreground hover:bg-white/10">
-                취소
+            <div className="flex justify-end gap-2 pt-4 border-t border-white/10">
+              <Button variant="outline" onClick={handleClose} className="bg-white/5 border-white/10 text-foreground hover:bg-white/10">
+                {t('common.cancel')}
               </Button>
               <Button onClick={handleSave} className="bg-bridge-accent hover:bg-bridge-accent/90">
-                저장
+                {t('common.save')}
               </Button>
             </div>
           )}
@@ -747,7 +698,7 @@ export function TaskDetailModal({
 
           {/* 오른쪽: 댓글 패널 + 닫기 버튼 */}
           {boardId && (
-            <div className="w-[420px] border-l border-white/20 flex-shrink-0 relative">
+            <div className="w-[420px] border-l border-kanban-border/30 flex-shrink-0 relative bg-kanban-bg/30">
               {/* 닫기 버튼 */}
               <button
                 onClick={handleClose}
@@ -770,19 +721,19 @@ export function TaskDetailModal({
 
       {/* 확인 다이얼로그 */}
       <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-        <AlertDialogContent className="bg-bridge-obsidian border-white/20">
+        <AlertDialogContent className="bg-bridge-obsidian border-white/10">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-foreground">변경사항을 저장하시겠습니까?</AlertDialogTitle>
+            <AlertDialogTitle className="text-foreground">{t('task.saveChangesTitle')}</AlertDialogTitle>
             <AlertDialogDescription className="text-slate-400">
-              저장하지 않은 변경사항이 있습니다. 저장하지 않고 닫으면 변경사항이 사라집니다.
+              {t('task.saveChangesDesc')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={handleDiscardAndClose} className="bg-white/5 border-white/20 text-foreground hover:bg-white/10">
-              저장 안 함
+            <AlertDialogCancel onClick={handleDiscardAndClose} className="bg-white/5 border-white/10 text-foreground hover:bg-white/10">
+              {t('task.discard')}
             </AlertDialogCancel>
             <AlertDialogAction onClick={handleSaveAndClose} className="bg-bridge-accent hover:bg-bridge-accent/90">
-              저장
+              {t('common.save')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -790,16 +741,16 @@ export function TaskDetailModal({
 
       {/* 삭제 다이얼로그 */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent className="bg-bridge-obsidian border-white/20">
+        <AlertDialogContent className="bg-bridge-obsidian border-white/10">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-foreground">이 작업을 삭제하시겠습니까?</AlertDialogTitle>
+            <AlertDialogTitle className="text-foreground">{t('task.deleteTitle')}</AlertDialogTitle>
             <AlertDialogDescription className="text-slate-400">
-              삭제된 작업은 복구할 수 없습니다.
+              {t('task.deleteDesc')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setShowDeleteDialog(false)} className="bg-white/5 border-white/20 text-foreground hover:bg-white/10">
-              취소
+            <AlertDialogCancel onClick={() => setShowDeleteDialog(false)} className="bg-white/5 border-white/10 text-foreground hover:bg-white/10">
+              {t('common.cancel')}
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
@@ -811,7 +762,7 @@ export function TaskDetailModal({
               }}
               className="bg-red-500 hover:bg-red-600 text-white"
             >
-              삭제
+              {t('common.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -819,16 +770,16 @@ export function TaskDetailModal({
 
       {/* 완료 처리 다이얼로그 */}
       <AlertDialog open={showDoneDialog} onOpenChange={setShowDoneDialog}>
-        <AlertDialogContent className="bg-bridge-obsidian border-white/20">
+        <AlertDialogContent className="bg-bridge-obsidian border-white/10">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-foreground">이 작업을 완료 처리하시겠습니까?</AlertDialogTitle>
+            <AlertDialogTitle className="text-foreground">{t('task.completeTitle')}</AlertDialogTitle>
             <AlertDialogDescription className="text-slate-400">
-              작업이 Done 블록으로 이동됩니다.
+              {t('task.completeDesc')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setShowDoneDialog(false)} className="bg-white/5 border-white/20 text-foreground hover:bg-white/10">
-              취소
+            <AlertDialogCancel onClick={() => setShowDoneDialog(false)} className="bg-white/5 border-white/10 text-foreground hover:bg-white/10">
+              {t('common.cancel')}
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
@@ -840,7 +791,7 @@ export function TaskDetailModal({
               }}
               className="bg-emerald-500 hover:bg-emerald-600 text-white"
             >
-              완료 처리
+              {t('task.markComplete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -848,11 +799,11 @@ export function TaskDetailModal({
 
       {/* 블록 이동 다이얼로그 */}
       <Dialog open={showMoveDialog} onOpenChange={setShowMoveDialog}>
-        <DialogContent className="max-w-sm bg-bridge-obsidian border-white/20 text-foreground">
+        <DialogContent className="max-w-sm bg-bridge-obsidian border-white/10 text-foreground">
           <DialogHeader>
-            <DialogTitle className="text-foreground">블록 이동</DialogTitle>
+            <DialogTitle className="text-foreground">{t('task.moveBlockTitle')}</DialogTitle>
             <DialogDescription className="text-slate-400">
-              이동할 블록을 선택하세요.
+              {t('task.moveBlockDesc')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2 py-4">
@@ -865,7 +816,7 @@ export function TaskDetailModal({
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg border transition-all ${
                     selectedBlockId === block.id
                       ? 'border-bridge-accent bg-bridge-accent/10'
-                      : 'border-white/20 hover:border-white/20 hover:bg-white/5'
+                      : 'border-white/10 hover:border-white/10 hover:bg-white/5'
                   }`}
                 >
                   <Layers className="h-4 w-4 text-slate-400" />
@@ -880,9 +831,9 @@ export function TaskDetailModal({
                 setShowMoveDialog(false);
                 setSelectedBlockId(null);
               }}
-              className="bg-white/5 border-white/20 text-foreground hover:bg-white/10"
+              className="bg-white/5 border-white/10 text-foreground hover:bg-white/10"
             >
-              취소
+              {t('common.cancel')}
             </Button>
             <Button
               onClick={() => {
@@ -896,7 +847,7 @@ export function TaskDetailModal({
               disabled={!selectedBlockId}
               className="bg-bridge-accent hover:bg-bridge-accent/90 disabled:opacity-50"
             >
-              이동
+              {t('task.move')}
             </Button>
           </div>
         </DialogContent>
@@ -904,16 +855,16 @@ export function TaskDetailModal({
 
       {/* 체크리스트 아이템 삭제 확인 다이얼로그 */}
       <AlertDialog open={!!checklistItemToDelete} onOpenChange={(open) => !open && setChecklistItemToDelete(null)}>
-        <AlertDialogContent className="bg-bridge-obsidian border-white/20">
+        <AlertDialogContent className="bg-bridge-obsidian border-white/10">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-foreground">체크리스트 항목을 삭제하시겠습니까?</AlertDialogTitle>
+            <AlertDialogTitle className="text-foreground">{t('task.deleteChecklistTitle')}</AlertDialogTitle>
             <AlertDialogDescription className="text-slate-400">
-              삭제된 항목은 복구할 수 없습니다.
+              {t('task.deleteChecklistDesc')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setChecklistItemToDelete(null)} className="bg-white/5 border-white/20 text-foreground hover:bg-white/10">
-              취소
+            <AlertDialogCancel onClick={() => setChecklistItemToDelete(null)} className="bg-white/5 border-white/10 text-foreground hover:bg-white/10">
+              {t('common.cancel')}
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
@@ -924,7 +875,7 @@ export function TaskDetailModal({
               }}
               className="bg-red-500 hover:bg-red-600 text-white"
             >
-              삭제
+              {t('common.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -951,6 +902,7 @@ function ChecklistItemRow({
   boardId: string | null;
   canEdit?: boolean;
 }) {
+  const { t } = useTranslation();
   const [isEditing, setIsEditing] = useState(false);
   const [editedTitle, setEditedTitle] = useState(item.title);
   const [showOptions, setShowOptions] = useState(false);
@@ -1010,7 +962,7 @@ function ChecklistItemRow({
 
   return (
     <>
-    <div className="group flex items-center gap-2 p-2 rounded hover:bg-white/5 border border-transparent hover:border-white/20">
+    <div className="group flex items-center gap-2 p-2 rounded hover:bg-white/5 border border-transparent hover:border-white/10">
       {/* 체크박스 */}
       <button
         onClick={canEdit ? onToggle : undefined}
@@ -1042,7 +994,7 @@ function ChecklistItemRow({
             onChange={(e) => setEditedTitle(e.target.value)}
             onBlur={handleSaveTitle}
             onKeyDown={handleKeyDown}
-            className="text-xs h-6 bg-white/5 border-white/20 text-foreground"
+            className="text-xs h-6 bg-white/5 border-white/10 text-foreground"
             autoFocus
           />
         ) : (
@@ -1084,11 +1036,11 @@ function ChecklistItemRow({
                       return <>~ {format(new Date(endDate!), 'M/d', { locale: ko })}</>;
                     }
                   }
-                  return <span className="text-slate-400">날짜</span>;
+                  return <span className="text-slate-400">{t('task.date')}</span>;
                 })()}
               </button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0 bg-bridge-obsidian border-white/20" align="end">
+            <PopoverContent className="w-auto p-0 bg-bridge-obsidian border-white/10" align="end">
               <Calendar
                 mode="range"
                 selected={{
@@ -1106,14 +1058,14 @@ function ChecklistItemRow({
                 className="bg-bridge-obsidian text-foreground"
               />
               {(item.start_date || item.due_date) && (
-                <div className="p-2 border-t border-white/20">
+                <div className="p-2 border-t border-white/10">
                   <Button
                     variant="ghost"
                     size="sm"
                     className="w-full text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10"
                     onClick={() => onUpdate({ start_date: null, due_date: null })}
                   >
-                    날짜 삭제
+                    {t('task.deleteDate')}
                   </Button>
                 </div>
               )}
@@ -1163,7 +1115,7 @@ function ChecklistItemRow({
                 </button>
               )}
             </PopoverTrigger>
-            <PopoverContent className="w-40 p-1 bg-bridge-obsidian border-white/20" align="end">
+            <PopoverContent className="w-40 p-1 bg-bridge-obsidian border-white/10" align="end">
               <div className="space-y-0.5">
                 <button
                   onClick={() => onUpdate({ assignee: null })}
@@ -1171,7 +1123,7 @@ function ChecklistItemRow({
                     !item.assignee ? 'bg-white/10 text-foreground' : 'text-slate-300'
                   }`}
                 >
-                  없음
+                  {t('common.none')}
                 </button>
                 {boardMembers.map((member) => {
                   const memberColor = getAssigneeClasses(member.name, member.assigneeColor);
@@ -1233,7 +1185,7 @@ function ChecklistItemRow({
             ? 'text-bridge-accent bg-bridge-accent/10'
             : 'text-slate-400 hover:text-slate-400 hover:bg-white/5'
         }`}
-        title="타임블록 보기"
+        title={t('task.viewTimeBlocks')}
       >
         {isLoadingTimeBlocks ? (
           <Loader2 className="h-3 w-3 animate-spin" />
@@ -1264,7 +1216,7 @@ function ChecklistItemRow({
       <div className="ml-6 mt-1 mb-2 space-y-1">
         {timeBlocks.length === 0 ? (
           <div className="text-xs text-slate-400 py-1 px-2">
-            등록된 타임블록이 없습니다
+            {t('task.noTimeBlocks')}
           </div>
         ) : (
           <>
@@ -1304,6 +1256,7 @@ function AddChecklistItemInput({
   boardMembers: BoardMember[];
   currentUser: User | null;
 }) {
+  const { t } = useTranslation();
   const [value, setValue] = useState('');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [assigneeId, setAssigneeId] = useState('');
@@ -1369,13 +1322,13 @@ function AddChecklistItemInput({
         onClick={handleStartAdding}
       >
         <Plus className="h-4 w-4 mr-2" />
-        체크리스트 항목 추가
+        {t('task.addChecklistItem')}
       </Button>
     );
   }
 
   return (
-    <div className="p-3 border border-white/20 rounded-lg bg-white/5">
+    <div className="p-3 border border-white/10 rounded-lg bg-white/5">
       <div className="flex gap-2 items-start">
         <div className="w-4 h-4 rounded bg-slate-600 flex-shrink-0 mt-1.5" />
         <div className="flex-1 space-y-2">
@@ -1383,21 +1336,21 @@ function AddChecklistItemInput({
             value={value}
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="항목 입력..."
-            className="text-xs h-7 bg-white/5 border-white/20 text-foreground placeholder:text-slate-400"
+            placeholder={t('task.checklistItemPlaceholder')}
+            className="text-xs h-7 bg-white/5 border-white/10 text-foreground placeholder:text-slate-400"
             autoFocus
           />
 
           {/* 옵션 필드들 */}
-          <div className="flex gap-2 pt-2 border-t border-white/20">
+          <div className="flex gap-2 pt-2 border-t border-white/10">
               {/* 날짜 범위 선택 */}
               <div className="flex-1">
-                <label className="text-xs text-slate-400 block mb-1">기간</label>
+                <label className="text-xs text-slate-400 block mb-1">{t('task.period')}</label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
-                      className="w-full h-7 text-xs justify-start text-left font-normal bg-white/5 border-white/20 text-foreground hover:bg-white/10"
+                      className="w-full h-7 text-xs justify-start text-left font-normal bg-white/5 border-white/10 text-foreground hover:bg-white/10"
                     >
                       <CalendarIcon className="mr-2 h-3 w-3" />
                       {dateRange?.from ? (
@@ -1410,11 +1363,11 @@ function AddChecklistItemInput({
                           format(dateRange.from, 'MM/dd', { locale: ko })
                         )
                       ) : (
-                        <span className="text-slate-400">날짜 선택</span>
+                        <span className="text-slate-400">{t('task.selectDate')}</span>
                       )}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 bg-bridge-obsidian border-white/20" align="start">
+                  <PopoverContent className="w-auto p-0 bg-bridge-obsidian border-white/10" align="start">
                     <Calendar
                       mode="range"
                       selected={dateRange}
@@ -1429,12 +1382,12 @@ function AddChecklistItemInput({
 
               {/* 담당자 */}
               <div className="flex-1">
-                <label className="text-xs text-slate-400 block mb-1">담당자</label>
+                <label className="text-xs text-slate-400 block mb-1">{t('task.assignee')}</label>
                 <Select
                   value={assigneeId || 'none'}
                   onValueChange={(val) => setAssigneeId(val === 'none' ? '' : val)}
                 >
-                  <SelectTrigger className="h-7 text-xs bg-white/5 border-white/20 text-foreground">
+                  <SelectTrigger className="h-7 text-xs bg-white/5 border-white/10 text-foreground">
                     {selectedMember ? (
                       <div className="flex items-center gap-1">
                         <div className="w-4 h-4 rounded-full bg-bridge-accent flex items-center justify-center text-[10px] text-white flex-shrink-0">
@@ -1443,12 +1396,12 @@ function AddChecklistItemInput({
                         <span>{selectedMember.name}</span>
                       </div>
                     ) : (
-                      <SelectValue placeholder="없음" />
+                      <SelectValue placeholder={t('common.none')} />
                     )}
                   </SelectTrigger>
-                  <SelectContent className="bg-bridge-obsidian border-white/20">
+                  <SelectContent className="bg-bridge-obsidian border-white/10">
                     <SelectItem value="none" className="text-foreground hover:bg-white/10">
-                      <span className="text-xs">없음</span>
+                      <span className="text-xs">{t('common.none')}</span>
                     </SelectItem>
                     {boardMembers.map((member) => (
                       <SelectItem key={member.userId} value={member.userId} className="text-foreground hover:bg-white/10">
@@ -1473,7 +1426,7 @@ function AddChecklistItemInput({
       {/* 버튼 영역 */}
       <div className="flex justify-end gap-2 mt-2">
         <Button size="sm" onClick={handleAdd} className="h-7 bg-bridge-accent hover:bg-bridge-accent/90">
-          추가
+          {t('common.add')}
         </Button>
         <Button
           size="sm"
@@ -1481,7 +1434,7 @@ function AddChecklistItemInput({
           onClick={handleCancel}
           className="h-7 text-slate-400 hover:text-foreground hover:bg-white/10"
         >
-          취소
+          {t('common.cancel')}
         </Button>
       </div>
     </div>

@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Megaphone, Info, AlertCircle, ChevronRight, Calendar } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { systemService } from '../utils/services';
 import type { AnnouncementDetail } from '../utils/api';
 import { formatDate } from '../utils/dateUtils';
 
 export function AnnouncementsPage() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [announcements, setAnnouncements] = useState<AnnouncementDetail[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<AnnouncementDetail | null>(null);
@@ -46,11 +48,11 @@ export function AnnouncementsPage() {
   const getTypeBadge = (type: string) => {
     switch (type) {
       case 'BANNER':
-        return { label: '배너', color: 'bg-orange-500/20 text-orange-400' };
+        return { label: t('announcements.banner'), color: 'bg-orange-500/20 text-orange-400' };
       case 'POPUP':
-        return { label: '팝업', color: 'bg-red-500/20 text-red-400' };
+        return { label: t('announcements.popup'), color: 'bg-red-500/20 text-red-400' };
       default:
-        return { label: '공지', color: 'bg-bridge-accent/20 text-bridge-accent' };
+        return { label: t('announcements.notice'), color: 'bg-bridge-accent/20 text-bridge-accent' };
     }
   };
 
@@ -67,8 +69,8 @@ export function AnnouncementsPage() {
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div>
-            <h1 className="text-xl font-bold text-white">공지사항</h1>
-            <p className="text-sm text-slate-400">서비스 관련 안내사항을 확인하세요</p>
+            <h1 className="text-xl font-bold text-white">{t('announcements.title')}</h1>
+            <p className="text-sm text-slate-400">{t('announcements.subtitle')}</p>
           </div>
         </div>
       </header>
@@ -84,7 +86,7 @@ export function AnnouncementsPage() {
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white/5 mb-4">
               <Megaphone className="h-8 w-8 text-slate-500" />
             </div>
-            <p className="text-slate-400">등록된 공지사항이 없습니다</p>
+            <p className="text-slate-400">{t('announcements.noAnnouncements')}</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -107,7 +109,7 @@ export function AnnouncementsPage() {
                         </span>
                         {announcement.priority && announcement.priority > 0 && (
                           <span className="text-xs px-2 py-0.5 rounded-full bg-red-500/20 text-red-400">
-                            중요
+                            {t('announcements.important')}
                           </span>
                         )}
                       </div>
@@ -136,7 +138,7 @@ export function AnnouncementsPage() {
       {/* Detail Modal */}
       {selectedAnnouncement && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4"
           onClick={() => setSelectedAnnouncement(null)}
         >
           <div
@@ -163,7 +165,7 @@ export function AnnouncementsPage() {
                   {selectedAnnouncement.content}
                 </div>
               ) : (
-                <p className="text-slate-500 italic">내용이 없습니다</p>
+                <p className="text-slate-500 italic">{t('announcements.noContent')}</p>
               )}
             </div>
 
@@ -173,7 +175,7 @@ export function AnnouncementsPage() {
                 onClick={() => setSelectedAnnouncement(null)}
                 className="w-full py-3 bg-bridge-accent text-white rounded-xl font-medium hover:bg-bridge-accent/90 transition-colors"
               >
-                확인
+                {t('common.confirm')}
               </button>
             </div>
           </div>

@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { SubscriptionStatus, BoardTier } from '../types';
 import { Button } from './ui/button';
 import { Lock } from 'lucide-react';
@@ -11,6 +12,8 @@ interface TrialBannerProps {
 }
 
 export function TrialBanner({ status, daysRemaining = 0, onOpenSubscription, tier, hideBilling }: TrialBannerProps) {
+  const { t } = useTranslation();
+
   // TESTER/ADMIN 사용자는 과금 배너 숨김
   if (hideBilling) return null;
   // Standard tier: 간결한 알림 배너
@@ -21,7 +24,7 @@ export function TrialBanner({ status, daysRemaining = 0, onOpenSubscription, tie
           <div className="flex items-center gap-2">
             <Lock className="h-4 w-4 text-slate-400" />
             <span className="text-sm text-slate-400">
-              Standard 플랜 - Task 10개 제한, 스케줄/마일스톤 기능 잠금
+              {t('trial.standardPlan')}
             </span>
           </div>
           <Button
@@ -29,7 +32,7 @@ export function TrialBanner({ status, daysRemaining = 0, onOpenSubscription, tie
             className="h-7 text-xs bg-bridge-accent hover:bg-bridge-accent/90"
             onClick={onOpenSubscription}
           >
-            Premium으로 업그레이드
+            {t('trial.upgradeToPremium')}
           </Button>
         </div>
       </div>
@@ -46,20 +49,20 @@ export function TrialBanner({ status, daysRemaining = 0, onOpenSubscription, tie
             <span className="text-2xl">🎉</span>
             <div>
               <span className="font-semibold text-white">
-                무료 체험 중 (D-{daysRemaining})
+                {t('trial.trialActive', { days: daysRemaining })}
               </span>
               <span className="text-blue-200 ml-2">
-                체험 기간이 {daysRemaining}일 남았습니다.
+                {t('trial.trialRemaining', { days: daysRemaining })}
               </span>
             </div>
           </div>
-          <Button 
-            variant="outline" 
-            size="sm" 
+          <Button
+            variant="outline"
+            size="sm"
             className="border-blue-400 text-white hover:bg-blue-800"
             onClick={onOpenSubscription}
           >
-            요금제 보기
+            {t('trial.viewPricing')}
           </Button>
         </div>
       </div>
@@ -74,19 +77,19 @@ export function TrialBanner({ status, daysRemaining = 0, onOpenSubscription, tie
             <span className="text-2xl">⚠️</span>
             <div>
               <span className="font-semibold text-white">
-                체험 기간이 종료되었습니다
+                {t('trial.trialEnded')}
               </span>
               <span className="text-yellow-200 ml-2">
-                3일 내 구독하지 않으면 기능이 제한됩니다.
+                {t('trial.graceWarning')}
               </span>
             </div>
           </div>
-          <Button 
-            size="sm" 
+          <Button
+            size="sm"
             className="bg-yellow-500 hover:bg-yellow-600 text-slate-900"
             onClick={onOpenSubscription}
           >
-            지금 구독하기
+            {t('trial.subscribeNow')}
           </Button>
         </div>
       </div>
@@ -101,23 +104,23 @@ export function TrialBanner({ status, daysRemaining = 0, onOpenSubscription, tie
             <span className="text-2xl">🔒</span>
             <div>
               <span className="font-semibold text-white">
-                이 보드는 현재 정지 상태입니다
+                {t('trial.boardSuspended')}
               </span>
               <span className="text-red-200 ml-2">
-                구독을 시작하면 모든 기능을 다시 사용할 수 있습니다.
+                {t('trial.suspendedDesc')}
               </span>
             </div>
           </div>
           <div className="flex gap-2">
-            <Button 
-              size="sm" 
+            <Button
+              size="sm"
               className="bg-red-500 hover:bg-red-600"
               onClick={onOpenSubscription}
             >
-              구독하기
+              {t('trial.subscribe')}
             </Button>
             <Button variant="outline" size="sm" className="border-red-400 text-white hover:bg-red-800">
-              데이터 내보내기
+              {t('trial.exportData')}
             </Button>
           </div>
         </div>

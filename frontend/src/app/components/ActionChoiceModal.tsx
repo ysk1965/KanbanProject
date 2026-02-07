@@ -17,7 +17,7 @@ export function ActionChoiceModal({
   onClose,
 }: ActionChoiceModalProps) {
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
       <div className="bg-bridge-obsidian rounded-2xl shadow-2xl w-[400px] overflow-hidden border border-white/20">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4">

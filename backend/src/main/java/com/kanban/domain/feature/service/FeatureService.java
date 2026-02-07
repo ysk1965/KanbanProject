@@ -132,7 +132,6 @@ public class FeatureService {
                 .description(request.getDescription())
                 .color(request.getColor())
                 .assignee(assignee)
-                .priority(request.getPriority())
                 .dueDate(request.getDueDate())
                 .position(newPosition)
                 .createdBy(creator)
@@ -164,7 +163,6 @@ public class FeatureService {
                 request.getTitle(),
                 request.getDescription(),
                 request.getColor(),
-                request.getPriority(),
                 request.getDueDate()
         );
 

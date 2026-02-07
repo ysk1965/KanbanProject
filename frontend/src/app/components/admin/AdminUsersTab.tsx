@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Search, ChevronLeft, ChevronRight, Shield, User as UserIcon, Mail, Calendar } from 'lucide-react';
 import { adminService } from '../../utils/services';
 import { UserListResponse } from '../../utils/api';
@@ -6,6 +7,7 @@ import { AdminUserDetailModal } from './AdminUserDetailModal';
 import { formatDate as dateUtilsFormatDate } from '../../utils/dateUtils';
 
 export function AdminUsersTab() {
+  const { t } = useTranslation();
   const [users, setUsers] = useState<UserListResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -21,7 +23,7 @@ export function AdminUsersTab() {
       setUsers(data);
     } catch (err) {
       console.error('Failed to load users:', err);
-      setError('사용자 목록을 불러오는데 실패했습니다');
+      setError(t('admin.users.loadFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -42,15 +44,15 @@ export function AdminUsersTab() {
   };
 
   const formatDate = (dateString: string) => {
-    return dateUtilsFormatDate(dateString, 'yyyy년 M월 d일');
+    return dateUtilsFormatDate(dateString, t('admin.common.dateFormat'));
   };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white mb-2">사용자 관리</h2>
-          <p className="text-slate-400">시스템 사용자를 관리합니다</p>
+          <h2 className="text-2xl font-bold text-white mb-2">{t('admin.users.title')}</h2>
+          <p className="text-slate-400">{t('admin.users.subtitle')}</p>
         </div>
       </div>
 
@@ -62,7 +64,7 @@ export function AdminUsersTab() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="이름 또는 이메일로 검색..."
+            placeholder={t('admin.users.searchPlaceholder')}
             className="w-full bg-bridge-obsidian border border-white/20 rounded-xl py-3 pl-12 pr-4
               text-white placeholder-slate-400
               focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent
@@ -74,7 +76,7 @@ export function AdminUsersTab() {
           className="px-6 py-3 bg-bridge-accent text-white rounded-xl font-medium
             hover:bg-bridge-accent/90 transition-colors"
         >
-          검색
+          {t('common.search')}
         </button>
       </form>
 
@@ -86,7 +88,7 @@ export function AdminUsersTab() {
             onClick={loadUsers}
             className="mt-4 px-4 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors"
           >
-            다시 시도
+            {t('common.retry')}
           </button>
         </div>
       )}
@@ -106,19 +108,19 @@ export function AdminUsersTab() {
               <thead>
                 <tr className="border-b border-white/15">
                   <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-                    사용자
+                    {t('admin.users.user')}
                   </th>
                   <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-                    역할
+                    {t('admin.users.role')}
                   </th>
                   <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-                    가입방식
+                    {t('admin.users.provider')}
                   </th>
                   <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-                    보드
+                    {t('admin.users.boards')}
                   </th>
                   <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-                    가입일
+                    {t('admin.users.joinedAt')}
                   </th>
                 </tr>
               </thead>
@@ -194,7 +196,7 @@ export function AdminUsersTab() {
           {/* Pagination */}
           <div className="flex items-center justify-between">
             <p className="text-slate-400 text-sm">
-              총 {users.total.toLocaleString()}명
+              {t('admin.common.totalPeople', { count: users.total.toLocaleString() })}
             </p>
             <div className="flex items-center gap-2">
               <button

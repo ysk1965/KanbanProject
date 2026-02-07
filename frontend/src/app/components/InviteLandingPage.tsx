@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button } from './ui/button';
 import { Users, Shield, ArrowRight, Loader2 } from 'lucide-react';
 import { inviteLinkService } from '../utils/services';
@@ -24,6 +25,7 @@ export function InviteLandingPage({
   onLogin,
   onAcceptInvite,
 }: InviteLandingPageProps) {
+  const { t } = useTranslation();
   const [inviteInfo, setInviteInfo] = useState<InviteInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAccepting, setIsAccepting] = useState(false);
@@ -36,7 +38,7 @@ export function InviteLandingPage({
         const info = await inviteLinkService.getInviteLinkInfo(inviteCode);
         setInviteInfo(info);
       } catch (err: any) {
-        setError(err?.message || '초대 링크를 확인할 수 없습니다.');
+        setError(err?.message || t('invite.linkError'));
       } finally {
         setIsLoading(false);
       }
@@ -58,7 +60,7 @@ export function InviteLandingPage({
       const result = await inviteLinkService.acceptInvite(inviteCode);
       onAcceptInvite(result.board_id);
     } catch (err: any) {
-      setError(err?.message || '보드 참여에 실패했습니다.');
+      setError(err?.message || t('invite.joinFailed'));
     } finally {
       setIsAccepting(false);
     }
@@ -66,9 +68,9 @@ export function InviteLandingPage({
 
   const getRoleDisplay = (role: string) => {
     const roleMap: Record<string, { label: string; description: string }> = {
-      ADMIN: { label: 'Admin', description: '모든 권한 (멤버 관리, 보드 설정, 카드 편집 등)' },
-      MEMBER: { label: 'Member', description: '카드 생성 및 편집, 댓글 작성' },
-      VIEWER: { label: 'Observer', description: '읽기 전용 (카드 조회만 가능)' },
+      ADMIN: { label: 'Admin', description: t('invite.roleAdmin') },
+      MEMBER: { label: 'Member', description: t('invite.roleMember') },
+      VIEWER: { label: 'Observer', description: t('invite.roleViewer') },
     };
     return roleMap[role] || { label: role, description: '' };
   };
@@ -78,7 +80,7 @@ export function InviteLandingPage({
       <div className="min-h-screen bg-bridge-dark flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin text-blue-500 mx-auto mb-4" />
-          <p className="text-slate-400">초대 정보를 불러오는 중...</p>
+          <p className="text-slate-400">{t('invite.loadingInfo')}</p>
         </div>
       </div>
     );
@@ -91,15 +93,15 @@ export function InviteLandingPage({
           <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
             <Shield className="h-8 w-8 text-red-500" />
           </div>
-          <h1 className="text-xl font-bold text-white mb-2">유효하지 않은 초대 링크</h1>
+          <h1 className="text-xl font-bold text-white mb-2">{t('invite.invalidLink')}</h1>
           <p className="text-slate-400 mb-6">
-            {error || inviteInfo?.message || '이 초대 링크는 만료되었거나 존재하지 않습니다.'}
+            {error || inviteInfo?.message || t('invite.defaultInvalidMessage')}
           </p>
           <Button
             onClick={() => window.location.href = '/'}
             className="bg-blue-600 hover:bg-blue-700 text-white"
           >
-            홈으로 돌아가기
+            {t('invite.goHome')}
           </Button>
         </div>
       </div>
@@ -116,8 +118,8 @@ export function InviteLandingPage({
           <div className="w-16 h-16 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
             <Users className="h-8 w-8 text-blue-500" />
           </div>
-          <h1 className="text-2xl font-bold text-white mb-2">보드 초대</h1>
-          <p className="text-slate-400">아래 보드에 참여하도록 초대받았습니다</p>
+          <h1 className="text-2xl font-bold text-white mb-2">{t('invite.title')}</h1>
+          <p className="text-slate-400">{t('invite.subtitle')}</p>
         </div>
 
         {/* 보드 정보 */}
@@ -125,7 +127,7 @@ export function InviteLandingPage({
           <h2 className="text-lg font-semibold text-white mb-3">{inviteInfo.board_name}</h2>
 
           <div className="flex items-center gap-2 text-sm">
-            <span className="text-slate-400">참여 역할:</span>
+            <span className="text-slate-400">{t('invite.role')}</span>
             <span className={`px-2 py-1 rounded text-xs font-medium ${
               inviteInfo.role === 'ADMIN' ? 'bg-purple-500/20 text-purple-400' :
               inviteInfo.role === 'MEMBER' ? 'bg-blue-500/20 text-blue-400' :
@@ -147,11 +149,11 @@ export function InviteLandingPage({
             {isAccepting ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                참여 중...
+                {t('invite.joining')}
               </>
             ) : (
               <>
-                보드 참여하기
+                {t('invite.joinBoard')}
                 <ArrowRight className="h-4 w-4 ml-2" />
               </>
             )}
@@ -162,11 +164,11 @@ export function InviteLandingPage({
               onClick={handleAcceptInvite}
               className="w-full bg-blue-600 hover:bg-blue-700 text-white"
             >
-              보드 참여하기
+              {t('invite.joinBoard')}
               <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
             <p className="text-xs text-slate-400 text-center">
-              로그인 또는 회원가입 후 자동으로 보드에 참여됩니다
+              {t('invite.joinAfterLogin')}
             </p>
           </div>
         )}
@@ -174,7 +176,7 @@ export function InviteLandingPage({
         {/* 푸터 */}
         <div className="mt-6 pt-4 border-t border-white/20 text-center">
           <p className="text-xs text-slate-400">
-            Team Kanban - 팀 협업을 위한 칸반보드
+            {t('invite.footer')}
           </p>
         </div>
       </div>

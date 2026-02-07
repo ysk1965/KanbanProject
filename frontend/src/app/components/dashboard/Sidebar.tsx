@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { LayoutGrid, Star, Users, Settings, ChevronRight, Zap, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -11,12 +12,13 @@ interface SidebarProps {
 
 export function Sidebar({ isOpen = true, onClose, onUpgradeClick, hideBilling }: SidebarProps) {
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const menuItems = [
-    { icon: <LayoutGrid size={20} />, label: '모든 보드', path: '/boards', active: true },
-    { icon: <Star size={20} />, label: '즐겨찾기', path: '/boards?filter=starred', active: false },
-    { icon: <Users size={20} />, label: '팀 멤버', path: '/teams', active: false },
-    { icon: <Settings size={20} />, label: '설정', path: '/settings', active: false },
+    { icon: <LayoutGrid size={20} />, label: t('dashboard.sidebar.allBoards'), path: '/boards', active: true },
+    { icon: <Star size={20} />, label: t('dashboard.sidebar.favorites'), path: '/boards?filter=starred', active: false },
+    { icon: <Users size={20} />, label: t('dashboard.sidebar.teamMembers'), path: '/teams', active: false },
+    { icon: <Settings size={20} />, label: t('dashboard.sidebar.settings'), path: '/settings', active: false },
   ];
 
   const handleNavigate = (path: string) => {
@@ -33,10 +35,11 @@ export function Sidebar({ isOpen = true, onClose, onUpgradeClick, hideBilling }:
             className="flex items-center gap-2 group cursor-pointer"
             onClick={() => handleNavigate('/')}
           >
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-bridge-accent to-purple-500 flex items-center justify-center font-serif italic font-bold shadow-lg shadow-bridge-accent/30">
-              B
+            <img src="/BridgeSpotsIcon.png" alt="BRIDGE SPOTS" className="w-8 h-8 rounded-lg shadow-lg shadow-[#2DD4BF]/20" />
+            <div className="flex flex-col leading-none">
+              <span className="text-lg font-bold tracking-tighter font-serif">BRIDGE</span>
+              <span className="text-[9px] font-bold text-[#2DD4BF] tracking-[0.25em] uppercase">SPOTS</span>
             </div>
-            <span className="text-xl font-bold tracking-tighter font-serif">BRIDGE</span>
             <ChevronRight
               size={14}
               className="text-slate-400 group-hover:translate-x-1 transition-transform"
@@ -61,7 +64,7 @@ export function Sidebar({ isOpen = true, onClose, onUpgradeClick, hideBilling }:
               onClick={() => handleNavigate(item.path)}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
                 item.active
-                  ? 'bg-bridge-accent/10 text-bridge-accent shadow-[inset_0_0_20px_rgba(99,102,241,0.05)]'
+                  ? 'bg-[#2DD4BF]/10 text-[#2DD4BF] shadow-[inset_0_0_20px_rgba(45,212,191,0.05)]'
                   : 'text-slate-400 hover:bg-white/5 hover:text-white'
               }`}
             >
@@ -75,22 +78,22 @@ export function Sidebar({ isOpen = true, onClose, onUpgradeClick, hideBilling }:
       {/* Upgrade Card - TESTER/ADMIN 사용자는 숨김 */}
       {!hideBilling && (
         <div className="mt-auto p-6">
-          <div className="p-4 rounded-2xl bg-gradient-to-br from-bridge-accent to-purple-600 shadow-lg shadow-bridge-accent/20">
+          <div className="p-4 rounded-2xl bg-gradient-to-br from-[#2DD4BF] to-[#6366F1] shadow-lg shadow-[#2DD4BF]/15">
             <div className="flex items-center gap-2 mb-2">
               <Zap size={16} fill="white" />
-              <span className="text-xs font-bold uppercase tracking-tight">Upgrade Pro</span>
+              <span className="text-xs font-bold uppercase tracking-tight">{t('dashboard.sidebar.upgradePro')}</span>
             </div>
             <p className="text-[10px] text-white/80 mb-3 leading-relaxed">
-              무제한 보드와 고급 통계 기능을 사용해보세요.
+              {t('dashboard.sidebar.upgradeDesc')}
             </p>
             <button
               onClick={() => {
                 onUpgradeClick?.();
                 onClose?.();
               }}
-              className="w-full py-2 bg-white text-bridge-accent text-xs font-bold rounded-lg hover:bg-slate-100 transition-colors"
+              className="w-full py-2 bg-white text-[#0d1525] text-xs font-bold rounded-lg hover:bg-slate-100 transition-colors"
             >
-              플랜 보기
+              {t('dashboard.sidebar.viewPlans')}
             </button>
           </div>
         </div>
@@ -101,7 +104,7 @@ export function Sidebar({ isOpen = true, onClose, onUpgradeClick, hideBilling }:
   return (
     <>
       {/* 데스크탑 사이드바 */}
-      <aside className="w-64 h-full hidden lg:flex flex-col border-r border-white/15 bg-bridge-dark/40 backdrop-blur-sm">
+      <aside className="w-64 h-full hidden lg:flex flex-col border-r border-white/[0.06] bg-[#060a12]/50 backdrop-blur-sm">
         {sidebarContent}
       </aside>
 
@@ -115,7 +118,7 @@ export function Sidebar({ isOpen = true, onClose, onUpgradeClick, hideBilling }:
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={onClose}
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
+              className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 lg:hidden"
             />
 
             {/* 사이드바 패널 */}
@@ -124,7 +127,7 @@ export function Sidebar({ isOpen = true, onClose, onUpgradeClick, hideBilling }:
               animate={{ x: 0 }}
               exit={{ x: -280 }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed left-0 top-0 w-64 h-full bg-bridge-dark border-r border-white/15 z-50 lg:hidden"
+              className="fixed left-0 top-0 w-64 h-full bg-[#060a12] border-r border-white/[0.06] z-50 lg:hidden"
             >
               {sidebarContent}
             </motion.aside>

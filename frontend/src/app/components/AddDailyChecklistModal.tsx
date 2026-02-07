@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   X,
   Loader2,
@@ -51,6 +52,7 @@ export function AddDailyChecklistModal({
   onAdd,
   onClose,
 }: AddDailyChecklistModalProps) {
+  const { t } = useTranslation();
   // 그룹핑된 체크리스트 데이터
   const [groupedData, setGroupedData] = useState<GroupedFeatureData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -176,7 +178,7 @@ export function AddDailyChecklistModal({
         setGroupedData(result);
       } catch (err) {
         console.error('Failed to load data:', err);
-        setError('데이터를 불러오는데 실패했습니다.');
+        setError(t('dailyChecklist.loadFailed'));
       } finally {
         setIsLoading(false);
       }
@@ -245,7 +247,7 @@ export function AddDailyChecklistModal({
       const errorMessage =
         err && typeof err === 'object' && 'message' in err
           ? (err as { message: string }).message
-          : '체크리스트 추가에 실패했습니다.';
+          : t('dailyChecklist.addFailed');
       setError(errorMessage);
       setIsSubmitting(false);
     }
@@ -319,16 +321,16 @@ export function AddDailyChecklistModal({
 
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-bridge-obsidian rounded-2xl shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden border border-white/20">
+    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-kanban-bg rounded-2xl shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden border border-white/10">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/15">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
           <div>
             <h2 className="text-lg font-bold text-white">
-              데일리 체크리스트 추가
+              {t('dailyChecklist.addTitle')}
             </h2>
             <p className="text-sm text-slate-400 mt-0.5">
-              추가할 체크리스트를 선택하세요
+              {t('dailyChecklist.selectPrompt')}
             </p>
           </div>
           <button
@@ -340,16 +342,16 @@ export function AddDailyChecklistModal({
         </div>
 
         {/* Milestone Filter & Search */}
-        <div className="px-6 py-3 border-b border-white/15 flex gap-3">
+        <div className="px-6 py-3 border-b border-white/10 flex gap-3">
           {/* 마일스톤 필터 */}
           <div className="w-48">
             <select
               value={selectedMilestoneId || ''}
               onChange={(e) => setSelectedMilestoneId(e.target.value || null)}
               disabled={isLoading}
-              className="w-full px-3 py-2.5 bg-white/5 border border-white/20 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all disabled:opacity-50"
+              className="w-full px-3 py-2.5 bg-kanban-card border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all disabled:opacity-50"
             >
-              <option value="">전체 마일스톤</option>
+              <option value="">{t('dailyChecklist.allMilestones')}</option>
               {milestones.map((milestone) => (
                 <option key={milestone.id} value={milestone.id}>
                   {milestone.title}
@@ -363,8 +365,8 @@ export function AddDailyChecklistModal({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="체크리스트 검색..."
-              className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/20 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all text-sm"
+              placeholder={t('dailyChecklist.searchPlaceholder')}
+              className="w-full pl-10 pr-4 py-2.5 bg-kanban-card border border-white/10 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all text-sm"
             />
           </div>
         </div>
@@ -387,11 +389,11 @@ export function AddDailyChecklistModal({
               <CheckSquare className="h-12 w-12 text-slate-400 mx-auto mb-3" />
               <p className="text-slate-400">
                 {searchQuery
-                  ? '검색 결과가 없습니다'
-                  : '체크리스트가 없습니다'}
+                  ? t('dailyChecklist.noSearchResults')
+                  : t('dailyChecklist.noChecklists')}
               </p>
               <p className="text-sm text-slate-400 mt-1">
-                {!searchQuery && '새로 생성 버튼을 눌러 체크리스트를 추가하세요'}
+                {!searchQuery && t('dailyChecklist.noChecklistsHint')}
               </p>
             </div>
           ) : (
@@ -401,7 +403,7 @@ export function AddDailyChecklistModal({
                 <div>
                   <div className="flex items-center gap-2 mb-3">
                     <div className="w-2 h-2 rounded-full bg-bridge-accent" />
-                    <h3 className="text-sm font-bold text-white">내가 포함된 Task</h3>
+                    <h3 className="text-sm font-bold text-white">{t('dailyChecklist.myTasks')}</h3>
                     <span className="text-xs text-slate-400">
                       ({myTasksFeaturesData.reduce((acc, f) => acc + f.tasks.reduce((a, t) => a + t.checklistItems.length, 0), 0)}개)
                     </span>
@@ -410,7 +412,7 @@ export function AddDailyChecklistModal({
                     {myTasksFeaturesData.map((featureData) => (
                       <div
                         key={featureData.feature.id}
-                        className="bg-white/[0.03] border border-white/15 rounded-xl overflow-hidden"
+                        className="bg-kanban-card border border-white/10 rounded-xl overflow-hidden"
                       >
                         {/* Feature Header */}
                         <div className="flex items-center gap-2 px-4 py-3">
@@ -424,11 +426,11 @@ export function AddDailyChecklistModal({
                         </div>
 
                         {/* Feature Content */}
-                        <div className="border-t border-white/15">
+                        <div className="border-t border-white/10">
                           {featureData.tasks.map((taskData) => (
                             <div
                               key={taskData.task.id}
-                              className="border-b border-white/15 last:border-b-0"
+                              className="border-b border-white/10 last:border-b-0"
                             >
                               {/* Task Header */}
                               <div className="flex items-center gap-2 px-4 py-2.5">
@@ -447,7 +449,7 @@ export function AddDailyChecklistModal({
                                   className={`p-1 rounded-md border transition-colors ${
                                     addingTaskId === taskData.task.id
                                       ? 'bg-bridge-accent text-white border-bridge-accent'
-                                      : 'text-slate-300 border-white/15 bg-white/5 hover:text-white hover:bg-white/10 hover:border-white/25'
+                                      : 'text-slate-300 border-white/10 bg-kanban-card hover:text-white hover:bg-kanban-card-hover hover:border-white/20'
                                   }`}
                                 >
                                   <Plus className="h-3.5 w-3.5" />
@@ -471,9 +473,9 @@ export function AddDailyChecklistModal({
                                           setNewItemTitle('');
                                         }
                                       }}
-                                      placeholder="새 체크리스트 제목..."
+                                      placeholder={t('dailyChecklist.newChecklistPlaceholder')}
                                       autoFocus
-                                      className="flex-1 px-3 py-1.5 bg-white/5 border border-white/20 rounded-lg text-white placeholder-slate-400 text-sm focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
+                                      className="flex-1 px-3 py-1.5 bg-kanban-card border border-white/10 rounded-lg text-white placeholder-slate-400 text-sm focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
                                     />
                                     <button
                                       onClick={() => handleAddPendingItem(taskData.task.id)}
@@ -487,7 +489,7 @@ export function AddDailyChecklistModal({
                               )}
 
                               {/* Checklist Items */}
-                              <div className="bg-white/[0.02] px-2 py-1">
+                              <div className="bg-kanban-bg/50 px-2 py-1">
                                 {/* 임시로 추가된 새 항목들 (pendingNewItems) */}
                                 {(pendingNewItems.get(taskData.task.id) || []).map((pendingItem) => {
                                   const isSelected = selectedItems.has(pendingItem.tempId);
@@ -514,7 +516,7 @@ export function AddDailyChecklistModal({
                                         {pendingItem.title}
                                       </span>
                                       <span className="text-[10px] px-1.5 py-0.5 rounded bg-bridge-secondary/20 text-bridge-secondary">
-                                        새 항목
+                                        {t('dailyChecklist.newItem')}
                                       </span>
                                     </button>
                                   );
@@ -585,7 +587,7 @@ export function AddDailyChecklistModal({
                                       {/* 이미 추가됨 배지 */}
                                       {isAlreadyAdded && (
                                         <span className="text-[10px] px-1.5 py-0.5 bg-slate-700 text-slate-400 rounded">
-                                          추가됨
+                                          {t('dailyChecklist.alreadyAdded')}
                                         </span>
                                       )}
                                     </button>
@@ -606,7 +608,7 @@ export function AddDailyChecklistModal({
                 <div>
                   <div className="flex items-center gap-2 mb-3">
                     <div className="w-2 h-2 rounded-full bg-slate-500" />
-                    <h3 className="text-sm font-bold text-slate-400">다른 Task</h3>
+                    <h3 className="text-sm font-bold text-slate-400">{t('dailyChecklist.otherTasks')}</h3>
                     <span className="text-xs text-slate-400">
                       ({othersTasksFeaturesData.reduce((acc, f) => acc + f.tasks.reduce((a, t) => a + t.checklistItems.length, 0), 0)}개)
                     </span>
@@ -615,7 +617,7 @@ export function AddDailyChecklistModal({
                     {othersTasksFeaturesData.map((featureData) => (
                       <div
                         key={featureData.feature.id}
-                        className="bg-white/[0.02] border border-white/15 rounded-xl overflow-hidden"
+                        className="bg-kanban-card border border-white/10 rounded-xl overflow-hidden"
                       >
                         {/* Feature Header */}
                         <div className="flex items-center gap-2 px-4 py-3">
@@ -629,11 +631,11 @@ export function AddDailyChecklistModal({
                         </div>
 
                         {/* Feature Content */}
-                        <div className="border-t border-white/15">
+                        <div className="border-t border-white/10">
                           {featureData.tasks.map((taskData) => (
                             <div
                               key={taskData.task.id}
-                              className="border-b border-white/15 last:border-b-0"
+                              className="border-b border-white/10 last:border-b-0"
                             >
                               {/* Task Header */}
                               <div className="flex items-center gap-2 px-4 py-2.5">
@@ -652,7 +654,7 @@ export function AddDailyChecklistModal({
                                   className={`p-1 rounded-md border transition-colors ${
                                     addingTaskId === taskData.task.id
                                       ? 'bg-bridge-accent text-white border-bridge-accent'
-                                      : 'text-slate-300 border-white/15 bg-white/5 hover:text-white hover:bg-white/10 hover:border-white/25'
+                                      : 'text-slate-300 border-white/10 bg-kanban-card hover:text-white hover:bg-kanban-card-hover hover:border-white/20'
                                   }`}
                                 >
                                   <Plus className="h-3.5 w-3.5" />
@@ -676,9 +678,9 @@ export function AddDailyChecklistModal({
                                           setNewItemTitle('');
                                         }
                                       }}
-                                      placeholder="새 체크리스트 제목..."
+                                      placeholder={t('dailyChecklist.newChecklistPlaceholder')}
                                       autoFocus
-                                      className="flex-1 px-3 py-1.5 bg-white/5 border border-white/20 rounded-lg text-white placeholder-slate-400 text-sm focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
+                                      className="flex-1 px-3 py-1.5 bg-kanban-card border border-white/10 rounded-lg text-white placeholder-slate-400 text-sm focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
                                     />
                                     <button
                                       onClick={() => handleAddPendingItem(taskData.task.id)}
@@ -692,7 +694,7 @@ export function AddDailyChecklistModal({
                               )}
 
                               {/* Checklist Items */}
-                              <div className="bg-white/[0.01] px-2 py-1">
+                              <div className="bg-kanban-bg/50 px-2 py-1">
                                 {/* 임시로 추가된 새 항목들 (pendingNewItems) */}
                                 {(pendingNewItems.get(taskData.task.id) || []).map((pendingItem) => {
                                   const isSelected = selectedItems.has(pendingItem.tempId);
@@ -719,7 +721,7 @@ export function AddDailyChecklistModal({
                                         {pendingItem.title}
                                       </span>
                                       <span className="text-[10px] px-1.5 py-0.5 rounded bg-bridge-secondary/20 text-bridge-secondary">
-                                        새 항목
+                                        {t('dailyChecklist.newItem')}
                                       </span>
                                     </button>
                                   );
@@ -759,7 +761,7 @@ export function AddDailyChecklistModal({
                                       {/* 이미 추가됨 배지 */}
                                       {isAlreadyAdded && (
                                         <span className="text-[10px] px-1.5 py-0.5 bg-slate-700 text-slate-400 rounded">
-                                          추가됨
+                                          {t('dailyChecklist.alreadyAdded')}
                                         </span>
                                       )}
                                     </div>
@@ -779,25 +781,25 @@ export function AddDailyChecklistModal({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-white/15 flex items-center justify-between">
+        <div className="px-6 py-4 border-t border-white/10 flex items-center justify-between">
           <div className="text-sm text-slate-400">
             {selectedItems.size > 0 ? (
               <span>
                 <span className="text-bridge-accent font-medium">
-                  {selectedItems.size}개
+                  {t('dailyChecklist.selectedCount', { count: selectedItems.size })}
                 </span>{' '}
-                선택됨
+                {t('dailyChecklist.selectedLabel')}
               </span>
             ) : (
-              <span>체크리스트를 선택하세요</span>
+              <span>{t('dailyChecklist.selectChecklist')}</span>
             )}
           </div>
           <div className="flex gap-3">
             <button
               onClick={handleClose}
-              className="px-5 py-2.5 text-sm font-medium text-slate-400 hover:text-white transition-colors border border-white/20 rounded-xl hover:bg-white/5"
+              className="px-5 py-2.5 text-sm font-medium text-slate-400 hover:text-white transition-colors border border-white/10 rounded-xl hover:bg-white/5"
             >
-              닫기
+              {t('common.close')}
             </button>
             <button
               onClick={handleAddSelected}
@@ -807,12 +809,12 @@ export function AddDailyChecklistModal({
               {isSubmitting ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  추가 중...
+                  {t('dailyChecklist.adding')}
                 </>
               ) : (
                 <>
                   <Plus className="h-4 w-4" />
-                  추가 ({selectedItems.size})
+                  {t('dailyChecklist.addCount', { count: selectedItems.size })}
                 </>
               )}
             </button>

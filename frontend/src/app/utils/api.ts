@@ -913,7 +913,6 @@ export const featureAPI = {
       description?: string;
       color?: string;
       assignee_id?: string;
-      priority?: 'HIGH' | 'MEDIUM' | 'LOW';
       due_date?: string;
     }
   ) => {
@@ -928,7 +927,6 @@ export const featureAPI = {
       description?: string;
       color?: string;
       assignee_id?: string | null;
-      priority?: 'HIGH' | 'MEDIUM' | 'LOW' | null;
       due_date?: string | null;
     }
   ) => {
@@ -2932,5 +2930,42 @@ export const slackWebhookAPI = {
 
   testMyWebhook: async (boardId: string) => {
     return apiClient.post<SlackTestResult>(`/boards/${boardId}/slack-webhook/me/test`);
+  },
+};
+
+// ========================================
+// AI Report API
+// ========================================
+
+import type { ReportType, WeeklyReport, WeeklyReportListItem } from '../types';
+
+export const reportAPI = {
+  generateReport: async (
+    boardId: string,
+    data: { reportType: ReportType; periodStart: string; periodEnd: string; language?: string }
+  ) => {
+    return apiClient.post<WeeklyReport>(`/boards/${boardId}/reports`, {
+      report_type: data.reportType,
+      period_start: data.periodStart,
+      period_end: data.periodEnd,
+      language: data.language,
+    });
+  },
+
+  getReports: async (boardId: string, reportType?: ReportType) => {
+    const query = reportType ? `?report_type=${reportType}` : '';
+    return apiClient.get<{ reports: WeeklyReportListItem[] }>(
+      `/boards/${boardId}/reports${query}`
+    );
+  },
+
+  getReport: async (boardId: string, reportId: string) => {
+    return apiClient.get<WeeklyReport>(`/boards/${boardId}/reports/${reportId}`);
+  },
+
+  regenerateReport: async (boardId: string, reportId: string) => {
+    return apiClient.post<WeeklyReport>(
+      `/boards/${boardId}/reports/${reportId}/regenerate`
+    );
   },
 };

@@ -101,6 +101,13 @@ variable "frontend_url" {
   type        = string
 }
 
+variable "claude_api_key" {
+  description = "Claude API key for AI report generation"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
 variable "associate_public_ip" {
   description = "Associate public IP to EC2 instances (true for public subnet without NAT)"
   type        = string

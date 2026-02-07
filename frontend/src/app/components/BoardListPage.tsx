@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { Star, Plus, Users, LogOut, FlaskConical, Loader2, LayoutGrid, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { CreateBoardModal } from './CreateBoardModal';
@@ -58,6 +59,7 @@ export function BoardListPage({
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedBoard, setSelectedBoard] = useState<Board | null>(null);
   const [isCreatingTestData, setIsCreatingTestData] = useState(false);
+  const { t } = useTranslation();
   const navigate = useNavigate();
 
   const handleEditBoard = (board: Board) => {
@@ -90,7 +92,7 @@ export function BoardListPage({
       onSelectBoard(response.board_id);
     } catch (error) {
       console.error('Failed to create/join test board:', error);
-      alert('테스트 보드 접근에 실패했습니다.');
+      alert(t('board.testBoardFailed'));
     } finally {
       setIsCreatingTestData(false);
     }

@@ -18,7 +18,7 @@ import {
   ScheduleSettingsResponse,
   DailyChecklistColumnResponse,
 } from '../utils/api';
-import { getInitials } from '../utils/assigneeColor';
+import { getInitials, getAssigneeHex } from '../utils/assigneeColor';
 
 // 데일리 스크럼 세부 탭 타입
 type ScheduleSubTab = 'timeblock' | 'checklist';
@@ -26,6 +26,7 @@ type ScheduleSubTab = 'timeblock' | 'checklist';
 interface DailyScheduleViewProps {
   boardId: string;
   boardMembers: BoardMember[];
+  memberColorMap?: Record<string, string | null>;
   onViewFeature?: (featureId: string) => void;
   onViewTask?: (taskId: string) => void;
   refreshTrigger?: number;
@@ -51,7 +52,7 @@ const parseHour = (time: string): number => {
 
 type ScheduleViewMode = 'day' | 'week';
 
-export function DailyScheduleView({ boardId, boardMembers, onViewFeature, onViewTask, refreshTrigger, currentUserRole }: DailyScheduleViewProps) {
+export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onViewFeature, onViewTask, refreshTrigger, currentUserRole }: DailyScheduleViewProps) {
   // 세부 탭 상태 (타임블록 / 체크리스트)
   const [subTab, setSubTab] = useState<ScheduleSubTab>('timeblock');
 
@@ -478,7 +479,7 @@ export function DailyScheduleView({ boardId, boardMembers, onViewFeature, onView
             onClick={handleToday}
             className={
               (viewMode === 'day' ? isToday : isTodayInWeek)
-                ? 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                ? 'bg-gradient-to-r from-[#2DD4BF] to-[#6366F1] text-white'
                 : 'border-kanban-border text-zinc-300 hover:bg-white/5 hover:text-foreground'
             }
           >
@@ -514,10 +515,12 @@ export function DailyScheduleView({ boardId, boardMembers, onViewFeature, onView
             },
             role: m.role === 'owner' ? 'OWNER' : m.role === 'admin' ? 'ADMIN' : m.role === 'viewer' ? 'VIEWER' : 'MEMBER',
             joined_at: new Date().toISOString(),
+            assigneeColor: m.assigneeColor ?? null,
           })) as BoardMemberType[]}
           selectedDate={selectedDate}
           onDateChange={setSelectedDate}
           currentUserRole={currentUserRole}
+          memberColorMap={memberColorMap}
         />
       ) : (
       /* 타임블록 탭 - 스케줄 그리드 */
@@ -537,7 +540,10 @@ export function DailyScheduleView({ boardId, boardMembers, onViewFeature, onView
                   className="w-36 md:w-48 flex-shrink-0 p-2 md:p-3 border-r border-kanban-border"
                 >
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-sm text-white font-medium">
+                    <div
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-sm text-white font-medium"
+                      style={{ backgroundColor: getAssigneeHex(member.name, member.assigneeColor) }}
+                    >
                       {getInitials(member.name)}
                     </div>
                     <span className="text-sm font-medium text-foreground">{member.name}</span>
@@ -641,7 +647,7 @@ export function DailyScheduleView({ boardId, boardMembers, onViewFeature, onView
                         className={`w-36 md:w-48 flex-shrink-0 border-r border-kanban-border transition-colors group relative ${
                           isViewer ? 'cursor-default' : 'cursor-pointer'
                         } ${
-                          isSelected ? 'bg-indigo-500/30' : isViewer ? '' : 'hover:bg-white/5'
+                          isSelected ? 'bg-[#2DD4BF]/20' : isViewer ? '' : 'hover:bg-white/5'
                         }`}
                         style={{ height: `${SLOT_HEIGHT}px` }}
                         onMouseDown={(e) => handleMouseDown(e, member.userId, slotIndex)}
@@ -708,13 +714,13 @@ export function DailyScheduleView({ boardId, boardMembers, onViewFeature, onView
                   <div
                     key={dateStr}
                     className={`w-28 md:w-36 flex-shrink-0 p-2 md:p-3 border-r border-kanban-border text-center ${
-                      isCurrentDay ? 'bg-indigo-900/30' : ''
+                      isCurrentDay ? 'bg-[#2DD4BF]/10' : ''
                     }`}
                   >
-                    <div className={`text-sm font-medium ${isCurrentDay ? 'text-indigo-400' : 'text-foreground'}`}>
+                    <div className={`text-sm font-medium ${isCurrentDay ? 'text-[#2DD4BF]' : 'text-foreground'}`}>
                       {formatDate(day, 'E')}
                     </div>
-                    <div className={`text-xs ${isCurrentDay ? 'text-indigo-400' : 'text-zinc-400'}`}>
+                    <div className={`text-xs ${isCurrentDay ? 'text-[#2DD4BF]' : 'text-zinc-400'}`}>
                       {formatDate(day, 'M/d')}
                     </div>
                   </div>
@@ -728,7 +734,10 @@ export function DailyScheduleView({ boardId, boardMembers, onViewFeature, onView
                 {/* 멤버 정보 */}
                 <div className="w-24 md:w-32 flex-shrink-0 p-2 md:p-3 border-r border-kanban-border bg-kanban-bg">
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-sm text-white font-medium">
+                    <div
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-sm text-white font-medium"
+                      style={{ backgroundColor: getAssigneeHex(member.name, member.assigneeColor) }}
+                    >
                       {getInitials(member.name)}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -754,7 +763,7 @@ export function DailyScheduleView({ boardId, boardMembers, onViewFeature, onView
                     <div
                       key={dateStr}
                       className={`w-28 md:w-36 flex-shrink-0 p-2 border-r border-kanban-border min-h-[100px] ${
-                        isCurrentDay ? 'bg-indigo-900/20' : ''
+                        isCurrentDay ? 'bg-[#2DD4BF]/8' : ''
                       }`}
                     >
                       <div className="space-y-1">

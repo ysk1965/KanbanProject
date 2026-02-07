@@ -1,4 +1,5 @@
 import { useMemo, useState, useCallback, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ScheduleBlockInfo } from '../utils/api';
 
 interface ScheduleBlockProps {
@@ -31,6 +32,7 @@ const isOverlapping = (start1: number, end1: number, start2: number, end2: numbe
 };
 
 export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, otherBlocks = [], onClick, onResize, onMove }: ScheduleBlockProps) {
+  const { t } = useTranslation();
   const [isResizing, setIsResizing] = useState<'top' | 'bottom' | null>(null);
   const [resizeOffset, setResizeOffset] = useState(0);
 
@@ -67,7 +69,7 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
     const height = (durationMinutes / 30) * slotHeight;
 
     // 블록 표시 정보
-    const title = block.checklist_item?.title || '(미연결)';
+    const title = block.checklist_item?.title || t('scheduleBlock.unlinked');
     const taskTitle = block.task?.title;
     const featureTitle = block.feature?.title;
     const featureColor = block.feature?.color || '#6366f1';
@@ -402,7 +404,7 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
       {/* 겹침 시 경고 오버레이 */}
       {(isDragging || isResizing) && hasOverlap && (
         <div className="absolute inset-0 bg-red-500/60 flex items-center justify-center rounded-md">
-          <span className="text-white text-xs font-bold">{isDragging ? '이동 불가' : '변경 불가'}</span>
+          <span className="text-white text-xs font-bold">{isDragging ? t('scheduleBlock.cannotMove') : t('scheduleBlock.cannotChange')}</span>
         </div>
       )}
 

@@ -1,6 +1,7 @@
 import { Feature, Task, Milestone } from '../types';
-import { Calendar, AlertCircle, ChevronDown, ChevronUp, ChevronRight, Flag } from 'lucide-react';
+import { Calendar, ChevronDown, ChevronRight, Flag } from 'lucide-react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface FeatureCardProps {
   feature: Feature;
@@ -12,19 +13,13 @@ interface FeatureCardProps {
   onToggleExpand?: () => void;
 }
 
-const priorityInfo: Record<string, { color: string; bg: string; label: string }> = {
-  HIGH: { color: 'text-red-400', bg: 'bg-red-500/10', label: '높음' },
-  MEDIUM: { color: 'text-amber-400', bg: 'bg-amber-500/10', label: '보통' },
-  LOW: { color: 'text-blue-400', bg: 'bg-blue-500/10', label: '낮음' },
-};
-
 export function FeatureCard({ feature, onClick, availableTags = [], tasks = [], milestone, isExpanded: externalIsExpanded, onToggleExpand }: FeatureCardProps) {
+  const { t } = useTranslation();
   const progressPercent = feature.progress_percentage;
   const isCompleted = progressPercent === 100 && feature.total_tasks > 0;
   const featureTags = feature.tags || [];
   const featureColor = feature.color || '#8B5CF6';
   const [internalIsExpanded, setInternalIsExpanded] = useState(false);
-  const p = priorityInfo[feature.priority || 'MEDIUM'];
 
   // 외부 제어가 있으면 외부 상태 사용, 없으면 내부 상태 사용
   const isExpanded = externalIsExpanded !== undefined ? externalIsExpanded : internalIsExpanded;
@@ -95,7 +90,7 @@ export function FeatureCard({ feature, onClick, availableTags = [], tasks = [], 
       <div className="mb-4 pl-2">
         <div className="flex justify-between text-[11px] mb-1.5">
           <span className="text-zinc-400 font-medium">
-            {feature.completed_tasks}/{feature.total_tasks} 완료
+            {t('feature.completedCount', { completed: feature.completed_tasks, total: feature.total_tasks })}
           </span>
           <span className={`font-bold ${isCompleted ? 'text-green-400' : 'text-foreground'}`}>
             {Math.round(progressPercent)}%
@@ -116,12 +111,6 @@ export function FeatureCard({ feature, onClick, availableTags = [], tasks = [], 
       {/* 추가 정보 */}
       <div className="flex items-center justify-between border-t border-kanban-border pt-4 mt-1 pl-2">
         <div className="flex items-center gap-3">
-          {feature.priority && (
-            <div className={`flex items-center gap-1.5 px-2 py-1 rounded-md ${p.bg}`}>
-              <AlertCircle size={12} className={p.color} />
-              <span className={`text-[10px] font-bold ${p.color}`}>{p.label}</span>
-            </div>
-          )}
           {feature.due_date && (
             <div className="flex items-center gap-1.5 text-zinc-400">
               <Calendar size={12} />
@@ -136,7 +125,7 @@ export function FeatureCard({ feature, onClick, availableTags = [], tasks = [], 
             className="flex items-center gap-1 group/sub"
           >
             <span className="text-[10px] font-bold text-zinc-300 group-hover/sub:text-foreground transition-colors">
-              서브태스크
+              {t('feature.subtasks')}
             </span>
             {isExpanded ? (
               <ChevronDown size={14} className="text-zinc-400 group-hover/sub:text-foreground transition-all" />

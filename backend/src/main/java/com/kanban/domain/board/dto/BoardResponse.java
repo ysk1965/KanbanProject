@@ -181,6 +181,7 @@ public class BoardResponse {
         private LocalDateTime trialEndsAt;
         private boolean canAccessSchedule;
         private boolean canAccessMilestone;
+        private boolean canAccessSlack;
 
         public static TierInfo of(Board board) {
             return TierInfo.builder()
@@ -188,6 +189,7 @@ public class BoardResponse {
                     .trialEndsAt(board.getTrialEndsAt())
                     .canAccessSchedule(board.canAccessSchedule())
                     .canAccessMilestone(board.canAccessMilestone())
+                    .canAccessSlack(board.canAccessSlack())
                     .build();
         }
     }

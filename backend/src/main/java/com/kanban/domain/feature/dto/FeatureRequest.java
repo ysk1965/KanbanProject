@@ -1,6 +1,5 @@
 package com.kanban.domain.feature.dto;
 
-import com.kanban.domain.feature.Priority;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -26,8 +25,6 @@ public class FeatureRequest {
 
         private String assigneeId;
 
-        private Priority priority;
-
         private LocalDate dueDate;
     }
 
@@ -43,8 +40,6 @@ public class FeatureRequest {
         private String color;
 
         private String assigneeId;
-
-        private Priority priority;
 
         private LocalDate dueDate;
     }

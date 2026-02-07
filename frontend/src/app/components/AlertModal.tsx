@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Lock, AlertCircle, X } from 'lucide-react';
 
 interface AlertModalProps {
@@ -9,19 +10,20 @@ interface AlertModalProps {
 }
 
 export function AlertModal({ open, onClose, type, title, message }: AlertModalProps) {
+  const { t } = useTranslation();
   if (!open) return null;
 
   const defaultContent = {
     premium: {
-      title: '프리미엄 기능',
-      message: '이 기능은 프리미엄 구독자만 이용할 수 있습니다.\n구독을 업그레이드하여 모든 기능을 이용해보세요.',
+      title: t('alert.premiumTitle'),
+      message: t('alert.premiumMessage'),
       icon: Lock,
       iconColor: 'text-amber-400',
       iconBg: 'bg-amber-400/10',
     },
     permission: {
-      title: '접근 권한 필요',
-      message: '이 기능은 관리자 권한이 필요합니다.\n보드 관리자에게 문의하세요.',
+      title: t('alert.permissionTitle'),
+      message: t('alert.permissionMessage'),
       icon: AlertCircle,
       iconColor: 'text-red-400',
       iconBg: 'bg-red-400/10',
@@ -35,7 +37,7 @@ export function AlertModal({ open, onClose, type, title, message }: AlertModalPr
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/30 backdrop-blur-sm"
         onClick={onClose}
       />
 
@@ -73,7 +75,7 @@ export function AlertModal({ open, onClose, type, title, message }: AlertModalPr
             onClick={onClose}
             className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/20 rounded-xl text-sm font-semibold text-foreground transition-all"
           >
-            확인
+            {t('common.confirm')}
           </button>
         </div>
       </div>

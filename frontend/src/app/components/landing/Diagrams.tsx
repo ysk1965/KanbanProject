@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Columns, Calendar, Clock, CheckCircle2, TrendingDown, Users2, ShieldAlert } from 'lucide-react';
+import { Columns, Calendar, Clock, CheckCircle2, TrendingDown, Users2, ShieldAlert, Hash, AtSign, Bell, MessageSquare, ListChecks, GripVertical, ChevronRight } from 'lucide-react';
 
 // --- RESOURCE PULSE DIAGRAM (PM Dashboard View) ---
 export const ResourcePulseDiagram: React.FC = () => {
@@ -252,6 +253,190 @@ export const DailyScheduleDiagram: React.FC = () => {
             <span className="text-[10px] font-bold text-bridge-secondary uppercase tracking-widest mb-1">Unified Review</span>
             <span className="text-[9px] text-bridge-secondary/60 font-mono">11:30 - 12:30</span>
           </motion.div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --- DAILY CHECKLIST DIAGRAM (v9.0) ---
+export const DailyChecklistDiagram: React.FC = () => {
+  const { t } = useTranslation();
+  const [items, setItems] = useState([
+    { id: 1, text: t('diagrams.checklistItem1'), member: 'Alice', done: false, priority: 1 },
+    { id: 2, text: t('diagrams.checklistItem2'), member: 'Alice', done: true, priority: 2 },
+    { id: 3, text: t('diagrams.checklistItem3'), member: 'Bob', done: false, priority: 1 },
+    { id: 4, text: t('diagrams.checklistItem4'), member: 'Bob', done: false, priority: 2 },
+    { id: 5, text: t('diagrams.checklistItem5'), member: 'Bob', done: true, priority: 3 },
+  ]);
+
+  const toggleItem = (id: number) => {
+    setItems(prev => prev.map(item =>
+      item.id === id ? { ...item, done: !item.done } : item
+    ));
+  };
+
+  const members = ['Alice', 'Bob'];
+
+  return (
+    <div className="flex flex-col p-8 bg-bridge-obsidian rounded-[2.5rem] border border-white/20 shadow-2xl w-full max-w-md mx-auto font-inter">
+      <h3 className="font-jakarta font-bold text-xl mb-6 text-white flex items-center gap-3 tracking-tight">
+        <ListChecks size={20} className="text-bridge-secondary" />
+        Daily Checklist
+      </h3>
+
+      <div className="grid grid-cols-2 gap-4">
+        {members.map(member => (
+          <div key={member} className="space-y-2">
+            <div className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-slate-400 mb-3 text-center">{member}</div>
+            {items.filter(i => i.member === member).map((item, idx) => (
+              <motion.div
+                key={item.id}
+                initial={{ x: 20, opacity: 0 }}
+                whileInView={{ x: 0, opacity: 1 }}
+                transition={{ delay: idx * 0.08 }}
+                onClick={() => toggleItem(item.id)}
+                className={`flex items-center gap-2 p-2.5 rounded-xl border cursor-pointer transition-all group ${
+                  item.done
+                    ? 'bg-bridge-secondary/5 border-bridge-secondary/20'
+                    : 'bg-white/5 border-white/10 hover:bg-white/10'
+                }`}
+              >
+                <GripVertical size={10} className="text-slate-700 flex-shrink-0" />
+                <div className={`w-4 h-4 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all ${
+                  item.done ? 'bg-bridge-secondary border-bridge-secondary' : 'border-slate-600 group-hover:border-slate-400'
+                }`}>
+                  {item.done && <CheckCircle2 size={10} className="text-bridge-dark" />}
+                </div>
+                <span className={`text-[10px] font-medium truncate transition-all ${
+                  item.done ? 'text-slate-600 line-through' : 'text-slate-300'
+                }`}>{item.text}</span>
+              </motion.div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// --- SLACK NOTIFICATION DIAGRAM ---
+export const SlackNotificationDiagram: React.FC = () => {
+  const { t } = useTranslation();
+  const triggers = [
+    { icon: AtSign, label: '@Mention', desc: t('diagrams.slackMention'), color: 'text-bridge-accent', bg: 'bg-bridge-accent/10 border-bridge-accent/20' },
+    { icon: ListChecks, label: 'Assigned', desc: t('diagrams.slackAssigned'), color: 'text-bridge-secondary', bg: 'bg-bridge-secondary/10 border-bridge-secondary/20' },
+    { icon: MessageSquare, label: 'Comment', desc: t('diagrams.slackComment'), color: 'text-cyan-400', bg: 'bg-cyan-400/10 border-cyan-400/20' },
+  ];
+
+  const [prefs, setPrefs] = useState({ inApp: true, slack: true, mention: true });
+
+  return (
+    <div className="flex flex-col p-10 bg-bridge-obsidian rounded-[2.5rem] border border-white/20 shadow-2xl w-full text-stone-100 overflow-hidden relative font-inter">
+      <h3 className="font-jakarta font-bold text-2xl mb-10 text-white flex items-center gap-4 tracking-tight">
+        <Bell size={22} className="text-bridge-accent" />
+        Notification Flow
+      </h3>
+
+      {/* Trigger → Slack Flow */}
+      <div className="flex flex-col lg:flex-row items-center gap-6 mb-10">
+        {/* Triggers */}
+        <div className="flex-1 space-y-3 w-full">
+          {triggers.map((t, i) => (
+            <motion.div
+              key={i}
+              initial={{ x: -20, opacity: 0 }}
+              whileInView={{ x: 0, opacity: 1 }}
+              transition={{ delay: i * 0.1 }}
+              className={`flex items-center gap-3 p-3.5 rounded-xl border ${t.bg}`}
+            >
+              <t.icon size={16} className={t.color} />
+              <div className="flex-1 min-w-0">
+                <span className={`text-[11px] font-bold block ${t.color}`}>{t.label}</span>
+                <span className="text-[9px] text-slate-500">{t.desc}</span>
+              </div>
+              <ChevronRight size={14} className="text-slate-600 flex-shrink-0" />
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Arrow */}
+        <div className="flex flex-col items-center gap-2 py-4 lg:py-0">
+          <motion.div
+            initial={{ scale: 0 }}
+            whileInView={{ scale: 1 }}
+            transition={{ delay: 0.3, type: 'spring' }}
+            className="w-12 h-12 rounded-2xl bg-bridge-accent/10 border border-bridge-accent/30 flex items-center justify-center"
+          >
+            <span className="font-jakarta font-extrabold text-[10px] text-bridge-accent">BS</span>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            transition={{ delay: 0.5 }}
+            className="text-slate-600 rotate-90 lg:rotate-0"
+          >
+            <ChevronRight size={18} />
+          </motion.div>
+        </div>
+
+        {/* Slack Preview */}
+        <motion.div
+          initial={{ x: 20, opacity: 0 }}
+          whileInView={{ x: 0, opacity: 1 }}
+          transition={{ delay: 0.4 }}
+          className="flex-1 w-full"
+        >
+          <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-3">
+            <div className="flex items-center gap-2 mb-3">
+              <Hash size={14} className="text-slate-500" />
+              <span className="text-[11px] font-bold text-slate-400">project-alpha</span>
+            </div>
+            <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg border border-white/5">
+              <div className="w-7 h-7 rounded-lg bg-bridge-accent flex items-center justify-center flex-shrink-0">
+                <span className="text-[8px] font-extrabold text-white font-jakarta">BS</span>
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-[10px] font-bold text-white">BridgeSpots</span>
+                  <span className="text-[8px] text-slate-600">12:34 PM</span>
+                </div>
+                <p className="text-[10px] text-slate-400 leading-relaxed">
+                  <span className="text-bridge-accent font-semibold">@Alice</span> mentioned you in <span className="text-white font-medium">API Flow Engine</span>
+                </p>
+                <p className="text-[9px] text-slate-600 mt-1 italic">"{t('diagrams.slackQuote')}"</p>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+
+      {/* Preference Toggles */}
+      <div className="pt-8 border-t border-white/10">
+        <div className="flex items-center gap-2 mb-5">
+          <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Per-Board Preferences</span>
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { key: 'inApp' as const, label: 'In-App', active: prefs.inApp },
+            { key: 'slack' as const, label: 'Slack', active: prefs.slack },
+            { key: 'mention' as const, label: '@Mention', active: prefs.mention },
+          ].map(pref => (
+            <button
+              key={pref.key}
+              onClick={() => setPrefs(p => ({ ...p, [pref.key]: !p[pref.key] }))}
+              className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border text-[10px] font-bold transition-all ${
+                pref.active
+                  ? 'bg-bridge-accent/10 border-bridge-accent/30 text-bridge-accent'
+                  : 'bg-white/5 border-white/10 text-slate-600'
+              }`}
+            >
+              <div className={`w-6 h-3.5 rounded-full relative transition-all ${pref.active ? 'bg-bridge-accent' : 'bg-slate-700'}`}>
+                <div className={`absolute top-0.5 w-2.5 h-2.5 rounded-full bg-white transition-all ${pref.active ? 'right-0.5' : 'left-0.5'}`} />
+              </div>
+              {pref.label}
+            </button>
+          ))}
         </div>
       </div>
     </div>

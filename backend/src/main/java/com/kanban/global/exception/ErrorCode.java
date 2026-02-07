@@ -126,6 +126,8 @@ public enum ErrorCode {
 
     // Admin
     ADMIN_ACCESS_DENIED(HttpStatus.FORBIDDEN, "AD001", "관리자 권한이 필요합니다"),
+    CANNOT_REMOVE_LAST_ADMIN(HttpStatus.BAD_REQUEST, "AD002", "마지막 관리자는 역할을 변경할 수 없습니다"),
+    CANNOT_DEMOTE_SELF(HttpStatus.BAD_REQUEST, "AD003", "자신의 관리자 역할은 변경할 수 없습니다"),
 
     // Inquiry
     INQUIRY_NOT_FOUND(HttpStatus.NOT_FOUND, "IQ001", "문의사항을 찾을 수 없습니다"),
@@ -136,11 +138,17 @@ public enum ErrorCode {
     SLACK_WEBHOOK_NOT_FOUND(HttpStatus.NOT_FOUND, "SK001", "Slack 웹훅 설정을 찾을 수 없습니다"),
     SLACK_WEBHOOK_INVALID_URL(HttpStatus.BAD_REQUEST, "SK002", "유효하지 않은 Slack 웹훅 URL입니다"),
     SLACK_WEBHOOK_TEST_FAILED(HttpStatus.BAD_GATEWAY, "SK003", "Slack 테스트 메시지 전송에 실패했습니다"),
+    SLACK_PREMIUM_REQUIRED(HttpStatus.FORBIDDEN, "SK004", "Slack 연동은 Premium에서만 사용 가능합니다"),
 
     // System
     ANNOUNCEMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "SY001", "공지사항을 찾을 수 없습니다"),
     SYSTEM_UNDER_MAINTENANCE(HttpStatus.SERVICE_UNAVAILABLE, "SY002", "시스템 점검 중입니다"),
-    SYSTEM_CONFIG_NOT_FOUND(HttpStatus.NOT_FOUND, "SY003", "시스템 설정을 찾을 수 없습니다");
+    SYSTEM_CONFIG_NOT_FOUND(HttpStatus.NOT_FOUND, "SY003", "시스템 설정을 찾을 수 없습니다"),
+
+    // AI Report
+    AI_REPORT_NOT_FOUND(HttpStatus.NOT_FOUND, "AR001", "보고서를 찾을 수 없습니다"),
+    AI_REPORT_GENERATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "AR002", "AI 보고서 생성에 실패했습니다"),
+    AI_SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "AR003", "AI 서비스가 일시적으로 이용 불가합니다");
 
     private final HttpStatus status;
     private final String code;

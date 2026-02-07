@@ -2,6 +2,7 @@ import { useRef, useCallback } from 'react';
 import { Block, Task, Tag, Feature, ChecklistItem } from '../types';
 import { DraggableCard } from './DraggableCard';
 import { GripVertical, MoreVertical } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Button } from './ui/button';
 import {
   DropdownMenu,
@@ -55,6 +56,7 @@ export function KanbanBlock({
   memberColorMap,
   showFeatureLabel,
 }: KanbanBlockProps) {
+  const { t } = useTranslation();
   const blockRef = useRef<HTMLDivElement>(null);
   const dragHandleRef = useRef<HTMLDivElement>(null);
   const taskContainerRef = useRef<HTMLDivElement>(null);
@@ -241,7 +243,7 @@ export function KanbanBlock({
   // 플레이스홀더 JSX
   const placeholderElement = (
     <div
-      className="h-16 border-2 border-dashed border-indigo-500/50 rounded-xl bg-indigo-500/10 flex items-center justify-center"
+      className="h-16 border-2 border-dashed border-[#2DD4BF]/50 rounded-xl bg-[#2DD4BF]/10 flex items-center justify-center"
       onDragEnter={(e) => {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
@@ -256,7 +258,7 @@ export function KanbanBlock({
         handleTaskDrop(e);
       }}
     >
-      <span className="text-indigo-400 text-xs font-semibold pointer-events-none">여기에 놓기</span>
+      <span className="text-[#2DD4BF] text-xs font-semibold pointer-events-none">{t('kanbanBlock.dropHere')}</span>
     </div>
   );
 
@@ -283,14 +285,14 @@ export function KanbanBlock({
         handleBlockDrop(e);
       }}
       className={`relative flex flex-col bg-kanban-card rounded-2xl border border-kanban-border min-w-[260px] max-w-[260px] md:min-w-[280px] md:max-w-[280px] transition-all duration-200 ${
-        taskPlaceholderInThisBlock ? 'ring-2 ring-indigo-500/50 bg-indigo-500/5' : ''
+        taskPlaceholderInThisBlock ? 'ring-2 ring-[#2DD4BF]/50 bg-[#2DD4BF]/5' : ''
       } ${isThisBlockDragging ? 'opacity-40 scale-95 rotate-1' : ''} ${
-        state.blockPlaceholderIndex === blockIndex && state.draggedBlock ? 'ring-2 ring-indigo-500' : ''
+        state.blockPlaceholderIndex === blockIndex && state.draggedBlock ? 'ring-2 ring-[#2DD4BF]' : ''
       }`}
     >
       {/* 드롭 인디케이터 (왼쪽) */}
       {state.blockPlaceholderIndex === blockIndex && state.draggedBlock && (
-        <div className="absolute -left-2 top-0 bottom-0 w-1 bg-indigo-500 rounded-full animate-pulse" />
+        <div className="absolute -left-2 top-0 bottom-0 w-1 bg-[#2DD4BF] rounded-full animate-pulse" />
       )}
 
       {/* 블록 헤더 */}
@@ -303,7 +305,7 @@ export function KanbanBlock({
             onDragStart={handleBlockDragStart}
             onDragEnd={handleBlockDragEnd}
             className="cursor-grab active:cursor-grabbing p-1 -ml-1 mr-1 rounded-lg hover:bg-kanban-surface opacity-40 group-hover:opacity-100 transition-all"
-            title="드래그하여 블록 이동"
+            title={t('kanbanBlock.dragToMove')}
           >
             <GripVertical className="h-4 w-4 text-zinc-400" />
           </div>
@@ -328,17 +330,17 @@ export function KanbanBlock({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="bg-kanban-card border-kanban-border">
               <DropdownMenuItem onClick={onEditBlock} className="text-zinc-300 hover:bg-kanban-surface hover:text-foreground text-xs">
-                이름 변경
+                {t('kanbanBlock.rename')}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={onEditBlock} className="text-zinc-300 hover:bg-kanban-surface hover:text-foreground text-xs">
-                색상 변경
+                {t('kanbanBlock.changeColor')}
               </DropdownMenuItem>
               <DropdownMenuSeparator className="bg-kanban-border" />
               <DropdownMenuItem
                 onClick={onDeleteBlock}
                 className="text-red-400 hover:bg-red-500/10 hover:text-red-300 text-xs"
               >
-                블록 삭제
+                {t('kanbanBlock.deleteBlock')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

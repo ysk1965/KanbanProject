@@ -115,6 +115,7 @@ module "elastic_beanstalk" {
   redis_host     = module.elasticache.redis_endpoint
   redis_port     = "6379"
   jwt_secret     = var.jwt_secret
+  claude_api_key = var.claude_api_key
   frontend_url   = module.s3_cloudfront.cloudfront_url
 
   depends_on = [module.rds, module.elasticache]

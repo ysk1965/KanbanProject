@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, Megaphone, Info, ChevronLeft, ChevronRight } from 'lucide-react';
 import { systemService } from '../utils/services';
 import type { AnnouncementDetail } from '../utils/api';
 
 export function AnnouncementDisplay() {
+  const { t } = useTranslation();
   const [announcements, setAnnouncements] = useState<AnnouncementDetail[]>([]);
   const [dismissedBanners, setDismissedBanners] = useState<Set<string>>(new Set());
   const [popupAnnouncement, setPopupAnnouncement] = useState<AnnouncementDetail | null>(null);
@@ -173,7 +175,7 @@ export function AnnouncementDisplay() {
 
       {/* Popup Modal */}
       {popupAnnouncement && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/30 backdrop-blur-sm">
           <div className="bg-bridge-obsidian rounded-2xl border border-white/10 p-6 shadow-2xl w-full max-w-md mx-4">
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center gap-2">
@@ -201,13 +203,13 @@ export function AnnouncementDisplay() {
                 onClick={() => dismissPopup(popupAnnouncement.id, true)}
                 className="flex-1 px-4 py-2.5 bg-white/5 border border-white/10 text-slate-300 rounded-xl text-sm hover:bg-white/10 transition-colors"
               >
-                오늘 하루 보지 않기
+                {t('announcement.dismissToday')}
               </button>
               <button
                 onClick={() => dismissPopup(popupAnnouncement.id)}
                 className="flex-1 px-4 py-2.5 bg-bridge-accent text-white rounded-xl text-sm font-medium hover:bg-bridge-accent/90 transition-colors"
               >
-                확인
+                {t('common.confirm')}
               </button>
             </div>
           </div>

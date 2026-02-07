@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   BarChart3,
   Clock,
@@ -16,6 +17,7 @@ import {
   Activity,
   Settings,
   Flag,
+  Sparkles,
 } from 'lucide-react';
 import {
   LineChart,
@@ -43,6 +45,7 @@ import {
 import { statisticsService } from '../utils/services';
 import { getInitials } from '../utils/assigneeColor';
 import { WeightLevelSettingsModal } from './WeightLevelSettingsModal';
+import { AIReportPanel } from './AIReportPanel';
 import { formatDate, formatDateShort } from '../utils/dateUtils';
 
 interface StatisticsViewProps {
@@ -64,11 +67,11 @@ const DEFAULT_FILTER: StatisticsFilter = {
 
 // 기간 프리셋
 const PERIOD_PRESETS = [
-  { label: '최근 7일', value: '7d' },
-  { label: '최근 30일', value: '30d' },
-  { label: '이번 달', value: 'this_month' },
-  { label: '지난 달', value: 'last_month' },
-  { label: '전체', value: 'all' },
+  { labelKey: 'statistics.periodLast7', value: '7d' },
+  { labelKey: 'statistics.periodLast30', value: '30d' },
+  { labelKey: 'statistics.periodThisMonth', value: 'this_month' },
+  { labelKey: 'statistics.periodLastMonth', value: 'last_month' },
+  { labelKey: 'statistics.periodAll', value: 'all' },
 ];
 
 // 차트 색상
@@ -96,6 +99,7 @@ export function StatisticsView({
   const [isLoading, setIsLoading] = useState(true);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isWeightSettingsOpen, setIsWeightSettingsOpen] = useState(false);
+  const { t } = useTranslation();
 
   // 기간 프리셋 적용
   useEffect(() => {
@@ -150,10 +154,10 @@ export function StatisticsView({
 
   // 시간 포맷팅 헬퍼
   const formatMinutes = (minutes: number): string => {
-    if (minutes < 60) return `${minutes}분`;
+    if (minutes < 60) return t('statistics.minuteUnit', { value: minutes });
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
-    return mins > 0 ? `${hours}시간 ${mins}분` : `${hours}시간`;
+    return mins > 0 ? t('statistics.hourMinuteUnit', { hours, minutes: mins }) : t('statistics.hourUnit', { hours });
   };
 
   // 퍼센트 포맷팅
@@ -199,12 +203,13 @@ export function StatisticsView({
   }, [statistics]);
 
   // 뷰 타입 탭
-  const VIEW_TABS: { type: StatisticsViewType; label: string; icon: React.ElementType }[] = [
-    { type: 'overview', label: '요약', icon: BarChart3 },
-    { type: 'individual', label: '개인', icon: Users },
-    { type: 'team', label: '팀', icon: Target },
-    { type: 'work', label: '작업', icon: ListTodo },
-    { type: 'impact', label: '임팩트', icon: Zap },
+  const VIEW_TABS: { type: StatisticsViewType; labelKey: string; icon: React.ElementType }[] = [
+    { type: 'overview', labelKey: 'statistics.tabOverview', icon: BarChart3 },
+    { type: 'individual', labelKey: 'statistics.tabIndividual', icon: Users },
+    { type: 'team', labelKey: 'statistics.tabTeam', icon: Target },
+    { type: 'work', labelKey: 'statistics.tabWork', icon: ListTodo },
+    { type: 'impact', labelKey: 'statistics.tabImpact', icon: Zap },
+    { type: 'ai_report', labelKey: 'statistics.tabAIReport', icon: Sparkles },
   ];
 
   if (isLoading && !statistics) {
@@ -212,7 +217,7 @@ export function StatisticsView({
       <div className="flex items-center justify-center h-full bg-bridge-dark">
         <div className="text-center">
           <BarChart3 className="h-12 w-12 text-bridge-accent mx-auto mb-4 animate-pulse" />
-          <p className="text-slate-400">통계 데이터를 불러오는 중...</p>
+          <p className="text-slate-400">{t('statistics.loadingData')}</p>
         </div>
       </div>
     );
@@ -236,7 +241,7 @@ export function StatisticsView({
                 }`}
               >
                 <tab.icon className="h-4 w-4" />
-                {tab.label}
+                {t(tab.labelKey)}
               </button>
             ))}
           </div>
@@ -260,7 +265,7 @@ export function StatisticsView({
                 }}
                 className="appearance-none bg-bridge-dark border border-white/20 rounded-xl py-2 pl-9 pr-8 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent cursor-pointer hover:border-white/20 transition-all"
               >
-                <option value="">전체 마일스톤</option>
+                <option value="">{t('statistics.allMilestones')}</option>
                 {milestones.map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.title}
@@ -287,7 +292,7 @@ export function StatisticsView({
                       : 'text-slate-400 hover:text-slate-300'
                   }`}
                 >
-                  {preset.label}
+                  {t(preset.labelKey)}
                 </button>
               ))}
             </div>
@@ -302,7 +307,7 @@ export function StatisticsView({
               }`}
             >
               <Filter className="h-4 w-4" />
-              필터
+              {t('statistics.filterBtn')}
               {(filter.member_ids.length > 0 || filter.tag_ids.length > 0) && (
                 <span className="w-2 h-2 rounded-full bg-bridge-accent" />
               )}
@@ -318,7 +323,7 @@ export function StatisticsView({
               {/* 멤버 필터 */}
               <div>
                 <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2 block">
-                  멤버
+                  {t('statistics.memberFilter')}
                 </label>
                 <select
                   value={filter.member_ids[0] || ''}
@@ -330,7 +335,7 @@ export function StatisticsView({
                   }
                   className="w-full bg-white/5 border border-white/20 rounded-lg py-2 px-3 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
                 >
-                  <option value="">전체</option>
+                  <option value="">{t('statistics.totalLabel')}</option>
                   {members.map((m) => (
                     <option key={m.id} value={m.user.id}>
                       {m.user.name}
@@ -342,7 +347,7 @@ export function StatisticsView({
               {/* 태그 필터 */}
               <div>
                 <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2 block">
-                  태그
+                  {t('statistics.tagFilter')}
                 </label>
                 <select
                   value={filter.tag_ids[0] || ''}
@@ -354,10 +359,10 @@ export function StatisticsView({
                   }
                   className="w-full bg-white/5 border border-white/20 rounded-lg py-2 px-3 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
                 >
-                  <option value="">전체</option>
-                  {tags.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
+                  <option value="">{t('statistics.totalLabel')}</option>
+                  {tags.map((tag) => (
+                    <option key={tag.id} value={tag.id}>
+                      {tag.name}
                     </option>
                   ))}
                 </select>
@@ -372,7 +377,7 @@ export function StatisticsView({
                   }}
                   className="px-4 py-2 text-sm text-slate-400 hover:text-white transition-colors"
                 >
-                  필터 초기화
+                  {t('statistics.resetFilter')}
                 </button>
               </div>
             </div>
@@ -430,6 +435,10 @@ export function StatisticsView({
             loadStatistics={loadStatistics}
           />
         )}
+
+        {activeView === 'ai_report' && (
+          <AIReportPanel boardId={boardId} members={members} />
+        )}
       </div>
     </div>
   );
@@ -469,6 +478,7 @@ function OverviewDashboard({
   featureDistribution,
   memberContribution,
 }: OverviewDashboardProps) {
+  const { t } = useTranslation();
   const { summary } = statistics;
 
   return (
@@ -478,9 +488,9 @@ function OverviewDashboard({
         {/* 총 작업 시간 */}
         <KPICard
           icon={Clock}
-          label="총 작업 시간"
+          label={t('statistics.totalWorkTime')}
           value={formatMinutes(summary.total_work_minutes)}
-          subValue={`완료: ${formatMinutes(summary.completed_work_minutes)}`}
+          subValue={t('statistics.completedPrefix', { value: formatMinutes(summary.completed_work_minutes) })}
           trend={summary.focus_rate > 0.7 ? 'up' : summary.focus_rate > 0.5 ? 'neutral' : 'down'}
           accentColor="bridge-accent"
         />
@@ -488,7 +498,7 @@ function OverviewDashboard({
         {/* 완료율 */}
         <KPICard
           icon={CheckCircle2}
-          label="Task 완료율"
+          label={t('statistics.taskCompletionRate')}
           value={formatPercent(summary.total_tasks > 0 ? summary.completed_tasks / summary.total_tasks : 0)}
           subValue={`${summary.completed_tasks} / ${summary.total_tasks} Task`}
           trend={summary.completed_tasks / summary.total_tasks > 0.7 ? 'up' : 'neutral'}
@@ -498,9 +508,9 @@ function OverviewDashboard({
         {/* 집중도 */}
         <KPICard
           icon={Target}
-          label="집중도"
+          label={t('statistics.focusRate')}
           value={formatPercent(summary.focus_rate)}
-          subValue="완료 시간 / 전체 시간"
+          subValue={t('statistics.focusRateDesc')}
           trend={summary.focus_rate > 0.8 ? 'up' : summary.focus_rate > 0.6 ? 'neutral' : 'down'}
           accentColor="amber-500"
         />
@@ -508,9 +518,9 @@ function OverviewDashboard({
         {/* Feature 진행률 */}
         <KPICard
           icon={TrendingUp}
-          label="평균 Feature 진행률"
+          label={t('statistics.avgFeatureProgress')}
           value={formatPercent(summary.average_feature_progress / 100)}
-          subValue={`${summary.completed_features} / ${summary.total_features} 완료`}
+          subValue={t('statistics.completedCount', { completed: summary.completed_features, total: summary.total_features })}
           trend={summary.average_feature_progress > 70 ? 'up' : 'neutral'}
           accentColor="violet-500"
         />
@@ -523,7 +533,7 @@ function OverviewDashboard({
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-foreground font-semibold flex items-center gap-2">
               <Activity className="h-5 w-5 text-bridge-accent" />
-              일별 작업 시간
+              {t('statistics.dailyWorkTime')}
             </h3>
           </div>
           <div className="h-[280px]">
@@ -552,8 +562,8 @@ function OverviewDashboard({
                   labelStyle={{ color: '#fff', fontWeight: 600, marginBottom: 4 }}
                   itemStyle={{ color: '#94a3b8' }}
                   formatter={(value: number, name: string) => [
-                    `${value}시간`,
-                    name === 'hours' ? '전체' : '완료',
+                    t('statistics.hourSuffix', { value }),
+                    name === 'hours' ? t('statistics.totalLabel') : t('statistics.completedLabel'),
                   ]}
                 />
                 <Legend
@@ -566,7 +576,7 @@ function OverviewDashboard({
                 <Line
                   type="monotone"
                   dataKey="hours"
-                  name="전체 작업"
+                  name={t('statistics.allWork')}
                   stroke="#6366F1"
                   strokeWidth={2}
                   dot={{ fill: '#6366F1', r: 3 }}
@@ -575,7 +585,7 @@ function OverviewDashboard({
                 <Line
                   type="monotone"
                   dataKey="completed_hours"
-                  name="완료된 작업"
+                  name={t('statistics.completedWork')}
                   stroke="#2DD4BF"
                   strokeWidth={2}
                   dot={{ fill: '#2DD4BF', r: 3 }}
@@ -591,7 +601,7 @@ function OverviewDashboard({
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-foreground font-semibold flex items-center gap-2">
               <PieChart className="h-5 w-5 text-bridge-secondary" />
-              Feature별 시간 분포
+              {t('statistics.featureTimeDistribution')}
             </h3>
           </div>
           <div className="h-[280px]">
@@ -617,7 +627,7 @@ function OverviewDashboard({
                     borderRadius: '12px',
                     padding: '12px',
                   }}
-                  formatter={(value: number) => [formatMinutes(value), '작업 시간']}
+                  formatter={(value: number) => [formatMinutes(value), t('statistics.workTime')]}
                 />
                 <Legend
                   verticalAlign="middle"
@@ -644,7 +654,7 @@ function OverviewDashboard({
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-foreground font-semibold flex items-center gap-2">
               <Users className="h-5 w-5 text-amber-500" />
-              멤버별 작업 시간
+              {t('statistics.memberWorkTime')}
             </h3>
           </div>
           <div className="h-[280px]">
@@ -674,11 +684,11 @@ function OverviewDashboard({
                     padding: '12px',
                   }}
                   formatter={(value: number, name: string) => [
-                    name === 'hours' ? `${value}시간` : `${value}개`,
-                    name === 'hours' ? '작업 시간' : 'Task 수',
+                    name === 'hours' ? t('statistics.hourSuffix', { value }) : t('statistics.itemCount', { value }),
+                    name === 'hours' ? t('statistics.workTime') : t('statistics.taskCount'),
                   ]}
                 />
-                <Bar dataKey="hours" name="작업 시간" fill="#6366F1" radius={[0, 4, 4, 0]} />
+                <Bar dataKey="hours" name={t('statistics.workTime')} fill="#6366F1" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -689,33 +699,33 @@ function OverviewDashboard({
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-foreground font-semibold flex items-center gap-2">
               <BarChart3 className="h-5 w-5 text-violet-500" />
-              상세 요약
+              {t('statistics.detailedSummary')}
             </h3>
           </div>
           <div className="space-y-4">
             <SummaryItem
-              label="분석 기간"
+              label={t('statistics.analysisPeriod')}
               value={`${statistics.summary.period_start} ~ ${statistics.summary.period_end}`}
             />
             <SummaryItem
-              label="전체 Feature"
-              value={`${statistics.summary.total_features}개`}
-              subValue={`${statistics.summary.completed_features}개 완료`}
+              label={t('statistics.totalFeature')}
+              value={t('statistics.itemCount', { value: statistics.summary.total_features })}
+              subValue={t('statistics.countCompleted', { count: statistics.summary.completed_features })}
             />
             <SummaryItem
-              label="전체 Task"
-              value={`${statistics.summary.total_tasks}개`}
-              subValue={`${statistics.summary.completed_tasks}개 완료`}
+              label={t('statistics.totalTask')}
+              value={t('statistics.itemCount', { value: statistics.summary.total_tasks })}
+              subValue={t('statistics.countCompleted', { count: statistics.summary.completed_tasks })}
             />
             <SummaryItem
-              label="미완료 작업 시간"
+              label={t('statistics.incompleteWorkTime')}
               value={formatMinutes(statistics.summary.incomplete_work_minutes)}
               highlight
             />
             <SummaryItem
-              label="총 임팩트 점수"
+              label={t('statistics.totalImpactScore')}
               value={statistics.impact?.total_impact_score?.toFixed(1) || '0'}
-              subValue="가중치 적용됨"
+              subValue={t('statistics.weightApplied')}
             />
           </div>
         </div>
@@ -832,6 +842,7 @@ interface WorkAnalysisViewProps {
 }
 
 function WorkAnalysisView({ statistics, formatMinutes, formatPercent }: WorkAnalysisViewProps) {
+  const { t } = useTranslation();
   // Feature별 상세 데이터
   const featureDetails = useMemo(() => {
     if (!statistics?.by_feature) return [];
@@ -856,11 +867,11 @@ function WorkAnalysisView({ statistics, formatMinutes, formatPercent }: WorkAnal
     return statistics.by_tag
       .sort((a, b) => b.total_minutes - a.total_minutes)
       .slice(0, 10)
-      .map((t) => ({
-        name: t.tag.name,
-        value: t.total_minutes,
-        color: t.tag.color,
-        taskCount: t.task_count,
+      .map((tg) => ({
+        name: tg.tag.name,
+        value: tg.total_minutes,
+        color: tg.tag.color,
+        taskCount: tg.task_count,
       }));
   }, [statistics]);
 
@@ -868,19 +879,19 @@ function WorkAnalysisView({ statistics, formatMinutes, formatPercent }: WorkAnal
   const taskStatusData = useMemo(() => {
     const { summary } = statistics;
     return [
-      { name: '완료', value: summary.completed_tasks, color: '#2DD4BF' },
-      { name: '미완료', value: summary.incomplete_tasks, color: '#6366F1' },
+      { name: t('statistics.completedStatus'), value: summary.completed_tasks, color: '#2DD4BF' },
+      { name: t('statistics.incompleteStatus'), value: summary.incomplete_tasks, color: '#6366F1' },
     ];
-  }, [statistics]);
+  }, [statistics, t]);
 
   // 시간 상태 분포
   const timeStatusData = useMemo(() => {
     const { summary } = statistics;
     return [
-      { name: '완료된 시간', value: summary.completed_work_minutes, color: '#2DD4BF' },
-      { name: '미완료 시간', value: summary.incomplete_work_minutes, color: '#F59E0B' },
+      { name: t('statistics.completedTime'), value: summary.completed_work_minutes, color: '#2DD4BF' },
+      { name: t('statistics.incompleteTime'), value: summary.incomplete_work_minutes, color: '#F59E0B' },
     ];
-  }, [statistics]);
+  }, [statistics, t]);
 
   return (
     <div className="space-y-6">
@@ -888,30 +899,30 @@ function WorkAnalysisView({ statistics, formatMinutes, formatPercent }: WorkAnal
       <div className="grid grid-cols-4 gap-4">
         <KPICard
           icon={ListTodo}
-          label="전체 Feature"
-          value={`${statistics.summary.total_features}개`}
-          subValue={`${statistics.summary.completed_features}개 완료`}
+          label={t('statistics.totalFeatureCount')}
+          value={t('statistics.itemCount', { value: statistics.summary.total_features })}
+          subValue={t('statistics.countCompleted', { count: statistics.summary.completed_features })}
           accentColor="bridge-accent"
         />
         <KPICard
           icon={CheckCircle2}
-          label="전체 Task"
-          value={`${statistics.summary.total_tasks}개`}
-          subValue={`${statistics.summary.completed_tasks}개 완료`}
+          label={t('statistics.totalTaskCount')}
+          value={t('statistics.itemCount', { value: statistics.summary.total_tasks })}
+          subValue={t('statistics.countCompleted', { count: statistics.summary.completed_tasks })}
           accentColor="bridge-secondary"
         />
         <KPICard
           icon={Clock}
-          label="총 투입 시간"
+          label={t('statistics.totalInputTime')}
           value={formatMinutes(statistics.summary.total_work_minutes)}
-          subValue={`완료: ${formatMinutes(statistics.summary.completed_work_minutes)}`}
+          subValue={t('statistics.completedPrefix', { value: formatMinutes(statistics.summary.completed_work_minutes) })}
           accentColor="amber-500"
         />
         <KPICard
           icon={Target}
-          label="평균 진행률"
+          label={t('statistics.avgProgress')}
           value={formatPercent(statistics.summary.average_feature_progress / 100)}
-          subValue="Feature 기준"
+          subValue={t('statistics.featureBasis')}
           accentColor="violet-500"
         />
       </div>
@@ -922,7 +933,7 @@ function WorkAnalysisView({ statistics, formatMinutes, formatPercent }: WorkAnal
         <div className="bg-bridge-obsidian rounded-2xl border border-white/15 p-6">
           <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
             <CheckCircle2 className="h-5 w-5 text-bridge-secondary" />
-            Task 상태 분포
+            {t('statistics.taskStatusDistribution')}
           </h3>
           <div className="h-[240px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -949,7 +960,7 @@ function WorkAnalysisView({ statistics, formatMinutes, formatPercent }: WorkAnal
                     borderRadius: '12px',
                     padding: '12px',
                   }}
-                  formatter={(value: number) => [`${value}개`, 'Task 수']}
+                  formatter={(value: number) => [t('statistics.itemCount', { value }), t('statistics.taskCount')]}
                 />
               </RechartsPieChart>
             </ResponsiveContainer>
@@ -960,7 +971,7 @@ function WorkAnalysisView({ statistics, formatMinutes, formatPercent }: WorkAnal
         <div className="bg-bridge-obsidian rounded-2xl border border-white/15 p-6">
           <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
             <Clock className="h-5 w-5 text-amber-500" />
-            시간 상태 분포
+            {t('statistics.timeStatusDistribution')}
           </h3>
           <div className="h-[240px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -987,7 +998,7 @@ function WorkAnalysisView({ statistics, formatMinutes, formatPercent }: WorkAnal
                     borderRadius: '12px',
                     padding: '12px',
                   }}
-                  formatter={(value: number) => [formatMinutes(value), '작업 시간']}
+                  formatter={(value: number) => [formatMinutes(value), t('statistics.workTime')]}
                 />
               </RechartsPieChart>
             </ResponsiveContainer>
@@ -999,7 +1010,7 @@ function WorkAnalysisView({ statistics, formatMinutes, formatPercent }: WorkAnal
       <div className="bg-bridge-obsidian rounded-2xl border border-white/15 p-6">
         <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
           <PieChart className="h-5 w-5 text-violet-500" />
-          태그별 작업 시간
+          {t('statistics.tagWorkTime')}
         </h3>
         {tagDistribution.length > 0 ? (
           <div className="h-[300px]">
@@ -1030,7 +1041,7 @@ function WorkAnalysisView({ statistics, formatMinutes, formatPercent }: WorkAnal
                   }}
                   formatter={(value: number, name: string) => [
                     formatMinutes(value),
-                    '작업 시간',
+                    t('statistics.workTime'),
                   ]}
                 />
                 <Bar dataKey="value" radius={[0, 4, 4, 0]}>
@@ -1043,7 +1054,7 @@ function WorkAnalysisView({ statistics, formatMinutes, formatPercent }: WorkAnal
           </div>
         ) : (
           <div className="h-[300px] flex items-center justify-center text-slate-400">
-            태그 데이터가 없습니다
+            {t('statistics.noTagData')}
           </div>
         )}
       </div>
@@ -1052,18 +1063,18 @@ function WorkAnalysisView({ statistics, formatMinutes, formatPercent }: WorkAnal
       <div className="bg-bridge-obsidian rounded-2xl border border-white/15 p-6">
         <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
           <ListTodo className="h-5 w-5 text-bridge-accent" />
-          Feature별 상세 분석
+          {t('statistics.featureDetailAnalysis')}
         </h3>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b border-white/20">
-                <th className="text-left py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Feature</th>
-                <th className="text-right py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">총 시간</th>
-                <th className="text-right py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">완료 시간</th>
-                <th className="text-right py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Task</th>
-                <th className="text-right py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">진행률</th>
-                <th className="py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">상태</th>
+                <th className="text-left py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('statistics.featureHeader')}</th>
+                <th className="text-right py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('statistics.totalTimeHeader')}</th>
+                <th className="text-right py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('statistics.completedTimeHeader')}</th>
+                <th className="text-right py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('statistics.taskHeader')}</th>
+                <th className="text-right py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('statistics.progressHeader')}</th>
+                <th className="py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('statistics.statusHeader')}</th>
               </tr>
             </thead>
             <tbody>
@@ -1111,7 +1122,7 @@ function WorkAnalysisView({ statistics, formatMinutes, formatPercent }: WorkAnal
           </table>
           {featureDetails.length === 0 && (
             <div className="py-12 text-center text-slate-400">
-              Feature 데이터가 없습니다
+              {t('statistics.noFeatureData')}
             </div>
           )}
         </div>
@@ -1131,6 +1142,7 @@ interface TeamProductivityViewProps {
 }
 
 function TeamProductivityView({ statistics, formatMinutes, formatPercent }: TeamProductivityViewProps) {
+  const { t } = useTranslation();
   // 멤버별 상세 데이터
   const memberDetails = useMemo(() => {
     if (!statistics?.by_member) return [];
@@ -1224,21 +1236,21 @@ function TeamProductivityView({ statistics, formatMinutes, formatPercent }: Team
       <div className="grid grid-cols-4 gap-4">
         <KPICard
           icon={Users}
-          label="팀 규모"
-          value={`${teamStats.totalMembers}명`}
-          subValue="활성 멤버"
+          label={t('statistics.teamSize')}
+          value={t('statistics.countPeople', { count: teamStats.totalMembers })}
+          subValue={t('statistics.activeMembers')}
           accentColor="bridge-accent"
         />
         <KPICard
           icon={Clock}
-          label="팀 총 작업 시간"
+          label={t('statistics.teamTotalWorkTime')}
           value={formatMinutes(teamStats.totalMinutes)}
-          subValue={`평균 ${formatMinutes(Math.round(teamStats.avgMinutesPerMember))}/인`}
+          subValue={t('statistics.avgPerMember', { value: formatMinutes(Math.round(teamStats.avgMinutesPerMember)) })}
           accentColor="bridge-secondary"
         />
         <KPICard
           icon={CheckCircle2}
-          label="팀 Task 완료율"
+          label={t('statistics.teamTaskCompletionRate')}
           value={formatPercent(teamStats.completionRate / 100)}
           subValue={`${teamStats.completedTasks} / ${teamStats.totalTasks} Task`}
           trend={teamStats.completionRate > 70 ? 'up' : teamStats.completionRate > 50 ? 'neutral' : 'down'}
@@ -1246,9 +1258,9 @@ function TeamProductivityView({ statistics, formatMinutes, formatPercent }: Team
         />
         <KPICard
           icon={Target}
-          label="인당 평균 Task"
-          value={`${teamStats.avgTasksPerMember.toFixed(1)}개`}
-          subValue="팀원당 할당"
+          label={t('statistics.avgTaskPerMember')}
+          value={t('statistics.countTasks', { count: teamStats.avgTasksPerMember.toFixed(1) })}
+          subValue={t('statistics.perMemberAllocation')}
           accentColor="violet-500"
         />
       </div>
@@ -1259,7 +1271,7 @@ function TeamProductivityView({ statistics, formatMinutes, formatPercent }: Team
         <div className="bg-bridge-obsidian rounded-2xl border border-white/15 p-6">
           <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
             <Clock className="h-5 w-5 text-bridge-accent" />
-            멤버별 작업 시간
+            {t('statistics.memberWorkTimeChart')}
           </h3>
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -1285,8 +1297,8 @@ function TeamProductivityView({ statistics, formatMinutes, formatPercent }: Team
                     padding: '12px',
                   }}
                   formatter={(value: number, name: string) => [
-                    `${value}시간`,
-                    name === 'total' ? '전체 시간' : '완료 시간',
+                    t('statistics.hourSuffix', { value }),
+                    name === 'total' ? t('statistics.totalTime') : t('statistics.completedTime2'),
                   ]}
                 />
                 <Legend
@@ -1296,7 +1308,7 @@ function TeamProductivityView({ statistics, formatMinutes, formatPercent }: Team
                   wrapperStyle={{ paddingBottom: 20 }}
                   formatter={(value) => (
                     <span className="text-slate-400 text-xs">
-                      {value === 'total' ? '전체' : '완료'}
+                      {value === 'total' ? t('statistics.totalLabel') : t('statistics.completedLabel')}
                     </span>
                   )}
                 />
@@ -1311,7 +1323,7 @@ function TeamProductivityView({ statistics, formatMinutes, formatPercent }: Team
         <div className="bg-bridge-obsidian rounded-2xl border border-white/15 p-6">
           <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
             <CheckCircle2 className="h-5 w-5 text-bridge-secondary" />
-            멤버별 Task 완료율
+            {t('statistics.memberTaskCompletionRate')}
           </h3>
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -1342,7 +1354,7 @@ function TeamProductivityView({ statistics, formatMinutes, formatPercent }: Team
                   }}
                   formatter={(value: number, name: string, props: any) => [
                     `${value}% (${props.payload.completed}/${props.payload.total})`,
-                    '완료율',
+                    t('statistics.completionRate'),
                   ]}
                 />
                 <Bar dataKey="rate" radius={[0, 4, 4, 0]}>
@@ -1363,7 +1375,7 @@ function TeamProductivityView({ statistics, formatMinutes, formatPercent }: Team
       <div className="bg-bridge-obsidian rounded-2xl border border-white/15 p-6">
         <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
           <Target className="h-5 w-5 text-violet-500" />
-          Feature별 팀원 참여 현황
+          {t('statistics.featureParticipation')}
         </h3>
         {featureParticipation.length > 0 ? (
           <div className="space-y-4">
@@ -1376,7 +1388,7 @@ function TeamProductivityView({ statistics, formatMinutes, formatPercent }: Team
                   />
                   <span className="text-foreground font-medium">{fp.feature}</span>
                   <span className="text-slate-400 text-sm">
-                    ({fp.members.length}명 참여)
+                    {t('statistics.participantCount', { count: fp.members.length })}
                   </span>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -1404,7 +1416,7 @@ function TeamProductivityView({ statistics, formatMinutes, formatPercent }: Team
           </div>
         ) : (
           <div className="py-12 text-center text-slate-400">
-            참여 데이터가 없습니다
+            {t('statistics.noParticipationData')}
           </div>
         )}
       </div>
@@ -1413,18 +1425,18 @@ function TeamProductivityView({ statistics, formatMinutes, formatPercent }: Team
       <div className="bg-bridge-obsidian rounded-2xl border border-white/15 p-6">
         <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
           <Users className="h-5 w-5 text-bridge-accent" />
-          팀원별 상세 분석
+          {t('statistics.memberDetailAnalysis')}
         </h3>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b border-white/20">
-                <th className="text-left py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">멤버</th>
-                <th className="text-right py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">총 시간</th>
-                <th className="text-right py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">완료 시간</th>
-                <th className="text-right py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Task 수</th>
-                <th className="text-right py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">완료율</th>
-                <th className="text-right py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">임팩트 점수</th>
+                <th className="text-left py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('statistics.memberHeader')}</th>
+                <th className="text-right py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('statistics.totalTimeHeader')}</th>
+                <th className="text-right py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('statistics.completedTimeHeader')}</th>
+                <th className="text-right py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('statistics.taskCountHeader')}</th>
+                <th className="text-right py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('statistics.completionRate')}</th>
+                <th className="text-right py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('statistics.impactScoreHeader')}</th>
               </tr>
             </thead>
             <tbody>
@@ -1471,7 +1483,7 @@ function TeamProductivityView({ statistics, formatMinutes, formatPercent }: Team
           </table>
           {memberDetails.length === 0 && (
             <div className="py-12 text-center text-slate-400">
-              멤버 데이터가 없습니다
+              {t('statistics.noMemberData')}
             </div>
           )}
         </div>
@@ -1499,6 +1511,7 @@ function IndividualProductivityView({
   formatPercent,
   members,
 }: IndividualProductivityViewProps) {
+  const { t } = useTranslation();
   const [selectedMemberId, setSelectedMemberId] = useState<string>('');
   const [expandedFeatures, setExpandedFeatures] = useState<Set<string>>(new Set());
 
@@ -1554,7 +1567,7 @@ function IndividualProductivityView({
       <div className="bg-bridge-obsidian rounded-2xl border border-white/15 p-6">
         <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
           <Users className="h-5 w-5 text-bridge-accent" />
-          멤버 선택
+          {t('statistics.selectMember')}
         </h3>
         <div className="flex flex-wrap gap-2">
           {statistics.by_member.map((m) => (
@@ -1592,14 +1605,14 @@ function IndividualProductivityView({
           <div className="grid grid-cols-4 gap-4">
             <KPICard
               icon={Clock}
-              label="총 작업 시간"
+              label={t('statistics.personalTotalWorkTime')}
               value={formatMinutes(selectedMemberStats.total_minutes)}
-              subValue={`완료: ${formatMinutes(selectedMemberStats.completed_minutes)}`}
+              subValue={t('statistics.completedPrefix', { value: formatMinutes(selectedMemberStats.completed_minutes) })}
               accentColor="bridge-accent"
             />
             <KPICard
               icon={CheckCircle2}
-              label="Task 완료율"
+              label={t('statistics.personalTaskCompletionRate')}
               value={formatPercent(selectedMemberStats.task_count > 0 ? selectedMemberStats.completed_task_count / selectedMemberStats.task_count : 0)}
               subValue={`${selectedMemberStats.completed_task_count} / ${selectedMemberStats.task_count} Task`}
               trend={selectedMemberStats.completed_task_count / selectedMemberStats.task_count > 0.7 ? 'up' : 'neutral'}
@@ -1607,16 +1620,16 @@ function IndividualProductivityView({
             />
             <KPICard
               icon={Target}
-              label="참여 Feature"
-              value={`${selectedMemberStats.by_feature.length}개`}
-              subValue="진행 중"
+              label={t('statistics.participatingFeatures')}
+              value={t('statistics.itemCount', { value: selectedMemberStats.by_feature.length })}
+              subValue={t('statistics.inProgressLabel')}
               accentColor="amber-500"
             />
             <KPICard
               icon={Zap}
-              label="임팩트 점수"
+              label={t('statistics.impactScore')}
               value={selectedMemberStats.impact_score.toFixed(1)}
-              subValue="가중치 반영"
+              subValue={t('statistics.weightReflected')}
               accentColor="violet-500"
             />
           </div>
@@ -1627,7 +1640,7 @@ function IndividualProductivityView({
             <div className="bg-bridge-obsidian rounded-2xl border border-white/15 p-6">
               <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
                 <PieChart className="h-5 w-5 text-bridge-accent" />
-                Feature별 작업 시간
+                {t('statistics.featureWorkTime')}
               </h3>
               {memberFeatureData.length > 0 ? (
                 <div className="h-[280px]">
@@ -1653,7 +1666,7 @@ function IndividualProductivityView({
                           borderRadius: '12px',
                           padding: '12px',
                         }}
-                        formatter={(value: number) => [formatMinutes(value), '작업 시간']}
+                        formatter={(value: number) => [formatMinutes(value), t('statistics.workTime')]}
                       />
                       <Legend
                         verticalAlign="middle"
@@ -1670,7 +1683,7 @@ function IndividualProductivityView({
                 </div>
               ) : (
                 <div className="h-[280px] flex items-center justify-center text-slate-400">
-                  데이터가 없습니다
+                  {t('statistics.noData')}
                 </div>
               )}
             </div>
@@ -1679,7 +1692,7 @@ function IndividualProductivityView({
             <div className="bg-bridge-obsidian rounded-2xl border border-white/15 p-6">
               <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
                 <Activity className="h-5 w-5 text-bridge-secondary" />
-                일별 작업 추이
+                {t('statistics.dailyWorkTrend')}
               </h3>
               {memberDailyTrend.length > 0 ? (
                 <div className="h-[280px]">
@@ -1705,7 +1718,7 @@ function IndividualProductivityView({
                           borderRadius: '12px',
                           padding: '12px',
                         }}
-                        formatter={(value: number) => [`${value}시간`, '작업 시간']}
+                        formatter={(value: number) => [t('statistics.hourSuffix', { value }), t('statistics.workTime')]}
                       />
                       <Line
                         type="monotone"
@@ -1720,7 +1733,7 @@ function IndividualProductivityView({
                 </div>
               ) : (
                 <div className="h-[280px] flex items-center justify-center text-slate-400">
-                  데이터가 없습니다
+                  {t('statistics.noData')}
                 </div>
               )}
             </div>
@@ -1730,15 +1743,15 @@ function IndividualProductivityView({
           <div className="bg-bridge-obsidian rounded-2xl border border-white/15 p-6">
             <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
               <ListTodo className="h-5 w-5 text-violet-500" />
-              참여 Feature 상세
+              {t('statistics.participatingFeatureDetail')}
             </h3>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-white/20">
-                    <th className="text-left py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Feature</th>
-                    <th className="text-right py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">작업 시간</th>
-                    <th className="text-right py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">비중</th>
+                    <th className="text-left py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('statistics.featureHeader')}</th>
+                    <th className="text-right py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('statistics.workTimeHeader')}</th>
+                    <th className="text-right py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('statistics.proportionHeader')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1771,7 +1784,7 @@ function IndividualProductivityView({
                               />
                               <span className="text-foreground text-sm">{f.feature_title}</span>
                               {hasTasks && (
-                                <span className="text-slate-400 text-xs">({f.tasks?.length}개 Task)</span>
+                                <span className="text-slate-400 text-xs">{t('statistics.taskCountSuffix', { count: f.tasks?.length })}</span>
                               )}
                             </div>
                           </td>
@@ -1831,7 +1844,7 @@ function IndividualProductivityView({
         <div className="flex items-center justify-center h-64 text-slate-400">
           <div className="text-center">
             <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p>멤버를 선택하면 개인 통계를 확인할 수 있습니다</p>
+            <p>{t('statistics.selectMemberGuide')}</p>
           </div>
         </div>
       )}
@@ -1862,6 +1875,7 @@ function ImpactAnalysisView({
   setIsWeightSettingsOpen,
   loadStatistics,
 }: ImpactAnalysisViewProps) {
+  const { t } = useTranslation();
   const { impact } = statistics;
 
   // 멤버별 임팩트 점수 데이터
@@ -1903,28 +1917,28 @@ function ImpactAnalysisView({
       <div className="grid grid-cols-4 gap-4">
         <KPICard
           icon={Zap}
-          label="총 임팩트 점수"
+          label={t('statistics.totalImpact')}
           value={(impact?.total_impact_score || 0).toFixed(1)}
-          subValue="가중치 × 시간"
+          subValue={t('statistics.weightTimesTime')}
           accentColor="bridge-accent"
         />
         <KPICard
           icon={Users}
-          label="기여 멤버 수"
-          value={`${impact?.by_member?.length || 0}명`}
-          subValue="활성 참여"
+          label={t('statistics.contributingMembers')}
+          value={t('statistics.countPeople', { count: impact?.by_member?.length || 0 })}
+          subValue={t('statistics.activeParticipation')}
           accentColor="bridge-secondary"
         />
         <KPICard
           icon={Target}
-          label="가중치 레벨 수"
-          value={`${impact?.by_weight_level?.length || 0}개`}
-          subValue="설정됨"
+          label={t('statistics.weightLevelCount')}
+          value={t('statistics.itemCount', { value: impact?.by_weight_level?.length || 0 })}
+          subValue={t('statistics.configured')}
           accentColor="amber-500"
         />
         <KPICard
           icon={TrendingUp}
-          label="평균 가중치"
+          label={t('statistics.avgWeight')}
           value={
             impact?.by_weight_level && impact.by_weight_level.length > 0
               ? (
@@ -1933,7 +1947,7 @@ function ImpactAnalysisView({
                 ).toFixed(2)
               : '0'
           }
-          subValue="시간 가중 평균"
+          subValue={t('statistics.timeWeightedAvg')}
           accentColor="violet-500"
         />
       </div>
@@ -1944,7 +1958,7 @@ function ImpactAnalysisView({
         <div className="bg-bridge-obsidian rounded-2xl border border-white/15 p-6">
           <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
             <Zap className="h-5 w-5 text-bridge-accent" />
-            멤버별 임팩트 점수
+            {t('statistics.memberImpactScore')}
           </h3>
           {memberImpactData.length > 0 ? (
             <div className="h-[300px]">
@@ -1974,7 +1988,7 @@ function ImpactAnalysisView({
                     }}
                     formatter={(value: number, name: string) => [
                       value.toFixed(1),
-                      '임팩트 점수',
+                      t('statistics.impactScoreLabel'),
                     ]}
                   />
                   <Bar dataKey="score" fill="#6366F1" radius={[0, 4, 4, 0]}>
@@ -1990,7 +2004,7 @@ function ImpactAnalysisView({
             </div>
           ) : (
             <div className="h-[300px] flex items-center justify-center text-slate-400">
-              데이터가 없습니다
+              {t('statistics.noData')}
             </div>
           )}
         </div>
@@ -1999,7 +2013,7 @@ function ImpactAnalysisView({
         <div className="bg-bridge-obsidian rounded-2xl border border-white/15 p-6">
           <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
             <Target className="h-5 w-5 text-amber-500" />
-            가중치 레벨별 시간 분포
+            {t('statistics.weightLevelTimeDistribution')}
           </h3>
           {weightLevelData.length > 0 ? (
             <div className="h-[300px]">
@@ -2037,7 +2051,7 @@ function ImpactAnalysisView({
             </div>
           ) : (
             <div className="h-[300px] flex items-center justify-center text-slate-400">
-              데이터가 없습니다
+              {t('statistics.noData')}
             </div>
           )}
         </div>
@@ -2048,14 +2062,14 @@ function ImpactAnalysisView({
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-foreground font-semibold flex items-center gap-2">
             <BarChart3 className="h-5 w-5 text-violet-500" />
-            가중치 레벨 상세
+            {t('statistics.weightLevelDetail')}
           </h3>
           <button
             onClick={() => setIsWeightSettingsOpen(true)}
             className="flex items-center gap-2 px-3 py-1.5 bg-white/5 border border-white/20 rounded-lg text-sm text-slate-400 hover:text-white hover:bg-white/10 transition-all"
           >
             <Settings className="h-4 w-4" />
-            설정
+            {t('statistics.settingsBtn')}
           </button>
         </div>
         <div className="grid grid-cols-4 gap-4">
@@ -2074,15 +2088,15 @@ function ImpactAnalysisView({
               </div>
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-400">작업 시간</span>
+                  <span className="text-slate-400">{t('statistics.workTime')}</span>
                   <span className="text-foreground">{formatMinutes(level.total_minutes)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-400">Task 수</span>
-                  <span className="text-foreground">{level.task_count}개</span>
+                  <span className="text-slate-400">{t('statistics.taskCountLabel')}</span>
+                  <span className="text-foreground">{t('statistics.itemCount', { value: level.task_count })}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-400">임팩트 기여</span>
+                  <span className="text-slate-400">{t('statistics.impactContribution')}</span>
                   <span className="text-bridge-accent font-medium">
                     {(level.total_minutes * level.level.weight / 60).toFixed(1)}
                   </span>
@@ -2091,7 +2105,7 @@ function ImpactAnalysisView({
             </div>
           )) || (
             <div className="col-span-4 py-8 text-center text-slate-400">
-              가중치 레벨이 설정되지 않았습니다
+              {t('statistics.noWeightLevels')}
             </div>
           )}
         </div>
@@ -2101,17 +2115,17 @@ function ImpactAnalysisView({
       <div className="bg-bridge-obsidian rounded-2xl border border-white/15 p-6">
         <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
           <Users className="h-5 w-5 text-bridge-accent" />
-          멤버별 임팩트 상세
+          {t('statistics.memberImpactDetail')}
         </h3>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b border-white/20">
-                <th className="text-left py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">순위</th>
-                <th className="text-left py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">멤버</th>
-                <th className="text-right py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">임팩트 점수</th>
-                <th className="text-right py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">가중 시간</th>
-                <th className="py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">비중</th>
+                <th className="text-left py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('statistics.rankHeader')}</th>
+                <th className="text-left py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('statistics.memberHeader')}</th>
+                <th className="text-right py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('statistics.impactScoreHeader')}</th>
+                <th className="text-right py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('statistics.weightedTimeHeader')}</th>
+                <th className="py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('statistics.proportionHeader')}</th>
               </tr>
             </thead>
             <tbody>
@@ -2176,7 +2190,7 @@ function ImpactAnalysisView({
               }) || (
                 <tr>
                   <td colSpan={5} className="py-12 text-center text-slate-400">
-                    멤버 데이터가 없습니다
+                    {t('statistics.noMemberImpactData')}
                   </td>
                 </tr>
               )}
@@ -2192,13 +2206,12 @@ function ImpactAnalysisView({
             <Zap className="h-4 w-4 text-bridge-accent" />
           </div>
           <div>
-            <p className="text-foreground font-medium mb-1">임팩트 점수 계산 방식</p>
+            <p className="text-foreground font-medium mb-1">{t('statistics.impactCalcTitle')}</p>
             <p className="text-slate-400 text-sm">
-              Impact Score = Σ (Task 작업 시간 × Task 가중치)
+              {t('statistics.impactCalcFormula')}
             </p>
             <p className="text-slate-400 text-xs mt-1">
-              각 Task에 설정된 가중치(Critical, High, Medium, Low)와 투입 시간을 곱하여 산출합니다.
-              높은 우선순위 작업에 더 많은 시간을 투입할수록 임팩트 점수가 높아집니다.
+              {t('statistics.impactCalcDesc')}
             </p>
           </div>
         </div>

@@ -73,6 +73,7 @@ jobs:
         env:
           TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
           TF_VAR_jwt_secret: ${{ secrets.JWT_SECRET }}
+          TF_VAR_claude_api_key: ${{ secrets.CLAUDE_API_KEY }}
 
   # Terraform Apply (Manual or on main branch)
   terraform-apply:
@@ -109,6 +110,7 @@ jobs:
         env:
           TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
           TF_VAR_jwt_secret: ${{ secrets.JWT_SECRET }}
+          TF_VAR_claude_api_key: ${{ secrets.CLAUDE_API_KEY }}
 
       - name: Output Terraform Values
         working-directory: infrastructure/terraform/environments/${{ github.event.inputs.environment || 'dev' }}

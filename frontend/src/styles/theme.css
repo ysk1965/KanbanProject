@@ -7,14 +7,14 @@
   --bridge-accent: #6366F1;
   --bridge-secondary: #2DD4BF;
 
-  /* Kanban Dark Theme Colors */
-  --kanban-bg: #0c0c0f;
-  --kanban-card: #121216;
-  --kanban-card-hover: #1e1e24;
-  --kanban-border: #363640;
-  --kanban-border-hover: #3a3a45;
-  --kanban-surface: #252530;
-  --kanban-input: #0a0a0d;
+  /* Kanban Dark Theme Colors (cosmic navy tint) */
+  --kanban-bg: #131a2b;
+  --kanban-card: #1c263b;
+  --kanban-card-hover: #253148;
+  --kanban-border: #33415c;
+  --kanban-border-hover: #3f4f6c;
+  --kanban-surface: #29364e;
+  --kanban-input: #111c27;
 
   --font-size: 16px;
   --background: #ffffff;
@@ -329,7 +329,7 @@ html {
 }
 
 .kanban-glow:hover {
-  box-shadow: 0 0 20px rgba(99, 102, 241, 0.15);
+  box-shadow: 0 0 20px rgba(45, 212, 191, 0.12);
 }
 
 /* Kanban Progress Bar Glow */

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { CheckCircle, XCircle, Loader2, ArrowRight } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { authService } from '../utils/services';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -10,6 +11,7 @@ type VerificationStatus = 'loading' | 'success' | 'error';
 export function EmailVerificationResultPage() {
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { isAuthenticated, updateCurrentUser } = useAuth();
   const [status, setStatus] = useState<VerificationStatus>('loading');
   const [errorMessage, setErrorMessage] = useState('');
@@ -18,7 +20,7 @@ export function EmailVerificationResultPage() {
     const verifyEmail = async () => {
       if (!token) {
         setStatus('error');
-        setErrorMessage('유효하지 않은 인증 링크입니다.');
+        setErrorMessage(t('emailVerificationResult.invalidLink'));
         return;
       }
 
@@ -31,13 +33,13 @@ export function EmailVerificationResultPage() {
         setStatus('error');
         // 에러 메시지 매핑
         if (err.message?.includes('만료')) {
-          setErrorMessage('인증 링크가 만료되었습니다. 다시 로그인하여 인증 메일을 재발송해주세요.');
+          setErrorMessage(t('emailVerificationResult.linkExpired'));
         } else if (err.message?.includes('이미 사용')) {
-          setErrorMessage('이미 사용된 인증 링크입니다.');
+          setErrorMessage(t('emailVerificationResult.linkAlreadyUsed'));
         } else if (err.message?.includes('이미 인증')) {
-          setErrorMessage('이미 인증된 이메일입니다.');
+          setErrorMessage(t('emailVerificationResult.alreadyVerified'));
         } else {
-          setErrorMessage(err.message || '이메일 인증에 실패했습니다.');
+          setErrorMessage(err.message || t('emailVerificationResult.verificationFailed'));
         }
       }
     };
@@ -79,9 +81,9 @@ export function EmailVerificationResultPage() {
               </div>
             </div>
             <h1 className="text-2xl font-bold text-white mb-4">
-              이메일 인증 중...
+              {t('emailVerificationResult.verifying')}
             </h1>
-            <p className="text-slate-400">잠시만 기다려주세요.</p>
+            <p className="text-slate-400">{t('common.pleaseWait')}</p>
           </>
         )}
 
@@ -94,16 +96,16 @@ export function EmailVerificationResultPage() {
               </div>
             </div>
             <h1 className="text-2xl md:text-3xl font-bold text-white mb-4">
-              이메일 인증 완료!
+              {t('emailVerificationResult.successTitle')}
             </h1>
             <p className="text-slate-400 mb-8">
-              이제 BRIDGE SPOTS의 모든 기능을 사용할 수 있습니다.
+              {t('emailVerificationResult.successDesc')}
             </p>
             <button
               onClick={handleNavigate}
               className="w-full h-14 bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white rounded-2xl font-bold transition-all duration-300 flex items-center justify-center gap-2 hover:shadow-[0_0_30px_rgba(99,102,241,0.3)]"
             >
-              {isAuthenticated ? '보드 목록으로 이동' : '로그인하기'}
+              {isAuthenticated ? t('emailVerificationResult.goToBoards') : t('emailVerificationResult.goToLogin')}
               <ArrowRight className="w-5 h-5" />
             </button>
           </>
@@ -118,7 +120,7 @@ export function EmailVerificationResultPage() {
               </div>
             </div>
             <h1 className="text-2xl md:text-3xl font-bold text-white mb-4">
-              인증 실패
+              {t('emailVerificationResult.errorTitle')}
             </h1>
             <p className="text-slate-400 mb-8">
               {errorMessage}
@@ -127,7 +129,7 @@ export function EmailVerificationResultPage() {
               onClick={handleNavigate}
               className="w-full h-14 bg-white/5 border border-white/20 text-white rounded-2xl font-bold transition-all duration-300 flex items-center justify-center gap-2 hover:bg-white/10"
             >
-              로그인 페이지로 이동
+              {t('emailVerificationResult.goToLoginPage')}
               <ArrowRight className="w-5 h-5" />
             </button>
           </>
@@ -136,7 +138,7 @@ export function EmailVerificationResultPage() {
         {/* Footer */}
         <div className="mt-8 pt-6 border-t border-white/15">
           <Link to="/" className="text-sm text-slate-400 hover:text-white transition-colors">
-            BRIDGE SPOTS 홈으로
+            {t('emailVerificationResult.backToHome')}
           </Link>
         </div>
       </motion.div>

@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { LanguageSwitcher } from '../LanguageSwitcher';
 import { HeroScene } from './BridgeScene';
-import { KanbanDiagram, GanttDiagram, DailyScheduleDiagram, PriceComparisonDiagram, ResourcePulseDiagram } from './Diagrams';
-import { motion, Variants } from 'framer-motion';
+import { KanbanDiagram, GanttDiagram, DailyScheduleDiagram, DailyChecklistDiagram, SlackNotificationDiagram, PriceComparisonDiagram, ResourcePulseDiagram } from './Diagrams';
+import { motion, Variants, AnimatePresence } from 'framer-motion';
 import {
   ArrowRight, Menu, X, Layers, Layout, Zap, CheckCircle,
-  RefreshCcw, BarChart3, Sparkles, Activity
+  RefreshCcw, BarChart3, Sparkles, Activity, Bell, AtSign, Settings2
 } from 'lucide-react';
 
 const FeatureCard = ({ icon: Icon, title, desc, delay, highlight = false }: { icon: React.ElementType, title: string, desc: string, delay: string, highlight?: boolean }) => (
@@ -84,7 +86,9 @@ const AnimatedTitle = ({ text }: { text: string }) => {
 export const LandingPage: React.FC = () => {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [dailyTab, setDailyTab] = useState<'timeblock' | 'checklist'>('timeblock');
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
@@ -115,17 +119,18 @@ export const LandingPage: React.FC = () => {
       <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-700 ${scrolled ? 'glass border-b border-white/15 py-4' : 'bg-transparent py-8'}`}>
         <div className="container mx-auto px-8 flex justify-between items-center">
           <div className="flex items-center gap-3 cursor-pointer group" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-            <div className="w-10 h-10 bg-bridge-accent rounded-xl flex items-center justify-center text-white font-jakarta font-extrabold text-lg shadow-[0_0_20px_rgba(99,102,241,0.6)] group-hover:scale-110 transition-all duration-500">BS</div>
+            <img src="/BridgeSpotsIcon.png" alt="BridgeSpots" className="w-10 h-10 rounded-xl shadow-[0_0_20px_rgba(99,102,241,0.6)] group-hover:scale-110 transition-all duration-500" />
             <div className="font-jakarta font-bold text-2xl tracking-tighter transition-all duration-500">
               <span className="text-white">Bridge</span><span className="text-bridge-secondary">Spots</span><span className="spot-dot w-1.5 h-1.5 ml-1" />
             </div>
           </div>
 
           <div className="hidden md:flex items-center gap-12 text-[11px] font-bold tracking-[0.4em] text-slate-400 uppercase font-jakarta">
-            <a href="#core" onClick={scrollToSection('core')} className="hover:text-white transition-all duration-300">Features</a>
-            <a href="#workflow" onClick={scrollToSection('workflow')} className="hover:text-white transition-all duration-300">Workflow</a>
-            <a href="#pricing" onClick={scrollToSection('pricing')} className="hover:text-white transition-all duration-300">Pricing</a>
-            <button onClick={handleGetStarted} className="px-10 py-3.5 bg-white text-bridge-dark rounded-full hover:bg-bridge-secondary hover:shadow-[0_0_30px_rgba(45,212,191,0.5)] transition-all duration-500 font-extrabold tracking-widest text-[11px]">JOIN NOW</button>
+            <a href="#core" onClick={scrollToSection('core')} className="hover:text-white transition-all duration-300">{t('landing.nav.features')}</a>
+            <a href="#workflow" onClick={scrollToSection('workflow')} className="hover:text-white transition-all duration-300">{t('landing.nav.workflow')}</a>
+            <a href="#pricing" onClick={scrollToSection('pricing')} className="hover:text-white transition-all duration-300">{t('landing.nav.pricing')}</a>
+            <LanguageSwitcher variant="compact" />
+            <button onClick={handleGetStarted} className="px-10 py-3.5 bg-white text-bridge-dark rounded-full hover:bg-bridge-secondary hover:shadow-[0_0_30px_rgba(45,212,191,0.5)] transition-all duration-500 font-extrabold tracking-widest text-[11px]">{t('landing.nav.joinNow')}</button>
           </div>
 
           <button className="md:hidden text-white p-2" onClick={() => setMenuOpen(!menuOpen)}>
@@ -141,10 +146,10 @@ export const LandingPage: React.FC = () => {
           animate={{ opacity: 1, scale: 1 }}
           className="fixed inset-0 z-40 bg-bridge-obsidian/95 backdrop-blur-2xl flex flex-col items-center justify-center gap-12 text-2xl font-jakarta text-white"
         >
-          <a href="#core" onClick={scrollToSection('core')} className="uppercase font-bold tracking-[0.25em] text-slate-400">Features</a>
-          <a href="#workflow" onClick={scrollToSection('workflow')} className="uppercase font-bold tracking-[0.25em] text-slate-400">Workflow</a>
-          <a href="#pricing" onClick={scrollToSection('pricing')} className="uppercase font-bold tracking-[0.25em] text-slate-400">Pricing</a>
-          <button onClick={handleGetStarted} className="px-10 py-5 bg-bridge-accent text-white rounded-full shadow-2xl uppercase font-bold tracking-widest text-sm">Start for Free</button>
+          <a href="#core" onClick={scrollToSection('core')} className="uppercase font-bold tracking-[0.25em] text-slate-400">{t('landing.nav.features')}</a>
+          <a href="#workflow" onClick={scrollToSection('workflow')} className="uppercase font-bold tracking-[0.25em] text-slate-400">{t('landing.nav.workflow')}</a>
+          <a href="#pricing" onClick={scrollToSection('pricing')} className="uppercase font-bold tracking-[0.25em] text-slate-400">{t('landing.nav.pricing')}</a>
+          <button onClick={handleGetStarted} className="px-10 py-5 bg-bridge-accent text-white rounded-full shadow-2xl uppercase font-bold tracking-widest text-sm">{t('landing.nav.startForFree')}</button>
         </motion.div>
       )}
 
@@ -160,7 +165,7 @@ export const LandingPage: React.FC = () => {
             transition={{ delay: 0.3, duration: 1 }}
             className="inline-block mb-10 px-8 py-3 border border-bridge-secondary/20 text-bridge-secondary text-[11px] font-bold tracking-[0.5em] uppercase rounded-full bg-bridge-secondary/5 backdrop-blur-xl shadow-2xl font-jakarta"
           >
-            The Intelligent PM Orchestration
+            {t('landing.hero.badge')}
           </motion.div>
 
           <AnimatedTitle text="BridgeSpots" />
@@ -171,8 +176,8 @@ export const LandingPage: React.FC = () => {
             transition={{ delay: 1.3, duration: 1.2 }}
             className="max-w-4xl mx-auto text-xl md:text-3xl text-slate-300 font-normal leading-relaxed mb-16 px-4 font-inter opacity-90"
           >
-            복잡한 워크플로우를 관통하는 명확한 <span className="text-bridge-secondary font-semibold">Flow</span>.<br/>
-            가장 진화된 PM 전용 협업 인터페이스를 경험하세요.
+            {t('landing.hero.subtitleText1')} <span className="text-bridge-secondary font-semibold">{t('landing.hero.subtitleFlow')}</span>.<br/>
+            {t('landing.hero.subtitleText2')}
           </motion.p>
 
           <motion.div
@@ -182,10 +187,10 @@ export const LandingPage: React.FC = () => {
             className="flex flex-col md:flex-row justify-center gap-6 mb-20"
           >
             <button onClick={handleGetStarted} className="px-16 py-7 bg-bridge-accent text-white rounded-full font-bold uppercase tracking-widest text-[12px] shadow-[0_0_60px_rgba(99,102,241,0.5)] hover:bg-white hover:text-bridge-dark transition-all transform hover:-translate-y-2 duration-500 flex items-center gap-3 mx-auto md:mx-0 font-jakarta">
-              Try 7 Days Free Premium <ArrowRight size={20} />
+              {t('landing.hero.tryFree')} <ArrowRight size={20} />
             </button>
             <button onClick={handleGetStarted} className="px-16 py-7 bg-white/5 border border-white/20 text-white rounded-full font-bold uppercase tracking-widest text-[12px] shadow-xl backdrop-blur-md hover:bg-white/10 transition-all transform hover:-translate-y-1 duration-500 mx-auto md:mx-0 font-jakarta">
-              Basic Board Forever Free
+              {t('landing.hero.basicFree')}
             </button>
           </motion.div>
         </div>
@@ -197,36 +202,36 @@ export const LandingPage: React.FC = () => {
           <div className="absolute top-0 right-0 w-[1000px] h-[1000px] bg-bridge-accent/5 blur-[250px] rounded-full -mr-96 -mt-96" />
           <div className="container mx-auto px-8">
             <div className="max-w-5xl mb-32">
-               <div className="inline-block mb-10 text-[11px] font-bold tracking-[0.6em] text-bridge-secondary uppercase font-jakarta">Core Architecture</div>
+               <div className="inline-block mb-10 text-[11px] font-bold tracking-[0.6em] text-bridge-secondary uppercase font-jakarta">{t('landing.core.label')}</div>
                <h2 className="font-jakarta text-6xl md:text-9xl mb-12 leading-none text-white tracking-tighter font-extrabold">
-                 협업의 흐름을<br/>정밀하게 조율하다<span className="spot-dot scale-150" />
+                 {t('landing.core.titleLine1')}<br/>{t('landing.core.titleLine2')}<span className="spot-dot scale-150" />
                </h2>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
               <FeatureCard
                 icon={Layers}
-                title="실무 중심 칸반 설계"
-                desc="'Feature - Task - Done' 구조 위에 팀만의 워크플로우를 자유롭게 얹으세요. 현직 PM들의 통찰을 녹여낸 가장 실용적인 협업 인터페이스입니다."
+                title={t('landing.core.kanban.title')}
+                desc={t('landing.core.kanban.desc')}
                 delay="0.1"
                 highlight
               />
               <FeatureCard
                 icon={RefreshCcw}
-                title="Gantt & Daily 통합"
-                desc="로드맵과 일간 스케줄이 실시간으로 동기화됩니다. 개별 작업의 변화가 팀 전체의 로드맵에 즉시 반영되는 유기적인 시스템입니다."
+                title={t('landing.core.gantt.title')}
+                desc={t('landing.core.gantt.desc')}
                 delay="0.2"
               />
               <FeatureCard
                 icon={BarChart3}
-                title="지능형 통합 대시보드"
-                desc="팀원별 리소스 상태를 시각화하여 업무 쏠림을 방지합니다. 정체된 태스크를 자동으로 포착해 프로젝트 리스크를 사전에 관리하세요."
+                title={t('landing.core.dashboard.title')}
+                desc={t('landing.core.dashboard.desc')}
                 delay="0.3"
               />
               <FeatureCard
                 icon={Zap}
-                title="투명한 무제한 모델"
-                desc="핵심 협업 기능은 평생 무료입니다. 추가 결제 없이 모든 프리미엄 기능을 인당 $5로 누릴 수 있는 유일한 모델입니다."
+                title={t('landing.core.pricing.title')}
+                desc={t('landing.core.pricing.desc')}
                 delay="0.4"
               />
             </div>
@@ -237,10 +242,9 @@ export const LandingPage: React.FC = () => {
         <section id="workflow" className="py-48 bg-bridge-dark relative">
           <div className="container mx-auto px-8">
             <div className="max-w-4xl mx-auto text-center mb-32">
-              <h2 className="font-jakarta text-4xl md:text-8xl mb-10 text-white tracking-tighter font-extrabold">Visual Connectivity<span className="spot-dot scale-150 ml-4" /></h2>
+              <h2 className="font-jakarta text-4xl md:text-8xl mb-10 text-white tracking-tighter font-extrabold">{t('landing.workflow.title')}<span className="spot-dot scale-150 ml-4" /></h2>
               <p className="text-xl text-slate-400 leading-relaxed font-light font-inter">
-                흩어져 있는 태스크들이 하나의 목표를 향해 정렬되는 과정.<br/>
-                BridgeSpots의 지능형 칸반 시스템이 이를 현실로 만듭니다.
+                {t('landing.workflow.subtitle')}
               </p>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-24 items-center">
@@ -250,9 +254,9 @@ export const LandingPage: React.FC = () => {
               </div>
               <div className="order-1 lg:order-2 space-y-16">
                 {[
-                  { num: "01", title: "Milestone Engineering", text: "프로젝트의 큰 이정표를 설정하고, 이를 실현하기 위한 핵심 Feature들을 그룹화합니다." },
-                  { num: "02", title: "Automated Tasking", text: "Feature 상세 페이지에서 서브태스크를 추가하면 칸반 보드에 자동으로 카드가 생성됩니다." },
-                  { num: "03", title: "Insightful Execution", text: "모든 진행 상황은 데이터로 축적되어 팀의 생산성을 시각적으로 확인할 수 있게 해줍니다." }
+                  { num: "01", title: t('landing.workflow.step1.title'), text: t('landing.workflow.step1.text') },
+                  { num: "02", title: t('landing.workflow.step2.title'), text: t('landing.workflow.step2.text') },
+                  { num: "03", title: t('landing.workflow.step3.title'), text: t('landing.workflow.step3.text') }
                 ].map((item, i) => (
                   <motion.div
                     whileHover={{ x: 10 }}
@@ -278,16 +282,99 @@ export const LandingPage: React.FC = () => {
           <div className="container mx-auto px-8">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-28 items-center">
               <div className="lg:col-span-5">
-                <div className="inline-block mb-6 text-[11px] font-bold tracking-[0.4em] text-bridge-secondary uppercase font-jakarta">Precision Controls</div>
-                <h2 className="font-jakarta text-4xl md:text-7xl mb-12 leading-tight text-white font-extrabold tracking-tighter">시간의 가치를 <br/>다시 정의하다<span className="spot-dot scale-150 ml-2" /></h2>
+                <div className="inline-block mb-6 text-[11px] font-bold tracking-[0.4em] text-bridge-secondary uppercase font-jakarta">{t('landing.scheduling.label')}</div>
+                <h2 className="font-jakarta text-4xl md:text-7xl mb-12 leading-tight text-white font-extrabold tracking-tighter">{t('landing.scheduling.titleLine1')} <br/>{t('landing.scheduling.titleLine2')}<span className="spot-dot scale-150 ml-2" /></h2>
                 <p className="text-xl text-slate-400 mb-16 leading-relaxed font-light font-inter">
-                  우리는 시간이 곧 자산임을 압니다.<br/>
-                  팀원들의 에너지가 가장 필요한 곳에 집중될 수 있도록 정교한 스케줄링 도구를 제공합니다.
+                  {t('landing.scheduling.subtitle')}
                 </p>
               </div>
               <div className="lg:col-span-7 flex flex-col gap-12">
                 <GanttDiagram />
-                <DailyScheduleDiagram />
+                <div>
+                  <div className="flex justify-center mb-6">
+                    <div className="inline-flex bg-white/5 border border-white/10 rounded-2xl p-1.5">
+                      <button
+                        onClick={() => setDailyTab('timeblock')}
+                        className={`px-6 py-2.5 rounded-xl text-[11px] font-bold tracking-widest uppercase transition-all font-jakarta ${
+                          dailyTab === 'timeblock'
+                            ? 'bg-bridge-accent text-white shadow-lg'
+                            : 'text-slate-500 hover:text-slate-300'
+                        }`}
+                      >
+                        {t('landing.scheduling.timeBlocks')}
+                      </button>
+                      <button
+                        onClick={() => setDailyTab('checklist')}
+                        className={`px-6 py-2.5 rounded-xl text-[11px] font-bold tracking-widest uppercase transition-all font-jakarta ${
+                          dailyTab === 'checklist'
+                            ? 'bg-bridge-secondary text-bridge-dark shadow-lg'
+                            : 'text-slate-500 hover:text-slate-300'
+                        }`}
+                      >
+                        {t('landing.scheduling.dailyChecklist')}
+                      </button>
+                    </div>
+                  </div>
+                  <AnimatePresence mode="wait">
+                    {dailyTab === 'timeblock' ? (
+                      <motion.div key="timeblock" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3 }}>
+                        <DailyScheduleDiagram />
+                      </motion.div>
+                    ) : (
+                      <motion.div key="checklist" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3 }}>
+                        <DailyChecklistDiagram />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Collaboration Section */}
+        <section id="collaboration" className="py-48 bg-bridge-dark relative">
+          <div className="container mx-auto px-8">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-28 items-center">
+              <div className="lg:col-span-7 order-2 lg:order-1">
+                <div className="relative">
+                  <div className="absolute -inset-10 bg-bridge-accent/5 blur-[100px] rounded-full" />
+                  <SlackNotificationDiagram />
+                </div>
+              </div>
+              <div className="lg:col-span-5 order-1 lg:order-2">
+                <div className="flex items-center gap-4 mb-6">
+                  <span className="text-[11px] font-bold tracking-[0.4em] text-bridge-secondary uppercase font-jakarta">{t('landing.collaboration.label')}</span>
+                  <span className="px-3 py-1 bg-bridge-secondary/10 border border-bridge-secondary/30 rounded-full text-[9px] font-black text-bridge-secondary tracking-widest uppercase font-jakarta">Premium</span>
+                </div>
+                <h2 className="font-jakarta text-4xl md:text-7xl mb-12 leading-tight text-white font-extrabold tracking-tighter">{t('landing.collaboration.titleLine1')}<br/>{t('landing.collaboration.titleLine2')}<span className="spot-dot scale-150 ml-2" /></h2>
+                <p className="text-xl text-slate-400 mb-16 leading-relaxed font-light font-inter">
+                  {t('landing.collaboration.subtitle')}
+                </p>
+                <div className="space-y-12">
+                  {[
+                    { icon: Bell, title: t('landing.collaboration.slack.title'), text: t('landing.collaboration.slack.text') },
+                    { icon: AtSign, title: t('landing.collaboration.mention.title'), text: t('landing.collaboration.mention.text') },
+                    { icon: Settings2, title: t('landing.collaboration.granular.title'), text: t('landing.collaboration.granular.text') },
+                  ].map((item, i) => (
+                    <motion.div
+                      key={i}
+                      initial={{ opacity: 0, x: 20 }}
+                      whileInView={{ opacity: 1, x: 0 }}
+                      viewport={{ once: true }}
+                      transition={{ delay: i * 0.15 }}
+                      className="flex gap-6 group"
+                    >
+                      <div className="flex-shrink-0 w-14 h-14 rounded-2xl border border-white/20 bg-white/5 flex items-center justify-center group-hover:bg-bridge-accent group-hover:border-bridge-accent transition-all duration-700 shadow-2xl">
+                        <item.icon size={22} className="text-bridge-accent group-hover:text-white transition-colors duration-700" />
+                      </div>
+                      <div>
+                        <h4 className="text-xl font-jakarta font-bold text-white mb-2 tracking-tight group-hover:text-bridge-secondary transition-colors duration-500">{item.title}</h4>
+                        <p className="text-slate-400 leading-relaxed text-base font-light font-inter">{item.text}</p>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
@@ -300,7 +387,7 @@ export const LandingPage: React.FC = () => {
                 <div className="flex justify-center mb-12">
                   <div className="px-10 py-3.5 bg-bridge-secondary/10 border border-bridge-secondary/30 rounded-full flex items-center gap-4 text-bridge-secondary text-[12px] font-black shadow-2xl font-jakarta">
                     <Sparkles size={20} />
-                    <span className="tracking-[0.4em]">PREMIUM 7 DAYS FREE TRIAL</span>
+                    <span className="tracking-[0.4em]">{t('landing.pricing.trialBadge')}</span>
                   </div>
                 </div>
                 <h2 className="font-jakarta text-7xl md:text-[11rem] mb-16 text-white tracking-tighter leading-none font-extrabold">
@@ -309,41 +396,42 @@ export const LandingPage: React.FC = () => {
                 <div className="bg-bridge-obsidian/60 backdrop-blur-3xl rounded-[3rem] p-12 border border-white/20 max-w-4xl mx-auto flex flex-col md:flex-row items-center justify-center gap-12">
                   <RefreshCcw size={48} className="text-bridge-secondary animate-spin-slow flex-shrink-0" />
                   <p className="text-left text-xl leading-relaxed text-slate-300 font-inter font-light">
-                    <strong className="text-white block mb-3 font-jakarta text-2xl font-bold italic">Continuous Momentum.</strong>
-                    7일 후 결제를 원하지 않으셔도 <span className="text-bridge-secondary font-bold">무제한 무료 보드(Basic)</span>로 자동 전환되어 데이터와 협업 흐름은 영구적으로 안전하게 보존됩니다.
+                    <strong className="text-white block mb-3 font-jakarta text-2xl font-bold italic">{t('landing.pricing.momentum')}</strong>
+                    {t('landing.pricing.momentumDesc')}
                   </p>
                 </div>
              </div>
 
              <div className="grid grid-cols-1 md:grid-cols-2 gap-12 max-w-6xl mx-auto items-stretch">
                 <div className="p-16 bg-white/5 backdrop-blur-xl rounded-[4rem] border border-white/20 flex flex-col items-center text-center hover:bg-white/10 transition-all duration-700">
-                  <span className="text-[12px] font-black text-slate-400 uppercase tracking-[0.6em] mb-12 font-jakarta">Basic Spots</span>
+                  <span className="text-[12px] font-black text-slate-400 uppercase tracking-[0.6em] mb-12 font-jakarta">{t('landing.pricing.basic.name')}</span>
                   <div className="flex items-baseline gap-2 mb-8">
-                    <span className="text-8xl font-jakarta font-extrabold text-white">Free</span>
+                    <span className="text-8xl font-jakarta font-extrabold text-white">{t('landing.pricing.basic.price')}</span>
                   </div>
-                  <p className="text-lg text-slate-400 mb-16 font-inter">Infinite Collaboration. Zero Cost.</p>
+                  <p className="text-lg text-slate-400 mb-16 font-inter">{t('landing.pricing.basic.tagline')}</p>
                   <ul className="text-base space-y-8 text-slate-400 mb-20 text-left w-full border-t border-white/15 pt-16 font-light font-inter">
-                    <li className="flex items-center gap-5"><CheckCircle size={22} className="text-bridge-secondary/50" /> 핵심 칸반 아키텍처 무제한</li>
-                    <li className="flex items-center gap-5"><CheckCircle size={22} className="text-bridge-secondary/50" /> 실시간 데이터 동기화 및 팀 공유</li>
-                    <li className="flex items-center gap-5 text-slate-700 line-through"><CheckCircle size={22} /> 지능형 대시보드 및 정체 감지</li>
+                    <li className="flex items-center gap-5"><CheckCircle size={22} className="text-bridge-secondary/50" /> {t('landing.pricing.basic.feature1')}</li>
+                    <li className="flex items-center gap-5"><CheckCircle size={22} className="text-bridge-secondary/50" /> {t('landing.pricing.basic.feature2')}</li>
+                    <li className="flex items-center gap-5"><CheckCircle size={22} className="text-bridge-secondary/50" /> {t('landing.pricing.basic.feature3')}</li>
+                    <li className="flex items-center gap-5 text-slate-700 line-through"><CheckCircle size={22} /> {t('landing.pricing.basic.feature4')}</li>
                   </ul>
-                  <button onClick={handleGetStarted} className="w-full py-8 bg-white/10 border border-white/20 rounded-full text-[12px] font-black uppercase tracking-widest text-white hover:bg-white hover:text-bridge-dark transition-all font-jakarta">START FREE</button>
+                  <button onClick={handleGetStarted} className="w-full py-8 bg-white/10 border border-white/20 rounded-full text-[12px] font-black uppercase tracking-widest text-white hover:bg-white hover:text-bridge-dark transition-all font-jakarta">{t('landing.pricing.basic.cta')}</button>
                 </div>
 
                 <div className="p-16 bg-bridge-slate rounded-[4rem] border-2 border-bridge-secondary/40 shadow-[0_0_120px_rgba(45,212,191,0.2)] flex flex-col items-center text-center transform scale-105 relative z-10 transition-all duration-700">
-                  <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-bridge-secondary text-bridge-dark px-14 py-4 rounded-full text-[12px] font-black tracking-[0.5em] uppercase shadow-2xl font-jakarta">Premium Spots</div>
+                  <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-bridge-secondary text-bridge-dark px-14 py-4 rounded-full text-[12px] font-black tracking-[0.5em] uppercase shadow-2xl font-jakarta">{t('landing.pricing.premium.name')}</div>
                   <div className="flex items-baseline gap-3 mb-8">
                     <span className="text-4xl text-bridge-secondary font-jakarta font-bold">$</span>
                     <span className="text-9xl font-jakarta font-extrabold text-white">5</span>
                   </div>
-                  <p className="text-lg text-slate-400 mb-16 font-inter">per user / month (Annual $50)</p>
+                  <p className="text-lg text-slate-400 mb-16 font-inter">{t('landing.pricing.premium.tagline')}</p>
                   <ul className="text-base space-y-8 text-slate-100 mb-20 text-left w-full border-t border-white/20 pt-16 font-medium font-inter">
-                    <li className="flex items-center gap-5 text-bridge-secondary font-bold"><CheckCircle size={26} /> 지능형 PM 대시보드 무제한 접근</li>
-                    <li className="flex items-center gap-5"><CheckCircle size={26} className="text-bridge-secondary" /> 리소스 병목 및 정체 자동 알림</li>
-                    <li className="flex items-center gap-5"><CheckCircle size={26} className="text-bridge-secondary" /> Gantt & Daily 통합 뷰 무제한</li>
-                    <li className="flex items-center gap-5"><CheckCircle size={26} className="text-bridge-secondary" /> 고급 팀 권한 오케스트레이션</li>
+                    <li className="flex items-center gap-5 text-bridge-secondary font-bold"><CheckCircle size={26} /> {t('landing.pricing.premium.feature1')}</li>
+                    <li className="flex items-center gap-5"><CheckCircle size={26} className="text-bridge-secondary" /> {t('landing.pricing.premium.feature2')}</li>
+                    <li className="flex items-center gap-5"><CheckCircle size={26} className="text-bridge-secondary" /> {t('landing.pricing.premium.feature3')}</li>
+                    <li className="flex items-center gap-5"><CheckCircle size={26} className="text-bridge-secondary" /> {t('landing.pricing.premium.feature4')}</li>
                   </ul>
-                  <button onClick={handleGetStarted} className="w-full py-9 bg-bridge-secondary text-bridge-dark rounded-full text-[12px] font-black uppercase tracking-widest shadow-2xl hover:shadow-[0_0_80px_rgba(45,212,191,0.7)] transition-all transform hover:scale-[1.03] font-jakarta">START TRIAL</button>
+                  <button onClick={handleGetStarted} className="w-full py-9 bg-bridge-secondary text-bridge-dark rounded-full text-[12px] font-black uppercase tracking-widest shadow-2xl hover:shadow-[0_0_80px_rgba(45,212,191,0.7)] transition-all transform hover:scale-[1.03] font-jakarta">{t('landing.pricing.premium.cta')}</button>
                 </div>
              </div>
           </div>
@@ -361,13 +449,12 @@ export const LandingPage: React.FC = () => {
                 transition={{ duration: 1.2 }}
                 className="font-jakarta text-7xl md:text-[13rem] mb-20 leading-none text-white tracking-tighter font-extrabold"
               >
-                Connect<br/><span className="text-outline">Everything</span><span className="spot-dot scale-[2]" />
+                {t('landing.cta.titleLine1')}<br/><span className="text-outline">{t('landing.cta.titleLine2')}</span><span className="spot-dot scale-[2]" />
               </motion.h2>
               <p className="text-3xl text-slate-400 mb-24 font-light max-w-5xl mx-auto leading-relaxed font-inter">
-                BridgeSpots와 함께 단순한 작업 관리를 넘어<br/>
-                팀의 무한한 생산성을 지능적으로 오케스트레이션하세요.
+                {t('landing.cta.subtitle')}
               </p>
-              <button onClick={handleGetStarted} className="px-24 py-10 bg-white text-bridge-dark rounded-full font-black uppercase tracking-[0.7em] text-[13px] shadow-[0_0_120px_rgba(255,255,255,0.25)] hover:scale-110 transition-all duration-700 font-jakarta">LAUNCH FLOW</button>
+              <button onClick={handleGetStarted} className="px-24 py-10 bg-white text-bridge-dark rounded-full font-black uppercase tracking-[0.7em] text-[13px] shadow-[0_0_120px_rgba(255,255,255,0.25)] hover:scale-110 transition-all duration-700 font-jakarta">{t('landing.cta.button')}</button>
            </div>
         </section>
       </main>
@@ -377,42 +464,42 @@ export const LandingPage: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-24 mb-32">
             <div className="col-span-1 md:col-span-1">
               <div className="flex items-center gap-3 mb-12">
-                 <div className="w-10 h-10 bg-bridge-accent rounded-xl flex items-center justify-center text-white font-jakarta font-bold text-xl">BS</div>
+                 <img src="/BridgeSpotsIcon.png" alt="BridgeSpots" className="w-10 h-10 rounded-xl shadow-[0_0_20px_rgba(99,102,241,0.6)]" />
                  <div className="font-jakarta font-bold text-3xl tracking-tighter">
                    <span className="text-white">Bridge</span><span className="text-bridge-secondary">Spots</span><span className="spot-dot w-2 h-2 ml-1" />
                  </div>
               </div>
               <p className="text-lg leading-relaxed text-slate-400 font-normal font-inter">
-                Built by PMs for Absolute Mastery.<br/>Precision Collaboration, Redefined.
+                {t('landing.footer.tagline')}
               </p>
             </div>
             <div>
-              <h4 className="font-bold text-white mb-10 text-[11px] uppercase tracking-[0.5em] font-jakarta">Ecosystem</h4>
+              <h4 className="font-bold text-white mb-10 text-[11px] uppercase tracking-[0.5em] font-jakarta">{t('landing.footer.ecosystem')}</h4>
               <ul className="text-lg space-y-6 font-light font-inter">
-                <li><a href="#" className="hover:text-bridge-secondary transition-all">Templates</a></li>
-                <li><a href="#" className="hover:text-bridge-secondary transition-all">Integrations</a></li>
-                <li><a href="#" className="hover:text-bridge-secondary transition-all">API Guide</a></li>
+                <li><a href="#" className="hover:text-bridge-secondary transition-all">{t('landing.footer.templates')}</a></li>
+                <li><a href="#" className="hover:text-bridge-secondary transition-all">{t('landing.footer.integrations')}</a></li>
+                <li><a href="#" className="hover:text-bridge-secondary transition-all">{t('landing.footer.apiGuide')}</a></li>
               </ul>
             </div>
             <div>
-              <h4 className="font-bold text-white mb-10 text-[11px] uppercase tracking-[0.5em] font-jakarta">Community</h4>
+              <h4 className="font-bold text-white mb-10 text-[11px] uppercase tracking-[0.5em] font-jakarta">{t('landing.footer.community')}</h4>
               <ul className="text-lg space-y-6 font-light font-inter">
                 <li><a href="#" className="hover:text-bridge-secondary transition-all">LinkedIn</a></li>
                 <li><a href="#" className="hover:text-bridge-secondary transition-all">Twitter / X</a></li>
-                <li><a href="#" className="hover:text-bridge-secondary transition-all">Slack Group</a></li>
+                <li><a href="#" className="hover:text-bridge-secondary transition-all">{t('landing.footer.slackGroup')}</a></li>
               </ul>
             </div>
             <div>
-              <h4 className="font-bold text-white mb-10 text-[11px] uppercase tracking-[0.5em] font-jakarta">Mission</h4>
+              <h4 className="font-bold text-white mb-10 text-[11px] uppercase tracking-[0.5em] font-jakarta">{t('landing.footer.mission')}</h4>
               <ul className="text-lg space-y-6 font-light font-inter">
-                <li><a href="#" className="hover:text-bridge-secondary transition-all">Manifesto</a></li>
-                <li><Link to="/privacy" className="hover:text-bridge-secondary transition-all">Privacy</Link></li>
-                <li><Link to="/terms" className="hover:text-bridge-secondary transition-all">Terms</Link></li>
+                <li><a href="#" className="hover:text-bridge-secondary transition-all">{t('landing.footer.manifesto')}</a></li>
+                <li><Link to="/privacy" className="hover:text-bridge-secondary transition-all">{t('landing.footer.privacy')}</Link></li>
+                <li><Link to="/terms" className="hover:text-bridge-secondary transition-all">{t('landing.footer.terms')}</Link></li>
               </ul>
             </div>
           </div>
           <div className="pt-20 border-t border-white/15 text-center text-[11px] tracking-[0.8em] uppercase font-black text-slate-700 font-jakarta">
-            &copy; 2026 BRIDGESPOTS INC. ORCHESTRATING SUPREME FLOW.
+            {t('landing.footer.copyright')}
           </div>
         </div>
       </footer>

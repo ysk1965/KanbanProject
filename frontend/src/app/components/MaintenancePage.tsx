@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Settings, Clock, RefreshCw, Sparkles } from 'lucide-react';
 import type { MaintenanceStatus } from '../utils/api';
 import { formatDate } from '../utils/dateUtils';
@@ -9,6 +10,7 @@ interface MaintenancePageProps {
 }
 
 export function MaintenancePage({ status, onRetry }: MaintenancePageProps) {
+  const { t } = useTranslation();
   const [countdown, setCountdown] = useState({ hours: 0, minutes: 0, seconds: 0 });
   const [progress, setProgress] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -134,12 +136,12 @@ export function MaintenancePage({ status, onRetry }: MaintenancePageProps) {
 
         {/* Title */}
         <h1 className="font-serif text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">
-          시스템 점검 중
+          {t('maintenance.title')}
         </h1>
 
         {/* Subtitle with gradient */}
         <p className="text-lg text-transparent bg-clip-text bg-gradient-to-r from-slate-400 to-slate-500 font-light mb-8 max-w-md mx-auto">
-          {status.message || '더 나은 서비스를 위해 시스템을 점검하고 있습니다'}
+          {status.message || t('maintenance.defaultMessage')}
         </p>
 
         {/* Countdown Timer */}
@@ -155,7 +157,7 @@ export function MaintenancePage({ status, onRetry }: MaintenancePageProps) {
                         {formatNumber(countdown.hours)}
                       </span>
                     </div>
-                    <span className="text-xs text-slate-500 mt-2 uppercase tracking-wider">시간</span>
+                    <span className="text-xs text-slate-500 mt-2 uppercase tracking-wider">{t('maintenance.hours')}</span>
                   </div>
                   <span className="text-2xl text-slate-600 font-light mb-5">:</span>
                 </>
@@ -166,7 +168,7 @@ export function MaintenancePage({ status, onRetry }: MaintenancePageProps) {
                     {formatNumber(countdown.minutes)}
                   </span>
                 </div>
-                <span className="text-xs text-slate-500 mt-2 uppercase tracking-wider">분</span>
+                <span className="text-xs text-slate-500 mt-2 uppercase tracking-wider">{t('maintenance.minutes')}</span>
               </div>
               <span className="text-2xl text-slate-600 font-light mb-5">:</span>
               <div className="flex flex-col items-center">
@@ -175,7 +177,7 @@ export function MaintenancePage({ status, onRetry }: MaintenancePageProps) {
                     {formatNumber(countdown.seconds)}
                   </span>
                 </div>
-                <span className="text-xs text-slate-500 mt-2 uppercase tracking-wider">초</span>
+                <span className="text-xs text-slate-500 mt-2 uppercase tracking-wider">{t('maintenance.seconds')}</span>
               </div>
             </div>
 
@@ -183,9 +185,9 @@ export function MaintenancePage({ status, onRetry }: MaintenancePageProps) {
             <div className="flex items-center justify-center gap-2 text-sm">
               <Clock className="h-4 w-4 text-slate-500" />
               <span className="text-slate-400">
-                예상 완료:{' '}
+                {t('maintenance.estimatedEnd')}{' '}
                 <span className="text-white font-medium">
-                  {formatDate(status.estimated_end_at, 'M월 d일 HH:mm')}
+                  {formatDate(status.estimated_end_at, t('maintenance.dateFormat'))}
                 </span>
               </span>
             </div>
@@ -200,13 +202,13 @@ export function MaintenancePage({ status, onRetry }: MaintenancePageProps) {
             hover:shadow-[0_0_40px_rgba(99,102,241,0.4)] hover:scale-105 transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed"
         >
           <RefreshCw className={`h-5 w-5 transition-transform ${isRefreshing ? 'animate-spin' : 'group-hover:rotate-180'}`} />
-          {isRefreshing ? '확인 중...' : '지금 확인하기'}
+          {isRefreshing ? t('maintenance.checking') : t('maintenance.checkNow')}
         </button>
 
         {/* Auto-refresh Notice */}
         <div className="mt-8 flex items-center justify-center gap-2">
           <div className="w-2 h-2 rounded-full bg-green-500/60 animate-pulse" />
-          <p className="text-slate-500 text-sm">30초마다 자동으로 확인합니다</p>
+          <p className="text-slate-500 text-sm">{t('maintenance.autoRefresh')}</p>
         </div>
 
         {/* Progress Bar at Bottom */}
@@ -218,7 +220,7 @@ export function MaintenancePage({ status, onRetry }: MaintenancePageProps) {
             />
           </div>
           <p className="text-[10px] text-slate-600 mt-2 uppercase tracking-widest">
-            점검 진행률 {Math.round(progress)}%
+            {t('maintenance.progress', { percent: Math.round(progress) })}
           </p>
         </div>
       </div>

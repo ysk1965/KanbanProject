@@ -1,6 +1,7 @@
-import { useState } from 'react';
 import { Routes, Route, NavLink, Navigate } from 'react-router-dom';
 import { LayoutDashboard, Users, Folder, CreditCard, BarChart3, Megaphone, Shield, ArrowLeft, MessageSquare } from 'lucide-react';
+import ErrorBoundary from '../components/ErrorBoundary';
+import { useTranslation } from 'react-i18next';
 import { AdminDashboardTab } from '../components/admin/AdminDashboardTab';
 import { AdminUsersTab } from '../components/admin/AdminUsersTab';
 import { AdminBoardsTab } from '../components/admin/AdminBoardsTab';
@@ -11,17 +12,18 @@ import { AdminSystemTab } from '../components/admin/AdminSystemTab';
 import { AdminInquiriesTab } from '../components/admin/AdminInquiriesTab';
 
 const navItems = [
-  { path: 'dashboard', label: '대시보드', icon: LayoutDashboard },
-  { path: 'analytics', label: '분석 / 리포트', icon: BarChart3 },
-  { path: 'users', label: '사용자 관리', icon: Users },
-  { path: 'boards', label: '보드 관리', icon: Folder },
-  { path: 'subscriptions', label: '구독 관리', icon: CreditCard },
-  { path: 'announcements', label: '공지사항', icon: Megaphone },
-  { path: 'system', label: '시스템 관리', icon: Shield },
-  { path: 'inquiries', label: '문의 관리', icon: MessageSquare },
+  { path: 'dashboard', labelKey: 'admin.dashboard', icon: LayoutDashboard },
+  { path: 'analytics', labelKey: 'admin.analytics', icon: BarChart3 },
+  { path: 'users', labelKey: 'admin.users', icon: Users },
+  { path: 'boards', labelKey: 'admin.boards', icon: Folder },
+  { path: 'subscriptions', labelKey: 'admin.subscriptions', icon: CreditCard },
+  { path: 'announcements', labelKey: 'admin.announcements', icon: Megaphone },
+  { path: 'system', labelKey: 'admin.system', icon: Shield },
+  { path: 'inquiries', labelKey: 'admin.inquiries', icon: MessageSquare },
 ];
 
 export function AdminPage() {
+  const { t } = useTranslation();
   return (
     <div className="min-h-screen bg-bridge-dark">
       {/* Header */}
@@ -33,7 +35,7 @@ export function AdminPage() {
               className="text-slate-400 hover:text-white transition-colors flex items-center gap-2"
             >
               <ArrowLeft className="h-4 w-4" />
-              <span className="hidden sm:inline">보드로 돌아가기</span>
+              <span className="hidden sm:inline">{t('admin.backToBoards')}</span>
             </NavLink>
             <div className="h-6 w-px bg-white/10" />
             <h1 className="text-lg md:text-xl font-bold text-white">Admin</h1>
@@ -59,7 +61,7 @@ export function AdminPage() {
                   }
                 >
                   <item.icon className="h-4 w-4 md:h-5 md:w-5" />
-                  <span className="text-sm md:text-base font-medium">{item.label}</span>
+                  <span className="text-sm md:text-base font-medium">{t(item.labelKey)}</span>
                 </NavLink>
               ))}
             </div>
@@ -67,17 +69,19 @@ export function AdminPage() {
 
           {/* Main Content */}
           <main className="flex-1 min-w-0">
-            <Routes>
-              <Route path="/" element={<Navigate to="dashboard" replace />} />
-              <Route path="dashboard" element={<AdminDashboardTab />} />
-              <Route path="analytics" element={<AdminAnalyticsTab />} />
-              <Route path="users" element={<AdminUsersTab />} />
-              <Route path="boards" element={<AdminBoardsTab />} />
-              <Route path="subscriptions" element={<AdminSubscriptionsTab />} />
-              <Route path="announcements" element={<AdminAnnouncementsTab />} />
-              <Route path="system" element={<AdminSystemTab />} />
-              <Route path="inquiries" element={<AdminInquiriesTab />} />
-            </Routes>
+            <ErrorBoundary>
+              <Routes>
+                <Route path="/" element={<Navigate to="dashboard" replace />} />
+                <Route path="dashboard" element={<AdminDashboardTab />} />
+                <Route path="analytics" element={<AdminAnalyticsTab />} />
+                <Route path="users" element={<AdminUsersTab />} />
+                <Route path="boards" element={<AdminBoardsTab />} />
+                <Route path="subscriptions" element={<AdminSubscriptionsTab />} />
+                <Route path="announcements" element={<AdminAnnouncementsTab />} />
+                <Route path="system" element={<AdminSystemTab />} />
+                <Route path="inquiries" element={<AdminInquiriesTab />} />
+              </Routes>
+            </ErrorBoundary>
           </main>
         </div>
       </div>

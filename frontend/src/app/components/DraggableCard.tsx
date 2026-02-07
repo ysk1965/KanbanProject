@@ -4,6 +4,7 @@ import { Calendar, ChevronDown, ChevronUp, CheckSquare, Check } from 'lucide-rea
 import { checklistAPI } from '../utils/api';
 import { useDragContext } from '../contexts/DragContext';
 import { getAssigneeHex, getInitials } from '../utils/assigneeColor';
+import { useTranslation } from 'react-i18next';
 
 // 클릭으로 인정할 최대 이동 거리 (픽셀)
 const CLICK_THRESHOLD = 5;
@@ -38,6 +39,7 @@ export function DraggableCard({
   memberColorMap,
   showFeatureLabel = false,
 }: DraggableCardProps) {
+  const { t } = useTranslation();
   const ref = useRef<HTMLDivElement>(null);
   // 부모에서 전달받은 체크리스트 데이터를 사용하거나 로컬 상태 사용
   const [localChecklistItems, setLocalChecklistItems] = useState<ChecklistItem[]>([]);
@@ -261,9 +263,9 @@ export function DraggableCard({
       data-task-id={task.id}
       data-task-index={index}
       draggable={!shouldDisablePointerEvents}
-      className={`group relative bg-kanban-card-hover rounded-xl border border-kanban-border px-3 py-2.5 hover:border-indigo-500/50 hover:shadow-2xl hover:shadow-indigo-500/10 transition-all cursor-pointer overflow-hidden kanban-glow select-none ${
+      className={`group relative bg-kanban-card-hover rounded-xl border border-kanban-border px-3 py-2.5 hover:border-[#2DD4BF]/40 hover:shadow-2xl hover:shadow-[#2DD4BF]/10 transition-all cursor-pointer overflow-hidden kanban-glow select-none ${
         isDragging || isThisCardDragging
-          ? 'opacity-30 scale-95 border-2 border-dashed border-indigo-400'
+          ? 'opacity-30 scale-95 border-2 border-dashed border-[#2DD4BF]'
           : ''
       } ${task.completed ? 'opacity-60' : ''} ${
         shouldDisablePointerEvents ? 'pointer-events-none' : ''
@@ -313,7 +315,7 @@ export function DraggableCard({
               >
                 {linkedFeature.title}
               </span>
-              <h4 className="font-bold text-foreground text-[13px] leading-snug group-hover:text-indigo-400 transition-colors line-clamp-2">
+              <h4 className="font-bold text-foreground text-[13px] leading-snug group-hover:text-[#2DD4BF] transition-colors line-clamp-2">
                 {displayTitle}
               </h4>
             </div>
@@ -324,7 +326,7 @@ export function DraggableCard({
                 style={{ backgroundColor: featureColor }}
                 title={linkedFeature.title}
               />
-              <h4 className="font-bold text-foreground text-[13px] leading-snug group-hover:text-indigo-400 transition-colors truncate">
+              <h4 className="font-bold text-foreground text-[13px] leading-snug group-hover:text-[#2DD4BF] transition-colors truncate">
                 {displayTitle}
               </h4>
             </div>
@@ -335,7 +337,7 @@ export function DraggableCard({
               className="w-1.5 h-1.5 rounded-full flex-shrink-0"
               style={{ backgroundColor: task.completed ? '#22c55e' : featureColor }}
             />
-            <h4 className="font-bold text-foreground text-[13px] leading-snug group-hover:text-indigo-400 transition-colors truncate">
+            <h4 className="font-bold text-foreground text-[13px] leading-snug group-hover:text-[#2DD4BF] transition-colors truncate">
               {displayTitle}
             </h4>
           </div>
@@ -447,7 +449,7 @@ export function DraggableCard({
       {isChecklistExpanded && hasChecklist && boardId && (
         <div className="mt-2 pt-2 border-t border-kanban-border space-y-1 pl-2.5">
           {isLoading ? (
-            <div className="text-xs text-zinc-400">로딩 중...</div>
+            <div className="text-xs text-zinc-400">{t('common.loading')}</div>
           ) : (
             checklistItems
               .sort((a, b) => a.position - b.position)

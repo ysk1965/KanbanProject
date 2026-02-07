@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, Clock, Layers, ChevronDown, Info } from 'lucide-react';
 import { Button } from './ui/button';
 
@@ -34,6 +35,7 @@ export function ScheduleSettingsModal({
   onSave,
   onClose,
 }: ScheduleSettingsModalProps) {
+  const { t } = useTranslation();
   // 시간 모드 or 블록 모드
   const [mode, setMode] = useState<ScheduleDisplayMode>(currentDisplayMode);
 
@@ -96,11 +98,11 @@ export function ScheduleSettingsModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
       <div className="bg-bridge-obsidian rounded-xl shadow-2xl w-[480px] max-h-[90vh] flex flex-col overflow-hidden border border-white/20">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/20">
-          <h2 className="text-lg font-semibold text-foreground">스케줄 설정</h2>
+          <h2 className="text-lg font-semibold text-foreground">{t('schedule.settingsTitle')}</h2>
           <button
             onClick={onClose}
             className="text-slate-400 hover:text-foreground transition-colors"
@@ -114,7 +116,7 @@ export function ScheduleSettingsModal({
           {/* 모드 선택 */}
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-3">
-              관리 방식
+              {t('schedule.managementMethod')}
             </label>
             <div className="grid grid-cols-2 gap-3">
               <button
@@ -127,8 +129,8 @@ export function ScheduleSettingsModal({
               >
                 <Clock className={`h-5 w-5 ${mode === 'time' ? 'text-blue-400' : ''}`} />
                 <div className="text-left">
-                  <div className="font-medium">시간 기준</div>
-                  <div className="text-xs text-slate-400">시작/종료 시간 설정</div>
+                  <div className="font-medium">{t('schedule.timeBased')}</div>
+                  <div className="text-xs text-slate-400">{t('schedule.timeBasedDesc')}</div>
                 </div>
               </button>
               <button
@@ -141,8 +143,8 @@ export function ScheduleSettingsModal({
               >
                 <Layers className={`h-5 w-5 ${mode === 'block' ? 'text-blue-400' : ''}`} />
                 <div className="text-left">
-                  <div className="font-medium">블록 기준</div>
-                  <div className="text-xs text-slate-400">블록 개수로 설정</div>
+                  <div className="font-medium">{t('schedule.blockBased')}</div>
+                  <div className="text-xs text-slate-400">{t('schedule.blockBasedDesc')}</div>
                 </div>
               </button>
             </div>
@@ -154,7 +156,7 @@ export function ScheduleSettingsModal({
               {/* 시작 시간 */}
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">
-                  시작 시간
+                  {t('schedule.startTime')}
                 </label>
                 <div className="relative">
                   <button
@@ -192,7 +194,7 @@ export function ScheduleSettingsModal({
               {/* 종료 시간 */}
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">
-                  종료 시간
+                  {t('schedule.endTime')}
                 </label>
                 <div className="relative">
                   <button
@@ -233,7 +235,7 @@ export function ScheduleSettingsModal({
               {/* 블록 개수 */}
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">
-                  블록 개수
+                  {t('schedule.blockCount')}
                 </label>
                 <div className="relative">
                   <button
@@ -244,7 +246,7 @@ export function ScheduleSettingsModal({
                     }}
                     className="w-full flex items-center justify-between px-4 py-3 bg-bridge-dark border border-white/20 rounded-lg text-left hover:border-white/20 transition-colors"
                   >
-                    <span className="text-foreground font-medium">{blockCount}개</span>
+                    <span className="text-foreground font-medium">{t('schedule.blocksUnit', { count: blockCount })}</span>
                     <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${isBlockCountOpen ? 'rotate-180' : ''}`} />
                   </button>
                   {isBlockCountOpen && (
@@ -260,7 +262,7 @@ export function ScheduleSettingsModal({
                             count === blockCount ? 'bg-blue-500/20 text-blue-400' : 'text-slate-300'
                           }`}
                         >
-                          {count}개 ({(count * 30 / 60).toFixed(1)}시간)
+                          {t('schedule.blocksWithHours', { count, hours: (count * 30 / 60).toFixed(1) })}
                         </button>
                       ))}
                     </div>
@@ -274,31 +276,31 @@ export function ScheduleSettingsModal({
           <div className="bg-bridge-dark rounded-lg p-4 space-y-2">
             <div className="flex items-center gap-2 text-slate-400 text-sm">
               <Info className="h-4 w-4" />
-              <span>설정 미리보기</span>
+              <span>{t('schedule.settingsPreview')}</span>
             </div>
             {mode === 'time' ? (
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <span className="text-slate-400">근무 시간:</span>
+                  <span className="text-slate-400">{t('schedule.workingHours')}</span>
                   <span className="text-foreground ml-2">{startTime} ~ {endTime}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400">총 시간:</span>
-                  <span className="text-foreground ml-2">{calculatedValues.hours.toFixed(1)}시간</span>
+                  <span className="text-slate-400">{t('schedule.totalHours')}</span>
+                  <span className="text-foreground ml-2">{t('schedule.hoursUnit', { hours: calculatedValues.hours.toFixed(1) })}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400">블록 수:</span>
-                  <span className="text-foreground ml-2">{calculatedValues.blocks}개</span>
+                  <span className="text-slate-400">{t('schedule.totalBlocks')}</span>
+                  <span className="text-foreground ml-2">{t('schedule.blocksUnit', { count: calculatedValues.blocks })}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400">블록 단위:</span>
-                  <span className="text-foreground ml-2">30분</span>
+                  <span className="text-slate-400">{t('schedule.blockUnitLabel')}</span>
+                  <span className="text-foreground ml-2">{t('schedule.blockUnit')}</span>
                 </div>
               </div>
             ) : (
               <div className="text-sm">
-                <span className="text-slate-400">총 블록 수:</span>
-                <span className="text-foreground ml-2 text-lg font-semibold">{blockCount}개</span>
+                <span className="text-slate-400">{t('schedule.totalBlockCount')}</span>
+                <span className="text-foreground ml-2 text-lg font-semibold">{t('schedule.blocksUnit', { count: blockCount })}</span>
               </div>
             )}
           </div>
@@ -307,8 +309,8 @@ export function ScheduleSettingsModal({
           {!isValid && (
             <div className="text-red-400 text-sm">
               {mode === 'time'
-                ? '종료 시간은 시작 시간보다 늦어야 합니다.'
-                : '최소 4개의 블록이 필요합니다.'}
+                ? t('schedule.endAfterStart')
+                : t('schedule.minBlocksRequired')}
             </div>
           )}
         </div>
@@ -320,14 +322,14 @@ export function ScheduleSettingsModal({
             onClick={onClose}
             className="flex-1 border-white/20 text-slate-300 hover:bg-white/5 hover:text-foreground"
           >
-            취소
+            {t('common.cancel')}
           </Button>
           <Button
             onClick={handleSave}
             disabled={!isValid}
             className="flex-1 bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
           >
-            저장
+            {t('common.save')}
           </Button>
         </div>
       </div>

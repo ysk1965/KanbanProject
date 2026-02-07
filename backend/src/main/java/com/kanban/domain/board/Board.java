@@ -124,10 +124,17 @@ public class Board extends BaseTimeEntity {
 
     /**
      * Task 생성 제한 수 반환
-     * @return Standard: 10, Premium: null (무제한)
+     * @return null (무제한) - 모든 티어에서 Task 무제한 생성 가능
      */
     public Integer getTaskLimit() {
-        return isStandard() ? 10 : null;
+        return null;
+    }
+
+    /**
+     * Slack 연동 기능 접근 가능 여부
+     */
+    public boolean canAccessSlack() {
+        return isPremium();
     }
 
     /**

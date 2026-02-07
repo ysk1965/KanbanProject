@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Dialog,
   DialogContent,
@@ -58,6 +59,7 @@ export function FilterModal({
   currentFilters,
   memberColorMap,
 }: FilterModalProps) {
+  const { t } = useTranslation();
   const [filters, setFilters] = useState<FilterOptions>(currentFilters);
   const [activeTab, setActiveTab] = useState<TabType>('quick');
 
@@ -169,7 +171,7 @@ export function FilterModal({
   const quickFilters = [
     {
       id: 'assigned-to-me',
-      label: '나에게 할당됨',
+      label: t('filter.assignedToMe'),
       icon: <User className="h-3.5 w-3.5" />,
       isActive: filters.members.includes('__current_user__'),
       onClick: () => handleToggleMember('__current_user__'),
@@ -178,7 +180,7 @@ export function FilterModal({
     },
     {
       id: 'overdue',
-      label: '마감 초과',
+      label: t('filter.overdue'),
       icon: <AlertCircle className="h-3.5 w-3.5" />,
       isActive: filters.dueDate.includes('overdue'),
       onClick: () => handleToggleDueDate('overdue'),
@@ -187,7 +189,7 @@ export function FilterModal({
     },
     {
       id: 'due-soon',
-      label: '마감 임박',
+      label: t('filter.dueSoon'),
       icon: <Clock className="h-3.5 w-3.5" />,
       isActive: filters.dueDate.includes('next-day'),
       onClick: () => handleToggleDueDate('next-day'),
@@ -196,7 +198,7 @@ export function FilterModal({
     },
     {
       id: 'incomplete',
-      label: '미완료',
+      label: t('filter.incomplete'),
       icon: <Circle className="h-3.5 w-3.5" />,
       isActive: filters.cardStatus.includes('incomplete'),
       onClick: () => handleToggleCardStatus('incomplete'),
@@ -205,7 +207,7 @@ export function FilterModal({
     },
     {
       id: 'completed',
-      label: '완료됨',
+      label: t('filter.completed'),
       icon: <CheckCircle2 className="h-3.5 w-3.5" />,
       isActive: filters.cardStatus.includes('completed'),
       onClick: () => handleToggleCardStatus('completed'),
@@ -215,11 +217,11 @@ export function FilterModal({
   ];
 
   const tabs = [
-    { id: 'quick' as TabType, label: '빠른 필터', icon: <Clock className="h-4 w-4" /> },
-    { id: 'members' as TabType, label: '담당자', icon: <Users className="h-4 w-4" />, count: filters.members.length },
+    { id: 'quick' as TabType, label: t('filter.quickFilter'), icon: <Clock className="h-4 w-4" /> },
+    { id: 'members' as TabType, label: t('filter.assignee'), icon: <Users className="h-4 w-4" />, count: filters.members.length },
     { id: 'features' as TabType, label: 'Feature', icon: <Layers className="h-4 w-4" />, count: filters.features.length },
-    { id: 'status' as TabType, label: '상태/마감', icon: <Calendar className="h-4 w-4" />, count: filters.cardStatus.length + filters.dueDate.length },
-    { id: 'labels' as TabType, label: '라벨', icon: <TagIcon className="h-4 w-4" />, count: filters.tags.length },
+    { id: 'status' as TabType, label: t('filter.statusDue'), icon: <Calendar className="h-4 w-4" />, count: filters.cardStatus.length + filters.dueDate.length },
+    { id: 'labels' as TabType, label: t('filter.label'), icon: <TagIcon className="h-4 w-4" />, count: filters.tags.length },
   ];
 
   return (
@@ -227,15 +229,15 @@ export function FilterModal({
       <DialogContent className="max-w-lg bg-kanban-bg text-foreground border-kanban-border p-0 gap-0">
         <DialogHeader className="px-4 py-3 border-b border-kanban-border">
           <div className="flex items-center justify-between">
-            <DialogTitle className="text-foreground text-lg font-semibold">필터</DialogTitle>
+            <DialogTitle className="text-foreground text-lg font-semibold">{t('filter.title')}</DialogTitle>
             {isFilterActive && (
               <Badge className="bg-indigo-500/20 text-indigo-400 border-indigo-500/30">
-                {getActiveFilterCount()}개 활성
+                {t('filter.activeCount', { count: getActiveFilterCount() })}
               </Badge>
             )}
           </div>
           <DialogDescription className="sr-only">
-            카드를 필터링합니다
+            {t('filter.description')}
           </DialogDescription>
         </DialogHeader>
 
@@ -246,7 +248,7 @@ export function FilterModal({
             <Input
               value={filters.keyword}
               onChange={(e) => setFilters({ ...filters, keyword: e.target.value })}
-              placeholder="키워드로 검색..."
+              placeholder={t('filter.searchPlaceholder')}
               className="pl-9 bg-kanban-card border-kanban-border text-foreground placeholder:text-zinc-400 h-9"
             />
             {filters.keyword && (
@@ -288,7 +290,7 @@ export function FilterModal({
           {/* 빠른 필터 탭 */}
           {activeTab === 'quick' && (
             <div className="space-y-4">
-              <p className="text-sm text-zinc-400">자주 사용하는 필터를 빠르게 적용하세요</p>
+              <p className="text-sm text-zinc-400">{t('filter.quickFilterDesc')}</p>
               <div className="flex flex-wrap gap-2">
                 {quickFilters.map((filter) => (
                   <button
@@ -306,7 +308,7 @@ export function FilterModal({
 
               {/* 이번 주 마감 */}
               <div className="pt-2">
-                <p className="text-xs text-zinc-400 mb-2">마감 기한</p>
+                <p className="text-xs text-zinc-400 mb-2">{t('filter.dueDate')}</p>
                 <div className="flex flex-wrap gap-2">
                   <button
                     onClick={() => handleToggleDueDate('no-date')}
@@ -316,7 +318,7 @@ export function FilterModal({
                         : 'bg-kanban-surface text-zinc-300 border-kanban-border hover:bg-white/5'
                     }`}
                   >
-                    날짜 없음
+                    {t('filter.noDate')}
                   </button>
                   <button
                     onClick={() => handleToggleDueDate('next-week')}
@@ -326,7 +328,7 @@ export function FilterModal({
                         : 'bg-kanban-surface text-zinc-300 border-kanban-border hover:bg-white/5'
                     }`}
                   >
-                    이번 주
+                    {t('filter.thisWeek')}
                   </button>
                   <button
                     onClick={() => handleToggleDueDate('next-month')}
@@ -336,7 +338,7 @@ export function FilterModal({
                         : 'bg-kanban-surface text-zinc-300 border-kanban-border hover:bg-white/5'
                     }`}
                   >
-                    이번 달
+                    {t('filter.thisMonth')}
                   </button>
                 </div>
               </div>
@@ -357,7 +359,7 @@ export function FilterModal({
                   }`}
                 >
                   <User className="h-4 w-4 text-zinc-400" />
-                  담당자 없음
+                  {t('filter.noAssignee')}
                 </button>
                 <button
                   onClick={() => handleToggleMember('__current_user__')}
@@ -368,16 +370,16 @@ export function FilterModal({
                   }`}
                 >
                   <div className="w-5 h-5 rounded-full bg-orange-500 flex items-center justify-center text-[10px] text-white font-bold">
-                    나
+                    {t('filter.meShort')}
                   </div>
-                  나에게 할당됨
+                  {t('filter.assignedToMe')}
                 </button>
               </div>
 
               {/* 멤버 목록 */}
               {availableMembers.length > 0 && (
                 <div>
-                  <p className="text-xs text-zinc-400 mb-2">팀 멤버</p>
+                  <p className="text-xs text-zinc-400 mb-2">{t('filter.teamMembers')}</p>
                   <div className="grid grid-cols-2 gap-2">
                     {availableMembers.map((member) => (
                       <button
@@ -404,7 +406,7 @@ export function FilterModal({
 
               {availableMembers.length === 0 && (
                 <p className="text-sm text-zinc-400 text-center py-4">
-                  등록된 팀 멤버가 없습니다
+                  {t('filter.noTeamMembers')}
                 </p>
               )}
             </div>
@@ -422,12 +424,12 @@ export function FilterModal({
                 }`}
               >
                 <Circle className="h-4 w-4 text-zinc-400" />
-                Feature 없음
+                {t('filter.noFeature')}
               </button>
 
               {availableFeatures.length > 0 && (
                 <div>
-                  <p className="text-xs text-zinc-400 mb-2">Feature 선택</p>
+                  <p className="text-xs text-zinc-400 mb-2">{t('filter.selectFeature')}</p>
                   <div className="space-y-1.5">
                     {availableFeatures.map((feature) => (
                       <button
@@ -455,7 +457,7 @@ export function FilterModal({
 
               {availableFeatures.length === 0 && (
                 <p className="text-sm text-zinc-400 text-center py-4">
-                  등록된 Feature가 없습니다
+                  {t('filter.noFeatures')}
                 </p>
               )}
             </div>
@@ -466,7 +468,7 @@ export function FilterModal({
             <div className="space-y-4">
               {/* 완료 상태 */}
               <div>
-                <p className="text-xs text-zinc-400 mb-2">완료 상태</p>
+                <p className="text-xs text-zinc-400 mb-2">{t('filter.completionStatus')}</p>
                 <div className="flex gap-2">
                   <button
                     onClick={() => handleToggleCardStatus('completed')}
@@ -477,7 +479,7 @@ export function FilterModal({
                     }`}
                   >
                     <CheckCircle2 className="h-4 w-4" />
-                    완료됨
+                    {t('filter.completed')}
                   </button>
                   <button
                     onClick={() => handleToggleCardStatus('incomplete')}
@@ -488,14 +490,14 @@ export function FilterModal({
                     }`}
                   >
                     <Circle className="h-4 w-4" />
-                    미완료
+                    {t('filter.incomplete')}
                   </button>
                 </div>
               </div>
 
               {/* 마감일 */}
               <div>
-                <p className="text-xs text-zinc-400 mb-2">마감 기한</p>
+                <p className="text-xs text-zinc-400 mb-2">{t('filter.dueDate')}</p>
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => handleToggleDueDate('no-date')}
@@ -506,7 +508,7 @@ export function FilterModal({
                     }`}
                   >
                     <Calendar className="h-4 w-4 text-zinc-400" />
-                    날짜 없음
+                    {t('filter.noDate')}
                   </button>
                   <button
                     onClick={() => handleToggleDueDate('overdue')}
@@ -517,7 +519,7 @@ export function FilterModal({
                     }`}
                   >
                     <AlertCircle className="h-4 w-4" />
-                    마감 초과
+                    {t('filter.overdue')}
                   </button>
                   <button
                     onClick={() => handleToggleDueDate('next-day')}
@@ -528,7 +530,7 @@ export function FilterModal({
                     }`}
                   >
                     <Clock className="h-4 w-4" />
-                    내일까지
+                    {t('filter.byTomorrow')}
                   </button>
                   <button
                     onClick={() => handleToggleDueDate('next-week')}
@@ -539,7 +541,7 @@ export function FilterModal({
                     }`}
                   >
                     <Clock className="h-4 w-4" />
-                    이번 주
+                    {t('filter.thisWeek')}
                   </button>
                   <button
                     onClick={() => handleToggleDueDate('next-month')}
@@ -550,7 +552,7 @@ export function FilterModal({
                     }`}
                   >
                     <Clock className="h-4 w-4" />
-                    이번 달
+                    {t('filter.thisMonth')}
                   </button>
                 </div>
               </div>
@@ -569,12 +571,12 @@ export function FilterModal({
                 }`}
               >
                 <TagIcon className="h-4 w-4 text-zinc-400" />
-                라벨 없음
+                {t('filter.noLabel')}
               </button>
 
               {availableTags.length > 0 && (
                 <div>
-                  <p className="text-xs text-zinc-400 mb-2">라벨 선택</p>
+                  <p className="text-xs text-zinc-400 mb-2">{t('filter.selectLabel')}</p>
                   <div className="flex flex-wrap gap-2">
                     {availableTags.map((tag) => (
                       <button
@@ -599,7 +601,7 @@ export function FilterModal({
 
               {availableTags.length === 0 && (
                 <p className="text-sm text-zinc-400 text-center py-4">
-                  등록된 라벨이 없습니다
+                  {t('filter.noLabels')}
                 </p>
               )}
             </div>
@@ -616,7 +618,7 @@ export function FilterModal({
                   key={member}
                   className="bg-indigo-500/20 text-indigo-400 border-indigo-500/30 gap-1 pr-1"
                 >
-                  {member === '__current_user__' ? '나에게 할당됨' : member === '__no_members__' ? '담당자 없음' : member}
+                  {member === '__current_user__' ? t('filter.assignedToMe') : member === '__no_members__' ? t('filter.noAssignee') : member}
                   <button onClick={() => handleToggleMember(member)} className="hover:text-foreground">
                     <X className="h-3 w-3" />
                   </button>
@@ -629,7 +631,7 @@ export function FilterModal({
                     key={featureId}
                     className="bg-indigo-500/20 text-indigo-400 border-indigo-500/30 gap-1 pr-1"
                   >
-                    {featureId === '__no_feature__' ? 'Feature 없음' : feature?.title || featureId}
+                    {featureId === '__no_feature__' ? t('filter.noFeature') : feature?.title || featureId}
                     <button onClick={() => handleToggleFeature(featureId)} className="hover:text-foreground">
                       <X className="h-3 w-3" />
                     </button>
@@ -645,7 +647,7 @@ export function FilterModal({
                       : 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
                   }`}
                 >
-                  {status === 'completed' ? '완료됨' : '미완료'}
+                  {status === 'completed' ? t('filter.completed') : t('filter.incomplete')}
                   <button onClick={() => handleToggleCardStatus(status)} className="hover:text-foreground">
                     <X className="h-3 w-3" />
                   </button>
@@ -660,10 +662,10 @@ export function FilterModal({
                       : 'bg-gray-500/20 text-zinc-400 border-gray-500/30'
                   }`}
                 >
-                  {date === 'no-date' ? '날짜 없음' :
-                   date === 'overdue' ? '마감 초과' :
-                   date === 'next-day' ? '내일까지' :
-                   date === 'next-week' ? '이번 주' : '이번 달'}
+                  {date === 'no-date' ? t('filter.noDate') :
+                   date === 'overdue' ? t('filter.overdue') :
+                   date === 'next-day' ? t('filter.byTomorrow') :
+                   date === 'next-week' ? t('filter.thisWeek') : t('filter.thisMonth')}
                   <button onClick={() => handleToggleDueDate(date)} className="hover:text-foreground">
                     <X className="h-3 w-3" />
                   </button>
@@ -678,7 +680,7 @@ export function FilterModal({
                     style={{ backgroundColor: tag?.color || '#6b7280' }}
                   >
                     <span className="text-white">
-                      {tagId === '__no_labels__' ? '라벨 없음' : tag?.name || tagId}
+                      {tagId === '__no_labels__' ? t('filter.noLabel') : tag?.name || tagId}
                     </span>
                     <button onClick={() => handleToggleTag(tagId)} className="hover:text-white/80">
                       <X className="h-3 w-3 text-white" />
@@ -697,10 +699,10 @@ export function FilterModal({
               disabled={!isFilterActive}
               className="flex-1 border-kanban-border text-zinc-300 hover:bg-white/5 disabled:opacity-50"
             >
-              초기화
+              {t('filter.reset')}
             </Button>
             <Button onClick={handleApply} className="flex-1 bg-indigo-600 hover:bg-indigo-700">
-              적용하기
+              {t('filter.apply')}
             </Button>
           </div>
         </div>

@@ -1,4 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
+import i18n from 'i18next';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
 import { captureException, setContext } from '../../lib/sentry';
 
@@ -88,10 +89,10 @@ class ErrorBoundary extends Component<Props, State> {
             </div>
 
             <h1 className="text-xl font-bold text-white mb-2">
-              문제가 발생했습니다
+              {i18n.t('error.title')}
             </h1>
             <p className="text-slate-400 mb-6">
-              예상치 못한 오류가 발생했습니다. 페이지를 새로고침하거나 잠시 후 다시 시도해주세요.
+              {i18n.t('error.description')}
             </p>
 
             {/* Sentry Event ID 표시 (프로덕션에서 지원 문의 시 사용) */}
@@ -122,7 +123,7 @@ class ErrorBoundary extends Component<Props, State> {
                   hover:bg-bridge-accent/90 transition-colors flex items-center justify-center gap-2"
               >
                 <RefreshCw className="w-4 h-4" />
-                다시 시도
+                {i18n.t('error.retry')}
               </button>
 
               <button
@@ -130,7 +131,7 @@ class ErrorBoundary extends Component<Props, State> {
                 className="w-full px-4 py-3 bg-white/5 border border-white/20 text-white rounded-xl
                   hover:bg-white/10 transition-colors"
               >
-                페이지 새로고침
+                {i18n.t('error.refresh')}
               </button>
 
               <button
@@ -139,7 +140,7 @@ class ErrorBoundary extends Component<Props, State> {
                   flex items-center justify-center gap-2"
               >
                 <Home className="w-4 h-4" />
-                홈으로 돌아가기
+                {i18n.t('error.goHome')}
               </button>
             </div>
           </div>

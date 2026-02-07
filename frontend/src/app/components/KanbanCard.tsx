@@ -4,6 +4,7 @@ import { Task, DragItem, Tag, ChecklistItem } from '../types';
 import { GripVertical, ChevronDown, ChevronUp, CheckSquare, Calendar } from 'lucide-react';
 import { checklistAPI } from '../utils/api';
 import { getInitials } from '../utils/assigneeColor';
+import { useTranslation } from 'react-i18next';
 
 interface KanbanCardProps {
   task: Task;
@@ -24,6 +25,7 @@ export function KanbanCard({
   featureColor,
   featureTitle,
 }: KanbanCardProps) {
+  const { t } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(false);
   const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -224,7 +226,7 @@ export function KanbanCard({
             >
               <CheckSquare size={12} />
               <span className="text-[10px] font-semibold">
-                체크리스트 {hasLoaded ? `${completedCount}/${checklistItems.length}` : `${completedChecklistItems}/${task.checklist_total}`}
+                {t('kanban.checklist')} {hasLoaded ? `${completedCount}/${checklistItems.length}` : `${completedChecklistItems}/${task.checklist_total}`}
               </span>
               {isExpanded ? (
                 <ChevronUp size={12} className="text-zinc-400" />
@@ -263,7 +265,7 @@ export function KanbanCard({
       {isExpanded && hasChecklist && boardId && (
         <div className="mt-3 pt-3 border-t border-kanban-border space-y-1.5 pl-4">
           {isLoading ? (
-            <div className="text-xs text-zinc-400">로딩 중...</div>
+            <div className="text-xs text-zinc-400">{t('common.loading')}</div>
           ) : (
             checklistItems
               .sort((a, b) => a.position - b.position)

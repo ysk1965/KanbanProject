@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, Search, Loader2, CheckSquare, ChevronDown } from 'lucide-react';
 import { Clock } from 'lucide-react';
 import { boardChecklistAPI, BoardChecklistItemResponse } from '../utils/api';
@@ -21,6 +22,7 @@ export function ChecklistSelectModal({
   onSelect,
   onClose,
 }: ChecklistSelectModalProps) {
+  const { t } = useTranslation();
   const [items, setItems] = useState<BoardChecklistItemResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -75,11 +77,11 @@ export function ChecklistSelectModal({
   }, [filteredItems]);
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
       <div className="bg-bridge-obsidian rounded-2xl shadow-2xl w-[500px] max-h-[80vh] flex flex-col overflow-hidden border border-white/20">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/20">
-          <h2 className="text-xl font-semibold text-foreground">Connect Existing Item</h2>
+          <h2 className="text-xl font-semibold text-foreground">{t('checklist.selectTitle')}</h2>
           <button
             onClick={onClose}
             className="text-slate-400 hover:text-foreground transition-colors"
@@ -104,7 +106,7 @@ export function ChecklistSelectModal({
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input
               type="text"
-              placeholder="Search checklist items..."
+              placeholder={t('checklist.searchPlaceholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2 bg-white/5 border border-white/20 rounded-xl text-sm text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
@@ -120,7 +122,7 @@ export function ChecklistSelectModal({
             </div>
           ) : filteredItems.length === 0 ? (
             <div className="text-center py-8 text-slate-400">
-              {searchQuery ? 'No matching items found' : 'No unscheduled checklist items'}
+              {searchQuery ? t('checklist.noMatchingItems') : t('checklist.noUnscheduledItems')}
             </div>
           ) : (
             <div className="space-y-3">
@@ -154,7 +156,7 @@ export function ChecklistSelectModal({
                           </span>
                         ) : (
                           <span className="text-sm font-medium text-slate-400">
-                            No Task
+                            {t('checklist.noTask')}
                           </span>
                         )}
                       </div>
@@ -202,7 +204,7 @@ export function ChecklistSelectModal({
         {/* Footer */}
         <div className="px-6 py-3 border-t border-white/20 bg-white/5">
           <p className="text-xs text-slate-400 text-center">
-            Select a checklist item to schedule in this time slot
+            {t('checklist.selectFooter')}
           </p>
         </div>
       </div>

@@ -35,6 +35,9 @@ public class SlackNotificationService {
 
     @Async
     public void sendMentionNotifications(Comment comment, User sender, Board board) {
+        if (!board.canAccessSlack()) {
+            return;
+        }
         if (comment.getMentions() == null || comment.getMentions().isEmpty()) {
             return;
         }
@@ -66,6 +69,9 @@ public class SlackNotificationService {
 
     @Async
     public void sendChecklistAssignedNotification(ChecklistItem item, User assigner, Board board) {
+        if (!board.canAccessSlack()) {
+            return;
+        }
         User assignee = item.getAssignee();
         if (assignee == null || assignee.getId().equals(assigner.getId())) {
             return;
@@ -90,6 +96,9 @@ public class SlackNotificationService {
     @Async
     public void sendTaskCommentNotifications(Comment comment, User sender, Board board,
                                               List<String> recipientUserIds, Set<String> excludeUserIds) {
+        if (!board.canAccessSlack()) {
+            return;
+        }
         List<String> targetUserIds = recipientUserIds.stream()
                 .filter(id -> !id.equals(sender.getId()))
                 .filter(id -> !excludeUserIds.contains(id))

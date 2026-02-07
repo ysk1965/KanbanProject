@@ -5,6 +5,7 @@ import { ScheduleBlockInfo, scheduleAPI, checklistAPI, ChecklistItemResponse } f
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { ScheduleDisplayMode } from './ScheduleSettingsModal';
+import { useTranslation } from 'react-i18next';
 
 interface ScheduleDetailPanelProps {
   block: ScheduleBlockInfo;
@@ -25,7 +26,7 @@ const formatTime = (time: string): string => {
 };
 
 // 시간 차이 계산 (분 단위)
-const calculateDuration = (startTime: string, endTime: string): string => {
+const calculateDuration = (startTime: string, endTime: string, t: (key: string, options?: Record<string, unknown>) => string): string => {
   const [startH, startM] = startTime.split(':').map(Number);
   const [endH, endM] = endTime.split(':').map(Number);
 
@@ -37,11 +38,11 @@ const calculateDuration = (startTime: string, endTime: string): string => {
   const minutes = durationMinutes % 60;
 
   if (hours > 0 && minutes > 0) {
-    return `${hours}시간 ${minutes}분`;
+    return t('scheduleDetail.hoursMinutes', { hours, minutes });
   } else if (hours > 0) {
-    return `${hours}시간`;
+    return t('scheduleDetail.hours', { hours });
   } else {
-    return `${minutes}분`;
+    return t('scheduleDetail.minutes', { minutes });
   }
 };
 
@@ -74,6 +75,7 @@ export function ScheduleDetailPanel({
   onViewTask,
   onViewFeature,
 }: ScheduleDetailPanelProps) {
+  const { t } = useTranslation();
   const checklist = block.checklist_item;
   const task = block.task;
   const feature = block.feature;
@@ -129,7 +131,7 @@ export function ScheduleDetailPanel({
   };
 
   const handleDelete = async () => {
-    if (!confirm('이 타임블록을 삭제하시겠습니까?')) return;
+    if (!confirm(t('scheduleDetail.deleteConfirm'))) return;
 
     try {
       await scheduleAPI.deleteBlock(boardId, block.id);
@@ -143,7 +145,7 @@ export function ScheduleDetailPanel({
     <div className="fixed right-0 top-0 h-full w-96 bg-bridge-obsidian border-l border-white/20 shadow-xl z-50 flex flex-col">
       {/* 헤더 */}
       <div className="flex items-center justify-between p-4 border-b border-white/20">
-        <h2 className="text-lg font-semibold text-white">타임블록 상세</h2>
+        <h2 className="text-lg font-semibold text-white">{t('scheduleDetail.title')}</h2>
         <Button
           variant="ghost"
           size="sm"
@@ -167,12 +169,12 @@ export function ScheduleDetailPanel({
                     const startBlock = timeToBlockIndex(block.start_time, workStartHour) + 1;
                     const endBlock = timeToBlockIndex(block.end_time, workStartHour);
                     return startBlock === endBlock
-                      ? `${startBlock}번 블록`
-                      : `${startBlock}번 ~ ${endBlock}번 블록`;
+                      ? t('scheduleDetail.singleBlock', { block: startBlock })
+                      : t('scheduleDetail.blockRange', { start: startBlock, end: endBlock });
                   })()}
                 </span>
                 <span className="text-slate-400 text-sm">
-                  ({calculateBlockCount(block.start_time, block.end_time)}블록)
+                  ({t('scheduleDetail.blockCount', { count: calculateBlockCount(block.start_time, block.end_time) })})
                 </span>
               </>
             ) : (
@@ -182,7 +184,7 @@ export function ScheduleDetailPanel({
                   {formatTime(block.start_time)} - {formatTime(block.end_time)}
                 </span>
                 <span className="text-slate-400 text-sm">
-                  ({calculateDuration(block.start_time, block.end_time)})
+                  ({calculateDuration(block.start_time, block.end_time, t)})
                 </span>
               </>
             )}
@@ -209,7 +211,7 @@ export function ScheduleDetailPanel({
             </div>
             {feature && onViewFeature && (
               <span className="text-xs text-blue-400">
-                클릭하여 상세보기
+                {t('scheduleDetail.clickToView')}
               </span>
             )}
           </div>
@@ -224,7 +226,7 @@ export function ScheduleDetailPanel({
             </div>
           ) : (
             <div className="text-slate-400 text-sm text-center py-2">
-              연결된 Feature가 없습니다
+              {t('scheduleDetail.noFeature')}
             </div>
           )}
         </div>
@@ -243,7 +245,7 @@ export function ScheduleDetailPanel({
             </div>
             {task && onViewTask && (
               <span className="text-xs text-blue-400">
-                클릭하여 상세보기
+                {t('scheduleDetail.clickToView')}
               </span>
             )}
           </div>
@@ -254,7 +256,7 @@ export function ScheduleDetailPanel({
             </div>
           ) : (
             <div className="text-slate-400 text-sm text-center py-2">
-              연결된 Task가 없습니다
+              {t('scheduleDetail.noTask')}
             </div>
           )}
         </div>
@@ -319,11 +321,11 @@ export function ScheduleDetailPanel({
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <CheckSquare className="h-4 w-4 text-slate-400" />
-                <span className="text-sm font-medium text-slate-400">TASK 체크리스트</span>
+                <span className="text-sm font-medium text-slate-400">{t('scheduleDetail.taskChecklist')}</span>
               </div>
               {allChecklistItems.length > 0 && (
                 <span className="text-xs text-slate-400">
-                  {allChecklistItems.filter(i => i.completed).length}/{allChecklistItems.length} 완료
+                  {t('scheduleDetail.completedCount', { completed: allChecklistItems.filter(i => i.completed).length, total: allChecklistItems.length })}
                 </span>
               )}
             </div>
@@ -331,11 +333,11 @@ export function ScheduleDetailPanel({
             {isLoadingChecklist ? (
               <div className="flex items-center justify-center py-4 text-slate-400">
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                <span className="text-sm">로딩 중...</span>
+                <span className="text-sm">{t('common.loading')}</span>
               </div>
             ) : allChecklistItems.length === 0 ? (
               <div className="text-slate-400 text-sm text-center py-4">
-                체크리스트가 없습니다
+                {t('scheduleDetail.noChecklist')}
               </div>
             ) : (
               <div className="space-y-2 max-h-48 overflow-y-auto">
@@ -378,7 +380,7 @@ export function ScheduleDetailPanel({
                         <p className={`text-sm ${item.completed ? 'line-through text-slate-400' : 'text-slate-300'}`}>
                           {item.title}
                           {isCurrent && (
-                            <span className="ml-2 text-xs text-purple-400">(현재)</span>
+                            <span className="ml-2 text-xs text-purple-400">({t('scheduleDetail.current')})</span>
                           )}
                         </p>
                       </div>
@@ -399,7 +401,7 @@ export function ScheduleDetailPanel({
           className="w-full border-red-600 text-red-400 hover:bg-red-600/20"
         >
           <Trash2 className="h-4 w-4 mr-2" />
-          타임블록 삭제
+          {t('scheduleDetail.deleteBlock')}
         </Button>
       </div>
     </div>

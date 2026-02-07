@@ -106,6 +106,12 @@ spring.servlet.multipart:
   max-file-size: 5MB
   max-request-size: 25MB
 
+# AI (Claude)
+ai:
+  claude:
+    api-key: ${CLAUDE_API_KEY:}
+    model: ${CLAUDE_MODEL:claude-sonnet-4-20250514}
+
 # App config
 app:
   frontend-url: ${FRONTEND_URL:http://localhost:5173}

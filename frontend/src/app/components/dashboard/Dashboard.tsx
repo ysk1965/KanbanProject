@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Search, Plus, Star, LayoutGrid, LogOut, Rocket, Package2, AlertTriangle, Menu, FlaskConical } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
@@ -33,11 +34,12 @@ function DeleteConfirmModal({
   onClose: () => void;
   onConfirm: () => void;
 }) {
+  const { t } = useTranslation();
   if (!isOpen) return null;
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -48,13 +50,13 @@ function DeleteConfirmModal({
             <div className="p-2 bg-rose-500/20 rounded-full">
               <AlertTriangle size={24} className="text-rose-500" />
             </div>
-            <h2 className="text-lg font-bold text-white">보드 삭제</h2>
+            <h2 className="text-lg font-bold text-white">{t('board.deleteBoard')}</h2>
           </div>
 
           <p className="text-slate-400 mb-6">
-            <span className="font-bold text-white">"{boardName}"</span> 보드를 삭제하시겠습니까?
+            <span className="font-bold text-white">"{boardName}"</span> {t('board.deleteConfirm')}
             <br />
-            <span className="text-rose-400 text-sm">이 작업은 되돌릴 수 없습니다.</span>
+            <span className="text-rose-400 text-sm">{t('board.deleteIrreversible')}</span>
           </p>
 
           <div className="flex gap-3">
@@ -62,13 +64,13 @@ function DeleteConfirmModal({
               onClick={onClose}
               className="flex-1 py-3 text-sm font-bold text-slate-400 hover:text-white transition-colors border border-white/20 rounded-xl hover:bg-white/5"
             >
-              취소
+              {t('common.cancel')}
             </button>
             <button
               onClick={onConfirm}
               className="flex-1 py-3 bg-rose-500 text-sm font-bold rounded-xl hover:bg-rose-600 transition-colors"
             >
-              삭제
+              {t('common.delete')}
             </button>
           </div>
         </motion.div>
@@ -86,6 +88,7 @@ export function Dashboard({
   onUpdateBoard,
   onRefreshBoards,
 }: DashboardProps) {
+  const { t } = useTranslation();
   const { user, logout, hideBilling, isAdmin } = useAuth();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
@@ -159,9 +162,18 @@ export function Dashboard({
   const totalMembers = Math.max(...boards.map((b) => b.member_count), 1);
 
   return (
-    <div className="flex h-screen bg-bridge-dark text-white overflow-hidden selection:bg-bridge-accent/30">
-      {/* Star Background Effect */}
-      <div className="absolute inset-0 star-bg pointer-events-none opacity-30" />
+    <div className="flex h-screen text-white overflow-hidden selection:bg-[#2DD4BF]/30" style={{ background: 'radial-gradient(ellipse at 20% 0%, #0d1525 0%, #060a12 50%, #030508 100%)' }}>
+      {/* Cosmic Background */}
+      <div className="absolute inset-0 pointer-events-none">
+        {/* Teal nebula - top right */}
+        <div className="absolute w-[600px] h-[600px] rounded-full blur-[200px]" style={{ top: '-10%', right: '-5%', background: 'radial-gradient(circle, rgba(45,212,191,0.08) 0%, transparent 70%)' }} />
+        {/* Indigo nebula - bottom left */}
+        <div className="absolute w-[500px] h-[500px] rounded-full blur-[180px]" style={{ bottom: '-5%', left: '-5%', background: 'radial-gradient(circle, rgba(99,102,241,0.06) 0%, transparent 70%)' }} />
+        {/* Star field */}
+        <div className="star-bg opacity-40" style={{ position: 'absolute', inset: 0 }} />
+        {/* Vignette */}
+        <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at center, transparent 50%, rgba(3,5,8,0.5) 100%)' }} />
+      </div>
 
       {/* Sidebar */}
       <Sidebar
@@ -174,7 +186,7 @@ export function Dashboard({
       {/* Main Content */}
       <div className="flex-1 flex flex-col relative z-10">
         {/* Header */}
-        <header className="h-16 border-b border-white/15 bg-bridge-dark/60 backdrop-blur-sm px-4 md:px-8 flex items-center justify-between">
+        <header className="h-16 border-b border-white/[0.06] bg-[#060a12]/60 backdrop-blur-sm px-4 md:px-8 flex items-center justify-between">
           <div className="flex items-center gap-4 flex-1">
             {/* 모바일 햄버거 메뉴 */}
             <button
@@ -193,7 +205,7 @@ export function Dashboard({
               <input
                 type="text"
                 placeholder="Quick search projects..."
-                className="w-full bg-white/5 border border-white/15 rounded-xl py-2 pl-10 pr-4 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-bridge-accent/50 focus:bg-white/10 transition-all"
+                className="w-full bg-white/5 border border-white/[0.08] rounded-xl py-2 pl-10 pr-4 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-[#2DD4BF]/40 focus:bg-white/[0.06] transition-all"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -205,7 +217,7 @@ export function Dashboard({
             {!hideBilling && (
               <button
                 onClick={() => setIsUpgradeModalOpen(true)}
-                className="hidden lg:flex items-center gap-2 px-4 py-1.5 bg-bridge-accent/10 text-bridge-accent rounded-full border border-bridge-accent/20 text-xs font-bold hover:bg-bridge-accent hover:text-white transition-all"
+                className="hidden lg:flex items-center gap-2 px-4 py-1.5 bg-[#2DD4BF]/10 text-[#2DD4BF] rounded-full border border-[#2DD4BF]/20 text-xs font-bold hover:bg-[#2DD4BF] hover:text-[#0d1525] transition-all"
               >
                 <Rocket size={14} /> Upgrade Pro
               </button>
@@ -229,7 +241,7 @@ export function Dashboard({
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center text-sm font-bold bg-gradient-to-br from-bridge-accent to-purple-500">
+                <div className="w-full h-full flex items-center justify-center text-sm font-bold bg-gradient-to-br from-[#2DD4BF] to-[#6366F1]">
                   {getInitials(user?.name || 'U')}
                 </div>
               )}
@@ -246,13 +258,13 @@ export function Dashboard({
                 <h1 className="text-3xl font-bold font-serif mb-1">Your Projects</h1>
                 <p className="text-slate-400 text-sm">
                   Managing{' '}
-                  <span className="text-bridge-accent font-bold">{boards.length}</span>{' '}
+                  <span className="text-[#2DD4BF] font-bold">{boards.length}</span>{' '}
                   active workspaces
                 </p>
               </div>
               <button
                 onClick={() => setIsCreateModalOpen(true)}
-                className="flex items-center justify-center gap-2 px-6 py-2.5 bg-gradient-to-r from-bridge-accent to-purple-500 rounded-xl font-bold text-sm shadow-lg shadow-bridge-accent/20 hover:scale-105 active:scale-95 transition-all"
+                className="flex items-center justify-center gap-2 px-6 py-2.5 bg-gradient-to-r from-[#2DD4BF] to-[#6366F1] rounded-xl font-bold text-sm shadow-lg shadow-[#2DD4BF]/15 hover:scale-105 active:scale-95 transition-all"
               >
                 <Plus size={18} /> Create New Board
               </button>
@@ -267,7 +279,7 @@ export function Dashboard({
                 </p>
                 <button
                   onClick={() => setSearchQuery('')}
-                  className="mt-2 text-bridge-accent text-sm font-bold hover:underline"
+                  className="mt-2 text-[#2DD4BF] text-sm font-bold hover:underline"
                 >
                   Clear search
                 </button>
@@ -278,12 +290,12 @@ export function Dashboard({
             {boards.length === 0 && !searchQuery && (
               <div className="h-64 flex flex-col items-center justify-center bg-bridge-obsidian/30 border-2 border-dashed rounded-3xl border-white/20">
                 <Package2 size={48} className="text-slate-400 mb-4" />
-                <p className="text-slate-400 font-medium">아직 보드가 없습니다</p>
+                <p className="text-slate-400 font-medium">{t('board.noBoards')}</p>
                 <button
                   onClick={() => setIsCreateModalOpen(true)}
-                  className="mt-4 px-6 py-2 bg-bridge-accent text-white text-sm font-bold rounded-xl hover:bg-bridge-accent/90 transition-colors"
+                  className="mt-4 px-6 py-2 bg-[#2DD4BF] text-[#0d1525] text-sm font-bold rounded-xl hover:bg-[#2DD4BF]/90 transition-colors"
                 >
-                  첫 번째 보드 만들기
+                  {t('board.createFirst')}
                 </button>
               </div>
             )}
@@ -316,7 +328,7 @@ export function Dashboard({
             {filteredBoards.length > 0 && (
               <section>
                 <div className="flex items-center gap-2 mb-6">
-                  <LayoutGrid size={18} className="text-bridge-accent" />
+                  <LayoutGrid size={18} className="text-[#2DD4BF]" />
                   <h2 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">
                     Workspace Boards
                   </h2>
@@ -381,10 +393,10 @@ export function Dashboard({
           onClick={handleCreateTestBoard}
           disabled={isCreatingTestBoard}
           className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 bg-amber-500/90 hover:bg-amber-500 text-black font-bold text-sm rounded-xl shadow-lg shadow-amber-500/30 transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-          title="테스트 보드 생성 (관리자 전용)"
+          title={t('board.testBoardTitle')}
         >
           <FlaskConical size={18} className={isCreatingTestBoard ? 'animate-pulse' : ''} />
-          <span className="hidden sm:inline">{isCreatingTestBoard ? '생성 중...' : 'Test Board'}</span>
+          <span className="hidden sm:inline">{isCreatingTestBoard ? t('board.creating') : 'Test Board'}</span>
         </button>
       )}
 
@@ -395,11 +407,16 @@ export function Dashboard({
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.05); border-radius: 10px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.1); }
         .star-bg {
-          background-image: radial-gradient(2px 2px at 20px 30px, rgba(255,255,255,0.3), transparent),
-                            radial-gradient(2px 2px at 40px 70px, rgba(255,255,255,0.2), transparent),
-                            radial-gradient(1px 1px at 90px 40px, rgba(255,255,255,0.3), transparent),
-                            radial-gradient(2px 2px at 130px 80px, rgba(255,255,255,0.2), transparent);
-          background-size: 200px 100px;
+          background-image:
+            radial-gradient(1px 1px at 20px 30px, rgba(255,255,255,0.4), transparent),
+            radial-gradient(1px 1px at 80px 60px, rgba(255,255,255,0.25), transparent),
+            radial-gradient(1.5px 1.5px at 150px 20px, rgba(255,255,255,0.35), transparent),
+            radial-gradient(1px 1px at 200px 90px, rgba(255,255,255,0.2), transparent),
+            radial-gradient(1px 1px at 40px 110px, rgba(255,255,255,0.3), transparent),
+            radial-gradient(1.5px 1.5px at 280px 45px, rgba(45,212,191,0.25), transparent),
+            radial-gradient(1px 1px at 320px 80px, rgba(255,255,255,0.2), transparent),
+            radial-gradient(1px 1px at 110px 130px, rgba(99,102,241,0.2), transparent);
+          background-size: 400px 160px;
         }
       `}</style>
     </div>

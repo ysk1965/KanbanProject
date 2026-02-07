@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, Clock, CheckCircle2, BarChart3, Calendar, FileText, MessageSquare, ChevronLeft } from 'lucide-react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
@@ -33,6 +34,7 @@ interface WeeklyRecordRow {
 }
 
 export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onClose }: WeeklySummaryModalProps) {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'stats' | 'narrative'>('stats');
   const [comments, setComments] = useState<CommentSummaryItem[]>([]);
   const [commentsLoading, setCommentsLoading] = useState(false);
@@ -110,7 +112,7 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
     const featureBreakdown = Array.from(featureMap.values()).sort((a, b) => b.minutes - a.minutes);
     if (noFeatureBlocks > 0) {
       featureBreakdown.push({
-        title: '미분류',
+        title: t('weeklySummary.unclassified'),
         color: '#71717a',
         blockCount: noFeatureBlocks,
         minutes: noFeatureMinutes,
@@ -178,11 +180,22 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
     const activeDays = summaryData.dailyBreakdown.filter((d) => d.blockCount > 0).length;
     const avgHours = (summaryData.totalHours / summaryData.dailyBreakdown.length).toFixed(1);
 
-    let text = `${member.name}님은 ${weekRangeLabel} 동안 총 ${summaryData.totalBlocks}개의 타임블록을 등록하여 ${summaryData.totalHours.toFixed(1)}시간 작업했습니다. `;
-    text += `${summaryData.dailyBreakdown.length}일 중 ${activeDays}일 활동했으며, 하루 평균 ${avgHours}시간을 사용했습니다.`;
+    let text = t('weeklySummary.overviewText', {
+      name: member.name,
+      range: weekRangeLabel,
+      blocks: summaryData.totalBlocks,
+      hours: summaryData.totalHours.toFixed(1),
+      totalDays: summaryData.dailyBreakdown.length,
+      activeDays,
+      avgHours,
+    });
 
     if (summaryData.totalChecklistCount > 0) {
-      text += ` 체크리스트 완료율은 ${summaryData.completionRate}%(${summaryData.completedCount}/${summaryData.totalChecklistCount})입니다.`;
+      text += t('weeklySummary.overviewChecklist', {
+        rate: summaryData.completionRate,
+        completed: summaryData.completedCount,
+        total: summaryData.totalChecklistCount,
+      });
     }
     return text;
   }, [member.name, weekRangeLabel, summaryData]);
@@ -193,8 +206,8 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
 
     allBlocks.forEach(({ block }) => {
       const duration = timeToMinutes(block.end_time) - timeToMinutes(block.start_time);
-      const itemTitle = block.checklist_item?.title || block.task?.title || '(미지정)';
-      const featureTitle = block.feature?.title || '미분류';
+      const itemTitle = block.checklist_item?.title || block.task?.title || t('weeklySummary.unassigned');
+      const featureTitle = block.feature?.title || t('weeklySummary.unclassified');
       const featureColor = block.feature?.color || '#71717a';
       const taskId = block.task?.id || null;
       const completed = block.checklist_item?.completed ?? false;
@@ -261,7 +274,7 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
   }, [weeklyRecords]);
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50" onClick={onClose}>
       <div
         className="bg-bridge-obsidian rounded-xl shadow-2xl w-[560px] max-h-[85vh] flex flex-col overflow-hidden border border-white/20"
         onClick={(e) => e.stopPropagation()}
@@ -274,7 +287,7 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
             </div>
             <div>
               <h2 className="text-lg font-semibold text-foreground">{member.name}</h2>
-              <p className="text-xs text-slate-400">{weekRangeLabel} 주간 요약</p>
+              <p className="text-xs text-slate-400">{weekRangeLabel} {t('weeklySummary.weekSummary')}</p>
             </div>
           </div>
           <button
@@ -296,7 +309,7 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
             }`}
           >
             <BarChart3 className="h-3.5 w-3.5" />
-            통계
+            {t('weeklySummary.statsTab')}
           </button>
           <button
             onClick={() => { setActiveTab('narrative'); setCommentDetailRow(null); }}
@@ -307,7 +320,7 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
             }`}
           >
             <FileText className="h-3.5 w-3.5" />
-            주간 기록
+            {t('weeklySummary.recordTab')}
           </button>
         </div>
 
@@ -317,7 +330,7 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
             // ========== 통계 탭 ==========
             summaryData.totalBlocks === 0 ? (
               <div className="text-center py-12">
-                <div className="text-slate-400 text-sm">이번 주에 등록된 타임블록이 없습니다</div>
+                <div className="text-slate-400 text-sm">{t('weeklySummary.noTimeBlocks')}</div>
               </div>
             ) : (
               <>
@@ -326,21 +339,21 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
                   <div className="bg-bridge-dark rounded-lg p-4">
                     <div className="flex items-center gap-2 text-slate-400 text-xs mb-2">
                       <BarChart3 className="h-3.5 w-3.5" />
-                      <span>총 타임블록</span>
+                      <span>{t('weeklySummary.totalTimeBlocks')}</span>
                     </div>
-                    <div className="text-2xl font-bold text-foreground">{summaryData.totalBlocks}개</div>
+                    <div className="text-2xl font-bold text-foreground">{summaryData.totalBlocks}</div>
                   </div>
                   <div className="bg-bridge-dark rounded-lg p-4">
                     <div className="flex items-center gap-2 text-slate-400 text-xs mb-2">
                       <Clock className="h-3.5 w-3.5" />
-                      <span>총 작업시간</span>
+                      <span>{t('weeklySummary.totalWorkHours')}</span>
                     </div>
-                    <div className="text-2xl font-bold text-foreground">{summaryData.totalHours.toFixed(1)}시간</div>
+                    <div className="text-2xl font-bold text-foreground">{summaryData.totalHours.toFixed(1)}h</div>
                   </div>
                   <div className="bg-bridge-dark rounded-lg p-4">
                     <div className="flex items-center gap-2 text-slate-400 text-xs mb-2">
                       <CheckCircle2 className="h-3.5 w-3.5" />
-                      <span>완료율</span>
+                      <span>{t('weeklySummary.completionRate')}</span>
                     </div>
                     <div className="text-2xl font-bold text-foreground">
                       {summaryData.completionRate}%
@@ -352,16 +365,16 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
                   <div className="bg-bridge-dark rounded-lg p-4">
                     <div className="flex items-center gap-2 text-slate-400 text-xs mb-2">
                       <Calendar className="h-3.5 w-3.5" />
-                      <span>일 평균</span>
+                      <span>{t('weeklySummary.dailyAverage')}</span>
                     </div>
-                    <div className="text-2xl font-bold text-foreground">{(summaryData.totalHours / 7).toFixed(1)}시간</div>
+                    <div className="text-2xl font-bold text-foreground">{(summaryData.totalHours / 7).toFixed(1)}h</div>
                   </div>
                 </div>
 
                 {/* 일별 현황 */}
                 <div>
                   <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">
-                    일별 현황
+                    {t('weeklySummary.dailyStatus')}
                   </label>
                   <div className="space-y-2">
                     {summaryData.dailyBreakdown.map((day) => (
@@ -375,7 +388,7 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
                           {day.dayLabel}
                         </span>
                         <span className="w-10 text-[10px] text-slate-400">{day.dateLabel}</span>
-                        <span className="w-14 text-xs text-slate-400 text-right">{day.blockCount}블록</span>
+                        <span className="w-14 text-xs text-slate-400 text-right">{day.blockCount}</span>
                         <span className="w-14 text-xs text-foreground font-medium text-right">{day.hours.toFixed(1)}h</span>
                         <div className="flex-1 h-3 bg-white/5 rounded overflow-hidden">
                           <div
@@ -392,7 +405,7 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
                 {summaryData.featureBreakdown.length > 0 && (
                   <div>
                     <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">
-                      피처별 현황
+                      {t('weeklySummary.featureStatus')}
                     </label>
                     <div className="space-y-3">
                       {summaryData.featureBreakdown.map((feature, idx) => (
@@ -428,11 +441,11 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
             commentsLoading ? (
               <div className="flex items-center justify-center py-12">
                 <div className="animate-spin h-5 w-5 border-2 border-bridge-accent border-t-transparent rounded-full mr-3" />
-                <span className="text-slate-400 text-sm">데이터 불러오는 중...</span>
+                <span className="text-slate-400 text-sm">{t('weeklySummary.loadingData')}</span>
               </div>
             ) : summaryData.totalBlocks === 0 ? (
               <div className="text-center py-12">
-                <div className="text-slate-400 text-sm">이번 주에 등록된 타임블록이 없습니다</div>
+                <div className="text-slate-400 text-sm">{t('weeklySummary.noTimeBlocks')}</div>
               </div>
             ) : commentDetailRow ? (
               // ===== 댓글 상세 뷰 =====
@@ -442,7 +455,7 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
                   className="flex items-center gap-1 text-slate-400 hover:text-white text-sm mb-4 transition-colors"
                 >
                   <ChevronLeft className="h-4 w-4" />
-                  돌아가기
+                  {t('weeklySummary.goBack')}
                 </button>
                 <div className="flex items-center gap-2 mb-4">
                   <div
@@ -457,7 +470,7 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
                   if (rowComments.length === 0) {
                     return (
                       <div className="text-center py-8 text-slate-400 text-sm">
-                        작성된 댓글이 없습니다
+                        {t('weeklySummary.noComments')}
                       </div>
                     );
                   }
@@ -487,7 +500,7 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
                 {overviewText && (
                   <div>
                     <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-                      주간 개요
+                      {t('weeklySummary.weeklyOverview')}
                     </label>
                     <p className="text-slate-300 font-light leading-relaxed text-sm">
                       {overviewText}
@@ -498,13 +511,13 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
                 {/* 주간 기록 테이블 */}
                 <div>
                   <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">
-                    주간 기록
+                    {t('weeklySummary.weeklyRecord')}
                   </label>
                   {/* 테이블 헤더 */}
                   <div className="flex items-center gap-2 px-3 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-white/10">
-                    <div className="flex-1">타임블록</div>
-                    <div className="w-20 text-right">투입시간</div>
-                    <div className="w-14 text-center">댓글</div>
+                    <div className="flex-1">{t('weeklySummary.timeBlockCol')}</div>
+                    <div className="w-20 text-right">{t('weeklySummary.hoursSpent')}</div>
+                    <div className="w-14 text-center">{t('weeklySummary.commentsCol')}</div>
                   </div>
                   {/* 테이블 행 */}
                   <div className="divide-y divide-white/5">
@@ -574,7 +587,7 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
             onClick={onClose}
             className="px-8 py-2.5 bg-white/5 border border-white/20 text-white rounded-xl hover:bg-white/10 transition-all text-sm"
           >
-            닫기
+            {t('common.close')}
           </button>
         </div>
       </div>

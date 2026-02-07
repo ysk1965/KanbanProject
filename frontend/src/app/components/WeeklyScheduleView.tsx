@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { ChevronDown, ChevronRight as ChevronRightIcon, FileText, Calendar as CalendarIcon } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Button } from './ui/button';
 import { Calendar } from './ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
@@ -87,7 +88,7 @@ const getTaskBarColor = (task: Task, endDate: Date | null): string => {
     }
   }
 
-  return 'bg-indigo-500'; // 진행 중
+  return 'bg-[#2DD4BF]'; // 진행 중
 };
 
 export function WeeklyScheduleView({
@@ -100,6 +101,7 @@ export function WeeklyScheduleView({
   onViewTask,
   onUpdateTaskDates,
 }: WeeklyScheduleViewProps) {
+  const { t } = useTranslation();
   // 일/주 보기 모드
   const [viewMode, setViewMode] = useState<ScheduleViewMode>('day');
 
@@ -657,7 +659,7 @@ export function WeeklyScheduleView({
                   : 'text-zinc-400'
               }`}
             >
-              일
+              {t('weeklySchedule.day')}
             </span>
             <span
               className={`px-3 py-1 text-sm rounded-md transition-colors ${
@@ -666,7 +668,7 @@ export function WeeklyScheduleView({
                   : 'text-zinc-400'
               }`}
             >
-              주
+              {t('weeklySchedule.week')}
             </span>
           </div>
 
@@ -682,7 +684,7 @@ export function WeeklyScheduleView({
                 </span>
               </button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0 bg-bridge-obsidian border-white/20" align="start">
+            <PopoverContent className="w-auto p-0 bg-kanban-card border-white/20" align="start">
               <Calendar
                 mode="range"
                 selected={{ from: rangeStartDate, to: rangeEndDate }}
@@ -696,28 +698,28 @@ export function WeeklyScheduleView({
                 }}
                 numberOfMonths={2}
                 locale={ko}
-                className="bg-bridge-obsidian text-white"
+                className="bg-kanban-card text-white"
               />
             </PopoverContent>
           </Popover>
 
           <span className="text-sm text-zinc-400">
-            ({viewMode === 'day' ? `${totalDays}일` : `${weeks.length}주`})
+            ({viewMode === 'day' ? t('weeklySchedule.dayCount', { count: totalDays }) : t('weeklySchedule.weekCount', { count: weeks.length })})
           </span>
 
           <button
             onClick={handleGoToToday}
             className="px-3 py-1.5 text-sm bg-white/5 border border-white/20 rounded-lg text-zinc-300 hover:bg-white/10 hover:text-white transition-colors"
           >
-            오늘
+            {t('weeklySchedule.today')}
           </button>
         </div>
         <div className="hidden md:flex items-center gap-2 text-xs text-zinc-400 shrink-0">
-          <span className="inline-block w-3 h-3 bg-gray-400 rounded"></span> 진행 전
-          <span className="inline-block w-3 h-3 bg-indigo-500 rounded ml-2"></span> 진행 중
-          <span className="inline-block w-3 h-3 bg-orange-500 rounded ml-2"></span> 마감 임박
-          <span className="inline-block w-3 h-3 bg-red-500 rounded ml-2"></span> 마감 초과
-          <span className="inline-block w-3 h-3 bg-green-500 rounded ml-2"></span> 완료
+          <span className="inline-block w-3 h-3 bg-gray-400 rounded"></span> {t('weeklySchedule.notStarted')}
+          <span className="inline-block w-3 h-3 bg-[#2DD4BF] rounded ml-2"></span> {t('weeklySchedule.inProgress')}
+          <span className="inline-block w-3 h-3 bg-orange-500 rounded ml-2"></span> {t('weeklySchedule.dueSoon')}
+          <span className="inline-block w-3 h-3 bg-red-500 rounded ml-2"></span> {t('weeklySchedule.overdue')}
+          <span className="inline-block w-3 h-3 bg-green-500 rounded ml-2"></span> {t('common.completed')}
         </div>
       </div>
 
@@ -754,7 +756,7 @@ export function WeeklyScheduleView({
                       style={{ backgroundColor: feature.color }}
                     />
                     <span
-                      className="text-sm font-medium text-foreground truncate flex-1 hover:text-indigo-400"
+                      className="text-sm font-medium text-foreground truncate flex-1 hover:text-[#2DD4BF]"
                       onClick={(e) => {
                         e.stopPropagation();
                         onViewFeature?.(feature.id);
@@ -776,7 +778,7 @@ export function WeeklyScheduleView({
                       >
                         <FileText className="h-3 w-3 text-zinc-400 flex-shrink-0" />
                         <span
-                          className={`text-sm truncate flex-1 cursor-pointer hover:text-indigo-400 ${
+                          className={`text-sm truncate flex-1 cursor-pointer hover:text-[#2DD4BF] ${
                             task.completed ? 'text-zinc-400 line-through' : 'text-zinc-300'
                           }`}
                           onClick={() => onViewTask?.(task.id)}
@@ -792,7 +794,7 @@ export function WeeklyScheduleView({
 
             {displayedFeatures.length === 0 && (
               <div className="flex items-center justify-center h-64 text-zinc-400">
-                {selectedMilestoneId === 'all' ? 'Feature가 없습니다' : '연결된 Feature가 없습니다'}
+                {selectedMilestoneId === 'all' ? t('weeklySchedule.noFeatures') : t('weeklySchedule.noLinkedFeatures')}
               </div>
             )}
           </div>
@@ -817,14 +819,14 @@ export function WeeklyScheduleView({
                     <div
                       key={index}
                       className={`flex-shrink-0 p-2 text-center border-r border-kanban-border ${
-                        dayIsToday ? 'bg-indigo-600/20' : isWeekend ? 'bg-zinc-800/30' : ''
+                        dayIsToday ? 'bg-[#2DD4BF]/15' : isWeekend ? 'bg-zinc-800/30' : ''
                       }`}
                       style={{ width: DAY_WIDTH }}
                     >
-                      <div className={`text-xs font-medium ${dayIsToday ? 'text-indigo-400' : isWeekend ? 'text-zinc-400' : 'text-zinc-400'}`}>
+                      <div className={`text-xs font-medium ${dayIsToday ? 'text-[#2DD4BF]' : isWeekend ? 'text-zinc-400' : 'text-zinc-400'}`}>
                         {formatDate(day, 'EEE')}
                       </div>
-                      <div className={`text-xs ${dayIsToday ? 'text-indigo-300' : 'text-zinc-400'}`}>
+                      <div className={`text-xs ${dayIsToday ? 'text-[#2DD4BF]' : 'text-zinc-400'}`}>
                         {format(day, 'M/d')}
                       </div>
                     </div>
@@ -840,14 +842,14 @@ export function WeeklyScheduleView({
                     <div
                       key={index}
                       className={`flex-shrink-0 p-2 text-center border-r border-kanban-border ${
-                        isCurrentWeek ? 'bg-indigo-600/20' : ''
+                        isCurrentWeek ? 'bg-[#2DD4BF]/15' : ''
                       }`}
                       style={{ width: WEEK_WIDTH }}
                     >
-                      <div className={`text-xs font-medium ${isCurrentWeek ? 'text-indigo-400' : 'text-zinc-400'}`}>
+                      <div className={`text-xs font-medium ${isCurrentWeek ? 'text-[#2DD4BF]' : 'text-zinc-400'}`}>
                         {format(week.start, 'M/d')}
                       </div>
-                      <div className={`text-xs ${isCurrentWeek ? 'text-indigo-300' : 'text-zinc-400'}`}>
+                      <div className={`text-xs ${isCurrentWeek ? 'text-[#2DD4BF]' : 'text-zinc-400'}`}>
                         ~{format(week.end, 'M/d')}
                       </div>
                     </div>
@@ -895,7 +897,7 @@ export function WeeklyScheduleView({
                     return (
                       <div
                         key={index}
-                        className={`flex-shrink-0 border-r border-kanban-border ${isCurrentWeek ? 'bg-indigo-900/10' : ''}`}
+                        className={`flex-shrink-0 border-r border-kanban-border ${isCurrentWeek ? 'bg-[#2DD4BF]/8' : ''}`}
                         style={{ width: WEEK_WIDTH }}
                       />
                     );

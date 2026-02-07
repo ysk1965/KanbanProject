@@ -1,0 +1,231 @@
+import { useState } from 'react';
+import { Tag } from '../types';
+import { FEATURE_COLORS } from '../constants';
+import { X, Pencil, Trash2, Check, Plus } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from './ui/dialog';
+
+interface TagManagementModalProps {
+  open: boolean;
+  onClose: () => void;
+  tags: Tag[];
+  onCreateTag: (name: string, color: string) => Promise<string | undefined>;
+  onUpdateTag: (tagId: string, data: { name?: string; color?: string }) => Promise<void>;
+  onDeleteTag: (tagId: string) => Promise<void>;
+}
+
+export function TagManagementModal({
+  open,
+  onClose,
+  tags,
+  onCreateTag,
+  onUpdateTag,
+  onDeleteTag,
+}: TagManagementModalProps) {
+  const { t } = useTranslation();
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editColor, setEditColor] = useState('');
+  const [newName, setNewName] = useState('');
+  const [newColor, setNewColor] = useState(FEATURE_COLORS[0]);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+
+  const startEdit = (tag: Tag) => {
+    setEditingId(tag.id);
+    setEditName(tag.name);
+    setEditColor(tag.color);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditName('');
+    setEditColor('');
+  };
+
+  const saveEdit = async () => {
+    if (!editingId || !editName.trim()) return;
+    await onUpdateTag(editingId, { name: editName.trim(), color: editColor });
+    cancelEdit();
+  };
+
+  const handleDelete = async (tagId: string) => {
+    await onDeleteTag(tagId);
+    setDeleteConfirmId(null);
+  };
+
+  const handleCreate = async () => {
+    if (!newName.trim()) return;
+    setIsCreating(true);
+    await onCreateTag(newName.trim(), newColor);
+    setNewName('');
+    setNewColor(FEATURE_COLORS[0]);
+    setIsCreating(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="bg-kanban-card border-kanban-border sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-foreground">{t('tags.management')}</DialogTitle>
+        </DialogHeader>
+
+        {/* Tag list */}
+        <div className="space-y-1 max-h-[300px] overflow-y-auto">
+          {tags.length === 0 && (
+            <p className="text-sm text-slate-400 text-center py-4">{t('tags.noTags')}</p>
+          )}
+
+          {tags.map((tag) => (
+            <div key={tag.id}>
+              {editingId === tag.id ? (
+                /* Editing mode */
+                <div className="p-3 rounded-xl bg-kanban-bg/50 border border-kanban-border/50 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <input
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      className="flex-1 h-8 text-sm bg-white/5 border border-white/10 rounded-lg px-3 text-foreground focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
+                      onKeyDown={(e) => {
+                        if (e.nativeEvent.isComposing) return;
+                        if (e.key === 'Enter') saveEdit();
+                        if (e.key === 'Escape') cancelEdit();
+                      }}
+                      autoFocus
+                    />
+                    <button
+                      onClick={saveEdit}
+                      className="w-8 h-8 rounded-lg bg-bridge-accent/20 text-bridge-accent hover:bg-bridge-accent/30 flex items-center justify-center transition-colors"
+                    >
+                      <Check size={14} />
+                    </button>
+                    <button
+                      onClick={cancelEdit}
+                      className="w-8 h-8 rounded-lg bg-white/5 text-slate-400 hover:bg-white/10 hover:text-foreground flex items-center justify-center transition-colors"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
+                      {t('tags.selectColor')}
+                    </span>
+                    <div className="grid grid-cols-10 gap-1.5">
+                      {FEATURE_COLORS.map((color) => (
+                        <button
+                          key={color}
+                          onClick={() => setEditColor(color)}
+                          className={`w-6 h-6 rounded-full transition-all ${
+                            editColor === color ? 'ring-2 ring-white ring-offset-2 ring-offset-kanban-card scale-110' : 'hover:scale-110'
+                          }`}
+                          style={{ backgroundColor: color }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : deleteConfirmId === tag.id ? (
+                /* Delete confirmation */
+                <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 space-y-2">
+                  <p className="text-xs text-red-300">{t('tags.deleteConfirm')}</p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleDelete(tag.id)}
+                      className="px-3 py-1.5 text-xs font-bold bg-red-500/20 text-red-400 rounded-lg border border-red-500/30 hover:bg-red-500/30 transition-colors"
+                    >
+                      {t('common.delete')}
+                    </button>
+                    <button
+                      onClick={() => setDeleteConfirmId(null)}
+                      className="px-3 py-1.5 text-xs text-slate-400 hover:text-foreground transition-colors"
+                    >
+                      {t('common.cancel')}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* Normal display */
+                <div className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-white/5 group/tag transition-colors">
+                  <div
+                    className="w-4 h-4 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: tag.color }}
+                  />
+                  <span className="text-sm text-foreground flex-1 truncate">{tag.name}</span>
+                  <div className="flex items-center gap-1 opacity-0 group-hover/tag:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => startEdit(tag)}
+                      className="w-7 h-7 rounded-lg hover:bg-white/10 flex items-center justify-center text-slate-400 hover:text-foreground transition-colors"
+                      title={t('tags.editTag')}
+                    >
+                      <Pencil size={12} />
+                    </button>
+                    <button
+                      onClick={() => setDeleteConfirmId(tag.id)}
+                      className="w-7 h-7 rounded-lg hover:bg-red-500/10 flex items-center justify-center text-slate-400 hover:text-red-400 transition-colors"
+                      title={t('tags.deleteTag')}
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Create new tag */}
+        <div className="pt-3 border-t border-kanban-border/50 space-y-3">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+            {t('tags.createNew')}
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              className="w-8 h-8 rounded-full flex-shrink-0 border-2 border-white/20 hover:border-white/40 transition-colors"
+              style={{ backgroundColor: newColor }}
+              onClick={() => {
+                const idx = FEATURE_COLORS.indexOf(newColor);
+                setNewColor(FEATURE_COLORS[(idx + 1) % FEATURE_COLORS.length]);
+              }}
+              title={t('tags.selectColor')}
+            />
+            <input
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder={t('tags.namePlaceholder')}
+              className="flex-1 h-8 text-sm bg-white/5 border border-white/10 rounded-lg px-3 text-foreground placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
+              onKeyDown={(e) => {
+                if (e.nativeEvent.isComposing) return;
+                if (e.key === 'Enter') handleCreate();
+              }}
+            />
+            <button
+              onClick={handleCreate}
+              disabled={!newName.trim() || isCreating}
+              className="h-8 px-3 text-xs font-bold bg-bridge-accent text-white rounded-lg hover:bg-bridge-accent/90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 transition-colors"
+            >
+              <Plus size={12} />
+              {t('common.add')}
+            </button>
+          </div>
+          <div className="grid grid-cols-10 gap-1.5">
+            {FEATURE_COLORS.map((color) => (
+              <button
+                key={color}
+                onClick={() => setNewColor(color)}
+                className={`w-6 h-6 rounded-full transition-all ${
+                  newColor === color ? 'ring-2 ring-white ring-offset-2 ring-offset-kanban-card scale-110' : 'hover:scale-110'
+                }`}
+                style={{ backgroundColor: color }}
+              />
+            ))}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}

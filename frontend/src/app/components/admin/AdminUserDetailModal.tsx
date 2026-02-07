@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, User as UserIcon, Mail, Shield, Calendar, Folder, CheckCircle, XCircle, Key, Image, Clock, Ban, UserCheck, KeyRound, MailCheck, AlertTriangle } from 'lucide-react';
 import { adminService } from '../../utils/services';
 import { AdminUserDetail, AdminBoardSummary } from '../../utils/api';
 import { formatDateTime } from '../../utils/dateUtils';
+import { ConfirmModal, PromptModal, Toast } from './AdminConfirmModal';
 
 interface AdminUserDetailModalProps {
   userId: string;
@@ -11,11 +13,15 @@ interface AdminUserDetailModalProps {
 }
 
 export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDetailModalProps) {
+  const { t } = useTranslation();
   const [user, setUser] = useState<AdminUserDetail | null>(null);
   const [boards, setBoards] = useState<AdminBoardSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<{ title: string; message: string; variant?: 'default' | 'danger'; onConfirm: () => void } | null>(null);
+  const [promptAction, setPromptAction] = useState<{ title: string; message: string; placeholder?: string; onConfirm: (value: string) => void } | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   useEffect(() => {
     loadUserDetail();
@@ -33,126 +39,149 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
       setBoards(boardsData);
     } catch (err) {
       console.error('Failed to load user detail:', err);
-      setError('사용자 정보를 불러오는데 실패했습니다');
+      setError(t('admin.userDetail.loadFailed'));
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleRoleChange = async (newRole: 'USER' | 'TESTER' | 'ADMIN') => {
+  const handleRoleChange = (newRole: 'USER' | 'TESTER' | 'ADMIN') => {
     if (!user || user.system_role === newRole) return;
 
     let confirmMessage = '';
     if (newRole === 'ADMIN') {
-      confirmMessage = `${user.name}님에게 관리자 권한을 부여하시겠습니까?`;
+      confirmMessage = t('admin.userDetail.confirmAdminRole', { name: user.name });
     } else if (newRole === 'TESTER') {
-      confirmMessage = `${user.name}님을 테스터로 설정하시겠습니까? (과금 UI 숨김)`;
+      confirmMessage = t('admin.userDetail.confirmTesterRole', { name: user.name });
     } else {
-      confirmMessage = `${user.name}님을 일반 사용자로 변경하시겠습니까?`;
+      confirmMessage = t('admin.userDetail.confirmUserRole', { name: user.name });
     }
 
-    if (!confirm(confirmMessage)) return;
-
-    try {
-      setIsUpdating(true);
-      await adminService.updateUser(userId, { system_role: newRole });
-      setUser({ ...user, system_role: newRole });
-      onUpdate();
-    } catch (err) {
-      console.error('Failed to update user role:', err);
-      alert('역할 변경에 실패했습니다');
-    } finally {
-      setIsUpdating(false);
-    }
+    setConfirmAction({
+      title: t('admin.userDetail.changeRole'),
+      message: confirmMessage,
+      onConfirm: async () => {
+        setConfirmAction(null);
+        try {
+          setIsUpdating(true);
+          await adminService.updateUser(userId, { system_role: newRole });
+          setUser({ ...user, system_role: newRole });
+          onUpdate();
+        } catch (err) {
+          console.error('Failed to update user role:', err);
+          setToast({ message: t('admin.userDetail.roleChangeFailed'), type: 'error' });
+        } finally {
+          setIsUpdating(false);
+        }
+      },
+    });
   };
 
   const formatDateLocal = (dateString: string | null | undefined) => {
     return formatDateTime(dateString);
   };
 
-  const handleDeactivate = async () => {
+  const handleDeactivate = () => {
     if (!user) return;
-    const reason = prompt('비활성화 사유를 입력하세요 (선택사항):');
-    if (reason === null) return; // 취소
-
-    if (!confirm(`${user.name}님의 계정을 비활성화하시겠습니까?\n비활성화된 계정은 로그인할 수 없습니다.`)) return;
-
-    try {
-      setIsUpdating(true);
-      const updated = await adminService.deactivateUser(userId, reason || undefined);
-      setUser({ ...user, is_active: updated.is_active, deactivated_at: updated.deactivated_at, deactivated_reason: updated.deactivated_reason });
-      onUpdate();
-      alert('계정이 비활성화되었습니다.');
-    } catch (err) {
-      console.error('Failed to deactivate user:', err);
-      alert('계정 비활성화에 실패했습니다.');
-    } finally {
-      setIsUpdating(false);
-    }
+    setPromptAction({
+      title: t('admin.userDetail.deactivateAccount'),
+      message: t('admin.userDetail.enterDeactivateReason'),
+      placeholder: t('admin.userDetail.deactivateReasonPlaceholder'),
+      onConfirm: async (reason: string) => {
+        setPromptAction(null);
+        try {
+          setIsUpdating(true);
+          const updated = await adminService.deactivateUser(userId, reason || undefined);
+          setUser({ ...user, is_active: updated.is_active, deactivated_at: updated.deactivated_at, deactivated_reason: updated.deactivated_reason });
+          onUpdate();
+          setToast({ message: t('admin.userDetail.deactivated'), type: 'success' });
+        } catch (err) {
+          console.error('Failed to deactivate user:', err);
+          setToast({ message: t('admin.userDetail.deactivateFailed'), type: 'error' });
+        } finally {
+          setIsUpdating(false);
+        }
+      },
+    });
   };
 
-  const handleActivate = async () => {
+  const handleActivate = () => {
     if (!user) return;
-    if (!confirm(`${user.name}님의 계정을 다시 활성화하시겠습니까?`)) return;
-
-    try {
-      setIsUpdating(true);
-      const updated = await adminService.activateUser(userId);
-      setUser({ ...user, is_active: updated.is_active, deactivated_at: null, deactivated_reason: null });
-      onUpdate();
-      alert('계정이 활성화되었습니다.');
-    } catch (err) {
-      console.error('Failed to activate user:', err);
-      alert('계정 활성화에 실패했습니다.');
-    } finally {
-      setIsUpdating(false);
-    }
+    setConfirmAction({
+      title: t('admin.userDetail.activateAccount'),
+      message: t('admin.userDetail.confirmActivate', { name: user.name }),
+      onConfirm: async () => {
+        setConfirmAction(null);
+        try {
+          setIsUpdating(true);
+          const updated = await adminService.activateUser(userId);
+          setUser({ ...user, is_active: updated.is_active, deactivated_at: null, deactivated_reason: null });
+          onUpdate();
+          setToast({ message: t('admin.userDetail.activated'), type: 'success' });
+        } catch (err) {
+          console.error('Failed to activate user:', err);
+          setToast({ message: t('admin.userDetail.activateFailed'), type: 'error' });
+        } finally {
+          setIsUpdating(false);
+        }
+      },
+    });
   };
 
-  const handleVerifyEmail = async () => {
+  const handleVerifyEmail = () => {
     if (!user) return;
-    if (!confirm(`${user.name}님의 이메일을 강제로 인증 처리하시겠습니까?`)) return;
-
-    try {
-      setIsUpdating(true);
-      await adminService.verifyUserEmail(userId);
-      setUser({ ...user, email_verified: true });
-      onUpdate();
-      alert('이메일이 인증 처리되었습니다.');
-    } catch (err) {
-      console.error('Failed to verify email:', err);
-      alert('이메일 인증 처리에 실패했습니다.');
-    } finally {
-      setIsUpdating(false);
-    }
+    setConfirmAction({
+      title: t('admin.userDetail.forceVerifyEmail'),
+      message: t('admin.userDetail.confirmVerifyEmail', { name: user.name }),
+      onConfirm: async () => {
+        setConfirmAction(null);
+        try {
+          setIsUpdating(true);
+          await adminService.verifyUserEmail(userId);
+          setUser({ ...user, email_verified: true });
+          onUpdate();
+          setToast({ message: t('admin.userDetail.emailVerified'), type: 'success' });
+        } catch (err) {
+          console.error('Failed to verify email:', err);
+          setToast({ message: t('admin.userDetail.emailVerifyFailed'), type: 'error' });
+        } finally {
+          setIsUpdating(false);
+        }
+      },
+    });
   };
 
-  const handleSendPasswordReset = async () => {
+  const handleSendPasswordReset = () => {
     if (!user) return;
-    if (!confirm(`${user.email}로 비밀번호 재설정 메일을 발송하시겠습니까?`)) return;
-
-    try {
-      setIsUpdating(true);
-      await adminService.sendPasswordResetEmail(userId);
-      alert('비밀번호 재설정 메일이 발송되었습니다.');
-    } catch (err) {
-      console.error('Failed to send password reset email:', err);
-      alert('메일 발송에 실패했습니다.');
-    } finally {
-      setIsUpdating(false);
-    }
+    setConfirmAction({
+      title: t('admin.userDetail.passwordResetEmail'),
+      message: t('admin.userDetail.confirmPasswordReset', { email: user.email }),
+      onConfirm: async () => {
+        setConfirmAction(null);
+        try {
+          setIsUpdating(true);
+          await adminService.sendPasswordResetEmail(userId);
+          setToast({ message: t('admin.userDetail.passwordResetSent'), type: 'success' });
+        } catch (err) {
+          console.error('Failed to send password reset email:', err);
+          setToast({ message: t('admin.userDetail.passwordResetFailed'), type: 'error' });
+        } finally {
+          setIsUpdating(false);
+        }
+      },
+    });
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
 
       {/* Modal */}
       <div className="relative bg-bridge-obsidian rounded-2xl border border-white/20 w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/15">
-          <h2 className="text-xl font-bold text-white">사용자 상세</h2>
+          <h2 className="text-xl font-bold text-white">{t('admin.userDetail.title')}</h2>
           <button
             onClick={onClose}
             className="p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
@@ -196,7 +225,7 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
                     {user.is_active === false && (
                       <span className="px-2 py-0.5 bg-red-500/20 text-red-400 text-xs font-medium rounded-full flex items-center gap-1">
                         <Ban className="h-3 w-3" />
-                        비활성화
+                        {t('admin.userDetail.deactivatedBadge')}
                       </span>
                     )}
                   </div>
@@ -211,7 +240,7 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
                   </p>
                   {user.is_active === false && user.deactivated_reason && (
                     <p className="text-red-400/80 text-sm mt-1">
-                      사유: {user.deactivated_reason}
+                      {t('admin.userDetail.reason')}: {user.deactivated_reason}
                     </p>
                   )}
                 </div>
@@ -221,7 +250,7 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-white/5 rounded-xl p-4">
                   <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-                    역할
+                    {t('admin.userDetail.role')}
                   </p>
                   <div className="flex items-center gap-2">
                     <Shield className="h-5 w-5 text-bridge-accent" />
@@ -240,7 +269,7 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
 
                 <div className="bg-white/5 rounded-xl p-4">
                   <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-                    가입 방식
+                    {t('admin.userDetail.provider')}
                   </p>
                   <span
                     className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
@@ -255,7 +284,7 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
 
                 <div className="bg-white/5 rounded-xl p-4">
                   <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-                    가입일
+                    {t('admin.userDetail.joinedAt')}
                   </p>
                   <p className="text-white flex items-center gap-2">
                     <Calendar className="h-4 w-4 text-slate-400" />
@@ -265,7 +294,7 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
 
                 <div className="bg-white/5 rounded-xl p-4">
                   <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-                    마지막 로그인
+                    {t('admin.userDetail.lastLogin')}
                   </p>
                   <p className="text-white flex items-center gap-2">
                     <Calendar className="h-4 w-4 text-slate-400" />
@@ -275,21 +304,21 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
 
                 <div className="bg-white/5 rounded-xl p-4">
                   <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-                    소유 보드
+                    {t('admin.userDetail.ownedBoards')}
                   </p>
                   <p className="text-white flex items-center gap-2">
                     <Folder className="h-4 w-4 text-bridge-accent" />
-                    {user.owned_board_count}개
+                    {t('admin.common.countItems', { count: user.owned_board_count })}
                   </p>
                 </div>
 
                 <div className="bg-white/5 rounded-xl p-4">
                   <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-                    참여 보드
+                    {t('admin.userDetail.memberBoards')}
                   </p>
                   <p className="text-white flex items-center gap-2">
                     <Folder className="h-4 w-4 text-bridge-secondary" />
-                    {user.member_board_count}개
+                    {t('admin.common.countItems', { count: user.member_board_count })}
                   </p>
                 </div>
               </div>
@@ -304,7 +333,7 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
                       <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
                       <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                     </svg>
-                    Google 계정 정보
+                    {t('admin.userDetail.googleAccountInfo')}
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div className="bg-white/5 rounded-lg p-3">
@@ -318,16 +347,16 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
                     </div>
                     <div className="bg-white/5 rounded-lg p-3">
                       <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">
-                        프로필 이미지 URL
+                        {t('admin.userDetail.profileImageUrl')}
                       </p>
                       <p className="text-white text-sm flex items-center gap-2 truncate" title={user.profile_image || '-'}>
                         <Image className="h-3.5 w-3.5 text-blue-400 flex-shrink-0" />
-                        <span className="truncate">{user.profile_image ? 'Google 프로필 사용' : '-'}</span>
+                        <span className="truncate">{user.profile_image ? t('admin.userDetail.googleProfileUsed') : '-'}</span>
                       </p>
                     </div>
                     <div className="bg-white/5 rounded-lg p-3">
                       <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">
-                        이메일 인증일
+                        {t('admin.userDetail.emailVerifiedAt')}
                       </p>
                       <p className="text-white text-sm flex items-center gap-2">
                         <Clock className="h-3.5 w-3.5 text-blue-400" />
@@ -341,7 +370,7 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
               {/* Boards List */}
               {boards.length > 0 && (
                 <div>
-                  <h4 className="text-lg font-bold text-white mb-4">보드 목록</h4>
+                  <h4 className="text-lg font-bold text-white mb-4">{t('admin.userDetail.boardList')}</h4>
                   <div className="space-y-2">
                     {boards.map((board) => (
                       <div
@@ -351,7 +380,7 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
                         <div>
                           <p className="text-white font-medium">{board.name}</p>
                           <p className="text-slate-400 text-sm">
-                            멤버 {board.member_count}명 / 태스크 {board.task_count}개
+                            {t('admin.userDetail.boardMemberTaskInfo', { members: board.member_count, tasks: board.task_count })}
                           </p>
                         </div>
                         <span
@@ -377,7 +406,7 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
               <div className="border-t border-white/10 pt-6 space-y-4">
                 <h4 className="text-lg font-bold text-white flex items-center gap-2">
                   <AlertTriangle className="h-5 w-5 text-amber-400" />
-                  관리자 작업
+                  {t('admin.common.adminActions')}
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {/* 이메일 인증 */}
@@ -388,7 +417,7 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
                       className="flex items-center justify-center gap-2 px-4 py-3 bg-green-500/10 border border-green-500/30 rounded-xl text-green-400 hover:bg-green-500/20 transition-colors disabled:opacity-50"
                     >
                       <MailCheck className="h-4 w-4" />
-                      이메일 강제 인증
+                      {t('admin.userDetail.forceVerifyEmail')}
                     </button>
                   )}
 
@@ -400,7 +429,7 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
                       className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-500/10 border border-blue-500/30 rounded-xl text-blue-400 hover:bg-blue-500/20 transition-colors disabled:opacity-50"
                     >
                       <KeyRound className="h-4 w-4" />
-                      비밀번호 리셋 메일
+                      {t('admin.userDetail.passwordResetEmail')}
                     </button>
                   )}
 
@@ -412,17 +441,17 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
                       className="flex items-center justify-center gap-2 px-4 py-3 bg-teal-500/10 border border-teal-500/30 rounded-xl text-teal-400 hover:bg-teal-500/20 transition-colors disabled:opacity-50"
                     >
                       <UserCheck className="h-4 w-4" />
-                      계정 활성화
+                      {t('admin.userDetail.activateAccount')}
                     </button>
                   ) : (
                     <button
                       onClick={handleDeactivate}
                       disabled={isUpdating || user.system_role === 'ADMIN'}
                       className="flex items-center justify-center gap-2 px-4 py-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 hover:bg-red-500/20 transition-colors disabled:opacity-50"
-                      title={user.system_role === 'ADMIN' ? '관리자 계정은 비활성화할 수 없습니다' : undefined}
+                      title={user.system_role === 'ADMIN' ? t('admin.userDetail.cannotDeactivateAdmin') : undefined}
                     >
                       <Ban className="h-4 w-4" />
-                      계정 비활성화
+                      {t('admin.userDetail.deactivateAccount')}
                     </button>
                   )}
                 </div>
@@ -431,6 +460,37 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
           )}
         </div>
       </div>
+
+      {confirmAction && (
+        <ConfirmModal
+          isOpen={true}
+          title={confirmAction.title}
+          message={confirmAction.message}
+          variant={confirmAction.variant}
+          onConfirm={confirmAction.onConfirm}
+          onCancel={() => setConfirmAction(null)}
+        />
+      )}
+
+      {promptAction && (
+        <PromptModal
+          isOpen={true}
+          title={promptAction.title}
+          message={promptAction.message}
+          placeholder={promptAction.placeholder}
+          onConfirm={promptAction.onConfirm}
+          onCancel={() => setPromptAction(null)}
+        />
+      )}
+
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          isVisible={!!toast}
+          onClose={() => setToast(null)}
+        />
+      )}
     </div>
   );
 }

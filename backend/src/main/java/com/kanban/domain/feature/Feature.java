@@ -40,10 +40,6 @@ public class Feature extends BaseTimeEntity {
     @JoinColumn(name = "assignee_id")
     private User assignee;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "priority", length = 20)
-    private Priority priority;
-
     @Column(name = "due_date")
     private LocalDate dueDate;
 
@@ -78,11 +74,10 @@ public class Feature extends BaseTimeEntity {
         }
     }
 
-    public void updateInfo(String title, String description, String color, Priority priority, LocalDate dueDate) {
+    public void updateInfo(String title, String description, String color, LocalDate dueDate) {
         if (title != null) this.title = title;
         if (description != null) this.description = description;
         if (color != null) this.color = color;
-        if (priority != null) this.priority = priority;
         this.dueDate = dueDate;
     }
 

@@ -1,5 +1,6 @@
 package com.kanban.domain.admin.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kanban.domain.admin.dto.AdminRequest;
 import com.kanban.domain.admin.dto.AdminResponse;
 import com.kanban.domain.announcement.Announcement;
@@ -52,6 +53,7 @@ public class AdminService {
     private final BoardService boardService;
     private final AnnouncementRepository announcementRepository;
     private final SystemConfigRepository systemConfigRepository;
+    private final ObjectMapper objectMapper;
 
     // ==================== Users ====================
 
@@ -68,10 +70,11 @@ public class AdminService {
 
         // Batch load: 유저별 보드 수 (N+1 방지)
         List<String> userIds = userPage.getContent().stream().map(User::getId).collect(Collectors.toList());
-        Map<String, Integer> boardCountMap = new java.util.HashMap<>();
-        for (User user : userPage.getContent()) {
-            boardCountMap.put(user.getId(), boardRepository.countByUserInvolvement(user.getId()));
-        }
+        Map<String, Integer> boardCountMap = boardRepository.countByUserInvolvementBatch(userIds).stream()
+                .collect(Collectors.toMap(
+                        row -> (String) row[0],
+                        row -> ((Number) row[1]).intValue()
+                ));
 
         List<AdminResponse.UserSummary> users = userPage.getContent().stream()
                 .map(user -> AdminResponse.UserSummary.of(user, boardCountMap.getOrDefault(user.getId(), 0)))
@@ -98,11 +101,26 @@ public class AdminService {
     }
 
     @Transactional
-    public AdminResponse.UserSummary updateUser(String userId, AdminRequest.UpdateUser request) {
+    public AdminResponse.UserSummary updateUser(String userId, AdminRequest.UpdateUser request, String adminId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
+        // 자기 자신의 Admin 역할 변경 방지
+        if (userId.equals(adminId) && user.getSystemRole() == SystemRole.ADMIN
+                && request.getSystemRole() != SystemRole.ADMIN) {
+            throw new BusinessException(ErrorCode.CANNOT_DEMOTE_SELF);
+        }
+
+        // 마지막 Admin 제거 방지
+        if (user.getSystemRole() == SystemRole.ADMIN && request.getSystemRole() != SystemRole.ADMIN) {
+            long adminCount = userRepository.countBySystemRole(SystemRole.ADMIN);
+            if (adminCount <= 1) {
+                throw new BusinessException(ErrorCode.CANNOT_REMOVE_LAST_ADMIN);
+            }
+        }
+
         user.updateSystemRole(request.getSystemRole());
+        log.info("User role updated by admin: userId={}, newRole={}, adminId={}", userId, request.getSystemRole(), adminId);
 
         int boardCount = boardRepository.countByUserInvolvement(user.getId());
         return AdminResponse.UserSummary.of(user, boardCount);
@@ -287,7 +305,7 @@ public class AdminService {
                     .board(board)
                     .user(newOwner)
                     .role(BoardRole.OWNER)
-                    .joinedAt(LocalDateTime.now())
+                    .joinedAt(LocalDateTime.now(ZoneOffset.UTC))
                     .build();
             boardMemberRepository.save(newMember);
         }
@@ -316,7 +334,7 @@ public class AdminService {
         } else if (request.getExtendDays() != null && request.getExtendDays() > 0) {
             LocalDateTime current = board.getTrialEndsAt() != null
                     ? board.getTrialEndsAt()
-                    : LocalDateTime.now();
+                    : LocalDateTime.now(ZoneOffset.UTC);
             newTrialEndsAt = current.plusDays(request.getExtendDays());
         } else {
             throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
@@ -365,21 +383,31 @@ public class AdminService {
     // ==================== Statistics ====================
 
     public AdminResponse.Statistics getStatistics() {
+        LocalDateTime activeThreshold = LocalDateTime.now(ZoneOffset.UTC).minusDays(30);
+
+        // 병렬로 3그룹 조회 (7개 → 3개 쿼리)
         long totalUsers = userRepository.count();
-        long activeUsers = userRepository.countActiveUsers(LocalDateTime.now().minusDays(30));
+        long activeUsers = userRepository.countActiveUsers(activeThreshold);
+
+        // Board tier 카운트를 한번에 조회
         long totalBoards = boardRepository.count();
-        long trialBoards = boardRepository.countByTier(BoardTier.TRIAL);
-        long standardBoards = boardRepository.countByTier(BoardTier.STANDARD);
-        long premiumBoards = boardRepository.countByTier(BoardTier.PREMIUM);
+        Map<BoardTier, Long> tierCounts = new java.util.EnumMap<>(BoardTier.class);
+        for (BoardTier tier : BoardTier.values()) {
+            tierCounts.put(tier, 0L);
+        }
+        boardRepository.countGroupedByTier().forEach(row ->
+                tierCounts.put((BoardTier) row[0], (Long) row[1])
+        );
+
         long activeSubscriptions = subscriptionRepository.countByStatus(SubscriptionStatus.ACTIVE);
 
         return AdminResponse.Statistics.builder()
                 .totalUsers(totalUsers)
                 .activeUsers(activeUsers)
                 .totalBoards(totalBoards)
-                .trialBoards(trialBoards)
-                .standardBoards(standardBoards)
-                .premiumBoards(premiumBoards)
+                .trialBoards(tierCounts.getOrDefault(BoardTier.TRIAL, 0L))
+                .standardBoards(tierCounts.getOrDefault(BoardTier.STANDARD, 0L))
+                .premiumBoards(tierCounts.getOrDefault(BoardTier.PREMIUM, 0L))
                 .activeSubscriptions(activeSubscriptions)
                 .build();
     }
@@ -387,7 +415,7 @@ public class AdminService {
     // ==================== Analytics ====================
 
     public AdminResponse.SignupTrend getSignupTrend(int days) {
-        LocalDateTime startDate = LocalDateTime.now().minusDays(days);
+        LocalDateTime startDate = LocalDateTime.now(ZoneOffset.UTC).minusDays(days);
         List<Object[]> rows = userRepository.getSignupTrendDaily(startDate);
 
         long total = 0;
@@ -413,7 +441,7 @@ public class AdminService {
     }
 
     public AdminResponse.ActiveUserStats getActiveUserStats(int days) {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
 
         long dau = userRepository.countActiveUsers(now.minusDays(1));
         long wau = userRepository.countActiveUsers(now.minusDays(7));
@@ -437,7 +465,7 @@ public class AdminService {
     }
 
     public AdminResponse.ConversionStats getConversionStats(int days) {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         LocalDateTime startDate = now.minusDays(days);
 
         long totalTrialStarted = subscriptionRepository.count();
@@ -593,9 +621,7 @@ public class AdminService {
         }
 
         try {
-            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-            mapper.registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
-            MaintenanceData data = mapper.readValue(config.get().getValue(), MaintenanceData.class);
+            MaintenanceData data = objectMapper.readValue(config.get().getValue(), MaintenanceData.class);
             return AdminResponse.MaintenanceStatus.builder()
                     .enabled(data.enabled)
                     .message(data.message)
@@ -618,9 +644,7 @@ public class AdminService {
         Optional<SystemConfig> existingConfig = systemConfigRepository.findById(MAINTENANCE_KEY);
         if (existingConfig.isPresent() && existingConfig.get().getValue() != null) {
             try {
-                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-                mapper.registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
-                MaintenanceData existingData = mapper.readValue(existingConfig.get().getValue(), MaintenanceData.class);
+                MaintenanceData existingData = objectMapper.readValue(existingConfig.get().getValue(), MaintenanceData.class);
                 existingStartedAt = existingData.startedAt;
                 wasEnabled = existingData.enabled;
             } catch (Exception e) {
@@ -642,13 +666,11 @@ public class AdminService {
         } else if (wasEnabled && existingStartedAt != null) {
             data.startedAt = existingStartedAt;
         } else {
-            data.startedAt = LocalDateTime.now();
+            data.startedAt = LocalDateTime.now(ZoneOffset.UTC);
         }
 
         try {
-            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-            mapper.registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
-            String json = mapper.writeValueAsString(data);
+            String json = objectMapper.writeValueAsString(data);
 
             SystemConfig config = existingConfig
                     .orElse(SystemConfig.builder()

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Lock, Eye, EyeOff, CheckCircle, XCircle, Loader2, ArrowRight } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { authService } from '../utils/services';
 
 type ResetStatus = 'form' | 'loading' | 'success' | 'error';
@@ -9,6 +10,7 @@ type ResetStatus = 'form' | 'loading' | 'success' | 'error';
 export function ResetPasswordPage() {
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [status, setStatus] = useState<ResetStatus>('form');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -19,13 +21,13 @@ export function ResetPasswordPage() {
   // 비밀번호 유효성 검사
   const validatePassword = (password: string): string | null => {
     if (password.length < 8) {
-      return '비밀번호는 8자 이상이어야 합니다.';
+      return t('resetPassword.pwMinLength');
     }
     if (!/[A-Za-z]/.test(password)) {
-      return '비밀번호에 영문자를 포함해야 합니다.';
+      return t('resetPassword.pwNeedLetter');
     }
     if (!/[0-9]/.test(password)) {
-      return '비밀번호에 숫자를 포함해야 합니다.';
+      return t('resetPassword.pwNeedNumber');
     }
     return null;
   };
@@ -34,7 +36,7 @@ export function ResetPasswordPage() {
     e.preventDefault();
 
     if (!token) {
-      setError('유효하지 않은 재설정 링크입니다.');
+      setError(t('resetPassword.invalidLink'));
       setStatus('error');
       return;
     }
@@ -48,7 +50,7 @@ export function ResetPasswordPage() {
 
     // 비밀번호 일치 확인
     if (password !== confirmPassword) {
-      setError('비밀번호가 일치하지 않습니다.');
+      setError(t('resetPassword.passwordMismatch'));
       return;
     }
 
@@ -61,13 +63,13 @@ export function ResetPasswordPage() {
     } catch (err: any) {
       setStatus('error');
       if (err.code === 'A015') {
-        setError('비밀번호 재설정 링크가 만료되었습니다. 다시 요청해주세요.');
+        setError(t('resetPassword.linkExpired'));
       } else if (err.code === 'A016') {
-        setError('유효하지 않은 재설정 링크입니다.');
+        setError(t('resetPassword.invalidLink'));
       } else if (err.code === 'A017') {
-        setError('이미 사용된 재설정 링크입니다. 다시 요청해주세요.');
+        setError(t('resetPassword.linkAlreadyUsed'));
       } else {
-        setError(err.message || '비밀번호 재설정에 실패했습니다.');
+        setError(err.message || t('resetPassword.resetFailed'));
       }
     }
   };
@@ -96,9 +98,9 @@ export function ResetPasswordPage() {
               </div>
             </div>
             <h1 className="text-2xl font-bold text-white text-center mb-4">
-              비밀번호 변경 중...
+              {t('resetPassword.changing')}
             </h1>
-            <p className="text-slate-400 text-center">잠시만 기다려주세요.</p>
+            <p className="text-slate-400 text-center">{t('common.pleaseWait')}</p>
           </>
         )}
 
@@ -114,12 +116,12 @@ export function ResetPasswordPage() {
 
             {/* Title */}
             <h1 className="text-2xl md:text-3xl font-bold text-white text-center mb-4">
-              새 비밀번호 설정
+              {t('resetPassword.title')}
             </h1>
 
             {/* Description */}
             <p className="text-slate-400 text-center mb-8 leading-relaxed">
-              새로운 비밀번호를 입력해주세요.
+              {t('resetPassword.description')}
             </p>
 
             {/* Form */}
@@ -127,14 +129,14 @@ export function ResetPasswordPage() {
               {/* New Password */}
               <div>
                 <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-                  새 비밀번호
+                  {t('resetPassword.newPassword')}
                 </label>
                 <div className="relative">
                   <input
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="8자 이상, 영문+숫자"
+                    placeholder={t('resetPassword.passwordPlaceholder')}
                     className="w-full bg-white/5 border border-white/20 rounded-xl py-3 px-4 pr-12 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
                   />
                   <button
@@ -150,14 +152,14 @@ export function ResetPasswordPage() {
               {/* Confirm Password */}
               <div>
                 <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-                  비밀번호 확인
+                  {t('resetPassword.confirmPassword')}
                 </label>
                 <div className="relative">
                   <input
                     type={showConfirmPassword ? 'text' : 'password'}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="비밀번호를 다시 입력해주세요"
+                    placeholder={t('resetPassword.confirmPlaceholder')}
                     className="w-full bg-white/5 border border-white/20 rounded-xl py-3 px-4 pr-12 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
                   />
                   <button
@@ -182,7 +184,7 @@ export function ResetPasswordPage() {
                 type="submit"
                 className="w-full h-14 bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white rounded-2xl font-bold transition-all duration-300 flex items-center justify-center gap-2 hover:shadow-[0_0_30px_rgba(99,102,241,0.3)]"
               >
-                비밀번호 변경
+                {t('resetPassword.changePassword')}
               </button>
             </form>
           </>
@@ -197,16 +199,16 @@ export function ResetPasswordPage() {
               </div>
             </div>
             <h1 className="text-2xl md:text-3xl font-bold text-white text-center mb-4">
-              비밀번호가 변경되었습니다
+              {t('resetPassword.successTitle')}
             </h1>
             <p className="text-slate-400 text-center mb-8">
-              새 비밀번호로 로그인해주세요.
+              {t('resetPassword.successDesc')}
             </p>
             <button
               onClick={() => navigate('/login')}
               className="w-full h-14 bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white rounded-2xl font-bold transition-all duration-300 flex items-center justify-center gap-2 hover:shadow-[0_0_30px_rgba(99,102,241,0.3)]"
             >
-              로그인하기
+              {t('resetPassword.goToLogin')}
               <ArrowRight className="w-5 h-5" />
             </button>
           </>
@@ -221,7 +223,7 @@ export function ResetPasswordPage() {
               </div>
             </div>
             <h1 className="text-2xl md:text-3xl font-bold text-white text-center mb-4">
-              비밀번호 재설정 실패
+              {t('resetPassword.errorTitle')}
             </h1>
             <p className="text-slate-400 text-center mb-8">
               {error}
@@ -230,7 +232,7 @@ export function ResetPasswordPage() {
               onClick={() => navigate('/forgot-password')}
               className="w-full h-14 bg-white/5 border border-white/20 text-white rounded-2xl font-bold transition-all duration-300 flex items-center justify-center gap-2 hover:bg-white/10"
             >
-              재설정 다시 요청하기
+              {t('resetPassword.requestAgain')}
               <ArrowRight className="w-5 h-5" />
             </button>
           </>
@@ -239,7 +241,7 @@ export function ResetPasswordPage() {
         {/* Footer */}
         <div className="mt-8 pt-6 border-t border-white/15">
           <Link to="/" className="block text-center text-sm text-slate-400 hover:text-white transition-colors">
-            BRIDGE SPOTS 홈으로
+            {t('resetPassword.backToHome')}
           </Link>
         </div>
       </motion.div>

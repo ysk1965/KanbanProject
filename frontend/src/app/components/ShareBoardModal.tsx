@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Dialog,
   DialogContent,
@@ -57,10 +58,10 @@ const ROLE_LABELS: Record<MemberRole, string> = {
 };
 
 const ROLE_COLORS: Record<MemberRole, string> = {
-  owner: 'bg-yellow-100 text-yellow-700 border-yellow-300',
-  admin: 'bg-purple-100 text-purple-700 border-purple-300',
-  member: 'bg-blue-100 text-blue-700 border-blue-300',
-  observer: 'bg-gray-100 text-gray-700 border-gray-300',
+  owner: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
+  admin: 'bg-purple-500/15 text-purple-400 border-purple-500/30',
+  member: 'bg-bridge-accent/15 text-bridge-accent border-bridge-accent/30',
+  observer: 'bg-white/5 text-slate-400 border-white/10',
 };
 
 export function ShareBoardModal({
@@ -77,6 +78,7 @@ export function ShareBoardModal({
   onCreateInviteLink,
   onDeleteInviteLink,
 }: ShareBoardModalProps) {
+  const { t } = useTranslation();
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<MemberRole>('member');
   const [linkCopied, setLinkCopied] = useState(false);
@@ -107,7 +109,7 @@ export function ShareBoardModal({
         return;
       } catch (error) {
         console.error('Failed to create invite link:', error);
-        setCopyMessage('링크 생성에 실패했습니다');
+        setCopyMessage(t('share.linkCreateFailed'));
         setTimeout(() => setCopyMessage(null), 3000);
         return;
       } finally {
@@ -118,7 +120,7 @@ export function ShareBoardModal({
     if (activeLink) {
       copyToClipboard(activeLink.code);
     } else {
-      setCopyMessage('초대 링크를 생성할 수 없습니다');
+      setCopyMessage(t('share.cannotCreateLink'));
       setTimeout(() => setCopyMessage(null), 3000);
     }
   };
@@ -127,7 +129,7 @@ export function ShareBoardModal({
     const inviteUrl = `${window.location.origin}/invite/${code}`;
     navigator.clipboard.writeText(inviteUrl);
     setLinkCopied(true);
-    setCopyMessage('링크가 클립보드에 복사되었습니다!');
+    setCopyMessage(t('share.linkCopied'));
     setTimeout(() => {
       setLinkCopied(false);
       setCopyMessage(null);
@@ -139,11 +141,11 @@ export function ShareBoardModal({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col bg-kanban-bg text-white border-kanban-border rounded-2xl">
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col bg-bridge-obsidian text-white border border-white/10 rounded-2xl shadow-2xl">
         <DialogHeader>
-          <DialogTitle className="text-foreground">Share board</DialogTitle>
+          <DialogTitle className="text-lg font-semibold text-white">{t('share.title')}</DialogTitle>
           <DialogDescription className="sr-only">
-            보드를 팀원과 공유합니다
+            {t('share.description')}
           </DialogDescription>
         </DialogHeader>
 
@@ -154,8 +156,8 @@ export function ShareBoardModal({
               <Input
                 value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
-                placeholder="Email address or name"
-                className="flex-1 bg-kanban-card border-kanban-border text-white placeholder:text-zinc-400"
+                placeholder={t('share.emailPlaceholder')}
+                className="flex-1 bg-white/[0.08] border-white/15 rounded-xl text-white placeholder:text-slate-400 focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
                 onKeyDown={(e) => {
                   if (e.nativeEvent.isComposing) return;
                   if (e.key === 'Enter') {
@@ -167,7 +169,7 @@ export function ShareBoardModal({
                 value={inviteRole}
                 onValueChange={(value) => setInviteRole(value as MemberRole)}
               >
-                <SelectTrigger className="w-[130px] bg-kanban-card border-kanban-border text-white">
+                <SelectTrigger className="w-[130px] bg-white/[0.08] border-white/15 rounded-xl text-white">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -179,63 +181,57 @@ export function ShareBoardModal({
               <Button
                 onClick={handleInvite}
                 disabled={!inviteEmail.trim()}
-                className="bg-indigo-600 hover:bg-indigo-700"
+                className="bg-bridge-accent text-white rounded-xl font-bold hover:bg-bridge-accent/90 hover:shadow-[0_0_20px_rgba(99,102,241,0.3)] transition-all disabled:opacity-40"
               >
-                Share
+                {t('share.invite')}
               </Button>
             </div>
 
             {/* 링크 공유 */}
-            <div className="flex items-center justify-between p-3 bg-kanban-card rounded-lg border border-kanban-border">
+            <div className="flex items-center justify-between p-3.5 bg-white/[0.06] rounded-xl border border-white/10">
               <div className="flex items-center gap-3">
-                <LinkIcon className="h-5 w-5 text-zinc-400" />
+                <div className="w-9 h-9 rounded-lg bg-bridge-accent/10 flex items-center justify-center shrink-0">
+                  <LinkIcon className="h-4 w-4 text-bridge-accent" />
+                </div>
                 <div>
-                  <p className="text-sm text-zinc-300">
-                    Anyone with the link can join as an
+                  <p className="text-sm text-slate-200">
+                    {t('share.linkShareDesc')}
                   </p>
-                  <div className="flex items-center gap-2">
-                    <button className="text-sm text-indigo-400 hover:underline">
-                      Observer
-                    </button>
-                    <span className="text-zinc-400">•</span>
-                    <button
-                      className="text-sm text-indigo-400 hover:underline disabled:opacity-50"
-                      onClick={handleCopyLink}
-                      disabled={isCreatingLink}
-                    >
-                      {isCreatingLink ? '생성 중...' : linkCopied ? 'Copied!' : 'Copy link'}
-                    </button>
-                  </div>
+                  <button
+                    className="text-sm text-bridge-accent hover:text-bridge-accent/80 transition-colors disabled:opacity-50 mt-0.5"
+                    onClick={handleCopyLink}
+                    disabled={isCreatingLink}
+                  >
+                    {isCreatingLink ? t('share.creating') : linkCopied ? t('share.copied') : t('share.copyLink')}
+                  </button>
                 </div>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
+              <button
                 onClick={handleCopyLink}
                 disabled={isCreatingLink}
-                className="text-zinc-300 hover:text-foreground hover:bg-white/5"
+                className="w-9 h-9 rounded-lg flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 transition-all"
               >
                 {isCreatingLink ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : linkCopied ? (
-                  <Check className="h-4 w-4 text-green-400" />
+                  <Check className="h-4 w-4 text-bridge-secondary" />
                 ) : (
                   <Copy className="h-4 w-4" />
                 )}
-              </Button>
+              </button>
             </div>
           </div>
 
           {/* 멤버 목록 */}
           <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <h3 className="font-semibold text-foreground">Board members</h3>
-              <Badge variant="secondary" className="bg-kanban-surface text-zinc-300">
+            <div className="flex items-center gap-2.5">
+              <h3 className="text-sm font-semibold text-slate-300">{t('share.boardMembers')}</h3>
+              <span className="text-[11px] font-bold text-bridge-accent bg-bridge-accent/10 px-2 py-0.5 rounded-full">
                 {members.length}
-              </Badge>
+              </span>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-1">
               {members.map((member) => {
                 const isCurrentMember = member.userId === currentUserId;
                 const canEdit = isCurrentUserAdmin && !isCurrentMember;
@@ -243,16 +239,16 @@ export function ShareBoardModal({
                 return (
                   <div
                     key={member.id}
-                    className="flex items-center justify-between p-3 rounded-lg hover:bg-white/5 border border-transparent hover:border-kanban-border"
+                    className="flex items-center justify-between py-1.5 px-2.5 rounded-lg hover:bg-white/[0.05] transition-colors"
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
                       {/* 아바타 + 색상 피커 */}
                       <Popover onOpenChange={(open) => {
                         if (!open) setCustomPickerMemberId(null);
                       }}>
                         <PopoverTrigger asChild>
                           <button
-                            className={`relative w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold group/avatar ${
+                            className={`relative w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-semibold group/avatar ${
                               getAssigneeClasses(member.name, member.assigneeColor).bg || ''
                             }`}
                             style={
@@ -260,12 +256,12 @@ export function ShareBoardModal({
                                 ? { backgroundColor: member.assigneeColor }
                                 : undefined
                             }
-                            title="색상 변경"
+                            title={t('share.changeColor')}
                           >
                             {getInitials(member.name)}
                             {onUpdateMemberColor && (
-                              <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-bridge-obsidian border border-white/20 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity">
-                                <Palette className="h-2.5 w-2.5 text-slate-400" />
+                              <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-bridge-obsidian border border-white/20 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity">
+                                <Palette className="h-2 w-2 text-slate-400" />
                               </div>
                             )}
                           </button>
@@ -310,7 +306,7 @@ export function ShareBoardModal({
                                     ? { backgroundColor: member.assigneeColor + '40', borderColor: member.assigneeColor }
                                     : undefined
                                 }
-                                title="커스텀 색상"
+                                title={t('share.customColor')}
                               >
                                 <Plus className="h-3.5 w-3.5 text-slate-400" />
                               </button>
@@ -347,7 +343,7 @@ export function ShareBoardModal({
                                     }}
                                     className="px-2.5 py-1 bg-bridge-accent text-white text-xs rounded-lg hover:bg-bridge-accent/90 transition-colors font-medium"
                                   >
-                                    적용
+                                    {t('common.apply')}
                                   </button>
                                 </div>
                               </div>
@@ -357,21 +353,21 @@ export function ShareBoardModal({
                       </Popover>
 
                       {/* 정보 */}
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-foreground">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-sm font-medium text-white truncate">
                             {member.name}
                           </span>
                           {isCurrentMember && (
-                            <span className="text-xs text-zinc-400">(you)</span>
+                            <span className="text-[10px] text-slate-400 tracking-wide shrink-0">{t('common.me')}</span>
                           )}
+                          <span className="text-xs text-slate-500 truncate">{member.email}</span>
                         </div>
-                        <p className="text-sm text-zinc-400">{member.email}</p>
                       </div>
                     </div>
 
                     {/* 역할 & 액션 */}
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5">
                       {canEdit ? (
                         <>
                           <Select
@@ -380,7 +376,7 @@ export function ShareBoardModal({
                               onUpdateMemberRole(member.id, value as MemberRole)
                             }
                           >
-                            <SelectTrigger className="w-[130px] bg-kanban-card border-kanban-border text-white">
+                            <SelectTrigger className="w-[120px] bg-white/[0.08] border-white/15 rounded-lg text-white text-sm h-8">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -389,23 +385,21 @@ export function ShareBoardModal({
                               <SelectItem value="observer">Observer</SelectItem>
                             </SelectContent>
                           </Select>
-                          <Button
-                            variant="ghost"
-                            size="sm"
+                          <button
                             onClick={() => onRemoveMember(member.id)}
-                            className="text-red-400 hover:text-red-300 hover:bg-red-900/20"
+                            className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-600 hover:text-red-400 hover:bg-red-500/10 transition-all"
                           >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
                         </>
                       ) : (
-                        <Badge
+                        <span
                           className={`${
                             ROLE_COLORS[member.role]
-                          } border px-3 py-1`}
+                          } border text-xs font-medium px-3 py-1 rounded-lg`}
                         >
                           {ROLE_LABELS[member.role]}
-                        </Badge>
+                        </span>
                       )}
                     </div>
                   </div>
@@ -415,45 +409,44 @@ export function ShareBoardModal({
           </div>
 
           {/* 권한 설명 */}
-          <div className="p-4 bg-kanban-card rounded-lg border border-kanban-border">
-            <h4 className="font-semibold text-foreground mb-2">역할 권한</h4>
-            <div className="space-y-2 text-sm text-zinc-400">
-              <div>
-                <span className="font-medium text-purple-400">Admin:</span> 모든
-                권한 (멤버 관리, 보드 설정, 카드 편집 등)
+          <div className="p-4 bg-white/[0.04] rounded-xl border border-white/10">
+            <h4 className="text-sm font-semibold text-slate-300 mb-3">{t('share.rolePermissions')}</h4>
+            <div className="space-y-2 text-sm">
+              <div className="flex items-start gap-2">
+                <span className="font-medium text-purple-400 shrink-0">Admin</span>
+                <span className="text-slate-400">{t('share.adminDesc')}</span>
               </div>
-              <div>
-                <span className="font-medium text-indigo-400">Member:</span> 카드
-                생성 및 편집, 댓글 작성
+              <div className="flex items-start gap-2">
+                <span className="font-medium text-bridge-accent shrink-0">Member</span>
+                <span className="text-slate-400">{t('share.memberDesc')}</span>
               </div>
-              <div>
-                <span className="font-medium text-zinc-400">Observer:</span> 읽기
-                전용 (카드 조회만 가능)
+              <div className="flex items-start gap-2">
+                <span className="font-medium text-slate-300 shrink-0">Observer</span>
+                <span className="text-slate-400">{t('share.observerDesc')}</span>
               </div>
             </div>
           </div>
         </div>
 
         {/* 닫기 버튼 */}
-        <div className="flex justify-end pt-4 border-t border-kanban-border">
-          <Button
+        <div className="flex justify-end pt-4 border-t border-white/10">
+          <button
             onClick={onClose}
-            variant="outline"
-            className="border-kanban-border text-zinc-300 hover:bg-white/5"
+            className="px-5 py-2 bg-white/[0.08] border border-white/15 text-slate-200 rounded-xl text-sm font-medium hover:bg-white/15 hover:text-white transition-all"
           >
-            Close
-          </Button>
+            {t('common.close')}
+          </button>
         </div>
 
         {/* 복사 알림 토스트 */}
         {copyMessage && (
-          <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-kanban-card text-white px-4 py-2 rounded-lg shadow-lg border border-kanban-border flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2 z-50">
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-bridge-obsidian text-white px-5 py-2.5 rounded-xl shadow-2xl border border-white/10 flex items-center gap-2.5 animate-in fade-in slide-in-from-bottom-2 z-50">
             {linkCopied ? (
-              <Check className="h-4 w-4 text-green-400" />
+              <Check className="h-4 w-4 text-bridge-secondary" />
             ) : (
-              <LinkIcon className="h-4 w-4 text-zinc-400" />
+              <LinkIcon className="h-4 w-4 text-slate-400" />
             )}
-            <span className="text-sm">{copyMessage}</span>
+            <span className="text-sm font-medium">{copyMessage}</span>
           </div>
         )}
       </DialogContent>

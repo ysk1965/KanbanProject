@@ -1,8 +1,10 @@
 import { useState, useCallback } from 'react';
 import { Plus, User, ClipboardList } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { DailyChecklistItem as DailyChecklistItemType } from '../types';
 import { DailyChecklistItem } from './DailyChecklistItem';
 import { dailyChecklistAPI } from '../utils/api';
+import { getInitials, getAssigneeHex } from '../utils/assigneeColor';
 import {
   DndContext,
   closestCenter,
@@ -27,6 +29,7 @@ interface DailyChecklistColumnProps {
     name: string;
     profile_image: string | null;
   };
+  assigneeColor?: string | null;
   items: DailyChecklistItemType[];
   selectedDate: Date;
   isReadOnly: boolean;
@@ -39,12 +42,14 @@ interface DailyChecklistColumnProps {
 export function DailyChecklistColumn({
   boardId,
   user,
+  assigneeColor,
   items,
   isReadOnly,
   onItemRemoved,
   onPositionChanged,
   onAddClick,
 }: DailyChecklistColumnProps) {
+  const { t } = useTranslation();
   const [localItems, setLocalItems] = useState<DailyChecklistItemType[]>(items);
 
   // items prop이 변경되면 localItems 업데이트
@@ -109,9 +114,9 @@ export function DailyChecklistColumn({
   const totalCount = localItems.length;
 
   return (
-    <div className="flex flex-col w-64 md:w-72 flex-shrink-0 bg-bridge-obsidian rounded-2xl border border-white/15 overflow-hidden">
+    <div className="flex flex-col w-64 md:w-72 flex-shrink-0 bg-kanban-card rounded-2xl border border-kanban-border overflow-hidden">
       {/* 헤더 */}
-      <div className="px-4 py-3 border-b border-white/15">
+      <div className="px-4 py-3 border-b border-kanban-border">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             {user.profile_image ? (
@@ -121,14 +126,17 @@ export function DailyChecklistColumn({
                 className="w-8 h-8 rounded-full object-cover"
               />
             ) : (
-              <div className="w-8 h-8 rounded-full bg-bridge-accent flex items-center justify-center">
-                <User className="h-4 w-4 text-white" />
+              <div
+                className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white"
+                style={{ backgroundColor: getAssigneeHex(user.name, assigneeColor) }}
+              >
+                {getInitials(user.name)}
               </div>
             )}
             <div>
               <h3 className="text-sm font-semibold text-white">{user.name}</h3>
               <p className="text-xs text-slate-400">
-                {completedCount}/{totalCount} 완료
+                {t('dailyChecklistColumn.completedCount', { completed: completedCount, total: totalCount })}
               </p>
             </div>
           </div>
@@ -137,7 +145,7 @@ export function DailyChecklistColumn({
           {!isReadOnly && (
             <button
               onClick={onAddClick}
-              className="p-2 rounded-lg text-slate-400 hover:text-bridge-accent hover:bg-bridge-accent/10 transition-colors"
+              className="p-2 rounded-lg text-slate-400 hover:text-[#2DD4BF] hover:bg-[#2DD4BF]/10 transition-colors"
             >
               <Plus className="h-4 w-4" />
             </button>
@@ -150,13 +158,13 @@ export function DailyChecklistColumn({
         {localItems.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-8 text-center">
             <ClipboardList className="h-10 w-10 text-slate-400 mb-3" />
-            <p className="text-sm text-slate-400">오늘의 체크리스트가 없습니다</p>
+            <p className="text-sm text-slate-400">{t('dailyChecklistColumn.noChecklist')}</p>
             {!isReadOnly && (
               <button
                 onClick={onAddClick}
-                className="mt-3 px-4 py-2 text-xs font-medium text-bridge-accent hover:bg-bridge-accent/10 rounded-lg transition-colors"
+                className="mt-3 px-4 py-2 text-xs font-medium text-[#2DD4BF] hover:bg-[#2DD4BF]/10 rounded-lg transition-colors"
               >
-                + 추가하기
+                {t('dailyChecklistColumn.addItem')}
               </button>
             )}
           </div>

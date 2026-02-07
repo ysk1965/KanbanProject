@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ChevronLeft, ChevronRight, CreditCard, Calendar, Folder } from 'lucide-react';
 import { adminService } from '../../utils/services';
 import { SubscriptionListResponse } from '../../utils/api';
 import { formatDate as dateUtilsFormatDate } from '../../utils/dateUtils';
 
 export function AdminSubscriptionsTab() {
+  const { t } = useTranslation();
   const [subscriptions, setSubscriptions] = useState<SubscriptionListResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -18,7 +20,7 @@ export function AdminSubscriptionsTab() {
       setSubscriptions(data);
     } catch (err) {
       console.error('Failed to load subscriptions:', err);
-      setError('구독 목록을 불러오는데 실패했습니다');
+      setError(t('admin.subscriptions.loadFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -30,7 +32,7 @@ export function AdminSubscriptionsTab() {
 
   const formatDate = (dateString: string | null | undefined) => {
     if (!dateString) return '-';
-    return dateUtilsFormatDate(dateString, 'yyyy년 M월 d일');
+    return dateUtilsFormatDate(dateString, t('admin.common.dateFormat'));
   };
 
   const getStatusStyle = (status: string) => {
@@ -67,8 +69,8 @@ export function AdminSubscriptionsTab() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white mb-2">구독 관리</h2>
-          <p className="text-slate-400">시스템 구독 현황을 확인합니다</p>
+          <h2 className="text-2xl font-bold text-white mb-2">{t('admin.subscriptions.title')}</h2>
+          <p className="text-slate-400">{t('admin.subscriptions.subtitle')}</p>
         </div>
       </div>
 
@@ -80,7 +82,7 @@ export function AdminSubscriptionsTab() {
             onClick={loadSubscriptions}
             className="mt-4 px-4 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors"
           >
-            다시 시도
+            {t('common.retry')}
           </button>
         </div>
       )}
@@ -98,7 +100,7 @@ export function AdminSubscriptionsTab() {
           {subscriptions.subscriptions.length === 0 ? (
             <div className="bg-bridge-obsidian rounded-xl border border-white/15 p-12 text-center">
               <CreditCard className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-              <p className="text-slate-400">구독 내역이 없습니다</p>
+              <p className="text-slate-400">{t('admin.subscriptions.noSubscriptions')}</p>
             </div>
           ) : (
             <div className="bg-bridge-obsidian rounded-xl border border-white/15 overflow-x-auto">
@@ -106,22 +108,22 @@ export function AdminSubscriptionsTab() {
                 <thead>
                   <tr className="border-b border-white/15">
                     <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-                      보드
+                      {t('admin.subscriptions.board')}
                     </th>
                     <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-                      소유자
+                      {t('admin.subscriptions.owner')}
                     </th>
                     <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-                      티어
+                      {t('admin.subscriptions.tier')}
                     </th>
                     <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-                      상태
+                      {t('admin.subscriptions.status')}
                     </th>
                     <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-                      시작일
+                      {t('admin.subscriptions.startDate')}
                     </th>
                     <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-                      만료일
+                      {t('admin.subscriptions.expiryDate')}
                     </th>
                   </tr>
                 </thead>
@@ -186,7 +188,7 @@ export function AdminSubscriptionsTab() {
           {subscriptions.subscriptions.length > 0 && (
             <div className="flex items-center justify-between">
               <p className="text-slate-400 text-sm">
-                총 {subscriptions.total.toLocaleString()}개
+                {t('admin.common.totalItems', { count: subscriptions.total.toLocaleString() })}
               </p>
               <div className="flex items-center gap-2">
                 <button

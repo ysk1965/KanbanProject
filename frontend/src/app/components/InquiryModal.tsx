@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, Send, Paperclip, ChevronLeft, Clock, CheckCircle2, Loader2, AlertCircle, MessageSquare } from 'lucide-react';
 import { inquiryService } from '../utils/services';
 import { fileAPI } from '../utils/api';
@@ -10,14 +11,15 @@ interface InquiryModalProps {
   onClose: () => void;
 }
 
-const STATUS_LABELS: Record<InquiryStatus, { label: string; color: string; icon: React.ReactNode }> = {
-  PENDING: { label: '대기중', color: 'text-yellow-400 bg-yellow-400/10', icon: <Clock size={12} /> },
-  IN_PROGRESS: { label: '진행중', color: 'text-blue-400 bg-blue-400/10', icon: <Loader2 size={12} /> },
-  RESOLVED: { label: '해결됨', color: 'text-green-400 bg-green-400/10', icon: <CheckCircle2 size={12} /> },
-  CLOSED: { label: '종료', color: 'text-slate-400 bg-slate-400/10', icon: <AlertCircle size={12} /> },
+const STATUS_CONFIG: Record<InquiryStatus, { labelKey: string; color: string; icon: React.ReactNode }> = {
+  PENDING: { labelKey: 'inquiry.statusPending', color: 'text-yellow-400 bg-yellow-400/10', icon: <Clock size={12} /> },
+  IN_PROGRESS: { labelKey: 'inquiry.statusInProgress', color: 'text-blue-400 bg-blue-400/10', icon: <Loader2 size={12} /> },
+  RESOLVED: { labelKey: 'inquiry.statusResolved', color: 'text-green-400 bg-green-400/10', icon: <CheckCircle2 size={12} /> },
+  CLOSED: { labelKey: 'inquiry.statusClosed', color: 'text-slate-400 bg-slate-400/10', icon: <AlertCircle size={12} /> },
 };
 
 export function InquiryModal({ isOpen, onClose }: InquiryModalProps) {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'new' | 'history'>('new');
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -122,7 +124,7 @@ export function InquiryModal({ isOpen, onClose }: InquiryModalProps) {
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-[2px]" onClick={onClose} />
       <div className="relative bg-bridge-obsidian rounded-2xl border border-white/10 shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
@@ -137,7 +139,7 @@ export function InquiryModal({ isOpen, onClose }: InquiryModalProps) {
             )}
             <MessageSquare size={20} className="text-bridge-accent" />
             <h2 className="text-lg font-bold text-white">
-              {selectedInquiry ? '문의 상세' : '문의하기'}
+              {selectedInquiry ? t('inquiry.detailTitle') : t('inquiry.title')}
             </h2>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
@@ -156,7 +158,7 @@ export function InquiryModal({ isOpen, onClose }: InquiryModalProps) {
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              새 문의
+              {t('inquiry.newInquiry')}
             </button>
             <button
               onClick={() => setActiveTab('history')}
@@ -166,7 +168,7 @@ export function InquiryModal({ isOpen, onClose }: InquiryModalProps) {
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              내 문의 내역
+              {t('inquiry.myHistory')}
             </button>
           </div>
         )}
@@ -179,32 +181,32 @@ export function InquiryModal({ isOpen, onClose }: InquiryModalProps) {
             submitSuccess ? (
               <div className="flex flex-col items-center justify-center py-12 gap-3">
                 <CheckCircle2 size={48} className="text-green-400" />
-                <p className="text-white font-semibold">문의가 접수되었습니다</p>
-                <p className="text-slate-400 text-sm">답변이 등록되면 확인하실 수 있습니다</p>
+                <p className="text-white font-semibold">{t('inquiry.submitted')}</p>
+                <p className="text-slate-400 text-sm">{t('inquiry.submittedDesc')}</p>
               </div>
             ) : (
               <div className="space-y-4">
                 <div>
                   <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2 block">
-                    제목
+                    {t('inquiry.titleLabel')}
                   </label>
                   <input
                     type="text"
                     value={title}
                     onChange={e => setTitle(e.target.value)}
-                    placeholder="문의 제목을 입력해주세요"
+                    placeholder={t('inquiry.titlePlaceholder')}
                     className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
                     maxLength={200}
                   />
                 </div>
                 <div>
                   <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2 block">
-                    내용
+                    {t('inquiry.contentLabel')}
                   </label>
                   <textarea
                     value={content}
                     onChange={e => setContent(e.target.value)}
-                    placeholder="문의 내용을 상세히 작성해주세요"
+                    placeholder={t('inquiry.contentPlaceholder')}
                     rows={6}
                     className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all resize-none"
                     maxLength={5000}
@@ -214,7 +216,7 @@ export function InquiryModal({ isOpen, onClose }: InquiryModalProps) {
                 {/* File Upload */}
                 <div>
                   <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2 block">
-                    첨부파일 ({files.length}/5)
+                    {t('inquiry.attachments')} ({files.length}/5)
                   </label>
                   <input
                     ref={fileInputRef}
@@ -230,7 +232,7 @@ export function InquiryModal({ isOpen, onClose }: InquiryModalProps) {
                     className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Paperclip size={16} />
-                    <span className="text-sm">파일 첨부</span>
+                    <span className="text-sm">{t('inquiry.attachFile')}</span>
                   </button>
                   {files.length > 0 && (
                     <div className="mt-2 space-y-1">
@@ -269,7 +271,7 @@ export function InquiryModal({ isOpen, onClose }: InquiryModalProps) {
               ) : (
                 <Send size={18} />
               )}
-              {isSubmitting ? '전송 중...' : '문의 보내기'}
+              {isSubmitting ? t('inquiry.sending') : t('inquiry.send')}
             </button>
           </div>
         )}
@@ -287,6 +289,7 @@ function InquiryHistoryView({
   isLoading: boolean;
   onSelect: (id: string) => void;
 }) {
+  const { t } = useTranslation();
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -299,7 +302,7 @@ function InquiryHistoryView({
     return (
       <div className="flex flex-col items-center justify-center py-12 gap-2">
         <MessageSquare size={40} className="text-slate-600" />
-        <p className="text-slate-400 text-sm">아직 문의 내역이 없습니다</p>
+        <p className="text-slate-400 text-sm">{t('inquiry.noHistory')}</p>
       </div>
     );
   }
@@ -307,7 +310,7 @@ function InquiryHistoryView({
   return (
     <div className="space-y-2">
       {inquiries.map(inquiry => {
-        const statusInfo = STATUS_LABELS[inquiry.status];
+        const statusConfig = STATUS_CONFIG[inquiry.status];
         return (
           <button
             key={inquiry.id}
@@ -320,13 +323,13 @@ function InquiryHistoryView({
                 <p className="text-slate-500 text-xs mt-1">
                   {formatDate(inquiry.created_at, 'yyyy-MM-dd')}
                   {inquiry.reply_count > 0 && (
-                    <span className="ml-2 text-bridge-accent">답변 {inquiry.reply_count}건</span>
+                    <span className="ml-2 text-bridge-accent">{t('inquiry.replyCount', { count: inquiry.reply_count })}</span>
                   )}
                 </p>
               </div>
-              <span className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${statusInfo.color}`}>
-                {statusInfo.icon}
-                {statusInfo.label}
+              <span className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${statusConfig.color}`}>
+                {statusConfig.icon}
+                {t(statusConfig.labelKey)}
               </span>
             </div>
           </button>
@@ -345,6 +348,7 @@ function InquiryDetailView({
   isLoading: boolean;
   onReplySubmitted: () => void;
 }) {
+  const { t } = useTranslation();
   const [replyContent, setReplyContent] = useState('');
   const [isSubmittingReply, setIsSubmittingReply] = useState(false);
 
@@ -356,7 +360,7 @@ function InquiryDetailView({
     );
   }
 
-  const statusInfo = STATUS_LABELS[inquiry.status];
+  const statusInfo = STATUS_CONFIG[inquiry.status];
   const isClosed = inquiry.status === 'CLOSED';
 
   const handleReplySubmit = async () => {
@@ -379,7 +383,7 @@ function InquiryDetailView({
         <div className="flex items-center gap-2 mb-2">
           <span className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${statusInfo.color}`}>
             {statusInfo.icon}
-            {statusInfo.label}
+            {t(statusInfo.labelKey)}
           </span>
           <span className="text-slate-500 text-xs">
             {formatDate(inquiry.created_at, 'yyyy-MM-dd')}
@@ -394,7 +398,7 @@ function InquiryDetailView({
 
       {inquiry.attachments.length > 0 && (
         <div className="space-y-2">
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">첨부파일</p>
+          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('inquiry.attachments')}</p>
           {inquiry.attachments.map(att => (
             <a
               key={att.id}
@@ -412,7 +416,7 @@ function InquiryDetailView({
 
       {inquiry.replies.length > 0 && (
         <div className="space-y-3 mt-6">
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">대화 내역</p>
+          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('inquiry.conversationHistory')}</p>
           {inquiry.replies.map(reply => {
             const isAdmin = reply.reply_type === 'ADMIN';
             const replier = isAdmin ? reply.admin : reply.user;
@@ -452,11 +456,11 @@ function InquiryDetailView({
       {/* User Reply Input */}
       {!isClosed && (
         <div className="mt-6 space-y-3">
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">추가 문의</p>
+          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('inquiry.additionalInquiry')}</p>
           <textarea
             value={replyContent}
             onChange={e => setReplyContent(e.target.value)}
-            placeholder="추가 문의 내용을 입력해주세요"
+            placeholder={t('inquiry.additionalPlaceholder')}
             rows={3}
             className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all resize-none"
             maxLength={5000}
@@ -471,7 +475,7 @@ function InquiryDetailView({
             ) : (
               <Send size={16} />
             )}
-            {isSubmittingReply ? '전송 중...' : '답변 보내기'}
+            {isSubmittingReply ? t('inquiry.sending') : t('inquiry.sendReply')}
           </button>
         </div>
       )}

@@ -1,19 +1,21 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Search, ChevronLeft, ChevronRight, Folder, Users, ListTodo, Calendar, Filter } from 'lucide-react';
 import { adminService } from '../../utils/services';
 import { BoardListResponse } from '../../utils/api';
 import { AdminBoardDetailModal } from './AdminBoardDetailModal';
 import { formatDate as dateUtilsFormatDate } from '../../utils/dateUtils';
 
-const TIER_OPTIONS = [
-  { value: '', label: '전체 티어' },
-  { value: 'FREE', label: 'FREE' },
-  { value: 'STANDARD', label: 'STANDARD' },
-  { value: 'PREMIUM', label: 'PREMIUM' },
-  { value: 'ENTERPRISE', label: 'ENTERPRISE' },
-];
-
 export function AdminBoardsTab() {
+  const { t } = useTranslation();
+
+  const TIER_OPTIONS = [
+    { value: '', label: t('admin.boards.allTiers') },
+    { value: 'FREE', label: 'FREE' },
+    { value: 'STANDARD', label: 'STANDARD' },
+    { value: 'PREMIUM', label: 'PREMIUM' },
+    { value: 'ENTERPRISE', label: 'ENTERPRISE' },
+  ];
   const [boards, setBoards] = useState<BoardListResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -35,7 +37,7 @@ export function AdminBoardsTab() {
       setBoards(data);
     } catch (err) {
       console.error('Failed to load boards:', err);
-      setError('보드 목록을 불러오는데 실패했습니다');
+      setError(t('admin.boards.loadFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -56,7 +58,7 @@ export function AdminBoardsTab() {
   };
 
   const formatDate = (dateString: string) => {
-    return dateUtilsFormatDate(dateString, 'yyyy년 M월 d일');
+    return dateUtilsFormatDate(dateString, t('admin.common.dateFormat'));
   };
 
   const getTierStyle = (tier: string) => {
@@ -78,8 +80,8 @@ export function AdminBoardsTab() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white mb-2">보드 관리</h2>
-          <p className="text-slate-400">시스템 보드를 관리합니다</p>
+          <h2 className="text-2xl font-bold text-white mb-2">{t('admin.boards.title')}</h2>
+          <p className="text-slate-400">{t('admin.boards.subtitle')}</p>
         </div>
       </div>
 
@@ -92,7 +94,7 @@ export function AdminBoardsTab() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="보드명 또는 소유자로 검색..."
+              placeholder={t('admin.boards.searchPlaceholder')}
               className="w-full bg-bridge-obsidian border border-white/20 rounded-xl py-3 pl-12 pr-4
                 text-white placeholder-slate-400
                 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent
@@ -104,7 +106,7 @@ export function AdminBoardsTab() {
             className="px-6 py-3 bg-bridge-accent text-white rounded-xl font-medium
               hover:bg-bridge-accent/90 transition-colors"
           >
-            검색
+            {t('common.search')}
           </button>
         </form>
         <div className="relative">
@@ -137,7 +139,7 @@ export function AdminBoardsTab() {
             onClick={loadBoards}
             className="mt-4 px-4 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors"
           >
-            다시 시도
+            {t('common.retry')}
           </button>
         </div>
       )}
@@ -157,22 +159,22 @@ export function AdminBoardsTab() {
               <thead>
                 <tr className="border-b border-white/15">
                   <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-                    보드
+                    {t('admin.boards.board')}
                   </th>
                   <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-                    소유자
+                    {t('admin.boards.owner')}
                   </th>
                   <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-                    티어
+                    {t('admin.boards.tier')}
                   </th>
                   <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-                    멤버
+                    {t('admin.boards.members')}
                   </th>
                   <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-                    태스크
+                    {t('admin.boards.tasks')}
                   </th>
                   <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-                    생성일
+                    {t('admin.boards.createdAt')}
                   </th>
                 </tr>
               </thead>
@@ -240,7 +242,7 @@ export function AdminBoardsTab() {
           {/* Pagination */}
           <div className="flex items-center justify-between">
             <p className="text-slate-400 text-sm">
-              총 {boards.total.toLocaleString()}개
+              {t('admin.common.totalItems', { count: boards.total.toLocaleString() })}
             </p>
             <div className="flex items-center gap-2">
               <button

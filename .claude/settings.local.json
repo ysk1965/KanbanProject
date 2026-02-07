@@ -53,7 +53,23 @@
       "Bash(brew install:*)",
       "Bash(gh run list:*)",
       "Bash(gh run view:*)",
-      "Bash(git status:*)"
+      "Bash(git status:*)",
+      "Bash(npx vite build:*)",
+      "Bash(for file in /Users/yoo/Documents/GitHub/KanbanProject/frontend/src/app/components/LoginPage.tsx /Users/yoo/Documents/GitHub/KanbanProject/frontend/src/app/components/FilterModal.tsx /Users/yoo/Documents/GitHub/KanbanProject/frontend/src/app/components/EmailVerificationPendingPage.tsx /Users/yoo/Documents/GitHub/KanbanProject/frontend/src/app/components/TaskDetailModal.tsx /Users/yoo/Documents/GitHub/KanbanProject/frontend/src/app/components/ChecklistSelectModal.tsx)",
+      "Bash(do)",
+      "Bash(if ! grep -q \"useTranslation\" \"$file\")",
+      "Bash(then)",
+      "Bash(else)",
+      "Bash(fi)",
+      "Bash(done)",
+      "Bash(/tmp/check_korean2.sh:*)",
+      "Bash(chmod:*)",
+      "Bash(/tmp/check_korean2.sh)",
+      "Bash(for:*)",
+      "Bash(/tmp/count_without_translation.sh:*)",
+      "Bash(/tmp/count_without_translation.sh)",
+      "Bash(node -e:*)",
+      "Bash(python3:*)"
     ]
   }
 }

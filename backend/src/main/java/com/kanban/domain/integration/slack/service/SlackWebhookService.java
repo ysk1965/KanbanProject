@@ -41,6 +41,7 @@ public class SlackWebhookService {
 
     public SlackWebhookResponse.Detail getMyWebhook(String boardId, String userId) {
         boardService.checkViewerOrAbove(boardId, userId);
+        validateSlackAccess(boardId);
 
         return webhookRepository.findByBoardIdAndUserId(boardId, userId)
                 .map(SlackWebhookResponse.Detail::of)
@@ -50,6 +51,7 @@ public class SlackWebhookService {
     @Transactional
     public SlackWebhookResponse.Detail upsertMyWebhook(String boardId, String userId, SlackWebhookRequest.Upsert request) {
         boardService.checkViewerOrAbove(boardId, userId);
+        validateSlackAccess(boardId);
         validateWebhookUrl(request.getWebhookUrl());
 
         MemberSlackWebhook webhook = webhookRepository.findByBoardIdAndUserId(boardId, userId)
@@ -84,6 +86,7 @@ public class SlackWebhookService {
     @Transactional
     public void deleteMyWebhook(String boardId, String userId) {
         boardService.checkViewerOrAbove(boardId, userId);
+        validateSlackAccess(boardId);
 
         MemberSlackWebhook webhook = webhookRepository.findByBoardIdAndUserId(boardId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SLACK_WEBHOOK_NOT_FOUND));
@@ -94,6 +97,7 @@ public class SlackWebhookService {
 
     public SlackWebhookResponse.TestResult testMyWebhook(String boardId, String userId) {
         boardService.checkViewerOrAbove(boardId, userId);
+        validateSlackAccess(boardId);
 
         MemberSlackWebhook webhook = webhookRepository.findByBoardIdAndUserId(boardId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SLACK_WEBHOOK_NOT_FOUND));
@@ -128,6 +132,15 @@ public class SlackWebhookService {
                     .success(false)
                     .message("Slack 전송에 실패했습니다. URL을 확인해주세요.")
                     .build();
+        }
+    }
+
+    private void validateSlackAccess(String boardId) {
+        Board board = boardRepository.findById(boardId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        board.checkAndUpdateTierIfTrialExpired();
+        if (!board.canAccessSlack()) {
+            throw new BusinessException(ErrorCode.SLACK_PREMIUM_REQUIRED);
         }
     }
 

@@ -15,6 +15,7 @@ import {
   Settings,
   Moon,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { userService } from '../utils/services';
@@ -22,6 +23,7 @@ import { Switch } from './ui/switch';
 
 export function SettingsPage() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { currentUser, logout, updateCurrentUser } = useAuth();
   const { theme, setTheme, isDark } = useTheme();
 
@@ -55,7 +57,7 @@ export function SettingsPage() {
 
   const handleProfileSave = async () => {
     if (!name.trim()) {
-      setProfileError('이름을 입력해주세요.');
+      setProfileError(t('settings.enterName'));
       return;
     }
 
@@ -68,7 +70,7 @@ export function SettingsPage() {
       setProfileSuccess(true);
       setTimeout(() => setProfileSuccess(false), 3000);
     } catch (err: any) {
-      setProfileError(err.message || '프로필 저장에 실패했습니다.');
+      setProfileError(err.message || t('settings.profileSaveFailed'));
     } finally {
       setProfileSaving(false);
     }
@@ -79,27 +81,27 @@ export function SettingsPage() {
 
     // 유효성 검사
     if (!currentPassword) {
-      setPasswordError('현재 비밀번호를 입력해주세요.');
+      setPasswordError(t('settings.enterCurrentPassword'));
       return;
     }
     if (!newPassword) {
-      setPasswordError('새 비밀번호를 입력해주세요.');
+      setPasswordError(t('settings.enterNewPassword'));
       return;
     }
     if (newPassword.length < 8) {
-      setPasswordError('새 비밀번호는 8자 이상이어야 합니다.');
+      setPasswordError(t('settings.pwMinLength'));
       return;
     }
     if (!/[A-Za-z]/.test(newPassword)) {
-      setPasswordError('새 비밀번호에 영문자를 포함해야 합니다.');
+      setPasswordError(t('settings.pwNeedLetter'));
       return;
     }
     if (!/[0-9]/.test(newPassword)) {
-      setPasswordError('새 비밀번호에 숫자를 포함해야 합니다.');
+      setPasswordError(t('settings.pwNeedNumber'));
       return;
     }
     if (newPassword !== confirmPassword) {
-      setPasswordError('새 비밀번호가 일치하지 않습니다.');
+      setPasswordError(t('settings.pwMismatch'));
       return;
     }
 
@@ -115,9 +117,9 @@ export function SettingsPage() {
       setTimeout(() => setPasswordSuccess(false), 3000);
     } catch (err: any) {
       if (err.code === 'U002') {
-        setPasswordError('현재 비밀번호가 일치하지 않습니다.');
+        setPasswordError(t('settings.currentPwWrong'));
       } else {
-        setPasswordError(err.message || '비밀번호 변경에 실패했습니다.');
+        setPasswordError(err.message || t('settings.pwChangeFailed'));
       }
     } finally {
       setPasswordSaving(false);
@@ -125,8 +127,8 @@ export function SettingsPage() {
   };
 
   const handleDeleteAccount = async () => {
-    if (deleteConfirmText !== '계정 삭제') {
-      setDeleteError('"계정 삭제"를 정확히 입력해주세요.');
+    if (deleteConfirmText !== t('settings.deleteAccountText')) {
+      setDeleteError(t('settings.deleteAccountTypeExact'));
       return;
     }
 
@@ -139,9 +141,9 @@ export function SettingsPage() {
       navigate('/');
     } catch (err: any) {
       if (err.code === 'U003') {
-        setDeleteError('보드 Owner는 탈퇴할 수 없습니다. 먼저 보드를 삭제하거나 Owner를 양도해주세요.');
+        setDeleteError(t('settings.ownerCannotDelete'));
       } else {
-        setDeleteError(err.message || '계정 삭제에 실패했습니다.');
+        setDeleteError(err.message || t('settings.deleteAccountFailed'));
       }
       setDeleting(false);
     }
@@ -184,7 +186,7 @@ export function SettingsPage() {
               <Settings className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-foreground">설정</h1>
+              <h1 className="text-xl font-bold text-foreground">{t('settings.title')}</h1>
               <p className="text-xs text-slate-400">{currentUser?.email}</p>
             </div>
           </div>
@@ -204,15 +206,15 @@ export function SettingsPage() {
               <User className="w-5 h-5 text-bridge-accent" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-foreground">프로필</h2>
-              <p className="text-sm text-slate-400">기본 정보를 수정합니다</p>
+              <h2 className="text-lg font-bold text-foreground">{t('settings.profile')}</h2>
+              <p className="text-sm text-slate-400">{t('settings.profileDesc')}</p>
             </div>
           </div>
 
           <div className="space-y-4">
             <div>
               <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-                이메일
+                {t('settings.emailLabel')}
               </label>
               <input
                 type="email"
@@ -220,18 +222,18 @@ export function SettingsPage() {
                 disabled
                 className="w-full bg-white/5 border border-white/20 rounded-xl py-3 px-4 text-slate-400 cursor-not-allowed"
               />
-              <p className="text-xs text-slate-400 mt-1">이메일은 변경할 수 없습니다</p>
+              <p className="text-xs text-slate-400 mt-1">{t('settings.emailCannotChange')}</p>
             </div>
 
             <div>
               <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-                이름
+                {t('settings.nameLabel')}
               </label>
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="이름을 입력해주세요"
+                placeholder={t('settings.namePlaceholder')}
                 className="w-full bg-white/5 border border-white/20 rounded-xl py-3 px-4 text-foreground placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
               />
             </div>
@@ -245,7 +247,7 @@ export function SettingsPage() {
             {profileSuccess && (
               <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-3 flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-green-400" />
-                <p className="text-green-400 text-sm">프로필이 저장되었습니다</p>
+                <p className="text-green-400 text-sm">{t('settings.profileSaved')}</p>
               </div>
             )}
 
@@ -259,7 +261,7 @@ export function SettingsPage() {
               ) : (
                 <Save className="w-4 h-4" />
               )}
-              저장
+              {t('common.save')}
             </button>
           </div>
         </motion.section>
@@ -276,12 +278,12 @@ export function SettingsPage() {
               <Moon className="w-5 h-5 text-bridge-accent" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-foreground">테마</h2>
-              <p className="text-sm text-slate-400">화면 테마를 변경합니다</p>
+              <h2 className="text-lg font-bold text-foreground">{t('settings.theme')}</h2>
+              <p className="text-sm text-slate-400">{t('settings.themeDesc')}</p>
             </div>
           </div>
           <div className="flex items-center justify-between">
-            <label className="text-sm text-slate-300">다크 모드</label>
+            <label className="text-sm text-slate-300">{t('settings.darkMode')}</label>
             <Switch checked={isDark} onCheckedChange={handleThemeChange} />
           </div>
         </motion.section>
@@ -299,22 +301,22 @@ export function SettingsPage() {
                 <Lock className="w-5 h-5 text-bridge-accent" />
               </div>
               <div>
-                <h2 className="text-lg font-bold text-foreground">비밀번호 변경</h2>
-                <p className="text-sm text-slate-400">계정 보안을 위해 비밀번호를 변경합니다</p>
+                <h2 className="text-lg font-bold text-foreground">{t('settings.changePassword')}</h2>
+                <p className="text-sm text-slate-400">{t('settings.changePasswordDesc')}</p>
               </div>
             </div>
 
             <div className="space-y-4">
               <div>
                 <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-                  현재 비밀번호
+                  {t('settings.currentPasswordLabel')}
                 </label>
                 <div className="relative">
                   <input
                     type={showCurrentPassword ? 'text' : 'password'}
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
-                    placeholder="현재 비밀번호"
+                    placeholder={t('settings.currentPasswordLabel')}
                     className="w-full bg-white/5 border border-white/20 rounded-xl py-3 px-4 pr-12 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
                   />
                   <button
@@ -329,14 +331,14 @@ export function SettingsPage() {
 
               <div>
                 <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-                  새 비밀번호
+                  {t('settings.newPasswordLabel')}
                 </label>
                 <div className="relative">
                   <input
                     type={showNewPassword ? 'text' : 'password'}
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="8자 이상, 영문+숫자"
+                    placeholder={t('settings.newPasswordPlaceholder')}
                     className="w-full bg-white/5 border border-white/20 rounded-xl py-3 px-4 pr-12 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
                   />
                   <button
@@ -351,13 +353,13 @@ export function SettingsPage() {
 
               <div>
                 <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-                  새 비밀번호 확인
+                  {t('settings.confirmPasswordLabel')}
                 </label>
                 <input
                   type="password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="새 비밀번호를 다시 입력해주세요"
+                  placeholder={t('settings.confirmPasswordPlaceholder')}
                   className="w-full bg-white/5 border border-white/20 rounded-xl py-3 px-4 text-foreground placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
                 />
               </div>
@@ -371,7 +373,7 @@ export function SettingsPage() {
               {passwordSuccess && (
                 <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-3 flex items-center gap-2">
                   <CheckCircle className="w-4 h-4 text-green-400" />
-                  <p className="text-green-400 text-sm">비밀번호가 변경되었습니다</p>
+                  <p className="text-green-400 text-sm">{t('settings.passwordChanged')}</p>
                 </div>
               )}
 
@@ -385,7 +387,7 @@ export function SettingsPage() {
                 ) : (
                   <Lock className="w-4 h-4" />
                 )}
-                비밀번호 변경
+                {t('settings.changePassword')}
               </button>
             </div>
           </motion.section>
@@ -403,8 +405,8 @@ export function SettingsPage() {
               <AlertTriangle className="w-5 h-5 text-red-400" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-red-400">위험 구역</h2>
-              <p className="text-sm text-slate-400">이 작업은 되돌릴 수 없습니다</p>
+              <h2 className="text-lg font-bold text-red-400">{t('settings.dangerZone')}</h2>
+              <p className="text-sm text-slate-400">{t('settings.dangerZoneDesc')}</p>
             </div>
           </div>
 
@@ -414,30 +416,30 @@ export function SettingsPage() {
               className="flex items-center gap-2 px-6 py-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl font-bold hover:bg-red-500/20 transition-all"
             >
               <Trash2 className="w-4 h-4" />
-              계정 삭제
+              {t('settings.deleteAccountText')}
             </button>
           ) : (
             <div className="space-y-4">
               <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4">
                 <p className="text-red-400 text-sm mb-2">
-                  정말로 계정을 삭제하시겠습니까? 이 작업은 되돌릴 수 없으며, 다음 데이터가 삭제됩니다:
+                  {t('settings.deleteAccountWarning')}
                 </p>
                 <ul className="text-red-400/80 text-sm list-disc list-inside space-y-1">
-                  <li>프로필 정보</li>
-                  <li>참여 중인 보드 멤버십</li>
-                  <li>모든 활동 기록</li>
+                  <li>{t('settings.deleteData1')}</li>
+                  <li>{t('settings.deleteData2')}</li>
+                  <li>{t('settings.deleteData3')}</li>
                 </ul>
               </div>
 
               <div>
                 <label className="block text-[11px] font-bold text-red-400/70 uppercase tracking-widest mb-2">
-                  "계정 삭제"를 입력하세요
+                  {t('settings.deleteAccountTypeLabel')}
                 </label>
                 <input
                   type="text"
                   value={deleteConfirmText}
                   onChange={(e) => setDeleteConfirmText(e.target.value)}
-                  placeholder="계정 삭제"
+                  placeholder={t('settings.deleteAccountText')}
                   className="w-full bg-red-500/5 border border-red-500/30 rounded-xl py-3 px-4 text-white placeholder-red-400/50 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500 transition-all"
                 />
               </div>
@@ -451,7 +453,7 @@ export function SettingsPage() {
               <div className="flex gap-3">
                 <button
                   onClick={handleDeleteAccount}
-                  disabled={deleting || deleteConfirmText !== '계정 삭제'}
+                  disabled={deleting || deleteConfirmText !== t('settings.deleteAccountText')}
                   className="flex items-center gap-2 px-6 py-3 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {deleting ? (
@@ -459,7 +461,7 @@ export function SettingsPage() {
                   ) : (
                     <Trash2 className="w-4 h-4" />
                   )}
-                  계정 삭제 확인
+                  {t('settings.deleteAccountConfirm')}
                 </button>
                 <button
                   onClick={() => {
@@ -469,7 +471,7 @@ export function SettingsPage() {
                   }}
                   className="px-6 py-3 bg-white/5 border border-white/20 text-foreground rounded-xl font-bold hover:bg-white/10 transition-all"
                 >
-                  취소
+                  {t('common.cancel')}
                 </button>
               </div>
             </div>

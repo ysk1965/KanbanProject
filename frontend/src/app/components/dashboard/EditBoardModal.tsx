@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, AlertTriangle, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Board } from '../../types';
@@ -30,6 +31,7 @@ interface EditBoardModalProps {
 }
 
 export function EditBoardModal({ isOpen, board, onClose, onUpdate, onDelete }: EditBoardModalProps) {
+  const { t } = useTranslation();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -75,7 +77,7 @@ export function EditBoardModal({ isOpen, board, onClose, onUpdate, onDelete }: E
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -95,7 +97,7 @@ export function EditBoardModal({ isOpen, board, onClose, onUpdate, onDelete }: E
 
           <div className="p-6 space-y-6">
             <div className="flex justify-between items-center">
-              <h2 className="text-lg font-bold text-white">보드 수정</h2>
+              <h2 className="text-lg font-bold text-white">{t('board.editBoard')}</h2>
               <button
                 onClick={handleClose}
                 className="text-slate-400 hover:text-white transition-colors"
@@ -115,7 +117,7 @@ export function EditBoardModal({ isOpen, board, onClose, onUpdate, onDelete }: E
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="보드 이름을 입력하세요"
+                  placeholder={t('board.boardNamePlaceholder')}
                   className="w-full bg-white/5 border border-white/20 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-bridge-accent focus:ring-2 focus:ring-bridge-accent/20 transition-all"
                   onKeyDown={(e) => {
                     if (e.nativeEvent.isComposing) return;
@@ -135,7 +137,7 @@ export function EditBoardModal({ isOpen, board, onClose, onUpdate, onDelete }: E
                   rows={3}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="보드에 대한 간단한 설명 (선택)"
+                  placeholder={t('board.boardDescPlaceholder')}
                   className="w-full bg-white/5 border border-white/20 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-bridge-accent focus:ring-2 focus:ring-bridge-accent/20 transition-all resize-none"
                 />
               </div>
@@ -147,14 +149,14 @@ export function EditBoardModal({ isOpen, board, onClose, onUpdate, onDelete }: E
                 onClick={handleClose}
                 className="flex-1 py-3 text-sm font-bold text-slate-400 hover:text-white transition-colors border border-white/20 rounded-xl hover:bg-white/5"
               >
-                취소
+                {t('common.cancel')}
               </button>
               <button
                 disabled={!name.trim()}
                 onClick={handleUpdate}
                 className="flex-[2] py-3 bg-gradient-to-r from-bridge-accent to-purple-500 text-sm font-bold rounded-xl shadow-lg shadow-bridge-accent/20 disabled:opacity-50 disabled:grayscale hover:shadow-bridge-accent/40 transition-all"
               >
-                저장
+                {t('common.save')}
               </button>
             </div>
 
@@ -167,7 +169,7 @@ export function EditBoardModal({ isOpen, board, onClose, onUpdate, onDelete }: E
                     className="w-full flex items-center justify-center gap-2 py-3 text-sm font-medium text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-xl transition-colors"
                   >
                     <Trash2 size={16} />
-                    보드 삭제
+                    {t('board.deleteBtn')}
                   </button>
                 ) : (
                   <motion.div
@@ -181,16 +183,16 @@ export function EditBoardModal({ isOpen, board, onClose, onUpdate, onDelete }: E
                         <AlertTriangle size={20} className={isPremium ? 'text-rose-500 shrink-0 mt-0.5' : 'text-amber-500 shrink-0 mt-0.5'} />
                         <div className="space-y-2">
                           <p className={`text-sm font-bold ${isPremium ? 'text-rose-400' : 'text-amber-400'}`}>
-                            {isPremium ? '⚠️ 프리미엄 구독 중인 보드입니다!' : '⚠️ 주의: 이 작업은 되돌릴 수 없습니다'}
+                            {isPremium ? `⚠️ ${t('board.premiumWarning')}` : `⚠️ ${t('board.deleteWarning')}`}
                           </p>
                           <ul className="text-xs text-slate-400 space-y-1">
-                            <li>• 모든 Feature와 Task가 영구 삭제됩니다</li>
-                            <li>• 멤버 데이터 및 활동 기록이 삭제됩니다</li>
-                            <li>• 스케줄 및 체크리스트가 삭제됩니다</li>
+                            <li>• {t('board.deleteDetail1')}</li>
+                            <li>• {t('board.deleteDetail2')}</li>
+                            <li>• {t('board.deleteDetail3')}</li>
                             {isPremium && (
                               <>
-                                <li className="text-rose-400 font-bold">• 구독이 즉시 취소되며 환불되지 않습니다</li>
-                                <li className="text-rose-400 font-bold">• 결제 정보 및 구독 혜택이 사라집니다</li>
+                                <li className="text-rose-400 font-bold">• {t('board.deleteDetail4')}</li>
+                                <li className="text-rose-400 font-bold">• {t('board.deleteDetail5')}</li>
                               </>
                             )}
                           </ul>
@@ -201,7 +203,7 @@ export function EditBoardModal({ isOpen, board, onClose, onUpdate, onDelete }: E
                     {/* Confirm Input */}
                     <div className="space-y-2">
                       <label className="text-xs text-slate-400">
-                        삭제하려면 보드 이름 <span className="font-bold text-white">"{board.name}"</span>을 입력하세요
+                        {t('board.deleteConfirmLabel', { name: board.name })}
                       </label>
                       <input
                         type="text"
@@ -221,7 +223,7 @@ export function EditBoardModal({ isOpen, board, onClose, onUpdate, onDelete }: E
                         }}
                         className="flex-1 py-3 text-sm font-bold text-slate-400 hover:text-white transition-colors border border-white/20 rounded-xl hover:bg-white/5"
                       >
-                        취소
+                        {t('common.cancel')}
                       </button>
                       <button
                         disabled={deleteConfirmText !== board.name}
@@ -229,7 +231,7 @@ export function EditBoardModal({ isOpen, board, onClose, onUpdate, onDelete }: E
                         className="flex-1 py-3 bg-rose-600 text-sm font-bold rounded-xl disabled:opacity-30 disabled:cursor-not-allowed hover:bg-rose-500 transition-all flex items-center justify-center gap-2"
                       >
                         <Trash2 size={16} />
-                        영구 삭제
+                        {t('board.permanentDelete')}
                       </button>
                     </div>
                   </motion.div>

@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Mail, ArrowLeft, CheckCircle, Loader2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { authService } from '../utils/services';
 
 export function ForgotPasswordPage() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSent, setIsSent] = useState(false);
@@ -15,7 +17,7 @@ export function ForgotPasswordPage() {
     e.preventDefault();
 
     if (!email.trim()) {
-      setError('이메일을 입력해주세요.');
+      setError(t('forgotPassword.enterEmail'));
       return;
     }
 
@@ -27,7 +29,7 @@ export function ForgotPasswordPage() {
       setIsSent(true);
     } catch (err: any) {
       if (err.code === 'A018') {
-        setError('잠시 후 다시 시도해주세요.');
+        setError(t('forgotPassword.tryAgainLater'));
       } else {
         // 보안상 항상 성공 메시지 표시
         setIsSent(true);
@@ -63,20 +65,20 @@ export function ForgotPasswordPage() {
 
             {/* Title */}
             <h1 className="text-2xl md:text-3xl font-bold text-white text-center mb-4">
-              비밀번호를 잊으셨나요?
+              {t('forgotPassword.title')}
             </h1>
 
             {/* Description */}
             <p className="text-slate-400 text-center mb-8 leading-relaxed">
-              가입하신 이메일 주소를 입력해주세요.<br />
-              비밀번호 재설정 링크를 보내드립니다.
+              {t('forgotPassword.description1')}<br />
+              {t('forgotPassword.description2')}
             </p>
 
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
                 <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-                  이메일
+                  {t('forgotPassword.emailLabel')}
                 </label>
                 <input
                   type="email"
@@ -103,7 +105,7 @@ export function ForgotPasswordPage() {
                 {isLoading ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
                 ) : (
-                  '재설정 링크 보내기'
+                  t('forgotPassword.sendResetLink')
                 )}
               </button>
             </form>
@@ -115,7 +117,7 @@ export function ForgotPasswordPage() {
                 className="text-slate-400 hover:text-white transition-colors inline-flex items-center gap-2"
               >
                 <ArrowLeft className="w-4 h-4" />
-                로그인으로 돌아가기
+                {t('forgotPassword.backToLogin')}
               </Link>
             </div>
           </>
@@ -129,15 +131,15 @@ export function ForgotPasswordPage() {
             </div>
 
             <h1 className="text-2xl md:text-3xl font-bold text-white text-center mb-4">
-              이메일을 확인해주세요
+              {t('forgotPassword.checkEmail')}
             </h1>
 
             <p className="text-slate-400 text-center mb-8 leading-relaxed">
               <span className="text-white font-medium">{email}</span>
               <br />
-              위 주소로 비밀번호 재설정 링크를 발송했습니다.
+              {t('forgotPassword.sentResetLink')}
               <br />
-              메일함을 확인해주세요.
+              {t('forgotPassword.checkMailbox')}
             </p>
 
             {/* Info Box */}
@@ -147,9 +149,9 @@ export function ForgotPasswordPage() {
                   <span className="text-sm">&#x23F0;</span>
                 </div>
                 <div>
-                  <p className="text-sm text-slate-300 font-medium mb-1">링크 유효 시간</p>
+                  <p className="text-sm text-slate-300 font-medium mb-1">{t('forgotPassword.linkValidity')}</p>
                   <p className="text-xs text-slate-400">
-                    재설정 링크는 1시간 동안 유효합니다.
+                    {t('forgotPassword.linkValidityDesc')}
                   </p>
                 </div>
               </div>
@@ -161,12 +163,12 @@ export function ForgotPasswordPage() {
               className="w-full h-14 bg-white/5 border border-white/20 text-white rounded-2xl font-bold transition-all duration-300 flex items-center justify-center gap-2 hover:bg-white/10"
             >
               <ArrowLeft className="w-5 h-5" />
-              로그인으로 돌아가기
+              {t('forgotPassword.backToLogin')}
             </button>
 
             {/* Footer Note */}
             <p className="text-center text-xs text-slate-400 mt-8">
-              이메일이 도착하지 않으면 스팸 메일함도 확인해주세요.
+              {t('forgotPassword.checkSpam')}
             </p>
           </>
         )}
@@ -174,7 +176,7 @@ export function ForgotPasswordPage() {
         {/* Footer */}
         <div className="mt-8 pt-6 border-t border-white/15">
           <Link to="/" className="block text-center text-sm text-slate-400 hover:text-white transition-colors">
-            BRIDGE SPOTS 홈으로
+            {t('forgotPassword.backToHome')}
           </Link>
         </div>
       </motion.div>

@@ -34,6 +34,13 @@ variable "jwt_secret" {
   sensitive   = true
 }
 
+variable "claude_api_key" {
+  description = "Claude API key for AI report generation"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
 variable "domain_name" {
   description = "Domain name (e.g., bridgespots.com)"
   type        = string

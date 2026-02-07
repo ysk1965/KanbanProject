@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Mail, RefreshCw, LogOut, CheckCircle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 
 export function EmailVerificationPendingPage() {
   const { currentUser, logout, resendVerificationEmail } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [isResending, setIsResending] = useState(false);
   const [resendSuccess, setResendSuccess] = useState(false);
   const [error, setError] = useState('');
@@ -32,10 +34,10 @@ export function EmailVerificationPendingPage() {
       setCooldown(60); // 60초 쿨다운
     } catch (err: any) {
       if (err.message?.includes('잠시 후')) {
-        setError('잠시 후 다시 시도해주세요.');
+        setError(t('emailVerification.tryAgainLater'));
         setCooldown(60);
       } else {
-        setError(err.message || '이메일 발송에 실패했습니다.');
+        setError(err.message || t('emailVerification.sendFailed'));
       }
     } finally {
       setIsResending(false);
@@ -71,16 +73,16 @@ export function EmailVerificationPendingPage() {
 
         {/* Title */}
         <h1 className="text-2xl md:text-3xl font-bold text-white text-center mb-4">
-          이메일 인증이 필요합니다
+          {t('emailVerification.title')}
         </h1>
 
         {/* Description */}
         <p className="text-slate-400 text-center mb-8 leading-relaxed">
           <span className="text-white font-medium">{currentUser?.email}</span>
           <br />
-          위 주소로 인증 메일을 발송했습니다.
+          {t('emailVerification.sentTo')}
           <br />
-          메일함을 확인해주세요.
+          {t('emailVerification.checkMailbox')}
         </p>
 
         {/* Info Box */}
@@ -90,9 +92,9 @@ export function EmailVerificationPendingPage() {
               <span className="text-sm">&#x23F0;</span>
             </div>
             <div>
-              <p className="text-sm text-slate-300 font-medium mb-1">인증 링크 유효 시간</p>
+              <p className="text-sm text-slate-300 font-medium mb-1">{t('emailVerification.linkValidity')}</p>
               <p className="text-xs text-slate-400">
-                인증 링크는 24시간 동안 유효합니다. 시간이 지나면 재발송해주세요.
+                {t('emailVerification.linkValidityDesc')}
               </p>
             </div>
           </div>
@@ -102,7 +104,7 @@ export function EmailVerificationPendingPage() {
         {resendSuccess && (
           <div className="bg-green-500/10 border border-green-500/30 rounded-2xl p-4 mb-6 flex items-center gap-3">
             <CheckCircle className="w-5 h-5 text-green-400" />
-            <p className="text-green-400 text-sm">인증 메일이 재발송되었습니다.</p>
+            <p className="text-green-400 text-sm">{t('emailVerification.resendSuccess')}</p>
           </div>
         )}
 
@@ -125,7 +127,7 @@ export function EmailVerificationPendingPage() {
             ) : (
               <RefreshCw className="w-5 h-5" />
             )}
-            {cooldown > 0 ? `재발송 (${cooldown}초)` : '인증 메일 재발송'}
+            {cooldown > 0 ? t('emailVerification.resendCooldown', { seconds: cooldown }) : t('emailVerification.resendEmail')}
           </button>
 
           <button
@@ -133,13 +135,13 @@ export function EmailVerificationPendingPage() {
             className="w-full h-12 text-slate-400 hover:text-white transition-colors flex items-center justify-center gap-2"
           >
             <LogOut className="w-4 h-4" />
-            다른 계정으로 로그인
+            {t('emailVerification.loginOtherAccount')}
           </button>
         </div>
 
         {/* Footer Note */}
         <p className="text-center text-xs text-slate-400 mt-8">
-          스팸 메일함도 확인해주세요.
+          {t('emailVerification.checkSpam')}
         </p>
       </motion.div>
     </div>

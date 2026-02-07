@@ -15,6 +15,7 @@ Thumbs.db
 .env
 .env.local
 .env.*.local
+application-local.yml
 
 # Logs
 *.log

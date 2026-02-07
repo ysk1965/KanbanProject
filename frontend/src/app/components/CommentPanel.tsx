@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
 import { TaskComment, CommentAttachment, User } from '../types';
 import { commentAPI, fileAPI, resolveFileUrl } from '../utils/api';
@@ -31,10 +32,10 @@ function formatRelativeTime(dateStr: string): string {
   const diffHours = Math.floor(diffMs / 3600000);
   const diffDays = Math.floor(diffMs / 86400000);
 
-  if (diffMinutes < 1) return '방금 전';
-  if (diffMinutes < 60) return `${diffMinutes}분 전`;
-  if (diffHours < 24) return `${diffHours}시간 전`;
-  if (diffDays < 7) return `${diffDays}일 전`;
+  if (diffMinutes < 1) return 'just now';
+  if (diffMinutes < 60) return `${diffMinutes}m`;
+  if (diffHours < 24) return `${diffHours}h`;
+  if (diffDays < 7) return `${diffDays}d`;
   return formatDate(dateStr, 'M월 d일');
 }
 
@@ -86,6 +87,7 @@ interface CommentPanelProps {
 // ========== 컴포넌트 ==========
 
 export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEdit = true }: CommentPanelProps) {
+  const { t } = useTranslation();
   // 댓글 목록
   const [comments, setComments] = useState<TaskComment[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -166,7 +168,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
     } catch (err) {
       console.error('Upload failed:', err);
       setter(prev => prev.map(f => f.id === pf.id
-        ? { ...f, uploading: false, error: '업로드 실패' }
+        ? { ...f, uploading: false, error: 'upload_failed' }
         : f
       ));
     }
@@ -185,15 +187,15 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
 
     for (const file of files) {
       if (totalCurrent + newFiles.length >= MAX_FILES) {
-        setFileError(`이미지는 최대 ${MAX_FILES}개까지 첨부할 수 있습니다.`);
+        setFileError('comment.maxFilesError');
         break;
       }
       if (!ALLOWED_TYPES.includes(file.type)) {
-        setFileError('jpg, png, gif, webp 파일만 첨부할 수 있습니다.');
+        setFileError('comment.fileTypeError');
         continue;
       }
       if (file.size > MAX_FILE_SIZE) {
-        setFileError('파일 크기는 최대 5MB입니다.');
+        setFileError('comment.fileSizeError');
         continue;
       }
       newFiles.push({
@@ -333,12 +335,12 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
     // 모든 파일이 업로드 완료될 때까지 대기
     const uploading = pendingFiles.some(pf => pf.uploading);
     if (uploading) {
-      setFileError('파일 업로드 중입니다. 잠시 기다려주세요.');
+      setFileError('comment.uploadInProgress');
       return;
     }
     const hasError = pendingFiles.some(pf => pf.error);
     if (hasError) {
-      setFileError('업로드 실패한 파일이 있습니다. 삭제 후 다시 시도하세요.');
+      setFileError('comment.uploadFailedRetry');
       return;
     }
 
@@ -387,7 +389,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
 
     const uploading = editNewFiles.some(pf => pf.uploading);
     if (uploading) {
-      setFileError('파일 업로드 중입니다.');
+      setFileError('comment.uploadInProgress');
       return;
     }
 
@@ -539,7 +541,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
             )}
             {pf.error && (
               <div className="absolute inset-0 bg-red-500/20 rounded-md flex items-center justify-center">
-                <span className="text-[8px] text-red-300 font-medium">실패</span>
+                <span className="text-[8px] text-red-300 font-medium">{t('comment.failed')}</span>
               </div>
             )}
             <button onClick={() => onRemoveFile(pf.id)}
@@ -566,7 +568,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-bridge-accent/10 border-2 border-dashed border-bridge-accent rounded-lg pointer-events-none">
           <div className="flex flex-col items-center gap-2 text-bridge-accent">
             <ImageIcon className="h-8 w-8" />
-            <span className="text-sm font-medium">이미지를 여기에 드롭하세요</span>
+            <span className="text-sm font-medium">{t('comment.dropImageHere')}</span>
           </div>
         </div>
       )}
@@ -575,10 +577,10 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
       <div className="flex items-center px-4 py-3 border-b border-white/20">
         <div className="flex items-center gap-2">
           <MessageSquare className="h-4 w-4 text-slate-400" />
-          <span className="text-sm font-medium text-foreground">댓글</span>
+          <span className="text-sm font-medium text-foreground">{t('comment.title')}</span>
           {comments.length > 0 && <span className="text-xs text-slate-400">{comments.length}</span>}
           <button onClick={() => loadComments(false)} disabled={isRefreshing}
-            className="p-0.5 text-slate-400 hover:text-foreground transition-colors disabled:opacity-50" title="새로고침">
+            className="p-0.5 text-slate-400 hover:text-foreground transition-colors disabled:opacity-50" title={t('comment.refresh')}>
             <RefreshCw className={`h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`} />
           </button>
         </div>
@@ -593,8 +595,8 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
         ) : comments.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-8 text-center">
             <MessageSquare className="h-8 w-8 text-slate-400 mb-2" />
-            <p className="text-sm text-slate-400">아직 댓글이 없습니다</p>
-            <p className="text-xs text-slate-400 mt-1">첫 댓글을 남겨보세요</p>
+            <p className="text-sm text-slate-400">{t('comment.noComments')}</p>
+            <p className="text-xs text-slate-400 mt-1">{t('comment.beFirstComment')}</p>
           </div>
         ) : (
           comments.map(comment => {
@@ -615,7 +617,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
                       <span className="text-xs font-medium text-foreground">{comment.author.name}</span>
                       <span className="text-[10px] text-slate-400">
                         {formatRelativeTime(comment.created_at)}
-                        {isEdited && ' (수정됨)'}
+                        {isEdited && ` (${t('comment.edited')})`}
                       </span>
                       {canEdit && isAuthor && !isBeingEdited && (
                         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity ml-auto">
@@ -641,7 +643,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
                           onRemoveFile={(id) => removePendingFile(id, setEditNewFiles)}
                           onRemoveExisting={(attId) => setEditKeepAttachmentIds(prev => prev.filter(id => id !== attId))}
                         />
-                        {fileError && <p className="text-[10px] text-red-400">{fileError}</p>}
+                        {fileError && <p className="text-[10px] text-red-400">{t(fileError)}</p>}
 
                         <div className="relative">
                           <InlineMentionDropdown isEdit={true} />
@@ -658,7 +660,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
                             multiple className="hidden" onChange={e => handleFileSelect(e, true)} />
                           <button onClick={() => editFileInputRef.current?.click()}
                             disabled={editKeepAttachmentIds.length + editNewFiles.length >= MAX_FILES}
-                            className="p-1 rounded text-slate-400 hover:text-slate-200 hover:bg-white/10 disabled:opacity-30 transition-colors" title="이미지 추가">
+                            className="p-1 rounded text-slate-400 hover:text-slate-200 hover:bg-white/10 disabled:opacity-30 transition-colors" title={t('comment.addImage')}>
                             <Paperclip className="h-3.5 w-3.5" />
                           </button>
                           <div className="flex-1" />
@@ -696,7 +698,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
           <FilePreviewList files={pendingFiles}
             onRemoveFile={(id) => removePendingFile(id, setPendingFiles)} />
 
-          {fileError && !editingId && <p className="text-[10px] text-red-400 mb-1">{fileError}</p>}
+          {fileError && !editingId && <p className="text-[10px] text-red-400 mb-1">{t(fileError)}</p>}
 
           <div className="relative">
             <InlineMentionDropdown isEdit={false} />
@@ -705,7 +707,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
               onKeyDown={handleKeyDown}
               onPaste={e => handlePaste(e, false)}
               onBlur={() => setTimeout(() => setShowInlineMention(false), 150)}
-              placeholder="댓글을 입력하세요... @로 멘션"
+              placeholder={t('comment.inputPlaceholder')}
               className="w-full text-xs bg-white/5 border border-white/20 rounded-lg pl-3 pr-20 py-2.5 text-foreground placeholder:text-slate-400 resize-none focus:outline-none focus:ring-1 focus:ring-bridge-accent"
               rows={2} />
             <div className="absolute right-2 bottom-2 flex items-center gap-1">
@@ -713,7 +715,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
                 multiple className="hidden" onChange={e => handleFileSelect(e, false)} />
               <button onClick={() => fileInputRef.current?.click()} disabled={pendingFiles.length >= MAX_FILES}
                 className="p-1.5 rounded text-slate-400 hover:text-slate-200 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                title="이미지 첨부 (최대 5개)">
+                title={t('comment.attachImage')}>
                 <Paperclip className="h-3.5 w-3.5" />
               </button>
               <button onClick={handleSubmit}
@@ -723,23 +725,23 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
               </button>
             </div>
           </div>
-          <p className="text-[9px] text-slate-400 mt-1">이미지: 붙여넣기, 드래그, 또는 📎 클릭 (jpg/png/gif/webp, 5MB, 최대 5개)</p>
+          <p className="text-[9px] text-slate-400 mt-1">{t('comment.imageHelp')}</p>
         </div>
       ) : (
         <div className="px-4 py-3 border-t border-white/20">
-          <p className="text-xs text-slate-400 text-center">관찰자는 댓글을 작성할 수 없습니다</p>
+          <p className="text-xs text-slate-400 text-center">{t('comment.observerReadOnly')}</p>
         </div>
       )}
 
       {/* 이미지 라이트박스 - Portal로 body에 렌더링 (모달 transform 영향 회피) */}
       {lightboxUrl && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 cursor-pointer"
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/30 cursor-pointer"
           onClick={() => setLightboxUrl(null)}>
           <button onClick={() => setLightboxUrl(null)}
             className="absolute top-4 right-4 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors">
             <X className="h-5 w-5" />
           </button>
-          <img src={lightboxUrl} alt="첨부 이미지"
+          <img src={lightboxUrl} alt={t('comment.attachedImage')}
             className="max-h-[90vh] max-w-[90vw] object-contain rounded-lg"
             onClick={e => e.stopPropagation()} />
         </div>,
@@ -750,12 +752,12 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <AlertDialogContent className="bg-bridge-obsidian border-white/20">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-foreground">댓글을 삭제하시겠습니까?</AlertDialogTitle>
-            <AlertDialogDescription className="text-slate-400">삭제된 댓글은 복구할 수 없습니다.</AlertDialogDescription>
+            <AlertDialogTitle className="text-foreground">{t('comment.deleteTitle')}</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-400">{t('comment.deleteDesc')}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setDeleteTarget(null)} className="bg-white/5 border-white/20 text-foreground hover:bg-white/10">취소</AlertDialogCancel>
-            <AlertDialogAction onClick={() => deleteTarget && handleDelete(deleteTarget)} className="bg-red-500 hover:bg-red-600 text-white">삭제</AlertDialogAction>
+            <AlertDialogCancel onClick={() => setDeleteTarget(null)} className="bg-white/5 border-white/20 text-foreground hover:bg-white/10">{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deleteTarget && handleDelete(deleteTarget)} className="bg-red-500 hover:bg-red-600 text-white">{t('common.delete')}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

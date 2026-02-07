@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Bell, CheckCheck, Loader2, Activity, ChevronDown, AtSign, ClipboardList, MessageSquare } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { notificationAPI } from '../utils/api';
@@ -8,6 +9,7 @@ import { NotificationItem, ActivityLog, NotificationType } from '../types';
 import { Button } from './ui/button';
 import { getAssigneeClasses } from '../utils/assigneeColor';
 import { formatDate, formatRelativeTime as dateUtilsFormatRelativeTime } from '../utils/dateUtils';
+import { TFunction } from 'i18next';
 
 function getNotificationIcon(type: NotificationType) {
   switch (type) {
@@ -22,7 +24,7 @@ function getNotificationIcon(type: NotificationType) {
   }
 }
 
-function getTimeAgo(dateStr: string) {
+function getTimeAgo(dateStr: string, t: TFunction) {
   const date = new Date(dateStr.endsWith('Z') ? dateStr : dateStr + 'Z');
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
@@ -31,15 +33,15 @@ function getTimeAgo(dateStr: string) {
   const diffHours = Math.floor(diffMins / 60);
   const diffDays = Math.floor(diffHours / 24);
 
-  if (diffSecs < 60) return '방금 전';
-  if (diffMins < 60) return `${diffMins}분 전`;
-  if (diffHours < 24) return `${diffHours}시간 전`;
-  if (diffDays < 7) return `${diffDays}일 전`;
+  if (diffSecs < 60) return t('notification.justNow');
+  if (diffMins < 60) return t('notification.minutesAgo', { count: diffMins });
+  if (diffHours < 24) return t('notification.hoursAgo', { count: diffHours });
+  if (diffDays < 7) return t('notification.daysAgo', { count: diffDays });
 
   return formatDate(dateStr, 'yyyy-MM-dd');
 }
 
-function getActionText(activity: ActivityLog) {
+function getActionText(activity: ActivityLog, t: TFunction) {
   const { action, user, metadata } = activity;
 
   switch (action) {
@@ -47,137 +49,127 @@ function getActionText(activity: ActivityLog) {
       return (
         <>
           <span className="font-medium text-foreground">{user.name}</span>
-          <span className="text-zinc-300">님이 블록 </span>
+          <span className="text-zinc-300">{t('notification.activity.actionBlockCreated')}</span>
           <span className="font-medium text-purple-400">{metadata.blockName as string}</span>
-          <span className="text-zinc-300">을 생성했습니다</span>
         </>
       );
     case 'BLOCK_UPDATED':
       return (
         <>
           <span className="font-medium text-foreground">{user.name}</span>
-          <span className="text-zinc-300">님이 블록 </span>
+          <span className="text-zinc-300">{t('notification.activity.actionBlockUpdated')}</span>
           <span className="font-medium text-purple-400">{metadata.blockName as string}</span>
-          <span className="text-zinc-300">을 수정했습니다</span>
         </>
       );
     case 'BLOCK_DELETED':
       return (
         <>
           <span className="font-medium text-foreground">{user.name}</span>
-          <span className="text-zinc-300">님이 블록 </span>
+          <span className="text-zinc-300">{t('notification.activity.actionBlockDeleted')}</span>
           <span className="font-medium text-purple-400">{metadata.blockName as string}</span>
-          <span className="text-zinc-300">을 삭제했습니다</span>
         </>
       );
     case 'FEATURE_CREATED':
       return (
         <>
           <span className="font-medium text-foreground">{user.name}</span>
-          <span className="text-zinc-300">님이 Feature </span>
+          <span className="text-zinc-300">{t('notification.activity.actionFeatureCreated')}</span>
           <span className="font-medium text-indigo-400">{metadata.featureTitle as string}</span>
-          <span className="text-zinc-300">를 생성했습니다</span>
         </>
       );
     case 'FEATURE_UPDATED':
       return (
         <>
           <span className="font-medium text-foreground">{user.name}</span>
-          <span className="text-zinc-300">님이 Feature </span>
+          <span className="text-zinc-300">{t('notification.activity.actionFeatureUpdated')}</span>
           <span className="font-medium text-indigo-400">{metadata.featureTitle as string}</span>
-          <span className="text-zinc-300">를 수정했습니다</span>
         </>
       );
     case 'FEATURE_DELETED':
       return (
         <>
           <span className="font-medium text-foreground">{user.name}</span>
-          <span className="text-zinc-300">님이 Feature </span>
+          <span className="text-zinc-300">{t('notification.activity.actionFeatureDeleted')}</span>
           <span className="font-medium text-indigo-400">{metadata.featureTitle as string}</span>
-          <span className="text-zinc-300">를 삭제했습니다</span>
         </>
       );
     case 'FEATURE_COMPLETED':
       return (
         <>
           <span className="font-medium text-foreground">{user.name}</span>
-          <span className="text-zinc-300">님이 Feature </span>
+          <span className="text-zinc-300">{t('notification.activity.actionFeatureCompleted')}</span>
           <span className="font-medium text-emerald-400">{metadata.featureTitle as string}</span>
-          <span className="text-zinc-300">를 완료했습니다</span>
         </>
       );
     case 'TASK_CREATED':
       return (
         <>
           <span className="font-medium text-foreground">{user.name}</span>
-          <span className="text-zinc-300">님이 Task </span>
+          <span className="text-zinc-300">{t('notification.activity.actionTaskCreated')}</span>
           <span className="font-medium text-indigo-400">{metadata.taskTitle as string}</span>
-          <span className="text-zinc-300">를 생성했습니다</span>
         </>
       );
     case 'TASK_UPDATED':
       return (
         <>
           <span className="font-medium text-foreground">{user.name}</span>
-          <span className="text-zinc-300">님이 Task </span>
+          <span className="text-zinc-300">{t('notification.activity.actionTaskUpdated')}</span>
           <span className="font-medium text-indigo-400">{metadata.taskTitle as string}</span>
-          <span className="text-zinc-300">를 수정했습니다</span>
         </>
       );
     case 'TASK_DELETED':
       return (
         <>
           <span className="font-medium text-foreground">{user.name}</span>
-          <span className="text-zinc-300">님이 Task </span>
+          <span className="text-zinc-300">{t('notification.activity.actionTaskDeleted')}</span>
           <span className="font-medium text-indigo-400">{metadata.taskTitle as string}</span>
-          <span className="text-zinc-300">를 삭제했습니다</span>
         </>
       );
     case 'TASK_MOVED':
       return (
         <>
           <span className="font-medium text-foreground">{user.name}</span>
-          <span className="text-zinc-300">님이 </span>
+          <span className="text-zinc-300">{t('notification.activity.actionTaskMoved')}</span>
           <span className="font-medium text-indigo-400">{metadata.taskTitle as string}</span>
-          <span className="text-zinc-300">를 </span>
+          <span className="text-zinc-300"> </span>
           <span className="font-medium text-green-400">{metadata.fromBlock as string}</span>
-          <span className="text-zinc-300">에서 </span>
+          <span className="text-zinc-300"> → </span>
           <span className="font-medium text-green-400">{metadata.toBlock as string}</span>
-          <span className="text-zinc-300">로 이동했습니다</span>
         </>
       );
     case 'TASK_COMPLETED':
       return (
         <>
           <span className="font-medium text-foreground">{user.name}</span>
-          <span className="text-zinc-300">님이 Task </span>
+          <span className="text-zinc-300">{t('notification.activity.actionTaskCompleted')}</span>
           <span className="font-medium text-emerald-400">{metadata.taskTitle as string}</span>
-          <span className="text-zinc-300">를 완료했습니다</span>
         </>
       );
     case 'CHECKLIST_CREATED':
       return (
         <>
           <span className="font-medium text-foreground">{user.name}</span>
-          <span className="text-zinc-300">님이 체크리스트 </span>
+          <span className="text-zinc-300">{t('notification.activity.actionChecklistCreated')}</span>
           <span className="font-medium text-indigo-400">{metadata.checklistTitle as string}</span>
-          <span className="text-zinc-300">를 생성했습니다</span>
         </>
       );
     case 'CHECKLIST_CHECKED':
       return (
         <>
           <span className="font-medium text-foreground">{user.name}</span>
-          <span className="text-zinc-300">님이 체크리스트 </span>
+          <span className="text-zinc-300">
+            {metadata.isCompleted
+              ? t('notification.activity.actionChecklistCompleted')
+              : t('notification.activity.actionChecklistUncompleted')}
+          </span>
           <span className="font-medium text-indigo-400">{metadata.checklistTitle as string}</span>
-          <span className="text-zinc-300">를 {metadata.isCompleted ? '완료' : '미완료'}했습니다</span>
         </>
       );
     default:
       return (
         <>
           <span className="font-medium text-foreground">{user.name}</span>
-          <span className="text-zinc-300">님이 작업을 수행했습니다</span>
+          <span className="text-zinc-300">{t('notification.activity.actionDefault')}</span>
         </>
       );
   }
@@ -191,6 +183,8 @@ interface NotificationDropdownProps {
   onLoadMoreActivities: () => Promise<void>;
   onNotificationClick: (notification: NotificationItem) => void;
   onUnreadCountChange: (count: number) => void;
+  canAccessSlack?: boolean;
+  onSlackUpgrade?: () => void;
 }
 
 export function NotificationDropdown({
@@ -201,7 +195,10 @@ export function NotificationDropdown({
   onLoadMoreActivities,
   onNotificationClick,
   onUnreadCountChange,
+  canAccessSlack = true,
+  onSlackUpgrade,
 }: NotificationDropdownProps) {
+  const { t } = useTranslation();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [slackConnected, setSlackConnected] = useState(false);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -315,7 +312,7 @@ export function NotificationDropdown({
                 : 'text-slate-400 hover:text-slate-300'
             }`}
           >
-            알림
+            {t('notification.notifications')}
             {unreadCount > 0 && (
               <span className="ml-1.5 min-w-[16px] h-[16px] bg-red-500/20 text-red-400 text-[10px] font-bold rounded-full inline-flex items-center justify-center px-1">
                 {unreadCount}
@@ -333,7 +330,7 @@ export function NotificationDropdown({
                 : 'text-slate-400 hover:text-slate-300'
             }`}
           >
-            활동로그
+            {t('notification.activityLog')}
             {activeTab === 'activity' && (
               <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-bridge-accent" />
             )}
@@ -345,7 +342,7 @@ export function NotificationDropdown({
           {activeTab === 'notifications' ? (
             <>
               {/* Slack Integration Banner */}
-              <SlackSettingsPanel boardId={boardId} onSlackStatusChange={setSlackConnected} />
+              <SlackSettingsPanel boardId={boardId} onSlackStatusChange={setSlackConnected} canAccessSlack={canAccessSlack} onUpgrade={onSlackUpgrade} />
 
               {/* Notification Preferences */}
               <NotificationPreferencesPanel boardId={boardId} hasSlack={slackConnected} />
@@ -358,7 +355,7 @@ export function NotificationDropdown({
                     className="flex items-center gap-1 text-xs text-slate-400 hover:text-foreground transition-colors"
                   >
                     <CheckCheck size={12} />
-                    모두 읽음
+                    {t('notification.markAllRead')}
                   </button>
                 </div>
               )}
@@ -371,7 +368,7 @@ export function NotificationDropdown({
               ) : notifications.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-slate-400">
                   <Bell className="h-8 w-8 mb-2 opacity-40" />
-                  <p className="text-xs">새로운 알림이 없습니다</p>
+                  <p className="text-xs">{t('notification.noNotifications')}</p>
                 </div>
               ) : (
                 <div>
@@ -417,7 +414,7 @@ export function NotificationDropdown({
                             {notification.message}
                           </p>
                           <p className="text-[10px] text-slate-400 mt-1">
-                            {getTimeAgo(notification.created_at)}
+                            {getTimeAgo(notification.created_at, t)}
                           </p>
                         </div>
                       </div>
@@ -438,7 +435,7 @@ export function NotificationDropdown({
                         ) : (
                           <ChevronDown className="h-3 w-3 mr-1" />
                         )}
-                        더 보기
+                        {t('common.loadMore')}
                       </Button>
                     </div>
                   )}
@@ -451,7 +448,7 @@ export function NotificationDropdown({
               {activities.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-slate-400">
                   <Activity className="h-8 w-8 mb-2 opacity-40" />
-                  <p className="text-xs">아직 활동 기록이 없습니다</p>
+                  <p className="text-xs">{t('notification.noActivity')}</p>
                 </div>
               ) : (
                 <div>
@@ -483,10 +480,10 @@ export function NotificationDropdown({
                         {/* Content */}
                         <div className="flex-1 min-w-0">
                           <div className="text-xs leading-snug">
-                            {getActionText(activity)}
+                            {getActionText(activity, t)}
                           </div>
                           <p className="text-[10px] text-slate-400 mt-1">
-                            {getTimeAgo(activity.created_at)}
+                            {getTimeAgo(activity.created_at, t)}
                           </p>
                         </div>
                       </div>
@@ -507,7 +504,7 @@ export function NotificationDropdown({
                         ) : (
                           <ChevronDown className="h-3 w-3 mr-1" />
                         )}
-                        더 보기
+                        {t('common.loadMore')}
                       </Button>
                     </div>
                   )}

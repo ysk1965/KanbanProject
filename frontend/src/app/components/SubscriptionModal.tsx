@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, CreditCard, Users, Check } from 'lucide-react';
 import { Button } from './ui/button';
 import { Subscription, PricingPlan } from '../types';
@@ -23,6 +24,7 @@ export function SubscriptionModal({
   onChangePlan,
   onCancelSubscription,
 }: SubscriptionModalProps) {
+  const { t } = useTranslation();
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>(
     subscription?.billing_cycle === 'YEARLY' ? 'yearly' : 'monthly'
   );
@@ -49,7 +51,7 @@ export function SubscriptionModal({
   };
 
   const handleCancel = async () => {
-    if (!confirm('정말 구독을 취소하시겠습니까?')) return;
+    if (!confirm(t('subscription.cancelConfirm'))) return;
 
     setIsProcessing(true);
     try {
@@ -64,15 +66,15 @@ export function SubscriptionModal({
   const getStatusBadge = (status: Subscription['status']) => {
     switch (status) {
       case 'TRIAL':
-        return <span className="bg-blue-500/20 text-blue-400 px-2 py-1 rounded text-xs">무료 체험</span>;
+        return <span className="bg-blue-500/20 text-blue-400 px-2 py-1 rounded text-xs">{t('subscription.statusTrial')}</span>;
       case 'ACTIVE':
-        return <span className="bg-green-500/20 text-green-400 px-2 py-1 rounded text-xs">활성</span>;
+        return <span className="bg-green-500/20 text-green-400 px-2 py-1 rounded text-xs">{t('subscription.statusActive')}</span>;
       case 'GRACE':
-        return <span className="bg-yellow-500/20 text-yellow-400 px-2 py-1 rounded text-xs">유예 기간</span>;
+        return <span className="bg-yellow-500/20 text-yellow-400 px-2 py-1 rounded text-xs">{t('subscription.statusGrace')}</span>;
       case 'SUSPENDED':
-        return <span className="bg-red-500/20 text-red-400 px-2 py-1 rounded text-xs">일시 중지</span>;
+        return <span className="bg-red-500/20 text-red-400 px-2 py-1 rounded text-xs">{t('subscription.statusSuspended')}</span>;
       case 'CANCELED':
-        return <span className="bg-gray-500/20 text-gray-400 px-2 py-1 rounded text-xs">취소됨</span>;
+        return <span className="bg-gray-500/20 text-gray-400 px-2 py-1 rounded text-xs">{t('subscription.statusCanceled')}</span>;
     }
   };
 
@@ -89,13 +91,13 @@ export function SubscriptionModal({
   const currentPlanName = plans.find(p => p.id === subscription?.plan)?.name || subscription?.plan || '-';
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
       <div className="bg-bridge-obsidian rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
         {/* 헤더 */}
         <div className="flex items-center justify-between p-6 border-b border-white/20">
           <div className="flex items-center gap-2">
             <CreditCard className="h-5 w-5 text-blue-400" />
-            <h2 className="text-xl font-semibold text-foreground">구독 관리</h2>
+            <h2 className="text-xl font-semibold text-foreground">{t('subscription.title')}</h2>
           </div>
           <button
             onClick={onClose}
@@ -111,13 +113,13 @@ export function SubscriptionModal({
           {subscription && (
             <div className="bg-bridge-dark rounded-lg p-6 border border-white/20">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-foreground">현재 구독</h3>
+                <h3 className="text-lg font-semibold text-foreground">{t('subscription.currentSubscription')}</h3>
                 {getStatusBadge(subscription.status)}
               </div>
 
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <div className="text-slate-400 mb-1">플랜</div>
+                  <div className="text-slate-400 mb-1">{t('subscription.plan')}</div>
                   <div className="text-foreground font-medium">
                     {currentPlanName}
                   </div>
@@ -125,16 +127,16 @@ export function SubscriptionModal({
 
                 {subscription.billing_cycle && (
                   <div>
-                    <div className="text-slate-400 mb-1">결제 주기</div>
+                    <div className="text-slate-400 mb-1">{t('subscription.billingCycle')}</div>
                     <div className="text-foreground font-medium">
-                      {subscription.billing_cycle === 'MONTHLY' ? '월간' : '연간'}
+                      {subscription.billing_cycle === 'MONTHLY' ? t('subscription.billingMonthly') : t('subscription.billingYearly')}
                     </div>
                   </div>
                 )}
 
                 {subscription.price != null && (
                   <div>
-                    <div className="text-slate-400 mb-1">가격</div>
+                    <div className="text-slate-400 mb-1">{t('subscription.price')}</div>
                     <div className="text-foreground font-medium">
                       ₩{formatPrice(subscription.price)}
                     </div>
@@ -143,16 +145,16 @@ export function SubscriptionModal({
 
                 {subscription.billable_member_count != null && (
                   <div>
-                    <div className="text-slate-400 mb-1">멤버 수</div>
+                    <div className="text-slate-400 mb-1">{t('subscription.memberCount')}</div>
                     <div className="text-foreground font-medium">
-                      {subscription.billable_member_count}명 / {subscription.member_limit || '-'}명
+                      {t('subscription.memberCountFormat', { count: subscription.billable_member_count, limit: subscription.member_limit || '-' })}
                     </div>
                   </div>
                 )}
 
                 {subscription.status === 'TRIAL' && subscription.trial_ends_at && (
                   <div className="col-span-2">
-                    <div className="text-slate-400 mb-1">체험 종료일</div>
+                    <div className="text-slate-400 mb-1">{t('subscription.trialEndDate')}</div>
                     <div className="text-foreground font-medium">
                       {formatDate(subscription.trial_ends_at)}
                     </div>
@@ -163,7 +165,7 @@ export function SubscriptionModal({
                   <>
                     {subscription.current_period_start && subscription.current_period_end && (
                       <div>
-                        <div className="text-slate-400 mb-1">현재 결제 기간</div>
+                        <div className="text-slate-400 mb-1">{t('subscription.currentPeriod')}</div>
                         <div className="text-foreground font-medium">
                           {formatDate(subscription.current_period_start)} -{' '}
                           {formatDate(subscription.current_period_end)}
@@ -173,7 +175,7 @@ export function SubscriptionModal({
 
                     {subscription.next_payment_at && (
                       <div>
-                        <div className="text-slate-400 mb-1">다음 결제일</div>
+                        <div className="text-slate-400 mb-1">{t('subscription.nextPaymentDate')}</div>
                         <div className="text-foreground font-medium">
                           {formatDate(subscription.next_payment_at)}
                         </div>
@@ -192,7 +194,7 @@ export function SubscriptionModal({
                     className="border-red-600 text-red-400 hover:bg-red-600/20"
                     disabled={isProcessing}
                   >
-                    구독 취소
+                    {t('subscription.cancelSubscription')}
                   </Button>
                 </div>
               )}
@@ -201,7 +203,7 @@ export function SubscriptionModal({
 
           {/* 결제 주기 선택 */}
           <div>
-            <h3 className="text-lg font-semibold text-foreground mb-4">결제 주기</h3>
+            <h3 className="text-lg font-semibold text-foreground mb-4">{t('subscription.selectBillingCycle')}</h3>
             <div className="flex gap-4">
               <button
                 onClick={() => setBillingCycle('monthly')}
@@ -211,8 +213,8 @@ export function SubscriptionModal({
                     : 'border-white/20 bg-bridge-dark text-slate-400 hover:border-white/20'
                 }`}
               >
-                <div className="font-medium">월간 결제</div>
-                <div className="text-sm mt-1 opacity-75">매월 자동 결제</div>
+                <div className="font-medium">{t('subscription.monthlyBilling')}</div>
+                <div className="text-sm mt-1 opacity-75">{t('subscription.monthlyBillingDesc')}</div>
               </button>
               <button
                 onClick={() => setBillingCycle('yearly')}
@@ -223,17 +225,17 @@ export function SubscriptionModal({
                 }`}
               >
                 <div className="absolute -top-2 -right-2 bg-green-500 text-white text-xs px-2 py-0.5 rounded-full">
-                  17% 할인
+                  {t('subscription.yearlyDiscount')}
                 </div>
-                <div className="font-medium">연간 결제</div>
-                <div className="text-sm mt-1 opacity-75">2개월 무료</div>
+                <div className="font-medium">{t('subscription.yearlyBilling')}</div>
+                <div className="text-sm mt-1 opacity-75">{t('subscription.yearlyBillingDesc')}</div>
               </button>
             </div>
           </div>
 
           {/* 플랜 선택 */}
           <div>
-            <h3 className="text-lg font-semibold text-foreground mb-4">플랜 선택</h3>
+            <h3 className="text-lg font-semibold text-foreground mb-4">{t('subscription.selectPlan')}</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {plans.map((plan) => {
                 const price =
@@ -255,7 +257,7 @@ export function SubscriptionModal({
                       <h4 className="text-lg font-semibold text-foreground">{plan.name}</h4>
                       {isCurrentPlan && (
                         <span className="bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded text-xs">
-                          현재
+                          {t('subscription.currentPlan')}
                         </span>
                       )}
                     </div>
@@ -265,11 +267,11 @@ export function SubscriptionModal({
                         ₩{formatPrice(price)}
                       </div>
                       <div className="text-sm text-slate-400">
-                        / {billingCycle === 'monthly' ? '월' : '년'}
+                        {billingCycle === 'monthly' ? t('subscription.perMonth') : t('subscription.perYear')}
                       </div>
                       {billingCycle === 'yearly' && plan.discount_percentage > 0 && (
                         <div className="text-xs text-green-400 mt-1">
-                          {plan.discount_percentage}% 할인
+                          {t('subscription.discountFormat', { percent: plan.discount_percentage })}
                         </div>
                       )}
                     </div>
@@ -296,7 +298,7 @@ export function SubscriptionModal({
             variant="outline"
             className="flex-1 border-white/20 text-slate-300 hover:bg-white/5 hover:text-white"
           >
-            닫기
+            {t('common.close')}
           </Button>
           <Button
             onClick={handleSubscribe}
@@ -304,10 +306,10 @@ export function SubscriptionModal({
             className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
           >
             {isProcessing
-              ? '처리중...'
+              ? t('common.processing')
               : subscription?.status === 'ACTIVE'
-              ? '플랜 변경'
-              : '구독 시작'}
+              ? t('subscription.changePlan')
+              : t('subscription.startSubscription')}
           </Button>
         </div>
       </div>

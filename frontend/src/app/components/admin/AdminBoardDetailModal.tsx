@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, Folder, Users, ListTodo, Calendar, Trash2, Crown, Shield, User as UserIcon, Eye, ArrowRightLeft, CalendarPlus, AlertTriangle } from 'lucide-react';
 import { adminService } from '../../utils/services';
 import { AdminBoardDetail } from '../../utils/api';
 import { formatDateTime, formatDate } from '../../utils/dateUtils';
+import { ConfirmModal, PromptModal, SelectModal, Toast } from './AdminConfirmModal';
 
 interface AdminBoardDetailModalProps {
   boardId: string;
@@ -13,11 +15,16 @@ interface AdminBoardDetailModalProps {
 const TIER_OPTIONS = ['FREE', 'TRIAL', 'STANDARD', 'PREMIUM', 'ENTERPRISE'] as const;
 
 export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoardDetailModalProps) {
+  const { t } = useTranslation();
   const [board, setBoard] = useState<AdminBoardDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<{ title: string; message: string; variant?: 'default' | 'danger'; confirmLabel?: string; onConfirm: () => void } | null>(null);
+  const [promptAction, setPromptAction] = useState<{ title: string; message: string; placeholder?: string; defaultValue?: string; inputType?: 'text' | 'number'; required?: boolean; onConfirm: (value: string) => void } | null>(null);
+  const [selectAction, setSelectAction] = useState<{ title: string; message: string; options: { id: string; label: string; description?: string }[]; onConfirm: (id: string) => void } | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   useEffect(() => {
     loadBoardDetail();
@@ -31,123 +38,132 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
       setBoard(data);
     } catch (err) {
       console.error('Failed to load board detail:', err);
-      setError('보드 정보를 불러오는데 실패했습니다');
+      setError(t('admin.boardDetail.loadFailed'));
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleTierChange = async (newTier: typeof TIER_OPTIONS[number]) => {
+  const handleTierChange = (newTier: typeof TIER_OPTIONS[number]) => {
     if (!board || board.tier === newTier) return;
 
-    if (!confirm(`보드 티어를 ${newTier}로 변경하시겠습니까?`)) return;
-
-    try {
-      setIsUpdating(true);
-      await adminService.updateBoardTier(boardId, newTier);
-      setBoard({ ...board, tier: newTier });
-      onUpdate();
-    } catch (err) {
-      console.error('Failed to update board tier:', err);
-      alert('티어 변경에 실패했습니다');
-    } finally {
-      setIsUpdating(false);
-    }
+    setConfirmAction({
+      title: t('admin.boardDetail.changeTier'),
+      message: t('admin.boardDetail.confirmTierChange', { tier: newTier }),
+      onConfirm: async () => {
+        setConfirmAction(null);
+        try {
+          setIsUpdating(true);
+          await adminService.updateBoardTier(boardId, newTier);
+          setBoard({ ...board, tier: newTier });
+          onUpdate();
+        } catch (err) {
+          console.error('Failed to update board tier:', err);
+          setToast({ message: t('admin.boardDetail.tierChangeFailed'), type: 'error' });
+        } finally {
+          setIsUpdating(false);
+        }
+      },
+    });
   };
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!board) return;
 
-    const confirmText = prompt(
-      `정말로 "${board.name}" 보드를 삭제하시겠습니까?\n\n삭제하려면 보드 이름을 입력하세요:`
-    );
-
-    if (confirmText !== board.name) {
-      if (confirmText !== null) {
-        alert('보드 이름이 일치하지 않습니다');
-      }
-      return;
-    }
-
-    try {
-      setIsDeleting(true);
-      await adminService.deleteBoard(boardId);
-      onUpdate();
-      onClose();
-    } catch (err) {
-      console.error('Failed to delete board:', err);
-      alert('보드 삭제에 실패했습니다');
-    } finally {
-      setIsDeleting(false);
-    }
+    setPromptAction({
+      title: t('admin.boardDetail.deleteBoard'),
+      message: t('admin.boardDetail.confirmDelete', { name: board.name }),
+      placeholder: board.name,
+      required: true,
+      onConfirm: async (value: string) => {
+        setPromptAction(null);
+        if (value !== board.name) {
+          setToast({ message: t('admin.boardDetail.nameNotMatch'), type: 'error' });
+          return;
+        }
+        try {
+          setIsDeleting(true);
+          await adminService.deleteBoard(boardId);
+          onUpdate();
+          onClose();
+        } catch (err) {
+          console.error('Failed to delete board:', err);
+          setToast({ message: t('admin.boardDetail.deleteFailed'), type: 'error' });
+        } finally {
+          setIsDeleting(false);
+        }
+      },
+    });
   };
 
-  const handleTransferOwnership = async () => {
+  const handleTransferOwnership = () => {
     if (!board) return;
 
-    // 멤버 목록에서 현재 OWNER가 아닌 멤버만 필터링
     const eligibleMembers = board.members?.filter(m => m.role !== 'OWNER') || [];
     if (eligibleMembers.length === 0) {
-      alert('소유권을 이전할 수 있는 멤버가 없습니다.');
+      setToast({ message: t('admin.boardDetail.noEligibleMembers'), type: 'error' });
       return;
     }
 
-    const memberList = eligibleMembers.map((m, i) => `${i + 1}. ${m.name} (${m.email})`).join('\n');
-    const selection = prompt(
-      `소유권을 이전할 멤버 번호를 입력하세요:\n\n${memberList}`
-    );
+    setSelectAction({
+      title: t('admin.boardDetail.transferOwnership'),
+      message: t('admin.boardDetail.selectMemberForTransfer'),
+      options: eligibleMembers.map(m => ({
+        id: m.id,
+        label: m.name,
+        description: `${m.email} (${m.role})`,
+      })),
+      onConfirm: async (selectedId: string) => {
+        setSelectAction(null);
+        const newOwner = eligibleMembers.find(m => m.id === selectedId);
+        if (!newOwner) return;
 
-    if (!selection) return;
-
-    const index = parseInt(selection, 10) - 1;
-    if (isNaN(index) || index < 0 || index >= eligibleMembers.length) {
-      alert('유효하지 않은 선택입니다.');
-      return;
-    }
-
-    const newOwner = eligibleMembers[index];
-    if (!confirm(`${newOwner.name}님에게 보드 소유권을 이전하시겠습니까?\n현재 소유자는 Admin으로 변경됩니다.`)) return;
-
-    try {
-      setIsUpdating(true);
-      const updated = await adminService.transferBoardOwnership(boardId, newOwner.id);
-      setBoard(updated);
-      onUpdate();
-      alert('소유권이 이전되었습니다.');
-    } catch (err) {
-      console.error('Failed to transfer ownership:', err);
-      alert('소유권 이전에 실패했습니다.');
-    } finally {
-      setIsUpdating(false);
-    }
+        try {
+          setIsUpdating(true);
+          const updated = await adminService.transferBoardOwnership(boardId, newOwner.id);
+          setBoard(updated);
+          onUpdate();
+          setToast({ message: t('admin.boardDetail.transferSuccess'), type: 'success' });
+        } catch (err) {
+          console.error('Failed to transfer ownership:', err);
+          setToast({ message: t('admin.boardDetail.transferFailed'), type: 'error' });
+        } finally {
+          setIsUpdating(false);
+        }
+      },
+    });
   };
 
-  const handleExtendTrial = async () => {
+  const handleExtendTrial = () => {
     if (!board) return;
 
-    const daysStr = prompt('연장할 일수를 입력하세요 (기본: 7일):', '7');
-    if (!daysStr) return;
-
-    const days = parseInt(daysStr, 10);
-    if (isNaN(days) || days < 1) {
-      alert('유효한 일수를 입력하세요.');
-      return;
-    }
-
-    if (!confirm(`Trial 기간을 ${days}일 연장하시겠습니까?`)) return;
-
-    try {
-      setIsUpdating(true);
-      const updated = await adminService.extendTrial(boardId, days);
-      setBoard({ ...board, tier: updated.tier, trial_ends_at: updated.trial_ends_at });
-      onUpdate();
-      alert(`Trial 기간이 ${days}일 연장되었습니다.`);
-    } catch (err) {
-      console.error('Failed to extend trial:', err);
-      alert('Trial 연장에 실패했습니다.');
-    } finally {
-      setIsUpdating(false);
-    }
+    setPromptAction({
+      title: t('admin.boardDetail.extendTrial'),
+      message: t('admin.boardDetail.enterExtendDays'),
+      defaultValue: '7',
+      inputType: 'number',
+      required: true,
+      onConfirm: async (daysStr: string) => {
+        setPromptAction(null);
+        const days = parseInt(daysStr, 10);
+        if (isNaN(days) || days < 1) {
+          setToast({ message: t('admin.boardDetail.enterValidDays'), type: 'error' });
+          return;
+        }
+        try {
+          setIsUpdating(true);
+          const updated = await adminService.extendTrial(boardId, days);
+          setBoard({ ...board, tier: updated.tier, trial_ends_at: updated.trial_ends_at });
+          onUpdate();
+          setToast({ message: t('admin.boardDetail.extendSuccess', { days }), type: 'success' });
+        } catch (err) {
+          console.error('Failed to extend trial:', err);
+          setToast({ message: t('admin.boardDetail.extendFailed'), type: 'error' });
+        } finally {
+          setIsUpdating(false);
+        }
+      },
+    });
   };
 
   const formatDateLocal = (dateString: string | null | undefined) => {
@@ -188,13 +204,13 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
 
       {/* Modal */}
       <div className="relative bg-bridge-obsidian rounded-2xl border border-white/20 w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/15">
-          <h2 className="text-xl font-bold text-white">보드 상세</h2>
+          <h2 className="text-xl font-bold text-white">{t('admin.boardDetail.title')}</h2>
           <button
             onClick={onClose}
             className="p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
@@ -236,7 +252,7 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-white/5 rounded-xl p-4">
                   <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-                    티어
+                    {t('admin.boardDetail.tier')}
                   </p>
                   <select
                     value={board.tier}
@@ -255,7 +271,7 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
 
                 <div className="bg-white/5 rounded-xl p-4">
                   <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-                    소유자
+                    {t('admin.boardDetail.owner')}
                   </p>
                   <div>
                     <p className="text-white font-medium">{board.owner_name}</p>
@@ -265,27 +281,27 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
 
                 <div className="bg-white/5 rounded-xl p-4">
                   <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-                    멤버 수
+                    {t('admin.boardDetail.memberCount')}
                   </p>
                   <p className="text-white flex items-center gap-2">
                     <Users className="h-5 w-5 text-bridge-accent" />
-                    {board.member_count}명
+                    {t('admin.common.countPeople', { count: board.member_count })}
                   </p>
                 </div>
 
                 <div className="bg-white/5 rounded-xl p-4">
                   <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-                    태스크 수
+                    {t('admin.boardDetail.taskCount')}
                   </p>
                   <p className="text-white flex items-center gap-2">
                     <ListTodo className="h-5 w-5 text-bridge-secondary" />
-                    {board.task_count}개
+                    {t('admin.common.countItems', { count: board.task_count })}
                   </p>
                 </div>
 
                 <div className="bg-white/5 rounded-xl p-4">
                   <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-                    생성일
+                    {t('admin.boardDetail.createdAt')}
                   </p>
                   <p className="text-white flex items-center gap-2">
                     <Calendar className="h-4 w-4 text-slate-400" />
@@ -295,7 +311,7 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
 
                 <div className="bg-white/5 rounded-xl p-4">
                   <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-                    구독 상태
+                    {t('admin.boardDetail.subscriptionStatus')}
                   </p>
                   {board.subscription ? (
                     <span
@@ -310,7 +326,7 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                       {board.subscription.status}
                     </span>
                   ) : (
-                    <span className="text-slate-400">구독 없음</span>
+                    <span className="text-slate-400">{t('admin.boardDetail.noSubscription')}</span>
                   )}
                 </div>
               </div>
@@ -318,7 +334,7 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
               {/* Members List */}
               {board.members && board.members.length > 0 && (
                 <div>
-                  <h4 className="text-lg font-bold text-white mb-4">멤버 목록</h4>
+                  <h4 className="text-lg font-bold text-white mb-4">{t('admin.boardDetail.memberList')}</h4>
                   <div className="space-y-2 max-h-60 overflow-y-auto">
                     {board.members.map((member) => (
                       <div
@@ -355,7 +371,7 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
               <div className="border-t border-white/10 pt-6 space-y-4">
                 <h4 className="text-lg font-bold text-white flex items-center gap-2">
                   <AlertTriangle className="h-5 w-5 text-amber-400" />
-                  관리자 작업
+                  {t('admin.common.adminActions')}
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {/* 소유권 이전 */}
@@ -363,10 +379,10 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                     onClick={handleTransferOwnership}
                     disabled={isUpdating || !board.members || board.members.length <= 1}
                     className="flex items-center justify-center gap-2 px-4 py-3 bg-purple-500/10 border border-purple-500/30 rounded-xl text-purple-400 hover:bg-purple-500/20 transition-colors disabled:opacity-50"
-                    title={!board.members || board.members.length <= 1 ? '이전할 멤버가 없습니다' : undefined}
+                    title={!board.members || board.members.length <= 1 ? t('admin.boardDetail.noEligibleMembers') : undefined}
                   >
                     <ArrowRightLeft className="h-4 w-4" />
-                    소유권 이전
+                    {t('admin.boardDetail.transferOwnership')}
                   </button>
 
                   {/* Trial 연장 */}
@@ -376,7 +392,7 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                     className="flex items-center justify-center gap-2 px-4 py-3 bg-teal-500/10 border border-teal-500/30 rounded-xl text-teal-400 hover:bg-teal-500/20 transition-colors disabled:opacity-50"
                   >
                     <CalendarPlus className="h-4 w-4" />
-                    Trial 기간 연장
+                    {t('admin.boardDetail.extendTrial')}
                     {board.trial_ends_at && (
                       <span className="text-xs text-teal-400/70">
                         ({formatDateLocal(board.trial_ends_at).split(' ')[0]})
@@ -388,13 +404,13 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
 
               {/* Danger Zone */}
               <div className="border-t border-white/15 pt-6">
-                <h4 className="text-lg font-bold text-red-400 mb-4">위험 영역</h4>
+                <h4 className="text-lg font-bold text-red-400 mb-4">{t('admin.boardDetail.dangerZone')}</h4>
                 <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-white font-medium">보드 삭제</p>
+                      <p className="text-white font-medium">{t('admin.boardDetail.deleteBoard')}</p>
                       <p className="text-slate-400 text-sm">
-                        보드와 관련된 모든 데이터가 삭제됩니다. 이 작업은 되돌릴 수 없습니다.
+                        {t('admin.boardDetail.deleteWarning')}
                       </p>
                     </div>
                     <button
@@ -405,7 +421,7 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                         transition-colors flex items-center gap-2"
                     >
                       <Trash2 className="h-4 w-4" />
-                      {isDeleting ? '삭제 중...' : '삭제'}
+                      {isDeleting ? t('admin.boardDetail.deleting') : t('common.delete')}
                     </button>
                   </div>
                 </div>
@@ -414,6 +430,52 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
           )}
         </div>
       </div>
+
+      {confirmAction && (
+        <ConfirmModal
+          isOpen={true}
+          title={confirmAction.title}
+          message={confirmAction.message}
+          variant={confirmAction.variant}
+          confirmLabel={confirmAction.confirmLabel}
+          onConfirm={confirmAction.onConfirm}
+          onCancel={() => setConfirmAction(null)}
+        />
+      )}
+
+      {promptAction && (
+        <PromptModal
+          isOpen={true}
+          title={promptAction.title}
+          message={promptAction.message}
+          placeholder={promptAction.placeholder}
+          defaultValue={promptAction.defaultValue}
+          inputType={promptAction.inputType}
+          required={promptAction.required}
+          onConfirm={promptAction.onConfirm}
+          onCancel={() => setPromptAction(null)}
+        />
+      )}
+
+      {selectAction && (
+        <SelectModal
+          isOpen={true}
+          title={selectAction.title}
+          message={selectAction.message}
+          options={selectAction.options}
+          onConfirm={selectAction.onConfirm}
+          onCancel={() => setSelectAction(null)}
+        />
+      )}
+
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          isVisible={!!toast}
+          onClose={() => setToast(null)}
+        />
+      )}
     </div>
   );
 }

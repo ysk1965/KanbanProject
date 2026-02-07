@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Dialog,
   DialogContent,
@@ -32,6 +33,7 @@ export function CreateBoardModal({
   onClose,
   onCreateBoard,
 }: CreateBoardModalProps) {
+  const { t } = useTranslation();
   const [boardName, setBoardName] = useState('');
   const [description, setDescription] = useState('');
   const [selectedGradient, setSelectedGradient] = useState(BOARD_GRADIENTS[0].value);
@@ -56,16 +58,16 @@ export function CreateBoardModal({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="bg-bridge-obsidian text-foreground border-white/20 max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-foreground">Create board</DialogTitle>
+          <DialogTitle className="text-foreground">{t('createBoard.title')}</DialogTitle>
           <DialogDescription className="text-slate-400">
-            Create a new kanban board for your team
+            {t('createBoard.description')}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 py-4">
           {/* 보드 미리보기 */}
           <div className="space-y-2">
-            <Label className="text-slate-300">Board preview</Label>
+            <Label className="text-slate-300">{t('createBoard.preview')}</Label>
             <div
               className="h-28 rounded-lg flex items-center justify-center"
               style={{ background: selectedGradient }}
@@ -79,13 +81,13 @@ export function CreateBoardModal({
           {/* 보드 이름 */}
           <div className="space-y-2">
             <Label htmlFor="board-name" className="text-slate-300">
-              Board name <span className="text-red-400">*</span>
+              {t('createBoard.nameLabel')} <span className="text-red-400">*</span>
             </Label>
             <Input
               id="board-name"
               value={boardName}
               onChange={(e) => setBoardName(e.target.value)}
-              placeholder="e.g., Project Management"
+              placeholder={t('createBoard.namePlaceholder')}
               className="bg-bridge-dark border-white/20 text-foreground placeholder:text-slate-400 focus:border-blue-500"
               onKeyDown={(e) => {
                 if (e.nativeEvent.isComposing) return;
@@ -99,13 +101,13 @@ export function CreateBoardModal({
           {/* 설명 */}
           <div className="space-y-2">
             <Label htmlFor="board-description" className="text-slate-300">
-              Description
+              {t('createBoard.descriptionLabel')}
             </Label>
             <Textarea
               id="board-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Brief description of the board (optional)"
+              placeholder={t('createBoard.descriptionPlaceholder')}
               className="bg-bridge-dark border-white/20 text-foreground placeholder:text-slate-400 focus:border-blue-500 resize-none"
               rows={3}
             />
@@ -113,7 +115,7 @@ export function CreateBoardModal({
 
           {/* 색상 선택 (미리보기용) */}
           <div className="space-y-2">
-            <Label className="text-slate-300">Background color</Label>
+            <Label className="text-slate-300">{t('createBoard.bgColor')}</Label>
             <div className="grid grid-cols-3 gap-2">
               {BOARD_GRADIENTS.map((gradient) => (
                 <button
@@ -140,14 +142,14 @@ export function CreateBoardModal({
             onClick={handleClose}
             className="border-white/20 text-slate-300 hover:bg-white/5 hover:text-foreground"
           >
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button
             onClick={handleCreate}
             disabled={!boardName.trim()}
             className="bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
           >
-            Create
+            {t('common.create')}
           </Button>
         </div>
       </DialogContent>

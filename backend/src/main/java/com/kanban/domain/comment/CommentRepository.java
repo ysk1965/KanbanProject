@@ -48,4 +48,16 @@ public interface CommentRepository extends JpaRepository<Comment, String> {
             @Param("authorId") String authorId,
             @Param("startDate") LocalDateTime startDate,
             @Param("endDate") LocalDateTime endDate);
+
+    @Query("SELECT c FROM Comment c " +
+           "JOIN FETCH c.author " +
+           "JOIN FETCH c.task " +
+           "WHERE c.board.id = :boardId " +
+           "AND c.createdAt >= :startDate " +
+           "AND c.createdAt < :endDate " +
+           "ORDER BY c.createdAt ASC")
+    List<Comment> findByBoardAndDateRange(
+            @Param("boardId") String boardId,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate);
 }

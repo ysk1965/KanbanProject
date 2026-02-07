@@ -1,5 +1,6 @@
 import { Feature } from '../types';
 import { Eye, EyeOff, Plus } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface FeatureChipSelectorProps {
   features: Feature[];
@@ -20,6 +21,7 @@ export function FeatureChipSelector({
   onFeatureInfoClick,
   onAddFeature,
 }: FeatureChipSelectorProps) {
+  const { t } = useTranslation();
 
   return (
     <div className="px-3 md:px-6 py-2 md:py-3 border-b border-kanban-border bg-kanban-bg">
@@ -33,9 +35,9 @@ export function FeatureChipSelector({
               : 'bg-kanban-surface border border-kanban-border text-zinc-500 hover:text-zinc-300 hover:border-zinc-600'
           }`}
         >
-          <span className="text-sm font-bold">전체</span>
+          <span className="text-sm font-bold">{t('common.all')}</span>
           <span className={`text-[10px] mt-0.5 ${isAllSelected ? 'text-indigo-400' : 'text-zinc-600'}`}>
-            {features.length}개
+            {t('featureChip.count', { count: features.length })}
           </span>
         </button>
 
@@ -119,7 +121,7 @@ export function FeatureChipSelector({
                     ? 'text-zinc-300 hover:text-white hover:bg-white/10 border-white/10'
                     : 'text-zinc-600 hover:text-zinc-300 hover:bg-white/5 border-white/5'
                 }`}
-                title={isSelected ? '필터 숨기기' : '필터 보기'}
+                title={isSelected ? t('featureChip.hideFilter') : t('featureChip.showFilter')}
               >
                 {isSelected ? <Eye size={14} /> : <EyeOff size={14} />}
               </button>

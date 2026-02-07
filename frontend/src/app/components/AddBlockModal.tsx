@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, CheckCircle2 } from 'lucide-react';
 
 interface AddBlockModalProps {
@@ -11,14 +12,14 @@ interface AddBlockModalProps {
 }
 
 const COLORS = [
-  { name: '빨강', value: '#EF4444' },
-  { name: '주황', value: '#F59E0B' },
-  { name: '노랑', value: '#EAB308' },
-  { name: '초록', value: '#10B981' },
-  { name: '파랑', value: '#3B82F6' },
-  { name: '보라', value: '#8B5CF6' },
-  { name: '인디고', value: '#6366F1' },
-  { name: '회색', value: '#6B7280' },
+  { name: 'Red', value: '#EF4444' },
+  { name: 'Orange', value: '#F59E0B' },
+  { name: 'Yellow', value: '#EAB308' },
+  { name: 'Green', value: '#10B981' },
+  { name: 'Blue', value: '#3B82F6' },
+  { name: 'Purple', value: '#8B5CF6' },
+  { name: 'Indigo', value: '#6366F1' },
+  { name: 'Gray', value: '#6B7280' },
 ];
 
 export function AddBlockModal({
@@ -29,6 +30,7 @@ export function AddBlockModal({
   initialName = '',
   initialColor = '#3B82F6',
 }: AddBlockModalProps) {
+  const { t } = useTranslation();
   const [name, setName] = useState(initialName);
   const [selectedColor, setSelectedColor] = useState(initialColor);
 
@@ -45,7 +47,7 @@ export function AddBlockModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4"
       onClick={onClose}
     >
       <div
@@ -55,7 +57,7 @@ export function AddBlockModal({
         {/* 헤더 */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-white/15 bg-white/[0.02]">
           <h2 className="text-lg font-bold text-white">
-            {isEdit ? '블록 수정' : '새 블록 추가'}
+            {isEdit ? t('block.editTitle') : t('block.addTitle')}
           </h2>
           <button
             onClick={onClose}
@@ -68,7 +70,7 @@ export function AddBlockModal({
         {/* 콘텐츠 */}
         <div className="px-6 py-6 space-y-6">
           <div className="space-y-2">
-            <label className="kanban-label block">블록 이름</label>
+            <label className="kanban-label block">{t('block.nameLabel')}</label>
             <input
               type="text"
               value={name}
@@ -86,7 +88,7 @@ export function AddBlockModal({
           </div>
 
           <div className="space-y-3">
-            <label className="kanban-label block">색상</label>
+            <label className="kanban-label block">{t('block.colorLabel')}</label>
             <div className="flex gap-2.5 flex-wrap">
               {COLORS.map((color) => (
                 <button
@@ -115,14 +117,14 @@ export function AddBlockModal({
             onClick={onClose}
             className="text-[11px] font-bold text-zinc-400 hover:text-foreground transition-all tracking-wider"
           >
-            취소
+            {t('common.cancel')}
           </button>
           <button
             onClick={handleSubmit}
             disabled={!name.trim()}
             className="px-6 py-2.5 bg-white text-black font-black text-[11px] rounded-lg tracking-widest hover:bg-zinc-200 transition-all flex items-center gap-2 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isEdit ? '수정' : '추가'}
+            {isEdit ? t('common.edit') : t('common.add')}
             <CheckCircle2 size={14} className="text-indigo-600" />
           </button>
         </div>

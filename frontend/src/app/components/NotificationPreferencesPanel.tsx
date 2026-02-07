@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Settings, ChevronDown, ChevronUp } from 'lucide-react';
 import { notificationPreferenceAPI } from '../utils/api';
 import { NotificationPreferences } from '../types';
@@ -9,14 +10,15 @@ interface NotificationPreferencesPanelProps {
 }
 
 const NOTIFICATION_TYPES = [
-  { key: 'comment_mention', label: '댓글 멘션', desc: '@멘션으로 태그되었을 때' },
-  { key: 'checklist_assigned', label: '체크리스트 배정', desc: '체크리스트 항목에 배정되었을 때' },
-  { key: 'task_comment', label: '태스크 댓글', desc: '관련 태스크에 새 댓글이 달렸을 때' },
+  { key: 'comment_mention', labelKey: 'notificationPreferences.commentMention', descKey: 'notificationPreferences.commentMentionDesc' },
+  { key: 'checklist_assigned', labelKey: 'notificationPreferences.checklistAssigned', descKey: 'notificationPreferences.checklistAssignedDesc' },
+  { key: 'task_comment', labelKey: 'notificationPreferences.taskComment', descKey: 'notificationPreferences.taskCommentDesc' },
 ] as const;
 
 type PrefKey = typeof NOTIFICATION_TYPES[number]['key'];
 
 export function NotificationPreferencesPanel({ boardId, hasSlack }: NotificationPreferencesPanelProps) {
+  const { t } = useTranslation();
   const [prefs, setPrefs] = useState<NotificationPreferences | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -95,7 +97,7 @@ export function NotificationPreferencesPanel({ boardId, hasSlack }: Notification
       >
         <div className="flex items-center gap-1.5">
           <Settings size={12} className="text-slate-400" />
-          <span className="text-[11px] font-medium text-slate-300">알림 설정</span>
+          <span className="text-[11px] font-medium text-slate-300">{t('notificationPreferences.title')}</span>
         </div>
         {isOpen ? (
           <ChevronUp size={12} className="text-slate-400" />
@@ -110,7 +112,7 @@ export function NotificationPreferencesPanel({ boardId, hasSlack }: Notification
           <div className="flex items-center gap-2 pt-2 pb-1.5">
             <div className="flex-1" />
             <div className="w-10 text-center">
-              <span className="text-[9px] text-slate-500 uppercase tracking-wider">인앱</span>
+              <span className="text-[9px] text-slate-500 uppercase tracking-wider">{t('notificationPreferences.inApp')}</span>
             </div>
             <div className="w-10 text-center">
               <span className={`text-[9px] uppercase tracking-wider ${hasSlack ? 'text-slate-500' : 'text-slate-600'}`}>
@@ -121,11 +123,11 @@ export function NotificationPreferencesPanel({ boardId, hasSlack }: Notification
 
           {/* Toggle rows */}
           <div className="space-y-1">
-            {NOTIFICATION_TYPES.map(({ key, label, desc }) => (
+            {NOTIFICATION_TYPES.map(({ key, labelKey, descKey }) => (
               <div key={key} className="flex items-center gap-2 py-1.5 group">
                 <div className="flex-1 min-w-0">
-                  <div className="text-[11px] text-slate-300">{label}</div>
-                  <div className="text-[9px] text-slate-500 leading-tight">{desc}</div>
+                  <div className="text-[11px] text-slate-300">{t(labelKey)}</div>
+                  <div className="text-[9px] text-slate-500 leading-tight">{t(descKey)}</div>
                 </div>
                 {/* In-app toggle */}
                 <div className="w-10 flex justify-center">
@@ -174,7 +176,7 @@ export function NotificationPreferencesPanel({ boardId, hasSlack }: Notification
 
           {!hasSlack && (
             <p className="text-[9px] text-slate-600 mt-2">
-              * Slack 알림은 Slack 연동 시 활성화됩니다
+              {t('notificationPreferences.slackRequiresConnection')}
             </p>
           )}
         </div>

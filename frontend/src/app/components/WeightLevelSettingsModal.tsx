@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, Plus, Trash2, GripVertical, Check } from 'lucide-react';
 import { statisticsService } from '../utils/services';
 
@@ -37,6 +38,7 @@ export function WeightLevelSettingsModal({
   boardId,
   onSave,
 }: WeightLevelSettingsModalProps) {
+  const { t } = useTranslation();
   const [levels, setLevels] = useState<WeightLevel[]>([]);
   const [defaultLevelId, setDefaultLevelId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -70,7 +72,7 @@ export function WeightLevelSettingsModal({
     const newPosition = levels.length;
     const newLevel: WeightLevel = {
       id: `temp-${Date.now()}`,
-      name: `레벨 ${newPosition + 1}`,
+      name: t('weightLevel.newLevelName', { number: newPosition + 1 }),
       weight: 1.0,
       color: PRESET_COLORS[newPosition % PRESET_COLORS.length],
       position: newPosition,
@@ -81,7 +83,7 @@ export function WeightLevelSettingsModal({
 
   const handleRemoveLevel = (id: string) => {
     if (levels.length <= 1) {
-      alert('최소 1개의 가중치 레벨이 필요합니다.');
+      alert(t('weightLevel.minLevelRequired'));
       return;
     }
     const updatedLevels = levels.filter((l) => l.id !== id);
@@ -119,7 +121,7 @@ export function WeightLevelSettingsModal({
       onClose();
     } catch (error) {
       console.error('Failed to save weight levels:', error);
-      alert('가중치 레벨 저장에 실패했습니다.');
+      alert(t('weightLevel.saveFailed'));
     } finally {
       setIsSaving(false);
     }
@@ -128,11 +130,11 @@ export function WeightLevelSettingsModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-bridge-obsidian rounded-2xl shadow-2xl w-full max-w-2xl border border-white/20 overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/20">
-          <h2 className="text-lg font-bold text-white">가중치 레벨 설정</h2>
+          <h2 className="text-lg font-bold text-white">{t('weightLevel.title')}</h2>
           <button
             onClick={onClose}
             className="text-slate-400 hover:text-white transition-colors"
@@ -144,12 +146,11 @@ export function WeightLevelSettingsModal({
         {/* Content */}
         <div className="p-6 max-h-[60vh] overflow-y-auto">
           {isLoading ? (
-            <div className="text-center py-8 text-slate-400">로딩 중...</div>
+            <div className="text-center py-8 text-slate-400">{t('common.loading')}</div>
           ) : (
             <div className="space-y-4">
-              <p className="text-sm text-slate-400 mb-4">
-                가중치 레벨을 설정하여 Task의 중요도를 구분할 수 있습니다.
-                높은 가중치의 Task에 더 많은 시간을 투입하면 임팩트 점수가 높아집니다.
+              <p className="text-sm text-slate-400 mb-4 whitespace-pre-line">
+                {t('weightLevel.description')}
               </p>
 
               {/* Level List */}
@@ -178,7 +179,7 @@ export function WeightLevelSettingsModal({
                       value={level.name}
                       onChange={(e) => handleUpdateLevel(level.id, { name: e.target.value })}
                       className="flex-1 bg-white/5 border border-white/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent"
-                      placeholder="레벨 이름"
+                      placeholder={t('weightLevel.levelNamePlaceholder')}
                     />
 
                     {/* Weight */}
@@ -203,7 +204,7 @@ export function WeightLevelSettingsModal({
                           ? 'bg-bridge-accent text-white'
                           : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'
                       }`}
-                      title={defaultLevelId === level.id ? '기본 레벨' : '기본 레벨로 설정'}
+                      title={defaultLevelId === level.id ? t('weightLevel.defaultLevel') : t('weightLevel.setAsDefault')}
                     >
                       <Check className="h-4 w-4" />
                     </button>
@@ -212,7 +213,7 @@ export function WeightLevelSettingsModal({
                     <button
                       onClick={() => handleRemoveLevel(level.id)}
                       className="p-2 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-400/10 transition-all"
-                      title="삭제"
+                      title={t('common.delete')}
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -226,12 +227,12 @@ export function WeightLevelSettingsModal({
                 className="w-full py-3 border border-dashed border-white/20 rounded-xl text-slate-400 hover:text-white hover:border-white/40 transition-all flex items-center justify-center gap-2"
               >
                 <Plus className="h-4 w-4" />
-                레벨 추가
+                {t('weightLevel.addLevel')}
               </button>
 
               {/* Preset Examples */}
               <div className="mt-6 p-4 bg-bridge-dark/50 rounded-xl">
-                <p className="text-xs text-slate-400 mb-3">추천 프리셋</p>
+                <p className="text-xs text-slate-400 mb-3">{t('weightLevel.recommendedPresets')}</p>
                 <div className="flex flex-wrap gap-2">
                   <button
                     onClick={() => {
@@ -245,7 +246,7 @@ export function WeightLevelSettingsModal({
                     }}
                     className="px-3 py-1.5 bg-white/5 border border-white/20 rounded-lg text-xs text-slate-400 hover:text-white hover:bg-white/10 transition-all"
                   >
-                    4단계 (Low ~ Critical)
+                    {t('weightLevel.preset4Levels')}
                   </button>
                   <button
                     onClick={() => {
@@ -258,7 +259,7 @@ export function WeightLevelSettingsModal({
                     }}
                     className="px-3 py-1.5 bg-white/5 border border-white/20 rounded-lg text-xs text-slate-400 hover:text-white hover:bg-white/10 transition-all"
                   >
-                    3단계 (일반/중요/긴급)
+                    {t('weightLevel.preset3Levels')}
                   </button>
                   <button
                     onClick={() => {
@@ -273,7 +274,7 @@ export function WeightLevelSettingsModal({
                     }}
                     className="px-3 py-1.5 bg-white/5 border border-white/20 rounded-lg text-xs text-slate-400 hover:text-white hover:bg-white/10 transition-all"
                   >
-                    5단계 (P0 ~ P4)
+                    {t('weightLevel.preset5Levels')}
                   </button>
                 </div>
               </div>
@@ -287,14 +288,14 @@ export function WeightLevelSettingsModal({
             onClick={onClose}
             className="px-4 py-2 bg-white/5 border border-white/20 text-white rounded-xl font-medium hover:bg-white/10 transition-all"
           >
-            취소
+            {t('common.cancel')}
           </button>
           <button
             onClick={handleSave}
             disabled={isSaving}
             className="px-4 py-2 bg-bridge-accent text-white rounded-xl font-bold hover:bg-bridge-accent/90 hover:shadow-[0_0_30px_rgba(99,102,241,0.3)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isSaving ? '저장 중...' : '저장'}
+            {isSaving ? t('weightLevel.saving') : t('common.save')}
           </button>
         </div>
       </div>

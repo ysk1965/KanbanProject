@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Users,
   TrendingUp,
@@ -29,6 +30,7 @@ import type {
 type PeriodOption = 7 | 14 | 30 | 90;
 
 export function AdminAnalyticsTab() {
+  const { t } = useTranslation();
   const [signupTrend, setSignupTrend] = useState<SignupTrend | null>(null);
   const [activeUserStats, setActiveUserStats] = useState<ActiveUserStats | null>(null);
   const [conversionStats, setConversionStats] = useState<ConversionStats | null>(null);
@@ -63,7 +65,7 @@ export function AdminAnalyticsTab() {
       setConversionStats(conversion);
     } catch (err) {
       console.error('Failed to load analytics:', err);
-      setError('분석 데이터를 불러오는데 실패했습니다');
+      setError(t('admin.analytics.loadFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -103,17 +105,17 @@ export function AdminAnalyticsTab() {
           onClick={loadAllData}
           className="mt-4 px-4 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors"
         >
-          다시 시도
+          {t('common.retry')}
         </button>
       </div>
     );
   }
 
   const periodOptions: { value: PeriodOption; label: string }[] = [
-    { value: 7, label: '7일' },
-    { value: 14, label: '14일' },
-    { value: 30, label: '30일' },
-    { value: 90, label: '90일' },
+    { value: 7, label: t('admin.analytics.days', { count: 7 }) },
+    { value: 14, label: t('admin.analytics.days', { count: 14 }) },
+    { value: 30, label: t('admin.analytics.days', { count: 30 }) },
+    { value: 90, label: t('admin.analytics.days', { count: 90 }) },
   ];
 
   const formatDate = (dateStr: string) => {
@@ -133,15 +135,15 @@ export function AdminAnalyticsTab() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white mb-2">분석 / 리포트</h2>
-          <p className="text-slate-400">서비스 지표를 확인하세요</p>
+          <h2 className="text-2xl font-bold text-white mb-2">{t('admin.analytics.title')}</h2>
+          <p className="text-slate-400">{t('admin.analytics.subtitle')}</p>
         </div>
         <button
           onClick={loadAllData}
           className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 text-slate-300 rounded-xl hover:bg-white/10 transition-colors"
         >
           <RefreshCw className="h-4 w-4" />
-          새로고침
+          {t('admin.common.refresh')}
         </button>
       </div>
 
@@ -149,21 +151,21 @@ export function AdminAnalyticsTab() {
       {activeUserStats && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <MetricCard
-            label="DAU (일간 활성)"
+            label={t('admin.analytics.dau')}
             value={activeUserStats.dau}
             icon={Users}
             color="text-bridge-accent"
             bgColor="bg-bridge-accent/10"
           />
           <MetricCard
-            label="WAU (주간 활성)"
+            label={t('admin.analytics.wau')}
             value={activeUserStats.wau}
             icon={TrendingUp}
             color="text-bridge-secondary"
             bgColor="bg-bridge-secondary/10"
           />
           <MetricCard
-            label="MAU (월간 활성)"
+            label={t('admin.analytics.mau')}
             value={activeUserStats.mau}
             icon={BarChart3}
             color="text-amber-400"
@@ -178,9 +180,9 @@ export function AdminAnalyticsTab() {
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-bridge-accent" />
-              <h3 className="text-lg font-bold text-white">가입자 추이</h3>
+              <h3 className="text-lg font-bold text-white">{t('admin.analytics.signupTrend')}</h3>
               <span className="text-sm text-slate-400 ml-2">
-                총 {signupTrend.total.toLocaleString()}명
+                {t('admin.analytics.totalCount', { count: signupTrend.total.toLocaleString() })}
               </span>
             </div>
             <PeriodSelector value={signupDays} onChange={setSignupDays} options={periodOptions} />
@@ -199,10 +201,10 @@ export function AdminAnalyticsTab() {
                 <YAxis stroke="#64748b" fontSize={12} allowDecimals={false} />
                 <Tooltip
                   contentStyle={tooltipStyle}
-                  labelFormatter={(label) => `날짜: ${label}`}
+                  labelFormatter={(label) => `${t('admin.analytics.date')}: ${label}`}
                   formatter={(value: number, name: string) => {
                     const labels: Record<string, string> = {
-                      email_count: '이메일',
+                      email_count: t('admin.analytics.email'),
                       google_count: 'Google',
                     };
                     return [value, labels[name] || name];
@@ -211,8 +213,8 @@ export function AdminAnalyticsTab() {
                 <Legend
                   formatter={(value: string) => {
                     const labels: Record<string, string> = {
-                      email_count: '이메일 가입',
-                      google_count: 'Google 가입',
+                      email_count: t('admin.analytics.emailSignup'),
+                      google_count: t('admin.analytics.googleSignup'),
                     };
                     return <span className="text-slate-300 text-sm">{labels[value] || value}</span>;
                   }}
@@ -231,7 +233,7 @@ export function AdminAnalyticsTab() {
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
               <Users className="h-5 w-5 text-bridge-secondary" />
-              <h3 className="text-lg font-bold text-white">DAU 추이</h3>
+              <h3 className="text-lg font-bold text-white">{t('admin.analytics.dauTrend')}</h3>
             </div>
             <PeriodSelector value={dauDays} onChange={setDauDays} options={periodOptions} />
           </div>
@@ -249,8 +251,8 @@ export function AdminAnalyticsTab() {
                 <YAxis stroke="#64748b" fontSize={12} allowDecimals={false} />
                 <Tooltip
                   contentStyle={tooltipStyle}
-                  labelFormatter={(label) => `날짜: ${label}`}
-                  formatter={(value: number) => [value, '활성 사용자']}
+                  labelFormatter={(label) => `${t('admin.analytics.date')}: ${label}`}
+                  formatter={(value: number) => [value, t('admin.analytics.activeUsers')]}
                 />
                 <Line
                   type="monotone"
@@ -271,31 +273,31 @@ export function AdminAnalyticsTab() {
         <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-4 md:p-6">
           <div className="flex items-center gap-2 mb-6">
             <ArrowUpRight className="h-5 w-5 text-amber-400" />
-            <h3 className="text-lg font-bold text-white">결제 전환율</h3>
+            <h3 className="text-lg font-bold text-white">{t('admin.analytics.conversionRate')}</h3>
           </div>
 
           {/* Conversion Summary Cards */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
             <ConversionMetric
-              label="전체 Trial"
+              label={t('admin.analytics.totalTrial')}
               value={conversionStats.total_trial_started}
             />
             <ConversionMetric
-              label="전환 완료"
+              label={t('admin.analytics.converted')}
               value={conversionStats.total_converted}
               positive
             />
             <ConversionMetric
-              label="전환율"
+              label={t('admin.analytics.conversionRateLabel')}
               value={`${conversionStats.conversion_rate}%`}
               highlight
             />
             <ConversionMetric
-              label="Trial 진행중"
+              label={t('admin.analytics.trialInProgress')}
               value={conversionStats.trial_in_progress}
             />
             <ConversionMetric
-              label="만료 미전환"
+              label={t('admin.analytics.expiredNotConverted')}
               value={conversionStats.trial_expired_not_converted}
               negative
             />
@@ -304,7 +306,7 @@ export function AdminAnalyticsTab() {
           {/* Conversion Funnel Visual */}
           <div className="mb-6">
             <div className="flex items-center gap-2 mb-3">
-              <span className="text-sm text-slate-400">전환 퍼널</span>
+              <span className="text-sm text-slate-400">{t('admin.analytics.conversionFunnel')}</span>
             </div>
             <ConversionFunnel
               total={conversionStats.total_trial_started}
@@ -317,7 +319,7 @@ export function AdminAnalyticsTab() {
           {/* Monthly Conversion Trend */}
           {conversionStats.trend.length > 0 && (
             <div>
-              <h4 className="text-sm font-medium text-slate-400 mb-4">월별 전환 추이</h4>
+              <h4 className="text-sm font-medium text-slate-400 mb-4">{t('admin.analytics.monthlyConversionTrend')}</h4>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={conversionStats.trend}>
@@ -328,8 +330,8 @@ export function AdminAnalyticsTab() {
                       contentStyle={tooltipStyle}
                       formatter={(value: number, name: string) => {
                         const labels: Record<string, string> = {
-                          trial_started: 'Trial 시작',
-                          converted: '전환 완료',
+                          trial_started: t('admin.analytics.trialStarted'),
+                          converted: t('admin.analytics.converted'),
                         };
                         return [value, labels[name] || name];
                       }}
@@ -337,8 +339,8 @@ export function AdminAnalyticsTab() {
                     <Legend
                       formatter={(value: string) => {
                         const labels: Record<string, string> = {
-                          trial_started: 'Trial 시작',
-                          converted: '전환 완료',
+                          trial_started: t('admin.analytics.trialStarted'),
+                          converted: t('admin.analytics.converted'),
                         };
                         return <span className="text-slate-300 text-sm">{labels[value] || value}</span>;
                       }}
@@ -465,8 +467,9 @@ function ConversionFunnel({
   inProgress: number;
   expired: number;
 }) {
+  const { t } = useTranslation();
   if (total === 0) {
-    return <p className="text-slate-500 text-sm">데이터가 없습니다</p>;
+    return <p className="text-slate-500 text-sm">{t('common.noData')}</p>;
   }
 
   const convertedPct = (converted / total) * 100;
@@ -498,15 +501,15 @@ function ConversionFunnel({
       <div className="flex gap-4 text-xs">
         <span className="flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-          <span className="text-slate-400">전환 {convertedPct.toFixed(1)}%</span>
+          <span className="text-slate-400">{t('admin.analytics.funnelConverted')} {convertedPct.toFixed(1)}%</span>
         </span>
         <span className="flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-full bg-bridge-accent" />
-          <span className="text-slate-400">진행중 {inProgressPct.toFixed(1)}%</span>
+          <span className="text-slate-400">{t('admin.analytics.funnelInProgress')} {inProgressPct.toFixed(1)}%</span>
         </span>
         <span className="flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-full bg-red-500/60" />
-          <span className="text-slate-400">만료 {expiredPct.toFixed(1)}%</span>
+          <span className="text-slate-400">{t('admin.analytics.funnelExpired')} {expiredPct.toFixed(1)}%</span>
         </span>
       </div>
     </div>

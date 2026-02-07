@@ -13,6 +13,8 @@ import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import com.kanban.global.security.UserPrincipal;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -64,7 +66,7 @@ public class AdminController {
             @PathVariable String userId,
             @Valid @RequestBody AdminRequest.UpdateUser request) {
         verifyAdminAccess(principal);
-        return ResponseEntity.ok(adminService.updateUser(userId, request));
+        return ResponseEntity.ok(adminService.updateUser(userId, request, principal.getUserId()));
     }
 
     @GetMapping("/users/{userId}/boards")
@@ -180,7 +182,7 @@ public class AdminController {
     @GetMapping("/statistics/signups")
     public ResponseEntity<AdminResponse.SignupTrend> getSignupTrend(
             @AuthenticationPrincipal UserPrincipal principal,
-            @RequestParam(defaultValue = "30") int days) {
+            @RequestParam(defaultValue = "30") @Min(1) @Max(365) int days) {
         verifyAdminAccess(principal);
         return ResponseEntity.ok(adminService.getSignupTrend(days));
     }
@@ -188,7 +190,7 @@ public class AdminController {
     @GetMapping("/statistics/active-users")
     public ResponseEntity<AdminResponse.ActiveUserStats> getActiveUserStats(
             @AuthenticationPrincipal UserPrincipal principal,
-            @RequestParam(defaultValue = "30") int days) {
+            @RequestParam(defaultValue = "30") @Min(1) @Max(365) int days) {
         verifyAdminAccess(principal);
         return ResponseEntity.ok(adminService.getActiveUserStats(days));
     }
@@ -196,7 +198,7 @@ public class AdminController {
     @GetMapping("/statistics/conversion")
     public ResponseEntity<AdminResponse.ConversionStats> getConversionStats(
             @AuthenticationPrincipal UserPrincipal principal,
-            @RequestParam(defaultValue = "365") int days) {
+            @RequestParam(defaultValue = "365") @Min(1) @Max(730) int days) {
         verifyAdminAccess(principal);
         return ResponseEntity.ok(adminService.getConversionStats(days));
     }

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, Copy, Link as LinkIcon, Trash2, Plus, Check } from 'lucide-react';
 import { Button } from './ui/button';
 import { InviteLink } from '../utils/api';
@@ -20,6 +21,7 @@ export function InviteLinkModal({
   onCreateLink,
   onDeleteLink,
 }: InviteLinkModalProps) {
+  const { t } = useTranslation();
   const [isCreating, setIsCreating] = useState(false);
   const [role, setRole] = useState<'member' | 'viewer'>('member');
   const [maxUses, setMaxUses] = useState(10);
@@ -54,11 +56,11 @@ export function InviteLinkModal({
   const getRoleLabel = (role: string) => {
     switch (role) {
       case 'admin':
-        return '관리자';
+        return t('inviteLink.roleAdmin');
       case 'member':
-        return '멤버';
+        return t('inviteLink.roleMember');
       case 'viewer':
-        return '뷰어';
+        return t('inviteLink.roleViewer');
       default:
         return role;
     }
@@ -70,20 +72,20 @@ export function InviteLinkModal({
     const diffMs = date.getTime() - now.getTime();
     const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
 
-    if (diffDays < 0) return '만료됨';
-    if (diffDays === 0) return '오늘 만료';
-    if (diffDays === 1) return '내일 만료';
-    return `${diffDays}일 후 만료`;
+    if (diffDays < 0) return t('inviteLink.expired');
+    if (diffDays === 0) return t('inviteLink.expiresToday');
+    if (diffDays === 1) return t('inviteLink.expiresTomorrow');
+    return t('inviteLink.expiresInDays', { days: diffDays });
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
       <div className="bg-bridge-obsidian rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
         {/* 헤더 */}
         <div className="flex items-center justify-between p-6 border-b border-white/20">
           <div className="flex items-center gap-2">
             <LinkIcon className="h-5 w-5 text-blue-400" />
-            <h2 className="text-xl font-semibold text-foreground">초대 링크 관리</h2>
+            <h2 className="text-xl font-semibold text-foreground">{t('inviteLink.title')}</h2>
           </div>
           <button
             onClick={onClose}
@@ -102,32 +104,32 @@ export function InviteLinkModal({
               className="w-full bg-blue-600 hover:bg-blue-700 text-white"
             >
               <Plus className="h-4 w-4 mr-2" />
-              새 초대 링크 생성
+              {t('inviteLink.createNew')}
             </Button>
           )}
 
           {/* 링크 생성 폼 */}
           {isCreating && (
             <div className="bg-bridge-dark rounded-lg p-4 space-y-4 border border-white/20">
-              <h3 className="font-medium text-foreground">새 초대 링크 설정</h3>
+              <h3 className="font-medium text-foreground">{t('inviteLink.newLinkSettings')}</h3>
 
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">
-                  역할
+                  {t('inviteLink.role')}
                 </label>
                 <select
                   value={role}
                   onChange={(e) => setRole(e.target.value as any)}
                   className="w-full px-3 py-2 bg-bridge-obsidian border border-white/20 rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="viewer">뷰어 (읽기 전용)</option>
-                  <option value="member">멤버 (편집 가능)</option>
+                  <option value="viewer">{t('inviteLink.viewerOption')}</option>
+                  <option value="member">{t('inviteLink.memberOption')}</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">
-                  최대 사용 횟수
+                  {t('inviteLink.maxUses')}
                 </label>
                 <input
                   type="number"
@@ -141,17 +143,17 @@ export function InviteLinkModal({
 
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">
-                  유효 기간
+                  {t('inviteLink.validPeriod')}
                 </label>
                 <select
                   value={expiresIn}
                   onChange={(e) => setExpiresIn(e.target.value)}
                   className="w-full px-3 py-2 bg-bridge-obsidian border border-white/20 rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="1d">1일</option>
-                  <option value="7d">7일</option>
-                  <option value="30d">30일</option>
-                  <option value="never">무제한</option>
+                  <option value="1d">{t('inviteLink.period1d')}</option>
+                  <option value="7d">{t('inviteLink.period7d')}</option>
+                  <option value="30d">{t('inviteLink.period30d')}</option>
+                  <option value="never">{t('inviteLink.periodNever')}</option>
                 </select>
               </div>
 
@@ -160,14 +162,14 @@ export function InviteLinkModal({
                   onClick={handleCreateLink}
                   className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
                 >
-                  생성
+                  {t('common.create')}
                 </Button>
                 <Button
                   onClick={() => setIsCreating(false)}
                   variant="outline"
                   className="flex-1 border-white/20 text-slate-300 hover:bg-white/5 hover:text-foreground"
                 >
-                  취소
+                  {t('common.cancel')}
                 </Button>
               </div>
             </div>
@@ -177,7 +179,7 @@ export function InviteLinkModal({
           {inviteLinks.length === 0 && !isCreating && (
             <div className="text-center py-12 text-slate-400">
               <LinkIcon className="h-12 w-12 mx-auto mb-3 opacity-50" />
-              <p>생성된 초대 링크가 없습니다.</p>
+              <p>{t('inviteLink.noLinks')}</p>
             </div>
           )}
 
@@ -201,16 +203,16 @@ export function InviteLinkModal({
                       </span>
                       {isInactive && (
                         <span className="text-xs bg-slate-700 text-slate-400 px-2 py-0.5 rounded">
-                          비활성
+                          {t('inviteLink.inactive')}
                         </span>
                       )}
                     </div>
                     <div className="text-xs text-slate-400 space-y-1">
                       <div>
-                        사용: {link.usedCount} / {link.maxUses}회
+                        {t('inviteLink.usage', { used: link.usedCount, max: link.maxUses })}
                       </div>
                       <div>{getExpiresLabel(link.expiresAt)}</div>
-                      <div>생성: {link.createdBy.name}</div>
+                      <div>{t('inviteLink.createdBy', { name: link.createdBy.name })}</div>
                     </div>
                   </div>
 
@@ -225,12 +227,12 @@ export function InviteLinkModal({
                       {copiedLinkId === link.id ? (
                         <>
                           <Check className="h-4 w-4 mr-1" />
-                          복사됨
+                          {t('inviteLink.copied')}
                         </>
                       ) : (
                         <>
                           <Copy className="h-4 w-4 mr-1" />
-                          복사
+                          {t('inviteLink.copy')}
                         </>
                       )}
                     </Button>
@@ -260,7 +262,7 @@ export function InviteLinkModal({
             variant="outline"
             className="w-full border-white/20 text-slate-300 hover:bg-white/5 hover:text-foreground"
           >
-            닫기
+            {t('common.close')}
           </Button>
         </div>
       </div>

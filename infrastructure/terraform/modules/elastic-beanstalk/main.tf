@@ -333,6 +333,12 @@ resource "aws_elastic_beanstalk_environment" "main" {
     value     = var.frontend_url
   }
 
+  setting {
+    namespace = "aws:elasticbeanstalk:application:environment"
+    name      = "CLAUDE_API_KEY"
+    value     = var.claude_api_key
+  }
+
   tags = {
     Name        = "${var.project_name}-${var.environment}-env"
     Environment = var.environment

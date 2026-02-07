@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Shield, AlertTriangle, Clock, RefreshCw, Play, StopCircle, Timer } from 'lucide-react';
 import { adminService } from '../../utils/services';
 import type { MaintenanceStatus } from '../../utils/api';
 import { formatDateTime, toDateTimeLocalValue, fromDateTimeLocalValue } from '../../utils/dateUtils';
+import { ConfirmModal, Toast } from './AdminConfirmModal';
 
 export function AdminSystemTab() {
+  const { t } = useTranslation();
   const [maintenance, setMaintenance] = useState<MaintenanceStatus | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -13,6 +16,8 @@ export function AdminSystemTab() {
   const [message, setMessage] = useState('');
   const [estimatedEndAt, setEstimatedEndAt] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [showStopConfirm, setShowStopConfirm] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   useEffect(() => {
     loadStatus();
@@ -29,7 +34,7 @@ export function AdminSystemTab() {
       setEstimatedEndAt(toDateTimeLocalValue(data.estimated_end_at));
     } catch (err) {
       console.error('Failed to load maintenance status:', err);
-      setError('점검 상태를 불러오는데 실패했습니다');
+      setError(t('admin.system.loadFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -38,7 +43,7 @@ export function AdminSystemTab() {
   // 점검 시작
   const handleStartMaintenance = async () => {
     if (!estimatedEndAt) {
-      alert('종료 예정 시간을 설정해주세요');
+      setToast({ message: t('admin.system.setEndTimeAlert'), type: 'error' });
       return;
     }
     try {
@@ -49,18 +54,18 @@ export function AdminSystemTab() {
         estimated_end_at: fromDateTimeLocalValue(estimatedEndAt),
       });
       setMaintenance(result);
-      alert('점검 모드가 시작되었습니다');
+      setToast({ message: t('admin.system.maintenanceStarted'), type: 'success' });
     } catch (err) {
       console.error('Failed to start maintenance:', err);
-      alert('점검 모드 시작에 실패했습니다');
+      setToast({ message: t('admin.system.maintenanceStartFailed'), type: 'error' });
     } finally {
       setIsSaving(false);
     }
   };
 
   // 점검 해제
-  const handleStopMaintenance = async () => {
-    if (!confirm('점검 모드를 즉시 해제하시겠습니까?')) return;
+  const handleStopConfirm = async () => {
+    setShowStopConfirm(false);
     try {
       setIsSaving(true);
       const result = await adminService.setMaintenanceMode({
@@ -71,10 +76,10 @@ export function AdminSystemTab() {
       setMaintenance(result);
       setMessage('');
       setEstimatedEndAt('');
-      alert('점검 모드가 해제되었습니다');
+      setToast({ message: t('admin.system.maintenanceStopped'), type: 'success' });
     } catch (err) {
       console.error('Failed to stop maintenance:', err);
-      alert('점검 모드 해제에 실패했습니다');
+      setToast({ message: t('admin.system.maintenanceStopFailed'), type: 'error' });
     } finally {
       setIsSaving(false);
     }
@@ -83,7 +88,7 @@ export function AdminSystemTab() {
   // 점검 연장
   const handleExtendMaintenance = async () => {
     if (!estimatedEndAt) {
-      alert('종료 예정 시간을 설정해주세요');
+      setToast({ message: t('admin.system.setEndTimeAlert'), type: 'error' });
       return;
     }
     try {
@@ -94,10 +99,10 @@ export function AdminSystemTab() {
         estimated_end_at: fromDateTimeLocalValue(estimatedEndAt),
       });
       setMaintenance(result);
-      alert('점검 시간이 변경되었습니다');
+      setToast({ message: t('admin.system.timeChanged'), type: 'success' });
     } catch (err) {
       console.error('Failed to extend maintenance:', err);
-      alert('점검 시간 변경에 실패했습니다');
+      setToast({ message: t('admin.system.timeChangeFailed'), type: 'error' });
     } finally {
       setIsSaving(false);
     }
@@ -121,11 +126,11 @@ export function AdminSystemTab() {
     const end = new Date(maintenance.estimated_end_at).getTime();
     const now = Date.now();
     const diff = end - now;
-    if (diff <= 0) return '종료 예정 시간이 지났습니다';
+    if (diff <= 0) return t('admin.system.endTimePassed');
     const hours = Math.floor(diff / (1000 * 60 * 60));
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    if (hours > 0) return `약 ${hours}시간 ${minutes}분 남음`;
-    return `약 ${minutes}분 남음`;
+    if (hours > 0) return t('admin.system.remainingHoursMinutes', { hours, minutes });
+    return t('admin.system.remainingMinutes', { minutes });
   };
 
   if (isLoading) {
@@ -141,7 +146,7 @@ export function AdminSystemTab() {
       <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-6 text-center">
         <p className="text-red-400">{error}</p>
         <button onClick={loadStatus} className="mt-4 px-4 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors">
-          다시 시도
+          {t('common.retry')}
         </button>
       </div>
     );
@@ -159,15 +164,15 @@ export function AdminSystemTab() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white mb-2">시스템 관리</h2>
-          <p className="text-slate-400">점검 모드 및 시스템 설정을 관리하세요</p>
+          <h2 className="text-2xl font-bold text-white mb-2">{t('admin.system.title')}</h2>
+          <p className="text-slate-400">{t('admin.system.subtitle')}</p>
         </div>
         <button
           onClick={loadStatus}
           className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 text-slate-300 rounded-xl hover:bg-white/10 transition-colors"
         >
           <RefreshCw className="h-4 w-4" />
-          새로고침
+          {t('admin.common.refresh')}
         </button>
       </div>
 
@@ -185,18 +190,18 @@ export function AdminSystemTab() {
           )}
           <div className="flex-1">
             <p className={`font-bold text-lg ${isActive ? 'text-red-400' : 'text-emerald-400'}`}>
-              {isActive ? '점검 모드 활성' : '정상 운영 중'}
+              {isActive ? t('admin.system.maintenanceActive') : t('admin.system.normalOperation')}
             </p>
             {isActive && maintenance.started_at && (
               <p className="text-sm text-slate-400 mt-1">
-                시작: {formatDateTime(maintenance.started_at)}
+                {t('admin.system.startedAt')}: {formatDateTime(maintenance.started_at)}
               </p>
             )}
           </div>
           {isActive && (
             <div className="text-right">
               <p className="text-sm text-red-400 font-medium">{getRemainingTime()}</p>
-              <p className="text-xs text-slate-500 mt-1">진행률 {Math.round(progress)}%</p>
+              <p className="text-xs text-slate-500 mt-1">{t('admin.system.progress')} {Math.round(progress)}%</p>
             </div>
           )}
         </div>
@@ -219,21 +224,21 @@ export function AdminSystemTab() {
         <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-4 md:p-6">
           <div className="flex items-center gap-2 mb-6">
             <Play className="h-5 w-5 text-bridge-accent" />
-            <h3 className="text-lg font-bold text-white">점검 시작</h3>
+            <h3 className="text-lg font-bold text-white">{t('admin.system.startMaintenance')}</h3>
           </div>
 
           <div className="space-y-5">
             {/* Message */}
             <div>
               <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1 block">
-                점검 안내 메시지 (선택)
+                {t('admin.system.maintenanceMessage')}
               </label>
               <textarea
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 rows={2}
                 className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all resize-none"
-                placeholder="시스템 점검 중입니다. 잠시 후 다시 시도해주세요."
+                placeholder={t('admin.system.maintenancePlaceholder')}
               />
             </div>
 
@@ -241,7 +246,7 @@ export function AdminSystemTab() {
             <div>
               <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1 block">
                 <Clock className="h-3 w-3 inline mr-1" />
-                종료 예정 시간 (필수)
+                {t('admin.system.estimatedEndTime')}
               </label>
               <input
                 type="datetime-local"
@@ -258,7 +263,7 @@ export function AdminSystemTab() {
               className="w-full py-3 rounded-xl font-bold transition-all bg-red-500 text-white hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               <Play className="h-4 w-4" />
-              {isSaving ? '시작 중...' : '점검 시작'}
+              {isSaving ? t('admin.system.starting') : t('admin.system.startMaintenance')}
             </button>
           </div>
         </div>
@@ -269,27 +274,27 @@ export function AdminSystemTab() {
         <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-4 md:p-6">
           <div className="flex items-center gap-2 mb-6">
             <Timer className="h-5 w-5 text-orange-400" />
-            <h3 className="text-lg font-bold text-white">점검 관리</h3>
+            <h3 className="text-lg font-bold text-white">{t('admin.system.manageMaintenance')}</h3>
           </div>
 
           <div className="space-y-5">
             {/* Current Info */}
             <div className="p-4 bg-white/5 rounded-xl space-y-2">
               <div className="flex justify-between text-sm">
-                <span className="text-slate-400">시작 시간</span>
+                <span className="text-slate-400">{t('admin.system.startTime')}</span>
                 <span className="text-white">
                   {formatDateTime(maintenance.started_at)}
                 </span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-slate-400">종료 예정</span>
+                <span className="text-slate-400">{t('admin.system.estimatedEnd')}</span>
                 <span className="text-white">
                   {formatDateTime(maintenance.estimated_end_at)}
                 </span>
               </div>
               {maintenance.message && (
                 <div className="pt-2 border-t border-white/10">
-                  <span className="text-slate-400 text-sm">메시지: </span>
+                  <span className="text-slate-400 text-sm">{t('admin.system.messageLabel')}: </span>
                   <span className="text-white text-sm">{maintenance.message}</span>
                 </div>
               )}
@@ -299,7 +304,7 @@ export function AdminSystemTab() {
             <div>
               <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1 block">
                 <Clock className="h-3 w-3 inline mr-1" />
-                종료 시간 변경
+                {t('admin.system.changeEndTime')}
               </label>
               <input
                 type="datetime-local"
@@ -312,14 +317,14 @@ export function AdminSystemTab() {
             {/* Message Update */}
             <div>
               <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1 block">
-                메시지 수정
+                {t('admin.system.editMessage')}
               </label>
               <textarea
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 rows={2}
                 className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all resize-none"
-                placeholder="시스템 점검 중입니다. 잠시 후 다시 시도해주세요."
+                placeholder={t('admin.system.maintenancePlaceholder')}
               />
             </div>
 
@@ -335,19 +340,38 @@ export function AdminSystemTab() {
                 } disabled:opacity-50`}
               >
                 <Timer className="h-4 w-4" />
-                {isSaving ? '저장 중...' : '변경 저장'}
+                {isSaving ? t('admin.system.saving') : t('admin.system.saveChanges')}
               </button>
               <button
-                onClick={handleStopMaintenance}
+                onClick={() => setShowStopConfirm(true)}
                 disabled={isSaving}
                 className="py-3 rounded-xl font-bold transition-all bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 <StopCircle className="h-4 w-4" />
-                {isSaving ? '해제 중...' : '즉시 해제'}
+                {isSaving ? t('admin.system.stopping') : t('admin.system.stopNow')}
               </button>
             </div>
           </div>
         </div>
+      )}
+
+      <ConfirmModal
+        isOpen={showStopConfirm}
+        title={t('admin.system.stopMaintenance')}
+        message={t('admin.system.confirmStopMaintenance')}
+        variant="danger"
+        confirmLabel={t('admin.system.stopNow')}
+        onConfirm={handleStopConfirm}
+        onCancel={() => setShowStopConfirm(false)}
+      />
+
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          isVisible={!!toast}
+          onClose={() => setToast(null)}
+        />
       )}
     </div>
   );

@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Users, Folder, CreditCard, TrendingUp } from 'lucide-react';
 import { adminService } from '../../utils/services';
 import { AdminStatistics } from '../../utils/api';
 
 export function AdminDashboardTab() {
+  const { t } = useTranslation();
   const [statistics, setStatistics] = useState<AdminStatistics | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -20,7 +22,7 @@ export function AdminDashboardTab() {
       setStatistics(data);
     } catch (err) {
       console.error('Failed to load statistics:', err);
-      setError('통계를 불러오는데 실패했습니다');
+      setError(t('admin.dashboard.loadFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -42,7 +44,7 @@ export function AdminDashboardTab() {
           onClick={loadStatistics}
           className="mt-4 px-4 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors"
         >
-          다시 시도
+          {t('common.retry')}
         </button>
       </div>
     );
@@ -54,15 +56,15 @@ export function AdminDashboardTab() {
 
   const statCards = [
     {
-      label: '전체 사용자',
+      label: t('admin.dashboard.totalUsers'),
       value: statistics.total_users,
-      subValue: `활성: ${statistics.active_users}`,
+      subValue: t('admin.dashboard.active', { count: statistics.active_users }),
       icon: Users,
       color: 'text-bridge-accent',
       bgColor: 'bg-bridge-accent/10',
     },
     {
-      label: '전체 보드',
+      label: t('admin.dashboard.totalBoards'),
       value: statistics.total_boards,
       subValue: null,
       icon: Folder,
@@ -70,7 +72,7 @@ export function AdminDashboardTab() {
       bgColor: 'bg-bridge-secondary/10',
     },
     {
-      label: '활성 구독',
+      label: t('admin.dashboard.activeSubscriptions'),
       value: statistics.active_subscriptions,
       subValue: null,
       icon: CreditCard,
@@ -90,8 +92,8 @@ export function AdminDashboardTab() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white mb-2">대시보드</h2>
-        <p className="text-slate-400">시스템 전체 현황을 확인하세요</p>
+        <h2 className="text-2xl font-bold text-white mb-2">{t('admin.dashboard.title')}</h2>
+        <p className="text-slate-400">{t('admin.dashboard.subtitle')}</p>
       </div>
 
       {/* Stats Grid */}
@@ -121,7 +123,7 @@ export function AdminDashboardTab() {
       <div className="bg-bridge-obsidian rounded-xl border border-white/15 p-4 md:p-6">
         <div className="flex items-center gap-2 mb-6">
           <TrendingUp className="h-5 w-5 text-bridge-accent" />
-          <h3 className="text-lg font-bold text-white">보드 티어 분포</h3>
+          <h3 className="text-lg font-bold text-white">{t('admin.dashboard.tierDistribution')}</h3>
         </div>
 
         <div className="space-y-4">

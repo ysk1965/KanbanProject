@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { User, CreditCard, LogOut, Settings as SettingsIcon, ChevronDown } from 'lucide-react';
 import { getInitials, getAssigneeHex } from '../utils/assigneeColor';
 
@@ -21,6 +22,7 @@ export function UserMenu({ user, assigneeColor, onOpenSubscription, onOpenSettin
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -82,7 +84,7 @@ export function UserMenu({ user, assigneeColor, onOpenSubscription, onOpenSettin
               className="w-full px-4 py-2 flex items-center gap-3 hover:bg-white/5 transition-colors text-muted-foreground hover:text-foreground"
             >
               <User className="h-4 w-4" />
-              <span>내 정보</span>
+              <span>{t('user.myInfo')}</span>
             </button>
 
             <button
@@ -93,7 +95,7 @@ export function UserMenu({ user, assigneeColor, onOpenSubscription, onOpenSettin
               className="w-full px-4 py-2 flex items-center gap-3 hover:bg-white/5 transition-colors text-muted-foreground hover:text-foreground"
             >
               <SettingsIcon className="h-4 w-4" />
-              <span>설정</span>
+              <span>{t('user.settings')}</span>
             </button>
 
             {!hideBilling && (
@@ -105,7 +107,7 @@ export function UserMenu({ user, assigneeColor, onOpenSubscription, onOpenSettin
                 className="w-full px-4 py-2 flex items-center gap-3 hover:bg-white/5 transition-colors text-muted-foreground hover:text-foreground"
               >
                 <CreditCard className="h-4 w-4" />
-                <span>구독 관리</span>
+                <span>{t('user.subscription')}</span>
               </button>
             )}
           </div>
@@ -120,7 +122,7 @@ export function UserMenu({ user, assigneeColor, onOpenSubscription, onOpenSettin
               className="w-full px-4 py-2 flex items-center gap-3 hover:bg-red-600/20 transition-colors text-red-400 hover:text-red-300"
             >
               <LogOut className="h-4 w-4" />
-              <span>로그아웃</span>
+              <span>{t('user.logout')}</span>
             </button>
           </div>
         </div>

@@ -1,25 +1,34 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { MessageSquare, Clock, Loader2, CheckCircle2, AlertCircle, Send, ChevronLeft, Paperclip, X } from 'lucide-react';
 import { adminService } from '../../utils/services';
 import type { InquirySummary, InquiryDetail, InquiryStatus, InquiryListResponse } from '../../types';
 import { formatDate } from '../../utils/dateUtils';
+import type { TFunction } from 'i18next';
 
-const STATUS_CONFIG: Record<InquiryStatus, { label: string; color: string; bgColor: string }> = {
-  PENDING: { label: '대기중', color: 'text-yellow-400', bgColor: 'bg-yellow-400/10' },
-  IN_PROGRESS: { label: '진행중', color: 'text-blue-400', bgColor: 'bg-blue-400/10' },
-  RESOLVED: { label: '해결됨', color: 'text-green-400', bgColor: 'bg-green-400/10' },
-  CLOSED: { label: '종료', color: 'text-slate-400', bgColor: 'bg-slate-400/10' },
-};
+function getStatusConfig(t: TFunction): Record<InquiryStatus, { label: string; color: string; bgColor: string }> {
+  return {
+    PENDING: { label: t('admin.inquiries.statusPending'), color: 'text-yellow-400', bgColor: 'bg-yellow-400/10' },
+    IN_PROGRESS: { label: t('admin.inquiries.statusInProgress'), color: 'text-blue-400', bgColor: 'bg-blue-400/10' },
+    RESOLVED: { label: t('admin.inquiries.statusResolved'), color: 'text-green-400', bgColor: 'bg-green-400/10' },
+    CLOSED: { label: t('admin.inquiries.statusClosed'), color: 'text-slate-400', bgColor: 'bg-slate-400/10' },
+  };
+}
 
-const STATUS_OPTIONS: { value: string; label: string }[] = [
-  { value: '', label: '전체' },
-  { value: 'PENDING', label: '대기중' },
-  { value: 'IN_PROGRESS', label: '진행중' },
-  { value: 'RESOLVED', label: '해결됨' },
-  { value: 'CLOSED', label: '종료' },
-];
+function getStatusOptions(t: TFunction): { value: string; label: string }[] {
+  return [
+    { value: '', label: t('common.all') },
+    { value: 'PENDING', label: t('admin.inquiries.statusPending') },
+    { value: 'IN_PROGRESS', label: t('admin.inquiries.statusInProgress') },
+    { value: 'RESOLVED', label: t('admin.inquiries.statusResolved') },
+    { value: 'CLOSED', label: t('admin.inquiries.statusClosed') },
+  ];
+}
 
 export function AdminInquiriesTab() {
+  const { t } = useTranslation();
+  const STATUS_CONFIG = getStatusConfig(t);
+  const STATUS_OPTIONS = getStatusOptions(t);
   const [inquiries, setInquiries] = useState<InquirySummary[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
@@ -45,7 +54,7 @@ export function AdminInquiriesTab() {
       setTotal(data.total);
     } catch (err) {
       console.error('Failed to load inquiries:', err);
-      setError('문의 목록을 불러오는데 실패했습니다');
+      setError(t('admin.inquiries.loadFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -111,8 +120,8 @@ export function AdminInquiriesTab() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h2 className="text-2xl font-bold text-white mb-2">문의 관리</h2>
-        <p className="text-slate-400">사용자 문의사항을 확인하고 답변할 수 있습니다</p>
+        <h2 className="text-2xl font-bold text-white mb-2">{t('admin.inquiries.title')}</h2>
+        <p className="text-slate-400">{t('admin.inquiries.subtitle')}</p>
       </div>
 
       {/* Filters */}
@@ -145,13 +154,13 @@ export function AdminInquiriesTab() {
             onClick={loadInquiries}
             className="px-4 py-2 bg-bridge-accent text-white rounded-lg text-sm hover:bg-bridge-accent/90 transition-colors"
           >
-            다시 시도
+            {t('common.retry')}
           </button>
         </div>
       ) : inquiries.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 gap-3">
           <MessageSquare size={48} className="text-slate-600" />
-          <p className="text-slate-400">문의가 없습니다</p>
+          <p className="text-slate-400">{t('admin.inquiries.noInquiries')}</p>
         </div>
       ) : (
         <>
@@ -160,11 +169,11 @@ export function AdminInquiriesTab() {
             <table className="w-full min-w-[640px]">
               <thead>
                 <tr className="border-b border-white/5">
-                  <th className="text-left px-3 py-3 md:px-6 md:py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest">제목</th>
-                  <th className="text-left px-3 py-3 md:px-6 md:py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest">작성자</th>
-                  <th className="text-left px-3 py-3 md:px-6 md:py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest">상태</th>
-                  <th className="text-left px-3 py-3 md:px-6 md:py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest">답변</th>
-                  <th className="text-left px-3 py-3 md:px-6 md:py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest">날짜</th>
+                  <th className="text-left px-3 py-3 md:px-6 md:py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('admin.inquiries.subject')}</th>
+                  <th className="text-left px-3 py-3 md:px-6 md:py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('admin.inquiries.author')}</th>
+                  <th className="text-left px-3 py-3 md:px-6 md:py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('admin.inquiries.status')}</th>
+                  <th className="text-left px-3 py-3 md:px-6 md:py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('admin.inquiries.replies')}</th>
+                  <th className="text-left px-3 py-3 md:px-6 md:py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('admin.inquiries.date')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -198,7 +207,7 @@ export function AdminInquiriesTab() {
                         </span>
                       </td>
                       <td className="px-3 py-3 md:px-6 md:py-4">
-                        <span className="text-slate-400 text-sm">{inquiry.reply_count}건</span>
+                        <span className="text-slate-400 text-sm">{t('admin.inquiries.replyCount', { count: inquiry.reply_count })}</span>
                       </td>
                       <td className="px-3 py-3 md:px-6 md:py-4">
                         <span className="text-slate-500 text-sm">
@@ -220,7 +229,7 @@ export function AdminInquiriesTab() {
                 disabled={page === 0}
                 className="px-3 py-1.5 bg-white/5 text-slate-400 rounded-lg text-sm hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                이전
+                {t('common.previous')}
               </button>
               <span className="text-slate-400 text-sm px-3">
                 {page + 1} / {Math.ceil(total / 20)}
@@ -230,7 +239,7 @@ export function AdminInquiriesTab() {
                 disabled={(page + 1) * 20 >= total}
                 className="px-3 py-1.5 bg-white/5 text-slate-400 rounded-lg text-sm hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                다음
+                {t('common.next')}
               </button>
             </div>
           )}
@@ -259,6 +268,9 @@ function InquiryDetailPanel({
   onStatusChange: (status: string) => void;
   onBack: () => void;
 }) {
+  const { t } = useTranslation();
+  const STATUS_CONFIG = getStatusConfig(t);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -279,7 +291,7 @@ function InquiryDetailPanel({
         >
           <ChevronLeft size={20} />
         </button>
-        <h2 className="text-2xl font-bold text-white">문의 상세</h2>
+        <h2 className="text-2xl font-bold text-white">{t('admin.inquiries.detail')}</h2>
       </div>
 
       {/* Inquiry Info Card */}
@@ -298,7 +310,7 @@ function InquiryDetailPanel({
                 <span className="text-slate-600 text-sm">({inquiry.user?.email})</span>
               </div>
               <span className="text-slate-500 text-sm">
-                {formatDate(inquiry.created_at, 'yyyy년 M월 d일 HH:mm')}
+                {formatDate(inquiry.created_at, t('admin.common.dateTimeFormat'))}
               </span>
             </div>
           </div>
@@ -309,10 +321,10 @@ function InquiryDetailPanel({
             onChange={e => onStatusChange(e.target.value)}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium border-0 outline-none cursor-pointer ${statusConfig.color} ${statusConfig.bgColor}`}
           >
-            <option value="PENDING">대기중</option>
-            <option value="IN_PROGRESS">진행중</option>
-            <option value="RESOLVED">해결됨</option>
-            <option value="CLOSED">종료</option>
+            <option value="PENDING">{t('admin.inquiries.statusPending')}</option>
+            <option value="IN_PROGRESS">{t('admin.inquiries.statusInProgress')}</option>
+            <option value="RESOLVED">{t('admin.inquiries.statusResolved')}</option>
+            <option value="CLOSED">{t('admin.inquiries.statusClosed')}</option>
           </select>
         </div>
 
@@ -322,7 +334,7 @@ function InquiryDetailPanel({
 
         {inquiry.attachments.length > 0 && (
           <div className="space-y-2">
-            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">첨부파일</p>
+            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('admin.inquiries.attachments')}</p>
             <div className="flex flex-wrap gap-2">
               {inquiry.attachments.map(att => (
                 <a
@@ -344,7 +356,7 @@ function InquiryDetailPanel({
       {/* Replies */}
       {inquiry.replies.length > 0 && (
         <div className="space-y-3">
-          <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">답변 내역</h4>
+          <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('admin.inquiries.replyHistory')}</h4>
           {inquiry.replies.map(reply => (
             <div key={reply.id} className="bg-bridge-accent/10 border border-bridge-accent/20 rounded-xl p-4">
               <div className="flex items-center gap-2 mb-2">
@@ -355,7 +367,7 @@ function InquiryDetailPanel({
                 </div>
                 <span className="text-white text-sm font-medium">{reply.admin?.name}</span>
                 <span className="text-slate-500 text-xs">
-                  {formatDate(reply.created_at, 'yyyy년 M월 d일 HH:mm')}
+                  {formatDate(reply.created_at, t('admin.common.dateTimeFormat'))}
                 </span>
               </div>
               <p className="text-slate-300 text-sm whitespace-pre-wrap leading-relaxed">{reply.content}</p>
@@ -366,11 +378,11 @@ function InquiryDetailPanel({
 
       {/* Reply Form */}
       <div className="bg-bridge-obsidian rounded-xl border border-white/5 p-3 md:p-4 space-y-3">
-        <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">답변 작성</h4>
+        <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('admin.inquiries.writeReply')}</h4>
         <textarea
           value={replyContent}
           onChange={e => onReplyContentChange(e.target.value)}
-          placeholder="답변 내용을 입력해주세요"
+          placeholder={t('admin.inquiries.replyPlaceholder')}
           rows={4}
           className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all resize-none"
           maxLength={5000}
@@ -386,7 +398,7 @@ function InquiryDetailPanel({
             ) : (
               <Send size={16} />
             )}
-            답변 보내기
+            {t('admin.inquiries.sendReply')}
           </button>
         </div>
       </div>
