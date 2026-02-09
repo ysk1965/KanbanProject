@@ -2685,7 +2685,7 @@ export const adminAPI = {
 
   // 소유권 이전
   transferBoardOwnership: async (boardId: string, newOwnerId: string) => {
-    return apiClient.post<AdminBoardDetail>(`/admin/boards/${boardId}/transfer-ownership`, { newOwnerId });
+    return apiClient.post<AdminBoardDetail>(`/admin/boards/${boardId}/transfer-ownership`, { new_owner_id: newOwnerId });
   },
 
   // Trial 기간 연장
