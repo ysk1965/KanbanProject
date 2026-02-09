@@ -735,9 +735,10 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
 
       {/* 이미지 라이트박스 - Portal로 body에 렌더링 (모달 transform 영향 회피) */}
       {lightboxUrl && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/30 cursor-pointer"
-          onClick={() => setLightboxUrl(null)}>
-          <button onClick={() => setLightboxUrl(null)}
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm cursor-pointer"
+          onMouseDown={e => e.stopPropagation()}
+          onClick={(e) => { e.stopPropagation(); setLightboxUrl(null); }}>
+          <button onClick={(e) => { e.stopPropagation(); setLightboxUrl(null); }}
             className="absolute top-4 right-4 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors">
             <X className="h-5 w-5" />
           </button>

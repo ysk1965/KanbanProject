@@ -678,6 +678,14 @@ export const taskService = {
     }
   },
 
+  saveBaseline: async (boardId: string): Promise<void> => {
+    await taskAPI.saveBaseline(boardId);
+  },
+
+  clearBaseline: async (boardId: string): Promise<void> => {
+    await taskAPI.clearBaseline(boardId);
+  },
+
   addTag: async (boardId: string, taskId: string, tagId: string): Promise<Tag[]> => {
     try {
       const tags = await taskAPI.addTag(boardId, taskId, tagId);

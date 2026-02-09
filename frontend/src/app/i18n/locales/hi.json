@@ -1566,7 +1566,10 @@
     "dueSoon": "जल्द देय",
     "overdue": "अतिदेय",
     "noFeatures": "कोई Feature नहीं",
-    "noLinkedFeatures": "कोई लिंक्ड Feature नहीं"
+    "noLinkedFeatures": "कोई लिंक्ड Feature नहीं",
+    "saveBaseline": "बेसलाइन सहेजें",
+    "showBaseline": "बेसलाइन",
+    "baselineSaved": "बेसलाइन सहेजी गई"
   },
   "management": {
     "statusOnTrack": "सही दिशा में",
@@ -2034,6 +2037,15 @@
     "aiExistingFeature": "Existing Feature",
     "aiNewFeature": "New Feature",
     "aiApplySuccess": "Created {{features}} features, {{tasks}} tasks, {{checklists}} checklists.",
-    "aiApplyDone": "Done"
+    "aiApplyDone": "Done",
+    "transcript": "ट्रांसक्रिप्ट",
+    "startRecording": "रिकॉर्डिंग शुरू करें",
+    "stopRecording": "रिकॉर्डिंग बंद करें",
+    "transcribe": "ट्रांसक्राइब करें",
+    "transcribing": "ऑडियो ट्रांसक्राइब हो रहा है...",
+    "transcriptPlaceholder": "रिकॉर्ड करें और ट्रांसक्राइब करें, या सीधे टाइप करें...",
+    "microphoneAccessDenied": "माइक्रोफ़ोन एक्सेस अस्वीकृत। कृपया ब्राउज़र सेटिंग्स में माइक्रोफ़ोन की अनुमति दें।",
+    "transcriptFileTooLarge": "रिकॉर्डिंग 25MB से अधिक है। कृपया छोटी क्लिप रिकॉर्ड करें।",
+    "transcriptionError": "ट्रांसक्रिप्शन विफल। कृपया पुनः प्रयास करें।"
   }
 }

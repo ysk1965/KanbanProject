@@ -37,6 +37,7 @@ interface WeeklyScheduleViewProps {
   onViewFeature?: (featureId: string) => void;
   onViewTask?: (taskId: string) => void;
   onUpdateTaskDates?: (taskId: string, startDate: string, endDate: string) => void;
+  onSaveBaseline?: () => Promise<void>;
 }
 
 // 각 날짜 열의 픽셀 너비
@@ -100,10 +101,14 @@ export function WeeklyScheduleView({
   onViewFeature,
   onViewTask,
   onUpdateTaskDates,
+  onSaveBaseline,
 }: WeeklyScheduleViewProps) {
   const { t } = useTranslation();
   // 일/주 보기 모드
   const [viewMode, setViewMode] = useState<ScheduleViewMode>('day');
+
+  // Baseline 비교 표시 상태
+  const [showBaseline, setShowBaseline] = useState(false);
 
   // 시작/종료 날짜 (기본값: 오늘 기준 7일 전 ~ 30일 후)
   const [rangeStartDate, setRangeStartDate] = useState(() => subDays(new Date(), 7));
@@ -472,6 +477,11 @@ export function WeeklyScheduleView({
     });
   };
 
+  // Baseline 데이터 존재 여부
+  const hasBaselineData = useMemo(() => {
+    return tasks.some(t => t.baseline_start_date || t.baseline_due_date);
+  }, [tasks]);
+
   // Feature별 Task 그룹화
   const featureTaskMap = useMemo(() => {
     const map = new Map<string, Task[]>();
@@ -618,6 +628,105 @@ export function WeeklyScheduleView({
     }
   };
 
+  // Baseline 바 위치 계산 (Task)
+  const calculateBaselineBarPosition = (task: Task) => {
+    const baselineStart = task.baseline_start_date ? parseLocalDate(task.baseline_start_date) : null;
+    const baselineEnd = task.baseline_due_date ? parseLocalDate(task.baseline_due_date) : null;
+
+    if (!baselineStart && !baselineEnd) return null;
+
+    const rangeStart = rangeStartDate;
+    const rangeEnd = days[days.length - 1];
+
+    const effectiveStart = baselineStart || baselineEnd!;
+    const effectiveEnd = baselineEnd || baselineStart!;
+
+    if (isAfter(effectiveStart, rangeEnd) || isBefore(effectiveEnd, rangeStart)) {
+      return null;
+    }
+
+    const displayStart = isBefore(effectiveStart, rangeStart) ? rangeStart : effectiveStart;
+    const displayEnd = isAfter(effectiveEnd, rangeEnd) ? rangeEnd : effectiveEnd;
+
+    if (viewMode === 'day') {
+      const startOffset = differenceInDays(displayStart, rangeStart);
+      const duration = differenceInDays(displayEnd, displayStart) + 1;
+      return {
+        left: startOffset * DAY_WIDTH,
+        width: duration * DAY_WIDTH - 4,
+      };
+    } else {
+      const startWeekIndex = weeks.findIndex((week) =>
+        isWithinInterval(displayStart, { start: week.start, end: week.end }) ||
+        isBefore(displayStart, week.start) && isAfter(displayEnd, week.start)
+      );
+      const endWeekIndex = weeks.findIndex((week) =>
+        isWithinInterval(displayEnd, { start: week.start, end: week.end })
+      );
+      if (startWeekIndex === -1 && endWeekIndex === -1) return null;
+      const effectiveStartWeek = startWeekIndex >= 0 ? startWeekIndex : 0;
+      const effectiveEndWeek = endWeekIndex >= 0 ? endWeekIndex : weeks.length - 1;
+      const weekSpan = effectiveEndWeek - effectiveStartWeek + 1;
+      return {
+        left: effectiveStartWeek * WEEK_WIDTH,
+        width: weekSpan * WEEK_WIDTH - 4,
+      };
+    }
+  };
+
+  // Baseline 바 위치 계산 (Feature - 하위 Task baseline 집계)
+  const calculateFeatureBaselineBarPosition = (featureId: string) => {
+    const featureTasks = featureTaskMap.get(featureId) || [];
+    let minStart: Date | null = null;
+    let maxEnd: Date | null = null;
+
+    featureTasks.forEach((task) => {
+      const bStart = task.baseline_start_date ? parseLocalDate(task.baseline_start_date) : null;
+      const bEnd = task.baseline_due_date ? parseLocalDate(task.baseline_due_date) : null;
+      if (bStart && (!minStart || isBefore(bStart, minStart))) minStart = bStart;
+      if (bEnd && (!maxEnd || isAfter(bEnd, maxEnd))) maxEnd = bEnd;
+    });
+
+    if (!minStart && !maxEnd) return null;
+
+    const rangeStart = rangeStartDate;
+    const rangeEnd = days[days.length - 1];
+    const effectiveStart = minStart || maxEnd!;
+    const effectiveEnd = maxEnd || minStart!;
+
+    if (isAfter(effectiveStart, rangeEnd) || isBefore(effectiveEnd, rangeStart)) {
+      return null;
+    }
+
+    const displayStart = isBefore(effectiveStart, rangeStart) ? rangeStart : effectiveStart;
+    const displayEnd = isAfter(effectiveEnd, rangeEnd) ? rangeEnd : effectiveEnd;
+
+    if (viewMode === 'day') {
+      const startOffset = differenceInDays(displayStart, rangeStart);
+      const duration = differenceInDays(displayEnd, displayStart) + 1;
+      return {
+        left: startOffset * DAY_WIDTH,
+        width: duration * DAY_WIDTH - 4,
+      };
+    } else {
+      const startWeekIndex = weeks.findIndex((week) =>
+        isWithinInterval(displayStart, { start: week.start, end: week.end }) ||
+        isBefore(displayStart, week.start) && isAfter(displayEnd, week.start)
+      );
+      const endWeekIndex = weeks.findIndex((week) =>
+        isWithinInterval(displayEnd, { start: week.start, end: week.end })
+      );
+      if (startWeekIndex === -1 && endWeekIndex === -1) return null;
+      const effectiveStartWeek = startWeekIndex >= 0 ? startWeekIndex : 0;
+      const effectiveEndWeek = endWeekIndex >= 0 ? endWeekIndex : weeks.length - 1;
+      const weekSpan = effectiveEndWeek - effectiveStartWeek + 1;
+      return {
+        left: effectiveStartWeek * WEEK_WIDTH,
+        width: weekSpan * WEEK_WIDTH - 4,
+      };
+    }
+  };
+
   // 오늘 표시선 위치 계산
   const getTodayLinePosition = () => {
     const today = new Date();
@@ -719,6 +828,30 @@ export function WeeklyScheduleView({
           >
             {t('weeklySchedule.today')}
           </button>
+
+          {/* Baseline 컨트롤 */}
+          <div className="flex items-center gap-1.5">
+            {hasBaselineData && (
+              <button
+                onClick={() => setShowBaseline(!showBaseline)}
+                className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
+                  showBaseline
+                    ? 'bg-bridge-accent/20 border-bridge-accent/50 text-bridge-accent'
+                    : 'bg-white/5 border-white/20 text-zinc-300 hover:bg-white/10'
+                }`}
+              >
+                {t('weeklySchedule.showBaseline')}
+              </button>
+            )}
+            {onSaveBaseline && (
+              <button
+                onClick={onSaveBaseline}
+                className="px-3 py-1.5 text-sm bg-white/5 border border-white/20 rounded-lg text-zinc-300 hover:bg-white/10 hover:text-white transition-colors"
+              >
+                {t('weeklySchedule.saveBaseline')}
+              </button>
+            )}
+          </div>
         </div>
         <div className="hidden md:flex items-center gap-2 text-xs text-zinc-400 shrink-0">
           <span className="inline-block w-3 h-3 bg-gray-400 rounded"></span> {t('weeklySchedule.notStarted')}
@@ -726,6 +859,11 @@ export function WeeklyScheduleView({
           <span className="inline-block w-3 h-3 bg-orange-500 rounded ml-2"></span> {t('weeklySchedule.dueSoon')}
           <span className="inline-block w-3 h-3 bg-red-500 rounded ml-2"></span> {t('weeklySchedule.overdue')}
           <span className="inline-block w-3 h-3 bg-green-500 rounded ml-2"></span> {t('common.completed')}
+          {showBaseline && (
+            <>
+              <span className="inline-block w-3 h-3 border-2 border-dashed border-white/30 bg-white/5 rounded ml-2"></span> {t('weeklySchedule.showBaseline')}
+            </>
+          )}
         </div>
       </div>
 
@@ -923,6 +1061,20 @@ export function WeeklyScheduleView({
                   <div key={feature.id}>
                     {/* Feature 바 행 */}
                     <div className="h-12 relative border-b border-kanban-border">
+                      {/* Feature Baseline 바 */}
+                      {showBaseline && (() => {
+                        const baselinePos = calculateFeatureBaselineBarPosition(feature.id);
+                        if (!baselinePos) return null;
+                        return (
+                          <div
+                            className="absolute top-1/2 -translate-y-1/2 h-3 rounded-sm border border-dashed border-white/20 bg-white/5 pointer-events-none"
+                            style={{
+                              left: baselinePos.left,
+                              width: baselinePos.width,
+                            }}
+                          />
+                        );
+                      })()}
                       {featureBarPosition && (
                         <div
                           className="absolute top-1/2 -translate-y-1/2 h-3 bg-gray-600/50 rounded-sm"
@@ -954,6 +1106,21 @@ export function WeeklyScheduleView({
 
                         return (
                           <div key={task.id} className="h-10 relative border-b border-kanban-border">
+                            {/* Task Baseline 바 */}
+                            {showBaseline && (() => {
+                              const baselinePos = calculateBaselineBarPosition(task);
+                              if (!baselinePos) return null;
+                              return (
+                                <div
+                                  className="absolute top-1/2 -translate-y-1/2 h-6 rounded border-2 border-dashed border-white/25 bg-white/5 pointer-events-none"
+                                  style={{
+                                    left: baselinePos.left,
+                                    width: baselinePos.width,
+                                    minWidth: 20,
+                                  }}
+                                />
+                              );
+                            })()}
                             {taskBarPosition && (
                               <div
                                 data-task-id={task.id}

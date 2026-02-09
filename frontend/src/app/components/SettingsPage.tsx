@@ -289,7 +289,8 @@ export function SettingsPage() {
           </div>
         </motion.section>
 
-        {/* Language Section */}
+        {/* Language Section - hidden on milkyway.pe.kr */}
+        {!window.location.hostname.endsWith('milkyway.pe.kr') && (
         <motion.section
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -332,6 +333,7 @@ export function SettingsPage() {
             ))}
           </div>
         </motion.section>
+        )}
 
         {/* Password Section - 구글 로그인 사용자에게는 표시하지 않음 */}
         {!isGoogleUser && (

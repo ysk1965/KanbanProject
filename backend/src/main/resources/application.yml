@@ -104,8 +104,8 @@ sentry:
 
 # Multipart
 spring.servlet.multipart:
-  max-file-size: 5MB
-  max-request-size: 25MB
+  max-file-size: 25MB
+  max-request-size: 50MB
 
 # AI Provider ("claude" or "openai")
 ai:

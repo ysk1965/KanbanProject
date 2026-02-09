@@ -23,6 +23,7 @@ public class MeetingResponse {
         private LocalTime startTime;
         private LocalTime endTime;
         private String memo;
+        private String transcript;
         private String color;
         private UserInfo createdBy;
         private List<ParticipantInfo> participants;
@@ -37,6 +38,7 @@ public class MeetingResponse {
                     .startTime(meeting.getStartTime())
                     .endTime(meeting.getEndTime())
                     .memo(meeting.getMemo())
+                    .transcript(meeting.getTranscript())
                     .color(meeting.getColor())
                     .createdBy(UserInfo.of(meeting.getCreatedBy()))
                     .participants(participants.stream().map(ParticipantInfo::of).toList())
@@ -44,6 +46,14 @@ public class MeetingResponse {
                     .updatedAt(meeting.getUpdatedAt())
                     .build();
         }
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class TranscriptResult {
+        private String meetingId;
+        private String transcript;
     }
 
     @Getter

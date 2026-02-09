@@ -1582,7 +1582,10 @@
     "dueSoon": "即将到期",
     "overdue": "已逾期",
     "noFeatures": "无 Feature",
-    "noLinkedFeatures": "无关联 Feature"
+    "noLinkedFeatures": "无关联 Feature",
+    "saveBaseline": "保存基准线",
+    "showBaseline": "基准线",
+    "baselineSaved": "基准线已保存"
   },
   "management": {
     "statusOnTrack": "正常进行",
@@ -2050,6 +2053,15 @@
     "aiExistingFeature": "现有功能",
     "aiNewFeature": "新功能",
     "aiApplySuccess": "已创建{{features}}个功能、{{tasks}}个任务、{{checklists}}个清单。",
-    "aiApplyDone": "完成"
+    "aiApplyDone": "完成",
+    "transcript": "语音记录",
+    "startRecording": "开始录音",
+    "stopRecording": "停止录音",
+    "transcribe": "转为文字",
+    "transcribing": "正在将语音转为文字...",
+    "transcriptPlaceholder": "录音后转为文字，或直接输入...",
+    "microphoneAccessDenied": "麦克风访问被拒绝，请在浏览器设置中允许麦克风权限。",
+    "transcriptFileTooLarge": "录音文件超过25MB，请录制更短的内容。",
+    "transcriptionError": "语音转换失败，请重试。"
   }
 }

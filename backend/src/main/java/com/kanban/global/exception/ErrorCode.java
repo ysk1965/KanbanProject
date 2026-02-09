@@ -87,6 +87,11 @@ public enum ErrorCode {
     AI_MEETING_MEMO_EMPTY(HttpStatus.BAD_REQUEST, "AM001", "회의록 메모가 비어있습니다"),
     AI_MEETING_PARSE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "AM002", "AI 응답 파싱에 실패했습니다"),
 
+    // Transcription (STT)
+    TRANSCRIPTION_FILE_EMPTY(HttpStatus.BAD_REQUEST, "TR001", "음성 파일이 비어있습니다"),
+    TRANSCRIPTION_FILE_TOO_LARGE(HttpStatus.BAD_REQUEST, "TR002", "음성 파일이 25MB를 초과합니다"),
+    TRANSCRIPTION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "TR003", "음성 변환에 실패했습니다"),
+
     // Member
     MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, "M001", "멤버를 찾을 수 없습니다"),
     MEMBER_ALREADY_EXISTS(HttpStatus.CONFLICT, "M002", "이미 멤버입니다"),

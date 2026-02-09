@@ -1374,7 +1374,10 @@
     "dueSoon": "마감 임박",
     "overdue": "마감 초과",
     "noFeatures": "Feature가 없습니다",
-    "noLinkedFeatures": "연결된 Feature가 없습니다"
+    "noLinkedFeatures": "연결된 Feature가 없습니다",
+    "saveBaseline": "기준선 저장",
+    "showBaseline": "기준선",
+    "baselineSaved": "기준선이 저장되었습니다"
   },
   "management": {
     "statusOnTrack": "순조로움",
@@ -2095,6 +2098,15 @@
     "aiExistingFeature": "기존 피쳐",
     "aiNewFeature": "새 피쳐",
     "aiApplySuccess": "{{features}}개 피쳐, {{tasks}}개 태스크, {{checklists}}개 체크리스트가 생성되었습니다.",
-    "aiApplyDone": "완료"
+    "aiApplyDone": "완료",
+    "transcript": "음성 기록",
+    "startRecording": "녹음 시작",
+    "stopRecording": "녹음 중지",
+    "transcribe": "텍스트 변환",
+    "transcribing": "음성을 텍스트로 변환 중...",
+    "transcriptPlaceholder": "녹음 후 텍스트 변환을 하거나, 직접 입력하세요...",
+    "microphoneAccessDenied": "마이크 접근이 거부되었습니다. 브라우저 설정에서 마이크 권한을 허용해주세요.",
+    "transcriptFileTooLarge": "녹음 파일이 25MB를 초과합니다. 더 짧게 녹음해주세요.",
+    "transcriptionError": "음성 변환에 실패했습니다. 다시 시도해주세요."
   }
 }

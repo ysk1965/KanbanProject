@@ -1566,7 +1566,10 @@
     "dueSoon": "ใกล้กำหนด",
     "overdue": "เลยกำหนด",
     "noFeatures": "ไม่มี Feature",
-    "noLinkedFeatures": "ไม่มี Feature ที่เชื่อมโยง"
+    "noLinkedFeatures": "ไม่มี Feature ที่เชื่อมโยง",
+    "saveBaseline": "บันทึก Baseline",
+    "showBaseline": "Baseline",
+    "baselineSaved": "บันทึก Baseline แล้ว"
   },
   "management": {
     "statusOnTrack": "ตรงตามแผน",
@@ -2034,6 +2037,15 @@
     "aiExistingFeature": "Existing Feature",
     "aiNewFeature": "New Feature",
     "aiApplySuccess": "Created {{features}} features, {{tasks}} tasks, {{checklists}} checklists.",
-    "aiApplyDone": "Done"
+    "aiApplyDone": "Done",
+    "transcript": "บันทึกเสียง",
+    "startRecording": "เริ่มบันทึก",
+    "stopRecording": "หยุดบันทึก",
+    "transcribe": "แปลงเป็นข้อความ",
+    "transcribing": "กำลังแปลงเสียงเป็นข้อความ...",
+    "transcriptPlaceholder": "บันทึกเสียงแล้วแปลง หรือพิมพ์โดยตรง...",
+    "microphoneAccessDenied": "การเข้าถึงไมโครโฟนถูกปฏิเสธ กรุณาอนุญาตการเข้าถึงไมโครโฟนในการตั้งค่าเบราว์เซอร์",
+    "transcriptFileTooLarge": "ไฟล์บันทึกเสียงเกิน 25MB กรุณาบันทึกให้สั้นลง",
+    "transcriptionError": "การแปลงเสียงล้มเหลว กรุณาลองอีกครั้ง"
   }
 }

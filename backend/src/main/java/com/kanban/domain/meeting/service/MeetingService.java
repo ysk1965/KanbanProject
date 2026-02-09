@@ -136,6 +136,25 @@ public class MeetingService {
     }
 
     @Transactional
+    public MeetingResponse.TranscriptResult updateTranscript(
+            String boardId, String meetingId, String userId, String transcript) {
+        boardService.checkMemberOrAbove(boardId, userId);
+
+        Meeting meeting = meetingRepository.findById(meetingId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MEETING_NOT_FOUND));
+        if (!meeting.getBoard().getId().equals(boardId)) {
+            throw new BusinessException(ErrorCode.MEETING_NOT_FOUND);
+        }
+
+        meeting.updateTranscript(transcript);
+
+        return MeetingResponse.TranscriptResult.builder()
+                .meetingId(meetingId)
+                .transcript(meeting.getTranscript())
+                .build();
+    }
+
+    @Transactional
     public void notifyParticipants(String boardId, String meetingId, String userId) {
         boardService.checkMemberOrAbove(boardId, userId);
 
