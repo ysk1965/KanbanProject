@@ -1918,6 +1918,8 @@
     "checklists": "Checklists",
     "featuresLabel": "Features",
     "commentsLabel": "Comments",
+    "meetingsLabel": "Meetings",
+    "hasTranscript": "Transcript",
     "hours": "h",
     "completed": "Completed",
     "taskCount": "tasks",

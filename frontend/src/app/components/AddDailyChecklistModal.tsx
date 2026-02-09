@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import {
   featureAPI,
+  taskAPI,
   dailyChecklistAPI,
   boardAPI,
   milestoneAPI,
@@ -108,10 +109,11 @@ export function AddDailyChecklistModal({
           setSelectedMilestoneId(initialMilestoneId);
         }
 
-        // 2단계: Feature + Checklist 병렬 로드
+        // 2단계: Feature + Task + Checklist 병렬 로드
         const effectiveMilestoneId = selectedMilestoneId ?? initialMilestoneId;
-        const [featuresResponse, checklistsResponse] = await Promise.all([
+        const [featuresResponse, tasksResponse, checklistsResponse] = await Promise.all([
           featureAPI.getFeatures(boardId, effectiveMilestoneId || undefined),
+          taskAPI.getTasks(boardId, effectiveMilestoneId ? { milestone_id: effectiveMilestoneId } : undefined),
           boardChecklistAPI.getItems(boardId),
         ]);
 
@@ -142,37 +144,52 @@ export function AddDailyChecklistModal({
           featureGroup.get(item.task.id)!.push(item);
         });
 
-        // GroupedFeatureData 배열로 변환
+        // 마일스톤의 모든 Task를 Feature별로 그룹핑 (체크리스트 없는 Task도 포함)
+        const allTasks = tasksResponse.tasks.filter(t => featureIds.has(t.feature_id));
+        allTasks.forEach(task => {
+          if (!grouped.has(task.feature_id)) {
+            grouped.set(task.feature_id, new Map());
+          }
+          const featureGroup = grouped.get(task.feature_id)!;
+          if (!featureGroup.has(task.id)) {
+            featureGroup.set(task.id, []);
+          }
+        });
+
+        // GroupedFeatureData 배열로 변환 (모든 Feature/Task 포함)
         const result: GroupedFeatureData[] = [];
-        grouped.forEach((taskMap, featureId) => {
-          const feature = featureMap.get(featureId);
-          if (!feature) return;
 
+        // 마일스톤의 모든 Feature를 포함 (Task 유무 관계없이)
+        featuresResponse.features.forEach(feature => {
+          const taskMap = grouped.get(feature.id);
           const tasks: GroupedTaskData[] = [];
-          taskMap.forEach((checklistItems, taskId) => {
-            // Task 정보는 첫 번째 체크리스트 아이템에서 가져옴
-            const firstItem = checklistItems[0];
-            if (firstItem?.task) {
-              tasks.push({
-                task: {
-                  id: taskId,
-                  title: firstItem.task.title,
-                },
-                checklistItems,
-              });
-            }
-          });
 
-          if (tasks.length > 0) {
-            result.push({
-              feature: {
-                id: feature.id,
-                title: feature.title,
-                color: feature.color,
-              },
-              tasks,
+          if (taskMap) {
+            // Task 정보를 allTasks에서 찾아 매핑
+            const taskInfoMap = new Map(allTasks.filter(t => t.feature_id === feature.id).map(t => [t.id, t]));
+
+            taskMap.forEach((checklistItems, taskId) => {
+              const taskInfo = taskInfoMap.get(taskId);
+              const firstItem = checklistItems[0];
+              const taskTitle = taskInfo?.title || firstItem?.task?.title || '';
+
+              if (taskTitle) {
+                tasks.push({
+                  task: { id: taskId, title: taskTitle },
+                  checklistItems,
+                });
+              }
             });
           }
+
+          result.push({
+            feature: {
+              id: feature.id,
+              title: feature.title,
+              color: feature.color,
+            },
+            tasks,
+          });
         });
 
         setGroupedData(result);
@@ -272,51 +289,66 @@ export function AddDailyChecklistModal({
     setNewItemTitle('');
   };
 
-  // Task를 "내가 포함된 Task" vs "내가 포함 안 된 Task"로 분류
+  // Task를 "내가 포함된 Task" vs "다른 Task"로 분류
   const { myTasksFeaturesData, othersTasksFeaturesData } = useMemo(() => {
     const query = searchQuery.toLowerCase().trim();
 
-    // Task별로 분류하는 함수
-    const classifyTasks = (hasMyItems: boolean) => {
-      return groupedData
-        .map((featureData) => ({
-          ...featureData,
-          tasks: featureData.tasks
-            .map((taskData) => {
-              // 미완료 체크리스트만 필터링
-              const uncompletedItems = taskData.checklistItems.filter(
-                (item) => !item.completed
-              );
-              // 검색어 필터 적용
-              const filteredItems = query
-                ? uncompletedItems.filter((item) =>
-                    item.title.toLowerCase().includes(query)
-                  )
-                : uncompletedItems;
-              // 내가 담당자인 항목이 있는지 확인
-              const hasMyItem = filteredItems.some(
-                (item) => item.assignee?.id === assigneeId
-              );
-              return {
-                ...taskData,
-                checklistItems: filteredItems,
-                hasMyItem,
-              };
-            })
-            // 조건에 맞는 Task만 필터링
-            .filter(
-              (taskData) =>
-                taskData.checklistItems.length > 0 &&
-                taskData.hasMyItem === hasMyItems
-            ),
-        }))
-        .filter((featureData) => featureData.tasks.length > 0);
-    };
+    // 모든 Task를 필터링/변환
+    const allProcessed = groupedData
+      .map((featureData) => ({
+        ...featureData,
+        tasks: featureData.tasks.map((taskData) => {
+          // 미완료 체크리스트만 필터링
+          const uncompletedItems = taskData.checklistItems.filter(
+            (item) => !item.completed
+          );
+          // 검색어 필터 적용
+          const filteredItems = query
+            ? uncompletedItems.filter((item) =>
+                item.title.toLowerCase().includes(query)
+              )
+            : uncompletedItems;
+          // 내가 담당자인 항목이 있는지 확인
+          const hasMyItem = filteredItems.some(
+            (item) => item.assignee?.id === assigneeId
+          );
+          // 체크리스트가 없는 Task도 표시 (검색 시 Task 제목 매칭)
+          const hasNoChecklist = taskData.checklistItems.length === 0;
+          const matchesSearch = !query || taskData.task.title.toLowerCase().includes(query);
 
-    return {
-      myTasksFeaturesData: classifyTasks(true),
-      othersTasksFeaturesData: classifyTasks(false),
-    };
+          return {
+            ...taskData,
+            checklistItems: filteredItems,
+            hasMyItem,
+            hasNoChecklist,
+            matchesSearch,
+          };
+        }),
+      }));
+
+    // "내가 포함된 Task" 분류
+    const myTasksFeaturesData = allProcessed
+      .map((featureData) => ({
+        ...featureData,
+        tasks: featureData.tasks.filter(
+          (taskData) => taskData.checklistItems.length > 0 && taskData.hasMyItem
+        ),
+      }))
+      .filter((featureData) => featureData.tasks.length > 0);
+
+    // "다른 Task" 분류 (체크리스트 없는 Task 포함)
+    const othersTasksFeaturesData = allProcessed
+      .map((featureData) => ({
+        ...featureData,
+        tasks: featureData.tasks.filter(
+          (taskData) =>
+            (taskData.checklistItems.length > 0 && !taskData.hasMyItem) ||
+            (taskData.hasNoChecklist && taskData.matchesSearch)
+        ),
+      }))
+      .filter((featureData) => featureData.tasks.length > 0);
+
+    return { myTasksFeaturesData, othersTasksFeaturesData };
   }, [groupedData, searchQuery, assigneeId]);
 
 
@@ -405,7 +437,7 @@ export function AddDailyChecklistModal({
                     <div className="w-2 h-2 rounded-full bg-bridge-accent" />
                     <h3 className="text-sm font-bold text-white">{t('dailyChecklist.myTasks')}</h3>
                     <span className="text-xs text-slate-400">
-                      ({myTasksFeaturesData.reduce((acc, f) => acc + f.tasks.reduce((a, t) => a + t.checklistItems.length, 0), 0)}개)
+                      ({myTasksFeaturesData.reduce((acc, f) => acc + f.tasks.length, 0)}개)
                     </span>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -610,7 +642,7 @@ export function AddDailyChecklistModal({
                     <div className="w-2 h-2 rounded-full bg-slate-500" />
                     <h3 className="text-sm font-bold text-slate-400">{t('dailyChecklist.otherTasks')}</h3>
                     <span className="text-xs text-slate-400">
-                      ({othersTasksFeaturesData.reduce((acc, f) => acc + f.tasks.reduce((a, t) => a + t.checklistItems.length, 0), 0)}개)
+                      ({othersTasksFeaturesData.reduce((acc, f) => acc + f.tasks.length, 0)}개)
                     </span>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

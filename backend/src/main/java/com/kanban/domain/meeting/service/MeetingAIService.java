@@ -69,6 +69,7 @@ public class MeetingAIService {
         return "openai".equals(provider) ? openaiMeetingModel : claudeMeetingModel;
     }
 
+    @Transactional
     public MeetingAIResponse.Suggestions generateSuggestions(String boardId, String meetingId, String userId) {
         boardService.checkMemberOrAbove(boardId, userId);
 
@@ -110,7 +111,17 @@ public class MeetingAIService {
         log.info("Generating AI suggestions for meeting: {} in board: {}", meetingId, boardId);
         String aiResponse = aiProvider.chat(systemPrompt, userPrompt, getMeetingModel(), MAX_TOKENS_MEETING);
 
-        return parseAIResponse(aiResponse, meetingId, meeting.getTitle());
+        MeetingAIResponse.Suggestions suggestions = parseAIResponse(aiResponse, meetingId, meeting.getTitle());
+
+        // Save AI suggestions to meeting for persistence
+        try {
+            String suggestionsJson = objectMapper.writeValueAsString(suggestions);
+            meeting.updateAiSuggestions(suggestionsJson);
+        } catch (JsonProcessingException e) {
+            log.warn("Failed to serialize AI suggestions for meeting: {}", meetingId, e);
+        }
+
+        return suggestions;
     }
 
     @Transactional

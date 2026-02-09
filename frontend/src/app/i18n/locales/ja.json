@@ -1841,6 +1841,8 @@
     "checklists": "チェックリスト",
     "featuresLabel": "Feature",
     "commentsLabel": "コメント",
+    "meetingsLabel": "ミーティング",
+    "hasTranscript": "文字起こし",
     "hours": "h",
     "completed": "完了",
     "taskCount": "件",

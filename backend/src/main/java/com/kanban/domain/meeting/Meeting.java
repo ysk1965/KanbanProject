@@ -47,6 +47,9 @@ public class Meeting {
     @Column(name = "transcript", columnDefinition = "TEXT")
     private String transcript;
 
+    @Column(name = "ai_suggestions", columnDefinition = "TEXT")
+    private String aiSuggestions;
+
     @Column(name = "color", length = 7)
     @Builder.Default
     private String color = "#8B5CF6";
@@ -87,5 +90,9 @@ public class Meeting {
 
     public void updateTranscript(String transcript) {
         this.transcript = transcript;
+    }
+
+    public void updateAiSuggestions(String aiSuggestions) {
+        this.aiSuggestions = aiSuggestions;
     }
 }

@@ -924,16 +924,29 @@ export interface WeeklyReport {
   created_at: string;
 }
 
+export interface ReportMeeting {
+  title: string;
+  date: string;
+  start_time?: string;
+  end_time?: string;
+  memo?: string;
+  has_transcript: boolean;
+  participants: string[];
+  created_by?: string; // only in team reports
+}
+
 export interface PersonalReportData {
   board_name: string;
   period: { start: string; end: string };
   user_name: string;
   features: PersonalReportFeature[];
+  meetings?: ReportMeeting[];
   summary: {
     total_minutes: number;
     completed_checklists: number;
     total_checklists: number;
     total_comments: number;
+    total_meetings?: number;
   };
 }
 
@@ -1024,6 +1037,7 @@ export interface TeamReportData {
     content: string;
     created_at: string;
   }>;
+  meetings?: ReportMeeting[];
 }
 
 export interface WeeklyReportListItem {
