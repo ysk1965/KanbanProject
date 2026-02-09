@@ -18,7 +18,9 @@ import com.kanban.domain.invite.InviteLinkRepository;
 import com.kanban.domain.milestone.MilestoneAllocationRepository;
 import com.kanban.domain.milestone.MilestoneFeatureRepository;
 import com.kanban.domain.milestone.MilestoneRepository;
+import com.kanban.domain.notification.NotificationPreferenceRepository;
 import com.kanban.domain.notification.NotificationRepository;
+import com.kanban.domain.report.ReportRepository;
 import com.kanban.domain.schedule.ScheduleBlockRepository;
 import com.kanban.domain.comment.CommentAttachment;
 import com.kanban.domain.subscription.PaymentHistoryRepository;
@@ -79,6 +81,8 @@ public class BoardService {
     private final PaymentHistoryRepository paymentHistoryRepository;
     private final MemberSlackWebhookRepository memberSlackWebhookRepository;
     private final DailyStandupConfigRepository dailyStandupConfigRepository;
+    private final NotificationPreferenceRepository notificationPreferenceRepository;
+    private final ReportRepository reportRepository;
     private final FileUploadService fileUploadService;
 
     @Transactional
@@ -236,9 +240,11 @@ public class BoardService {
         }
         commentAttachmentRepository.deleteByBoardId(boardId);
         commentRepository.deleteByBoardId(boardId);
+        notificationPreferenceRepository.deleteByBoardId(boardId);
         notificationRepository.deleteByBoardId(boardId);
         activityLogRepository.deleteByBoardId(boardId);
         inviteLinkRepository.deleteByBoardId(boardId);
+        reportRepository.deleteByBoardId(boardId);
 
         // 7) Task → Feature → Block 순서
         taskRepository.deleteByBoardId(boardId);
@@ -289,9 +295,11 @@ public class BoardService {
         }
         commentAttachmentRepository.deleteByBoardId(boardId);
         commentRepository.deleteByBoardId(boardId);
+        notificationPreferenceRepository.deleteByBoardId(boardId);
         notificationRepository.deleteByBoardId(boardId);
         activityLogRepository.deleteByBoardId(boardId);
         inviteLinkRepository.deleteByBoardId(boardId);
+        reportRepository.deleteByBoardId(boardId);
 
         taskRepository.deleteByBoardId(boardId);
         featureRepository.deleteByBoardId(boardId);
