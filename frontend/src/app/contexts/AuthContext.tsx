@@ -156,7 +156,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const isEmailVerified = currentUser?.email_verified ?? false;
   const isAdmin = currentUser?.system_role === 'ADMIN';
-  const isTester = currentUser?.system_role === 'TESTER';
+  const isTester = currentUser?.system_role === 'TESTER' || isDomainBillingHidden; // TESTER 또는 milkyway.pe.kr 도메인
   const hideBilling = isTester || isAdmin || isDomainBillingHidden; // TESTER, ADMIN, 특정 도메인은 과금 UI 숨김
 
   return (
