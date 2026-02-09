@@ -18,6 +18,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -31,6 +32,9 @@ public class SecurityConfig {
 
     @org.springframework.beans.factory.annotation.Value("${app.frontend-url:http://localhost:5173}")
     private String frontendUrl;
+
+    @org.springframework.beans.factory.annotation.Value("${app.testprod-frontend-url:}")
+    private String testprodFrontendUrl;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -71,7 +75,11 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of(frontendUrl, "https://bridgespots.com", "https://www.bridgespots.com", "http://localhost:5173", "http://localhost:5174", "http://localhost:3000"));
+        List<String> origins = new ArrayList<>(List.of(frontendUrl, "https://bridgespots.com", "https://www.bridgespots.com", "http://localhost:5173", "http://localhost:5174", "http://localhost:3000"));
+        if (testprodFrontendUrl != null && !testprodFrontendUrl.isBlank()) {
+            origins.add(testprodFrontendUrl);
+        }
+        configuration.setAllowedOrigins(origins);
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);

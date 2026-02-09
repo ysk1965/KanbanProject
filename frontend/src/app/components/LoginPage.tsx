@@ -163,15 +163,6 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
         <div className="absolute -top-20 -right-20 w-40 h-40 bg-[#2DD4BF] opacity-[0.04] blur-[60px] rounded-full"></div>
         <div className="absolute -bottom-16 -left-16 w-32 h-32 bg-[#6366F1] opacity-[0.05] blur-[50px] rounded-full"></div>
 
-        {/* Banner */}
-        <div className="mb-8 sm:mb-10 flex justify-center">
-          <img
-            src="/banner.png"
-            alt="BRIDGE SPOTS"
-            className="h-14 sm:h-[72px] object-contain drop-shadow-[0_0_20px_rgba(45,212,191,0.15)]"
-          />
-        </div>
-
         {/* Invite Banner */}
         {inviteInfo && (
           <div className="bg-gradient-to-r from-bridge-accent/20 to-bridge-secondary/20 border border-bridge-accent/30 rounded-2xl p-4 mb-8">
