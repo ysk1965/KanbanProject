@@ -63,7 +63,7 @@ public class MeetingAIService {
     @Value("${ai.openai.model.meeting:gpt-4o-mini}")
     private String openaiMeetingModel;
 
-    private static final int MAX_TOKENS_MEETING = 2048;
+    private static final int MAX_TOKENS_MEETING = 4096;
 
     private String getMeetingModel() {
         return "openai".equals(provider) ? openaiMeetingModel : claudeMeetingModel;
@@ -223,13 +223,18 @@ public class MeetingAIService {
     private String buildSystemPrompt() {
         return """
                 You are a project management assistant for the BRIDGE kanban tool.
-                You receive a meeting memo and a list of existing features/tasks on the board.
+                You receive a meeting memo/transcript and a list of existing features/tasks on the board.
 
-                Your job is to extract actionable items from the meeting memo and organize them
-                into the BRIDGE hierarchy: Feature → Task → Checklist items.
+                Your job is to:
+                1. Create a well-organized meeting summary grouped by work topics
+                2. Extract actionable items and organize them into Feature → Task → Checklist hierarchy
 
                 <rules>
-                - Map items to EXISTING features when the topic clearly matches
+                - First, organize the meeting content into clear topics grouped by work area
+                - Items mentioned multiple times or by multiple speakers are important (set important: true)
+                - Identify key decisions and conclusions as key_points
+                - Remove redundancy but preserve all unique information
+                - Map actionable items to EXISTING features when the topic clearly matches
                 - Create NEW features only when the topic is genuinely new
                 - Each task should be a concrete deliverable or work item
                 - Checklist items should be specific, actionable sub-steps
@@ -237,11 +242,19 @@ public class MeetingAIService {
                 - Descriptions should provide context from the meeting discussion
                 - Respond ONLY with valid JSON (no markdown code fences, no explanation text)
                 - Match the language of the meeting memo (Korean memo → Korean output, English → English)
-                - If there are no actionable items, return {"features": []}
+                - If there are no actionable items, still provide the summary and key_points
                 </rules>
 
                 <output_format>
                 {
+                  "key_points": ["Important decision or conclusion 1", "Important decision 2"],
+                  "summary": [
+                    {
+                      "topic": "Work area / Discussion topic name",
+                      "important": true,
+                      "points": ["Discussion point 1", "Discussion point 2"]
+                    }
+                  ],
                   "features": [
                     {
                       "type": "NEW" or "EXISTING",
@@ -319,55 +332,83 @@ public class MeetingAIService {
         try {
             String json = extractJson(aiResponse);
             JsonNode root = objectMapper.readTree(json);
-            JsonNode featuresNode = root.get("features");
 
-            if (featuresNode == null || !featuresNode.isArray()) {
-                return MeetingAIResponse.Suggestions.builder()
-                        .meetingId(meetingId)
-                        .meetingTitle(meetingTitle)
-                        .features(List.of())
-                        .build();
+            // Parse key_points
+            List<String> keyPoints = new ArrayList<>();
+            JsonNode keyPointsNode = root.get("key_points");
+            if (keyPointsNode != null && keyPointsNode.isArray()) {
+                for (JsonNode kp : keyPointsNode) {
+                    if (kp.isTextual()) keyPoints.add(kp.asText());
+                }
             }
 
-            List<MeetingAIResponse.FeatureSuggestion> features = new ArrayList<>();
-            for (JsonNode featureNode : featuresNode) {
-                List<MeetingAIResponse.TaskSuggestion> tasks = new ArrayList<>();
-                JsonNode tasksNode = featureNode.get("tasks");
-
-                if (tasksNode != null && tasksNode.isArray()) {
-                    for (JsonNode taskNode : tasksNode) {
-                        List<MeetingAIResponse.ChecklistSuggestion> checklists = new ArrayList<>();
-                        JsonNode checklistsNode = taskNode.get("checklists");
-
-                        if (checklistsNode != null && checklistsNode.isArray()) {
-                            for (JsonNode clNode : checklistsNode) {
-                                checklists.add(MeetingAIResponse.ChecklistSuggestion.builder()
-                                        .title(getTextOrNull(clNode, "title"))
-                                        .build());
-                            }
+            // Parse summary topics
+            List<MeetingAIResponse.SummaryTopic> summaryTopics = new ArrayList<>();
+            JsonNode summaryNode = root.get("summary");
+            if (summaryNode != null && summaryNode.isArray()) {
+                for (JsonNode topicNode : summaryNode) {
+                    List<String> points = new ArrayList<>();
+                    JsonNode pointsNode = topicNode.get("points");
+                    if (pointsNode != null && pointsNode.isArray()) {
+                        for (JsonNode p : pointsNode) {
+                            if (p.isTextual()) points.add(p.asText());
                         }
-
-                        tasks.add(MeetingAIResponse.TaskSuggestion.builder()
-                                .title(getTextOrNull(taskNode, "title"))
-                                .description(getTextOrNull(taskNode, "description"))
-                                .checklists(checklists)
-                                .build());
                     }
+                    boolean important = topicNode.has("important") && topicNode.get("important").asBoolean();
+                    summaryTopics.add(MeetingAIResponse.SummaryTopic.builder()
+                            .topic(getTextOrNull(topicNode, "topic"))
+                            .important(important)
+                            .points(points)
+                            .build());
                 }
+            }
 
-                features.add(MeetingAIResponse.FeatureSuggestion.builder()
-                        .type(getTextOrNull(featureNode, "type"))
-                        .featureId(getTextOrNull(featureNode, "feature_id"))
-                        .title(getTextOrNull(featureNode, "title"))
-                        .description(getTextOrNull(featureNode, "description"))
-                        .color(getTextOrNull(featureNode, "color"))
-                        .tasks(tasks)
-                        .build());
+            // Parse features
+            JsonNode featuresNode = root.get("features");
+            List<MeetingAIResponse.FeatureSuggestion> features = new ArrayList<>();
+
+            if (featuresNode != null && featuresNode.isArray()) {
+                for (JsonNode featureNode : featuresNode) {
+                    List<MeetingAIResponse.TaskSuggestion> tasks = new ArrayList<>();
+                    JsonNode tasksNode = featureNode.get("tasks");
+
+                    if (tasksNode != null && tasksNode.isArray()) {
+                        for (JsonNode taskNode : tasksNode) {
+                            List<MeetingAIResponse.ChecklistSuggestion> checklists = new ArrayList<>();
+                            JsonNode checklistsNode = taskNode.get("checklists");
+
+                            if (checklistsNode != null && checklistsNode.isArray()) {
+                                for (JsonNode clNode : checklistsNode) {
+                                    checklists.add(MeetingAIResponse.ChecklistSuggestion.builder()
+                                            .title(getTextOrNull(clNode, "title"))
+                                            .build());
+                                }
+                            }
+
+                            tasks.add(MeetingAIResponse.TaskSuggestion.builder()
+                                    .title(getTextOrNull(taskNode, "title"))
+                                    .description(getTextOrNull(taskNode, "description"))
+                                    .checklists(checklists)
+                                    .build());
+                        }
+                    }
+
+                    features.add(MeetingAIResponse.FeatureSuggestion.builder()
+                            .type(getTextOrNull(featureNode, "type"))
+                            .featureId(getTextOrNull(featureNode, "feature_id"))
+                            .title(getTextOrNull(featureNode, "title"))
+                            .description(getTextOrNull(featureNode, "description"))
+                            .color(getTextOrNull(featureNode, "color"))
+                            .tasks(tasks)
+                            .build());
+                }
             }
 
             return MeetingAIResponse.Suggestions.builder()
                     .meetingId(meetingId)
                     .meetingTitle(meetingTitle)
+                    .keyPoints(keyPoints)
+                    .summary(summaryTopics)
                     .features(features)
                     .build();
 

@@ -332,6 +332,26 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
     setPendingBlock(null);
   };
 
+  // 회의 선택 후 블록 생성
+  const handleMeetingSelect = async (meetingId: string) => {
+    if (!pendingBlock) return;
+
+    try {
+      await scheduleAPI.createBlock(boardId, {
+        meeting_id: meetingId,
+        assignee_id: pendingBlock.userId,
+        scheduled_date: format(selectedDate, 'yyyy-MM-dd'),
+        start_time: pendingBlock.startTime,
+        end_time: pendingBlock.endTime,
+      });
+      await loadSchedule();
+    } catch (error) {
+      console.error('Failed to create block with meeting:', error);
+    }
+    setShowChecklistModal(false);
+    setPendingBlock(null);
+  };
+
   // 체크리스트 모달 닫기
   const handleCloseChecklistModal = () => {
     setShowChecklistModal(false);
@@ -883,6 +903,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
           endBlockIndex={pendingBlock.endSlotIndex}
           onCreate={handleChecklistCreate}
           onSelectExisting={handleChecklistItemSelect}
+          onSelectMeeting={handleMeetingSelect}
           onClose={handleCloseChecklistModal}
         />
       )}

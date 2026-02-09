@@ -14,7 +14,18 @@ public class MeetingAIResponse {
     public static class Suggestions {
         private String meetingId;
         private String meetingTitle;
+        private List<String> keyPoints;
+        private List<SummaryTopic> summary;
         private List<FeatureSuggestion> features;
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class SummaryTopic {
+        private String topic;
+        private boolean important;
+        private List<String> points;
     }
 
     @Getter
