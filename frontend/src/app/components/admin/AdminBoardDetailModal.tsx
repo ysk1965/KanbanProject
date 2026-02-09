@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Folder, Users, ListTodo, Calendar, Trash2, Crown, Shield, User as UserIcon, Eye, ArrowRightLeft, CalendarPlus, AlertTriangle, Armchair } from 'lucide-react';
+import { X, Folder, Users, ListTodo, Calendar, Trash2, Crown, Shield, User as UserIcon, Eye, ArrowRightLeft, CalendarPlus, AlertTriangle, Armchair, ChevronDown } from 'lucide-react';
 import { adminService } from '../../utils/services';
 import { AdminBoardDetail } from '../../utils/api';
 import { formatDateTime, formatDate } from '../../utils/dateUtils';
@@ -218,6 +218,47 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
     }
   };
 
+  const ROLE_OPTIONS = ['ADMIN', 'MEMBER', 'VIEWER'] as const;
+
+  const handleRoleChange = (memberId: string, memberName: string, newRole: 'ADMIN' | 'MEMBER' | 'VIEWER') => {
+    if (!board) return;
+
+    setConfirmAction({
+      title: t('admin.boardDetail.changeRole'),
+      message: t('admin.boardDetail.confirmRoleChange', { name: memberName, role: newRole }),
+      onConfirm: async () => {
+        setConfirmAction(null);
+        try {
+          setIsUpdating(true);
+          const updated = await adminService.updateMemberRole(boardId, memberId, newRole);
+          setBoard(updated);
+          onUpdate();
+          setToast({ message: t('admin.boardDetail.roleChangeSuccess', { name: memberName, role: newRole }), type: 'success' });
+        } catch (err) {
+          console.error('Failed to update member role:', err);
+          setToast({ message: t('admin.boardDetail.roleChangeFailed'), type: 'error' });
+        } finally {
+          setIsUpdating(false);
+        }
+      },
+    });
+  };
+
+  const getRoleBadgeStyle = (role: string) => {
+    switch (role) {
+      case 'OWNER':
+        return 'bg-amber-500/20 text-amber-400';
+      case 'ADMIN':
+        return 'bg-purple-500/20 text-purple-400';
+      case 'MEMBER':
+        return 'bg-blue-500/20 text-blue-400';
+      case 'VIEWER':
+        return 'bg-slate-500/20 text-slate-400';
+      default:
+        return 'bg-slate-500/20 text-slate-400';
+    }
+  };
+
   const getRoleIcon = (role: string) => {
     switch (role) {
       case 'OWNER':
@@ -399,19 +440,28 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                             <p className="text-slate-400 text-sm">{member.email}</p>
                           </div>
                         </div>
-                        <span
-                          className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            member.role === 'OWNER'
-                              ? 'bg-amber-500/20 text-amber-400'
-                              : member.role === 'ADMIN'
-                              ? 'bg-purple-500/20 text-purple-400'
-                              : member.role === 'MEMBER'
-                              ? 'bg-blue-500/20 text-blue-400'
-                              : 'bg-slate-500/20 text-slate-400'
-                          }`}
-                        >
-                          {member.role}
-                        </span>
+                        {member.role === 'OWNER' ? (
+                          <span className="px-3 py-1 rounded-full text-xs font-medium bg-amber-500/20 text-amber-400">
+                            OWNER
+                          </span>
+                        ) : (
+                          <div className="relative">
+                            <select
+                              value={member.role}
+                              onChange={(e) => handleRoleChange(member.id, member.name, e.target.value as 'ADMIN' | 'MEMBER' | 'VIEWER')}
+                              disabled={isUpdating}
+                              className={`${getRoleBadgeStyle(member.role)} appearance-none pl-3 pr-7 py-1 rounded-full text-xs font-medium
+                                border-0 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 cursor-pointer disabled:opacity-50 transition-colors`}
+                            >
+                              {ROLE_OPTIONS.map((role) => (
+                                <option key={role} value={role} className="bg-bridge-dark text-white">
+                                  {role}
+                                </option>
+                              ))}
+                            </select>
+                            <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 h-3 w-3 pointer-events-none opacity-60" />
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>

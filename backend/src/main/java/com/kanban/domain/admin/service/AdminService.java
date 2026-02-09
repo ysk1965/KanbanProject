@@ -410,6 +410,32 @@ public class AdminService {
         return getBoard(boardId);
     }
 
+    @Transactional
+    public AdminResponse.BoardDetail updateMemberRole(String boardId, String memberId, AdminRequest.UpdateMemberRole request) {
+        boardRepository.findById(boardId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+
+        BoardMember boardMember = boardMemberRepository.findByBoardIdAndUserId(boardId, memberId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+
+        // OWNER 역할은 transferOwnership을 통해서만 변경 가능
+        if (boardMember.getRole() == BoardRole.OWNER) {
+            throw new BusinessException(ErrorCode.CANNOT_CHANGE_OWNER_ROLE);
+        }
+
+        // OWNER로 변경하려는 경우도 transferOwnership 사용
+        if (request.getRole() == BoardRole.OWNER) {
+            throw new BusinessException(ErrorCode.CANNOT_CHANGE_OWNER_ROLE);
+        }
+
+        boardMember.updateRole(request.getRole());
+
+        log.info("Board member role updated by admin: boardId={}, memberId={}, newRole={}",
+                boardId, memberId, request.getRole());
+
+        return getBoard(boardId);
+    }
+
     // ==================== Helper Methods ====================
 
     /**

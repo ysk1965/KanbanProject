@@ -2008,6 +2008,11 @@ export const adminService = {
     return adminAPI.extendTrial(boardId, extendDays);
   },
 
+  // 멤버 역할 변경
+  updateMemberRole: async (boardId: string, memberId: string, role: 'ADMIN' | 'MEMBER' | 'VIEWER'): Promise<AdminBoardDetail> => {
+    return adminAPI.updateMemberRole(boardId, memberId, role);
+  },
+
   // 시트 수 변경
   updateSeatCount: async (boardId: string, seatCount: number): Promise<AdminBoardDetail> => {
     return adminAPI.updateSeatCount(boardId, seatCount);
