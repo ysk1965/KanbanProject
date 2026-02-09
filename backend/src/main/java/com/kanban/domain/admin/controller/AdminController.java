@@ -187,6 +187,16 @@ public class AdminController {
         return ResponseEntity.ok(adminService.extendTrial(boardId, request));
     }
 
+    @PatchMapping("/boards/{boardId}/members/{memberId}/role")
+    public ResponseEntity<AdminResponse.BoardDetail> updateMemberRole(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable String boardId,
+            @PathVariable String memberId,
+            @Valid @RequestBody AdminRequest.UpdateMemberRole request) {
+        verifyAdminAccess(principal);
+        return ResponseEntity.ok(adminService.updateMemberRole(boardId, memberId, request));
+    }
+
     @PatchMapping("/boards/{boardId}/seat-count")
     public ResponseEntity<AdminResponse.BoardDetail> updateSeatCount(
             @AuthenticationPrincipal UserPrincipal principal,
