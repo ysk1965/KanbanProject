@@ -1,6 +1,7 @@
 package com.kanban.domain.admin.dto;
 
 import com.kanban.domain.announcement.AnnouncementType;
+import com.kanban.domain.board.BoardRole;
 import com.kanban.domain.board.BoardTier;
 import com.kanban.domain.user.SystemRole;
 import jakarta.validation.constraints.Min;
@@ -86,5 +87,13 @@ public class AdminRequest {
         private Boolean enabled;
         private String message;
         private LocalDateTime estimatedEndAt;
+    }
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class UpdateMemberRole {
+        @NotNull(message = "역할은 필수입니다")
+        private BoardRole role;
     }
 }

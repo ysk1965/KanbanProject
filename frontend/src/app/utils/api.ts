@@ -2693,6 +2693,11 @@ export const adminAPI = {
     return apiClient.patch<AdminBoardSummary>(`/admin/boards/${boardId}/extend-trial`, { extendDays });
   },
 
+  // 멤버 역할 변경
+  updateMemberRole: async (boardId: string, memberId: string, role: 'ADMIN' | 'MEMBER' | 'VIEWER') => {
+    return apiClient.patch<AdminBoardDetail>(`/admin/boards/${boardId}/members/${memberId}/role`, { role });
+  },
+
   // 시트 수 변경
   updateSeatCount: async (boardId: string, seatCount: number) => {
     return apiClient.patch<AdminBoardDetail>(`/admin/boards/${boardId}/seat-count`, { seat_count: seatCount });
