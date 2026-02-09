@@ -434,6 +434,8 @@ export interface TaskResponse {
   // v7.0: Task.assignee 제거 - ChecklistItem.assignee로 대체
   start_date: string | null;
   due_date: string | null;
+  baseline_start_date: string | null;
+  baseline_due_date: string | null;
   estimated_minutes: number | null;
   completed: boolean;
   position: number;
@@ -1028,6 +1030,14 @@ export const taskAPI = {
     return apiClient.delete<{ message: string }>(`/boards/${boardId}/tasks/${taskId}`);
   },
 
+  saveBaseline: async (boardId: string) => {
+    return apiClient.post<{ message: string }>(`/boards/${boardId}/tasks/save-baseline`);
+  },
+
+  clearBaseline: async (boardId: string) => {
+    return apiClient.delete<{ message: string }>(`/boards/${boardId}/tasks/baseline`);
+  },
+
   moveTask: async (
     boardId: string,
     taskId: string,
@@ -1536,11 +1546,17 @@ export interface MeetingDetail {
   start_time: string | null;
   end_time: string | null;
   memo: string | null;
+  transcript: string | null;
   color: string;
   created_by: { id: string; name: string; profile_image: string | null };
   participants: { id: string; name: string; profile_image: string | null }[];
   created_at: string;
   updated_at: string | null;
+}
+
+export interface TranscriptResult {
+  meeting_id: string;
+  transcript: string;
 }
 
 export interface AISuggestionResponse {
@@ -1891,6 +1907,44 @@ export const meetingAPI = {
 
   aiApply: async (boardId: string, meetingId: string, data: AIApplyRequest): Promise<AIApplyResult> => {
     return apiClient.post<AIApplyResult>(`/boards/${boardId}/meetings/${meetingId}/ai-apply`, data);
+  },
+
+  transcribeAudio: async (
+    boardId: string,
+    meetingId: string,
+    audioBlob: Blob
+  ): Promise<TranscriptResult> => {
+    const formData = new FormData();
+    formData.append('file', audioBlob, 'recording.webm');
+
+    const response = await authenticatedFetch(
+      `${API_BASE_URL}/boards/${boardId}/meetings/${meetingId}/transcribe`,
+      {
+        method: 'POST',
+        body: formData,
+      }
+    );
+
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({
+        code: 'UNKNOWN',
+        message: response.statusText,
+      }));
+      throw errData;
+    }
+
+    return response.json();
+  },
+
+  updateTranscript: async (
+    boardId: string,
+    meetingId: string,
+    transcript: string
+  ): Promise<TranscriptResult> => {
+    return apiClient.put<TranscriptResult>(
+      `/boards/${boardId}/meetings/${meetingId}/transcript`,
+      { transcript }
+    );
   },
 };
 

@@ -44,6 +44,9 @@ public class Meeting {
     @Column(name = "memo", columnDefinition = "TEXT")
     private String memo;
 
+    @Column(name = "transcript", columnDefinition = "TEXT")
+    private String transcript;
+
     @Column(name = "color", length = 7)
     @Builder.Default
     private String color = "#8B5CF6";
@@ -80,5 +83,9 @@ public class Meeting {
         this.endTime = endTime;
         if (memo != null) this.memo = memo;
         if (color != null) this.color = color;
+    }
+
+    public void updateTranscript(String transcript) {
+        this.transcript = transcript;
     }
 }

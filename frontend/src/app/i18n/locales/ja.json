@@ -1566,7 +1566,10 @@
     "dueSoon": "期限間近",
     "overdue": "期限超過",
     "noFeatures": "Feature なし",
-    "noLinkedFeatures": "リンクされた Feature なし"
+    "noLinkedFeatures": "リンクされた Feature なし",
+    "saveBaseline": "ベースライン保存",
+    "showBaseline": "ベースライン",
+    "baselineSaved": "ベースラインが保存されました"
   },
   "management": {
     "statusOnTrack": "順調",
@@ -2034,6 +2037,15 @@
     "aiExistingFeature": "既存フィーチャー",
     "aiNewFeature": "新規フィーチャー",
     "aiApplySuccess": "{{features}}件のフィーチャー、{{tasks}}件のタスク、{{checklists}}件のチェックリストを作成しました。",
-    "aiApplyDone": "完了"
+    "aiApplyDone": "完了",
+    "transcript": "音声記録",
+    "startRecording": "録音開始",
+    "stopRecording": "録音停止",
+    "transcribe": "テキスト変換",
+    "transcribing": "音声をテキストに変換中...",
+    "transcriptPlaceholder": "録音してテキスト変換するか、直接入力してください...",
+    "microphoneAccessDenied": "マイクへのアクセスが拒否されました。ブラウザ設定でマイクの権限を許可してください。",
+    "transcriptFileTooLarge": "録音ファイルが25MBを超えています。短く録音してください。",
+    "transcriptionError": "音声変換に失敗しました。もう一度お試しください。"
   }
 }

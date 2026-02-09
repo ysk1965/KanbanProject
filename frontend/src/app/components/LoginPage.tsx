@@ -7,7 +7,7 @@ import { Mail, Lock, User, Users, ArrowLeft, ArrowRight, Check, X } from 'lucide
 import { trackEvent } from '../contexts/AnalyticsContext';
 import { HeroScene } from './landing/BridgeScene';
 import { LanguageSwitcher } from './LanguageSwitcher';
-import { isGoogleOnlyLogin } from '../utils/domain';
+import { isGoogleOnlyLogin, isWhiteLabelDomain } from '../utils/domain';
 
 declare const __FE_COMMIT_HASH__: string;
 declare const __FE_BUILD_TIME__: string;
@@ -145,10 +145,12 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
         </button>
       )}
 
-      {/* Language Switcher */}
-      <div className="absolute top-4 right-4 md:top-8 md:right-8 z-10">
-        <LanguageSwitcher variant="compact" />
-      </div>
+      {/* Language Switcher - hidden on white-label domains */}
+      {!isWhiteLabelDomain && (
+        <div className="absolute top-4 right-4 md:top-8 md:right-8 z-10">
+          <LanguageSwitcher variant="compact" />
+        </div>
+      )}
 
       {/* Center Auth Form */}
       <motion.div

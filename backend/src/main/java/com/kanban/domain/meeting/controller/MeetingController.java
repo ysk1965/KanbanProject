@@ -6,6 +6,7 @@ import com.kanban.domain.meeting.dto.MeetingRequest;
 import com.kanban.domain.meeting.dto.MeetingResponse;
 import com.kanban.domain.meeting.service.MeetingAIService;
 import com.kanban.domain.meeting.service.MeetingService;
+import com.kanban.domain.meeting.service.MeetingTranscriptionService;
 import com.kanban.global.security.UserPrincipal;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +15,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -26,6 +28,7 @@ public class MeetingController {
 
     private final MeetingService meetingService;
     private final MeetingAIService meetingAIService;
+    private final MeetingTranscriptionService meetingTranscriptionService;
 
     @GetMapping
     public ResponseEntity<List<MeetingResponse.Summary>> getMeetingsByDate(
@@ -84,6 +87,31 @@ public class MeetingController {
             @AuthenticationPrincipal UserPrincipal principal) {
         meetingService.notifyParticipants(boardId, meetingId, principal.getUserId());
         return ResponseEntity.ok(Map.of("message", "회의록 알림을 보냈습니다"));
+    }
+
+    @PostMapping("/{meetingId}/transcribe")
+    public ResponseEntity<MeetingResponse.TranscriptResult> transcribeAudio(
+            @PathVariable String boardId,
+            @PathVariable String meetingId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestPart("file") MultipartFile audioFile) {
+        MeetingResponse.TranscriptResult result =
+                meetingTranscriptionService.transcribeAudio(
+                        boardId, meetingId, principal.getUserId(), audioFile);
+        return ResponseEntity.ok(result);
+    }
+
+    @PutMapping("/{meetingId}/transcript")
+    public ResponseEntity<MeetingResponse.TranscriptResult> updateTranscript(
+            @PathVariable String boardId,
+            @PathVariable String meetingId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestBody Map<String, String> body) {
+        MeetingResponse.TranscriptResult result =
+                meetingService.updateTranscript(
+                        boardId, meetingId, principal.getUserId(),
+                        body.get("transcript"));
+        return ResponseEntity.ok(result);
     }
 
     @PostMapping("/{meetingId}/ai-organize")

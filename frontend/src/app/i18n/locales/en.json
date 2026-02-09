@@ -1374,7 +1374,10 @@
     "dueSoon": "Due Soon",
     "overdue": "Overdue",
     "noFeatures": "No features",
-    "noLinkedFeatures": "No linked features"
+    "noLinkedFeatures": "No linked features",
+    "saveBaseline": "Save Baseline",
+    "showBaseline": "Baseline",
+    "baselineSaved": "Baseline saved"
   },
   "management": {
     "statusOnTrack": "On Track",
@@ -2095,6 +2098,15 @@
     "aiExistingFeature": "Existing Feature",
     "aiNewFeature": "New Feature",
     "aiApplySuccess": "Created {{features}} features, {{tasks}} tasks, {{checklists}} checklists.",
-    "aiApplyDone": "Done"
+    "aiApplyDone": "Done",
+    "transcript": "Transcript",
+    "startRecording": "Start Recording",
+    "stopRecording": "Stop Recording",
+    "transcribe": "Transcribe",
+    "transcribing": "Transcribing audio...",
+    "transcriptPlaceholder": "Record and transcribe, or type directly...",
+    "microphoneAccessDenied": "Microphone access denied. Please allow microphone permission in browser settings.",
+    "transcriptFileTooLarge": "Recording exceeds 25MB. Please record a shorter clip.",
+    "transcriptionError": "Transcription failed. Please try again."
   }
 }

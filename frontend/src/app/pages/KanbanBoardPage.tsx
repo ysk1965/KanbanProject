@@ -1555,6 +1555,15 @@ export function KanbanBoardPage() {
                 }
               }}
               selectedMilestoneId={kanbanSelectedMilestoneId}
+              onSaveBaseline={async () => {
+                try {
+                  await taskService.saveBaseline(boardId || '');
+                  const updatedTasks = await taskService.getTasks(boardId || '');
+                  setTasks(updatedTasks);
+                } catch (error) {
+                  console.error('Failed to save baseline:', error);
+                }
+              }}
             />
           </main>
         ) : viewMode === 'kanban' ? (

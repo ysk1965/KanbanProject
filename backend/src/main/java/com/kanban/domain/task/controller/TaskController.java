@@ -88,4 +88,20 @@ public class TaskController {
         TaskResponse.Detail response = taskService.updateTaskDates(boardId, taskId, principal.getUserId(), request);
         return ResponseEntity.ok(response);
     }
+
+    @PostMapping("/tasks/save-baseline")
+    public ResponseEntity<Map<String, String>> saveBaseline(
+            @PathVariable String boardId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        taskService.saveBaseline(boardId, principal.getUserId());
+        return ResponseEntity.ok(Map.of("message", "Baseline이 저장되었습니다"));
+    }
+
+    @DeleteMapping("/tasks/baseline")
+    public ResponseEntity<Map<String, String>> clearBaseline(
+            @PathVariable String boardId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        taskService.clearBaseline(boardId, principal.getUserId());
+        return ResponseEntity.ok(Map.of("message", "Baseline이 초기화되었습니다"));
+    }
 }

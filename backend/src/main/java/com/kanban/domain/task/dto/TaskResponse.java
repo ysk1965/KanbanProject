@@ -26,6 +26,8 @@ public class TaskResponse {
         private String title;
         private LocalDate startDate;
         private LocalDate dueDate;
+        private LocalDate baselineStartDate;
+        private LocalDate baselineDueDate;
         private Integer estimatedMinutes;
         private boolean completed;
         private Integer position;
@@ -44,6 +46,8 @@ public class TaskResponse {
                     .title(task.getTitle())
                     .startDate(task.getStartDate())
                     .dueDate(task.getDueDate())
+                    .baselineStartDate(task.getBaselineStartDate())
+                    .baselineDueDate(task.getBaselineDueDate())
                     .estimatedMinutes(task.getEstimatedMinutes())
                     .completed(task.getIsCompleted())
                     .position(task.getPosition())
@@ -68,6 +72,8 @@ public class TaskResponse {
         private String description;
         private LocalDate startDate;
         private LocalDate dueDate;
+        private LocalDate baselineStartDate;
+        private LocalDate baselineDueDate;
         private Integer estimatedMinutes;
         private boolean completed;
         private Integer position;
@@ -89,6 +95,8 @@ public class TaskResponse {
                     .description(task.getDescription())
                     .startDate(task.getStartDate())
                     .dueDate(task.getDueDate())
+                    .baselineStartDate(task.getBaselineStartDate())
+                    .baselineDueDate(task.getBaselineDueDate())
                     .estimatedMinutes(task.getEstimatedMinutes())
                     .completed(task.getIsCompleted())
                     .position(task.getPosition())

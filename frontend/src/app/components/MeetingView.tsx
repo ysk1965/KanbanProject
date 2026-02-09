@@ -1,11 +1,85 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Bell, Trash2, ChevronDown, ChevronUp, Users, X, Loader2, Sparkles } from 'lucide-react';
+import { Plus, Bell, Trash2, ChevronDown, ChevronUp, Users, X, Loader2, Sparkles, Mic, Square, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import { meetingAPI, MeetingSummary, MeetingDetail } from '../utils/api';
 import { BoardMember } from './ShareBoardModal';
 import { getInitials, getAssigneeHex } from '../utils/assigneeColor';
 import MeetingAISuggestionModal from './MeetingAISuggestionModal';
+
+// ============================
+// Audio Recorder Hook
+// ============================
+
+function formatDuration(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+}
+
+function useAudioRecorder() {
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingDuration, setRecordingDuration] = useState(0);
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const startRecording = async () => {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+      ? 'audio/webm;codecs=opus'
+      : 'audio/webm';
+    const mediaRecorder = new MediaRecorder(stream, { mimeType });
+
+    chunksRef.current = [];
+    mediaRecorder.ondataavailable = (e) => {
+      if (e.data.size > 0) chunksRef.current.push(e.data);
+    };
+    mediaRecorder.onstop = () => {
+      const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+      setAudioBlob(blob);
+      stream.getTracks().forEach((t) => t.stop());
+    };
+
+    mediaRecorder.start(1000);
+    mediaRecorderRef.current = mediaRecorder;
+    setIsRecording(true);
+    setRecordingDuration(0);
+    setAudioBlob(null);
+
+    timerRef.current = setInterval(() => {
+      setRecordingDuration((d) => d + 1);
+    }, 1000);
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current?.state === 'recording') {
+      mediaRecorderRef.current.stop();
+    }
+    setIsRecording(false);
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+
+  const clearRecording = () => {
+    setAudioBlob(null);
+    setRecordingDuration(0);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (mediaRecorderRef.current?.state === 'recording') {
+        mediaRecorderRef.current.stop();
+      }
+    };
+  }, []);
+
+  return { isRecording, recordingDuration, audioBlob, startRecording, stopRecording, clearRecording };
+}
 
 const MEETING_COLORS = ['#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#3B82F6', '#EF4444', '#6366F1', '#14B8A6'];
 
@@ -23,8 +97,13 @@ export function MeetingView({ boardId, selectedDate, boardMembers, onRefreshSche
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [meetingDetails, setMeetingDetails] = useState<Record<string, MeetingDetail>>({});
   const [editingMemo, setEditingMemo] = useState<Record<string, string>>({});
+  const [editingTranscript, setEditingTranscript] = useState<Record<string, string>>({});
+  const [isTranscribing, setIsTranscribing] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showAIModal, setShowAIModal] = useState<string | null>(null);
+
+  const { isRecording, recordingDuration, audioBlob, startRecording, stopRecording, clearRecording } = useAudioRecorder();
+  const hasMicSupport = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
 
   const loadMeetings = useCallback(async () => {
     if (!boardId) return;
@@ -49,6 +128,7 @@ export function MeetingView({ boardId, selectedDate, boardMembers, onRefreshSche
       const detail = await meetingAPI.getMeetingDetail(boardId, meetingId);
       setMeetingDetails(prev => ({ ...prev, [meetingId]: detail }));
       setEditingMemo(prev => ({ ...prev, [meetingId]: detail.memo || '' }));
+      setEditingTranscript(prev => ({ ...prev, [meetingId]: detail.transcript || '' }));
     } catch (error) {
       console.error('Failed to load meeting detail:', error);
     }
@@ -98,6 +178,51 @@ export function MeetingView({ boardId, selectedDate, boardMembers, onRefreshSche
       alert(t('meeting.notifySuccess'));
     } catch (error) {
       console.error('Failed to notify participants:', error);
+    }
+  };
+
+  const handleStartRecording = async () => {
+    try {
+      await startRecording();
+    } catch {
+      alert(t('meeting.microphoneAccessDenied'));
+    }
+  };
+
+  const handleTranscribe = async (meetingId: string) => {
+    if (!audioBlob) return;
+    if (audioBlob.size > 25 * 1024 * 1024) {
+      alert(t('meeting.transcriptFileTooLarge'));
+      return;
+    }
+    setIsTranscribing(true);
+    try {
+      const result = await meetingAPI.transcribeAudio(boardId, meetingId, audioBlob);
+      setMeetingDetails(prev => ({
+        ...prev,
+        [meetingId]: { ...prev[meetingId], transcript: result.transcript },
+      }));
+      setEditingTranscript(prev => ({ ...prev, [meetingId]: result.transcript }));
+      clearRecording();
+    } catch (error) {
+      console.error('Transcription failed:', error);
+      alert(t('meeting.transcriptionError'));
+    } finally {
+      setIsTranscribing(false);
+    }
+  };
+
+  const handleTranscriptSave = async (meetingId: string) => {
+    const transcript = editingTranscript[meetingId];
+    if (transcript === undefined) return;
+    try {
+      await meetingAPI.updateTranscript(boardId, meetingId, transcript);
+      setMeetingDetails(prev => ({
+        ...prev,
+        [meetingId]: { ...prev[meetingId], transcript },
+      }));
+    } catch (error) {
+      console.error('Failed to save transcript:', error);
     }
   };
 
@@ -234,9 +359,83 @@ export function MeetingView({ boardId, selectedDate, boardMembers, onRefreshSche
                           />
                         </div>
 
+                        {/* Transcript */}
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                            {t('meeting.transcript')}
+                          </label>
+
+                          {/* Recording Controls */}
+                          {hasMicSupport && (
+                            <div className="flex items-center gap-2 mb-2">
+                              {!isRecording ? (
+                                <button
+                                  onClick={handleStartRecording}
+                                  disabled={isTranscribing}
+                                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-red-400 bg-red-500/10 rounded-lg hover:bg-red-500/20 transition-colors disabled:opacity-50"
+                                >
+                                  <Mic className="h-3.5 w-3.5" />
+                                  {t('meeting.startRecording')}
+                                </button>
+                              ) : (
+                                <>
+                                  <div className="flex items-center gap-2 px-3 py-2 bg-red-500/10 rounded-lg">
+                                    <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                                    <span className="text-xs text-red-400 font-mono">
+                                      {formatDuration(recordingDuration)}
+                                    </span>
+                                  </div>
+                                  <button
+                                    onClick={stopRecording}
+                                    className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors"
+                                  >
+                                    <Square className="h-3 w-3" />
+                                    {t('meeting.stopRecording')}
+                                  </button>
+                                </>
+                              )}
+
+                              {audioBlob && !isTranscribing && (
+                                <button
+                                  onClick={() => handleTranscribe(meeting.id)}
+                                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-bridge-secondary bg-bridge-secondary/10 rounded-lg hover:bg-bridge-secondary/20 transition-colors"
+                                >
+                                  <FileText className="h-3.5 w-3.5" />
+                                  {t('meeting.transcribe')}
+                                </button>
+                              )}
+
+                              {isTranscribing && (
+                                <div className="flex items-center gap-1.5 px-3 py-2 text-xs text-slate-400">
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  {t('meeting.transcribing')}
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {audioBlob && audioBlob.size > 24 * 1024 * 1024 && (
+                            <p className="text-xs text-amber-400 mb-2">
+                              {t('meeting.transcriptFileTooLarge')}
+                            </p>
+                          )}
+
+                          <textarea
+                            value={editingTranscript[meeting.id] ?? detail.transcript ?? ''}
+                            onChange={e =>
+                              setEditingTranscript(prev => ({ ...prev, [meeting.id]: e.target.value }))
+                            }
+                            onBlur={() => handleTranscriptSave(meeting.id)}
+                            placeholder={t('meeting.transcriptPlaceholder')}
+                            rows={4}
+                            className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all resize-none"
+                          />
+                        </div>
+
                         {/* Actions */}
                         <div className="flex items-center gap-2 pt-1">
-                          {(editingMemo[meeting.id]?.trim() || detail.memo?.trim()) && (
+                          {(editingMemo[meeting.id]?.trim() || detail.memo?.trim() ||
+                            editingTranscript[meeting.id]?.trim() || detail.transcript?.trim()) && (
                             <button
                               onClick={() => setShowAIModal(meeting.id)}
                               className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-bridge-secondary bg-bridge-secondary/10 rounded-lg hover:bg-bridge-secondary/20 transition-colors"

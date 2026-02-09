@@ -264,6 +264,8 @@ export interface Task {
   // v7.0: Task.assignee 제거 - ChecklistItem.assignee로 대체
   start_date: string | null;  // 시작일 (위클리 스케줄용)
   due_date: string | null;
+  baseline_start_date: string | null;
+  baseline_due_date: string | null;
   estimated_minutes: number | null;
   completed: boolean;
   position: number;

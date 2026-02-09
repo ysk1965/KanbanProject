@@ -80,7 +80,17 @@ public class MeetingAIService {
         }
 
         String memo = meeting.getMemo();
-        if (memo == null || memo.isBlank()) {
+        String transcript = meeting.getTranscript();
+
+        String combinedContent = "";
+        if (memo != null && !memo.isBlank()) {
+            combinedContent += memo;
+        }
+        if (transcript != null && !transcript.isBlank()) {
+            if (!combinedContent.isEmpty()) combinedContent += "\n\n---\n\n";
+            combinedContent += "[Transcript]\n" + transcript;
+        }
+        if (combinedContent.isBlank()) {
             throw new BusinessException(ErrorCode.AI_MEETING_MEMO_EMPTY);
         }
 
@@ -95,7 +105,7 @@ public class MeetingAIService {
 
         String boardContext = buildBoardContextJson(existingFeatures, featureTasksMap);
         String systemPrompt = buildSystemPrompt();
-        String userPrompt = buildUserPrompt(meeting.getTitle(), memo, boardContext);
+        String userPrompt = buildUserPrompt(meeting.getTitle(), combinedContent, boardContext);
 
         log.info("Generating AI suggestions for meeting: {} in board: {}", meetingId, boardId);
         String aiResponse = aiProvider.chat(systemPrompt, userPrompt, getMeetingModel(), MAX_TOKENS_MEETING);

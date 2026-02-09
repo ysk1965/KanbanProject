@@ -49,6 +49,12 @@ public class Task extends BaseTimeEntity {
     @Column(name = "due_date")
     private LocalDate dueDate;
 
+    @Column(name = "baseline_start_date")
+    private LocalDate baselineStartDate;
+
+    @Column(name = "baseline_due_date")
+    private LocalDate baselineDueDate;
+
     @Column(name = "estimated_minutes")
     private Integer estimatedMinutes;
 
@@ -121,5 +127,15 @@ public class Task extends BaseTimeEntity {
             this.isCompleted = false;
             this.completedAt = null;
         }
+    }
+
+    public void saveBaseline() {
+        this.baselineStartDate = this.startDate;
+        this.baselineDueDate = this.dueDate;
+    }
+
+    public void clearBaseline() {
+        this.baselineStartDate = null;
+        this.baselineDueDate = null;
     }
 }

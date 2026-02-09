@@ -1566,7 +1566,10 @@
     "dueSoon": "Próximo a vencer",
     "overdue": "Vencido",
     "noFeatures": "Sin Features",
-    "noLinkedFeatures": "Sin Features vinculados"
+    "noLinkedFeatures": "Sin Features vinculados",
+    "saveBaseline": "Guardar línea base",
+    "showBaseline": "Línea base",
+    "baselineSaved": "Línea base guardada"
   },
   "management": {
     "statusOnTrack": "En camino",
@@ -2034,6 +2037,15 @@
     "aiExistingFeature": "Existing Feature",
     "aiNewFeature": "New Feature",
     "aiApplySuccess": "Created {{features}} features, {{tasks}} tasks, {{checklists}} checklists.",
-    "aiApplyDone": "Done"
+    "aiApplyDone": "Done",
+    "transcript": "Transcripción",
+    "startRecording": "Iniciar grabación",
+    "stopRecording": "Detener grabación",
+    "transcribe": "Transcribir",
+    "transcribing": "Transcribiendo audio...",
+    "transcriptPlaceholder": "Grabe y transcriba, o escriba directamente...",
+    "microphoneAccessDenied": "Acceso al micrófono denegado. Permita el acceso al micrófono en la configuración del navegador.",
+    "transcriptFileTooLarge": "La grabación supera los 25MB. Grabe un clip más corto.",
+    "transcriptionError": "Error en la transcripción. Inténtelo de nuevo."
   }
 }

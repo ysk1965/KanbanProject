@@ -1566,7 +1566,10 @@
     "dueSoon": "Sap den han",
     "overdue": "Qua han",
     "noFeatures": "Khong co feature",
-    "noLinkedFeatures": "Khong co feature lien ket"
+    "noLinkedFeatures": "Khong co feature lien ket",
+    "saveBaseline": "Luu Baseline",
+    "showBaseline": "Baseline",
+    "baselineSaved": "Da luu Baseline"
   },
   "management": {
     "statusOnTrack": "Dung tien do",
@@ -2034,6 +2037,15 @@
     "aiExistingFeature": "Existing Feature",
     "aiNewFeature": "New Feature",
     "aiApplySuccess": "Created {{features}} features, {{tasks}} tasks, {{checklists}} checklists.",
-    "aiApplyDone": "Done"
+    "aiApplyDone": "Done",
+    "transcript": "Bản ghi âm",
+    "startRecording": "Bắt đầu ghi",
+    "stopRecording": "Dừng ghi",
+    "transcribe": "Chuyển thành văn bản",
+    "transcribing": "Đang chuyển âm thanh thành văn bản...",
+    "transcriptPlaceholder": "Ghi âm và chuyển đổi, hoặc nhập trực tiếp...",
+    "microphoneAccessDenied": "Quyền truy cập micrô bị từ chối. Vui lòng cho phép quyền truy cập micrô trong cài đặt trình duyệt.",
+    "transcriptFileTooLarge": "Bản ghi âm vượt quá 25MB. Vui lòng ghi ngắn hơn.",
+    "transcriptionError": "Chuyển đổi giọng nói thất bại. Vui lòng thử lại."
   }
 }

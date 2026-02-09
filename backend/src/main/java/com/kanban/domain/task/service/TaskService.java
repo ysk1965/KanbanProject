@@ -409,6 +409,30 @@ public class TaskService {
         return result;
     }
 
+    @Transactional
+    public void saveBaseline(String boardId, String userId) {
+        boardService.checkMemberOrAbove(boardId, userId);
+
+        List<Task> tasks = taskRepository.findByBoardIdOrderByPositionAsc(boardId);
+        for (Task task : tasks) {
+            task.saveBaseline();
+        }
+
+        log.info("Baseline saved for board: {} by user: {} ({} tasks)", boardId, userId, tasks.size());
+    }
+
+    @Transactional
+    public void clearBaseline(String boardId, String userId) {
+        boardService.checkMemberOrAbove(boardId, userId);
+
+        List<Task> tasks = taskRepository.findByBoardIdOrderByPositionAsc(boardId);
+        for (Task task : tasks) {
+            task.clearBaseline();
+        }
+
+        log.info("Baseline cleared for board: {} by user: {}", boardId, userId);
+    }
+
     /**
      * Standard 보드의 Task 생성 제한 확인
      * Standard 보드는 최대 10개의 Task만 생성 가능
