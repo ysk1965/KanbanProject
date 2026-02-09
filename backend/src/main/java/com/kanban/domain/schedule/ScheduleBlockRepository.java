@@ -81,6 +81,13 @@ public interface ScheduleBlockRepository extends JpaRepository<ScheduleBlock, St
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate);
 
+    // Meeting 관련 쿼리
+    @Query("SELECT COUNT(DISTINCT sb.assignee.id) FROM ScheduleBlock sb WHERE sb.meeting.id = :meetingId")
+    int countDistinctAssigneeByMeetingId(@Param("meetingId") String meetingId);
+
+    @Query("SELECT DISTINCT sb.assignee FROM ScheduleBlock sb WHERE sb.meeting.id = :meetingId ORDER BY sb.assignee.name")
+    List<com.kanban.domain.user.User> findDistinctAssigneesByMeetingId(@Param("meetingId") String meetingId);
+
     long countByBoardId(String boardId);
 
     @Modifying

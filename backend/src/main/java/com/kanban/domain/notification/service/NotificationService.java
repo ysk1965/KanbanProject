@@ -3,6 +3,7 @@ package com.kanban.domain.notification.service;
 import com.kanban.domain.board.Board;
 import com.kanban.domain.checklist.ChecklistItem;
 import com.kanban.domain.comment.Comment;
+import com.kanban.domain.meeting.Meeting;
 import com.kanban.domain.notification.Notification;
 import com.kanban.domain.notification.NotificationPreference;
 import com.kanban.domain.notification.NotificationPreferenceRepository;
@@ -155,6 +156,39 @@ public class NotificationService {
 
             notificationRepository.save(notification);
             log.info("Task comment notification created for user: {} from comment: {}", recipientId, comment.getId());
+        }
+    }
+
+    @Transactional
+    public void createMeetingMemoNotifications(Meeting meeting, User sender, Board board, List<String> participantIds) {
+        for (String participantId : participantIds) {
+            if (!isInAppEnabled(participantId, board.getId(), NotificationType.MEETING_MEMO_SHARED)) {
+                continue;
+            }
+
+            User recipient = userRepository.findById(participantId).orElse(null);
+            if (recipient == null) {
+                continue;
+            }
+
+            Map<String, Object> metadata = new HashMap<>();
+            metadata.put("senderName", sender.getName());
+            metadata.put("senderProfileImage", sender.getProfileImage() != null ? sender.getProfileImage() : "");
+            metadata.put("boardName", board.getName());
+            metadata.put("meetingTitle", meeting.getTitle());
+
+            Notification notification = Notification.builder()
+                    .recipient(recipient)
+                    .board(board)
+                    .type(NotificationType.MEETING_MEMO_SHARED)
+                    .title(sender.getName() + "님이 회의록을 공유했습니다")
+                    .message(meeting.getTitle())
+                    .senderId(sender.getId())
+                    .metadata(metadata)
+                    .build();
+
+            notificationRepository.save(notification);
+            log.info("Meeting memo notification created for user: {} meeting: {}", participantId, meeting.getId());
         }
     }
 

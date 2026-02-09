@@ -116,12 +116,14 @@ ai:
       team: ${CLAUDE_MODEL_TEAM:claude-haiku-4-5-20251001}
       personal: ${CLAUDE_MODEL_PERSONAL:claude-haiku-4-5-20251001}
       standup: ${CLAUDE_MODEL_STANDUP:claude-haiku-4-5-20251001}
+      meeting: ${CLAUDE_MODEL_MEETING:claude-haiku-4-5-20251001}
   openai:
     api-key: ${OPENAI_API_KEY:}
     model:
       team: ${OPENAI_MODEL_TEAM:gpt-4o-mini}
       personal: ${OPENAI_MODEL_PERSONAL:gpt-4o-mini}
       standup: ${OPENAI_MODEL_STANDUP:gpt-4o-mini}
+      meeting: ${OPENAI_MODEL_MEETING:gpt-4o-mini}
 
 # App Version (injected at build time)
 app.version:

@@ -16,6 +16,7 @@ public class ScheduleRequest {
     @NoArgsConstructor
     public static class Create {
         private String checklistItemId;
+        private String meetingId;
 
         @NotBlank(message = "담당자 ID는 필수입니다")
         private String assigneeId;

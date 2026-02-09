@@ -16,5 +16,7 @@ public class NotificationPreferenceRequest {
         private Boolean slackCommentMentionEnabled;
         private Boolean slackChecklistAssignedEnabled;
         private Boolean slackTaskCommentEnabled;
+        private Boolean meetingMemoSharedEnabled;
+        private Boolean slackMeetingMemoSharedEnabled;
     }
 }

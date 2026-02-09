@@ -6,6 +6,8 @@ import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.board.service.BoardService;
 import com.kanban.domain.checklist.ChecklistItem;
 import com.kanban.domain.checklist.ChecklistItemRepository;
+import com.kanban.domain.meeting.Meeting;
+import com.kanban.domain.meeting.MeetingRepository;
 import com.kanban.domain.schedule.ScheduleBlock;
 import com.kanban.domain.schedule.ScheduleBlockRepository;
 import com.kanban.domain.schedule.dto.ScheduleRequest;
@@ -37,6 +39,7 @@ public class ScheduleService {
     private final BoardRepository boardRepository;
     private final BoardMemberRepository boardMemberRepository;
     private final ChecklistItemRepository checklistItemRepository;
+    private final MeetingRepository meetingRepository;
     private final TaskRepository taskRepository;
     private final UserRepository userRepository;
     private final BoardService boardService;
@@ -177,9 +180,16 @@ public class ScheduleService {
                     .orElseThrow(() -> new BusinessException(ErrorCode.CHECKLIST_ITEM_NOT_FOUND));
         }
 
+        Meeting meeting = null;
+        if (request.getMeetingId() != null) {
+            meeting = meetingRepository.findById(request.getMeetingId())
+                    .orElseThrow(() -> new BusinessException(ErrorCode.MEETING_NOT_FOUND));
+        }
+
         ScheduleBlock block = ScheduleBlock.builder()
                 .board(board)
                 .checklistItem(checklistItem)
+                .meeting(meeting)
                 .assignee(assignee)
                 .scheduledDate(request.getScheduledDate())
                 .startTime(request.getStartTime())

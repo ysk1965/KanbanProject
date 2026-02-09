@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Clock, ChevronDown, Folder, FileText, Loader2, CheckSquare, Layers, Plus } from 'lucide-react';
 import { format } from 'date-fns';
-import { featureAPI, taskAPI, dailyChecklistAPI, FeatureResponse, TaskResponse, DailyChecklistItemResponse } from '../utils/api';
+import { featureAPI, taskAPI, dailyChecklistAPI, meetingAPI, FeatureResponse, TaskResponse, DailyChecklistItemResponse, MeetingSummary } from '../utils/api';
 
 interface ChecklistCreateModalProps {
   boardId: string;
@@ -14,6 +14,7 @@ interface ChecklistCreateModalProps {
   endBlockIndex?: number;
   onCreate: (taskId: string, title: string) => void;
   onSelectExisting: (checklistItemId: string) => void;
+  onSelectMeeting?: (meetingId: string) => void;
   onClose: () => void;
 }
 
@@ -27,12 +28,17 @@ export function ChecklistCreateModal({
   endBlockIndex,
   onCreate,
   onSelectExisting,
+  onSelectMeeting,
   onClose,
 }: ChecklistCreateModalProps) {
   const { t } = useTranslation();
   // 오늘의 체크리스트 (먼저 표시)
   const [todayChecklists, setTodayChecklists] = useState<DailyChecklistItemResponse[]>([]);
   const [isLoadingToday, setIsLoadingToday] = useState(true);
+
+  // 오늘의 회의 목록
+  const [todayMeetings, setTodayMeetings] = useState<MeetingSummary[]>([]);
+  const [isLoadingMeetings, setIsLoadingMeetings] = useState(true);
 
   // 새로 생성 모드 토글
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -71,6 +77,28 @@ export function ChecklistCreateModal({
     };
     loadTodayChecklists();
   }, [boardId, assigneeId]);
+
+  // 오늘의 회의 로드
+  useEffect(() => {
+    if (!onSelectMeeting) {
+      setIsLoadingMeetings(false);
+      return;
+    }
+    const loadTodayMeetings = async () => {
+      setIsLoadingMeetings(true);
+      try {
+        const today = format(new Date(), 'yyyy-MM-dd');
+        const data = await meetingAPI.getMeetings(boardId, today);
+        setTodayMeetings(data);
+      } catch (error) {
+        console.error('Failed to load today meetings:', error);
+        setTodayMeetings([]);
+      } finally {
+        setIsLoadingMeetings(false);
+      }
+    };
+    loadTodayMeetings();
+  }, [boardId, onSelectMeeting]);
 
   // Feature 목록 로드 (새로 생성 모드일 때만)
   useEffect(() => {
@@ -178,6 +206,55 @@ export function ChecklistCreateModal({
 
         {/* Form */}
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
+          {/* 오늘의 회의에서 선택 */}
+          {onSelectMeeting && (
+            <div>
+              <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                <FileText className="inline h-4 w-4 mr-1 text-purple-400" />
+                {t('meeting.selectMeeting')}
+              </label>
+              <div className="border border-white/10 rounded-xl max-h-48 overflow-y-auto bg-kanban-card">
+                {isLoadingMeetings ? (
+                  <div className="px-4 py-4 text-slate-400 flex items-center justify-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    {t('common.loading')}
+                  </div>
+                ) : todayMeetings.length === 0 ? (
+                  <div className="px-4 py-4 text-slate-400 text-sm text-center">
+                    {t('meeting.noMeetings')}
+                  </div>
+                ) : (
+                  <div className="divide-y divide-white/5">
+                    {todayMeetings.map(meeting => (
+                      <button
+                        key={meeting.id}
+                        onClick={() => onSelectMeeting(meeting.id)}
+                        className="w-full px-4 py-3 flex items-center gap-3 hover:bg-bridge-accent/10 transition-colors text-left group"
+                      >
+                        <div
+                          className="w-3 h-3 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: meeting.color }}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm text-white truncate">{meeting.title}</div>
+                          {meeting.start_time && (
+                            <div className="text-[10px] text-slate-400 mt-0.5">
+                              {meeting.start_time.slice(0, 5)}
+                              {meeting.end_time ? ` - ${meeting.end_time.slice(0, 5)}` : ''}
+                            </div>
+                          )}
+                        </div>
+                        <span className="text-xs text-bridge-accent font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                          {t('dailySchedule.select')}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* 오늘의 체크리스트 (먼저 표시) */}
           <div>
             <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">

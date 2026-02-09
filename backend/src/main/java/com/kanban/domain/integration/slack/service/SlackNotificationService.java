@@ -3,6 +3,7 @@ package com.kanban.domain.integration.slack.service;
 import com.kanban.domain.board.Board;
 import com.kanban.domain.checklist.ChecklistItem;
 import com.kanban.domain.comment.Comment;
+import com.kanban.domain.meeting.Meeting;
 import com.kanban.domain.integration.slack.MemberSlackWebhook;
 import com.kanban.domain.integration.slack.MemberSlackWebhookRepository;
 import com.kanban.domain.notification.NotificationPreference;
@@ -123,6 +124,30 @@ public class SlackNotificationService {
         sendToWebhooks(webhooks, payload, board.getId());
     }
 
+    @Async
+    public void sendMeetingMemoNotifications(Meeting meeting, User sender, Board board, List<String> participantIds) {
+        if (!board.canAccessSlack()) {
+            return;
+        }
+        if (participantIds.isEmpty()) {
+            return;
+        }
+
+        List<String> filteredUserIds = filterBySlackPreference(board.getId(), participantIds, NotificationType.MEETING_MEMO_SHARED);
+        if (filteredUserIds.isEmpty()) {
+            return;
+        }
+
+        List<MemberSlackWebhook> webhooks = webhookRepository
+                .findByBoardIdAndUserIdInAndEnabledTrue(board.getId(), filteredUserIds);
+        if (webhooks.isEmpty()) {
+            return;
+        }
+
+        Map<String, Object> payload = buildMeetingMemoPayload(meeting, sender, board);
+        sendToWebhooks(webhooks, payload, board.getId());
+    }
+
     private void sendToWebhooks(List<MemberSlackWebhook> webhooks, Map<String, Object> payload, String boardId) {
         for (MemberSlackWebhook webhook : webhooks) {
             try {
@@ -215,6 +240,45 @@ public class SlackNotificationService {
                         Map.of("type", "mrkdwn", "text", "*\uBC30\uC815\uC790:*\n" + assigner.getName()),
                         Map.of("type", "mrkdwn", "text", "*\uCCB4\uD06C\uB9AC\uC2A4\uD2B8:*\n" + item.getTitle())
                 )));
+
+        blocks.add(Map.of("type", "actions",
+                "elements", List.of(
+                        Map.of("type", "button",
+                                "text", Map.of("type", "plain_text", "text", "BRIDGE\uC5D0\uC11C \uBCF4\uAE30"),
+                                "url", boardUrl)
+                )));
+
+        blocks.add(Map.of("type", "context",
+                "elements", List.of(
+                        Map.of("type", "mrkdwn", "text", "Sent from BRIDGE Kanban Board")
+                )));
+
+        return Map.of("blocks", blocks);
+    }
+
+    private Map<String, Object> buildMeetingMemoPayload(Meeting meeting, User sender, Board board) {
+        String boardUrl = frontendUrl + "/boards/" + board.getId();
+        String memoPreview = meeting.getMemo();
+        if (memoPreview != null && memoPreview.length() > 200) {
+            memoPreview = memoPreview.substring(0, 200) + "...";
+        }
+
+        List<Map<String, Object>> blocks = new ArrayList<>();
+
+        blocks.add(Map.of("type", "header",
+                "text", Map.of("type", "plain_text", "text", "\uD83D\uDCCB BRIDGE - \uD68C\uC758\uB85D \uACF5\uC720", "emoji", true)));
+
+        blocks.add(Map.of("type", "section",
+                "fields", List.of(
+                        Map.of("type", "mrkdwn", "text", "*Board:*\n" + board.getName()),
+                        Map.of("type", "mrkdwn", "text", "*\uD68C\uC758:*\n" + meeting.getTitle()),
+                        Map.of("type", "mrkdwn", "text", "*\uACF5\uC720\uC790:*\n" + sender.getName())
+                )));
+
+        if (memoPreview != null && !memoPreview.isBlank()) {
+            blocks.add(Map.of("type", "section",
+                    "text", Map.of("type", "mrkdwn", "text", "> " + memoPreview)));
+        }
 
         blocks.add(Map.of("type", "actions",
                 "elements", List.of(

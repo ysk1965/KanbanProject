@@ -80,6 +80,13 @@ public enum ErrorCode {
     // Schedule
     SCHEDULE_BLOCK_NOT_FOUND(HttpStatus.NOT_FOUND, "SC001", "스케줄 블록을 찾을 수 없습니다"),
 
+    // Meeting
+    MEETING_NOT_FOUND(HttpStatus.NOT_FOUND, "MT001", "회의를 찾을 수 없습니다"),
+
+    // AI Meeting Organize
+    AI_MEETING_MEMO_EMPTY(HttpStatus.BAD_REQUEST, "AM001", "회의록 메모가 비어있습니다"),
+    AI_MEETING_PARSE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "AM002", "AI 응답 파싱에 실패했습니다"),
+
     // Member
     MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, "M001", "멤버를 찾을 수 없습니다"),
     MEMBER_ALREADY_EXISTS(HttpStatus.CONFLICT, "M002", "이미 멤버입니다"),

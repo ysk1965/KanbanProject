@@ -57,6 +57,14 @@ public class NotificationPreference {
     @Builder.Default
     private Boolean slackTaskCommentEnabled = true;
 
+    @Column(name = "meeting_memo_shared_enabled", nullable = false)
+    @Builder.Default
+    private Boolean meetingMemoSharedEnabled = true;
+
+    @Column(name = "slack_meeting_memo_shared_enabled", nullable = false)
+    @Builder.Default
+    private Boolean slackMeetingMemoSharedEnabled = true;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
@@ -77,13 +85,16 @@ public class NotificationPreference {
     }
 
     public void update(Boolean commentMentionEnabled, Boolean checklistAssignedEnabled, Boolean taskCommentEnabled,
-                       Boolean slackCommentMentionEnabled, Boolean slackChecklistAssignedEnabled, Boolean slackTaskCommentEnabled) {
+                       Boolean slackCommentMentionEnabled, Boolean slackChecklistAssignedEnabled, Boolean slackTaskCommentEnabled,
+                       Boolean meetingMemoSharedEnabled, Boolean slackMeetingMemoSharedEnabled) {
         if (commentMentionEnabled != null) this.commentMentionEnabled = commentMentionEnabled;
         if (checklistAssignedEnabled != null) this.checklistAssignedEnabled = checklistAssignedEnabled;
         if (taskCommentEnabled != null) this.taskCommentEnabled = taskCommentEnabled;
         if (slackCommentMentionEnabled != null) this.slackCommentMentionEnabled = slackCommentMentionEnabled;
         if (slackChecklistAssignedEnabled != null) this.slackChecklistAssignedEnabled = slackChecklistAssignedEnabled;
         if (slackTaskCommentEnabled != null) this.slackTaskCommentEnabled = slackTaskCommentEnabled;
+        if (meetingMemoSharedEnabled != null) this.meetingMemoSharedEnabled = meetingMemoSharedEnabled;
+        if (slackMeetingMemoSharedEnabled != null) this.slackMeetingMemoSharedEnabled = slackMeetingMemoSharedEnabled;
     }
 
     public boolean isInAppEnabled(NotificationType type) {
@@ -91,6 +102,7 @@ public class NotificationPreference {
             case COMMENT_MENTION -> commentMentionEnabled;
             case CHECKLIST_ASSIGNED -> checklistAssignedEnabled;
             case TASK_COMMENT -> taskCommentEnabled;
+            case MEETING_MEMO_SHARED -> meetingMemoSharedEnabled;
         };
     }
 
@@ -99,6 +111,7 @@ public class NotificationPreference {
             case COMMENT_MENTION -> slackCommentMentionEnabled;
             case CHECKLIST_ASSIGNED -> slackChecklistAssignedEnabled;
             case TASK_COMMENT -> slackTaskCommentEnabled;
+            case MEETING_MEMO_SHARED -> slackMeetingMemoSharedEnabled;
         };
     }
 }

@@ -10,7 +10,7 @@ import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { useTranslation } from 'react-i18next';
 import { TagPickerPopover } from './TagPickerPopover';
-import { featureAPI } from '../utils/api';
+import { featureAPI, taskAPI } from '../utils/api';
 
 interface FeatureDetailModalProps {
   feature: Feature | null;
@@ -19,6 +19,7 @@ interface FeatureDetailModalProps {
   open: boolean;
   onClose: () => void;
   onAddSubtask: (title: string) => void;
+  onRenameSubtask?: (taskId: string, newTitle: string) => void;
   onUpdateFeature: (feature: Partial<Feature>) => void;
   onDelete: (featureId: string) => void;
   availableTags: Tag[];
@@ -36,6 +37,7 @@ export function FeatureDetailModal({
   open,
   onClose,
   onAddSubtask,
+  onRenameSubtask,
   onUpdateFeature,
   onDelete,
   availableTags,
@@ -52,7 +54,11 @@ export function FeatureDetailModal({
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [flyingTask, setFlyingTask] = useState<{ title: string; x: number; y: number } | null>(null);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [editingTaskTitle, setEditingTaskTitle] = useState('');
   const addBtnRef = useRef<HTMLButtonElement>(null);
+  const mouseDownTargetRef = useRef<EventTarget | null>(null);
+  const editInputRef = useRef<HTMLInputElement>(null);
   const { t } = useTranslation();
 
   useEffect(() => {
@@ -107,6 +113,31 @@ export function FeatureDetailModal({
 
   const updateEditedFeature = (updates: Partial<Feature>) => {
     setEditedFeature((prev) => (prev ? { ...prev, ...updates } : null));
+  };
+
+  const handleStartEditTask = (task: Task) => {
+    if (!canEdit) return;
+    setEditingTaskId(task.id);
+    setEditingTaskTitle(task.title);
+    setTimeout(() => editInputRef.current?.focus(), 0);
+  };
+
+  const handleSaveTaskTitle = async () => {
+    if (!editingTaskId || !editingTaskTitle.trim()) {
+      setEditingTaskId(null);
+      return;
+    }
+    const newTitle = editingTaskTitle.trim();
+    const originalTask = tasks.find((t) => t.id === editingTaskId);
+    if (originalTask && originalTask.title !== newTitle) {
+      try {
+        await taskAPI.updateTask(boardId, editingTaskId, { title: newTitle });
+        onRenameSubtask?.(editingTaskId, newTitle);
+      } catch (error) {
+        console.error('Failed to rename subtask:', error);
+      }
+    }
+    setEditingTaskId(null);
   };
 
   const handleAddSubtask = () => {
@@ -175,7 +206,8 @@ export function FeatureDetailModal({
       {/* Main Modal */}
       <div
         className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
-        onClick={handleClose}
+        onMouseDown={(e) => { mouseDownTargetRef.current = e.target; }}
+        onClick={(e) => { if (e.target === e.currentTarget && mouseDownTargetRef.current === e.currentTarget) handleClose(); }}
       >
         <div
           className="w-full max-w-xl bg-kanban-card text-zinc-300 rounded-2xl border border-white/10 shadow-[0_0_60px_rgba(0,0,0,0.5)] overflow-hidden animate-in zoom-in-95 duration-200"
@@ -461,7 +493,7 @@ export function FeatureDetailModal({
                       key={task.id}
                       className="flex items-center justify-between px-5 py-4 hover:bg-white/[0.02] transition-colors group"
                     >
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
                         <div
                           className="w-2 h-2 rounded-full flex-shrink-0"
                           style={{
@@ -469,11 +501,30 @@ export function FeatureDetailModal({
                             boxShadow: `0 0 8px ${selectedColor}44`,
                           }}
                         />
-                        <span className="text-xs font-semibold text-zinc-300 group-hover:text-foreground transition-colors">
-                          {task.title}
-                        </span>
+                        {editingTaskId === task.id ? (
+                          <input
+                            ref={editInputRef}
+                            type="text"
+                            value={editingTaskTitle}
+                            onChange={(e) => setEditingTaskTitle(e.target.value)}
+                            onBlur={handleSaveTaskTitle}
+                            onKeyDown={(e) => {
+                              if (e.nativeEvent.isComposing) return;
+                              if (e.key === 'Enter') handleSaveTaskTitle();
+                              if (e.key === 'Escape') setEditingTaskId(null);
+                            }}
+                            className="flex-1 text-xs font-semibold bg-white/5 border border-bridge-accent/50 rounded-md px-2 py-1 text-zinc-200 focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
+                          />
+                        ) : (
+                          <span
+                            className={`text-xs font-semibold text-zinc-300 group-hover:text-foreground transition-colors truncate ${canEdit ? 'cursor-text hover:bg-white/5 rounded px-1 -mx-1' : ''}`}
+                            onDoubleClick={() => handleStartEditTask(task)}
+                          >
+                            {task.title}
+                          </span>
+                        )}
                       </div>
-                      <div className="flex items-center gap-2 text-[10px] font-black text-zinc-400">
+                      <div className="flex items-center gap-2 text-[10px] font-black text-zinc-400 flex-shrink-0 ml-2">
                         <span className="tracking-widest group-hover:text-indigo-400 transition-colors">
                           → {getBlockName(task.block_id).toUpperCase()}
                         </span>
