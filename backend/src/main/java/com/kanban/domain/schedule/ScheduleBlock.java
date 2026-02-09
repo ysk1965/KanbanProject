@@ -2,6 +2,7 @@ package com.kanban.domain.schedule;
 
 import com.kanban.domain.board.Board;
 import com.kanban.domain.checklist.ChecklistItem;
+import com.kanban.domain.meeting.Meeting;
 import com.kanban.domain.user.User;
 import jakarta.persistence.*;
 import lombok.*;
@@ -33,6 +34,10 @@ public class ScheduleBlock {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "checklist_item_id")
     private ChecklistItem checklistItem;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "meeting_id")
+    private Meeting meeting;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "assignee_id", nullable = false)
@@ -83,5 +88,13 @@ public class ScheduleBlock {
 
     public void unlinkChecklistItem() {
         this.checklistItem = null;
+    }
+
+    public void linkMeeting(Meeting meeting) {
+        this.meeting = meeting;
+    }
+
+    public void unlinkMeeting() {
+        this.meeting = null;
     }
 }

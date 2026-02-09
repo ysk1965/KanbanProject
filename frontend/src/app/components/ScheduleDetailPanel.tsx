@@ -79,6 +79,7 @@ export function ScheduleDetailPanel({
   const checklist = block.checklist_item;
   const task = block.task;
   const feature = block.feature;
+  const meeting = block.meeting;
 
   // 로컬 상태로 체크리스트 완료 여부 관리 (즉시 UI 반영용)
   const [isCompleted, setIsCompleted] = useState(checklist?.completed ?? false);
@@ -196,6 +197,23 @@ export function ScheduleDetailPanel({
             </div>
           </div>
         </div>
+
+        {/* Meeting 정보 */}
+        {meeting && (
+          <div className="bg-bridge-dark rounded-lg p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <FileText className="h-4 w-4 text-purple-400" />
+              <span className="text-sm font-medium text-slate-400">{t('meeting.tab')}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div
+                className="w-3 h-3 rounded-full flex-shrink-0"
+                style={{ backgroundColor: meeting.color }}
+              />
+              <p className="text-white font-medium">{meeting.title}</p>
+            </div>
+          </div>
+        )}
 
         {/* Feature 정보 */}
         <div

@@ -3,6 +3,8 @@ package com.kanban.domain.schedule.dto;
 import com.kanban.domain.board.Board;
 import com.kanban.domain.checklist.ChecklistItem;
 import com.kanban.domain.feature.Feature;
+import com.kanban.domain.meeting.Meeting;
+import com.kanban.domain.meeting.dto.MeetingResponse;
 import com.kanban.domain.schedule.ScheduleBlock;
 import com.kanban.domain.task.Task;
 import com.kanban.domain.user.User;
@@ -136,11 +138,13 @@ public class ScheduleResponse {
         private ChecklistItemInfo checklistItem;
         private TaskInfo task;
         private FeatureInfo feature;
+        private MeetingResponse.MeetingInfo meeting;
 
         public static BlockInfo of(ScheduleBlock block) {
             ChecklistItem item = block.getChecklistItem();
             Task task = item != null ? item.getTask() : null;
             Feature feature = task != null ? task.getFeature() : null;
+            Meeting meeting = block.getMeeting();
 
             return BlockInfo.builder()
                     .id(block.getId())
@@ -149,6 +153,7 @@ public class ScheduleResponse {
                     .checklistItem(item != null ? ChecklistItemInfo.of(item) : null)
                     .task(task != null ? TaskInfo.of(task) : null)
                     .feature(feature != null ? FeatureInfo.of(feature) : null)
+                    .meeting(meeting != null ? MeetingResponse.MeetingInfo.of(meeting) : null)
                     .build();
         }
     }
@@ -218,11 +223,13 @@ public class ScheduleResponse {
         private ChecklistItemInfo checklistItem;
         private TaskInfo task;
         private FeatureInfo feature;
+        private MeetingResponse.MeetingInfo meeting;
 
         public static BlockDetail of(ScheduleBlock block) {
             ChecklistItem item = block.getChecklistItem();
             Task task = item != null ? item.getTask() : null;
             Feature feature = task != null ? task.getFeature() : null;
+            Meeting meeting = block.getMeeting();
 
             return BlockDetail.builder()
                     .id(block.getId())
@@ -233,6 +240,7 @@ public class ScheduleResponse {
                     .checklistItem(item != null ? ChecklistItemInfo.of(item) : null)
                     .task(task != null ? TaskInfo.of(task) : null)
                     .feature(feature != null ? FeatureInfo.of(feature) : null)
+                    .meeting(meeting != null ? MeetingResponse.MeetingInfo.of(meeting) : null)
                     .build();
         }
     }
