@@ -1,5 +1,5 @@
-# Deploy Testprod Frontend Only (uses existing Backend)
-name: Deploy Testprod Frontend
+# Deploy Testprod (Backend + Frontend)
+name: Deploy Testprod
 
 on:
   push:
@@ -8,12 +8,70 @@ on:
 
 env:
   AWS_REGION: ap-northeast-2
+  EB_APPLICATION_NAME: kanban-dev
+  EB_ENVIRONMENT_NAME: kanban-dev-env
   S3_BUCKET: kanban-testprod-frontend
+  JAVA_VERSION: '21'
   NODE_VERSION: '20'
 
 jobs:
+  # Deploy Backend to Elastic Beanstalk
+  deploy-backend:
+    name: Deploy Backend
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Grant execute permission for gradlew
+        working-directory: backend
+        run: chmod +x gradlew
+
+      - name: Build JAR
+        working-directory: backend
+        run: ./gradlew bootJar --no-daemon -x test
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Generate deployment package
+        run: |
+          cd backend
+          mkdir -p deploy
+          cp build/libs/*.jar deploy/application.jar
+          cp Procfile deploy/ 2>/dev/null || true
+          cp -r .ebextensions deploy/ 2>/dev/null || true
+          cd deploy && zip -r ../deploy.zip .
+
+      - name: Deploy to Elastic Beanstalk
+        uses: einaregilsson/beanstalk-deploy@v22
+        with:
+          aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          application_name: ${{ env.EB_APPLICATION_NAME }}
+          environment_name: ${{ env.EB_ENVIRONMENT_NAME }}
+          version_label: testprod-${{ github.sha }}
+          region: ${{ env.AWS_REGION }}
+          deployment_package: backend/deploy.zip
+          wait_for_deployment: true
+          wait_for_environment_recovery: 120
+          use_existing_version_if_available: true
+
+  # Deploy Frontend to S3
   deploy-frontend:
-    name: Deploy Frontend to Testprod
+    name: Deploy Frontend
     runs-on: ubuntu-latest
 
     steps:
@@ -66,15 +124,17 @@ jobs:
   notify:
     name: Notify
     runs-on: ubuntu-latest
-    needs: [deploy-frontend]
+    needs: [deploy-backend, deploy-frontend]
     if: always()
 
     steps:
       - name: Deployment Status
         run: |
-          if [ "${{ needs.deploy-frontend.result }}" == "success" ]; then
-            echo "Testprod frontend deployment successful!"
+          if [ "${{ needs.deploy-backend.result }}" == "success" ] && [ "${{ needs.deploy-frontend.result }}" == "success" ]; then
+            echo "Testprod deployment successful! (BE + FE)"
           else
-            echo "Testprod frontend deployment failed!"
+            echo "Testprod deployment failed!"
+            echo "Backend: ${{ needs.deploy-backend.result }}"
+            echo "Frontend: ${{ needs.deploy-frontend.result }}"
             exit 1
           fi
