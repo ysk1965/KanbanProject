@@ -119,6 +119,7 @@ ai:
 # App config
 app:
   frontend-url: ${FRONTEND_URL:http://localhost:5173}
+  testprod-frontend-url: ${TESTPROD_FRONTEND_URL:}
   file:
     s3-enabled: ${S3_ENABLED:false}
     max-size: 5242880
