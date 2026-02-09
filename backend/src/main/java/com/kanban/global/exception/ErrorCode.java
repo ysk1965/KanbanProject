@@ -129,6 +129,8 @@ public enum ErrorCode {
     ADMIN_ACCESS_DENIED(HttpStatus.FORBIDDEN, "AD001", "관리자 권한이 필요합니다"),
     CANNOT_REMOVE_LAST_ADMIN(HttpStatus.BAD_REQUEST, "AD002", "마지막 관리자는 역할을 변경할 수 없습니다"),
     CANNOT_DEMOTE_SELF(HttpStatus.BAD_REQUEST, "AD003", "자신의 관리자 역할은 변경할 수 없습니다"),
+    CANNOT_DELETE_ACTIVE_USER(HttpStatus.BAD_REQUEST, "AD004", "활성 상태의 사용자는 삭제할 수 없습니다. 먼저 비활성화하세요"),
+    CANNOT_DELETE_ADMIN_USER(HttpStatus.BAD_REQUEST, "AD005", "관리자 계정은 삭제할 수 없습니다"),
 
     // Inquiry
     INQUIRY_NOT_FOUND(HttpStatus.NOT_FOUND, "IQ001", "문의사항을 찾을 수 없습니다"),

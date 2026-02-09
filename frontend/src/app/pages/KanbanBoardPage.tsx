@@ -365,7 +365,11 @@ export function KanbanBoardPage() {
     (m) => m.userId === currentUser?.id
   )?.role;
   const isViewer = currentUserRole === 'observer';
+  const isOwner = currentUserRole === 'owner';
   const canEdit = !isViewer;
+
+  // 구독/결제 UI는 보드 Owner만 접근 가능 (시스템 ADMIN/TESTER도 숨김)
+  const hideBillingForUser = hideBilling || !isOwner;
 
   // 뷰 모드 변경 핸들러 (Premium 기능 체크)
   const handleViewModeChange = (mode: ViewMode) => {
@@ -1273,7 +1277,7 @@ export function KanbanBoardPage() {
           tier={tierInfo?.tier}
           onOpenSubscription={() => setIsSubscriptionModalOpen(true)}
           onOpenPremiumBenefits={() => setIsPremiumBenefitsModalOpen(true)}
-          hideBilling={hideBilling}
+          hideBilling={hideBillingForUser}
         />
 
         <header className="min-h-[3.5rem] md:h-16 border-b border-kanban-border flex items-center justify-between px-3 md:px-6 bg-kanban-bg shrink-0 z-30 gap-2">
@@ -1499,7 +1503,7 @@ export function KanbanBoardPage() {
                 onOpenSubscription={() => setIsSubscriptionModalOpen(true)}
                 onOpenSettings={() => {}}
                 onLogout={logout}
-                hideBilling={hideBilling}
+                hideBilling={hideBillingForUser}
               />
             )}
           </div>
@@ -2079,17 +2083,17 @@ export function KanbanBoardPage() {
           inviteLinks={inviteLinks}
           onCreateInviteLink={handleCreateInviteLink}
           onDeleteInviteLink={handleDeleteInviteLink}
-          seatInfo={!hideBilling && subscription ? {
+          seatInfo={!hideBillingForUser && subscription ? {
             seatCount: subscription.seat_count,
             usedSeats: subscription.billable_member_count || boardMembersData.filter(m => m.role !== 'observer').length
           } : undefined}
-          onOpenSeatManagement={!hideBilling ? () => {
+          onOpenSeatManagement={!hideBillingForUser ? () => {
             setIsShareBoardModalOpen(false);
             setIsSubscriptionModalOpen(true);
           } : undefined}
         />
 
-        {!hideBilling && (
+        {!hideBillingForUser && (
           <SubscriptionModal
             open={isSubscriptionModalOpen}
             onClose={() => setIsSubscriptionModalOpen(false)}
@@ -2126,7 +2130,7 @@ export function KanbanBoardPage() {
           onCreateMilestone={() => handleOpenMilestoneWithCheck()}
         />
 
-        {!hideBilling && (
+        {!hideBillingForUser && (
           <UpgradeModal
             open={isUpgradeModalOpen}
             onClose={() => setIsUpgradeModalOpen(false)}
@@ -2136,7 +2140,7 @@ export function KanbanBoardPage() {
           />
         )}
 
-        {!hideBilling && (
+        {!hideBillingForUser && (
           <PremiumBenefitsModal
             open={isPremiumBenefitsModalOpen}
             onClose={() => setIsPremiumBenefitsModalOpen(false)}
@@ -2159,7 +2163,7 @@ export function KanbanBoardPage() {
         )}
 
         <AlertModal
-          open={alertModal.open && !(hideBilling && alertModal.type === 'premium')}
+          open={alertModal.open && !(hideBillingForUser && alertModal.type === 'premium')}
           onClose={() => setAlertModal({ ...alertModal, open: false })}
           type={alertModal.type}
         />

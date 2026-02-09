@@ -2646,6 +2646,16 @@ export const adminAPI = {
     return apiClient.post<{ message: string }>(`/admin/users/${userId}/send-password-reset`, {});
   },
 
+  // 사용자 영구 삭제
+  deleteUser: async (userId: string) => {
+    return apiClient.delete<{ message: string }>(`/admin/users/${userId}`);
+  },
+
+  // 사용자를 보드에서 제거
+  removeUserFromBoard: async (userId: string, boardId: string) => {
+    return apiClient.delete<{ message: string }>(`/admin/users/${userId}/boards/${boardId}`);
+  },
+
   // 보드 목록 조회
   getBoards: async (params: { page?: number; size?: number; search?: string; tier?: string }) => {
     const searchParams = new URLSearchParams();

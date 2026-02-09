@@ -111,6 +111,25 @@ public class AdminController {
         return ResponseEntity.ok(Map.of("message", "비밀번호 재설정 메일이 발송되었습니다"));
     }
 
+    @DeleteMapping("/users/{userId}")
+    public ResponseEntity<Map<String, String>> deleteUser(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable String userId) {
+        verifyAdminAccess(principal);
+        adminService.deleteUserByAdmin(userId);
+        return ResponseEntity.ok(Map.of("message", "사용자가 영구 삭제되었습니다"));
+    }
+
+    @DeleteMapping("/users/{userId}/boards/{boardId}")
+    public ResponseEntity<Map<String, String>> removeUserFromBoard(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable String userId,
+            @PathVariable String boardId) {
+        verifyAdminAccess(principal);
+        adminService.removeUserFromBoard(userId, boardId);
+        return ResponseEntity.ok(Map.of("message", "사용자가 보드에서 제거되었습니다"));
+    }
+
     // ==================== Boards ====================
 
     @GetMapping("/boards")

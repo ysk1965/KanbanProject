@@ -1954,6 +1954,16 @@ export const adminService = {
     return adminAPI.sendPasswordResetEmail(userId);
   },
 
+  // 사용자 영구 삭제
+  deleteUser: async (userId: string): Promise<void> => {
+    await adminAPI.deleteUser(userId);
+  },
+
+  // 사용자를 보드에서 제거
+  removeUserFromBoard: async (userId: string, boardId: string): Promise<void> => {
+    await adminAPI.removeUserFromBoard(userId, boardId);
+  },
+
   // 보드 목록 조회
   getBoards: async (params: {
     page?: number;
