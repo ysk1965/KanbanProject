@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { authService } from '../utils/services';
 import { setSentryUser } from '../../lib/sentry';
+import { isDomainBillingHidden } from '../utils/domain';
 
 interface User {
   id: string;
@@ -156,7 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isEmailVerified = currentUser?.email_verified ?? false;
   const isAdmin = currentUser?.system_role === 'ADMIN';
   const isTester = currentUser?.system_role === 'TESTER';
-  const hideBilling = isTester || isAdmin; // TESTER, ADMIN은 과금 UI 숨김
+  const hideBilling = isTester || isAdmin || isDomainBillingHidden; // TESTER, ADMIN, 특정 도메인은 과금 UI 숨김
 
   return (
     <AuthContext.Provider

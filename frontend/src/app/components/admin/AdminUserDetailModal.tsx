@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, User as UserIcon, Mail, Shield, Calendar, Folder, CheckCircle, XCircle, Key, Image, Clock, Ban, UserCheck, KeyRound, MailCheck, AlertTriangle } from 'lucide-react';
+import { X, User as UserIcon, Mail, Shield, Calendar, Folder, CheckCircle, XCircle, Key, Image, Clock, Ban, UserCheck, KeyRound, MailCheck, AlertTriangle, Trash2, UserMinus } from 'lucide-react';
 import { adminService } from '../../utils/services';
 import { AdminUserDetail, AdminBoardSummary } from '../../utils/api';
 import { formatDateTime } from '../../utils/dateUtils';
@@ -165,6 +165,54 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
         } catch (err) {
           console.error('Failed to send password reset email:', err);
           setToast({ message: t('admin.userDetail.passwordResetFailed'), type: 'error' });
+        } finally {
+          setIsUpdating(false);
+        }
+      },
+    });
+  };
+
+  const handleDeleteUser = () => {
+    if (!user) return;
+    setConfirmAction({
+      title: t('admin.userDetail.deleteAccount'),
+      message: t('admin.userDetail.confirmDelete', { name: user.name }),
+      variant: 'danger',
+      onConfirm: async () => {
+        setConfirmAction(null);
+        try {
+          setIsUpdating(true);
+          await adminService.deleteUser(userId);
+          onUpdate();
+          onClose();
+          setToast({ message: t('admin.userDetail.deleted'), type: 'success' });
+        } catch (err) {
+          console.error('Failed to delete user:', err);
+          setToast({ message: t('admin.userDetail.deleteFailed'), type: 'error' });
+        } finally {
+          setIsUpdating(false);
+        }
+      },
+    });
+  };
+
+  const handleRemoveFromBoard = (board: AdminBoardSummary) => {
+    if (!user) return;
+    setConfirmAction({
+      title: t('admin.userDetail.removeFromBoard'),
+      message: t('admin.userDetail.confirmRemoveFromBoard', { name: user.name, board: board.name }),
+      variant: 'danger',
+      onConfirm: async () => {
+        setConfirmAction(null);
+        try {
+          setIsUpdating(true);
+          await adminService.removeUserFromBoard(userId, board.id);
+          setBoards(boards.filter(b => b.id !== board.id));
+          onUpdate();
+          setToast({ message: t('admin.userDetail.removedFromBoard'), type: 'success' });
+        } catch (err) {
+          console.error('Failed to remove from board:', err);
+          setToast({ message: t('admin.userDetail.removeFromBoardFailed'), type: 'error' });
         } finally {
           setIsUpdating(false);
         }
@@ -372,32 +420,45 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
                 <div>
                   <h4 className="text-lg font-bold text-white mb-4">{t('admin.userDetail.boardList')}</h4>
                   <div className="space-y-2">
-                    {boards.map((board) => (
-                      <div
-                        key={board.id}
-                        className="bg-white/5 rounded-xl p-4 flex items-center justify-between"
-                      >
-                        <div>
-                          <p className="text-white font-medium">{board.name}</p>
-                          <p className="text-slate-400 text-sm">
-                            {t('admin.userDetail.boardMemberTaskInfo', { members: board.member_count, tasks: board.task_count })}
-                          </p>
-                        </div>
-                        <span
-                          className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            board.tier === 'FREE' || board.tier === 'TRIAL'
-                              ? 'bg-slate-500/20 text-slate-400'
-                              : board.tier === 'STANDARD'
-                              ? 'bg-blue-500/20 text-blue-400'
-                              : board.tier === 'PREMIUM'
-                              ? 'bg-purple-500/20 text-purple-400'
-                              : 'bg-amber-500/20 text-amber-400'
-                          }`}
+                    {boards.map((board) => {
+                      const isOwner = board.owner_id === user.id;
+                      return (
+                        <div
+                          key={board.id}
+                          className="bg-white/5 rounded-xl p-4 flex items-center justify-between gap-3"
                         >
-                          {board.tier}
-                        </span>
-                      </div>
-                    ))}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-white font-medium">{board.name}</p>
+                            <p className="text-slate-400 text-sm">
+                              {t('admin.userDetail.boardMemberTaskInfo', { members: board.member_count, tasks: board.task_count })}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <span
+                              className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                board.tier === 'FREE' || board.tier === 'TRIAL'
+                                  ? 'bg-slate-500/20 text-slate-400'
+                                  : board.tier === 'STANDARD'
+                                  ? 'bg-blue-500/20 text-blue-400'
+                                  : board.tier === 'PREMIUM'
+                                  ? 'bg-purple-500/20 text-purple-400'
+                                  : 'bg-amber-500/20 text-amber-400'
+                              }`}
+                            >
+                              {board.tier}
+                            </span>
+                            <button
+                              onClick={() => handleRemoveFromBoard(board)}
+                              disabled={isUpdating || isOwner}
+                              className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                              title={isOwner ? t('admin.userDetail.cannotRemoveOwner') : t('admin.userDetail.removeFromBoard')}
+                            >
+                              <UserMinus className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -455,6 +516,18 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
                     </button>
                   )}
                 </div>
+
+                {/* 계정 영구 삭제 (비활성화된 사용자만) */}
+                {user.is_active === false && (
+                  <button
+                    onClick={handleDeleteUser}
+                    disabled={isUpdating}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-900/30 border border-red-500/50 rounded-xl text-red-400 hover:bg-red-900/50 transition-colors disabled:opacity-50 font-bold"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    {t('admin.userDetail.deleteAccount')}
+                  </button>
+                )}
               </div>
             </div>
           )}

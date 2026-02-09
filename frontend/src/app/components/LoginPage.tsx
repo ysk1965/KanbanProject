@@ -7,6 +7,7 @@ import { Mail, Lock, User, Users, ArrowLeft, ArrowRight, Check, X } from 'lucide
 import { trackEvent } from '../contexts/AnalyticsContext';
 import { HeroScene } from './landing/BridgeScene';
 import { LanguageSwitcher } from './LanguageSwitcher';
+import { isGoogleOnlyLogin } from '../utils/domain';
 
 interface InviteInfo {
   boardName: string;
@@ -235,6 +236,7 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
         </div>
 
         {/* Divider */}
+        {!isGoogleOnlyLogin && (
         <div className="relative mb-5 sm:mb-6">
           <div className="absolute inset-0 flex items-center">
             <div className="w-full border-t border-white/[0.06]"></div>
@@ -245,8 +247,10 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
             </span>
           </div>
         </div>
+        )}
 
         {/* Auth Form */}
+        {!isGoogleOnlyLogin && (
         <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
           {mode === 'signup' && (
             <div className="space-y-2">
@@ -394,8 +398,10 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
             )}
           </button>
         </form>
+        )}
 
         {/* Mode Toggle */}
+        {!isGoogleOnlyLogin && (
         <div className="mt-6 sm:mt-8 pt-4 sm:pt-6 border-t border-white/[0.05] text-center">
           <p className="text-slate-500 text-sm">
             {mode === 'login' ? t('auth.noAccount') : t('auth.hasAccount')}
@@ -407,6 +413,7 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
             </button>
           </p>
         </div>
+        )}
 
         {/* Footer Note */}
         {inviteInfo && (

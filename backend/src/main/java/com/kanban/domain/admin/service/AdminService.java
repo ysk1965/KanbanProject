@@ -9,6 +9,7 @@ import com.kanban.domain.announcement.AnnouncementType;
 import com.kanban.domain.auth.service.AuthService;
 import com.kanban.domain.board.*;
 import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.user.service.UserService;
 import com.kanban.domain.subscription.Subscription;
 import com.kanban.domain.subscription.SubscriptionRepository;
 import com.kanban.domain.subscription.SubscriptionStatus;
@@ -51,6 +52,7 @@ public class AdminService {
     private final TaskRepository taskRepository;
     private final AuthService authService;
     private final BoardService boardService;
+    private final UserService userService;
     private final AnnouncementRepository announcementRepository;
     private final SystemConfigRepository systemConfigRepository;
     private final ObjectMapper objectMapper;
@@ -211,6 +213,48 @@ public class AdminService {
 
         authService.requestPasswordReset(user.getEmail());
         log.info("Password reset email sent by admin: userId={}, email={}", userId, user.getEmail());
+    }
+
+    @Transactional
+    public void deleteUserByAdmin(String userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        // 관리자 계정은 삭제 불가
+        if (user.getSystemRole() == SystemRole.ADMIN) {
+            throw new BusinessException(ErrorCode.CANNOT_DELETE_ADMIN_USER);
+        }
+
+        // 활성 상태의 사용자는 삭제 불가 (먼저 비활성화 필요)
+        if (user.getIsActive()) {
+            throw new BusinessException(ErrorCode.CANNOT_DELETE_ACTIVE_USER);
+        }
+
+        // 보드 Owner인 경우 삭제 불가
+        if (boardMemberRepository.existsByUserIdAndRole(userId, BoardRole.OWNER)) {
+            throw new BusinessException(ErrorCode.CANNOT_DELETE_BOARD_OWNER);
+        }
+
+        // UserService의 deleteAccount 로직 재사용
+        userService.deleteAccount(userId);
+        log.info("User permanently deleted by admin: userId={}", userId);
+    }
+
+    @Transactional
+    public void removeUserFromBoard(String userId, String boardId) {
+        userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        BoardMember member = boardMemberRepository.findByBoardIdAndUserId(boardId, userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+
+        // Owner는 내보낼 수 없음
+        if (member.isOwner()) {
+            throw new BusinessException(ErrorCode.CANNOT_REMOVE_OWNER);
+        }
+
+        boardMemberRepository.delete(member);
+        log.info("User removed from board by admin: userId={}, boardId={}", userId, boardId);
     }
 
     // ==================== Boards ====================

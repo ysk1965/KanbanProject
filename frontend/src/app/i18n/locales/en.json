@@ -1825,7 +1825,17 @@
       "passwordResetEmail": "Password Reset Email",
       "activateAccount": "Activate Account",
       "deactivateAccount": "Deactivate Account",
-      "cannotDeactivateAdmin": "Admin accounts cannot be deactivated"
+      "cannotDeactivateAdmin": "Admin accounts cannot be deactivated",
+      "deleteAccount": "Delete Account Permanently",
+      "confirmDelete": "Permanently delete {{name}}'s account?\n\nThis action cannot be undone and all related data will be deleted.",
+      "deleted": "Account has been permanently deleted.",
+      "deleteFailed": "Failed to delete account.",
+      "cannotDeleteOwner": "Board owner cannot be deleted. Transfer ownership first.",
+      "removeFromBoard": "Remove",
+      "confirmRemoveFromBoard": "Remove {{name}} from \"{{board}}\" board?",
+      "removedFromBoard": "Removed from board.",
+      "removeFromBoardFailed": "Failed to remove from board.",
+      "cannotRemoveOwner": "Board owner cannot be removed."
     },
     "inquiries": {
       "title": "Inquiry Management",
