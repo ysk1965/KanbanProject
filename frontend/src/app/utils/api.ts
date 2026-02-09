@@ -1559,9 +1559,17 @@ export interface TranscriptResult {
   transcript: string;
 }
 
+export interface AISummaryTopic {
+  topic: string;
+  important: boolean;
+  points: string[];
+}
+
 export interface AISuggestionResponse {
   meeting_id: string;
   meeting_title: string;
+  key_points: string[];
+  summary: AISummaryTopic[];
   features: AIFeatureSuggestion[];
 }
 
@@ -1755,6 +1763,7 @@ export const scheduleAPI = {
     boardId: string,
     data: {
       checklist_item_id?: string;
+      meeting_id?: string;
       assignee_id: string;
       scheduled_date: string;
       start_time: string;
