@@ -110,7 +110,7 @@ export const LandingPage: React.FC = () => {
   };
 
   const handleGetStarted = () => {
-    navigate('/login');
+    navigate('/login', { state: { from: 'landing' } });
   };
 
   return (

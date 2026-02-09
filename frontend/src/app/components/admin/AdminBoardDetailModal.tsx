@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Folder, Users, ListTodo, Calendar, Trash2, Crown, Shield, User as UserIcon, Eye, ArrowRightLeft, CalendarPlus, AlertTriangle } from 'lucide-react';
+import { X, Folder, Users, ListTodo, Calendar, Trash2, Crown, Shield, User as UserIcon, Eye, ArrowRightLeft, CalendarPlus, AlertTriangle, Armchair } from 'lucide-react';
 import { adminService } from '../../utils/services';
 import { AdminBoardDetail } from '../../utils/api';
 import { formatDateTime, formatDate } from '../../utils/dateUtils';
@@ -127,6 +127,38 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
         } catch (err) {
           console.error('Failed to transfer ownership:', err);
           setToast({ message: t('admin.boardDetail.transferFailed'), type: 'error' });
+        } finally {
+          setIsUpdating(false);
+        }
+      },
+    });
+  };
+
+  const handleUpdateSeatCount = () => {
+    if (!board) return;
+
+    setPromptAction({
+      title: t('admin.boardDetail.updateSeatCount'),
+      message: t('admin.boardDetail.enterSeatCount'),
+      defaultValue: String(board.seat_count ?? 1),
+      inputType: 'number',
+      required: true,
+      onConfirm: async (value: string) => {
+        setPromptAction(null);
+        const seatCount = parseInt(value, 10);
+        if (isNaN(seatCount) || seatCount < 1) {
+          setToast({ message: t('admin.boardDetail.enterValidSeatCount'), type: 'error' });
+          return;
+        }
+        try {
+          setIsUpdating(true);
+          const updated = await adminService.updateSeatCount(boardId, seatCount);
+          setBoard(updated);
+          onUpdate();
+          setToast({ message: t('admin.boardDetail.seatCountUpdateSuccess', { count: seatCount }), type: 'success' });
+        } catch (err) {
+          console.error('Failed to update seat count:', err);
+          setToast({ message: t('admin.boardDetail.seatCountUpdateFailed'), type: 'error' });
         } finally {
           setIsUpdating(false);
         }
@@ -297,6 +329,25 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                     <ListTodo className="h-5 w-5 text-bridge-secondary" />
                     {t('admin.common.countItems', { count: board.task_count })}
                   </p>
+                </div>
+
+                <div className="bg-white/5 rounded-xl p-4">
+                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                    {t('admin.boardDetail.seatCount')}
+                  </p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-white flex items-center gap-2">
+                      <Armchair className="h-5 w-5 text-amber-400" />
+                      {board.seat_count != null ? board.seat_count : t('admin.boardDetail.noSeatInfo')}
+                    </p>
+                    <button
+                      onClick={handleUpdateSeatCount}
+                      disabled={isUpdating}
+                      className="text-xs text-bridge-accent hover:text-bridge-accent/80 disabled:opacity-50 transition-colors"
+                    >
+                      {t('common.edit')}
+                    </button>
+                  </div>
                 </div>
 
                 <div className="bg-white/5 rounded-xl p-4">

@@ -168,6 +168,15 @@ public class AdminController {
         return ResponseEntity.ok(adminService.extendTrial(boardId, request));
     }
 
+    @PatchMapping("/boards/{boardId}/seat-count")
+    public ResponseEntity<AdminResponse.BoardDetail> updateSeatCount(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable String boardId,
+            @Valid @RequestBody AdminRequest.UpdateSeatCount request) {
+        verifyAdminAccess(principal);
+        return ResponseEntity.ok(adminService.updateSeatCount(boardId, request));
+    }
+
     // ==================== Statistics ====================
 
     @GetMapping("/statistics")

@@ -180,6 +180,7 @@ export interface BoardMember {
   role: BoardRole;
   joined_at: string;
   invited_by?: { id: string; name: string } | null;
+  assignee_color?: string | null;
 }
 
 // ========================================

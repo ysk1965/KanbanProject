@@ -1,16 +1,14 @@
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { LayoutGrid, Star, Users, Settings, ChevronRight, Zap, X } from 'lucide-react';
+import { LayoutGrid, Star, Users, Settings, ChevronRight, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface SidebarProps {
   isOpen?: boolean;
   onClose?: () => void;
-  onUpgradeClick?: () => void;
-  hideBilling?: boolean;
 }
 
-export function Sidebar({ isOpen = true, onClose, onUpgradeClick, hideBilling }: SidebarProps) {
+export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
   const navigate = useNavigate();
   const { t } = useTranslation();
 
@@ -75,29 +73,6 @@ export function Sidebar({ isOpen = true, onClose, onUpgradeClick, hideBilling }:
         </nav>
       </div>
 
-      {/* Upgrade Card - TESTER/ADMIN 사용자는 숨김 */}
-      {!hideBilling && (
-        <div className="mt-auto p-6">
-          <div className="p-4 rounded-2xl bg-gradient-to-br from-[#2DD4BF] to-[#6366F1] shadow-lg shadow-[#2DD4BF]/15">
-            <div className="flex items-center gap-2 mb-2">
-              <Zap size={16} fill="white" />
-              <span className="text-xs font-bold uppercase tracking-tight">{t('dashboard.sidebar.upgradePro')}</span>
-            </div>
-            <p className="text-[10px] text-white/80 mb-3 leading-relaxed">
-              {t('dashboard.sidebar.upgradeDesc')}
-            </p>
-            <button
-              onClick={() => {
-                onUpgradeClick?.();
-                onClose?.();
-              }}
-              className="w-full py-2 bg-white text-[#0d1525] text-xs font-bold rounded-lg hover:bg-slate-100 transition-colors"
-            >
-              {t('dashboard.sidebar.viewPlans')}
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 

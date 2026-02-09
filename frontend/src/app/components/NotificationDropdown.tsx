@@ -187,6 +187,7 @@ interface NotificationDropdownProps {
   canAccessSlack?: boolean;
   onSlackUpgrade?: () => void;
   isAdmin?: boolean;
+  isTester?: boolean;
 }
 
 export function NotificationDropdown({
@@ -200,6 +201,7 @@ export function NotificationDropdown({
   canAccessSlack = true,
   onSlackUpgrade,
   isAdmin = false,
+  isTester = false,
 }: NotificationDropdownProps) {
   const { t } = useTranslation();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
@@ -350,8 +352,10 @@ export function NotificationDropdown({
               {/* Notification Preferences */}
               <NotificationPreferencesPanel boardId={boardId} hasSlack={slackConnected} />
 
-              {/* Daily Standup Config (Admin only) */}
-              <StandupConfigPanel boardId={boardId} isAdmin={isAdmin} canAccessSlack={canAccessSlack} hasSlack={slackConnected} />
+              {/* Daily Standup Config (Admin only, hidden for testers) */}
+              {!isTester && (
+                <StandupConfigPanel boardId={boardId} isAdmin={isAdmin} canAccessSlack={canAccessSlack} hasSlack={slackConnected} />
+              )}
 
               {/* Notifications Header with Mark All Read */}
               {notifications.length > 0 && unreadCount > 0 && (

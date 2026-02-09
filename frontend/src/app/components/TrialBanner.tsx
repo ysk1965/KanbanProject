@@ -5,14 +5,13 @@ import { Lock } from 'lucide-react';
 
 interface TrialBannerProps {
   status: SubscriptionStatus;
-  daysRemaining?: number;
   onOpenSubscription?: () => void;
   onOpenPremiumBenefits?: () => void;
   tier?: BoardTier;
   hideBilling?: boolean;
 }
 
-export function TrialBanner({ status, daysRemaining = 0, onOpenSubscription, onOpenPremiumBenefits, tier, hideBilling }: TrialBannerProps) {
+export function TrialBanner({ status, onOpenSubscription, onOpenPremiumBenefits, tier, hideBilling }: TrialBannerProps) {
   const { t } = useTranslation();
 
   // TESTER/ADMIN 사용자는 과금 배너 숨김
@@ -41,34 +40,6 @@ export function TrialBanner({ status, daysRemaining = 0, onOpenSubscription, onO
   }
 
   if (status === 'ACTIVE' || tier === 'PREMIUM') return null;
-
-  if (status === 'TRIAL') {
-    return (
-      <div className="bg-blue-900 border-b border-blue-800 px-6 py-3">
-        <div className="flex items-center justify-between max-w-7xl mx-auto">
-          <div className="flex items-center gap-2">
-            <span className="text-2xl">🎉</span>
-            <div>
-              <span className="font-semibold text-white">
-                {t('trial.trialActive', { days: daysRemaining })}
-              </span>
-              <span className="text-blue-200 ml-2">
-                {t('trial.trialRemaining', { days: daysRemaining })}
-              </span>
-            </div>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="border-blue-400 text-white hover:bg-blue-800"
-            onClick={onOpenSubscription}
-          >
-            {t('trial.viewPricing')}
-          </Button>
-        </div>
-      </div>
-    );
-  }
 
   if (status === 'GRACE') {
     return (

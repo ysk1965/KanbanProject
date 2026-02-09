@@ -59,8 +59,7 @@ public class User extends BaseTimeEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "system_role", length = 20)
     @Builder.Default
-    // TODO: 라이브 서비스 전 SystemRole.USER로 변경 필요
-    private SystemRole systemRole = SystemRole.TESTER;
+    private SystemRole systemRole = SystemRole.USER;
 
     @Column(name = "is_active", nullable = false)
     @Builder.Default

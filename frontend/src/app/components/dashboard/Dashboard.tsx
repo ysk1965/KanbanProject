@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, Plus, Star, LayoutGrid, LogOut, Rocket, Package2, AlertTriangle, Menu, FlaskConical } from 'lucide-react';
+import { Search, Plus, Star, LayoutGrid, LogOut, Package2, AlertTriangle, Menu, FlaskConical } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
 import { Board } from '../../types';
@@ -10,7 +10,6 @@ import { Sidebar } from './Sidebar';
 import { BoardCard, CreateBoardCard } from './BoardCard';
 import { CreateBoardModal } from './CreateBoardModal';
 import { EditBoardModal } from './EditBoardModal';
-import { UpgradeModal } from './UpgradeModal';
 
 interface DashboardProps {
   boards: Board[];
@@ -89,9 +88,8 @@ export function Dashboard({
   onRefreshBoards,
 }: DashboardProps) {
   const { t } = useTranslation();
-  const { user, logout, hideBilling, isAdmin } = useAuth();
+  const { user, logout, isAdmin } = useAuth();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
@@ -158,8 +156,6 @@ export function Dashboard({
     setEditTarget(null);
   };
 
-  // 유료 멤버 수 계산 (간단하게 전체 보드의 최대 멤버 수로 추정)
-  const totalMembers = Math.max(...boards.map((b) => b.member_count), 1);
 
   return (
     <div className="flex h-screen text-white overflow-hidden selection:bg-[#2DD4BF]/30" style={{ background: 'radial-gradient(ellipse at 20% 0%, #0d1525 0%, #060a12 50%, #030508 100%)' }}>
@@ -179,8 +175,6 @@ export function Dashboard({
       <Sidebar
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
-        onUpgradeClick={() => setIsUpgradeModalOpen(true)}
-        hideBilling={hideBilling}
       />
 
       {/* Main Content */}
@@ -213,16 +207,6 @@ export function Dashboard({
           </div>
 
           <div className="flex items-center gap-5">
-            {/* Upgrade Button - TESTER/ADMIN 사용자는 숨김 */}
-            {!hideBilling && (
-              <button
-                onClick={() => setIsUpgradeModalOpen(true)}
-                className="hidden lg:flex items-center gap-2 px-4 py-1.5 bg-[#2DD4BF]/10 text-[#2DD4BF] rounded-full border border-[#2DD4BF]/20 text-xs font-bold hover:bg-[#2DD4BF] hover:text-[#0d1525] transition-all"
-              >
-                <Rocket size={14} /> Upgrade Pro
-              </button>
-            )}
-
             {/* Logout */}
             <button
               onClick={logout}
@@ -361,14 +345,6 @@ export function Dashboard({
         onCreate={onCreateBoard}
       />
 
-      {/* Upgrade Modal - TESTER/ADMIN 사용자는 숨김 */}
-      {!hideBilling && (
-        <UpgradeModal
-          isOpen={isUpgradeModalOpen}
-          onClose={() => setIsUpgradeModalOpen(false)}
-          memberCount={totalMembers}
-        />
-      )}
 
       {/* Edit Board Modal */}
       <EditBoardModal

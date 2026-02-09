@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from './ui/select';
 import { Badge } from './ui/badge';
-import { X, Link as LinkIcon, Copy, Check, UserPlus, Trash2, Plus, Loader2, Palette } from 'lucide-react';
+import { X, Link as LinkIcon, Copy, Check, UserPlus, Trash2, Plus, Loader2, Palette, Users, Settings } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { HexColorPicker } from 'react-colorful';
 import { InviteLink } from '../utils/api';
@@ -48,6 +48,9 @@ interface ShareBoardModalProps {
   inviteLinks?: InviteLink[];
   onCreateInviteLink?: (role: string, maxUses: number, expiresIn: string) => Promise<InviteLink>;
   onDeleteInviteLink?: (linkId: string) => Promise<void>;
+  // 시트 관리 (Owner 전용)
+  seatInfo?: { seatCount: number; usedSeats: number };
+  onOpenSeatManagement?: () => void;
 }
 
 const ROLE_LABELS: Record<MemberRole, string> = {
@@ -77,6 +80,9 @@ export function ShareBoardModal({
   inviteLinks,
   onCreateInviteLink,
   onDeleteInviteLink,
+  // 시트 관리
+  seatInfo,
+  onOpenSeatManagement,
 }: ShareBoardModalProps) {
   const { t } = useTranslation();
   const [inviteEmail, setInviteEmail] = useState('');
@@ -150,7 +156,8 @@ export function ShareBoardModal({
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto space-y-6">
-          {/* 초대 섹션 */}
+          {/* 초대 섹션 - ADMIN+ 전용 */}
+          {isCurrentUserAdmin && (
           <div className="space-y-3">
             <div className="flex gap-2">
               <Input
@@ -221,6 +228,48 @@ export function ShareBoardModal({
               </button>
             </div>
           </div>
+          )}
+
+          {/* Owner 전용: 시트 관리 섹션 */}
+          {currentUser?.role === 'owner' && seatInfo && onOpenSeatManagement && (
+            <div className="p-4 bg-gradient-to-r from-bridge-accent/10 to-bridge-secondary/10 rounded-xl border border-bridge-accent/20">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-bridge-accent/20 rounded-lg">
+                    <Users className="h-4 w-4 text-bridge-accent" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-white">{t('share.seatUsage')}</p>
+                    <p className="text-xs text-slate-400">
+                      {seatInfo.usedSeats} / {seatInfo.seatCount} {t('share.seatsUsed')}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  {/* 시트 사용률 바 */}
+                  <div className="w-20 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${
+                        (seatInfo.usedSeats / seatInfo.seatCount) >= 0.9
+                          ? 'bg-red-500'
+                          : (seatInfo.usedSeats / seatInfo.seatCount) >= 0.7
+                            ? 'bg-yellow-500'
+                            : 'bg-bridge-accent'
+                      }`}
+                      style={{ width: `${Math.min((seatInfo.usedSeats / seatInfo.seatCount) * 100, 100)}%` }}
+                    />
+                  </div>
+                  <button
+                    onClick={onOpenSeatManagement}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-bridge-accent/20 text-bridge-accent text-xs font-medium rounded-lg hover:bg-bridge-accent/30 transition-all"
+                  >
+                    <Settings className="h-3.5 w-3.5" />
+                    {t('share.manageSeat')}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* 멤버 목록 */}
           <div className="space-y-3">
@@ -235,6 +284,8 @@ export function ShareBoardModal({
               {members.map((member) => {
                 const isCurrentMember = member.userId === currentUserId;
                 const canEdit = isCurrentUserAdmin && !isCurrentMember;
+                // 색상 변경: 본인은 항상 가능, 다른 유저는 ADMIN+ 만 가능
+                const canChangeColor = onUpdateMemberColor && (isCurrentMember || isCurrentUserAdmin);
 
                 return (
                   <div
@@ -256,17 +307,18 @@ export function ShareBoardModal({
                                 ? { backgroundColor: member.assigneeColor }
                                 : undefined
                             }
-                            title={t('share.changeColor')}
+                            title={canChangeColor ? t('share.changeColor') : undefined}
+                            disabled={!canChangeColor}
                           >
                             {getInitials(member.name)}
-                            {onUpdateMemberColor && (
+                            {canChangeColor && (
                               <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-bridge-obsidian border border-white/20 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity">
                                 <Palette className="h-2 w-2 text-slate-400" />
                               </div>
                             )}
                           </button>
                         </PopoverTrigger>
-                        {onUpdateMemberColor && (
+                        {canChangeColor && (
                           <PopoverContent className="w-auto p-2 bg-bridge-obsidian border-white/20" align="start">
                             <div className="flex gap-1.5">
                               {ASSIGNEE_COLOR_NAMES.map((colorName) => {

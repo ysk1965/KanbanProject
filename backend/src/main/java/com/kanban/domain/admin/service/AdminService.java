@@ -351,6 +351,21 @@ public class AdminService {
         return AdminResponse.BoardSummary.of(board, memberCount, taskCount, subscription);
     }
 
+    @Transactional
+    public AdminResponse.BoardDetail updateSeatCount(String boardId, AdminRequest.UpdateSeatCount request) {
+        Board board = boardRepository.findById(boardId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+
+        Subscription subscription = subscriptionRepository.findByBoardId(boardId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SUBSCRIPTION_NOT_FOUND));
+
+        subscription.updateSeatCount(request.getSeatCount());
+
+        log.info("Board seat count updated by admin: boardId={}, seatCount={}", boardId, request.getSeatCount());
+
+        return getBoard(boardId);
+    }
+
     // ==================== Helper Methods ====================
 
     /**

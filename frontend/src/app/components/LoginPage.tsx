@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { useGoogleLogin } from '@react-oauth/google';
@@ -34,6 +34,8 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
   const [agreeToTerms, setAgreeToTerms] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const showBackButton = location.state?.from === 'landing' || location.state?.from === 'compare';
 
   const googleLogin = useGoogleLogin({
     onSuccess: async (response) => {
@@ -109,7 +111,7 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
   };
 
   const handleBack = () => {
-    navigate('/');
+    navigate(-1);
   };
 
   return (
@@ -121,14 +123,16 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
         <div className="absolute inset-0 bg-gradient-to-b from-[#0A0E17]/40 via-[#0A0E17]/60 to-[#0A0E17]/80" />
       </div>
 
-      {/* Back Button */}
-      <button
-        onClick={handleBack}
-        className="absolute top-4 left-4 md:top-8 md:left-8 flex items-center gap-2 text-slate-500 hover:text-slate-300 transition-colors text-sm font-medium z-10"
-      >
-        <ArrowLeft size={18} />
-        <span className="hidden sm:inline">{t('auth.backToHome')}</span>
-      </button>
+      {/* Back Button - only shown when navigated from landing or compare page */}
+      {showBackButton && (
+        <button
+          onClick={handleBack}
+          className="absolute top-4 left-4 md:top-8 md:left-8 flex items-center gap-2 text-slate-500 hover:text-slate-300 transition-colors text-sm font-medium z-10"
+        >
+          <ArrowLeft size={18} />
+          <span className="hidden sm:inline">{t('auth.backToHome')}</span>
+        </button>
+      )}
 
       {/* Language Switcher */}
       <div className="absolute top-4 right-4 md:top-8 md:right-8 z-10">

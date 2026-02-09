@@ -277,7 +277,10 @@
     "rolePermissions": "역할 권한",
     "adminDesc": "모든 권한 (멤버 관리, 보드 설정, 카드 편집 등)",
     "memberDesc": "카드 생성 및 편집, 댓글 작성",
-    "observerDesc": "읽기 전용 (카드 조회만 가능)"
+    "observerDesc": "읽기 전용 (카드 조회만 가능)",
+    "seatUsage": "시트 사용 현황",
+    "seatsUsed": "시트 사용 중",
+    "manageSeat": "시트 관리"
   },
   "notification": {
     "notifications": "알림",
@@ -1760,6 +1763,14 @@
       "memberList": "멤버 목록",
       "transferOwnership": "소유권 이전",
       "extendTrial": "Trial 기간 연장",
+      "seatCount": "시트 수",
+      "noSeatInfo": "시트 정보 없음",
+      "updateSeatCount": "시트 수 변경",
+      "enterSeatCount": "변경할 시트 수를 입력하세요:",
+      "enterValidSeatCount": "유효한 시트 수를 입력하세요 (1 이상).",
+      "seatCountUpdateSuccess": "시트 수가 {{count}}개로 변경되었습니다.",
+      "seatCountUpdateFailed": "시트 수 변경에 실패했습니다.",
+      "noSubscription_seat": "구독이 없어 시트 수를 변경할 수 없습니다.",
       "dangerZone": "위험 영역",
       "deleteBoard": "보드 삭제",
       "deleteWarning": "보드와 관련된 모든 데이터가 삭제됩니다. 이 작업은 되돌릴 수 없습니다.",

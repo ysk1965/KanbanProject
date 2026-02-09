@@ -15,6 +15,7 @@ import com.kanban.global.exception.ErrorCode;
 import com.kanban.global.exception.SeatLimitException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,6 +35,7 @@ public class InviteService {
     private final UserRepository userRepository;
     private final SubscriptionRepository subscriptionRepository;
     private final BoardService boardService;
+    private final CacheManager cacheManager;
 
     public InviteResponse.ListResponse getInviteLinks(String boardId, String userId) {
         boardService.checkAdminOrAbove(boardId, userId);
@@ -149,6 +151,12 @@ public class InviteService {
                 .build();
 
         boardMemberRepository.save(newMember);
+
+        // 멤버 목록 캐시 무효화
+        var cache = cacheManager.getCache("members");
+        if (cache != null) {
+            cache.evict(board.getId());
+        }
 
         // 사용 횟수 증가
         link.incrementUsedCount();

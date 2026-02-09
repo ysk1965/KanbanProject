@@ -27,6 +27,9 @@ dependencies {
     // Sentry
     implementation 'io.sentry:sentry-spring-boot-starter-jakarta:7.3.0'
 
+    // Dotenv
+    implementation 'me.paulschwarz:spring-dotenv:4.0.0'
+
     // Spring Boot
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'

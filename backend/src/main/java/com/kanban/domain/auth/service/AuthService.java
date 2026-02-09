@@ -10,6 +10,7 @@ import com.kanban.domain.user.PasswordResetToken;
 import com.kanban.domain.user.PasswordResetTokenRepository;
 import com.kanban.domain.user.RefreshToken;
 import com.kanban.domain.user.RefreshTokenRepository;
+import com.kanban.domain.user.SystemRole;
 import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
 import com.kanban.global.email.EmailService;
@@ -52,6 +53,8 @@ public class AuthService {
         }
 
         // 사용자 생성 (emailVerified = false)
+        // cookapps.com 이메일은 TESTER로 설정
+        boolean isTester = request.getEmail().toLowerCase().endsWith("@cookapps.com");
         User user = User.builder()
                 .id(UUID.randomUUID().toString())
                 .email(request.getEmail())
@@ -59,6 +62,7 @@ public class AuthService {
                 .name(request.getName())
                 .authProvider("LOCAL")
                 .emailVerified(false)
+                .systemRole(isTester ? SystemRole.TESTER : SystemRole.USER)
                 .build();
 
         userRepository.saveAndFlush(user);
@@ -183,6 +187,8 @@ public class AuthService {
         }
 
         // 5. 신규 사용자 생성 (Google 로그인은 이메일 인증 완료 상태)
+        // cookapps.com 이메일은 TESTER로 설정
+        boolean isTester = googleUserInfo.getEmail().toLowerCase().endsWith("@cookapps.com");
         user = User.builder()
                 .id(UUID.randomUUID().toString())
                 .email(googleUserInfo.getEmail())
@@ -191,6 +197,7 @@ public class AuthService {
                 .authProvider("GOOGLE")
                 .authProviderId(googleUserInfo.getGoogleId())
                 .emailVerified(true)
+                .systemRole(isTester ? SystemRole.TESTER : SystemRole.USER)
                 .build();
 
         userRepository.save(user);

@@ -932,7 +932,11 @@ export const memberService = {
     try {
       const member = await memberAPI.updateMemberRole(boardId, memberId, role);
       return member;
-    } catch (error) {
+    } catch (error: any) {
+      // 시트 부족(S005) 등 결제 관련 에러는 mock 폴백 없이 그대로 throw
+      if (error?.code === 'S005') {
+        throw error;
+      }
       console.warn('API failed, using mock data for update member role', error);
       if (USE_MOCK_ON_ERROR) {
         const members = loadFromLocalStorage('kanban_members', mockMembers);
@@ -1992,6 +1996,11 @@ export const adminService = {
   // Trial 기간 연장
   extendTrial: async (boardId: string, extendDays: number): Promise<AdminBoardSummary> => {
     return adminAPI.extendTrial(boardId, extendDays);
+  },
+
+  // 시트 수 변경
+  updateSeatCount: async (boardId: string, seatCount: number): Promise<AdminBoardDetail> => {
+    return adminAPI.updateSeatCount(boardId, seatCount);
   },
 
   // 통계 조회

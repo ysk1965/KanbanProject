@@ -277,7 +277,10 @@
     "rolePermissions": "Role Permissions",
     "adminDesc": "Full access (member management, board settings, card editing, etc.)",
     "memberDesc": "Create and edit cards, write comments",
-    "observerDesc": "Read-only (view cards only)"
+    "observerDesc": "Read-only (view cards only)",
+    "seatUsage": "Seat Usage",
+    "seatsUsed": "seats used",
+    "manageSeat": "Manage Seats"
   },
   "notification": {
     "notifications": "Notifications",
@@ -1760,6 +1763,14 @@
       "memberList": "Member List",
       "transferOwnership": "Transfer Ownership",
       "extendTrial": "Extend Trial",
+      "seatCount": "Seats",
+      "noSeatInfo": "No seat info",
+      "updateSeatCount": "Update Seat Count",
+      "enterSeatCount": "Enter the new seat count:",
+      "enterValidSeatCount": "Please enter a valid seat count (1 or more).",
+      "seatCountUpdateSuccess": "Seat count updated to {{count}}.",
+      "seatCountUpdateFailed": "Failed to update seat count.",
+      "noSubscription_seat": "Cannot update seat count without a subscription.",
       "dangerZone": "Danger Zone",
       "deleteBoard": "Delete Board",
       "deleteWarning": "All data related to this board will be deleted. This action cannot be undone.",

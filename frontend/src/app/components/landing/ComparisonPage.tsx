@@ -43,7 +43,7 @@ export const ComparisonPage: React.FC = () => {
     }
   };
 
-  const handleGetStarted = () => navigate('/login');
+  const handleGetStarted = () => navigate('/login', { state: { from: 'compare' } });
 
   // Feature comparison data
   const features = [

@@ -2483,6 +2483,7 @@ export interface AdminBoardDetail extends AdminBoardSummary {
     role: 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER';
     joined_at: string;
   }[];
+  seat_count?: number | null;
   subscription?: {
     id: string;
     status: 'ACTIVE' | 'CANCELLED' | 'EXPIRED' | 'PENDING';
@@ -2680,6 +2681,11 @@ export const adminAPI = {
   // Trial 기간 연장
   extendTrial: async (boardId: string, extendDays: number) => {
     return apiClient.patch<AdminBoardSummary>(`/admin/boards/${boardId}/extend-trial`, { extendDays });
+  },
+
+  // 시트 수 변경
+  updateSeatCount: async (boardId: string, seatCount: number) => {
+    return apiClient.patch<AdminBoardDetail>(`/admin/boards/${boardId}/seat-count`, { seat_count: seatCount });
   },
 
   // 통계 조회

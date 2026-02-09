@@ -162,6 +162,7 @@ public class AdminResponse {
         private int memberCount;
         private int taskCount;
         private SubscriptionStatus subscriptionStatus;
+        private Integer seatCount;
         private LocalDateTime trialEndsAt;
         private LocalDateTime createdAt;
         private List<MemberInfo> members;
@@ -177,6 +178,7 @@ public class AdminResponse {
                     .memberCount(memberCount)
                     .taskCount(taskCount)
                     .subscriptionStatus(subscription != null ? subscription.getStatus() : null)
+                    .seatCount(subscription != null ? subscription.getSeatCount() : null)
                     .trialEndsAt(board.getTrialEndsAt())
                     .createdAt(board.getCreatedAt())
                     .members(members)

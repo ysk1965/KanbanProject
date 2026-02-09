@@ -72,7 +72,7 @@ export function KanbanBoardPage() {
   const { boardId } = useParams<{ boardId: string }>();
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const { currentUser, logout, hideBilling } = useAuth();
+  const { currentUser, logout, hideBilling, isTester } = useAuth();
 
   // 뷰 모드 상태
   const [viewMode, setViewMode] = useState<ViewMode>('kanban');
@@ -267,6 +267,29 @@ export function KanbanBoardPage() {
 
     loadBoardData();
   }, [boardId, navigate]);
+
+  // ShareBoardModal 열릴 때 멤버 목록 새로고침
+  useEffect(() => {
+    if (!isShareBoardModalOpen || !boardId) return;
+
+    const refreshMembers = async () => {
+      try {
+        const membersData = await memberService.getMembers(boardId);
+        setBoardMembersData(membersData.members.map((m) => ({
+          id: m.id,
+          userId: m.user.id,
+          name: m.user.name,
+          email: m.user.email,
+          role: (m.role === 'VIEWER' ? 'observer' : m.role.toLowerCase()) as MemberRole,
+          assigneeColor: m.assignee_color,
+        })));
+      } catch (error) {
+        console.error('Failed to refresh members:', error);
+      }
+    };
+
+    refreshMembers();
+  }, [isShareBoardModalOpen, boardId]);
 
   // 보드의 선택된 마일스톤 동기화
   useEffect(() => {
@@ -1246,12 +1269,7 @@ export function KanbanBoardPage() {
       <AnnouncementDisplay />
       <div className="min-h-screen bg-bridge-dark flex flex-col">
         <TrialBanner
-          status={subscription?.status || 'TRIAL'}
-          daysRemaining={
-            subscription?.trial_ends_at
-              ? Math.max(0, Math.ceil((new Date(subscription.trial_ends_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
-              : 0
-          }
+          status={subscription?.status || 'ACTIVE'}
           tier={tierInfo?.tier}
           onOpenSubscription={() => setIsSubscriptionModalOpen(true)}
           onOpenPremiumBenefits={() => setIsPremiumBenefitsModalOpen(true)}
@@ -1261,12 +1279,14 @@ export function KanbanBoardPage() {
         <header className="min-h-[3.5rem] md:h-16 border-b border-kanban-border flex items-center justify-between px-3 md:px-6 bg-kanban-bg shrink-0 z-30 gap-2">
           {/* 좌측 영역 */}
           <div className="flex items-center gap-2 md:gap-6 min-w-0">
-            <button
-              onClick={() => navigate('/boards')}
-              className="p-2 hover:bg-kanban-surface rounded-lg transition-colors text-zinc-400 hover:text-foreground"
-            >
-              <ArrowLeft size={18} />
-            </button>
+            {!hideBilling && (
+              <button
+                onClick={() => navigate('/boards')}
+                className="p-2 hover:bg-kanban-surface rounded-lg transition-colors text-zinc-400 hover:text-foreground"
+              >
+                <ArrowLeft size={18} />
+              </button>
+            )}
 
             <div className="flex items-center gap-2 md:gap-3 min-w-0">
               <h1 className="text-sm md:text-lg font-bold tracking-tight text-foreground truncate max-w-[100px] sm:max-w-[160px] md:max-w-none">
@@ -1409,7 +1429,7 @@ export function KanbanBoardPage() {
                 {!canAccessStatistics && <Lock size={10} className="ml-0.5 text-zinc-500" />}
               </button>
             )}
-            {!isViewer && (
+            {!isViewer && !isTester && (
               <button
                 onClick={() => {
                   if (!canAccessStatistics) {
@@ -1447,19 +1467,22 @@ export function KanbanBoardPage() {
                 canAccessSlack={canAccessSlack}
                 onSlackUpgrade={() => openUpgradeModal('slack')}
                 isAdmin={isAdminOrOwner}
+                isTester={isTester}
               />
-              <button
-                onClick={() => setIsInquiryModalOpen(true)}
-                className="relative flex items-center gap-2 px-3 py-2 text-zinc-400 hover:text-foreground hover:bg-kanban-surface rounded-lg transition-all"
-                title={t('kanban.inquiry')}
-              >
-                <MessageSquare size={18} />
-                {unreadInquiryCount > 0 && (
-                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
-                    {unreadInquiryCount > 99 ? '99+' : unreadInquiryCount}
-                  </span>
-                )}
-              </button>
+              {!isTester && (
+                <button
+                  onClick={() => setIsInquiryModalOpen(true)}
+                  className="relative flex items-center gap-2 px-3 py-2 text-zinc-400 hover:text-foreground hover:bg-kanban-surface rounded-lg transition-all"
+                  title={t('kanban.inquiry')}
+                >
+                  <MessageSquare size={18} />
+                  {unreadInquiryCount > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+                      {unreadInquiryCount > 99 ? '99+' : unreadInquiryCount}
+                    </span>
+                  )}
+                </button>
+              )}
                 <button
                 onClick={() => setIsShareBoardModalOpen(true)}
                 className="flex items-center gap-2 px-3 py-2 text-zinc-400 hover:text-foreground hover:bg-kanban-surface rounded-lg transition-all"
@@ -2056,6 +2079,14 @@ export function KanbanBoardPage() {
           inviteLinks={inviteLinks}
           onCreateInviteLink={handleCreateInviteLink}
           onDeleteInviteLink={handleDeleteInviteLink}
+          seatInfo={!hideBilling && subscription ? {
+            seatCount: subscription.seat_count,
+            usedSeats: subscription.billable_member_count || boardMembersData.filter(m => m.role !== 'observer').length
+          } : undefined}
+          onOpenSeatManagement={!hideBilling ? () => {
+            setIsShareBoardModalOpen(false);
+            setIsSubscriptionModalOpen(true);
+          } : undefined}
         />
 
         {!hideBilling && (

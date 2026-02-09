@@ -72,6 +72,15 @@ public class AdminRequest {
     @Getter
     @NoArgsConstructor
     @AllArgsConstructor
+    public static class UpdateSeatCount {
+        @NotNull(message = "시트 수는 필수입니다")
+        @Min(value = 1, message = "시트 수는 최소 1 이상이어야 합니다")
+        private Integer seatCount;
+    }
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class SetMaintenance {
         @NotNull(message = "활성화 여부는 필수입니다")
         private Boolean enabled;

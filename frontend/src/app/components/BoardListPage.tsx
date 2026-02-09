@@ -17,6 +17,7 @@ import {
 } from './ui/alert-dialog';
 import type { Board } from '../types';
 import { testDataAPI } from '../utils/api';
+import { useAuth } from '../contexts/AuthContext';
 
 interface BoardListPageProps {
   boards: Board[];
@@ -61,6 +62,7 @@ export function BoardListPage({
   const [isCreatingTestData, setIsCreatingTestData] = useState(false);
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { hideBilling } = useAuth();
 
   const handleEditBoard = (board: Board) => {
     setSelectedBoard(board);
@@ -115,12 +117,14 @@ export function BoardListPage({
               </div>
               <div>
                 <h1 className="text-xl font-serif font-bold tracking-tight group-hover:text-bridge-secondary transition-colors">BRIDGE</h1>
-                <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
-                  <span className="px-2 py-0.5 bg-bridge-accent/20 text-bridge-secondary rounded-full text-[10px] font-bold tracking-wider uppercase">
-                    Premium
-                  </span>
-                  <span className="text-slate-400">Workspace</span>
-                </div>
+                {!hideBilling && (
+                  <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
+                    <span className="px-2 py-0.5 bg-bridge-accent/20 text-bridge-secondary rounded-full text-[10px] font-bold tracking-wider uppercase">
+                      Premium
+                    </span>
+                    <span className="text-slate-400">Workspace</span>
+                  </div>
+                )}
               </div>
             </div>
             <Button
