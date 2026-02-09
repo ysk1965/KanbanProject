@@ -946,7 +946,7 @@
     "deleteDate": "ลบวันที่",
     "noDate": "ไม่มีวันที่",
     "assignee": "ผู้รับมอบหมาย",
-    "addAssigneeToChecklist": "เพิ่มผู้รับมอบหมายในรายการเช็คลิสต์",
+    "addAssigneeToChecklist": "ซิงค์กับผู้รับมอบหมายในเช็คลิสต์",
     "tags": "แท็ก",
     "tagName": "ชื่อแท็ก",
     "addTag": "เพิ่มแท็ก",

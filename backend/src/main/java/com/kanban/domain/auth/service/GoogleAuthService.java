@@ -12,9 +12,14 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.*;
 import org.springframework.stereotype.Service;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.RestTemplate;
 
 import java.util.Collections;
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -22,6 +27,9 @@ public class GoogleAuthService {
 
     @Value("${google.oauth2.client-id}")
     private String clientId;
+
+    @Value("${google.oauth2.client-secret:}")
+    private String clientSecret;
 
     private GoogleIdTokenVerifier verifier;
 
@@ -55,6 +63,43 @@ public class GoogleAuthService {
             throw e;
         } catch (Exception e) {
             log.error("Failed to verify Google ID token", e);
+            throw new BusinessException(ErrorCode.INVALID_GOOGLE_TOKEN);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    public GoogleUserInfo exchangeAuthorizationCode(String code) {
+        try {
+            RestTemplate restTemplate = new RestTemplate();
+
+            MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
+            params.add("code", code);
+            params.add("client_id", clientId);
+            params.add("client_secret", clientSecret);
+            params.add("redirect_uri", "postmessage");
+            params.add("grant_type", "authorization_code");
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+            HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(params, headers);
+
+            ResponseEntity<Map> response = restTemplate.postForEntity(
+                    "https://oauth2.googleapis.com/token", request, Map.class);
+
+            Map<String, Object> body = response.getBody();
+            if (body == null || !body.containsKey("id_token")) {
+                log.error("Google token exchange failed: no id_token in response");
+                throw new BusinessException(ErrorCode.INVALID_GOOGLE_TOKEN);
+            }
+
+            String idTokenString = (String) body.get("id_token");
+            return verifyIdToken(idTokenString);
+
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Failed to exchange Google authorization code", e);
             throw new BusinessException(ErrorCode.INVALID_GOOGLE_TOKEN);
         }
     }

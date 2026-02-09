@@ -42,6 +42,7 @@ jwt:
 google:
   oauth2:
     client-id: ${GOOGLE_CLIENT_ID:}
+    client-secret: ${GOOGLE_CLIENT_SECRET:}
 
 # Email (Gmail SMTP)
 spring.mail:

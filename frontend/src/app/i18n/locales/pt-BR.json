@@ -946,7 +946,7 @@
     "deleteDate": "Excluir Data",
     "noDate": "Sem data",
     "assignee": "Responsável",
-    "addAssigneeToChecklist": "Adicionar responsáveis aos itens do checklist",
+    "addAssigneeToChecklist": "Sincronizado com responsáveis do checklist",
     "tags": "Tags",
     "tagName": "Nome da tag",
     "addTag": "Adicionar Tag",

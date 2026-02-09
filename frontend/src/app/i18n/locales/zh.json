@@ -962,7 +962,7 @@
     "deleteDate": "删除日期",
     "noDate": "无日期",
     "assignee": "负责人",
-    "addAssigneeToChecklist": "为清单项添加负责人",
+    "addAssigneeToChecklist": "与清单负责人自动同步",
     "tags": "标签",
     "tagName": "标签名称",
     "addTag": "添加标签",

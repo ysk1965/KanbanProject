@@ -1,6 +1,5 @@
 package com.kanban.domain.auth.dto;
 
-import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -10,10 +9,14 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class GoogleAuthRequest {
 
-    @NotBlank(message = "Google ID token is required")
     private String id_token;
+    private String code;
 
     public String getIdToken() {
         return id_token;
+    }
+
+    public String getCode() {
+        return code;
     }
 }

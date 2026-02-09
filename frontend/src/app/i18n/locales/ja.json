@@ -946,7 +946,7 @@
     "deleteDate": "日付を削除",
     "noDate": "日付なし",
     "assignee": "担当者",
-    "addAssigneeToChecklist": "チェックリストアイテムに担当者を追加",
+    "addAssigneeToChecklist": "チェックリストの担当者と自動連動",
     "tags": "タグ",
     "tagName": "タグ名",
     "addTag": "タグを追加",

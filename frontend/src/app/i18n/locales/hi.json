@@ -946,7 +946,7 @@
     "deleteDate": "तिथि हटाएं",
     "noDate": "कोई तिथि नहीं",
     "assignee": "असाइनी",
-    "addAssigneeToChecklist": "चेकलिस्ट आइटम में असाइनी जोड़ें",
+    "addAssigneeToChecklist": "चेकलिस्ट असाइनी के साथ स्वचालित सिंक",
     "tags": "टैग",
     "tagName": "टैग का नाम",
     "addTag": "टैग जोड़ें",

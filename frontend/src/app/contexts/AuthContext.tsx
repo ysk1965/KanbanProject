@@ -23,7 +23,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string, name: string) => Promise<void>;
-  googleLogin: (idToken: string) => Promise<void>;
+  googleLogin: (code: string) => Promise<void>;
   logout: () => Promise<void>;
   resendVerificationEmail: () => Promise<void>;
   updateCurrentUser: (updates: Partial<User>) => void;
@@ -125,8 +125,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     syncAnalyticsUser(response.user);
   };
 
-  const googleLogin = async (idToken: string) => {
-    const response = await authService.googleLogin(idToken);
+  const googleLogin = async (code: string) => {
+    const response = await authService.googleLogin(code);
     setIsAuthenticated(true);
     setCurrentUser(response.user);
     syncAnalyticsUser(response.user);

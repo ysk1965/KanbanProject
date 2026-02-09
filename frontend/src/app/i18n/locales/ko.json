@@ -998,7 +998,7 @@
     "deleteDate": "날짜 삭제",
     "noDate": "날짜 없음",
     "assignee": "담당자",
-    "addAssigneeToChecklist": "체크리스트에 담당자를 추가하세요",
+    "addAssigneeToChecklist": "체크리스트 담당자와 자동 연동됩니다",
     "tags": "태그",
     "tagName": "태그 이름",
     "addTag": "태그 추가",

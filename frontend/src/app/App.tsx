@@ -105,8 +105,8 @@ function LoginRoute() {
     await handleLoginSuccess();
   };
 
-  const googleLogin = async (idToken: string) => {
-    await authGoogleLogin(idToken);
+  const googleLogin = async (code: string) => {
+    await authGoogleLogin(code);
     await handleLoginSuccess();
   };
 

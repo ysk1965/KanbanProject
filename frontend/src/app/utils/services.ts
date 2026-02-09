@@ -1049,9 +1049,9 @@ export const authService = {
     }
   },
 
-  googleLogin: async (idToken: string) => {
+  googleLogin: async (code: string) => {
     try {
-      const response = await authAPI.googleLogin(idToken);
+      const response = await authAPI.googleLogin(code);
       // 구글 로그인 사용자임을 표시
       const userWithProvider = { ...response.user, provider: 'google' as const };
       localStorage.setItem('user', JSON.stringify(userWithProvider));

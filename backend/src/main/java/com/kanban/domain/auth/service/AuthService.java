@@ -130,8 +130,15 @@ public class AuthService {
 
     @Transactional
     public TokenResponse googleLogin(GoogleAuthRequest request) {
-        // 1. Google ID 토큰 검증
-        GoogleAuthService.GoogleUserInfo googleUserInfo = googleAuthService.verifyIdToken(request.getIdToken());
+        // 1. Google 인증 (auth-code flow 또는 id_token flow)
+        GoogleAuthService.GoogleUserInfo googleUserInfo;
+        if (request.getCode() != null && !request.getCode().isBlank()) {
+            googleUserInfo = googleAuthService.exchangeAuthorizationCode(request.getCode());
+        } else if (request.getIdToken() != null && !request.getIdToken().isBlank()) {
+            googleUserInfo = googleAuthService.verifyIdToken(request.getIdToken());
+        } else {
+            throw new BusinessException(ErrorCode.INVALID_GOOGLE_TOKEN);
+        }
 
         // 2. 이메일 인증 확인
         if (!Boolean.TRUE.equals(googleUserInfo.getEmailVerified())) {

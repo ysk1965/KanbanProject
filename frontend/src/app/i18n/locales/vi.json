@@ -946,7 +946,7 @@
     "deleteDate": "Xoa ngay",
     "noDate": "Khong co ngay",
     "assignee": "Nguoi phu trach",
-    "addAssigneeToChecklist": "Them nguoi phu trach vao muc danh sach kiem tra",
+    "addAssigneeToChecklist": "Đồng bộ với người phụ trách trong danh sách",
     "tags": "The",
     "tagName": "Ten the",
     "addTag": "Them the",

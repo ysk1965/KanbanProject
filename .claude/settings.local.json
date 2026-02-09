@@ -76,7 +76,8 @@
       "Bash(du:*)",
       "Bash(aws elasticbeanstalk describe-environments:*)",
       "Bash(printf:*)",
-      "Bash(do sed -i '' 's/\"\"pricing\"\": \"\"Pricing\"\",/\"\"pricing\"\": \"\"Pricing\"\",/' \"$f.json\")"
+      "Bash(do sed -i '' 's/\"\"pricing\"\": \"\"Pricing\"\",/\"\"pricing\"\": \"\"Pricing\"\",/' \"$f.json\")",
+      "Bash(npm ls:*)"
     ]
   }
 }

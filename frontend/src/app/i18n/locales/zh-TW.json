@@ -962,7 +962,7 @@
     "deleteDate": "刪除日期",
     "noDate": "無日期",
     "assignee": "負責人",
-    "addAssigneeToChecklist": "為清單項新增負責人",
+    "addAssigneeToChecklist": "與清單負責人自動同步",
     "tags": "標籤",
     "tagName": "標籤名稱",
     "addTag": "新增標籤",

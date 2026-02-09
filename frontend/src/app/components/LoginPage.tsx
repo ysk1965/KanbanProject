@@ -1,13 +1,12 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
-import { GoogleLogin } from '@react-oauth/google';
+import { useGoogleLogin } from '@react-oauth/google';
 import { Mail, Lock, User, Users, ArrowLeft, ArrowRight, Check, X } from 'lucide-react';
 import { trackEvent } from '../contexts/AnalyticsContext';
 import { HeroScene } from './landing/BridgeScene';
 import { LanguageSwitcher } from './LanguageSwitcher';
-import i18n from '../i18n';
 
 interface InviteInfo {
   boardName: string;
@@ -18,7 +17,7 @@ interface InviteInfo {
 interface LoginPageProps {
   onLogin: (email: string, password: string) => Promise<void>;
   onSignup: (email: string, password: string, name: string) => Promise<void>;
-  onGoogleLogin?: (idToken: string) => Promise<void>;
+  onGoogleLogin?: (code: string) => Promise<void>;
   onBack?: () => void;
   inviteInfo?: InviteInfo | null;
 }
@@ -34,20 +33,36 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
   const [error, setError] = useState('');
   const [agreeToTerms, setAgreeToTerms] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
-  const [googleBtnWidth, setGoogleBtnWidth] = useState(360);
-  const googleContainerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const el = googleContainerRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver((entries) => {
-      const w = Math.floor(entries[0].contentRect.width);
-      if (w > 0) setGoogleBtnWidth(w);
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
+  const googleLogin = useGoogleLogin({
+    onSuccess: async (response) => {
+      if (response.code && onGoogleLogin) {
+        setIsGoogleLoading(true);
+        setError('');
+        try {
+          await onGoogleLogin(response.code);
+          trackEvent(mode === 'login' ? 'login' : 'sign_up', { method: 'google' });
+        } catch (err: any) {
+          setError(err.message || t('auth.googleLoginFailed'));
+          trackEvent('error', {
+            error_type: 'google_auth_failed',
+            error_message: err.message || 'Google login failed'
+          });
+        } finally {
+          setIsGoogleLoading(false);
+        }
+      }
+    },
+    onError: () => {
+      setError(t('auth.googleLoginFailed'));
+      trackEvent('error', {
+        error_type: 'google_auth_error',
+        error_message: 'Google OAuth error'
+      });
+    },
+    flow: 'auth-code',
+  });
 
   // 비밀번호 검증 규칙
   const passwordValidation = {
@@ -189,74 +204,30 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
         </div>
 
         {/* Social Auth Section */}
-        <div ref={googleContainerRef} className="mb-6 sm:mb-8 relative h-[44px]">
-          {onGoogleLogin ? (
-            <>
-              {/* Custom styled button - visual layer */}
-              <div className="absolute inset-0 flex items-center justify-center gap-3 bg-white/[0.03] border border-white/[0.08] text-white rounded-xl pointer-events-none transition-all">
-                {isGoogleLoading ? (
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                ) : (
-                  <>
-                    <img
-                      src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg"
-                      className="w-5 h-5"
-                      alt="google"
-                    />
-                    <span className="text-sm font-semibold">{t('auth.continueWithGoogle')}</span>
-                  </>
-                )}
-              </div>
-              {/* Invisible GoogleLogin iframe - click layer */}
-              <div className="absolute inset-0 z-10 opacity-0 overflow-hidden cursor-pointer [&_iframe]:!w-full [&_iframe]:!h-[44px] [&>div]:!w-full [&>div]:!h-full">
-                <GoogleLogin
-                  onSuccess={async (response) => {
-                    if (response.credential) {
-                      setIsGoogleLoading(true);
-                      setError('');
-                      try {
-                        await onGoogleLogin(response.credential);
-                        trackEvent(mode === 'login' ? 'login' : 'sign_up', { method: 'google' });
-                      } catch (err: any) {
-                        setError(err.message || t('auth.googleLoginFailed'));
-                        trackEvent('error', {
-                          error_type: 'google_auth_failed',
-                          error_message: err.message || 'Google login failed'
-                        });
-                      } finally {
-                        setIsGoogleLoading(false);
-                      }
-                    }
-                  }}
-                  onError={() => {
-                    setError(t('auth.googleLoginFailed'));
-                    trackEvent('error', {
-                      error_type: 'google_auth_error',
-                      error_message: 'Google OAuth error'
-                    });
-                  }}
-                  theme="filled_black"
-                  text="continue_with"
-                  locale={i18n.language === 'ko' ? 'ko' : 'en'}
-                  width={googleBtnWidth}
-                  size="large"
+        <div className="mb-6 sm:mb-8">
+          <button
+            type="button"
+            onClick={() => onGoogleLogin && googleLogin()}
+            disabled={!onGoogleLogin || isGoogleLoading}
+            className={`flex items-center justify-center gap-3 bg-white/[0.03] border border-white/[0.08] text-white h-[44px] rounded-xl font-semibold w-full transition-all ${
+              onGoogleLogin
+                ? 'hover:bg-white/[0.06] hover:border-white/[0.15] cursor-pointer active:scale-[0.98]'
+                : 'cursor-not-allowed opacity-50'
+            }`}
+          >
+            {isGoogleLoading ? (
+              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+            ) : (
+              <>
+                <img
+                  src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg"
+                  className="w-5 h-5"
+                  alt="google"
                 />
-              </div>
-            </>
-          ) : (
-            <button
-              type="button"
-              className="flex items-center justify-center gap-3 bg-white/[0.03] border border-white/[0.08] text-white h-[44px] rounded-xl font-semibold w-full cursor-not-allowed opacity-50"
-              disabled
-            >
-              <img
-                src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg"
-                className="w-5 h-5"
-                alt="google"
-              />
-              <span className="text-sm">{t('auth.continueWithGoogle')}</span>
-            </button>
-          )}
+                <span className="text-sm font-semibold">{t('auth.continueWithGoogle')}</span>
+              </>
+            )}
+          </button>
         </div>
 
         {/* Divider */}
