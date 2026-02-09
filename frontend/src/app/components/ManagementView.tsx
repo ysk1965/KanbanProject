@@ -190,20 +190,20 @@ export function ManagementView({ boardId, milestones, members, onTaskClick, refr
 
   return (
     <div className="h-full overflow-auto bg-bridge-dark">
-      <div className="p-6 space-y-6">
+      <div className="p-3 sm:p-6 space-y-4 sm:space-y-6">
         {/* 헤더 */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <Shield className="w-6 h-6 text-bridge-accent" />
-              <h1 className="text-xl font-bold text-foreground">{t('management.dashboard')}</h1>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Shield className="w-5 h-5 sm:w-6 sm:h-6 text-bridge-accent" />
+              <h1 className="text-lg sm:text-xl font-bold text-foreground whitespace-nowrap">{t('management.dashboard')}</h1>
             </div>
 
             {/* 마일스톤 필터 */}
             <select
               value={selectedMilestoneId || ''}
               onChange={(e) => setSelectedMilestoneId(e.target.value)}
-              className="px-3 py-1.5 bg-white/5 border border-white/20 rounded-lg text-sm text-foreground
+              className="px-2 sm:px-3 py-1.5 bg-white/5 border border-white/20 rounded-lg text-sm text-foreground min-w-0
                 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
             >
               {milestones.map((m) => (
@@ -214,7 +214,7 @@ export function ManagementView({ boardId, milestones, members, onTaskClick, refr
             </select>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 self-end sm:self-auto">
             <button
               onClick={() => setShowSettings(!showSettings)}
               className="p-2 text-slate-400 hover:text-foreground hover:bg-white/5 rounded-lg transition-colors"
@@ -234,10 +234,10 @@ export function ManagementView({ boardId, milestones, members, onTaskClick, refr
 
         {/* 설정 패널 */}
         {showSettings && (
-          <div className="p-4 bg-bridge-obsidian rounded-xl border border-white/20">
+          <div className="p-3 sm:p-4 bg-bridge-obsidian rounded-xl border border-white/20">
             <h3 className="text-sm font-semibold text-foreground mb-3">{t('management.delayCriteria')}</h3>
-            <div className="flex items-center gap-6">
-              <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
+              <div className="flex items-center gap-2 flex-wrap">
                 <label className="text-sm text-slate-400">{t('management.stagnantTask')}</label>
                 <select
                   value={settings.stagnant_task_days}
@@ -250,7 +250,7 @@ export function ManagementView({ boardId, milestones, members, onTaskClick, refr
                 </select>
                 <span className="text-xs text-slate-400">{t('management.sameBlockDays')}</span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <label className="text-sm text-slate-400">{t('management.stuckChecklist')}</label>
                 <select
                   value={settings.stuck_checklist_days}
@@ -268,30 +268,30 @@ export function ManagementView({ boardId, milestones, members, onTaskClick, refr
         )}
 
         {/* 요약 카드들 */}
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {/* 전체 건강 점수 */}
-          <div className="p-4 bg-bridge-obsidian rounded-xl border border-white/20">
+          <div className="p-3 sm:p-4 bg-bridge-obsidian rounded-xl border border-white/20">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{t('management.healthScore')}</span>
+              <span className="text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider">{t('management.healthScore')}</span>
               <Activity className="w-4 h-4 text-slate-400" />
             </div>
-            <div className={`text-3xl font-bold ${getHealthScoreColor(data.summary.overall_health_score)}`}>
+            <div className={`text-2xl sm:text-3xl font-bold ${getHealthScoreColor(data.summary.overall_health_score)}`}>
               {data.summary.overall_health_score}
-              <span className="text-lg text-slate-400">/100</span>
+              <span className="text-base sm:text-lg text-slate-400">/100</span>
             </div>
           </div>
 
           {/* 마일스톤 진행 */}
-          <div className="p-4 bg-bridge-obsidian rounded-xl border border-white/20">
+          <div className="p-3 sm:p-4 bg-bridge-obsidian rounded-xl border border-white/20">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+              <span className="text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider">
                 {t('management.milestoneProgress')}
               </span>
               <Target className="w-4 h-4 text-slate-400" />
             </div>
             {data.milestone_health.length > 0 ? (
               <>
-                <div className="text-3xl font-bold text-foreground">
+                <div className="text-2xl sm:text-3xl font-bold text-foreground">
                   {data.milestone_health[0].progress_percentage.toFixed(0)}%
                 </div>
                 <div className="mt-1 text-xs text-slate-400">
@@ -299,18 +299,18 @@ export function ManagementView({ boardId, milestones, members, onTaskClick, refr
                 </div>
               </>
             ) : (
-              <div className="text-3xl font-bold text-slate-400">-</div>
+              <div className="text-2xl sm:text-3xl font-bold text-slate-400">-</div>
             )}
           </div>
 
           {/* 팀원 현황 */}
-          <div className="p-4 bg-bridge-obsidian rounded-xl border border-white/20">
+          <div className="p-3 sm:p-4 bg-bridge-obsidian rounded-xl border border-white/20">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{t('management.teamMembers')}</span>
+              <span className="text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider">{t('management.teamMembers')}</span>
               <Users className="w-4 h-4 text-slate-400" />
             </div>
             <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-bold text-foreground">{data.summary.members_on_track}</span>
+              <span className="text-2xl sm:text-3xl font-bold text-foreground">{data.summary.members_on_track}</span>
               <span className="text-slate-400">/ {data.summary.total_members}</span>
             </div>
             {data.summary.members_needing_attention > 0 && (
@@ -321,14 +321,14 @@ export function ManagementView({ boardId, milestones, members, onTaskClick, refr
           </div>
 
           {/* 지연 항목 */}
-          <div className="p-4 bg-bridge-obsidian rounded-xl border border-white/20">
+          <div className="p-3 sm:p-4 bg-bridge-obsidian rounded-xl border border-white/20">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{t('management.delayedItems')}</span>
+              <span className="text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider">{t('management.delayedItems')}</span>
               <AlertTriangle className="w-4 h-4 text-slate-400" />
             </div>
-            <div className="text-3xl font-bold text-foreground">
+            <div className="text-2xl sm:text-3xl font-bold text-foreground">
               {data.summary.total_delayed_items}
-              <span className="text-lg text-slate-400"></span>
+              <span className="text-base sm:text-lg text-slate-400"></span>
             </div>
             {data.summary.total_delayed_items > 0 && (
               <div className="mt-1 text-xs text-red-400">
@@ -339,7 +339,7 @@ export function ManagementView({ boardId, milestones, members, onTaskClick, refr
         </div>
 
         {/* 탭 네비게이션 */}
-        <div className="flex items-center gap-1 p-1 bg-bridge-obsidian rounded-xl border border-white/20 w-fit">
+        <div className="flex items-center gap-1 p-1 bg-bridge-obsidian rounded-xl border border-white/20 w-full sm:w-fit overflow-x-auto scrollbar-hide">
           <button
             onClick={() => setActiveTab('health')}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -523,27 +523,27 @@ function MilestoneHealthSection({
             className="bg-bridge-obsidian rounded-xl border border-white/20 overflow-hidden"
           >
             {/* 헤더 */}
-            <div className="p-4 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div>
-                  <h3 className="font-semibold text-foreground">{health.milestone.title}</h3>
-                  <div className="flex items-center gap-3 mt-1 text-xs text-slate-400">
-                    <span>{health.milestone.start_date} ~ {health.milestone.end_date}</span>
-                    <span>D{health.days_remaining >= 0 ? `-${health.days_remaining}` : `+${health.days_overdue}`}</span>
+            <div className="p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4">
+              <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                <div className="min-w-0">
+                  <h3 className="font-semibold text-foreground truncate">{health.milestone.title}</h3>
+                  <div className="flex items-center gap-2 sm:gap-3 mt-1 text-xs text-slate-400">
+                    <span className="truncate">{health.milestone.start_date} ~ {health.milestone.end_date}</span>
+                    <span className="flex-shrink-0">D{health.days_remaining >= 0 ? `-${health.days_remaining}` : `+${health.days_overdue}`}</span>
                   </div>
                 </div>
               </div>
 
-              <div className="flex items-center gap-6">
+              <div className="flex items-center gap-3 sm:gap-6 self-end sm:self-auto">
                 {/* 진행률 */}
                 <div className="text-right">
-                  <div className="text-2xl font-bold text-foreground">
+                  <div className="text-xl sm:text-2xl font-bold text-foreground">
                     {health.progress_percentage.toFixed(0)}%
                   </div>
-                  <div className="text-xs text-slate-400">
+                  <div className="text-[10px] sm:text-xs text-slate-400">
                     {health.velocity.tasks_completed}/{health.velocity.tasks_total} Task
                     {health.velocity.estimated_total_minutes ? (
-                      <span className="ml-1">
+                      <span className="ml-1 hidden sm:inline">
                         ({formatMinutesShort(health.velocity.actual_total_minutes || 0)}/{formatMinutesShort(health.velocity.estimated_total_minutes)})
                       </span>
                     ) : null}
@@ -551,15 +551,15 @@ function MilestoneHealthSection({
                 </div>
 
                 {/* 상태 뱃지 */}
-                <div className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${statusConfig.bg} ${statusConfig.color} ${statusConfig.border} border`}>
+                <div className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold ${statusConfig.bg} ${statusConfig.color} ${statusConfig.border} border whitespace-nowrap`}>
                   {t(statusConfig.labelKey)}
                 </div>
               </div>
             </div>
 
             {/* 상세 콘텐츠 */}
-            <div className="px-4 pb-4 border-t border-white/15">
-                <div className="grid grid-cols-2 gap-6 pt-4">
+            <div className="px-3 sm:px-4 pb-3 sm:pb-4 border-t border-white/15">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 pt-3 sm:pt-4">
                   {/* 속도 & 추정 정확도 통합 */}
                   <div className="space-y-4">
                     {health.velocity.estimated_total_minutes ? (
@@ -590,9 +590,9 @@ function MilestoneHealthSection({
                         };
 
                         return (
-                          <div className="grid grid-cols-[auto_1fr_1fr] gap-4 items-start">
+                          <div className="grid grid-cols-2 sm:grid-cols-[auto_1fr_1fr] gap-3 sm:gap-4 items-start">
                             {/* 추정 정확도 박스 */}
-                            <div className={`w-24 p-3 rounded-lg border ${getEfficiencyBg(efficiency)} text-center self-center`}>
+                            <div className={`w-full sm:w-24 p-2 sm:p-3 rounded-lg border ${getEfficiencyBg(efficiency)} text-center self-center col-span-2 sm:col-span-1`}>
                               <div className={`text-2xl font-bold ${getEfficiencyColor(efficiency)}`}>
                                 {efficiency > 0 ? `${efficiency.toFixed(0)}%` : '-'}
                               </div>
@@ -755,7 +755,8 @@ function MilestoneHealthSection({
                       )}
 
                       {/* Task 테이블 */}
-                      <div className="bg-white/[0.02] rounded-lg overflow-hidden">
+                      <div className="bg-white/[0.02] rounded-lg overflow-x-auto">
+                        <div className="min-w-[600px]">
                         <div className="grid grid-cols-[1.5fr_1fr_0.8fr_140px_90px] gap-2 px-3 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wider border-b border-white/15">
                           <div>{t('management.taskHeader')}</div>
                           <div>{t('management.featureHeader')}</div>
@@ -906,6 +907,7 @@ function MilestoneHealthSection({
                             </div>
                           ))}
                         </div>
+                      </div>
                       </div>
                     </div>
                   )}
@@ -1118,7 +1120,7 @@ function TeamAllocationSubSection({
       {/* Add form */}
       {showAddForm && (
         <div className="p-3 bg-bridge-accent/5 border border-bridge-accent/20 rounded-lg space-y-3">
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="text-[10px] text-slate-400 uppercase tracking-wider mb-1 block">{t('management.memberLabel')}</label>
               <select
@@ -1177,7 +1179,8 @@ function TeamAllocationSubSection({
 
       {/* Allocation table */}
       {allocations.length > 0 ? (
-        <div className="bg-white/[0.02] rounded-lg overflow-hidden">
+        <div className="bg-white/[0.02] rounded-lg overflow-x-auto">
+          <div className="min-w-[600px]">
           <div className="grid grid-cols-[1.5fr_0.8fr_0.8fr_0.8fr_0.8fr_0.6fr_60px] gap-2 px-3 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wider border-b border-white/15">
             <div>{t('management.memberLabel')}</div>
             <div className="text-center">{t('management.workingDays')}</div>
@@ -1328,6 +1331,7 @@ function TeamAllocationSubSection({
             </div>
           </div>
         </div>
+        </div>
       ) : (
         <div className="p-4 bg-white/[0.02] rounded-lg text-center text-slate-400 text-sm">
           {t('management.noAllocation')}
@@ -1337,7 +1341,7 @@ function TeamAllocationSubSection({
       {/* Overcommit summary */}
       {allocations.length > 0 && taskAllocatedHours > 0 && (
         <div className={`p-3 rounded-lg border ${isOvercommitted ? 'bg-red-500/10 border-red-500/20' : 'bg-emerald-500/10 border-emerald-500/20'}`}>
-          <div className="flex items-center justify-between text-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-2 text-sm">
             <div>
               <span className="text-slate-400">{t('management.allocatedWork')}</span>
               <span className="text-foreground font-medium">{taskAllocatedHours}h</span>
@@ -1400,9 +1404,10 @@ function TeamProductivitySection({
   }
 
   return (
-    <div className="bg-bridge-obsidian rounded-xl border border-white/20 overflow-hidden">
+    <div className="bg-bridge-obsidian rounded-xl border border-white/20 overflow-x-auto">
+      <div className="min-w-[640px]">
       {/* 테이블 헤더 */}
-      <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_100px] gap-4 px-4 py-3 border-b border-white/20 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+      <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_100px] gap-3 sm:gap-4 px-3 sm:px-4 py-3 border-b border-white/20 text-xs font-semibold text-slate-400 uppercase tracking-wider">
         <div>{t('management.teamMemberHeader')}</div>
         <div className="text-center">{t('management.assignedHeader')}</div>
         <div className="text-center">{t('management.completedHeader')}</div>
@@ -1421,7 +1426,7 @@ function TeamProductivitySection({
             {/* 행 */}
             <div
               onClick={() => toggleExpand(member.member.id)}
-              className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_100px] gap-4 px-4 py-3 items-center cursor-pointer hover:bg-white/5 transition-colors"
+              className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_100px] gap-3 sm:gap-4 px-3 sm:px-4 py-3 items-center cursor-pointer hover:bg-white/5 transition-colors"
             >
               <div className="flex items-center gap-3">
                 <button className="text-slate-400">
@@ -1468,8 +1473,8 @@ function TeamProductivitySection({
 
             {/* 확장 상세 */}
             {isExpanded && (
-              <div className="px-4 pb-4 bg-white/[0.02]">
-                <div className="grid grid-cols-3 gap-6 pt-4">
+              <div className="px-3 sm:px-4 pb-3 sm:pb-4 bg-white/[0.02]">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 pt-3 sm:pt-4">
                   {/* 담당 Task (ChecklistItem 담당자 기준) */}
                   <div>
                     <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
@@ -1578,6 +1583,7 @@ function TeamProductivitySection({
           </div>
         );
       })}
+      </div>
     </div>
   );
 }
@@ -1608,7 +1614,7 @@ function DelayedItemsSection({ delayedItems }: { delayedItems: DelayedItems }) {
       {/* 병목 요약 */}
       {(delayedItems.bottleneck_summary.most_delayed_member ||
         delayedItems.bottleneck_summary.most_problematic_block) && (
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           {delayedItems.bottleneck_summary.most_delayed_member && (
             <div className="p-4 bg-orange-500/10 border border-orange-500/20 rounded-xl">
               <div className="flex items-center gap-2 text-orange-400 text-xs font-semibold uppercase tracking-wider mb-2">
@@ -1651,10 +1657,10 @@ function DelayedItemsSection({ delayedItems }: { delayedItems: DelayedItems }) {
       )}
 
       {/* 서브 탭 */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-1">
         <button
           onClick={() => setActiveSubTab('features')}
-          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
             activeSubTab === 'features'
               ? 'bg-red-500/20 text-red-400'
               : 'text-slate-400 hover:text-foreground hover:bg-white/5'
@@ -1664,7 +1670,7 @@ function DelayedItemsSection({ delayedItems }: { delayedItems: DelayedItems }) {
         </button>
         <button
           onClick={() => setActiveSubTab('tasks')}
-          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
             activeSubTab === 'tasks'
               ? 'bg-orange-500/20 text-orange-400'
               : 'text-slate-400 hover:text-foreground hover:bg-white/5'
@@ -1674,7 +1680,7 @@ function DelayedItemsSection({ delayedItems }: { delayedItems: DelayedItems }) {
         </button>
         <button
           onClick={() => setActiveSubTab('checklists')}
-          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
             activeSubTab === 'checklists'
               ? 'bg-yellow-500/20 text-yellow-400'
               : 'text-slate-400 hover:text-foreground hover:bg-white/5'
@@ -1690,7 +1696,7 @@ function DelayedItemsSection({ delayedItems }: { delayedItems: DelayedItems }) {
           <div className="divide-y divide-white/5">
             {delayedItems.overdue_features.length > 0 ? (
               delayedItems.overdue_features.map((feature) => (
-                <div key={feature.feature_id} className="p-4 flex items-center justify-between">
+                <div key={feature.feature_id} className="p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div className="flex items-center gap-3">
                     <div
                       className="w-3 h-3 rounded-full"
@@ -1721,7 +1727,7 @@ function DelayedItemsSection({ delayedItems }: { delayedItems: DelayedItems }) {
           <div className="divide-y divide-white/5">
             {delayedItems.stagnant_tasks.length > 0 ? (
               delayedItems.stagnant_tasks.map((task) => (
-                <div key={task.task_id} className="p-4 flex items-center justify-between">
+                <div key={task.task_id} className="p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div className="flex items-center gap-3">
                     <div
                       className="w-3 h-3 rounded-full"
@@ -1753,7 +1759,7 @@ function DelayedItemsSection({ delayedItems }: { delayedItems: DelayedItems }) {
           <div className="divide-y divide-white/5">
             {delayedItems.stuck_checklists.length > 0 ? (
               delayedItems.stuck_checklists.map((item) => (
-                <div key={item.checklist_id} className="p-4 flex items-center justify-between">
+                <div key={item.checklist_id} className="p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div className="flex items-center gap-3">
                     <div
                       className="w-3 h-3 rounded-full"

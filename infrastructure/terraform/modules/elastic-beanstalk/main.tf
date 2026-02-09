@@ -339,6 +339,26 @@ resource "aws_elastic_beanstalk_environment" "main" {
     value     = var.claude_api_key
   }
 
+  # Email (Gmail SMTP)
+  setting {
+    namespace = "aws:elasticbeanstalk:application:environment"
+    name      = "MAIL_USERNAME"
+    value     = var.mail_username
+  }
+
+  setting {
+    namespace = "aws:elasticbeanstalk:application:environment"
+    name      = "MAIL_PASSWORD"
+    value     = var.mail_password
+  }
+
+  # Google OAuth2
+  setting {
+    namespace = "aws:elasticbeanstalk:application:environment"
+    name      = "GOOGLE_CLIENT_ID"
+    value     = var.google_client_id
+  }
+
   tags = {
     Name        = "${var.project_name}-${var.environment}-env"
     Environment = var.environment

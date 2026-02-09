@@ -14,7 +14,7 @@ export const mockBoards: Board[] = [
     subscription: {
       status: 'TRIAL',
       plan: null,
-      trial_ends_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      trial_ends_at: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
       current_period_end: null,
     },
     created_at: '2025-01-01T00:00:00Z',
@@ -28,7 +28,7 @@ export const mockBoards: Board[] = [
     subscription: {
       status: 'TRIAL',
       plan: null,
-      trial_ends_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      trial_ends_at: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
       current_period_end: null,
     },
     created_at: '2025-01-02T00:00:00Z',

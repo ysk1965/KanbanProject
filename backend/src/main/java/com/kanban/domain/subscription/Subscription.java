@@ -89,7 +89,7 @@ public class Subscription {
         return Subscription.builder()
                 .board(board)
                 .status(SubscriptionStatus.TRIAL)
-                .trialEndsAt(LocalDateTime.now(ZoneOffset.UTC).plusDays(7))
+                .trialEndsAt(LocalDateTime.now(ZoneOffset.UTC).plusDays(3))
                 .billableMemberCount(1)
                 .build();
     }
@@ -118,7 +118,7 @@ public class Subscription {
     public void downgradeByAdmin() {
         this.status = SubscriptionStatus.TRIAL;
         this.plan = null;
-        this.trialEndsAt = LocalDateTime.now(ZoneOffset.UTC).plusDays(7);
+        this.trialEndsAt = LocalDateTime.now(ZoneOffset.UTC).plusDays(3);
     }
 
     public boolean isActive() {
@@ -216,11 +216,13 @@ public class Subscription {
     }
 
     public int getMemberLimit() {
-        // Trial: 5명, Active: plan에 따라 다름, 기본 15명
         if (isTrial()) {
             return 5;
         }
-        // 추후 plan별 멤버 수 제한 로직 추가
-        return 15;
+        // Seat 기반: 구매한 시트 수가 곧 멤버 제한
+        if (this.seatCount != null && this.seatCount > 0) {
+            return this.seatCount;
+        }
+        return 5; // fallback
     }
 }

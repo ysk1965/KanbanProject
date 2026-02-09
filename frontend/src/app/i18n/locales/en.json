@@ -44,6 +44,8 @@
       "features": "Features",
       "workflow": "Workflow",
       "pricing": "Pricing",
+      "ai": "AI",
+      "compare": "Compare",
       "joinNow": "JOIN NOW",
       "startForFree": "Start for Free"
     },
@@ -53,12 +55,14 @@
       "subtitleFlow": "Flow",
       "subtitleText1": "A clear ",
       "subtitleText2": " that cuts through complex workflows.\nExperience the most advanced PM collaboration interface.",
-      "tryFree": "Try 7 Days Free Premium",
+      "tryFree": "Try 3 Days Free Premium",
       "basicFree": "Basic Board Forever Free"
     },
     "core": {
       "label": "Core Architecture",
       "title": "Orchestrate\ncollaboration flow",
+      "titleLine1": "Orchestrate",
+      "titleLine2": "collaboration flow",
       "kanban": {
         "title": "Practice-driven Kanban",
         "desc": "Build your team's unique workflow on top of the 'Feature - Task - Done' structure. The most practical collaboration interface, built with real PM insights."
@@ -95,6 +99,8 @@
     "scheduling": {
       "label": "Precision Controls",
       "title": "Redefine the\nvalue of time",
+      "titleLine1": "Redefine the",
+      "titleLine2": "value of time",
       "subtitle": "From precise time blocks to lightweight daily checklists.\nFlexible scheduling tools to focus your team's energy where it matters most.",
       "timeBlocks": "Time Blocks",
       "dailyChecklist": "Daily Checklist"
@@ -103,6 +109,8 @@
       "label": "Seamless Integration",
       "premium": "Premium",
       "title": "Never miss\nteam updates",
+      "titleLine1": "Never miss",
+      "titleLine2": "team updates",
       "subtitle": "Every change is delivered to your team in real-time.\nStay connected with Slack integration and granular notification settings.",
       "slackAlerts": {
         "title": "Real-time Slack Alerts",
@@ -115,17 +123,53 @@
       "granularControl": {
         "title": "Granular Control",
         "text": "Configure in-app and Slack notification preferences per board and notification type."
+      },
+      "slack": {
+        "title": "Real-time Slack Alerts",
+        "text": "Key events like task comments and checklist assignments are instantly delivered to your Slack channel."
+      },
+      "mention": {
+        "title": "Smart @Mention",
+        "text": "Mention team members in comments and both in-app and Slack notifications are sent simultaneously."
+      },
+      "granular": {
+        "title": "Granular Control",
+        "text": "Configure in-app and Slack notification preferences per board and notification type."
+      }
+    },
+    "ai": {
+      "label": "AI Intelligence",
+      "premium": "Premium",
+      "titleLine1": "AI reads your",
+      "titleLine2": "team's context",
+      "subtitle": "Beyond dashboards and charts. AI analyzes your tasks, time blocks, checklists, and comments to generate narrative insights that connect the dots humans might miss.",
+      "narrative": {
+        "title": "AI Weekly Narrative",
+        "text": "Not just metrics — Claude AI weaves your week's activity into a coherent story, surfacing hidden blockers and dependencies."
+      },
+      "standup": {
+        "title": "Automated Daily Standup",
+        "text": "Every morning, AI summarizes yesterday's progress and delivers it to your Slack channel automatically."
+      },
+      "insights": {
+        "title": "Personal & Team Insights",
+        "text": "Individual performance narratives and team dynamics analysis. Understand workload distribution and collaboration patterns at a glance."
       }
     },
     "pricing": {
-      "badge": "PREMIUM 7 DAYS FREE TRIAL",
+      "badge": "PREMIUM 3 DAYS FREE TRIAL",
+      "trialBadge": "PREMIUM 3 DAYS FREE TRIAL",
       "title": "Price.\nReinvented",
+      "titleLine1": "Price.",
+      "titleLine2": "Reinvented",
       "momentum": "Continuous Momentum.",
-      "momentumText": "Even if you don't pay after 7 days, you'll automatically switch to <1>unlimited free boards (Basic)</1> and your data and collaboration flow are permanently preserved.",
+      "momentumText": "Even if you don't pay after 3 days, you'll automatically switch to <1>unlimited free boards (Basic)</1> and your data and collaboration flow are permanently preserved.",
+      "momentumDesc": "Even if you don't pay after 3 days, you'll automatically switch to unlimited free boards (Basic) and your data and collaboration flow are permanently preserved.",
       "basic": {
         "name": "Basic Spots",
         "price": "Free",
         "subtitle": "Infinite Collaboration. Zero Cost.",
+        "tagline": "Infinite Collaboration. Zero Cost.",
         "feature1": "Unlimited kanban boards & tasks",
         "feature2": "Daily schedule & checklists",
         "feature3": "Real-time data sync & team sharing",
@@ -135,14 +179,18 @@
       "premium": {
         "name": "Premium Spots",
         "subtitle": "per user / month (Annual $50)",
+        "tagline": "per user / month (Annual $50)",
         "feature1": "Slack real-time alerts & webhook",
         "feature2": "Weekly Gantt chart & milestones",
         "feature3": "Intelligent PM dashboard & resource analysis",
         "feature4": "Advanced team permission orchestration",
+        "feature5": "AI sprint report & insights",
         "cta": "START TRIAL"
       }
     },
     "cta": {
+      "titleLine1": "Start Your",
+      "titleLine2": "Flow",
       "subtitle": "Go beyond simple task management with BridgeSpots.\nIntelligently orchestrate your team's limitless productivity.",
       "button": "LAUNCH FLOW"
     },
@@ -153,6 +201,7 @@
       "integrations": "Integrations",
       "apiGuide": "API Guide",
       "community": "Community",
+      "slackGroup": "Slack Community",
       "mission": "Mission",
       "manifesto": "Manifesto",
       "privacy": "Privacy",
@@ -298,6 +347,9 @@
     "perYear": "/year",
     "discount": "{{percent}}% off",
     "seatInfo": "Paid members: {{count}} × ${{price}}{{period}}",
+    "seatSelection": "Seat Count",
+    "seats": "Seats",
+    "currentMembers": "Current paid members: {{count}}",
     "startPremium": "Start Premium",
     "upgradeFailed": "Upgrade failed. Please try again.",
     "triggers": {
@@ -327,6 +379,40 @@
       "milestone": "Milestone Management",
       "slackNotification": "Slack Notification Integration",
       "statisticsDashboard": "Statistics Dashboard"
+    }
+  },
+  "seatPurchase": {
+    "title": "Purchase Additional Seats",
+    "subtitle": "Seats are required to invite members",
+    "currentSeats": "Current Seat Usage",
+    "pendingInvite": "To invite {{email}}, you need additional seats.",
+    "additionalSeats": "Additional Seats",
+    "seats": "seats",
+    "month": "mo",
+    "year": "yr",
+    "newTotal": "New Total",
+    "purchaseAndContinue": "Purchase & Continue",
+    "purchaseAndPromote": "Purchase & Change Role",
+    "pendingRoleChange": "Additional seats are required to change the member's role."
+  },
+  "premiumBenefits": {
+    "heroTitle": "Unlock Premium Features",
+    "heroSubtitle": "Your trial has ended. See what Premium can do for your team.",
+    "statFeatures": "Premium Features",
+    "statReport": "Smart Reports",
+    "statIntegration": "Integration",
+    "comparisonTitle": "Feature Comparison",
+    "feature": "Feature",
+    "pricingTitle": "Choose Your Plan",
+    "upgradeCta": "Upgrade to Premium",
+    "features": {
+      "kanban": "Kanban Board & Task Management",
+      "weeklySchedule": "Weekly Schedule (Gantt)",
+      "dailySchedule": "Daily Schedule",
+      "milestone": "Milestone Management",
+      "aiReport": "AI-Powered Reports",
+      "slack": "Slack Integration",
+      "statistics": "Statistics Dashboard"
     }
   },
   "user": {
@@ -414,6 +500,24 @@
     "nextPaymentDate": "Next Payment Date",
     "cancelSubscription": "Cancel Subscription",
     "cancelConfirm": "Are you sure you want to cancel your subscription?",
+    "cancelConfirmTitle": "Cancel Subscription",
+    "cancelConfirmDesc": "Your subscription will remain active until the end of the current billing period. After that, your board will revert to the free plan.",
+    "confirmCancel": "Yes, Cancel",
+    "tabOverview": "Overview",
+    "tabSeats": "Seats",
+    "tabBilling": "Billing",
+    "seatUsage": "Seat Usage",
+    "currentSeats": "Current Seats",
+    "usedSeats": "Used",
+    "availableSeats": "Available",
+    "addSeats": "Purchase Additional Seats",
+    "purchaseSeats": "Purchase Seats",
+    "changeBillingCycle": "Change Billing Cycle",
+    "trialActive": "Free trial is active",
+    "trialEndsAt": "Trial ends on {{date}}",
+    "graceMessage": "Your subscription is in a grace period. Please update your payment method.",
+    "suspendedMessage": "Your subscription is suspended. Please contact support.",
+    "canceledMessage": "Your subscription has been canceled.",
     "selectBillingCycle": "Billing Cycle",
     "monthlyBilling": "Monthly Billing",
     "monthlyBillingDesc": "Auto-billed monthly",
@@ -1045,17 +1149,6 @@
     "removeMemberFailed": "Failed to remove member.",
     "checklist": "Checklist"
   },
-  "admin": {
-    "backToBoards": "Back to boards",
-    "dashboard": "Dashboard",
-    "analytics": "Analytics / Reports",
-    "users": "User Management",
-    "boards": "Board Management",
-    "subscriptions": "Subscription Management",
-    "announcements": "Announcements",
-    "system": "System Management",
-    "inquiries": "Inquiry Management"
-  },
   "announcements": {
     "title": "Announcements",
     "subtitle": "Check service-related announcements",
@@ -1528,6 +1621,7 @@
     "impactCalcDesc": "Calculated by multiplying each task's weight (Critical, High, Medium, Low) by time invested. Higher priority tasks with more time contribute to a higher impact score."
   },
   "admin": {
+    "backToBoards": "Back to boards",
     "common": {
       "refresh": "Refresh",
       "adminActions": "Admin Actions",
@@ -1651,7 +1745,7 @@
       "confirmTransfer": "Transfer board ownership to {{name}}?\nThe current owner will be changed to Admin.",
       "transferSuccess": "Ownership has been transferred.",
       "transferFailed": "Failed to transfer ownership.",
-      "enterExtendDays": "Enter the number of days to extend (default: 7):",
+      "enterExtendDays": "Enter the number of days to extend (default: 3):",
       "enterValidDays": "Please enter a valid number of days.",
       "confirmExtendTrial": "Extend trial period by {{days}} days?",
       "extendSuccess": "Trial period extended by {{days}} days.",
@@ -1817,5 +1911,122 @@
     "confirmGenerate": "AI reports can only be generated once per day. Do you want to generate?",
     "confirmRegenerate": "AI reports can only be generated once per day. Do you want to regenerate?",
     "dailyLimitReached": "You've used today's AI report generation"
+  },
+  "compare": {
+    "nav": {
+      "features": "Features",
+      "pricing": "Pricing",
+      "recommend": "Recommend",
+      "tryFree": "Try Free"
+    },
+    "hero": {
+      "badge": "Tool Comparison Guide",
+      "titleLine1": "Why",
+      "titleLine2": "BRIDGE?",
+      "subtitle": "See how BridgeSpots stacks up against Trello, Asana, Jira, and Notion.",
+      "scroll": "Scroll to explore"
+    },
+    "features": {
+      "label": "Feature Comparison",
+      "titleLine1": "All Features,",
+      "titleLine2": "One Price",
+      "subtitle": "Features that require paid add-ons or plugins elsewhere come built-in with BridgeSpots.",
+      "feature": "Feature",
+      "legend": {
+        "included": "Included",
+        "paid": "Paid add-on",
+        "none": "Not available"
+      },
+      "items": {
+        "hierarchy": { "name": "3-Tier Structure (Feature → Task → Checklist)" },
+        "autoProgress": { "name": "Auto Progress Tracking" },
+        "gantt": { "name": "Gantt Chart" },
+        "dailySchedule": { "name": "Daily Schedule (Timeblock)" },
+        "aiReports": { "name": "AI Weekly Reports" },
+        "slackIntegration": { "name": "Slack Notification Integration" },
+        "statistics": { "name": "Statistics Dashboard" },
+        "resourceAnalytics": { "name": "Resource Analytics (Team Load)" }
+      }
+    },
+    "differentiators": {
+      "title": "Only with BRIDGE",
+      "subtitle": "Redefining project management. Not just a kanban board — a system that creates team flow.",
+      "items": {
+        "structure": {
+          "title": "3-Tier Work Structure",
+          "desc": "Break down and track even large projects with Feature → Task → Checklist hierarchy. Progress automatically propagates upward."
+        },
+        "autoProgress": {
+          "title": "Auto Progress Tracking",
+          "desc": "Move to Done and it's calculated automatically. See real-time project status without manual updates."
+        },
+        "ai": {
+          "title": "AI Intelligence",
+          "desc": "Weekly reports, standup summaries, and team insights generated by AI. Stop spending time writing reports."
+        },
+        "noCost": {
+          "title": "No Hidden Costs",
+          "desc": "All premium features included at $5/user — no plugins, power-ups, or add-on fees. No user limits either."
+        }
+      }
+    },
+    "pricing": {
+      "label": "Pricing Comparison",
+      "titleLine1": "Compare the",
+      "titleLine2": "Real Cost",
+      "subtitle": "How much does it really cost to get the same features? Annual costs for a 10-person team.",
+      "annualCost": "Annual Cost Comparison",
+      "teamSize": "10-person team",
+      "perUser": "user",
+      "year": "yr",
+      "savings": "BridgeSpots saves up to 74% compared to competitors — with zero hidden costs.",
+      "includedTitle": "All Included in Premium",
+      "features": {
+        "kanban": "Kanban + Feature/Task/Checklist layers",
+        "autoProgress": "Auto progress tracking",
+        "gantt": "Gantt chart",
+        "dailySchedule": "Daily schedule (timeblock + checklist)",
+        "milestone": "Milestone + burndown chart",
+        "resourceAnalytics": "Resource analytics (team load)",
+        "statistics": "Statistics dashboard",
+        "aiReports": "AI weekly reports (personal + team)",
+        "aiStandup": "AI standup summary",
+        "slackIntegration": "Slack integration",
+        "mentions": "@mention alert controls",
+        "roleManagement": "Role management (4 tiers)"
+      }
+    },
+    "recommend": {
+      "title": "Which tool is right for you?",
+      "subtitle": "An honest comparison. Find the right tool for your team.",
+      "recommended": "Recommended",
+      "bridge": {
+        "desc": "Best for teams that need structured project management and collaboration.",
+        "useCase1": "Teams wanting to systematically manage projects with Feature → Task → Checklist structure",
+        "useCase2": "Teams wanting to reduce reporting time with auto progress tracking",
+        "useCase3": "Teams wanting better communication with AI reports and standup summaries",
+        "useCase4": "Teams needing an all-in-one project management tool with no hidden costs"
+      },
+      "others": {
+        "title": "When existing tools fit better",
+        "desc": "If you're deeply integrated into an existing tool's ecosystem, consider the switching cost.",
+        "useCase1": "Personal task management focused use (Trello)",
+        "useCase2": "Large-scale enterprise DevOps pipelines (Jira)",
+        "useCase3": "Document & wiki-centric all-in-one workspace (Notion)",
+        "useCase4": "Heavy reliance on existing Power-Up or plugin ecosystems"
+      }
+    },
+    "cta": {
+      "titleLine1": "Start",
+      "titleLine2": "Today",
+      "subtitle": "Get started for free and try premium features for 7 days.",
+      "startFree": "Start Free",
+      "viewLanding": "Learn More"
+    },
+    "footer": {
+      "landing": "Landing Page",
+      "privacy": "Privacy Policy",
+      "terms": "Terms of Service"
+    }
   }
 }

@@ -7,6 +7,7 @@ import { LoginPage } from './components/LoginPage';
 import { Dashboard } from './components/dashboard';
 import { InviteLandingPage } from './components/InviteLandingPage';
 import { LandingPage } from './components/landing/LandingPage';
+import { ComparisonPage } from './components/landing/ComparisonPage';
 import { KanbanBoardPage } from './pages/KanbanBoardPage';
 import { EmailVerificationPendingPage } from './components/EmailVerificationPendingPage';
 import { EmailVerificationResultPage } from './components/EmailVerificationResultPage';
@@ -368,6 +369,7 @@ function AppRoutes() {
 
       {/* 랜딩 페이지 */}
       <Route path="/landing" element={<LandingPage />} />
+      <Route path="/compare" element={<ComparisonPage />} />
 
       {/* 로그인 */}
       <Route path="/login" element={<LoginRoute />} />

@@ -41,6 +41,26 @@ variable "claude_api_key" {
   default     = ""
 }
 
+variable "mail_username" {
+  description = "Gmail SMTP username"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "mail_password" {
+  description = "Gmail SMTP app password"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "google_client_id" {
+  description = "Google OAuth2 client ID"
+  type        = string
+  default     = ""
+}
+
 variable "domain_name" {
   description = "Domain name (e.g., bridgespots.com)"
   type        = string

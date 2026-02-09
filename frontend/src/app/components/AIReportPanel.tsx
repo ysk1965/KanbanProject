@@ -134,6 +134,7 @@ export function AIReportPanel({ boardId, members }: AIReportPanelProps) {
   const [copied, setCopied] = useState(false);
   const [selectedMemberId, setSelectedMemberId] = useState<string>(currentUser?.id || '');
   const [canGenerateToday, setCanGenerateToday] = useState(true);
+  const [showHistory, setShowHistory] = useState(false);
 
   // User role check
   const currentMember = members.find((m) => m.user.id === currentUser?.id);
@@ -258,46 +259,46 @@ export function AIReportPanel({ boardId, members }: AIReportPanelProps) {
   };
 
   return (
-    <div className="h-full flex bg-bridge-dark">
+    <div className="h-full flex flex-col md:flex-row bg-bridge-dark">
       {/* Main content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* Header */}
-        <div className="flex-none px-6 py-4 border-b border-white/10">
-          <div className="flex items-center justify-between">
+        <div className="flex-none px-4 md:px-6 py-3 md:py-4 border-b border-white/10">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             {/* Week navigation */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
               <button
                 onClick={() => setWeekOffset((p) => p - 1)}
-                className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
+                className="p-1.5 sm:p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
               >
                 <ChevronLeft className="h-4 w-4" />
               </button>
-              <div className="text-sm font-medium text-white min-w-[160px] text-center">
+              <div className="text-xs sm:text-sm font-medium text-white min-w-[140px] sm:min-w-[160px] text-center">
                 {formatDisplayDate(weekRange.start)} ~ {formatDisplayDate(weekRange.end)}
                 {weekOffset === -1 && (
-                  <span className="ml-2 text-xs text-slate-500">({t('aiReport.lastWeek')})</span>
+                  <span className="ml-1.5 sm:ml-2 text-[10px] sm:text-xs text-slate-500">({t('aiReport.lastWeek')})</span>
                 )}
                 {weekOffset === 0 && (
-                  <span className="ml-2 text-xs text-slate-500">({t('aiReport.thisWeek')})</span>
+                  <span className="ml-1.5 sm:ml-2 text-[10px] sm:text-xs text-slate-500">({t('aiReport.thisWeek')})</span>
                 )}
               </div>
               <button
                 onClick={() => setWeekOffset((p) => Math.min(p + 1, 0))}
                 disabled={weekOffset >= 0}
-                className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                className="p-1.5 sm:p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 <ChevronRight className="h-4 w-4" />
               </button>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
               {/* Member selector for personal reports (Admin/Owner only) */}
               {reportType === 'PERSONAL' && isAdminOrOwner && (
-                <div className="relative">
+                <div className="relative flex-1 sm:flex-initial">
                   <select
                     value={selectedMemberId}
                     onChange={(e) => setSelectedMemberId(e.target.value)}
-                    className="appearance-none bg-white/5 border border-white/10 rounded-xl pl-3 pr-8 py-2 text-sm text-white
+                    className="appearance-none w-full bg-white/5 border border-white/10 rounded-xl pl-3 pr-8 py-2 text-xs sm:text-sm text-white
                       focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent
                       transition-all cursor-pointer"
                   >
@@ -317,26 +318,28 @@ export function AIReportPanel({ boardId, members }: AIReportPanelProps) {
               <div className="flex items-center gap-1 bg-bridge-dark rounded-xl p-1 border border-white/20">
                 <button
                   onClick={() => setReportType('PERSONAL')}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all ${
                     reportType === 'PERSONAL'
                       ? 'bg-bridge-accent text-white shadow-lg'
                       : 'text-slate-400 hover:text-white hover:bg-white/5'
                   }`}
                 >
-                  <User className="h-4 w-4" />
-                  {t('aiReport.personalReport')}
+                  <User className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <span className="hidden sm:inline">{t('aiReport.personalReport')}</span>
+                  <span className="sm:hidden">{t('aiReport.personalReport').slice(0, 2)}</span>
                 </button>
                 {isAdminOrOwner && (
                   <button
                     onClick={() => setReportType('TEAM')}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all ${
                       reportType === 'TEAM'
                         ? 'bg-bridge-accent text-white shadow-lg'
                         : 'text-slate-400 hover:text-white hover:bg-white/5'
                     }`}
                   >
-                    <Users className="h-4 w-4" />
-                    {t('aiReport.teamReport')}
+                    <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                    <span className="hidden sm:inline">{t('aiReport.teamReport')}</span>
+                    <span className="sm:hidden">{t('aiReport.teamReport').slice(0, 2)}</span>
                   </button>
                 )}
               </div>
@@ -345,10 +348,10 @@ export function AIReportPanel({ boardId, members }: AIReportPanelProps) {
         </div>
 
         {/* Content area */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-4 md:p-6">
           {isGenerating ? (
             /* Loading state */
-            <div className="flex flex-col items-center justify-center py-20">
+            <div className="flex flex-col items-center justify-center py-12 sm:py-20">
               <div className="relative mb-6">
                 <Sparkles className="h-12 w-12 text-bridge-accent animate-pulse" />
               </div>
@@ -356,12 +359,12 @@ export function AIReportPanel({ boardId, members }: AIReportPanelProps) {
               <p className="text-slate-600 text-xs mt-2">{t('aiReport.generatingHint')}</p>
             </div>
           ) : isLoading ? (
-            <div className="flex items-center justify-center py-20">
+            <div className="flex items-center justify-center py-12 sm:py-20">
               <div className="animate-spin h-6 w-6 border-2 border-bridge-accent border-t-transparent rounded-full" />
             </div>
           ) : error ? (
             /* Error state */
-            <div className="flex flex-col items-center justify-center py-20">
+            <div className="flex flex-col items-center justify-center py-12 sm:py-20">
               <AlertCircle className="h-10 w-10 text-red-400 mb-4" />
               <p className="text-red-400 text-sm mb-4">{error}</p>
               <button
@@ -375,9 +378,9 @@ export function AIReportPanel({ boardId, members }: AIReportPanelProps) {
             /* Report content */
             <div>
               {/* Report metadata */}
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3 text-xs text-slate-500">
-                  <Clock className="h-3.5 w-3.5" />
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 mb-4 md:mb-6">
+                <div className="flex items-center gap-2 sm:gap-3 text-[10px] sm:text-xs text-slate-500">
+                  <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                   <span>{formatDateTime(report.created_at)}</span>
                   <span className="text-slate-700">|</span>
                   <span>{report.generated_by_name}</span>
@@ -386,22 +389,22 @@ export function AIReportPanel({ boardId, members }: AIReportPanelProps) {
                   <button
                     onClick={handleRegenerate}
                     disabled={!canGenerateToday}
-                    className={`flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg border border-white/10 transition-all ${
+                    className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 text-[10px] sm:text-xs rounded-lg border border-white/10 transition-all ${
                       canGenerateToday
                         ? 'text-slate-400 hover:text-white hover:bg-white/5'
                         : 'text-slate-600 cursor-not-allowed opacity-50'
                     }`}
                     title={!canGenerateToday ? t('aiReport.dailyLimitReached') : ''}
                   >
-                    <RefreshCw className="h-3.5 w-3.5" />
-                    {t('aiReport.regenerate')}
+                    <RefreshCw className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                    <span className="hidden sm:inline">{t('aiReport.regenerate')}</span>
                   </button>
                   <button
                     onClick={handleCopy}
-                    className="flex items-center gap-2 px-3 py-1.5 text-xs text-slate-400 hover:text-white hover:bg-white/5 rounded-lg border border-white/10 transition-all"
+                    className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 text-[10px] sm:text-xs text-slate-400 hover:text-white hover:bg-white/5 rounded-lg border border-white/10 transition-all"
                   >
-                    {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
-                    {copied ? t('aiReport.copied') : t('aiReport.copy')}
+                    {copied ? <Check className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-emerald-400" /> : <Copy className="h-3 w-3 sm:h-3.5 sm:w-3.5" />}
+                    <span className="hidden sm:inline">{copied ? t('aiReport.copied') : t('aiReport.copy')}</span>
                   </button>
                 </div>
               </div>
@@ -430,7 +433,7 @@ export function AIReportPanel({ boardId, members }: AIReportPanelProps) {
             </div>
           ) : (
             /* Empty state - generate button */
-            <div className="flex flex-col items-center justify-center py-20">
+            <div className="flex flex-col items-center justify-center py-12 sm:py-20">
               <div className="w-16 h-16 rounded-2xl bg-bridge-accent/10 flex items-center justify-center mb-6">
                 <Sparkles className="h-8 w-8 text-bridge-accent" />
               </div>
@@ -457,34 +460,87 @@ export function AIReportPanel({ boardId, members }: AIReportPanelProps) {
 
       {/* Sidebar - Report history */}
       {reportHistory.length > 0 && (
-        <div className="w-64 border-l border-white/10 flex flex-col overflow-hidden">
-          <div className="px-4 py-3 border-b border-white/10">
-            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-              {t('aiReport.history')}
-            </h4>
-          </div>
-          <div className="flex-1 overflow-y-auto">
-            {reportHistory.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => handleLoadHistoryReport(item.id)}
-                className={`w-full text-left px-4 py-3 border-b border-white/5 hover:bg-white/5 transition-colors ${
-                  report?.id === item.id ? 'bg-bridge-accent/10 border-l-2 border-l-bridge-accent' : ''
-                }`}
+        <>
+          {/* Mobile history toggle button */}
+          <button
+            onClick={() => setShowHistory(!showHistory)}
+            className="md:hidden fixed bottom-4 right-4 z-20 flex items-center gap-2 px-4 py-2.5 bg-bridge-obsidian border border-white/10 rounded-xl text-xs font-medium text-slate-300 shadow-lg"
+          >
+            <Clock className="h-3.5 w-3.5" />
+            {t('aiReport.history')}
+            <span className="text-[10px] bg-bridge-accent/20 text-bridge-accent px-1.5 py-0.5 rounded-full">{reportHistory.length}</span>
+          </button>
+
+          {/* Mobile history overlay */}
+          {showHistory && (
+            <div className="md:hidden fixed inset-0 z-30 bg-black/50" onClick={() => setShowHistory(false)}>
+              <div
+                className="absolute right-0 top-0 h-full w-72 bg-bridge-dark border-l border-white/10 flex flex-col"
+                onClick={(e) => e.stopPropagation()}
               >
-                <div className="flex items-center gap-2 mb-1">
-                  <FileText className="h-3.5 w-3.5 text-slate-500" />
-                  <span className="text-xs font-medium text-white">
-                    {item.period_start} ~ {item.period_end.slice(5)}
-                  </span>
+                <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                    {t('aiReport.history')}
+                  </h4>
+                  <button onClick={() => setShowHistory(false)} className="p-1 text-slate-500 hover:text-white">
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
                 </div>
-                <div className="text-[10px] text-slate-600">
-                  {item.generated_by_name} · {formatDateTime(item.created_at)}
+                <div className="flex-1 overflow-y-auto">
+                  {reportHistory.map((item) => (
+                    <button
+                      key={item.id}
+                      onClick={() => { handleLoadHistoryReport(item.id); setShowHistory(false); }}
+                      className={`w-full text-left px-4 py-3 border-b border-white/5 hover:bg-white/5 transition-colors ${
+                        report?.id === item.id ? 'bg-bridge-accent/10 border-l-2 border-l-bridge-accent' : ''
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <FileText className="h-3.5 w-3.5 text-slate-500" />
+                        <span className="text-xs font-medium text-white">
+                          {item.period_start} ~ {item.period_end.slice(5)}
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-slate-600">
+                        {item.generated_by_name} · {formatDateTime(item.created_at)}
+                      </div>
+                    </button>
+                  ))}
                 </div>
-              </button>
-            ))}
+              </div>
+            </div>
+          )}
+
+          {/* Desktop sidebar */}
+          <div className="hidden md:flex w-64 border-l border-white/10 flex-col overflow-hidden">
+            <div className="px-4 py-3 border-b border-white/10">
+              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                {t('aiReport.history')}
+              </h4>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {reportHistory.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => handleLoadHistoryReport(item.id)}
+                  className={`w-full text-left px-4 py-3 border-b border-white/5 hover:bg-white/5 transition-colors ${
+                    report?.id === item.id ? 'bg-bridge-accent/10 border-l-2 border-l-bridge-accent' : ''
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <FileText className="h-3.5 w-3.5 text-slate-500" />
+                    <span className="text-xs font-medium text-white">
+                      {item.period_start} ~ {item.period_end.slice(5)}
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-slate-600">
+                    {item.generated_by_name} · {formatDateTime(item.created_at)}
+                  </div>
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );
@@ -572,7 +628,7 @@ function PersonalDataSection({ dataSnapshot, t }: { dataSnapshot: string; t: (ke
       </div>
 
       {/* Summary cards - 2x2 grid */}
-      <div className="grid grid-cols-2 gap-3 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
         {/* 총 작업시간 */}
         <div className="bg-bridge-obsidian rounded-xl border border-white/5 p-5 relative overflow-hidden">
           <div className="absolute -top-6 -right-6 w-28 h-28 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none" />
@@ -711,7 +767,7 @@ function TeamDataSection({ dataSnapshot, t }: { dataSnapshot: string; t: (key: s
       </div>
 
       {/* Summary cards - 2x2 grid */}
-      <div className="grid grid-cols-2 gap-3 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
         {/* 총 작업시간 */}
         <div className="bg-bridge-obsidian rounded-xl border border-white/5 p-5 relative overflow-hidden">
           <div className="absolute -top-6 -right-6 w-28 h-28 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none" />
@@ -807,7 +863,7 @@ function TeamDataSection({ dataSnapshot, t }: { dataSnapshot: string; t: (key: s
 
       {/* Feature progress */}
       {statistics.by_feature && statistics.by_feature.length > 0 && (
-        <div className="bg-bridge-obsidian rounded-xl border border-white/5 p-5 mb-4">
+        <div className="bg-bridge-obsidian rounded-xl border border-white/5 p-4 sm:p-5 mb-4">
           <div className="flex items-center gap-2 mb-4">
             <TrendingUp className="h-4 w-4 text-bridge-accent" />
             <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{t('aiReport.featureProgress')}</span>
@@ -815,15 +871,15 @@ function TeamDataSection({ dataSnapshot, t }: { dataSnapshot: string; t: (key: s
           <div className="space-y-3">
             {statistics.by_feature.map((f, i) => (
               <div key={i}>
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-2">
+                <div className="flex items-center justify-between mb-1 gap-2">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
                     {f.feature.color && (
                       <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: f.feature.color }} />
                     )}
-                    <span className="text-xs text-slate-300 truncate">{f.feature.title}</span>
+                    <span className="text-[11px] sm:text-xs text-slate-300 truncate">{f.feature.title}</span>
                   </div>
-                  <div className="flex items-center gap-3 flex-shrink-0">
-                    <span className="text-[10px] text-slate-600">
+                  <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+                    <span className="text-[10px] text-slate-600 hidden sm:inline">
                       {f.completed_task_count}/{f.task_count} {t('aiReport.taskCount')}
                     </span>
                     <span className="text-[10px] text-slate-500 font-medium w-8 text-right">
@@ -845,7 +901,7 @@ function TeamDataSection({ dataSnapshot, t }: { dataSnapshot: string; t: (key: s
 
       {/* Member contributions */}
       {statistics.by_member && statistics.by_member.length > 0 && (
-        <div className="bg-bridge-obsidian rounded-xl border border-white/5 p-5 mb-4">
+        <div className="bg-bridge-obsidian rounded-xl border border-white/5 p-4 sm:p-5 mb-4">
           <div className="flex items-center gap-2 mb-4">
             <Users className="h-4 w-4 text-bridge-secondary" />
             <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{t('aiReport.memberContributions')}</span>
@@ -857,20 +913,22 @@ function TeamDataSection({ dataSnapshot, t }: { dataSnapshot: string; t: (key: s
                 const maxMinutes = statistics.by_member[0]?.total_minutes || 1;
                 const barWidth = (m.total_minutes / maxMinutes) * 100;
                 return (
-                  <div key={i} className="flex items-center gap-3">
-                    <span className="text-xs text-slate-300 w-20 truncate flex-shrink-0">{m.member.name}</span>
-                    <div className="flex-1 h-2 rounded-full bg-white/5 overflow-hidden">
-                      <div
-                        className="h-full rounded-full bg-bridge-secondary/60 transition-all duration-500"
-                        style={{ width: `${barWidth}%` }}
-                      />
+                  <div key={i} className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
+                    <span className="text-xs text-slate-300 sm:w-20 truncate flex-shrink-0">{m.member.name}</span>
+                    <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                      <div className="flex-1 h-2 rounded-full bg-white/5 overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-bridge-secondary/60 transition-all duration-500"
+                          style={{ width: `${barWidth}%` }}
+                        />
+                      </div>
+                      <span className="text-[10px] text-slate-500 w-12 text-right flex-shrink-0">
+                        {formatMinutesToHours(m.total_minutes)}
+                      </span>
+                      <span className="text-[10px] text-slate-600 w-16 text-right flex-shrink-0">
+                        {m.completed_task_count}/{m.task_count} {t('aiReport.taskCount')}
+                      </span>
                     </div>
-                    <span className="text-[10px] text-slate-500 w-12 text-right flex-shrink-0">
-                      {formatMinutesToHours(m.total_minutes)}
-                    </span>
-                    <span className="text-[10px] text-slate-600 w-16 text-right flex-shrink-0">
-                      {m.completed_task_count}/{m.task_count} {t('aiReport.taskCount')}
-                    </span>
                   </div>
                 );
               })}
@@ -880,7 +938,7 @@ function TeamDataSection({ dataSnapshot, t }: { dataSnapshot: string; t: (key: s
 
       {/* Milestone health */}
       {management.milestone_health && management.milestone_health.length > 0 && (
-        <div className="bg-bridge-obsidian rounded-xl border border-white/5 p-5">
+        <div className="bg-bridge-obsidian rounded-xl border border-white/5 p-4 sm:p-5">
           <div className="flex items-center gap-2 mb-4">
             <Target className="h-4 w-4 text-bridge-accent" />
             <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{t('aiReport.milestoneHealth')}</span>
@@ -895,16 +953,16 @@ function TeamDataSection({ dataSnapshot, t }: { dataSnapshot: string; t: (key: s
               };
               const s = statusStyle[ms.status] || statusStyle.ON_TRACK;
               return (
-                <div key={i} className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <div className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
-                    <span className="text-xs text-slate-300">{ms.milestone.title}</span>
+                <div key={i} className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1">
+                    <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${s.dot}`} />
+                    <span className="text-[11px] sm:text-xs text-slate-300 truncate">{ms.milestone.title}</span>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${s.text} ${s.bg}`}>
+                  <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+                    <span className={`text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-md ${s.text} ${s.bg}`}>
                       {ms.status.replace('_', ' ')}
                     </span>
-                    <span className="text-[10px] text-slate-600 w-10 text-right">
+                    <span className="text-[10px] text-slate-600 w-8 sm:w-10 text-right">
                       {Math.round(ms.progress_percentage)}%
                     </span>
                   </div>
@@ -940,16 +998,16 @@ function FeatureCard({ feature, t }: { feature: PersonalReportFeature; t: (key: 
       {/* Feature header */}
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-white/[0.02] transition-colors"
+        className="w-full flex items-center justify-between px-3 sm:px-5 py-3 sm:py-3.5 hover:bg-white/[0.02] transition-colors"
       >
-        <div className="flex items-center gap-3 flex-1 min-w-0">
-          <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md flex-shrink-0 ${status.color} ${status.bg}`}>
+        <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+          <span className={`text-[9px] sm:text-[10px] font-bold uppercase tracking-wider px-1.5 sm:px-2 py-0.5 rounded-md flex-shrink-0 ${status.color} ${status.bg}`}>
             {feature.status.replace('_', ' ')}
           </span>
-          <span className="text-sm font-medium text-white truncate">{feature.title}</span>
+          <span className="text-xs sm:text-sm font-medium text-white truncate">{feature.title}</span>
         </div>
-        <div className="flex items-center gap-3 flex-shrink-0 ml-3">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0 ml-2 sm:ml-3">
+          <div className="hidden sm:flex items-center gap-2">
             <div className="w-20 h-1.5 rounded-full bg-white/5 overflow-hidden">
               <div
                 className={`h-full rounded-full transition-all duration-500 ${
@@ -958,12 +1016,12 @@ function FeatureCard({ feature, t }: { feature: PersonalReportFeature; t: (key: 
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
-            <span className="text-xs text-slate-500 font-medium w-8 text-right">{feature.progress}</span>
           </div>
+          <span className="text-[10px] sm:text-xs text-slate-500 font-medium">{feature.progress}</span>
           {expanded ? (
-            <ChevronUp className="h-4 w-4 text-slate-600" />
+            <ChevronUp className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-slate-600" />
           ) : (
-            <ChevronDown className="h-4 w-4 text-slate-600" />
+            <ChevronDown className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-slate-600" />
           )}
         </div>
       </button>
@@ -974,21 +1032,23 @@ function FeatureCard({ feature, t }: { feature: PersonalReportFeature; t: (key: 
           {feature.tasks.map((task, ti) => (
             <div
               key={ti}
-              className="px-5 py-3 border-b border-white/[0.03] last:border-b-0"
+              className="px-3 sm:px-5 py-2.5 sm:py-3 border-b border-white/[0.03] last:border-b-0"
             >
               {/* Task header */}
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-start sm:items-center gap-2 mb-2">
                 {task.completed ? (
-                  <CheckSquare className="h-3.5 w-3.5 text-emerald-400 flex-shrink-0" />
+                  <CheckSquare className="h-3.5 w-3.5 text-emerald-400 flex-shrink-0 mt-0.5 sm:mt-0" />
                 ) : (
-                  <Square className="h-3.5 w-3.5 text-slate-600 flex-shrink-0" />
+                  <Square className="h-3.5 w-3.5 text-slate-600 flex-shrink-0 mt-0.5 sm:mt-0" />
                 )}
-                <span className={`text-sm ${task.completed ? 'text-slate-500 line-through' : 'text-slate-200'}`}>
-                  {task.title}
-                </span>
-                <span className="text-[10px] text-slate-600 bg-white/5 px-2 py-0.5 rounded-full">{task.block}</span>
+                <div className="flex-1 min-w-0 flex flex-wrap items-center gap-1.5 sm:gap-2">
+                  <span className={`text-xs sm:text-sm ${task.completed ? 'text-slate-500 line-through' : 'text-slate-200'}`}>
+                    {task.title}
+                  </span>
+                  <span className="text-[9px] sm:text-[10px] text-slate-600 bg-white/5 px-1.5 sm:px-2 py-0.5 rounded-full">{task.block}</span>
+                </div>
                 {task.time_minutes != null && task.time_minutes > 0 && (
-                  <span className="text-[10px] text-bridge-accent ml-auto flex-shrink-0">
+                  <span className="text-[10px] text-bridge-accent flex-shrink-0">
                     {formatMinutesToHours(task.time_minutes)}
                   </span>
                 )}
@@ -996,7 +1056,7 @@ function FeatureCard({ feature, t }: { feature: PersonalReportFeature; t: (key: 
 
               {/* Checklists */}
               {task.checklists && task.checklists.length > 0 && (
-                <div className="ml-5 flex flex-wrap gap-x-4 gap-y-1 mb-1.5">
+                <div className="ml-5 sm:ml-5 flex flex-wrap gap-x-3 sm:gap-x-4 gap-y-1 mb-1.5">
                   {task.checklists.map((cl, ci) => (
                     <div key={ci} className="flex items-center gap-1.5 text-[11px]">
                       {cl.completed ? (
@@ -1012,7 +1072,7 @@ function FeatureCard({ feature, t }: { feature: PersonalReportFeature; t: (key: 
 
               {/* Time details */}
               {task.time_details && task.time_details.length > 0 && (
-                <div className="ml-5 flex items-center gap-1 flex-wrap mb-1.5">
+                <div className="ml-5 sm:ml-5 flex items-center gap-1 flex-wrap mb-1.5">
                   <Timer className="h-3 w-3 text-slate-700 mr-1" />
                   {task.time_details.map((td, tdi) => (
                     <span
@@ -1027,7 +1087,7 @@ function FeatureCard({ feature, t }: { feature: PersonalReportFeature; t: (key: 
 
               {/* Comments */}
               {task.comments && task.comments.length > 0 && (
-                <div className="ml-5 space-y-1">
+                <div className="ml-5 sm:ml-5 space-y-1">
                   {task.comments.map((cm, cmi) => (
                     <div key={cmi} className="flex items-start gap-1.5 text-[11px]">
                       <MessageSquare className="h-3 w-3 text-slate-700 mt-0.5 flex-shrink-0" />

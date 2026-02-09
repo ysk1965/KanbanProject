@@ -3,6 +3,12 @@ import { ko } from 'date-fns/locale/ko';
 import { enUS } from 'date-fns/locale/en-US';
 import { ja } from 'date-fns/locale/ja';
 import { zhCN } from 'date-fns/locale/zh-CN';
+import { zhTW } from 'date-fns/locale/zh-TW';
+import { hi } from 'date-fns/locale/hi';
+import { vi } from 'date-fns/locale/vi';
+import { es } from 'date-fns/locale/es';
+import { ptBR } from 'date-fns/locale/pt-BR';
+import { th } from 'date-fns/locale/th';
 
 // 지원 로케일
 const locales: Record<string, Locale> = {
@@ -10,6 +16,12 @@ const locales: Record<string, Locale> = {
   'en-US': enUS,
   'ja-JP': ja,
   'zh-CN': zhCN,
+  'zh-TW': zhTW,
+  'hi': hi,
+  'vi': vi,
+  'es': es,
+  'pt-BR': ptBR,
+  'th': th,
 };
 
 // 브라우저 로케일 감지 (기본값)
@@ -17,7 +29,13 @@ export function getDefaultLocale(): string {
   const browserLang = navigator.language;
   if (browserLang.startsWith('ko')) return 'ko-KR';
   if (browserLang.startsWith('ja')) return 'ja-JP';
+  if (browserLang === 'zh-TW' || browserLang === 'zh-Hant') return 'zh-TW';
   if (browserLang.startsWith('zh')) return 'zh-CN';
+  if (browserLang.startsWith('hi')) return 'hi';
+  if (browserLang.startsWith('vi')) return 'vi';
+  if (browserLang.startsWith('es')) return 'es';
+  if (browserLang.startsWith('pt')) return 'pt-BR';
+  if (browserLang.startsWith('th')) return 'th';
   return 'en-US';
 }
 

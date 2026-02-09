@@ -1,5 +1,63 @@
 # Documentation Changelog
 
+## [2026-02-08] v1.5.0
+
+### IA v1.5.0
+- Added: Report 도메인 모듈 (`domain/report/`) - AI 리포트 생성/관리
+- Added: Standup 도메인 모듈 (`domain/standup/`) - 데일리 스탠드업 자동 발송
+- Added: `global/config/AIConfig.java` - Claude AI RestTemplate 설정
+- Added: `/compare` 라우트 (경쟁사 비교 페이지)
+- Added: ComparisonPage, AIReportDiagram 컴포넌트
+- Added: i18n 10개 언어 지원 (ko, en, ja, zh, zh-TW, hi, vi, es, pt-BR, th)
+- Changed: Backend 도메인 패키지 24개 → 26개
+- Changed: Flyway 마이그레이션 V14 → V16
+- Changed: Trial 기간 7일 → 3일
+- Removed: Feature.priority 필드
+
+### Wireframe v1.5.0
+- Added: ComparisonPage (`/compare`) - 경쟁사 비교 페이지 (기능 매트릭스, 가격 차트)
+- Added: 랜딩 페이지 AI Intelligence 섹션 (AI 리포트, 스탠드업, 인사이트)
+- Added: AIReportDiagram (데이터 소스 → Claude AI → 리포트 미리보기)
+- Added: AIReportPanel 반응형 레이아웃 (모바일 오버레이, 태블릿+ 사이드바)
+- Added: ManagementView 반응형 레이아웃 (2열/4열 그리드, 스크롤 탭)
+- Changed: LanguageSwitcher 10개 언어 지원, 플래그 이모지 제거
+- Changed: TrialBanner - onOpenPremiumBenefits 콜백, Trial 3일
+- Changed: 랜딩 페이지 내비게이션에 "AI", "Compare" 링크 추가
+- Changed: Premium 기능 목록에 "AI sprint report & insights" 추가
+- Removed: FeatureDetailModal Priority Selector
+- Removed: FeatureCard Priority Badge
+
+### ERD v1.5.0
+- Added: weekly_reports 테이블 (AI 생성 주간 리포트, 인덱스 3개)
+- Added: daily_standup_configs 테이블 (스탠드업 스케줄 설정, 인덱스 1개)
+- Added: Board → WeeklyReport (1:N), User → WeeklyReport (1:N), Board ↔ DailyStandupConfig (1:1) 관계
+- Removed: Feature.priority 컬럼 (V15 마이그레이션)
+
+### API v1.5.0
+- Added: Reports API (4개 엔드포인트 - 생성/목록/상세/재생성)
+- Added: Daily Standup Config API (2개 엔드포인트 - GET/PUT standup-config)
+- Added: 에러 코드 AD002~AD003, SK004, AR001~AR004 (7개)
+- Changed: 섹션 번호 재정렬 (31개 섹션)
+- Removed: Feature 생성/수정 API에서 priority 필드 제거
+
+### Design v1.3.0
+- Added: `.scrollbar-hide` 유틸리티 클래스 (모바일 수평 스크롤)
+- Added: 반응형 디자인 패턴 (flex-col/row 토글, 반응형 그리드, 모바일 오버레이)
+- Added: Split Title 타이포그래피 패턴 (titleLine1/titleLine2)
+- Deprecated: Priority Badges (.badge-high, .badge-medium, .badge-low)
+
+### Tech v1.5.0
+- Added: Claude AI API 통합 (Sonnet/Haiku 모델 분리, 프롬프트 캐싱)
+- Added: DailyStandupScheduler (매분 실행, 타임존 변환, Slack Block Kit)
+- Added: i18n 10개 언어 지원 (8개 신규 로케일 파일)
+- Added: AIConfig.java (RestTemplate 10s/60s 타임아웃)
+- Added: 환경변수 CLAUDE_API_KEY, CLAUDE_MODEL_TEAM/PERSONAL/STANDUP
+- Added: Terraform EB 모듈 CLAUDE_API_KEY 지원
+- Changed: Flyway V15 (priority 제거), V16 (weekly_reports + standup_configs)
+- Changed: Trial 기간 7일 → 3일
+
+---
+
 ## [2026-02-07] v1.4.0
 
 ### IA v1.4.0

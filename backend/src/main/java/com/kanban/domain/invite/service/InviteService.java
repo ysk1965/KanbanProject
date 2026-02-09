@@ -12,6 +12,7 @@ import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
+import com.kanban.global.exception.SeatLimitException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -129,6 +130,11 @@ public class InviteService {
             if (subscription != null) {
                 int currentBillable = boardMemberRepository.countBillableMembers(board.getId());
                 if (currentBillable >= subscription.getMemberLimit()) {
+                    if (subscription.isActive()) {
+                        throw new SeatLimitException(
+                                subscription.getSeatCount(), currentBillable,
+                                Subscription.MONTHLY_PRICE_PER_SEAT, Subscription.YEARLY_PRICE_PER_SEAT);
+                    }
                     throw new BusinessException(ErrorCode.MEMBER_LIMIT_EXCEEDED);
                 }
             }

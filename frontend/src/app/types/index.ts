@@ -97,6 +97,8 @@ export interface Subscription {
   plan: string | null;
   billing_cycle?: 'MONTHLY' | 'YEARLY' | null;
   price?: number | null;
+  seat_count?: number;
+  price_per_seat?: number | null;
   trial_ends_at: string | null;
   grace_ends_at?: string | null;
   current_period_start?: string | null;

@@ -108,7 +108,7 @@ export const boardService = {
           subscription: {
             status: 'TRIAL',
             plan: null,
-            trial_ends_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+            trial_ends_at: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
             current_period_end: null,
           },
           created_at: nowUTC(),
@@ -193,7 +193,7 @@ export const boardService = {
       if (USE_MOCK_ON_ERROR) {
         return {
           tier: 'TRIAL',
-          trial_ends_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+          trial_ends_at: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
           can_access_schedule: true,
           can_access_milestone: true,
           can_access_statistics: true,
@@ -1218,7 +1218,7 @@ export const subscriptionService = {
           plan: null,
           billing_cycle: null,
           price: null,
-          trial_ends_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+          trial_ends_at: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
           current_period_end: null,
           billable_member_count: 1,
           member_limit: 5,
@@ -1243,10 +1243,10 @@ export const subscriptionService = {
 
   changePlan: async (
     boardId: string,
-    data: { plan_id: string; billing_cycle: 'MONTHLY' | 'YEARLY' }
+    billingCycle: 'MONTHLY' | 'YEARLY'
   ): Promise<Subscription> => {
     try {
-      const subscription = await subscriptionAPI.changePlan(boardId, data);
+      const subscription = await subscriptionAPI.changePlan(boardId, { billing_cycle: billingCycle });
       return subscription;
     } catch (error) {
       console.warn('API failed for change plan', error);
@@ -1290,7 +1290,7 @@ export const subscriptionService = {
   // Seat 기반 구독 시작
   startSeatSubscription: async (
     boardId: string,
-    data: { billing_cycle: 'MONTHLY' | 'YEARLY'; payment_method_id: string }
+    data: { billing_cycle: 'MONTHLY' | 'YEARLY'; seat_count: number; payment_method_id?: string }
   ): Promise<Subscription> => {
     try {
       const subscription = await subscriptionAPI.startSeatSubscription(boardId, data);
@@ -1299,6 +1299,17 @@ export const subscriptionService = {
       console.warn('API failed for start seat subscription', error);
       throw error;
     }
+  },
+
+  // 추가 시트 구매
+  purchaseSeats: async (
+    boardId: string,
+    additionalSeats: number
+  ): Promise<Subscription> => {
+    const subscription = await subscriptionAPI.purchaseSeats(boardId, {
+      additional_seats: additionalSeats,
+    });
+    return subscription;
   },
 };
 

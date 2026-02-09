@@ -109,7 +109,10 @@ module "elastic_beanstalk" {
   redis_host     = ""      # No Redis - using Simple Cache
   redis_port     = ""
   jwt_secret     = var.jwt_secret
-  claude_api_key = var.claude_api_key
+  claude_api_key  = var.claude_api_key
+  mail_username   = var.mail_username
+  mail_password   = var.mail_password
+  google_client_id = var.google_client_id
   frontend_url   = var.domain_name != "" ? "https://${var.domain_name}" : module.s3_cloudfront.cloudfront_url
 
   ssl_certificate_arn = var.domain_name != "" ? module.acm_certificate_alb[0].validated_certificate_arn : ""

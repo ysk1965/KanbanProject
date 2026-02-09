@@ -72,7 +72,11 @@
       "Bash(python3:*)",
       "Bash(node:*)",
       "Bash(kill:*)",
-      "Bash(sips:*)"
+      "Bash(sips:*)",
+      "Bash(du:*)",
+      "Bash(aws elasticbeanstalk describe-environments:*)",
+      "Bash(printf:*)",
+      "Bash(do sed -i '' 's/\"\"pricing\"\": \"\"Pricing\"\",/\"\"pricing\"\": \"\"Pricing\"\",/' \"$f.json\")"
     ]
   }
 }

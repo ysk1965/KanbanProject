@@ -3,8 +3,16 @@ import { Globe } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 
 const languages = [
-  { code: 'ko', label: '한국어', flag: '🇰🇷' },
-  { code: 'en', label: 'English', flag: '🇺🇸' },
+  { code: 'ko', label: '한국어' },
+  { code: 'en', label: 'English' },
+  { code: 'ja', label: '日本語' },
+  { code: 'zh', label: '简体中文' },
+  { code: 'zh-TW', label: '繁體中文' },
+  { code: 'hi', label: 'हिन्दी' },
+  { code: 'vi', label: 'Tiếng Việt' },
+  { code: 'es', label: 'Español' },
+  { code: 'pt-BR', label: 'Português' },
+  { code: 'th', label: 'ไทย' },
 ];
 
 export function LanguageSwitcher({ variant = 'default' }: { variant?: 'default' | 'compact' }) {
@@ -52,7 +60,6 @@ export function LanguageSwitcher({ variant = 'default' }: { variant?: 'default' 
                     : 'text-slate-300 hover:text-white hover:bg-white/5'
                 }`}
               >
-                <span>{lang.flag}</span>
                 <span>{lang.label}</span>
               </button>
             ))}
@@ -69,7 +76,7 @@ export function LanguageSwitcher({ variant = 'default' }: { variant?: 'default' 
         className="flex items-center gap-2 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 border border-white/10 transition-colors text-sm"
       >
         <Globe className="h-4 w-4" />
-        <span>{currentLang.flag} {currentLang.label}</span>
+        <span>{currentLang.label}</span>
       </button>
 
       {isOpen && (
@@ -84,7 +91,6 @@ export function LanguageSwitcher({ variant = 'default' }: { variant?: 'default' 
                   : 'text-slate-300 hover:text-white hover:bg-white/5'
               }`}
             >
-              <span>{lang.flag}</span>
               <span>{lang.label}</span>
             </button>
           ))}

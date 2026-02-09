@@ -304,6 +304,15 @@ html {
   scroll-behavior: smooth;
 }
 
+/* Scrollbar Hide Utility */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 /* Kanban Board Styles */
 .kanban-scrollbar::-webkit-scrollbar {
   width: 6px;

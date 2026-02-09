@@ -3,11 +3,12 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { LanguageSwitcher } from '../LanguageSwitcher';
 import { HeroScene } from './BridgeScene';
-import { KanbanDiagram, GanttDiagram, DailyScheduleDiagram, DailyChecklistDiagram, SlackNotificationDiagram, PriceComparisonDiagram, ResourcePulseDiagram } from './Diagrams';
+import { KanbanDiagram, GanttDiagram, DailyScheduleDiagram, DailyChecklistDiagram, SlackNotificationDiagram, PriceComparisonDiagram, ResourcePulseDiagram, AIReportDiagram } from './Diagrams';
 import { motion, Variants, AnimatePresence } from 'framer-motion';
 import {
   ArrowRight, Menu, X, Layers, Layout, Zap, CheckCircle,
-  RefreshCcw, BarChart3, Sparkles, Activity, Bell, AtSign, Settings2
+  RefreshCcw, BarChart3, Sparkles, Activity, Bell, AtSign, Settings2,
+  Brain, Clock, Users
 } from 'lucide-react';
 
 const FeatureCard = ({ icon: Icon, title, desc, delay, highlight = false }: { icon: React.ElementType, title: string, desc: string, delay: string, highlight?: boolean }) => (
@@ -129,6 +130,8 @@ export const LandingPage: React.FC = () => {
             <a href="#core" onClick={scrollToSection('core')} className="hover:text-white transition-all duration-300">{t('landing.nav.features')}</a>
             <a href="#workflow" onClick={scrollToSection('workflow')} className="hover:text-white transition-all duration-300">{t('landing.nav.workflow')}</a>
             <a href="#pricing" onClick={scrollToSection('pricing')} className="hover:text-white transition-all duration-300">{t('landing.nav.pricing')}</a>
+            <a href="#ai" onClick={scrollToSection('ai')} className="hover:text-white transition-all duration-300">{t('landing.nav.ai')}</a>
+            <Link to="/compare" className="hover:text-bridge-secondary transition-all duration-300">{t('landing.nav.compare')}</Link>
             <LanguageSwitcher variant="compact" />
             <button onClick={handleGetStarted} className="px-10 py-3.5 bg-white text-bridge-dark rounded-full hover:bg-bridge-secondary hover:shadow-[0_0_30px_rgba(45,212,191,0.5)] transition-all duration-500 font-extrabold tracking-widest text-[11px]">{t('landing.nav.joinNow')}</button>
           </div>
@@ -149,6 +152,8 @@ export const LandingPage: React.FC = () => {
           <a href="#core" onClick={scrollToSection('core')} className="uppercase font-bold tracking-[0.25em] text-slate-400">{t('landing.nav.features')}</a>
           <a href="#workflow" onClick={scrollToSection('workflow')} className="uppercase font-bold tracking-[0.25em] text-slate-400">{t('landing.nav.workflow')}</a>
           <a href="#pricing" onClick={scrollToSection('pricing')} className="uppercase font-bold tracking-[0.25em] text-slate-400">{t('landing.nav.pricing')}</a>
+          <a href="#ai" onClick={scrollToSection('ai')} className="uppercase font-bold tracking-[0.25em] text-slate-400">{t('landing.nav.ai')}</a>
+          <Link to="/compare" className="uppercase font-bold tracking-[0.25em] text-slate-400">{t('landing.nav.compare')}</Link>
           <button onClick={handleGetStarted} className="px-10 py-5 bg-bridge-accent text-white rounded-full shadow-2xl uppercase font-bold tracking-widest text-sm">{t('landing.nav.startForFree')}</button>
         </motion.div>
       )}
@@ -345,7 +350,7 @@ export const LandingPage: React.FC = () => {
               <div className="lg:col-span-5 order-1 lg:order-2">
                 <div className="flex items-center gap-4 mb-6">
                   <span className="text-[11px] font-bold tracking-[0.4em] text-bridge-secondary uppercase font-jakarta">{t('landing.collaboration.label')}</span>
-                  <span className="px-3 py-1 bg-bridge-secondary/10 border border-bridge-secondary/30 rounded-full text-[9px] font-black text-bridge-secondary tracking-widest uppercase font-jakarta">Premium</span>
+                  <span className="px-3 py-1 bg-bridge-secondary/10 border border-bridge-secondary/30 rounded-full text-[9px] font-black text-bridge-secondary tracking-widest uppercase font-jakarta">{t('landing.collaboration.premium')}</span>
                 </div>
                 <h2 className="font-jakarta text-4xl md:text-7xl mb-12 leading-tight text-white font-extrabold tracking-tighter">{t('landing.collaboration.titleLine1')}<br/>{t('landing.collaboration.titleLine2')}<span className="spot-dot scale-150 ml-2" /></h2>
                 <p className="text-xl text-slate-400 mb-16 leading-relaxed font-light font-inter">
@@ -380,6 +385,55 @@ export const LandingPage: React.FC = () => {
           </div>
         </section>
 
+        {/* AI Intelligence Section */}
+        <section id="ai" className="py-48 bg-bridge-obsidian border-y border-white/15 relative overflow-hidden">
+          <div className="absolute bottom-0 left-0 w-[800px] h-[800px] bg-bridge-accent/5 blur-[250px] rounded-full -ml-96 -mb-96" />
+          <div className="container mx-auto px-8">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-28 items-center">
+              <div className="lg:col-span-5">
+                <div className="flex items-center gap-4 mb-6">
+                  <span className="text-[11px] font-bold tracking-[0.4em] text-bridge-secondary uppercase font-jakarta">{t('landing.ai.label')}</span>
+                  <span className="px-3 py-1 bg-bridge-secondary/10 border border-bridge-secondary/30 rounded-full text-[9px] font-black text-bridge-secondary tracking-widest uppercase font-jakarta">{t('landing.ai.premium')}</span>
+                </div>
+                <h2 className="font-jakarta text-4xl md:text-7xl mb-12 leading-tight text-white font-extrabold tracking-tighter">{t('landing.ai.titleLine1')}<br/>{t('landing.ai.titleLine2')}<span className="spot-dot scale-150 ml-2" /></h2>
+                <p className="text-xl text-slate-400 mb-16 leading-relaxed font-light font-inter">
+                  {t('landing.ai.subtitle')}
+                </p>
+                <div className="space-y-12">
+                  {[
+                    { icon: Sparkles, title: t('landing.ai.narrative.title'), text: t('landing.ai.narrative.text') },
+                    { icon: Clock, title: t('landing.ai.standup.title'), text: t('landing.ai.standup.text') },
+                    { icon: Users, title: t('landing.ai.insights.title'), text: t('landing.ai.insights.text') },
+                  ].map((item, i) => (
+                    <motion.div
+                      key={i}
+                      initial={{ opacity: 0, x: -20 }}
+                      whileInView={{ opacity: 1, x: 0 }}
+                      viewport={{ once: true }}
+                      transition={{ delay: i * 0.15 }}
+                      className="flex gap-6 group"
+                    >
+                      <div className="flex-shrink-0 w-14 h-14 rounded-2xl border border-white/20 bg-white/5 flex items-center justify-center group-hover:bg-bridge-accent group-hover:border-bridge-accent transition-all duration-700 shadow-2xl">
+                        <item.icon size={22} className="text-bridge-accent group-hover:text-white transition-colors duration-700" />
+                      </div>
+                      <div>
+                        <h4 className="text-xl font-jakarta font-bold text-white mb-2 tracking-tight group-hover:text-bridge-secondary transition-colors duration-500">{item.title}</h4>
+                        <p className="text-slate-400 leading-relaxed text-base font-light font-inter">{item.text}</p>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+              <div className="lg:col-span-7">
+                <div className="relative">
+                  <div className="absolute -inset-10 bg-bridge-accent/5 blur-[100px] rounded-full" />
+                  <AIReportDiagram />
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* Pricing Section */}
         <section id="pricing" className="py-64 bg-bridge-dark relative overflow-hidden">
           <div className="container mx-auto px-8 text-center">
@@ -391,7 +445,7 @@ export const LandingPage: React.FC = () => {
                   </div>
                 </div>
                 <h2 className="font-jakarta text-7xl md:text-[11rem] mb-16 text-white tracking-tighter leading-none font-extrabold">
-                  Price.<br/>Reinvented<span className="spot-dot scale-150" />
+                  {t('landing.pricing.titleLine1')}<br/>{t('landing.pricing.titleLine2')}<span className="spot-dot scale-150" />
                 </h2>
                 <div className="bg-bridge-obsidian/60 backdrop-blur-3xl rounded-[3rem] p-12 border border-white/20 max-w-4xl mx-auto flex flex-col md:flex-row items-center justify-center gap-12">
                   <RefreshCcw size={48} className="text-bridge-secondary animate-spin-slow flex-shrink-0" />
@@ -413,7 +467,6 @@ export const LandingPage: React.FC = () => {
                     <li className="flex items-center gap-5"><CheckCircle size={22} className="text-bridge-secondary/50" /> {t('landing.pricing.basic.feature1')}</li>
                     <li className="flex items-center gap-5"><CheckCircle size={22} className="text-bridge-secondary/50" /> {t('landing.pricing.basic.feature2')}</li>
                     <li className="flex items-center gap-5"><CheckCircle size={22} className="text-bridge-secondary/50" /> {t('landing.pricing.basic.feature3')}</li>
-                    <li className="flex items-center gap-5 text-slate-700 line-through"><CheckCircle size={22} /> {t('landing.pricing.basic.feature4')}</li>
                   </ul>
                   <button onClick={handleGetStarted} className="w-full py-8 bg-white/10 border border-white/20 rounded-full text-[12px] font-black uppercase tracking-widest text-white hover:bg-white hover:text-bridge-dark transition-all font-jakarta">{t('landing.pricing.basic.cta')}</button>
                 </div>
@@ -430,6 +483,7 @@ export const LandingPage: React.FC = () => {
                     <li className="flex items-center gap-5"><CheckCircle size={26} className="text-bridge-secondary" /> {t('landing.pricing.premium.feature2')}</li>
                     <li className="flex items-center gap-5"><CheckCircle size={26} className="text-bridge-secondary" /> {t('landing.pricing.premium.feature3')}</li>
                     <li className="flex items-center gap-5"><CheckCircle size={26} className="text-bridge-secondary" /> {t('landing.pricing.premium.feature4')}</li>
+                    <li className="flex items-center gap-5"><CheckCircle size={26} className="text-bridge-secondary" /> {t('landing.pricing.premium.feature5')}</li>
                   </ul>
                   <button onClick={handleGetStarted} className="w-full py-9 bg-bridge-secondary text-bridge-dark rounded-full text-[12px] font-black uppercase tracking-widest shadow-2xl hover:shadow-[0_0_80px_rgba(45,212,191,0.7)] transition-all transform hover:scale-[1.03] font-jakarta">{t('landing.pricing.premium.cta')}</button>
                 </div>

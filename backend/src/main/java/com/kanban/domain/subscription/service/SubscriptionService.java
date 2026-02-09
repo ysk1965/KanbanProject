@@ -1,6 +1,8 @@
 package com.kanban.domain.subscription.service;
 
+import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardMemberRepository;
+import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.board.service.BoardService;
 import com.kanban.domain.subscription.*;
 import com.kanban.domain.subscription.dto.SubscriptionRequest;
@@ -12,7 +14,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -22,7 +27,9 @@ public class SubscriptionService {
 
     private final SubscriptionRepository subscriptionRepository;
     private final PricingPlanRepository pricingPlanRepository;
+    private final PaymentHistoryRepository paymentHistoryRepository;
     private final BoardMemberRepository boardMemberRepository;
+    private final BoardRepository boardRepository;
     private final BoardService boardService;
 
     public SubscriptionResponse.PricingListResponse getPricingPlans() {
@@ -50,28 +57,58 @@ public class SubscriptionService {
         Subscription subscription = subscriptionRepository.findByBoardId(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SUBSCRIPTION_NOT_FOUND));
 
-        PricingPlan plan = pricingPlanRepository.findById(request.getPlanId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_INPUT_VALUE));
-
-        // 현재 멤버 수에 맞는 플랜인지 확인
+        // Seat 기반: 프론트에서 선택한 시트 수 사용, 최소 현재 멤버 수 보장
         int currentBillable = boardMemberRepository.countBillableMembers(boardId);
-        if (currentBillable < plan.getMinMembers() || currentBillable > plan.getMaxMembers()) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
-        }
+        int seatCount = request.getSeatCount() != null
+                ? Math.max(request.getSeatCount(), currentBillable)
+                : Math.max(currentBillable, 1);
 
-        int price = request.getBillingCycle() == BillingCycle.YEARLY
-                ? plan.getYearlyPrice()
-                : plan.getMonthlyPrice();
-
-        subscription.activateSubscription(
-                plan.getId(),
+        subscription.activateSeatSubscription(
                 request.getBillingCycle(),
-                price,
+                seatCount,
                 request.getPaymentMethodId()
         );
+        subscription.updateBillableMemberCount(currentBillable);
 
-        log.info("Subscription started for board: {} with plan: {} by user: {}",
-                boardId, plan.getId(), userId);
+        // Board tier를 PREMIUM으로 전환
+        Board board = boardRepository.findById(boardId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        board.upgradeToPremium();
+
+        // Mock 결제 이력 생성
+        createMockPayment(subscription, subscription.getPrice(), seatCount);
+
+        log.info("Seat subscription started for board: {} by user: {}. Seats: {}, Cycle: {}",
+                boardId, userId, seatCount, request.getBillingCycle());
+
+        return SubscriptionResponse.Detail.of(subscription);
+    }
+
+    @Transactional
+    public SubscriptionResponse.Detail purchaseSeats(String boardId, String userId, SubscriptionRequest.PurchaseSeats request) {
+        boardService.checkOwner(boardId, userId);
+
+        Subscription subscription = subscriptionRepository.findByBoardId(boardId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SUBSCRIPTION_NOT_FOUND));
+
+        if (!subscription.isActive()) {
+            throw new BusinessException(ErrorCode.SUBSCRIPTION_NOT_FOUND);
+        }
+
+        int additionalSeats = request.getAdditionalSeats();
+        int newSeatCount = subscription.getSeatCount() + additionalSeats;
+        int additionalAmount = additionalSeats * subscription.getPricePerSeat();
+
+        subscription.updateSeatCount(newSeatCount);
+
+        int currentBillable = boardMemberRepository.countBillableMembers(boardId);
+        subscription.updateBillableMemberCount(currentBillable);
+
+        // Mock 결제 이력 생성
+        createMockPayment(subscription, additionalAmount, newSeatCount);
+
+        log.info("Seats purchased for board: {} by user: {}. Additional: {}, New total: {}, Amount: {}",
+                boardId, userId, additionalSeats, newSeatCount, additionalAmount);
 
         return SubscriptionResponse.Detail.of(subscription);
     }
@@ -87,17 +124,17 @@ public class SubscriptionService {
             throw new BusinessException(ErrorCode.SUBSCRIPTION_NOT_FOUND);
         }
 
-        PricingPlan plan = pricingPlanRepository.findById(request.getPlanId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_INPUT_VALUE));
+        // 빌링 사이클 변경 + 가격 재계산
+        BillingCycle newCycle = request.getBillingCycle();
+        int newPricePerSeat = newCycle == BillingCycle.YEARLY
+                ? Subscription.YEARLY_PRICE_PER_SEAT
+                : Subscription.MONTHLY_PRICE_PER_SEAT;
+        int newTotalPrice = newPricePerSeat * subscription.getSeatCount();
 
-        int price = request.getBillingCycle() == BillingCycle.YEARLY
-                ? plan.getYearlyPrice()
-                : plan.getMonthlyPrice();
+        subscription.updatePlan("PREMIUM", newCycle, newTotalPrice);
 
-        subscription.updatePlan(plan.getId(), request.getBillingCycle(), price);
-
-        log.info("Subscription plan changed for board: {} to plan: {} by user: {}",
-                boardId, plan.getId(), userId);
+        log.info("Subscription billing cycle changed for board: {} to {} by user: {}",
+                boardId, newCycle, userId);
 
         return SubscriptionResponse.Detail.of(subscription);
     }
@@ -112,5 +149,25 @@ public class SubscriptionService {
         subscription.cancel();
 
         log.info("Subscription canceled for board: {} by user: {}", boardId, userId);
+    }
+
+    private void createMockPayment(Subscription subscription, int amount, int memberCount) {
+        PaymentHistory payment = PaymentHistory.builder()
+                .subscription(subscription)
+                .amount(amount)
+                .billingCycle(subscription.getBillingCycle())
+                .status(PaymentStatus.PAID)
+                .pgProvider("MOCK")
+                .pgTransactionId("mock_" + UUID.randomUUID().toString().substring(0, 8))
+                .periodStart(subscription.getCurrentPeriodStart() != null
+                        ? subscription.getCurrentPeriodStart()
+                        : LocalDateTime.now(ZoneOffset.UTC))
+                .periodEnd(subscription.getCurrentPeriodEnd() != null
+                        ? subscription.getCurrentPeriodEnd()
+                        : LocalDateTime.now(ZoneOffset.UTC).plusMonths(1))
+                .memberCount(memberCount)
+                .paidAt(LocalDateTime.now(ZoneOffset.UTC))
+                .build();
+        paymentHistoryRepository.save(payment);
     }
 }

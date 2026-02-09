@@ -7,7 +7,7 @@ import { format, parseISO } from 'date-fns';
 type ViewMode = 'kanban' | 'weekly' | 'schedule' | 'statistics' | 'ai_report';
 import { DragProvider } from '../contexts/DragContext';
 import { useAuth } from '../contexts/AuthContext';
-import { Block, Feature, Task, Tag, Board, InviteLink, Subscription, PricingPlan, ActivityLog, Milestone, BoardTierInfo, BoardLimits, ChecklistItem, NotificationItem } from '../types';
+import { Block, Feature, Task, Tag, Board, InviteLink, Subscription, ActivityLog, Milestone, BoardTierInfo, BoardLimits, ChecklistItem, NotificationItem } from '../types';
 import { KanbanBlock } from '../components/KanbanBlock';
 import { FeatureCard } from '../components/FeatureCard';
 import { FeatureChipSelector } from '../components/FeatureChipSelector';
@@ -24,6 +24,8 @@ import { NotificationDropdown } from '../components/NotificationDropdown';
 import { MilestoneModal } from '../components/MilestoneModal';
 import { MilestoneOnboardingModal } from '../components/MilestoneOnboardingModal';
 import { UpgradeModal, UpgradeTrigger } from '../components/UpgradeModal';
+import { PremiumBenefitsModal } from '../components/PremiumBenefitsModal';
+import { SeatPurchaseModal } from '../components/SeatPurchaseModal';
 import { AlertModal } from '../components/AlertModal';
 import { UserMenu } from '../components/UserMenu';
 import { DailyScheduleView } from '../components/DailyScheduleView';
@@ -56,7 +58,6 @@ import {
   inviteLinkService,
   subscriptionService,
   activityService,
-  pricingService,
   milestoneService,
   checklistService,
   inquiryService
@@ -85,7 +86,7 @@ export function KanbanBoardPage() {
   const [tags, setTags] = useState<Tag[]>([]);
   const [inviteLinks, setInviteLinks] = useState<InviteLink[]>([]);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
-  const [pricingPlans, setPricingPlans] = useState<PricingPlan[]>([]);
+  // pricingPlans removed - seat-based billing doesn't need PricingPlan table
   const [activities, setActivities] = useState<ActivityLog[]>([]);
   const [activityCursor, setActivityCursor] = useState<string | undefined>();
   const [hasMoreActivity, setHasMoreActivity] = useState(false);
@@ -99,6 +100,14 @@ export function KanbanBoardPage() {
   const [boardLimits, setBoardLimits] = useState<BoardLimits | null>(null);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [upgradeTrigger, setUpgradeTrigger] = useState<UpgradeTrigger>('task_limit');
+  const [seatPurchaseModal, setSeatPurchaseModal] = useState<{
+    open: boolean;
+    seatCount: number;
+    billableMemberCount: number;
+    pendingEmail: string;
+    pendingRole: MemberRole;
+    pendingMemberId?: string; // 역할 변경 시 사용
+  } | null>(null);
 
   // 체크리스트 펼침 상태
   const [expandedChecklistTaskIds, setExpandedChecklistTaskIds] = useState<Set<string>>(new Set());
@@ -126,6 +135,7 @@ export function KanbanBoardPage() {
   const [isAddFeatureModalOpen, setIsAddFeatureModalOpen] = useState(false);
   const [isShareBoardModalOpen, setIsShareBoardModalOpen] = useState(false);
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
+  const [isPremiumBenefitsModalOpen, setIsPremiumBenefitsModalOpen] = useState(false);
   const [isInquiryModalOpen, setIsInquiryModalOpen] = useState(false);
   const [isActivityLogModalOpen, setIsActivityLogModalOpen] = useState(false);
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
@@ -167,11 +177,8 @@ export function KanbanBoardPage() {
       try {
         setIsLoading(true);
 
-        // 통합 API 호출 (pricing은 전역 데이터이므로 별도 유지)
-        const [fullData, pricingResponse] = await Promise.all([
-          boardService.getBoardFull(boardId),
-          pricingService.getPlans(),
-        ]);
+        // 통합 API 호출
+        const fullData = await boardService.getBoardFull(boardId);
 
         // 통합 응답 분배
         setBoard({
@@ -194,7 +201,7 @@ export function KanbanBoardPage() {
         setActivities(fullData.activities.activities);
         setActivityCursor(fullData.activities.next_cursor || undefined);
         setHasMoreActivity(fullData.activities.has_more);
-        setPricingPlans(pricingResponse.plans);
+
         setMilestones(fullData.milestones.milestones);
         setTierInfo(fullData.tier_info);
         setBoardLimits(fullData.limits);
@@ -300,6 +307,18 @@ export function KanbanBoardPage() {
     fetchUnreadInquiryCount();
   }, [currentUser, isInquiryModalOpen]);
 
+  // STANDARD 전환 후 첫 방문 시 Premium 혜택 모달 자동 표시
+  useEffect(() => {
+    if (!boardId || !tierInfo || hideBilling || isLoading) return;
+    if (tierInfo.tier === 'STANDARD') {
+      const storageKey = `bridge_premium_benefits_shown_${boardId}`;
+      if (!localStorage.getItem(storageKey)) {
+        setIsPremiumBenefitsModalOpen(true);
+        localStorage.setItem(storageKey, 'true');
+      }
+    }
+  }, [boardId, tierInfo, hideBilling, isLoading]);
+
   // Premium 기능 접근 제어 헬퍼 (hideBilling 사용자는 제한 없음)
   const canAccessSchedule = hideBilling || (tierInfo?.can_access_schedule ?? true);
   const canAccessMilestone = hideBilling || (tierInfo?.can_access_milestone ?? true);
@@ -365,11 +384,12 @@ export function KanbanBoardPage() {
   };
 
   // Seat 기반 업그레이드 핸들러
-  const handleSeatUpgrade = async (billingCycle: 'MONTHLY' | 'YEARLY') => {
+  const handleSeatUpgrade = async (billingCycle: 'MONTHLY' | 'YEARLY', seatCount: number) => {
     if (!boardId) return;
     try {
       const newSubscription = await subscriptionService.startSeatSubscription(boardId, {
         billing_cycle: billingCycle,
+        seat_count: seatCount,
       });
       setSubscription(newSubscription);
       // 업그레이드 후 tier/limits 다시 로드
@@ -385,6 +405,22 @@ export function KanbanBoardPage() {
     }
   };
 
+  // 시트 구매 후 자동 재초대/역할변경 핸들러
+  const handlePurchaseSeatsAndRetry = async (additionalSeats: number) => {
+    if (!boardId || !seatPurchaseModal) return;
+    await subscriptionService.purchaseSeats(boardId, additionalSeats);
+    const newSub = await subscriptionService.getSubscription(boardId);
+    setSubscription(newSub);
+    const { pendingEmail, pendingRole, pendingMemberId } = seatPurchaseModal;
+    setSeatPurchaseModal(null);
+    if (pendingMemberId) {
+      // 역할 변경 재시도 (Observer → Member 등)
+      await handleUpdateMemberRole(pendingMemberId, pendingRole);
+    } else if (pendingEmail) {
+      // 멤버 초대 재시도
+      await handleAddMember(pendingEmail, pendingRole);
+    }
+  };
 
   // Feature와 Task를 milestoneId로 필터링해서 다시 로드
   const reloadFeaturesAndTasks = async (milestoneId?: string) => {
@@ -479,6 +515,16 @@ export function KanbanBoardPage() {
       }
     } catch (error: any) {
       console.error('Failed to invite member:', error);
+      if (error?.code === 'S005' && error?.errors) {
+        setSeatPurchaseModal({
+          open: true,
+          seatCount: parseInt(error.errors.seat_count),
+          billableMemberCount: parseInt(error.errors.billable_member_count),
+          pendingEmail: email,
+          pendingRole: role,
+        });
+        return;
+      }
       alert(error?.message || t('kanban.inviteFailed'));
     }
   };
@@ -498,6 +544,17 @@ export function KanbanBoardPage() {
     } catch (error: any) {
       console.error('Failed to update member role:', error);
       setBoardMembersData(prevMembers);
+      if (error?.code === 'S005' && error?.errors) {
+        setSeatPurchaseModal({
+          open: true,
+          seatCount: parseInt(error.errors.seat_count),
+          billableMemberCount: parseInt(error.errors.billable_member_count),
+          pendingEmail: '',
+          pendingRole: role,
+          pendingMemberId: memberId,
+        });
+        return;
+      }
       alert(error?.message || t('kanban.roleChangeFailed'));
     }
   };
@@ -568,15 +625,15 @@ export function KanbanBoardPage() {
   };
 
   // 구독 핸들러
-  const handleSubscribe = async (planId: string, billingCycle: 'monthly' | 'yearly') => {
+  const handleChangeBillingCycle = async (billingCycle: 'MONTHLY' | 'YEARLY') => {
     if (!boardId) return;
-    const newSubscription = await subscriptionService.subscribe(boardId, planId, billingCycle);
+    const newSubscription = await subscriptionService.changePlan(boardId, billingCycle);
     setSubscription(newSubscription);
   };
 
-  const handleChangePlan = async (planId: string, billingCycle: 'monthly' | 'yearly') => {
+  const handleSubscriptionPurchaseSeats = async (additionalSeats: number) => {
     if (!boardId) return;
-    const newSubscription = await subscriptionService.changePlan(boardId, planId, billingCycle);
+    const newSubscription = await subscriptionService.purchaseSeats(boardId, additionalSeats);
     setSubscription(newSubscription);
   };
 
@@ -1197,6 +1254,7 @@ export function KanbanBoardPage() {
           }
           tier={tierInfo?.tier}
           onOpenSubscription={() => setIsSubscriptionModalOpen(true)}
+          onOpenPremiumBenefits={() => setIsPremiumBenefitsModalOpen(true)}
           hideBilling={hideBilling}
         />
 
@@ -1351,7 +1409,7 @@ export function KanbanBoardPage() {
                 {!canAccessStatistics && <Lock size={10} className="ml-0.5 text-zinc-500" />}
               </button>
             )}
-            {isAdminOrOwner && (
+            {!isViewer && (
               <button
                 onClick={() => {
                   if (!canAccessStatistics) {
@@ -2005,9 +2063,9 @@ export function KanbanBoardPage() {
             open={isSubscriptionModalOpen}
             onClose={() => setIsSubscriptionModalOpen(false)}
             subscription={subscription}
-            plans={pricingPlans}
-            onSubscribe={handleSubscribe}
-            onChangePlan={handleChangePlan}
+            currentBillableMembers={subscription?.billable_member_count || boardMembersData.filter(m => m.role !== 'observer').length || 0}
+            onChangeBillingCycle={handleChangeBillingCycle}
+            onPurchaseSeats={handleSubscriptionPurchaseSeats}
             onCancelSubscription={handleCancelSubscription}
           />
         )}
@@ -2042,8 +2100,30 @@ export function KanbanBoardPage() {
             open={isUpgradeModalOpen}
             onClose={() => setIsUpgradeModalOpen(false)}
             trigger={upgradeTrigger}
-            seatCount={subscription?.billable_member_count || boardMembersData.filter(m => m.role !== 'observer').length || 1}
+            currentBillableMembers={subscription?.billable_member_count || boardMembersData.filter(m => m.role !== 'observer').length || 1}
             onUpgrade={handleSeatUpgrade}
+          />
+        )}
+
+        {!hideBilling && (
+          <PremiumBenefitsModal
+            open={isPremiumBenefitsModalOpen}
+            onClose={() => setIsPremiumBenefitsModalOpen(false)}
+            currentBillableMembers={subscription?.billable_member_count || boardMembersData.filter(m => m.role !== 'observer').length || 1}
+            onUpgrade={handleSeatUpgrade}
+          />
+        )}
+
+        {seatPurchaseModal && (
+          <SeatPurchaseModal
+            open={seatPurchaseModal.open}
+            onClose={() => setSeatPurchaseModal(null)}
+            seatCount={seatPurchaseModal.seatCount}
+            billableMemberCount={seatPurchaseModal.billableMemberCount}
+            billingCycle={subscription?.billing_cycle || 'MONTHLY'}
+            onPurchase={handlePurchaseSeatsAndRetry}
+            pendingInviteEmail={seatPurchaseModal.pendingEmail || undefined}
+            isRoleChange={!!seatPurchaseModal.pendingMemberId}
           />
         )}
 

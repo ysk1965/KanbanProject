@@ -31,6 +31,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.*;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -53,8 +56,8 @@ public class ReportService {
     private final ReportAIService reportAIService;
     private final ObjectMapper objectMapper;
 
-    private static final int MAX_COMMENTS = 100;
-    private static final int MAX_COMMENT_LENGTH = 200;
+    private static final int MAX_COMMENTS = 30;
+    private static final int MAX_COMMENT_LENGTH = 100;
 
     @Transactional
     public ReportResponse.Detail generateReport(String boardId, String userId, ReportRequest.Generate request) {
@@ -214,6 +217,12 @@ public class ReportService {
         String dataUserId = report.getTargetUserId() != null ? report.getTargetUserId() : userId;
         String dataJson = gatherData(boardId, dataUserId, reportType,
                 report.getPeriodStart(), report.getPeriodEnd(), board.getName());
+
+        // Skip AI call if data hasn't changed since last generation
+        if (report.getDataSnapshot() != null && hashData(dataJson).equals(hashData(report.getDataSnapshot()))) {
+            log.info("Skipping AI call for report {} - data unchanged", reportId);
+            return ReportResponse.Detail.from(report);
+        }
 
         User regenerator = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
@@ -431,6 +440,16 @@ public class ReportService {
                 "total_checklists", totalChecklists,
                 "total_comments", userComments.size()
         ));
+    }
+
+    private String hashData(String data) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(data.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(hash);
+        } catch (NoSuchAlgorithmException e) {
+            return data;
+        }
     }
 
     private List<Map<String, String>> formatComments(List<Comment> comments) {

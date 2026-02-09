@@ -52,6 +52,16 @@ public class SubscriptionController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/api/v1/boards/{boardId}/subscription/seats")
+    public ResponseEntity<SubscriptionResponse.Detail> purchaseSeats(
+            @PathVariable String boardId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody SubscriptionRequest.PurchaseSeats request) {
+        SubscriptionResponse.Detail response = subscriptionService.purchaseSeats(
+                boardId, principal.getUserId(), request);
+        return ResponseEntity.ok(response);
+    }
+
     @DeleteMapping("/api/v1/boards/{boardId}/subscription")
     public ResponseEntity<Map<String, String>> cancelSubscription(
             @PathVariable String boardId,

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Columns, Calendar, Clock, CheckCircle2, TrendingDown, Users2, ShieldAlert, Hash, AtSign, Bell, MessageSquare, ListChecks, GripVertical, ChevronRight } from 'lucide-react';
+import { Columns, Calendar, Clock, CheckCircle2, TrendingDown, Users2, ShieldAlert, Hash, AtSign, Bell, MessageSquare, ListChecks, GripVertical, ChevronRight, Sparkles, FileText, ListTodo } from 'lucide-react';
 
 // --- RESOURCE PULSE DIAGRAM (PM Dashboard View) ---
 export const ResourcePulseDiagram: React.FC = () => {
@@ -439,6 +439,162 @@ export const SlackNotificationDiagram: React.FC = () => {
           ))}
         </div>
       </div>
+    </div>
+  );
+};
+
+// --- AI REPORT DIAGRAM ---
+export const AIReportDiagram: React.FC = () => {
+  const [reportTab, setReportTab] = useState<'personal' | 'team'>('personal');
+
+  const dataSources = [
+    { icon: ListTodo, label: 'Tasks', metric: '24 completed', color: 'text-bridge-accent', bg: 'bg-bridge-accent/10 border-bridge-accent/20' },
+    { icon: Clock, label: 'Time Blocks', metric: '38.5 hours', color: 'text-bridge-secondary', bg: 'bg-bridge-secondary/10 border-bridge-secondary/20' },
+    { icon: CheckCircle2, label: 'Checklists', metric: '89% done', color: 'text-emerald-400', bg: 'bg-emerald-400/10 border-emerald-400/20' },
+    { icon: MessageSquare, label: 'Comments', metric: '47 threads', color: 'text-cyan-400', bg: 'bg-cyan-400/10 border-cyan-400/20' },
+  ];
+
+  const personalReport = [
+    { type: 'feature', text: 'Authentication Sprint' },
+    { type: 'narrative', text: 'Your focus shifted from API design (Mon-Tue) to security hardening (Wed-Fri), indicating a natural progression from architecture to resilience.' },
+    { type: 'insight', text: 'The 6-hour gap between Identity Engine and Security Audit suggests a dependency bottleneck worth addressing next sprint.' },
+  ];
+
+  const teamReport = [
+    { type: 'feature', text: 'Team Dynamics Overview' },
+    { type: 'narrative', text: "Alice carried 42% of the sprint load while Bob's contributions dropped 30% mid-week — likely blocked by the pending API review." },
+    { type: 'insight', text: 'Cross-functional handoffs between Design and Dev averaged 1.8 days. Reducing this to < 1 day could accelerate delivery by ~20%.' },
+  ];
+
+  const activeReport = reportTab === 'personal' ? personalReport : teamReport;
+
+  return (
+    <div className="flex flex-col p-10 bg-bridge-obsidian rounded-[2.5rem] border border-white/20 shadow-2xl w-full text-stone-100 overflow-hidden relative font-inter">
+      <h3 className="font-jakarta font-bold text-2xl mb-10 text-white flex items-center gap-4 tracking-tight">
+        <Sparkles size={22} className="text-bridge-accent" />
+        AI Report Engine
+      </h3>
+
+      {/* Data Sources */}
+      <div className="grid grid-cols-2 gap-3 mb-8">
+        {dataSources.map((src, i) => (
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, y: 10 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: i * 0.08 }}
+            className={`flex items-center gap-3 p-3 rounded-xl border ${src.bg}`}
+          >
+            <src.icon size={16} className={src.color} />
+            <div className="min-w-0">
+              <span className={`text-[10px] font-bold block ${src.color}`}>{src.label}</span>
+              <span className="text-[9px] text-slate-500">{src.metric}</span>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* AI Processing Indicator */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        whileInView={{ opacity: 1, scale: 1 }}
+        viewport={{ once: true }}
+        transition={{ delay: 0.3 }}
+        className="flex items-center justify-center gap-3 py-4 mb-8 border-y border-white/10"
+      >
+        <div className="relative">
+          <Sparkles size={18} className="text-bridge-accent animate-pulse" />
+          <div className="absolute inset-0 bg-bridge-accent/20 blur-xl rounded-full" />
+        </div>
+        <span className="text-[10px] font-extrabold uppercase tracking-[0.3em] text-bridge-accent font-jakarta">Claude AI Analyzing</span>
+        <div className="flex gap-1">
+          {[0, 1, 2].map(i => (
+            <motion.div
+              key={i}
+              animate={{ opacity: [0.3, 1, 0.3] }}
+              transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }}
+              className="w-1.5 h-1.5 rounded-full bg-bridge-accent"
+            />
+          ))}
+        </div>
+      </motion.div>
+
+      {/* Report Tab Toggle */}
+      <div className="flex justify-center mb-6">
+        <div className="inline-flex bg-white/5 border border-white/10 rounded-2xl p-1.5">
+          <button
+            onClick={() => setReportTab('personal')}
+            className={`px-5 py-2 rounded-xl text-[10px] font-bold tracking-widest uppercase transition-all font-jakarta ${
+              reportTab === 'personal'
+                ? 'bg-bridge-accent text-white shadow-lg'
+                : 'text-slate-500 hover:text-slate-300'
+            }`}
+          >
+            Personal
+          </button>
+          <button
+            onClick={() => setReportTab('team')}
+            className={`px-5 py-2 rounded-xl text-[10px] font-bold tracking-widest uppercase transition-all font-jakarta ${
+              reportTab === 'team'
+                ? 'bg-bridge-secondary text-bridge-dark shadow-lg'
+                : 'text-slate-500 hover:text-slate-300'
+            }`}
+          >
+            Team
+          </button>
+        </div>
+      </div>
+
+      {/* Report Preview */}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={reportTab}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.25 }}
+          className="bg-white/5 border border-white/10 rounded-2xl p-5 space-y-4"
+        >
+          <div className="flex items-center gap-2 mb-1">
+            <FileText size={14} className={reportTab === 'personal' ? 'text-bridge-accent' : 'text-bridge-secondary'} />
+            <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 font-jakarta">
+              {reportTab === 'personal' ? 'Personal Report' : 'Team Report'} — Feb 3-9, 2026
+            </span>
+          </div>
+
+          {activeReport.map((item, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, x: 10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: i * 0.1 }}
+            >
+              {item.type === 'feature' && (
+                <div className={`text-[11px] font-bold font-jakarta pl-3 border-l-2 ${
+                  reportTab === 'personal' ? 'text-bridge-accent border-bridge-accent' : 'text-bridge-secondary border-bridge-secondary'
+                }`}>
+                  {item.text}
+                </div>
+              )}
+              {item.type === 'narrative' && (
+                <p className="text-[11px] text-slate-400 leading-relaxed pl-3">
+                  {item.text}
+                </p>
+              )}
+              {item.type === 'insight' && (
+                <div className={`text-[10px] leading-relaxed p-3 rounded-lg border-l-2 ${
+                  reportTab === 'personal'
+                    ? 'bg-bridge-accent/5 border-bridge-accent/50 text-slate-300'
+                    : 'bg-bridge-secondary/5 border-bridge-secondary/50 text-slate-300'
+                }`}>
+                  {item.text}
+                </div>
+              )}
+            </motion.div>
+          ))}
+        </motion.div>
+      </AnimatePresence>
     </div>
   );
 };

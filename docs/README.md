@@ -1,17 +1,17 @@
 # Project Documentation
 
-> Last updated: 2026-02-07
+> Last updated: 2026-02-08
 
 ## Documents
 
 | Type | Latest | Last Updated | History |
 |------|--------|--------------|---------|
-| [IA](./IA/latest.md) | v1.4.0 | 2026-02-07 | [versions](./IA/) |
-| [Wireframe](./Wireframe/latest.md) | v1.4.0 | 2026-02-07 | [versions](./Wireframe/) |
-| [Design](./Design/latest.md) | v1.2.0 | 2026-02-07 | [versions](./Design/) |
-| [ERD](./ERD/latest.md) | v1.4.0 | 2026-02-07 | [versions](./ERD/) |
-| [API](./API/latest.md) | v1.4.0 | 2026-02-07 | [versions](./API/) |
-| [Tech](./Tech/latest.md) | v1.2.0 | 2026-02-07 | [versions](./Tech/) |
+| [IA](./IA/latest.md) | v1.5.0 | 2026-02-08 | [versions](./IA/) |
+| [Wireframe](./Wireframe/latest.md) | v1.5.0 | 2026-02-08 | [versions](./Wireframe/) |
+| [Design](./Design/latest.md) | v1.3.0 | 2026-02-08 | [versions](./Design/) |
+| [ERD](./ERD/latest.md) | v1.5.0 | 2026-02-08 | [versions](./ERD/) |
+| [API](./API/latest.md) | v1.5.0 | 2026-02-08 | [versions](./API/) |
+| [Tech](./Tech/latest.md) | v1.5.0 | 2026-02-08 | [versions](./Tech/) |
 
 ## Quick Links
 

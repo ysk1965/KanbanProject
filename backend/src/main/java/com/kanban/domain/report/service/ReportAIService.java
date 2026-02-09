@@ -24,7 +24,7 @@ public class ReportAIService {
     @Value("${ai.claude.api-key:}")
     private String apiKey;
 
-    @Value("${ai.claude.model.team:claude-sonnet-4-20250514}")
+    @Value("${ai.claude.model.team:claude-haiku-4-5-20251001}")
     private String teamModel;
 
     @Value("${ai.claude.model.personal:claude-haiku-4-5-20251001}")
@@ -57,7 +57,11 @@ public class ReportAIService {
             Map<String, Object> requestBody = Map.of(
                     "model", reportType == ReportType.TEAM ? teamModel : personalModel,
                     "max_tokens", maxTokens,
-                    "system", systemPrompt,
+                    "system", List.of(Map.of(
+                            "type", "text",
+                            "text", systemPrompt,
+                            "cache_control", Map.of("type", "ephemeral")
+                    )),
                     "messages", List.of(Map.of("role", "user", "content", userPrompt))
             );
 
@@ -358,7 +362,11 @@ public class ReportAIService {
             Map<String, Object> requestBody = Map.of(
                     "model", standupModel,
                     "max_tokens", MAX_TOKENS_STANDUP,
-                    "system", systemPrompt,
+                    "system", List.of(Map.of(
+                            "type", "text",
+                            "text", systemPrompt,
+                            "cache_control", Map.of("type", "ephemeral")
+                    )),
                     "messages", List.of(Map.of("role", "user", "content", userPrompt))
             );
 

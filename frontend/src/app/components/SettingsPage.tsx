@@ -305,22 +305,29 @@ export function SettingsPage() {
               <p className="text-sm text-slate-400">{t('settings.languageDesc')}</p>
             </div>
           </div>
-          <div className="flex gap-3">
+          <div className="grid grid-cols-5 gap-2.5">
             {[
-              { code: 'ko', label: '한국어', flag: '🇰🇷' },
-              { code: 'en', label: 'English', flag: '🇺🇸' },
+              { code: 'ko', label: '한국어' },
+              { code: 'en', label: 'English' },
+              { code: 'ja', label: '日本語' },
+              { code: 'zh', label: '简体中文' },
+              { code: 'zh-TW', label: '繁體中文' },
+              { code: 'hi', label: 'हिन्दी' },
+              { code: 'vi', label: 'Tiếng Việt' },
+              { code: 'es', label: 'Español' },
+              { code: 'pt-BR', label: 'Português' },
+              { code: 'th', label: 'ไทย' },
             ].map((lang) => (
               <button
                 key={lang.code}
                 onClick={() => i18n.changeLanguage(lang.code)}
-                className={`flex items-center gap-2.5 px-5 py-3 rounded-xl text-sm font-medium transition-all ${
+                className={`px-3 py-2.5 rounded-xl text-sm font-medium transition-all whitespace-nowrap text-center ${
                   i18n.language === lang.code
                     ? 'bg-bridge-accent/15 border border-bridge-accent/50 text-bridge-accent'
                     : 'bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 hover:text-white'
                 }`}
               >
-                <span className="text-base">{lang.flag}</span>
-                <span>{lang.label}</span>
+                {lang.label}
               </button>
             ))}
           </div>

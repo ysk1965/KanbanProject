@@ -108,6 +108,26 @@ variable "claude_api_key" {
   default     = ""
 }
 
+variable "mail_username" {
+  description = "Gmail SMTP username for sending emails"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "mail_password" {
+  description = "Gmail SMTP app password"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "google_client_id" {
+  description = "Google OAuth2 client ID"
+  type        = string
+  default     = ""
+}
+
 variable "associate_public_ip" {
   description = "Associate public IP to EC2 instances (true for public subnet without NAT)"
   type        = string

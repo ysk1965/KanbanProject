@@ -25,6 +25,8 @@ public class SubscriptionResponse {
         private LocalDateTime currentPeriodEnd;
         private Integer billableMemberCount;
         private Integer memberLimit;
+        private Integer seatCount;
+        private Integer pricePerSeat;
         private LocalDateTime nextPaymentAt;
         private LocalDateTime createdAt;
 
@@ -41,6 +43,8 @@ public class SubscriptionResponse {
                     .currentPeriodEnd(subscription.getCurrentPeriodEnd())
                     .billableMemberCount(subscription.getBillableMemberCount())
                     .memberLimit(subscription.getMemberLimit())
+                    .seatCount(subscription.getSeatCount())
+                    .pricePerSeat(subscription.getPricePerSeat())
                     .nextPaymentAt(subscription.getNextPaymentAt())
                     .createdAt(subscription.getCreatedAt())
                     .build();

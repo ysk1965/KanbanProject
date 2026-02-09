@@ -96,6 +96,7 @@ public enum ErrorCode {
     TRIAL_EXPIRED(HttpStatus.FORBIDDEN, "S002", "체험 기간이 만료되었습니다"),
     PAYMENT_REQUIRED(HttpStatus.PAYMENT_REQUIRED, "S003", "결제가 필요합니다"),
     MEMBER_LIMIT_EXCEEDED(HttpStatus.BAD_REQUEST, "S004", "멤버 수 제한을 초과했습니다"),
+    SEAT_LIMIT_EXCEEDED(HttpStatus.PAYMENT_REQUIRED, "S005", "시트 수가 부족합니다. 추가 시트를 구매해주세요"),
 
     // Milestone
     MILESTONE_NOT_FOUND(HttpStatus.NOT_FOUND, "MS001", "마일스톤을 찾을 수 없습니다"),

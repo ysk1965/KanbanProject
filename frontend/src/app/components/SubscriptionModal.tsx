@@ -1,61 +1,98 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, CreditCard, Users, Check } from 'lucide-react';
-import { Button } from './ui/button';
-import { Subscription, PricingPlan } from '../types';
+import { X, CreditCard, Users, Check, Minus, Plus, Crown, AlertTriangle } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Subscription } from '../types';
 import { formatDate as dateUtilsFormatDate } from '../utils/dateUtils';
 
 interface SubscriptionModalProps {
   open: boolean;
   onClose: () => void;
   subscription: Subscription | null;
-  plans: PricingPlan[];
-  onSubscribe: (planId: string, billingCycle: 'monthly' | 'yearly') => Promise<void>;
-  onChangePlan: (planId: string, billingCycle: 'monthly' | 'yearly') => Promise<void>;
+  currentBillableMembers: number;
+  onChangeBillingCycle: (billingCycle: 'MONTHLY' | 'YEARLY') => Promise<void>;
+  onPurchaseSeats: (additionalSeats: number) => Promise<void>;
   onCancelSubscription: () => Promise<void>;
 }
+
+const PRICE_PER_SEAT = {
+  monthly: 5,
+  yearly: 50,
+};
 
 export function SubscriptionModal({
   open,
   onClose,
   subscription,
-  plans,
-  onSubscribe,
-  onChangePlan,
+  currentBillableMembers,
+  onChangeBillingCycle,
+  onPurchaseSeats,
   onCancelSubscription,
 }: SubscriptionModalProps) {
   const { t } = useTranslation();
-  const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>(
-    subscription?.billing_cycle === 'YEARLY' ? 'yearly' : 'monthly'
-  );
-  const [selectedPlanId, setSelectedPlanId] = useState(subscription?.plan || '');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [additionalSeats, setAdditionalSeats] = useState(1);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [activeTab, setActiveTab] = useState<'overview' | 'seats' | 'billing'>('overview');
 
   if (!open) return null;
 
-  const handleSubscribe = async () => {
-    if (!selectedPlanId) return;
+  const seatCount = subscription?.seat_count || 0;
+  const billingCycle = subscription?.billing_cycle || 'MONTHLY';
+  const pricePerSeat = billingCycle === 'MONTHLY' ? PRICE_PER_SEAT.monthly : PRICE_PER_SEAT.yearly;
+  const totalPrice = pricePerSeat * seatCount;
+  const isActive = subscription?.status === 'ACTIVE';
 
+  const formatDate = (dateStr: string | null | undefined) => {
+    if (!dateStr) return '-';
+    return dateUtilsFormatDate(dateStr, 'yyyy-MM-dd');
+  };
+
+  const getStatusBadge = (status: Subscription['status']) => {
+    const styles: Record<string, string> = {
+      TRIAL: 'bg-blue-500/20 text-blue-400',
+      ACTIVE: 'bg-green-500/20 text-green-400',
+      GRACE: 'bg-yellow-500/20 text-yellow-400',
+      SUSPENDED: 'bg-red-500/20 text-red-400',
+      CANCELED: 'bg-slate-500/20 text-slate-400',
+    };
+    return (
+      <span className={`${styles[status] || ''} px-2 py-1 rounded text-xs font-medium`}>
+        {t(`subscription.status${status.charAt(0) + status.slice(1).toLowerCase()}`)}
+      </span>
+    );
+  };
+
+  const handleChangeBillingCycle = async (newCycle: 'MONTHLY' | 'YEARLY') => {
+    if (newCycle === billingCycle) return;
     setIsProcessing(true);
     try {
-      if (subscription?.status === 'ACTIVE') {
-        await onChangePlan(selectedPlanId, billingCycle);
-      } else {
-        await onSubscribe(selectedPlanId, billingCycle);
-      }
+      await onChangeBillingCycle(newCycle);
     } catch (error) {
-      console.error('Subscription action failed:', error);
+      console.error('Change billing cycle failed:', error);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handlePurchaseSeats = async () => {
+    setIsProcessing(true);
+    try {
+      await onPurchaseSeats(additionalSeats);
+      setAdditionalSeats(1);
+      setActiveTab('overview');
+    } catch (error) {
+      console.error('Purchase seats failed:', error);
     } finally {
       setIsProcessing(false);
     }
   };
 
   const handleCancel = async () => {
-    if (!confirm(t('subscription.cancelConfirm'))) return;
-
     setIsProcessing(true);
     try {
       await onCancelSubscription();
+      setShowCancelConfirm(false);
     } catch (error) {
       console.error('Cancel subscription failed:', error);
     } finally {
@@ -63,256 +100,341 @@ export function SubscriptionModal({
     }
   };
 
-  const getStatusBadge = (status: Subscription['status']) => {
-    switch (status) {
-      case 'TRIAL':
-        return <span className="bg-blue-500/20 text-blue-400 px-2 py-1 rounded text-xs">{t('subscription.statusTrial')}</span>;
-      case 'ACTIVE':
-        return <span className="bg-green-500/20 text-green-400 px-2 py-1 rounded text-xs">{t('subscription.statusActive')}</span>;
-      case 'GRACE':
-        return <span className="bg-yellow-500/20 text-yellow-400 px-2 py-1 rounded text-xs">{t('subscription.statusGrace')}</span>;
-      case 'SUSPENDED':
-        return <span className="bg-red-500/20 text-red-400 px-2 py-1 rounded text-xs">{t('subscription.statusSuspended')}</span>;
-      case 'CANCELED':
-        return <span className="bg-gray-500/20 text-gray-400 px-2 py-1 rounded text-xs">{t('subscription.statusCanceled')}</span>;
-    }
-  };
-
-  const formatDate = (dateStr: string | null | undefined) => {
-    if (!dateStr) return '-';
-    return dateUtilsFormatDate(dateStr, 'yyyy-MM-dd');
-  };
-
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('ko-KR').format(price);
-  };
-
-  // 현재 선택된 플랜 이름 찾기
-  const currentPlanName = plans.find(p => p.id === subscription?.plan)?.name || subscription?.plan || '-';
+  const seatUsagePercent = seatCount > 0 ? Math.min((currentBillableMembers / seatCount) * 100, 100) : 0;
 
   return (
-    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
-      <div className="bg-bridge-obsidian rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-        {/* 헤더 */}
-        <div className="flex items-center justify-between p-6 border-b border-white/20">
-          <div className="flex items-center gap-2">
-            <CreditCard className="h-5 w-5 text-blue-400" />
-            <h2 className="text-xl font-semibold text-foreground">{t('subscription.title')}</h2>
-          </div>
-          <button
+    <AnimatePresence>
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
             onClick={onClose}
-            className="text-slate-400 hover:text-white transition-colors"
+          />
+
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            className="relative w-full max-w-xl max-h-[90vh] overflow-y-auto bg-bridge-obsidian rounded-2xl border border-white/10 shadow-2xl"
           >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        {/* 콘텐츠 */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* 현재 구독 정보 */}
-          {subscription && (
-            <div className="bg-bridge-dark rounded-lg p-6 border border-white/20">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-foreground">{t('subscription.currentSubscription')}</h3>
-                {getStatusBadge(subscription.status)}
-              </div>
-
-              <div className="grid grid-cols-2 gap-4 text-sm">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-5 border-b border-white/10">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-bridge-accent/10 rounded-xl">
+                  <CreditCard className="h-5 w-5 text-bridge-accent" />
+                </div>
                 <div>
-                  <div className="text-slate-400 mb-1">{t('subscription.plan')}</div>
-                  <div className="text-foreground font-medium">
-                    {currentPlanName}
+                  <h2 className="text-lg font-bold text-white">{t('subscription.title')}</h2>
+                  {subscription && (
+                    <div className="mt-1">{getStatusBadge(subscription.status)}</div>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={onClose}
+                className="p-1 text-slate-400 hover:text-white transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Tab Navigation (only for ACTIVE subscriptions) */}
+            {isActive && (
+              <div className="flex border-b border-white/10">
+                {(['overview', 'seats', 'billing'] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+                      activeTab === tab
+                        ? 'text-bridge-accent border-b-2 border-bridge-accent'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {t(`subscription.tab${tab.charAt(0).toUpperCase() + tab.slice(1)}`)}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Content */}
+            <div className="p-6">
+              {/* Trial info */}
+              {subscription?.status === 'TRIAL' && (
+                <div className="space-y-4">
+                  <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Crown className="h-4 w-4 text-blue-400" />
+                      <p className="text-blue-400 font-medium text-sm">{t('subscription.trialActive')}</p>
+                    </div>
+                    {subscription.trial_ends_at && (
+                      <p className="text-slate-400 text-sm">
+                        {t('subscription.trialEndsAt', { date: formatDate(subscription.trial_ends_at) })}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="bg-bridge-dark/50 rounded-xl p-4 border border-white/5">
+                      <p className="text-slate-400 text-xs mb-1">{t('subscription.memberCount')}</p>
+                      <p className="text-white font-bold text-lg">
+                        {currentBillableMembers} / {subscription.member_limit || 5}
+                      </p>
+                    </div>
+                    <div className="bg-bridge-dark/50 rounded-xl p-4 border border-white/5">
+                      <p className="text-slate-400 text-xs mb-1">{t('subscription.trialEndDate')}</p>
+                      <p className="text-white font-bold text-lg">
+                        {formatDate(subscription.trial_ends_at)}
+                      </p>
+                    </div>
                   </div>
                 </div>
+              )}
 
-                {subscription.billing_cycle && (
+              {/* Active - Overview Tab */}
+              {isActive && activeTab === 'overview' && (
+                <div className="space-y-4">
+                  {/* Seat Usage */}
+                  <div className="bg-bridge-dark/50 rounded-xl border border-white/10 p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4 text-bridge-accent" />
+                        <p className="text-white text-sm font-medium">{t('subscription.seatUsage')}</p>
+                      </div>
+                      <p className="text-slate-400 text-sm">
+                        {currentBillableMembers} / {seatCount} {t('seatPurchase.seats')}
+                      </p>
+                    </div>
+                    <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${
+                          seatUsagePercent >= 90 ? 'bg-red-500' : seatUsagePercent >= 70 ? 'bg-yellow-500' : 'bg-bridge-accent'
+                        }`}
+                        style={{ width: `${seatUsagePercent}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Pricing Summary */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-bridge-dark/50 rounded-xl p-4 border border-white/5">
+                      <p className="text-slate-400 text-xs mb-1">{t('subscription.billingCycle')}</p>
+                      <p className="text-white font-bold">
+                        {billingCycle === 'MONTHLY' ? t('subscription.billingMonthly') : t('subscription.billingYearly')}
+                      </p>
+                    </div>
+                    <div className="bg-bridge-dark/50 rounded-xl p-4 border border-white/5">
+                      <p className="text-slate-400 text-xs mb-1">{t('subscription.price')}</p>
+                      <p className="text-white font-bold">
+                        ${totalPrice}
+                        <span className="text-slate-400 text-xs font-normal">
+                          {billingCycle === 'MONTHLY' ? t('subscription.perMonth') : t('subscription.perYear')}
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Period Info */}
+                  {subscription?.current_period_start && subscription?.current_period_end && (
+                    <div className="bg-bridge-dark/50 rounded-xl p-4 border border-white/5">
+                      <p className="text-slate-400 text-xs mb-1">{t('subscription.currentPeriod')}</p>
+                      <p className="text-white text-sm">
+                        {formatDate(subscription.current_period_start)} — {formatDate(subscription.current_period_end)}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Active - Seats Tab */}
+              {isActive && activeTab === 'seats' && (
+                <div className="space-y-4">
+                  {/* Current Seats */}
+                  <div className="bg-bridge-dark/50 rounded-xl border border-white/10 p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-white text-sm font-medium">{t('subscription.currentSeats')}</p>
+                      <p className="text-bridge-accent text-lg font-bold">{seatCount}</p>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <p className="text-slate-400 text-xs">{t('subscription.usedSeats')}</p>
+                      <p className="text-slate-300 text-sm">{currentBillableMembers}</p>
+                    </div>
+                    <div className="flex items-center justify-between mt-1">
+                      <p className="text-slate-400 text-xs">{t('subscription.availableSeats')}</p>
+                      <p className="text-bridge-secondary text-sm font-medium">
+                        {Math.max(seatCount - currentBillableMembers, 0)}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Purchase Additional Seats */}
+                  <div className="bg-bridge-dark/50 rounded-xl border border-white/10 p-4">
+                    <p className="text-white text-sm font-medium mb-4">{t('subscription.addSeats')}</p>
+
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => setAdditionalSeats(Math.max(1, additionalSeats - 1))}
+                          disabled={additionalSeats <= 1}
+                          className="p-1.5 rounded-lg border border-white/10 text-slate-400 hover:text-white hover:bg-white/5 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                          <Minus className="h-4 w-4" />
+                        </button>
+                        <span className="text-white text-xl font-bold w-10 text-center">{additionalSeats}</span>
+                        <button
+                          onClick={() => setAdditionalSeats(additionalSeats + 1)}
+                          className="p-1.5 rounded-lg border border-white/10 text-slate-400 hover:text-white hover:bg-white/5 transition-all"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </button>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-white font-bold">
+                          +${pricePerSeat * additionalSeats}
+                        </p>
+                        <p className="text-slate-500 text-xs">
+                          {additionalSeats} × ${pricePerSeat}
+                          {billingCycle === 'MONTHLY' ? t('subscription.perMonth') : t('subscription.perYear')}
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={handlePurchaseSeats}
+                      disabled={isProcessing}
+                      className="w-full px-4 py-3 bg-bridge-accent text-white rounded-xl font-bold hover:bg-bridge-accent/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isProcessing ? t('common.processing') : t('subscription.purchaseSeats')}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Active - Billing Tab */}
+              {isActive && activeTab === 'billing' && (
+                <div className="space-y-4">
+                  {/* Change Billing Cycle */}
                   <div>
-                    <div className="text-slate-400 mb-1">{t('subscription.billingCycle')}</div>
-                    <div className="text-foreground font-medium">
-                      {subscription.billing_cycle === 'MONTHLY' ? t('subscription.billingMonthly') : t('subscription.billingYearly')}
+                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">
+                      {t('subscription.changeBillingCycle')}
+                    </p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        onClick={() => handleChangeBillingCycle('MONTHLY')}
+                        disabled={isProcessing}
+                        className={`relative p-4 rounded-xl border transition-all ${
+                          billingCycle === 'MONTHLY'
+                            ? 'border-bridge-accent bg-bridge-accent/10'
+                            : 'border-white/10 hover:border-white/20 hover:bg-white/5'
+                        }`}
+                      >
+                        <div className="text-left">
+                          <p className="text-slate-400 text-xs mb-1">{t('upgrade.monthly')}</p>
+                          <p className="text-white text-lg font-bold">${PRICE_PER_SEAT.monthly * seatCount}</p>
+                          <p className="text-slate-500 text-xs">{t('upgrade.perMonth')}</p>
+                        </div>
+                        {billingCycle === 'MONTHLY' && (
+                          <div className="absolute top-3 right-3">
+                            <Check className="h-4 w-4 text-bridge-accent" />
+                          </div>
+                        )}
+                      </button>
+
+                      <button
+                        onClick={() => handleChangeBillingCycle('YEARLY')}
+                        disabled={isProcessing}
+                        className={`relative p-4 rounded-xl border transition-all ${
+                          billingCycle === 'YEARLY'
+                            ? 'border-bridge-accent bg-bridge-accent/10'
+                            : 'border-white/10 hover:border-white/20 hover:bg-white/5'
+                        }`}
+                      >
+                        <div className="absolute -top-2 -right-2">
+                          <span className="px-2 py-0.5 bg-bridge-secondary text-bridge-dark text-[10px] font-bold rounded-full">
+                            17% off
+                          </span>
+                        </div>
+                        <div className="text-left">
+                          <p className="text-slate-400 text-xs mb-1">{t('upgrade.yearly')}</p>
+                          <p className="text-white text-lg font-bold">${PRICE_PER_SEAT.yearly * seatCount}</p>
+                          <p className="text-slate-500 text-xs">
+                            {t('upgrade.perYear')} (${((PRICE_PER_SEAT.yearly * seatCount) / 12).toFixed(2)}/mo)
+                          </p>
+                        </div>
+                        {billingCycle === 'YEARLY' && (
+                          <div className="absolute top-3 right-3">
+                            <Check className="h-4 w-4 text-bridge-accent" />
+                          </div>
+                        )}
+                      </button>
                     </div>
                   </div>
-                )}
 
-                {subscription.price != null && (
-                  <div>
-                    <div className="text-slate-400 mb-1">{t('subscription.price')}</div>
-                    <div className="text-foreground font-medium">
-                      ₩{formatPrice(subscription.price)}
-                    </div>
-                  </div>
-                )}
-
-                {subscription.billable_member_count != null && (
-                  <div>
-                    <div className="text-slate-400 mb-1">{t('subscription.memberCount')}</div>
-                    <div className="text-foreground font-medium">
-                      {t('subscription.memberCountFormat', { count: subscription.billable_member_count, limit: subscription.member_limit || '-' })}
-                    </div>
-                  </div>
-                )}
-
-                {subscription.status === 'TRIAL' && subscription.trial_ends_at && (
-                  <div className="col-span-2">
-                    <div className="text-slate-400 mb-1">{t('subscription.trialEndDate')}</div>
-                    <div className="text-foreground font-medium">
-                      {formatDate(subscription.trial_ends_at)}
-                    </div>
-                  </div>
-                )}
-
-                {subscription.status === 'ACTIVE' && (
-                  <>
-                    {subscription.current_period_start && subscription.current_period_end && (
-                      <div>
-                        <div className="text-slate-400 mb-1">{t('subscription.currentPeriod')}</div>
-                        <div className="text-foreground font-medium">
-                          {formatDate(subscription.current_period_start)} -{' '}
-                          {formatDate(subscription.current_period_end)}
+                  {/* Cancel Subscription */}
+                  <div className="pt-4 border-t border-white/10">
+                    {!showCancelConfirm ? (
+                      <button
+                        onClick={() => setShowCancelConfirm(true)}
+                        className="text-red-400 text-sm hover:text-red-300 transition-colors"
+                      >
+                        {t('subscription.cancelSubscription')}
+                      </button>
+                    ) : (
+                      <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <AlertTriangle className="h-4 w-4 text-red-400" />
+                          <p className="text-red-400 font-medium text-sm">{t('subscription.cancelConfirmTitle')}</p>
+                        </div>
+                        <p className="text-slate-400 text-xs mb-3">{t('subscription.cancelConfirmDesc')}</p>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setShowCancelConfirm(false)}
+                            className="flex-1 px-3 py-2 bg-white/5 border border-white/10 text-slate-300 rounded-lg text-sm hover:bg-white/10 transition-all"
+                          >
+                            {t('common.cancel')}
+                          </button>
+                          <button
+                            onClick={handleCancel}
+                            disabled={isProcessing}
+                            className="flex-1 px-3 py-2 bg-red-500/20 border border-red-500/30 text-red-400 rounded-lg text-sm font-medium hover:bg-red-500/30 transition-all disabled:opacity-50"
+                          >
+                            {isProcessing ? t('common.processing') : t('subscription.confirmCancel')}
+                          </button>
                         </div>
                       </div>
                     )}
+                  </div>
+                </div>
+              )}
 
-                    {subscription.next_payment_at && (
-                      <div>
-                        <div className="text-slate-400 mb-1">{t('subscription.nextPaymentDate')}</div>
-                        <div className="text-foreground font-medium">
-                          {formatDate(subscription.next_payment_at)}
-                        </div>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-
-              {subscription.status === 'ACTIVE' && (
-                <div className="mt-4">
-                  <Button
-                    onClick={handleCancel}
-                    variant="outline"
-                    size="sm"
-                    className="border-red-600 text-red-400 hover:bg-red-600/20"
-                    disabled={isProcessing}
-                  >
-                    {t('subscription.cancelSubscription')}
-                  </Button>
+              {/* Non-active states (GRACE, SUSPENDED, CANCELED) */}
+              {subscription && !isActive && subscription.status !== 'TRIAL' && (
+                <div className="space-y-4">
+                  <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4">
+                    <p className="text-yellow-400 text-sm font-medium">
+                      {t(`subscription.${subscription.status.toLowerCase()}Message`)}
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
-          )}
 
-          {/* 결제 주기 선택 */}
-          <div>
-            <h3 className="text-lg font-semibold text-foreground mb-4">{t('subscription.selectBillingCycle')}</h3>
-            <div className="flex gap-4">
+            {/* Footer */}
+            <div className="px-6 pb-6">
               <button
-                onClick={() => setBillingCycle('monthly')}
-                className={`flex-1 py-3 px-4 rounded-lg border-2 transition-colors ${
-                  billingCycle === 'monthly'
-                    ? 'border-blue-500 bg-blue-500/10 text-foreground'
-                    : 'border-white/20 bg-bridge-dark text-slate-400 hover:border-white/20'
-                }`}
+                onClick={onClose}
+                className="w-full px-4 py-3 bg-white/5 border border-white/10 text-slate-300 rounded-xl font-medium hover:bg-white/10 transition-all"
               >
-                <div className="font-medium">{t('subscription.monthlyBilling')}</div>
-                <div className="text-sm mt-1 opacity-75">{t('subscription.monthlyBillingDesc')}</div>
-              </button>
-              <button
-                onClick={() => setBillingCycle('yearly')}
-                className={`flex-1 py-3 px-4 rounded-lg border-2 transition-colors relative ${
-                  billingCycle === 'yearly'
-                    ? 'border-blue-500 bg-blue-500/10 text-foreground'
-                    : 'border-white/20 bg-bridge-dark text-slate-400 hover:border-white/20'
-                }`}
-              >
-                <div className="absolute -top-2 -right-2 bg-green-500 text-white text-xs px-2 py-0.5 rounded-full">
-                  {t('subscription.yearlyDiscount')}
-                </div>
-                <div className="font-medium">{t('subscription.yearlyBilling')}</div>
-                <div className="text-sm mt-1 opacity-75">{t('subscription.yearlyBillingDesc')}</div>
+                {t('common.close')}
               </button>
             </div>
-          </div>
-
-          {/* 플랜 선택 */}
-          <div>
-            <h3 className="text-lg font-semibold text-foreground mb-4">{t('subscription.selectPlan')}</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {plans.map((plan) => {
-                const price =
-                  billingCycle === 'monthly' ? plan.monthly_price : plan.yearly_price;
-                const isCurrentPlan = subscription?.plan === plan.id;
-                const isSelected = selectedPlanId === plan.id;
-
-                return (
-                  <button
-                    key={plan.id}
-                    onClick={() => setSelectedPlanId(plan.id)}
-                    className={`text-left p-6 rounded-lg border-2 transition-colors ${
-                      isSelected
-                        ? 'border-blue-500 bg-blue-500/10'
-                        : 'border-white/20 bg-bridge-dark hover:border-white/20'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <h4 className="text-lg font-semibold text-foreground">{plan.name}</h4>
-                      {isCurrentPlan && (
-                        <span className="bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded text-xs">
-                          {t('subscription.currentPlan')}
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="mb-4">
-                      <div className="text-2xl font-bold text-foreground">
-                        ₩{formatPrice(price)}
-                      </div>
-                      <div className="text-sm text-slate-400">
-                        {billingCycle === 'monthly' ? t('subscription.perMonth') : t('subscription.perYear')}
-                      </div>
-                      {billingCycle === 'yearly' && plan.discount_percentage > 0 && (
-                        <div className="text-xs text-green-400 mt-1">
-                          {t('subscription.discountFormat', { percent: plan.discount_percentage })}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="space-y-2 text-sm text-slate-300">
-                      <div className="flex items-center gap-2">
-                        <Users className="h-4 w-4 text-blue-400" />
-                        <span>
-                          {plan.min_members}명 ~ {plan.max_members}명
-                        </span>
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          </motion.div>
         </div>
-
-        {/* 푸터 */}
-        <div className="border-t border-white/20 p-4 bg-bridge-dark flex gap-2">
-          <Button
-            onClick={onClose}
-            variant="outline"
-            className="flex-1 border-white/20 text-slate-300 hover:bg-white/5 hover:text-white"
-          >
-            {t('common.close')}
-          </Button>
-          <Button
-            onClick={handleSubscribe}
-            disabled={!selectedPlanId || isProcessing}
-            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            {isProcessing
-              ? t('common.processing')
-              : subscription?.status === 'ACTIVE'
-              ? t('subscription.changePlan')
-              : t('subscription.startSubscription')}
-          </Button>
-        </div>
-      </div>
-    </div>
+      )}
+    </AnimatePresence>
   );
 }

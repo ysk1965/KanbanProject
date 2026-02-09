@@ -12,14 +12,14 @@ import { AdminSystemTab } from '../components/admin/AdminSystemTab';
 import { AdminInquiriesTab } from '../components/admin/AdminInquiriesTab';
 
 const navItems = [
-  { path: 'dashboard', labelKey: 'admin.dashboard', icon: LayoutDashboard },
-  { path: 'analytics', labelKey: 'admin.analytics', icon: BarChart3 },
-  { path: 'users', labelKey: 'admin.users', icon: Users },
-  { path: 'boards', labelKey: 'admin.boards', icon: Folder },
-  { path: 'subscriptions', labelKey: 'admin.subscriptions', icon: CreditCard },
-  { path: 'announcements', labelKey: 'admin.announcements', icon: Megaphone },
-  { path: 'system', labelKey: 'admin.system', icon: Shield },
-  { path: 'inquiries', labelKey: 'admin.inquiries', icon: MessageSquare },
+  { path: 'dashboard', labelKey: 'admin.dashboard.title', icon: LayoutDashboard },
+  { path: 'analytics', labelKey: 'admin.analytics.title', icon: BarChart3 },
+  { path: 'users', labelKey: 'admin.users.title', icon: Users },
+  { path: 'boards', labelKey: 'admin.boards.title', icon: Folder },
+  { path: 'subscriptions', labelKey: 'admin.subscriptions.title', icon: CreditCard },
+  { path: 'announcements', labelKey: 'admin.announcements.title', icon: Megaphone },
+  { path: 'system', labelKey: 'admin.system.title', icon: Shield },
+  { path: 'inquiries', labelKey: 'admin.inquiries.title', icon: MessageSquare },
 ];
 
 export function AdminPage() {

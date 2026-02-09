@@ -87,6 +87,7 @@ export interface ApiError {
   code: string;
   message: string;
   timestamp: string;
+  errors?: Record<string, string>;
 }
 
 // API 클라이언트
@@ -581,6 +582,8 @@ export interface SubscriptionResponse {
   current_period_end: string | null;
   billable_member_count: number;
   member_limit: number;
+  seat_count: number;
+  price_per_seat: number | null;
   next_payment_at: string | null;
   created_at: string;
 }
@@ -1430,11 +1433,11 @@ export const subscriptionAPI = {
   // Seat 기반 구독 시작
   startSeatSubscription: async (
     boardId: string,
-    data: { billing_cycle: 'MONTHLY' | 'YEARLY'; payment_method_id: string }
+    data: { billing_cycle: 'MONTHLY' | 'YEARLY'; seat_count: number; payment_method_id?: string }
   ) => {
     return apiClient.post<SubscriptionResponse>(`/boards/${boardId}/subscription/start`, {
       ...data,
-      plan_id: 'PREMIUM', // Seat 기반은 단일 플랜
+      plan_id: 'PREMIUM',
     });
   },
 
@@ -1445,9 +1448,18 @@ export const subscriptionAPI = {
 
   changePlan: async (
     boardId: string,
-    data: { plan_id: string; billing_cycle: 'MONTHLY' | 'YEARLY' }
+    data: { billing_cycle: 'MONTHLY' | 'YEARLY' }
   ) => {
     return apiClient.put<SubscriptionResponse>(`/boards/${boardId}/subscription/plan`, data);
+  },
+
+  purchaseSeats: async (
+    boardId: string,
+    data: { additional_seats: number }
+  ) => {
+    return apiClient.post<SubscriptionResponse>(
+      `/boards/${boardId}/subscription/seats`, data
+    );
   },
 
   cancelSubscription: async (boardId: string) => {

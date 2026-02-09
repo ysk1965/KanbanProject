@@ -7,11 +7,12 @@ interface TrialBannerProps {
   status: SubscriptionStatus;
   daysRemaining?: number;
   onOpenSubscription?: () => void;
+  onOpenPremiumBenefits?: () => void;
   tier?: BoardTier;
   hideBilling?: boolean;
 }
 
-export function TrialBanner({ status, daysRemaining = 0, onOpenSubscription, tier, hideBilling }: TrialBannerProps) {
+export function TrialBanner({ status, daysRemaining = 0, onOpenSubscription, onOpenPremiumBenefits, tier, hideBilling }: TrialBannerProps) {
   const { t } = useTranslation();
 
   // TESTER/ADMIN 사용자는 과금 배너 숨김
@@ -30,7 +31,7 @@ export function TrialBanner({ status, daysRemaining = 0, onOpenSubscription, tie
           <Button
             size="sm"
             className="h-7 text-xs bg-bridge-accent hover:bg-bridge-accent/90"
-            onClick={onOpenSubscription}
+            onClick={onOpenPremiumBenefits || onOpenSubscription}
           >
             {t('trial.upgradeToPremium')}
           </Button>
