@@ -107,14 +107,26 @@ spring.servlet.multipart:
   max-file-size: 5MB
   max-request-size: 25MB
 
-# AI (Claude)
+# AI Provider ("claude" or "openai")
 ai:
+  provider: ${AI_PROVIDER:openai}
   claude:
     api-key: ${CLAUDE_API_KEY:}
     model:
       team: ${CLAUDE_MODEL_TEAM:claude-haiku-4-5-20251001}
       personal: ${CLAUDE_MODEL_PERSONAL:claude-haiku-4-5-20251001}
       standup: ${CLAUDE_MODEL_STANDUP:claude-haiku-4-5-20251001}
+  openai:
+    api-key: ${OPENAI_API_KEY:}
+    model:
+      team: ${OPENAI_MODEL_TEAM:gpt-4o-mini}
+      personal: ${OPENAI_MODEL_PERSONAL:gpt-4o-mini}
+      standup: ${OPENAI_MODEL_STANDUP:gpt-4o-mini}
+
+# App Version (injected at build time)
+app.version:
+  commit: '@git.commit@'
+  build-time: '@build.time@'
 
 # App config
 app:

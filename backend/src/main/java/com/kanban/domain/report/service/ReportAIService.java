@@ -1,109 +1,77 @@
 package com.kanban.domain.report.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kanban.domain.report.ReportType;
-import com.kanban.global.exception.BusinessException;
-import com.kanban.global.exception.ErrorCode;
+import com.kanban.global.config.AIProvider;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.*;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
-
-import java.util.List;
-import java.util.Map;
 
 @Slf4j
 @Service
 public class ReportAIService {
 
-    private final RestTemplate aiRestTemplate;
-    private final ObjectMapper objectMapper;
+    private final AIProvider aiProvider;
 
-    @Value("${ai.claude.api-key:}")
-    private String apiKey;
+    @Value("${ai.provider:claude}")
+    private String provider;
 
     @Value("${ai.claude.model.team:claude-haiku-4-5-20251001}")
-    private String teamModel;
+    private String claudeTeamModel;
 
     @Value("${ai.claude.model.personal:claude-haiku-4-5-20251001}")
-    private String personalModel;
+    private String claudePersonalModel;
 
     @Value("${ai.claude.model.standup:claude-haiku-4-5-20251001}")
-    private String standupModel;
+    private String claudeStandupModel;
 
-    private static final String CLAUDE_API_URL = "https://api.anthropic.com/v1/messages";
+    @Value("${ai.openai.model.team:gpt-4o-mini}")
+    private String openaiTeamModel;
+
+    @Value("${ai.openai.model.personal:gpt-4o-mini}")
+    private String openaiPersonalModel;
+
+    @Value("${ai.openai.model.standup:gpt-4o-mini}")
+    private String openaiStandupModel;
+
     private static final int MAX_TOKENS_TEAM = 4096;
     private static final int MAX_TOKENS_PERSONAL = 2048;
     private static final int MAX_TOKENS_STANDUP = 1024;
 
-    public ReportAIService(@Qualifier("aiRestTemplate") RestTemplate aiRestTemplate,
-                           ObjectMapper objectMapper) {
-        this.aiRestTemplate = aiRestTemplate;
-        this.objectMapper = objectMapper;
+    public ReportAIService(AIProvider aiProvider) {
+        this.aiProvider = aiProvider;
+    }
+
+    private String getTeamModel() {
+        return "openai".equals(provider) ? openaiTeamModel : claudeTeamModel;
+    }
+
+    private String getPersonalModel() {
+        return "openai".equals(provider) ? openaiPersonalModel : claudePersonalModel;
+    }
+
+    private String getStandupModel() {
+        return "openai".equals(provider) ? openaiStandupModel : claudeStandupModel;
     }
 
     public String generateReport(ReportType reportType, String dataJson, String language) {
-        if (apiKey == null || apiKey.isBlank()) {
-            throw new BusinessException(ErrorCode.AI_SERVICE_UNAVAILABLE);
-        }
-
         String systemPrompt = buildSystemPrompt(reportType, language);
         String userPrompt = buildUserPrompt(reportType, dataJson);
         int maxTokens = reportType == ReportType.TEAM ? MAX_TOKENS_TEAM : MAX_TOKENS_PERSONAL;
+        String model = reportType == ReportType.TEAM ? getTeamModel() : getPersonalModel();
 
-        try {
-            Map<String, Object> requestBody = Map.of(
-                    "model", reportType == ReportType.TEAM ? teamModel : personalModel,
-                    "max_tokens", maxTokens,
-                    "system", List.of(Map.of(
-                            "type", "text",
-                            "text", systemPrompt,
-                            "cache_control", Map.of("type", "ephemeral")
-                    )),
-                    "messages", List.of(Map.of("role", "user", "content", userPrompt))
-            );
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.set("x-api-key", apiKey);
-            headers.set("anthropic-version", "2023-06-01");
-
-            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
-
-            log.info("Calling Claude API for {} report generation", reportType);
-            ResponseEntity<Map> response = aiRestTemplate.postForEntity(CLAUDE_API_URL, entity, Map.class);
-
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                return extractContent(response.getBody());
-            }
-
-            log.error("Claude API returned non-success status: {}", response.getStatusCode());
-            throw new BusinessException(ErrorCode.AI_REPORT_GENERATION_FAILED);
-
-        } catch (BusinessException e) {
-            throw e;
-        } catch (Exception e) {
-            log.error("Failed to call Claude API: {}", e.getMessage(), e);
-            throw new BusinessException(ErrorCode.AI_REPORT_GENERATION_FAILED);
-        }
+        log.info("Generating {} report via AI provider", reportType);
+        return aiProvider.chat(systemPrompt, userPrompt, model, maxTokens);
     }
 
-    @SuppressWarnings("unchecked")
-    private String extractContent(Map<String, Object> responseBody) {
-        try {
-            List<Map<String, Object>> contentList = (List<Map<String, Object>>) responseBody.get("content");
-            if (contentList != null && !contentList.isEmpty()) {
-                Map<String, Object> firstContent = contentList.get(0);
-                if ("text".equals(firstContent.get("type"))) {
-                    return (String) firstContent.get("text");
-                }
-            }
-        } catch (Exception e) {
-            log.error("Failed to parse Claude API response: {}", e.getMessage());
-        }
-        throw new BusinessException(ErrorCode.AI_REPORT_GENERATION_FAILED);
+    public String generateStandupSummary(String dataJson, String language) {
+        String lang = language != null ? language : "ko";
+        String systemPrompt = buildStandupSystemPrompt(lang);
+        String userPrompt = "ko".equals(lang)
+                ? "다음 데이터를 기반으로 데일리 스탠드업 요약을 작성해 주세요.\n\n" + dataJson
+                : "Generate a daily standup summary from the following data:\n\n" + dataJson;
+
+        log.info("Generating standup summary via AI provider");
+        return aiProvider.chat(systemPrompt, userPrompt, getStandupModel(), MAX_TOKENS_STANDUP);
     }
 
     private String buildSystemPrompt(ReportType reportType, String language) {
@@ -345,53 +313,6 @@ public class ReportAIService {
                 - 개별 데이터 포인트가 아닌 데이터 간 관계에 집중하세요.
                 - 간결하게: 400~700자.
                 </rules>""";
-    }
-
-    public String generateStandupSummary(String dataJson, String language) {
-        if (apiKey == null || apiKey.isBlank()) {
-            throw new BusinessException(ErrorCode.AI_SERVICE_UNAVAILABLE);
-        }
-
-        String lang = language != null ? language : "ko";
-        String systemPrompt = buildStandupSystemPrompt(lang);
-        String userPrompt = "ko".equals(lang)
-                ? "다음 데이터를 기반으로 데일리 스탠드업 요약을 작성해 주세요.\n\n" + dataJson
-                : "Generate a daily standup summary from the following data:\n\n" + dataJson;
-
-        try {
-            Map<String, Object> requestBody = Map.of(
-                    "model", standupModel,
-                    "max_tokens", MAX_TOKENS_STANDUP,
-                    "system", List.of(Map.of(
-                            "type", "text",
-                            "text", systemPrompt,
-                            "cache_control", Map.of("type", "ephemeral")
-                    )),
-                    "messages", List.of(Map.of("role", "user", "content", userPrompt))
-            );
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.set("x-api-key", apiKey);
-            headers.set("anthropic-version", "2023-06-01");
-
-            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
-
-            log.info("Calling Claude API for daily standup summary");
-            ResponseEntity<Map> response = aiRestTemplate.postForEntity(CLAUDE_API_URL, entity, Map.class);
-
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                return extractContent(response.getBody());
-            }
-
-            log.error("Claude API returned non-success status: {}", response.getStatusCode());
-            throw new BusinessException(ErrorCode.AI_REPORT_GENERATION_FAILED);
-        } catch (BusinessException e) {
-            throw e;
-        } catch (Exception e) {
-            log.error("Failed to generate standup summary: {}", e.getMessage(), e);
-            throw new BusinessException(ErrorCode.AI_REPORT_GENERATION_FAILED);
-        }
     }
 
     private String buildStandupSystemPrompt(String lang) {

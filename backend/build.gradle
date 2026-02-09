@@ -80,3 +80,14 @@ dependencies {
 tasks.named('test') {
     useJUnitPlatform()
 }
+
+processResources {
+    filesMatching('application.yml') {
+        def gitCommit = 'git rev-parse --short HEAD'.execute().text.trim() ?: 'unknown'
+        def buildTime = java.time.Instant.now().toString()
+        filter { line ->
+            line.replace('@git.commit@', gitCommit)
+                .replace('@build.time@', buildTime)
+        }
+    }
+}

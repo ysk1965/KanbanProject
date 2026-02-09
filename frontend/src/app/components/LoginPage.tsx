@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
@@ -8,6 +8,9 @@ import { trackEvent } from '../contexts/AnalyticsContext';
 import { HeroScene } from './landing/BridgeScene';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { isGoogleOnlyLogin } from '../utils/domain';
+
+declare const __FE_COMMIT_HASH__: string;
+declare const __FE_BUILD_TIME__: string;
 
 interface InviteInfo {
   boardName: string;
@@ -37,6 +40,13 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
   const navigate = useNavigate();
   const location = useLocation();
   const showBackButton = location.state?.from === 'landing' || location.state?.from === 'compare';
+
+  const [beCommit, setBeCommit] = useState<string>('');
+  useEffect(() => {
+    const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1';
+    const origin = (() => { try { return new URL(apiBase).origin; } catch { return 'http://localhost:8080'; } })();
+    fetch(`${origin}/health`).then(r => r.json()).then(d => setBeCommit(d.commit || '')).catch(() => {});
+  }, []);
 
   const googleLogin = useGoogleLogin({
     onSuccess: async (response) => {
@@ -422,6 +432,12 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
           </p>
         )}
       </motion.div>
+
+      {/* Version Info */}
+      <div className="absolute bottom-3 right-4 text-[10px] text-slate-600 select-none">
+        FE: {typeof __FE_COMMIT_HASH__ !== 'undefined' ? __FE_COMMIT_HASH__ : 'dev'}
+        {beCommit && <> · BE: {beCommit}</>}
+      </div>
     </div>
   );
 }
