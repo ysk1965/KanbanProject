@@ -332,6 +332,12 @@ export function WeeklyScheduleView({
         }
       }
 
+      // 리사이즈 완료 직후 클릭 방지
+      justFinishedDragRef.current = true;
+      setTimeout(() => {
+        justFinishedDragRef.current = false;
+      }, 100);
+
       setResizing(null);
     };
 

@@ -69,16 +69,17 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
     const height = (durationMinutes / 30) * slotHeight;
 
     // 블록 표시 정보
-    const title = block.checklist_item?.title || t('scheduleBlock.unlinked');
+    const hasMeeting = !!block.meeting;
+    const title = hasMeeting ? block.meeting!.title : (block.checklist_item?.title || t('scheduleBlock.unlinked'));
     const taskTitle = block.task?.title;
     const featureTitle = block.feature?.title;
-    const featureColor = block.feature?.color || '#6366f1';
+    const featureColor = hasMeeting ? block.meeting!.color : (block.feature?.color || '#6366f1');
     const isCompleted = block.checklist_item?.completed || false;
 
     return {
       top,
       height,
-      displayInfo: { title, taskTitle, featureTitle, featureColor, isCompleted },
+      displayInfo: { title, taskTitle, featureTitle, featureColor, isCompleted, hasMeeting },
       startMinutes,
       endMinutes,
       workStartMinutes,
@@ -93,8 +94,12 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
       ? height + resizeOffset
       : height;
 
-  // 상태별 배경색
+  // 상태별 배경색 (className)
   const getBackgroundColor = () => {
+    // 회의 블록은 inline style로 처리
+    if (displayInfo.hasMeeting && block.meeting?.color) {
+      return '';
+    }
     if (displayInfo.isCompleted) {
       return 'bg-green-500/20 border-green-500';
     }
@@ -114,6 +119,18 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
       }
     }
     return 'bg-blue-500/20 border-blue-500';
+  };
+
+  // 회의 블록의 인라인 스타일
+  const getMeetingStyle = (): Record<string, string> => {
+    if (displayInfo.hasMeeting && block.meeting?.color) {
+      const color = block.meeting.color;
+      return {
+        backgroundColor: `${color}33`, // ~20% opacity
+        borderLeftColor: color,
+      };
+    }
+    return {};
   };
 
   // 겹침 체크 함수
@@ -366,7 +383,7 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
         overflow-hidden ${getBackgroundColor()} ${isResizing || isDragging ? 'z-20' : ''}
         ${(isDragging || isResizing) && hasOverlap ? 'cursor-not-allowed shadow-2xl ring-2 ring-red-500 bg-red-500/30' : isDragging ? 'cursor-grabbing shadow-2xl ring-2 ring-white/50' : isResizing ? 'cursor-ns-resize shadow-lg' : 'cursor-pointer hover:shadow-lg'}
         ${isDragging || isResizing ? '' : 'transition-shadow'}`}
-      style={{ top: `${displayTop}px`, height: `${Math.max(displayHeight, slotHeight)}px` }}
+      style={{ top: `${displayTop}px`, height: `${Math.max(displayHeight, slotHeight)}px`, ...getMeetingStyle() }}
       onClick={() => !isResizing && !isDragging && onClick?.(block)}
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}

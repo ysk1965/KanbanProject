@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useCallback } from 'react';
+import { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Clock, CheckCircle2, BarChart3, Calendar, FileText, MessageSquare, ChevronLeft } from 'lucide-react';
 import { format } from 'date-fns';
@@ -41,6 +41,7 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
   const [commentsFetched, setCommentsFetched] = useState(false);
   // 댓글 상세 뷰 상태
   const [commentDetailRow, setCommentDetailRow] = useState<WeeklyRecordRow | null>(null);
+  const mouseDownTargetRef = useRef<EventTarget | null>(null);
 
   // 전체 블록 수집
   const allBlocks = useMemo(() => {
@@ -274,7 +275,7 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
   }, [weeklyRecords]);
 
   return (
-    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50" onMouseDown={(e) => { mouseDownTargetRef.current = e.target; }} onClick={(e) => { if (e.target === e.currentTarget && mouseDownTargetRef.current === e.currentTarget) onClose(); }}>
       <div
         className="bg-bridge-obsidian rounded-xl shadow-2xl w-[560px] max-h-[85vh] flex flex-col overflow-hidden border border-white/20"
         onClick={(e) => e.stopPropagation()}

@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronLeft, ChevronRight, Settings, Plus, Loader2, Clock, CheckSquare, Check } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Settings, Plus, Loader2, Clock, CheckSquare, Check, FileText } from 'lucide-react';
 import { Button } from './ui/button';
 import { format, addDays, subDays, startOfDay, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval } from 'date-fns';
 import { formatDate } from '../utils/dateUtils';
@@ -11,6 +11,7 @@ import { ChecklistCreateModal } from './ChecklistCreateModal';
 import { ScheduleSettingsModal, ScheduleDisplayMode } from './ScheduleSettingsModal';
 import { WeeklySummaryModal } from './WeeklySummaryModal';
 import { DailyChecklistView } from './DailyChecklistView';
+import { MeetingView } from './MeetingView';
 import { BoardMember as BoardMemberType } from '../types';
 import {
   scheduleAPI,
@@ -22,7 +23,7 @@ import {
 import { getInitials, getAssigneeHex } from '../utils/assigneeColor';
 
 // 데일리 스크럼 세부 탭 타입
-type ScheduleSubTab = 'timeblock' | 'checklist';
+type ScheduleSubTab = 'timeblock' | 'checklist' | 'meeting';
 
 interface DailyScheduleViewProps {
   boardId: string;
@@ -419,6 +420,17 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
               <CheckSquare className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">{t('dailySchedule.checklist')}</span>
             </button>
+            <button
+              onClick={() => setSubTab('meeting')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-all ${
+                subTab === 'meeting'
+                  ? 'bg-bridge-accent text-white shadow-sm'
+                  : 'text-zinc-400 hover:text-zinc-300'
+              }`}
+            >
+              <FileText className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">{t('meeting.tab')}</span>
+            </button>
           </div>
 
           {/* 구분선 */}
@@ -503,7 +515,15 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
       </div>
 
       {/* 세부 탭에 따른 콘텐츠 렌더링 */}
-      {subTab === 'checklist' ? (
+      {subTab === 'meeting' ? (
+        /* 회의 탭 */
+        <MeetingView
+          boardId={boardId}
+          selectedDate={selectedDate}
+          boardMembers={boardMembers}
+          onRefreshSchedule={loadSchedule}
+        />
+      ) : subTab === 'checklist' ? (
         /* 체크리스트 탭 */
         <DailyChecklistView
           boardId={boardId}

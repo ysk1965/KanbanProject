@@ -1512,6 +1512,89 @@ export interface ScheduleFeatureInfo {
   color: string;
 }
 
+// Meeting types
+export interface MeetingInfo {
+  id: string;
+  title: string;
+  color: string;
+}
+
+export interface MeetingSummary {
+  id: string;
+  title: string;
+  meeting_date: string;
+  start_time: string | null;
+  end_time: string | null;
+  color: string;
+  participant_count: number;
+}
+
+export interface MeetingDetail {
+  id: string;
+  title: string;
+  meeting_date: string;
+  start_time: string | null;
+  end_time: string | null;
+  memo: string | null;
+  color: string;
+  created_by: { id: string; name: string; profile_image: string | null };
+  participants: { id: string; name: string; profile_image: string | null }[];
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface AISuggestionResponse {
+  meeting_id: string;
+  meeting_title: string;
+  features: AIFeatureSuggestion[];
+}
+
+export interface AIFeatureSuggestion {
+  type: 'NEW' | 'EXISTING';
+  feature_id: string | null;
+  title: string;
+  description: string | null;
+  color: string | null;
+  tasks: AITaskSuggestion[];
+}
+
+export interface AITaskSuggestion {
+  title: string;
+  description: string | null;
+  checklists: AIChecklistSuggestion[];
+}
+
+export interface AIChecklistSuggestion {
+  title: string;
+}
+
+export interface AIApplyRequest {
+  features: AIFeatureSuggestionApply[];
+}
+
+export interface AIFeatureSuggestionApply {
+  type: 'NEW' | 'EXISTING';
+  feature_id?: string;
+  title?: string;
+  description?: string;
+  color?: string;
+  tasks: AITaskSuggestionApply[];
+}
+
+export interface AITaskSuggestionApply {
+  title: string;
+  description?: string;
+  checklists: { title: string }[];
+}
+
+export interface AIApplyResult {
+  features_created: number;
+  tasks_created: number;
+  checklists_created: number;
+  created_feature_ids: string[];
+  created_task_ids: string[];
+}
+
 export interface ScheduleBlockInfo {
   id: string;
   start_time: string; // "HH:mm:ss" format
@@ -1519,6 +1602,7 @@ export interface ScheduleBlockInfo {
   checklist_item: ScheduleChecklistItemInfo | null;
   task: ScheduleTaskInfo | null;
   feature: ScheduleFeatureInfo | null;
+  meeting: MeetingInfo | null;
 }
 
 export interface ScheduleColumnInfo {
@@ -1732,6 +1816,81 @@ export const scheduleAPI = {
     return apiClient.get<ScheduleBlockDetailResponse[]>(
       `/boards/${boardId}/schedules/checklist-item/${checklistItemId}`
     );
+  },
+};
+
+// ========================================
+// Meeting API
+// ========================================
+
+export const meetingAPI = {
+  getMeetings: async (boardId: string, date: string): Promise<MeetingSummary[]> => {
+    const query = new URLSearchParams();
+    query.set('date', date);
+    return apiClient.get<MeetingSummary[]>(
+      `/boards/${boardId}/meetings?${query.toString()}`
+    );
+  },
+
+  getMeetingDetail: async (boardId: string, meetingId: string): Promise<MeetingDetail> => {
+    return apiClient.get<MeetingDetail>(
+      `/boards/${boardId}/meetings/${meetingId}`
+    );
+  },
+
+  createMeeting: async (
+    boardId: string,
+    data: {
+      title: string;
+      meeting_date: string;
+      start_time?: string;
+      end_time?: string;
+      memo?: string;
+      color?: string;
+    }
+  ): Promise<MeetingDetail> => {
+    return apiClient.post<MeetingDetail>(
+      `/boards/${boardId}/meetings`,
+      data
+    );
+  },
+
+  updateMeeting: async (
+    boardId: string,
+    meetingId: string,
+    data: {
+      title?: string;
+      meeting_date?: string;
+      start_time?: string | null;
+      end_time?: string | null;
+      memo?: string;
+      color?: string;
+    }
+  ): Promise<MeetingDetail> => {
+    return apiClient.put<MeetingDetail>(
+      `/boards/${boardId}/meetings/${meetingId}`,
+      data
+    );
+  },
+
+  deleteMeeting: async (boardId: string, meetingId: string): Promise<{ message: string }> => {
+    return apiClient.delete<{ message: string }>(
+      `/boards/${boardId}/meetings/${meetingId}`
+    );
+  },
+
+  notifyParticipants: async (boardId: string, meetingId: string): Promise<{ message: string }> => {
+    return apiClient.post<{ message: string }>(
+      `/boards/${boardId}/meetings/${meetingId}/notify`
+    );
+  },
+
+  aiOrganize: async (boardId: string, meetingId: string): Promise<AISuggestionResponse> => {
+    return apiClient.post<AISuggestionResponse>(`/boards/${boardId}/meetings/${meetingId}/ai-organize`);
+  },
+
+  aiApply: async (boardId: string, meetingId: string, data: AIApplyRequest): Promise<AIApplyResult> => {
+    return apiClient.post<AIApplyResult>(`/boards/${boardId}/meetings/${meetingId}/ai-apply`, data);
   },
 };
 
