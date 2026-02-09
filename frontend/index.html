@@ -4,6 +4,40 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
+    <!-- Domain-based branding (before meta tags are read) -->
+    <script>
+      (function(){
+        var h = location.hostname;
+        if (h === 'milkyway.pe.kr' || h.endsWith('.milkyway.pe.kr')) {
+          var t = 'Milkyway - Smart Project Management';
+          var d = '팀 프로젝트를 효율적으로 관리하는 스마트 협업 플랫폼';
+          var u = 'https://milkyway.pe.kr';
+          document.title = t;
+          var map = {
+            'meta[name="title"]': t,
+            'meta[name="description"]': d,
+            'meta[name="keywords"]': '프로젝트 관리, 칸반, 간트차트, 팀 협업, PM 도구, Kanban, Gantt, 일정 관리, Milkyway',
+            'meta[name="author"]': 'Milkyway',
+            'meta[property="og:url"]': u,
+            'meta[property="og:title"]': t,
+            'meta[property="og:description"]': d,
+            'meta[property="og:site_name"]': 'Milkyway',
+            'meta[name="twitter:url"]': u,
+            'meta[name="twitter:title"]': t,
+            'meta[name="twitter:description"]': d
+          };
+          document.addEventListener('DOMContentLoaded', function(){
+            Object.keys(map).forEach(function(sel){
+              var el = document.querySelector(sel);
+              if (el) el.setAttribute('content', map[sel]);
+            });
+            var canon = document.querySelector('link[rel="canonical"]');
+            if (canon) canon.setAttribute('href', u);
+          });
+        }
+      })();
+    </script>
+
     <!-- Primary Meta Tags -->
     <title>BRIDGE SPOTS - The Intelligent PM Orchestration</title>
     <meta name="title" content="BRIDGE SPOTS - The Intelligent PM Orchestration" />
