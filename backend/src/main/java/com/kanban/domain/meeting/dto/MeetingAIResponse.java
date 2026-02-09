@@ -3,6 +3,7 @@ package com.kanban.domain.meeting.dto;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 import java.util.List;
 
@@ -10,6 +11,7 @@ public class MeetingAIResponse {
 
     @Getter
     @Builder
+    @NoArgsConstructor
     @AllArgsConstructor
     public static class Suggestions {
         private String meetingId;
@@ -21,6 +23,7 @@ public class MeetingAIResponse {
 
     @Getter
     @Builder
+    @NoArgsConstructor
     @AllArgsConstructor
     public static class SummaryTopic {
         private String topic;
@@ -30,6 +33,7 @@ public class MeetingAIResponse {
 
     @Getter
     @Builder
+    @NoArgsConstructor
     @AllArgsConstructor
     public static class FeatureSuggestion {
         private String type;
@@ -42,6 +46,7 @@ public class MeetingAIResponse {
 
     @Getter
     @Builder
+    @NoArgsConstructor
     @AllArgsConstructor
     public static class TaskSuggestion {
         private String title;
@@ -51,6 +56,7 @@ public class MeetingAIResponse {
 
     @Getter
     @Builder
+    @NoArgsConstructor
     @AllArgsConstructor
     public static class ChecklistSuggestion {
         private String title;

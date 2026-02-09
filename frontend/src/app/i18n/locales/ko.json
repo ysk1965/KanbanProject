@@ -1918,6 +1918,8 @@
     "checklists": "체크리스트",
     "featuresLabel": "참여 피처",
     "commentsLabel": "댓글",
+    "meetingsLabel": "미팅",
+    "hasTranscript": "녹취록",
     "hours": "시간",
     "completed": "완료",
     "taskCount": "개 태스크",

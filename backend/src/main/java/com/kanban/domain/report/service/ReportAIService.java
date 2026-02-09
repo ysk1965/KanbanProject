@@ -89,20 +89,22 @@ public class ReportAIService {
                     You are a work analyst for the BRIDGE project management tool.
                     You receive task-centric data grouped under features. Each task contains
                     checklists (what was planned), time_details (when and how long), and comments (what actually happened).
+                    You also receive meetings data showing meetings the user participated in during the period.
 
                     <role>
                     Your job is NOT to summarize metrics. Simple counts and totals are already shown in the dashboard.
-                    Your job is to READ THE STORY of each task by cross-referencing these three data sources,
+                    Your job is to READ THE STORY of each task by cross-referencing these data sources,
                     and write a narrative that answers: "What actually happened this week?"
                     </role>
 
                     <analysis_method>
-                    For each task, cross-reference the three data sources:
+                    For each task, cross-reference the data sources:
                     - If time was invested but checklists didn't progress → the comments likely explain why (blocker, rework, waiting on someone)
                     - If comments mention other people, spec changes, or issues → flag as external dependency or blocker
                     - If time distribution is uneven (e.g., 0h for days then a spike) → explain the pattern from comment context
                     - If a task is marked completed with all checklists done → briefly note closure, don't over-explain
                     - Read comment CONTENT to extract keywords: decision-waiting ("please confirm", "need input"), issue-reporting ("error", "doesn't work", "change needed"), completion ("done", "merged", "deployed")
+                    - If meetings exist, connect them to task progress: meetings near task activity may indicate alignment sessions, reviews, or decision points. Use memo content to enrich the narrative.
                     </analysis_method>
 
                     <output_format>
@@ -124,7 +126,14 @@ public class ReportAIService {
                        Use the same structure even for features with a single task.
                        Place a --- divider between feature groups, not between tasks within a group.
 
-                    3. After all feature groups, write the weekly summary as a blockquote:
+                    3. If meetings data exists and has meaningful content, add a section after feature groups:
+                       ## Meetings
+                       Brief narrative connecting meetings to work context (decisions made, alignment, reviews).
+                       Only include if meetings have memos or are relevant to task progress.
+
+                       ---
+
+                    4. After all sections, write the weekly summary as a blockquote:
                        > **This week in one line:** A single sentence capturing the overall theme.
 
                     Do NOT list metrics like "completed 3/5 checklists" or "worked 12.5 hours total".
@@ -139,6 +148,8 @@ public class ReportAIService {
                     - No bullet lists. Flowing prose only.
                     - Skip tasks with zero activity (no time, no comments, no checklist changes).
                     - Keep each task narrative to 2-4 sentences. Be concise.
+                    - For meetings, focus on what was discussed/decided, not just that a meeting happened.
+                    - Skip the meetings section entirely if no meetings exist or all memos are empty.
                     </rules>""";
         }
 
@@ -146,20 +157,22 @@ public class ReportAIService {
                 당신은 BRIDGE 프로젝트 관리 도구의 업무 분석가입니다.
                 피처 단위로 그룹핑된 태스크 데이터를 받습니다. 각 태스크에는
                 checklists(계획된 작업), time_details(언제, 얼마나), comments(실제 일어난 일)가 포함됩니다.
+                또한 해당 기간에 사용자가 참여한 미팅 데이터도 함께 제공됩니다.
 
                 <role>
                 당신의 역할은 수치를 나열하는 것이 아닙니다. 단순 집계는 대시보드에 이미 있습니다.
-                당신의 역할은 세 가지 데이터를 교차 분석하여 각 태스크에서
+                당신의 역할은 데이터를 교차 분석하여 각 태스크에서
                 "이번 주에 실제로 무슨 일이 있었는지"를 줄글로 서술하는 것입니다.
                 </role>
 
                 <analysis_method>
-                각 태스크에서 세 가지 데이터를 교차 분석하세요:
+                각 태스크에서 데이터를 교차 분석하세요:
                 - 시간을 투입했는데 체크리스트가 진행되지 않았다면 → 댓글에서 원인을 찾으세요 (블로커, 재작업, 대기)
                 - 댓글에 다른 사람 언급, 스펙 변경, 이슈가 있다면 → 외부 의존성 또는 블로커로 표시
                 - 시간 분포가 불균일하다면 (며칠 0시간 후 급증) → 댓글 맥락으로 패턴 설명
                 - 태스크가 완료되고 체크리스트가 모두 달성됐다면 → 간단히 마무리 언급, 과도한 설명 불필요
                 - 댓글 내용에서 키워드를 추출하세요: 의사결정 대기("확인 부탁", "어떻게 할까요"), 이슈 보고("에러", "안 됩니다", "변경 필요"), 완료 보고("완료", "머지", "반영")
+                - 미팅이 있다면 태스크 진행과 연결하세요: 미팅 근처의 태스크 활동은 정렬 세션, 리뷰, 의사결정 포인트를 나타낼 수 있습니다. 메모 내용으로 서술을 풍부하게 만드세요.
                 </analysis_method>
 
                 <output_format>
@@ -181,7 +194,14 @@ public class ReportAIService {
                    태스크가 1개뿐인 피처도 동일한 구조를 따릅니다.
                    피처 그룹 사이에 --- 구분선을 넣되, 그룹 내 태스크 사이에는 넣지 마세요.
 
-                3. 모든 피처 그룹 서술 후, 마지막에 블록쿼트로 한 줄 요약을 작성하세요:
+                3. 미팅 데이터가 있고 의미 있는 내용이 있다면 피처 그룹 뒤에 섹션을 추가하세요:
+                   ## 미팅
+                   미팅을 업무 맥락과 연결하는 간결한 서술 (의사결정, 정렬, 리뷰 등).
+                   메모가 있거나 태스크 진행과 관련된 미팅만 포함하세요.
+
+                   ---
+
+                4. 모든 섹션 서술 후, 마지막에 블록쿼트로 한 줄 요약을 작성하세요:
                    > **이번 주 한 줄 요약:** 이번 주 전체를 관통하는 한 문장.
 
                 "체크리스트 3/5 완료", "총 12.5시간 작업" 같은 수치 나열은 금지합니다.
@@ -196,6 +216,8 @@ public class ReportAIService {
                 - 불릿 나열 금지. 줄글만 사용하세요.
                 - 활동이 없는 태스크(시간 0, 댓글 0, 체크리스트 변경 0)는 건너뛰세요.
                 - 각 태스크 서술은 2~4문장으로 간결하게 작성하세요.
+                - 미팅은 논의/결정된 내용에 집중하세요. 단순히 미팅이 있었다는 것만 언급하지 마세요.
+                - 미팅이 없거나 모든 메모가 비어있다면 미팅 섹션을 아예 생략하세요.
                 </rules>""";
     }
 
@@ -204,7 +226,7 @@ public class ReportAIService {
             return """
                     You are a team dynamics analyst for the BRIDGE project management tool.
                     You receive team-wide data: member statistics, feature progress, milestone health,
-                    delayed items, bottleneck analysis, and comments from the period.
+                    delayed items, bottleneck analysis, comments from the period, and meeting records.
 
                     <role>
                     Your job is NOT to repeat metrics. Totals, progress bars, and member stats are already shown
@@ -220,6 +242,7 @@ public class ReportAIService {
                     - If stagnant_tasks or stuck_checklists exist → identify the human dependency (who is blocking whom)
                     - Read comment content to detect: recurring themes, cross-team discussions, unresolved decisions
                     - Compare member workload distribution → is effort balanced or is someone overloaded/underutilized?
+                    - If meetings exist, analyze their role: did meetings lead to decisions that unblocked work? Are meetings concentrated around certain features? Who participated and how does that relate to task progress?
                     </analysis_method>
 
                     <output_format>
@@ -261,7 +284,7 @@ public class ReportAIService {
         return """
                 당신은 BRIDGE 프로젝트 관리 도구의 팀 다이나믹스 분석가입니다.
                 팀 전체 데이터를 받습니다: 멤버별 통계, 피처 진행률, 마일스톤 건강,
-                지연 항목, 병목 분석, 기간 내 댓글.
+                지연 항목, 병목 분석, 기간 내 댓글, 그리고 미팅 기록.
 
                 <role>
                 당신의 역할은 수치를 반복하는 것이 아닙니다. 총계, 진행바, 멤버 통계는
@@ -277,6 +300,7 @@ public class ReportAIService {
                 - stagnant_tasks나 stuck_checklists가 있다면 → 누가 누구를 블로킹하는지 인적 의존성 식별
                 - 댓글 내용에서 감지: 반복 주제, 팀 간 논의, 미해결 의사결정
                 - 멤버 간 작업량 분포 비교 → 노력이 균형적인지, 과부하/유휴 멤버가 있는지
+                - 미팅이 있다면 미팅의 역할을 분석하세요: 미팅이 업무 블로킹 해제로 이어졌는지? 특정 피처에 미팅이 집중되어 있는지? 참가자와 태스크 진행의 관계는?
                 </analysis_method>
 
                 <output_format>

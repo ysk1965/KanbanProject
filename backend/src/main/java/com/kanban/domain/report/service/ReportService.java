@@ -10,6 +10,8 @@ import com.kanban.domain.checklist.ChecklistItemRepository;
 import com.kanban.domain.comment.Comment;
 import com.kanban.domain.comment.CommentRepository;
 import com.kanban.domain.feature.Feature;
+import com.kanban.domain.meeting.Meeting;
+import com.kanban.domain.meeting.MeetingRepository;
 import com.kanban.domain.report.ReportRepository;
 import com.kanban.domain.report.ReportType;
 import com.kanban.domain.report.WeeklyReport;
@@ -53,11 +55,13 @@ public class ReportService {
     private final CommentRepository commentRepository;
     private final ScheduleBlockRepository scheduleBlockRepository;
     private final ChecklistItemRepository checklistItemRepository;
+    private final MeetingRepository meetingRepository;
     private final ReportAIService reportAIService;
     private final ObjectMapper objectMapper;
 
     private static final int MAX_COMMENTS = 30;
     private static final int MAX_COMMENT_LENGTH = 100;
+    private static final int MAX_MEETING_MEMO_LENGTH = 200;
 
     @Transactional
     public ReportResponse.Detail generateReport(String boardId, String userId, ReportRequest.Generate request) {
@@ -294,6 +298,11 @@ public class ReportService {
         // Board-wide comments
         List<Comment> comments = commentRepository.findByBoardAndDateRange(boardId, startDT, endDT);
         data.put("comments", formatComments(comments));
+
+        // Meetings in the period
+        List<Meeting> meetings = meetingRepository.findByBoardIdAndMeetingDateBetweenOrderByMeetingDateAscStartTimeAsc(
+                boardId, periodStart, periodEnd);
+        data.put("meetings", formatMeetingsForTeam(meetings));
     }
 
     private void gatherPersonalData(Map<String, Object> data, String boardId, String userId,
@@ -434,11 +443,26 @@ public class ReportService {
         }
 
         data.put("features", features);
+
+        // Meetings: user is participant (via ScheduleBlock) or creator
+        List<Meeting> allMeetings = meetingRepository.findByBoardIdAndMeetingDateBetweenOrderByMeetingDateAscStartTimeAsc(
+                boardId, periodStart, periodEnd);
+        Set<String> userMeetingIds = allBlocks.stream()
+                .filter(sb -> sb.getAssignee() != null && sb.getAssignee().getId().equals(userId))
+                .filter(sb -> sb.getMeeting() != null)
+                .map(sb -> sb.getMeeting().getId())
+                .collect(Collectors.toSet());
+        List<Meeting> userMeetings = allMeetings.stream()
+                .filter(m -> userMeetingIds.contains(m.getId()) || m.getCreatedBy().getId().equals(userId))
+                .toList();
+        data.put("meetings", formatMeetingsForPersonal(userMeetings));
+
         data.put("summary", Map.of(
                 "total_minutes", totalMinutes,
                 "completed_checklists", completedChecklists,
                 "total_checklists", totalChecklists,
-                "total_comments", userComments.size()
+                "total_comments", userComments.size(),
+                "total_meetings", userMeetings.size()
         ));
     }
 
@@ -468,5 +492,48 @@ public class ReportService {
                     return map;
                 })
                 .collect(Collectors.toList());
+    }
+
+    private List<Map<String, Object>> formatMeetingsForPersonal(List<Meeting> meetings) {
+        return meetings.stream().map(m -> {
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("title", m.getTitle());
+            map.put("date", m.getMeetingDate().toString());
+            if (m.getStartTime() != null) map.put("start_time", m.getStartTime().toString());
+            if (m.getEndTime() != null) map.put("end_time", m.getEndTime().toString());
+            String memo = m.getMemo();
+            if (memo != null && !memo.isBlank()) {
+                if (memo.length() > MAX_MEETING_MEMO_LENGTH) {
+                    memo = memo.substring(0, MAX_MEETING_MEMO_LENGTH) + "...";
+                }
+                map.put("memo", memo);
+            }
+            map.put("has_transcript", m.getTranscript() != null && !m.getTranscript().isBlank());
+            List<User> participants = scheduleBlockRepository.findDistinctAssigneesByMeetingId(m.getId());
+            map.put("participants", participants.stream().map(User::getName).toList());
+            return map;
+        }).toList();
+    }
+
+    private List<Map<String, Object>> formatMeetingsForTeam(List<Meeting> meetings) {
+        return meetings.stream().map(m -> {
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("title", m.getTitle());
+            map.put("date", m.getMeetingDate().toString());
+            if (m.getStartTime() != null) map.put("start_time", m.getStartTime().toString());
+            if (m.getEndTime() != null) map.put("end_time", m.getEndTime().toString());
+            String memo = m.getMemo();
+            if (memo != null && !memo.isBlank()) {
+                if (memo.length() > MAX_MEETING_MEMO_LENGTH) {
+                    memo = memo.substring(0, MAX_MEETING_MEMO_LENGTH) + "...";
+                }
+                map.put("memo", memo);
+            }
+            map.put("has_transcript", m.getTranscript() != null && !m.getTranscript().isBlank());
+            map.put("created_by", m.getCreatedBy() != null ? m.getCreatedBy().getName() : "Unknown");
+            List<User> participants = scheduleBlockRepository.findDistinctAssigneesByMeetingId(m.getId());
+            map.put("participants", participants.stream().map(User::getName).toList());
+            return map;
+        }).toList();
     }
 }

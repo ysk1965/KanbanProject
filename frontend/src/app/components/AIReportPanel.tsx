@@ -24,6 +24,7 @@ import {
   Activity,
   Target,
   TrendingUp,
+  CalendarDays,
 } from 'lucide-react';
 import { reportAPI } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -34,6 +35,7 @@ import type {
   BoardMember,
   PersonalReportData,
   PersonalReportFeature,
+  ReportMeeting,
   TeamReportData,
 } from '../types';
 import { formatDateTime } from '../utils/dateUtils';
@@ -729,6 +731,11 @@ function PersonalDataSection({ dataSnapshot, t }: { dataSnapshot: string; t: (ke
         </div>
       </div>
 
+      {/* Meetings */}
+      {data.meetings && data.meetings.length > 0 && (
+        <MeetingsSection meetings={data.meetings} t={t} />
+      )}
+
       {/* Feature → Task breakdown */}
       <div className="space-y-3">
         {features.map((feature, fi) => (
@@ -972,6 +979,58 @@ function TeamDataSection({ dataSnapshot, t }: { dataSnapshot: string; t: (key: s
           </div>
         </div>
       )}
+
+      {/* Meetings */}
+      {data.meetings && data.meetings.length > 0 && (
+        <MeetingsSection meetings={data.meetings} t={t} />
+      )}
+    </div>
+  );
+}
+
+/* ─── Meetings Section (shared by Personal & Team) ─── */
+
+function MeetingsSection({ meetings, t }: { meetings: ReportMeeting[]; t: (key: string) => string }) {
+  return (
+    <div className="bg-bridge-obsidian rounded-xl border border-white/5 p-4 sm:p-5 mb-4">
+      <div className="flex items-center gap-2 mb-4">
+        <CalendarDays className="h-4 w-4 text-violet-400" />
+        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{t('aiReport.meetingsLabel')}</span>
+        <span className="text-[10px] text-slate-600 ml-auto">{meetings.length}</span>
+      </div>
+      <div className="space-y-2.5">
+        {meetings.map((meeting, i) => (
+          <div key={i} className="flex items-start gap-3 py-2 border-b border-white/[0.03] last:border-b-0">
+            <div className="flex-shrink-0 w-12 text-center pt-0.5">
+              <div className="text-[10px] text-slate-500">{meeting.date.slice(5)}</div>
+              {meeting.start_time && (
+                <div className="text-[9px] text-slate-600">{meeting.start_time.slice(0, 5)}</div>
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-xs font-medium text-slate-200 truncate">{meeting.title}</span>
+                {meeting.has_transcript && (
+                  <span className="text-[9px] text-violet-400/70 bg-violet-400/10 px-1.5 py-0.5 rounded-full flex-shrink-0">
+                    {t('aiReport.hasTranscript')}
+                  </span>
+                )}
+              </div>
+              {meeting.participants.length > 0 && (
+                <div className="flex items-center gap-1 mb-1">
+                  <Users className="h-3 w-3 text-slate-700 flex-shrink-0" />
+                  <span className="text-[10px] text-slate-500 truncate">
+                    {meeting.participants.join(', ')}
+                  </span>
+                </div>
+              )}
+              {meeting.memo && (
+                <p className="text-[11px] text-slate-500 leading-relaxed line-clamp-2">{meeting.memo}</p>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

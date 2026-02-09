@@ -132,6 +132,11 @@ export function MeetingView({ boardId, selectedDate, boardMembers, onRefreshSche
       setMeetingDetails(prev => ({ ...prev, [meetingId]: detail }));
       setEditingMemo(prev => ({ ...prev, [meetingId]: detail.memo || '' }));
       setEditingTranscript(prev => ({ ...prev, [meetingId]: detail.transcript || '' }));
+      // Restore saved AI suggestions if available
+      if (detail.ai_suggestions) {
+        setAiData(prev => ({ ...prev, [meetingId]: detail.ai_suggestions! }));
+        setAiVisible(prev => ({ ...prev, [meetingId]: true }));
+      }
     } catch (error) {
       console.error('Failed to load meeting detail:', error);
     }
@@ -243,6 +248,11 @@ export function MeetingView({ boardId, selectedDate, boardMembers, onRefreshSche
     try {
       const data = await meetingAPI.aiOrganize(boardId, meetingId);
       setAiData(prev => ({ ...prev, [meetingId]: data }));
+      // Update cached detail with new AI suggestions
+      setMeetingDetails(prev => prev[meetingId]
+        ? { ...prev, [meetingId]: { ...prev[meetingId], ai_suggestions: data } }
+        : prev
+      );
     } catch {
       setAiError(prev => ({ ...prev, [meetingId]: t('meeting.aiError') }));
     } finally {

@@ -27,10 +27,12 @@ public class MeetingResponse {
         private String color;
         private UserInfo createdBy;
         private List<ParticipantInfo> participants;
+        private MeetingAIResponse.Suggestions aiSuggestions;
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;
 
-        public static Detail of(Meeting meeting, List<User> participants) {
+        public static Detail of(Meeting meeting, List<User> participants,
+                                MeetingAIResponse.Suggestions aiSuggestions) {
             return Detail.builder()
                     .id(meeting.getId())
                     .title(meeting.getTitle())
@@ -42,6 +44,7 @@ public class MeetingResponse {
                     .color(meeting.getColor())
                     .createdBy(UserInfo.of(meeting.getCreatedBy()))
                     .participants(participants.stream().map(ParticipantInfo::of).toList())
+                    .aiSuggestions(aiSuggestions)
                     .createdAt(meeting.getCreatedAt())
                     .updatedAt(meeting.getUpdatedAt())
                     .build();

@@ -1,10 +1,12 @@
 package com.kanban.domain.meeting.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.board.service.BoardService;
 import com.kanban.domain.meeting.Meeting;
 import com.kanban.domain.meeting.MeetingRepository;
+import com.kanban.domain.meeting.dto.MeetingAIResponse;
 import com.kanban.domain.meeting.dto.MeetingRequest;
 import com.kanban.domain.meeting.dto.MeetingResponse;
 import com.kanban.domain.notification.NotificationType;
@@ -36,6 +38,7 @@ public class MeetingService {
     private final BoardService boardService;
     private final NotificationService notificationService;
     private final SlackNotificationService slackNotificationService;
+    private final ObjectMapper objectMapper;
 
     public List<MeetingResponse.Summary> getMeetingsByDate(String boardId, LocalDate date, String userId) {
         boardService.checkViewerOrAbove(boardId, userId);
@@ -60,7 +63,7 @@ public class MeetingService {
 
         List<User> participants = scheduleBlockRepository.findDistinctAssigneesByMeetingId(meetingId);
 
-        return MeetingResponse.Detail.of(meeting, participants);
+        return MeetingResponse.Detail.of(meeting, participants, deserializeAiSuggestions(meeting));
     }
 
     @Transactional
@@ -88,7 +91,7 @@ public class MeetingService {
 
         log.info("Meeting created: {} by user: {}", meeting.getId(), userId);
 
-        return MeetingResponse.Detail.of(meeting, List.of());
+        return MeetingResponse.Detail.of(meeting, List.of(), null);
     }
 
     @Transactional
@@ -115,7 +118,7 @@ public class MeetingService {
 
         log.info("Meeting updated: {} by user: {}", meetingId, userId);
 
-        return MeetingResponse.Detail.of(meeting, participants);
+        return MeetingResponse.Detail.of(meeting, participants, deserializeAiSuggestions(meeting));
     }
 
     @Transactional
@@ -191,5 +194,16 @@ public class MeetingService {
         slackNotificationService.sendMeetingMemoNotifications(meeting, sender, board, participantIds);
 
         log.info("Meeting memo notifications sent for meeting: {} to {} participants", meetingId, participantIds.size());
+    }
+
+    private MeetingAIResponse.Suggestions deserializeAiSuggestions(Meeting meeting) {
+        String json = meeting.getAiSuggestions();
+        if (json == null || json.isBlank()) return null;
+        try {
+            return objectMapper.readValue(json, MeetingAIResponse.Suggestions.class);
+        } catch (Exception e) {
+            log.warn("Failed to deserialize AI suggestions for meeting: {}", meeting.getId(), e);
+            return null;
+        }
     }
 }

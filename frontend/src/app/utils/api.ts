@@ -1550,6 +1550,7 @@ export interface MeetingDetail {
   color: string;
   created_by: { id: string; name: string; profile_image: string | null };
   participants: { id: string; name: string; profile_image: string | null }[];
+  ai_suggestions: AISuggestionResponse | null;
   created_at: string;
   updated_at: string | null;
 }
