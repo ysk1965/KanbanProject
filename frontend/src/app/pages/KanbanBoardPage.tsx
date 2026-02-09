@@ -68,11 +68,22 @@ import { useTranslation } from 'react-i18next';
 import { getRandomFeatureColor } from '../constants';
 import { getInitials, getAssigneeHex } from '../utils/assigneeColor';
 
+declare const __FE_COMMIT_HASH__: string;
+
+
 export function KanbanBoardPage() {
   const { boardId } = useParams<{ boardId: string }>();
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { currentUser, logout, hideBilling, isTester } = useAuth();
+
+  // 버전 정보
+  const [beCommit, setBeCommit] = useState<string>('');
+  useEffect(() => {
+    const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1';
+    const origin = (() => { try { return new URL(apiBase).origin; } catch { return 'http://localhost:8080'; } })();
+    fetch(`${origin}/health`).then(r => r.json()).then(d => setBeCommit(d.commit || '')).catch(() => {});
+  }, []);
 
   // 뷰 모드 상태
   const [viewMode, setViewMode] = useState<ViewMode>('kanban');
@@ -2021,6 +2032,9 @@ export function KanbanBoardPage() {
           open={isFeatureModalOpen}
           onClose={() => { setIsFeatureModalOpen(false); setSelectedFeature(null); }}
           onAddSubtask={(title) => handleAddSubtask(selectedFeature!.id, title)}
+          onRenameSubtask={(taskId, newTitle) => {
+            setTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, title: newTitle } : t));
+          }}
           onUpdateFeature={handleUpdateFeature}
           onDelete={handleDeleteFeature}
           availableTags={tags}
@@ -2167,6 +2181,12 @@ export function KanbanBoardPage() {
           onClose={() => setAlertModal({ ...alertModal, open: false })}
           type={alertModal.type}
         />
+
+        {/* Version Info */}
+        <div className="fixed bottom-2 right-3 text-[10px] text-slate-600 select-none pointer-events-none z-10">
+          FE: {typeof __FE_COMMIT_HASH__ !== 'undefined' ? __FE_COMMIT_HASH__ : 'dev'}
+          {beCommit && <> · BE: {beCommit}</>}
+        </div>
       </div>
     </DragProvider>
   );
