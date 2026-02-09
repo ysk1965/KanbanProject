@@ -16,6 +16,7 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.Collections;
@@ -70,6 +71,11 @@ public class GoogleAuthService {
     @SuppressWarnings("unchecked")
     public GoogleUserInfo exchangeAuthorizationCode(String code) {
         try {
+            log.info("Google OAuth code exchange - clientId: {}..., clientSecret length: {}, code: {}...",
+                    clientId != null && clientId.length() > 10 ? clientId.substring(0, 10) : clientId,
+                    clientSecret != null ? clientSecret.length() : 0,
+                    code != null && code.length() > 10 ? code.substring(0, 10) : code);
+
             RestTemplate restTemplate = new RestTemplate();
 
             MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
@@ -89,7 +95,7 @@ public class GoogleAuthService {
 
             Map<String, Object> body = response.getBody();
             if (body == null || !body.containsKey("id_token")) {
-                log.error("Google token exchange failed: no id_token in response");
+                log.error("Google token exchange failed: no id_token in response. body={}", body);
                 throw new BusinessException(ErrorCode.INVALID_GOOGLE_TOKEN);
             }
 
@@ -98,6 +104,9 @@ public class GoogleAuthService {
 
         } catch (BusinessException e) {
             throw e;
+        } catch (HttpClientErrorException e) {
+            log.error("Google token exchange HTTP error - status: {}, body: {}", e.getStatusCode(), e.getResponseBodyAsString(), e);
+            throw new BusinessException(ErrorCode.INVALID_GOOGLE_TOKEN);
         } catch (Exception e) {
             log.error("Failed to exchange Google authorization code", e);
             throw new BusinessException(ErrorCode.INVALID_GOOGLE_TOKEN);
