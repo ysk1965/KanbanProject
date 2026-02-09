@@ -42,7 +42,8 @@
       "Bash(aws ec2 revoke-security-group-ingress:*)",
       "Bash(aws ec2 describe-instances:*)",
       "Bash(aws ce get-cost-and-usage:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(python3:*)"
     ]
   }
 }
