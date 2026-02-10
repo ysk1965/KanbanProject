@@ -161,7 +161,7 @@ public class MeetingService {
     }
 
     @Transactional
-    public void notifyParticipants(String boardId, String meetingId, String userId) {
+    public void notifyParticipants(String boardId, String meetingId, String userId, String originUrl) {
         boardService.checkMemberOrAbove(boardId, userId);
 
         Meeting meeting = meetingRepository.findById(meetingId)
@@ -184,7 +184,7 @@ public class MeetingService {
         // In-app notification
         notificationService.createMeetingMemoNotifications(meeting, sender, board, memberUserIds);
         // Slack notification (async)
-        slackNotificationService.sendMeetingMemoNotifications(meeting, sender, board, memberUserIds);
+        slackNotificationService.sendMeetingMemoNotifications(meeting, sender, board, memberUserIds, originUrl);
 
         log.info("Meeting memo notifications sent for meeting: {} to {} members", meetingId, memberUserIds.size());
     }

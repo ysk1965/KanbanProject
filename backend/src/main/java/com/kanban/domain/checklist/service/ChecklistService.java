@@ -59,7 +59,7 @@ public class ChecklistService {
     }
 
     @Transactional
-    public ChecklistResponse.Detail createChecklistItem(String boardId, String taskId, String userId, ChecklistRequest.Create request) {
+    public ChecklistResponse.Detail createChecklistItem(String boardId, String taskId, String userId, ChecklistRequest.Create request, String originUrl) {
         boardService.checkMemberOrAbove(boardId, userId);
 
         Task task = taskRepository.findById(taskId)
@@ -108,7 +108,7 @@ public class ChecklistService {
         // 배정자가 있으면 알림 발송
         if (assignee != null) {
             notificationService.createChecklistAssignedNotification(item, creator, task.getBoard());
-            slackNotificationService.sendChecklistAssignedNotification(item, creator, task.getBoard());
+            slackNotificationService.sendChecklistAssignedNotification(item, creator, task.getBoard(), originUrl);
         }
 
         log.info("Checklist item created: {} in task: {} by user: {}", item.getId(), taskId, userId);
@@ -117,7 +117,7 @@ public class ChecklistService {
     }
 
     @Transactional
-    public ChecklistResponse.Detail updateChecklistItem(String boardId, String taskId, String itemId, String userId, ChecklistRequest.Update request) {
+    public ChecklistResponse.Detail updateChecklistItem(String boardId, String taskId, String itemId, String userId, ChecklistRequest.Update request, String originUrl) {
         boardService.checkMemberOrAbove(boardId, userId);
 
         Task task = taskRepository.findById(taskId)
@@ -148,7 +148,7 @@ public class ChecklistService {
                 User assigner = userRepository.findById(userId)
                         .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
                 notificationService.createChecklistAssignedNotification(item, assigner, task.getBoard());
-                slackNotificationService.sendChecklistAssignedNotification(item, assigner, task.getBoard());
+                slackNotificationService.sendChecklistAssignedNotification(item, assigner, task.getBoard(), originUrl);
             }
         }
 

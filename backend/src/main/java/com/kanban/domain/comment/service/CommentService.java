@@ -105,7 +105,7 @@ public class CommentService {
      */
     @Transactional
     public CommentResponse.Detail createComment(String boardId, String taskId, String userId,
-                                                  CommentRequest.Create request) {
+                                                  CommentRequest.Create request, String originUrl) {
         boardService.checkMemberOrAbove(boardId, userId);
 
         List<String> fileKeys = request.getFileKeys();
@@ -149,7 +149,7 @@ public class CommentService {
         }
 
         notificationService.createMentionNotifications(comment, user, board);
-        slackNotificationService.sendMentionNotifications(comment, user, board);
+        slackNotificationService.sendMentionNotifications(comment, user, board, originUrl);
 
         // TASK_COMMENT: 태스크 관련자에게 알림 (생성자 + 체크리스트 배정자, 멘션 수신자 제외)
         Set<String> mentionedUserIds = new HashSet<>();
@@ -174,7 +174,7 @@ public class CommentService {
 
         if (!taskRelatedUserIds.isEmpty()) {
             notificationService.createTaskCommentNotifications(comment, user, board, taskRelatedUserIds, mentionedUserIds);
-            slackNotificationService.sendTaskCommentNotifications(comment, user, board, taskRelatedUserIds, mentionedUserIds);
+            slackNotificationService.sendTaskCommentNotifications(comment, user, board, taskRelatedUserIds, mentionedUserIds, originUrl);
         }
 
         log.info("Comment created: {} on task: {} by user: {} with {} attachments",

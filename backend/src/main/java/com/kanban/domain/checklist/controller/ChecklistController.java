@@ -34,8 +34,9 @@ public class ChecklistController {
             @PathVariable String boardId,
             @PathVariable String taskId,
             @AuthenticationPrincipal UserPrincipal principal,
-            @Valid @RequestBody ChecklistRequest.Create request) {
-        ChecklistResponse.Detail response = checklistService.createChecklistItem(boardId, taskId, principal.getUserId(), request);
+            @Valid @RequestBody ChecklistRequest.Create request,
+            @RequestHeader(value = "Origin", required = false) String origin) {
+        ChecklistResponse.Detail response = checklistService.createChecklistItem(boardId, taskId, principal.getUserId(), request, origin);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -45,8 +46,9 @@ public class ChecklistController {
             @PathVariable String taskId,
             @PathVariable String itemId,
             @AuthenticationPrincipal UserPrincipal principal,
-            @Valid @RequestBody ChecklistRequest.Update request) {
-        ChecklistResponse.Detail response = checklistService.updateChecklistItem(boardId, taskId, itemId, principal.getUserId(), request);
+            @Valid @RequestBody ChecklistRequest.Update request,
+            @RequestHeader(value = "Origin", required = false) String origin) {
+        ChecklistResponse.Detail response = checklistService.updateChecklistItem(boardId, taskId, itemId, principal.getUserId(), request, origin);
         return ResponseEntity.ok(response);
     }
 

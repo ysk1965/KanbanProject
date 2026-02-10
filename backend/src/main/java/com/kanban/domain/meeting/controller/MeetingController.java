@@ -84,8 +84,9 @@ public class MeetingController {
     public ResponseEntity<Map<String, String>> notifyParticipants(
             @PathVariable String boardId,
             @PathVariable String meetingId,
-            @AuthenticationPrincipal UserPrincipal principal) {
-        meetingService.notifyParticipants(boardId, meetingId, principal.getUserId());
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestHeader(value = "Origin", required = false) String origin) {
+        meetingService.notifyParticipants(boardId, meetingId, principal.getUserId(), origin);
         return ResponseEntity.ok(Map.of("message", "회의록 알림을 보냈습니다"));
     }
 
