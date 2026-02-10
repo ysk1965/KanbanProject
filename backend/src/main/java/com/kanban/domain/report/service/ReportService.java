@@ -191,7 +191,7 @@ public class ReportService {
     }
 
     @Transactional
-    public ReportResponse.Detail regenerateReport(String boardId, String reportId, String userId) {
+    public ReportResponse.Detail regenerateReport(String boardId, String reportId, String userId, String language) {
         Board board = boardRepository.findById(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
@@ -231,10 +231,10 @@ public class ReportService {
         User regenerator = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        String content = reportAIService.generateReport(reportType, dataJson, null);
+        String content = reportAIService.generateReport(reportType, dataJson, language);
         report.updateContent(content, dataJson, regenerator);
 
-        log.info("Regenerated {} report {} for board: {} by: {}", reportType, reportId, boardId, userId);
+        log.info("Regenerated {} report {} for board: {} by: {} (language: {})", reportType, reportId, boardId, userId, language);
         return ReportResponse.Detail.from(report);
     }
 

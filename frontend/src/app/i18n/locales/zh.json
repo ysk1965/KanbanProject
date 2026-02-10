@@ -276,7 +276,9 @@
     "rolePermissions": "角色权限",
     "adminDesc": "完全访问权限（成员管理、看板设置、卡片编辑等）",
     "memberDesc": "创建和编辑卡片，撰写评论",
-    "observerDesc": "只读（仅查看卡片）"
+    "observerDesc": "只读（仅查看卡片）",
+    "webhookConnected": "已连接",
+    "webhookDisabled": "已停用"
   },
   "notification": {
     "notifications": "通知",
@@ -494,7 +496,8 @@
     "perYear": "/ 年",
     "discountFormat": "优惠 {{percent}}%",
     "changePlan": "更改方案",
-    "startSubscription": "开始订阅"
+    "startSubscription": "开始订阅",
+    "startDate": "订阅开始日期"
   },
   "dailySchedule": {
     "timeblock": "时间块",

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import i18n from '../i18n';
 import ReactMarkdown from 'react-markdown';
 import {
   FileText,
@@ -195,13 +196,11 @@ export function AIReportPanel({ boardId, members }: AIReportPanelProps) {
     setIsGenerating(true);
     setError(null);
     try {
-      const lang = navigator.language?.startsWith('ko') ? 'ko' :
-                   navigator.language?.startsWith('ja') ? 'ja' : 'en';
       const result = await reportAPI.generateReport(boardId, {
         reportType,
         periodStart,
         periodEnd,
-        language: lang,
+        language: i18n.language,
         targetUserId: reportType === 'PERSONAL' ? targetUserId : undefined,
       });
       setReport(result);
@@ -226,7 +225,7 @@ export function AIReportPanel({ boardId, members }: AIReportPanelProps) {
     setIsGenerating(true);
     setError(null);
     try {
-      const result = await reportAPI.regenerateReport(boardId, report.id);
+      const result = await reportAPI.regenerateReport(boardId, report.id, i18n.language);
       setReport(result);
       setCanGenerateToday(false);
     } catch (e: any) {

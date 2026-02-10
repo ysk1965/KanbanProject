@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import i18n from '../i18n';
 import { Sparkles, X, Loader2, Check, ChevronRight, ArrowRight, CheckSquare, Square } from 'lucide-react';
 import {
   meetingAPI,
@@ -50,7 +51,7 @@ export default function MeetingAISuggestionModal({
     setLoading(true);
     setError(null);
     try {
-      const data = await meetingAPI.aiOrganize(boardId, meetingId);
+      const data = await meetingAPI.aiOrganize(boardId, meetingId, i18n.language);
       setSuggestions(data);
       // Initialize all items as selected
       const featureSel: Record<number, boolean> = {};

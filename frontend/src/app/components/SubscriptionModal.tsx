@@ -238,6 +238,26 @@ export function SubscriptionModal({
                     </div>
                   </div>
 
+                  {/* Date Info */}
+                  <div className="grid grid-cols-2 gap-4">
+                    {subscription?.created_at && (
+                      <div className="bg-bridge-dark/50 rounded-xl p-4 border border-white/5">
+                        <p className="text-slate-400 text-xs mb-1">{t('subscription.startDate')}</p>
+                        <p className="text-white text-sm font-medium">
+                          {formatDate(subscription.created_at)}
+                        </p>
+                      </div>
+                    )}
+                    {subscription?.next_payment_at && (
+                      <div className="bg-bridge-dark/50 rounded-xl p-4 border border-white/5">
+                        <p className="text-slate-400 text-xs mb-1">{t('subscription.nextPaymentDate')}</p>
+                        <p className="text-white text-sm font-medium">
+                          {formatDate(subscription.next_payment_at)}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
                   {/* Period Info */}
                   {subscription?.current_period_start && subscription?.current_period_end && (
                     <div className="bg-bridge-dark/50 rounded-xl p-4 border border-white/5">

@@ -260,7 +260,9 @@
     "rolePermissions": "Permissões por Função",
     "adminDesc": "Acesso total (gerenciamento de membros, configurações do board, edição de cards, etc.)",
     "memberDesc": "Criar e editar cards, escrever comentários",
-    "observerDesc": "Somente leitura (visualizar cards apenas)"
+    "observerDesc": "Somente leitura (visualizar cards apenas)",
+    "webhookConnected": "Conectado",
+    "webhookDisabled": "Desativado"
   },
   "notification": {
     "notifications": "Notificações",
@@ -478,7 +480,8 @@
     "perYear": "/ ano",
     "discountFormat": "{{percent}}% de desconto",
     "changePlan": "Alterar Plano",
-    "startSubscription": "Iniciar Assinatura"
+    "startSubscription": "Iniciar Assinatura",
+    "startDate": "Data de início da assinatura"
   },
   "dailySchedule": {
     "timeblock": "Blocos de Tempo",

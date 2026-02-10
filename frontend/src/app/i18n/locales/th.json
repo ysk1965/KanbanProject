@@ -260,7 +260,9 @@
     "rolePermissions": "สิทธิ์ตามบทบาท",
     "adminDesc": "เข้าถึงได้ทั้งหมด (การจัดการสมาชิก, การตั้งค่าบอร์ด, แก้ไขการ์ด ฯลฯ)",
     "memberDesc": "สร้างและแก้ไขการ์ด เขียนความคิดเห็น",
-    "observerDesc": "อ่านอย่างเดียว (ดูการ์ดเท่านั้น)"
+    "observerDesc": "อ่านอย่างเดียว (ดูการ์ดเท่านั้น)",
+    "webhookConnected": "เชื่อมต่อแล้ว",
+    "webhookDisabled": "ปิดใช้งาน"
   },
   "notification": {
     "notifications": "การแจ้งเตือน",
@@ -478,7 +480,8 @@
     "perYear": "/ ปี",
     "discountFormat": "ลด {{percent}}%",
     "changePlan": "เปลี่ยนแผน",
-    "startSubscription": "เริ่มสมัครสมาชิก"
+    "startSubscription": "เริ่มสมัครสมาชิก",
+    "startDate": "วันเริ่มต้นการสมัครสมาชิก"
   },
   "dailySchedule": {
     "timeblock": "บล็อกเวลา",

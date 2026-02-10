@@ -5,7 +5,6 @@ import com.kanban.domain.checklist.ChecklistItem;
 import com.kanban.domain.comment.Comment;
 import com.kanban.domain.meeting.Meeting;
 import com.kanban.domain.integration.slack.MemberSlackWebhook;
-import com.kanban.domain.integration.slack.BrandResolver;
 import com.kanban.domain.integration.slack.MemberSlackWebhookRepository;
 import com.kanban.domain.notification.NotificationPreference;
 import com.kanban.domain.notification.NotificationPreferenceRepository;
@@ -35,8 +34,8 @@ public class SlackNotificationService {
     @Value("${app.frontend-url:https://bridgespots.com}")
     private String frontendUrl;
 
-    private String getBrandName() {
-        return BrandResolver.resolve(frontendUrl);
+    private String getButtonLabel() {
+        return "보드에서 보기";
     }
 
     @Async
@@ -195,9 +194,8 @@ public class SlackNotificationService {
         List<Map<String, Object>> blocks = new ArrayList<>();
 
         // Header
-        String brand = getBrandName();
         blocks.add(Map.of("type", "header",
-                "text", Map.of("type", "plain_text", "text", "\uD83D\uDCAC " + brand + " - @멘션 알림", "emoji", true)));
+                "text", Map.of("type", "plain_text", "text", "\uD83D\uDCAC @멘션 알림", "emoji", true)));
 
         // Info fields
         blocks.add(Map.of("type", "section",
@@ -217,14 +215,8 @@ public class SlackNotificationService {
         blocks.add(Map.of("type", "actions",
                 "elements", List.of(
                         Map.of("type", "button",
-                                "text", Map.of("type", "plain_text", "text", brand + "에서 보기"),
+                                "text", Map.of("type", "plain_text", "text", getButtonLabel()),
                                 "url", boardUrl)
-                )));
-
-        // Footer
-        blocks.add(Map.of("type", "context",
-                "elements", List.of(
-                        Map.of("type", "mrkdwn", "text", "Sent from " + brand)
                 )));
 
         return Map.of("blocks", blocks);
@@ -233,12 +225,11 @@ public class SlackNotificationService {
     private Map<String, Object> buildChecklistAssignedPayload(ChecklistItem item, User assigner, Board board) {
         String taskTitle = item.getTask() != null ? item.getTask().getTitle() : "Unknown Task";
         String boardUrl = frontendUrl + "/boards/" + board.getId();
-        String brand = getBrandName();
 
         List<Map<String, Object>> blocks = new ArrayList<>();
 
         blocks.add(Map.of("type", "header",
-                "text", Map.of("type", "plain_text", "text", "\uD83D\uDCCB " + brand + " - 체크리스트 배정 알림", "emoji", true)));
+                "text", Map.of("type", "plain_text", "text", "\uD83D\uDCCB 체크리스트 배정 알림", "emoji", true)));
 
         blocks.add(Map.of("type", "section",
                 "fields", List.of(
@@ -251,13 +242,8 @@ public class SlackNotificationService {
         blocks.add(Map.of("type", "actions",
                 "elements", List.of(
                         Map.of("type", "button",
-                                "text", Map.of("type", "plain_text", "text", brand + "에서 보기"),
+                                "text", Map.of("type", "plain_text", "text", getButtonLabel()),
                                 "url", boardUrl)
-                )));
-
-        blocks.add(Map.of("type", "context",
-                "elements", List.of(
-                        Map.of("type", "mrkdwn", "text", "Sent from " + brand)
                 )));
 
         return Map.of("blocks", blocks);
@@ -265,7 +251,6 @@ public class SlackNotificationService {
 
     private Map<String, Object> buildMeetingMemoPayload(Meeting meeting, User sender, Board board) {
         String boardUrl = frontendUrl + "/boards/" + board.getId();
-        String brand = getBrandName();
         String memoPreview = meeting.getMemo();
         if (memoPreview != null && memoPreview.length() > 200) {
             memoPreview = memoPreview.substring(0, 200) + "...";
@@ -274,7 +259,7 @@ public class SlackNotificationService {
         List<Map<String, Object>> blocks = new ArrayList<>();
 
         blocks.add(Map.of("type", "header",
-                "text", Map.of("type", "plain_text", "text", "\uD83D\uDCCB " + brand + " - 회의록 공유", "emoji", true)));
+                "text", Map.of("type", "plain_text", "text", "\uD83D\uDCCB 회의록 공유", "emoji", true)));
 
         blocks.add(Map.of("type", "section",
                 "fields", List.of(
@@ -291,13 +276,8 @@ public class SlackNotificationService {
         blocks.add(Map.of("type", "actions",
                 "elements", List.of(
                         Map.of("type", "button",
-                                "text", Map.of("type", "plain_text", "text", brand + "에서 보기"),
+                                "text", Map.of("type", "plain_text", "text", getButtonLabel()),
                                 "url", boardUrl)
-                )));
-
-        blocks.add(Map.of("type", "context",
-                "elements", List.of(
-                        Map.of("type", "mrkdwn", "text", "Sent from " + brand)
                 )));
 
         return Map.of("blocks", blocks);
@@ -311,12 +291,11 @@ public class SlackNotificationService {
         }
 
         String boardUrl = frontendUrl + "/boards/" + board.getId();
-        String brand = getBrandName();
 
         List<Map<String, Object>> blocks = new ArrayList<>();
 
         blocks.add(Map.of("type", "header",
-                "text", Map.of("type", "plain_text", "text", "\uD83D\uDCAC " + brand + " - 새 댓글 알림", "emoji", true)));
+                "text", Map.of("type", "plain_text", "text", "\uD83D\uDCAC 새 댓글 알림", "emoji", true)));
 
         blocks.add(Map.of("type", "section",
                 "fields", List.of(
@@ -333,13 +312,8 @@ public class SlackNotificationService {
         blocks.add(Map.of("type", "actions",
                 "elements", List.of(
                         Map.of("type", "button",
-                                "text", Map.of("type", "plain_text", "text", brand + "에서 보기"),
+                                "text", Map.of("type", "plain_text", "text", getButtonLabel()),
                                 "url", boardUrl)
-                )));
-
-        blocks.add(Map.of("type", "context",
-                "elements", List.of(
-                        Map.of("type", "mrkdwn", "text", "Sent from " + brand)
                 )));
 
         return Map.of("blocks", blocks);

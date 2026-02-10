@@ -12,6 +12,8 @@ public interface MemberSlackWebhookRepository extends JpaRepository<MemberSlackW
 
     Optional<MemberSlackWebhook> findByBoardIdAndUserId(String boardId, String userId);
 
+    List<MemberSlackWebhook> findByBoardId(String boardId);
+
     List<MemberSlackWebhook> findByBoardIdAndUserIdInAndEnabledTrue(String boardId, List<String> userIds);
 
     @Modifying

@@ -85,8 +85,11 @@ export function KanbanBoardPage() {
     fetch(`${origin}/health`).then(r => r.json()).then(d => setBeCommit(d.commit || '')).catch(() => {});
   }, []);
 
-  // 뷰 모드 상태
-  const [viewMode, setViewMode] = useState<ViewMode>('kanban');
+  // 뷰 모드 상태 (localStorage로 탭 유지)
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    const saved = localStorage.getItem(`viewMode_${boardId}`);
+    return (saved as ViewMode) || 'kanban';
+  });
 
   // 보드 데이터
   const [board, setBoard] = useState<Board | null>(null);
@@ -399,6 +402,7 @@ export function KanbanBoardPage() {
       }
     }
     setViewMode(mode);
+    localStorage.setItem(`viewMode_${boardId}`, mode);
   };
 
   // 마일스톤 열기 핸들러 (Premium 기능 체크)
@@ -2236,6 +2240,7 @@ export function KanbanBoardPage() {
           onRemoveMember={handleRemoveMember}
           onUpdateMemberColor={handleUpdateMemberColor}
           currentUserId={currentUserId}
+          boardId={boardId || ''}
           inviteLinks={inviteLinks}
           onCreateInviteLink={handleCreateInviteLink}
           onDeleteInviteLink={handleDeleteInviteLink}

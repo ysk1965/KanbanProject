@@ -70,7 +70,7 @@ public class MeetingAIService {
     }
 
     @Transactional
-    public MeetingAIResponse.Suggestions generateSuggestions(String boardId, String meetingId, String userId) {
+    public MeetingAIResponse.Suggestions generateSuggestions(String boardId, String meetingId, String userId, String language) {
         boardService.checkMemberOrAbove(boardId, userId);
 
         Meeting meeting = meetingRepository.findById(meetingId)
@@ -105,7 +105,7 @@ public class MeetingAIService {
         }
 
         String boardContext = buildBoardContextJson(existingFeatures, featureTasksMap);
-        String systemPrompt = buildSystemPrompt();
+        String systemPrompt = buildSystemPrompt(language);
         String userPrompt = buildUserPrompt(meeting.getTitle(), combinedContent, boardContext);
 
         log.info("Generating AI suggestions for meeting: {} in board: {}", meetingId, boardId);
@@ -231,8 +231,31 @@ public class MeetingAIService {
                 .build();
     }
 
-    private String buildSystemPrompt() {
-        return """
+    private static final Map<String, String> LANGUAGE_NAMES = Map.ofEntries(
+            Map.entry("ko", "Korean"),
+            Map.entry("en", "English"),
+            Map.entry("ja", "Japanese"),
+            Map.entry("zh", "Chinese (Simplified)"),
+            Map.entry("zh-TW", "Chinese (Traditional)"),
+            Map.entry("vi", "Vietnamese"),
+            Map.entry("th", "Thai"),
+            Map.entry("hi", "Hindi"),
+            Map.entry("es", "Spanish"),
+            Map.entry("pt-BR", "Portuguese (Brazil)")
+    );
+
+    private String getLanguageName(String lang) {
+        if (lang == null) return null;
+        return LANGUAGE_NAMES.getOrDefault(lang, LANGUAGE_NAMES.get("en"));
+    }
+
+    private String buildSystemPrompt(String language) {
+        String langName = getLanguageName(language);
+        String langInstruction = langName != null
+                ? "- IMPORTANT: Write ALL output text (key_points, summary, feature/task/checklist titles and descriptions) in " + langName + "."
+                : "- Match the language of the meeting memo (Korean memo → Korean output, English → English)";
+
+        return String.format("""
                 You are a project management assistant for the BRIDGE kanban tool.
                 You receive a meeting memo/transcript and a list of existing features/tasks on the board.
 
@@ -252,7 +275,7 @@ public class MeetingAIService {
                 - Keep titles concise (under 100 characters)
                 - Descriptions should provide context from the meeting discussion
                 - Respond ONLY with valid JSON (no markdown code fences, no explanation text)
-                - Match the language of the meeting memo (Korean memo → Korean output, English → English)
+                %s
                 - If there are no actionable items, still provide the summary and key_points
                 </rules>
 
@@ -286,7 +309,7 @@ public class MeetingAIService {
                   ]
                 }
                 </output_format>
-                """;
+                """, langInstruction);
     }
 
     private String buildUserPrompt(String meetingTitle, String memo, String boardContext) {

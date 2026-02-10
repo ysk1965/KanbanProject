@@ -260,7 +260,9 @@
     "rolePermissions": "Quyen vai tro",
     "adminDesc": "Truy cap day du (quan ly thanh vien, cai dat bang, chinh sua the, v.v.)",
     "memberDesc": "Tao va chinh sua the, viet binh luan",
-    "observerDesc": "Chi doc (chi xem the)"
+    "observerDesc": "Chi doc (chi xem the)",
+    "webhookConnected": "Đã kết nối",
+    "webhookDisabled": "Đã tắt"
   },
   "notification": {
     "notifications": "Thong bao",
@@ -478,7 +480,8 @@
     "perYear": "/ nam",
     "discountFormat": "Giam {{percent}}%",
     "changePlan": "Doi goi dich vu",
-    "startSubscription": "Bat dau dang ky"
+    "startSubscription": "Bat dau dang ky",
+    "startDate": "Ngày bắt đầu đăng ký"
   },
   "dailySchedule": {
     "timeblock": "Khoi thoi gian",
