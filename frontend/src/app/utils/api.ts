@@ -3118,8 +3118,9 @@ export const systemAPI = {
 // ========================================
 
 export const notificationAPI = {
-  getNotifications: async (params?: { cursor?: string; limit?: number }) => {
+  getNotifications: async (params?: { boardId?: string; cursor?: string; limit?: number }) => {
     const query = new URLSearchParams();
+    if (params?.boardId) query.set('boardId', params.boardId);
     if (params?.cursor) query.set('cursor', params.cursor);
     if (params?.limit) query.set('limit', params.limit.toString());
     const queryString = query.toString();
@@ -3144,16 +3145,18 @@ export const notificationAPI = {
     }>(`/notifications${queryString ? `?${queryString}` : ''}`);
   },
 
-  getUnreadCount: async () => {
-    return apiClient.get<{ unread_count: number }>('/notifications/unread-count');
+  getUnreadCount: async (boardId?: string) => {
+    const query = boardId ? `?boardId=${boardId}` : '';
+    return apiClient.get<{ unread_count: number }>(`/notifications/unread-count${query}`);
   },
 
   markAsRead: async (notificationId: string) => {
     return apiClient.put<Record<string, unknown>>(`/notifications/${notificationId}/read`);
   },
 
-  markAllAsRead: async () => {
-    return apiClient.put<{ message: string }>('/notifications/read-all');
+  markAllAsRead: async (boardId?: string) => {
+    const query = boardId ? `?boardId=${boardId}` : '';
+    return apiClient.put<{ message: string }>(`/notifications/read-all${query}`);
   },
 };
 

@@ -22,18 +22,20 @@ public class NotificationController {
     @GetMapping
     public ResponseEntity<NotificationResponse.ListResponse> getMyNotifications(
             @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(required = false) String boardId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime cursor,
             @RequestParam(defaultValue = "20") int limit) {
         NotificationResponse.ListResponse response =
-                notificationService.getMyNotifications(principal.getUserId(), cursor, limit);
+                notificationService.getMyNotifications(principal.getUserId(), boardId, cursor, limit);
         return ResponseEntity.ok(response);
     }
 
     @GetMapping("/unread-count")
     public ResponseEntity<NotificationResponse.UnreadCountResponse> getUnreadCount(
-            @AuthenticationPrincipal UserPrincipal principal) {
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(required = false) String boardId) {
         NotificationResponse.UnreadCountResponse response =
-                notificationService.getUnreadCount(principal.getUserId());
+                notificationService.getUnreadCount(principal.getUserId(), boardId);
         return ResponseEntity.ok(response);
     }
 
@@ -48,8 +50,9 @@ public class NotificationController {
 
     @PutMapping("/read-all")
     public ResponseEntity<Map<String, String>> markAllAsRead(
-            @AuthenticationPrincipal UserPrincipal principal) {
-        notificationService.markAllAsRead(principal.getUserId());
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(required = false) String boardId) {
+        notificationService.markAllAsRead(principal.getUserId(), boardId);
         return ResponseEntity.ok(Map.of("message", "모든 알림을 읽음 처리했습니다"));
     }
 }

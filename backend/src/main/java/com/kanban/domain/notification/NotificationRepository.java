@@ -26,14 +26,45 @@ public interface NotificationRepository extends JpaRepository<Notification, Stri
             @Param("recipientId") String recipientId,
             Pageable pageable);
 
+    @Query("SELECT n FROM Notification n " +
+           "WHERE n.recipient.id = :recipientId AND n.board.id = :boardId AND n.createdAt < :cursor " +
+           "ORDER BY n.createdAt DESC")
+    List<Notification> findByRecipientIdAndBoardIdWithCursor(
+            @Param("recipientId") String recipientId,
+            @Param("boardId") String boardId,
+            @Param("cursor") LocalDateTime cursor,
+            Pageable pageable);
+
+    @Query("SELECT n FROM Notification n " +
+           "WHERE n.recipient.id = :recipientId AND n.board.id = :boardId " +
+           "ORDER BY n.createdAt DESC")
+    List<Notification> findByRecipientIdAndBoardIdOrderByCreatedAtDesc(
+            @Param("recipientId") String recipientId,
+            @Param("boardId") String boardId,
+            Pageable pageable);
+
     @Query("SELECT COUNT(n) FROM Notification n " +
            "WHERE n.recipient.id = :recipientId AND n.readAt IS NULL")
     long countUnreadByRecipientId(@Param("recipientId") String recipientId);
+
+    @Query("SELECT COUNT(n) FROM Notification n " +
+           "WHERE n.recipient.id = :recipientId AND n.board.id = :boardId AND n.readAt IS NULL")
+    long countUnreadByRecipientIdAndBoardId(
+            @Param("recipientId") String recipientId,
+            @Param("boardId") String boardId);
 
     @Modifying
     @Query("UPDATE Notification n SET n.readAt = :now " +
            "WHERE n.recipient.id = :recipientId AND n.readAt IS NULL")
     int markAllAsRead(@Param("recipientId") String recipientId, @Param("now") LocalDateTime now);
+
+    @Modifying
+    @Query("UPDATE Notification n SET n.readAt = :now " +
+           "WHERE n.recipient.id = :recipientId AND n.board.id = :boardId AND n.readAt IS NULL")
+    int markAllAsReadByBoard(
+            @Param("recipientId") String recipientId,
+            @Param("boardId") String boardId,
+            @Param("now") LocalDateTime now);
 
     @Modifying
     @Query("DELETE FROM Notification n WHERE n.board.id = :boardId")

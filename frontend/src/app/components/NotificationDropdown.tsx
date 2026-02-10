@@ -217,7 +217,7 @@ export function NotificationDropdown({
   const fetchNotifications = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await notificationAPI.getNotifications({ limit: 20 });
+      const response = await notificationAPI.getNotifications({ boardId, limit: 20 });
       setNotifications(response.notifications as unknown as NotificationItem[]);
       setCursor(response.next_cursor);
       setHasMore(response.has_more);
@@ -227,13 +227,13 @@ export function NotificationDropdown({
     } finally {
       setIsLoading(false);
     }
-  }, [onUnreadCountChange]);
+  }, [boardId, onUnreadCountChange]);
 
   const handleLoadMore = async () => {
     if (!cursor || isLoadingMore) return;
     setIsLoadingMore(true);
     try {
-      const response = await notificationAPI.getNotifications({ cursor, limit: 20 });
+      const response = await notificationAPI.getNotifications({ boardId, cursor, limit: 20 });
       setNotifications(prev => [...prev, ...(response.notifications as unknown as NotificationItem[])]);
       setCursor(response.next_cursor);
       setHasMore(response.has_more);
@@ -246,7 +246,7 @@ export function NotificationDropdown({
 
   const handleMarkAllAsRead = async () => {
     try {
-      await notificationAPI.markAllAsRead();
+      await notificationAPI.markAllAsRead(boardId);
       setNotifications(prev => prev.map(n => ({ ...n, read: true })));
       onUnreadCountChange(0);
     } catch (error) {

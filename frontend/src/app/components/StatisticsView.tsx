@@ -43,7 +43,7 @@ import {
   BoardMember,
 } from '../types';
 import { statisticsService } from '../utils/services';
-import { getInitials } from '../utils/assigneeColor';
+import { getInitials, getAssigneeHex } from '../utils/assigneeColor';
 import { WeightLevelSettingsModal } from './WeightLevelSettingsModal';
 import { ManagementView } from './ManagementView';
 import { formatDate, formatDateShort } from '../utils/dateUtils';
@@ -637,6 +637,8 @@ function OverviewDashboard({
                     borderRadius: '12px',
                     padding: '12px',
                   }}
+                  labelStyle={{ color: '#fff', fontWeight: 600, marginBottom: 4 }}
+                  itemStyle={{ color: '#94a3b8' }}
                   formatter={(value: number) => [formatMinutes(value), t('statistics.workTime')]}
                 />
                 <Legend
@@ -693,6 +695,8 @@ function OverviewDashboard({
                     borderRadius: '12px',
                     padding: '12px',
                   }}
+                  labelStyle={{ color: '#fff', fontWeight: 600, marginBottom: 4 }}
+                  itemStyle={{ color: '#94a3b8' }}
                   formatter={(value: number, name: string) => [
                     name === 'hours' ? t('statistics.hourSuffix', { value }) : t('statistics.itemCount', { value }),
                     name === 'hours' ? t('statistics.workTime') : t('statistics.taskCount'),
@@ -970,6 +974,8 @@ function WorkAnalysisView({ statistics, formatMinutes, formatPercent }: WorkAnal
                     borderRadius: '12px',
                     padding: '12px',
                   }}
+                  labelStyle={{ color: '#fff', fontWeight: 600, marginBottom: 4 }}
+                  itemStyle={{ color: '#94a3b8' }}
                   formatter={(value: number) => [t('statistics.itemCount', { value }), t('statistics.taskCount')]}
                 />
               </RechartsPieChart>
@@ -1008,6 +1014,8 @@ function WorkAnalysisView({ statistics, formatMinutes, formatPercent }: WorkAnal
                     borderRadius: '12px',
                     padding: '12px',
                   }}
+                  labelStyle={{ color: '#fff', fontWeight: 600, marginBottom: 4 }}
+                  itemStyle={{ color: '#94a3b8' }}
                   formatter={(value: number) => [formatMinutes(value), t('statistics.workTime')]}
                 />
               </RechartsPieChart>
@@ -1049,6 +1057,8 @@ function WorkAnalysisView({ statistics, formatMinutes, formatPercent }: WorkAnal
                     borderRadius: '12px',
                     padding: '12px',
                   }}
+                  labelStyle={{ color: '#fff', fontWeight: 600, marginBottom: 4 }}
+                  itemStyle={{ color: '#94a3b8' }}
                   formatter={(value: number, name: string) => [
                     formatMinutes(value),
                     t('statistics.workTime'),
@@ -1306,6 +1316,8 @@ function TeamProductivityView({ statistics, formatMinutes, formatPercent }: Team
                     borderRadius: '12px',
                     padding: '12px',
                   }}
+                  labelStyle={{ color: '#fff', fontWeight: 600, marginBottom: 4 }}
+                  itemStyle={{ color: '#94a3b8' }}
                   formatter={(value: number, name: string) => [
                     t('statistics.hourSuffix', { value }),
                     name === 'total' ? t('statistics.totalTime') : t('statistics.completedTime2'),
@@ -1362,6 +1374,8 @@ function TeamProductivityView({ statistics, formatMinutes, formatPercent }: Team
                     borderRadius: '12px',
                     padding: '12px',
                   }}
+                  labelStyle={{ color: '#fff', fontWeight: 600, marginBottom: 4 }}
+                  itemStyle={{ color: '#94a3b8' }}
                   formatter={(value: number, name: string, props: any) => [
                     `${value}% (${props.payload.completed}/${props.payload.total})`,
                     t('statistics.completionRate'),
@@ -1580,32 +1594,41 @@ function IndividualProductivityView({
           {t('statistics.selectMember')}
         </h3>
         <div className="flex flex-wrap gap-2">
-          {statistics.by_member.map((m) => (
-            <button
-              key={m.member.id}
-              onClick={() => setSelectedMemberId(m.member.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all ${
-                selectedMemberId === m.member.id
-                  ? 'border-bridge-accent bg-bridge-accent/10 text-white'
-                  : 'border-white/20 text-slate-400 hover:border-white/20 hover:text-white'
-              }`}
-            >
-              <div className="w-6 h-6 rounded-full bg-bridge-accent/20 flex items-center justify-center">
-                {m.member.profile_image ? (
-                  <img
-                    src={m.member.profile_image}
-                    alt={m.member.name}
-                    className="w-6 h-6 rounded-full"
-                  />
-                ) : (
-                  <span className="text-xs text-bridge-accent font-medium">
-                    {getInitials(m.member.name)}
-                  </span>
-                )}
-              </div>
-              <span className="text-sm">{m.member.name}</span>
-            </button>
-          ))}
+          {statistics.by_member.map((m) => {
+            const boardMember = members.find((bm) => bm.user.id === m.member.id || bm.id === m.member.id);
+            const colorHex = getAssigneeHex(m.member.name, boardMember?.assignee_color);
+            const isSelected = selectedMemberId === m.member.id;
+            return (
+              <button
+                key={m.member.id}
+                onClick={() => setSelectedMemberId(m.member.id)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all ${
+                  isSelected
+                    ? 'text-white'
+                    : 'border-white/20 text-slate-400 hover:border-white/20 hover:text-white'
+                }`}
+                style={isSelected ? { borderColor: `${colorHex}80`, backgroundColor: `${colorHex}1A` } : undefined}
+              >
+                <div
+                  className="w-6 h-6 rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: `${colorHex}33` }}
+                >
+                  {m.member.profile_image ? (
+                    <img
+                      src={m.member.profile_image}
+                      alt={m.member.name}
+                      className="w-6 h-6 rounded-full"
+                    />
+                  ) : (
+                    <span className="text-xs font-medium" style={{ color: colorHex }}>
+                      {getInitials(m.member.name)}
+                    </span>
+                  )}
+                </div>
+                <span className="text-sm">{m.member.name}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -1676,6 +1699,8 @@ function IndividualProductivityView({
                           borderRadius: '12px',
                           padding: '12px',
                         }}
+                        labelStyle={{ color: '#fff', fontWeight: 600, marginBottom: 4 }}
+                        itemStyle={{ color: '#94a3b8' }}
                         formatter={(value: number) => [formatMinutes(value), t('statistics.workTime')]}
                       />
                       <Legend
@@ -1728,6 +1753,8 @@ function IndividualProductivityView({
                           borderRadius: '12px',
                           padding: '12px',
                         }}
+                        labelStyle={{ color: '#fff', fontWeight: 600, marginBottom: 4 }}
+                        itemStyle={{ color: '#94a3b8' }}
                         formatter={(value: number) => [t('statistics.hourSuffix', { value }), t('statistics.workTime')]}
                       />
                       <Line
@@ -1996,6 +2023,8 @@ function ImpactAnalysisView({
                       borderRadius: '12px',
                       padding: '12px',
                     }}
+                    labelStyle={{ color: '#fff', fontWeight: 600, marginBottom: 4 }}
+                    itemStyle={{ color: '#94a3b8' }}
                     formatter={(value: number, name: string) => [
                       value.toFixed(1),
                       t('statistics.impactScoreLabel'),
@@ -2051,6 +2080,8 @@ function ImpactAnalysisView({
                       borderRadius: '12px',
                       padding: '12px',
                     }}
+                    labelStyle={{ color: '#fff', fontWeight: 600, marginBottom: 4 }}
+                    itemStyle={{ color: '#94a3b8' }}
                     formatter={(value: number, name: string, props: any) => [
                       `${formatMinutes(value)} (${props.payload.taskCount} Task)`,
                       props.payload.name,
