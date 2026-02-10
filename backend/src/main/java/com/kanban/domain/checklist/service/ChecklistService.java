@@ -216,6 +216,56 @@ public class ChecklistService {
         return ChecklistResponse.Detail.of(item);
     }
 
+    @Transactional
+    public ChecklistResponse.Detail moveChecklistItemToTask(String boardId, String taskId, String itemId, String userId, ChecklistRequest.MoveTask request) {
+        boardService.checkMemberOrAbove(boardId, userId);
+
+        Task sourceTask = taskRepository.findById(taskId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
+
+        if (!sourceTask.getBoard().getId().equals(boardId)) {
+            throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
+        }
+
+        ChecklistItem item = checklistItemRepository.findById(itemId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.CHECKLIST_ITEM_NOT_FOUND));
+
+        if (!item.getTask().getId().equals(taskId)) {
+            throw new BusinessException(ErrorCode.CHECKLIST_ITEM_NOT_FOUND);
+        }
+
+        Task targetTask = taskRepository.findById(request.getTargetTaskId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
+
+        if (!targetTask.getBoard().getId().equals(boardId)) {
+            throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
+        }
+
+        // 같은 Task로의 이동은 무시
+        if (sourceTask.getId().equals(targetTask.getId())) {
+            return ChecklistResponse.Detail.of(item);
+        }
+
+        // 대상 Task에서 마지막 position 계산
+        Integer maxPosition = checklistItemRepository.findMaxPositionByTaskId(targetTask.getId());
+        int newPosition = (maxPosition != null) ? maxPosition + 1 : 0;
+
+        item.moveToTask(targetTask, newPosition);
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        activityService.logActivity(sourceTask.getBoard(), user, ActivityAction.CHECKLIST_MOVED, TargetType.CHECKLIST, item.getId(),
+                Map.of("checklistTitle", item.getTitle(),
+                        "fromTask", sourceTask.getTitle(),
+                        "toTask", targetTask.getTitle()));
+
+        log.info("Checklist item moved: {} from task {} to task {} by user: {}",
+                itemId, taskId, targetTask.getId(), userId);
+
+        return ChecklistResponse.Detail.of(item);
+    }
+
     public ChecklistResponse.BoardListResponse getBoardChecklistItems(String boardId, String userId, String assigneeId, Boolean isScheduled) {
         boardService.checkViewerOrAbove(boardId, userId);
 

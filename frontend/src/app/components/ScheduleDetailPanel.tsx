@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { X, Clock, Calendar, User, CheckSquare, FileText, Folder, Trash2, Check, Loader2, Layers } from 'lucide-react';
+import { X, Clock, Calendar, User, Users, CheckSquare, FileText, Folder, Trash2, Check, Loader2, Layers, Star, Sparkles } from 'lucide-react';
 import { Button } from './ui/button';
-import { ScheduleBlockInfo, scheduleAPI, checklistAPI, ChecklistItemResponse } from '../utils/api';
+import { ScheduleBlockInfo, scheduleAPI, checklistAPI, ChecklistItemResponse, meetingAPI, MeetingDetail } from '../utils/api';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { ScheduleDisplayMode } from './ScheduleSettingsModal';
 import { useTranslation } from 'react-i18next';
+import { getInitials, getAssigneeHex } from '../utils/assigneeColor';
 
 interface ScheduleDetailPanelProps {
   block: ScheduleBlockInfo;
@@ -88,6 +89,10 @@ export function ScheduleDetailPanel({
   const [allChecklistItems, setAllChecklistItems] = useState<ChecklistItemResponse[]>([]);
   const [isLoadingChecklist, setIsLoadingChecklist] = useState(false);
 
+  // Meeting 상세 정보
+  const [meetingDetail, setMeetingDetail] = useState<MeetingDetail | null>(null);
+  const [isLoadingMeeting, setIsLoadingMeeting] = useState(false);
+
   // block이 변경되면 로컬 상태도 동기화
   useEffect(() => {
     setIsCompleted(checklist?.completed ?? false);
@@ -113,6 +118,27 @@ export function ScheduleDetailPanel({
     };
     loadChecklist();
   }, [boardId, task?.id]);
+
+  // Meeting 상세 정보 로드
+  useEffect(() => {
+    if (!meeting) {
+      setMeetingDetail(null);
+      return;
+    }
+
+    const loadMeetingDetail = async () => {
+      setIsLoadingMeeting(true);
+      try {
+        const detail = await meetingAPI.getMeetingDetail(boardId, meeting.id);
+        setMeetingDetail(detail);
+      } catch (error) {
+        console.error('Failed to load meeting detail:', error);
+      } finally {
+        setIsLoadingMeeting(false);
+      }
+    };
+    loadMeetingDetail();
+  }, [boardId, meeting?.id]);
 
   const handleToggleComplete = async () => {
     if (!checklist || !task) return;
@@ -200,8 +226,8 @@ export function ScheduleDetailPanel({
 
         {/* Meeting 정보 */}
         {meeting && (
-          <div className="bg-bridge-dark rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-3">
+          <div className="bg-bridge-dark rounded-lg p-4 space-y-3">
+            <div className="flex items-center gap-2">
               <FileText className="h-4 w-4 text-purple-400" />
               <span className="text-sm font-medium text-slate-400">{t('meeting.tab')}</span>
             </div>
@@ -212,6 +238,126 @@ export function ScheduleDetailPanel({
               />
               <p className="text-white font-medium">{meeting.title}</p>
             </div>
+
+            {isLoadingMeeting ? (
+              <div className="flex items-center justify-center py-3 text-slate-400">
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                <span className="text-sm">{t('common.loading')}</span>
+              </div>
+            ) : meetingDetail && (
+              <>
+                {/* 참석자 */}
+                {meetingDetail.participants.length > 0 && (
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                      {t('meeting.participants')}
+                    </label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {meetingDetail.participants.map(p => (
+                        <div key={p.id} className="flex items-center gap-1.5 bg-white/5 rounded-lg px-2 py-1">
+                          {p.profile_image ? (
+                            <img src={p.profile_image} alt={p.name} className="w-4 h-4 rounded-full" />
+                          ) : (
+                            <div
+                              className="w-4 h-4 rounded-full flex items-center justify-center text-[9px] text-white font-medium"
+                              style={{ backgroundColor: getAssigneeHex(p.name) }}
+                            >
+                              {getInitials(p.name)}
+                            </div>
+                          )}
+                          <span className="text-xs text-slate-300">{p.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 메모 */}
+                {meetingDetail.memo && (
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                      {t('meeting.memo')}
+                    </label>
+                    <div className="bg-white/5 rounded-lg p-3 text-sm text-slate-300 whitespace-pre-wrap max-h-32 overflow-y-auto">
+                      {meetingDetail.memo}
+                    </div>
+                  </div>
+                )}
+
+                {/* 음성 기록 */}
+                {meetingDetail.transcript && (
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                      {t('meeting.transcript')}
+                    </label>
+                    <div className="bg-white/5 rounded-lg p-3 text-sm text-slate-300 whitespace-pre-wrap max-h-32 overflow-y-auto">
+                      {meetingDetail.transcript}
+                    </div>
+                  </div>
+                )}
+
+                {/* AI 주요 결정사항 */}
+                {meetingDetail.ai_suggestions?.key_points && meetingDetail.ai_suggestions.key_points.length > 0 && (
+                  <div className="bg-bridge-accent/5 rounded-lg border border-bridge-accent/20 p-3">
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <Star className="h-3.5 w-3.5 text-bridge-accent" />
+                      <span className="text-[11px] font-bold text-bridge-accent uppercase tracking-widest">
+                        {t('meeting.aiKeyPoints')}
+                      </span>
+                    </div>
+                    <ul className="space-y-1">
+                      {meetingDetail.ai_suggestions.key_points.map((point, i) => (
+                        <li key={i} className="flex items-start gap-2 text-xs text-slate-300">
+                          <span className="text-bridge-accent mt-0.5 text-[10px]">●</span>
+                          <span>{point}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* AI 회의 요약 */}
+                {meetingDetail.ai_suggestions?.summary && meetingDetail.ai_suggestions.summary.length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <Sparkles className="h-3.5 w-3.5 text-slate-400" />
+                      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                        {t('meeting.aiSummaryTitle')}
+                      </span>
+                    </div>
+                    <div className="space-y-2">
+                      {meetingDetail.ai_suggestions.summary.map((topic, i) => (
+                        <div
+                          key={i}
+                          className={`rounded-lg border p-3 ${
+                            topic.important
+                              ? 'bg-amber-500/5 border-amber-500/20'
+                              : 'bg-white/[0.02] border-white/5'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 mb-1.5">
+                            <span className="text-xs font-medium text-white">{topic.topic}</span>
+                            {topic.important && (
+                              <span className="text-[9px] font-bold uppercase tracking-widest text-amber-400 bg-amber-500/10 px-1 py-0.5 rounded">
+                                {t('meeting.aiImportant')}
+                              </span>
+                            )}
+                          </div>
+                          <ul className="space-y-0.5">
+                            {topic.points.map((point, j) => (
+                              <li key={j} className="flex items-start gap-1.5 text-xs text-slate-300">
+                                <span className="text-slate-500 mt-0.5 text-[10px]">–</span>
+                                <span className="font-light">{point}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         )}
 

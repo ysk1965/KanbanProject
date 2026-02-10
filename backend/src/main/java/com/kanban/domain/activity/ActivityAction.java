@@ -24,10 +24,12 @@ public enum ActivityAction {
     TASK_MOVED,
     TASK_COMPLETED,
     TASK_REOPENED,
+    TASK_FEATURE_MOVED,
 
     // Checklist actions
     CHECKLIST_CREATED,
     CHECKLIST_CHECKED,
+    CHECKLIST_MOVED,
 
     // Member actions
     MEMBER_INVITED,

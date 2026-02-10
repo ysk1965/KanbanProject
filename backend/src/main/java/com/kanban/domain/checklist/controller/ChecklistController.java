@@ -60,6 +60,17 @@ public class ChecklistController {
         return ResponseEntity.ok(Map.of("message", "체크리스트 항목이 삭제되었습니다"));
     }
 
+    @PutMapping("/{itemId}/move-task")
+    public ResponseEntity<ChecklistResponse.Detail> moveChecklistItemToTask(
+            @PathVariable String boardId,
+            @PathVariable String taskId,
+            @PathVariable String itemId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody ChecklistRequest.MoveTask request) {
+        ChecklistResponse.Detail response = checklistService.moveChecklistItemToTask(boardId, taskId, itemId, principal.getUserId(), request);
+        return ResponseEntity.ok(response);
+    }
+
     @PatchMapping("/{itemId}/toggle")
     public ResponseEntity<ChecklistResponse.Detail> toggleChecklistItem(
             @PathVariable String boardId,

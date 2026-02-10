@@ -62,7 +62,7 @@ import {
   checklistService,
   inquiryService
 } from '../utils/services';
-import { notificationAPI } from '../utils/api';
+import { notificationAPI, checklistAPI } from '../utils/api';
 
 import { useTranslation } from 'react-i18next';
 import { getRandomFeatureColor } from '../constants';
@@ -1129,6 +1129,114 @@ export function KanbanBoardPage() {
     }
   };
 
+  const handleMoveTaskToFeature = async (taskId: string, targetFeatureId: string) => {
+    const task = tasks.find((t) => t.id === taskId);
+    if (!task || !boardId) return;
+
+    const oldFeature = features.find((f) => f.id === task.feature_id);
+    const newFeature = features.find((f) => f.id === targetFeatureId);
+    if (!oldFeature || !newFeature) return;
+
+    // 낙관적 업데이트: Task의 feature 정보 변경
+    setTasks((prevTasks) =>
+      prevTasks.map((t) =>
+        t.id === taskId
+          ? { ...t, feature_id: targetFeatureId, feature_title: newFeature.title, feature_color: newFeature.color }
+          : t
+      )
+    );
+
+    // 낙관적 업데이트: 양쪽 Feature의 카운트 변경
+    const oldNewTotal = oldFeature.total_tasks - 1;
+    const oldNewCompleted = task.completed ? oldFeature.completed_tasks - 1 : oldFeature.completed_tasks;
+    const newNewTotal = newFeature.total_tasks + 1;
+    const newNewCompleted = task.completed ? newFeature.completed_tasks + 1 : newFeature.completed_tasks;
+
+    setFeatures((prevFeatures) =>
+      prevFeatures.map((f) => {
+        if (f.id === oldFeature.id) {
+          return {
+            ...f,
+            total_tasks: oldNewTotal,
+            completed_tasks: oldNewCompleted,
+            progress_percentage: oldNewTotal > 0 ? Math.round((oldNewCompleted / oldNewTotal) * 100) : 0,
+          };
+        }
+        if (f.id === newFeature.id) {
+          return {
+            ...f,
+            total_tasks: newNewTotal,
+            completed_tasks: newNewCompleted,
+            progress_percentage: newNewTotal > 0 ? Math.round((newNewCompleted / newNewTotal) * 100) : 0,
+          };
+        }
+        return f;
+      })
+    );
+
+    // selectedTask도 업데이트 (모달이 닫히기 전 UI 반영)
+    if (selectedTask?.id === taskId) {
+      setSelectedTask((prev) =>
+        prev ? { ...prev, feature_id: targetFeatureId, feature_title: newFeature.title, feature_color: newFeature.color } : prev
+      );
+    }
+
+    try {
+      await taskService.moveTaskToFeature(boardId, taskId, targetFeatureId);
+      setManagementRefreshKey((prev) => prev + 1);
+    } catch (error) {
+      console.error('Failed to move task to feature:', error);
+      // 실패 시 롤백
+      setTasks((prevTasks) =>
+        prevTasks.map((t) =>
+          t.id === taskId
+            ? { ...t, feature_id: task.feature_id, feature_title: task.feature_title, feature_color: task.feature_color }
+            : t
+        )
+      );
+      setFeatures((prevFeatures) =>
+        prevFeatures.map((f) => {
+          if (f.id === oldFeature.id) return oldFeature;
+          if (f.id === newFeature.id) return newFeature;
+          return f;
+        })
+      );
+    }
+  };
+
+  const handleMoveChecklistToTask = async (checklistItemId: string, sourceTaskId: string, targetTaskId: string) => {
+    if (!boardId) return;
+
+    try {
+      await checklistAPI.moveToTask(boardId, sourceTaskId, checklistItemId, {
+        target_task_id: targetTaskId,
+      });
+
+      // 대상 Task의 체크리스트 카운트도 증가 (source는 TaskDetailModal에서 처리)
+      const movedItem = tasks.find((t) => t.id === sourceTaskId);
+      if (movedItem) {
+        setTasks((prevTasks) =>
+          prevTasks.map((t) => {
+            if (t.id === targetTaskId) {
+              const newTotal = (t.checklist_total || 0) + 1;
+              const wasCompleted = false; // 이동된 항목의 완료 상태는 모를 수 있으므로 refresh로 처리
+              return {
+                ...t,
+                checklist_total: newTotal,
+                checklist_version: (t.checklist_version || 0) + 1,
+              };
+            }
+            return t;
+          })
+        );
+      }
+
+      setManagementRefreshKey((prev) => prev + 1);
+    } catch (error) {
+      console.error('Failed to move checklist item:', error);
+    }
+  };
+
   const handleReorderTask = async (taskId: string, blockId: string, newPosition: number) => {
     if (!boardId) return;
 
@@ -1231,8 +1339,15 @@ export function KanbanBoardPage() {
       if (filterOptions.keyword && !feature.title.toLowerCase().includes(filterOptions.keyword.toLowerCase())) {
         return false;
       }
-      if (filterOptions.members.length > 0 && !filterOptions.members.some((m) => feature.assignee?.name === m)) {
-        return false;
+      if (filterOptions.members.length > 0) {
+        const hasNoAssigneeFilter = filterOptions.members.includes('__no_members__');
+        const memberNames = filterOptions.members.filter(m => m !== '__no_members__');
+        const featureAssigneeName = feature.assignee?.name;
+        const matchesNoAssignee = hasNoAssigneeFilter && !featureAssigneeName;
+        const matchesMember = memberNames.length > 0 && memberNames.some(m => featureAssigneeName === m);
+        if (!matchesNoAssignee && !matchesMember) {
+          return false;
+        }
       }
       if (filterOptions.tags.length > 0 && !filterOptions.tags.some((tagId) => feature.tags?.some((t) => t.id === tagId))) {
         return false;
@@ -1252,8 +1367,20 @@ export function KanbanBoardPage() {
       if (filterOptions.keyword && !task.title.toLowerCase().includes(filterOptions.keyword.toLowerCase())) {
         return false;
       }
-      if (filterOptions.members.length > 0 && !filterOptions.members.some((m) => task.assignee?.name === m)) {
-        return false;
+      if (filterOptions.members.length > 0) {
+        const hasNoAssigneeFilter = filterOptions.members.includes('__no_members__');
+        const memberNames = filterOptions.members.filter(m => m !== '__no_members__');
+        // Task의 체크리스트 아이템 담당자 기준으로 필터링
+        const taskChecklists = checklistDataMap[task.id] || [];
+        const taskAssigneeNames = taskChecklists
+          .filter(ci => ci.assignee?.name)
+          .map(ci => ci.assignee!.name);
+        const hasNoAssignee = taskAssigneeNames.length === 0;
+        const matchesNoAssignee = hasNoAssigneeFilter && hasNoAssignee;
+        const matchesMember = memberNames.length > 0 && memberNames.some(m => taskAssigneeNames.includes(m));
+        if (!matchesNoAssignee && !matchesMember) {
+          return false;
+        }
       }
       if (filterOptions.features.length > 0 && !filterOptions.features.includes(task.feature_id)) {
         return false;
@@ -1269,7 +1396,7 @@ export function KanbanBoardPage() {
       }
       return true;
     });
-  }, [tasks, filterOptions]);
+  }, [tasks, filterOptions, checklistDataMap]);
 
   if (isLoading) {
     return (
@@ -2071,7 +2198,11 @@ export function KanbanBoardPage() {
             handleMoveTask(taskId, blockId, 0);
             setManagementRefreshKey((prev) => prev + 1);
           }}
+          onMoveToFeature={handleMoveTaskToFeature}
+          onMoveChecklistToTask={handleMoveChecklistToTask}
           blocks={blocks}
+          features={features}
+          allTasks={tasks}
           availableTags={tags}
           onCreateTag={handleCreateTag}
           onUpdateTag={handleUpdateTag}
@@ -2080,6 +2211,7 @@ export function KanbanBoardPage() {
           currentUser={currentUser}
           boardId={boardId || ''}
           canEdit={canEdit}
+          isAdminOrOwner={isAdminOrOwner}
         />
 
         <AddBlockModal

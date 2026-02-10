@@ -1,6 +1,7 @@
 package com.kanban.domain.checklist.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -34,5 +35,12 @@ public class ChecklistRequest {
         private LocalDate startDate;
 
         private LocalDate dueDate;
+    }
+
+    @Getter
+    @NoArgsConstructor
+    public static class MoveTask {
+        @NotNull(message = "이동할 Task ID는 필수입니다")
+        private String targetTaskId;
     }
 }
