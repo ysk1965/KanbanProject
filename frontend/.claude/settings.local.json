@@ -44,7 +44,8 @@
       "Bash(aws ce get-cost-and-usage:*)",
       "Bash(npm run build:*)",
       "Bash(python3:*)",
-      "Bash(git pull:*)"
+      "Bash(git pull:*)",
+      "Bash(git checkout:*)"
     ]
   }
 }

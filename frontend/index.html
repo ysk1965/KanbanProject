@@ -4,34 +4,35 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    <!-- Domain-based branding (before meta tags are read) -->
+    <!-- Domain-based branding: bridgespots.com 접속 시 JS로 교체 (크롤러는 기본 Milkyway 메타태그 사용) -->
     <script>
       (function(){
         var h = location.hostname;
-        if (h === 'milkyway.pe.kr' || h.endsWith('.milkyway.pe.kr')) {
-          var t = 'Milkyway - Smart Project Management';
-          var d = '팀 프로젝트를 효율적으로 관리하는 스마트 협업 플랫폼';
-          var u = 'https://milkyway.pe.kr';
+        if (h === 'bridgespots.com' || h.endsWith('.bridgespots.com')) {
+          var t = 'BRIDGE SPOTS - The Intelligent PM Orchestration';
+          var d = '칸반 보드, 간트 차트, 데일리 스케줄링을 하나로. 팀 협업의 흐름을 정밀하게 조율하는 프로젝트 관리 플랫폼.';
+          var u = 'https://bridgespots.com';
           document.title = t;
           var map = {
             'meta[name="title"]': t,
             'meta[name="description"]': d,
-            'meta[name="keywords"]': '프로젝트 관리, 칸반, 간트차트, 팀 협업, PM 도구, Kanban, Gantt, 일정 관리, Milkyway',
-            'meta[name="author"]': 'Milkyway',
+            'meta[name="keywords"]': '프로젝트 관리, 칸반, 간트차트, 팀 협업, PM 도구, Kanban, Gantt, 일정 관리, BRIDGE SPOTS',
+            'meta[name="author"]': 'BRIDGE SPOTS',
             'meta[property="og:url"]': u,
             'meta[property="og:title"]': t,
             'meta[property="og:description"]': d,
-            'meta[property="og:site_name"]': 'Milkyway',
+            'meta[property="og:site_name"]': 'BRIDGE SPOTS',
+            'meta[property="og:image"]': u + '/og-image.png',
             'meta[name="twitter:url"]': u,
             'meta[name="twitter:title"]': t,
-            'meta[name="twitter:description"]': d
+            'meta[name="twitter:description"]': d,
+            'meta[name="twitter:image"]': u + '/og-image.png'
           };
-          // Favicon 즉시 교체 (DOMContentLoaded 전)
-          var iconLink = document.querySelector('link[rel="icon"]');
-          if (iconLink) iconLink.setAttribute('href', '/MilkyWay.png');
-          var appleIcon = document.querySelector('link[rel="apple-touch-icon"]');
-          if (appleIcon) appleIcon.setAttribute('href', '/MilkyWay.png');
           document.addEventListener('DOMContentLoaded', function(){
+            var iconLink = document.querySelector('link[rel="icon"]');
+            if (iconLink) iconLink.setAttribute('href', '/BridgeSpotsIcon.png');
+            var appleIcon = document.querySelector('link[rel="apple-touch-icon"]');
+            if (appleIcon) appleIcon.setAttribute('href', '/BridgeSpotsIcon.png');
             Object.keys(map).forEach(function(sel){
               var el = document.querySelector(sel);
               if (el) el.setAttribute('content', map[sel]);
@@ -43,14 +44,14 @@
       })();
     </script>
 
-    <!-- Primary Meta Tags -->
-    <title>BRIDGE SPOTS - The Intelligent PM Orchestration</title>
-    <meta name="title" content="BRIDGE SPOTS - The Intelligent PM Orchestration" />
-    <meta name="description" content="칸반 보드, 간트 차트, 데일리 스케줄링을 하나로. 팀 협업의 흐름을 정밀하게 조율하는 프로젝트 관리 플랫폼." />
-    <meta name="keywords" content="프로젝트 관리, 칸반, 간트차트, 팀 협업, PM 도구, Kanban, Gantt, 일정 관리, BRIDGE SPOTS" />
-    <meta name="author" content="BRIDGE SPOTS" />
+    <!-- Primary Meta Tags (Default: Milkyway) -->
+    <title>Milkyway - Smart Project Management</title>
+    <meta name="title" content="Milkyway - Smart Project Management" />
+    <meta name="description" content="팀 프로젝트를 효율적으로 관리하는 스마트 협업 플랫폼" />
+    <meta name="keywords" content="프로젝트 관리, 칸반, 간트차트, 팀 협업, PM 도구, Kanban, Gantt, 일정 관리, Milkyway" />
+    <meta name="author" content="Milkyway" />
     <meta name="robots" content="index, follow" />
-    <link rel="canonical" href="https://bridgespots.com/landing" />
+    <link rel="canonical" href="https://milkyway.pe.kr" />
 
     <!-- Theme -->
     <meta name="theme-color" content="#0A0E17" />
@@ -58,19 +59,19 @@
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://bridgespots.com/landing" />
-    <meta property="og:title" content="BRIDGE SPOTS - The Intelligent PM Orchestration" />
-    <meta property="og:description" content="칸반 보드, 간트 차트, 데일리 스케줄링을 하나로. 팀 협업의 흐름을 정밀하게 조율하는 프로젝트 관리 플랫폼." />
-    <meta property="og:image" content="https://bridgespots.com/og-image.png" />
-    <meta property="og:site_name" content="BRIDGE SPOTS" />
+    <meta property="og:url" content="https://milkyway.pe.kr" />
+    <meta property="og:title" content="Milkyway - Smart Project Management" />
+    <meta property="og:description" content="팀 프로젝트를 효율적으로 관리하는 스마트 협업 플랫폼" />
+    <meta property="og:image" content="https://milkyway.pe.kr/og-image.png" />
+    <meta property="og:site_name" content="Milkyway" />
     <meta property="og:locale" content="ko_KR" />
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:url" content="https://bridgespots.com/landing" />
-    <meta name="twitter:title" content="BRIDGE SPOTS - The Intelligent PM Orchestration" />
-    <meta name="twitter:description" content="칸반 보드, 간트 차트, 데일리 스케줄링을 하나로. 팀 협업의 흐름을 정밀하게 조율하는 프로젝트 관리 플랫폼." />
-    <meta name="twitter:image" content="https://bridgespots.com/og-image.png" />
+    <meta name="twitter:url" content="https://milkyway.pe.kr" />
+    <meta name="twitter:title" content="Milkyway - Smart Project Management" />
+    <meta name="twitter:description" content="팀 프로젝트를 효율적으로 관리하는 스마트 협업 플랫폼" />
+    <meta name="twitter:image" content="https://milkyway.pe.kr/og-image.png" />
 
     <!-- Naver -->
     <meta name="naver-site-verification" content="a9e428c314928a2c4f36a29adbb136b80f226562" />
@@ -78,9 +79,9 @@
     <!-- Google -->
     <meta name="google-site-verification" content="EN9onB1fUDfttxLZcLP_eFjry7DXpQstArq4xycMArI" />
 
-    <!-- Favicon -->
-    <link rel="icon" type="image/png" href="/BridgeSpotsIcon.png" />
-    <link rel="apple-touch-icon" href="/BridgeSpotsIcon.png" />
+    <!-- Favicon (Default: Milkyway) -->
+    <link rel="icon" type="image/png" href="/MilkyWay.png" />
+    <link rel="apple-touch-icon" href="/MilkyWay.png" />
   </head>
 
   <body>
