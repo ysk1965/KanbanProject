@@ -38,8 +38,12 @@ public class SlackNotificationService {
         return "보드에서 보기";
     }
 
+    private String resolveFrontendUrl(String originUrl) {
+        return (originUrl != null && !originUrl.isBlank()) ? originUrl.replaceAll("/+$", "") : frontendUrl;
+    }
+
     @Async
-    public void sendMentionNotifications(Comment comment, User sender, Board board) {
+    public void sendMentionNotifications(Comment comment, User sender, Board board, String originUrl) {
         if (!board.canAccessSlack()) {
             return;
         }
@@ -68,12 +72,13 @@ public class SlackNotificationService {
             return;
         }
 
-        Map<String, Object> payload = buildMentionPayload(comment, sender, board);
+        String resolvedUrl = resolveFrontendUrl(originUrl);
+        Map<String, Object> payload = buildMentionPayload(comment, sender, board, resolvedUrl);
         sendToWebhooks(webhooks, payload, board.getId());
     }
 
     @Async
-    public void sendChecklistAssignedNotification(ChecklistItem item, User assigner, Board board) {
+    public void sendChecklistAssignedNotification(ChecklistItem item, User assigner, Board board, String originUrl) {
         if (!board.canAccessSlack()) {
             return;
         }
@@ -94,13 +99,14 @@ public class SlackNotificationService {
             return;
         }
 
-        Map<String, Object> payload = buildChecklistAssignedPayload(item, assigner, board);
+        String resolvedUrl = resolveFrontendUrl(originUrl);
+        Map<String, Object> payload = buildChecklistAssignedPayload(item, assigner, board, resolvedUrl);
         sendToWebhooks(webhooks, payload, board.getId());
     }
 
     @Async
     public void sendTaskCommentNotifications(Comment comment, User sender, Board board,
-                                              List<String> recipientUserIds, Set<String> excludeUserIds) {
+                                              List<String> recipientUserIds, Set<String> excludeUserIds, String originUrl) {
         if (!board.canAccessSlack()) {
             return;
         }
@@ -124,12 +130,13 @@ public class SlackNotificationService {
             return;
         }
 
-        Map<String, Object> payload = buildTaskCommentPayload(comment, sender, board);
+        String resolvedUrl = resolveFrontendUrl(originUrl);
+        Map<String, Object> payload = buildTaskCommentPayload(comment, sender, board, resolvedUrl);
         sendToWebhooks(webhooks, payload, board.getId());
     }
 
     @Async
-    public void sendMeetingMemoNotifications(Meeting meeting, User sender, Board board, List<String> participantIds) {
+    public void sendMeetingMemoNotifications(Meeting meeting, User sender, Board board, List<String> participantIds, String originUrl) {
         if (!board.canAccessSlack()) {
             return;
         }
@@ -148,7 +155,8 @@ public class SlackNotificationService {
             return;
         }
 
-        Map<String, Object> payload = buildMeetingMemoPayload(meeting, sender, board);
+        String resolvedUrl = resolveFrontendUrl(originUrl);
+        Map<String, Object> payload = buildMeetingMemoPayload(meeting, sender, board, resolvedUrl);
         sendToWebhooks(webhooks, payload, board.getId());
     }
 
@@ -182,14 +190,14 @@ public class SlackNotificationService {
                 .toList();
     }
 
-    private Map<String, Object> buildMentionPayload(Comment comment, User sender, Board board) {
+    private Map<String, Object> buildMentionPayload(Comment comment, User sender, Board board, String resolvedUrl) {
         String taskTitle = comment.getTask() != null ? comment.getTask().getTitle() : "Unknown Task";
         String commentContent = comment.getContent();
         if (commentContent != null && commentContent.length() > 200) {
             commentContent = commentContent.substring(0, 200) + "...";
         }
 
-        String boardUrl = frontendUrl + "/boards/" + board.getId();
+        String boardUrl = resolvedUrl + "/boards/" + board.getId();
 
         List<Map<String, Object>> blocks = new ArrayList<>();
 
@@ -222,9 +230,9 @@ public class SlackNotificationService {
         return Map.of("blocks", blocks);
     }
 
-    private Map<String, Object> buildChecklistAssignedPayload(ChecklistItem item, User assigner, Board board) {
+    private Map<String, Object> buildChecklistAssignedPayload(ChecklistItem item, User assigner, Board board, String resolvedUrl) {
         String taskTitle = item.getTask() != null ? item.getTask().getTitle() : "Unknown Task";
-        String boardUrl = frontendUrl + "/boards/" + board.getId();
+        String boardUrl = resolvedUrl + "/boards/" + board.getId();
 
         List<Map<String, Object>> blocks = new ArrayList<>();
 
@@ -249,8 +257,8 @@ public class SlackNotificationService {
         return Map.of("blocks", blocks);
     }
 
-    private Map<String, Object> buildMeetingMemoPayload(Meeting meeting, User sender, Board board) {
-        String boardUrl = frontendUrl + "/boards/" + board.getId() + "?view=schedule&tab=meeting";
+    private Map<String, Object> buildMeetingMemoPayload(Meeting meeting, User sender, Board board, String resolvedUrl) {
+        String boardUrl = resolvedUrl + "/boards/" + board.getId() + "?view=schedule&tab=meeting";
         String memoPreview = meeting.getMemo();
         if (memoPreview != null && memoPreview.length() > 200) {
             memoPreview = memoPreview.substring(0, 200) + "...";
@@ -283,14 +291,14 @@ public class SlackNotificationService {
         return Map.of("blocks", blocks);
     }
 
-    private Map<String, Object> buildTaskCommentPayload(Comment comment, User sender, Board board) {
+    private Map<String, Object> buildTaskCommentPayload(Comment comment, User sender, Board board, String resolvedUrl) {
         String taskTitle = comment.getTask() != null ? comment.getTask().getTitle() : "Unknown Task";
         String commentContent = comment.getContent();
         if (commentContent != null && commentContent.length() > 200) {
             commentContent = commentContent.substring(0, 200) + "...";
         }
 
-        String boardUrl = frontendUrl + "/boards/" + board.getId();
+        String boardUrl = resolvedUrl + "/boards/" + board.getId();
 
         List<Map<String, Object>> blocks = new ArrayList<>();
 

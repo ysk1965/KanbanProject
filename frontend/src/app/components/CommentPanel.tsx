@@ -822,6 +822,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
           </Suspense>
         ) : (
           <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm cursor-pointer"
+            onPointerDown={e => e.stopPropagation()}
             onMouseDown={e => e.stopPropagation()}
             onClick={(e) => { e.stopPropagation(); setLightboxMedia(null); }}>
             <button onClick={(e) => { e.stopPropagation(); setLightboxMedia(null); }}

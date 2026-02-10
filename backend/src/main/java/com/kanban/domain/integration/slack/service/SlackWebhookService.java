@@ -66,18 +66,29 @@ public class SlackWebhookService {
     public SlackWebhookResponse.Detail upsertMyWebhook(String boardId, String userId, SlackWebhookRequest.Upsert request) {
         boardService.checkViewerOrAbove(boardId, userId);
         validateSlackAccess(boardId);
-        validateWebhookUrl(request.getWebhookUrl());
 
         MemberSlackWebhook webhook = webhookRepository.findByBoardIdAndUserId(boardId, userId)
                 .orElse(null);
 
         if (webhook != null) {
+            // 기존 설정 업데이트: webhook_url이 없으면 기존 URL 유지
+            String newUrl = (request.getWebhookUrl() != null && !request.getWebhookUrl().isBlank())
+                    ? request.getWebhookUrl() : webhook.getWebhookUrl();
+            if (request.getWebhookUrl() != null && !request.getWebhookUrl().isBlank()) {
+                validateWebhookUrl(request.getWebhookUrl());
+            }
             webhook.update(
-                    request.getWebhookUrl(),
+                    newUrl,
                     request.getChannelName(),
                     request.getEnabled() != null ? request.getEnabled() : true
             );
         } else {
+            // 새 설정 생성: webhook_url 필수
+            if (request.getWebhookUrl() == null || request.getWebhookUrl().isBlank()) {
+                throw new BusinessException(ErrorCode.SLACK_WEBHOOK_INVALID_URL);
+            }
+            validateWebhookUrl(request.getWebhookUrl());
+
             Board board = boardRepository.findById(boardId)
                     .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
             User user = userRepository.findById(userId)
@@ -109,14 +120,15 @@ public class SlackWebhookService {
         log.info("Slack webhook deleted for user {} on board {}", userId, boardId);
     }
 
-    public SlackWebhookResponse.TestResult testMyWebhook(String boardId, String userId, String brandName) {
+    public SlackWebhookResponse.TestResult testMyWebhook(String boardId, String userId, String brandName, String originUrl) {
         boardService.checkViewerOrAbove(boardId, userId);
         validateSlackAccess(boardId);
 
         MemberSlackWebhook webhook = webhookRepository.findByBoardIdAndUserId(boardId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SLACK_WEBHOOK_NOT_FOUND));
 
-        String brand = (brandName != null && !brandName.isBlank()) ? brandName : BrandResolver.resolve(frontendUrl);
+        String resolvedUrl = (originUrl != null && !originUrl.isBlank()) ? originUrl : frontendUrl;
+        String brand = (brandName != null && !brandName.isBlank()) ? brandName : BrandResolver.resolve(resolvedUrl);
 
         try {
             Map<String, Object> payload = Map.of(

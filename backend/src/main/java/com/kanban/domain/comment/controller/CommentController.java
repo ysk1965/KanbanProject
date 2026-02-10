@@ -38,9 +38,10 @@ public class CommentController {
             @PathVariable String boardId,
             @PathVariable String taskId,
             @AuthenticationPrincipal UserPrincipal principal,
-            @Valid @RequestBody CommentRequest.Create request) {
+            @Valid @RequestBody CommentRequest.Create request,
+            @RequestHeader(value = "Origin", required = false) String origin) {
         CommentResponse.Detail response = commentService.createComment(
-                boardId, taskId, principal.getUserId(), request);
+                boardId, taskId, principal.getUserId(), request, origin);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 

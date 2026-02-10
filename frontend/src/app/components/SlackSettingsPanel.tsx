@@ -52,6 +52,8 @@ export function SlackSettingsPanel({ boardId, onSlackStatusChange, canAccessSlac
     setError(null);
   };
 
+  const isExistingConfig = !!config;
+
   const handleCancel = () => {
     setIsEditing(false);
     setTestResult(null);
@@ -59,7 +61,8 @@ export function SlackSettingsPanel({ boardId, onSlackStatusChange, canAccessSlac
   };
 
   const handleSave = async () => {
-    if (!webhookUrl.trim()) {
+    // 새 설정일 때만 webhook URL 필수
+    if (!isExistingConfig && !webhookUrl.trim()) {
       setError(t('slackSettings.webhookUrlRequired'));
       return;
     }
@@ -67,7 +70,7 @@ export function SlackSettingsPanel({ boardId, onSlackStatusChange, canAccessSlac
     setError(null);
     try {
       const data = await slackWebhookAPI.upsertMyConfig(boardId, {
-        webhookUrl: webhookUrl.trim(),
+        webhookUrl: webhookUrl.trim() || undefined,
         channelName: channelName.trim() || undefined,
         enabled,
       });
@@ -159,9 +162,12 @@ export function SlackSettingsPanel({ boardId, onSlackStatusChange, canAccessSlac
               type="url"
               value={webhookUrl}
               onChange={(e) => setWebhookUrl(e.target.value)}
-              placeholder="https://hooks.slack.com/services/T.../B.../..."
+              placeholder={isExistingConfig ? (config?.webhook_url_masked || 'https://hooks.slack.com/services/...') : 'https://hooks.slack.com/services/T.../B.../...'}
               className="w-full bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
             />
+            {isExistingConfig && (
+              <p className="text-[10px] text-slate-500 mt-0.5">{t('slackSettings.webhookUrlKeepHint', '변경하지 않으려면 비워두세요')}</p>
+            )}
           </div>
 
           <div>

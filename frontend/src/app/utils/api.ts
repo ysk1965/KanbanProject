@@ -3231,12 +3231,12 @@ export const slackWebhookAPI = {
   },
 
   upsertMyConfig: async (boardId: string, data: {
-    webhookUrl: string;
+    webhookUrl?: string;
     channelName?: string;
     enabled?: boolean;
   }) => {
     return apiClient.put<SlackWebhookConfig>(`/boards/${boardId}/slack-webhook/me`, {
-      webhook_url: data.webhookUrl,
+      webhook_url: data.webhookUrl || undefined,
       channel_name: data.channelName,
       enabled: data.enabled,
     });
