@@ -26,30 +26,32 @@ const STEPS_CONFIG = [
   {
     titleKey: 'slackGuide.step2Title',
     descKey: 'slackGuide.step2Desc',
-    image: '/images/slack-guide/step2-create-app.png',
+    image: '/images/slack-guide/step2-create-an-app.png',
   },
   {
     titleKey: 'slackGuide.stepAppNameTitle',
     descKey: 'slackGuide.stepAppNameDesc',
     detailKey: 'slackGuide.stepAppNameDetail',
-    image: '/images/slack-guide/step3-name-app.png',
+    image: '/images/slack-guide/step3-set-wrokspace.png',
   },
   {
     titleKey: 'slackGuide.step3Title',
     descKey: 'slackGuide.step3Desc',
     detailKey: 'slackGuide.step3Detail',
+    image: '/images/slack-guide/step4-set-webhook.png',
   },
   {
     titleKey: 'slackGuide.step4Title',
     descKey: 'slackGuide.step4Desc',
     detailKey: 'slackGuide.step4Detail',
-    image: '/images/slack-guide/step4-webhook-url.png',
+    image: '/images/slack-guide/step5-add-new-webhook.png',
   },
   {
     titleKey: 'slackGuide.step5Title',
     descKey: 'slackGuide.step5Desc',
     detailKey: 'slackGuide.step5Detail',
     copyExample: 'https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXX',
+    image: '/images/slack-guide/step6-copy-webhook-url.png',
   },
   {
     titleKey: 'slackGuide.step6Title',

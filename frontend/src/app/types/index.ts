@@ -272,6 +272,7 @@ export interface Task {
   tags: Tag[];
   checklist_total?: number;
   checklist_completed?: number;
+  assignees?: { id: string; name: string }[];
   checklist_version?: number; // 체크리스트 변경 감지용 버전
   created_by?: { id: string; name: string };
   created_at?: string;

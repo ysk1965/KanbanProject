@@ -39,8 +39,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.kanban.domain.feature.FeatureStatus;
 
+import com.kanban.domain.checklist.ChecklistItem;
+
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -94,9 +97,9 @@ public class TaskService {
         }
 
         Map<String, List<Tag>> taskTagsMap = getTaskTagsMap(tasks);
-        Map<String, int[]> checklistCountMap = getChecklistCountMap(tasks);
+        ChecklistMaps checklistMaps = getChecklistMaps(tasks);
 
-        return TaskResponse.ListResponse.of(tasks, taskTagsMap, checklistCountMap);
+        return TaskResponse.ListResponse.of(tasks, taskTagsMap, checklistMaps.countMap, checklistMaps.assigneesMap);
     }
 
     public TaskResponse.Detail getTask(String boardId, String taskId, String userId) {
@@ -447,14 +450,47 @@ public class TaskService {
                 ));
     }
 
-    private Map<String, int[]> getChecklistCountMap(List<Task> tasks) {
-        Map<String, int[]> result = new HashMap<>();
-        for (Task task : tasks) {
-            int total = checklistItemRepository.countByTaskId(task.getId());
-            int completed = checklistItemRepository.countByTaskIdAndIsCompletedTrue(task.getId());
-            result.put(task.getId(), new int[]{total, completed});
+    private record ChecklistMaps(
+            Map<String, int[]> countMap,
+            Map<String, List<TaskResponse.AssigneeInfo>> assigneesMap
+    ) {}
+
+    private ChecklistMaps getChecklistMaps(List<Task> tasks) {
+        Map<String, int[]> countMap = new HashMap<>();
+        Map<String, List<TaskResponse.AssigneeInfo>> assigneesMap = new HashMap<>();
+
+        if (tasks.isEmpty()) return new ChecklistMaps(countMap, assigneesMap);
+
+        List<String> taskIds = tasks.stream().map(Task::getId).toList();
+        List<ChecklistItem> allItems = checklistItemRepository.findByTaskIdIn(taskIds);
+
+        Map<String, List<ChecklistItem>> grouped = allItems.stream()
+                .collect(Collectors.groupingBy(ci -> ci.getTask().getId()));
+
+        for (Map.Entry<String, List<ChecklistItem>> entry : grouped.entrySet()) {
+            String taskId = entry.getKey();
+            List<ChecklistItem> items = entry.getValue();
+
+            int total = items.size();
+            int completed = (int) items.stream().filter(ChecklistItem::getIsCompleted).count();
+            countMap.put(taskId, new int[]{total, completed});
+
+            List<TaskResponse.AssigneeInfo> assignees = items.stream()
+                    .filter(ci -> ci.getAssignee() != null)
+                    .collect(Collectors.toMap(
+                            ci -> ci.getAssignee().getId(),
+                            ci -> ci.getAssignee(),
+                            (existing, replacement) -> existing,
+                            LinkedHashMap::new))
+                    .values().stream()
+                    .map(TaskResponse.AssigneeInfo::of)
+                    .toList();
+            if (!assignees.isEmpty()) {
+                assigneesMap.put(taskId, assignees);
+            }
         }
-        return result;
+
+        return new ChecklistMaps(countMap, assigneesMap);
     }
 
     @Transactional

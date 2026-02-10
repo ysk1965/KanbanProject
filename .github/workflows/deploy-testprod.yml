@@ -15,10 +15,38 @@ env:
   NODE_VERSION: '20'
 
 jobs:
+  # Detect which paths changed to skip unnecessary deploys
+  detect-changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check changed paths
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+            frontend:
+              - 'frontend/**'
+
+      - name: Log detected changes
+        run: |
+          echo "Backend changed: ${{ steps.filter.outputs.backend }}"
+          echo "Frontend changed: ${{ steps.filter.outputs.frontend }}"
+
   # Deploy Backend to Elastic Beanstalk
   deploy-backend:
     name: Deploy Backend
     runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.backend == 'true' || github.event_name == 'workflow_dispatch'
 
     steps:
       - name: Checkout
@@ -73,6 +101,8 @@ jobs:
   deploy-frontend:
     name: Deploy Frontend
     runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.frontend == 'true' || github.event_name == 'workflow_dispatch'
 
     steps:
       - name: Checkout
@@ -124,17 +154,26 @@ jobs:
   notify:
     name: Notify
     runs-on: ubuntu-latest
-    needs: [deploy-backend, deploy-frontend]
-    if: always()
+    needs: [detect-changes, deploy-backend, deploy-frontend]
+    if: always() && !cancelled()
 
     steps:
       - name: Deployment Status
         run: |
-          if [ "${{ needs.deploy-backend.result }}" == "success" ] && [ "${{ needs.deploy-frontend.result }}" == "success" ]; then
-            echo "Testprod deployment successful! (BE + FE)"
-          else
-            echo "Testprod deployment failed!"
-            echo "Backend: ${{ needs.deploy-backend.result }}"
-            echo "Frontend: ${{ needs.deploy-frontend.result }}"
+          BE_RESULT="${{ needs.deploy-backend.result }}"
+          FE_RESULT="${{ needs.deploy-frontend.result }}"
+
+          echo "Backend: ${BE_RESULT}"
+          echo "Frontend: ${FE_RESULT}"
+
+          # failure in any deploy job = overall failure
+          if [ "$BE_RESULT" == "failure" ] || [ "$FE_RESULT" == "failure" ]; then
+            echo "❌ Testprod deployment failed!"
             exit 1
           fi
+
+          echo "✅ Testprod deployment completed!"
+          [ "$BE_RESULT" == "skipped" ] && echo "  Backend: skipped (no changes)"
+          [ "$BE_RESULT" == "success" ] && echo "  Backend: deployed"
+          [ "$FE_RESULT" == "skipped" ] && echo "  Frontend: skipped (no changes)"
+          [ "$FE_RESULT" == "success" ] && echo "  Frontend: deployed"

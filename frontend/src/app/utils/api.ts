@@ -442,6 +442,7 @@ export interface TaskResponse {
   tags: TagResponse[];
   checklist_total?: number;
   checklist_completed?: number;
+  assignees?: { id: string; name: string }[];
   created_by?: { id: string; name: string };
   created_at?: string;
   updated_at?: string;
