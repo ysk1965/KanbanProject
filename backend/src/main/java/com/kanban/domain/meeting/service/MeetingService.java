@@ -2,6 +2,8 @@ package com.kanban.domain.meeting.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kanban.domain.board.Board;
+import com.kanban.domain.board.BoardMember;
+import com.kanban.domain.board.BoardMemberRepository;
 import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.board.service.BoardService;
 import com.kanban.domain.meeting.Meeting;
@@ -34,6 +36,7 @@ public class MeetingService {
     private final MeetingRepository meetingRepository;
     private final ScheduleBlockRepository scheduleBlockRepository;
     private final BoardRepository boardRepository;
+    private final BoardMemberRepository boardMemberRepository;
     private final UserRepository userRepository;
     private final BoardService boardService;
     private final NotificationService notificationService;
@@ -172,28 +175,18 @@ public class MeetingService {
         User sender = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        List<User> participants = scheduleBlockRepository.findDistinctAssigneesByMeetingId(meetingId);
-
-        if (participants.isEmpty()) {
-            log.info("No participants to notify for meeting: {}", meetingId);
-            return;
-        }
-
-        List<String> participantIds = participants.stream()
-                .map(User::getId)
-                .filter(id -> !id.equals(userId))
+        // 보드 전체 멤버 (본인 포함)
+        List<BoardMember> members = boardMemberRepository.findByBoardId(boardId);
+        List<String> memberUserIds = members.stream()
+                .map(m -> m.getUser().getId())
                 .toList();
 
-        if (participantIds.isEmpty()) {
-            return;
-        }
-
         // In-app notification
-        notificationService.createMeetingMemoNotifications(meeting, sender, board, participantIds);
+        notificationService.createMeetingMemoNotifications(meeting, sender, board, memberUserIds);
         // Slack notification (async)
-        slackNotificationService.sendMeetingMemoNotifications(meeting, sender, board, participantIds);
+        slackNotificationService.sendMeetingMemoNotifications(meeting, sender, board, memberUserIds);
 
-        log.info("Meeting memo notifications sent for meeting: {} to {} participants", meetingId, participantIds.size());
+        log.info("Meeting memo notifications sent for meeting: {} to {} members", meetingId, memberUserIds.size());
     }
 
     private MeetingAIResponse.Suggestions deserializeAiSuggestions(Meeting meeting) {
