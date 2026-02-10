@@ -135,4 +135,42 @@ public class CommentResponse {
                     .build();
         }
     }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class MentionSummaryItem {
+        private String id;
+        private String taskId;
+        private String taskTitle;
+        private String content;
+        private String authorName;
+        private LocalDateTime createdAt;
+
+        public static MentionSummaryItem of(Comment comment) {
+            return MentionSummaryItem.builder()
+                    .id(comment.getId())
+                    .taskId(comment.getTask().getId())
+                    .taskTitle(comment.getTask().getTitle())
+                    .content(comment.getContent())
+                    .authorName(comment.getAuthor() != null ? comment.getAuthor().getName() : null)
+                    .createdAt(comment.getCreatedAt())
+                    .build();
+        }
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class MentionSummaryListResponse {
+        private List<MentionSummaryItem> comments;
+        private int totalCount;
+
+        public static MentionSummaryListResponse of(List<Comment> comments) {
+            return MentionSummaryListResponse.builder()
+                    .comments(comments.stream().map(MentionSummaryItem::of).toList())
+                    .totalCount(comments.size())
+                    .build();
+        }
+    }
 }

@@ -57,6 +57,9 @@ dependencies {
     // Image Thumbnail
     implementation 'net.coobird:thumbnailator:0.4.20'
 
+    // FFmpeg (Video Thumbnail)
+    implementation 'net.bramp.ffmpeg:ffmpeg:0.8.0'
+
     // Google OAuth2
     implementation 'com.google.api-client:google-api-client:2.2.0'
 

@@ -10,8 +10,8 @@ import org.springframework.web.multipart.MultipartFile;
  */
 public interface FileUploadService {
 
-    /** 이미지 파일 검증 (Content-Type + 매직바이트) */
-    void validateImageFile(MultipartFile file);
+    /** 미디어 파일 검증 (Content-Type + 매직바이트, 이미지+영상) */
+    void validateFile(MultipartFile file);
 
     /** 임시 경로에 파일 업로드 (presigned URL 대안) */
     TempUploadResult uploadTemp(MultipartFile file);

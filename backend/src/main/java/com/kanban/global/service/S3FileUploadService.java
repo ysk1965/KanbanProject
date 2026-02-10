@@ -2,8 +2,7 @@ package com.kanban.global.service;
 
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
-import com.kanban.global.util.ImageUtils;
-import lombok.RequiredArgsConstructor;
+import com.kanban.global.util.MediaUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -25,15 +24,18 @@ import java.util.UUID;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 @ConditionalOnProperty(name = "app.file.s3-enabled", havingValue = "true")
 public class S3FileUploadService implements FileUploadService {
 
     private final S3Client s3Client;
     private final S3Presigner s3Presigner;
+    private final VideoThumbnailService videoThumbnailService;
 
     @Value("${app.file.max-size:5242880}")
     private long maxFileSize;
+
+    @Value("${app.file.video.max-size:52428800}")
+    private long videoMaxFileSize;
 
     @Value("${app.file.allowed-types:image/jpeg,image/png,image/gif,image/webp}")
     private List<String> allowedTypes;
@@ -56,22 +58,31 @@ public class S3FileUploadService implements FileUploadService {
     @Value("${app.file.temp-expiry-minutes:60}")
     private int tempExpiryMinutes;
 
+    public S3FileUploadService(S3Client s3Client, S3Presigner s3Presigner,
+                               VideoThumbnailService videoThumbnailService) {
+        this.s3Client = s3Client;
+        this.s3Presigner = s3Presigner;
+        this.videoThumbnailService = videoThumbnailService;
+    }
+
     @Override
-    public void validateImageFile(MultipartFile file) {
+    public void validateFile(MultipartFile file) {
         if (file.isEmpty()) {
             throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
-        }
-        if (file.getSize() > maxFileSize) {
-            throw new BusinessException(ErrorCode.FILE_TOO_LARGE);
         }
         String contentType = file.getContentType();
         if (contentType == null || !allowedTypes.contains(contentType)) {
             throw new BusinessException(ErrorCode.FILE_TYPE_NOT_ALLOWED);
         }
+        // 타입별 용량 제한
+        long sizeLimit = MediaUtils.isVideoType(contentType) ? videoMaxFileSize : maxFileSize;
+        if (file.getSize() > sizeLimit) {
+            throw new BusinessException(ErrorCode.FILE_TOO_LARGE);
+        }
         // 매직바이트 검증
         try {
             byte[] bytes = file.getBytes();
-            if (!ImageUtils.isValidImageMagicBytes(bytes, contentType)) {
+            if (!MediaUtils.isValidMediaMagicBytes(bytes, contentType)) {
                 throw new BusinessException(ErrorCode.FILE_TYPE_NOT_ALLOWED);
             }
         } catch (IOException e) {
@@ -81,9 +92,9 @@ public class S3FileUploadService implements FileUploadService {
 
     @Override
     public TempUploadResult uploadTemp(MultipartFile file) {
-        validateImageFile(file);
+        validateFile(file);
 
-        String extension = ImageUtils.getExtension(file.getOriginalFilename());
+        String extension = MediaUtils.getExtension(file.getOriginalFilename());
         String tempKey = String.format("temp/%s%s", UUID.randomUUID(), extension);
 
         try {
@@ -116,11 +127,12 @@ public class S3FileUploadService implements FileUploadService {
         if (!allowedTypes.contains(contentType)) {
             throw new BusinessException(ErrorCode.FILE_TYPE_NOT_ALLOWED);
         }
-        if (fileSize > maxFileSize) {
+        long sizeLimit = MediaUtils.isVideoType(contentType) ? videoMaxFileSize : maxFileSize;
+        if (fileSize > sizeLimit) {
             throw new BusinessException(ErrorCode.FILE_TOO_LARGE);
         }
 
-        String extension = ImageUtils.getExtension(fileName);
+        String extension = MediaUtils.getExtension(fileName);
         String tempKey = String.format("temp/%s%s", UUID.randomUUID(), extension);
 
         PutObjectPresignRequest presignRequest = PutObjectPresignRequest.builder()
@@ -142,14 +154,13 @@ public class S3FileUploadService implements FileUploadService {
 
     @Override
     public PermanentResult moveToPermanent(String tempKey, String boardId, String commentId) {
-        // temp 파일 읽기
         try {
             HeadObjectResponse head = s3Client.headObject(HeadObjectRequest.builder()
                     .bucket(bucketName).key(tempKey).build());
 
             String contentType = head.contentType();
             long fileSize = head.contentLength();
-            String extension = ImageUtils.getExtension(tempKey);
+            String extension = MediaUtils.getExtension(tempKey);
 
             // 영구 경로
             String permanentKey = String.format("%s/%s/%s/%s%s",
@@ -161,23 +172,33 @@ public class S3FileUploadService implements FileUploadService {
                     .destinationBucket(bucketName).destinationKey(permanentKey)
                     .build());
 
-            // 썸네일 생성
+            // 썸네일 생성 (이미지 vs 영상 분기)
             String thumbnailKey = permanentKey.replaceAll("\\.[^.]+$", "_thumb.jpg");
             String thumbnailUrl = "";
             try {
                 ResponseInputStream<GetObjectResponse> objStream = s3Client.getObject(
                         GetObjectRequest.builder().bucket(bucketName).key(tempKey).build());
                 byte[] originalBytes = objStream.readAllBytes();
-                byte[] thumbnailBytes = ImageUtils.generateThumbnail(originalBytes, thumbnailMaxWidth, thumbnailMaxHeight);
 
-                s3Client.putObject(PutObjectRequest.builder()
-                        .bucket(bucketName).key(thumbnailKey)
-                        .contentType("image/jpeg")
-                        .contentLength((long) thumbnailBytes.length)
-                        .build(), RequestBody.fromBytes(thumbnailBytes));
+                byte[] thumbnailBytes;
+                if (MediaUtils.isVideoType(contentType)) {
+                    thumbnailBytes = videoThumbnailService.extractThumbnail(originalBytes, extension, thumbnailMaxWidth, thumbnailMaxHeight);
+                } else {
+                    thumbnailBytes = MediaUtils.generateThumbnail(originalBytes, thumbnailMaxWidth, thumbnailMaxHeight);
+                }
 
-                thumbnailUrl = buildUrl(thumbnailKey);
-                log.info("Thumbnail generated: {}", thumbnailKey);
+                if (thumbnailBytes != null && thumbnailBytes.length > 0) {
+                    s3Client.putObject(PutObjectRequest.builder()
+                            .bucket(bucketName).key(thumbnailKey)
+                            .contentType("image/jpeg")
+                            .contentLength((long) thumbnailBytes.length)
+                            .build(), RequestBody.fromBytes(thumbnailBytes));
+
+                    thumbnailUrl = buildUrl(thumbnailKey);
+                    log.info("Thumbnail generated: {}", thumbnailKey);
+                } else {
+                    thumbnailKey = null;
+                }
             } catch (Exception e) {
                 log.warn("Failed to generate thumbnail for {}: {}", tempKey, e.getMessage());
                 thumbnailKey = null;

@@ -10,6 +10,7 @@ import { ScheduleDetailPanel } from './ScheduleDetailPanel';
 import { ChecklistCreateModal } from './ChecklistCreateModal';
 import { ScheduleSettingsModal, ScheduleDisplayMode } from './ScheduleSettingsModal';
 import { WeeklySummaryModal } from './WeeklySummaryModal';
+import { DailySummaryModal } from './DailySummaryModal';
 import { DailyChecklistView } from './DailyChecklistView';
 import { MeetingView } from './MeetingView';
 import { BoardMember as BoardMemberType } from '../types';
@@ -360,6 +361,38 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
     setPendingBlock(null);
   };
 
+  // 현재 시간 표시선용 상태 (1분마다 갱신)
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // 현재 시간의 Y 위치 계산 (px)
+  const currentTimeTop = useMemo(() => {
+    if (!isToday || viewMode !== 'day') return null;
+    const h = now.getHours();
+    const m = now.getMinutes();
+    const minutesFromStart = (h - workStartHour) * 60 + m;
+    const totalMinutes = (workEndHour - workStartHour) * 60;
+    if (minutesFromStart < 0 || minutesFromStart > totalMinutes) return null;
+    return minutesFromStart * (SLOT_HEIGHT / 30);
+  }, [now, isToday, viewMode, workStartHour, workEndHour]);
+
+  // 현재 시간 표시선이 보이도록 자동 스크롤
+  const timeIndicatorRef = useRef<HTMLDivElement>(null);
+  const hasScrolledRef = useRef(false);
+  useEffect(() => {
+    if (currentTimeTop != null && timeIndicatorRef.current && !hasScrolledRef.current) {
+      timeIndicatorRef.current.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      hasScrolledRef.current = true;
+    }
+  }, [currentTimeTop]);
+  // 날짜가 바뀌면 스크롤 플래그 리셋
+  useEffect(() => {
+    hasScrolledRef.current = false;
+  }, [selectedDate]);
+
   // selectedBlock을 ref로 추적 (handleBlockResize의 stale closure 방지)
   const selectedBlockRef = useRef(selectedBlock);
   useEffect(() => {
@@ -565,6 +598,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
           onDateChange={setSelectedDate}
           currentUserRole={currentUserRole}
           memberColorMap={memberColorMap}
+          refreshTrigger={refreshTrigger}
         />
       ) : (
       /* 타임블록 탭 - 스케줄 그리드 */
@@ -590,7 +624,15 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
                     >
                       {getInitials(member.name)}
                     </div>
-                    <span className="text-sm font-medium text-foreground">{member.name}</span>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm font-medium text-foreground truncate block">{member.name}</span>
+                      <button
+                        onClick={() => setSummaryMember(member)}
+                        className="text-[10px] text-bridge-accent hover:text-bridge-accent/80 transition-colors mt-0.5"
+                      >
+                        {t('dailySummary.summaryButton')}
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -675,7 +717,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
             {/* 시간 그리드 */}
             <div className="relative">
               {timeSlots.map((time, slotIndex) => (
-                <div key={time} className="flex border-b border-kanban-border">
+                <div key={time} className="flex border-b border-kanban-border" style={{ height: `${SLOT_HEIGHT}px` }}>
                   {/* 시간/블록 라벨 */}
                   <div className="w-14 md:w-20 flex-shrink-0 p-2 text-xs text-zinc-400 border-r border-kanban-border bg-kanban-bg">
                     {displayMode === 'block'
@@ -688,12 +730,11 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
                     return (
                       <div
                         key={`${member.userId}-${time}`}
-                        className={`w-36 md:w-48 flex-shrink-0 border-r border-kanban-border transition-colors group relative ${
+                        className={`w-36 md:w-48 flex-shrink-0 border-r border-kanban-border transition-colors group relative h-full ${
                           isViewer ? 'cursor-default' : 'cursor-pointer'
                         } ${
                           isSelected ? 'bg-[#2DD4BF]/20' : isViewer ? '' : 'hover:bg-white/5'
                         }`}
-                        style={{ height: `${SLOT_HEIGHT}px` }}
                         onMouseDown={(e) => handleMouseDown(e, member.userId, slotIndex)}
                         onMouseEnter={() => handleMouseEnter(member.userId, slotIndex)}
                       >
@@ -707,10 +748,31 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
                     );
                   })}
                   {activeMembers.length === 0 && (
-                    <div className="flex-1 border-r border-kanban-border" style={{ height: `${SLOT_HEIGHT}px` }} />
+                    <div className="flex-1 border-r border-kanban-border h-full" />
                   )}
                 </div>
               ))}
+
+              {/* 현재 시간 표시선 */}
+              {currentTimeTop != null && (
+                <div
+                  ref={timeIndicatorRef}
+                  className="absolute left-0 right-0 z-[5] pointer-events-none flex items-center"
+                  style={{ top: `${currentTimeTop}px` }}
+                >
+                  {/* 왼쪽 시간 라벨 */}
+                  <div className="w-14 md:w-20 flex-shrink-0 flex justify-end pr-1">
+                    <span className="text-[10px] font-bold text-red-400 bg-red-500/20 px-1 rounded">
+                      {now.getHours().toString().padStart(2, '0')}:{now.getMinutes().toString().padStart(2, '0')}
+                    </span>
+                  </div>
+                  {/* 빨간 선 */}
+                  <div className="flex-1 flex items-center">
+                    <div className="w-2 h-2 rounded-full bg-red-500 -ml-1 flex-shrink-0" />
+                    <div className="flex-1 h-[2px] bg-red-500/70" />
+                  </div>
+                </div>
+              )}
 
               {/* 스케줄 블록들 (각 멤버 컬럼 위에 absolute로 배치) */}
               <div className="absolute top-0 left-14 md:left-20 right-0 pointer-events-none">
@@ -940,6 +1002,17 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
           member={summaryMember}
           weekDays={weekDays}
           weeklyData={weeklyData}
+          onClose={() => setSummaryMember(null)}
+        />
+      )}
+
+      {/* 일일 요약 모달 */}
+      {summaryMember && viewMode === 'day' && (
+        <DailySummaryModal
+          boardId={boardId}
+          member={summaryMember}
+          selectedDate={selectedDate}
+          blocks={blocksByUser.get(summaryMember.userId) || []}
           onClose={() => setSummaryMember(null)}
         />
       )}

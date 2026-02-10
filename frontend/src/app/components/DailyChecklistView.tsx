@@ -16,6 +16,7 @@ interface DailyChecklistViewProps {
   onDateChange: (date: Date) => void;
   currentUserRole?: string;
   memberColorMap?: Record<string, string | null>;
+  refreshTrigger?: number;
 }
 
 export function DailyChecklistView({
@@ -25,6 +26,7 @@ export function DailyChecklistView({
   onDateChange,
   currentUserRole,
   memberColorMap,
+  refreshTrigger,
 }: DailyChecklistViewProps) {
   const { t } = useTranslation();
   const [columns, setColumns] = useState<DailyChecklistColumnResponse[]>([]);
@@ -75,7 +77,7 @@ export function DailyChecklistView({
 
   useEffect(() => {
     loadData();
-  }, [loadData]);
+  }, [loadData, refreshTrigger]);
 
   // 날짜 네비게이션
   const handlePrev = () => onDateChange(subDays(selectedDate, 1));
