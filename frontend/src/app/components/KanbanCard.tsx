@@ -244,7 +244,7 @@ export function KanbanCard({
               {checklistAssignees.slice(0, 3).map((assignee) => (
                 <div
                   key={assignee.id}
-                  className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white border border-white/20"
+                  className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white border border-white/20 whitespace-nowrap overflow-hidden"
                   style={{ backgroundColor: cardColor }}
                   title={assignee.name}
                 >
@@ -305,7 +305,7 @@ export function KanbanCard({
                   </span>
                   {item.assignee && (
                     <div
-                      className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0 border border-white/20"
+                      className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0 border border-white/20 whitespace-nowrap overflow-hidden"
                       style={{ backgroundColor: cardColor }}
                       title={item.assignee.name}
                     >

@@ -126,6 +126,15 @@ public class ScheduleController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/scheduled-task-ids")
+    public ResponseEntity<Map<String, Object>> getScheduledTaskIds(
+            @PathVariable String boardId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        List<String> taskIds = scheduleService.getScheduledTaskIds(
+                boardId, principal.getUserId());
+        return ResponseEntity.ok(Map.of("task_ids", taskIds));
+    }
+
     @GetMapping("/checklist-item/{checklistItemId}")
     public ResponseEntity<List<ScheduleResponse.BlockDetail>> getSchedulesByChecklistItem(
             @PathVariable String boardId,

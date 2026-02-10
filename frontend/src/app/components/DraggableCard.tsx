@@ -1,6 +1,6 @@
 import { useRef, useState, useMemo, useEffect } from 'react';
 import { Task, Tag, Feature, ChecklistItem } from '../types';
-import { Calendar, ChevronDown, ChevronUp, CheckSquare, Check } from 'lucide-react';
+import { Calendar, Clock, ChevronDown, ChevronUp, CheckSquare, Check } from 'lucide-react';
 import { checklistAPI } from '../utils/api';
 import { useDragContext } from '../contexts/DragContext';
 import { getAssigneeHex, getInitials } from '../utils/assigneeColor';
@@ -23,6 +23,7 @@ interface DraggableCardProps {
   checklistData?: ChecklistItem[];
   memberColorMap?: Record<string, string | null>;
   showFeatureLabel?: boolean;
+  isScheduled?: boolean;
 }
 
 export function DraggableCard({
@@ -38,6 +39,7 @@ export function DraggableCard({
   checklistData,
   memberColorMap,
   showFeatureLabel = false,
+  isScheduled = false,
 }: DraggableCardProps) {
   const { t } = useTranslation();
   const ref = useRef<HTMLDivElement>(null);
@@ -380,6 +382,11 @@ export function DraggableCard({
       {/* 체크리스트 & 담당자 */}
       <div className="flex items-center justify-between border-t border-kanban-border pt-2 pl-2.5">
         <div className="flex items-center gap-3">
+          {isScheduled && (
+            <div className="flex items-center gap-1" title={t('card.hasTimeblock', 'Timeblock scheduled')}>
+              <Clock size={11} className="text-teal-400" />
+            </div>
+          )}
           {hasChecklist && boardId && (
             <button
               onClick={handleExpandClick}
@@ -418,7 +425,7 @@ export function DraggableCard({
               {allAssignees.slice(0, 3).map((assignee, index) => (
                 <div
                   key={assignee.id}
-                  className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white border-2 border-kanban-card-hover"
+                  className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white border-2 border-kanban-card-hover whitespace-nowrap overflow-hidden"
                   style={{
                     backgroundColor: getAssigneeHex(assignee.name, memberColorMap?.[assignee.id]),
                     zIndex: 3 - index,
@@ -489,7 +496,7 @@ export function DraggableCard({
                   </span>
                   {item.assignee && (
                     <div
-                      className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0 border border-white/20"
+                      className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0 border border-white/20 whitespace-nowrap overflow-hidden"
                       style={{ backgroundColor: getAssigneeHex(item.assignee.name, item.assignee?.id ? memberColorMap?.[item.assignee.id] : undefined) }}
                       title={item.assignee.name}
                     >

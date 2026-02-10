@@ -259,7 +259,7 @@ export function ScheduleDetailPanel({
                             <img src={p.profile_image} alt={p.name} className="w-4 h-4 rounded-full" />
                           ) : (
                             <div
-                              className="w-4 h-4 rounded-full flex items-center justify-center text-[9px] text-white font-medium"
+                              className="w-4 h-4 rounded-full flex items-center justify-center text-[9px] text-white font-medium whitespace-nowrap overflow-hidden"
                               style={{ backgroundColor: getAssigneeHex(p.name) }}
                             >
                               {getInitials(p.name)}

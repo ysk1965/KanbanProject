@@ -392,7 +392,7 @@ export function FilterModal({
                         }`}
                       >
                         <div
-                          className="w-6 h-6 rounded-full flex items-center justify-center text-xs text-white flex-shrink-0"
+                          className="w-6 h-6 rounded-full flex items-center justify-center text-xs text-white flex-shrink-0 whitespace-nowrap overflow-hidden"
                           style={{ backgroundColor: getAssigneeHex(member, memberColorMap?.[member]) }}
                         >
                           {getInitials(member)}

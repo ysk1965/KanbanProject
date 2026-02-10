@@ -1858,6 +1858,12 @@ export const scheduleAPI = {
       `/boards/${boardId}/schedules/checklist-item/${checklistItemId}`
     );
   },
+
+  getScheduledTaskIds: async (boardId: string) => {
+    return apiClient.get<{ task_ids: string[] }>(
+      `/boards/${boardId}/schedules/scheduled-task-ids`
+    );
+  },
 };
 
 // ========================================

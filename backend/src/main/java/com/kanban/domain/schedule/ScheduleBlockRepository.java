@@ -88,6 +88,14 @@ public interface ScheduleBlockRepository extends JpaRepository<ScheduleBlock, St
     @Query("SELECT DISTINCT sb.assignee FROM ScheduleBlock sb WHERE sb.meeting.id = :meetingId ORDER BY sb.assignee.name")
     List<com.kanban.domain.user.User> findDistinctAssigneesByMeetingId(@Param("meetingId") String meetingId);
 
+    /**
+     * 스케줄 블록이 있는 체크리스트의 Task ID 목록 (중복 제거)
+     */
+    @Query("SELECT DISTINCT sb.checklistItem.task.id FROM ScheduleBlock sb " +
+           "WHERE sb.board.id = :boardId " +
+           "AND sb.checklistItem IS NOT NULL")
+    List<String> findScheduledTaskIdsByBoardId(@Param("boardId") String boardId);
+
     long countByBoardId(String boardId);
 
     @Modifying

@@ -62,7 +62,7 @@ import {
   checklistService,
   inquiryService
 } from '../utils/services';
-import { notificationAPI, checklistAPI } from '../utils/api';
+import { notificationAPI, checklistAPI, scheduleAPI } from '../utils/api';
 
 import { useTranslation } from 'react-i18next';
 import { getRandomFeatureColor } from '../constants';
@@ -108,6 +108,8 @@ export function KanbanBoardPage() {
   const [isLoading, setIsLoading] = useState(true);
   // 배치 로드된 체크리스트 데이터 (taskId -> ChecklistItem[])
   const [checklistDataMap, setChecklistDataMap] = useState<{ [taskId: string]: ChecklistItem[] }>({});
+  // 스케줄 블록이 있는 Task ID 세트 (타임블록 정렬/표시용)
+  const [scheduledTaskIds, setScheduledTaskIds] = useState<Set<string>>(new Set());
 
   // Tier & Limits 상태
   const [tierInfo, setTierInfo] = useState<BoardTierInfo | null>(null);
@@ -270,6 +272,14 @@ export function KanbanBoardPage() {
             console.warn('Failed to load batch checklists:', error);
             // 배치 로드 실패 시 개별 로드로 fallback (DraggableCard에서 처리)
           }
+        }
+
+        // 스케줄 블록이 있는 Task ID 로드
+        try {
+          const scheduledData = await scheduleAPI.getScheduledTaskIds(boardId);
+          setScheduledTaskIds(new Set(scheduledData.task_ids));
+        } catch (error) {
+          console.warn('Failed to load scheduled task ids:', error);
         }
       } catch (error) {
         console.error('Failed to load board data:', error);
@@ -501,6 +511,14 @@ export function KanbanBoardPage() {
       } else {
         setChecklistDataMap({});
       }
+
+      // 스케줄 블록이 있는 Task ID 리로드
+      try {
+        const scheduledData = await scheduleAPI.getScheduledTaskIds(boardId);
+        setScheduledTaskIds(new Set(scheduledData.task_ids));
+      } catch (error) {
+        console.warn('Failed to load scheduled task ids:', error);
+      }
     } catch (error) {
       console.error('Failed to reload features and tasks:', error);
     }
@@ -712,9 +730,12 @@ export function KanbanBoardPage() {
     }
   };
 
-  const handleDeleteBlock = (blockId: string) => {
+  const handleDeleteBlock = async (blockId: string) => {
     const blockToDelete = blocks.find((b) => b.id === blockId);
     if (!blockToDelete || blockToDelete.type === 'FIXED') return;
+
+    const previousBlocks = blocks;
+    const previousTasks = tasks;
 
     const updatedTasks = tasks.map((task) =>
       task.block_id === blockId ? { ...task, block_id: 'task' } : task
@@ -731,6 +752,16 @@ export function KanbanBoardPage() {
 
     setTasks(updatedTasks);
     setBlocks(updatedBlocks);
+
+    if (boardId) {
+      try {
+        await blockService.deleteBlock(boardId, blockId);
+      } catch (error) {
+        console.error('Failed to delete block:', error);
+        setBlocks(previousBlocks);
+        setTasks(previousTasks);
+      }
+    }
   };
 
   const handleMoveBlock = (blockId: string, direction: 'left' | 'right') => {
@@ -1288,6 +1319,16 @@ export function KanbanBoardPage() {
     if (selectedFeatureIds !== null) {
       blockTasks = blockTasks.filter((task) => selectedFeatureIds.includes(task.feature_id));
     }
+    // Task 블록에서는 타임블록이 있는 카드를 위쪽으로 정렬
+    const block = sortedBlocks.find((b) => b.id === blockId);
+    if (block?.fixed_type === 'TASK' && scheduledTaskIds.size > 0) {
+      return blockTasks.sort((a, b) => {
+        const aScheduled = scheduledTaskIds.has(a.id) ? 0 : 1;
+        const bScheduled = scheduledTaskIds.has(b.id) ? 0 : 1;
+        if (aScheduled !== bScheduled) return aScheduled - bScheduled;
+        return a.position - b.position;
+      });
+    }
     return blockTasks.sort((a, b) => a.position - b.position);
   };
 
@@ -1788,7 +1829,7 @@ export function KanbanBoardPage() {
                         }`}
                       >
                         <div
-                          className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] text-white font-bold"
+                          className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] text-white font-bold whitespace-nowrap overflow-hidden"
                           style={{ backgroundColor: getAssigneeHex(member.name, member.assigneeColor) }}
                         >
                           {getInitials(member.name)}
@@ -2086,6 +2127,7 @@ export function KanbanBoardPage() {
                       checklistDataMap={checklistDataMap}
                       memberColorMap={memberColorMap}
                       showFeatureLabel={showFeatureLabel}
+                      scheduledTaskIds={scheduledTaskIds}
                     />
 
                   {block.fixed_type === 'TASK' && (

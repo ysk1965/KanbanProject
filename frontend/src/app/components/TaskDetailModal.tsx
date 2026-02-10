@@ -598,7 +598,7 @@ export function TaskDetailModal({
                       <div key={assignee.id} className={`flex items-center gap-2 px-3 py-2 ${color.bgLight} border border-white/10 rounded-lg`}
                         style={!color.bgLight ? { backgroundColor: color.hex + '20' } : undefined}
                       >
-                        <div className={`w-6 h-6 rounded-full ${color.bg} flex items-center justify-center text-xs text-white`}
+                        <div className={`w-6 h-6 rounded-full ${color.bg} flex items-center justify-center text-xs text-white whitespace-nowrap overflow-hidden`}
                           style={!color.bg ? { backgroundColor: color.hex } : undefined}
                         >
                           {getInitials(assignee.name)}
@@ -1279,7 +1279,7 @@ function ChecklistItemRow({
                   style={!assigneeColor.bgLight ? { backgroundColor: assigneeColor.hex + '20' } : undefined}
                 >
                   <div
-                    className={`w-4 h-4 rounded-full ${assigneeColor.bg} flex items-center justify-center text-[9px] font-bold text-white`}
+                    className={`w-4 h-4 rounded-full ${assigneeColor.bg} flex items-center justify-center text-[9px] font-bold text-white whitespace-nowrap overflow-hidden`}
                     style={!assigneeColor.bg ? { backgroundColor: assigneeColor.hex } : undefined}
                   >
                     {getInitials(item.assignee.name)}
@@ -1319,7 +1319,7 @@ function ChecklistItemRow({
                         item.assignee?.id === member.userId ? 'bg-white/10 text-foreground' : 'text-slate-300'
                       }`}
                     >
-                      <div className={`w-4 h-4 rounded-full ${memberColor.bg} flex items-center justify-center text-[9px] font-bold text-white`}
+                      <div className={`w-4 h-4 rounded-full ${memberColor.bg} flex items-center justify-center text-[9px] font-bold text-white whitespace-nowrap overflow-hidden`}
                         style={!memberColor.bg ? { backgroundColor: memberColor.hex } : undefined}
                       >
                         {getInitials(member.name)}
@@ -1339,7 +1339,7 @@ function ChecklistItemRow({
               style={!assigneeColor.bgLight ? { backgroundColor: assigneeColor.hex + '20' } : undefined}
             >
               <div
-                className={`w-4 h-4 rounded-full ${assigneeColor.bg} flex items-center justify-center text-[9px] font-bold text-white`}
+                className={`w-4 h-4 rounded-full ${assigneeColor.bg} flex items-center justify-center text-[9px] font-bold text-white whitespace-nowrap overflow-hidden`}
                 style={!assigneeColor.bg ? { backgroundColor: assigneeColor.hex } : undefined}
               >
                 {getInitials(item.assignee.name)}
@@ -1594,7 +1594,7 @@ function AddChecklistItemInput({
                   <SelectTrigger className="h-7 text-xs bg-white/5 border-white/10 text-foreground">
                     {selectedMember ? (
                       <div className="flex items-center gap-1">
-                        <div className="w-4 h-4 rounded-full bg-bridge-accent flex items-center justify-center text-[10px] text-white flex-shrink-0">
+                        <div className="w-4 h-4 rounded-full bg-bridge-accent flex items-center justify-center text-[10px] text-white flex-shrink-0 whitespace-nowrap overflow-hidden">
                           {getInitials(selectedMember.name)}
                         </div>
                         <span>{selectedMember.name}</span>
@@ -1610,7 +1610,7 @@ function AddChecklistItemInput({
                     {boardMembers.map((member) => (
                       <SelectItem key={member.userId} value={member.userId} className="text-foreground hover:bg-white/10">
                         <div className="flex items-center gap-2">
-                          <div className="w-4 h-4 rounded-full bg-bridge-accent flex items-center justify-center text-[10px] text-white flex-shrink-0">
+                          <div className="w-4 h-4 rounded-full bg-bridge-accent flex items-center justify-center text-[10px] text-white flex-shrink-0 whitespace-nowrap overflow-hidden">
                             {getInitials(member.name)}
                           </div>
                           <span className="text-xs">{member.name}</span>
