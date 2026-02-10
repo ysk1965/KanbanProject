@@ -947,7 +947,7 @@ export function KanbanBoardPage() {
     setTasks(tasks.map((t) => (t.id === taskId ? { ...t, ...updates } : t)));
 
     const isOnlyChecklistUpdate = Object.keys(updates).every(key =>
-      key === 'checklist_total' || key === 'checklist_completed'
+      key === 'checklist_total' || key === 'checklist_completed' || key === 'checklist_version'
     );
 
     if (isOnlyChecklistUpdate) {
