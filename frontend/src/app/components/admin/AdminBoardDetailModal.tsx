@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Folder, Users, ListTodo, Calendar, Trash2, Crown, Shield, User as UserIcon, Eye, ArrowRightLeft, CalendarPlus, AlertTriangle, Armchair, ChevronDown } from 'lucide-react';
-import { adminService } from '../../utils/services';
+import { X, Folder, Users, ListTodo, Calendar, Trash2, Crown, Shield, User as UserIcon, Eye, ArrowRightLeft, CalendarPlus, AlertTriangle, Armchair, ChevronDown, Link2, Copy, Check } from 'lucide-react';
+import { adminService, inviteLinkService } from '../../utils/services';
 import { AdminBoardDetail } from '../../utils/api';
 import { formatDateTime, formatDate } from '../../utils/dateUtils';
 import { ConfirmModal, PromptModal, SelectModal, Toast } from './AdminConfirmModal';
@@ -25,6 +25,9 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
   const [promptAction, setPromptAction] = useState<{ title: string; message: string; placeholder?: string; defaultValue?: string; inputType?: 'text' | 'number'; required?: boolean; onConfirm: (value: string) => void } | null>(null);
   const [selectAction, setSelectAction] = useState<{ title: string; message: string; options: { id: string; label: string; description?: string }[]; onConfirm: (id: string) => void } | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [inviteCode, setInviteCode] = useState<string | null>(null);
+  const [isGeneratingInvite, setIsGeneratingInvite] = useState(false);
+  const [copiedDomain, setCopiedDomain] = useState<string | null>(null);
 
   useEffect(() => {
     loadBoardDetail();
@@ -196,6 +199,32 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
         }
       },
     });
+  };
+
+  const handleGenerateInviteLink = async (role: 'ADMIN' | 'MEMBER' | 'VIEWER') => {
+    if (!board) return;
+    try {
+      setIsGeneratingInvite(true);
+      const link = await inviteLinkService.createInviteLink(boardId, {
+        role,
+        expires_in_hours: 168, // 7일
+      });
+      setInviteCode(link.code);
+      setToast({ message: '초대 링크가 생성되었습니다.', type: 'success' });
+    } catch (err) {
+      console.error('Failed to generate invite link:', err);
+      setToast({ message: '초대 링크 생성에 실패했습니다.', type: 'error' });
+    } finally {
+      setIsGeneratingInvite(false);
+    }
+  };
+
+  const handleCopyInviteUrl = (domain: string) => {
+    if (!inviteCode) return;
+    const url = `https://${domain}/invite/${inviteCode}`;
+    navigator.clipboard.writeText(url);
+    setCopiedDomain(domain);
+    setTimeout(() => setCopiedDomain(null), 2000);
   };
 
   const formatDateLocal = (dateString: string | null | undefined) => {
@@ -500,6 +529,70 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                       </span>
                     )}
                   </button>
+                </div>
+              </div>
+
+              {/* Invite Link Generator */}
+              <div className="border-t border-white/10 pt-6 space-y-4">
+                <h4 className="text-lg font-bold text-white flex items-center gap-2">
+                  <Link2 className="h-5 w-5 text-bridge-accent" />
+                  초대 URL 생성
+                </h4>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <select
+                      id="invite-role-select"
+                      defaultValue="MEMBER"
+                      className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
+                    >
+                      <option value="VIEWER" className="bg-bridge-dark text-white">VIEWER</option>
+                      <option value="MEMBER" className="bg-bridge-dark text-white">MEMBER</option>
+                      <option value="ADMIN" className="bg-bridge-dark text-white">ADMIN</option>
+                    </select>
+                    <button
+                      onClick={() => {
+                        const select = document.getElementById('invite-role-select') as HTMLSelectElement;
+                        handleGenerateInviteLink(select.value as 'ADMIN' | 'MEMBER' | 'VIEWER');
+                      }}
+                      disabled={isGeneratingInvite}
+                      className="flex items-center gap-2 px-4 py-2 bg-bridge-accent/10 border border-bridge-accent/30 rounded-lg text-bridge-accent hover:bg-bridge-accent/20 transition-colors disabled:opacity-50 text-sm font-medium"
+                    >
+                      <Link2 className="h-4 w-4" />
+                      {isGeneratingInvite ? '생성 중...' : '링크 생성 (7일)'}
+                    </button>
+                  </div>
+
+                  {inviteCode && (
+                    <div className="space-y-2">
+                      {[
+                        { domain: 'bridgespots.com', label: 'BRIDGE SPOTS' },
+                        { domain: 'milkyway.pe.kr', label: 'Milkyway' },
+                      ].map(({ domain, label }) => (
+                        <div
+                          key={domain}
+                          className="flex items-center gap-2 bg-white/5 rounded-lg p-3"
+                        >
+                          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest shrink-0 w-28">
+                            {label}
+                          </span>
+                          <code className="flex-1 text-sm text-slate-300 truncate">
+                            https://{domain}/invite/{inviteCode}
+                          </code>
+                          <button
+                            onClick={() => handleCopyInviteUrl(domain)}
+                            className="shrink-0 p-1.5 rounded-md hover:bg-white/10 transition-colors"
+                            title="복사"
+                          >
+                            {copiedDomain === domain ? (
+                              <Check className="h-4 w-4 text-green-400" />
+                            ) : (
+                              <Copy className="h-4 w-4 text-slate-400" />
+                            )}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 

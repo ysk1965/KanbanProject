@@ -188,8 +188,9 @@ function BoardsRoute() {
   const loadBoards = async () => {
     try {
       const boardsData = await boardService.getBoards();
-      // TESTER인 경우 참여 중인 보드가 있으면 바로 이동
-      if (hideBilling && boardsData.length > 0) {
+      // TESTER이거나 milkyway.pe.kr 도메인인 경우 참여 중인 보드가 있으면 바로 이동
+      const isMilkyway = window.location.hostname === 'milkyway.pe.kr';
+      if ((hideBilling || isMilkyway) && boardsData.length > 0) {
         navigate(`/boards/${boardsData[0].id}`, { replace: true });
         return;
       }
