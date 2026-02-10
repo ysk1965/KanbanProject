@@ -139,7 +139,7 @@ app:
     max-size: 5242880
     max-count: 5
     allowed-types: image/jpeg,image/png,image/gif,image/webp
-    s3-bucket: ${S3_BUCKET:kanban-attachments}
+    s3-bucket: ${S3_BUCKET:bridge-kanban-attachments}
     cloudfront-domain: ${CLOUDFRONT_DOMAIN:}
     upload-dir: comments
     local-dir: ${FILE_LOCAL_DIR:./uploads}
@@ -207,6 +207,12 @@ spring:
     exclude:
       - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
       - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+
+app:
+  file:
+    s3-enabled: true
+    s3-bucket: ${S3_BUCKET:bridge-kanban-attachments}
+    cloudfront-domain: ${CLOUDFRONT_DOMAIN:}
 
 management:
   health:

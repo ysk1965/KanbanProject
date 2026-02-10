@@ -1415,14 +1415,16 @@ export function KanbanBoardPage() {
       if (filterOptions.members.length > 0) {
         const hasNoAssigneeFilter = filterOptions.members.includes('__no_members__');
         const memberNames = filterOptions.members.filter(m => m !== '__no_members__');
-        // Task의 체크리스트 아이템 담당자 기준으로 필터링
+        // task.assignees (API) + checklistDataMap 보충
+        const taskAssigneeNames = new Set<string>();
+        if (task.assignees) {
+          task.assignees.forEach(a => taskAssigneeNames.add(a.name));
+        }
         const taskChecklists = checklistDataMap[task.id] || [];
-        const taskAssigneeNames = taskChecklists
-          .filter(ci => ci.assignee?.name)
-          .map(ci => ci.assignee!.name);
-        const hasNoAssignee = taskAssigneeNames.length === 0;
+        taskChecklists.filter(ci => ci.assignee?.name).forEach(ci => taskAssigneeNames.add(ci.assignee!.name));
+        const hasNoAssignee = taskAssigneeNames.size === 0;
         const matchesNoAssignee = hasNoAssigneeFilter && hasNoAssignee;
-        const matchesMember = memberNames.length > 0 && memberNames.some(m => taskAssigneeNames.includes(m));
+        const matchesMember = memberNames.length > 0 && memberNames.some(m => taskAssigneeNames.has(m));
         if (!matchesNoAssignee && !matchesMember) {
           return false;
         }

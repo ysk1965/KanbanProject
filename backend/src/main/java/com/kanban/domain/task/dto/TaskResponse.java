@@ -2,6 +2,7 @@ package com.kanban.domain.task.dto;
 
 import com.kanban.domain.tag.Tag;
 import com.kanban.domain.task.Task;
+import com.kanban.domain.user.User;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -34,8 +35,9 @@ public class TaskResponse {
         private List<TagInfo> tags;
         private int checklistTotal;
         private int checklistCompleted;
+        private List<AssigneeInfo> assignees;
 
-        public static Simple of(Task task, List<Tag> tags, int checklistTotal, int checklistCompleted) {
+        public static Simple of(Task task, List<Tag> tags, int checklistTotal, int checklistCompleted, List<AssigneeInfo> assignees) {
             return Simple.builder()
                     .id(task.getId())
                     .featureId(task.getFeature().getId())
@@ -54,6 +56,7 @@ public class TaskResponse {
                     .tags(tags != null ? tags.stream().map(TagInfo::of).toList() : List.of())
                     .checklistTotal(checklistTotal)
                     .checklistCompleted(checklistCompleted)
+                    .assignees(assignees != null ? assignees : List.of())
                     .build();
         }
     }
@@ -144,12 +147,28 @@ public class TaskResponse {
     @Getter
     @Builder
     @AllArgsConstructor
+    public static class AssigneeInfo {
+        private String id;
+        private String name;
+
+        public static AssigneeInfo of(User user) {
+            return AssigneeInfo.builder()
+                    .id(user.getId())
+                    .name(user.getName())
+                    .build();
+        }
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
     public static class ListResponse {
         private List<Simple> tasks;
 
         public static ListResponse of(List<Task> tasks,
                                       Map<String, List<Tag>> taskTagsMap,
-                                      Map<String, int[]> checklistCountMap) {
+                                      Map<String, int[]> checklistCountMap,
+                                      Map<String, List<AssigneeInfo>> taskAssigneesMap) {
             return ListResponse.builder()
                     .tasks(tasks.stream()
                             .map(t -> {
@@ -157,7 +176,8 @@ public class TaskResponse {
                                 return Simple.of(t,
                                         taskTagsMap.getOrDefault(t.getId(), List.of()),
                                         counts[0],
-                                        counts[1]);
+                                        counts[1],
+                                        taskAssigneesMap.getOrDefault(t.getId(), List.of()));
                             })
                             .toList())
                     .build();

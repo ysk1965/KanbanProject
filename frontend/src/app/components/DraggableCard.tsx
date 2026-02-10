@@ -237,16 +237,18 @@ export function DraggableCard({
     }
   }, [isChecklistExpanded]);
 
-  // 모든 담당자 수집 (task 담당자 + 체크리스트 담당자)
+  // 모든 담당자 수집 (task.assignees API 응답 + 체크리스트 담당자 보충)
   const allAssignees = useMemo(() => {
     const assigneeMap = new Map<string, { id: string; name: string }>();
 
-    // task 담당자 추가
-    if (task.assignee) {
-      assigneeMap.set(task.assignee.id, { id: task.assignee.id, name: task.assignee.name });
+    // API 응답의 task.assignees (primary)
+    if (task.assignees) {
+      task.assignees.forEach((a) => {
+        assigneeMap.set(a.id, { id: a.id, name: a.name });
+      });
     }
 
-    // 체크리스트 담당자 추가
+    // 체크리스트 담당자 보충 (체크리스트 펼침 시 최신 데이터 반영)
     checklistItems.forEach((item) => {
       if (item.assignee && !assigneeMap.has(item.assignee.id)) {
         assigneeMap.set(item.assignee.id, { id: item.assignee.id, name: item.assignee.name });
@@ -254,7 +256,7 @@ export function DraggableCard({
     });
 
     return Array.from(assigneeMap.values());
-  }, [task.assignee, checklistItems]);
+  }, [task.assignees, checklistItems]);
 
   // 드래그 중인 다른 카드가 있으면 이 카드는 pointer-events: none (이벤트가 블록으로 직접 전달됨)
   const shouldDisablePointerEvents = state.draggedTask && state.draggedTask.id !== task.id;
