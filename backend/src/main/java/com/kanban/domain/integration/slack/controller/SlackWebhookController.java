@@ -51,9 +51,10 @@ public class SlackWebhookController {
     @PostMapping("/test")
     public ResponseEntity<SlackWebhookResponse.TestResult> testMyWebhook(
             @PathVariable String boardId,
-            @AuthenticationPrincipal UserPrincipal principal) {
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(required = false) String brandName) {
         SlackWebhookResponse.TestResult result = slackWebhookService.testMyWebhook(
-                boardId, principal.getUserId());
+                boardId, principal.getUserId(), brandName);
         return ResponseEntity.ok(result);
     }
 }

@@ -412,7 +412,7 @@ export function MeetingView({ boardId, selectedDate, boardMembers, onRefreshSche
                                     onClick={stopRecording}
                                     className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors"
                                   >
-                                    <Square className="h-3 w-3" />
+                                    <SquareIcon className="h-3 w-3" />
                                     {t('meeting.stopRecording')}
                                   </button>
                                 </>

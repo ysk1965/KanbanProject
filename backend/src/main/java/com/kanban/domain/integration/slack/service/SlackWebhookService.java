@@ -95,24 +95,26 @@ public class SlackWebhookService {
         log.info("Slack webhook deleted for user {} on board {}", userId, boardId);
     }
 
-    public SlackWebhookResponse.TestResult testMyWebhook(String boardId, String userId) {
+    public SlackWebhookResponse.TestResult testMyWebhook(String boardId, String userId, String brandName) {
         boardService.checkViewerOrAbove(boardId, userId);
         validateSlackAccess(boardId);
 
         MemberSlackWebhook webhook = webhookRepository.findByBoardIdAndUserId(boardId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SLACK_WEBHOOK_NOT_FOUND));
 
+        String brand = (brandName != null && !brandName.isBlank()) ? brandName : "BRIDGE SPOTS";
+
         try {
             Map<String, Object> payload = Map.of(
                     "blocks", List.of(
                             Map.of("type", "header",
-                                    "text", Map.of("type", "plain_text", "text", "✅ BRIDGE - 연결 테스트", "emoji", true)),
+                                    "text", Map.of("type", "plain_text", "text", "✅ " + brand + " - 연결 테스트", "emoji", true)),
                             Map.of("type", "section",
                                     "text", Map.of("type", "mrkdwn",
                                             "text", "Slack 연동이 정상적으로 설정되었습니다!\n@멘션 알림이 이 채널로 전송됩니다.")),
                             Map.of("type", "context",
                                     "elements", List.of(
-                                            Map.of("type", "mrkdwn", "text", "Sent from BRIDGE Kanban Board")))
+                                            Map.of("type", "mrkdwn", "text", "Sent from " + brand)))
                     )
             );
 
