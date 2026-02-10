@@ -198,14 +198,22 @@ public class NotificationService {
                 .orElse(true);
     }
 
-    public NotificationResponse.ListResponse getMyNotifications(String userId, LocalDateTime cursor, int limit) {
+    public NotificationResponse.ListResponse getMyNotifications(String userId, String boardId, LocalDateTime cursor, int limit) {
         PageRequest pageable = PageRequest.of(0, limit + 1);
 
         List<Notification> notifications;
-        if (cursor != null) {
-            notifications = notificationRepository.findByRecipientIdWithCursor(userId, cursor, pageable);
+        if (boardId != null) {
+            if (cursor != null) {
+                notifications = notificationRepository.findByRecipientIdAndBoardIdWithCursor(userId, boardId, cursor, pageable);
+            } else {
+                notifications = notificationRepository.findByRecipientIdAndBoardIdOrderByCreatedAtDesc(userId, boardId, pageable);
+            }
         } else {
-            notifications = notificationRepository.findByRecipientIdOrderByCreatedAtDesc(userId, pageable);
+            if (cursor != null) {
+                notifications = notificationRepository.findByRecipientIdWithCursor(userId, cursor, pageable);
+            } else {
+                notifications = notificationRepository.findByRecipientIdOrderByCreatedAtDesc(userId, pageable);
+            }
         }
 
         boolean hasMore = notifications.size() > limit;
@@ -215,7 +223,9 @@ public class NotificationService {
                 ? trimmed.get(trimmed.size() - 1).getCreatedAt()
                 : null;
 
-        long unreadCount = notificationRepository.countUnreadByRecipientId(userId);
+        long unreadCount = boardId != null
+                ? notificationRepository.countUnreadByRecipientIdAndBoardId(userId, boardId)
+                : notificationRepository.countUnreadByRecipientId(userId);
 
         return NotificationResponse.ListResponse.builder()
                 .notifications(trimmed.stream().map(NotificationResponse.Detail::of).toList())
@@ -225,8 +235,10 @@ public class NotificationService {
                 .build();
     }
 
-    public NotificationResponse.UnreadCountResponse getUnreadCount(String userId) {
-        long count = notificationRepository.countUnreadByRecipientId(userId);
+    public NotificationResponse.UnreadCountResponse getUnreadCount(String userId, String boardId) {
+        long count = boardId != null
+                ? notificationRepository.countUnreadByRecipientIdAndBoardId(userId, boardId)
+                : notificationRepository.countUnreadByRecipientId(userId);
         return NotificationResponse.UnreadCountResponse.builder()
                 .unreadCount(count)
                 .build();
@@ -246,7 +258,11 @@ public class NotificationService {
     }
 
     @Transactional
-    public void markAllAsRead(String userId) {
-        notificationRepository.markAllAsRead(userId, LocalDateTime.now(ZoneOffset.UTC));
+    public void markAllAsRead(String userId, String boardId) {
+        if (boardId != null) {
+            notificationRepository.markAllAsReadByBoard(userId, boardId, LocalDateTime.now(ZoneOffset.UTC));
+        } else {
+            notificationRepository.markAllAsRead(userId, LocalDateTime.now(ZoneOffset.UTC));
+        }
     }
 }

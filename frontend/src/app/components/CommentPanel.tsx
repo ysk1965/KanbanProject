@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
 import { TaskComment, CommentAttachment, User } from '../types';
@@ -16,7 +16,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from './ui/alert-dialog';
-import { MessageSquare, Send, RefreshCw, Pencil, Trash2, X, Check, Loader2, Paperclip, Play, Film } from 'lucide-react';
+import { MessageSquare, Send, RefreshCw, Pencil, Trash2, X, Check, Loader2, Paperclip, Play } from 'lucide-react';
+import { VideoThumbnail } from './VideoThumbnail';
+
+const VideoLightbox = lazy(() => import('./VideoLightbox').then(m => ({ default: m.VideoLightbox })));
 
 // ========== 상수 & 유틸 ==========
 
@@ -525,13 +528,16 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
                 type: isVideo ? 'video' : 'image'
               })}
               className="relative group/img rounded-md overflow-hidden border border-white/20 hover:border-white/20 transition-colors">
-              {att.thumbnail_url ? (
+              {isVideo ? (
+                <VideoThumbnail
+                  videoUrl={resolveFileUrl(att.url)}
+                  serverThumbnailUrl={att.thumbnail_url ? resolveFileUrl(att.thumbnail_url) : null}
+                  className="h-20 w-[120px] max-w-[160px] object-cover"
+                  alt={att.file_name}
+                />
+              ) : att.thumbnail_url ? (
                 <img src={resolveFileUrl(att.thumbnail_url)} alt={att.file_name}
                   className="h-20 w-auto max-w-[160px] object-cover" loading="lazy" />
-              ) : isVideo ? (
-                <div className="h-20 w-[120px] bg-black/40 flex items-center justify-center">
-                  <Film className="h-6 w-6 text-slate-400" />
-                </div>
               ) : (
                 <img src={resolveFileUrl(att.url)} alt={att.file_name}
                   className="h-20 w-auto max-w-[160px] object-cover" loading="lazy" />
@@ -569,17 +575,15 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
         {keptExisting.map(att => (
           <div key={att.id} className="relative group/preview">
             {isVideoAttachment(att) ? (
-              att.thumbnail_url ? (
-                <div className="relative h-16 w-[90px]">
-                  <img src={resolveFileUrl(att.thumbnail_url)} alt={att.file_name}
-                    className="h-16 w-[90px] object-cover rounded-md border border-white/20" />
-                  <Play className="absolute bottom-1 left-1 h-3 w-3 text-white drop-shadow" />
-                </div>
-              ) : (
-                <div className="h-16 w-[90px] bg-black/40 rounded-md border border-white/20 flex items-center justify-center">
-                  <Film className="h-5 w-5 text-slate-400" />
-                </div>
-              )
+              <div className="relative h-16 w-[90px]">
+                <VideoThumbnail
+                  videoUrl={resolveFileUrl(att.url)}
+                  serverThumbnailUrl={att.thumbnail_url ? resolveFileUrl(att.thumbnail_url) : null}
+                  className="h-16 w-[90px] object-cover rounded-md border border-white/20"
+                  alt={att.file_name}
+                />
+                <Play className="absolute bottom-1 left-1 h-3 w-3 text-white drop-shadow" />
+              </div>
             ) : (
               <img src={resolveFileUrl(att.thumbnail_url || att.url)} alt={att.file_name}
                 className="h-16 w-auto max-w-[120px] object-cover rounded-md border border-white/20" />
@@ -808,23 +812,27 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
 
       {/* 미디어 라이트박스 - Portal로 body에 렌더링 (모달 transform 영향 회피) */}
       {lightboxMedia && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm cursor-pointer"
-          onMouseDown={e => e.stopPropagation()}
-          onClick={(e) => { e.stopPropagation(); setLightboxMedia(null); }}>
-          <button onClick={(e) => { e.stopPropagation(); setLightboxMedia(null); }}
-            className="absolute top-4 right-4 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors z-10">
-            <X className="h-5 w-5" />
-          </button>
-          {lightboxMedia.type === 'video' ? (
-            <video src={lightboxMedia.url} controls autoPlay
-              className="max-h-[90vh] max-w-[90vw] rounded-lg"
-              onClick={e => e.stopPropagation()} />
-          ) : (
+        lightboxMedia.type === 'video' ? (
+          <Suspense fallback={
+            <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm">
+              <Loader2 className="h-8 w-8 animate-spin text-white" />
+            </div>
+          }>
+            <VideoLightbox url={lightboxMedia.url} onClose={() => setLightboxMedia(null)} />
+          </Suspense>
+        ) : (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm cursor-pointer"
+            onMouseDown={e => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); setLightboxMedia(null); }}>
+            <button onClick={(e) => { e.stopPropagation(); setLightboxMedia(null); }}
+              className="absolute top-4 right-4 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors z-10">
+              <X className="h-5 w-5" />
+            </button>
             <img src={lightboxMedia.url} alt={t('comment.attachedFile')}
               className="max-h-[90vh] max-w-[90vw] object-contain rounded-lg"
               onClick={e => e.stopPropagation()} />
-          )}
-        </div>,
+          </div>
+        ),
         document.body
       )}
 

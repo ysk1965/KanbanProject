@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Plus, Users, Settings, Filter, ArrowLeft, LayoutGrid, Calendar, CalendarDays, Flag, Pencil, Lock, BarChart3, Search, X, User, ChevronDown, CheckCircle2, Circle, Tag as TagIcon, Layers, ChevronsDownUp, ChevronsUpDown, Sparkles, Lightbulb, MessageSquare } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 
@@ -74,8 +74,13 @@ declare const __FE_COMMIT_HASH__: string;
 export function KanbanBoardPage() {
   const { boardId } = useParams<{ boardId: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { t } = useTranslation();
   const { currentUser, logout, hideBilling, isTester } = useAuth();
+
+  // URL 쿼리 파라미터에서 뷰/탭 정보 읽기 (Slack 등 외부 링크용)
+  const urlView = searchParams.get('view') as ViewMode | null;
+  const urlTab = searchParams.get('tab');
 
   // 버전 정보
   const [beCommit, setBeCommit] = useState<string>('');
@@ -85,11 +90,23 @@ export function KanbanBoardPage() {
     fetch(`${origin}/health`).then(r => r.json()).then(d => setBeCommit(d.commit || '')).catch(() => {});
   }, []);
 
-  // 뷰 모드 상태 (localStorage로 탭 유지)
+  // 뷰 모드 상태 (URL 파라미터 우선, 없으면 localStorage)
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    if (urlView && ['kanban', 'weekly', 'schedule', 'statistics', 'ai_report'].includes(urlView)) {
+      return urlView;
+    }
     const saved = localStorage.getItem(`viewMode_${boardId}`);
     return (saved as ViewMode) || 'kanban';
   });
+
+  // URL 쿼리 파라미터 소비 후 제거 (뒤로가기 시 다시 트리거 방지)
+  useEffect(() => {
+    if (urlView || urlTab) {
+      searchParams.delete('view');
+      searchParams.delete('tab');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, []);
 
   // 보드 데이터
   const [board, setBoard] = useState<Board | null>(null);
@@ -329,7 +346,7 @@ export function KanbanBoardPage() {
     if (!boardId || !currentUser) return;
     const fetchUnreadCount = async () => {
       try {
-        const response = await notificationAPI.getUnreadCount();
+        const response = await notificationAPI.getUnreadCount(boardId);
         setUnreadNotificationCount(response.unread_count);
       } catch (error) {
         /* silently fail */
@@ -2164,6 +2181,7 @@ export function KanbanBoardPage() {
               }}
               refreshTrigger={scheduleRefreshKey}
               currentUserRole={currentUserRole}
+              initialSubTab={urlTab as 'timeblock' | 'checklist' | 'meeting' | undefined}
             />
           </main>
         ) : viewMode === 'statistics' ? (

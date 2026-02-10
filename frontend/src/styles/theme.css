@@ -490,3 +490,54 @@ html {
 @theme inline {
   --color-bridge-slate: var(--bridge-slate);
 }
+
+/* ===== Plyr Video Player - Bridge Theme ===== */
+.plyr-bridge-theme {
+  --plyr-color-main: var(--bridge-accent);
+  --plyr-video-background: var(--bridge-obsidian);
+  --plyr-menu-background: var(--bridge-obsidian);
+  --plyr-menu-color: #e2e8f0;
+  --plyr-badge-background: var(--bridge-accent);
+  --plyr-badge-text-color: #ffffff;
+  --plyr-badge-border-radius: 0.5rem;
+  --plyr-control-icon-size: 16px;
+  --plyr-range-thumb-background: var(--bridge-accent);
+  --plyr-range-fill-background: var(--bridge-accent);
+  --plyr-range-track-height: 4px;
+  --plyr-tooltip-background: var(--bridge-obsidian);
+  --plyr-tooltip-color: #e2e8f0;
+  --plyr-tooltip-radius: 0.5rem;
+  --plyr-font-size-base: 13px;
+  --plyr-font-size-small: 11px;
+}
+
+.plyr-bridge-theme .plyr {
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+
+.plyr-bridge-theme .plyr__controls {
+  background: linear-gradient(transparent, rgba(10, 14, 23, 0.85));
+  padding: 12px 16px;
+}
+
+.plyr-bridge-theme .plyr__control:hover {
+  background: rgba(99, 102, 241, 0.2);
+}
+
+.plyr-bridge-theme .plyr__menu__container {
+  background: var(--bridge-obsidian);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+}
+
+.plyr-bridge-theme .plyr__menu__container .plyr__control--forward,
+.plyr-bridge-theme .plyr__menu__container .plyr__control--back {
+  color: #e2e8f0;
+}
+
+.plyr-bridge-theme .plyr__menu__container .plyr__control--forward:hover,
+.plyr-bridge-theme .plyr__menu__container .plyr__control--back:hover {
+  background: rgba(255, 255, 255, 0.05);
+}

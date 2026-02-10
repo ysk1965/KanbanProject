@@ -250,7 +250,7 @@ public class SlackNotificationService {
     }
 
     private Map<String, Object> buildMeetingMemoPayload(Meeting meeting, User sender, Board board) {
-        String boardUrl = frontendUrl + "/boards/" + board.getId();
+        String boardUrl = frontendUrl + "/boards/" + board.getId() + "?view=schedule&tab=meeting";
         String memoPreview = meeting.getMemo();
         if (memoPreview != null && memoPreview.length() > 200) {
             memoPreview = memoPreview.substring(0, 200) + "...";

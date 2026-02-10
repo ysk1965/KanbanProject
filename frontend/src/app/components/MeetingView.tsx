@@ -106,6 +106,10 @@ export function MeetingView({ boardId, selectedDate, boardMembers, onRefreshSche
   const [aiLoading, setAiLoading] = useState<Record<string, boolean>>({});
   const [aiError, setAiError] = useState<Record<string, string | null>>({});
   const [aiVisible, setAiVisible] = useState<Record<string, boolean>>({});
+  const [aiCollapsed, setAiCollapsed] = useState<Record<string, boolean>>({});
+  // Snapshot of memo/transcript at the time of last AI organize
+  const [aiSnapshot, setAiSnapshot] = useState<Record<string, { memo: string; transcript: string }>>({});
+  const [showNoChangesModal, setShowNoChangesModal] = useState(false);
 
   const { isRecording, recordingDuration, audioBlob, startRecording, stopRecording, clearRecording } = useAudioRecorder();
   const hasMicSupport = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
@@ -139,6 +143,9 @@ export function MeetingView({ boardId, selectedDate, boardMembers, onRefreshSche
       if (detail.ai_suggestions) {
         setAiData(prev => ({ ...prev, [meetingId]: detail.ai_suggestions! }));
         setAiVisible(prev => ({ ...prev, [meetingId]: true }));
+        setAiCollapsed(prev => ({ ...prev, [meetingId]: true }));
+        // Set snapshot to current values so button starts dimmed
+        setAiSnapshot(prev => ({ ...prev, [meetingId]: { memo: detail.memo || '', transcript: detail.transcript || '' } }));
       }
     } catch (error) {
       console.error('Failed to load meeting detail:', error);
@@ -278,12 +285,29 @@ export function MeetingView({ boardId, selectedDate, boardMembers, onRefreshSche
 
   const handleAIOrganize = async (meetingId: string) => {
     if (aiLoading[meetingId]) return;
+
+    // Check if content has changed since last AI organize
+    const snapshot = aiSnapshot[meetingId];
+    if (snapshot && aiData[meetingId]) {
+      const currentMemo = editingMemo[meetingId] ?? meetingDetails[meetingId]?.memo ?? '';
+      const currentTranscript = editingTranscript[meetingId] ?? meetingDetails[meetingId]?.transcript ?? '';
+      if (currentMemo === snapshot.memo && currentTranscript === snapshot.transcript) {
+        setShowNoChangesModal(true);
+        return;
+      }
+    }
+
     setAiLoading(prev => ({ ...prev, [meetingId]: true }));
     setAiError(prev => ({ ...prev, [meetingId]: null }));
     setAiVisible(prev => ({ ...prev, [meetingId]: true }));
+    setAiCollapsed(prev => ({ ...prev, [meetingId]: false }));
     try {
       const data = await meetingAPI.aiOrganize(boardId, meetingId);
       setAiData(prev => ({ ...prev, [meetingId]: data }));
+      // Save snapshot of current memo/transcript
+      const currentMemo = editingMemo[meetingId] ?? meetingDetails[meetingId]?.memo ?? '';
+      const currentTranscript = editingTranscript[meetingId] ?? meetingDetails[meetingId]?.transcript ?? '';
+      setAiSnapshot(prev => ({ ...prev, [meetingId]: { memo: currentMemo, transcript: currentTranscript } }));
       // Update cached detail with new AI suggestions
       setMeetingDetails(prev => prev[meetingId]
         ? { ...prev, [meetingId]: { ...prev[meetingId], ai_suggestions: data } }
@@ -297,7 +321,20 @@ export function MeetingView({ boardId, selectedDate, boardMembers, onRefreshSche
   };
 
   const handleAIClose = (meetingId: string) => {
-    setAiVisible(prev => ({ ...prev, [meetingId]: false }));
+    setAiCollapsed(prev => ({ ...prev, [meetingId]: true }));
+  };
+
+  const handleAIExpand = (meetingId: string) => {
+    setAiCollapsed(prev => ({ ...prev, [meetingId]: false }));
+  };
+
+  // Check if AI button should be dimmed (no changes since last organize)
+  const isAIDimmed = (meetingId: string): boolean => {
+    const snapshot = aiSnapshot[meetingId];
+    if (!snapshot || !aiData[meetingId]) return false;
+    const currentMemo = editingMemo[meetingId] ?? meetingDetails[meetingId]?.memo ?? '';
+    const currentTranscript = editingTranscript[meetingId] ?? meetingDetails[meetingId]?.transcript ?? '';
+    return currentMemo === snapshot.memo && currentTranscript === snapshot.transcript;
   };
 
   return (
@@ -522,7 +559,11 @@ export function MeetingView({ boardId, selectedDate, boardMembers, onRefreshSche
                             <button
                               onClick={() => handleAIOrganize(meeting.id)}
                               disabled={!!aiLoading[meeting.id]}
-                              className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-bridge-secondary bg-bridge-secondary/10 rounded-lg hover:bg-bridge-secondary/20 transition-colors disabled:opacity-50"
+                              className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg transition-colors disabled:opacity-50 ${
+                                isAIDimmed(meeting.id)
+                                  ? 'text-slate-500 bg-white/5 cursor-default'
+                                  : 'text-bridge-secondary bg-bridge-secondary/10 hover:bg-bridge-secondary/20'
+                              }`}
                             >
                               {aiLoading[meeting.id] ? (
                                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -552,15 +593,32 @@ export function MeetingView({ boardId, selectedDate, boardMembers, onRefreshSche
 
                         {/* AI Inline Section */}
                         {aiVisible[meeting.id] && (
-                          <MeetingAIInlineSection
-                            boardId={boardId}
-                            meetingId={meeting.id}
-                            loading={!!aiLoading[meeting.id]}
-                            error={aiError[meeting.id] ?? null}
-                            suggestions={aiData[meeting.id] ?? null}
-                            onRetry={() => handleAIOrganize(meeting.id)}
-                            onClose={() => handleAIClose(meeting.id)}
-                          />
+                          aiCollapsed[meeting.id] && !aiLoading[meeting.id] ? (
+                            <div className="mt-4 flex items-center justify-between bg-white/[0.02] rounded-xl border border-white/5 px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                <Sparkles className="h-4 w-4 text-bridge-accent" />
+                                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                                  {t('meeting.aiOrganizeTitle')}
+                                </span>
+                              </div>
+                              <button
+                                onClick={() => handleAIExpand(meeting.id)}
+                                className="text-xs text-bridge-accent hover:text-bridge-accent/80 transition-colors font-medium"
+                              >
+                                {t('meeting.aiExpand')}
+                              </button>
+                            </div>
+                          ) : (
+                            <MeetingAIInlineSection
+                              boardId={boardId}
+                              meetingId={meeting.id}
+                              loading={!!aiLoading[meeting.id]}
+                              error={aiError[meeting.id] ?? null}
+                              suggestions={aiData[meeting.id] ?? null}
+                              onRetry={() => handleAIOrganize(meeting.id)}
+                              onClose={() => handleAIClose(meeting.id)}
+                            />
+                          )
                         )}
                       </>
                     )}
@@ -569,6 +627,29 @@ export function MeetingView({ boardId, selectedDate, boardMembers, onRefreshSche
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* No Changes Modal */}
+      {showNoChangesModal && (
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-bridge-obsidian rounded-2xl shadow-2xl w-[360px] border border-white/10 p-6 text-center">
+            <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-white/5 flex items-center justify-center">
+              <Sparkles className="h-6 w-6 text-slate-400" />
+            </div>
+            <h3 className="text-base font-bold text-white mb-2">
+              {t('meeting.aiNoChanges')}
+            </h3>
+            <p className="text-sm text-slate-400 mb-5">
+              {t('meeting.aiNoChangesDesc')}
+            </p>
+            <button
+              onClick={() => setShowNoChangesModal(false)}
+              className="px-6 py-2.5 bg-white/5 border border-white/10 text-sm font-bold text-white rounded-xl hover:bg-white/10 transition-all"
+            >
+              {t('common.confirm') || '확인'}
+            </button>
+          </div>
         </div>
       )}
 

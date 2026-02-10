@@ -34,6 +34,7 @@ interface DailyScheduleViewProps {
   onViewTask?: (taskId: string) => void;
   refreshTrigger?: number;
   currentUserRole?: string;
+  initialSubTab?: ScheduleSubTab;
 }
 
 const SLOT_HEIGHT = 40; // 30분 슬롯의 높이 (px)
@@ -55,12 +56,12 @@ const parseHour = (time: string): number => {
 
 type ScheduleViewMode = 'day' | 'week';
 
-export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onViewFeature, onViewTask, refreshTrigger, currentUserRole }: DailyScheduleViewProps) {
+export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onViewFeature, onViewTask, refreshTrigger, currentUserRole, initialSubTab }: DailyScheduleViewProps) {
   const { t } = useTranslation();
   // observer 역할 제외한 멤버 목록
   const activeMembers = useMemo(() => boardMembers.filter((m) => m.role !== 'observer'), [boardMembers]);
   // 세부 탭 상태 (타임블록 / 체크리스트)
-  const [subTab, setSubTab] = useState<ScheduleSubTab>('timeblock');
+  const [subTab, setSubTab] = useState<ScheduleSubTab>(initialSubTab || 'timeblock');
 
   const [viewMode, setViewMode] = useState<ScheduleViewMode>('day');
   const [selectedDate, setSelectedDate] = useState<Date>(startOfDay(new Date()));
