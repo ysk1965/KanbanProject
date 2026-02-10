@@ -610,7 +610,9 @@
     "newFeature": "新功能",
     "newFeaturePlaceholder": "請輸入功能標題...",
     "creatingFeature": "建立中...",
-    "featureCreateFailed": "功能建立失敗。"
+    "featureCreateFailed": "功能建立失敗。",
+    "expandAll": "全部展開",
+    "collapseAll": "全部收合"
   },
   "inquiry": {
     "title": "聯繫我們",

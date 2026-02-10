@@ -7,6 +7,9 @@ import {
   Plus,
   Search,
   Check,
+  ChevronDown,
+  ChevronRight,
+  ChevronsUpDown,
 } from 'lucide-react';
 import {
   featureAPI,
@@ -78,6 +81,9 @@ export function AddDailyChecklistModal({
 
   // 이미 데일리 체크리스트에 추가된 항목 ID 목록
   const [addedChecklistItemIds, setAddedChecklistItemIds] = useState<Set<string>>(new Set());
+
+  // Task 접기/펼치기 상태 (접힌 Task ID Set)
+  const [collapsedTasks, setCollapsedTasks] = useState<Set<string>>(new Set());
 
   // 새 Feature 생성 상태
   const [isCreatingFeature, setIsCreatingFeature] = useState(false);
@@ -386,6 +392,34 @@ export function AddDailyChecklistModal({
     }
   };
 
+  // Task 개별 접기/펼치기
+  const toggleTaskCollapse = (taskId: string) => {
+    setCollapsedTasks((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(taskId)) {
+        newSet.delete(taskId);
+      } else {
+        newSet.add(taskId);
+      }
+      return newSet;
+    });
+  };
+
+  // 섹션 내 모든 Task 펼치기/닫기
+  const toggleAllTasks = (taskIds: string[], collapse: boolean) => {
+    setCollapsedTasks((prev) => {
+      const newSet = new Set(prev);
+      taskIds.forEach((id) => {
+        if (collapse) {
+          newSet.add(id);
+        } else {
+          newSet.delete(id);
+        }
+      });
+      return newSet;
+    });
+  };
+
   // Task를 "내가 포함된 Task" vs "다른 Task"로 분류
   const { myTasksFeaturesData, othersTasksFeaturesData } = useMemo(() => {
     const query = searchQuery.toLowerCase().trim();
@@ -611,6 +645,19 @@ export function AddDailyChecklistModal({
                     <span className="text-xs text-slate-400">
                       ({myTasksFeaturesData.reduce((acc, f) => acc + f.tasks.length, 0)}개)
                     </span>
+                    {(() => {
+                      const allTaskIds = myTasksFeaturesData.flatMap((f) => f.tasks.map((t) => t.task.id));
+                      const allCollapsed = allTaskIds.length > 0 && allTaskIds.every((id) => collapsedTasks.has(id));
+                      return (
+                        <button
+                          onClick={() => toggleAllTasks(allTaskIds, !allCollapsed)}
+                          className="ml-auto flex items-center gap-1 text-[11px] text-slate-400 hover:text-white transition-colors px-2 py-1 rounded-md hover:bg-white/5"
+                        >
+                          <ChevronsUpDown className="h-3 w-3" />
+                          {allCollapsed ? t('dailyChecklist.expandAll') : t('dailyChecklist.collapseAll')}
+                        </button>
+                      );
+                    })()}
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {myTasksFeaturesData.map((featureData) => (
@@ -631,13 +678,23 @@ export function AddDailyChecklistModal({
 
                         {/* Feature Content */}
                         <div className="border-t border-white/10">
-                          {featureData.tasks.map((taskData) => (
+                          {featureData.tasks.map((taskData) => {
+                            const isCollapsed = collapsedTasks.has(taskData.task.id);
+                            return (
                             <div
                               key={taskData.task.id}
                               className="border-b border-white/10 last:border-b-0"
                             >
                               {/* Task Header */}
-                              <div className="flex items-center gap-2 px-4 py-2.5">
+                              <div
+                                className="flex items-center gap-2 px-4 py-2.5 cursor-pointer hover:bg-white/5 transition-colors"
+                                onClick={() => toggleTaskCollapse(taskData.task.id)}
+                              >
+                                {isCollapsed ? (
+                                  <ChevronRight className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
+                                ) : (
+                                  <ChevronDown className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
+                                )}
                                 <span className="text-sm text-slate-300 flex-1 truncate">
                                   {taskData.task.title}
                                 </span>
@@ -646,7 +703,8 @@ export function AddDailyChecklistModal({
                                 </span>
                                 {/* + 버튼 */}
                                 <button
-                                  onClick={() => {
+                                  onClick={(e) => {
+                                    e.stopPropagation();
                                     setAddingTaskId(addingTaskId === taskData.task.id ? null : taskData.task.id);
                                     setNewItemTitle('');
                                   }}
@@ -693,6 +751,7 @@ export function AddDailyChecklistModal({
                               )}
 
                               {/* Checklist Items */}
+                              {!isCollapsed && (
                               <div className="bg-kanban-bg/50 px-2 py-1">
                                 {/* 임시로 추가된 새 항목들 (pendingNewItems) */}
                                 {(pendingNewItems.get(taskData.task.id) || []).map((pendingItem) => {
@@ -798,8 +857,10 @@ export function AddDailyChecklistModal({
                                   );
                                 })}
                               </div>
+                              )}
                             </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </div>
                     ))}
@@ -816,6 +877,19 @@ export function AddDailyChecklistModal({
                     <span className="text-xs text-slate-400">
                       ({othersTasksFeaturesData.reduce((acc, f) => acc + f.tasks.length, 0)}개)
                     </span>
+                    {(() => {
+                      const allTaskIds = othersTasksFeaturesData.flatMap((f) => f.tasks.map((t) => t.task.id));
+                      const allCollapsed = allTaskIds.length > 0 && allTaskIds.every((id) => collapsedTasks.has(id));
+                      return (
+                        <button
+                          onClick={() => toggleAllTasks(allTaskIds, !allCollapsed)}
+                          className="ml-auto flex items-center gap-1 text-[11px] text-slate-400 hover:text-white transition-colors px-2 py-1 rounded-md hover:bg-white/5"
+                        >
+                          <ChevronsUpDown className="h-3 w-3" />
+                          {allCollapsed ? t('dailyChecklist.expandAll') : t('dailyChecklist.collapseAll')}
+                        </button>
+                      );
+                    })()}
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {othersTasksFeaturesData.map((featureData) => (
@@ -836,13 +910,23 @@ export function AddDailyChecklistModal({
 
                         {/* Feature Content */}
                         <div className="border-t border-white/10">
-                          {featureData.tasks.map((taskData) => (
+                          {featureData.tasks.map((taskData) => {
+                            const isCollapsed = collapsedTasks.has(taskData.task.id);
+                            return (
                             <div
                               key={taskData.task.id}
                               className="border-b border-white/10 last:border-b-0"
                             >
                               {/* Task Header */}
-                              <div className="flex items-center gap-2 px-4 py-2.5">
+                              <div
+                                className="flex items-center gap-2 px-4 py-2.5 cursor-pointer hover:bg-white/5 transition-colors"
+                                onClick={() => toggleTaskCollapse(taskData.task.id)}
+                              >
+                                {isCollapsed ? (
+                                  <ChevronRight className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
+                                ) : (
+                                  <ChevronDown className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
+                                )}
                                 <span className="text-sm text-slate-400 flex-1 truncate">
                                   {taskData.task.title}
                                 </span>
@@ -851,7 +935,8 @@ export function AddDailyChecklistModal({
                                 </span>
                                 {/* + 버튼 */}
                                 <button
-                                  onClick={() => {
+                                  onClick={(e) => {
+                                    e.stopPropagation();
                                     setAddingTaskId(addingTaskId === taskData.task.id ? null : taskData.task.id);
                                     setNewItemTitle('');
                                   }}
@@ -898,6 +983,7 @@ export function AddDailyChecklistModal({
                               )}
 
                               {/* Checklist Items */}
+                              {!isCollapsed && (
                               <div className="bg-kanban-bg/50 px-2 py-1">
                                 {/* 임시로 추가된 새 항목들 (pendingNewItems) */}
                                 {(pendingNewItems.get(taskData.task.id) || []).map((pendingItem) => {
@@ -972,8 +1058,10 @@ export function AddDailyChecklistModal({
                                   );
                                 })}
                               </div>
+                              )}
                             </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </div>
                     ))}

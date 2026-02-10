@@ -205,13 +205,19 @@ public class ChecklistService {
         }
 
         item.toggle();
-
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        activityService.logActivity(task.getBoard(), user, ActivityAction.CHECKLIST_CHECKED, TargetType.CHECKLIST, itemId,
-                Map.of("checklistTitle", item.getTitle(), "taskTitle", task.getTitle(), "isCompleted", item.getIsCompleted()));
+        checklistItemRepository.save(item);
 
         log.info("Checklist item toggled: {} to {} by user: {}", itemId, item.getIsCompleted(), userId);
+
+        // 액티비티 로깅은 별도 트랜잭션으로 실행 (실패해도 토글에 영향 없음)
+        try {
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+            activityService.logActivityInNewTransaction(task.getBoard(), user, ActivityAction.CHECKLIST_CHECKED, TargetType.CHECKLIST, itemId,
+                    Map.of("checklistTitle", item.getTitle(), "taskTitle", task.getTitle(), "isCompleted", item.getIsCompleted()));
+        } catch (Exception e) {
+            log.warn("Failed to log checklist toggle activity for item: {}", itemId, e);
+        }
 
         return ChecklistResponse.Detail.of(item);
     }

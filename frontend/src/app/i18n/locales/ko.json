@@ -649,7 +649,9 @@
     "newFeature": "새 Feature",
     "newFeaturePlaceholder": "Feature 제목을 입력하세요...",
     "creatingFeature": "생성 중...",
-    "featureCreateFailed": "Feature 생성에 실패했습니다."
+    "featureCreateFailed": "Feature 생성에 실패했습니다.",
+    "expandAll": "모두 펼치기",
+    "collapseAll": "모두 닫기"
   },
   "inquiry": {
     "title": "문의하기",

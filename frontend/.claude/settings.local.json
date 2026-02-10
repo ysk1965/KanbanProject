@@ -50,7 +50,9 @@
       "Bash(node -e:*)",
       "Bash(node:*)",
       "Bash(npm install:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(file:*)",
+      "Bash(xattr:*)"
     ]
   }
 }

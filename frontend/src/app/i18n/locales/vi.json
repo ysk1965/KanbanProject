@@ -594,7 +594,9 @@
     "newFeature": "Feature mới",
     "newFeaturePlaceholder": "Nhập tiêu đề feature...",
     "creatingFeature": "Đang tạo...",
-    "featureCreateFailed": "Tạo feature thất bại."
+    "featureCreateFailed": "Tạo feature thất bại.",
+    "expandAll": "Mở rộng tất cả",
+    "collapseAll": "Thu gọn tất cả"
   },
   "inquiry": {
     "title": "Lien he",

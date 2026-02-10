@@ -594,7 +594,9 @@
     "newFeature": "新しいFeature",
     "newFeaturePlaceholder": "Featureのタイトルを入力...",
     "creatingFeature": "作成中...",
-    "featureCreateFailed": "Featureの作成に失敗しました。"
+    "featureCreateFailed": "Featureの作成に失敗しました。",
+    "expandAll": "すべて展開",
+    "collapseAll": "すべて折りたたむ"
   },
   "inquiry": {
     "title": "お問い合わせ",

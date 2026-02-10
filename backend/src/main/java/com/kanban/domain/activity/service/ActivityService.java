@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -53,5 +54,13 @@ public class ActivityService {
         activityLogRepository.save(activityLog);
 
         log.info("Activity logged: {} on {} {} by user {}", action, targetType, targetId, user.getId());
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void logActivityInNewTransaction(Board board, User user, ActivityAction action, TargetType targetType, String targetId, Map<String, Object> metadata) {
+        ActivityLog activityLog = ActivityLog.create(board, user, action, targetType, targetId, metadata);
+        activityLogRepository.save(activityLog);
+
+        log.info("Activity logged (new tx): {} on {} {} by user {}", action, targetType, targetId, user.getId());
     }
 }
