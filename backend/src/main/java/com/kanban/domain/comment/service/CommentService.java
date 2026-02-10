@@ -64,6 +64,33 @@ public class CommentService {
     }
 
     /**
+     * 특정 보드 + 멘션된 사용자의 기간별 댓글 조회
+     */
+    public CommentResponse.MentionSummaryListResponse getCommentsByMentionedUserAndDateRange(
+            String boardId, String mentionedUserId, String requesterId,
+            LocalDate startDate, LocalDate endDate) {
+        boardService.checkViewerOrAbove(boardId, requesterId);
+
+        LocalDateTime startDateTime = startDate.atStartOfDay();
+        LocalDateTime endDateTime = endDate.plusDays(1).atStartOfDay();
+
+        List<Comment> comments = commentRepository.findByBoardAndMentionedUserAndDateRange(
+                boardId, mentionedUserId, startDateTime, endDateTime);
+
+        // LIKE 쿼리의 부분 매칭 방지를 위해 exact match 필터
+        List<Comment> filtered = comments.stream()
+                .filter(c -> {
+                    if (c.getMentions() == null) return false;
+                    return Arrays.stream(c.getMentions().split(","))
+                            .map(String::trim)
+                            .anyMatch(id -> id.equals(mentionedUserId));
+                })
+                .toList();
+
+        return CommentResponse.MentionSummaryListResponse.of(filtered);
+    }
+
+    /**
      * 댓글 목록 조회
      */
     public CommentResponse.ListResponse getComments(String boardId, String taskId, String userId) {

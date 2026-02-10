@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo, KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Bell, Trash2, ChevronDown, ChevronUp, Users, X, Loader2, Sparkles, Mic, Square as SquareIcon, FileText, CheckSquare, ChevronRight, ArrowRight, Star } from 'lucide-react';
 import { format } from 'date-fns';
@@ -96,6 +96,9 @@ export function MeetingView({ boardId, selectedDate, boardMembers, onRefreshSche
   const [meetingDetails, setMeetingDetails] = useState<Record<string, MeetingDetail>>({});
   const [editingMemo, setEditingMemo] = useState<Record<string, string>>({});
   const [editingTranscript, setEditingTranscript] = useState<Record<string, string>>({});
+  const [editingTitleId, setEditingTitleId] = useState<string | null>(null);
+  const [editingTitleValue, setEditingTitleValue] = useState('');
+  const titleInputRef = useRef<HTMLInputElement>(null);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   // AI inline state per meeting
@@ -164,6 +167,39 @@ export function MeetingView({ boardId, selectedDate, boardMembers, onRefreshSche
       }));
     } catch (error) {
       console.error('Failed to save memo:', error);
+    }
+  };
+
+  const handleTitleEdit = (meetingId: string, currentTitle: string) => {
+    setEditingTitleId(meetingId);
+    setEditingTitleValue(currentTitle);
+    setTimeout(() => titleInputRef.current?.focus(), 0);
+  };
+
+  const handleTitleSave = async (meetingId: string) => {
+    const newTitle = editingTitleValue.trim();
+    setEditingTitleId(null);
+    if (!newTitle || newTitle === meetings.find(m => m.id === meetingId)?.title) return;
+    try {
+      await meetingAPI.updateMeeting(boardId, meetingId, { title: newTitle });
+      setMeetings(prev => prev.map(m => m.id === meetingId ? { ...m, title: newTitle } : m));
+      if (meetingDetails[meetingId]) {
+        setMeetingDetails(prev => ({
+          ...prev,
+          [meetingId]: { ...prev[meetingId], title: newTitle },
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to update meeting title:', error);
+    }
+  };
+
+  const handleTitleKeyDown = (e: KeyboardEvent<HTMLInputElement>, meetingId: string) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleTitleSave(meetingId);
+    } else if (e.key === 'Escape') {
+      setEditingTitleId(null);
     }
   };
 
@@ -305,14 +341,37 @@ export function MeetingView({ boardId, selectedDate, boardMembers, onRefreshSche
                 className="bg-bridge-obsidian rounded-2xl border border-white/5 overflow-hidden transition-all"
               >
                 {/* Card Header */}
-                <button
-                  onClick={() => handleToggleExpand(meeting.id)}
-                  className="w-full px-5 py-4 flex items-center gap-3 hover:bg-white/[0.02] transition-colors text-left"
+                <div
+                  className="w-full px-5 py-4 flex items-center gap-3 hover:bg-white/[0.02] transition-colors text-left cursor-pointer"
+                  onClick={() => {
+                    if (editingTitleId !== meeting.id) handleToggleExpand(meeting.id);
+                  }}
                 >
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-white truncate">
-                      {meeting.title}
-                    </div>
+                    {editingTitleId === meeting.id ? (
+                      <input
+                        ref={titleInputRef}
+                        type="text"
+                        value={editingTitleValue}
+                        onChange={e => setEditingTitleValue(e.target.value)}
+                        onBlur={() => handleTitleSave(meeting.id)}
+                        onKeyDown={e => handleTitleKeyDown(e, meeting.id)}
+                        onClick={e => e.stopPropagation()}
+                        maxLength={200}
+                        className="w-full text-sm font-medium text-white bg-white/5 border border-bridge-accent/50 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+                      />
+                    ) : (
+                      <div
+                        className="text-sm font-medium text-white truncate hover:text-bridge-accent transition-colors cursor-text"
+                        onClick={e => {
+                          e.stopPropagation();
+                          handleTitleEdit(meeting.id, meeting.title);
+                        }}
+                        title={t('meeting.editTitle')}
+                      >
+                        {meeting.title}
+                      </div>
+                    )}
                     <div className="flex items-center gap-3 mt-0.5">
                       <span className="text-xs text-slate-400">
                         {t('meeting.participantCount', { count: meeting.participant_count })}
@@ -324,7 +383,7 @@ export function MeetingView({ boardId, selectedDate, boardMembers, onRefreshSche
                   ) : (
                     <ChevronDown className="h-4 w-4 text-slate-400 flex-shrink-0" />
                   )}
-                </button>
+                </div>
 
                 {/* Expanded Detail */}
                 {isExpanded && (

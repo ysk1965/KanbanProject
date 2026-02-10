@@ -16,13 +16,19 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from './ui/alert-dialog';
-import { MessageSquare, Send, RefreshCw, Pencil, Trash2, X, Check, Loader2, Paperclip, Image as ImageIcon } from 'lucide-react';
+import { MessageSquare, Send, RefreshCw, Pencil, Trash2, X, Check, Loader2, Paperclip, Play, Film } from 'lucide-react';
 
 // ========== 상수 & 유틸 ==========
 
 const MAX_FILES = 5;
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+const MAX_FILE_SIZE_IMAGE = 5 * 1024 * 1024;      // 5MB
+const MAX_FILE_SIZE_VIDEO = 50 * 1024 * 1024;      // 50MB
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime'];
+const ALLOWED_TYPES = [...ALLOWED_IMAGE_TYPES, ...ALLOWED_VIDEO_TYPES];
+
+const isVideoType = (type: string) => type?.startsWith('video/');
+const isVideoAttachment = (att: CommentAttachment) => att.content_type?.startsWith('video/');
 
 function formatRelativeTime(dateStr: string): string {
   const date = new Date(dateStr.endsWith('Z') ? dateStr : dateStr + 'Z');
@@ -45,12 +51,29 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
 }
 
+const URL_PATTERN = /(https?:\/\/[^\s<]+)/g;
+
+function renderTextWithLinks(text: string, keyPrefix: string) {
+  const parts = text.split(URL_PATTERN);
+  return parts.map((part, i) => {
+    if (/^https?:\/\//.test(part)) {
+      return (
+        <a key={`${keyPrefix}-${i}`} href={part} target="_blank" rel="noopener noreferrer"
+          className="text-bridge-accent hover:text-bridge-accent/80 underline underline-offset-2 break-all">
+          {part}
+        </a>
+      );
+    }
+    return part;
+  });
+}
+
 function renderContent(content: string, boardMembers: BoardMember[]) {
   const memberNames = boardMembers.map(m => m.name);
   const mentionPattern = memberNames.length > 0
     ? new RegExp(`(@(?:${memberNames.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')}))(?=\\s|$)`, 'g')
     : null;
-  if (!mentionPattern) return content;
+  if (!mentionPattern) return renderTextWithLinks(content, 'root');
   const parts = content.split(mentionPattern);
   return parts.map((part, i) => {
     if (part.startsWith('@')) {
@@ -61,7 +84,7 @@ function renderContent(content: string, boardMembers: BoardMember[]) {
         return <span key={i} className={`${color.text} font-medium`}>{part}</span>;
       }
     }
-    return <span key={i}>{part}</span>;
+    return <span key={i}>{renderTextWithLinks(part, `p${i}`)}</span>;
   });
 }
 
@@ -112,7 +135,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
 
   // 삭제 / 라이트박스
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
-  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [lightboxMedia, setLightboxMedia] = useState<{ url: string; type: 'image' | 'video' } | null>(null);
 
   // 멘션 드롭다운
   const [mentionQuery, setMentionQuery] = useState('');
@@ -195,8 +218,9 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
         setFileError('comment.fileTypeError');
         continue;
       }
-      if (file.size > MAX_FILE_SIZE) {
-        setFileError('comment.fileSizeError');
+      const maxSize = isVideoType(file.type) ? MAX_FILE_SIZE_VIDEO : MAX_FILE_SIZE_IMAGE;
+      if (file.size > maxSize) {
+        setFileError(isVideoType(file.type) ? 'comment.videoFileSizeError' : 'comment.fileSizeError');
         continue;
       }
       newFiles.push({
@@ -248,19 +272,20 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
   };
 
   const handlePaste = (e: React.ClipboardEvent, isEdit: boolean) => {
-    const imageFiles: File[] = [];
+    const mediaFiles: File[] = [];
     for (let i = 0; i < e.clipboardData.items.length; i++) {
-      if (e.clipboardData.items[i].type.startsWith('image/')) {
-        const file = e.clipboardData.items[i].getAsFile();
-        if (file) imageFiles.push(file);
+      const item = e.clipboardData.items[i];
+      if (item.type.startsWith('image/') || item.type.startsWith('video/')) {
+        const file = item.getAsFile();
+        if (file) mediaFiles.push(file);
       }
     }
-    if (imageFiles.length > 0) {
+    if (mediaFiles.length > 0) {
       e.preventDefault();
       if (isEdit) {
-        validateAndAddFiles(imageFiles, editNewFiles, setEditNewFiles, editKeepAttachmentIds.length);
+        validateAndAddFiles(mediaFiles, editNewFiles, setEditNewFiles, editKeepAttachmentIds.length);
       } else {
-        validateAndAddFiles(imageFiles, pendingFiles, setPendingFiles);
+        validateAndAddFiles(mediaFiles, pendingFiles, setPendingFiles);
       }
     }
   };
@@ -486,19 +511,42 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
     );
   };
 
-  /** 댓글 첨부 이미지 그리드 (썸네일 사용) */
+  /** 댓글 첨부 미디어 그리드 (이미지 썸네일 + 영상 썸네일) */
   const AttachmentGrid = ({ attachments }: { attachments: CommentAttachment[] }) => {
     if (!attachments || attachments.length === 0) return null;
     return (
       <div className="flex flex-wrap gap-1.5 mt-1.5">
-        {attachments.map(att => (
-          <button key={att.id} onClick={() => setLightboxUrl(resolveFileUrl(att.url))}
-            className="relative group/img rounded-md overflow-hidden border border-white/20 hover:border-white/20 transition-colors">
-            <img src={resolveFileUrl(att.thumbnail_url || att.url)} alt={att.file_name}
-              className="h-20 w-auto max-w-[160px] object-cover" loading="lazy" />
-            <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/20 transition-colors" />
-          </button>
-        ))}
+        {attachments.map(att => {
+          const isVideo = isVideoAttachment(att);
+          return (
+            <button key={att.id}
+              onClick={() => setLightboxMedia({
+                url: resolveFileUrl(att.url),
+                type: isVideo ? 'video' : 'image'
+              })}
+              className="relative group/img rounded-md overflow-hidden border border-white/20 hover:border-white/20 transition-colors">
+              {att.thumbnail_url ? (
+                <img src={resolveFileUrl(att.thumbnail_url)} alt={att.file_name}
+                  className="h-20 w-auto max-w-[160px] object-cover" loading="lazy" />
+              ) : isVideo ? (
+                <div className="h-20 w-[120px] bg-black/40 flex items-center justify-center">
+                  <Film className="h-6 w-6 text-slate-400" />
+                </div>
+              ) : (
+                <img src={resolveFileUrl(att.url)} alt={att.file_name}
+                  className="h-20 w-auto max-w-[160px] object-cover" loading="lazy" />
+              )}
+              {isVideo && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-full bg-black/60 flex items-center justify-center">
+                    <Play className="h-4 w-4 text-white ml-0.5" />
+                  </div>
+                </div>
+              )}
+              <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/20 transition-colors" />
+            </button>
+          );
+        })}
       </div>
     );
   };
@@ -520,8 +568,22 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
         {/* 기존 첨부파일 (수정 모드) */}
         {keptExisting.map(att => (
           <div key={att.id} className="relative group/preview">
-            <img src={resolveFileUrl(att.thumbnail_url || att.url)} alt={att.file_name}
-              className="h-16 w-auto max-w-[120px] object-cover rounded-md border border-white/20" />
+            {isVideoAttachment(att) ? (
+              att.thumbnail_url ? (
+                <div className="relative h-16 w-[90px]">
+                  <img src={resolveFileUrl(att.thumbnail_url)} alt={att.file_name}
+                    className="h-16 w-[90px] object-cover rounded-md border border-white/20" />
+                  <Play className="absolute bottom-1 left-1 h-3 w-3 text-white drop-shadow" />
+                </div>
+              ) : (
+                <div className="h-16 w-[90px] bg-black/40 rounded-md border border-white/20 flex items-center justify-center">
+                  <Film className="h-5 w-5 text-slate-400" />
+                </div>
+              )
+            ) : (
+              <img src={resolveFileUrl(att.thumbnail_url || att.url)} alt={att.file_name}
+                className="h-16 w-auto max-w-[120px] object-cover rounded-md border border-white/20" />
+            )}
             {onRemoveExisting && (
               <button onClick={() => onRemoveExisting(att.id)}
                 className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover/preview:opacity-100 transition-opacity">
@@ -533,8 +595,13 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
         {/* 새 파일 */}
         {files.map(pf => (
           <div key={pf.id} className="relative group/preview">
-            <img src={pf.previewUrl} alt={pf.file.name}
-              className={`h-16 w-auto max-w-[120px] object-cover rounded-md border ${pf.error ? 'border-red-500/50' : 'border-white/20'}`} />
+            {isVideoType(pf.file.type) ? (
+              <video src={pf.previewUrl} muted preload="metadata"
+                className={`h-16 w-[90px] object-cover rounded-md border ${pf.error ? 'border-red-500/50' : 'border-white/20'}`} />
+            ) : (
+              <img src={pf.previewUrl} alt={pf.file.name}
+                className={`h-16 w-auto max-w-[120px] object-cover rounded-md border ${pf.error ? 'border-red-500/50' : 'border-white/20'}`} />
+            )}
             {pf.uploading && (
               <div className="absolute inset-0 bg-black/40 rounded-md flex items-center justify-center">
                 <Loader2 className="h-4 w-4 animate-spin text-white" />
@@ -544,6 +611,9 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
               <div className="absolute inset-0 bg-red-500/20 rounded-md flex items-center justify-center">
                 <span className="text-[8px] text-red-300 font-medium">{t('comment.failed')}</span>
               </div>
+            )}
+            {isVideoType(pf.file.type) && !pf.uploading && !pf.error && (
+              <Play className="absolute bottom-1 left-1 h-3 w-3 text-white drop-shadow" />
             )}
             <button onClick={() => onRemoveFile(pf.id)}
               className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover/preview:opacity-100 transition-opacity">
@@ -568,8 +638,8 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
       {isDragOver && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-bridge-accent/10 border-2 border-dashed border-bridge-accent rounded-lg pointer-events-none">
           <div className="flex flex-col items-center gap-2 text-bridge-accent">
-            <ImageIcon className="h-8 w-8" />
-            <span className="text-sm font-medium">{t('comment.dropImageHere')}</span>
+            <Paperclip className="h-8 w-8" />
+            <span className="text-sm font-medium">{t('comment.dropFileHere')}</span>
           </div>
         </div>
       )}
@@ -659,11 +729,11 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
                             rows={3} autoFocus />
                         </div>
                         <div className="flex items-center gap-1">
-                          <input ref={editFileInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp"
+                          <input ref={editFileInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,video/quicktime"
                             multiple className="hidden" onChange={e => handleFileSelect(e, true)} />
                           <button onClick={() => editFileInputRef.current?.click()}
                             disabled={editKeepAttachmentIds.length + editNewFiles.length >= MAX_FILES}
-                            className="p-1 rounded text-slate-400 hover:text-slate-200 hover:bg-white/10 disabled:opacity-30 transition-colors" title={t('comment.addImage')}>
+                            className="p-1 rounded text-slate-400 hover:text-slate-200 hover:bg-white/10 disabled:opacity-30 transition-colors" title={t('comment.addFile')}>
                             <Paperclip className="h-3.5 w-3.5" />
                           </button>
                           <div className="flex-1" />
@@ -714,11 +784,11 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
               className="w-full text-xs bg-white/5 border border-white/20 rounded-lg pl-3 pr-20 py-2.5 text-foreground placeholder:text-slate-400 resize-none focus:outline-none focus:ring-1 focus:ring-bridge-accent"
               rows={2} />
             <div className="absolute right-2 bottom-2 flex items-center gap-1">
-              <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp"
+              <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,video/quicktime"
                 multiple className="hidden" onChange={e => handleFileSelect(e, false)} />
               <button onClick={() => fileInputRef.current?.click()} disabled={pendingFiles.length >= MAX_FILES}
                 className="p-1.5 rounded text-slate-400 hover:text-slate-200 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                title={t('comment.attachImage')}>
+                title={t('comment.attachFile')}>
                 <Paperclip className="h-3.5 w-3.5" />
               </button>
               <button onClick={handleSubmit}
@@ -728,7 +798,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
               </button>
             </div>
           </div>
-          <p className="text-[9px] text-slate-400 mt-1">{t('comment.imageHelp')}</p>
+          <p className="text-[9px] text-slate-400 mt-1">{t('comment.fileHelp')}</p>
         </div>
       ) : (
         <div className="px-4 py-3 border-t border-white/20">
@@ -736,18 +806,24 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
         </div>
       )}
 
-      {/* 이미지 라이트박스 - Portal로 body에 렌더링 (모달 transform 영향 회피) */}
-      {lightboxUrl && createPortal(
+      {/* 미디어 라이트박스 - Portal로 body에 렌더링 (모달 transform 영향 회피) */}
+      {lightboxMedia && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm cursor-pointer"
           onMouseDown={e => e.stopPropagation()}
-          onClick={(e) => { e.stopPropagation(); setLightboxUrl(null); }}>
-          <button onClick={(e) => { e.stopPropagation(); setLightboxUrl(null); }}
-            className="absolute top-4 right-4 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors">
+          onClick={(e) => { e.stopPropagation(); setLightboxMedia(null); }}>
+          <button onClick={(e) => { e.stopPropagation(); setLightboxMedia(null); }}
+            className="absolute top-4 right-4 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors z-10">
             <X className="h-5 w-5" />
           </button>
-          <img src={lightboxUrl} alt={t('comment.attachedImage')}
-            className="max-h-[90vh] max-w-[90vw] object-contain rounded-lg"
-            onClick={e => e.stopPropagation()} />
+          {lightboxMedia.type === 'video' ? (
+            <video src={lightboxMedia.url} controls autoPlay
+              className="max-h-[90vh] max-w-[90vw] rounded-lg"
+              onClick={e => e.stopPropagation()} />
+          ) : (
+            <img src={lightboxMedia.url} alt={t('comment.attachedFile')}
+              className="max-h-[90vh] max-w-[90vw] object-contain rounded-lg"
+              onClick={e => e.stopPropagation()} />
+          )}
         </div>,
         document.body
       )}

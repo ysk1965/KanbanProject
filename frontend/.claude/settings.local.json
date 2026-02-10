@@ -56,7 +56,10 @@
       "Bash(aws ssm describe-instance-information:*)",
       "Bash(PGPASSWORD='KanbanDev2026Secure' /opt/homebrew/opt/libpq/bin/psql -h localhost -p 15432 -U kanban_admin -d kanban -c \"\nSELECT schemaname||''.''||relname AS table_name, n_live_tup AS row_count\nFROM pg_stat_user_tables\nORDER BY n_live_tup DESC;\n\")",
       "Bash(PGPASSWORD='KanbanDev2026Secure' /opt/homebrew/opt/libpq/bin/psql -h localhost -p 15432 -U kanban_admin -d kanban -c \"SELECT id, email, name, provider, email_verified, created_at, last_login_at FROM users ORDER BY id;\")",
-      "Bash(PGPASSWORD='KanbanDev2026Secure' /opt/homebrew/opt/libpq/bin/psql -h localhost -p 15432 -U kanban_admin -d kanban -c \"SELECT id, email, name, auth_provider, email_verified, system_role, is_active, created_at, last_login_at FROM users ORDER BY created_at;\")"
+      "Bash(PGPASSWORD='KanbanDev2026Secure' /opt/homebrew/opt/libpq/bin/psql -h localhost -p 15432 -U kanban_admin -d kanban -c \"SELECT id, email, name, auth_provider, email_verified, system_role, is_active, created_at, last_login_at FROM users ORDER BY created_at;\")",
+      "Bash(PGPASSWORD='KanbanDev2026Secure' /opt/homebrew/opt/libpq/bin/psql -h localhost -p 15432 -U kanban_admin -d kanban -c \"\nSELECT conname, pg_get_constraintdef\\(oid\\) \nFROM pg_constraint \nWHERE conrelid = ''activity_log''::regclass AND contype = ''c'';\n\")",
+      "Bash(PGPASSWORD='KanbanDev2026Secure' /opt/homebrew/opt/libpq/bin/psql -h localhost -p 15432 -U kanban_admin -d kanban -c \"\nSELECT action, COUNT\\(*\\) FROM activity_log GROUP BY action ORDER BY action;\n\")",
+      "Bash(PGPASSWORD='KanbanDev2026Secure' /opt/homebrew/opt/libpq/bin/psql -h localhost -p 15432 -U kanban_admin -d kanban -c \"\nSELECT conname, pg_get_constraintdef\\(oid\\) \nFROM pg_constraint \nWHERE conrelid = ''activity_log''::regclass AND conname = ''activity_log_action_check'';\n\")"
     ]
   }
 }

@@ -1199,6 +1199,20 @@ export interface CommentSummaryResponse {
   total_count: number;
 }
 
+export interface MentionSummaryItem {
+  id: string;
+  task_id: string;
+  task_title: string;
+  content: string;
+  author_name: string | null;
+  created_at: string;
+}
+
+export interface MentionSummaryResponse {
+  comments: MentionSummaryItem[];
+  total_count: number;
+}
+
 // ========================================
 // File Upload API
 // ========================================
@@ -1352,6 +1366,17 @@ export const commentAPI = {
   ) => {
     return apiClient.get<CommentSummaryResponse>(
       `/boards/${boardId}/comments/summary?authorId=${authorId}&startDate=${startDate}&endDate=${endDate}`
+    );
+  },
+
+  getCommentMentions: async (
+    boardId: string,
+    mentionedUserId: string,
+    startDate: string,
+    endDate: string
+  ) => {
+    return apiClient.get<MentionSummaryResponse>(
+      `/boards/${boardId}/comments/mentions?mentionedUserId=${mentionedUserId}&startDate=${startDate}&endDate=${endDate}`
     );
   },
 };

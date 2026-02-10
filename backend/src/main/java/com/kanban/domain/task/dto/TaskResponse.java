@@ -25,6 +25,7 @@ public class TaskResponse {
         private String blockId;
         private String blockName;
         private String title;
+        private String description;
         private LocalDate startDate;
         private LocalDate dueDate;
         private LocalDate baselineStartDate;
@@ -46,6 +47,7 @@ public class TaskResponse {
                     .blockId(task.getBlock().getId())
                     .blockName(task.getBlock().getName())
                     .title(task.getTitle())
+                    .description(task.getDescription())
                     .startDate(task.getStartDate())
                     .dueDate(task.getDueDate())
                     .baselineStartDate(task.getBaselineStartDate())

@@ -2,7 +2,7 @@ package com.kanban.global.service;
 
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
-import com.kanban.global.util.ImageUtils;
+import com.kanban.global.util.MediaUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -25,8 +25,13 @@ import java.util.UUID;
 @ConditionalOnProperty(name = "app.file.s3-enabled", havingValue = "false", matchIfMissing = true)
 public class LocalFileUploadService implements FileUploadService {
 
+    private final VideoThumbnailService videoThumbnailService;
+
     @Value("${app.file.max-size:5242880}")
     private long maxFileSize;
+
+    @Value("${app.file.video.max-size:52428800}")
+    private long videoMaxFileSize;
 
     @Value("${app.file.allowed-types:image/jpeg,image/png,image/gif,image/webp}")
     private List<String> allowedTypes;
@@ -46,22 +51,28 @@ public class LocalFileUploadService implements FileUploadService {
     @Value("${app.file.temp-expiry-minutes:60}")
     private int tempExpiryMinutes;
 
+    public LocalFileUploadService(VideoThumbnailService videoThumbnailService) {
+        this.videoThumbnailService = videoThumbnailService;
+    }
+
     @Override
-    public void validateImageFile(MultipartFile file) {
+    public void validateFile(MultipartFile file) {
         if (file.isEmpty()) {
             throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
-        }
-        if (file.getSize() > maxFileSize) {
-            throw new BusinessException(ErrorCode.FILE_TOO_LARGE);
         }
         String contentType = file.getContentType();
         if (contentType == null || !allowedTypes.contains(contentType)) {
             throw new BusinessException(ErrorCode.FILE_TYPE_NOT_ALLOWED);
         }
+        // 타입별 용량 제한
+        long sizeLimit = MediaUtils.isVideoType(contentType) ? videoMaxFileSize : maxFileSize;
+        if (file.getSize() > sizeLimit) {
+            throw new BusinessException(ErrorCode.FILE_TOO_LARGE);
+        }
         // 매직바이트 검증
         try {
             byte[] bytes = file.getBytes();
-            if (!ImageUtils.isValidImageMagicBytes(bytes, contentType)) {
+            if (!MediaUtils.isValidMediaMagicBytes(bytes, contentType)) {
                 throw new BusinessException(ErrorCode.FILE_TYPE_NOT_ALLOWED);
             }
         } catch (IOException e) {
@@ -71,9 +82,9 @@ public class LocalFileUploadService implements FileUploadService {
 
     @Override
     public TempUploadResult uploadTemp(MultipartFile file) {
-        validateImageFile(file);
+        validateFile(file);
 
-        String extension = ImageUtils.getExtension(file.getOriginalFilename());
+        String extension = MediaUtils.getExtension(file.getOriginalFilename());
         String tempKey = String.format("temp/%s%s", UUID.randomUUID(), extension);
 
         try {
@@ -101,7 +112,7 @@ public class LocalFileUploadService implements FileUploadService {
 
         try {
             byte[] fileBytes = Files.readAllBytes(tempPath);
-            String extension = ImageUtils.getExtension(tempKey);
+            String extension = MediaUtils.getExtension(tempKey);
 
             // content type 감지
             String contentType = Files.probeContentType(tempPath);
@@ -117,15 +128,25 @@ public class LocalFileUploadService implements FileUploadService {
             Files.createDirectories(permanentPath.getParent());
             Files.move(tempPath, permanentPath, StandardCopyOption.REPLACE_EXISTING);
 
-            // 썸네일 생성
+            // 썸네일 생성 (이미지 vs 영상 분기)
             String thumbnailKey = permanentKey.replaceAll("\\.[^.]+$", "_thumb.jpg");
             String thumbnailUrl = "";
             try {
-                byte[] thumbnailBytes = ImageUtils.generateThumbnail(fileBytes, thumbnailMaxWidth, thumbnailMaxHeight);
-                Path thumbnailPath = Paths.get(localDir, thumbnailKey);
-                Files.write(thumbnailPath, thumbnailBytes);
-                thumbnailUrl = String.format("/uploads/%s", thumbnailKey);
-                log.info("Thumbnail generated: {}", thumbnailPath);
+                byte[] thumbnailBytes;
+                if (MediaUtils.isVideoType(contentType)) {
+                    thumbnailBytes = videoThumbnailService.extractThumbnail(fileBytes, extension, thumbnailMaxWidth, thumbnailMaxHeight);
+                } else {
+                    thumbnailBytes = MediaUtils.generateThumbnail(fileBytes, thumbnailMaxWidth, thumbnailMaxHeight);
+                }
+
+                if (thumbnailBytes != null && thumbnailBytes.length > 0) {
+                    Path thumbnailPath = Paths.get(localDir, thumbnailKey);
+                    Files.write(thumbnailPath, thumbnailBytes);
+                    thumbnailUrl = String.format("/uploads/%s", thumbnailKey);
+                    log.info("Thumbnail generated: {}", thumbnailPath);
+                } else {
+                    thumbnailKey = null;
+                }
             } catch (Exception e) {
                 log.warn("Failed to generate thumbnail for {}: {}", tempKey, e.getMessage());
                 thumbnailKey = null;

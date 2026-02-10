@@ -296,18 +296,15 @@ export function TaskDetailModal({
     );
     setChecklistItems(newItems);
 
-    // 부모 상태 업데이트 (카드에 반영)
-    const completedCount = newItems.filter(item => item.completed).length;
-    onUpdate({ checklist_total: newItems.length, checklist_completed: completedCount, checklist_version: Date.now() });
-
     try {
       await checklistAPI.toggleItem(boardId, task.id, itemId);
+      // API 성공 후 부모 상태 업데이트 (카드 + 스케줄 뷰 반영)
+      const completedCount = newItems.filter(item => item.completed).length;
+      onUpdate({ checklist_total: newItems.length, checklist_completed: completedCount, checklist_version: Date.now() });
     } catch (error) {
       console.error('Failed to toggle checklist item:', error);
       // 롤백
       setChecklistItems(prevItems);
-      const prevCompleted = prevItems.filter(item => item.completed).length;
-      onUpdate({ checklist_total: prevItems.length, checklist_completed: prevCompleted, checklist_version: Date.now() });
     }
   };
 

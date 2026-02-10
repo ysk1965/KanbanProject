@@ -30,4 +30,17 @@ public class BoardCommentController {
                         boardId, authorId, principal.getUserId(), startDate, endDate);
         return ResponseEntity.ok(response);
     }
+
+    @GetMapping("/mentions")
+    public ResponseEntity<CommentResponse.MentionSummaryListResponse> getCommentMentions(
+            @PathVariable String boardId,
+            @RequestParam String mentionedUserId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        CommentResponse.MentionSummaryListResponse response =
+                commentService.getCommentsByMentionedUserAndDateRange(
+                        boardId, mentionedUserId, principal.getUserId(), startDate, endDate);
+        return ResponseEntity.ok(response);
+    }
 }
