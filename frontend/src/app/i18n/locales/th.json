@@ -594,7 +594,9 @@
     "newFeature": "Feature ใหม่",
     "newFeaturePlaceholder": "ใส่ชื่อ Feature...",
     "creatingFeature": "กำลังสร้าง...",
-    "featureCreateFailed": "สร้าง Feature ไม่สำเร็จ"
+    "featureCreateFailed": "สร้าง Feature ไม่สำเร็จ",
+    "expandAll": "ขยายทั้งหมด",
+    "collapseAll": "ย่อทั้งหมด"
   },
   "inquiry": {
     "title": "ติดต่อเรา",

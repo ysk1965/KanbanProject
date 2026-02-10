@@ -1413,6 +1413,7 @@ export function KanbanBoardPage() {
         <TrialBanner
           status={subscription?.status || 'ACTIVE'}
           tier={tierInfo?.tier}
+          trialEndsAt={tierInfo?.trial_ends_at || subscription?.trial_ends_at}
           onOpenSubscription={() => setIsSubscriptionModalOpen(true)}
           onOpenPremiumBenefits={() => setIsPremiumBenefitsModalOpen(true)}
           hideBilling={hideBillingForUser}

@@ -649,7 +649,9 @@
     "newFeature": "New Feature",
     "newFeaturePlaceholder": "Enter feature title...",
     "creatingFeature": "Creating...",
-    "featureCreateFailed": "Failed to create feature."
+    "featureCreateFailed": "Failed to create feature.",
+    "expandAll": "Expand all",
+    "collapseAll": "Collapse all"
   },
   "inquiry": {
     "title": "Contact Us",

@@ -594,7 +594,9 @@
     "newFeature": "Novo Feature",
     "newFeaturePlaceholder": "Digite o título do feature...",
     "creatingFeature": "Criando...",
-    "featureCreateFailed": "Falha ao criar o feature."
+    "featureCreateFailed": "Falha ao criar o feature.",
+    "expandAll": "Expandir tudo",
+    "collapseAll": "Recolher tudo"
   },
   "inquiry": {
     "title": "Fale Conosco",

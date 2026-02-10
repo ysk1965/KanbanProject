@@ -43,6 +43,7 @@ const STEPS_CONFIG = [
     titleKey: 'slackGuide.step4Title',
     descKey: 'slackGuide.step4Desc',
     detailKey: 'slackGuide.step4Detail',
+    image: '/images/slack-guide/step4-webhook-url.png',
   },
   {
     titleKey: 'slackGuide.step5Title',

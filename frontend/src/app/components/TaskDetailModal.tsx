@@ -1274,11 +1274,20 @@ function ChecklistItemRow({
           <Popover>
             <PopoverTrigger asChild>
               {item.assignee && assigneeColor ? (
-                <button className={`flex items-center gap-1 ${assigneeColor.bgLight} rounded-full px-1.5 py-0.5 hover:opacity-80 transition-opacity`}>
-                  <div className={`w-4 h-4 rounded-full ${assigneeColor.bg} flex items-center justify-center text-[9px] font-bold text-white`}>
+                <button
+                  className={`flex items-center gap-1 ${assigneeColor.bgLight} rounded-full px-1.5 py-0.5 hover:opacity-80 transition-opacity`}
+                  style={!assigneeColor.bgLight ? { backgroundColor: assigneeColor.hex + '20' } : undefined}
+                >
+                  <div
+                    className={`w-4 h-4 rounded-full ${assigneeColor.bg} flex items-center justify-center text-[9px] font-bold text-white`}
+                    style={!assigneeColor.bg ? { backgroundColor: assigneeColor.hex } : undefined}
+                  >
                     {getInitials(item.assignee.name)}
                   </div>
-                  <span className={`text-[10px] font-medium ${assigneeColor.text}`}>
+                  <span
+                    className={`text-[10px] font-medium ${assigneeColor.text}`}
+                    style={!assigneeColor.text ? { color: assigneeColor.hex } : undefined}
+                  >
                     {item.assignee.name}
                   </span>
                 </button>
@@ -1325,11 +1334,20 @@ function ChecklistItemRow({
         ) : (
           // Viewer: 읽기 전용 담당자 표시
           item.assignee && assigneeColor ? (
-            <div className={`flex items-center gap-1 ${assigneeColor.bgLight} rounded-full px-1.5 py-0.5`}>
-              <div className={`w-4 h-4 rounded-full ${assigneeColor.bg} flex items-center justify-center text-[9px] font-bold text-white`}>
+            <div
+              className={`flex items-center gap-1 ${assigneeColor.bgLight} rounded-full px-1.5 py-0.5`}
+              style={!assigneeColor.bgLight ? { backgroundColor: assigneeColor.hex + '20' } : undefined}
+            >
+              <div
+                className={`w-4 h-4 rounded-full ${assigneeColor.bg} flex items-center justify-center text-[9px] font-bold text-white`}
+                style={!assigneeColor.bg ? { backgroundColor: assigneeColor.hex } : undefined}
+              >
                 {getInitials(item.assignee.name)}
               </div>
-              <span className={`text-[10px] font-medium ${assigneeColor.text}`}>
+              <span
+                className={`text-[10px] font-medium ${assigneeColor.text}`}
+                style={!assigneeColor.text ? { color: assigneeColor.hex } : undefined}
+              >
                 {item.assignee.name}
               </span>
             </div>

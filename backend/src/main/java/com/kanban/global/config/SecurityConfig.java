@@ -75,7 +75,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        List<String> origins = new ArrayList<>(List.of(frontendUrl, "https://bridgespots.com", "https://www.bridgespots.com", "https://www.milkyway.pe.kr", "http://localhost:5173", "http://localhost:5174", "http://localhost:3000"));
+        List<String> origins = new ArrayList<>(List.of(frontendUrl, "https://bridgespots.com", "https://www.bridgespots.com", "https://milkyway.pe.kr", "https://www.milkyway.pe.kr", "http://localhost:5173", "http://localhost:5174", "http://localhost:3000"));
         if (testprodFrontendUrl != null && !testprodFrontendUrl.isBlank()) {
             origins.add(testprodFrontendUrl);
         }

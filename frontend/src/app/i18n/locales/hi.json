@@ -594,7 +594,9 @@
     "newFeature": "नया Feature",
     "newFeaturePlaceholder": "Feature का शीर्षक दर्ज करें...",
     "creatingFeature": "बना रहा है...",
-    "featureCreateFailed": "Feature बनाने में विफल।"
+    "featureCreateFailed": "Feature बनाने में विफल।",
+    "expandAll": "सभी खोलें",
+    "collapseAll": "सभी बंद करें"
   },
   "inquiry": {
     "title": "संपर्क करें",
