@@ -39,6 +39,7 @@ export function DraggableCard({
   checklistData,
   memberColorMap,
   showFeatureLabel = false,
+  isScheduled = false,
 }: DraggableCardProps) {
   const { t } = useTranslation();
   const ref = useRef<HTMLDivElement>(null);
@@ -381,6 +382,11 @@ export function DraggableCard({
       {/* 체크리스트 & 담당자 */}
       <div className="flex items-center justify-between border-t border-kanban-border pt-2 pl-2.5">
         <div className="flex items-center gap-3">
+          {isScheduled && (
+            <div className="flex items-center gap-1" title={t('card.hasTimeblock', 'Timeblock scheduled')}>
+              <Clock size={11} className="text-teal-400" />
+            </div>
+          )}
           {hasChecklist && boardId && (
             <button
               onClick={handleExpandClick}
