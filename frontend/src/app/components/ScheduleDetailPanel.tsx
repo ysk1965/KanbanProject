@@ -361,69 +361,73 @@ export function ScheduleDetailPanel({
           </div>
         )}
 
-        {/* Feature 정보 */}
-        <div
-          className={`bg-bridge-dark rounded-lg p-4 ${
-            feature && onViewFeature ? 'cursor-pointer hover:bg-white/5 transition-colors' : ''
-          }`}
-          onClick={() => feature && onViewFeature && onViewFeature(feature.id)}
-        >
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Folder className="h-4 w-4 text-yellow-400" />
-              <span className="text-sm font-medium text-slate-400">FEATURE</span>
+        {/* Feature 정보 - 회의 타임블록이 아닌 경우에만 표시 */}
+        {!meeting && (
+          <div
+            className={`bg-bridge-dark rounded-lg p-4 ${
+              feature && onViewFeature ? 'cursor-pointer hover:bg-white/5 transition-colors' : ''
+            }`}
+            onClick={() => feature && onViewFeature && onViewFeature(feature.id)}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Folder className="h-4 w-4 text-yellow-400" />
+                <span className="text-sm font-medium text-slate-400">FEATURE</span>
+              </div>
+              {feature && onViewFeature && (
+                <span className="text-xs text-blue-400">
+                  {t('scheduleDetail.clickToView')}
+                </span>
+              )}
             </div>
-            {feature && onViewFeature && (
-              <span className="text-xs text-blue-400">
-                {t('scheduleDetail.clickToView')}
-              </span>
+
+            {feature ? (
+              <div className="flex items-center gap-2">
+                <div
+                  className="w-3 h-3 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: feature.color }}
+                />
+                <p className="text-white font-medium">{feature.title}</p>
+              </div>
+            ) : (
+              <div className="text-slate-400 text-sm text-center py-2">
+                {t('scheduleDetail.noFeature')}
+              </div>
             )}
           </div>
+        )}
 
-          {feature ? (
-            <div className="flex items-center gap-2">
-              <div
-                className="w-3 h-3 rounded-full flex-shrink-0"
-                style={{ backgroundColor: feature.color }}
-              />
-              <p className="text-white font-medium">{feature.title}</p>
+        {/* Task 정보 - 회의 타임블록이 아닌 경우에만 표시 */}
+        {!meeting && (
+          <div
+            className={`bg-bridge-dark rounded-lg p-4 ${
+              task && onViewTask ? 'cursor-pointer hover:bg-white/5 transition-colors' : ''
+            }`}
+            onClick={() => task && onViewTask && onViewTask(task.id)}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <FileText className="h-4 w-4 text-blue-400" />
+                <span className="text-sm font-medium text-slate-400">TASK</span>
+              </div>
+              {task && onViewTask && (
+                <span className="text-xs text-blue-400">
+                  {t('scheduleDetail.clickToView')}
+                </span>
+              )}
             </div>
-          ) : (
-            <div className="text-slate-400 text-sm text-center py-2">
-              {t('scheduleDetail.noFeature')}
-            </div>
-          )}
-        </div>
 
-        {/* Task 정보 */}
-        <div
-          className={`bg-bridge-dark rounded-lg p-4 ${
-            task && onViewTask ? 'cursor-pointer hover:bg-white/5 transition-colors' : ''
-          }`}
-          onClick={() => task && onViewTask && onViewTask(task.id)}
-        >
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <FileText className="h-4 w-4 text-blue-400" />
-              <span className="text-sm font-medium text-slate-400">TASK</span>
-            </div>
-            {task && onViewTask && (
-              <span className="text-xs text-blue-400">
-                {t('scheduleDetail.clickToView')}
-              </span>
+            {task ? (
+              <div className="text-white">
+                <p className="font-medium">{task.title}</p>
+              </div>
+            ) : (
+              <div className="text-slate-400 text-sm text-center py-2">
+                {t('scheduleDetail.noTask')}
+              </div>
             )}
           </div>
-
-          {task ? (
-            <div className="text-white">
-              <p className="font-medium">{task.title}</p>
-            </div>
-          ) : (
-            <div className="text-slate-400 text-sm text-center py-2">
-              {t('scheduleDetail.noTask')}
-            </div>
-          )}
-        </div>
+        )}
 
         {/* 체크리스트 정보 - 현재 블록에 연결된 항목 */}
         {/* <div className="bg-[#1d2125] rounded-lg p-4">
