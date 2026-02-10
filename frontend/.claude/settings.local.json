@@ -45,7 +45,12 @@
       "Bash(npm run build:*)",
       "Bash(python3:*)",
       "Bash(git pull:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(npx puppeteer:*)",
+      "Bash(node -e:*)",
+      "Bash(node:*)",
+      "Bash(npm install:*)",
+      "Bash(find:*)"
     ]
   }
 }

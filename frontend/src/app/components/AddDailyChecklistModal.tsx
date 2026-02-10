@@ -19,6 +19,7 @@ import {
   BoardChecklistItemResponse,
   MilestoneSimpleResponse,
 } from '../utils/api';
+import { FEATURE_COLORS, getRandomFeatureColor } from '../constants';
 
 interface AddDailyChecklistModalProps {
   boardId: string;
@@ -77,6 +78,12 @@ export function AddDailyChecklistModal({
 
   // 이미 데일리 체크리스트에 추가된 항목 ID 목록
   const [addedChecklistItemIds, setAddedChecklistItemIds] = useState<Set<string>>(new Set());
+
+  // 새 Feature 생성 상태
+  const [isCreatingFeature, setIsCreatingFeature] = useState(false);
+  const [newFeatureTitle, setNewFeatureTitle] = useState('');
+  const [newFeatureColor, setNewFeatureColor] = useState(() => getRandomFeatureColor());
+  const [isSubmittingFeature, setIsSubmittingFeature] = useState(false);
 
   // 모든 데이터 로드 (최적화: 5회 API 호출로 통합)
   useEffect(() => {
@@ -289,6 +296,96 @@ export function AddDailyChecklistModal({
     setNewItemTitle('');
   };
 
+  // 새 Feature 생성
+  const handleCreateFeature = async () => {
+    if (!newFeatureTitle.trim()) return;
+
+    setIsSubmittingFeature(true);
+    setError(null);
+
+    try {
+      await featureAPI.createFeature(boardId, {
+        title: newFeatureTitle.trim(),
+        color: newFeatureColor,
+      });
+
+      // 상태 초기화 및 데이터 리로드
+      setNewFeatureTitle('');
+      setNewFeatureColor(getRandomFeatureColor());
+      setIsCreatingFeature(false);
+
+      // selectedMilestoneId를 다시 설정하여 useEffect 재실행 트리거
+      setGroupedData([]);
+      setIsLoading(true);
+
+      // 데이터 리로드 (useEffect가 selectedMilestoneId에 의존하므로 강제 리로드)
+      const [featuresResponse, tasksResponse, checklistsResponse, dailyChecklistResponse] = await Promise.all([
+        featureAPI.getFeatures(boardId, selectedMilestoneId || undefined),
+        taskAPI.getTasks(boardId, selectedMilestoneId ? { milestone_id: selectedMilestoneId } : undefined),
+        boardChecklistAPI.getItems(boardId),
+        dailyChecklistAPI.getDailyChecklist(boardId, assignedDate),
+      ]);
+
+      // 이미 추가된 항목 ID 수집
+      const addedIds = new Set<string>();
+      dailyChecklistResponse.columns.forEach((column) => {
+        column.items.forEach((item) => {
+          if (item.checklist_item_id) {
+            addedIds.add(item.checklist_item_id);
+          }
+        });
+      });
+      setAddedChecklistItemIds(addedIds);
+
+      // 데이터 그룹핑
+      const featureIds = new Set(featuresResponse.features.map(f => f.id));
+      const filteredChecklists = checklistsResponse.items.filter(
+        item => item.feature && featureIds.has(item.feature.id)
+      );
+
+      const grouped = new Map<string, Map<string, BoardChecklistItemResponse[]>>();
+      filteredChecklists.forEach(item => {
+        if (!item.feature || !item.task) return;
+        if (!grouped.has(item.feature.id)) grouped.set(item.feature.id, new Map());
+        const featureGroup = grouped.get(item.feature.id)!;
+        if (!featureGroup.has(item.task.id)) featureGroup.set(item.task.id, []);
+        featureGroup.get(item.task.id)!.push(item);
+      });
+
+      const allTasks = tasksResponse.tasks.filter(t => featureIds.has(t.feature_id));
+      allTasks.forEach(task => {
+        if (!grouped.has(task.feature_id)) grouped.set(task.feature_id, new Map());
+        const featureGroup = grouped.get(task.feature_id)!;
+        if (!featureGroup.has(task.id)) featureGroup.set(task.id, []);
+      });
+
+      const result: GroupedFeatureData[] = featuresResponse.features.map(feature => {
+        const taskMap = grouped.get(feature.id);
+        const tasks: GroupedTaskData[] = [];
+        if (taskMap) {
+          const taskInfoMap = new Map(allTasks.filter(t => t.feature_id === feature.id).map(t => [t.id, t]));
+          taskMap.forEach((checklistItems, taskId) => {
+            const taskInfo = taskInfoMap.get(taskId);
+            const firstItem = checklistItems[0];
+            const taskTitle = taskInfo?.title || firstItem?.task?.title || '';
+            if (taskTitle) {
+              tasks.push({ task: { id: taskId, title: taskTitle }, checklistItems });
+            }
+          });
+        }
+        return { feature: { id: feature.id, title: feature.title, color: feature.color }, tasks };
+      });
+
+      setGroupedData(result);
+    } catch (err) {
+      console.error('Failed to create feature:', err);
+      setError(t('dailyChecklist.featureCreateFailed'));
+    } finally {
+      setIsSubmittingFeature(false);
+      setIsLoading(false);
+    }
+  };
+
   // Task를 "내가 포함된 Task" vs "다른 Task"로 분류
   const { myTasksFeaturesData, othersTasksFeaturesData } = useMemo(() => {
     const query = searchQuery.toLowerCase().trim();
@@ -374,33 +471,108 @@ export function AddDailyChecklistModal({
         </div>
 
         {/* Milestone Filter & Search */}
-        <div className="px-6 py-3 border-b border-white/10 flex gap-3">
-          {/* 마일스톤 필터 */}
-          <div className="w-48">
-            <select
-              value={selectedMilestoneId || ''}
-              onChange={(e) => setSelectedMilestoneId(e.target.value || null)}
-              disabled={isLoading}
-              className="w-full px-3 py-2.5 bg-kanban-card border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all disabled:opacity-50"
+        <div className="px-6 py-3 border-b border-white/10 flex flex-col gap-3">
+          <div className="flex gap-3">
+            {/* 마일스톤 필터 */}
+            <div className="w-48">
+              <select
+                value={selectedMilestoneId || ''}
+                onChange={(e) => setSelectedMilestoneId(e.target.value || null)}
+                disabled={isLoading}
+                className="w-full px-3 py-2.5 bg-kanban-card border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all disabled:opacity-50"
+              >
+                <option value="">{t('dailyChecklist.allMilestones')}</option>
+                {milestones.map((milestone) => (
+                  <option key={milestone.id} value={milestone.id}>
+                    {milestone.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={t('dailyChecklist.searchPlaceholder')}
+                className="w-full pl-10 pr-4 py-2.5 bg-kanban-card border border-white/10 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all text-sm"
+              />
+            </div>
+            {/* 새 Feature 생성 버튼 */}
+            <button
+              onClick={() => {
+                setIsCreatingFeature(!isCreatingFeature);
+                setNewFeatureTitle('');
+                setNewFeatureColor(getRandomFeatureColor());
+              }}
+              className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition-all whitespace-nowrap ${
+                isCreatingFeature
+                  ? 'bg-bridge-accent text-white border border-bridge-accent'
+                  : 'bg-kanban-card border border-white/10 text-slate-300 hover:text-white hover:bg-kanban-card-hover hover:border-white/20'
+              }`}
             >
-              <option value="">{t('dailyChecklist.allMilestones')}</option>
-              {milestones.map((milestone) => (
-                <option key={milestone.id} value={milestone.id}>
-                  {milestone.title}
-                </option>
-              ))}
-            </select>
+              <Plus className="h-4 w-4" />
+              {t('dailyChecklist.newFeature')}
+            </button>
           </div>
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={t('dailyChecklist.searchPlaceholder')}
-              className="w-full pl-10 pr-4 py-2.5 bg-kanban-card border border-white/10 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all text-sm"
-            />
-          </div>
+
+          {/* 새 Feature 인라인 생성 폼 */}
+          {isCreatingFeature && (
+            <div className="flex items-center gap-3 bg-kanban-card/50 rounded-xl p-3 border border-white/10">
+              {/* 색상 선택 */}
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                {FEATURE_COLORS.map((color) => (
+                  <button
+                    key={color}
+                    onClick={() => setNewFeatureColor(color)}
+                    className={`w-5 h-5 rounded-full transition-all ${
+                      newFeatureColor === color
+                        ? 'ring-2 ring-white ring-offset-1 ring-offset-kanban-bg scale-110'
+                        : 'hover:scale-110 opacity-60 hover:opacity-100'
+                    }`}
+                    style={{ backgroundColor: color }}
+                  />
+                ))}
+              </div>
+              {/* 제목 입력 */}
+              <input
+                type="text"
+                value={newFeatureTitle}
+                onChange={(e) => setNewFeatureTitle(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.nativeEvent.isComposing) return;
+                  if (e.key === 'Enter' && newFeatureTitle.trim()) {
+                    handleCreateFeature();
+                  } else if (e.key === 'Escape') {
+                    setIsCreatingFeature(false);
+                    setNewFeatureTitle('');
+                  }
+                }}
+                placeholder={t('dailyChecklist.newFeaturePlaceholder')}
+                autoFocus
+                className="flex-1 px-3 py-2 bg-kanban-card border border-white/10 rounded-lg text-white placeholder-slate-400 text-sm focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
+              />
+              {/* 생성 버튼 */}
+              <button
+                onClick={handleCreateFeature}
+                disabled={!newFeatureTitle.trim() || isSubmittingFeature}
+                className="px-4 py-2 bg-bridge-accent text-white text-sm font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-bridge-accent/90 transition-colors flex items-center gap-1.5"
+              >
+                {isSubmittingFeature ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    {t('dailyChecklist.creatingFeature')}
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-3.5 w-3.5" />
+                    {t('dailyChecklist.newFeature')}
+                  </>
+                )}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Error Message */}

@@ -363,6 +363,54 @@ public class TaskService {
     }
 
     @Transactional
+    public TaskResponse.Detail moveTaskToFeature(String boardId, String taskId, String userId, TaskRequest.MoveFeature request) {
+        boardService.checkMemberOrAbove(boardId, userId);
+
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
+
+        if (!task.getBoard().getId().equals(boardId)) {
+            throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
+        }
+
+        Feature targetFeature = featureRepository.findById(request.getTargetFeatureId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.FEATURE_NOT_FOUND));
+
+        if (!targetFeature.getBoard().getId().equals(boardId)) {
+            throw new BusinessException(ErrorCode.FEATURE_NOT_FOUND);
+        }
+
+        // 같은 Feature로의 이동은 무시
+        if (task.getFeature().getId().equals(targetFeature.getId())) {
+            List<Tag> tags = taskTagRepository.findByTaskId(taskId).stream()
+                    .map(TaskTag::getTag)
+                    .toList();
+            return TaskResponse.Detail.of(task, tags);
+        }
+
+        String oldFeatureTitle = task.getFeature().getTitle();
+        task.moveToFeature(targetFeature);
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        activityService.logActivity(task.getBoard(), user, ActivityAction.TASK_FEATURE_MOVED, TargetType.TASK, task.getId(),
+                Map.of("taskTitle", task.getTitle(),
+                        "fromFeature", oldFeatureTitle,
+                        "toFeature", targetFeature.getTitle(),
+                        "toFeatureColor", targetFeature.getColor()));
+
+        List<Tag> tags = taskTagRepository.findByTaskId(taskId).stream()
+                .map(TaskTag::getTag)
+                .toList();
+
+        log.info("Task moved to feature: {} from feature {} to feature {} by user: {}",
+                taskId, oldFeatureTitle, targetFeature.getTitle(), userId);
+
+        return TaskResponse.Detail.of(task, tags);
+    }
+
+    @Transactional
     public TaskResponse.Detail updateTaskDates(String boardId, String taskId, String userId, TaskRequest.UpdateDates request) {
         boardService.checkMemberOrAbove(boardId, userId);
 

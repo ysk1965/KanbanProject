@@ -92,6 +92,11 @@ public class ChecklistItem {
         }
     }
 
+    public void moveToTask(Task newTask, int newPosition) {
+        this.task = newTask;
+        this.position = newPosition;
+    }
+
     public void complete() {
         if (!this.isCompleted) {
             this.isCompleted = true;

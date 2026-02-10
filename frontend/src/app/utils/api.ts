@@ -1046,6 +1046,14 @@ export const taskAPI = {
     return apiClient.put<TaskResponse>(`/boards/${boardId}/tasks/${taskId}/move`, data);
   },
 
+  moveTaskToFeature: async (
+    boardId: string,
+    taskId: string,
+    data: { target_feature_id: string }
+  ) => {
+    return apiClient.put<TaskResponse>(`/boards/${boardId}/tasks/${taskId}/move-feature`, data);
+  },
+
   // Task 태그 관리
   addTag: async (boardId: string, taskId: string, tagId: string) => {
     return apiClient.post<TagResponse[]>(`/boards/${boardId}/tasks/${taskId}/tags`, {
@@ -1132,6 +1140,13 @@ export const checklistAPI = {
   toggleItem: async (boardId: string, taskId: string, itemId: string) => {
     return apiClient.patch<ChecklistItemResponse>(
       `/boards/${boardId}/tasks/${taskId}/checklist/${itemId}/toggle`
+    );
+  },
+
+  moveToTask: async (boardId: string, taskId: string, itemId: string, data: { target_task_id: string }) => {
+    return apiClient.put<ChecklistItemResponse>(
+      `/boards/${boardId}/tasks/${taskId}/checklist/${itemId}/move-task`,
+      data
     );
   },
 };

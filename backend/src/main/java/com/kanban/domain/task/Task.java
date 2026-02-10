@@ -115,6 +115,25 @@ public class Task extends BaseTimeEntity {
         }
     }
 
+    public void moveToFeature(Feature newFeature) {
+        Feature oldFeature = this.feature;
+
+        // 이전 Feature에서 카운트 감소
+        oldFeature.decrementTotalTasks();
+        if (this.isCompleted) {
+            oldFeature.decrementCompletedTasks();
+        }
+
+        // 새 Feature로 이동
+        this.feature = newFeature;
+
+        // 새 Feature에서 카운트 증가
+        newFeature.incrementTotalTasks();
+        if (this.isCompleted) {
+            newFeature.incrementCompletedTasks();
+        }
+    }
+
     public void complete() {
         if (!this.isCompleted) {
             this.isCompleted = true;

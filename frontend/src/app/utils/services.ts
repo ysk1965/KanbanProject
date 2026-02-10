@@ -651,6 +651,17 @@ export const taskService = {
     }
   },
 
+  moveTaskToFeature: async (
+    boardId: string,
+    taskId: string,
+    targetFeatureId: string
+  ): Promise<Task> => {
+    const task = await taskAPI.moveTaskToFeature(boardId, taskId, {
+      target_feature_id: targetFeatureId,
+    });
+    return task;
+  },
+
   updateTaskDates: async (
     boardId: string,
     taskId: string,

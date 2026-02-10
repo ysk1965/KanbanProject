@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Task, Tag, ChecklistItem, User, Block } from '../types';
+import { Task, Tag, ChecklistItem, User, Block, Feature } from '../types';
 import { checklistAPI, taskAPI, scheduleAPI, ScheduleBlockDetailResponse } from '../utils/api';
 import { BoardMember } from './ShareBoardModal';
 import {
@@ -34,7 +34,7 @@ import {
 import { Badge } from './ui/badge';
 import { Calendar } from './ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import { X, Plus, Trash2, Clock, CheckSquare, CalendarIcon, FileText, Tags, Users, Layers, Pencil, CheckCircle2, Undo2, ChevronDown, ChevronRight, Loader2, MessageSquare, Lightbulb } from 'lucide-react';
+import { X, Plus, Trash2, Clock, CheckSquare, CalendarIcon, FileText, Tags, Users, Layers, Pencil, CheckCircle2, Undo2, ChevronDown, ChevronRight, Loader2, MessageSquare, Lightbulb, ArrowRightLeft } from 'lucide-react';
 import { CommentPanel } from './CommentPanel';
 import { TagPickerPopover } from './TagPickerPopover';
 import { getAssigneeClasses, getInitials } from '../utils/assigneeColor';
@@ -52,7 +52,11 @@ interface TaskDetailModalProps {
   onDelete: (taskId: string) => void;
   onMoveToDone?: (taskId: string) => void;
   onMoveToBlock?: (taskId: string, blockId: string) => void;
+  onMoveToFeature?: (taskId: string, featureId: string) => void;
+  onMoveChecklistToTask?: (checklistItemId: string, sourceTaskId: string, targetTaskId: string) => void;
   blocks?: Block[];
+  features?: Feature[];
+  allTasks?: Task[];
   availableTags: Tag[];
   onCreateTag: (name: string, color: string) => Promise<string | undefined>;
   onUpdateTag: (tagId: string, data: { name?: string; color?: string }) => Promise<void>;
@@ -61,6 +65,7 @@ interface TaskDetailModalProps {
   currentUser: User | null;
   boardId: string | null;
   canEdit?: boolean;
+  isAdminOrOwner?: boolean;
 }
 
 export function TaskDetailModal({
@@ -71,7 +76,11 @@ export function TaskDetailModal({
   onDelete,
   onMoveToDone,
   onMoveToBlock,
+  onMoveToFeature,
+  onMoveChecklistToTask,
   blocks = [],
+  features = [],
+  allTasks = [],
   availableTags,
   onCreateTag,
   onUpdateTag,
@@ -80,6 +89,7 @@ export function TaskDetailModal({
   currentUser,
   boardId,
   canEdit = true,
+  isAdminOrOwner = false,
 }: TaskDetailModalProps) {
   const { t } = useTranslation();
 
@@ -92,6 +102,12 @@ export function TaskDetailModal({
   const [showDoneDialog, setShowDoneDialog] = useState(false);
   const [showMoveDialog, setShowMoveDialog] = useState(false);
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
+  const [showMoveFeatureDialog, setShowMoveFeatureDialog] = useState(false);
+  const [selectedFeatureId, setSelectedFeatureId] = useState<string | null>(null);
+  const [showMoveChecklistDialog, setShowMoveChecklistDialog] = useState(false);
+  const [moveChecklistItemId, setMoveChecklistItemId] = useState<string | null>(null);
+  const [selectedTargetTaskId, setSelectedTargetTaskId] = useState<string | null>(null);
+  const [checklistMoveSearch, setChecklistMoveSearch] = useState('');
   const [isEditingTitle, setIsEditingTitle] = useState(false);
 
   // 체크리스트 상태
@@ -368,12 +384,23 @@ export function TaskDetailModal({
             {/* 피처 & 블록 상태 표시 */}
             <div className="flex items-center gap-2 mb-3 flex-wrap">
               {/* 피처 뱃지 */}
-              <div
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium"
-                style={{ backgroundColor: `${task.feature_color}20`, color: task.feature_color, border: `1px solid ${task.feature_color}40` }}
-              >
-                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: task.feature_color }} />
-                {task.feature_title}
+              <div className="flex items-center gap-1">
+                <div
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium"
+                  style={{ backgroundColor: `${task.feature_color}20`, color: task.feature_color, border: `1px solid ${task.feature_color}40` }}
+                >
+                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: task.feature_color }} />
+                  {task.feature_title}
+                </div>
+                {canEdit && onMoveToFeature && features.length > 1 && (
+                  <button
+                    onClick={() => setShowMoveFeatureDialog(true)}
+                    className="p-1 rounded-full text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                    title={t('task.moveFeature')}
+                  >
+                    <ArrowRightLeft className="h-3 w-3" />
+                  </button>
+                )}
               </div>
               {/* 현재 블록 상태 */}
               {task.block_name && (
@@ -672,6 +699,10 @@ export function TaskDetailModal({
                     onToggle={() => handleToggleChecklistItem(item.id)}
                     onUpdate={(updates) => handleUpdateChecklistItem(item.id, updates)}
                     onDelete={() => setChecklistItemToDelete(item.id)}
+                    onMoveToTask={onMoveChecklistToTask && allTasks.length > 1 ? () => {
+                      setMoveChecklistItemId(item.id);
+                      setShowMoveChecklistDialog(true);
+                    } : undefined}
                     boardMembers={boardMembers}
                     boardId={boardId}
                     canEdit={canEdit}
@@ -712,6 +743,7 @@ export function TaskDetailModal({
                 boardMembers={boardMembers}
                 currentUser={currentUser}
                 canEdit={canEdit}
+                isAdminOrOwner={isAdminOrOwner}
               />
             </div>
           )}
@@ -853,6 +885,147 @@ export function TaskDetailModal({
         </DialogContent>
       </Dialog>
 
+      {/* Feature 이동 다이얼로그 */}
+      <Dialog open={showMoveFeatureDialog} onOpenChange={setShowMoveFeatureDialog}>
+        <DialogContent className="max-w-sm bg-bridge-obsidian border-white/10 text-foreground">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">{t('task.moveFeatureTitle')}</DialogTitle>
+            <DialogDescription className="text-slate-400">
+              {t('task.moveFeatureDesc')}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-4 max-h-[300px] overflow-y-auto kanban-scrollbar">
+            {features
+              .filter((f) => f.id !== task?.feature_id)
+              .map((feature) => (
+                <button
+                  key={feature.id}
+                  onClick={() => setSelectedFeatureId(feature.id)}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg border transition-all ${
+                    selectedFeatureId === feature.id
+                      ? 'border-bridge-accent bg-bridge-accent/10'
+                      : 'border-white/10 hover:border-white/10 hover:bg-white/5'
+                  }`}
+                >
+                  <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: feature.color }} />
+                  <span className="text-foreground text-sm truncate">{feature.title}</span>
+                </button>
+              ))}
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowMoveFeatureDialog(false);
+                setSelectedFeatureId(null);
+              }}
+              className="bg-white/5 border-white/10 text-foreground hover:bg-white/10"
+            >
+              {t('common.cancel')}
+            </Button>
+            <Button
+              onClick={() => {
+                if (task && onMoveToFeature && selectedFeatureId) {
+                  onMoveToFeature(task.id, selectedFeatureId);
+                }
+                setShowMoveFeatureDialog(false);
+                setSelectedFeatureId(null);
+                onClose();
+              }}
+              disabled={!selectedFeatureId}
+              className="bg-bridge-accent hover:bg-bridge-accent/90 disabled:opacity-50"
+            >
+              {t('task.move')}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 체크리스트 항목 Task 이동 다이얼로그 */}
+      <Dialog open={showMoveChecklistDialog} onOpenChange={(open) => {
+        if (!open) {
+          setShowMoveChecklistDialog(false);
+          setMoveChecklistItemId(null);
+          setSelectedTargetTaskId(null);
+          setChecklistMoveSearch('');
+        }
+      }}>
+        <DialogContent className="max-w-sm bg-bridge-obsidian border-white/10 text-foreground">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">{t('task.moveChecklistToTaskTitle')}</DialogTitle>
+            <DialogDescription className="text-slate-400">
+              {t('task.moveChecklistToTaskDesc')}
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            value={checklistMoveSearch}
+            onChange={(e) => setChecklistMoveSearch(e.target.value)}
+            placeholder={t('common.search')}
+            className="bg-white/5 border-white/10 text-foreground placeholder:text-slate-500 text-sm"
+          />
+          <div className="space-y-1 py-2 max-h-[250px] overflow-y-auto kanban-scrollbar">
+            {allTasks
+              .filter((t) => t.id !== task?.id)
+              .filter((t) => !checklistMoveSearch || t.title.toLowerCase().includes(checklistMoveSearch.toLowerCase()) || t.feature_title.toLowerCase().includes(checklistMoveSearch.toLowerCase()))
+              .map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => setSelectedTargetTaskId(t.id)}
+                  className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-lg border transition-all text-left ${
+                    selectedTargetTaskId === t.id
+                      ? 'border-bridge-accent bg-bridge-accent/10'
+                      : 'border-white/10 hover:bg-white/5'
+                  }`}
+                >
+                  <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: t.feature_color }} />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm text-foreground truncate">{t.title}</div>
+                    <div className="text-[11px] text-slate-400 truncate">{t.feature_title}</div>
+                  </div>
+                </button>
+              ))}
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowMoveChecklistDialog(false);
+                setMoveChecklistItemId(null);
+                setSelectedTargetTaskId(null);
+                setChecklistMoveSearch('');
+              }}
+              className="bg-white/5 border-white/10 text-foreground hover:bg-white/10"
+            >
+              {t('common.cancel')}
+            </Button>
+            <Button
+              onClick={() => {
+                if (task && onMoveChecklistToTask && moveChecklistItemId && selectedTargetTaskId) {
+                  onMoveChecklistToTask(moveChecklistItemId, task.id, selectedTargetTaskId);
+                  // UI에서 항목 제거
+                  setChecklistItems((prev) => prev.filter((ci) => ci.id !== moveChecklistItemId));
+                  const remaining = checklistItems.filter((ci) => ci.id !== moveChecklistItemId);
+                  const completedCount = remaining.filter((ci) => ci.completed).length;
+                  onUpdate({
+                    checklist_total: remaining.length,
+                    checklist_completed: completedCount,
+                    checklist_version: (task.checklist_version || 0) + 1,
+                  });
+                }
+                setShowMoveChecklistDialog(false);
+                setMoveChecklistItemId(null);
+                setSelectedTargetTaskId(null);
+                setChecklistMoveSearch('');
+              }}
+              disabled={!selectedTargetTaskId}
+              className="bg-bridge-accent hover:bg-bridge-accent/90 disabled:opacity-50"
+            >
+              {t('task.move')}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* 체크리스트 아이템 삭제 확인 다이얼로그 */}
       <AlertDialog open={!!checklistItemToDelete} onOpenChange={(open) => !open && setChecklistItemToDelete(null)}>
         <AlertDialogContent className="bg-bridge-obsidian border-white/10">
@@ -890,6 +1063,7 @@ function ChecklistItemRow({
   onToggle,
   onUpdate,
   onDelete,
+  onMoveToTask,
   boardMembers,
   boardId,
   canEdit = true,
@@ -898,6 +1072,7 @@ function ChecklistItemRow({
   onToggle: () => void;
   onUpdate: (updates: Partial<ChecklistItem>) => void;
   onDelete: () => void;
+  onMoveToTask?: () => void;
   boardMembers: BoardMember[];
   boardId: string | null;
   canEdit?: boolean;
@@ -1196,9 +1371,20 @@ function ChecklistItemRow({
         )}
       </button>
 
-      {/* 삭제 버튼 - Viewer는 삭제 불가 */}
+      {/* 이동/삭제 버튼 - Viewer는 불가 */}
       {canEdit && (
-        <div className="flex items-center opacity-0 group-hover:opacity-100">
+        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100">
+          {onMoveToTask && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0 text-slate-400 hover:text-white hover:bg-white/10"
+              onClick={onMoveToTask}
+              title={t('task.moveChecklistToTask')}
+            >
+              <ArrowRightLeft className="h-3 w-3" />
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="sm"

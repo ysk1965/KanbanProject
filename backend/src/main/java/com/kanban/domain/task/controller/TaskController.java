@@ -79,6 +79,16 @@ public class TaskController {
         return ResponseEntity.ok(response);
     }
 
+    @PutMapping("/tasks/{taskId}/move-feature")
+    public ResponseEntity<TaskResponse.Detail> moveTaskToFeature(
+            @PathVariable String boardId,
+            @PathVariable String taskId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody TaskRequest.MoveFeature request) {
+        TaskResponse.Detail response = taskService.moveTaskToFeature(boardId, taskId, principal.getUserId(), request);
+        return ResponseEntity.ok(response);
+    }
+
     @PutMapping("/tasks/{taskId}/dates")
     public ResponseEntity<TaskResponse.Detail> updateTaskDates(
             @PathVariable String boardId,

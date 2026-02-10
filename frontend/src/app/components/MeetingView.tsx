@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Bell, Trash2, ChevronDown, ChevronUp, Users, X, Loader2, Sparkles, Mic, Square as SquareIcon, FileText, CheckSquare, ChevronRight, ArrowRight, Star } from 'lucide-react';
 import { format } from 'date-fns';
-import { meetingAPI, MeetingSummary, MeetingDetail, AISuggestionResponse, AIFeatureSuggestion, AIApplyRequest, AIApplyResult } from '../utils/api';
+import { meetingAPI, featureAPI, taskAPI, MeetingSummary, MeetingDetail, AISuggestionResponse, AIFeatureSuggestion, AIApplyRequest, AIApplyResult } from '../utils/api';
 import { BoardMember } from './ShareBoardModal';
 import { getInitials, getAssigneeHex } from '../utils/assigneeColor';
 
@@ -566,6 +566,7 @@ function MeetingAIInlineSection({
   const [applying, setApplying] = useState(false);
   const [applyError, setApplyError] = useState<string | null>(null);
   const [result, setResult] = useState<AIApplyResult | null>(null);
+  const [lockedItems, setLockedItems] = useState<{ tasks: Record<string, boolean> }>({ tasks: {} });
 
   // Initialize selection when suggestions load
   useEffect(() => {
@@ -588,21 +589,76 @@ function MeetingAIInlineSection({
 
     setSelection({ features: featureSel, tasks: taskSel, checklists: checklistSel });
     setExpandedFeatures(expanded);
-  }, [suggestions]);
+
+    // Check for already-existing items on the board
+    (async () => {
+      try {
+        const [featuresRes, tasksRes] = await Promise.all([
+          featureAPI.getFeatures(boardId),
+          taskAPI.getTasks(boardId),
+        ]);
+        const existingFeatures = featuresRes.features;
+        const existingTasks = tasksRes.tasks;
+
+        const featureTitleToId = new Map<string, string>();
+        existingFeatures.forEach(f => featureTitleToId.set(f.title.trim().toLowerCase(), f.id));
+
+        const tasksByFeatureId = new Map<string, Set<string>>();
+        existingTasks.forEach(t => {
+          if (!tasksByFeatureId.has(t.feature_id)) tasksByFeatureId.set(t.feature_id, new Set());
+          tasksByFeatureId.get(t.feature_id)!.add(t.title.trim().toLowerCase());
+        });
+
+        const locked: Record<string, boolean> = {};
+        suggestions.features.forEach((feature, fi) => {
+          let featureId: string | null = null;
+          if (feature.type === 'EXISTING' && feature.feature_id) {
+            featureId = feature.feature_id;
+          } else if (feature.type === 'NEW') {
+            const norm = feature.title.trim().toLowerCase();
+            if (featureTitleToId.has(norm)) featureId = featureTitleToId.get(norm)!;
+          }
+          if (featureId) {
+            const existing = tasksByFeatureId.get(featureId) || new Set();
+            feature.tasks.forEach((task, ti) => {
+              if (existing.has(task.title.trim().toLowerCase())) {
+                locked[`${fi}-${ti}`] = true;
+              }
+            });
+          }
+        });
+        setLockedItems({ tasks: locked });
+      } catch {
+        // Duplicate check is best-effort
+      }
+    })();
+  }, [suggestions, boardId]);
+
+  const isTaskLocked = useCallback((fi: number, ti: number) => !!lockedItems.tasks[`${fi}-${ti}`], [lockedItems]);
+  const isFeatureAllLocked = useCallback((fi: number) => {
+    if (!suggestions) return false;
+    return suggestions.features[fi].tasks.every((_, ti) => isTaskLocked(fi, ti));
+  }, [suggestions, isTaskLocked]);
 
   const toggleFeature = (fi: number) => {
+    if (isFeatureAllLocked(fi)) return;
     const newVal = !selection.features[fi];
     setSelection(prev => {
       const next = { ...prev, features: { ...prev.features, [fi]: newVal }, tasks: { ...prev.tasks }, checklists: { ...prev.checklists } };
       suggestions!.features[fi].tasks.forEach((task, ti) => {
-        next.tasks[`${fi}-${ti}`] = newVal;
-        task.checklists.forEach((_, ci) => { next.checklists[`${fi}-${ti}-${ci}`] = newVal; });
+        if (!isTaskLocked(fi, ti)) {
+          next.tasks[`${fi}-${ti}`] = newVal;
+          task.checklists.forEach((_, ci) => { next.checklists[`${fi}-${ti}-${ci}`] = newVal; });
+        }
       });
+      const anyChecked = suggestions!.features[fi].tasks.some((_, idx) => next.tasks[`${fi}-${idx}`]);
+      next.features[fi] = anyChecked;
       return next;
     });
   };
 
   const toggleTask = (fi: number, ti: number) => {
+    if (isTaskLocked(fi, ti)) return;
     const key = `${fi}-${ti}`;
     const newVal = !selection.tasks[key];
     setSelection(prev => {
@@ -620,6 +676,7 @@ function MeetingAIInlineSection({
   };
 
   const toggleChecklist = (fi: number, ti: number, ci: number) => {
+    if (isTaskLocked(fi, ti)) return;
     const key = `${fi}-${ti}-${ci}`;
     const newVal = !selection.checklists[key];
     setSelection(prev => {
@@ -651,22 +708,30 @@ function MeetingAIInlineSection({
     const taskSel: Record<string, boolean> = {};
     const checklistSel: Record<string, boolean> = {};
     suggestions.features.forEach((feature, fi) => {
-      featureSel[fi] = newVal;
       feature.tasks.forEach((task, ti) => {
-        taskSel[`${fi}-${ti}`] = newVal;
-        task.checklists.forEach((_, ci) => { checklistSel[`${fi}-${ti}-${ci}`] = newVal; });
+        const locked = isTaskLocked(fi, ti);
+        taskSel[`${fi}-${ti}`] = locked ? true : newVal;
+        task.checklists.forEach((_, ci) => { checklistSel[`${fi}-${ti}-${ci}`] = locked ? true : newVal; });
       });
+      const anyChecked = feature.tasks.some((_, idx) => taskSel[`${fi}-${idx}`]);
+      featureSel[fi] = anyChecked;
     });
     setSelection({ features: featureSel, tasks: taskSel, checklists: checklistSel });
   };
 
   const selectedCount = useMemo(() => {
     let count = 0;
-    Object.values(selection.features).forEach(v => { if (v) count++; });
-    Object.values(selection.tasks).forEach(v => { if (v) count++; });
-    Object.values(selection.checklists).forEach(v => { if (v) count++; });
+    Object.entries(selection.features).forEach(([, v]) => { if (v) count++; });
+    Object.entries(selection.tasks).forEach(([key, v]) => { if (v && !lockedItems.tasks[key]) count++; });
+    Object.entries(selection.checklists).forEach(([key, v]) => {
+      if (v) {
+        const parts = key.split('-');
+        const taskKey = `${parts[0]}-${parts[1]}`;
+        if (!lockedItems.tasks[taskKey]) count++;
+      }
+    });
     return count;
-  }, [selection]);
+  }, [selection, lockedItems]);
 
   const handleApply = async () => {
     if (!suggestions) return;
@@ -680,6 +745,7 @@ function MeetingAIInlineSection({
             const tasks = feature.tasks
               .map((task, ti) => {
                 if (!selection.tasks[`${fi}-${ti}`]) return null;
+                if (lockedItems.tasks[`${fi}-${ti}`]) return null; // Skip already existing
                 const checklists = task.checklists
                   .filter((_, ci) => selection.checklists[`${fi}-${ti}-${ci}`])
                   .map(cl => ({ title: cl.title }));
@@ -707,8 +773,10 @@ function MeetingAIInlineSection({
     }
   };
 
-  const renderCheckbox = (checked: boolean) =>
-    checked ? (
+  const renderCheckbox = (checked: boolean, locked: boolean = false) =>
+    locked ? (
+      <CheckSquare className="h-4 w-4 text-blue-400 flex-shrink-0 opacity-60" />
+    ) : checked ? (
       <CheckSquare className="h-4 w-4 text-bridge-accent flex-shrink-0" />
     ) : (
       <SquareIcon className="h-4 w-4 text-slate-500 flex-shrink-0" />
@@ -871,9 +939,15 @@ function MeetingAIInlineSection({
               >
                 {/* Feature row */}
                 <div className="flex items-center gap-2 px-4 py-3">
-                  <button onClick={() => toggleFeature(fi)} className="flex-shrink-0">
-                    {renderCheckbox(!!selection.features[fi])}
-                  </button>
+                  {isFeatureAllLocked(fi) ? (
+                    <span className="flex-shrink-0 cursor-not-allowed">
+                      {renderCheckbox(true, true)}
+                    </span>
+                  ) : (
+                    <button onClick={() => toggleFeature(fi)} className="flex-shrink-0">
+                      {renderCheckbox(!!selection.features[fi])}
+                    </button>
+                  )}
                   <button
                     onClick={() => setExpandedFeatures(prev => ({ ...prev, [fi]: !prev[fi] }))}
                     className="flex-shrink-0 text-slate-400 hover:text-white transition-colors"
@@ -894,10 +968,16 @@ function MeetingAIInlineSection({
                   <div className="border-t border-white/5">
                     {feature.tasks.map((task, ti) => (
                       <div key={ti}>
-                        <div className="flex items-center gap-2 px-4 py-2.5 pl-10">
-                          <button onClick={() => toggleTask(fi, ti)} className="flex-shrink-0">
-                            {renderCheckbox(!!selection.tasks[`${fi}-${ti}`])}
-                          </button>
+                        <div className={`flex items-center gap-2 px-4 py-2.5 pl-10 ${isTaskLocked(fi, ti) ? 'opacity-60' : ''}`}>
+                          {isTaskLocked(fi, ti) ? (
+                            <span className="flex-shrink-0 cursor-not-allowed">
+                              {renderCheckbox(true, true)}
+                            </span>
+                          ) : (
+                            <button onClick={() => toggleTask(fi, ti)} className="flex-shrink-0">
+                              {renderCheckbox(!!selection.tasks[`${fi}-${ti}`])}
+                            </button>
+                          )}
                           <ArrowRight className="h-3 w-3 text-slate-500 flex-shrink-0" />
                           <div className="flex-1 min-w-0">
                             <span className="text-sm text-slate-300 truncate block">{task.title}</span>
@@ -905,12 +985,23 @@ function MeetingAIInlineSection({
                               <span className="text-xs text-slate-500 truncate block mt-0.5">{task.description}</span>
                             )}
                           </div>
+                          {isTaskLocked(fi, ti) && (
+                            <span className="text-[10px] text-blue-400 bg-blue-400/10 px-1.5 py-0.5 rounded flex-shrink-0">
+                              {t('meeting.aiAlreadyExists')}
+                            </span>
+                          )}
                         </div>
                         {task.checklists.map((checklist, ci) => (
-                          <div key={ci} className="flex items-center gap-2 px-4 py-2 pl-16">
-                            <button onClick={() => toggleChecklist(fi, ti, ci)} className="flex-shrink-0">
-                              {renderCheckbox(!!selection.checklists[`${fi}-${ti}-${ci}`])}
-                            </button>
+                          <div key={ci} className={`flex items-center gap-2 px-4 py-2 pl-16 ${isTaskLocked(fi, ti) ? 'opacity-60' : ''}`}>
+                            {isTaskLocked(fi, ti) ? (
+                              <span className="flex-shrink-0 cursor-not-allowed">
+                                {renderCheckbox(true, true)}
+                              </span>
+                            ) : (
+                              <button onClick={() => toggleChecklist(fi, ti, ci)} className="flex-shrink-0">
+                                {renderCheckbox(!!selection.checklists[`${fi}-${ti}-${ci}`])}
+                              </button>
+                            )}
                             <span className="text-xs text-slate-400 truncate">{checklist.title}</span>
                           </div>
                         ))}

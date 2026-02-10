@@ -82,11 +82,12 @@ interface CommentPanelProps {
   boardMembers: BoardMember[];
   currentUser: User | null;
   canEdit?: boolean;
+  isAdminOrOwner?: boolean;
 }
 
 // ========== 컴포넌트 ==========
 
-export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEdit = true }: CommentPanelProps) {
+export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEdit = true, isAdminOrOwner = false }: CommentPanelProps) {
   const { t } = useTranslation();
   // 댓글 목록
   const [comments, setComments] = useState<TaskComment[]>([]);
@@ -619,12 +620,14 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
                         {formatRelativeTime(comment.created_at)}
                         {isEdited && ` (${t('comment.edited')})`}
                       </span>
-                      {canEdit && isAuthor && !isBeingEdited && (
+                      {canEdit && (isAuthor || isAdminOrOwner) && !isBeingEdited && (
                         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity ml-auto">
-                          <button onClick={() => startEditing(comment)}
-                            className="p-1 rounded hover:bg-white/10 text-slate-400 hover:text-slate-300">
-                            <Pencil className="h-3 w-3" />
-                          </button>
+                          {isAuthor && (
+                            <button onClick={() => startEditing(comment)}
+                              className="p-1 rounded hover:bg-white/10 text-slate-400 hover:text-slate-300">
+                              <Pencil className="h-3 w-3" />
+                            </button>
+                          )}
                           <button onClick={() => setDeleteTarget(comment.id)}
                             className="p-1 rounded hover:bg-red-500/10 text-slate-400 hover:text-red-400">
                             <Trash2 className="h-3 w-3" />
