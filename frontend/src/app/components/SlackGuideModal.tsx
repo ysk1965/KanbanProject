@@ -26,7 +26,13 @@ const STEPS_CONFIG = [
   {
     titleKey: 'slackGuide.step2Title',
     descKey: 'slackGuide.step2Desc',
-    detailKey: 'slackGuide.step2Detail',
+    image: '/images/slack-guide/step2-create-app.png',
+  },
+  {
+    titleKey: 'slackGuide.stepAppNameTitle',
+    descKey: 'slackGuide.stepAppNameDesc',
+    detailKey: 'slackGuide.stepAppNameDetail',
+    image: '/images/slack-guide/step3-name-app.png',
   },
   {
     titleKey: 'slackGuide.step3Title',
@@ -109,6 +115,18 @@ export function SlackGuideModal({ open, onOpenChange }: SlackGuideModalProps) {
                       <p className="text-[11px] text-slate-500 leading-relaxed mt-1">
                         {t(step.detailKey)}
                       </p>
+                    )}
+
+                    {/* Guide image */}
+                    {step.image && (
+                      <div className="mt-2.5 rounded-lg overflow-hidden border border-white/10">
+                        <img
+                          src={step.image}
+                          alt={t(step.titleKey)}
+                          className="w-full h-auto"
+                          loading="lazy"
+                        />
+                      </div>
                     )}
 
                     {/* Link button */}
