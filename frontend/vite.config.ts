@@ -34,8 +34,10 @@ function generateBrandedIndex(): Plugin {
         .replace(/content="프로젝트 관리, 칸반, 간트차트, 팀 협업, PM 도구, Kanban, Gantt, 일정 관리, Milkyway"/g,
           'content="프로젝트 관리, 칸반, 간트차트, 팀 협업, PM 도구, Kanban, Gantt, 일정 관리, BRIDGE SPOTS"')
         .replace(/content="Milkyway"/g, 'content="BRIDGE SPOTS"')
-        .replace(/href="https:\/\/milkyway\.pe\.kr"/g, 'href="https://bridgespots.com"')
-        .replace(/content="https:\/\/milkyway\.pe\.kr"/g, 'content="https://bridgespots.com"')
+        .replace(/href="https:\/\/milkyway\.pe\.kr/g, 'href="https://bridgespots.com')
+        .replace(/content="https:\/\/milkyway\.pe\.kr/g, 'content="https://bridgespots.com')
+        // OG image
+        .replace(/og-image-milkyway\.png/g, 'og-image-bridgespots.png')
         // Favicon
         .replace(/href="\/MilkyWay\.png"/g, 'href="/BridgeSpotsIcon.png"')
 

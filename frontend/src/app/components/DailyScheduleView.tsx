@@ -56,6 +56,8 @@ type ScheduleViewMode = 'day' | 'week';
 
 export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onViewFeature, onViewTask, refreshTrigger, currentUserRole }: DailyScheduleViewProps) {
   const { t } = useTranslation();
+  // observer 역할 제외한 멤버 목록
+  const activeMembers = useMemo(() => boardMembers.filter((m) => m.role !== 'observer'), [boardMembers]);
   // 세부 탭 상태 (타임블록 / 체크리스트)
   const [subTab, setSubTab] = useState<ScheduleSubTab>('timeblock');
 
@@ -540,14 +542,14 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
         <MeetingView
           boardId={boardId}
           selectedDate={selectedDate}
-          boardMembers={boardMembers}
+          boardMembers={activeMembers}
           onRefreshSchedule={loadSchedule}
         />
       ) : subTab === 'checklist' ? (
         /* 체크리스트 탭 */
         <DailyChecklistView
           boardId={boardId}
-          boardMembers={boardMembers.map((m) => ({
+          boardMembers={activeMembers.map((m) => ({
             id: m.id,
             user: {
               id: m.userId,
@@ -576,7 +578,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
               <div className="w-14 md:w-20 flex-shrink-0 p-2 md:p-3 text-xs md:text-sm font-medium text-zinc-400 border-r border-kanban-border">
                 {displayMode === 'block' ? t('dailySchedule.block') : t('dailySchedule.time')}
               </div>
-              {boardMembers.map((member) => (
+              {activeMembers.map((member) => (
                 <div
                   key={member.userId}
                   className="w-36 md:w-48 flex-shrink-0 p-2 md:p-3 border-r border-kanban-border"
@@ -592,7 +594,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
                   </div>
                 </div>
               ))}
-              {boardMembers.length === 0 && (
+              {activeMembers.length === 0 && (
                 <div className="flex-1 p-3 text-zinc-400 text-sm">{t('dailySchedule.noMembers')}</div>
               )}
             </div>
@@ -603,7 +605,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
                 <div className="w-14 md:w-20 flex-shrink-0 p-2 text-xs text-zinc-400 border-r border-kanban-border flex items-center justify-center">
                   <CheckSquare className="h-3.5 w-3.5" />
                 </div>
-                {boardMembers.map((member) => {
+                {activeMembers.map((member) => {
                   const memberChecklist = dailyChecklists.find(
                     (c) => c.user.id === member.userId
                   );
@@ -681,7 +683,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
                       : time.endsWith(':00') ? time : ''}
                   </div>
                   {/* 멤버별 시간 셀 */}
-                  {boardMembers.map((member) => {
+                  {activeMembers.map((member) => {
                     const isSelected = isSlotSelected(member.userId, slotIndex);
                     return (
                       <div
@@ -704,7 +706,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
                       </div>
                     );
                   })}
-                  {boardMembers.length === 0 && (
+                  {activeMembers.length === 0 && (
                     <div className="flex-1 border-r border-kanban-border" style={{ height: `${SLOT_HEIGHT}px` }} />
                   )}
                 </div>
@@ -713,7 +715,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
               {/* 스케줄 블록들 (각 멤버 컬럼 위에 absolute로 배치) */}
               <div className="absolute top-0 left-14 md:left-20 right-0 pointer-events-none">
                 <div className="flex">
-                  {boardMembers.map((member) => {
+                  {activeMembers.map((member) => {
                     const blocks = blocksByUser.get(member.userId) || [];
                     return (
                       <div
@@ -771,7 +773,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
             </div>
 
             {/* 멤버별 행 */}
-            {boardMembers.map((member) => (
+            {activeMembers.map((member) => (
               <div key={member.userId} className="flex border-b border-kanban-border">
                 {/* 멤버 정보 */}
                 <div className="w-24 md:w-32 flex-shrink-0 p-2 md:p-3 border-r border-kanban-border bg-kanban-bg">
@@ -854,7 +856,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
                 })}
               </div>
             ))}
-            {boardMembers.length === 0 && (
+            {activeMembers.length === 0 && (
               <div className="p-6 text-zinc-400 text-center">{t('dailySchedule.noMembers')}</div>
             )}
           </div>

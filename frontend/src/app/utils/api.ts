@@ -3185,7 +3185,8 @@ export const slackWebhookAPI = {
   },
 
   testMyWebhook: async (boardId: string) => {
-    return apiClient.post<SlackTestResult>(`/boards/${boardId}/slack-webhook/me/test`);
+    const brandName = window.location.hostname.includes('milkyway') ? 'Milkyway' : 'BRIDGE SPOTS';
+    return apiClient.post<SlackTestResult>(`/boards/${boardId}/slack-webhook/me/test?brandName=${encodeURIComponent(brandName)}`);
   },
 };
 
