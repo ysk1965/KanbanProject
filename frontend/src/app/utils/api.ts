@@ -1926,8 +1926,9 @@ export const meetingAPI = {
     );
   },
 
-  aiOrganize: async (boardId: string, meetingId: string): Promise<AISuggestionResponse> => {
-    return apiClient.post<AISuggestionResponse>(`/boards/${boardId}/meetings/${meetingId}/ai-organize`);
+  aiOrganize: async (boardId: string, meetingId: string, language?: string): Promise<AISuggestionResponse> => {
+    const params = language ? `?language=${encodeURIComponent(language)}` : '';
+    return apiClient.post<AISuggestionResponse>(`/boards/${boardId}/meetings/${meetingId}/ai-organize${params}`);
   },
 
   aiApply: async (boardId: string, meetingId: string, data: AIApplyRequest): Promise<AIApplyResult> => {
@@ -3143,6 +3144,13 @@ export interface SlackTestResult {
   message: string;
 }
 
+export interface SlackWebhookMemberStatus {
+  userId: string;
+  connected: boolean;
+  enabled: boolean;
+  channelName: string | null;
+}
+
 export const notificationPreferenceAPI = {
   getMyPreferences: async (boardId: string) => {
     return apiClient.get<{
@@ -3179,6 +3187,10 @@ export const notificationPreferenceAPI = {
 };
 
 export const slackWebhookAPI = {
+  getMemberStatuses: async (boardId: string) => {
+    return apiClient.get<SlackWebhookMemberStatus[]>(`/boards/${boardId}/slack-webhook/statuses`);
+  },
+
   getMyConfig: async (boardId: string) => {
     return apiClient.get<SlackWebhookConfig>(`/boards/${boardId}/slack-webhook/me`);
   },
@@ -3267,9 +3279,10 @@ export const reportAPI = {
     return apiClient.get<WeeklyReport>(`/boards/${boardId}/reports/${reportId}`);
   },
 
-  regenerateReport: async (boardId: string, reportId: string) => {
+  regenerateReport: async (boardId: string, reportId: string, language?: string) => {
+    const params = language ? `?language=${encodeURIComponent(language)}` : '';
     return apiClient.post<WeeklyReport>(
-      `/boards/${boardId}/reports/${reportId}/regenerate`
+      `/boards/${boardId}/reports/${reportId}/regenerate${params}`
     );
   },
 };

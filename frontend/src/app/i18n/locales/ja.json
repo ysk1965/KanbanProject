@@ -260,7 +260,9 @@
     "rolePermissions": "ロール権限",
     "adminDesc": "フルアクセス（メンバー管理、ボード設定、カード編集など）",
     "memberDesc": "カードの作成・編集、コメントの記入",
-    "observerDesc": "読み取り専用（カードの閲覧のみ）"
+    "observerDesc": "読み取り専用（カードの閲覧のみ）",
+    "webhookConnected": "連携中",
+    "webhookDisabled": "無効"
   },
   "notification": {
     "notifications": "通知",
@@ -478,7 +480,8 @@
     "perYear": "/ 年",
     "discountFormat": "{{percent}}% オフ",
     "changePlan": "プランを変更",
-    "startSubscription": "サブスクリプションを開始"
+    "startSubscription": "サブスクリプションを開始",
+    "startDate": "サブスクリプション開始日"
   },
   "dailySchedule": {
     "timeblock": "タイムブロック",

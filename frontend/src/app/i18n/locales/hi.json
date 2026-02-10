@@ -260,7 +260,9 @@
     "rolePermissions": "भूमिका अनुमतियां",
     "adminDesc": "पूर्ण पहुंच (सदस्य प्रबंधन, बोर्ड सेटिंग्स, कार्ड संपादन, आदि)",
     "memberDesc": "कार्ड बनाएं और संपादित करें, टिप्पणियां लिखें",
-    "observerDesc": "केवल पढ़ने के लिए (केवल कार्ड देखें)"
+    "observerDesc": "केवल पढ़ने के लिए (केवल कार्ड देखें)",
+    "webhookConnected": "जुड़ा हुआ",
+    "webhookDisabled": "अक्षम"
   },
   "notification": {
     "notifications": "अधिसूचनाएं",
@@ -478,7 +480,8 @@
     "perYear": "/ वर्ष",
     "discountFormat": "{{percent}}% छूट",
     "changePlan": "प्लान बदलें",
-    "startSubscription": "सदस्यता शुरू करें"
+    "startSubscription": "सदस्यता शुरू करें",
+    "startDate": "सदस्यता प्रारंभ तिथि"
   },
   "dailySchedule": {
     "timeblock": "टाइम ब्लॉक",

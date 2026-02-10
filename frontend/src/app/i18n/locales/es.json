@@ -260,7 +260,9 @@
     "rolePermissions": "Permisos de rol",
     "adminDesc": "Acceso completo (gestión de miembros, configuración del tablero, edición de tarjetas, etc.)",
     "memberDesc": "Crear y editar tarjetas, escribir comentarios",
-    "observerDesc": "Solo lectura (ver tarjetas solamente)"
+    "observerDesc": "Solo lectura (ver tarjetas solamente)",
+    "webhookConnected": "Conectado",
+    "webhookDisabled": "Desactivado"
   },
   "notification": {
     "notifications": "Notificaciones",
@@ -478,7 +480,8 @@
     "perYear": "/ año",
     "discountFormat": "{{percent}}% de descuento",
     "changePlan": "Cambiar plan",
-    "startSubscription": "Iniciar suscripción"
+    "startSubscription": "Iniciar suscripción",
+    "startDate": "Fecha de inicio de suscripción"
   },
   "dailySchedule": {
     "timeblock": "Bloques de tiempo",

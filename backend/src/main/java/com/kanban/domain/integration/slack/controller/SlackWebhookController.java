@@ -10,16 +10,26 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/v1/boards/{boardId}/slack-webhook/me")
+@RequestMapping("/api/v1/boards/{boardId}/slack-webhook")
 @RequiredArgsConstructor
 public class SlackWebhookController {
 
     private final SlackWebhookService slackWebhookService;
 
-    @GetMapping
+    @GetMapping("/statuses")
+    public ResponseEntity<List<SlackWebhookResponse.MemberStatus>> getWebhookStatuses(
+            @PathVariable String boardId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        List<SlackWebhookResponse.MemberStatus> statuses = slackWebhookService.getWebhookStatuses(
+                boardId, principal.getUserId());
+        return ResponseEntity.ok(statuses);
+    }
+
+    @GetMapping("/me")
     public ResponseEntity<SlackWebhookResponse.Detail> getMyWebhook(
             @PathVariable String boardId,
             @AuthenticationPrincipal UserPrincipal principal) {
@@ -30,7 +40,7 @@ public class SlackWebhookController {
         return ResponseEntity.ok(response);
     }
 
-    @PutMapping
+    @PutMapping("/me")
     public ResponseEntity<SlackWebhookResponse.Detail> upsertMyWebhook(
             @PathVariable String boardId,
             @AuthenticationPrincipal UserPrincipal principal,
@@ -40,7 +50,7 @@ public class SlackWebhookController {
         return ResponseEntity.ok(response);
     }
 
-    @DeleteMapping
+    @DeleteMapping("/me")
     public ResponseEntity<Map<String, String>> deleteMyWebhook(
             @PathVariable String boardId,
             @AuthenticationPrincipal UserPrincipal principal) {
@@ -48,7 +58,7 @@ public class SlackWebhookController {
         return ResponseEntity.ok(Map.of("message", "Slack 웹훅이 삭제되었습니다"));
     }
 
-    @PostMapping("/test")
+    @PostMapping("/me/test")
     public ResponseEntity<SlackWebhookResponse.TestResult> testMyWebhook(
             @PathVariable String boardId,
             @AuthenticationPrincipal UserPrincipal principal,

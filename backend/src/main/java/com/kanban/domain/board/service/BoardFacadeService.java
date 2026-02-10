@@ -99,7 +99,10 @@ public class BoardFacadeService {
             inviteLinks = List.of();
         }
 
-        // 5. 구독 상세
+        // 5. 구독 상세 (billable 멤버 수 동기화)
+        if (subscription != null) {
+            subscription.updateBillableMemberCount(memberCount);
+        }
         SubscriptionResponse.Detail subscriptionDetail = subscription != null
                 ? SubscriptionResponse.Detail.of(subscription) : null;
 

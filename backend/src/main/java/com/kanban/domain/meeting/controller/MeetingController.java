@@ -118,9 +118,10 @@ public class MeetingController {
     public ResponseEntity<MeetingAIResponse.Suggestions> aiOrganize(
             @PathVariable String boardId,
             @PathVariable String meetingId,
+            @RequestParam(required = false) String language,
             @AuthenticationPrincipal UserPrincipal principal) {
         MeetingAIResponse.Suggestions response = meetingAIService.generateSuggestions(
-                boardId, meetingId, principal.getUserId());
+                boardId, meetingId, principal.getUserId(), language);
         return ResponseEntity.ok(response);
     }
 

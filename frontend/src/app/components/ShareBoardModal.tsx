@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Dialog,
@@ -20,7 +20,7 @@ import { Badge } from './ui/badge';
 import { X, Link as LinkIcon, Copy, Check, UserPlus, Trash2, Plus, Loader2, Palette, Users, Settings } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { HexColorPicker } from 'react-colorful';
-import { InviteLink } from '../utils/api';
+import { InviteLink, slackWebhookAPI, SlackWebhookMemberStatus } from '../utils/api';
 import { ASSIGNEE_COLOR_NAMES, getAssigneeClasses, getAssigneeHex, getInitials } from '../utils/assigneeColor';
 
 export type MemberRole = 'owner' | 'admin' | 'member' | 'observer';
@@ -44,6 +44,7 @@ interface ShareBoardModalProps {
   onRemoveMember: (memberId: string) => void;
   onUpdateMemberColor?: (memberId: string, color: string | null) => void;
   currentUserId: string;
+  boardId?: string;
   // 초대 링크 관련
   inviteLinks?: InviteLink[];
   onCreateInviteLink?: (role: string, maxUses: number, expiresIn: string) => Promise<InviteLink>;
@@ -67,6 +68,14 @@ const ROLE_COLORS: Record<MemberRole, string> = {
   observer: 'bg-white/5 text-slate-400 border-white/10',
 };
 
+function SlackIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zm1.271 0a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zm0 1.271a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zm10.124 2.521a2.528 2.528 0 0 1 2.52-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.52V8.834zm-1.271 0a2.528 2.528 0 0 1-2.521 2.521 2.528 2.528 0 0 1-2.521-2.521V2.522A2.528 2.528 0 0 1 15.166 0a2.528 2.528 0 0 1 2.521 2.522v6.312zm-2.521 10.124a2.528 2.528 0 0 1 2.521 2.52A2.528 2.528 0 0 1 15.166 24a2.528 2.528 0 0 1-2.521-2.522v-2.52h2.521zm0-1.271a2.528 2.528 0 0 1-2.521-2.521 2.528 2.528 0 0 1 2.521-2.521h6.312A2.528 2.528 0 0 1 24 15.166a2.528 2.528 0 0 1-2.522 2.521h-6.312z"/>
+    </svg>
+  );
+}
+
 export function ShareBoardModal({
   open,
   onClose,
@@ -76,6 +85,7 @@ export function ShareBoardModal({
   onRemoveMember,
   onUpdateMemberColor,
   currentUserId,
+  boardId,
   // 초대 링크 관련
   inviteLinks,
   onCreateInviteLink,
@@ -92,6 +102,21 @@ export function ShareBoardModal({
   const [copyMessage, setCopyMessage] = useState<string | null>(null);
   const [customPickerMemberId, setCustomPickerMemberId] = useState<string | null>(null);
   const [customPickerColor, setCustomPickerColor] = useState('#6366F1');
+  const [webhookStatusMap, setWebhookStatusMap] = useState<Record<string, SlackWebhookMemberStatus>>({});
+
+  useEffect(() => {
+    if (open && boardId) {
+      slackWebhookAPI.getMemberStatuses(boardId)
+        .then((res) => {
+          const map: Record<string, SlackWebhookMemberStatus> = {};
+          (res.data || []).forEach((s) => { map[s.userId] = s; });
+          setWebhookStatusMap(map);
+        })
+        .catch(() => {
+          setWebhookStatusMap({});
+        });
+    }
+  }, [open, boardId]);
 
   const handleInvite = () => {
     if (inviteEmail.trim()) {
@@ -286,6 +311,7 @@ export function ShareBoardModal({
                 const canEdit = isCurrentUserAdmin && !isCurrentMember;
                 // 색상 변경: 본인은 항상 가능, 다른 유저는 ADMIN+ 만 가능
                 const canChangeColor = onUpdateMemberColor && (isCurrentMember || isCurrentUserAdmin);
+                const webhookStatus = webhookStatusMap[member.userId];
 
                 return (
                   <div
@@ -412,6 +438,22 @@ export function ShareBoardModal({
                           </span>
                           {isCurrentMember && (
                             <span className="text-[10px] text-slate-400 tracking-wide shrink-0">{t('common.me')}</span>
+                          )}
+                          {webhookStatus && (
+                            <span
+                              className="shrink-0"
+                              title={
+                                webhookStatus.enabled
+                                  ? `Slack ${t('share.webhookConnected')}${webhookStatus.channelName ? ` (#${webhookStatus.channelName})` : ''}`
+                                  : `Slack ${t('share.webhookDisabled')}`
+                              }
+                            >
+                              <SlackIcon
+                                className={`h-3 w-3 ${
+                                  webhookStatus.enabled ? 'text-[#4A154B]' : 'text-slate-600'
+                                }`}
+                              />
+                            </span>
                           )}
                           <span className="text-xs text-slate-500 truncate">{member.email}</span>
                         </div>

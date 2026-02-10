@@ -3,6 +3,7 @@ package com.kanban.domain.integration.slack.service;
 import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.integration.slack.BrandResolver;
 import com.kanban.domain.integration.slack.MemberSlackWebhook;
 import com.kanban.domain.integration.slack.MemberSlackWebhookRepository;
 import com.kanban.domain.integration.slack.dto.SlackWebhookRequest;
@@ -13,6 +14,7 @@ import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -36,8 +38,20 @@ public class SlackWebhookService {
     private final UserRepository userRepository;
     private final RestTemplate restTemplate;
 
+    @Value("${app.frontend-url:https://bridgespots.com}")
+    private String frontendUrl;
+
     private static final Pattern SLACK_WEBHOOK_PATTERN =
             Pattern.compile("^https://hooks\\.slack\\.com/services/T[A-Za-z0-9]+/B[A-Za-z0-9]+/[A-Za-z0-9]+$");
+
+    public List<SlackWebhookResponse.MemberStatus> getWebhookStatuses(String boardId, String userId) {
+        boardService.checkViewerOrAbove(boardId, userId);
+
+        List<MemberSlackWebhook> webhooks = webhookRepository.findByBoardId(boardId);
+        return webhooks.stream()
+                .map(SlackWebhookResponse.MemberStatus::of)
+                .toList();
+    }
 
     public SlackWebhookResponse.Detail getMyWebhook(String boardId, String userId) {
         boardService.checkViewerOrAbove(boardId, userId);
@@ -102,7 +116,7 @@ public class SlackWebhookService {
         MemberSlackWebhook webhook = webhookRepository.findByBoardIdAndUserId(boardId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SLACK_WEBHOOK_NOT_FOUND));
 
-        String brand = (brandName != null && !brandName.isBlank()) ? brandName : "BRIDGE SPOTS";
+        String brand = (brandName != null && !brandName.isBlank()) ? brandName : BrandResolver.resolve(frontendUrl);
 
         try {
             Map<String, Object> payload = Map.of(

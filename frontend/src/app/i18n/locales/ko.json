@@ -280,7 +280,9 @@
     "observerDesc": "읽기 전용 (카드 조회만 가능)",
     "seatUsage": "시트 사용 현황",
     "seatsUsed": "시트 사용 중",
-    "manageSeat": "시트 관리"
+    "manageSeat": "시트 관리",
+    "webhookConnected": "연동됨",
+    "webhookDisabled": "비활성"
   },
   "notification": {
     "notifications": "알림",
@@ -533,7 +535,8 @@
     "perYear": "/ 년",
     "discountFormat": "{{percent}}% 할인",
     "changePlan": "플랜 변경",
-    "startSubscription": "구독 시작"
+    "startSubscription": "구독 시작",
+    "startDate": "구독 시작일"
   },
   "dailySchedule": {
     "timeblock": "타임블록",

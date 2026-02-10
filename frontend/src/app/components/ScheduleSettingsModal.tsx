@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Clock, Layers, ChevronDown, Info } from 'lucide-react';
 import { Button } from './ui/button';
@@ -53,6 +53,33 @@ export function ScheduleSettingsModal({
   const [isStartTimeOpen, setIsStartTimeOpen] = useState(false);
   const [isEndTimeOpen, setIsEndTimeOpen] = useState(false);
   const [isBlockCountOpen, setIsBlockCountOpen] = useState(false);
+
+  // 드롭다운 리스트 refs
+  const startTimeListRef = useRef<HTMLDivElement>(null);
+  const endTimeListRef = useRef<HTMLDivElement>(null);
+  const blockCountListRef = useRef<HTMLDivElement>(null);
+
+  // 드롭다운 열릴 때 선택된 항목으로 스크롤
+  const scrollToSelected = useCallback((container: HTMLDivElement | null) => {
+    if (!container) return;
+    const selectedEl = container.querySelector('[data-selected="true"]') as HTMLElement;
+    if (selectedEl) {
+      const containerHeight = container.clientHeight;
+      container.scrollTop = selectedEl.offsetTop - containerHeight / 2 + selectedEl.offsetHeight / 2;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isStartTimeOpen) scrollToSelected(startTimeListRef.current);
+  }, [isStartTimeOpen, scrollToSelected]);
+
+  useEffect(() => {
+    if (isEndTimeOpen) scrollToSelected(endTimeListRef.current);
+  }, [isEndTimeOpen, scrollToSelected]);
+
+  useEffect(() => {
+    if (isBlockCountOpen) scrollToSelected(blockCountListRef.current);
+  }, [isBlockCountOpen, scrollToSelected]);
 
   // 계산된 값들
   const calculatedValues = useMemo(() => {
@@ -171,10 +198,11 @@ export function ScheduleSettingsModal({
                     <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${isStartTimeOpen ? 'rotate-180' : ''}`} />
                   </button>
                   {isStartTimeOpen && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-bridge-dark border border-white/20 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
+                    <div ref={startTimeListRef} className="absolute top-full left-0 right-0 mt-1 bg-bridge-dark border border-white/20 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
                       {TIME_OPTIONS.map((time) => (
                         <button
                           key={time}
+                          data-selected={time === startTime}
                           onClick={() => {
                             setStartTime(time);
                             setIsStartTimeOpen(false);
@@ -209,10 +237,11 @@ export function ScheduleSettingsModal({
                     <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${isEndTimeOpen ? 'rotate-180' : ''}`} />
                   </button>
                   {isEndTimeOpen && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-bridge-dark border border-white/20 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
+                    <div ref={endTimeListRef} className="absolute top-full left-0 right-0 mt-1 bg-bridge-dark border border-white/20 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
                       {TIME_OPTIONS.map((time) => (
                         <button
                           key={time}
+                          data-selected={time === endTime}
                           onClick={() => {
                             setEndTime(time);
                             setIsEndTimeOpen(false);
@@ -250,10 +279,11 @@ export function ScheduleSettingsModal({
                     <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${isBlockCountOpen ? 'rotate-180' : ''}`} />
                   </button>
                   {isBlockCountOpen && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-bridge-dark border border-white/20 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
+                    <div ref={blockCountListRef} className="absolute top-full left-0 right-0 mt-1 bg-bridge-dark border border-white/20 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
                       {BLOCK_OPTIONS.map((count) => (
                         <button
                           key={count}
+                          data-selected={count === blockCount}
                           onClick={() => {
                             setBlockCount(count);
                             setIsBlockCountOpen(false);

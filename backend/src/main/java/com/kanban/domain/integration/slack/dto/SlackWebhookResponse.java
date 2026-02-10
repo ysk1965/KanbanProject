@@ -54,4 +54,23 @@ public class SlackWebhookResponse {
         private boolean success;
         private String message;
     }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class MemberStatus {
+        private String userId;
+        private boolean connected;
+        private boolean enabled;
+        private String channelName;
+
+        public static MemberStatus of(MemberSlackWebhook webhook) {
+            return MemberStatus.builder()
+                    .userId(webhook.getUser().getId())
+                    .connected(true)
+                    .enabled(webhook.getEnabled())
+                    .channelName(webhook.getChannelName())
+                    .build();
+        }
+    }
 }

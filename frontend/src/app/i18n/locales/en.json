@@ -280,7 +280,9 @@
     "observerDesc": "Read-only (view cards only)",
     "seatUsage": "Seat Usage",
     "seatsUsed": "seats used",
-    "manageSeat": "Manage Seats"
+    "manageSeat": "Manage Seats",
+    "webhookConnected": "Connected",
+    "webhookDisabled": "Disabled"
   },
   "notification": {
     "notifications": "Notifications",
@@ -533,7 +535,8 @@
     "perYear": "/ yr",
     "discountFormat": "{{percent}}% off",
     "changePlan": "Change Plan",
-    "startSubscription": "Start Subscription"
+    "startSubscription": "Start Subscription",
+    "startDate": "Subscription Start Date"
   },
   "dailySchedule": {
     "timeblock": "Time Blocks",

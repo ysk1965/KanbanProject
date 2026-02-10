@@ -54,10 +54,11 @@ public class ReportController {
     public ResponseEntity<ReportResponse.Detail> regenerateReport(
             @PathVariable String boardId,
             @PathVariable String reportId,
+            @RequestParam(required = false) String language,
             @AuthenticationPrincipal UserPrincipal principal) {
-        log.info("Regenerate report {} for board: {}, user: {}",
-                reportId, boardId, principal.getUserId());
+        log.info("Regenerate report {} for board: {}, user: {}, language: {}",
+                reportId, boardId, principal.getUserId(), language);
         return ResponseEntity.ok(
-                reportService.regenerateReport(boardId, reportId, principal.getUserId()));
+                reportService.regenerateReport(boardId, reportId, principal.getUserId(), language));
     }
 }
