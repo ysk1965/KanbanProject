@@ -311,6 +311,14 @@ public class ScheduleService {
     }
 
     /**
+     * 스케줄 블록이 있는 Task ID 목록 조회
+     */
+    public List<String> getScheduledTaskIds(String boardId, String userId) {
+        boardService.checkViewerOrAbove(boardId, userId);
+        return scheduleBlockRepository.findScheduledTaskIdsByBoardId(boardId);
+    }
+
+    /**
      * 체크리스트 아이템에 연결된 스케줄 블록 조회
      */
     public List<ScheduleResponse.BlockDetail> getSchedulesByChecklistItem(String boardId, String checklistItemId, String userId) {

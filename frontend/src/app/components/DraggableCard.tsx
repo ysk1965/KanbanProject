@@ -1,6 +1,6 @@
 import { useRef, useState, useMemo, useEffect } from 'react';
 import { Task, Tag, Feature, ChecklistItem } from '../types';
-import { Calendar, ChevronDown, ChevronUp, CheckSquare, Check } from 'lucide-react';
+import { Calendar, Clock, ChevronDown, ChevronUp, CheckSquare, Check } from 'lucide-react';
 import { checklistAPI } from '../utils/api';
 import { useDragContext } from '../contexts/DragContext';
 import { getAssigneeHex, getInitials } from '../utils/assigneeColor';
@@ -23,6 +23,7 @@ interface DraggableCardProps {
   checklistData?: ChecklistItem[];
   memberColorMap?: Record<string, string | null>;
   showFeatureLabel?: boolean;
+  isScheduled?: boolean;
 }
 
 export function DraggableCard({
@@ -418,7 +419,7 @@ export function DraggableCard({
               {allAssignees.slice(0, 3).map((assignee, index) => (
                 <div
                   key={assignee.id}
-                  className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white border-2 border-kanban-card-hover"
+                  className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white border-2 border-kanban-card-hover whitespace-nowrap overflow-hidden"
                   style={{
                     backgroundColor: getAssigneeHex(assignee.name, memberColorMap?.[assignee.id]),
                     zIndex: 3 - index,
@@ -489,7 +490,7 @@ export function DraggableCard({
                   </span>
                   {item.assignee && (
                     <div
-                      className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0 border border-white/20"
+                      className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0 border border-white/20 whitespace-nowrap overflow-hidden"
                       style={{ backgroundColor: getAssigneeHex(item.assignee.name, item.assignee?.id ? memberColorMap?.[item.assignee.id] : undefined) }}
                       title={item.assignee.name}
                     >

@@ -325,7 +325,7 @@ export function ShareBoardModal({
                       }}>
                         <PopoverTrigger asChild>
                           <button
-                            className={`relative w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-semibold group/avatar ${
+                            className={`relative w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-semibold whitespace-nowrap group/avatar ${
                               getAssigneeClasses(member.name, member.assigneeColor).bg || ''
                             }`}
                             style={

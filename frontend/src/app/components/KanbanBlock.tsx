@@ -36,6 +36,7 @@ interface KanbanBlockProps {
   checklistDataMap?: { [taskId: string]: ChecklistItem[] };
   memberColorMap?: Record<string, string | null>;
   showFeatureLabel?: boolean;
+  scheduledTaskIds?: Set<string>;
 }
 
 export function KanbanBlock({
@@ -55,6 +56,7 @@ export function KanbanBlock({
   checklistDataMap,
   memberColorMap,
   showFeatureLabel,
+  scheduledTaskIds,
 }: KanbanBlockProps) {
   const { t } = useTranslation();
   const blockRef = useRef<HTMLDivElement>(null);
@@ -403,6 +405,7 @@ export function KanbanBlock({
               checklistData={checklistDataMap?.[task.id]}
               memberColorMap={memberColorMap}
               showFeatureLabel={showFeatureLabel}
+              isScheduled={scheduledTaskIds?.has(task.id)}
             />
           </div>
         ))}

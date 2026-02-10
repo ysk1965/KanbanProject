@@ -474,7 +474,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
               onMouseEnter={() => setMentionIndex(idx)}
               className={`flex items-center gap-2 w-full px-3 py-1.5 text-xs transition-colors text-slate-300 ${idx === mentionIndex ? 'bg-white/10' : 'hover:bg-white/5'}`}
             >
-              <div className={`w-5 h-5 rounded-full ${color.bg} flex items-center justify-center text-[10px] font-bold text-white`}>
+              <div className={`w-5 h-5 rounded-full ${color.bg} flex items-center justify-center text-[10px] font-bold text-white whitespace-nowrap overflow-hidden`}>
                 {getInitials(member.name)}
               </div>
               <span className={idx === mentionIndex ? 'text-foreground' : ''}>{member.name}</span>

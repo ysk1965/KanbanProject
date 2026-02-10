@@ -351,7 +351,7 @@ export function MeetingView({ boardId, selectedDate, boardMembers, onRefreshSche
                                     <img src={p.profile_image} alt={p.name} className="w-5 h-5 rounded-full" />
                                   ) : (
                                     <div
-                                      className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] text-white font-medium"
+                                      className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] text-white font-medium whitespace-nowrap overflow-hidden"
                                       style={{ backgroundColor: getAssigneeHex(p.name) }}
                                     >
                                       {getInitials(p.name)}
