@@ -799,7 +799,7 @@ export function TaskDetailModal({
 
           {/* 오른쪽: 댓글 패널 + 닫기 버튼 */}
           {boardId && (
-            <div className="w-[420px] border-l border-kanban-border/30 flex-shrink-0 relative bg-kanban-bg/30">
+            <div className="w-[420px] border-l border-kanban-border/30 flex-shrink-0 relative z-10 bg-kanban-bg/30">
               {/* 닫기 버튼 */}
               <button
                 onClick={handleClose}
