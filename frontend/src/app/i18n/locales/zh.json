@@ -1584,7 +1584,8 @@
   "scheduleBlock": {
     "unlinked": "（未关联）",
     "cannotMove": "无法移动",
-    "cannotChange": "无法更改"
+    "cannotChange": "无法更改",
+    "willSplit": "拆分创建"
   },
   "scheduleDetail": {
     "title": "时间块详情",

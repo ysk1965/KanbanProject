@@ -1568,7 +1568,8 @@
   "scheduleBlock": {
     "unlinked": "(Não vinculado)",
     "cannotMove": "Não é possível mover",
-    "cannotChange": "Não é possível alterar"
+    "cannotChange": "Não é possível alterar",
+    "willSplit": "Dividir"
   },
   "scheduleDetail": {
     "title": "Detalhes do Bloco de Tempo",

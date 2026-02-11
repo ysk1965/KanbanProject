@@ -1568,7 +1568,8 @@
   "scheduleBlock": {
     "unlinked": "（未リンク）",
     "cannotMove": "移動不可",
-    "cannotChange": "変更不可"
+    "cannotChange": "変更不可",
+    "willSplit": "分割作成"
   },
   "scheduleDetail": {
     "title": "タイムブロック詳細",

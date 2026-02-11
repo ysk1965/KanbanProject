@@ -1380,7 +1380,8 @@
   "scheduleBlock": {
     "unlinked": "(Unlinked)",
     "cannotMove": "Cannot move",
-    "cannotChange": "Cannot change"
+    "cannotChange": "Cannot change",
+    "willSplit": "Split"
   },
   "scheduleDetail": {
     "title": "Time Block Details",
