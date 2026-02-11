@@ -171,6 +171,12 @@ export function TaskDetailModal({
     }
   }, [initialTask, editedTask]);
 
+  // 체크리스트 드래그 앤 드롭 (hooks must be before early return)
+  const checklistSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
   if (!task || !editedTask) return null;
 
   const handleClose = () => {
@@ -373,12 +379,6 @@ export function TaskDetailModal({
       onUpdate({ checklist_total: originalItems.length, checklist_completed: rolledBackCompleted, checklist_version: Date.now() });
     }
   };
-
-  // 체크리스트 드래그 앤 드롭
-  const checklistSensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-  );
 
   const sortedChecklistItems = [...checklistItems].sort((a, b) => a.position - b.position);
 
