@@ -398,7 +398,7 @@ export function TaskDetailModal({
 
     try {
       await checklistAPI.reorderItems(boardId, task.id, {
-        itemIds: reordered.map((item) => item.id),
+        item_ids: reordered.map((item) => item.id),
       });
     } catch (error) {
       console.error('Failed to reorder checklist items:', error);
