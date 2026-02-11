@@ -76,7 +76,7 @@ export function KanbanBoardPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { t } = useTranslation();
-  const { currentUser, logout, hideBilling, isTester } = useAuth();
+  const { currentUser, logout, hideBilling, isTester, isAdmin: isSystemAdmin } = useAuth();
 
   // URL 쿼리 파라미터에서 뷰/탭 정보 읽기 (Slack 등 외부 링크용)
   const urlView = searchParams.get('view') as ViewMode | null;
@@ -417,12 +417,18 @@ export function KanbanBoardPage() {
   const isAdminOrOwner = boardMembersData?.some(
     (m) => m.userId === currentUser?.id && (m.role === 'owner' || m.role === 'admin')
   ) ?? false;
-  const canViewStatistics = canAccessStatistics && isAdminOrOwner;
+  const canViewStatistics = canAccessStatistics && (isAdminOrOwner || isSystemAdmin);
 
   // Viewer(Observer) 권한 체크 - Viewer는 수정 불가
-  const currentUserRole = boardMembersData?.find(
+  // System ADMIN이 멤버가 아닌 보드에 접근 시 board.my_role을 fallback으로 사용
+  const memberRole = boardMembersData?.find(
     (m) => m.userId === currentUser?.id
   )?.role;
+  const currentUserRole = memberRole ?? (
+    isSystemAdmin && board?.my_role
+      ? (board.my_role === 'VIEWER' ? 'observer' : board.my_role.toLowerCase()) as MemberRole
+      : undefined
+  );
   const isViewer = currentUserRole === 'observer';
   const isOwner = currentUserRole === 'owner';
   const canEdit = !isViewer;

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, ChevronLeft, ChevronRight, Folder, Users, ListTodo, Calendar, Filter } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Folder, Users, ListTodo, Calendar, Filter, Eye } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { adminService } from '../../utils/services';
 import { BoardListResponse } from '../../utils/api';
 import { AdminBoardDetailModal } from './AdminBoardDetailModal';
@@ -8,6 +9,7 @@ import { formatDate as dateUtilsFormatDate } from '../../utils/dateUtils';
 
 export function AdminBoardsTab() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
 
   const TIER_OPTIONS = [
     { value: '', label: t('admin.boards.allTiers') },
@@ -176,6 +178,8 @@ export function AdminBoardsTab() {
                   <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
                     {t('admin.boards.createdAt')}
                   </th>
+                  <th className="text-right px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -232,6 +236,22 @@ export function AdminBoardsTab() {
                         <Calendar className="h-3 w-3" />
                         {formatDate(board.created_at)}
                       </span>
+                    </td>
+                    <td className="px-3 py-3 md:px-6 md:py-4 text-right">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/boards/${board.id}`);
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium
+                          text-slate-400 bg-white/5 border border-white/10 rounded-lg
+                          hover:text-white hover:bg-bridge-accent/20 hover:border-bridge-accent/30
+                          transition-all"
+                        title={t('admin.boards.viewBoard')}
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        {t('admin.boards.view')}
+                      </button>
                     </td>
                   </tr>
                 ))}

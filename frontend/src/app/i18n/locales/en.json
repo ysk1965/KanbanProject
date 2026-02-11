@@ -1785,7 +1785,9 @@
       "tier": "Tier",
       "members": "Members",
       "tasks": "Tasks",
-      "createdAt": "Created"
+      "createdAt": "Created",
+      "view": "View",
+      "viewBoard": "View Board"
     },
     "boardDetail": {
       "title": "Board Detail",

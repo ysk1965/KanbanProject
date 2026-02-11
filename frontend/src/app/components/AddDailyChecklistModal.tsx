@@ -547,24 +547,35 @@ export function AddDailyChecklistModal({
         }),
       }));
 
-    // "내가 포함된 Task" 분류
+    // 내가 포함된 Task가 있는 Feature ID 목록
+    const featuresWithMyTasks = new Set(
+      allProcessed
+        .filter((featureData) =>
+          featureData.tasks.some((taskData) => taskData.checklistItems.length > 0 && taskData.hasMyItem)
+        )
+        .map((featureData) => featureData.feature.id)
+    );
+
+    // "내가 포함된 Task" 분류 (빈 Task는 해당 Feature에 내 Task가 있으면 여기에 포함)
     const myTasksFeaturesData = allProcessed
       .map((featureData) => ({
         ...featureData,
         tasks: featureData.tasks.filter(
-          (taskData) => taskData.checklistItems.length > 0 && taskData.hasMyItem
+          (taskData) =>
+            (taskData.checklistItems.length > 0 && taskData.hasMyItem) ||
+            (taskData.hasNoChecklist && taskData.matchesSearch && featuresWithMyTasks.has(featureData.feature.id))
         ),
       }))
       .filter((featureData) => featureData.tasks.length > 0);
 
-    // "다른 Task" 분류 (체크리스트 없는 Task 포함)
+    // "다른 Task" 분류 (빈 Task는 내 Task가 없는 Feature에만 포함)
     const othersTasksFeaturesData = allProcessed
       .map((featureData) => ({
         ...featureData,
         tasks: featureData.tasks.filter(
           (taskData) =>
             (taskData.checklistItems.length > 0 && !taskData.hasMyItem) ||
-            (taskData.hasNoChecklist && taskData.matchesSearch)
+            (taskData.hasNoChecklist && taskData.matchesSearch && !featuresWithMyTasks.has(featureData.feature.id))
         ),
       }))
       .filter((featureData) => featureData.tasks.length > 0);

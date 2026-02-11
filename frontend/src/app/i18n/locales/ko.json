@@ -1785,7 +1785,9 @@
       "tier": "티어",
       "members": "멤버",
       "tasks": "태스크",
-      "createdAt": "생성일"
+      "createdAt": "생성일",
+      "view": "보기",
+      "viewBoard": "보드 열람"
     },
     "boardDetail": {
       "title": "보드 상세",

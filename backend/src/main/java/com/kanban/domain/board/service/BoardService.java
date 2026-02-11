@@ -380,7 +380,11 @@ public class BoardService {
     }
 
     public void checkViewerOrAbove(String boardId, String userId) {
-        getMembershipOrThrow(boardId, userId);
+        if (boardMemberRepository.existsByBoardIdAndUserId(boardId, userId)) return;
+        // System ADMIN can view any board without membership
+        User user = userRepository.findById(userId).orElse(null);
+        if (user != null && user.getSystemRole() == SystemRole.ADMIN) return;
+        throw new BusinessException(ErrorCode.BOARD_ACCESS_DENIED);
     }
 
     public void checkMemberOrAbove(String boardId, String userId) {
