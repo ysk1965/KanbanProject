@@ -1084,6 +1084,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
           assigneeId={pendingBlock.userId}
           startTime={pendingBlock.startTime}
           endTime={pendingBlock.endTime}
+          selectedDate={format(selectedDate, 'yyyy-MM-dd')}
           displayMode={displayMode}
           startBlockIndex={pendingBlock.startSlotIndex}
           endBlockIndex={pendingBlock.endSlotIndex}

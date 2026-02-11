@@ -276,14 +276,16 @@ export function KanbanBoardPage() {
             // API 응답을 ChecklistItem[] 형식으로 변환
             const checklistMap: { [taskId: string]: ChecklistItem[] } = {};
             Object.entries(batchChecklistData).forEach(([taskId, data]) => {
-              checklistMap[taskId] = data.items.map((item) => ({
-                id: item.id,
-                title: item.title,
-                completed: item.completed,
-                position: item.position,
-                due_date: item.due_date,
-                assignee: item.assignee ? { id: item.assignee.id, name: item.assignee.name } : null,
-              }));
+              if (data && Array.isArray(data.items)) {
+                checklistMap[taskId] = data.items.map((item) => ({
+                  id: item.id,
+                  title: item.title,
+                  completed: item.completed,
+                  position: item.position,
+                  due_date: item.due_date,
+                  assignee: item.assignee ? { id: item.assignee.id, name: item.assignee.name } : null,
+                }));
+              }
             });
             setChecklistDataMap(checklistMap);
           } catch (error) {
@@ -561,14 +563,16 @@ export function KanbanBoardPage() {
           const batchChecklistData = await checklistService.getBatchChecklists(boardId, taskIdsWithChecklist);
           const checklistMap: { [taskId: string]: ChecklistItem[] } = {};
           Object.entries(batchChecklistData).forEach(([taskId, data]) => {
-            checklistMap[taskId] = data.items.map((item) => ({
-              id: item.id,
-              title: item.title,
-              completed: item.completed,
-              position: item.position,
-              due_date: item.due_date,
-              assignee: item.assignee ? { id: item.assignee.id, name: item.assignee.name } : null,
-            }));
+            if (data && Array.isArray(data.items)) {
+              checklistMap[taskId] = data.items.map((item) => ({
+                id: item.id,
+                title: item.title,
+                completed: item.completed,
+                position: item.position,
+                due_date: item.due_date,
+                assignee: item.assignee ? { id: item.assignee.id, name: item.assignee.name } : null,
+              }));
+            }
           });
           setChecklistDataMap(checklistMap);
         } catch (error) {
