@@ -27,6 +27,10 @@ import com.kanban.domain.tag.service.TagService;
 import com.kanban.domain.task.TaskRepository;
 import com.kanban.domain.task.dto.TaskResponse;
 import com.kanban.domain.task.service.TaskService;
+import com.kanban.domain.board.BoardRole;
+import com.kanban.domain.user.SystemRole;
+import com.kanban.domain.user.User;
+import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -52,6 +56,7 @@ public class BoardFacadeService {
     private final SubscriptionRepository subscriptionRepository;
     private final InviteLinkRepository inviteLinkRepository;
     private final TaskRepository taskRepository;
+    private final UserRepository userRepository;
 
     private final BoardService boardService;
     private final BlockService blockService;
@@ -73,15 +78,29 @@ public class BoardFacadeService {
         Board board = boardRepository.findById(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
-        BoardMember membership = boardMemberRepository.findByBoardIdAndUserId(boardId, userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_ACCESS_DENIED));
+        // 멤버십 확인 (없으면 시스템 ADMIN인지 체크)
+        java.util.Optional<BoardMember> membershipOpt = boardMemberRepository.findByBoardIdAndUserId(boardId, userId);
+        BoardRole myRole;
+        boolean isSystemAdminView = false;
+
+        if (membershipOpt.isPresent()) {
+            myRole = membershipOpt.get().getRole();
+        } else {
+            User user = userRepository.findById(userId).orElse(null);
+            if (user != null && user.getSystemRole() == SystemRole.ADMIN) {
+                myRole = BoardRole.VIEWER;
+                isSystemAdminView = true;
+            } else {
+                throw new BusinessException(ErrorCode.BOARD_ACCESS_DENIED);
+            }
+        }
 
         // 2. 기본 보드 정보
-        boolean isStarred = userBoardStarRepository.existsByUserIdAndBoardId(userId, boardId);
+        boolean isStarred = !isSystemAdminView && userBoardStarRepository.existsByUserIdAndBoardId(userId, boardId);
         int memberCount = boardMemberRepository.countBillableMembers(boardId);
         Subscription subscription = subscriptionRepository.findByBoardId(boardId).orElse(null);
 
-        // 3. 각 서비스에서 데이터 조회 (권한 검사 중복되지만 캐싱 활용 가능)
+        // 3. 각 서비스에서 데이터 조회 (checkViewerOrAbove가 시스템 ADMIN도 허용)
         BlockResponse.ListResponse blocksResponse = blockService.getBlocks(boardId, userId);
         FeatureResponse.ListResponse featuresResponse = featureService.getFeatures(boardId, userId, null);
         TaskResponse.ListResponse tasksResponse = taskService.getTasks(boardId, userId, null, null, null);
@@ -90,9 +109,9 @@ public class BoardFacadeService {
         ActivityResponse.ListResponse activitiesResponse = activityService.getActivities(boardId, userId, null, DEFAULT_ACTIVITY_LIMIT);
         MilestoneResponse.ListResponse milestonesResponse = milestoneService.getMilestones(boardId, userId);
 
-        // 4. 초대 링크 (Admin+ 권한만)
+        // 4. 초대 링크 (실제 보드 Admin+ 멤버만, 시스템 Admin 스텔스 뷰에서는 제외)
         List<InviteResponse.Detail> inviteLinks;
-        if (membership.isAdminOrAbove()) {
+        if (!isSystemAdminView && membershipOpt.isPresent() && membershipOpt.get().isAdminOrAbove()) {
             List<InviteLink> links = inviteLinkRepository.findByBoardIdAndIsActiveTrue(boardId);
             inviteLinks = links.stream().map(InviteResponse.Detail::of).toList();
         } else {
@@ -121,7 +140,7 @@ public class BoardFacadeService {
                 .name(board.getName())
                 .description(board.getDescription())
                 .owner(BoardResponse.OwnerInfo.of(board))
-                .myRole(membership.getRole())
+                .myRole(myRole)
                 .isStarred(isStarred)
                 .memberCount(memberCount)
                 .subscription(subscription != null ? BoardResponse.SubscriptionInfo.of(subscription) : null)

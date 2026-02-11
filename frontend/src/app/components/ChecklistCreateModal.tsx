@@ -12,6 +12,7 @@ interface ChecklistCreateModalProps {
   displayMode: 'time' | 'block';
   startBlockIndex?: number;
   endBlockIndex?: number;
+  splitBlocks?: Array<{ startTime: string; endTime: string }>;
   onCreate: (taskId: string, title: string) => void;
   onSelectExisting: (checklistItemId: string) => void;
   onSelectBoardItem: (checklistItemId: string) => void;
@@ -27,6 +28,7 @@ export function ChecklistCreateModal({
   displayMode,
   startBlockIndex,
   endBlockIndex,
+  splitBlocks,
   onCreate,
   onSelectExisting,
   onSelectBoardItem,
@@ -232,9 +234,17 @@ export function ChecklistCreateModal({
               </>
             ) : (
               <>
-                <Clock className="h-4 w-4 text-bridge-accent" />
+                <Clock className="h-4 w-4 text-bridge-accent flex-shrink-0" />
                 <span className="text-bridge-accent font-medium text-sm">
-                  {startTime} - {endTime}
+                  {splitBlocks && splitBlocks.length > 1
+                    ? splitBlocks.map((seg, i) => (
+                        <span key={i}>
+                          {i > 0 && ', '}
+                          {seg.startTime} - {seg.endTime}
+                        </span>
+                      ))
+                    : `${startTime} - ${endTime}`
+                  }
                 </span>
               </>
             )}

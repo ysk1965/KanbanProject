@@ -92,6 +92,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
     endTime: string;
     startSlotIndex: number;
     endSlotIndex: number;
+    splitBlocks?: Array<{ startTime: string; endTime: string }>;
   } | null>(null);
 
   // 체크리스트 모달 상태 (선택 + 생성 통합)
@@ -268,13 +269,44 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
       const startTime = timeSlots[minIndex];
       const endTime = timeSlots[maxIndex + 1] || `${workEndHour}:00`;
 
+      // 점심시간 분할 로직: break 슬롯을 제외하고 연속 구간을 세그먼트로 분리
+      const segments: Array<{ startTime: string; endTime: string }> = [];
+      let segStart: number | null = null;
+      for (let i = minIndex; i <= maxIndex; i++) {
+        if (!isBreakSlot(timeSlots[i])) {
+          if (segStart === null) segStart = i;
+        } else {
+          if (segStart !== null) {
+            segments.push({
+              startTime: timeSlots[segStart],
+              endTime: timeSlots[i],
+            });
+            segStart = null;
+          }
+        }
+      }
+      if (segStart !== null) {
+        segments.push({
+          startTime: timeSlots[segStart],
+          endTime: timeSlots[maxIndex + 1] || `${workEndHour}:00`,
+        });
+      }
+
+      // 비-break 슬롯이 하나도 없으면 무시
+      if (segments.length === 0) {
+        setIsDragging(false);
+        setDragState(null);
+        return;
+      }
+
       // 체크리스트 모달 열기
       setPendingBlock({
         userId,
-        startTime,
-        endTime,
+        startTime: segments[0].startTime,
+        endTime: segments[segments.length - 1].endTime,
         startSlotIndex: minIndex,
         endSlotIndex: maxIndex,
+        splitBlocks: segments.length > 1 ? segments : undefined,
       });
       setShowChecklistModal(true);
     }
@@ -317,16 +349,30 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
     if (!pendingBlock) return;
 
     try {
-      await scheduleAPI.createWithChecklistItem(boardId, {
+      const dateStr = format(selectedDate, 'yyyy-MM-dd');
+      const segments = pendingBlock.splitBlocks || [{ startTime: pendingBlock.startTime, endTime: pendingBlock.endTime }];
+
+      // 첫 세그먼트: createWithChecklistItem → checklist_item.id 획득
+      const result = await scheduleAPI.createWithChecklistItem(boardId, {
         assignee_id: pendingBlock.userId,
-        scheduled_date: format(selectedDate, 'yyyy-MM-dd'),
-        start_time: pendingBlock.startTime,
-        end_time: pendingBlock.endTime,
+        scheduled_date: dateStr,
+        start_time: segments[0].startTime,
+        end_time: segments[0].endTime,
         checklist_item: {
           task_id: taskId,
           title: title,
         },
       });
+      // 나머지 세그먼트: 같은 checklist_item_id로 블록 생성
+      for (let i = 1; i < segments.length; i++) {
+        await scheduleAPI.createBlock(boardId, {
+          checklist_item_id: result.checklist_item!.id,
+          assignee_id: pendingBlock.userId,
+          scheduled_date: dateStr,
+          start_time: segments[i].startTime,
+          end_time: segments[i].endTime,
+        });
+      }
       await loadSchedule();
     } catch (error) {
       console.error('Failed to create block with new checklist item:', error);
@@ -340,13 +386,18 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
     if (!pendingBlock) return;
 
     try {
-      await scheduleAPI.createBlock(boardId, {
-        checklist_item_id: checklistItemId,
-        assignee_id: pendingBlock.userId,
-        scheduled_date: format(selectedDate, 'yyyy-MM-dd'),
-        start_time: pendingBlock.startTime,
-        end_time: pendingBlock.endTime,
-      });
+      const dateStr = format(selectedDate, 'yyyy-MM-dd');
+      const segments = pendingBlock.splitBlocks || [{ startTime: pendingBlock.startTime, endTime: pendingBlock.endTime }];
+
+      for (const seg of segments) {
+        await scheduleAPI.createBlock(boardId, {
+          checklist_item_id: checklistItemId,
+          assignee_id: pendingBlock.userId,
+          scheduled_date: dateStr,
+          start_time: seg.startTime,
+          end_time: seg.endTime,
+        });
+      }
       await loadSchedule();
     } catch (error) {
       console.error('Failed to create block with checklist item:', error);
@@ -361,20 +412,24 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
 
     try {
       const dateStr = format(selectedDate, 'yyyy-MM-dd');
-      // 1) 데일리 체크리스트에 추가
+      const segments = pendingBlock.splitBlocks || [{ startTime: pendingBlock.startTime, endTime: pendingBlock.endTime }];
+
+      // 1) 데일리 체크리스트에 추가 (한 번만)
       await dailyChecklistAPI.addItem(boardId, {
         checklist_item_id: checklistItemId,
         assignee_id: pendingBlock.userId,
         assigned_date: dateStr,
       });
-      // 2) 타임블록 생성
-      await scheduleAPI.createBlock(boardId, {
-        checklist_item_id: checklistItemId,
-        assignee_id: pendingBlock.userId,
-        scheduled_date: dateStr,
-        start_time: pendingBlock.startTime,
-        end_time: pendingBlock.endTime,
-      });
+      // 2) 타임블록 생성 (세그먼트별)
+      for (const seg of segments) {
+        await scheduleAPI.createBlock(boardId, {
+          checklist_item_id: checklistItemId,
+          assignee_id: pendingBlock.userId,
+          scheduled_date: dateStr,
+          start_time: seg.startTime,
+          end_time: seg.endTime,
+        });
+      }
       await loadSchedule();
     } catch (error) {
       console.error('Failed to add board checklist item and create block:', error);
@@ -388,13 +443,18 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
     if (!pendingBlock) return;
 
     try {
-      await scheduleAPI.createBlock(boardId, {
-        meeting_id: meetingId,
-        assignee_id: pendingBlock.userId,
-        scheduled_date: format(selectedDate, 'yyyy-MM-dd'),
-        start_time: pendingBlock.startTime,
-        end_time: pendingBlock.endTime,
-      });
+      const dateStr = format(selectedDate, 'yyyy-MM-dd');
+      const segments = pendingBlock.splitBlocks || [{ startTime: pendingBlock.startTime, endTime: pendingBlock.endTime }];
+
+      for (const seg of segments) {
+        await scheduleAPI.createBlock(boardId, {
+          meeting_id: meetingId,
+          assignee_id: pendingBlock.userId,
+          scheduled_date: dateStr,
+          start_time: seg.startTime,
+          end_time: seg.endTime,
+        });
+      }
       await loadSchedule();
     } catch (error) {
       console.error('Failed to create block with meeting:', error);
@@ -781,12 +841,14 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
                       <div
                         key={`${member.userId}-${time}`}
                         className={`w-36 md:w-48 flex-shrink-0 border-r border-kanban-border transition-colors group relative h-full ${
-                          isBreak ? 'cursor-not-allowed' : isViewer ? 'cursor-default' : 'cursor-pointer'
+                          isBreak ? (isDragging ? 'cursor-pointer' : 'cursor-not-allowed') : isViewer ? 'cursor-default' : 'cursor-pointer'
                         } ${
-                          isBreak ? '' : isSelected ? 'bg-[#2DD4BF]/20' : isViewer ? '' : 'hover:bg-white/5'
+                          isBreak
+                            ? (isSelected ? 'bg-[#2DD4BF]/5' : '')
+                            : isSelected ? 'bg-[#2DD4BF]/20' : isViewer ? '' : 'hover:bg-white/5'
                         }`}
                         onMouseDown={isBreak ? undefined : (e) => handleMouseDown(e, member.userId, slotIndex)}
-                        onMouseEnter={isBreak ? undefined : () => handleMouseEnter(member.userId, slotIndex)}
+                        onMouseEnter={(isBreak && !isDragging) ? undefined : () => handleMouseEnter(member.userId, slotIndex)}
                       >
                         {/* 점심시간 빗금 오버레이 */}
                         {isBreak && (
@@ -1025,6 +1087,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
           displayMode={displayMode}
           startBlockIndex={pendingBlock.startSlotIndex}
           endBlockIndex={pendingBlock.endSlotIndex}
+          splitBlocks={pendingBlock.splitBlocks}
           onCreate={handleChecklistCreate}
           onSelectExisting={handleChecklistItemSelect}
           onSelectBoardItem={handleBoardChecklistItemSelect}
