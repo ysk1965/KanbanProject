@@ -260,7 +260,7 @@
     "rolePermissions": "Quyen vai tro",
     "adminDesc": "Truy cap day du (quan ly thanh vien, cai dat bang, chinh sua the, v.v.)",
     "memberDesc": "Tao va chinh sua the, viet binh luan",
-    "observerDesc": "Chi doc (chi xem the)",
+    "viewerDesc": "Chi doc (chi xem the)",
     "webhookConnected": "Đã kết nối",
     "webhookDisabled": "Đã tắt",
     "webhookNotConnected": "Chưa kết nối"
@@ -1026,7 +1026,7 @@
     "attachFile": "Đính kèm tệp (tối đa 5)",
     "imageHelp": "Hinh anh: dan, keo hoac su dung nut ghim",
     "fileHelp": "Hình ảnh & video: dán, kéo thả hoặc dùng nút ghim",
-    "observerReadOnly": "Nguoi quan sat khong the viet binh luan",
+    "viewerReadOnly": "Nguoi quan sat khong the viet binh luan",
     "attachedImage": "Hinh anh dinh kem",
     "attachedFile": "Tệp đính kèm",
     "deleteTitle": "Xoa binh luan nay?",

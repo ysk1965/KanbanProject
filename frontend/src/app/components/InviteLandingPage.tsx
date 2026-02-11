@@ -70,7 +70,7 @@ export function InviteLandingPage({
     const roleMap: Record<string, { label: string; description: string }> = {
       ADMIN: { label: 'Admin', description: t('invite.roleAdmin') },
       MEMBER: { label: 'Member', description: t('invite.roleMember') },
-      VIEWER: { label: 'Observer', description: t('invite.roleViewer') },
+      VIEWER: { label: 'Viewer', description: t('invite.roleViewer') },
     };
     return roleMap[role] || { label: role, description: '' };
   };

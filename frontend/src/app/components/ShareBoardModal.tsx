@@ -23,7 +23,7 @@ import { HexColorPicker } from 'react-colorful';
 import { InviteLink, slackWebhookAPI, SlackWebhookMemberStatus } from '../utils/api';
 import { ASSIGNEE_COLOR_NAMES, getAssigneeClasses, getAssigneeHex, getInitials } from '../utils/assigneeColor';
 
-export type MemberRole = 'owner' | 'admin' | 'member' | 'observer';
+export type MemberRole = 'owner' | 'admin' | 'member' | 'viewer';
 
 export interface BoardMember {
   id: string;       // member ID (for API calls)
@@ -58,14 +58,14 @@ const ROLE_LABELS: Record<MemberRole, string> = {
   owner: 'Owner',
   admin: 'Admin',
   member: 'Member',
-  observer: 'Observer',
+  viewer: 'Viewer',
 };
 
 const ROLE_COLORS: Record<MemberRole, string> = {
   owner: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
   admin: 'bg-purple-500/15 text-purple-400 border-purple-500/30',
   member: 'bg-bridge-accent/15 text-bridge-accent border-bridge-accent/30',
-  observer: 'bg-white/5 text-slate-400 border-white/10',
+  viewer: 'bg-white/5 text-slate-400 border-white/10',
 };
 
 function SlackIcon({ className }: { className?: string }) {
@@ -134,7 +134,7 @@ export function ShareBoardModal({
     if (!activeLink && onCreateInviteLink) {
       try {
         setIsCreatingLink(true);
-        const newLink = await onCreateInviteLink('VIEWER', 0, '7d'); // Observer 역할, 무제한 사용, 7일 후 만료
+        const newLink = await onCreateInviteLink('VIEWER', 0, '7d'); // Viewer 역할, 무제한 사용, 7일 후 만료
         // 생성된 링크 바로 사용
         copyToClipboard(newLink.code);
         return;
@@ -207,7 +207,7 @@ export function ShareBoardModal({
                 <SelectContent>
                   <SelectItem value="admin">Admin</SelectItem>
                   <SelectItem value="member">Member</SelectItem>
-                  <SelectItem value="observer">Observer</SelectItem>
+                  <SelectItem value="viewer">Viewer</SelectItem>
                 </SelectContent>
               </Select>
               <Button
@@ -308,7 +308,7 @@ export function ShareBoardModal({
             <div className="space-y-1">
               {members.map((member) => {
                 const isCurrentMember = member.userId === currentUserId;
-                const canEdit = isCurrentUserAdmin && !isCurrentMember;
+                const canEdit = isCurrentUserAdmin && !isCurrentMember && member.role !== 'owner';
                 // 색상 변경: 본인은 항상 가능, 다른 유저는 ADMIN+ 만 가능
                 const canChangeColor = onUpdateMemberColor && (isCurrentMember || isCurrentUserAdmin);
                 const webhookStatus = webhookStatusMap[member.userId];
@@ -480,7 +480,7 @@ export function ShareBoardModal({
                             <SelectContent>
                               <SelectItem value="admin">Admin</SelectItem>
                               <SelectItem value="member">Member</SelectItem>
-                              <SelectItem value="observer">Observer</SelectItem>
+                              <SelectItem value="viewer">Viewer</SelectItem>
                             </SelectContent>
                           </Select>
                           <button
@@ -519,8 +519,8 @@ export function ShareBoardModal({
                 <span className="text-slate-400">{t('share.memberDesc')}</span>
               </div>
               <div className="flex items-start gap-2">
-                <span className="font-medium text-slate-300 shrink-0">Observer</span>
-                <span className="text-slate-400">{t('share.observerDesc')}</span>
+                <span className="font-medium text-slate-300 shrink-0">Viewer</span>
+                <span className="text-slate-400">{t('share.viewerDesc')}</span>
               </div>
             </div>
           </div>

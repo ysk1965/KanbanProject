@@ -245,7 +245,7 @@ export function KanbanBoardPage() {
           userId: m.user.id,
           name: m.user.name,
           email: m.user.email,
-          role: (m.role === 'VIEWER' ? 'observer' : m.role.toLowerCase()) as MemberRole,
+          role: m.role.toLowerCase() as MemberRole,
           assigneeColor: m.assignee_color || null,
         })));
 
@@ -345,7 +345,7 @@ export function KanbanBoardPage() {
           userId: m.user.id,
           name: m.user.name,
           email: m.user.email,
-          role: (m.role === 'VIEWER' ? 'observer' : m.role.toLowerCase()) as MemberRole,
+          role: m.role.toLowerCase() as MemberRole,
           assigneeColor: m.assignee_color,
         })));
       } catch (error) {
@@ -438,17 +438,17 @@ export function KanbanBoardPage() {
   ) ?? false;
   const canViewStatistics = canAccessStatistics && (isAdminOrOwner || isSystemAdmin);
 
-  // Viewer(Observer) 권한 체크 - Viewer는 수정 불가
+  // Viewer 권한 체크 - Viewer는 수정 불가
   // System ADMIN이 멤버가 아닌 보드에 접근 시 board.my_role을 fallback으로 사용
   const memberRole = boardMembersData?.find(
     (m) => m.userId === currentUser?.id
   )?.role;
   const currentUserRole = memberRole ?? (
     isSystemAdmin && board?.my_role
-      ? (board.my_role === 'VIEWER' ? 'observer' : board.my_role.toLowerCase()) as MemberRole
+      ? board.my_role.toLowerCase() as MemberRole
       : undefined
   );
-  const isViewer = currentUserRole === 'observer';
+  const isViewer = currentUserRole === 'viewer';
   const isOwner = currentUserRole === 'owner';
   const canEdit = !isViewer;
 
@@ -630,7 +630,7 @@ export function KanbanBoardPage() {
       return;
     }
 
-    const backendRole = role === 'observer' ? 'VIEWER' : role.toUpperCase();
+    const backendRole = role.toUpperCase();
 
     try {
       const result = await memberService.inviteMember(boardId, email, backendRole as any);
@@ -642,7 +642,7 @@ export function KanbanBoardPage() {
           userId: result.member.user.id,
           name: result.member.user.name,
           email: result.member.user.email,
-          role: (result.member.role === 'VIEWER' ? 'observer' : result.member.role.toLowerCase()) as MemberRole,
+          role: result.member.role.toLowerCase() as MemberRole,
         }]);
         alert(t('kanban.memberAdded', { name: result.member.user.name }));
       } else if (result.type === 'EMAIL_SENT') {
@@ -673,7 +673,7 @@ export function KanbanBoardPage() {
       boardMembersData.map((m) => (m.id === memberId ? { ...m, role } : m))
     );
 
-    const backendRole = role === 'observer' ? 'VIEWER' : role.toUpperCase();
+    const backendRole = role.toUpperCase();
 
     try {
       await memberService.updateMemberRole(boardId, memberId, backendRole as any);
@@ -2296,7 +2296,7 @@ export function KanbanBoardPage() {
                   email: m.email,
                   profile_image: null,
                 },
-                role: m.role === 'observer' ? 'VIEWER' : m.role.toUpperCase() as any,
+                role: m.role.toUpperCase() as any,
                 joined_at: '',
               }))}
               onTaskClick={(taskId) => {
@@ -2318,7 +2318,7 @@ export function KanbanBoardPage() {
                   email: m.email,
                   profile_image: null,
                 },
-                role: m.role === 'observer' ? 'VIEWER' : m.role.toUpperCase() as any,
+                role: m.role.toUpperCase() as any,
                 joined_at: '',
               }))}
             />
@@ -2408,7 +2408,7 @@ export function KanbanBoardPage() {
           onDeleteInviteLink={handleDeleteInviteLink}
           seatInfo={!hideBillingForUser && subscription ? {
             seatCount: subscription.seat_count,
-            usedSeats: subscription.billable_member_count || boardMembersData.filter(m => m.role !== 'observer').length
+            usedSeats: subscription.billable_member_count || boardMembersData.filter(m => m.role !== 'viewer').length
           } : undefined}
           onOpenSeatManagement={!hideBillingForUser ? () => {
             setIsShareBoardModalOpen(false);
@@ -2421,7 +2421,7 @@ export function KanbanBoardPage() {
             open={isSubscriptionModalOpen}
             onClose={() => setIsSubscriptionModalOpen(false)}
             subscription={subscription}
-            currentBillableMembers={subscription?.billable_member_count || boardMembersData.filter(m => m.role !== 'observer').length || 0}
+            currentBillableMembers={subscription?.billable_member_count || boardMembersData.filter(m => m.role !== 'viewer').length || 0}
             onChangeBillingCycle={handleChangeBillingCycle}
             onPurchaseSeats={handleSubscriptionPurchaseSeats}
             onCancelSubscription={handleCancelSubscription}
@@ -2459,7 +2459,7 @@ export function KanbanBoardPage() {
             open={isUpgradeModalOpen}
             onClose={() => setIsUpgradeModalOpen(false)}
             trigger={upgradeTrigger}
-            currentBillableMembers={subscription?.billable_member_count || boardMembersData.filter(m => m.role !== 'observer').length || 1}
+            currentBillableMembers={subscription?.billable_member_count || boardMembersData.filter(m => m.role !== 'viewer').length || 1}
             onUpgrade={handleSeatUpgrade}
           />
         )}
@@ -2468,7 +2468,7 @@ export function KanbanBoardPage() {
           <PremiumBenefitsModal
             open={isPremiumBenefitsModalOpen}
             onClose={() => setIsPremiumBenefitsModalOpen(false)}
-            currentBillableMembers={subscription?.billable_member_count || boardMembersData.filter(m => m.role !== 'observer').length || 1}
+            currentBillableMembers={subscription?.billable_member_count || boardMembersData.filter(m => m.role !== 'viewer').length || 1}
             onUpgrade={handleSeatUpgrade}
           />
         )}

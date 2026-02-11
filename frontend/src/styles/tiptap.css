@@ -160,6 +160,12 @@
   cursor: col-resize;
 }
 
+/* Selected cells with background color need stronger overlay */
+.tiptap td[style*="background-color"].selectedCell::after,
+.tiptap th[style*="background-color"].selectedCell::after {
+  background: rgba(99, 102, 241, 0.25);
+}
+
 /* Highlight */
 .tiptap mark {
   border-radius: 2px;

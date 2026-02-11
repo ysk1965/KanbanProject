@@ -260,7 +260,7 @@
     "rolePermissions": "ロール権限",
     "adminDesc": "フルアクセス（メンバー管理、ボード設定、カード編集など）",
     "memberDesc": "カードの作成・編集、コメントの記入",
-    "observerDesc": "読み取り専用（カードの閲覧のみ）",
+    "viewerDesc": "読み取り専用（カードの閲覧のみ）",
     "webhookConnected": "連携中",
     "webhookDisabled": "無効",
     "webhookNotConnected": "未接続"
@@ -1026,7 +1026,7 @@
     "attachFile": "ファイル添付（最大5個）",
     "imageHelp": "画像：貼り付け、ドラッグ、またはクリップボタンで",
     "fileHelp": "画像・動画：貼り付け、ドラッグ、またはクリップボタンで添付",
-    "observerReadOnly": "閲覧者はコメントを書けません",
+    "viewerReadOnly": "閲覧者はコメントを書けません",
     "attachedImage": "添付画像",
     "attachedFile": "添付ファイル",
     "deleteTitle": "このコメントを削除しますか？",

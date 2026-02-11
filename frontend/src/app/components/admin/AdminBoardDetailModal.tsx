@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Folder, Users, ListTodo, Calendar, Trash2, Crown, Shield, User as UserIcon, Eye, ArrowRightLeft, CalendarPlus, AlertTriangle, Armchair, ChevronDown, Link2, Copy, Check, Pencil } from 'lucide-react';
+import { X, Folder, Users, ListTodo, Calendar, Trash2, Crown, Shield, User as UserIcon, Eye, ArrowRightLeft, CalendarPlus, AlertTriangle, Armchair, ChevronDown, Link2, Copy, Check, Pencil, UserMinus } from 'lucide-react';
 import { adminService, inviteLinkService } from '../../utils/services';
 import { AdminBoardDetail } from '../../utils/api';
 import { formatDateTime, formatDate } from '../../utils/dateUtils';
@@ -301,6 +301,37 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
     });
   };
 
+  const handleRemoveMember = (memberId: string, memberName: string) => {
+    if (!board) return;
+
+    setConfirmAction({
+      title: t('admin.boardDetail.removeMember'),
+      message: t('admin.boardDetail.confirmRemoveMember', { name: memberName }),
+      variant: 'danger',
+      confirmLabel: t('admin.boardDetail.removeMember'),
+      onConfirm: async () => {
+        setConfirmAction(null);
+        try {
+          setIsUpdating(true);
+          await adminService.removeUserFromBoard(memberId, boardId);
+          // 멤버 목록에서 제거
+          setBoard({
+            ...board,
+            members: board.members?.filter(m => m.id !== memberId),
+            member_count: board.member_count - 1,
+          });
+          onUpdate();
+          setToast({ message: t('admin.boardDetail.removeMemberSuccess', { name: memberName }), type: 'success' });
+        } catch (err) {
+          console.error('Failed to remove member:', err);
+          setToast({ message: t('admin.boardDetail.removeMemberFailed'), type: 'error' });
+        } finally {
+          setIsUpdating(false);
+        }
+      },
+    });
+  };
+
   const getRoleBadgeStyle = (role: string) => {
     switch (role) {
       case 'OWNER':
@@ -540,28 +571,40 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                             <p className="text-slate-400 text-sm">{member.email}</p>
                           </div>
                         </div>
-                        {member.role === 'OWNER' ? (
-                          <span className="px-3 py-1 rounded-full text-xs font-medium bg-amber-500/20 text-amber-400">
-                            OWNER
-                          </span>
-                        ) : (
-                          <div className="relative">
-                            <select
-                              value={member.role}
-                              onChange={(e) => handleRoleChange(member.id, member.name, e.target.value as 'ADMIN' | 'MEMBER' | 'VIEWER')}
-                              disabled={isUpdating}
-                              className={`${getRoleBadgeStyle(member.role)} appearance-none pl-3 pr-7 py-1 rounded-full text-xs font-medium
-                                border-0 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 cursor-pointer disabled:opacity-50 transition-colors`}
-                            >
-                              {ROLE_OPTIONS.map((role) => (
-                                <option key={role} value={role} className="bg-bridge-dark text-white">
-                                  {role}
-                                </option>
-                              ))}
-                            </select>
-                            <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 h-3 w-3 pointer-events-none opacity-60" />
-                          </div>
-                        )}
+                        <div className="flex items-center gap-2">
+                          {member.role === 'OWNER' ? (
+                            <span className="px-3 py-1 rounded-full text-xs font-medium bg-amber-500/20 text-amber-400">
+                              OWNER
+                            </span>
+                          ) : (
+                            <>
+                              <div className="relative">
+                                <select
+                                  value={member.role}
+                                  onChange={(e) => handleRoleChange(member.id, member.name, e.target.value as 'ADMIN' | 'MEMBER' | 'VIEWER')}
+                                  disabled={isUpdating}
+                                  className={`${getRoleBadgeStyle(member.role)} appearance-none pl-3 pr-7 py-1 rounded-full text-xs font-medium
+                                    border-0 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 cursor-pointer disabled:opacity-50 transition-colors`}
+                                >
+                                  {ROLE_OPTIONS.map((role) => (
+                                    <option key={role} value={role} className="bg-bridge-dark text-white">
+                                      {role}
+                                    </option>
+                                  ))}
+                                </select>
+                                <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 h-3 w-3 pointer-events-none opacity-60" />
+                              </div>
+                              <button
+                                onClick={() => handleRemoveMember(member.id, member.name)}
+                                disabled={isUpdating}
+                                className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-all disabled:opacity-50"
+                                title={t('admin.boardDetail.removeMember')}
+                              >
+                                <UserMinus className="h-4 w-4" />
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>

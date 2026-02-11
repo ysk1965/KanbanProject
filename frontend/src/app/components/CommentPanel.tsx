@@ -1056,7 +1056,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
         </div>
       ) : (
         <div className="px-4 py-3 border-t border-white/20">
-          <p className="text-xs text-slate-400 text-center">{t('comment.observerReadOnly')}</p>
+          <p className="text-xs text-slate-400 text-center">{t('comment.viewerReadOnly')}</p>
         </div>
       )}
 

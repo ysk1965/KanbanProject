@@ -24,7 +24,7 @@ export function NotesView({ boardId, currentUserRole }: NotesViewProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const hasUnsavedChangesRef = useRef(false);
 
-  const isViewer = currentUserRole === 'VIEWER' || currentUserRole === 'observer';
+  const isViewer = currentUserRole === 'viewer';
   const canEdit = !isViewer;
 
   const loadTree = useCallback(async () => {

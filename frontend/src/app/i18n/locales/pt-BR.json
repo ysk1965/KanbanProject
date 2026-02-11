@@ -260,7 +260,7 @@
     "rolePermissions": "Permissões por Função",
     "adminDesc": "Acesso total (gerenciamento de membros, configurações do board, edição de cards, etc.)",
     "memberDesc": "Criar e editar cards, escrever comentários",
-    "observerDesc": "Somente leitura (visualizar cards apenas)",
+    "viewerDesc": "Somente leitura (visualizar cards apenas)",
     "webhookConnected": "Conectado",
     "webhookDisabled": "Desativado",
     "webhookNotConnected": "Não conectado"
@@ -1026,7 +1026,7 @@
     "attachFile": "Anexar arquivos (máx. 5)",
     "imageHelp": "Imagens: cole, arraste ou use o botão de clipe",
     "fileHelp": "Imagens e vídeos: colar, arrastar ou usar o botão de clipe",
-    "observerReadOnly": "Observadores não podem escrever comentários",
+    "viewerReadOnly": "Observadores não podem escrever comentários",
     "attachedImage": "Imagem anexada",
     "attachedFile": "Arquivo anexo",
     "deleteTitle": "Excluir este comentário?",
