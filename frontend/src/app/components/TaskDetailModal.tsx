@@ -144,7 +144,8 @@ export function TaskDetailModal({
       if (boardId) {
         checklistAPI.getChecklist(boardId, task.id)
           .then((response) => {
-            const items: ChecklistItem[] = response.items.map((item) => ({
+            const rawItems = response.items || [];
+            const items: ChecklistItem[] = rawItems.map((item) => ({
               id: item.id,
               title: item.title,
               completed: item.completed,

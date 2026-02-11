@@ -275,9 +275,12 @@ export function KanbanBoardPage() {
             const batchChecklistData = await checklistService.getBatchChecklists(boardId, taskIdsWithChecklist);
             // API 응답을 ChecklistItem[] 형식으로 변환
             const checklistMap: { [taskId: string]: ChecklistItem[] } = {};
-            Object.entries(batchChecklistData).forEach(([taskId, data]) => {
-              if (data && Array.isArray(data.items)) {
-                checklistMap[taskId] = data.items.map((item) => ({
+            // 백엔드 응답 형식: { checklists: [{ task_id, total, completed, items }] }
+            const checklists = (batchChecklistData as any).checklists || [];
+            checklists.forEach((group: any) => {
+              const taskId = group.task_id || group.taskId;
+              if (group && taskId && Array.isArray(group.items)) {
+                checklistMap[taskId] = group.items.map((item: any) => ({
                   id: item.id,
                   title: item.title,
                   completed: item.completed,
@@ -562,9 +565,12 @@ export function KanbanBoardPage() {
         try {
           const batchChecklistData = await checklistService.getBatchChecklists(boardId, taskIdsWithChecklist);
           const checklistMap: { [taskId: string]: ChecklistItem[] } = {};
-          Object.entries(batchChecklistData).forEach(([taskId, data]) => {
-            if (data && Array.isArray(data.items)) {
-              checklistMap[taskId] = data.items.map((item) => ({
+          // 백엔드 응답 형식: { checklists: [{ task_id, total, completed, items }] }
+          const checklists = (batchChecklistData as any).checklists || [];
+          checklists.forEach((group: any) => {
+            const taskId = group.task_id || group.taskId;
+            if (group && taskId && Array.isArray(group.items)) {
+              checklistMap[taskId] = group.items.map((item: any) => ({
                 id: item.id,
                 title: item.title,
                 completed: item.completed,
