@@ -399,6 +399,26 @@ export interface CommentAttachment {
   created_at: string;
 }
 
+export interface CommentReactionUser {
+  id: string;
+  name: string;
+}
+
+export interface CommentReaction {
+  emoji: string;
+  image_url: string | null;
+  is_custom: boolean;
+  count: number;
+  users: CommentReactionUser[];
+}
+
+export interface BoardCustomEmoji {
+  id: string;
+  name: string;
+  image_url: string;
+  content_type: string;
+}
+
 export interface TaskComment {
   id: string;
   task_id: string;
@@ -410,6 +430,7 @@ export interface TaskComment {
   content: string;
   mentions: string[];
   attachments: CommentAttachment[];
+  reactions: CommentReaction[];
   created_at: string;
   updated_at: string;
 }

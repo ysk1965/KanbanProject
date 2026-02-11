@@ -1,10 +1,10 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { Plus, Users, Settings, Filter, ArrowLeft, LayoutGrid, Calendar, CalendarDays, Flag, Pencil, Lock, BarChart3, Search, X, User, ChevronDown, CheckCircle2, Circle, Tag as TagIcon, Layers, ChevronsDownUp, ChevronsUpDown, Sparkles, Lightbulb, MessageSquare } from 'lucide-react';
+import { Plus, Users, Settings, Filter, ArrowLeft, LayoutGrid, Calendar, CalendarDays, Flag, Pencil, Lock, BarChart3, Search, X, User, ChevronDown, CheckCircle2, Circle, Tag as TagIcon, Layers, ChevronsDownUp, ChevronsUpDown, Sparkles, Lightbulb, MessageSquare, FileText } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 
 // 뷰 모드 타입
-type ViewMode = 'kanban' | 'weekly' | 'schedule' | 'statistics' | 'ai_report';
+type ViewMode = 'kanban' | 'weekly' | 'schedule' | 'notes' | 'statistics' | 'ai_report';
 import { DragProvider } from '../contexts/DragContext';
 import { useAuth } from '../contexts/AuthContext';
 import { Block, Feature, Task, Tag, Board, InviteLink, Subscription, ActivityLog, Milestone, BoardTierInfo, BoardLimits, ChecklistItem, NotificationItem } from '../types';
@@ -32,6 +32,7 @@ import { DailyScheduleView } from '../components/DailyScheduleView';
 import { WeeklyScheduleView } from '../components/WeeklyScheduleView';
 import { StatisticsView } from '../components/StatisticsView';
 import { AIReportPanel } from '../components/AIReportPanel';
+import { NotesView } from '../components/notes/NotesView';
 import { EmptyBoardGuide } from '../components/EmptyBoardGuide';
 import { InquiryModal } from '../components/InquiryModal';
 import { AnnouncementDisplay } from '../components/AnnouncementDisplay';
@@ -400,6 +401,19 @@ export function KanbanBoardPage() {
       }
     }
   }, [boardId, tierInfo, hideBilling, isLoading]);
+
+  // Feature별 마일스톤 연결 수 맵 (MilestoneModal 정렬용)
+  const featureMilestoneCountMap = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const ms of milestones) {
+      if (ms.features) {
+        for (const f of ms.features) {
+          map[f.id] = (map[f.id] || 0) + 1;
+        }
+      }
+    }
+    return map;
+  }, [milestones]);
 
   // Premium 기능 접근 제어 헬퍼 (hideBilling 사용자는 제한 없음)
   const canAccessSchedule = hideBilling || (tierInfo?.can_access_schedule ?? true);
@@ -1670,6 +1684,17 @@ export function KanbanBoardPage() {
               <span className="hidden md:inline">{t('kanban.viewGantt')}</span>
               {!canAccessSchedule && <Lock size={10} className="ml-0.5 text-zinc-500" />}
             </button>
+            <button
+              onClick={() => handleViewModeChange('notes')}
+              className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+                viewMode === 'notes'
+                  ? 'bg-gradient-to-r from-[#2DD4BF] to-[#6366F1] text-white shadow-lg shadow-[#2DD4BF]/20'
+                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-kanban-surface'
+              }`}
+            >
+              <FileText size={14} />
+              <span className="hidden md:inline">{t('kanban.viewNotes', '노트')}</span>
+            </button>
             {isAdminOrOwner && (
               <button
                 onClick={() => {
@@ -2240,6 +2265,13 @@ export function KanbanBoardPage() {
               initialSubTab={urlTab as 'timeblock' | 'checklist' | 'meeting' | undefined}
             />
           </main>
+        ) : viewMode === 'notes' ? (
+          <main className="flex-1 overflow-hidden">
+            <NotesView
+              boardId={boardId || ''}
+              currentUserRole={currentUserRole}
+            />
+          </main>
         ) : viewMode === 'statistics' ? (
           <main className="flex-1 overflow-hidden">
             <StatisticsView
@@ -2401,6 +2433,7 @@ export function KanbanBoardPage() {
           }}
           milestone={selectedMilestone}
           features={allFeatures}
+          featureMilestoneCountMap={featureMilestoneCountMap}
           onSave={handleSaveMilestone}
           onDelete={handleDeleteMilestone}
         />

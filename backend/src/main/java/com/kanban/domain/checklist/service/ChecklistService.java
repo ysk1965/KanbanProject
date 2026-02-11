@@ -272,6 +272,45 @@ public class ChecklistService {
         return ChecklistResponse.Detail.of(item);
     }
 
+    @Transactional
+    public void reorderChecklistItems(String boardId, String taskId, String userId, ChecklistRequest.Reorder request) {
+        boardService.checkMemberOrAbove(boardId, userId);
+
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
+
+        if (!task.getBoard().getId().equals(boardId)) {
+            throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
+        }
+
+        List<String> itemIds = request.getItemIds();
+        List<ChecklistItem> items = checklistItemRepository.findByTaskIdOrderByPositionAsc(taskId);
+
+        // 유효성 검사: 모든 아이템이 해당 Task에 속하는지 확인
+        java.util.Set<String> taskItemIds = items.stream()
+                .map(ChecklistItem::getId)
+                .collect(java.util.stream.Collectors.toSet());
+
+        for (String itemId : itemIds) {
+            if (!taskItemIds.contains(itemId)) {
+                throw new BusinessException(ErrorCode.CHECKLIST_ITEM_NOT_FOUND);
+            }
+        }
+
+        // position 업데이트
+        java.util.Map<String, ChecklistItem> itemMap = items.stream()
+                .collect(java.util.stream.Collectors.toMap(ChecklistItem::getId, item -> item));
+
+        for (int i = 0; i < itemIds.size(); i++) {
+            ChecklistItem item = itemMap.get(itemIds.get(i));
+            if (item != null) {
+                item.updatePosition(i);
+            }
+        }
+
+        log.info("Checklist items reordered in task: {} by user: {}", taskId, userId);
+    }
+
     public ChecklistResponse.BoardListResponse getBoardChecklistItems(String boardId, String userId, String assigneeId, Boolean isScheduled) {
         boardService.checkViewerOrAbove(boardId, userId);
 

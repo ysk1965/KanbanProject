@@ -80,6 +80,10 @@ public enum ErrorCode {
     // Schedule
     SCHEDULE_BLOCK_NOT_FOUND(HttpStatus.NOT_FOUND, "SC001", "스케줄 블록을 찾을 수 없습니다"),
 
+    // Note
+    NOTE_NOT_FOUND(HttpStatus.NOT_FOUND, "NT001", "노트를 찾을 수 없습니다"),
+    NOTE_VERSION_NOT_FOUND(HttpStatus.NOT_FOUND, "NT002", "노트 버전을 찾을 수 없습니다"),
+
     // Meeting
     MEETING_NOT_FOUND(HttpStatus.NOT_FOUND, "MT001", "회의를 찾을 수 없습니다"),
 
@@ -161,6 +165,10 @@ public enum ErrorCode {
     ANNOUNCEMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "SY001", "공지사항을 찾을 수 없습니다"),
     SYSTEM_UNDER_MAINTENANCE(HttpStatus.SERVICE_UNAVAILABLE, "SY002", "시스템 점검 중입니다"),
     SYSTEM_CONFIG_NOT_FOUND(HttpStatus.NOT_FOUND, "SY003", "시스템 설정을 찾을 수 없습니다"),
+
+    // AI Note Organize
+    AI_NOTE_CONTENT_EMPTY(HttpStatus.BAD_REQUEST, "AN001", "노트 내용이 비어있습니다"),
+    AI_NOTE_PARSE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "AN002", "AI 응답 파싱에 실패했습니다"),
 
     // AI Report
     AI_REPORT_NOT_FOUND(HttpStatus.NOT_FOUND, "AR001", "보고서를 찾을 수 없습니다"),

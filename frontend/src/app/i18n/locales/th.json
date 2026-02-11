@@ -262,7 +262,8 @@
     "memberDesc": "สร้างและแก้ไขการ์ด เขียนความคิดเห็น",
     "observerDesc": "อ่านอย่างเดียว (ดูการ์ดเท่านั้น)",
     "webhookConnected": "เชื่อมต่อแล้ว",
-    "webhookDisabled": "ปิดใช้งาน"
+    "webhookDisabled": "ปิดใช้งาน",
+    "webhookNotConnected": "ยังไม่ได้เชื่อมต่อ"
   },
   "notification": {
     "notifications": "การแจ้งเตือน",
@@ -430,7 +431,8 @@
     "requiredFields": "จำเป็นต้องระบุชื่อ วันเริ่มต้น และวันสิ้นสุด",
     "saveFailed": "ไม่สามารถบันทึกไมล์สโตนได้",
     "deleteConfirm": "คุณแน่ใจหรือไม่ว่าต้องการลบไมล์สโตนนี้?",
-    "deleteFailed": "ไม่สามารถลบไมล์สโตนได้"
+    "deleteFailed": "ไม่สามารถลบไมล์สโตนได้",
+    "linkedCount": "{{count}} สปรินท์"
   },
   "weightLevel": {
     "title": "การตั้งค่าระดับน้ำหนัก",
@@ -1035,7 +1037,23 @@
     "fileSizeError": "ขนาดรูปภาพสูงสุด 5MB",
     "videoFileSizeError": "ขนาดวิดีโอสูงสุด 50MB",
     "uploadInProgress": "กำลังอัปโหลดไฟล์ กรุณารอสักครู่",
-    "uploadFailedRetry": "บางไฟล์อัปโหลดไม่สำเร็จ กรุณาลบและลองใหม่อีกครั้ง"
+    "uploadFailedRetry": "บางไฟล์อัปโหลดไม่สำเร็จ กรุณาลบและลองใหม่อีกครั้ง",
+    "reaction": {
+      "addReaction": "เพิ่มรีแอคชัน",
+      "you": "คุณ",
+      "andOthers": "และอีก {{count}} คน"
+    },
+    "customEmoji": {
+      "default": "ค่าเริ่มต้น",
+      "title": "กำหนดเอง",
+      "add": "เพิ่มอิโมจิ",
+      "namePlaceholder": "ชื่ออิโมจิ",
+      "selectFile": "เลือกไฟล์",
+      "uploadError": "อัปโหลดอิโมจิล้มเหลว",
+      "deleteConfirm": "ลบอิโมจินี้?",
+      "maxSize": "PNG, GIF, WebP · สูงสุด 128KB",
+      "adminOnly": "เฉพาะผู้ดูแลเท่านั้นที่เพิ่มอิโมจิได้"
+    }
   },
   "activity": {
     "title": "บันทึกกิจกรรม",
@@ -1284,7 +1302,10 @@
       "dangerZone": "โซนอันตราย",
       "deleteBoard": "ลบบอร์ด",
       "deleteWarning": "ข้อมูลทั้งหมดที่เกี่ยวข้องกับบอร์ดนี้จะถูกลบ การดำเนินการนี้ไม่สามารถย้อนกลับได้",
-      "deleting": "กำลังลบ..."
+      "deleting": "กำลังลบ...",
+      "editName": "แก้ไขชื่อบอร์ด",
+      "nameUpdateSuccess": "อัปเดตชื่อบอร์ดแล้ว",
+      "nameUpdateFailed": "ไม่สามารถอัปเดตชื่อบอร์ดได้"
     },
     "users": {
       "title": "การจัดการผู้ใช้",

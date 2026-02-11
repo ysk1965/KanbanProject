@@ -1150,6 +1150,13 @@ export const checklistAPI = {
       data
     );
   },
+
+  reorderItems: async (boardId: string, taskId: string, data: { itemIds: string[] }) => {
+    return apiClient.put<{ message: string }>(
+      `/boards/${boardId}/tasks/${taskId}/checklist/reorder`,
+      data
+    );
+  },
 };
 
 // ========================================
@@ -1166,6 +1173,14 @@ export interface CommentAttachmentResponse {
   created_at: string;
 }
 
+export interface CommentReactionResponse {
+  emoji: string;
+  image_url: string | null;
+  is_custom: boolean;
+  count: number;
+  users: { id: string; name: string }[];
+}
+
 export interface CommentDetailResponse {
   id: string;
   task_id: string;
@@ -1177,8 +1192,13 @@ export interface CommentDetailResponse {
   content: string;
   mentions: string[];
   attachments: CommentAttachmentResponse[];
+  reactions: CommentReactionResponse[];
   created_at: string;
   updated_at: string;
+}
+
+export interface ReactionsToggleResponse {
+  reactions: CommentReactionResponse[];
 }
 
 export interface CommentListResponse {
@@ -1378,6 +1398,55 @@ export const commentAPI = {
     return apiClient.get<MentionSummaryResponse>(
       `/boards/${boardId}/comments/mentions?mentionedUserId=${mentionedUserId}&startDate=${startDate}&endDate=${endDate}`
     );
+  },
+
+  toggleReaction: async (
+    boardId: string,
+    taskId: string,
+    commentId: string,
+    emoji: string
+  ) => {
+    return apiClient.post<ReactionsToggleResponse>(
+      `/boards/${boardId}/tasks/${taskId}/comments/${commentId}/reactions/toggle`,
+      { emoji }
+    );
+  },
+};
+
+// ========================================
+// Custom Emoji API
+// ========================================
+
+export interface CustomEmojiDetail {
+  id: string;
+  name: string;
+  image_url: string;
+  content_type: string;
+  file_size: number;
+  uploaded_by: { id: string; name: string };
+  created_at: string;
+}
+
+export interface CustomEmojiListResponse {
+  emojis: CustomEmojiDetail[];
+}
+
+export const customEmojiAPI = {
+  getEmojis: async (boardId: string) => {
+    return apiClient.get<CustomEmojiListResponse>(`/boards/${boardId}/custom-emojis`);
+  },
+
+  uploadEmoji: async (boardId: string, name: string, file: File) => {
+    const formData = new FormData();
+    formData.append('name', name);
+    formData.append('file', file);
+    return apiClient.post<CustomEmojiDetail>(`/boards/${boardId}/custom-emojis`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+
+  deleteEmoji: async (boardId: string, emojiId: string) => {
+    return apiClient.delete<{ message: string }>(`/boards/${boardId}/custom-emojis/${emojiId}`);
   },
 };
 
@@ -2029,6 +2098,12 @@ export const meetingAPI = {
     return apiClient.put<TranscriptResult>(
       `/boards/${boardId}/meetings/${meetingId}/transcript`,
       { transcript }
+    );
+  },
+
+  saveToNote: async (boardId: string, meetingId: string): Promise<NoteDetail> => {
+    return apiClient.post<NoteDetail>(
+      `/boards/${boardId}/meetings/${meetingId}/save-to-note`
     );
   },
 };
@@ -2976,6 +3051,11 @@ export const adminAPI = {
     return apiClient.delete<{ message: string }>(`/admin/boards/${boardId}`);
   },
 
+  // 보드 이름 변경
+  updateBoardName: async (boardId: string, name: string) => {
+    return apiClient.patch<AdminBoardDetail>(`/admin/boards/${boardId}/name`, { name });
+  },
+
   // 보드 티어 변경
   updateBoardTier: async (boardId: string, tier: 'FREE' | 'STANDARD' | 'PREMIUM' | 'ENTERPRISE') => {
     return apiClient.patch<AdminBoardSummary>(`/admin/boards/${boardId}/tier`, { tier });
@@ -3346,5 +3426,175 @@ export const reportAPI = {
     return apiClient.post<WeeklyReport>(
       `/boards/${boardId}/reports/${reportId}/regenerate${params}`
     );
+  },
+};
+
+// ========================================
+// Note API
+// ========================================
+
+export interface NoteTreeItem {
+  id: string;
+  parentId: string | null;
+  type: 'FOLDER' | 'DOCUMENT';
+  title: string;
+  position: number;
+  depth: number;
+  tags: NoteTagInfo[];
+  createdBy: NoteUserInfo;
+  updatedBy: NoteUserInfo;
+  createdAt: string;
+  updatedAt: string;
+  children: NoteTreeItem[];
+}
+
+export interface NoteDetail {
+  id: string;
+  parentId: string | null;
+  type: 'FOLDER' | 'DOCUMENT';
+  title: string;
+  content: string | null;
+  position: number;
+  depth: number;
+  tags: NoteTagInfo[];
+  createdBy: NoteUserInfo;
+  updatedBy: NoteUserInfo;
+  createdAt: string;
+  updatedAt: string;
+  versionCount: number;
+  aiSuggestions: string | null;
+  aiContentSnapshot: string | null;
+}
+
+export interface NoteAISuggestionResponse {
+  noteId: string;
+  noteTitle: string;
+  key_points: string[];
+  summary: AISummaryTopic[];
+  features: AIFeatureSuggestion[];
+}
+
+export interface NoteAIApplyResult {
+  features_created: number;
+  tasks_created: number;
+  checklists_created: number;
+  created_feature_ids: string[];
+  created_task_ids: string[];
+}
+
+export interface NoteListItem {
+  id: string;
+  title: string;
+  parentId: string | null;
+  parentTitle: string | null;
+  tags: NoteTagInfo[];
+  updatedBy: NoteUserInfo;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface NoteTagInfo {
+  id: string;
+  name: string;
+  color: string;
+}
+
+export interface NoteUserInfo {
+  id: string;
+  name: string;
+  profileImage: string | null;
+}
+
+export interface NoteVersionInfo {
+  id: string;
+  versionNumber: number;
+  title: string;
+  createdBy: NoteUserInfo;
+  createdAt: string;
+}
+
+export interface NoteVersionDetail {
+  id: string;
+  versionNumber: number;
+  title: string;
+  content: string | null;
+  createdBy: NoteUserInfo;
+  createdAt: string;
+}
+
+export const noteAPI = {
+  getTree: async (boardId: string) => {
+    return apiClient.get<NoteTreeItem[]>(`/boards/${boardId}/notes`);
+  },
+
+  getList: async (boardId: string) => {
+    return apiClient.get<NoteListItem[]>(`/boards/${boardId}/notes/list`);
+  },
+
+  getDetail: async (boardId: string, noteId: string) => {
+    return apiClient.get<NoteDetail>(`/boards/${boardId}/notes/${noteId}`);
+  },
+
+  create: async (boardId: string, data: {
+    title: string;
+    type: 'FOLDER' | 'DOCUMENT';
+    parentId?: string | null;
+    content?: string;
+    tagIds?: string[];
+  }) => {
+    return apiClient.post<NoteDetail>(`/boards/${boardId}/notes`, data);
+  },
+
+  update: async (boardId: string, noteId: string, data: {
+    title?: string;
+    content?: string;
+    tagIds?: string[];
+  }, createVersion = true) => {
+    const params = createVersion ? '' : '?createVersion=false';
+    return apiClient.put<NoteDetail>(`/boards/${boardId}/notes/${noteId}${params}`, data);
+  },
+
+  delete: async (boardId: string, noteId: string) => {
+    return apiClient.delete<{ message: string }>(`/boards/${boardId}/notes/${noteId}`);
+  },
+
+  move: async (boardId: string, noteId: string, data: {
+    parentId?: string | null;
+    position?: number;
+  }) => {
+    return apiClient.put<NoteDetail>(`/boards/${boardId}/notes/${noteId}/move`, data);
+  },
+
+  getVersions: async (boardId: string, noteId: string) => {
+    return apiClient.get<NoteVersionInfo[]>(`/boards/${boardId}/notes/${noteId}/versions`);
+  },
+
+  getVersionDetail: async (boardId: string, noteId: string, versionId: string) => {
+    return apiClient.get<NoteVersionDetail>(`/boards/${boardId}/notes/${noteId}/versions/${versionId}`);
+  },
+
+  restoreVersion: async (boardId: string, noteId: string, versionId: string) => {
+    return apiClient.post<NoteDetail>(`/boards/${boardId}/notes/${noteId}/versions/${versionId}/restore`);
+  },
+
+  getTags: async (boardId: string) => {
+    return apiClient.get<NoteTagInfo[]>(`/boards/${boardId}/note-tags`);
+  },
+
+  createTag: async (boardId: string, data: { name: string; color: string }) => {
+    return apiClient.post<NoteTagInfo>(`/boards/${boardId}/note-tags`, data);
+  },
+
+  deleteTag: async (boardId: string, tagId: string) => {
+    return apiClient.delete<{ message: string }>(`/boards/${boardId}/note-tags/${tagId}`);
+  },
+
+  aiOrganize: async (boardId: string, noteId: string, language?: string): Promise<NoteAISuggestionResponse> => {
+    const params = language ? `?language=${language}` : '';
+    return apiClient.post<NoteAISuggestionResponse>(`/boards/${boardId}/notes/${noteId}/ai-organize${params}`);
+  },
+
+  aiApply: async (boardId: string, noteId: string, data: AIApplyRequest): Promise<NoteAIApplyResult> => {
+    return apiClient.post<NoteAIApplyResult>(`/boards/${boardId}/notes/${noteId}/ai-apply`, data);
   },
 };

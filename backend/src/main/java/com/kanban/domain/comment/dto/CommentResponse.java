@@ -2,13 +2,14 @@ package com.kanban.domain.comment.dto;
 
 import com.kanban.domain.comment.Comment;
 import com.kanban.domain.comment.CommentAttachment;
+import com.kanban.domain.comment.CommentReaction;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class CommentResponse {
 
@@ -22,10 +23,15 @@ public class CommentResponse {
         private String content;
         private List<String> mentions;
         private List<AttachmentInfo> attachments;
+        private List<ReactionInfo> reactions;
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;
 
         public static Detail of(Comment comment) {
+            return of(comment, Map.of());
+        }
+
+        public static Detail of(Comment comment, Map<String, String> customEmojiUrlMap) {
             List<String> mentionList = comment.getMentions() != null && !comment.getMentions().isEmpty()
                     ? Arrays.asList(comment.getMentions().split(","))
                     : List.of();
@@ -33,6 +39,8 @@ public class CommentResponse {
             List<AttachmentInfo> attachmentList = comment.getAttachments() != null
                     ? comment.getAttachments().stream().map(AttachmentInfo::of).toList()
                     : List.of();
+
+            List<ReactionInfo> reactionList = buildReactionList(comment.getReactions(), customEmojiUrlMap);
 
             return Detail.builder()
                     .id(comment.getId())
@@ -45,9 +53,42 @@ public class CommentResponse {
                     .content(comment.getContent())
                     .mentions(mentionList)
                     .attachments(attachmentList)
+                    .reactions(reactionList)
                     .createdAt(comment.getCreatedAt())
                     .updatedAt(comment.getUpdatedAt())
                     .build();
+        }
+
+        private static List<ReactionInfo> buildReactionList(List<CommentReaction> reactions,
+                                                             Map<String, String> customEmojiUrlMap) {
+            if (reactions == null || reactions.isEmpty()) return List.of();
+
+            Map<String, List<CommentReaction>> grouped = reactions.stream()
+                    .collect(Collectors.groupingBy(CommentReaction::getEmoji, LinkedHashMap::new, Collectors.toList()));
+
+            return grouped.entrySet().stream()
+                    .map(entry -> {
+                        String emoji = entry.getKey();
+                        boolean isCustom = emoji.startsWith("custom:");
+                        String imageUrl = null;
+                        if (isCustom) {
+                            String emojiId = emoji.substring("custom:".length());
+                            imageUrl = customEmojiUrlMap.get(emojiId);
+                        }
+                        return ReactionInfo.builder()
+                                .emoji(emoji)
+                                .imageUrl(imageUrl)
+                                .isCustom(isCustom)
+                                .count(entry.getValue().size())
+                                .users(entry.getValue().stream()
+                                        .map(r -> ReactionUserInfo.builder()
+                                                .id(r.getUser().getId())
+                                                .name(r.getUser().getName())
+                                                .build())
+                                        .toList())
+                                .build();
+                    })
+                    .toList();
         }
     }
 
@@ -58,6 +99,32 @@ public class CommentResponse {
         private String id;
         private String name;
         private String profileImage;
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class ReactionInfo {
+        private String emoji;
+        private String imageUrl;
+        private boolean isCustom;
+        private int count;
+        private List<ReactionUserInfo> users;
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class ReactionUserInfo {
+        private String id;
+        private String name;
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class ReactionsResponse {
+        private List<ReactionInfo> reactions;
     }
 
     @Getter
@@ -93,8 +160,12 @@ public class CommentResponse {
         private int totalCount;
 
         public static ListResponse of(List<Comment> comments) {
+            return of(comments, Map.of());
+        }
+
+        public static ListResponse of(List<Comment> comments, Map<String, String> customEmojiUrlMap) {
             return ListResponse.builder()
-                    .comments(comments.stream().map(Detail::of).toList())
+                    .comments(comments.stream().map(c -> Detail.of(c, customEmojiUrlMap)).toList())
                     .totalCount(comments.size())
                     .build();
         }

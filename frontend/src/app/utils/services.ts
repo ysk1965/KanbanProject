@@ -16,6 +16,7 @@ import {
   statisticsAPI,
   testDataAPI,
   inquiryAPI,
+  noteAPI,
 } from './api';
 import {
   mockBoards,
@@ -2044,6 +2045,11 @@ export const adminService = {
     await adminAPI.deleteBoard(boardId);
   },
 
+  // 보드 이름 변경
+  updateBoardName: async (boardId: string, name: string): Promise<AdminBoardDetail> => {
+    return adminAPI.updateBoardName(boardId, name);
+  },
+
   // 보드 티어 변경
   updateBoardTier: async (
     boardId: string,
@@ -2213,5 +2219,76 @@ export const systemService = {
 
   getActiveAnnouncements: async (): Promise<AnnouncementDetail[]> => {
     return await systemAPI.getActiveAnnouncements();
+  },
+};
+
+// ========================================
+// Note Service
+// ========================================
+
+export const noteService = {
+  getTree: async (boardId: string) => {
+    return await noteAPI.getTree(boardId);
+  },
+
+  getList: async (boardId: string) => {
+    return await noteAPI.getList(boardId);
+  },
+
+  getDetail: async (boardId: string, noteId: string) => {
+    return await noteAPI.getDetail(boardId, noteId);
+  },
+
+  create: async (boardId: string, data: {
+    title: string;
+    type: 'FOLDER' | 'DOCUMENT';
+    parentId?: string | null;
+    content?: string;
+    tagIds?: string[];
+  }) => {
+    return await noteAPI.create(boardId, data);
+  },
+
+  update: async (boardId: string, noteId: string, data: {
+    title?: string;
+    content?: string;
+    tagIds?: string[];
+  }, createVersion = true) => {
+    return await noteAPI.update(boardId, noteId, data, createVersion);
+  },
+
+  delete: async (boardId: string, noteId: string) => {
+    return await noteAPI.delete(boardId, noteId);
+  },
+
+  move: async (boardId: string, noteId: string, data: {
+    parentId?: string | null;
+    position?: number;
+  }) => {
+    return await noteAPI.move(boardId, noteId, data);
+  },
+
+  getVersions: async (boardId: string, noteId: string) => {
+    return await noteAPI.getVersions(boardId, noteId);
+  },
+
+  getVersionDetail: async (boardId: string, noteId: string, versionId: string) => {
+    return await noteAPI.getVersionDetail(boardId, noteId, versionId);
+  },
+
+  restoreVersion: async (boardId: string, noteId: string, versionId: string) => {
+    return await noteAPI.restoreVersion(boardId, noteId, versionId);
+  },
+
+  getTags: async (boardId: string) => {
+    return await noteAPI.getTags(boardId);
+  },
+
+  createTag: async (boardId: string, data: { name: string; color: string }) => {
+    return await noteAPI.createTag(boardId, data);
+  },
+
+  deleteTag: async (boardId: string, tagId: string) => {
+    return await noteAPI.deleteTag(boardId, tagId);
   },
 };

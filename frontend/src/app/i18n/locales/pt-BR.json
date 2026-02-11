@@ -262,7 +262,8 @@
     "memberDesc": "Criar e editar cards, escrever comentários",
     "observerDesc": "Somente leitura (visualizar cards apenas)",
     "webhookConnected": "Conectado",
-    "webhookDisabled": "Desativado"
+    "webhookDisabled": "Desativado",
+    "webhookNotConnected": "Não conectado"
   },
   "notification": {
     "notifications": "Notificações",
@@ -430,7 +431,8 @@
     "requiredFields": "Título, data de início e data de fim são obrigatórios.",
     "saveFailed": "Falha ao salvar o marco.",
     "deleteConfirm": "Tem certeza que deseja excluir este marco?",
-    "deleteFailed": "Falha ao excluir o marco."
+    "deleteFailed": "Falha ao excluir o marco.",
+    "linkedCount": "{{count}} sprints"
   },
   "weightLevel": {
     "title": "Configurações de Nível de Peso",
@@ -1035,7 +1037,23 @@
     "fileSizeError": "O tamanho máximo de imagem é 5MB.",
     "videoFileSizeError": "O tamanho máximo de vídeo é 50MB.",
     "uploadInProgress": "Os arquivos estão sendo enviados. Por favor, aguarde.",
-    "uploadFailedRetry": "Alguns arquivos falharam no envio. Por favor, remova e tente novamente."
+    "uploadFailedRetry": "Alguns arquivos falharam no envio. Por favor, remova e tente novamente.",
+    "reaction": {
+      "addReaction": "Adicionar reação",
+      "you": "Você",
+      "andOthers": "e mais {{count}}"
+    },
+    "customEmoji": {
+      "default": "Padrão",
+      "title": "Personalizado",
+      "add": "Adicionar emoji",
+      "namePlaceholder": "Nome do emoji",
+      "selectFile": "Selecionar arquivo",
+      "uploadError": "Falha ao enviar o emoji",
+      "deleteConfirm": "Excluir este emoji?",
+      "maxSize": "PNG, GIF, WebP · Máx 128KB",
+      "adminOnly": "Apenas administradores podem adicionar emojis"
+    }
   },
   "activity": {
     "title": "Registro de Atividades",
@@ -1284,7 +1302,10 @@
       "dangerZone": "Zona de Perigo",
       "deleteBoard": "Excluir Board",
       "deleteWarning": "Todos os dados relacionados a este board serão excluídos. Esta ação não pode ser desfeita.",
-      "deleting": "Excluindo..."
+      "deleting": "Excluindo...",
+      "editName": "Editar nome do quadro",
+      "nameUpdateSuccess": "Nome do quadro atualizado.",
+      "nameUpdateFailed": "Falha ao atualizar nome do quadro."
     },
     "users": {
       "title": "Gerenciamento de Usuários",

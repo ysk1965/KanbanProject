@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Flag, Calendar as CalendarIcon } from 'lucide-react';
 import { Button } from './ui/button';
@@ -15,6 +15,7 @@ interface MilestoneModalProps {
   onClose: () => void;
   milestone?: Milestone | null;
   features: Feature[];
+  featureMilestoneCountMap?: Record<string, number>;
   onSave: (data: {
     title: string;
     description?: string;
@@ -30,6 +31,7 @@ export function MilestoneModal({
   onClose,
   milestone,
   features,
+  featureMilestoneCountMap = {},
   onSave,
   onDelete,
 }: MilestoneModalProps) {
@@ -108,6 +110,18 @@ export function MilestoneModal({
       return newSet;
     });
   };
+
+  // Feature 정렬: 현재 마일스톤 연결 우선 → 연결 수 적은 순
+  const sortedFeatures = useMemo(() => {
+    return [...features].sort((a, b) => {
+      const aSelected = selectedFeatureIds.has(a.id) ? 0 : 1;
+      const bSelected = selectedFeatureIds.has(b.id) ? 0 : 1;
+      if (aSelected !== bSelected) return aSelected - bSelected;
+      const aCount = featureMilestoneCountMap[a.id] || 0;
+      const bCount = featureMilestoneCountMap[b.id] || 0;
+      return aCount - bCount;
+    });
+  }, [features, selectedFeatureIds, featureMilestoneCountMap]);
 
   if (!isOpen) return null;
 
@@ -199,27 +213,35 @@ export function MilestoneModal({
           <div className="space-y-2">
             <label className="kanban-label block">{t('milestone.linkedFeatures')}</label>
             <div className="max-h-48 overflow-y-auto space-y-1 bg-kanban-card rounded-xl p-2 border border-white/15">
-              {features.length > 0 ? (
-                features.map((feature) => (
-                  <label
-                    key={feature.id}
-                    className="flex items-center gap-2 p-2 rounded-lg hover:bg-kanban-surface cursor-pointer transition-colors"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedFeatureIds.has(feature.id)}
-                      onChange={() => toggleFeature(feature.id)}
-                      className="w-4 h-4 rounded border-white/20 bg-kanban-input text-indigo-500 focus:ring-indigo-500"
-                    />
-                    <div
-                      className="w-3 h-3 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: feature.color }}
-                    />
-                    <span className="text-sm text-zinc-300 truncate">
-                      {feature.title}
-                    </span>
-                  </label>
-                ))
+              {sortedFeatures.length > 0 ? (
+                sortedFeatures.map((feature) => {
+                  const milestoneCount = featureMilestoneCountMap[feature.id] || 0;
+                  return (
+                    <label
+                      key={feature.id}
+                      className="flex items-center gap-2 p-2 rounded-lg hover:bg-kanban-surface cursor-pointer transition-colors"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedFeatureIds.has(feature.id)}
+                        onChange={() => toggleFeature(feature.id)}
+                        className="w-4 h-4 rounded border-white/20 bg-kanban-input text-indigo-500 focus:ring-indigo-500"
+                      />
+                      <div
+                        className="w-3 h-3 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: feature.color }}
+                      />
+                      <span className="text-sm text-zinc-300 truncate flex-1">
+                        {feature.title}
+                      </span>
+                      {milestoneCount > 0 && (
+                        <span className="text-[10px] text-zinc-500 flex-shrink-0 tabular-nums">
+                          {t('milestone.linkedCount', { count: milestoneCount })}
+                        </span>
+                      )}
+                    </label>
+                  );
+                })
               ) : (
                 <p className="text-sm text-zinc-400 text-center py-4">
                   {t('milestone.noFeatures')}

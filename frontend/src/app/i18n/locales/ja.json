@@ -262,7 +262,8 @@
     "memberDesc": "カードの作成・編集、コメントの記入",
     "observerDesc": "読み取り専用（カードの閲覧のみ）",
     "webhookConnected": "連携中",
-    "webhookDisabled": "無効"
+    "webhookDisabled": "無効",
+    "webhookNotConnected": "未接続"
   },
   "notification": {
     "notifications": "通知",
@@ -430,7 +431,8 @@
     "requiredFields": "タイトル、開始日、終了日は必須です。",
     "saveFailed": "マイルストーンの保存に失敗しました。",
     "deleteConfirm": "このマイルストーンを削除してもよろしいですか？",
-    "deleteFailed": "マイルストーンの削除に失敗しました。"
+    "deleteFailed": "マイルストーンの削除に失敗しました。",
+    "linkedCount": "{{count}}個のスプリント"
   },
   "weightLevel": {
     "title": "重みレベル設定",
@@ -1035,7 +1037,23 @@
     "fileSizeError": "画像ファイルは最大5MBです。",
     "videoFileSizeError": "動画ファイルは最大50MBです。",
     "uploadInProgress": "ファイルをアップロード中です。しばらくお待ちください。",
-    "uploadFailedRetry": "一部のファイルのアップロードに失敗しました。削除して再試行してください。"
+    "uploadFailedRetry": "一部のファイルのアップロードに失敗しました。削除して再試行してください。",
+    "reaction": {
+      "addReaction": "リアクションを追加",
+      "you": "自分",
+      "andOthers": "他{{count}}人"
+    },
+    "customEmoji": {
+      "default": "デフォルト",
+      "title": "カスタム",
+      "add": "絵文字を追加",
+      "namePlaceholder": "絵文字名",
+      "selectFile": "ファイルを選択",
+      "uploadError": "絵文字のアップロードに失敗しました",
+      "deleteConfirm": "この絵文字を削除しますか？",
+      "maxSize": "PNG, GIF, WebP · 128KB以下",
+      "adminOnly": "管理者のみ絵文字を追加できます"
+    }
   },
   "activity": {
     "title": "アクティビティログ",
@@ -1284,7 +1302,10 @@
       "dangerZone": "危険な操作",
       "deleteBoard": "ボードを削除",
       "deleteWarning": "このボードに関連するすべてのデータが削除されます。この操作は元に戻せません。",
-      "deleting": "削除中..."
+      "deleting": "削除中...",
+      "editName": "ボード名を編集",
+      "nameUpdateSuccess": "ボード名が変更されました。",
+      "nameUpdateFailed": "ボード名の変更に失敗しました。"
     },
     "users": {
       "title": "ユーザー管理",

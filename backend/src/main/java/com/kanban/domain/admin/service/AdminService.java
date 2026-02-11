@@ -396,6 +396,18 @@ public class AdminService {
     }
 
     @Transactional
+    public AdminResponse.BoardDetail updateBoardName(String boardId, AdminRequest.UpdateBoardName request) {
+        Board board = boardRepository.findById(boardId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+
+        board.updateInfo(request.getName(), null);
+
+        log.info("Board name updated by admin: boardId={}, newName={}", boardId, request.getName());
+
+        return getBoard(boardId);
+    }
+
+    @Transactional
     public AdminResponse.BoardDetail updateSeatCount(String boardId, AdminRequest.UpdateSeatCount request) {
         Board board = boardRepository.findById(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));

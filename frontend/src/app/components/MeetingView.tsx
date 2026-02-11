@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo, KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Bell, Trash2, ChevronDown, ChevronUp, Users, X, Loader2, Sparkles, Mic, Square as SquareIcon, FileText, CheckSquare, ChevronRight, ArrowRight, Star } from 'lucide-react';
+import { Plus, Bell, Trash2, ChevronDown, ChevronUp, Users, X, Loader2, Sparkles, Mic, Square as SquareIcon, FileText, CheckSquare, ChevronRight, ArrowRight, Star, BookOpen } from 'lucide-react';
 import { format } from 'date-fns';
 import { meetingAPI, featureAPI, taskAPI, MeetingSummary, MeetingDetail, AISuggestionResponse, AIFeatureSuggestion, AIApplyRequest, AIApplyResult } from '../utils/api';
 import { BoardMember } from './ShareBoardModal';
@@ -229,6 +229,15 @@ export function MeetingView({ boardId, selectedDate, boardMembers, onRefreshSche
       alert(t('meeting.notifySuccess'));
     } catch (error) {
       console.error('Failed to notify participants:', error);
+    }
+  };
+
+  const handleSaveToNote = async (meetingId: string) => {
+    try {
+      await meetingAPI.saveToNote(boardId, meetingId);
+      alert(t('meeting.saveToNoteSuccess', '노트에 저장되었습니다'));
+    } catch (error) {
+      console.error('Failed to save meeting to note:', error);
     }
   };
 
@@ -582,6 +591,13 @@ export function MeetingView({ boardId, selectedDate, boardMembers, onRefreshSche
                               {t('meeting.notify')}
                             </button>
                           )}
+                          <button
+                            onClick={() => handleSaveToNote(meeting.id)}
+                            className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-emerald-400 bg-emerald-500/10 rounded-lg hover:bg-emerald-500/20 transition-colors"
+                          >
+                            <BookOpen className="h-3.5 w-3.5" />
+                            {t('meeting.saveToNote', '노트로 저장')}
+                          </button>
                           <button
                             onClick={() => handleDelete(meeting.id)}
                             className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-red-400 bg-red-500/10 rounded-lg hover:bg-red-500/20 transition-colors ml-auto"

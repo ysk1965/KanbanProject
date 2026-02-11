@@ -439,22 +439,26 @@ export function ShareBoardModal({
                           {isCurrentMember && (
                             <span className="text-[10px] text-slate-400 tracking-wide shrink-0">{t('common.me')}</span>
                           )}
-                          {webhookStatus && (
-                            <span
-                              className="shrink-0"
-                              title={
-                                webhookStatus.enabled
+                          <span
+                            className="shrink-0"
+                            title={
+                              webhookStatus
+                                ? webhookStatus.enabled
                                   ? `Slack ${t('share.webhookConnected')}${webhookStatus.channelName ? ` (#${webhookStatus.channelName})` : ''}`
                                   : `Slack ${t('share.webhookDisabled')}`
-                              }
-                            >
-                              <SlackIcon
-                                className={`h-3 w-3 ${
-                                  webhookStatus.enabled ? 'text-[#4A154B]' : 'text-slate-600'
-                                }`}
-                              />
-                            </span>
-                          )}
+                                : `Slack ${t('share.webhookNotConnected')}`
+                            }
+                          >
+                            <SlackIcon
+                              className={`h-3.5 w-3.5 ${
+                                webhookStatus?.enabled
+                                  ? 'text-[#36C5F0]'
+                                  : webhookStatus
+                                    ? 'text-slate-500'
+                                    : 'text-slate-700'
+                              }`}
+                            />
+                          </span>
                           <span className="text-xs text-slate-500 truncate">{member.email}</span>
                         </div>
                       </div>

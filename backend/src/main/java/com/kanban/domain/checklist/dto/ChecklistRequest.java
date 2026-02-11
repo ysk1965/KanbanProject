@@ -7,6 +7,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
+import java.util.List;
 
 public class ChecklistRequest {
 
@@ -42,5 +43,12 @@ public class ChecklistRequest {
     public static class MoveTask {
         @NotNull(message = "이동할 Task ID는 필수입니다")
         private String targetTaskId;
+    }
+
+    @Getter
+    @NoArgsConstructor
+    public static class Reorder {
+        @NotNull(message = "항목 ID 목록은 필수입니다")
+        private List<String> itemIds;
     }
 }

@@ -11,6 +11,10 @@ import com.kanban.domain.meeting.MeetingRepository;
 import com.kanban.domain.meeting.dto.MeetingAIResponse;
 import com.kanban.domain.meeting.dto.MeetingRequest;
 import com.kanban.domain.meeting.dto.MeetingResponse;
+import com.kanban.domain.note.Note;
+import com.kanban.domain.note.NoteRepository;
+import com.kanban.domain.note.NoteType;
+import com.kanban.domain.note.dto.NoteResponse;
 import com.kanban.domain.notification.NotificationType;
 import com.kanban.domain.notification.service.NotificationService;
 import com.kanban.domain.integration.slack.service.SlackNotificationService;
@@ -33,10 +37,13 @@ import java.util.List;
 @Transactional(readOnly = true)
 public class MeetingService {
 
+    private static final String MEETING_NOTES_FOLDER = "회의록";
+
     private final MeetingRepository meetingRepository;
     private final ScheduleBlockRepository scheduleBlockRepository;
     private final BoardRepository boardRepository;
     private final BoardMemberRepository boardMemberRepository;
+    private final NoteRepository noteRepository;
     private final UserRepository userRepository;
     private final BoardService boardService;
     private final NotificationService notificationService;
@@ -187,6 +194,104 @@ public class MeetingService {
         slackNotificationService.sendMeetingMemoNotifications(meeting, sender, board, memberUserIds, originUrl);
 
         log.info("Meeting memo notifications sent for meeting: {} to {} members", meetingId, memberUserIds.size());
+    }
+
+    @Transactional
+    public NoteResponse.Detail saveToNote(String boardId, String meetingId, String userId) {
+        boardService.checkMemberOrAbove(boardId, userId);
+
+        Meeting meeting = meetingRepository.findById(meetingId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MEETING_NOT_FOUND));
+        if (!meeting.getBoard().getId().equals(boardId)) {
+            throw new BusinessException(ErrorCode.MEETING_NOT_FOUND);
+        }
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        Board board = meeting.getBoard();
+
+        // Find or create "회의록" folder
+        Note folder = noteRepository.findAllByBoardIdNotDeleted(boardId).stream()
+                .filter(n -> n.getType() == NoteType.FOLDER && n.getParent() == null
+                        && MEETING_NOTES_FOLDER.equals(n.getTitle()))
+                .findFirst()
+                .orElseGet(() -> {
+                    Note newFolder = Note.builder()
+                            .board(board)
+                            .type(NoteType.FOLDER)
+                            .title(MEETING_NOTES_FOLDER)
+                            .position(noteRepository.findNextRootPosition(boardId))
+                            .depth(0)
+                            .createdBy(user)
+                            .updatedBy(user)
+                            .build();
+                    return noteRepository.save(newFolder);
+                });
+
+        // Build HTML content from meeting data
+        String htmlContent = buildMeetingNoteContent(meeting);
+
+        // Create document inside folder
+        String title = meeting.getTitle() + " - " + meeting.getMeetingDate();
+        int position = noteRepository.findNextChildPosition(folder.getId());
+
+        Note note = Note.builder()
+                .board(board)
+                .parent(folder)
+                .type(NoteType.DOCUMENT)
+                .title(title)
+                .content(htmlContent)
+                .position(position)
+                .depth(1)
+                .createdBy(user)
+                .updatedBy(user)
+                .build();
+
+        noteRepository.save(note);
+
+        return NoteResponse.Detail.of(note, java.util.List.of(), 0);
+    }
+
+    private String buildMeetingNoteContent(Meeting meeting) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("<h1>").append(escapeHtml(meeting.getTitle())).append("</h1>");
+        sb.append("<p><strong>날짜:</strong> ").append(meeting.getMeetingDate()).append("</p>");
+        if (meeting.getStartTime() != null) {
+            sb.append("<p><strong>시간:</strong> ").append(meeting.getStartTime());
+            if (meeting.getEndTime() != null) {
+                sb.append(" ~ ").append(meeting.getEndTime());
+            }
+            sb.append("</p>");
+        }
+
+        if (meeting.getMemo() != null && !meeting.getMemo().isBlank()) {
+            sb.append("<h2>메모</h2>");
+            sb.append("<p>").append(escapeHtml(meeting.getMemo()).replace("\n", "<br>")).append("</p>");
+        }
+
+        if (meeting.getTranscript() != null && !meeting.getTranscript().isBlank()) {
+            sb.append("<h2>회의 녹취</h2>");
+            sb.append("<p>").append(escapeHtml(meeting.getTranscript()).replace("\n", "<br>")).append("</p>");
+        }
+
+        // AI suggestions summary if available
+        if (meeting.getAiSuggestions() != null && !meeting.getAiSuggestions().isBlank()) {
+            MeetingAIResponse.Suggestions suggestions = deserializeAiSuggestions(meeting);
+            if (suggestions != null && suggestions.getKeyPoints() != null && !suggestions.getKeyPoints().isEmpty()) {
+                sb.append("<h2>핵심 포인트</h2><ul>");
+                for (String point : suggestions.getKeyPoints()) {
+                    sb.append("<li>").append(escapeHtml(point)).append("</li>");
+                }
+                sb.append("</ul>");
+            }
+        }
+
+        return sb.toString();
+    }
+
+    private String escapeHtml(String text) {
+        if (text == null) return "";
+        return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
     }
 
     private MeetingAIResponse.Suggestions deserializeAiSuggestions(Meeting meeting) {

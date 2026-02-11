@@ -1,12 +1,16 @@
 package com.kanban.domain.comment.service;
 
 import com.kanban.domain.board.Board;
+import com.kanban.domain.board.BoardCustomEmoji;
+import com.kanban.domain.board.BoardCustomEmojiRepository;
 import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.board.service.BoardService;
 import com.kanban.domain.checklist.ChecklistItemRepository;
 import com.kanban.domain.comment.Comment;
 import com.kanban.domain.comment.CommentAttachment;
 import com.kanban.domain.comment.CommentAttachmentRepository;
+import com.kanban.domain.comment.CommentReaction;
+import com.kanban.domain.comment.CommentReactionRepository;
 import com.kanban.domain.comment.CommentRepository;
 import com.kanban.domain.comment.dto.CommentRequest;
 import com.kanban.domain.comment.dto.CommentResponse;
@@ -36,6 +40,8 @@ public class CommentService {
 
     private final CommentRepository commentRepository;
     private final CommentAttachmentRepository commentAttachmentRepository;
+    private final CommentReactionRepository commentReactionRepository;
+    private final BoardCustomEmojiRepository boardCustomEmojiRepository;
     private final TaskRepository taskRepository;
     private final BoardRepository boardRepository;
     private final UserRepository userRepository;
@@ -96,8 +102,9 @@ public class CommentService {
     public CommentResponse.ListResponse getComments(String boardId, String taskId, String userId) {
         boardService.checkViewerOrAbove(boardId, userId);
 
-        List<Comment> comments = commentRepository.findByTaskIdWithAuthor(taskId);
-        return CommentResponse.ListResponse.of(comments);
+        List<Comment> comments = commentRepository.findByTaskIdWithAuthorAndReactions(taskId);
+        Map<String, String> customEmojiUrlMap = buildCustomEmojiUrlMap(boardId);
+        return CommentResponse.ListResponse.of(comments, customEmojiUrlMap);
     }
 
     /**
@@ -283,6 +290,97 @@ public class CommentService {
         commentAttachmentRepository.delete(attachment);
 
         log.info("Attachment deleted: {} from comment: {} by user: {}", attachmentId, commentId, userId);
+    }
+
+    /**
+     * 이모지 리액션 토글 (추가/제거)
+     */
+    @Transactional
+    public CommentResponse.ReactionsResponse toggleReaction(String boardId, String commentId, String userId, String emoji) {
+        boardService.checkMemberOrAbove(boardId, userId);
+
+        // 커스텀 이모지인 경우 보드에 존재하는지 검증
+        if (emoji.startsWith("custom:")) {
+            String emojiId = emoji.substring("custom:".length());
+            if (!boardCustomEmojiRepository.existsById(emojiId)) {
+                throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
+            }
+        }
+
+        Comment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.COMMENT_NOT_FOUND));
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        Optional<CommentReaction> existing = commentReactionRepository.findByCommentIdAndUserIdAndEmoji(
+                commentId, userId, emoji);
+
+        if (existing.isPresent()) {
+            comment.getReactions().remove(existing.get());
+            commentReactionRepository.delete(existing.get());
+            log.info("Reaction removed: {} from comment: {} by user: {}", emoji, commentId, userId);
+        } else {
+            CommentReaction reaction = CommentReaction.builder()
+                    .comment(comment)
+                    .user(user)
+                    .emoji(emoji)
+                    .build();
+            commentReactionRepository.save(reaction);
+            comment.getReactions().add(reaction);
+            log.info("Reaction added: {} to comment: {} by user: {}", emoji, commentId, userId);
+        }
+
+        // 업데이트된 리액션 목록 반환
+        Map<String, String> customEmojiUrlMap = buildCustomEmojiUrlMap(boardId);
+        List<CommentResponse.ReactionInfo> reactionList = buildReactionInfoList(comment.getReactions(), customEmojiUrlMap);
+        return CommentResponse.ReactionsResponse.builder()
+                .reactions(reactionList)
+                .build();
+    }
+
+    private Map<String, String> buildCustomEmojiUrlMap(String boardId) {
+        List<BoardCustomEmoji> customEmojis = boardCustomEmojiRepository.findByBoardIdOrderByCreatedAtAsc(boardId);
+        Map<String, String> map = new HashMap<>();
+        for (BoardCustomEmoji e : customEmojis) {
+            map.put(e.getId(), e.getImageUrl());
+        }
+        return map;
+    }
+
+    private List<CommentResponse.ReactionInfo> buildReactionInfoList(List<CommentReaction> reactions,
+                                                                      Map<String, String> customEmojiUrlMap) {
+        if (reactions == null || reactions.isEmpty()) return List.of();
+
+        Map<String, List<CommentReaction>> grouped = reactions.stream()
+                .collect(java.util.stream.Collectors.groupingBy(
+                        CommentReaction::getEmoji,
+                        java.util.LinkedHashMap::new,
+                        java.util.stream.Collectors.toList()));
+
+        return grouped.entrySet().stream()
+                .map(entry -> {
+                    String emoji = entry.getKey();
+                    boolean isCustom = emoji.startsWith("custom:");
+                    String imageUrl = null;
+                    if (isCustom) {
+                        String emojiId = emoji.substring("custom:".length());
+                        imageUrl = customEmojiUrlMap.get(emojiId);
+                    }
+                    return CommentResponse.ReactionInfo.builder()
+                            .emoji(emoji)
+                            .imageUrl(imageUrl)
+                            .isCustom(isCustom)
+                            .count(entry.getValue().size())
+                            .users(entry.getValue().stream()
+                                    .map(r -> CommentResponse.ReactionUserInfo.builder()
+                                            .id(r.getUser().getId())
+                                            .name(r.getUser().getName())
+                                            .build())
+                                    .toList())
+                            .build();
+                })
+                .toList();
     }
 
     /**

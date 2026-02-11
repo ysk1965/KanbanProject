@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
-import { TaskComment, CommentAttachment, User } from '../types';
-import { commentAPI, fileAPI, resolveFileUrl } from '../utils/api';
+import { TaskComment, CommentAttachment, CommentReaction, User, BoardCustomEmoji } from '../types';
+import { commentAPI, fileAPI, customEmojiAPI, resolveFileUrl } from '../utils/api';
 import { BoardMember } from './ShareBoardModal';
 import { getAssigneeClasses, getInitials } from '../utils/assigneeColor';
 import { formatDate } from '../utils/dateUtils';
@@ -16,7 +16,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from './ui/alert-dialog';
-import { MessageSquare, Send, RefreshCw, Pencil, Trash2, X, Check, Loader2, Paperclip, Play, ChevronLeft, ChevronRight } from 'lucide-react';
+import { MessageSquare, Send, RefreshCw, Pencil, Trash2, X, Check, Loader2, Paperclip, Play, ChevronLeft, ChevronRight, SmilePlus, Plus, ImageIcon } from 'lucide-react';
 import { VideoThumbnail } from './VideoThumbnail';
 
 const VideoLightbox = lazy(() => import('./VideoLightbox').then(m => ({ default: m.VideoLightbox })));
@@ -53,6 +53,8 @@ function formatFileSize(bytes: number): string {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
 }
+
+const REACTION_EMOJIS = ['👍', '❤️', '😄', '🎉', '🤔', '👀', '👏', '🔥'];
 
 const URL_PATTERN = /(https?:\/\/[^\s<]+)/g;
 
@@ -136,6 +138,17 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
   const [editNewFiles, setEditNewFiles] = useState<PendingFile[]>([]);
   const [isEditSubmitting, setIsEditSubmitting] = useState(false);
 
+  // 이모지 리액션
+  const [emojiPickerCommentId, setEmojiPickerCommentId] = useState<string | null>(null);
+
+  // 커스텀 이모지
+  const [customEmojis, setCustomEmojis] = useState<BoardCustomEmoji[]>([]);
+  const [customEmojisLoaded, setCustomEmojisLoaded] = useState(false);
+  const [emojiUploadName, setEmojiUploadName] = useState('');
+  const [isUploadingEmoji, setIsUploadingEmoji] = useState(false);
+  const [showEmojiUpload, setShowEmojiUpload] = useState(false);
+  const emojiFileInputRef = useRef<HTMLInputElement>(null);
+
   // 삭제 / 라이트박스
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [lightboxMedia, setLightboxMedia] = useState<{
@@ -155,6 +168,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editFileInputRef = useRef<HTMLInputElement>(null);
+  const emojiPickerRef = useRef<HTMLDivElement>(null);
 
   // ========== 댓글 로드 ==========
 
@@ -184,6 +198,91 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
       editNewFiles.forEach(pf => URL.revokeObjectURL(pf.previewUrl));
     };
   }, []);
+
+  // 이모지 피커 외부 클릭 시 닫기
+  useEffect(() => {
+    if (!emojiPickerCommentId) return;
+    const handleClick = (e: MouseEvent) => {
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(e.target as Node)) {
+        setEmojiPickerCommentId(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [emojiPickerCommentId]);
+
+  // ========== 이모지 리액션 ==========
+
+  const handleToggleReaction = async (commentId: string, emoji: string) => {
+    try {
+      const response = await commentAPI.toggleReaction(boardId, taskId, commentId, emoji);
+      setComments(prev => prev.map(c =>
+        c.id === commentId ? { ...c, reactions: response.reactions } : c
+      ));
+    } catch (error) {
+      console.error('Failed to toggle reaction:', error);
+    }
+    setEmojiPickerCommentId(null);
+  };
+
+  // ========== 커스텀 이모지 관리 ==========
+
+  const loadCustomEmojis = useCallback(async () => {
+    if (customEmojisLoaded) return;
+    try {
+      const res = await customEmojiAPI.getEmojis(boardId);
+      setCustomEmojis(res.emojis.map(e => ({
+        id: e.id,
+        name: e.name,
+        image_url: e.image_url,
+        content_type: e.content_type,
+      })));
+      setCustomEmojisLoaded(true);
+    } catch (err) {
+      console.error('Failed to load custom emojis:', err);
+    }
+  }, [boardId, customEmojisLoaded]);
+
+  // 피커 열릴 때 커스텀 이모지 로드
+  useEffect(() => {
+    if (emojiPickerCommentId) {
+      loadCustomEmojis();
+    }
+  }, [emojiPickerCommentId, loadCustomEmojis]);
+
+  const handleUploadCustomEmoji = async (file: File) => {
+    if (!emojiUploadName.trim()) return;
+    setIsUploadingEmoji(true);
+    try {
+      const res = await customEmojiAPI.uploadEmoji(boardId, emojiUploadName.trim(), file);
+      setCustomEmojis(prev => [...prev, {
+        id: res.id,
+        name: res.name,
+        image_url: res.image_url,
+        content_type: res.content_type,
+      }]);
+      setEmojiUploadName('');
+      setShowEmojiUpload(false);
+    } catch (err) {
+      console.error('Failed to upload custom emoji:', err);
+    } finally {
+      setIsUploadingEmoji(false);
+    }
+  };
+
+  const handleDeleteCustomEmoji = async (emojiId: string) => {
+    try {
+      await customEmojiAPI.deleteEmoji(boardId, emojiId);
+      setCustomEmojis(prev => prev.filter(e => e.id !== emojiId));
+      // 리액션 목록에서도 해당 이모지 제거
+      setComments(prev => prev.map(c => ({
+        ...c,
+        reactions: c.reactions.filter(r => r.emoji !== `custom:${emojiId}`),
+      })));
+    } catch (err) {
+      console.error('Failed to delete custom emoji:', err);
+    }
+  };
 
   // ========== 파일 업로드 (백그라운드) ==========
 
@@ -636,6 +735,152 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
     );
   };
 
+  /** 이모지 피커 팝업 */
+  const EmojiPicker = ({ commentId }: { commentId: string }) => {
+    if (emojiPickerCommentId !== commentId) return null;
+    return (
+      <div ref={emojiPickerRef}
+        className="absolute right-0 top-full mt-1 z-50 bg-bridge-obsidian border border-white/20 rounded-xl shadow-xl p-2 min-w-[200px]">
+        {/* 기본 이모지 */}
+        <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1 mb-1">{t('comment.customEmoji.default', '기본')}</div>
+        <div className="grid grid-cols-4 gap-1">
+          {REACTION_EMOJIS.map(emoji => (
+            <button key={emoji}
+              onClick={() => handleToggleReaction(commentId, emoji)}
+              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 transition-all hover:scale-110 text-base">
+              {emoji}
+            </button>
+          ))}
+        </div>
+
+        {/* 커스텀 이모지 */}
+        {(customEmojis.length > 0 || isAdminOrOwner) && (
+          <>
+            <div className="border-t border-white/10 my-1.5" />
+            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1 mb-1">{t('comment.customEmoji.title', '커스텀')}</div>
+            <div className="grid grid-cols-4 gap-1">
+              {customEmojis.map(ce => (
+                <div key={ce.id} className="relative group/ce">
+                  <button
+                    onClick={() => handleToggleReaction(commentId, `custom:${ce.id}`)}
+                    className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 transition-all hover:scale-110"
+                    title={ce.name}>
+                    <img src={resolveFileUrl(ce.image_url)} alt={ce.name} className="w-5 h-5 object-contain" />
+                  </button>
+                  {isAdminOrOwner && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleDeleteCustomEmoji(ce.id); }}
+                      className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-red-500 text-white items-center justify-center text-[8px] leading-none hidden group-hover/ce:flex"
+                      title={t('comment.customEmoji.deleteConfirm', '삭제')}>
+                      ×
+                    </button>
+                  )}
+                </div>
+              ))}
+              {isAdminOrOwner && (
+                <button
+                  onClick={() => setShowEmojiUpload(prev => !prev)}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 transition-all text-slate-400 hover:text-slate-300 border border-dashed border-white/10"
+                  title={t('comment.customEmoji.add', '이모지 추가')}>
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* 업로드 UI */}
+            {showEmojiUpload && isAdminOrOwner && (
+              <div className="mt-2 p-2 bg-white/5 rounded-lg space-y-2">
+                <input
+                  type="text"
+                  value={emojiUploadName}
+                  onChange={e => setEmojiUploadName(e.target.value)}
+                  placeholder={t('comment.customEmoji.namePlaceholder', '이모지 이름')}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
+                  maxLength={50}
+                />
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => emojiFileInputRef.current?.click()}
+                    disabled={!emojiUploadName.trim() || isUploadingEmoji}
+                    className="flex-1 flex items-center justify-center gap-1 px-2 py-1 text-[10px] font-medium rounded-lg bg-bridge-accent/20 text-bridge-accent hover:bg-bridge-accent/30 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
+                    {isUploadingEmoji ? <Loader2 className="w-3 h-3 animate-spin" /> : <ImageIcon className="w-3 h-3" />}
+                    {t('comment.customEmoji.selectFile', '파일 선택')}
+                  </button>
+                  <button
+                    onClick={() => { setShowEmojiUpload(false); setEmojiUploadName(''); }}
+                    className="px-2 py-1 text-[10px] font-medium rounded-lg text-slate-400 hover:text-slate-300 hover:bg-white/5 transition-all">
+                    {t('common.cancel', '취소')}
+                  </button>
+                </div>
+                <p className="text-[9px] text-slate-500">{t('comment.customEmoji.maxSize', 'PNG, GIF, WebP · 128KB 이하')}</p>
+                <input
+                  ref={emojiFileInputRef}
+                  type="file"
+                  accept="image/png,image/gif,image/webp"
+                  className="hidden"
+                  onChange={e => {
+                    const file = e.target.files?.[0];
+                    if (file) handleUploadCustomEmoji(file);
+                    e.target.value = '';
+                  }}
+                />
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    );
+  };
+
+  /** 리액션 뱃지 바 */
+  const ReactionBar = ({ comment }: { comment: TaskComment }) => {
+    const reactions = comment.reactions || [];
+    if (reactions.length === 0 && !canEdit) return null;
+
+    return (
+      <div className="flex flex-wrap items-center gap-1 mt-1.5">
+        {reactions.map(reaction => {
+          const isMyReaction = reaction.users.some(u => u.id === currentUser?.id);
+          const tooltipNames = reaction.users.map(u =>
+            u.id === currentUser?.id ? t('comment.reaction.you') : u.name
+          ).join(', ');
+
+          return (
+            <button key={reaction.emoji}
+              onClick={() => canEdit && handleToggleReaction(comment.id, reaction.emoji)}
+              disabled={!canEdit}
+              className={`group/reaction relative inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-all
+                ${isMyReaction
+                  ? 'bg-bridge-accent/20 border border-bridge-accent/50 text-bridge-accent hover:bg-bridge-accent/30'
+                  : 'bg-white/5 border border-white/10 text-slate-400 hover:bg-white/10 hover:text-slate-300'
+                }
+                ${!canEdit ? 'cursor-default' : 'cursor-pointer'}
+              `}
+              title={tooltipNames}>
+              {reaction.is_custom && reaction.image_url ? (
+                <img src={resolveFileUrl(reaction.image_url)} alt={reaction.emoji} className="w-4 h-4 object-contain" />
+              ) : (
+                <span className="text-[11px]">{reaction.emoji}</span>
+              )}
+              <span className="text-[10px] font-medium">{reaction.count}</span>
+            </button>
+          );
+        })}
+        {canEdit && (
+          <div className="relative">
+            <button
+              onClick={() => setEmojiPickerCommentId(prev => prev === comment.id ? null : comment.id)}
+              className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-white/5 border border-white/10 text-slate-400 hover:bg-white/10 hover:text-slate-300 transition-all"
+              title={t('comment.reaction.addReaction')}>
+              <SmilePlus className="h-3 w-3" />
+            </button>
+            <EmojiPicker commentId={comment.id} />
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // ========== 메인 렌더 ==========
 
   const currentComment = editingId ? comments.find(c => c.id === editingId) : null;
@@ -763,6 +1008,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
                           </p>
                         )}
                         <AttachmentGrid attachments={comment.attachments || []} />
+                        <ReactionBar comment={comment} />
                       </>
                     )}
                   </div>
@@ -825,21 +1071,21 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
 
           return current.type === 'video' ? (
             <Suspense fallback={
-              <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm">
+              <div data-lightbox-overlay className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm">
                 <Loader2 className="h-8 w-8 animate-spin text-white" />
               </div>
             }>
               <VideoLightbox url={current.url} onClose={() => setLightboxMedia(null)} />
             </Suspense>
           ) : (
-            <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm cursor-pointer"
+            <div data-lightbox-overlay className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm cursor-pointer"
               onPointerDown={e => e.stopPropagation()}
               onMouseDown={e => e.stopPropagation()}
               onClick={(e) => { e.stopPropagation(); setLightboxMedia(null); }}
               onKeyDown={(e) => {
                 if (e.key === 'ArrowLeft') { e.stopPropagation(); goPrev(); }
                 else if (e.key === 'ArrowRight') { e.stopPropagation(); goNext(); }
-                else if (e.key === 'Escape') { setLightboxMedia(null); }
+                else if (e.key === 'Escape') { e.stopPropagation(); setLightboxMedia(null); }
               }}
               tabIndex={0}
               ref={(el) => el?.focus()}>

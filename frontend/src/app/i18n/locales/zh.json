@@ -278,7 +278,8 @@
     "memberDesc": "创建和编辑卡片，撰写评论",
     "observerDesc": "只读（仅查看卡片）",
     "webhookConnected": "已连接",
-    "webhookDisabled": "已停用"
+    "webhookDisabled": "已停用",
+    "webhookNotConnected": "未连接"
   },
   "notification": {
     "notifications": "通知",
@@ -446,7 +447,8 @@
     "requiredFields": "标题、开始日期和结束日期为必填项。",
     "saveFailed": "保存里程碑失败。",
     "deleteConfirm": "确定要删除此里程碑吗？",
-    "deleteFailed": "删除里程碑失败。"
+    "deleteFailed": "删除里程碑失败。",
+    "linkedCount": "{{count}}个冲刺"
   },
   "weightLevel": {
     "title": "权重等级设置",
@@ -1051,7 +1053,23 @@
     "fileSizeError": "图片文件最大5MB。",
     "videoFileSizeError": "视频文件最大50MB。",
     "uploadInProgress": "文件正在上传中，请稍候。",
-    "uploadFailedRetry": "部分文件上传失败。请移除后重试。"
+    "uploadFailedRetry": "部分文件上传失败。请移除后重试。",
+    "reaction": {
+      "addReaction": "添加反应",
+      "you": "我",
+      "andOthers": "等{{count}}人"
+    },
+    "customEmoji": {
+      "default": "默认",
+      "title": "自定义",
+      "add": "添加表情",
+      "namePlaceholder": "表情名称",
+      "selectFile": "选择文件",
+      "uploadError": "表情上传失败",
+      "deleteConfirm": "确定删除此表情？",
+      "maxSize": "PNG, GIF, WebP · 最大128KB",
+      "adminOnly": "仅管理员可以添加表情"
+    }
   },
   "activity": {
     "title": "活动日志",
@@ -1300,7 +1318,10 @@
       "dangerZone": "危险区域",
       "deleteBoard": "删除看板",
       "deleteWarning": "与此看板相关的所有数据将被删除。此操作无法撤销。",
-      "deleting": "删除中..."
+      "deleting": "删除中...",
+      "editName": "编辑看板名称",
+      "nameUpdateSuccess": "看板名称已更新。",
+      "nameUpdateFailed": "看板名称更新失败。"
     },
     "users": {
       "title": "用户管理",
