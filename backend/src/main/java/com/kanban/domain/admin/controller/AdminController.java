@@ -197,6 +197,15 @@ public class AdminController {
         return ResponseEntity.ok(adminService.updateMemberRole(boardId, memberId, request));
     }
 
+    @PatchMapping("/boards/{boardId}/name")
+    public ResponseEntity<AdminResponse.BoardDetail> updateBoardName(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable String boardId,
+            @Valid @RequestBody AdminRequest.UpdateBoardName request) {
+        verifyAdminAccess(principal);
+        return ResponseEntity.ok(adminService.updateBoardName(boardId, request));
+    }
+
     @PatchMapping("/boards/{boardId}/seat-count")
     public ResponseEntity<AdminResponse.BoardDetail> updateSeatCount(
             @AuthenticationPrincipal UserPrincipal principal,

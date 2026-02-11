@@ -36,4 +36,12 @@ public class CommentRequest {
         /** 새로 추가할 파일의 임시 키 목록 */
         private List<String> newFileKeys;
     }
+
+    @Getter
+    @NoArgsConstructor
+    public static class ToggleReaction {
+        @NotBlank(message = "이모지는 필수입니다")
+        @Size(max = 10, message = "이모지는 10자 이내여야 합니다")
+        private String emoji;
+    }
 }

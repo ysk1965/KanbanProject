@@ -40,9 +40,12 @@ const plyrOptions: PlyrProps['options'] = {
 export function VideoLightbox({ url, onClose }: VideoLightboxProps) {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        onClose();
+      }
     };
-    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown, true);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
@@ -53,8 +56,12 @@ export function VideoLightbox({ url, onClose }: VideoLightboxProps) {
 
   return (
     <div
+      data-lightbox-overlay
       className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80"
+      onPointerDown={e => e.stopPropagation()}
+      onMouseDown={e => e.stopPropagation()}
       onClick={e => {
+        e.stopPropagation();
         if (e.target === e.currentTarget) onClose();
       }}
     >

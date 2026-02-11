@@ -34,7 +34,7 @@ import {
 import { Badge } from './ui/badge';
 import { Calendar } from './ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import { X, Plus, Trash2, Clock, CheckSquare, CalendarIcon, FileText, Tags, Users, Layers, Pencil, CheckCircle2, Undo2, ChevronDown, ChevronRight, Loader2, MessageSquare, Lightbulb, ArrowRightLeft } from 'lucide-react';
+import { X, Plus, Trash2, Clock, CheckSquare, CalendarIcon, FileText, Tags, Users, Layers, Pencil, CheckCircle2, Undo2, ChevronDown, ChevronRight, Loader2, MessageSquare, Lightbulb, ArrowRightLeft, GripVertical } from 'lucide-react';
 import { CommentPanel } from './CommentPanel';
 import { TagPickerPopover } from './TagPickerPopover';
 import { getAssigneeClasses, getInitials } from '../utils/assigneeColor';
@@ -43,6 +43,24 @@ import { DateRange } from 'react-day-picker';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { getTodayDateString } from '../utils/dateUtils';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import { restrictToVerticalAxis, restrictToParentElement } from '@dnd-kit/modifiers';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface TaskDetailModalProps {
   task: Task | null;
@@ -355,6 +373,39 @@ export function TaskDetailModal({
     }
   };
 
+  // 체크리스트 드래그 앤 드롭
+  const checklistSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const sortedChecklistItems = [...checklistItems].sort((a, b) => a.position - b.position);
+
+  const handleChecklistDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id || !boardId || !task) return;
+
+    const oldIndex = sortedChecklistItems.findIndex((item) => item.id === active.id);
+    const newIndex = sortedChecklistItems.findIndex((item) => item.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const reordered = arrayMove(sortedChecklistItems, oldIndex, newIndex);
+    const updatedItems = reordered.map((item, idx) => ({ ...item, position: idx }));
+
+    // 낙관적 업데이트
+    setChecklistItems(updatedItems);
+
+    try {
+      await checklistAPI.reorderItems(boardId, task.id, {
+        itemIds: reordered.map((item) => item.id),
+      });
+    } catch (error) {
+      console.error('Failed to reorder checklist items:', error);
+      // 롤백
+      setChecklistItems(checklistItems);
+    }
+  };
+
   // 체크리스트 진행률 계산
   const completedChecklistCount = checklistItems.filter((item) => item.completed).length;
   const checklistProgress = checklistItems.length > 0
@@ -366,12 +417,23 @@ export function TaskDetailModal({
   return (
     <>
       <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="sm:max-w-[1100px] max-h-[85vh] flex flex-col overflow-hidden bg-kanban-card border border-kanban-border/50 shadow-[0_0_60px_rgba(0,0,0,0.5)] text-foreground p-0 [&>button:last-child]:hidden" onPointerDownOutside={(e) => {
-          if (hasChanges) {
-            e.preventDefault();
-            handleClose();
-          }
-        }}>
+        <DialogContent className="sm:max-w-[1100px] max-h-[85vh] flex flex-col overflow-hidden bg-kanban-card border border-kanban-border/50 shadow-[0_0_60px_rgba(0,0,0,0.5)] text-foreground p-0 [&>button:last-child]:hidden"
+          onPointerDownOutside={(e) => {
+            // Prevent dialog close when lightbox is open
+            if (document.querySelector('[data-lightbox-overlay]')) {
+              e.preventDefault();
+              return;
+            }
+            if (hasChanges) {
+              e.preventDefault();
+              handleClose();
+            }
+          }}
+          onEscapeKeyDown={(e) => {
+            if (document.querySelector('[data-lightbox-overlay]')) {
+              e.preventDefault();
+            }
+          }}>
           {/* Feature color accent line */}
           <div className="h-[3px] w-full flex-shrink-0 rounded-t-lg" style={{ backgroundColor: task.feature_color }} />
           <div className="flex flex-1 min-h-0">
@@ -687,24 +749,34 @@ export function TaskDetailModal({
                   </div>
                 </div>
               )}
-              {checklistItems
-                .sort((a, b) => a.position - b.position)
-                .map((item) => (
-                  <ChecklistItemRow
-                    key={item.id}
-                    item={item}
-                    onToggle={() => handleToggleChecklistItem(item.id)}
-                    onUpdate={(updates) => handleUpdateChecklistItem(item.id, updates)}
-                    onDelete={() => setChecklistItemToDelete(item.id)}
-                    onMoveToTask={onMoveChecklistToTask && allTasks.length > 1 ? () => {
-                      setMoveChecklistItemId(item.id);
-                      setShowMoveChecklistDialog(true);
-                    } : undefined}
-                    boardMembers={boardMembers}
-                    boardId={boardId}
-                    canEdit={canEdit}
-                  />
-                ))}
+              <DndContext
+                sensors={checklistSensors}
+                collisionDetection={closestCenter}
+                modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+                onDragEnd={handleChecklistDragEnd}
+              >
+                <SortableContext
+                  items={sortedChecklistItems.map((item) => item.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  {sortedChecklistItems.map((item) => (
+                    <SortableChecklistItemRow
+                      key={item.id}
+                      item={item}
+                      onToggle={() => handleToggleChecklistItem(item.id)}
+                      onUpdate={(updates) => handleUpdateChecklistItem(item.id, updates)}
+                      onDelete={() => setChecklistItemToDelete(item.id)}
+                      onMoveToTask={onMoveChecklistToTask && allTasks.length > 1 ? () => {
+                        setMoveChecklistItemId(item.id);
+                        setShowMoveChecklistDialog(true);
+                      } : undefined}
+                      boardMembers={boardMembers}
+                      boardId={boardId}
+                      canEdit={canEdit}
+                    />
+                  ))}
+                </SortableContext>
+              </DndContext>
 
               {/* 새 항목 추가 - Viewer는 추가 불가 */}
               {canEdit && <AddChecklistItemInput onAdd={handleAddChecklistItem} boardMembers={boardMembers} currentUser={currentUser} />}
@@ -1054,6 +1126,46 @@ export function TaskDetailModal({
   );
 }
 
+// 정렬 가능한 체크리스트 항목 래퍼
+function SortableChecklistItemRow(props: {
+  item: ChecklistItem;
+  onToggle: () => void;
+  onUpdate: (updates: Partial<ChecklistItem>) => void;
+  onDelete: () => void;
+  onMoveToTask?: () => void;
+  boardMembers: BoardMember[];
+  boardId: string | null;
+  canEdit?: boolean;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: props.item.id,
+    disabled: !props.canEdit,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 10 : undefined,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes}>
+      <ChecklistItemRow
+        {...props}
+        dragHandleProps={props.canEdit ? listeners : undefined}
+      />
+    </div>
+  );
+}
+
 // 체크리스트 항목 컴포넌트
 function ChecklistItemRow({
   item,
@@ -1064,6 +1176,7 @@ function ChecklistItemRow({
   boardMembers,
   boardId,
   canEdit = true,
+  dragHandleProps,
 }: {
   item: ChecklistItem;
   onToggle: () => void;
@@ -1073,6 +1186,7 @@ function ChecklistItemRow({
   boardMembers: BoardMember[];
   boardId: string | null;
   canEdit?: boolean;
+  dragHandleProps?: React.HTMLAttributes<HTMLElement>;
 }) {
   const { t } = useTranslation();
   const [isEditing, setIsEditing] = useState(false);
@@ -1135,6 +1249,15 @@ function ChecklistItemRow({
   return (
     <>
     <div className="group flex items-center gap-2 p-2 rounded hover:bg-white/5 border border-transparent hover:border-white/10">
+      {/* 드래그 핸들 */}
+      {dragHandleProps && (
+        <span
+          {...dragHandleProps}
+          className="flex-shrink-0 cursor-grab active:cursor-grabbing text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity"
+        >
+          <GripVertical className="h-4 w-4" />
+        </span>
+      )}
       {/* 체크박스 */}
       <button
         onClick={canEdit ? onToggle : undefined}

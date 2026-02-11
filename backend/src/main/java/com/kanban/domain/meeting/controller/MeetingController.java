@@ -7,6 +7,7 @@ import com.kanban.domain.meeting.dto.MeetingResponse;
 import com.kanban.domain.meeting.service.MeetingAIService;
 import com.kanban.domain.meeting.service.MeetingService;
 import com.kanban.domain.meeting.service.MeetingTranscriptionService;
+import com.kanban.domain.note.dto.NoteResponse;
 import com.kanban.global.security.UserPrincipal;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -135,5 +136,15 @@ public class MeetingController {
         MeetingAIResponse.ApplyResult response = meetingAIService.applySuggestions(
                 boardId, meetingId, principal.getUserId(), request);
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{meetingId}/save-to-note")
+    public ResponseEntity<NoteResponse.Detail> saveToNote(
+            @PathVariable String boardId,
+            @PathVariable String meetingId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        NoteResponse.Detail response = meetingService.saveToNote(
+                boardId, meetingId, principal.getUserId());
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 }

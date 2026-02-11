@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Folder, Users, ListTodo, Calendar, Trash2, Crown, Shield, User as UserIcon, Eye, ArrowRightLeft, CalendarPlus, AlertTriangle, Armchair, ChevronDown, Link2, Copy, Check } from 'lucide-react';
+import { X, Folder, Users, ListTodo, Calendar, Trash2, Crown, Shield, User as UserIcon, Eye, ArrowRightLeft, CalendarPlus, AlertTriangle, Armchair, ChevronDown, Link2, Copy, Check, Pencil } from 'lucide-react';
 import { adminService, inviteLinkService } from '../../utils/services';
 import { AdminBoardDetail } from '../../utils/api';
 import { formatDateTime, formatDate } from '../../utils/dateUtils';
@@ -28,6 +28,8 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [isGeneratingInvite, setIsGeneratingInvite] = useState(false);
   const [copiedDomain, setCopiedDomain] = useState<string | null>(null);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editingName, setEditingName] = useState('');
 
   useEffect(() => {
     loadBoardDetail();
@@ -167,6 +169,32 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
         }
       },
     });
+  };
+
+  const handleStartEditName = () => {
+    if (!board) return;
+    setEditingName(board.name);
+    setIsEditingName(true);
+  };
+
+  const handleSaveName = async () => {
+    if (!board || !editingName.trim() || editingName.trim() === board.name) {
+      setIsEditingName(false);
+      return;
+    }
+    try {
+      setIsUpdating(true);
+      const updated = await adminService.updateBoardName(boardId, editingName.trim());
+      setBoard(updated);
+      onUpdate();
+      setToast({ message: t('admin.boardDetail.nameUpdateSuccess'), type: 'success' });
+    } catch (err) {
+      console.error('Failed to update board name:', err);
+      setToast({ message: t('admin.boardDetail.nameUpdateFailed'), type: 'error' });
+    } finally {
+      setIsUpdating(false);
+      setIsEditingName(false);
+    }
   };
 
   const handleExtendTrial = () => {
@@ -343,7 +371,50 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                   <Folder className="h-8 w-8 text-bridge-accent" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-xl font-bold text-white">{board.name}</h3>
+                  {isEditingName ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={editingName}
+                        onChange={(e) => setEditingName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveName();
+                          if (e.key === 'Escape') setIsEditingName(false);
+                        }}
+                        autoFocus
+                        className="flex-1 bg-white/5 border border-white/10 rounded-xl py-2 px-3
+                          text-xl font-bold text-white placeholder-slate-600
+                          focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent
+                          transition-all"
+                      />
+                      <button
+                        onClick={handleSaveName}
+                        disabled={isUpdating}
+                        className="px-3 py-2 bg-bridge-accent text-white rounded-lg text-sm font-medium
+                          hover:bg-bridge-accent/90 disabled:opacity-50 transition-colors"
+                      >
+                        {t('common.save')}
+                      </button>
+                      <button
+                        onClick={() => setIsEditingName(false)}
+                        className="px-3 py-2 bg-white/5 text-slate-400 rounded-lg text-sm
+                          hover:bg-white/10 transition-colors"
+                      >
+                        {t('common.cancel')}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 group">
+                      <h3 className="text-xl font-bold text-white">{board.name}</h3>
+                      <button
+                        onClick={handleStartEditName}
+                        className="p-1 text-slate-500 hover:text-bridge-accent opacity-0 group-hover:opacity-100 transition-all"
+                        title={t('admin.boardDetail.editName')}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                    </div>
+                  )}
                   {board.description && (
                     <p className="text-slate-400 mt-1">{board.description}</p>
                   )}

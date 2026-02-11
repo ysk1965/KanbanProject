@@ -73,6 +73,16 @@ public class ChecklistController {
         return ResponseEntity.ok(response);
     }
 
+    @PutMapping("/reorder")
+    public ResponseEntity<Map<String, String>> reorderChecklistItems(
+            @PathVariable String boardId,
+            @PathVariable String taskId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody ChecklistRequest.Reorder request) {
+        checklistService.reorderChecklistItems(boardId, taskId, principal.getUserId(), request);
+        return ResponseEntity.ok(Map.of("message", "체크리스트 순서가 변경되었습니다"));
+    }
+
     @PatchMapping("/{itemId}/toggle")
     public ResponseEntity<ChecklistResponse.Detail> toggleChecklistItem(
             @PathVariable String boardId,

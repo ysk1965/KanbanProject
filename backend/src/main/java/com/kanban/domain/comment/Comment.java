@@ -46,6 +46,10 @@ public class Comment extends BaseTimeEntity {
     @Builder.Default
     private List<CommentAttachment> attachments = new ArrayList<>();
 
+    @OneToMany(mappedBy = "comment", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<CommentReaction> reactions = new ArrayList<>();
+
     @PrePersist
     public void prePersist() {
         if (this.id == null) {

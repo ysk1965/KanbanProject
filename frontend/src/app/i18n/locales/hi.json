@@ -262,7 +262,8 @@
     "memberDesc": "कार्ड बनाएं और संपादित करें, टिप्पणियां लिखें",
     "observerDesc": "केवल पढ़ने के लिए (केवल कार्ड देखें)",
     "webhookConnected": "जुड़ा हुआ",
-    "webhookDisabled": "अक्षम"
+    "webhookDisabled": "अक्षम",
+    "webhookNotConnected": "जुड़ा नहीं"
   },
   "notification": {
     "notifications": "अधिसूचनाएं",
@@ -430,7 +431,8 @@
     "requiredFields": "शीर्षक, प्रारंभ तिथि और समाप्ति तिथि आवश्यक हैं।",
     "saveFailed": "माइलस्टोन सहेजने में विफल।",
     "deleteConfirm": "क्या आप वाकई इस माइलस्टोन को हटाना चाहते हैं?",
-    "deleteFailed": "माइलस्टोन हटाने में विफल।"
+    "deleteFailed": "माइलस्टोन हटाने में विफल।",
+    "linkedCount": "{{count}} स्प्रिंट"
   },
   "weightLevel": {
     "title": "वेट लेवल सेटिंग्स",
@@ -1035,7 +1037,23 @@
     "fileSizeError": "अधिकतम छवि आकार 5MB है।",
     "videoFileSizeError": "अधिकतम वीडियो आकार 50MB है।",
     "uploadInProgress": "फ़ाइलें अपलोड हो रही हैं। कृपया प्रतीक्षा करें।",
-    "uploadFailedRetry": "कुछ फ़ाइलें अपलोड करने में विफल रहीं। कृपया हटाकर पुनः प्रयास करें।"
+    "uploadFailedRetry": "कुछ फ़ाइलें अपलोड करने में विफल रहीं। कृपया हटाकर पुनः प्रयास करें।",
+    "reaction": {
+      "addReaction": "प्रतिक्रिया जोड़ें",
+      "you": "आप",
+      "andOthers": "और {{count}} अन्य"
+    },
+    "customEmoji": {
+      "default": "डिफ़ॉल्ट",
+      "title": "कस्टम",
+      "add": "इमोजी जोड़ें",
+      "namePlaceholder": "इमोजी का नाम",
+      "selectFile": "फ़ाइल चुनें",
+      "uploadError": "इमोजी अपलोड विफल",
+      "deleteConfirm": "यह इमोजी हटाएं?",
+      "maxSize": "PNG, GIF, WebP · अधिकतम 128KB",
+      "adminOnly": "केवल व्यवस्थापक इमोजी जोड़ सकते हैं"
+    }
   },
   "activity": {
     "title": "गतिविधि लॉग",
@@ -1284,7 +1302,10 @@
       "dangerZone": "खतरनाक क्षेत्र",
       "deleteBoard": "बोर्ड हटाएं",
       "deleteWarning": "इस बोर्ड से संबंधित सभी डेटा हटा दिया जाएगा। यह कार्रवाई पूर्ववत नहीं की जा सकती।",
-      "deleting": "हटाया जा रहा है..."
+      "deleting": "हटाया जा रहा है...",
+      "editName": "बोर्ड का नाम संपादित करें",
+      "nameUpdateSuccess": "बोर्ड का नाम अपडेट किया गया।",
+      "nameUpdateFailed": "बोर्ड का नाम अपडेट करने में विफल।"
     },
     "users": {
       "title": "उपयोगकर्ता प्रबंधन",

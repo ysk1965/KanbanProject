@@ -282,7 +282,8 @@
     "seatsUsed": "시트 사용 중",
     "manageSeat": "시트 관리",
     "webhookConnected": "연동됨",
-    "webhookDisabled": "비활성"
+    "webhookDisabled": "비활성",
+    "webhookNotConnected": "미연결"
   },
   "notification": {
     "notifications": "알림",
@@ -467,7 +468,8 @@
     "requiredFields": "제목, 시작일, 종료일은 필수입니다.",
     "saveFailed": "마일스톤 저장에 실패했습니다.",
     "deleteConfirm": "정말 이 마일스톤을 삭제하시겠습니까?",
-    "deleteFailed": "마일스톤 삭제에 실패했습니다."
+    "deleteFailed": "마일스톤 삭제에 실패했습니다.",
+    "linkedCount": "{{count}}개 스프린트"
   },
   "weightLevel": {
     "title": "가중치 레벨 설정",
@@ -1096,7 +1098,23 @@
     "fileSizeError": "이미지 파일은 최대 5MB입니다.",
     "videoFileSizeError": "영상 파일은 최대 50MB입니다.",
     "uploadInProgress": "파일 업로드 중입니다. 잠시만 기다려주세요.",
-    "uploadFailedRetry": "업로드 실패한 파일이 있습니다. 삭제 후 다시 시도해주세요."
+    "uploadFailedRetry": "업로드 실패한 파일이 있습니다. 삭제 후 다시 시도해주세요.",
+    "reaction": {
+      "addReaction": "리액션 추가",
+      "you": "나",
+      "andOthers": "외 {{count}}명"
+    },
+    "customEmoji": {
+      "default": "기본",
+      "title": "커스텀",
+      "add": "이모지 추가",
+      "namePlaceholder": "이모지 이름",
+      "selectFile": "파일 선택",
+      "uploadError": "이모지 업로드에 실패했습니다",
+      "deleteConfirm": "이 이모지를 삭제하시겠습니까?",
+      "maxSize": "PNG, GIF, WebP · 128KB 이하",
+      "adminOnly": "관리자만 이모지를 추가할 수 있습니다"
+    }
   },
   "activity": {
     "title": "활동 로그",
@@ -1174,6 +1192,7 @@
     "viewKanban": "칸반보드",
     "viewSchedule": "데일리스케줄",
     "viewGantt": "간트차트",
+    "viewNotes": "노트",
     "viewStatistics": "마일스톤",
     "viewAIReport": "AI 보고서",
     "inquiry": "문의하기",
@@ -1833,7 +1852,10 @@
       "dangerZone": "위험 영역",
       "deleteBoard": "보드 삭제",
       "deleteWarning": "보드와 관련된 모든 데이터가 삭제됩니다. 이 작업은 되돌릴 수 없습니다.",
-      "deleting": "삭제 중..."
+      "deleting": "삭제 중...",
+      "editName": "보드 이름 수정",
+      "nameUpdateSuccess": "보드 이름이 변경되었습니다.",
+      "nameUpdateFailed": "보드 이름 변경에 실패했습니다."
     },
     "users": {
       "title": "사용자 관리",
@@ -2171,7 +2193,9 @@
     "transcriptPlaceholder": "녹음 후 텍스트 변환을 하거나, 직접 입력하세요...",
     "microphoneAccessDenied": "마이크 접근이 거부되었습니다. 브라우저 설정에서 마이크 권한을 허용해주세요.",
     "transcriptFileTooLarge": "녹음 파일이 25MB를 초과합니다. 더 짧게 녹음해주세요.",
-    "transcriptionError": "음성 변환에 실패했습니다. 다시 시도해주세요."
+    "transcriptionError": "음성 변환에 실패했습니다. 다시 시도해주세요.",
+    "saveToNote": "노트로 저장",
+    "saveToNoteSuccess": "노트에 저장되었습니다"
   },
   "payment": {
     "processing": "결제 처리 중...",
@@ -2184,5 +2208,59 @@
     "tryAgain": "다시 시도",
     "errorCode": "오류 코드",
     "unknownError": "알 수 없는 오류가 발생했습니다"
+  },
+  "notes": {
+    "title": "노트",
+    "treeView": "트리 뷰",
+    "listView": "리스트 뷰",
+    "searchPlaceholder": "검색...",
+    "newFolder": "새 폴더",
+    "newDocument": "새 문서",
+    "newDocumentInFolder": "문서 추가",
+    "newSubfolder": "하위 폴더",
+    "rename": "이름 변경",
+    "confirmDelete": "정말 삭제하시겠습니까? 하위 항목도 모두 삭제됩니다.",
+    "selectOrCreate": "문서를 선택하거나 새로 만들어주세요",
+    "createFirstDocument": "첫 문서 만들기",
+    "folderSelected": "폴더가 선택되었습니다",
+    "folderHint": "문서를 선택하여 편집하세요",
+    "titlePlaceholder": "제목을 입력하세요",
+    "contentPlaceholder": "내용을 입력하세요...",
+    "allTags": "전체",
+    "versionHistory": "버전 히스토리",
+    "version": "버전",
+    "restore": "복원",
+    "restoreConfirm": "이 버전으로 복원하시겠습니까?",
+    "noVersions": "저장된 버전이 없습니다",
+    "savedVersion": "버전 {{version}} 저장됨",
+    "restoredVersion": "버전 {{version}}에서 복원됨",
+    "tags": "태그",
+    "addTag": "태그 추가",
+    "createTag": "새 태그 만들기",
+    "tagName": "태그 이름",
+    "tagColor": "태그 색상",
+    "autoSaved": "자동 저장됨",
+    "unsavedWarning": "저장하지 않은 변경사항이 있습니다. 저장하지 않고 이동하시겠습니까?",
+    "aiOrganize": "AI 분석",
+    "aiOrganizeTitle": "AI 노트 분석",
+    "aiAnalyzing": "AI가 노트를 분석하고 있습니다...",
+    "aiNoSuggestions": "노트에서 실행 가능한 항목을 찾지 못했습니다.",
+    "aiError": "AI 분석 중 오류가 발생했습니다. 다시 시도해주세요.",
+    "aiRetry": "다시 시도",
+    "aiApply": "적용",
+    "aiApplying": "적용 중...",
+    "aiSelectAll": "전체 선택",
+    "aiDeselectAll": "전체 해제",
+    "aiSelectedCount": "{{count}}개 항목 선택됨",
+    "aiExistingFeature": "기존 피쳐",
+    "aiNewFeature": "새 피쳐",
+    "aiApplySuccess": "{{features}}개 피쳐, {{tasks}}개 태스크, {{checklists}}개 체크리스트가 생성되었습니다.",
+    "aiAlreadyExists": "이미 적용됨",
+    "aiSummaryTitle": "노트 요약",
+    "aiKeyPoints": "주요 포인트",
+    "aiImportant": "중요",
+    "aiRecommendedTasks": "추천 업무",
+    "aiClose": "접기",
+    "aiExpand": "펼치기"
   }
 }

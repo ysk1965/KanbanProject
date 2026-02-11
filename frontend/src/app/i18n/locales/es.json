@@ -262,7 +262,8 @@
     "memberDesc": "Crear y editar tarjetas, escribir comentarios",
     "observerDesc": "Solo lectura (ver tarjetas solamente)",
     "webhookConnected": "Conectado",
-    "webhookDisabled": "Desactivado"
+    "webhookDisabled": "Desactivado",
+    "webhookNotConnected": "No conectado"
   },
   "notification": {
     "notifications": "Notificaciones",
@@ -430,7 +431,8 @@
     "requiredFields": "El título, la fecha de inicio y la fecha de fin son obligatorios.",
     "saveFailed": "Error al guardar el hito.",
     "deleteConfirm": "¿Estás seguro de que deseas eliminar este hito?",
-    "deleteFailed": "Error al eliminar el hito."
+    "deleteFailed": "Error al eliminar el hito.",
+    "linkedCount": "{{count}} sprints"
   },
   "weightLevel": {
     "title": "Configuración de niveles de peso",
@@ -1035,7 +1037,23 @@
     "fileSizeError": "El tamaño máximo de imagen es 5MB.",
     "videoFileSizeError": "El tamaño máximo de video es 50MB.",
     "uploadInProgress": "Los archivos se están subiendo. Por favor espera.",
-    "uploadFailedRetry": "Algunos archivos no se pudieron subir. Por favor elimínalos e inténtalo de nuevo."
+    "uploadFailedRetry": "Algunos archivos no se pudieron subir. Por favor elimínalos e inténtalo de nuevo.",
+    "reaction": {
+      "addReaction": "Agregar reacción",
+      "you": "Tú",
+      "andOthers": "y {{count}} más"
+    },
+    "customEmoji": {
+      "default": "Predeterminado",
+      "title": "Personalizado",
+      "add": "Agregar emoji",
+      "namePlaceholder": "Nombre del emoji",
+      "selectFile": "Seleccionar archivo",
+      "uploadError": "Error al subir el emoji",
+      "deleteConfirm": "¿Eliminar este emoji?",
+      "maxSize": "PNG, GIF, WebP · Máx 128KB",
+      "adminOnly": "Solo los administradores pueden agregar emojis"
+    }
   },
   "activity": {
     "title": "Registro de actividad",
@@ -1284,7 +1302,10 @@
       "dangerZone": "Zona de peligro",
       "deleteBoard": "Eliminar tablero",
       "deleteWarning": "Todos los datos relacionados con este tablero serán eliminados. Esta acción no se puede deshacer.",
-      "deleting": "Eliminando..."
+      "deleting": "Eliminando...",
+      "editName": "Editar nombre del tablero",
+      "nameUpdateSuccess": "El nombre del tablero ha sido actualizado.",
+      "nameUpdateFailed": "Error al actualizar el nombre del tablero."
     },
     "users": {
       "title": "Gestión de usuarios",

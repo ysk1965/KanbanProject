@@ -262,7 +262,8 @@
     "memberDesc": "Tao va chinh sua the, viet binh luan",
     "observerDesc": "Chi doc (chi xem the)",
     "webhookConnected": "Đã kết nối",
-    "webhookDisabled": "Đã tắt"
+    "webhookDisabled": "Đã tắt",
+    "webhookNotConnected": "Chưa kết nối"
   },
   "notification": {
     "notifications": "Thong bao",
@@ -430,7 +431,8 @@
     "requiredFields": "Tieu de, ngay bat dau va ngay ket thuc la bat buoc.",
     "saveFailed": "Khong the luu milestone.",
     "deleteConfirm": "Ban co chac chan muon xoa milestone nay khong?",
-    "deleteFailed": "Khong the xoa milestone."
+    "deleteFailed": "Khong the xoa milestone.",
+    "linkedCount": "{{count}} sprint"
   },
   "weightLevel": {
     "title": "Cai dat muc trong so",
@@ -1035,7 +1037,23 @@
     "fileSizeError": "Kích thước ảnh tối đa là 5MB.",
     "videoFileSizeError": "Kích thước video tối đa là 50MB.",
     "uploadInProgress": "Tep dang duoc tai len. Vui long cho.",
-    "uploadFailedRetry": "Mot so tep tai len that bai. Vui long xoa va thu lai."
+    "uploadFailedRetry": "Mot so tep tai len that bai. Vui long xoa va thu lai.",
+    "reaction": {
+      "addReaction": "Thêm biểu cảm",
+      "you": "Bạn",
+      "andOthers": "và {{count}} người khác"
+    },
+    "customEmoji": {
+      "default": "Mặc định",
+      "title": "Tùy chỉnh",
+      "add": "Thêm emoji",
+      "namePlaceholder": "Tên emoji",
+      "selectFile": "Chọn tệp",
+      "uploadError": "Tải lên emoji thất bại",
+      "deleteConfirm": "Xóa emoji này?",
+      "maxSize": "PNG, GIF, WebP · Tối đa 128KB",
+      "adminOnly": "Chỉ quản trị viên mới có thể thêm emoji"
+    }
   },
   "activity": {
     "title": "Nhat ky hoat dong",
@@ -1284,7 +1302,10 @@
       "dangerZone": "Vung nguy hiem",
       "deleteBoard": "Xoa bang",
       "deleteWarning": "Tat ca du lieu lien quan den bang nay se bi xoa. Hanh dong nay khong the hoan tac.",
-      "deleting": "Dang xoa..."
+      "deleting": "Dang xoa...",
+      "editName": "Sửa tên bảng",
+      "nameUpdateSuccess": "Đã cập nhật tên bảng.",
+      "nameUpdateFailed": "Cập nhật tên bảng thất bại."
     },
     "users": {
       "title": "Quan ly nguoi dung",

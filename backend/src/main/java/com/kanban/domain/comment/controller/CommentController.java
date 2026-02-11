@@ -80,4 +80,16 @@ public class CommentController {
         commentService.deleteAttachment(boardId, commentId, attachmentId, principal.getUserId());
         return ResponseEntity.ok(Map.of("message", "첨부파일이 삭제되었습니다"));
     }
+
+    @PostMapping("/{commentId}/reactions/toggle")
+    public ResponseEntity<CommentResponse.ReactionsResponse> toggleReaction(
+            @PathVariable String boardId,
+            @PathVariable String taskId,
+            @PathVariable String commentId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody CommentRequest.ToggleReaction request) {
+        CommentResponse.ReactionsResponse response = commentService.toggleReaction(
+                boardId, commentId, principal.getUserId(), request.getEmoji());
+        return ResponseEntity.ok(response);
+    }
 }
