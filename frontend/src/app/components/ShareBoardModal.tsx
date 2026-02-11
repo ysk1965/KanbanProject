@@ -107,9 +107,9 @@ export function ShareBoardModal({
   useEffect(() => {
     if (open && boardId) {
       slackWebhookAPI.getMemberStatuses(boardId)
-        .then((res) => {
+        .then((statuses) => {
           const map: Record<string, SlackWebhookMemberStatus> = {};
-          (res.data || []).forEach((s) => { map[s.userId] = s; });
+          (Array.isArray(statuses) ? statuses : []).forEach((s) => { map[s.userId] = s; });
           setWebhookStatusMap(map);
         })
         .catch(() => {

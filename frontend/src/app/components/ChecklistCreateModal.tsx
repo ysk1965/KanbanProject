@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Clock, ChevronDown, Folder, FileText, Loader2, CheckSquare, Layers, Plus, ClipboardList } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, parseISO, isToday as isDateToday } from 'date-fns';
 import { featureAPI, taskAPI, dailyChecklistAPI, boardChecklistAPI, meetingAPI, FeatureResponse, TaskResponse, DailyChecklistItemResponse, BoardChecklistItemResponse, MeetingSummary } from '../utils/api';
 
 interface ChecklistCreateModalProps {
@@ -9,6 +9,7 @@ interface ChecklistCreateModalProps {
   assigneeId: string;
   startTime: string;
   endTime: string;
+  selectedDate?: string; // yyyy-MM-dd format
   displayMode: 'time' | 'block';
   startBlockIndex?: number;
   endBlockIndex?: number;
@@ -25,6 +26,7 @@ export function ChecklistCreateModal({
   assigneeId,
   startTime,
   endTime,
+  selectedDate,
   displayMode,
   startBlockIndex,
   endBlockIndex,
@@ -36,7 +38,16 @@ export function ChecklistCreateModal({
   onClose,
 }: ChecklistCreateModalProps) {
   const { t } = useTranslation();
-  // 오늘의 체크리스트 (먼저 표시)
+
+  // 선택된 날짜 계산
+  const targetDate = selectedDate || format(new Date(), 'yyyy-MM-dd');
+  const targetDateObj = parseISO(targetDate);
+  const isTargetToday = isDateToday(targetDateObj);
+  const dateLabel = isTargetToday
+    ? t('dailySchedule.todayLabel')
+    : format(targetDateObj, 'M/d');
+
+  // 해당 날짜의 체크리스트 (먼저 표시)
   const [todayChecklists, setTodayChecklists] = useState<DailyChecklistItemResponse[]>([]);
   const [isLoadingToday, setIsLoadingToday] = useState(true);
 
@@ -65,13 +76,12 @@ export function ChecklistCreateModal({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // 오늘의 체크리스트 로드
+  // 해당 날짜의 체크리스트 로드
   useEffect(() => {
     const loadTodayChecklists = async () => {
       setIsLoadingToday(true);
       try {
-        const today = format(new Date(), 'yyyy-MM-dd');
-        const response = await dailyChecklistAPI.getDailyChecklist(boardId, today);
+        const response = await dailyChecklistAPI.getDailyChecklist(boardId, targetDate);
         // 해당 assignee의 미완료 체크리스트만 필터링
         const userColumn = response.columns?.find((c) => c.user.id === assigneeId);
         const items = userColumn?.items?.filter((item) => !item.completed) || [];
@@ -84,7 +94,7 @@ export function ChecklistCreateModal({
       }
     };
     loadTodayChecklists();
-  }, [boardId, assigneeId]);
+  }, [boardId, assigneeId, targetDate]);
 
   // 보드 체크리스트 항목 로드
   useEffect(() => {
@@ -126,8 +136,7 @@ export function ChecklistCreateModal({
     const loadTodayMeetings = async () => {
       setIsLoadingMeetings(true);
       try {
-        const today = format(new Date(), 'yyyy-MM-dd');
-        const data = await meetingAPI.getMeetings(boardId, today);
+        const data = await meetingAPI.getMeetings(boardId, targetDate);
         setTodayMeetings(data);
       } catch (error) {
         console.error('Failed to load today meetings:', error);
@@ -137,7 +146,7 @@ export function ChecklistCreateModal({
       }
     };
     loadTodayMeetings();
-  }, [boardId, onSelectMeeting]);
+  }, [boardId, onSelectMeeting, targetDate]);
 
   // Feature 목록 로드 (새로 생성 모드일 때만)
   useEffect(() => {
@@ -236,6 +245,8 @@ export function ChecklistCreateModal({
               <>
                 <Clock className="h-4 w-4 text-bridge-accent flex-shrink-0" />
                 <span className="text-bridge-accent font-medium text-sm">
+                  <span className="font-bold">{format(targetDateObj, 'M/d')}</span>
+                  {' '}
                   {splitBlocks && splitBlocks.length > 1
                     ? splitBlocks.map((seg, i) => (
                         <span key={i}>
@@ -258,7 +269,7 @@ export function ChecklistCreateModal({
             <div>
               <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
                 <FileText className="inline h-4 w-4 mr-1 text-purple-400" />
-                {t('meeting.selectMeeting')}
+                {t('meeting.selectMeeting', { date: dateLabel })}
               </label>
               <div className="border border-white/10 rounded-xl max-h-48 overflow-y-auto bg-kanban-card">
                 {isLoadingMeetings ? (
@@ -268,7 +279,7 @@ export function ChecklistCreateModal({
                   </div>
                 ) : todayMeetings.length === 0 ? (
                   <div className="px-4 py-4 text-slate-400 text-sm text-center">
-                    {t('meeting.noMeetings')}
+                    {t('dailySchedule.noMeetingsForDate', { date: dateLabel })}
                   </div>
                 ) : (
                   <div className="divide-y divide-white/5">
@@ -306,7 +317,7 @@ export function ChecklistCreateModal({
           <div>
             <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
               <CheckSquare className="inline h-4 w-4 mr-1 text-bridge-accent" />
-              {t('dailySchedule.selectFromToday')}
+              {t('dailySchedule.selectFromToday', { date: dateLabel })}
             </label>
             <div className="border border-white/10 rounded-xl max-h-64 overflow-y-auto bg-kanban-card">
               {isLoadingToday ? (
@@ -316,7 +327,7 @@ export function ChecklistCreateModal({
                 </div>
               ) : todayChecklists.length === 0 ? (
                 <div className="px-4 py-6 text-slate-400 text-sm text-center">
-                  {t('dailySchedule.noTodayChecklist')}
+                  {t('dailySchedule.noTodayChecklist', { date: dateLabel })}
                 </div>
               ) : (
                 <div className="divide-y divide-white/5">
