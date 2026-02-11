@@ -59,8 +59,8 @@ type ScheduleViewMode = 'day' | 'week';
 
 export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onViewFeature, onViewTask, refreshTrigger, currentUserRole, initialSubTab }: DailyScheduleViewProps) {
   const { t } = useTranslation();
-  // observer 역할 제외한 멤버 목록
-  const activeMembers = useMemo(() => boardMembers.filter((m) => m.role !== 'observer'), [boardMembers]);
+  // viewer 역할 제외한 멤버 목록
+  const activeMembers = useMemo(() => boardMembers.filter((m) => m.role !== 'viewer'), [boardMembers]);
   // 세부 탭 상태 (타임블록 / 체크리스트)
   const [subTab, setSubTab] = useState<ScheduleSubTab>(initialSubTab || 'timeblock');
 

@@ -276,7 +276,7 @@
     "rolePermissions": "角色權限",
     "adminDesc": "完整存取權限（成員管理、看板設定、卡片編輯等）",
     "memberDesc": "建立和編輯卡片，撰寫留言",
-    "observerDesc": "唯讀（僅檢視卡片）",
+    "viewerDesc": "唯讀（僅檢視卡片）",
     "webhookConnected": "已連接",
     "webhookDisabled": "已停用",
     "webhookNotConnected": "未連接"
@@ -1042,7 +1042,7 @@
     "attachFile": "附加檔案（最多5個）",
     "imageHelp": "圖片：貼上、拖曳或使用附件按鈕",
     "fileHelp": "圖片和影片：貼上、拖曳或使用迴紋針按鈕",
-    "observerReadOnly": "觀察者無法撰寫留言",
+    "viewerReadOnly": "觀察者無法撰寫留言",
     "attachedImage": "已附加的圖片",
     "attachedFile": "附件",
     "deleteTitle": "刪除此留言？",

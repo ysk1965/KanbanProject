@@ -13,11 +13,12 @@ import { Link } from '@tiptap/extension-link';
 import { Placeholder } from '@tiptap/extension-placeholder';
 import { Table } from '@tiptap/extension-table';
 import { TableRow } from '@tiptap/extension-table-row';
-import { TableCell } from '@tiptap/extension-table-cell';
-import { TableHeader } from '@tiptap/extension-table-header';
+import { CustomTableCell } from './extensions/CustomTableCell';
+import { CustomTableHeader } from './extensions/CustomTableHeader';
 import { TaskList } from '@tiptap/extension-task-list';
 import { TaskItem } from '@tiptap/extension-task-item';
 import { NoteEditorToolbar } from './NoteEditorToolbar';
+import { TableBubbleMenu } from './TableBubbleMenu';
 import { NoteTagManager } from './NoteTagManager';
 import { NoteVersionHistory } from './NoteVersionHistory';
 import { NoteAIInlineSection } from './NoteAIInlineSection';
@@ -68,8 +69,8 @@ export function NoteEditor({ boardId, note, tags, loading, canEdit, onSave, onTa
       Placeholder.configure({ placeholder: t('notes.contentPlaceholder', '내용을 입력하세요...') }),
       Table.configure({ resizable: true, allowTableNodeSelection: true }),
       TableRow,
-      TableCell,
-      TableHeader,
+      CustomTableCell,
+      CustomTableHeader,
       TaskList,
       TaskItem.configure({ nested: true }),
     ],
@@ -405,6 +406,7 @@ export function NoteEditor({ boardId, note, tags, loading, canEdit, onSave, onTa
       {/* TipTap Editor Content + AI Section */}
       <div className="flex-1 overflow-y-auto">
         <EditorContent editor={editor} />
+        {canEdit && editor && <TableBubbleMenu editor={editor} />}
 
         {/* AI Inline Section */}
         {aiVisible && (
