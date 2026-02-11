@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, CheckCircle2, Calendar } from 'lucide-react';
+import { X, CheckCircle2, Calendar, ChevronDown } from 'lucide-react';
+import type { Milestone } from '../types';
 
 interface AddFeatureModalProps {
   open: boolean;
@@ -9,14 +10,24 @@ interface AddFeatureModalProps {
     title: string;
     description?: string;
     dueDate?: string;
+    milestoneId?: string;
   }) => void;
+  milestones?: Milestone[];
+  defaultMilestoneId?: string;
 }
 
-export function AddFeatureModal({ open, onClose, onAdd }: AddFeatureModalProps) {
+export function AddFeatureModal({ open, onClose, onAdd, milestones = [], defaultMilestoneId }: AddFeatureModalProps) {
   const { t } = useTranslation();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [dueDate, setDueDate] = useState('');
+  const [milestoneId, setMilestoneId] = useState('');
+
+  useEffect(() => {
+    if (open) {
+      setMilestoneId(defaultMilestoneId && defaultMilestoneId !== 'all' ? defaultMilestoneId : '');
+    }
+  }, [open, defaultMilestoneId]);
 
   const handleSubmit = () => {
     if (title.trim()) {
@@ -24,10 +35,12 @@ export function AddFeatureModal({ open, onClose, onAdd }: AddFeatureModalProps) 
         title: title.trim(),
         description: description.trim() || undefined,
         dueDate: dueDate || undefined,
+        milestoneId: milestoneId || undefined,
       });
       setTitle('');
       setDescription('');
       setDueDate('');
+      setMilestoneId('');
       onClose();
     }
   };
@@ -91,6 +104,25 @@ export function AddFeatureModal({ open, onClose, onAdd }: AddFeatureModalProps) 
               <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" size={14} />
             </div>
           </div>
+
+          {milestones.length > 0 && (
+            <div className="space-y-2">
+              <label className="kanban-label block">{t('milestone.titleLabel', '마일스톤')}</label>
+              <div className="relative">
+                <select
+                  value={milestoneId}
+                  onChange={(e) => setMilestoneId(e.target.value)}
+                  className="w-full appearance-none bg-kanban-card-hover border border-white/15 rounded-lg px-4 py-2.5 focus:outline-none focus:border-indigo-500/50 text-xs font-bold text-zinc-200 cursor-pointer"
+                >
+                  <option value="">{t('kanban.noMilestone', '없음')}</option>
+                  {milestones.map((m) => (
+                    <option key={m.id} value={m.id}>{m.title}</option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" size={14} />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* 푸터 */}

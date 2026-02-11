@@ -19,6 +19,8 @@ import { SettingsPage } from './components/SettingsPage';
 import ErrorBoundary from './components/ErrorBoundary';
 import { AdminRoute } from './components/AdminRoute';
 import { AdminPage } from './pages/AdminPage';
+import { PaymentSuccessPage } from './pages/PaymentSuccessPage';
+import { PaymentFailPage } from './pages/PaymentFailPage';
 import { AnnouncementsPage } from './pages/AnnouncementsPage';
 import { AnnouncementDisplay } from './components/AnnouncementDisplay';
 import { MaintenancePage } from './components/MaintenancePage';
@@ -433,6 +435,24 @@ function AppRoutes() {
         element={
           <PrivateRoute>
             <KanbanBoardPage />
+          </PrivateRoute>
+        }
+      />
+
+      {/* 결제 결과 페이지 */}
+      <Route
+        path="/payment/success"
+        element={
+          <PrivateRoute>
+            <PaymentSuccessPage />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/payment/fail"
+        element={
+          <PrivateRoute>
+            <PaymentFailPage />
           </PrivateRoute>
         }
       />

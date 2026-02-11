@@ -8,6 +8,8 @@ interface ScheduleBlockProps {
   workStartHour: number;
   workEndHour: number;
   otherBlocks?: ScheduleBlockInfo[]; // 같은 컬럼의 다른 블록들
+  breakStartTime?: string | null;
+  breakEndTime?: string | null;
   onClick?: (block: ScheduleBlockInfo) => void;
   onResize?: (blockId: string, startTime: string, endTime: string) => void;
   onMove?: (blockId: string, startTime: string, endTime: string) => void;
@@ -31,7 +33,7 @@ const isOverlapping = (start1: number, end1: number, start2: number, end2: numbe
   return start1 < end2 && end1 > start2;
 };
 
-export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, otherBlocks = [], onClick, onResize, onMove }: ScheduleBlockProps) {
+export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, otherBlocks = [], breakStartTime, breakEndTime, onClick, onResize, onMove }: ScheduleBlockProps) {
   const { t } = useTranslation();
   const [isResizing, setIsResizing] = useState<'top' | 'bottom' | null>(null);
   const [resizeOffset, setResizeOffset] = useState(0);
@@ -133,8 +135,18 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
     return {};
   };
 
-  // 겹침 체크 함수
+  // 점심시간 분 단위 계산
+  const breakStartMin = breakStartTime ? timeToMinutes(breakStartTime) : null;
+  const breakEndMin = breakEndTime ? timeToMinutes(breakEndTime) : null;
+
+  // 겹침 체크 함수 (다른 블록 + 점심시간)
   const checkOverlap = useCallback((newStartMinutes: number, newEndMinutes: number): boolean => {
+    // 점심시간과 겹치는지 체크
+    if (breakStartMin !== null && breakEndMin !== null) {
+      if (isOverlapping(newStartMinutes, newEndMinutes, breakStartMin, breakEndMin)) {
+        return true;
+      }
+    }
     for (const other of otherBlocks) {
       if (other.id === block.id) continue;
       const otherStart = timeToMinutes(other.start_time);
@@ -144,7 +156,7 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
       }
     }
     return false;
-  }, [otherBlocks, block.id]);
+  }, [otherBlocks, block.id, breakStartMin, breakEndMin]);
 
   // 리사이즈 시작 핸들러
   const handleResizeStart = useCallback((e: React.MouseEvent, handle: 'top' | 'bottom') => {

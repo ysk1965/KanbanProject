@@ -560,6 +560,8 @@
     "selectBlock": "블록 선택",
     "selectFromToday": "오늘의 체크리스트에서 선택",
     "noTodayChecklist": "오늘의 체크리스트가 없습니다",
+    "selectFromBoard": "기존 항목에서 선택",
+    "noBoardItems": "추가할 수 있는 체크리스트 항목이 없습니다",
     "select": "선택",
     "collapse": "접기",
     "createNew": "새로 생성",
@@ -595,7 +597,13 @@
     "blockUnit": "30분",
     "totalBlockCount": "총 블록 수:",
     "endAfterStart": "종료 시간은 시작 시간보다 늦어야 합니다.",
-    "minBlocksRequired": "최소 4개의 블록이 필요합니다."
+    "minBlocksRequired": "최소 4개의 블록이 필요합니다.",
+    "breakTime": "점심시간",
+    "breakTimeDesc": "점심시간은 업무 시간에서 제외됩니다",
+    "breakStart": "시작",
+    "breakEnd": "종료",
+    "excludingBreak": "(점심 {{hours}}시간 제외)",
+    "effectiveHours": "실 근무:"
   },
   "dailySummary": {
     "summaryButton": "요약",
@@ -670,7 +678,10 @@
     "creatingFeature": "생성 중...",
     "featureCreateFailed": "Feature 생성에 실패했습니다.",
     "expandAll": "모두 펼치기",
-    "collapseAll": "모두 닫기"
+    "collapseAll": "모두 닫기",
+    "newTask": "새 Task",
+    "newTaskPlaceholder": "Task 제목을 입력하세요...",
+    "taskCreateFailed": "Task 생성에 실패했습니다."
   },
   "inquiry": {
     "title": "문의하기",
@@ -2159,5 +2170,17 @@
     "microphoneAccessDenied": "마이크 접근이 거부되었습니다. 브라우저 설정에서 마이크 권한을 허용해주세요.",
     "transcriptFileTooLarge": "녹음 파일이 25MB를 초과합니다. 더 짧게 녹음해주세요.",
     "transcriptionError": "음성 변환에 실패했습니다. 다시 시도해주세요."
+  },
+  "payment": {
+    "processing": "결제 처리 중...",
+    "pleaseWait": "결제를 확인하는 중입니다. 잠시만 기다려주세요.",
+    "success": "결제가 완료되었습니다!",
+    "redirecting": "보드로 이동합니다...",
+    "error": "결제 오류",
+    "failed": "결제 실패",
+    "goBack": "돌아가기",
+    "tryAgain": "다시 시도",
+    "errorCode": "오류 코드",
+    "unknownError": "알 수 없는 오류가 발생했습니다"
   }
 }

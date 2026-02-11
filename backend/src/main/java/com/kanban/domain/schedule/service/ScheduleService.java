@@ -294,7 +294,8 @@ public class ScheduleService {
         Board board = boardRepository.findById(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
-        board.updateScheduleSettings(request.getWorkHoursPerDay(), request.getWorkStartTime(), request.getScheduleDisplayMode());
+        board.updateScheduleSettings(request.getWorkHoursPerDay(), request.getWorkStartTime(),
+                request.getScheduleDisplayMode(), request.getBreakStartTime(), request.getBreakEndTime());
 
         log.info("Schedule settings updated for board: {} by user: {}", boardId, userId);
 

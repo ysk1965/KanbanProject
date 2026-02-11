@@ -505,6 +505,8 @@
     "selectBlock": "ブロックを選択",
     "selectFromToday": "今日のチェックリストから選択",
     "noTodayChecklist": "今日のチェックリストアイテムがありません",
+    "selectFromBoard": "既存項目から選択",
+    "noBoardItems": "追加可能なチェックリスト項目がありません",
     "select": "選択",
     "collapse": "折りたたむ",
     "createNew": "新規作成",
@@ -615,7 +617,10 @@
     "creatingFeature": "作成中...",
     "featureCreateFailed": "Featureの作成に失敗しました。",
     "expandAll": "すべて展開",
-    "collapseAll": "すべて折りたたむ"
+    "collapseAll": "すべて折りたたむ",
+    "newTask": "新しいTask",
+    "newTaskPlaceholder": "Task名を入力してください...",
+    "taskCreateFailed": "Taskの作成に失敗しました。"
   },
   "inquiry": {
     "title": "お問い合わせ",

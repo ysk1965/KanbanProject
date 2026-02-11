@@ -7,6 +7,7 @@ import com.kanban.domain.board.service.BoardService;
 import com.kanban.domain.subscription.*;
 import com.kanban.domain.subscription.dto.SubscriptionRequest;
 import com.kanban.domain.subscription.dto.SubscriptionResponse;
+import com.kanban.domain.subscription.dto.TossPaymentResponse;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +32,7 @@ public class SubscriptionService {
     private final BoardMemberRepository boardMemberRepository;
     private final BoardRepository boardRepository;
     private final BoardService boardService;
+    private final TossPaymentsService tossPaymentsService;
 
     public SubscriptionResponse.PricingListResponse getPricingPlans() {
         List<PricingPlan> plans = pricingPlanRepository.findByIsActiveTrueOrderByMinMembersAsc();
@@ -149,6 +151,117 @@ public class SubscriptionService {
         subscription.cancel();
 
         log.info("Subscription canceled for board: {} by user: {}", boardId, userId);
+    }
+
+    @Transactional
+    public SubscriptionResponse.Detail confirmAndStartSubscription(
+            String userId, SubscriptionRequest.ConfirmSubscription request) {
+
+        String boardId = request.getBoardId();
+        boardService.checkOwner(boardId, userId);
+
+        Subscription subscription = subscriptionRepository.findByBoardId(boardId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SUBSCRIPTION_NOT_FOUND));
+
+        // 1. 금액 검증
+        int currentBillable = boardMemberRepository.countBillableMembers(boardId);
+        int seatCount = Math.max(request.getSeatCount(), currentBillable);
+        int pricePerSeat = request.getBillingCycle() == BillingCycle.YEARLY
+                ? Subscription.YEARLY_PRICE_PER_SEAT
+                : Subscription.MONTHLY_PRICE_PER_SEAT;
+        int expectedAmount = pricePerSeat * seatCount;
+
+        if (!request.getAmount().equals(expectedAmount)) {
+            log.error("Payment amount mismatch: expected={}, actual={}, boardId={}",
+                    expectedAmount, request.getAmount(), boardId);
+            throw new BusinessException(ErrorCode.PAYMENT_AMOUNT_MISMATCH);
+        }
+
+        // 2. Toss 결제 승인
+        TossPaymentResponse tossResponse = tossPaymentsService.confirmPayment(
+                request.getPaymentKey(), request.getOrderId(), request.getAmount());
+
+        // 3. 구독 활성화
+        subscription.activateSeatSubscription(
+                request.getBillingCycle(), seatCount, request.getPaymentKey());
+        subscription.updateBillableMemberCount(currentBillable);
+
+        // 4. Board tier를 PREMIUM으로 전환
+        Board board = boardRepository.findById(boardId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        board.upgradeToPremium();
+
+        // 5. 결제 이력 생성 (실제 PG 정보)
+        createTossPayment(subscription, request.getAmount(), seatCount, request.getPaymentKey());
+
+        log.info("Toss subscription confirmed for board: {} by user: {}. Seats: {}, Cycle: {}, PaymentKey: {}",
+                boardId, userId, seatCount, request.getBillingCycle(), request.getPaymentKey());
+
+        return SubscriptionResponse.Detail.of(subscription);
+    }
+
+    @Transactional
+    public SubscriptionResponse.Detail confirmAndPurchaseSeats(
+            String userId, SubscriptionRequest.ConfirmSeatPurchase request) {
+
+        String boardId = request.getBoardId();
+        boardService.checkOwner(boardId, userId);
+
+        Subscription subscription = subscriptionRepository.findByBoardId(boardId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SUBSCRIPTION_NOT_FOUND));
+
+        if (!subscription.isActive()) {
+            throw new BusinessException(ErrorCode.SUBSCRIPTION_NOT_FOUND);
+        }
+
+        // 1. 금액 검증
+        int additionalSeats = request.getAdditionalSeats();
+        int expectedAmount = additionalSeats * subscription.getPricePerSeat();
+
+        if (!request.getAmount().equals(expectedAmount)) {
+            log.error("Seat purchase amount mismatch: expected={}, actual={}, boardId={}",
+                    expectedAmount, request.getAmount(), boardId);
+            throw new BusinessException(ErrorCode.PAYMENT_AMOUNT_MISMATCH);
+        }
+
+        // 2. Toss 결제 승인
+        TossPaymentResponse tossResponse = tossPaymentsService.confirmPayment(
+                request.getPaymentKey(), request.getOrderId(), request.getAmount());
+
+        // 3. 시트 수 업데이트
+        int newSeatCount = subscription.getSeatCount() + additionalSeats;
+        subscription.updateSeatCount(newSeatCount);
+
+        int currentBillable = boardMemberRepository.countBillableMembers(boardId);
+        subscription.updateBillableMemberCount(currentBillable);
+
+        // 4. 결제 이력 생성
+        createTossPayment(subscription, request.getAmount(), newSeatCount, request.getPaymentKey());
+
+        log.info("Toss seat purchase confirmed for board: {} by user: {}. Additional: {}, New total: {}, PaymentKey: {}",
+                boardId, userId, additionalSeats, newSeatCount, request.getPaymentKey());
+
+        return SubscriptionResponse.Detail.of(subscription);
+    }
+
+    private void createTossPayment(Subscription subscription, int amount, int memberCount, String paymentKey) {
+        PaymentHistory payment = PaymentHistory.builder()
+                .subscription(subscription)
+                .amount(amount)
+                .billingCycle(subscription.getBillingCycle())
+                .status(PaymentStatus.PAID)
+                .pgProvider("TOSSPAYMENTS")
+                .pgTransactionId(paymentKey)
+                .periodStart(subscription.getCurrentPeriodStart() != null
+                        ? subscription.getCurrentPeriodStart()
+                        : LocalDateTime.now(ZoneOffset.UTC))
+                .periodEnd(subscription.getCurrentPeriodEnd() != null
+                        ? subscription.getCurrentPeriodEnd()
+                        : LocalDateTime.now(ZoneOffset.UTC).plusMonths(1))
+                .memberCount(memberCount)
+                .paidAt(LocalDateTime.now(ZoneOffset.UTC))
+                .build();
+        paymentHistoryRepository.save(payment);
     }
 
     private void createMockPayment(Subscription subscription, int amount, int memberCount) {

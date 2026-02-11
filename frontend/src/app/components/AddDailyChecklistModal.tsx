@@ -91,6 +91,11 @@ export function AddDailyChecklistModal({
   const [newFeatureColor, setNewFeatureColor] = useState(() => getRandomFeatureColor());
   const [isSubmittingFeature, setIsSubmittingFeature] = useState(false);
 
+  // Feature에 새 Task 생성 상태
+  const [addingTaskToFeatureId, setAddingTaskToFeatureId] = useState<string | null>(null);
+  const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [isSubmittingTask, setIsSubmittingTask] = useState(false);
+
   // 모든 데이터 로드 (최적화: 5회 API 호출로 통합)
   useEffect(() => {
     const loadAllData = async () => {
@@ -392,6 +397,91 @@ export function AddDailyChecklistModal({
     }
   };
 
+  // Feature에 새 Task 생성
+  const handleCreateTask = async (featureId: string) => {
+    if (!newTaskTitle.trim()) return;
+
+    setIsSubmittingTask(true);
+    setError(null);
+
+    try {
+      await taskAPI.createTask(boardId, featureId, {
+        title: newTaskTitle.trim(),
+      });
+
+      // 상태 초기화
+      setNewTaskTitle('');
+      setAddingTaskToFeatureId(null);
+
+      // 데이터 리로드
+      setGroupedData([]);
+      setIsLoading(true);
+
+      const [featuresResponse, tasksResponse, checklistsResponse, dailyChecklistResponse] = await Promise.all([
+        featureAPI.getFeatures(boardId, selectedMilestoneId || undefined),
+        taskAPI.getTasks(boardId, selectedMilestoneId ? { milestone_id: selectedMilestoneId } : undefined),
+        boardChecklistAPI.getItems(boardId),
+        dailyChecklistAPI.getDailyChecklist(boardId, assignedDate),
+      ]);
+
+      const addedIds = new Set<string>();
+      dailyChecklistResponse.columns.forEach((column) => {
+        column.items.forEach((item) => {
+          if (item.checklist_item_id) {
+            addedIds.add(item.checklist_item_id);
+          }
+        });
+      });
+      setAddedChecklistItemIds(addedIds);
+
+      const featureIds = new Set(featuresResponse.features.map(f => f.id));
+      const filteredChecklists = checklistsResponse.items.filter(
+        item => item.feature && featureIds.has(item.feature.id)
+      );
+
+      const grouped = new Map<string, Map<string, BoardChecklistItemResponse[]>>();
+      filteredChecklists.forEach(item => {
+        if (!item.feature || !item.task) return;
+        if (!grouped.has(item.feature.id)) grouped.set(item.feature.id, new Map());
+        const featureGroup = grouped.get(item.feature.id)!;
+        if (!featureGroup.has(item.task.id)) featureGroup.set(item.task.id, []);
+        featureGroup.get(item.task.id)!.push(item);
+      });
+
+      const allTasks = tasksResponse.tasks.filter(t => featureIds.has(t.feature_id));
+      allTasks.forEach(task => {
+        if (!grouped.has(task.feature_id)) grouped.set(task.feature_id, new Map());
+        const featureGroup = grouped.get(task.feature_id)!;
+        if (!featureGroup.has(task.id)) featureGroup.set(task.id, []);
+      });
+
+      const result: GroupedFeatureData[] = featuresResponse.features.map(feature => {
+        const taskMap = grouped.get(feature.id);
+        const tasks: GroupedTaskData[] = [];
+        if (taskMap) {
+          const taskInfoMap = new Map(allTasks.filter(t => t.feature_id === feature.id).map(t => [t.id, t]));
+          taskMap.forEach((checklistItems, taskId) => {
+            const taskInfo = taskInfoMap.get(taskId);
+            const firstItem = checklistItems[0];
+            const taskTitle = taskInfo?.title || firstItem?.task?.title || '';
+            if (taskTitle) {
+              tasks.push({ task: { id: taskId, title: taskTitle }, checklistItems });
+            }
+          });
+        }
+        return { feature: { id: feature.id, title: feature.title, color: feature.color }, tasks };
+      });
+
+      setGroupedData(result);
+    } catch (err) {
+      console.error('Failed to create task:', err);
+      setError(t('dailyChecklist.taskCreateFailed'));
+    } finally {
+      setIsSubmittingTask(false);
+      setIsLoading(false);
+    }
+  };
+
   // Task 개별 접기/펼치기
   const toggleTaskCollapse = (taskId: string) => {
     setCollapsedTasks((prev) => {
@@ -674,7 +764,60 @@ export function AddDailyChecklistModal({
                           <span className="font-medium text-white text-sm flex-1 truncate">
                             {featureData.feature.title}
                           </span>
+                          {/* Feature에 Task 추가 버튼 */}
+                          <button
+                            onClick={() => {
+                              setAddingTaskToFeatureId(
+                                addingTaskToFeatureId === featureData.feature.id ? null : featureData.feature.id
+                              );
+                              setNewTaskTitle('');
+                            }}
+                            className={`p-1 rounded-md border transition-colors ${
+                              addingTaskToFeatureId === featureData.feature.id
+                                ? 'bg-bridge-accent text-white border-bridge-accent'
+                                : 'text-slate-300 border-white/10 bg-kanban-card hover:text-white hover:bg-kanban-card-hover hover:border-white/20'
+                            }`}
+                            title={t('dailyChecklist.newTask')}
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                          </button>
                         </div>
+
+                        {/* Feature에 Task 인라인 생성 폼 */}
+                        {addingTaskToFeatureId === featureData.feature.id && (
+                          <div className="px-4 py-2 border-t border-white/10 bg-kanban-bg/30">
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                value={newTaskTitle}
+                                onChange={(e) => setNewTaskTitle(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.nativeEvent.isComposing) return;
+                                  if (e.key === 'Enter' && newTaskTitle.trim()) {
+                                    handleCreateTask(featureData.feature.id);
+                                  } else if (e.key === 'Escape') {
+                                    setAddingTaskToFeatureId(null);
+                                    setNewTaskTitle('');
+                                  }
+                                }}
+                                placeholder={t('dailyChecklist.newTaskPlaceholder')}
+                                autoFocus
+                                className="flex-1 px-3 py-1.5 bg-kanban-card border border-white/10 rounded-lg text-white placeholder-slate-400 text-sm focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
+                              />
+                              <button
+                                onClick={() => handleCreateTask(featureData.feature.id)}
+                                disabled={!newTaskTitle.trim() || isSubmittingTask}
+                                className="p-1.5 bg-bridge-accent text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-bridge-accent/90 transition-colors flex items-center gap-1"
+                              >
+                                {isSubmittingTask ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Plus className="h-4 w-4" />
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                        )}
 
                         {/* Feature Content */}
                         <div className="border-t border-white/10">
@@ -906,7 +1049,60 @@ export function AddDailyChecklistModal({
                           <span className="font-medium text-slate-400 text-sm flex-1 truncate">
                             {featureData.feature.title}
                           </span>
+                          {/* Feature에 Task 추가 버튼 */}
+                          <button
+                            onClick={() => {
+                              setAddingTaskToFeatureId(
+                                addingTaskToFeatureId === featureData.feature.id ? null : featureData.feature.id
+                              );
+                              setNewTaskTitle('');
+                            }}
+                            className={`p-1 rounded-md border transition-colors ${
+                              addingTaskToFeatureId === featureData.feature.id
+                                ? 'bg-bridge-accent text-white border-bridge-accent'
+                                : 'text-slate-300 border-white/10 bg-kanban-card hover:text-white hover:bg-kanban-card-hover hover:border-white/20'
+                            }`}
+                            title={t('dailyChecklist.newTask')}
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                          </button>
                         </div>
+
+                        {/* Feature에 Task 인라인 생성 폼 */}
+                        {addingTaskToFeatureId === featureData.feature.id && (
+                          <div className="px-4 py-2 border-t border-white/10 bg-kanban-bg/30">
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                value={newTaskTitle}
+                                onChange={(e) => setNewTaskTitle(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.nativeEvent.isComposing) return;
+                                  if (e.key === 'Enter' && newTaskTitle.trim()) {
+                                    handleCreateTask(featureData.feature.id);
+                                  } else if (e.key === 'Escape') {
+                                    setAddingTaskToFeatureId(null);
+                                    setNewTaskTitle('');
+                                  }
+                                }}
+                                placeholder={t('dailyChecklist.newTaskPlaceholder')}
+                                autoFocus
+                                className="flex-1 px-3 py-1.5 bg-kanban-card border border-white/10 rounded-lg text-white placeholder-slate-400 text-sm focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
+                              />
+                              <button
+                                onClick={() => handleCreateTask(featureData.feature.id)}
+                                disabled={!newTaskTitle.trim() || isSubmittingTask}
+                                className="p-1.5 bg-bridge-accent text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-bridge-accent/90 transition-colors flex items-center gap-1"
+                              >
+                                {isSubmittingTask ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Plus className="h-4 w-4" />
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                        )}
 
                         {/* Feature Content */}
                         <div className="border-t border-white/10">

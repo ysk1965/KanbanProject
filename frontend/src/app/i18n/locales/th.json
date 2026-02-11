@@ -505,6 +505,8 @@
     "selectBlock": "เลือก Block",
     "selectFromToday": "เลือกจากเช็คลิสต์วันนี้",
     "noTodayChecklist": "ไม่มีรายการเช็คลิสต์สำหรับวันนี้",
+    "selectFromBoard": "เลือกจากรายการที่มีอยู่",
+    "noBoardItems": "ไม่มีรายการเช็คลิสต์ที่สามารถเพิ่มได้",
     "select": "เลือก",
     "collapse": "ย่อ",
     "createNew": "สร้างใหม่",
@@ -615,7 +617,10 @@
     "creatingFeature": "กำลังสร้าง...",
     "featureCreateFailed": "สร้าง Feature ไม่สำเร็จ",
     "expandAll": "ขยายทั้งหมด",
-    "collapseAll": "ย่อทั้งหมด"
+    "collapseAll": "ย่อทั้งหมด",
+    "newTask": "Task ใหม่",
+    "newTaskPlaceholder": "กรอกชื่อ Task...",
+    "taskCreateFailed": "สร้าง Task ไม่สำเร็จ"
   },
   "inquiry": {
     "title": "ติดต่อเรา",

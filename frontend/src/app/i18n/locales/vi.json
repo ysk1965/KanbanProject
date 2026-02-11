@@ -505,6 +505,8 @@
     "selectBlock": "Chon khoi",
     "selectFromToday": "Chon tu danh sach kiem tra hom nay",
     "noTodayChecklist": "Khong co muc danh sach kiem tra cho hom nay",
+    "selectFromBoard": "Chon tu cac muc hien co",
+    "noBoardItems": "Khong co muc danh sach kiem tra nao de them",
     "select": "Chon",
     "collapse": "Thu gon",
     "createNew": "Tao moi",
@@ -615,7 +617,10 @@
     "creatingFeature": "Đang tạo...",
     "featureCreateFailed": "Tạo feature thất bại.",
     "expandAll": "Mở rộng tất cả",
-    "collapseAll": "Thu gọn tất cả"
+    "collapseAll": "Thu gọn tất cả",
+    "newTask": "Task mới",
+    "newTaskPlaceholder": "Nhập tiêu đề task...",
+    "taskCreateFailed": "Tạo task thất bại."
   },
   "inquiry": {
     "title": "Lien he",

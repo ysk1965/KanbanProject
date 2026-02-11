@@ -43,8 +43,13 @@ export function SeatPurchaseModal({
     setIsProcessing(true);
     try {
       await onPurchase(additionalSeats);
-    } catch (error) {
-      console.error('Failed to purchase seats:', error);
+      // requestPayment 이후 Toss 결제창으로 리다이렉트됨
+    } catch (error: any) {
+      if (error?.code === 'PAY_PROCESS_CANCELED' || error?.code === 'USER_CANCEL') {
+        // 사용자가 결제를 취소한 경우
+      } else {
+        console.error('Failed to purchase seats:', error);
+      }
     } finally {
       setIsProcessing(false);
     }

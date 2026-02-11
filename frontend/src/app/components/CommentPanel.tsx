@@ -16,7 +16,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from './ui/alert-dialog';
-import { MessageSquare, Send, RefreshCw, Pencil, Trash2, X, Check, Loader2, Paperclip, Play } from 'lucide-react';
+import { MessageSquare, Send, RefreshCw, Pencil, Trash2, X, Check, Loader2, Paperclip, Play, ChevronLeft, ChevronRight } from 'lucide-react';
 import { VideoThumbnail } from './VideoThumbnail';
 
 const VideoLightbox = lazy(() => import('./VideoLightbox').then(m => ({ default: m.VideoLightbox })));
@@ -138,7 +138,10 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
 
   // 삭제 / 라이트박스
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
-  const [lightboxMedia, setLightboxMedia] = useState<{ url: string; type: 'image' | 'video' } | null>(null);
+  const [lightboxMedia, setLightboxMedia] = useState<{
+    items: { url: string; type: 'image' | 'video' }[];
+    index: number;
+  } | null>(null);
 
   // 멘션 드롭다운
   const [mentionQuery, setMentionQuery] = useState('');
@@ -517,16 +520,17 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
   /** 댓글 첨부 미디어 그리드 (이미지 썸네일 + 영상 썸네일) */
   const AttachmentGrid = ({ attachments }: { attachments: CommentAttachment[] }) => {
     if (!attachments || attachments.length === 0) return null;
+    const mediaItems = attachments.map(att => ({
+      url: resolveFileUrl(att.url),
+      type: (isVideoAttachment(att) ? 'video' : 'image') as 'image' | 'video'
+    }));
     return (
       <div className="flex flex-wrap gap-1.5 mt-1.5">
-        {attachments.map(att => {
+        {attachments.map((att, idx) => {
           const isVideo = isVideoAttachment(att);
           return (
             <button key={att.id}
-              onClick={() => setLightboxMedia({
-                url: resolveFileUrl(att.url),
-                type: isVideo ? 'video' : 'image'
-              })}
+              onClick={() => setLightboxMedia({ items: mediaItems, index: idx })}
               className="relative group/img rounded-md overflow-hidden border border-white/20 hover:border-white/20 transition-colors">
               {isVideo ? (
                 <VideoThumbnail
@@ -812,28 +816,60 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
 
       {/* 미디어 라이트박스 - Portal로 body에 렌더링 (모달 transform 영향 회피) */}
       {lightboxMedia && createPortal(
-        lightboxMedia.type === 'video' ? (
-          <Suspense fallback={
-            <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm">
-              <Loader2 className="h-8 w-8 animate-spin text-white" />
+        (() => {
+          const current = lightboxMedia.items[lightboxMedia.index];
+          const hasPrev = lightboxMedia.index > 0;
+          const hasNext = lightboxMedia.index < lightboxMedia.items.length - 1;
+          const goPrev = () => hasPrev && setLightboxMedia({ ...lightboxMedia, index: lightboxMedia.index - 1 });
+          const goNext = () => hasNext && setLightboxMedia({ ...lightboxMedia, index: lightboxMedia.index + 1 });
+
+          return current.type === 'video' ? (
+            <Suspense fallback={
+              <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm">
+                <Loader2 className="h-8 w-8 animate-spin text-white" />
+              </div>
+            }>
+              <VideoLightbox url={current.url} onClose={() => setLightboxMedia(null)} />
+            </Suspense>
+          ) : (
+            <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm cursor-pointer"
+              onPointerDown={e => e.stopPropagation()}
+              onMouseDown={e => e.stopPropagation()}
+              onClick={(e) => { e.stopPropagation(); setLightboxMedia(null); }}
+              onKeyDown={(e) => {
+                if (e.key === 'ArrowLeft') { e.stopPropagation(); goPrev(); }
+                else if (e.key === 'ArrowRight') { e.stopPropagation(); goNext(); }
+                else if (e.key === 'Escape') { setLightboxMedia(null); }
+              }}
+              tabIndex={0}
+              ref={(el) => el?.focus()}>
+              <button onClick={(e) => { e.stopPropagation(); setLightboxMedia(null); }}
+                className="absolute top-4 right-4 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors z-10">
+                <X className="h-5 w-5" />
+              </button>
+              {hasPrev && (
+                <button onClick={(e) => { e.stopPropagation(); goPrev(); }}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors z-10">
+                  <ChevronLeft className="h-6 w-6" />
+                </button>
+              )}
+              {hasNext && (
+                <button onClick={(e) => { e.stopPropagation(); goNext(); }}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors z-10">
+                  <ChevronRight className="h-6 w-6" />
+                </button>
+              )}
+              <img src={current.url} alt={t('comment.attachedFile')}
+                className="max-h-[90vh] max-w-[90vw] object-contain rounded-lg"
+                onClick={e => e.stopPropagation()} />
+              {lightboxMedia.items.length > 1 && (
+                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-black/50 text-white text-xs z-10">
+                  {lightboxMedia.index + 1} / {lightboxMedia.items.length}
+                </div>
+              )}
             </div>
-          }>
-            <VideoLightbox url={lightboxMedia.url} onClose={() => setLightboxMedia(null)} />
-          </Suspense>
-        ) : (
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm cursor-pointer"
-            onPointerDown={e => e.stopPropagation()}
-            onMouseDown={e => e.stopPropagation()}
-            onClick={(e) => { e.stopPropagation(); setLightboxMedia(null); }}>
-            <button onClick={(e) => { e.stopPropagation(); setLightboxMedia(null); }}
-              className="absolute top-4 right-4 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors z-10">
-              <X className="h-5 w-5" />
-            </button>
-            <img src={lightboxMedia.url} alt={t('comment.attachedFile')}
-              className="max-h-[90vh] max-w-[90vw] object-contain rounded-lg"
-              onClick={e => e.stopPropagation()} />
-          </div>
-        ),
+          );
+        })(),
         document.body
       )}
 

@@ -1516,6 +1516,29 @@ export const subscriptionAPI = {
   cancelSubscription: async (boardId: string) => {
     return apiClient.delete<{ message: string }>(`/boards/${boardId}/subscription`);
   },
+
+  // Toss Payments 결제 승인 - 구독 시작
+  confirmSubscriptionPayment: async (data: {
+    payment_key: string;
+    order_id: string;
+    amount: number;
+    board_id: string;
+    billing_cycle: 'MONTHLY' | 'YEARLY';
+    seat_count: number;
+  }) => {
+    return apiClient.post<SubscriptionResponse>('/payments/confirm/subscription', data);
+  },
+
+  // Toss Payments 결제 승인 - 시트 추가 구매
+  confirmSeatPurchasePayment: async (data: {
+    payment_key: string;
+    order_id: string;
+    amount: number;
+    board_id: string;
+    additional_seats: number;
+  }) => {
+    return apiClient.post<SubscriptionResponse>('/payments/confirm/seats', data);
+  },
 };
 
 // ========================================
@@ -1536,6 +1559,8 @@ export interface ScheduleSettingsResponse {
   work_hours_per_day: number;
   work_start_time: string; // "HH:mm:ss" format
   schedule_display_mode: 'TIME' | 'BLOCK';
+  break_start_time: string | null; // "HH:mm:ss" or null
+  break_end_time: string | null;   // "HH:mm:ss" or null
 }
 
 export interface ScheduleUserInfo {
@@ -1871,6 +1896,8 @@ export const scheduleAPI = {
       work_hours_per_day?: number;
       work_start_time?: string;
       schedule_display_mode?: 'TIME' | 'BLOCK';
+      break_start_time?: string | null;
+      break_end_time?: string | null;
     }
   ) => {
     return apiClient.put<ScheduleSettingsResponse>(

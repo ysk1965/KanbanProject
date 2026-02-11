@@ -1310,29 +1310,68 @@ export const subscriptionService = {
     }
   },
 
-  // Seat 기반 구독 시작
+  // Seat 기반 구독 시작 (Toss Payments 결제창 호출)
   startSeatSubscription: async (
     boardId: string,
     data: { billing_cycle: 'MONTHLY' | 'YEARLY'; seat_count: number; payment_method_id?: string }
-  ): Promise<Subscription> => {
-    try {
-      const subscription = await subscriptionAPI.startSeatSubscription(boardId, data);
-      return subscription;
-    } catch (error) {
-      console.warn('API failed for start seat subscription', error);
-      throw error;
-    }
+  ): Promise<void> => {
+    const { loadTossPayments, ANONYMOUS } = await import('@tosspayments/tosspayments-sdk');
+    const clientKey = import.meta.env.VITE_TOSS_CLIENT_KEY;
+    const tossPayments = await loadTossPayments(clientKey);
+    const payment = tossPayments.payment({ customerKey: ANONYMOUS });
+
+    const pricePerSeat = data.billing_cycle === 'YEARLY' ? 5000 : 500;
+    const amount = pricePerSeat * data.seat_count;
+    const timestamp = Date.now();
+    const orderId = `BRIDGE_${boardId}_${data.billing_cycle}_${data.seat_count}_${timestamp}`;
+
+    await payment.requestPayment({
+      method: 'CARD',
+      amount: { value: amount, currency: 'KRW' },
+      orderId,
+      orderName: `BRIDGE Premium - ${data.seat_count} seats (${data.billing_cycle})`,
+      successUrl: `${window.location.origin}/payment/success?type=subscription`,
+      failUrl: `${window.location.origin}/payment/fail`,
+      card: {
+        useEscrow: false,
+        flowMode: 'DEFAULT',
+        useCardPoint: false,
+        useAppCardOnly: false,
+      },
+    });
   },
 
-  // 추가 시트 구매
+  // 추가 시트 구매 (Toss Payments 결제창 호출)
   purchaseSeats: async (
     boardId: string,
-    additionalSeats: number
-  ): Promise<Subscription> => {
-    const subscription = await subscriptionAPI.purchaseSeats(boardId, {
-      additional_seats: additionalSeats,
+    additionalSeats: number,
+    billingCycle?: 'MONTHLY' | 'YEARLY',
+    pricePerSeat?: number
+  ): Promise<void> => {
+    const { loadTossPayments, ANONYMOUS } = await import('@tosspayments/tosspayments-sdk');
+    const clientKey = import.meta.env.VITE_TOSS_CLIENT_KEY;
+    const tossPayments = await loadTossPayments(clientKey);
+    const payment = tossPayments.payment({ customerKey: ANONYMOUS });
+
+    const effectivePricePerSeat = pricePerSeat || (billingCycle === 'YEARLY' ? 5000 : 500);
+    const amount = additionalSeats * effectivePricePerSeat;
+    const timestamp = Date.now();
+    const orderId = `SEATS_${boardId}_${additionalSeats}_${timestamp}`;
+
+    await payment.requestPayment({
+      method: 'CARD',
+      amount: { value: amount, currency: 'KRW' },
+      orderId,
+      orderName: `BRIDGE Additional Seats - ${additionalSeats} seats`,
+      successUrl: `${window.location.origin}/payment/success?type=seats`,
+      failUrl: `${window.location.origin}/payment/fail`,
+      card: {
+        useEscrow: false,
+        flowMode: 'DEFAULT',
+        useCardPoint: false,
+        useAppCardOnly: false,
+      },
     });
-    return subscription;
   },
 };
 

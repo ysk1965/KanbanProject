@@ -53,16 +53,13 @@ export function VideoLightbox({ url, onClose }: VideoLightboxProps) {
 
   return (
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm"
-      onPointerDown={e => e.stopPropagation()}
-      onMouseDown={e => e.stopPropagation()}
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80"
       onClick={e => {
-        e.stopPropagation();
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <button
-        onClick={e => { e.stopPropagation(); onClose(); }}
+        onClick={onClose}
         className="absolute top-4 right-4 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors z-10"
       >
         <X className="h-5 w-5" />
@@ -70,7 +67,7 @@ export function VideoLightbox({ url, onClose }: VideoLightboxProps) {
 
       <div
         className="w-full max-w-[90vw] max-h-[90vh] plyr-bridge-theme"
-        onClick={e => e.stopPropagation()}
+        style={{ touchAction: 'manipulation' }}
       >
         <Plyr source={plyrSource} options={plyrOptions} />
       </div>

@@ -130,6 +130,13 @@ app.version:
   commit: '@git.commit@'
   build-time: '@build.time@'
 
+# Toss Payments
+toss:
+  payments:
+    client-key: ${TOSS_CLIENT_KEY:test_ck_D5GePWvyJnrK0W0k6q8gLzN97Eoq}
+    secret-key: ${TOSS_SECRET_KEY:test_sk_zXLkKEypNArWmo50nX3lmeaxYG5R}
+    confirm-url: https://api.tosspayments.com/v1/payments/confirm
+
 # App config
 app:
   frontend-url: ${FRONTEND_URL:http://localhost:5173}

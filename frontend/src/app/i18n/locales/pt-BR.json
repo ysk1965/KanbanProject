@@ -505,6 +505,8 @@
     "selectBlock": "Selecionar bloco",
     "selectFromToday": "Selecionar do checklist de hoje",
     "noTodayChecklist": "Nenhum item de checklist para hoje",
+    "selectFromBoard": "Selecionar de itens existentes",
+    "noBoardItems": "Nenhum item de checklist disponível para adicionar",
     "select": "Selecionar",
     "collapse": "Recolher",
     "createNew": "Criar novo",
@@ -615,7 +617,10 @@
     "creatingFeature": "Criando...",
     "featureCreateFailed": "Falha ao criar o feature.",
     "expandAll": "Expandir tudo",
-    "collapseAll": "Recolher tudo"
+    "collapseAll": "Recolher tudo",
+    "newTask": "Nova Task",
+    "newTaskPlaceholder": "Digite o título da task...",
+    "taskCreateFailed": "Falha ao criar task."
   },
   "inquiry": {
     "title": "Fale Conosco",

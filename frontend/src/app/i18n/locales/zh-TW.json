@@ -521,6 +521,8 @@
     "selectBlock": "選擇區塊",
     "selectFromToday": "從今日清單中選擇",
     "noTodayChecklist": "今天沒有清單項",
+    "selectFromBoard": "從現有項目中選擇",
+    "noBoardItems": "沒有可新增的清單項",
     "select": "選擇",
     "collapse": "收合",
     "createNew": "新建",
@@ -631,7 +633,10 @@
     "creatingFeature": "建立中...",
     "featureCreateFailed": "功能建立失敗。",
     "expandAll": "全部展開",
-    "collapseAll": "全部收合"
+    "collapseAll": "全部收合",
+    "newTask": "新增 Task",
+    "newTaskPlaceholder": "請輸入Task標題...",
+    "taskCreateFailed": "建立Task失敗。"
   },
   "inquiry": {
     "title": "聯繫我們",

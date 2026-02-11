@@ -78,5 +78,7 @@ public class ScheduleRequest {
         private Integer workHoursPerDay;
         private LocalTime workStartTime;
         private String scheduleDisplayMode;
+        private LocalTime breakStartTime;
+        private LocalTime breakEndTime;
     }
 }
