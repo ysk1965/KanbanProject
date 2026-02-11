@@ -59,9 +59,13 @@ export function PremiumBenefitsModal({
     setIsProcessing(true);
     try {
       await onUpgrade(billingCycle, seatCount);
-      onClose();
-    } catch (error) {
-      console.error('Upgrade failed:', error);
+      // requestPayment 이후 Toss 결제창으로 리다이렉트됨
+    } catch (error: any) {
+      if (error?.code === 'PAY_PROCESS_CANCELED' || error?.code === 'USER_CANCEL') {
+        // 사용자가 결제를 취소한 경우
+      } else {
+        console.error('Upgrade failed:', error);
+      }
     } finally {
       setIsProcessing(false);
     }

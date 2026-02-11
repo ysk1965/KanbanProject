@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Clock, ChevronDown, Folder, FileText, Loader2, CheckSquare, Layers, Plus } from 'lucide-react';
+import { X, Clock, ChevronDown, Folder, FileText, Loader2, CheckSquare, Layers, Plus, ClipboardList } from 'lucide-react';
 import { format } from 'date-fns';
-import { featureAPI, taskAPI, dailyChecklistAPI, meetingAPI, FeatureResponse, TaskResponse, DailyChecklistItemResponse, MeetingSummary } from '../utils/api';
+import { featureAPI, taskAPI, dailyChecklistAPI, boardChecklistAPI, meetingAPI, FeatureResponse, TaskResponse, DailyChecklistItemResponse, BoardChecklistItemResponse, MeetingSummary } from '../utils/api';
 
 interface ChecklistCreateModalProps {
   boardId: string;
@@ -14,6 +14,7 @@ interface ChecklistCreateModalProps {
   endBlockIndex?: number;
   onCreate: (taskId: string, title: string) => void;
   onSelectExisting: (checklistItemId: string) => void;
+  onSelectBoardItem: (checklistItemId: string) => void;
   onSelectMeeting?: (meetingId: string) => void;
   onClose: () => void;
 }
@@ -28,6 +29,7 @@ export function ChecklistCreateModal({
   endBlockIndex,
   onCreate,
   onSelectExisting,
+  onSelectBoardItem,
   onSelectMeeting,
   onClose,
 }: ChecklistCreateModalProps) {
@@ -35,6 +37,10 @@ export function ChecklistCreateModal({
   // 오늘의 체크리스트 (먼저 표시)
   const [todayChecklists, setTodayChecklists] = useState<DailyChecklistItemResponse[]>([]);
   const [isLoadingToday, setIsLoadingToday] = useState(true);
+
+  // 보드 체크리스트 항목 (기존 항목)
+  const [boardItems, setBoardItems] = useState<BoardChecklistItemResponse[]>([]);
+  const [isLoadingBoardItems, setIsLoadingBoardItems] = useState(true);
 
   // 오늘의 회의 목록
   const [todayMeetings, setTodayMeetings] = useState<MeetingSummary[]>([]);
@@ -77,6 +83,37 @@ export function ChecklistCreateModal({
     };
     loadTodayChecklists();
   }, [boardId, assigneeId]);
+
+  // 보드 체크리스트 항목 로드
+  useEffect(() => {
+    const loadBoardItems = async () => {
+      setIsLoadingBoardItems(true);
+      try {
+        const response = await boardChecklistAPI.getItems(boardId, {
+          assignee_id: assigneeId,
+        });
+        setBoardItems(response.items);
+      } catch (error) {
+        console.error('Failed to load board checklist items:', error);
+        setBoardItems([]);
+      } finally {
+        setIsLoadingBoardItems(false);
+      }
+    };
+    loadBoardItems();
+  }, [boardId, assigneeId]);
+
+  // 기존 항목 필터링: 완료 항목 제외, 오늘의 체크리스트에 이미 있는 항목 제외
+  const filteredBoardItems = useMemo(() => {
+    const todayItemIds = new Set(
+      todayChecklists
+        .map((item) => item.checklist_item_id)
+        .filter(Boolean)
+    );
+    return boardItems.filter(
+      (item) => !item.completed && !todayItemIds.has(item.id)
+    );
+  }, [boardItems, todayChecklists]);
 
   // 오늘의 회의 로드
   useEffect(() => {
@@ -295,6 +332,55 @@ export function ChecklistCreateModal({
                         )}
                       </div>
                       <span className="text-xs text-bridge-accent font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                        {t('dailySchedule.select')}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 기존 항목에서 선택 */}
+          <div>
+            <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+              <ClipboardList className="inline h-4 w-4 mr-1 text-bridge-secondary" />
+              {t('dailySchedule.selectFromBoard')}
+            </label>
+            <div className="border border-white/10 rounded-xl max-h-48 overflow-y-auto bg-kanban-card">
+              {isLoadingBoardItems ? (
+                <div className="px-4 py-6 text-slate-400 flex items-center justify-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  {t('common.loading')}
+                </div>
+              ) : filteredBoardItems.length === 0 ? (
+                <div className="px-4 py-6 text-slate-400 text-sm text-center">
+                  {t('dailySchedule.noBoardItems')}
+                </div>
+              ) : (
+                <div className="divide-y divide-white/5">
+                  {filteredBoardItems.map((item) => (
+                    <button
+                      key={item.id}
+                      onClick={() => onSelectBoardItem(item.id)}
+                      className="w-full px-4 py-3 flex items-center gap-3 hover:bg-bridge-accent/10 transition-colors text-left group"
+                    >
+                      <div className="w-4 h-4 rounded border border-white/20 flex-shrink-0 group-hover:border-bridge-secondary/50" />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm text-white truncate">{item.title}</div>
+                        {item.feature && (
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <div
+                              className="w-2 h-2 rounded-full"
+                              style={{ backgroundColor: item.feature.color }}
+                            />
+                            <span className="text-[10px] text-slate-400 truncate">
+                              {item.feature.title} · {item.task?.title}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      <span className="text-xs text-bridge-secondary font-medium opacity-0 group-hover:opacity-100 transition-opacity">
                         {t('dailySchedule.select')}
                       </span>
                     </button>

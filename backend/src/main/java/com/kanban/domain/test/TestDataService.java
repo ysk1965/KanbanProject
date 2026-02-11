@@ -14,11 +14,16 @@ import com.kanban.domain.checklist.ChecklistItemRepository;
 import com.kanban.domain.comment.Comment;
 import com.kanban.domain.comment.CommentRepository;
 import com.kanban.domain.feature.Feature;
+import com.kanban.domain.meeting.Meeting;
+import com.kanban.domain.meeting.MeetingRepository;
 import com.kanban.domain.feature.FeatureRepository;
 import com.kanban.domain.milestone.Milestone;
 import com.kanban.domain.milestone.MilestoneFeature;
 import com.kanban.domain.milestone.MilestoneFeatureRepository;
 import com.kanban.domain.milestone.MilestoneRepository;
+import com.kanban.domain.report.ReportType;
+import com.kanban.domain.report.ReportRepository;
+import com.kanban.domain.report.WeeklyReport;
 import com.kanban.domain.schedule.ScheduleBlock;
 import com.kanban.domain.schedule.ScheduleBlockRepository;
 import com.kanban.domain.subscription.BillingCycle;
@@ -64,6 +69,8 @@ public class TestDataService {
     private final MilestoneFeatureRepository milestoneFeatureRepository;
     private final SubscriptionRepository subscriptionRepository;
     private final CommentRepository commentRepository;
+    private final MeetingRepository meetingRepository;
+    private final ReportRepository reportRepository;
 
     private final Random random = new Random();
 
@@ -195,6 +202,15 @@ public class TestDataService {
         // 13. Comments 생성 (이번 주 활동 데이터)
         List<Comment> comments = createComments(board, tasks, members);
 
+        // 14. Meetings 생성 (회의록 데이터)
+        List<Meeting> meetings = createMeetings(board, members);
+
+        // 15. Meeting ScheduleBlocks 생성 (회의 참석자 연결)
+        List<ScheduleBlock> meetingScheduleBlocks = createMeetingScheduleBlocks(board, meetings, members);
+
+        // 16. AI 보고서 생성
+        List<WeeklyReport> reports = createReports(board, members);
+
         return TestDataResponse.builder()
                 .boardId(board.getId())
                 .boardName(board.getName())
@@ -202,9 +218,11 @@ public class TestDataService {
                 .featureCount(features.size())
                 .taskCount(tasks.size())
                 .checklistItemCount(checklistItems.size())
-                .scheduleBlockCount(scheduleBlocks.size())
+                .scheduleBlockCount(scheduleBlocks.size() + meetingScheduleBlocks.size())
                 .commentCount(comments.size())
-                .message("공용 테스트 보드가 성공적으로 생성되었습니다! (Premium 활성화, 마일스톤 " + milestones.size() + "개 포함, 댓글 " + comments.size() + "개)")
+                .meetingCount(meetings.size())
+                .reportCount(reports.size())
+                .message("공용 테스트 보드가 성공적으로 생성되었습니다! (Premium 활성화, 마일스톤 " + milestones.size() + "개, 회의록 " + meetings.size() + "개, AI 보고서 " + reports.size() + "개 포함)")
                 .build();
     }
 
@@ -808,6 +826,403 @@ public class TestDataService {
         }
 
         return slots;
+    }
+
+    private List<Meeting> createMeetings(Board board, List<User> members) {
+        List<Meeting> meetings = new ArrayList<>();
+        LocalDate today = LocalDate.now();
+
+        // 1. Sprint 1 회고 미팅 (완료, 과거)
+        meetings.add(Meeting.builder()
+                .board(board)
+                .title("Sprint 1 회고 미팅")
+                .meetingDate(today.minusDays(25))
+                .startTime(LocalTime.of(14, 0))
+                .endTime(LocalTime.of(15, 30))
+                .color("#10B981")
+                .memo("## Sprint 1 회고\n\n### 잘된 점\n- MVP 기능 일정 내 완료\n- 코드 리뷰 프로세스 정착\n- 팀 커뮤니케이션 원활\n\n### 개선할 점\n- 테스트 커버리지 부족 (현재 45%)\n- API 문서 업데이트 지연\n- 디자인 시안 확정이 늦어 프론트 작업 병목\n\n### 액션 아이템\n- 테스트 커버리지 70% 목표 설정\n- API 문서 자동화 도구 도입 검토\n- 디자인 리뷰 주 1회 정례화")
+                .createdBy(members.get(0))
+                .build());
+
+        // 2. Sprint 2 킥오프 (과거)
+        meetings.add(Meeting.builder()
+                .board(board)
+                .title("Sprint 2 킥오프")
+                .meetingDate(today.minusDays(14))
+                .startTime(LocalTime.of(10, 0))
+                .endTime(LocalTime.of(11, 0))
+                .color("#3B82F6")
+                .memo("## Sprint 2 목표\n\n### 핵심 기능\n1. 실시간 알림 시스템 (웹소켓)\n2. 댓글 및 멘션 기능\n3. 이메일 알림 연동\n\n### 담당자 배정\n- 김철수: 웹소켓 서버 구현\n- 정다은: 프론트 알림 UI\n- 이영희: 댓글 API\n- 박민수: 이메일 템플릿\n- 최준혁: 데이터 모델 설계\n\n### 일정\n- 1주차: 설계 + 핵심 구현\n- 2주차: 통합 테스트 + 버그 수정\n- 3주차: QA + 배포")
+                .createdBy(members.get(0))
+                .build());
+
+        // 3. 주간 정기 회의 (지난주) - with transcript + AI suggestions
+        meetings.add(Meeting.builder()
+                .board(board)
+                .title("주간 정기 회의")
+                .meetingDate(today.minusDays(7))
+                .startTime(LocalTime.of(10, 0))
+                .endTime(LocalTime.of(11, 0))
+                .color("#8B5CF6")
+                .memo("## 주간 회의 안건\n\n### 진행 현황 공유\n- 웹소켓 알림: 80% 완료 (김철수)\n- 댓글 시스템: 60% 완료 (이영희)\n- 스케줄 뷰: 기획 확정 필요\n\n### 논의 사항\n- Redis pub/sub vs 인메모리 이벤트 버스\n- 댓글 실시간 반영 방식\n- Sprint 3 일정 조정 필요성")
+                .transcript("김철수: 웹소켓 서버 구현은 거의 다 됐고, 지금 재연결 로직하고 하트비트 구현 중입니다. 이번 주 내로 끝낼 수 있을 것 같아요.\n\n이영희: 댓글 API 기본 CRUD는 완료했고, 멘션 기능 구현 중입니다. 멘션 검색 자동완성 UI가 좀 까다로운데, 정다은님이 도와주시면 좋겠어요.\n\n정다은: 네, 멘션 UI 도와드릴 수 있습니다. 알림 프론트는 웹소켓 연결 테스트만 하면 되거든요.\n\n박민수: 이메일 템플릿 디자인은 완료했는데, SES 연동에서 문제가 있어서 좀 지연되고 있습니다. 인증 관련 설정이 필요한데 도움 받을 수 있을까요?\n\n최준혁: 데이터 모델은 설계 완료했는데, 마이그레이션 적용에서 좀 막혀있습니다. Flyway 충돌 이슈가 있어서...\n\n김철수: Flyway는 제가 경험 있으니까 같이 봐드릴게요. 점심 먹고 같이 하시죠.\n\n이영희: Sprint 3 스케줄 뷰 기획서는 언제 나오나요? 빨리 확정되어야 병행 개발이 가능할 것 같은데.\n\n주인장: 스케줄 뷰 기획은 이번 주 수요일까지 확정하겠습니다. 디자인팀이랑 미팅 잡았어요.")
+                .aiSuggestions("{\"key_points\":[\"웹소켓 알림 80% 완료, 재연결/하트비트 구현 중\",\"댓글 멘션 기능 구현 중, UI 협업 필요\",\"SES 이메일 연동 인증 설정 블로커\",\"Flyway 마이그레이션 충돌 이슈 해결 필요\",\"Sprint 3 스케줄 뷰 기획 수요일 확정 예정\"],\"summary\":[{\"topic\":\"실시간 알림\",\"important\":true,\"points\":[\"웹소켓 서버 80% 완료\",\"재연결 로직 및 하트비트 이번 주 내 완료 예정\",\"프론트 연동 테스트 대기 중\"]},{\"topic\":\"댓글 시스템\",\"important\":true,\"points\":[\"기본 CRUD 완료\",\"멘션 기능 구현 진행 중\",\"멘션 UI 자동완성 정다은님 협업\"]},{\"topic\":\"이메일 알림\",\"important\":false,\"points\":[\"템플릿 디자인 완료\",\"SES 인증 설정 블로커\"]},{\"topic\":\"블로커 이슈\",\"important\":true,\"points\":[\"Flyway 마이그레이션 충돌 - 김철수님 지원 예정\",\"SES 인증 설정 필요\"]}],\"features\":[{\"type\":\"EXISTING\",\"title\":\"실시간 알림\",\"description\":\"웹소켓 재연결 및 하트비트 구현 마무리\",\"tasks\":[{\"title\":\"웹소켓 재연결 로직 구현\",\"description\":\"연결 끊김 시 자동 재연결 with exponential backoff\",\"checklists\":[{\"title\":\"재연결 로직 구현\"},{\"title\":\"하트비트 핑/퐁 처리\"},{\"title\":\"연결 상태 UI 표시\"}]}]},{\"type\":\"EXISTING\",\"title\":\"댓글 시스템\",\"description\":\"멘션 기능 및 실시간 반영\",\"tasks\":[{\"title\":\"멘션 자동완성 UI 개발\",\"description\":\"@ 입력 시 팀원 검색 자동완성\",\"checklists\":[{\"title\":\"멘션 트리거 감지\"},{\"title\":\"검색 API 연동\"},{\"title\":\"드롭다운 UI 구현\"}]}]}]}")
+                .createdBy(members.get(0))
+                .build());
+
+        // 4. 기술 검토 미팅 (지난주)
+        meetings.add(Meeting.builder()
+                .board(board)
+                .title("기술 검토: Redis vs 인메모리")
+                .meetingDate(today.minusDays(5))
+                .startTime(LocalTime.of(15, 0))
+                .endTime(LocalTime.of(16, 0))
+                .color("#F59E0B")
+                .memo("## Redis vs 인메모리 이벤트 버스 비교\n\n### Redis Pub/Sub\n- **장점**: 다중 인스턴스 지원, 스케일 아웃 용이\n- **단점**: 추가 인프라 비용, 네트워크 레이턴시\n- **비용**: ElastiCache t3.micro $15/월\n\n### 인메모리 (Spring Events)\n- **장점**: 추가 비용 없음, 낮은 레이턴시\n- **단점**: 단일 인스턴스 한정, 스케일 아웃 불가\n\n### 결론\n- **1단계**: 인메모리로 우선 구현 (현재 단일 인스턴스)\n- **2단계**: 사용자 증가 시 Redis 전환 (인터페이스 분리해두기)\n- 김철수 님이 EventBus 인터페이스 설계 담당")
+                .createdBy(members.get(1))
+                .build());
+
+        // 5. Sprint 3 긴급 논의 (이번주 초)
+        meetings.add(Meeting.builder()
+                .board(board)
+                .title("Sprint 3 일정 긴급 논의")
+                .meetingDate(today.minusDays(3))
+                .startTime(LocalTime.of(11, 0))
+                .endTime(LocalTime.of(12, 0))
+                .color("#EF4444")
+                .memo("## 긴급 논의 사항\n\n### 현황\n- Sprint 3 마감 3일 남음, 진행률 30%\n- 스케줄 뷰 드래그앤드롭 구현 난이도 예상보다 높음\n- 박민수 님 SES 이슈 아직 미해결\n\n### 대응 방안\n1. 스케줄 뷰: 드래그앤드롭은 다음 스프린트로 이월\n2. 기본 타임블록 CRUD만 이번 스프린트에 완료\n3. 박민수 님 SES → 김철수 님이 페어 프로그래밍 지원\n4. 최준혁 님 작업 재배정 검토 필요")
+                .transcript("주인장: Sprint 3 상황이 좋지 않습니다. 현재 30%밖에 진행이 안 됐는데, 마감이 3일밖에 안 남았어요.\n\n김철수: 드래그앤드롭이 생각보다 복잡합니다. dnd-kit 라이브러리 연동하는데 시간대 계산이 까다로워요.\n\n정다은: 기본 타임블록 표시는 거의 다 됐는데, 드래그 인터랙션이 문제예요.\n\n주인장: 드래그앤드롭은 Sprint 4로 넘기고, 이번에는 기본 CRUD만 마무리하는 게 어떨까요?\n\n김철수: 그게 현실적일 것 같습니다.\n\n박민수: 죄송한데 SES 연동이 아직 안 되고 있어서... AWS 콘솔 권한 문제 같습니다.\n\n김철수: 제가 오후에 같이 봐드릴게요. 예전에 비슷한 이슈 해결한 적 있어서요.\n\n주인장: 최준혁 님 진행 상황은 어떤가요?\n\n최준혁: Flyway 이슈는 해결했는데, 주간 뷰 레이아웃에서 좀 막혀있습니다.\n\n정다은: 제가 레이아웃 부분 도와드릴 수 있어요. 비슷한 그리드 작업 해본 적 있어서요.")
+                .createdBy(members.get(0))
+                .build());
+
+        // 6. 디자인 리뷰 (이번주)
+        meetings.add(Meeting.builder()
+                .board(board)
+                .title("통계 대시보드 디자인 리뷰")
+                .meetingDate(today.minusDays(2))
+                .startTime(LocalTime.of(14, 0))
+                .endTime(LocalTime.of(15, 0))
+                .color("#EC4899")
+                .memo("## 통계 대시보드 디자인 리뷰\n\n### 화면 구성\n1. **팀 생산성 차트**: 주간 작업 완료 트렌드 (막대 + 라인)\n2. **개인별 워크로드**: 도넛 차트로 업무 분포\n3. **마일스톤 진행률**: 가로 프로그레스 바\n4. **번다운 차트**: 스프린트 잔여 작업량\n\n### 디자인 피드백\n- 다크 모드 기반 디자인 (Bridge 테마 적용)\n- 차트 라이브러리: Recharts 선정\n- 모바일 반응형 필수\n- 숫자 하이라이트에 bridge-accent 컬러 사용")
+                .createdBy(members.get(4))
+                .build());
+
+        // 7. Sprint 4 블로커 논의 (어제) - with AI suggestions
+        meetings.add(Meeting.builder()
+                .board(board)
+                .title("Sprint 4 블로커 및 대응 방안")
+                .meetingDate(today.minusDays(1))
+                .startTime(LocalTime.of(10, 0))
+                .endTime(LocalTime.of(11, 30))
+                .color("#F97316")
+                .memo("## Sprint 4 블로커 현황\n\n### 주요 블로커\n1. 번다운 차트 데이터 집계 쿼리 성능 이슈 (3초 이상)\n2. 통계 API 캐싱 전략 미확정\n3. 차트 라이브러리 렌더링 최적화 필요\n\n### 해결 방안\n- 쿼리 최적화: 인덱스 추가 + 서브쿼리 리팩토링\n- 캐싱: 5분 TTL Redis 캐시 적용\n- 차트: React.memo + useMemo로 불필요한 리렌더 방지\n\n### 마감 초과 사유\n- 초기 예상보다 데이터 집계 로직 복잡\n- 다양한 기간 필터 조합 지원 요구")
+                .transcript("주인장: Sprint 4 마감이 2일이나 초과됐습니다. 현재 상황 공유해주세요.\n\n김철수: 생산성 통계 API는 완성했는데, 번다운 차트가 문제입니다. 데이터 집계 쿼리가 3초 넘게 걸려요.\n\n정다은: 프론트 차트 컴포넌트는 다 만들었는데, API 응답이 느려서 UX가 안 좋습니다.\n\n이영희: 캐싱을 적용하면 해결될 것 같은데, Redis 캐시 전략을 먼저 정해야 해요.\n\n김철수: 쿼리 자체도 최적화가 필요합니다. 현재 N+1 문제가 있고, 복합 인덱스 추가하면 500ms 이내로 줄일 수 있을 것 같아요.\n\n주인장: 그러면 김철수 님이 쿼리 최적화, 이영희 님이 캐싱 전략 구현, 정다은 님이 프론트 성능 최적화 담당해주세요.\n\n최준혁: 제가 맡은 개인 통계 페이지는 데이터 가져오는 부분에서 막혀있어서... 김철수 님 API 최적화 끝나면 그 다음에 연동할게요.\n\n주인장: 내일까지 쿼리 최적화 완료하고, 모레까지 전체 마무리 목표로 합시다.")
+                .aiSuggestions("{\"key_points\":[\"번다운 차트 데이터 집계 쿼리 3초 이상 성능 이슈\",\"N+1 쿼리 문제 + 복합 인덱스 필요\",\"Redis 5분 TTL 캐시 전략 적용 예정\",\"프론트 차트 React.memo/useMemo 최적화\",\"내일 쿼리 최적화 완료, 모레 전체 마무리 목표\"],\"summary\":[{\"topic\":\"쿼리 성능 최적화\",\"important\":true,\"points\":[\"번다운 차트 집계 쿼리 3초+ → 500ms 목표\",\"N+1 문제 해결 + 복합 인덱스 추가\",\"김철수 담당, 내일까지 완료\"]},{\"topic\":\"캐싱 전략\",\"important\":true,\"points\":[\"Redis 5분 TTL 캐시 적용\",\"이영희 담당\"]},{\"topic\":\"프론트 최적화\",\"important\":false,\"points\":[\"React.memo + useMemo 적용\",\"불필요한 리렌더 방지\",\"정다은 담당\"]}],\"features\":[{\"type\":\"EXISTING\",\"title\":\"생산성 통계\",\"description\":\"쿼리 최적화 및 캐싱 적용\",\"tasks\":[{\"title\":\"번다운 차트 쿼리 최적화\",\"description\":\"N+1 해결 및 복합 인덱스 추가\",\"checklists\":[{\"title\":\"N+1 쿼리 fetch join으로 변환\"},{\"title\":\"복합 인덱스 마이그레이션 작성\"},{\"title\":\"쿼리 성능 500ms 이하 확인\"}]},{\"title\":\"통계 API Redis 캐싱\",\"description\":\"5분 TTL 캐시 적용\",\"checklists\":[{\"title\":\"캐시 키 전략 설계\"},{\"title\":\"Redis 캐시 구현\"},{\"title\":\"캐시 무효화 로직 추가\"}]}]}]}")
+                .createdBy(members.get(0))
+                .build());
+
+        // 8. 다음 주 계획 미팅 (미래)
+        meetings.add(Meeting.builder()
+                .board(board)
+                .title("Sprint 5 계획 미팅")
+                .meetingDate(today.plusDays(3))
+                .startTime(LocalTime.of(10, 0))
+                .endTime(LocalTime.of(11, 30))
+                .color("#6366F1")
+                .memo("## Sprint 5 계획 (예정)\n\n### 목표\n- 마일스톤 관리 기능\n- 설정 페이지 구현\n- 알림 시스템 고도화\n\n### 사전 준비 사항\n- Sprint 4 미완료 작업 이월 여부 확인\n- 마일스톤 기획서 최종 확정\n- 디자인 시안 준비")
+                .createdBy(members.get(0))
+                .build());
+
+        meetingRepository.saveAllAndFlush(meetings);
+        log.info("Created {} meetings", meetings.size());
+        return meetings;
+    }
+
+    private List<ScheduleBlock> createMeetingScheduleBlocks(Board board, List<Meeting> meetings, List<User> members) {
+        List<ScheduleBlock> blocks = new ArrayList<>();
+
+        // 각 미팅에 참석자 스케줄 블록 연결 (과거 미팅만)
+        for (Meeting meeting : meetings) {
+            if (meeting.getMeetingDate().isAfter(LocalDate.now())) {
+                continue; // 미래 미팅은 스킵
+            }
+
+            // 참석자 수: 3-6명 랜덤 (전체 멤버 중)
+            int participantCount = 3 + random.nextInt(Math.min(4, members.size() - 2));
+            List<User> participants = new ArrayList<>();
+            participants.add(meeting.getCreatedBy()); // 생성자는 항상 참석
+
+            List<User> shuffled = new ArrayList<>(members);
+            shuffled.remove(meeting.getCreatedBy());
+            java.util.Collections.shuffle(shuffled, random);
+            for (int i = 0; i < participantCount - 1 && i < shuffled.size(); i++) {
+                participants.add(shuffled.get(i));
+            }
+
+            for (User participant : participants) {
+                ScheduleBlock block = ScheduleBlock.builder()
+                        .board(board)
+                        .meeting(meeting)
+                        .assignee(participant)
+                        .scheduledDate(meeting.getMeetingDate())
+                        .startTime(meeting.getStartTime())
+                        .endTime(meeting.getEndTime())
+                        .build();
+                blocks.add(block);
+            }
+        }
+
+        scheduleBlockRepository.saveAllAndFlush(blocks);
+        log.info("Created {} meeting schedule blocks", blocks.size());
+        return blocks;
+    }
+
+    private List<WeeklyReport> createReports(Board board, List<User> members) {
+        List<WeeklyReport> reports = new ArrayList<>();
+        LocalDate today = LocalDate.now();
+
+        // 1. TEAM 보고서 - Sprint 1 완료 기간
+        reports.add(WeeklyReport.builder()
+                .board(board)
+                .generatedBy(members.get(0))
+                .reportType(ReportType.TEAM)
+                .periodStart(today.minusDays(45))
+                .periodEnd(today.minusDays(25))
+                .content(generateTeamReport1Content())
+                .build());
+
+        // 2. TEAM 보고서 - 최근 1주간
+        reports.add(WeeklyReport.builder()
+                .board(board)
+                .generatedBy(members.get(0))
+                .reportType(ReportType.TEAM)
+                .periodStart(today.minusDays(7))
+                .periodEnd(today)
+                .content(generateTeamReport2Content())
+                .build());
+
+        // 3. PERSONAL 보고서 - 김철수 (고성과자)
+        reports.add(WeeklyReport.builder()
+                .board(board)
+                .generatedBy(members.get(0))
+                .reportType(ReportType.PERSONAL)
+                .targetUserId(members.get(1).getId())
+                .targetUserName(members.get(1).getName())
+                .periodStart(today.minusDays(7))
+                .periodEnd(today)
+                .content(generatePersonalReportHighPerformer())
+                .build());
+
+        // 4. PERSONAL 보고서 - 최준혁 (주의 필요)
+        reports.add(WeeklyReport.builder()
+                .board(board)
+                .generatedBy(members.get(0))
+                .reportType(ReportType.PERSONAL)
+                .targetUserId(members.get(Math.min(5, members.size() - 1)).getId())
+                .targetUserName(members.get(Math.min(5, members.size() - 1)).getName())
+                .periodStart(today.minusDays(7))
+                .periodEnd(today)
+                .content(generatePersonalReportAtRisk())
+                .build());
+
+        // 5. PERSONAL 보고서 - 정다은 (고성과자)
+        reports.add(WeeklyReport.builder()
+                .board(board)
+                .generatedBy(members.get(0))
+                .reportType(ReportType.PERSONAL)
+                .targetUserId(members.get(4).getId())
+                .targetUserName(members.get(4).getName())
+                .periodStart(today.minusDays(7))
+                .periodEnd(today)
+                .content(generatePersonalReportHighPerformer2())
+                .build());
+
+        reportRepository.saveAllAndFlush(reports);
+        log.info("Created {} weekly reports", reports.size());
+        return reports;
+    }
+
+    private String generateTeamReport1Content() {
+        return """
+                ## 팀 주간 보고서: Sprint 1 - MVP 완료
+
+                ### 핵심 요약
+                Sprint 1이 성공적으로 완료되었습니다. 사용자 인증, 기본 대시보드, 칸반 보드 핵심 기능이 예정된 일정 내에 모두 구현되었습니다.
+
+                ---
+
+                ### 주요 성과
+                - **사용자 인증 시스템**: 이메일 로그인, OAuth 연동 (Google, GitHub) 완료
+                - **기본 대시보드**: 보드 목록, 생성/삭제, 멤버 초대 기능 완료
+                - **칸반 보드**: 드래그앤드롭 기반 카드 이동, 블록 관리 완료
+                - 전체 Task 15개 중 15개 완료 (100%)
+
+                ### 팀원별 기여도
+                | 팀원 | 완료 Task | 주요 작업 |
+                |------|----------|----------|
+                | 김철수 | 4개 | 인증 백엔드, JWT 구현 |
+                | 정다은 | 4개 | 프론트 인증 UI, 대시보드 |
+                | 이영희 | 3개 | API 설계, 문서화 |
+                | 박민수 | 2개 | DB 스키마, 마이그레이션 |
+                | 최준혁 | 2개 | 칸반 기본 레이아웃 |
+
+                ### 리스크 및 주의사항
+                - 테스트 커버리지가 45%로 목표(70%) 대비 부족
+                - API 문서가 일부 미업데이트 상태
+                - 코드 리뷰 적체 (평균 리뷰 대기 2.3일)
+
+                > **한 줄 요약**: MVP를 일정 내 성공적으로 완료했으나, 기술 부채(테스트, 문서) 관리가 다음 스프린트 과제입니다.""";
+    }
+
+    private String generateTeamReport2Content() {
+        return """
+                ## 팀 주간 보고서: 최근 1주간 활동 분석
+
+                ### 핵심 요약
+                Sprint 2(협업 기능)가 70% 진행 중이며, Sprint 3(스케줄)와 Sprint 4(통계)에서 일정 지연이 발생하고 있습니다. 특히 Sprint 4는 마감일이 2일 초과되었습니다.
+
+                ---
+
+                ### 스프린트별 현황
+                | 스프린트 | 진행률 | 상태 | 비고 |
+                |---------|-------|------|------|
+                | Sprint 2 - 협업 기능 | 70% | 🟢 순조로움 | 예정대로 진행 |
+                | Sprint 3 - 스케줄 관리 | 30% | 🟡 위험 | 드래그앤드롭 이월 결정 |
+                | Sprint 4 - 통계 대시보드 | 50% | 🔴 지연 | 마감 2일 초과 |
+
+                ### 주요 블로커
+                1. **번다운 차트 쿼리 성능**: 3초 이상 소요 → N+1 해결 + 인덱스 추가 진행 중
+                2. **SES 이메일 연동**: AWS 권한 문제 → 페어 프로그래밍으로 해결 중
+                3. **Flyway 마이그레이션 충돌**: 해결 완료
+
+                ### 팀원 워크로드 분석
+                | 팀원 | 일 평균 작업시간 | 완료 체크리스트 | 상태 |
+                |------|----------------|---------------|------|
+                | 김철수 | 6.5h | 12개 | ⭐ 고성과 |
+                | 정다은 | 6.2h | 11개 | ⭐ 고성과 |
+                | 이영희 | 4.3h | 7개 | ✅ 정상 |
+                | 박민수 | 2.8h | 4개 | 📋 신입 적응 중 |
+                | 최준혁 | 2.1h | 2개 | ⚠️ 주의 필요 |
+
+                ### 이번 주 회의
+                - Sprint 3 긴급 논의 (드래그앤드롭 이월 결정)
+                - Sprint 4 블로커 대응 방안 수립
+                - 기술 검토: Redis vs 인메모리 비교 (인메모리 우선 결정)
+
+                ### 리스크 및 대응
+                - **최준혁 님 작업 정체**: 체크리스트 완료율 20%, stuck 항목 다수 → 업무 재배정 및 멘토링 검토 필요
+                - **Sprint 4 지연 영향**: Sprint 5 시작 일정 지연 가능성 → 병렬 진행 방안 모색
+
+                > **한 줄 요약**: Sprint 2는 순조롭지만 Sprint 3-4 지연으로 전체 로드맵 조정이 필요하며, 최준혁 님에 대한 지원 강화가 시급합니다.""";
+    }
+
+    private String generatePersonalReportHighPerformer() {
+        return """
+                ## 개인 활동 보고서: 김철수
+
+                ### 기간: 최근 1주간
+
+                ---
+
+                ### 주요 활동 요약
+                김철수 님은 이번 주 팀 내 최고 성과를 기록했습니다. 웹소켓 알림 시스템 핵심 구현을 완료하고, 동료 지원(Flyway, SES)까지 병행하며 팀 전체 생산성 향상에 기여했습니다.
+
+                ### 작업 현황
+                | Feature | 담당 Task | 상태 | 비고 |
+                |---------|----------|------|------|
+                | 실시간 알림 | 웹소켓 서버 구현 | ✅ 완료 | 재연결 로직 포함 |
+                | 실시간 알림 | 하트비트 구현 | 🔄 진행중 | 이번 주 내 완료 예정 |
+                | 생산성 통계 | 번다운 차트 쿼리 최적화 | 🔄 진행중 | N+1 해결 진행 |
+                | 생산성 통계 | API 설계 | ✅ 완료 | |
+
+                ### 체크리스트 완료 현황
+                - 전체: 18개 중 12개 완료 (67%)
+                - 이번 주 완료: 8개
+                - 일 평균 작업 시간: 6.5시간
+
+                ### 강점
+                - **기술 리더십**: Flyway 충돌 해결, SES 연동 지원 등 동료 기술 지원 적극적
+                - **높은 생산성**: 일 평균 6.5시간 집중 작업, 체크리스트 완료율 팀 최고
+                - **코드 품질**: 코드 리뷰에서 긍정적 피드백 다수
+
+                ### 개선 포인트
+                - 병렬 진행 Task가 많아 컨텍스트 스위칭 비용 발생 가능
+                - 문서화 작업이 상대적으로 후순위로 밀리는 경향
+
+                > **한 줄 요약**: 팀의 기술적 핵심 역할을 수행하며, 개인 작업과 동료 지원을 균형있게 병행하고 있습니다.""";
+    }
+
+    private String generatePersonalReportAtRisk() {
+        return """
+                ## 개인 활동 보고서: 최준혁
+
+                ### 기간: 최근 1주간
+
+                ---
+
+                ### 주요 활동 요약
+                최준혁 님은 이번 주 작업 진행에 어려움을 겪고 있습니다. Flyway 마이그레이션 이슈는 해결했으나, 이후 작업들에서 기술적 블로커가 지속되고 있어 지원이 필요한 상태입니다.
+
+                ### 작업 현황
+                | Feature | 담당 Task | 상태 | 비고 |
+                |---------|----------|------|------|
+                | 주간 스케줄 뷰 | 레이아웃 구현 | 🔴 정체 | 7일 이상 미진행 |
+                | 주간 스케줄 뷰 | 데이터 모델 설계 | ✅ 완료 | |
+                | 번다운 차트 | 개인 통계 페이지 | ⏸️ 대기 | API 최적화 완료 대기 |
+
+                ### 체크리스트 완료 현황
+                - 전체: 10개 중 2개 완료 (20%)
+                - 마감 초과 항목: 5개
+                - 일 평균 작업 시간: 2.1시간
+
+                ### 블로커 분석
+                1. **주간 스케줄 레이아웃**: CSS Grid 기반 시간대 표시 구현에 난이도 높음 → 정다은 님 지원 예정
+                2. **개인 통계 페이지**: 김철수 님 API 최적화 완료 의존
+                3. **전반적인 기술 적응**: 프로젝트 기술 스택(React + TypeScript)에 대한 추가 학습 필요
+
+                ### 권장 액션
+                - **즉시**: 주간 스케줄 레이아웃 작업에 정다은 님 페어 프로그래밍 배정
+                - **단기**: React/TypeScript 기초 스터디 시간 확보 (주 2시간)
+                - **중기**: Task 난이도 재배정 검토 (복잡도 낮은 작업부터 점진적 수행)
+
+                > **한 줄 요약**: 기술적 난이도에 의한 작업 정체가 지속되고 있어, 페어 프로그래밍 및 멘토링을 통한 집중 지원이 필요합니다.""";
+    }
+
+    private String generatePersonalReportHighPerformer2() {
+        return """
+                ## 개인 활동 보고서: 정다은
+
+                ### 기간: 최근 1주간
+
+                ---
+
+                ### 주요 활동 요약
+                정다은 님은 프론트엔드 핵심 기능 구현과 함께 팀원 지원을 병행하며 높은 성과를 보여주고 있습니다. 알림 UI, 차트 컴포넌트 등 시각적 완성도가 높은 결과물을 산출했습니다.
+
+                ### 작업 현황
+                | Feature | 담당 Task | 상태 | 비고 |
+                |---------|----------|------|------|
+                | 실시간 알림 | 프론트 알림 UI | ✅ 완료 | 토스트 + 배지 |
+                | 댓글 시스템 | 멘션 자동완성 UI | 🔄 진행중 | 이영희 님 협업 |
+                | 번다운 차트 | 차트 컴포넌트 개발 | ✅ 완료 | Recharts 기반 |
+                | 번다운 차트 | 프론트 성능 최적화 | 🔄 진행중 | memo/useMemo 적용 |
+                | 통계 대시보드 | 디자인 리뷰 주도 | ✅ 완료 | |
+
+                ### 체크리스트 완료 현황
+                - 전체: 16개 중 11개 완료 (69%)
+                - 이번 주 완료: 7개
+                - 일 평균 작업 시간: 6.2시간
+
+                ### 강점
+                - **UI/UX 전문성**: 디자인 리뷰 주도, Bridge 테마 일관성 유지
+                - **협업 능력**: 이영희 님(멘션 UI), 최준혁 님(레이아웃) 지원 병행
+                - **빠른 실행력**: 차트 컴포넌트를 2일 만에 완성
+
+                ### 개선 포인트
+                - 동시 진행 작업이 4개로 다소 많음 → 우선순위 조정 권장
+                - 테스트 코드 작성이 후순위로 밀리는 경향
+
+                > **한 줄 요약**: 프론트엔드 핵심 역할을 수행하며 높은 생산성과 품질을 유지하고 있으나, 동시 진행 작업 수 관리가 필요합니다.""";
     }
 
     private List<Comment> createComments(Board board, List<Task> tasks, List<User> members) {

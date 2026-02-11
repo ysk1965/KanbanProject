@@ -560,6 +560,8 @@
     "selectBlock": "Select block",
     "selectFromToday": "Select from today's checklist",
     "noTodayChecklist": "No checklist items for today",
+    "selectFromBoard": "Select from existing items",
+    "noBoardItems": "No checklist items available to add",
     "select": "Select",
     "collapse": "Collapse",
     "createNew": "Create new",
@@ -595,7 +597,13 @@
     "blockUnit": "30 min",
     "totalBlockCount": "Total blocks:",
     "endAfterStart": "End time must be after start time.",
-    "minBlocksRequired": "At least 4 blocks are required."
+    "minBlocksRequired": "At least 4 blocks are required.",
+    "breakTime": "Break Time",
+    "breakTimeDesc": "Break time is excluded from working hours",
+    "breakStart": "Start",
+    "breakEnd": "End",
+    "excludingBreak": "(excluding {{hours}}hr break)",
+    "effectiveHours": "Effective:"
   },
   "dailySummary": {
     "summaryButton": "Summary",
@@ -670,7 +678,10 @@
     "creatingFeature": "Creating...",
     "featureCreateFailed": "Failed to create feature.",
     "expandAll": "Expand all",
-    "collapseAll": "Collapse all"
+    "collapseAll": "Collapse all",
+    "newTask": "New Task",
+    "newTaskPlaceholder": "Enter task title...",
+    "taskCreateFailed": "Failed to create task."
   },
   "inquiry": {
     "title": "Contact Us",
@@ -2159,5 +2170,17 @@
     "microphoneAccessDenied": "Microphone access denied. Please allow microphone permission in browser settings.",
     "transcriptFileTooLarge": "Recording exceeds 25MB. Please record a shorter clip.",
     "transcriptionError": "Transcription failed. Please try again."
+  },
+  "payment": {
+    "processing": "Processing payment...",
+    "pleaseWait": "Please wait while we confirm your payment.",
+    "success": "Payment Successful!",
+    "redirecting": "Redirecting to your board...",
+    "error": "Payment Error",
+    "failed": "Payment Failed",
+    "goBack": "Go Back",
+    "tryAgain": "Try Again",
+    "errorCode": "Error Code",
+    "unknownError": "An unknown error occurred"
   }
 }

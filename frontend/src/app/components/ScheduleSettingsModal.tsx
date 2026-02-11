@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Clock, Layers, ChevronDown, Info } from 'lucide-react';
+import { X, Clock, Layers, ChevronDown, Info, Coffee } from 'lucide-react';
 import { Button } from './ui/button';
 
 export type ScheduleDisplayMode = 'time' | 'block';
@@ -9,7 +9,15 @@ interface ScheduleSettingsModalProps {
   currentStartTime: string; // "HH:mm" format
   currentWorkHours: number;
   currentDisplayMode: ScheduleDisplayMode;
-  onSave: (startTime: string, workHours: number, displayMode: ScheduleDisplayMode) => void;
+  currentBreakStartTime?: string | null;
+  currentBreakEndTime?: string | null;
+  onSave: (
+    startTime: string,
+    workHours: number,
+    displayMode: ScheduleDisplayMode,
+    breakStartTime?: string | null,
+    breakEndTime?: string | null
+  ) => void;
   onClose: () => void;
 }
 
@@ -32,6 +40,8 @@ export function ScheduleSettingsModal({
   currentStartTime,
   currentWorkHours,
   currentDisplayMode,
+  currentBreakStartTime,
+  currentBreakEndTime,
   onSave,
   onClose,
 }: ScheduleSettingsModalProps) {
@@ -46,6 +56,11 @@ export function ScheduleSettingsModal({
     `${Math.min(currentEndHour, 23).toString().padStart(2, '0')}:00`
   );
 
+  // 점심시간 상태
+  const [breakEnabled, setBreakEnabled] = useState(!!currentBreakStartTime && !!currentBreakEndTime);
+  const [breakStartTime, setBreakStartTime] = useState(currentBreakStartTime?.substring(0, 5) || '12:00');
+  const [breakEndTime, setBreakEndTime] = useState(currentBreakEndTime?.substring(0, 5) || '13:00');
+
   // 블록 모드 상태
   const [blockCount, setBlockCount] = useState(currentWorkHours * 2); // 30분 = 1블록
 
@@ -53,11 +68,24 @@ export function ScheduleSettingsModal({
   const [isStartTimeOpen, setIsStartTimeOpen] = useState(false);
   const [isEndTimeOpen, setIsEndTimeOpen] = useState(false);
   const [isBlockCountOpen, setIsBlockCountOpen] = useState(false);
+  const [isBreakStartOpen, setIsBreakStartOpen] = useState(false);
+  const [isBreakEndOpen, setIsBreakEndOpen] = useState(false);
 
   // 드롭다운 리스트 refs
   const startTimeListRef = useRef<HTMLDivElement>(null);
   const endTimeListRef = useRef<HTMLDivElement>(null);
   const blockCountListRef = useRef<HTMLDivElement>(null);
+  const breakStartListRef = useRef<HTMLDivElement>(null);
+  const breakEndListRef = useRef<HTMLDivElement>(null);
+
+  // 모든 드롭다운 닫기
+  const closeAllDropdowns = useCallback(() => {
+    setIsStartTimeOpen(false);
+    setIsEndTimeOpen(false);
+    setIsBlockCountOpen(false);
+    setIsBreakStartOpen(false);
+    setIsBreakEndOpen(false);
+  }, []);
 
   // 드롭다운 열릴 때 선택된 항목으로 스크롤
   const scrollToSelected = useCallback((container: HTMLDivElement | null) => {
@@ -81,6 +109,24 @@ export function ScheduleSettingsModal({
     if (isBlockCountOpen) scrollToSelected(blockCountListRef.current);
   }, [isBlockCountOpen, scrollToSelected]);
 
+  useEffect(() => {
+    if (isBreakStartOpen) scrollToSelected(breakStartListRef.current);
+  }, [isBreakStartOpen, scrollToSelected]);
+
+  useEffect(() => {
+    if (isBreakEndOpen) scrollToSelected(breakEndListRef.current);
+  }, [isBreakEndOpen, scrollToSelected]);
+
+  // 점심시간 분 계산
+  const breakMinutes = useMemo(() => {
+    if (!breakEnabled || mode !== 'time') return 0;
+    const [bsH, bsM] = breakStartTime.split(':').map(Number);
+    const [beH, beM] = breakEndTime.split(':').map(Number);
+    const bsMin = bsH * 60 + bsM;
+    const beMin = beH * 60 + beM;
+    return Math.max(beMin - bsMin, 0);
+  }, [breakEnabled, breakStartTime, breakEndTime, mode]);
+
   // 계산된 값들
   const calculatedValues = useMemo(() => {
     if (mode === 'time') {
@@ -91,13 +137,16 @@ export function ScheduleSettingsModal({
       const totalMinutes = Math.max(endMinutes - startMinutes, 30);
       const hours = totalMinutes / 60;
       const blocks = Math.floor(totalMinutes / 30);
-      return { hours, blocks, totalMinutes };
+      const effectiveMinutes = totalMinutes - breakMinutes;
+      const effectiveHours = effectiveMinutes / 60;
+      const effectiveBlocks = Math.floor(effectiveMinutes / 30);
+      return { hours, blocks, totalMinutes, effectiveHours, effectiveBlocks };
     } else {
       const totalMinutes = blockCount * 30;
       const hours = totalMinutes / 60;
-      return { hours, blocks: blockCount, totalMinutes };
+      return { hours, blocks: blockCount, totalMinutes, effectiveHours: hours, effectiveBlocks: blockCount };
     }
-  }, [mode, startTime, endTime, blockCount]);
+  }, [mode, startTime, endTime, blockCount, breakMinutes]);
 
   // 유효성 검사
   const isValid = useMemo(() => {
@@ -106,21 +155,39 @@ export function ScheduleSettingsModal({
       const [endH, endM] = endTime.split(':').map(Number);
       const startMinutes = startH * 60 + startM;
       const endMinutes = endH * 60 + endM;
-      return endMinutes > startMinutes;
+      if (endMinutes <= startMinutes) return false;
+
+      // 점심시간 유효성
+      if (breakEnabled) {
+        const [bsH, bsM] = breakStartTime.split(':').map(Number);
+        const [beH, beM] = breakEndTime.split(':').map(Number);
+        const bsMin = bsH * 60 + bsM;
+        const beMin = beH * 60 + beM;
+        if (beMin <= bsMin) return false;
+        if (bsMin < startMinutes || beMin > endMinutes) return false;
+      }
+
+      return true;
     }
     return blockCount >= 4;
-  }, [mode, startTime, endTime, blockCount]);
+  }, [mode, startTime, endTime, blockCount, breakEnabled, breakStartTime, breakEndTime]);
 
   const handleSave = () => {
     if (!isValid) return;
 
     if (mode === 'time') {
       const workHours = calculatedValues.hours;
-      onSave(startTime + ':00', workHours, mode);
+      onSave(
+        startTime + ':00',
+        workHours,
+        mode,
+        breakEnabled ? breakStartTime + ':00' : null,
+        breakEnabled ? breakEndTime + ':00' : null
+      );
     } else {
       // 블록 모드: 블록 개수 * 0.5 = 시간
       const workHours = blockCount * 0.5;
-      onSave('00:00:00', workHours, mode);
+      onSave('00:00:00', workHours, mode, null, null);
     }
   };
 
@@ -189,8 +256,8 @@ export function ScheduleSettingsModal({
                   <button
                     type="button"
                     onClick={() => {
+                      closeAllDropdowns();
                       setIsStartTimeOpen(!isStartTimeOpen);
-                      setIsEndTimeOpen(false);
                     }}
                     className="w-full flex items-center justify-between px-4 py-3 bg-bridge-dark border border-white/20 rounded-lg text-left hover:border-white/20 transition-colors"
                   >
@@ -228,8 +295,8 @@ export function ScheduleSettingsModal({
                   <button
                     type="button"
                     onClick={() => {
+                      closeAllDropdowns();
                       setIsEndTimeOpen(!isEndTimeOpen);
-                      setIsStartTimeOpen(false);
                     }}
                     className="w-full flex items-center justify-between px-4 py-3 bg-bridge-dark border border-white/20 rounded-lg text-left hover:border-white/20 transition-colors"
                   >
@@ -256,6 +323,109 @@ export function ScheduleSettingsModal({
                     </div>
                   )}
                 </div>
+              </div>
+
+              {/* 점심시간 */}
+              <div className="border border-white/10 rounded-lg p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Coffee className="h-4 w-4 text-amber-400" />
+                    <span className="text-sm font-medium text-slate-300">{t('schedule.breakTime')}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setBreakEnabled(!breakEnabled)}
+                    className={`relative w-10 h-5 rounded-full transition-colors ${
+                      breakEnabled ? 'bg-blue-500' : 'bg-white/20'
+                    }`}
+                  >
+                    <div
+                      className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
+                        breakEnabled ? 'translate-x-5' : 'translate-x-0.5'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {breakEnabled && (
+                  <>
+                    <p className="text-xs text-slate-500">{t('schedule.breakTimeDesc')}</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      {/* 점심 시작 */}
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">{t('schedule.breakStart')}</label>
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              closeAllDropdowns();
+                              setIsBreakStartOpen(!isBreakStartOpen);
+                            }}
+                            className="w-full flex items-center justify-between px-3 py-2 bg-bridge-dark border border-white/20 rounded-lg text-left text-sm"
+                          >
+                            <span className="text-foreground font-medium">{breakStartTime}</span>
+                            <ChevronDown className={`h-3 w-3 text-slate-400 transition-transform ${isBreakStartOpen ? 'rotate-180' : ''}`} />
+                          </button>
+                          {isBreakStartOpen && (
+                            <div ref={breakStartListRef} className="absolute top-full left-0 right-0 mt-1 bg-bridge-dark border border-white/20 rounded-lg shadow-lg z-20 max-h-40 overflow-y-auto">
+                              {TIME_OPTIONS.map((time) => (
+                                <button
+                                  key={time}
+                                  data-selected={time === breakStartTime}
+                                  onClick={() => {
+                                    setBreakStartTime(time);
+                                    setIsBreakStartOpen(false);
+                                  }}
+                                  className={`w-full px-3 py-1.5 text-left hover:bg-white/5 text-xs ${
+                                    time === breakStartTime ? 'bg-blue-500/20 text-blue-400' : 'text-slate-300'
+                                  }`}
+                                >
+                                  {time}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      {/* 점심 종료 */}
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">{t('schedule.breakEnd')}</label>
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              closeAllDropdowns();
+                              setIsBreakEndOpen(!isBreakEndOpen);
+                            }}
+                            className="w-full flex items-center justify-between px-3 py-2 bg-bridge-dark border border-white/20 rounded-lg text-left text-sm"
+                          >
+                            <span className="text-foreground font-medium">{breakEndTime}</span>
+                            <ChevronDown className={`h-3 w-3 text-slate-400 transition-transform ${isBreakEndOpen ? 'rotate-180' : ''}`} />
+                          </button>
+                          {isBreakEndOpen && (
+                            <div ref={breakEndListRef} className="absolute top-full left-0 right-0 mt-1 bg-bridge-dark border border-white/20 rounded-lg shadow-lg z-20 max-h-40 overflow-y-auto">
+                              {TIME_OPTIONS.map((time) => (
+                                <button
+                                  key={time}
+                                  data-selected={time === breakEndTime}
+                                  onClick={() => {
+                                    setBreakEndTime(time);
+                                    setIsBreakEndOpen(false);
+                                  }}
+                                  className={`w-full px-3 py-1.5 text-left hover:bg-white/5 text-xs ${
+                                    time === breakEndTime ? 'bg-blue-500/20 text-blue-400' : 'text-slate-300'
+                                  }`}
+                                >
+                                  {time}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           ) : (
@@ -316,11 +486,24 @@ export function ScheduleSettingsModal({
                 </div>
                 <div>
                   <span className="text-slate-400">{t('schedule.totalHours')}</span>
-                  <span className="text-foreground ml-2">{t('schedule.hoursUnit', { hours: calculatedValues.hours.toFixed(1) })}</span>
+                  <span className="text-foreground ml-2">
+                    {breakEnabled && breakMinutes > 0 ? (
+                      <>
+                        {t('schedule.hoursUnit', { hours: calculatedValues.effectiveHours.toFixed(1) })}
+                        <span className="text-amber-400/80 text-xs ml-1">
+                          {t('schedule.excludingBreak', { hours: (breakMinutes / 60).toFixed(1) })}
+                        </span>
+                      </>
+                    ) : (
+                      t('schedule.hoursUnit', { hours: calculatedValues.hours.toFixed(1) })
+                    )}
+                  </span>
                 </div>
                 <div>
                   <span className="text-slate-400">{t('schedule.totalBlocks')}</span>
-                  <span className="text-foreground ml-2">{t('schedule.blocksUnit', { count: calculatedValues.blocks })}</span>
+                  <span className="text-foreground ml-2">
+                    {t('schedule.blocksUnit', { count: breakEnabled ? calculatedValues.effectiveBlocks : calculatedValues.blocks })}
+                  </span>
                 </div>
                 <div>
                   <span className="text-slate-400">{t('schedule.blockUnitLabel')}</span>

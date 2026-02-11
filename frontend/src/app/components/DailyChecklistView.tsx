@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, Loader2, Calendar, AlertCircle, Users } from 'lucide-react';
-import { format, addDays, subDays, startOfDay, isToday, isBefore } from 'date-fns';
+import { format, addDays, subDays, startOfDay, isToday } from 'date-fns';
 import { formatDate } from '../utils/dateUtils';
 import { useTranslation } from 'react-i18next';
 import { Button } from './ui/button';
@@ -37,13 +37,9 @@ export function DailyChecklistView({
   const [showAddModal, setShowAddModal] = useState(false);
   const [addModalAssigneeId, setAddModalAssigneeId] = useState<string>('');
 
-  // 과거 날짜 또는 Viewer 권한 (읽기 전용)
+  // Viewer 권한만 읽기 전용
   const isViewer = currentUserRole === 'viewer';
-  const isReadOnly = useMemo(() => {
-    if (isViewer) return true;
-    const today = startOfDay(new Date());
-    return isBefore(selectedDate, today);
-  }, [selectedDate, isViewer]);
+  const isReadOnly = isViewer;
 
   // 데이터 로드
   const loadData = useCallback(async () => {
@@ -220,8 +216,6 @@ export function DailyChecklistView({
         <p className="text-sm text-slate-400">
           {isViewer
             ? t('dailyChecklistView.viewerGuide')
-            : isReadOnly
-            ? t('dailyChecklistView.readOnlyGuide')
             : t('dailyChecklistView.editGuide')}
         </p>
       </div>

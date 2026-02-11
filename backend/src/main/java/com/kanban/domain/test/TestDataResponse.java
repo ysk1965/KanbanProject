@@ -16,5 +16,7 @@ public class TestDataResponse {
     private int checklistItemCount;
     private int scheduleBlockCount;
     private int commentCount;
+    private int meetingCount;
+    private int reportCount;
     private String message;
 }

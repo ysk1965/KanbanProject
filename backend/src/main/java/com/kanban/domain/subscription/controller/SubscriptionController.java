@@ -62,6 +62,26 @@ public class SubscriptionController {
         return ResponseEntity.ok(response);
     }
 
+    // Toss Payments 결제 승인 - 구독 시작
+    @PostMapping("/api/v1/payments/confirm/subscription")
+    public ResponseEntity<SubscriptionResponse.Detail> confirmSubscriptionPayment(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody SubscriptionRequest.ConfirmSubscription request) {
+        SubscriptionResponse.Detail response = subscriptionService
+                .confirmAndStartSubscription(principal.getUserId(), request);
+        return ResponseEntity.ok(response);
+    }
+
+    // Toss Payments 결제 승인 - 시트 추가 구매
+    @PostMapping("/api/v1/payments/confirm/seats")
+    public ResponseEntity<SubscriptionResponse.Detail> confirmSeatPurchasePayment(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody SubscriptionRequest.ConfirmSeatPurchase request) {
+        SubscriptionResponse.Detail response = subscriptionService
+                .confirmAndPurchaseSeats(principal.getUserId(), request);
+        return ResponseEntity.ok(response);
+    }
+
     @DeleteMapping("/api/v1/boards/{boardId}/subscription")
     public ResponseEntity<Map<String, String>> cancelSubscription(
             @PathVariable String boardId,

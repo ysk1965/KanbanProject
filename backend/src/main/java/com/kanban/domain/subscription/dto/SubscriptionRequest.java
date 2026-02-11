@@ -38,4 +38,46 @@ public class SubscriptionRequest {
         @Min(value = 1, message = "최소 1개 이상의 시트를 구매해야 합니다")
         private Integer additionalSeats;
     }
+
+    @Getter
+    @NoArgsConstructor
+    public static class ConfirmSubscription {
+        @NotNull(message = "paymentKey는 필수입니다")
+        private String paymentKey;
+
+        @NotNull(message = "orderId는 필수입니다")
+        private String orderId;
+
+        @NotNull(message = "amount는 필수입니다")
+        private Integer amount;
+
+        @NotNull(message = "boardId는 필수입니다")
+        private String boardId;
+
+        @NotNull(message = "결제 주기는 필수입니다")
+        private BillingCycle billingCycle;
+
+        @Min(value = 1, message = "최소 1개 이상의 시트가 필요합니다")
+        private Integer seatCount;
+    }
+
+    @Getter
+    @NoArgsConstructor
+    public static class ConfirmSeatPurchase {
+        @NotNull(message = "paymentKey는 필수입니다")
+        private String paymentKey;
+
+        @NotNull(message = "orderId는 필수입니다")
+        private String orderId;
+
+        @NotNull(message = "amount는 필수입니다")
+        private Integer amount;
+
+        @NotNull(message = "boardId는 필수입니다")
+        private String boardId;
+
+        @NotNull(message = "추가 시트 수는 필수입니다")
+        @Min(value = 1, message = "최소 1개 이상의 시트를 구매해야 합니다")
+        private Integer additionalSeats;
+    }
 }

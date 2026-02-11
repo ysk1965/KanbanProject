@@ -93,12 +93,16 @@ public class ScheduleResponse {
         private Integer workHoursPerDay;
         private LocalTime workStartTime;
         private String scheduleDisplayMode;
+        private LocalTime breakStartTime;
+        private LocalTime breakEndTime;
 
         public static SettingsInfo of(Board board) {
             return SettingsInfo.builder()
                     .workHoursPerDay(board.getWorkHoursPerDay())
                     .workStartTime(board.getWorkStartTime())
                     .scheduleDisplayMode(board.getScheduleDisplayMode())
+                    .breakStartTime(board.getBreakStartTime())
+                    .breakEndTime(board.getBreakEndTime())
                     .build();
         }
     }

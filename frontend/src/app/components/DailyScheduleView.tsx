@@ -16,6 +16,7 @@ import { MeetingView } from './MeetingView';
 import { BoardMember as BoardMemberType } from '../types';
 import {
   scheduleAPI,
+  dailyChecklistAPI,
   ScheduleBlockInfo,
   ScheduleColumnInfo,
   ScheduleSettingsResponse,
@@ -108,6 +109,24 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
   // 설정에서 시간 범위 계산
   const workStartHour = settings ? parseHour(settings.work_start_time) : 9;
   const workEndHour = settings ? workStartHour + settings.work_hours_per_day : 18;
+
+  // 점심시간 계산
+  const breakStartMinutes = settings?.break_start_time ? (() => {
+    const [h, m] = settings.break_start_time.split(':').map(Number);
+    return h * 60 + m;
+  })() : null;
+  const breakEndMinutes = settings?.break_end_time ? (() => {
+    const [h, m] = settings.break_end_time.split(':').map(Number);
+    return h * 60 + m;
+  })() : null;
+  const hasBreak = breakStartMinutes !== null && breakEndMinutes !== null;
+
+  const isBreakSlot = useCallback((slotTime: string): boolean => {
+    if (!hasBreak) return false;
+    const [h, m] = slotTime.split(':').map(Number);
+    const minutes = h * 60 + m;
+    return minutes >= breakStartMinutes! && minutes < breakEndMinutes!;
+  }, [hasBreak, breakStartMinutes, breakEndMinutes]);
 
   const timeSlots = useMemo(
     () => generateTimeSlots(workStartHour, workEndHour),
@@ -331,6 +350,34 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
       await loadSchedule();
     } catch (error) {
       console.error('Failed to create block with checklist item:', error);
+    }
+    setShowChecklistModal(false);
+    setPendingBlock(null);
+  };
+
+  // 보드 체크리스트 항목 선택 → 데일리 체크리스트 추가 + 타임블록 생성
+  const handleBoardChecklistItemSelect = async (checklistItemId: string) => {
+    if (!pendingBlock) return;
+
+    try {
+      const dateStr = format(selectedDate, 'yyyy-MM-dd');
+      // 1) 데일리 체크리스트에 추가
+      await dailyChecklistAPI.addItem(boardId, {
+        checklist_item_id: checklistItemId,
+        assignee_id: pendingBlock.userId,
+        assigned_date: dateStr,
+      });
+      // 2) 타임블록 생성
+      await scheduleAPI.createBlock(boardId, {
+        checklist_item_id: checklistItemId,
+        assignee_id: pendingBlock.userId,
+        scheduled_date: dateStr,
+        start_time: pendingBlock.startTime,
+        end_time: pendingBlock.endTime,
+      });
+      await loadSchedule();
+    } catch (error) {
+      console.error('Failed to add board checklist item and create block:', error);
     }
     setShowChecklistModal(false);
     setPendingBlock(null);
@@ -717,10 +764,12 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
 
             {/* 시간 그리드 */}
             <div className="relative">
-              {timeSlots.map((time, slotIndex) => (
-                <div key={time} className="flex border-b border-kanban-border" style={{ height: `${SLOT_HEIGHT}px` }}>
+              {timeSlots.map((time, slotIndex) => {
+                const isBreak = isBreakSlot(time);
+                return (
+                <div key={time} className={`flex border-b border-kanban-border ${isBreak ? 'bg-amber-900/5' : ''}`} style={{ height: `${SLOT_HEIGHT}px` }}>
                   {/* 시간/블록 라벨 */}
-                  <div className="w-14 md:w-20 flex-shrink-0 p-2 text-xs text-zinc-400 border-r border-kanban-border bg-kanban-bg">
+                  <div className={`w-14 md:w-20 flex-shrink-0 p-2 text-xs border-r border-kanban-border bg-kanban-bg ${isBreak ? 'text-amber-500/50' : 'text-zinc-400'}`}>
                     {displayMode === 'block'
                       ? `${slotIndex + 1}`
                       : time.endsWith(':00') ? time : ''}
@@ -732,15 +781,22 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
                       <div
                         key={`${member.userId}-${time}`}
                         className={`w-36 md:w-48 flex-shrink-0 border-r border-kanban-border transition-colors group relative h-full ${
-                          isViewer ? 'cursor-default' : 'cursor-pointer'
+                          isBreak ? 'cursor-not-allowed' : isViewer ? 'cursor-default' : 'cursor-pointer'
                         } ${
-                          isSelected ? 'bg-[#2DD4BF]/20' : isViewer ? '' : 'hover:bg-white/5'
+                          isBreak ? '' : isSelected ? 'bg-[#2DD4BF]/20' : isViewer ? '' : 'hover:bg-white/5'
                         }`}
-                        onMouseDown={(e) => handleMouseDown(e, member.userId, slotIndex)}
-                        onMouseEnter={() => handleMouseEnter(member.userId, slotIndex)}
+                        onMouseDown={isBreak ? undefined : (e) => handleMouseDown(e, member.userId, slotIndex)}
+                        onMouseEnter={isBreak ? undefined : () => handleMouseEnter(member.userId, slotIndex)}
                       >
-                        {/* 빈 셀 호버 시 + 버튼 표시 (Viewer 제외) */}
-                        {!isSelected && !isViewer && (
+                        {/* 점심시간 빗금 오버레이 */}
+                        {isBreak && (
+                          <div
+                            className="absolute inset-0 opacity-20 pointer-events-none"
+                            style={{ backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(245,158,11,0.15) 4px, rgba(245,158,11,0.15) 8px)' }}
+                          />
+                        )}
+                        {/* 빈 셀 호버 시 + 버튼 표시 (Viewer 제외, 점심시간 제외) */}
+                        {!isBreak && !isSelected && !isViewer && (
                           <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                             <Plus className="h-4 w-4 text-zinc-400" />
                           </div>
@@ -752,7 +808,8 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
                     <div className="flex-1 border-r border-kanban-border h-full" />
                   )}
                 </div>
-              ))}
+                );
+              })}
 
               {/* 현재 시간 표시선 */}
               {currentTimeTop != null && (
@@ -794,6 +851,8 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
                             workStartHour={workStartHour}
                             workEndHour={workEndHour}
                             otherBlocks={blocks}
+                            breakStartTime={settings?.break_start_time}
+                            breakEndTime={settings?.break_end_time}
                             onClick={handleBlockClick}
                             onResize={handleBlockResize}
                             onMove={handleBlockResize}
@@ -968,6 +1027,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
           endBlockIndex={pendingBlock.endSlotIndex}
           onCreate={handleChecklistCreate}
           onSelectExisting={handleChecklistItemSelect}
+          onSelectBoardItem={handleBoardChecklistItemSelect}
           onSelectMeeting={handleMeetingSelect}
           onClose={handleCloseChecklistModal}
         />
@@ -979,12 +1039,16 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
           currentStartTime={settings.work_start_time}
           currentWorkHours={settings.work_hours_per_day}
           currentDisplayMode={displayMode}
-          onSave={async (startTime, workHours, newDisplayMode) => {
+          currentBreakStartTime={settings.break_start_time}
+          currentBreakEndTime={settings.break_end_time}
+          onSave={async (startTime, workHours, newDisplayMode, breakStart, breakEnd) => {
             try {
               await scheduleAPI.updateSettings(boardId, {
                 work_start_time: startTime,
                 work_hours_per_day: workHours,
                 schedule_display_mode: newDisplayMode === 'block' ? 'BLOCK' : 'TIME',
+                break_start_time: breakStart,
+                break_end_time: breakEnd,
               });
               await loadSchedule();
               setShowSettingsModal(false);

@@ -505,6 +505,8 @@
     "selectBlock": "ब्लॉक चुनें",
     "selectFromToday": "आज की चेकलिस्ट से चुनें",
     "noTodayChecklist": "आज के लिए कोई चेकलिस्ट आइटम नहीं",
+    "selectFromBoard": "मौजूदा आइटम से चुनें",
+    "noBoardItems": "जोड़ने के लिए कोई चेकलिस्ट आइटम उपलब्ध नहीं",
     "select": "चुनें",
     "collapse": "संक्षिप्त करें",
     "createNew": "नया बनाएं",
@@ -615,7 +617,10 @@
     "creatingFeature": "बना रहा है...",
     "featureCreateFailed": "Feature बनाने में विफल।",
     "expandAll": "सभी खोलें",
-    "collapseAll": "सभी बंद करें"
+    "collapseAll": "सभी बंद करें",
+    "newTask": "नया Task",
+    "newTaskPlaceholder": "टास्क शीर्षक दर्ज करें...",
+    "taskCreateFailed": "टास्क बनाने में विफल।"
   },
   "inquiry": {
     "title": "संपर्क करें",

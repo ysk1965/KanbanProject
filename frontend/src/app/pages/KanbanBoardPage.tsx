@@ -309,6 +309,24 @@ export function KanbanBoardPage() {
     loadBoardData();
   }, [boardId, navigate]);
 
+  // 결제 완료 후 pending action 처리 (시트 구매 → 초대/역할변경 재시도)
+  useEffect(() => {
+    const pendingSeatAction = localStorage.getItem('pending_seat_action');
+    if (pendingSeatAction && boardId && !isLoading) {
+      localStorage.removeItem('pending_seat_action');
+      try {
+        const action = JSON.parse(pendingSeatAction);
+        if (action.type === 'roleChange' && action.pendingMemberId) {
+          handleUpdateMemberRole(action.pendingMemberId, action.pendingRole);
+        } else if (action.type === 'invite' && action.pendingEmail) {
+          handleAddMember(action.pendingEmail, action.pendingRole);
+        }
+      } catch (e) {
+        console.error('Failed to process pending seat action:', e);
+      }
+    }
+  }, [boardId, isLoading]);
+
   // ShareBoardModal 열릴 때 멤버 목록 새로고침
   useEffect(() => {
     if (!isShareBoardModalOpen || !boardId) return;
@@ -452,42 +470,53 @@ export function KanbanBoardPage() {
     setIsMilestoneModalOpen(true);
   };
 
-  // Seat 기반 업그레이드 핸들러
+  // Seat 기반 업그레이드 핸들러 (Toss 결제창 리다이렉트)
   const handleSeatUpgrade = async (billingCycle: 'MONTHLY' | 'YEARLY', seatCount: number) => {
     if (!boardId) return;
     try {
-      const newSubscription = await subscriptionService.startSeatSubscription(boardId, {
+      await subscriptionService.startSeatSubscription(boardId, {
         billing_cycle: billingCycle,
         seat_count: seatCount,
       });
-      setSubscription(newSubscription);
-      // 업그레이드 후 tier/limits 다시 로드
-      const [tierData, limitsData] = await Promise.all([
-        boardService.getBoardTier(boardId),
-        boardService.getBoardLimits(boardId),
-      ]);
-      setTierInfo(tierData);
-      setBoardLimits(limitsData);
-    } catch (error) {
+      // requestPayment 이후 Toss 결제창으로 리다이렉트됨
+      // 여기 도달 시 사용자가 결제창을 닫은 경우
+    } catch (error: any) {
+      if (error?.code === 'PAY_PROCESS_CANCELED' || error?.code === 'USER_CANCEL') {
+        return;
+      }
       console.error('Failed to upgrade:', error);
       throw error;
     }
   };
 
-  // 시트 구매 후 자동 재초대/역할변경 핸들러
+  // 시트 구매 후 자동 재초대/역할변경 핸들러 (Toss 결제창 리다이렉트)
   const handlePurchaseSeatsAndRetry = async (additionalSeats: number) => {
     if (!boardId || !seatPurchaseModal) return;
-    await subscriptionService.purchaseSeats(boardId, additionalSeats);
-    const newSub = await subscriptionService.getSubscription(boardId);
-    setSubscription(newSub);
+
+    // 리다이렉트 전 pending action 저장
     const { pendingEmail, pendingRole, pendingMemberId } = seatPurchaseModal;
+    const pendingAction = JSON.stringify({
+      type: pendingMemberId ? 'roleChange' : 'invite',
+      pendingEmail,
+      pendingRole,
+      pendingMemberId,
+    });
+    localStorage.setItem('pending_payment_action', pendingAction);
     setSeatPurchaseModal(null);
-    if (pendingMemberId) {
-      // 역할 변경 재시도 (Observer → Member 등)
-      await handleUpdateMemberRole(pendingMemberId, pendingRole);
-    } else if (pendingEmail) {
-      // 멤버 초대 재시도
-      await handleAddMember(pendingEmail, pendingRole);
+
+    const currentBillingCycle = subscription?.billing_cycle || 'MONTHLY';
+    const pricePerSeat = subscription?.price_per_seat ||
+      (currentBillingCycle === 'YEARLY' ? 5000 : 500);
+
+    try {
+      await subscriptionService.purchaseSeats(boardId, additionalSeats, currentBillingCycle, pricePerSeat);
+    } catch (error: any) {
+      if (error?.code === 'PAY_PROCESS_CANCELED' || error?.code === 'USER_CANCEL') {
+        localStorage.removeItem('pending_payment_action');
+        return;
+      }
+      localStorage.removeItem('pending_payment_action');
+      throw error;
     }
   };
 
@@ -710,8 +739,17 @@ export function KanbanBoardPage() {
 
   const handleSubscriptionPurchaseSeats = async (additionalSeats: number) => {
     if (!boardId) return;
-    const newSubscription = await subscriptionService.purchaseSeats(boardId, additionalSeats);
-    setSubscription(newSubscription);
+    const currentBillingCycle = subscription?.billing_cycle || 'MONTHLY';
+    const pricePerSeat = subscription?.price_per_seat ||
+      (currentBillingCycle === 'YEARLY' ? 5000 : 500);
+    try {
+      await subscriptionService.purchaseSeats(boardId, additionalSeats, currentBillingCycle, pricePerSeat);
+    } catch (error: any) {
+      if (error?.code === 'PAY_PROCESS_CANCELED' || error?.code === 'USER_CANCEL') {
+        return;
+      }
+      throw error;
+    }
   };
 
   const handleCancelSubscription = async () => {
@@ -843,6 +881,7 @@ export function KanbanBoardPage() {
     title: string;
     description?: string;
     dueDate?: string;
+    milestoneId?: string;
   }) => {
     if (!boardId) return;
 
@@ -853,6 +892,17 @@ export function KanbanBoardPage() {
         color: getRandomFeatureColor(),
         due_date: data.dueDate,
       });
+
+      // 마일스톤에 Feature 연결
+      if (data.milestoneId) {
+        try {
+          const updatedMilestone = await milestoneService.addFeatures(boardId, data.milestoneId, [newFeature.id]);
+          setMilestones((prev) => prev.map((m) => m.id === updatedMilestone.id ? updatedMilestone : m));
+        } catch (error) {
+          console.error('Failed to link feature to milestone:', error);
+        }
+      }
+
       setFeatures([...features, newFeature]);
       setAllFeatures([...allFeatures, newFeature]); // 전체 Feature 목록에도 추가
       // Feature 생성 후 바로 상세 모달 열기
@@ -2291,6 +2341,8 @@ export function KanbanBoardPage() {
           open={isAddFeatureModalOpen}
           onClose={() => setIsAddFeatureModalOpen(false)}
           onAdd={handleAddFeature}
+          milestones={milestones}
+          defaultMilestoneId={kanbanSelectedMilestoneId}
         />
 
         <ShareBoardModal

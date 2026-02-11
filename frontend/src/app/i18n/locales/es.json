@@ -505,6 +505,8 @@
     "selectBlock": "Seleccionar bloque",
     "selectFromToday": "Seleccionar de la lista de verificación de hoy",
     "noTodayChecklist": "No hay elementos de lista de verificación para hoy",
+    "selectFromBoard": "Seleccionar de elementos existentes",
+    "noBoardItems": "No hay elementos de lista de verificación disponibles para agregar",
     "select": "Seleccionar",
     "collapse": "Contraer",
     "createNew": "Crear nuevo",
@@ -615,7 +617,10 @@
     "creatingFeature": "Creando...",
     "featureCreateFailed": "Error al crear el feature.",
     "expandAll": "Expandir todo",
-    "collapseAll": "Contraer todo"
+    "collapseAll": "Contraer todo",
+    "newTask": "Nueva Task",
+    "newTaskPlaceholder": "Ingrese el título de la tarea...",
+    "taskCreateFailed": "Error al crear la tarea."
   },
   "inquiry": {
     "title": "Contáctanos",
