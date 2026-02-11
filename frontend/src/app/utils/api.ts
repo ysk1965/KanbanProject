@@ -1151,7 +1151,7 @@ export const checklistAPI = {
     );
   },
 
-  reorderItems: async (boardId: string, taskId: string, data: { itemIds: string[] }) => {
+  reorderItems: async (boardId: string, taskId: string, data: { item_ids: string[] }) => {
     return apiClient.put<{ message: string }>(
       `/boards/${boardId}/tasks/${taskId}/checklist/reorder`,
       data
