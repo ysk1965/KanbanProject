@@ -1568,7 +1568,8 @@
   "scheduleBlock": {
     "unlinked": "(ไม่ได้เชื่อมโยง)",
     "cannotMove": "ไม่สามารถย้ายได้",
-    "cannotChange": "ไม่สามารถเปลี่ยนได้"
+    "cannotChange": "ไม่สามารถเปลี่ยนได้",
+    "willSplit": "แยกส่วน"
   },
   "scheduleDetail": {
     "title": "รายละเอียด Time Block",

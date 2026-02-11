@@ -1380,7 +1380,8 @@
   "scheduleBlock": {
     "unlinked": "(미연결)",
     "cannotMove": "이동 불가",
-    "cannotChange": "변경 불가"
+    "cannotChange": "변경 불가",
+    "willSplit": "분할 생성"
   },
   "scheduleDetail": {
     "title": "타임블록 상세",

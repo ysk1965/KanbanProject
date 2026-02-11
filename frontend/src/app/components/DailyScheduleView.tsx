@@ -540,6 +540,59 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
     }
   }, [boardId, loadSchedule]);
 
+  // 블록 분할 리사이즈/이동 처리 (점심시간을 걸칠 때)
+  const handleBlockSplitResize = useCallback(async (blockId: string, segments: Array<{ startTime: string; endTime: string }>) => {
+    if (segments.length === 0) return;
+
+    // 대상 블록과 사용자 찾기
+    let targetBlock: ScheduleBlockInfo | null = null;
+    let targetUserId: string | null = null;
+    for (const col of columns) {
+      const found = col.blocks.find(b => b.id === blockId);
+      if (found) {
+        targetBlock = found;
+        targetUserId = col.user.id;
+        break;
+      }
+    }
+    if (!targetBlock || !targetUserId) return;
+
+    try {
+      const dateStr = format(selectedDate, 'yyyy-MM-dd');
+
+      // 첫 번째 세그먼트: 기존 블록 업데이트
+      await scheduleAPI.updateBlock(boardId, blockId, {
+        start_time: segments[0].startTime,
+        end_time: segments[0].endTime,
+      });
+
+      // 나머지 세그먼트: 같은 체크리스트/회의로 새 블록 생성
+      for (let i = 1; i < segments.length; i++) {
+        if (targetBlock.meeting) {
+          await scheduleAPI.createBlock(boardId, {
+            meeting_id: targetBlock.meeting.id,
+            assignee_id: targetUserId,
+            scheduled_date: dateStr,
+            start_time: segments[i].startTime,
+            end_time: segments[i].endTime,
+          });
+        } else if (targetBlock.checklist_item) {
+          await scheduleAPI.createBlock(boardId, {
+            checklist_item_id: targetBlock.checklist_item.id,
+            assignee_id: targetUserId,
+            scheduled_date: dateStr,
+            start_time: segments[i].startTime,
+            end_time: segments[i].endTime,
+          });
+        }
+      }
+    } catch (error) {
+      console.error('[Schedule] Failed to split block:', error);
+    } finally {
+      await loadSchedule();
+    }
+  }, [boardId, columns, selectedDate, loadSchedule]);
+
   return (
     <div
       className="h-full flex flex-col"
@@ -918,6 +971,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
                             onClick={handleBlockClick}
                             onResize={handleBlockResize}
                             onMove={handleBlockResize}
+                            onSplitResize={handleBlockSplitResize}
                           />
                         ))}
                       </div>

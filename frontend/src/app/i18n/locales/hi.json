@@ -1568,7 +1568,8 @@
   "scheduleBlock": {
     "unlinked": "(अनलिंक्ड)",
     "cannotMove": "स्थानांतरित नहीं किया जा सकता",
-    "cannotChange": "बदला नहीं जा सकता"
+    "cannotChange": "बदला नहीं जा सकता",
+    "willSplit": "विभाजित"
   },
   "scheduleDetail": {
     "title": "टाइम Block विवरण",

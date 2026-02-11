@@ -66,7 +66,7 @@ export function NoteEditor({ boardId, note, tags, loading, canEdit, onSave, onTa
       Image.configure({ inline: false, allowBase64: true }),
       Link.configure({ openOnClick: false, autolink: true }),
       Placeholder.configure({ placeholder: t('notes.contentPlaceholder', '내용을 입력하세요...') }),
-      Table.configure({ resizable: true }),
+      Table.configure({ resizable: true, allowTableNodeSelection: true }),
       TableRow,
       TableCell,
       TableHeader,

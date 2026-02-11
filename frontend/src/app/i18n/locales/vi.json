@@ -1568,7 +1568,8 @@
   "scheduleBlock": {
     "unlinked": "(Chua lien ket)",
     "cannotMove": "Khong the di chuyen",
-    "cannotChange": "Khong the thay doi"
+    "cannotChange": "Khong the thay doi",
+    "willSplit": "Tách phần"
   },
   "scheduleDetail": {
     "title": "Chi tiet khoi thoi gian",

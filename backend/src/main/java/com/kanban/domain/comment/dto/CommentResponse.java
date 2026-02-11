@@ -42,14 +42,22 @@ public class CommentResponse {
 
             List<ReactionInfo> reactionList = buildReactionList(comment.getReactions(), customEmojiUrlMap);
 
-            return Detail.builder()
-                    .id(comment.getId())
-                    .taskId(comment.getTask().getId())
-                    .author(AuthorInfo.builder()
+            AuthorInfo authorInfo = comment.getAuthor() != null
+                    ? AuthorInfo.builder()
                             .id(comment.getAuthor().getId())
                             .name(comment.getAuthor().getName())
                             .profileImage(comment.getAuthor().getProfileImage())
-                            .build())
+                            .build()
+                    : AuthorInfo.builder()
+                            .id(null)
+                            .name("알 수 없는 사용자")
+                            .profileImage(null)
+                            .build();
+
+            return Detail.builder()
+                    .id(comment.getId())
+                    .taskId(comment.getTask().getId())
+                    .author(authorInfo)
                     .content(comment.getContent())
                     .mentions(mentionList)
                     .attachments(attachmentList)
