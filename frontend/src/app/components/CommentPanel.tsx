@@ -740,7 +740,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
     if (emojiPickerCommentId !== commentId) return null;
     return (
       <div ref={emojiPickerRef}
-        className="absolute right-0 top-full mt-1 z-50 bg-bridge-obsidian border border-white/20 rounded-xl shadow-xl p-2 min-w-[200px]">
+        className="absolute left-0 top-full mt-1 z-50 bg-bridge-obsidian border border-white/20 rounded-xl shadow-xl p-2 min-w-[200px]">
         {/* 기본 이모지 */}
         <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1 mb-1">{t('comment.customEmoji.default', '기본')}</div>
         <div className="grid grid-cols-4 gap-1">
@@ -835,10 +835,11 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
   /** 리액션 뱃지 바 */
   const ReactionBar = ({ comment }: { comment: TaskComment }) => {
     const reactions = comment.reactions || [];
-    if (reactions.length === 0 && !canEdit) return null;
+    const hasReactions = reactions.length > 0;
+    if (!hasReactions && !canEdit) return null;
 
     return (
-      <div className="flex flex-wrap items-center gap-1 mt-1.5">
+      <div className={`flex flex-wrap items-center gap-1 mt-1.5 ${!hasReactions ? 'opacity-0 group-hover:opacity-100 transition-opacity' : ''}`}>
         {reactions.map(reaction => {
           const isMyReaction = reaction.users.some(u => u.id === currentUser?.id);
           const tooltipNames = reaction.users.map(u =>
@@ -867,7 +868,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
           );
         })}
         {canEdit && (
-          <div className="relative">
+          <div className={`relative ${hasReactions ? '' : 'opacity-0 group-hover:opacity-100'} transition-opacity`}>
             <button
               onClick={() => setEmojiPickerCommentId(prev => prev === comment.id ? null : comment.id)}
               className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-white/5 border border-white/10 text-slate-400 hover:bg-white/10 hover:text-slate-300 transition-all"
