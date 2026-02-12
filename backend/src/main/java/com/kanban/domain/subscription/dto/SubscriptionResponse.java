@@ -20,7 +20,6 @@ public class SubscriptionResponse {
         private BillingCycle billingCycle;
         private Integer price;
         private LocalDateTime trialEndsAt;
-        private LocalDateTime graceEndsAt;
         private LocalDateTime currentPeriodStart;
         private LocalDateTime currentPeriodEnd;
         private Integer billableMemberCount;
@@ -38,7 +37,6 @@ public class SubscriptionResponse {
                     .billingCycle(subscription.getBillingCycle())
                     .price(subscription.getPrice())
                     .trialEndsAt(subscription.getTrialEndsAt())
-                    .graceEndsAt(subscription.getGraceEndsAt())
                     .currentPeriodStart(subscription.getCurrentPeriodStart())
                     .currentPeriodEnd(subscription.getCurrentPeriodEnd())
                     .billableMemberCount(subscription.getBillableMemberCount())

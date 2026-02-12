@@ -9,6 +9,7 @@ interface DailyChecklistItemProps {
   item: DailyChecklistItemType;
   isReadOnly: boolean;
   onRemove: () => void;
+  onToggle?: () => void;
   isDraggable?: boolean;
 }
 
@@ -16,10 +17,31 @@ export function DailyChecklistItem({
   item,
   isReadOnly,
   onRemove,
+  onToggle,
   isDraggable = true,
 }: DailyChecklistItemProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
+  const [isToggling, setIsToggling] = useState(false);
+  const [optimisticCompleted, setOptimisticCompleted] = useState(item.completed);
+
+  // Sync optimistic state with prop
+  if (optimisticCompleted !== item.completed && !isToggling) {
+    setOptimisticCompleted(item.completed);
+  }
+
+  const handleToggle = async () => {
+    if (isReadOnly || !onToggle || isToggling) return;
+    setIsToggling(true);
+    setOptimisticCompleted(!optimisticCompleted);
+    try {
+      await onToggle();
+    } catch {
+      setOptimisticCompleted(item.completed);
+    } finally {
+      setIsToggling(false);
+    }
+  };
 
   const {
     attributes,
@@ -57,7 +79,7 @@ export function DailyChecklistItem({
       style={style}
       className={`group relative rounded-xl border border-white/15 bg-white/5 overflow-hidden transition-all ${
         isDragging ? 'shadow-2xl ring-2 ring-bridge-accent' : 'hover:border-white/20'
-      } ${item.completed ? 'opacity-60' : ''}`}
+      } ${optimisticCompleted ? 'opacity-60' : ''}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -79,22 +101,25 @@ export function DailyChecklistItem({
           </div>
         )}
 
-        {/* 완료 체크박스 (읽기 전용) */}
-        <div
-          className={`flex-shrink-0 w-5 h-5 rounded-md border mt-0.5 flex items-center justify-center ${
-            item.completed
+        {/* 완료 체크박스 */}
+        <button
+          type="button"
+          onClick={handleToggle}
+          disabled={isReadOnly || !onToggle || isToggling}
+          className={`flex-shrink-0 w-5 h-5 rounded-md border mt-0.5 flex items-center justify-center transition-colors ${
+            optimisticCompleted
               ? 'bg-green-500 border-green-500'
-              : 'border-white/20 bg-white/5'
-          }`}
+              : 'border-white/20 bg-white/5 hover:border-white/40'
+          } ${!isReadOnly && onToggle ? 'cursor-pointer' : 'cursor-default'}`}
         >
-          {item.completed && <Check className="h-3 w-3 text-white" />}
-        </div>
+          {optimisticCompleted && <Check className="h-3 w-3 text-white" />}
+        </button>
 
         {/* 내용 */}
         <div className="flex-1 min-w-0">
           <p
             className={`text-sm font-medium ${
-              item.completed ? 'text-slate-400 line-through' : 'text-white'
+              optimisticCompleted ? 'text-slate-400 line-through' : 'text-white'
             }`}
           >
             {item.title}

@@ -12,11 +12,13 @@ import { ScheduleSettingsModal, ScheduleDisplayMode } from './ScheduleSettingsMo
 import { WeeklySummaryModal } from './WeeklySummaryModal';
 import { DailySummaryModal } from './DailySummaryModal';
 import { DailyChecklistView } from './DailyChecklistView';
+import { AddDailyChecklistModal } from './AddDailyChecklistModal';
 import { MeetingView } from './MeetingView';
 import { BoardMember as BoardMemberType } from '../types';
 import {
   scheduleAPI,
   dailyChecklistAPI,
+  checklistAPI,
   ScheduleBlockInfo,
   ScheduleColumnInfo,
   ScheduleSettingsResponse,
@@ -97,6 +99,10 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
 
   // 체크리스트 모달 상태 (선택 + 생성 통합)
   const [showChecklistModal, setShowChecklistModal] = useState(false);
+
+  // 데일리 체크리스트 추가 모달 상태
+  const [showAddChecklistModal, setShowAddChecklistModal] = useState(false);
+  const [addChecklistAssigneeId, setAddChecklistAssigneeId] = useState<string>('');
 
   // 설정 모달 상태
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -803,77 +809,124 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
             </div>
 
             {/* 데일리 체크리스트 요약 영역 */}
-            {dailyChecklists.length > 0 && (
-              <div className="flex border-b border-kanban-border bg-white/[0.02]">
-                <div className="w-14 md:w-20 flex-shrink-0 p-2 text-xs text-zinc-400 border-r border-kanban-border flex items-center justify-center">
-                  <CheckSquare className="h-3.5 w-3.5" />
-                </div>
-                {activeMembers.map((member) => {
-                  const memberChecklist = dailyChecklists.find(
-                    (c) => c.user.id === member.userId
-                  );
-                  const items = memberChecklist?.items || [];
-                  const completedCount = items.filter((i) => i.completed).length;
-                  const totalCount = items.length;
+            <div className="flex border-b border-kanban-border bg-white/[0.02]">
+              <div className="w-14 md:w-20 flex-shrink-0 p-2 text-xs text-zinc-400 border-r border-kanban-border flex items-center justify-center">
+                <CheckSquare className="h-3.5 w-3.5" />
+              </div>
+              {activeMembers.map((member) => {
+                const memberChecklist = dailyChecklists.find(
+                  (c) => c.user.id === member.userId
+                );
+                const items = memberChecklist?.items || [];
+                const completedCount = items.filter((i) => i.completed).length;
+                const totalCount = items.length;
 
-                  return (
-                    <div
-                      key={`checklist-${member.userId}`}
-                      className="w-36 md:w-48 flex-shrink-0 p-2 border-r border-kanban-border"
-                    >
-                      {totalCount > 0 ? (
-                        <div className="space-y-1">
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="text-slate-400">{t('dailySchedule.todayChecklist')}</span>
+                return (
+                  <div
+                    key={`checklist-${member.userId}`}
+                    className="w-36 md:w-48 flex-shrink-0 p-2 border-r border-kanban-border"
+                  >
+                    {totalCount > 0 ? (
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-slate-400">{t('dailySchedule.todayChecklist')}</span>
+                          <div className="flex items-center gap-1">
                             <span className={`font-medium ${completedCount === totalCount ? 'text-green-400' : 'text-bridge-accent'}`}>
                               {completedCount}/{totalCount}
                             </span>
-                          </div>
-                          <div className="space-y-0.5 mt-1">
-                            {items.slice(0, 4).map((item) => (
-                              <div
-                                key={item.id}
-                                className="flex items-center gap-1.5"
+                            {!isViewer && (
+                              <button
+                                onClick={() => {
+                                  setAddChecklistAssigneeId(member.userId);
+                                  setShowAddChecklistModal(true);
+                                }}
+                                className="w-4 h-4 flex items-center justify-center rounded hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
                               >
-                                <div
-                                  className={`w-3 h-3 rounded flex-shrink-0 flex items-center justify-center ${
-                                    item.completed
-                                      ? 'bg-green-500/30 border border-green-500/50'
-                                      : 'border border-white/20 bg-white/5'
-                                  }`}
-                                >
-                                  {item.completed && (
-                                    <Check className="h-2 w-2 text-green-400" />
-                                  )}
-                                </div>
-                                <span
-                                  className={`text-[10px] truncate ${
-                                    item.completed
-                                      ? 'text-green-400/70 line-through'
-                                      : 'text-slate-400'
-                                  }`}
-                                >
-                                  {item.title}
-                                </span>
-                              </div>
-                            ))}
-                            {items.length > 4 && (
-                              <div className="text-[10px] text-slate-400 pl-4">
-                                {t('dailySchedule.moreItems', { count: items.length - 4 })}
-                              </div>
+                                <Plus className="h-3 w-3" />
+                              </button>
                             )}
                           </div>
                         </div>
-                      ) : (
-                        <div className="text-xs text-slate-400 text-center py-1">
-                          {t('dailySchedule.noChecklist')}
+                        <div className="space-y-0.5 mt-1">
+                          {items.slice(0, 4).map((item) => (
+                            <div
+                              key={item.id}
+                              className="flex items-center gap-1.5"
+                            >
+                              <button
+                                disabled={isViewer || !item.checklist_item_id || !item.task}
+                                onClick={async () => {
+                                  if (!item.checklist_item_id || !item.task) return;
+                                  // 낙관적 업데이트
+                                  setDailyChecklists(prev => prev.map(col => ({
+                                    ...col,
+                                    items: col.items.map(i =>
+                                      i.id === item.id ? { ...i, completed: !i.completed } : i
+                                    ),
+                                  })));
+                                  try {
+                                    await checklistAPI.toggleItem(boardId, item.task.id, item.checklist_item_id);
+                                  } catch {
+                                    // 실패 시 원복
+                                    setDailyChecklists(prev => prev.map(col => ({
+                                      ...col,
+                                      items: col.items.map(i =>
+                                        i.id === item.id ? { ...i, completed: !i.completed } : i
+                                      ),
+                                    })));
+                                  }
+                                }}
+                                className={`w-3 h-3 rounded flex-shrink-0 flex items-center justify-center transition-colors ${
+                                  item.completed
+                                    ? 'bg-green-500/30 border border-green-500/50 hover:bg-green-500/40'
+                                    : 'border border-white/20 bg-white/5 hover:border-white/40'
+                                } ${!isViewer && item.checklist_item_id && item.task ? 'cursor-pointer' : 'cursor-default'}`}
+                              >
+                                {item.completed && (
+                                  <Check className="h-2 w-2 text-green-400" />
+                                )}
+                              </button>
+                              <span
+                                className={`text-[10px] truncate ${
+                                  item.completed
+                                    ? 'text-green-400/70 line-through'
+                                    : 'text-slate-400'
+                                }`}
+                              >
+                                {item.title}
+                              </span>
+                            </div>
+                          ))}
+                          {items.length > 4 && (
+                            <div className="text-[10px] text-slate-400 pl-4">
+                              {t('dailySchedule.moreItems', { count: items.length - 4 })}
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between text-xs py-1">
+                        <span className="text-slate-400">{t('dailySchedule.todayChecklist')}</span>
+                        <div className="flex items-center gap-1">
+                          <span className="text-slate-500">0</span>
+                          {!isViewer && (
+                            <button
+                              onClick={() => {
+                                setAddChecklistAssigneeId(member.userId);
+                                setShowAddChecklistModal(true);
+                              }}
+                              className="w-4 h-4 flex items-center justify-center rounded hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+                            >
+                              <Plus className="h-3 w-3" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
 
             {/* 시간 그리드 */}
             <div className="relative">
@@ -1148,6 +1201,24 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
           onSelectBoardItem={handleBoardChecklistItemSelect}
           onSelectMeeting={handleMeetingSelect}
           onClose={handleCloseChecklistModal}
+        />
+      )}
+
+      {/* 데일리 체크리스트 추가 모달 */}
+      {showAddChecklistModal && addChecklistAssigneeId && (
+        <AddDailyChecklistModal
+          boardId={boardId}
+          assigneeId={addChecklistAssigneeId}
+          assignedDate={format(selectedDate, 'yyyy-MM-dd')}
+          onAdd={() => {
+            loadSchedule();
+            setShowAddChecklistModal(false);
+            setAddChecklistAssigneeId('');
+          }}
+          onClose={() => {
+            setShowAddChecklistModal(false);
+            setAddChecklistAssigneeId('');
+          }}
         />
       )}
 

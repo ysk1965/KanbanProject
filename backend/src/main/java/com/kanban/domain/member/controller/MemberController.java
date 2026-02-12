@@ -57,6 +57,15 @@ public class MemberController {
         return ResponseEntity.ok(response);
     }
 
+    @PutMapping("/reorder")
+    public ResponseEntity<MemberResponse.ListResponse> reorderMembers(
+            @PathVariable String boardId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody MemberRequest.ReorderMembers request) {
+        MemberResponse.ListResponse response = memberService.reorderMembers(boardId, principal.getUserId(), request);
+        return ResponseEntity.ok(response);
+    }
+
     @DeleteMapping("/{memberId}")
     public ResponseEntity<Map<String, String>> removeMember(
             @PathVariable String boardId,

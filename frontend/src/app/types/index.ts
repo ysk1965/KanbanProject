@@ -89,7 +89,7 @@ export type Role = BoardRole;
 // 구독 관련 타입
 // ========================================
 
-export type SubscriptionStatus = 'TRIAL' | 'ACTIVE' | 'GRACE' | 'SUSPENDED' | 'CANCELED';
+export type SubscriptionStatus = 'TRIAL' | 'ACTIVE' | 'SUSPENDED' | 'CANCELED';
 
 export interface Subscription {
   id?: string;
@@ -100,7 +100,6 @@ export interface Subscription {
   seat_count?: number;
   price_per_seat?: number | null;
   trial_ends_at: string | null;
-  grace_ends_at?: string | null;
   current_period_start?: string | null;
   current_period_end: string | null;
   billable_member_count?: number;
@@ -244,8 +243,6 @@ export interface Feature {
   created_at?: string;
   updated_at?: string;
   completed_at?: string | null;
-  // Legacy compatibility
-  boardId?: string;
 }
 
 // ========================================
@@ -278,9 +275,6 @@ export interface Task {
   created_at?: string;
   updated_at?: string;
   completed_at?: string | null;
-  // Legacy compatibility
-  boardId?: string;
-  currentBlock?: string;
 }
 
 // ========================================

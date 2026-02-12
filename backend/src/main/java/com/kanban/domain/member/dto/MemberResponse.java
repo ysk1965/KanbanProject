@@ -27,6 +27,7 @@ public class MemberResponse {
         private LocalDateTime joinedAt;
         private InvitedByInfo invitedBy;
         private String assigneeColor;
+        private Integer displayOrder;
 
         public static Detail of(BoardMember member) {
             return Detail.builder()
@@ -36,6 +37,7 @@ public class MemberResponse {
                     .joinedAt(member.getJoinedAt())
                     .invitedBy(member.getInvitedBy() != null ? InvitedByInfo.of(member) : null)
                     .assigneeColor(member.getAssigneeColor())
+                    .displayOrder(member.getDisplayOrder())
                     .build();
         }
     }

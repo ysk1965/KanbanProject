@@ -336,7 +336,6 @@
     "trialRemaining": "{{days}} days remaining in your trial.",
     "viewPricing": "View Plans",
     "trialEnded": "Your trial has ended",
-    "graceWarning": "Features will be restricted if you don't subscribe within 3 days.",
     "subscribeNow": "Subscribe Now",
     "boardSuspended": "This board is currently suspended",
     "suspendedDesc": "Subscribe to regain access to all features.",
@@ -492,7 +491,6 @@
     "currentSubscription": "Current Subscription",
     "statusTrial": "Free Trial",
     "statusActive": "Active",
-    "statusGrace": "Grace Period",
     "statusSuspended": "Suspended",
     "statusCanceled": "Canceled",
     "plan": "Plan",
@@ -522,7 +520,6 @@
     "changeBillingCycle": "Change Billing Cycle",
     "trialActive": "Free trial is active",
     "trialEndsAt": "Trial ends on {{date}}",
-    "graceMessage": "Your subscription is in a grace period. Please update your payment method.",
     "suspendedMessage": "Your subscription is suspended. Please contact support.",
     "canceledMessage": "Your subscription has been canceled.",
     "selectBillingCycle": "Billing Cycle",
@@ -2049,14 +2046,30 @@
         "none": "Not available"
       },
       "items": {
-        "hierarchy": { "name": "3-Tier Structure (Feature → Task → Checklist)" },
-        "autoProgress": { "name": "Auto Progress Tracking" },
-        "gantt": { "name": "Gantt Chart" },
-        "dailySchedule": { "name": "Daily Schedule (Timeblock)" },
-        "aiReports": { "name": "AI Weekly Reports" },
-        "slackIntegration": { "name": "Slack Notification Integration" },
-        "statistics": { "name": "Statistics Dashboard" },
-        "resourceAnalytics": { "name": "Resource Analytics (Team Load)" }
+        "hierarchy": {
+          "name": "3-Tier Structure (Feature → Task → Checklist)"
+        },
+        "autoProgress": {
+          "name": "Auto Progress Tracking"
+        },
+        "gantt": {
+          "name": "Gantt Chart"
+        },
+        "dailySchedule": {
+          "name": "Daily Schedule (Timeblock)"
+        },
+        "aiReports": {
+          "name": "AI Weekly Reports"
+        },
+        "slackIntegration": {
+          "name": "Slack Notification Integration"
+        },
+        "statistics": {
+          "name": "Statistics Dashboard"
+        },
+        "resourceAnalytics": {
+          "name": "Resource Analytics (Team Load)"
+        }
       }
     },
     "differentiators": {

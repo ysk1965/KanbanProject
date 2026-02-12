@@ -836,10 +836,10 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
   const ReactionBar = ({ comment }: { comment: TaskComment }) => {
     const reactions = comment.reactions || [];
     const hasReactions = reactions.length > 0;
-    if (!hasReactions && !canEdit) return null;
+    if (!hasReactions) return null;
 
     return (
-      <div className={`flex flex-wrap items-center gap-1 mt-1.5 ${!hasReactions ? 'opacity-0 group-hover:opacity-100 transition-opacity' : ''}`}>
+      <div className="flex flex-wrap items-center gap-1 mt-1.5">
         {reactions.map(reaction => {
           const isMyReaction = reaction.users.some(u => u.id === currentUser?.id);
           const tooltipNames = reaction.users.map(u =>
@@ -867,17 +867,6 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
             </button>
           );
         })}
-        {canEdit && (
-          <div className={`relative ${hasReactions ? '' : 'opacity-0 group-hover:opacity-100'} transition-opacity`}>
-            <button
-              onClick={() => setEmojiPickerCommentId(prev => prev === comment.id ? null : comment.id)}
-              className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-white/5 border border-white/10 text-slate-400 hover:bg-white/10 hover:text-slate-300 transition-all"
-              title={t('comment.reaction.addReaction')}>
-              <SmilePlus className="h-3 w-3" />
-            </button>
-            <EmojiPicker commentId={comment.id} />
-          </div>
-        )}
       </div>
     );
   };
@@ -944,18 +933,27 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
                         {formatRelativeTime(comment.created_at)}
                         {isEdited && ` (${t('comment.edited')})`}
                       </span>
-                      {canEdit && (isAuthor || isAdminOrOwner) && !isBeingEdited && (
-                        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity ml-auto">
+                      {canEdit && !isBeingEdited && (
+                        <div className="relative flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity ml-auto">
+                          <button
+                            onClick={() => setEmojiPickerCommentId(prev => prev === comment.id ? null : comment.id)}
+                            className="p-1 rounded hover:bg-white/10 text-slate-400 hover:text-slate-300"
+                            title={t('comment.reaction.addReaction')}>
+                            <SmilePlus className="h-3 w-3" />
+                          </button>
+                          <EmojiPicker commentId={comment.id} />
                           {isAuthor && (
                             <button onClick={() => startEditing(comment)}
                               className="p-1 rounded hover:bg-white/10 text-slate-400 hover:text-slate-300">
                               <Pencil className="h-3 w-3" />
                             </button>
                           )}
-                          <button onClick={() => setDeleteTarget(comment.id)}
-                            className="p-1 rounded hover:bg-red-500/10 text-slate-400 hover:text-red-400">
-                            <Trash2 className="h-3 w-3" />
-                          </button>
+                          {(isAuthor || isAdminOrOwner) && (
+                            <button onClick={() => setDeleteTarget(comment.id)}
+                              className="p-1 rounded hover:bg-red-500/10 text-slate-400 hover:text-red-400">
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>
@@ -1072,14 +1070,14 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
 
           return current.type === 'video' ? (
             <Suspense fallback={
-              <div data-lightbox-overlay className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm">
+              <div data-lightbox-overlay className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm pointer-events-auto">
                 <Loader2 className="h-8 w-8 animate-spin text-white" />
               </div>
             }>
               <VideoLightbox url={current.url} onClose={() => setLightboxMedia(null)} />
             </Suspense>
           ) : (
-            <div data-lightbox-overlay className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm cursor-pointer"
+            <div data-lightbox-overlay className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm cursor-pointer pointer-events-auto"
               onPointerDown={e => e.stopPropagation()}
               onMouseDown={e => e.stopPropagation()}
               onClick={(e) => { e.stopPropagation(); setLightboxMedia(null); }}
