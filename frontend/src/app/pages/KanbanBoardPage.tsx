@@ -2291,7 +2291,7 @@ export function KanbanBoardPage() {
               }}
               refreshTrigger={scheduleRefreshKey}
               currentUserRole={currentUserRole}
-              initialSubTab={urlTab as 'timeblock' | 'checklist' | 'meeting' | undefined}
+              initialSubTab={urlTab as 'timeblock' | 'meeting' | undefined}
             />
           </main>
         ) : viewMode === 'notes' ? (

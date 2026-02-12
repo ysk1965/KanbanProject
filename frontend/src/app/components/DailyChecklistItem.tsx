@@ -11,6 +11,7 @@ interface DailyChecklistItemProps {
   onRemove: () => void;
   onToggle?: () => void;
   isDraggable?: boolean;
+  compact?: boolean;
 }
 
 export function DailyChecklistItem({
@@ -19,6 +20,7 @@ export function DailyChecklistItem({
   onRemove,
   onToggle,
   isDraggable = true,
+  compact = false,
 }: DailyChecklistItemProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
@@ -77,7 +79,7 @@ export function DailyChecklistItem({
     <div
       ref={setNodeRef}
       style={style}
-      className={`group relative rounded-xl border border-white/15 bg-white/5 overflow-hidden transition-all ${
+      className={`group relative ${compact ? 'rounded-lg' : 'rounded-xl'} border border-white/15 bg-white/5 overflow-hidden transition-all ${
         isDragging ? 'shadow-2xl ring-2 ring-bridge-accent' : 'hover:border-white/20'
       } ${optimisticCompleted ? 'opacity-60' : ''}`}
       onMouseEnter={() => setIsHovered(true)}
@@ -89,7 +91,7 @@ export function DailyChecklistItem({
         style={{ backgroundColor: featureColor }}
       />
 
-      <div className="flex items-start gap-3 pl-4 pr-3 py-3">
+      <div className={`flex items-start ${compact ? 'gap-1.5 pl-3 pr-2 py-1.5' : 'gap-3 pl-4 pr-3 py-3'}`}>
         {/* 드래그 핸들 */}
         {isDraggable && !isReadOnly && (
           <div
@@ -97,7 +99,7 @@ export function DailyChecklistItem({
             {...listeners}
             className="flex-shrink-0 cursor-grab active:cursor-grabbing text-slate-400 hover:text-slate-200 transition-colors pt-0.5"
           >
-            <GripVertical className="h-4 w-4" />
+            <GripVertical className={compact ? 'h-3 w-3' : 'h-4 w-4'} />
           </div>
         )}
 
@@ -106,34 +108,34 @@ export function DailyChecklistItem({
           type="button"
           onClick={handleToggle}
           disabled={isReadOnly || !onToggle || isToggling}
-          className={`flex-shrink-0 w-5 h-5 rounded-md border mt-0.5 flex items-center justify-center transition-colors ${
+          className={`flex-shrink-0 ${compact ? 'w-4 h-4 rounded' : 'w-5 h-5 rounded-md'} border mt-0.5 flex items-center justify-center transition-colors ${
             optimisticCompleted
               ? 'bg-green-500 border-green-500'
               : 'border-white/20 bg-white/5 hover:border-white/40'
           } ${!isReadOnly && onToggle ? 'cursor-pointer' : 'cursor-default'}`}
         >
-          {optimisticCompleted && <Check className="h-3 w-3 text-white" />}
+          {optimisticCompleted && <Check className={compact ? 'h-2.5 w-2.5 text-white' : 'h-3 w-3 text-white'} />}
         </button>
 
         {/* 내용 */}
         <div className="flex-1 min-w-0">
           <p
-            className={`text-sm font-medium ${
+            className={`${compact ? 'text-xs' : 'text-sm'} font-medium ${
               optimisticCompleted ? 'text-slate-400 line-through' : 'text-white'
-            }`}
+            } truncate`}
           >
             {item.title}
           </p>
 
           {/* Task 정보 */}
           {item.task && (
-            <p className="text-xs text-slate-400 mt-1 truncate">
+            <p className={`${compact ? 'text-[10px]' : 'text-xs'} text-slate-400 mt-0.5 truncate`}>
               {item.task.title}
             </p>
           )}
 
           {/* Feature 정보 */}
-          {item.feature && (
+          {item.feature && !compact && (
             <div className="flex items-center gap-1.5 mt-1.5">
               <div
                 className="w-2 h-2 rounded-full flex-shrink-0"
@@ -151,9 +153,9 @@ export function DailyChecklistItem({
           <button
             onClick={handleRemove}
             disabled={isRemoving}
-            className="flex-shrink-0 p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+            className={`flex-shrink-0 ${compact ? 'p-0.5' : 'p-1.5'} rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors`}
           >
-            <X className="h-4 w-4" />
+            <X className={compact ? 'h-3 w-3' : 'h-4 w-4'} />
           </button>
         )}
       </div>

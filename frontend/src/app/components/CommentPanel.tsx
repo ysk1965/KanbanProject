@@ -140,6 +140,8 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
 
   // 이모지 리액션
   const [emojiPickerCommentId, setEmojiPickerCommentId] = useState<string | null>(null);
+  const [emojiPickerPos, setEmojiPickerPos] = useState<{ top: number; left: number } | null>(null);
+  const emojiTriggerRef = useRef<HTMLButtonElement>(null);
 
   // 커스텀 이모지
   const [customEmojis, setCustomEmojis] = useState<BoardCustomEmoji[]>([]);
@@ -203,13 +205,39 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
   useEffect(() => {
     if (!emojiPickerCommentId) return;
     const handleClick = (e: MouseEvent) => {
-      if (emojiPickerRef.current && !emojiPickerRef.current.contains(e.target as Node)) {
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(e.target as Node) &&
+          emojiTriggerRef.current && !emojiTriggerRef.current.contains(e.target as Node)) {
         setEmojiPickerCommentId(null);
+        setEmojiPickerPos(null);
       }
     };
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, [emojiPickerCommentId]);
+
+  const openEmojiPicker = (commentId: string, buttonEl: HTMLButtonElement) => {
+    if (emojiPickerCommentId === commentId) {
+      setEmojiPickerCommentId(null);
+      setEmojiPickerPos(null);
+      return;
+    }
+    const rect = buttonEl.getBoundingClientRect();
+    const pickerWidth = 210;
+    const pickerHeight = 220;
+    let left = rect.left;
+    let top = rect.bottom + 4;
+    // 오른쪽 화면 밖 방지
+    if (left + pickerWidth > window.innerWidth - 8) {
+      left = window.innerWidth - pickerWidth - 8;
+    }
+    // 아래쪽 화면 밖 → 위로 표시
+    if (top + pickerHeight > window.innerHeight - 8) {
+      top = rect.top - pickerHeight - 4;
+    }
+    setEmojiPickerPos({ top, left });
+    setEmojiPickerCommentId(commentId);
+    (emojiTriggerRef as React.MutableRefObject<HTMLButtonElement | null>).current = buttonEl;
+  };
 
   // ========== 이모지 리액션 ==========
 
@@ -223,6 +251,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
       console.error('Failed to toggle reaction:', error);
     }
     setEmojiPickerCommentId(null);
+    setEmojiPickerPos(null);
   };
 
   // ========== 커스텀 이모지 관리 ==========
@@ -735,12 +764,13 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
     );
   };
 
-  /** 이모지 피커 팝업 */
+  /** 이모지 피커 팝업 (portal) */
   const EmojiPicker = ({ commentId }: { commentId: string }) => {
-    if (emojiPickerCommentId !== commentId) return null;
-    return (
+    if (emojiPickerCommentId !== commentId || !emojiPickerPos) return null;
+    return createPortal(
       <div ref={emojiPickerRef}
-        className="absolute left-0 top-full mt-1 z-50 bg-bridge-obsidian border border-white/20 rounded-xl shadow-xl p-2 min-w-[200px]">
+        style={{ position: 'fixed', top: emojiPickerPos.top, left: emojiPickerPos.left, zIndex: 9999 }}
+        className="bg-bridge-obsidian border border-white/20 rounded-xl shadow-xl p-2 min-w-[200px]">
         {/* 기본 이모지 */}
         <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1 mb-1">{t('comment.customEmoji.default', '기본')}</div>
         <div className="grid grid-cols-4 gap-1">
@@ -828,7 +858,8 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
             )}
           </>
         )}
-      </div>
+      </div>,
+      document.body
     );
   };
 
@@ -934,9 +965,9 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
                         {isEdited && ` (${t('comment.edited')})`}
                       </span>
                       {canEdit && !isBeingEdited && (
-                        <div className="relative flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity ml-auto">
+                        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity ml-auto">
                           <button
-                            onClick={() => setEmojiPickerCommentId(prev => prev === comment.id ? null : comment.id)}
+                            onClick={(e) => openEmojiPicker(comment.id, e.currentTarget)}
                             className="p-1 rounded hover:bg-white/10 text-slate-400 hover:text-slate-300"
                             title={t('comment.reaction.addReaction')}>
                             <SmilePlus className="h-3 w-3" />
