@@ -203,6 +203,7 @@ export function DailyChecklistView({
                 isReadOnly={isReadOnly}
                 onItemAdded={loadData}
                 onItemRemoved={loadData}
+                onItemToggled={loadData}
                 onPositionChanged={loadData}
                 onAddClick={() => handleOpenAddModal(column.user.id)}
               />

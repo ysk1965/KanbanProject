@@ -974,6 +974,10 @@ export const memberService = {
     return memberAPI.updateMemberColor(boardId, memberId, assigneeColor);
   },
 
+  reorderMembers: async (boardId: string, memberIds: string[]) => {
+    return memberAPI.reorderMembers(boardId, memberIds);
+  },
+
   removeMember: async (boardId: string, memberId: string): Promise<void> => {
     try {
       await memberAPI.removeMember(boardId, memberId);

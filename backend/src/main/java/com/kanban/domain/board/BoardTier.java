@@ -2,12 +2,12 @@ package com.kanban.domain.board;
 
 /**
  * 보드 티어 enum
- * - TRIAL: 3일 무료 체험 (Premium 기능 사용 가능)
+ * - TRIAL: 7일 무료 체험 (Premium 기능 사용 가능)
  * - STANDARD: 무료 (위클리스케줄/마일스톤/Slack 접근 불가)
  * - PREMIUM: 유료 (무제한)
  */
 public enum BoardTier {
-    TRIAL,      // 3일 무료 체험
+    TRIAL,      // 7일 무료 체험
     STANDARD,   // 무료 기본
     PREMIUM     // 유료 구독
 }

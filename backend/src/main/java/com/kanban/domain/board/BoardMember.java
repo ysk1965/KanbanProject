@@ -44,6 +44,9 @@ public class BoardMember {
     @Column(name = "assignee_color", length = 20)
     private String assigneeColor;
 
+    @Column(name = "display_order")
+    private Integer displayOrder;
+
     @PrePersist
     public void prePersist() {
         if (this.id == null) {
@@ -60,6 +63,10 @@ public class BoardMember {
 
     public void updateAssigneeColor(String assigneeColor) {
         this.assigneeColor = assigneeColor;
+    }
+
+    public void updateDisplayOrder(Integer displayOrder) {
+        this.displayOrder = displayOrder;
     }
 
     public boolean isOwner() {

@@ -10,7 +10,8 @@ import java.util.Optional;
 
 public interface BoardMemberRepository extends JpaRepository<BoardMember, String> {
 
-    List<BoardMember> findByBoardId(String boardId);
+    @Query("SELECT bm FROM BoardMember bm WHERE bm.board.id = :boardId ORDER BY COALESCE(bm.displayOrder, 999999) ASC, bm.joinedAt ASC")
+    List<BoardMember> findByBoardId(@Param("boardId") String boardId);
 
     Optional<BoardMember> findByBoardIdAndUserId(String boardId, String userId);
 

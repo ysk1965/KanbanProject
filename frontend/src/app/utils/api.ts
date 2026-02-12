@@ -332,7 +332,7 @@ export interface AuthResponse {
 }
 
 export interface BoardSubscription {
-  status: 'TRIAL' | 'ACTIVE' | 'GRACE' | 'SUSPENDED' | 'CANCELED';
+  status: 'TRIAL' | 'ACTIVE' | 'SUSPENDED' | 'CANCELED';
   plan: string | null;
   trial_ends_at: string | null;
   current_period_end: string | null;
@@ -518,6 +518,7 @@ export interface MemberResponse {
   joined_at: string;
   invited_by: { id: string; name: string } | null;
   assignee_color?: string | null;
+  display_order?: number | null;
 }
 
 export interface MembersListResponse {
@@ -575,12 +576,11 @@ export interface ActivitiesResponse {
 
 export interface SubscriptionResponse {
   id: string;
-  status: 'TRIAL' | 'ACTIVE' | 'GRACE' | 'SUSPENDED' | 'CANCELED';
+  status: 'TRIAL' | 'ACTIVE' | 'SUSPENDED' | 'CANCELED';
   plan: string | null;
   billing_cycle: 'MONTHLY' | 'YEARLY' | null;
   price: number | null;
   trial_ends_at: string | null;
-  grace_ends_at: string | null;
   current_period_start: string | null;
   current_period_end: string | null;
   billable_member_count: number;
@@ -808,8 +808,8 @@ export const userAPI = {
 
   changePassword: async (currentPassword: string, newPassword: string) => {
     return apiClient.post<{ message: string }>('/users/me/password', {
-      currentPassword,
-      newPassword,
+      current_password: currentPassword,
+      new_password: newPassword,
     });
   },
 
@@ -1479,6 +1479,13 @@ export const memberAPI = {
     return apiClient.put<MemberResponse>(
       `/boards/${boardId}/members/${memberId}/color`,
       { assignee_color: assigneeColor },
+    );
+  },
+
+  reorderMembers: async (boardId: string, memberIds: string[]) => {
+    return apiClient.put<MembersListResponse>(
+      `/boards/${boardId}/members/reorder`,
+      { member_ids: memberIds },
     );
   },
 };
@@ -3287,10 +3294,10 @@ export interface SlackTestResult {
 }
 
 export interface SlackWebhookMemberStatus {
-  userId: string;
+  user_id: string;
   connected: boolean;
   enabled: boolean;
-  channelName: string | null;
+  channel_name: string | null;
 }
 
 export const notificationPreferenceAPI = {

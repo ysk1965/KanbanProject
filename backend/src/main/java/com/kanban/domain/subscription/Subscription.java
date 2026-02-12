@@ -53,8 +53,7 @@ public class Subscription {
     @Column(name = "trial_ends_at")
     private LocalDateTime trialEndsAt;
 
-    @Column(name = "grace_ends_at")
-    private LocalDateTime graceEndsAt;
+    // grace_ends_at 컬럼은 더 이상 사용하지 않음 (GRACE 상태 제거)
 
     @Column(name = "current_period_start")
     private LocalDateTime currentPeriodStart;
@@ -89,7 +88,7 @@ public class Subscription {
         return Subscription.builder()
                 .board(board)
                 .status(SubscriptionStatus.TRIAL)
-                .trialEndsAt(LocalDateTime.now(ZoneOffset.UTC).plusDays(3))
+                .trialEndsAt(LocalDateTime.now(ZoneOffset.UTC).plusDays(7))
                 .billableMemberCount(1)
                 .build();
     }
@@ -118,7 +117,7 @@ public class Subscription {
     public void downgradeByAdmin() {
         this.status = SubscriptionStatus.TRIAL;
         this.plan = null;
-        this.trialEndsAt = LocalDateTime.now(ZoneOffset.UTC).plusDays(3);
+        this.trialEndsAt = LocalDateTime.now(ZoneOffset.UTC).plusDays(7);
     }
 
     public boolean isActive() {
@@ -127,10 +126,6 @@ public class Subscription {
 
     public boolean isTrial() {
         return this.status == SubscriptionStatus.TRIAL;
-    }
-
-    public boolean isGrace() {
-        return this.status == SubscriptionStatus.GRACE;
     }
 
     public boolean isSuspended() {
@@ -190,11 +185,6 @@ public class Subscription {
     public void updateSeatCount(int seatCount) {
         this.seatCount = seatCount;
         this.price = calculateTotalPrice();
-    }
-
-    public void enterGracePeriod() {
-        this.status = SubscriptionStatus.GRACE;
-        this.graceEndsAt = LocalDateTime.now(ZoneOffset.UTC).plusDays(3);
     }
 
     public void suspend() {

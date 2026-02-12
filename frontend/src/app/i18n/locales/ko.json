@@ -336,7 +336,6 @@
     "trialRemaining": "체험 기간이 {{days}}일 남았습니다.",
     "viewPricing": "요금제 보기",
     "trialEnded": "체험 기간이 종료되었습니다",
-    "graceWarning": "3일 내 구독하지 않으면 기능이 제한됩니다.",
     "subscribeNow": "지금 구독하기",
     "boardSuspended": "이 보드는 현재 정지 상태입니다",
     "suspendedDesc": "구독을 시작하면 모든 기능을 다시 사용할 수 있습니다.",
@@ -492,7 +491,6 @@
     "currentSubscription": "현재 구독",
     "statusTrial": "무료 체험",
     "statusActive": "활성",
-    "statusGrace": "유예 기간",
     "statusSuspended": "일시 중지",
     "statusCanceled": "취소됨",
     "plan": "플랜",
@@ -522,7 +520,6 @@
     "changeBillingCycle": "결제 주기 변경",
     "trialActive": "무료 체험이 활성화되어 있습니다",
     "trialEndsAt": "체험 종료일: {{date}}",
-    "graceMessage": "구독이 유예 기간입니다. 결제 수단을 업데이트해주세요.",
     "suspendedMessage": "구독이 일시 중지되었습니다. 고객 지원에 문의해주세요.",
     "canceledMessage": "구독이 취소되었습니다.",
     "selectBillingCycle": "결제 주기",
@@ -2049,14 +2046,30 @@
         "none": "미지원"
       },
       "items": {
-        "hierarchy": { "name": "3계층 구조 (Feature → Task → Checklist)" },
-        "autoProgress": { "name": "자동 진행률 추적" },
-        "gantt": { "name": "간트 차트" },
-        "dailySchedule": { "name": "데일리 스케줄 (타임블록)" },
-        "aiReports": { "name": "AI 주간 리포트" },
-        "slackIntegration": { "name": "Slack 알림 연동" },
-        "statistics": { "name": "통계 대시보드" },
-        "resourceAnalytics": { "name": "리소스 분석 (팀 부하)" }
+        "hierarchy": {
+          "name": "3계층 구조 (Feature → Task → Checklist)"
+        },
+        "autoProgress": {
+          "name": "자동 진행률 추적"
+        },
+        "gantt": {
+          "name": "간트 차트"
+        },
+        "dailySchedule": {
+          "name": "데일리 스케줄 (타임블록)"
+        },
+        "aiReports": {
+          "name": "AI 주간 리포트"
+        },
+        "slackIntegration": {
+          "name": "Slack 알림 연동"
+        },
+        "statistics": {
+          "name": "통계 대시보드"
+        },
+        "resourceAnalytics": {
+          "name": "리소스 분석 (팀 부하)"
+        }
       }
     },
     "differentiators": {

@@ -67,7 +67,7 @@ public class Board extends BaseTimeEntity {
             this.id = UUID.randomUUID().toString();
         }
         if (this.tier == BoardTier.TRIAL && this.trialEndsAt == null) {
-            this.trialEndsAt = LocalDateTime.now(ZoneOffset.UTC).plusDays(3);
+            this.trialEndsAt = LocalDateTime.now(ZoneOffset.UTC).plusDays(7);
         }
     }
 

@@ -1,24 +1,68 @@
-# BRIDGE 프로젝트 가이드
+# BRIDGE 프로젝트 개발 가이드
 
-이 문서는 Claude Code가 BRIDGE 프로젝트 개발 시 참조하는 가이드입니다.
+이 문서는 Claude Code가 BRIDGE 프로젝트 개발 시 참조하는 운영 가이드입니다.
 
 ## 프로젝트 구조
 
 ```
-frontend/
-├── src/app/
-│   ├── components/       # UI 컴포넌트
-│   │   ├── landing/      # 랜딩 페이지 컴포넌트
-│   │   └── ui/           # 기본 UI 컴포넌트 (shadcn)
-│   ├── pages/            # 페이지 컴포넌트
-│   ├── contexts/         # React Context
-│   ├── utils/            # API, 서비스, 유틸리티
-│   ├── types/            # TypeScript 타입 정의
-│   └── styles/           # CSS 스타일
-backend/
-├── src/main/java/com/kanban/
-│   ├── domain/           # 도메인별 패키지 (board, task, user 등)
-│   └── global/           # 공통 설정, 예외 처리
+KanbanProject/
+├── frontend/                     # React 18 + TypeScript + Vite
+│   └── src/app/
+│       ├── components/           # 79개 UI 컴포넌트
+│       │   ├── landing/          # 랜딩 페이지 (LandingPage, Diagrams, BridgeScene)
+│       │   └── ui/               # 48개 shadcn/Radix 기반 컴포넌트
+│       ├── pages/                # 페이지 (KanbanBoardPage, AdminPage 등)
+│       ├── contexts/             # AuthContext, DragContext, ThemeContext, AnalyticsContext
+│       ├── hooks/                # useAnalytics, useVideoThumbnail
+│       ├── utils/                # api.ts, services.ts, dateUtils.ts, assigneeColor.ts
+│       ├── types/                # TypeScript 타입 정의 (index.ts)
+│       ├── i18n/locales/         # 10개 언어 (ko, en, ja, zh, zh-TW, vi, th, es, pt-BR, hi)
+│       ├── constants/            # 상수 정의
+│       └── lib/                  # 외부 라이브러리 설정
+├── backend/                      # Spring Boot 3.4 + Java 21 + Gradle
+│   └── src/main/java/com/kanban/
+│       ├── domain/               # 31개 도메인 패키지 (246개 Java 파일)
+│       │   ├── auth/             # 인증 (JWT, Google OAuth2)
+│       │   ├── board/            # 보드 (CRUD, 멤버, 커스텀 이모지)
+│       │   ├── block/            # 칸반 블록
+│       │   ├── feature/          # 피처 카드
+│       │   ├── task/             # 태스크
+│       │   ├── comment/          # 댓글 + 리액션
+│       │   ├── checklist/        # 체크리스트
+│       │   ├── dailychecklist/   # 일일 체크리스트
+│       │   ├── schedule/         # 일정 관리
+│       │   ├── meeting/          # 미팅 (AI 전사/요약)
+│       │   ├── note/             # 노트 (폴더/문서, 버전관리)
+│       │   ├── notification/     # 알림
+│       │   ├── integration/slack/# 슬랙 웹훅
+│       │   ├── subscription/     # 구독/결제 (토스페이먼츠)
+│       │   ├── statistics/       # 통계
+│       │   ├── report/           # 주간 리포트 (AI)
+│       │   ├── member/           # 보드 멤버 관리
+│       │   ├── invite/           # 초대 링크
+│       │   ├── admin/            # 시스템 관리
+│       │   └── ...               # activity, announcement, inquiry, milestone, tag, weight 등
+│       └── global/               # 공통 (config, security, filter, exception, email, scheduler)
+├── infrastructure/terraform/     # Terraform IaC (dev, prod 환경)
+├── docs/                         # 기획 문서 (IA, Wireframe, Design, ERD, API, Tech)
+└── .github/workflows/            # CI/CD (ci, deploy-dev, deploy-testprod, terraform)
+```
+
+---
+
+## 개발 명령어
+
+```bash
+# Frontend
+cd frontend && npm run dev        # 개발 서버 (:5173)
+cd frontend && npm run build      # 프로덕션 빌드 (타입체크 포함)
+
+# Backend
+cd backend && ./gradlew bootRun --args='--spring.profiles.active=local'  # H2 로컬
+cd backend && ./gradlew build test --no-daemon                           # 빌드+테스트
+
+# Docker (로컬 DB)
+docker-compose up -d              # PostgreSQL 15 + Redis 7
 ```
 
 ---
@@ -33,6 +77,8 @@ backend/
 | Bridge Obsidian | `bridge-obsidian` | `#0F1419` | 카드/헤더 배경 |
 | Bridge Accent | `bridge-accent` | `#6366F1` | 주요 액센트 (인디고) |
 | Bridge Secondary | `bridge-secondary` | `#2DD4BF` | 보조 액센트 (틸) |
+
+모든 Bridge 테마 변수는 `frontend/src/styles/theme.css`에 정의.
 
 #### 사용 예시
 ```tsx
@@ -59,298 +105,194 @@ backend/
 - **라벨**: `text-[11px] font-bold uppercase tracking-widest text-slate-400`
 - **작은 텍스트**: `text-[10px] tracking-[0.3em] uppercase`
 
-```tsx
-// 헤딩
-<h1 className="font-serif text-4xl font-bold tracking-tight text-white">제목</h1>
-
-// 라벨
-<label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">라벨</label>
-
-// 본문
-<p className="text-slate-400 font-light leading-relaxed">본문 텍스트</p>
-```
-
 ### 컴포넌트 스타일
 
-#### 카드
 ```tsx
-<div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-6">
-  {/* 카드 내용 */}
-</div>
-```
+// 카드
+<div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-6" />
 
-#### 버튼
-
-**Primary 버튼**
-```tsx
+// Primary 버튼
 <button className="px-6 py-3 bg-bridge-accent text-white rounded-xl font-bold
-  hover:bg-bridge-accent/90 hover:shadow-[0_0_30px_rgba(99,102,241,0.3)] transition-all">
-  버튼
-</button>
-```
+  hover:bg-bridge-accent/90 hover:shadow-[0_0_30px_rgba(99,102,241,0.3)] transition-all" />
 
-**Secondary 버튼**
-```tsx
+// Secondary 버튼
 <button className="px-6 py-3 bg-white/5 border border-white/10 text-white rounded-xl
-  hover:bg-white/10 transition-all">
-  버튼
-</button>
-```
+  hover:bg-white/10 transition-all" />
 
-**Ghost 버튼**
-```tsx
-<button className="text-slate-400 hover:text-white hover:bg-white/5 transition-colors">
-  버튼
-</button>
-```
+// Ghost 버튼
+<button className="text-slate-400 hover:text-white hover:bg-white/5 transition-colors" />
 
-#### 입력 필드
-```tsx
+// 입력 필드
 <input className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4
   text-white placeholder-slate-600
   focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent
   transition-all" />
+
+// 모달
+<div className="bg-bridge-obsidian rounded-2xl border border-white/10 p-6 shadow-2xl" />
+
+// Glass Morphism 헤더
+<header className="bg-bridge-obsidian border-b border-white/5 glass" />
 ```
 
-#### 모달/다이얼로그
-```tsx
-<div className="bg-bridge-obsidian rounded-2xl border border-white/10 p-6 shadow-2xl">
-  {/* 모달 내용 */}
-</div>
-```
+### 새 컴포넌트 작성 시 규칙
 
-### 레이아웃 패턴
-
-#### Glass Morphism 헤더
-```tsx
-<header className="bg-bridge-obsidian border-b border-white/5 glass">
-  {/* glass 클래스는 backdrop-blur 효과 적용 */}
-</header>
-```
-
-#### 섹션 구분
-```tsx
-<section className="py-20 bg-bridge-dark border-y border-white/5">
-  {/* 섹션 내용 */}
-</section>
-```
-
-### 애니메이션
-
-#### Fade In Up
-```tsx
-<div className="animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
-  {/* 애니메이션 적용 요소 */}
-</div>
-```
-
-#### Framer Motion 사용
-```tsx
-import { motion } from 'framer-motion';
-
-<motion.div
-  initial={{ opacity: 0, y: 20 }}
-  animate={{ opacity: 1, y: 0 }}
-  transition={{ duration: 0.5 }}
->
-  {/* 애니메이션 요소 */}
-</motion.div>
-```
-
-### 아이콘
-
-Lucide React 사용:
-```tsx
-import { Plus, Users, Settings } from 'lucide-react';
-
-<Plus className="h-4 w-4" />
-```
-
-### 반응형 디자인
-
-```tsx
-// 모바일 우선 접근
-<div className="p-4 md:p-8 lg:p-12">
-  <h1 className="text-2xl md:text-4xl lg:text-6xl">반응형 제목</h1>
-</div>
-
-// 그리드
-<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-  {/* 그리드 아이템 */}
-</div>
-```
-
----
-
-## 개발 가이드라인
-
-### 새 컴포넌트 작성 시
-
-1. **Bridge 컬러 사용**: `#1d2125`, `#282e33` 대신 `bridge-dark`, `bridge-obsidian` 사용
+1. **Bridge 컬러 사용**: `#1d2125` 대신 `bridge-dark`, `bridge-obsidian`
 2. **테두리**: `border-gray-700` 대신 `border-white/10` 또는 `border-white/5`
 3. **텍스트**: `text-gray-400` 대신 `text-slate-400`
-4. **호버 효과**: `hover:bg-[#3a4149]` 대신 `hover:bg-white/5`
-5. **라운드**: 대부분 `rounded-xl` 또는 `rounded-2xl` 사용
-6. **그림자**: `shadow-lg` 또는 accent 기반 `shadow-[0_0_30px_rgba(99,102,241,0.3)]`
+4. **호버**: `hover:bg-[#3a4149]` 대신 `hover:bg-white/5`
+5. **라운드**: `rounded-xl` 또는 `rounded-2xl`
+6. **아이콘**: Lucide React (`import { Plus } from 'lucide-react'`)
+7. **애니메이션**: Framer Motion (`motion.div` with `initial/animate/transition`)
 
-### 참조 컴포넌트
+### 디자인 참조 파일
 
-디자인 참조가 필요할 때 다음 파일들을 확인:
-- `frontend/src/app/components/landing/LandingPage.tsx` - 전체 디자인 시스템 적용 예시
-- `frontend/src/app/components/landing/Diagrams.tsx` - 인터랙티브 컴포넌트 예시
-- `frontend/src/app/components/LoginPage.tsx` - 폼 디자인 예시
-- `frontend/src/app/components/BoardListPage.tsx` - 카드 그리드 예시
-- `frontend/reference/` - 원본 디자인 레퍼런스
-
-### CSS 변수 위치
-
-모든 Bridge 테마 변수는 `frontend/src/styles/theme.css`에 정의되어 있습니다.
+- `frontend/src/app/components/landing/LandingPage.tsx` - 전체 디자인 시스템
+- `frontend/src/app/components/LoginPage.tsx` - 폼 디자인
+- `frontend/src/app/components/BoardListPage.tsx` - 카드 그리드
 
 ---
 
 ## API 규칙
 
 - 백엔드: `http://localhost:8080/api/v1/`
-- 프론트엔드 서비스: `frontend/src/app/utils/services.ts`
-- API 호출: `frontend/src/app/utils/api.ts`
+- API 클라이언트: `frontend/src/app/utils/api.ts` (JWT 자동 갱신 포함)
+- 서비스 레이어: `frontend/src/app/utils/services.ts`
+
+### JSON 필드 네이밍: snake_case 통일 (필수)
+
+**핵심: 백엔드 Jackson `SNAKE_CASE` 전략 → API JSON 필드는 모두 `snake_case`**
+
+```
+Backend (application.yml): jackson.property-naming-strategy: SNAKE_CASE
+→ Java userId → JSON user_id
+→ Java channelName → JSON channel_name
+→ Java createdAt → JSON created_at
+```
+
+| 구분 | 네이밍 | 예시 |
+|------|--------|------|
+| **API 인터페이스 필드** | `snake_case` | `user_id`, `board_id`, `created_at` |
+| **API 요청 body** | `snake_case` | `{ webhook_url: "...", channel_name: "..." }` |
+| **프론트엔드 내부 변수** | `camelCase` | `const userId = data.user_id` |
+| **React props** | `camelCase` | `<Card boardId={data.board_id} />` |
+
+```typescript
+// ✅ 올바른 사용
+export interface SlackWebhookMemberStatus {
+  user_id: string;
+  channel_name: string | null;
+  enabled: boolean;
+}
+
+// ❌ 사용 금지 (camelCase로 API 인터페이스)
+export interface SlackWebhookMemberStatus {
+  userId: string;        // ← 백엔드는 user_id로 전송
+}
+```
 
 ---
 
-## 타임존 처리 (글로벌 서비스)
+## 타임존 처리 (필수)
 
-**핵심 원칙: UTC 저장, 클라이언트 타임존 표시**
+**원칙: UTC 저장, 클라이언트 타임존 표시**
 
-```
-┌─────────────────────────────────────────────────────────┐
-│  저장: UTC (서버, DB 모두)                               │
-│  API 응답: 2026-02-06T05:30:00Z (UTC + 'Z' suffix)      │
-│  클라이언트: 브라우저 타임존으로 자동 변환하여 표시        │
-└─────────────────────────────────────────────────────────┘
-```
-
-### Backend 규칙
-
+### Backend
 ```java
 // ✅ 올바른 사용
 LocalDateTime.now(ZoneOffset.UTC)
 
 // ❌ 사용 금지
-LocalDateTime.now()                    // 서버 타임존 의존
-LocalDateTime.now(ZoneId.of("Asia/Seoul"))  // 특정 지역 하드코딩
+LocalDateTime.now()                           // 서버 타임존 의존
+LocalDateTime.now(ZoneId.of("Asia/Seoul"))    // 지역 하드코딩
 ```
 
-**설정 파일 (application.yml)**
-```yaml
-spring:
-  jpa:
-    properties:
-      hibernate:
-        jdbc:
-          time_zone: UTC   # 반드시 UTC
-  jackson:
-    time-zone: UTC         # 반드시 UTC
-```
-
-**JacksonConfig**: ISO 8601 + 'Z' suffix 사용
-```java
-DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'")
-```
-
-### Frontend 규칙
-
-**dateUtils 사용 (필수)**: `frontend/src/app/utils/dateUtils.ts`
+### Frontend
+`frontend/src/app/utils/dateUtils.ts` 함수만 사용:
 
 ```typescript
-// ✅ 올바른 사용
 import { formatDate, formatDateTime, formatRelativeTime, getTodayDateString } from '../utils/dateUtils';
 
-formatDate(serverDate)              // 로컬 타임존으로 표시
-formatDateTime(serverDate)          // 날짜+시간 표시
-formatRelativeTime(serverDate)      // "3일 전", "방금 전"
-getTodayDateString()                // 오늘 날짜 (yyyy-MM-dd)
-
-// datetime-local input 처리
+formatDate(serverDate)              // 로컬 타임존 표시
+formatDateTime(serverDate)          // 날짜+시간
+formatRelativeTime(serverDate)      // "3일 전"
+getTodayDateString()                // 오늘 (yyyy-MM-dd)
 toDateTimeLocalValue(serverDate)    // 서버 → input value
-fromDateTimeLocalValue(inputValue)  // input → 서버 (UTC ISO)
+fromDateTimeLocalValue(inputValue)  // input → 서버 UTC ISO
 
 // ❌ 사용 금지
-new Date().toISOString().split('T')[0]     // → getTodayDateString()
-new Date(x).toLocaleDateString('ko-KR')    // → formatDate(x)
-new Date(x).toLocaleString('ko-KR', {...}) // → formatDateTime(x)
+new Date().toISOString().split('T')[0]
+new Date(x).toLocaleDateString('ko-KR')
 ```
-
-**지원 로케일**: ko-KR, en-US, ja-JP, zh-CN (브라우저 언어 자동 감지)
-
-### 체크리스트 (새 시간 관련 코드 작성 시)
-
-- [ ] Backend: `LocalDateTime.now(ZoneOffset.UTC)` 사용
-- [ ] Backend: 특정 지역 타임존 하드코딩 금지
-- [ ] Frontend: `dateUtils` 함수 사용
-- [ ] Frontend: `'ko-KR'` 하드코딩 금지
-- [ ] API 응답: ISO 8601 + 'Z' suffix 확인
 
 ---
 
-## Task Orchestration Workflow                                                        
- 복잡한 작업(3개 이상 하위 태스크, 다중 파일 수정, 시스템 분석 등) 요청 시 다음 워크플 
- 로우를 따른다:   
+## 핵심 아키텍처 패턴
+
+### Assignee Color System
+- 중앙 관리: `frontend/src/app/utils/assigneeColor.ts`
+- 6색: indigo, purple, teal, rose, amber, emerald
+- `getAssigneeHex(name, customColor?)` → inline 스타일 (DraggableCard)
+- `getAssigneeClasses(name, customColor?)` → Tailwind 클래스 (TaskDetailModal 등)
+- DB: `board_members.assignee_color` (nullable VARCHAR)
+- `memberColorMap` prop 흐름: KanbanBoardPage → KanbanBlock → DraggableCard
+
+### Frontend 상태 관리
+- `AuthContext` → 인증/사용자 상태
+- `DragContext` → 드래그 앤 드롭 상태
+- `ThemeContext` → 테마 설정
+- `AnalyticsContext` → 분석 이벤트
+- 주요 상태는 KanbanBoardPage에서 관리 후 props로 전달
+
+### Backend 레이어
+```
+Controller → Service (비즈니스 로직) → Repository (JPA)
+                └→ FacadeService (복합 로직: BoardFacadeService, ScheduleFacadeService)
+```
+
+### 프로파일별 환경
+| 설정 | local | dev | prod |
+|------|-------|-----|------|
+| DB | H2 in-memory | PostgreSQL (RDS) | PostgreSQL (Aurora Serverless v2) |
+| Cache | Simple | Simple | Redis (ElastiCache) |
+| Storage | Local filesystem | S3 + CloudFront | S3 + CloudFront |
+| JPA ddl-auto | update | update | validate |
+| Flyway | off | on | on |
+
+---
+
+## Task Orchestration Workflow
+
+복잡한 작업(3개 이상 하위 태스크, 다중 파일 수정, 시스템 분석 등) 요청 시:
 
 ### Phase 0: 판단 (Triage)
-작업을 받으면 즉시 다음 기준으로 실행 방식 결정:
 
-**병렬 오케스트레이션 조건** (하나라도 해당 시 → 오케스트레이션):
-모든 작업 요청 시 먼저 **실행 전략을 판단**한 후 적절한 방식으로 진행한다.
-- [ ] 2개 이상 독립적인 탐색/분석이 필요
-- [ ] 서로 다른 도메인(InGame, UI, UserData 등)에 걸친 작업
-- [ ] 결과를 취합해야 의미 있는 작업 (비교, 통합, 전체 파악)
-- [ ] 예상 소요 시간이 단일 작업 대비 50% 이상 단축 가능
-- [ ] BE, FE 모두 작업이 필요할 시                                  
-- [ ] 사용자가 "병렬로", "전체적으로" 등 키워드 사용 시   
+**병렬 오케스트레이션** (하나라도 해당 시):
+- 2개 이상 독립적인 탐색/분석 필요
+- 서로 다른 도메인에 걸친 작업
+- BE + FE 모두 작업 필요
+- 결과 취합이 필요한 작업
 
-**직접 실행 조건** (모두 해당 시 → 바로 실행):
-- [ ] 단일 파일 또는 명확한 위치의 수정
-- [ ] 순차적 의존성이 강해 병렬화 불가
-- [ ] 간단한 질문/확인 작업
-- [ ] 이전 작업의 연속 (컨텍스트 유지 필요)                                                                     
- 
- ### Phase 1: 분석 (Analyze)                                                           
- - 작업을 구체적인 하위 태스크로 분해                                                  
- - 각 태스크 간 의존성 파악 (A→B 순서 필요 vs 독립적)                                  
- - 병렬 실행 가능한 그룹 식별                                                          
- - 예상 결과물 명시                                                                    
-                                                                                       
- ### Phase 2: 실행 (Execute)                                                           
- - **독립적 태스크**: Task tool로 병렬 에이전트 실행                                   
- - **의존성 있는 태스크**: 순차 실행                                                   
- - 각 에이전트에게 명확한 범위와 기대 결과 전달                                        
- - 에이전트 타입: Explore(탐색), Plan(설계), Bash(실행)                                
-                                                                                       
- ### Phase 3: 검증 (Verify)                                                            
- - 모든 에이전트 결과 취합                                                             
- - 누락된 작업 확인                                                                    
- - 결과 간 충돌/불일치 검토                                                            
- - 품질 기준 충족 여부 판단                                                            
-                                                                                       
- ### Phase 4: 완료 (Complete)                                                          
- - 검증 통과 시: 최종 결과 정리하여 보고                                               
- - 문제 발견 시: 해당 부분 재작업 후 Phase 3로 복귀                                    
- - 사용자에게 수행된 작업 요약 제공                                                    
-                                          
- ## Task Execution Strategy
+**직접 실행** (모두 해당 시):
+- 단일 파일 또는 명확한 위치의 수정
+- 순차적 의존성이 강해 병렬화 불가
+- 간단한 질문/확인 작업
 
-**판단 후 행동**:
+### Phase 1~4: 분석 → 실행 → 검증 → 완료
 ```
-오케스트레이션 → "[Orchestration] N개 병렬 작업으로 진행합니다" 선언 후 Phase 1로
+오케스트레이션 → "[Orchestration] N개 병렬 작업으로 진행합니다" 선언 후 Task tool 병렬 실행
 직접 실행     → 바로 작업 수행
-애매한 경우   → 사용자에게 "병렬로 할까요?" 확인
+애매한 경우   → 사용자에게 확인
 ```
 
-## 테스트
+---
+
+## 빌드 검증
 
 ```bash
-# 프론트엔드 빌드
+# Frontend 빌드 (타입체크 포함)
 cd frontend && npm run build
 
-# 백엔드 빌드
+# Backend 빌드 + 테스트
 cd backend && ./gradlew build
 ```

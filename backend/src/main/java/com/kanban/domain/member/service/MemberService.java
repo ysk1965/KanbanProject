@@ -24,7 +24,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -218,6 +220,30 @@ public class MemberService {
                 memberId, request.getAssigneeColor(), boardId, userId);
 
         return MemberResponse.Detail.of(member);
+    }
+
+    @Transactional
+    @CacheEvict(value = "members", key = "#boardId")
+    public MemberResponse.ListResponse reorderMembers(String boardId, String userId, MemberRequest.ReorderMembers request) {
+        boardService.checkAdminOrAbove(boardId, userId);
+
+        List<BoardMember> members = boardMemberRepository.findByBoardId(boardId);
+        Map<String, BoardMember> memberMap = members.stream()
+                .collect(Collectors.toMap(BoardMember::getId, m -> m));
+
+        List<String> memberIds = request.getMemberIds();
+        for (int i = 0; i < memberIds.size(); i++) {
+            BoardMember member = memberMap.get(memberIds.get(i));
+            if (member != null) {
+                member.updateDisplayOrder(i + 1);
+            }
+        }
+
+        log.info("Member order updated for board: {} by user: {}", boardId, userId);
+
+        // Re-fetch to return in the new order
+        List<BoardMember> updatedMembers = boardMemberRepository.findByBoardId(boardId);
+        return MemberResponse.ListResponse.of(updatedMembers);
     }
 
     @Transactional

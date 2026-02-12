@@ -3,7 +3,7 @@ import { Plus, User, ClipboardList } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { DailyChecklistItem as DailyChecklistItemType } from '../types';
 import { DailyChecklistItem } from './DailyChecklistItem';
-import { dailyChecklistAPI } from '../utils/api';
+import { dailyChecklistAPI, checklistAPI } from '../utils/api';
 import { getInitials, getAssigneeHex } from '../utils/assigneeColor';
 import {
   DndContext,
@@ -35,6 +35,7 @@ interface DailyChecklistColumnProps {
   isReadOnly: boolean;
   onItemAdded: () => void;
   onItemRemoved: () => void;
+  onItemToggled: () => void;
   onPositionChanged: () => void;
   onAddClick: () => void;
 }
@@ -46,6 +47,7 @@ export function DailyChecklistColumn({
   items,
   isReadOnly,
   onItemRemoved,
+  onItemToggled,
   onPositionChanged,
   onAddClick,
 }: DailyChecklistColumnProps) {
@@ -108,6 +110,26 @@ export function DailyChecklistColumn({
       }
     },
     [boardId, onItemRemoved]
+  );
+
+  const handleToggleItem = useCallback(
+    async (item: DailyChecklistItemType) => {
+      if (!item.checklist_item_id || !item.task?.id) return;
+      try {
+        await checklistAPI.toggleItem(boardId, item.task.id, item.checklist_item_id);
+        // Update local state optimistically
+        setLocalItems(prev =>
+          prev.map(i =>
+            i.id === item.id ? { ...i, completed: !i.completed } : i
+          )
+        );
+        onItemToggled();
+      } catch (error) {
+        console.error('Failed to toggle item:', error);
+        throw error;
+      }
+    },
+    [boardId, onItemToggled]
   );
 
   const completedCount = localItems.filter((item) => item.completed).length;
@@ -186,6 +208,7 @@ export function DailyChecklistColumn({
                   isReadOnly={isReadOnly}
                   isDraggable={!isReadOnly}
                   onRemove={() => handleRemoveItem(item.id)}
+                  onToggle={item.checklist_item_id && item.task?.id ? () => handleToggleItem(item) : undefined}
                 />
               ))}
             </SortableContext>

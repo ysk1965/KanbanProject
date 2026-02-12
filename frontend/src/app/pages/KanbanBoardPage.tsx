@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Plus, Users, Settings, Filter, ArrowLeft, LayoutGrid, Calendar, CalendarDays, Flag, Pencil, Lock, BarChart3, Search, X, User, ChevronDown, CheckCircle2, Circle, Tag as TagIcon, Layers, ChevronsDownUp, ChevronsUpDown, Sparkles, Lightbulb, MessageSquare, FileText } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
+import { isWhiteLabelDomain } from '../utils/domain';
 
 // 뷰 모드 타입
 type ViewMode = 'kanban' | 'weekly' | 'schedule' | 'notes' | 'statistics' | 'ai_report';
@@ -726,6 +727,22 @@ export function KanbanBoardPage() {
       console.error('Failed to remove member:', error);
       setBoardMembersData(prevMembers);
       alert(error?.message || t('kanban.removeMemberFailed'));
+    }
+  };
+
+  const handleReorderMembers = async (memberIds: string[]) => {
+    if (!boardId) return;
+
+    const prevMembers = [...boardMembersData];
+    // Optimistic: reorder locally
+    const memberMap = new Map(boardMembersData.map((m) => [m.id, m]));
+    setBoardMembersData(memberIds.map((id) => memberMap.get(id)!).filter(Boolean));
+
+    try {
+      await memberService.reorderMembers(boardId, memberIds);
+    } catch (error: any) {
+      console.error('Failed to reorder members:', error);
+      setBoardMembersData(prevMembers);
     }
   };
 
@@ -1694,17 +1711,19 @@ export function KanbanBoardPage() {
               <span className="hidden md:inline">{t('kanban.viewGantt')}</span>
               {!canAccessSchedule && <Lock size={10} className="ml-0.5 text-zinc-500" />}
             </button>
-            <button
-              onClick={() => handleViewModeChange('notes')}
-              className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
-                viewMode === 'notes'
-                  ? 'bg-gradient-to-r from-[#2DD4BF] to-[#6366F1] text-white shadow-lg shadow-[#2DD4BF]/20'
-                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-kanban-surface'
-              }`}
-            >
-              <FileText size={14} />
-              <span className="hidden md:inline">{t('kanban.viewNotes', '노트')}</span>
-            </button>
+            {!isWhiteLabelDomain && (
+              <button
+                onClick={() => handleViewModeChange('notes')}
+                className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+                  viewMode === 'notes'
+                    ? 'bg-gradient-to-r from-[#2DD4BF] to-[#6366F1] text-white shadow-lg shadow-[#2DD4BF]/20'
+                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-kanban-surface'
+                }`}
+              >
+                <FileText size={14} />
+                <span className="hidden md:inline">{t('kanban.viewNotes', '노트')}</span>
+              </button>
+            )}
             {isAdminOrOwner && (
               <button
                 onClick={() => {
@@ -2401,6 +2420,7 @@ export function KanbanBoardPage() {
           onUpdateMemberRole={handleUpdateMemberRole}
           onRemoveMember={handleRemoveMember}
           onUpdateMemberColor={handleUpdateMemberColor}
+          onReorderMembers={handleReorderMembers}
           currentUserId={currentUserId}
           boardId={boardId || ''}
           inviteLinks={inviteLinks}

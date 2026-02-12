@@ -52,7 +52,6 @@ export function SubscriptionModal({
     const styles: Record<string, string> = {
       TRIAL: 'bg-blue-500/20 text-blue-400',
       ACTIVE: 'bg-green-500/20 text-green-400',
-      GRACE: 'bg-yellow-500/20 text-yellow-400',
       SUSPENDED: 'bg-red-500/20 text-red-400',
       CANCELED: 'bg-slate-500/20 text-slate-400',
     };
@@ -431,7 +430,7 @@ export function SubscriptionModal({
                 </div>
               )}
 
-              {/* Non-active states (GRACE, SUSPENDED, CANCELED) */}
+              {/* Non-active states (SUSPENDED, CANCELED) */}
               {subscription && !isActive && subscription.status !== 'TRIAL' && (
                 <div className="space-y-4">
                   <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4">

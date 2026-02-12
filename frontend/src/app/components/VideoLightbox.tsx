@@ -57,7 +57,7 @@ export function VideoLightbox({ url, onClose }: VideoLightboxProps) {
   return (
     <div
       data-lightbox-overlay
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80"
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 pointer-events-auto"
       onPointerDown={e => e.stopPropagation()}
       onMouseDown={e => e.stopPropagation()}
       onClick={e => {

@@ -18,9 +18,6 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Stri
     @Query("SELECT s FROM Subscription s WHERE s.status = 'TRIAL' AND s.trialEndsAt < :now")
     List<Subscription> findExpiredTrials(@Param("now") LocalDateTime now);
 
-    @Query("SELECT s FROM Subscription s WHERE s.status = 'GRACE' AND s.graceEndsAt < :now")
-    List<Subscription> findExpiredGracePeriods(@Param("now") LocalDateTime now);
-
     @Query("SELECT s FROM Subscription s WHERE s.status = 'ACTIVE' AND s.nextPaymentAt < :now")
     List<Subscription> findDueForPayment(@Param("now") LocalDateTime now);
 

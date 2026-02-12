@@ -101,33 +101,6 @@ export function TrialBanner({ status, onOpenSubscription, onOpenPremiumBenefits,
 
   if (status === 'ACTIVE' || tier === 'PREMIUM') return null;
 
-  if (status === 'GRACE') {
-    return (
-      <div className="bg-yellow-900 border-b border-yellow-800 px-6 py-3">
-        <div className="flex items-center justify-between max-w-7xl mx-auto">
-          <div className="flex items-center gap-2">
-            <span className="text-2xl">⚠️</span>
-            <div>
-              <span className="font-semibold text-white">
-                {t('trial.trialEnded')}
-              </span>
-              <span className="text-yellow-200 ml-2">
-                {t('trial.graceWarning')}
-              </span>
-            </div>
-          </div>
-          <Button
-            size="sm"
-            className="bg-yellow-500 hover:bg-yellow-600 text-slate-900"
-            onClick={onOpenSubscription}
-          >
-            {t('trial.subscribeNow')}
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
   if (status === 'SUSPENDED') {
     return (
       <div className="bg-red-900 border-b border-red-800 px-6 py-3">

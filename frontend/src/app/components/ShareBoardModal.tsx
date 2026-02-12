@@ -17,11 +17,15 @@ import {
   SelectValue,
 } from './ui/select';
 import { Badge } from './ui/badge';
-import { X, Link as LinkIcon, Copy, Check, UserPlus, Trash2, Plus, Loader2, Palette, Users, Settings } from 'lucide-react';
+import { X, Link as LinkIcon, Copy, Check, UserPlus, Trash2, Plus, Loader2, Palette, Users, Settings, GripVertical } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { HexColorPicker } from 'react-colorful';
 import { InviteLink, slackWebhookAPI, SlackWebhookMemberStatus } from '../utils/api';
 import { ASSIGNEE_COLOR_NAMES, getAssigneeClasses, getAssigneeHex, getInitials } from '../utils/assigneeColor';
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
+import { restrictToVerticalAxis, restrictToParentElement } from '@dnd-kit/modifiers';
+import { arrayMove, SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 export type MemberRole = 'owner' | 'admin' | 'member' | 'viewer';
 
@@ -43,6 +47,7 @@ interface ShareBoardModalProps {
   onUpdateMemberRole: (memberId: string, role: MemberRole) => void;
   onRemoveMember: (memberId: string) => void;
   onUpdateMemberColor?: (memberId: string, color: string | null) => void;
+  onReorderMembers?: (memberIds: string[]) => void;
   currentUserId: string;
   boardId?: string;
   // 초대 링크 관련
@@ -76,6 +81,238 @@ function SlackIcon({ className }: { className?: string }) {
   );
 }
 
+interface SortableMemberRowProps {
+  member: BoardMember;
+  canDrag: boolean;
+  isCurrentMember: boolean;
+  canEdit: boolean;
+  canChangeColor: boolean;
+  webhookStatus: SlackWebhookMemberStatus | undefined;
+  customPickerMemberId: string | null;
+  customPickerColor: string;
+  onUpdateMemberRole: (memberId: string, role: MemberRole) => void;
+  onRemoveMember: (memberId: string) => void;
+  onUpdateMemberColor?: (memberId: string, color: string | null) => void;
+  setCustomPickerMemberId: (id: string | null) => void;
+  setCustomPickerColor: (color: string) => void;
+  t: (key: string, options?: Record<string, unknown>) => string;
+}
+
+function SortableMemberRow({
+  member, canDrag, isCurrentMember, canEdit, canChangeColor, webhookStatus,
+  customPickerMemberId, customPickerColor,
+  onUpdateMemberRole, onRemoveMember, onUpdateMemberColor,
+  setCustomPickerMemberId, setCustomPickerColor, t,
+}: SortableMemberRowProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: member.id, disabled: !canDrag });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 50 : undefined,
+    opacity: isDragging ? 0.8 : undefined,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`flex items-center justify-between py-1.5 px-2.5 rounded-lg hover:bg-white/[0.05] transition-colors ${isDragging ? 'bg-white/[0.08] shadow-lg' : ''}`}
+    >
+      <div className="flex items-center gap-2.5 min-w-0">
+        {/* 드래그 핸들 */}
+        {canDrag && (
+          <button
+            {...attributes}
+            {...listeners}
+            className="flex items-center justify-center w-5 h-5 text-slate-600 hover:text-slate-400 cursor-grab active:cursor-grabbing shrink-0"
+          >
+            <GripVertical className="h-3.5 w-3.5" />
+          </button>
+        )}
+
+        {/* 아바타 + 색상 피커 */}
+        <Popover onOpenChange={(open) => {
+          if (!open) setCustomPickerMemberId(null);
+        }}>
+          <PopoverTrigger asChild>
+            <button
+              className={`relative w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-semibold whitespace-nowrap group/avatar ${
+                getAssigneeClasses(member.name, member.assigneeColor).bg || ''
+              }`}
+              style={
+                member.assigneeColor?.startsWith('#')
+                  ? { backgroundColor: member.assigneeColor }
+                  : undefined
+              }
+              title={canChangeColor ? t('share.changeColor') : undefined}
+              disabled={!canChangeColor}
+            >
+              {getInitials(member.name)}
+              {canChangeColor && (
+                <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-bridge-obsidian border border-white/20 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity">
+                  <Palette className="h-2 w-2 text-slate-400" />
+                </div>
+              )}
+            </button>
+          </PopoverTrigger>
+          {canChangeColor && onUpdateMemberColor && (
+            <PopoverContent className="w-auto p-2 bg-bridge-obsidian border-white/20" align="start">
+              <div className="flex gap-1.5">
+                {ASSIGNEE_COLOR_NAMES.map((colorName) => {
+                  const cls = getAssigneeClasses(colorName, colorName);
+                  const currentHex = getAssigneeHex(member.name, member.assigneeColor);
+                  const isSelected = cls.hex === currentHex;
+                  return (
+                    <button
+                      key={colorName}
+                      onClick={() => {
+                        onUpdateMemberColor(member.id, colorName);
+                        setCustomPickerMemberId(null);
+                      }}
+                      className={`w-7 h-7 rounded-full ${cls.bg} flex items-center justify-center transition-all ${
+                        isSelected ? 'ring-2 ring-white ring-offset-2 ring-offset-bridge-obsidian' : 'hover:scale-110'
+                      }`}
+                      title={colorName}
+                    >
+                      {isSelected && <Check className="h-3.5 w-3.5 text-white" />}
+                    </button>
+                  );
+                })}
+                <button
+                  onClick={() => {
+                    const currentHex = getAssigneeHex(member.name, member.assigneeColor);
+                    setCustomPickerColor(currentHex);
+                    setCustomPickerMemberId(
+                      customPickerMemberId === member.id ? null : member.id
+                    );
+                  }}
+                  className={`w-7 h-7 rounded-full border border-dashed border-white/30 flex items-center justify-center transition-all hover:scale-110 hover:border-white/60 ${
+                    customPickerMemberId === member.id ? 'ring-2 ring-white ring-offset-2 ring-offset-bridge-obsidian border-solid' : ''
+                  }`}
+                  style={
+                    member.assigneeColor?.startsWith('#')
+                      ? { backgroundColor: member.assigneeColor + '40', borderColor: member.assigneeColor }
+                      : undefined
+                  }
+                  title={t('share.customColor')}
+                >
+                  <Plus className="h-3.5 w-3.5 text-slate-400" />
+                </button>
+              </div>
+              {customPickerMemberId === member.id && (
+                <div className="mt-2 pt-2 border-t border-white/10 space-y-2">
+                  <HexColorPicker
+                    color={customPickerColor}
+                    onChange={setCustomPickerColor}
+                    style={{ width: '100%', height: 140 }}
+                  />
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="w-7 h-7 rounded-full border border-white/20 shrink-0"
+                      style={{ backgroundColor: customPickerColor }}
+                    />
+                    <input
+                      type="text"
+                      value={customPickerColor}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (/^#[0-9A-Fa-f]{0,6}$/.test(v)) setCustomPickerColor(v);
+                      }}
+                      className="flex-1 bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white font-mono focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
+                      maxLength={7}
+                    />
+                    <button
+                      onClick={() => {
+                        if (/^#[0-9A-Fa-f]{6}$/.test(customPickerColor)) {
+                          onUpdateMemberColor(member.id, customPickerColor);
+                          setCustomPickerMemberId(null);
+                        }
+                      }}
+                      className="px-2.5 py-1 bg-bridge-accent text-white text-xs rounded-lg hover:bg-bridge-accent/90 transition-colors font-medium"
+                    >
+                      {t('common.apply')}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </PopoverContent>
+          )}
+        </Popover>
+
+        {/* 정보 */}
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5">
+            <span className="text-sm font-medium text-white truncate">
+              {member.name}
+            </span>
+            {isCurrentMember && (
+              <span className="text-[10px] text-slate-400 tracking-wide shrink-0">{t('common.me')}</span>
+            )}
+            <span
+              className="shrink-0"
+              title={
+                webhookStatus
+                  ? webhookStatus.enabled
+                    ? `Slack ${t('share.webhookConnected')}${webhookStatus.channel_name ? ` (#${webhookStatus.channel_name})` : ''}`
+                    : `Slack ${t('share.webhookDisabled')}`
+                  : `Slack ${t('share.webhookNotConnected')}`
+              }
+            >
+              <SlackIcon
+                className={`h-3.5 w-3.5 ${
+                  webhookStatus?.enabled
+                    ? 'text-[#36C5F0]'
+                    : webhookStatus
+                      ? 'text-slate-500'
+                      : 'text-slate-700'
+                }`}
+              />
+            </span>
+            <span className="text-xs text-slate-500 truncate">{member.email}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* 역할 & 액션 */}
+      <div className="flex items-center gap-1.5">
+        {canEdit ? (
+          <>
+            <Select
+              value={member.role}
+              onValueChange={(value) =>
+                onUpdateMemberRole(member.id, value as MemberRole)
+              }
+            >
+              <SelectTrigger className="w-[120px] bg-white/[0.08] border-white/15 rounded-lg text-white text-sm h-8">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="admin">Admin</SelectItem>
+                <SelectItem value="member">Member</SelectItem>
+                <SelectItem value="viewer">Viewer</SelectItem>
+              </SelectContent>
+            </Select>
+            <button
+              onClick={() => onRemoveMember(member.id)}
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-600 hover:text-red-400 hover:bg-red-500/10 transition-all"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </>
+        ) : (
+          <span
+            className={`${
+              ROLE_COLORS[member.role]
+            } border text-xs font-medium px-3 py-1 rounded-lg`}
+          >
+            {ROLE_LABELS[member.role]}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function ShareBoardModal({
   open,
   onClose,
@@ -84,6 +321,7 @@ export function ShareBoardModal({
   onUpdateMemberRole,
   onRemoveMember,
   onUpdateMemberColor,
+  onReorderMembers,
   currentUserId,
   boardId,
   // 초대 링크 관련
@@ -104,12 +342,28 @@ export function ShareBoardModal({
   const [customPickerColor, setCustomPickerColor] = useState('#6366F1');
   const [webhookStatusMap, setWebhookStatusMap] = useState<Record<string, SlackWebhookMemberStatus>>({});
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id || !onReorderMembers) return;
+
+    const oldIndex = members.findIndex((m) => m.id === active.id);
+    const newIndex = members.findIndex((m) => m.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const reordered = arrayMove(members, oldIndex, newIndex);
+    onReorderMembers(reordered.map((m) => m.id));
+  };
+
   useEffect(() => {
     if (open && boardId) {
       slackWebhookAPI.getMemberStatuses(boardId)
         .then((statuses) => {
           const map: Record<string, SlackWebhookMemberStatus> = {};
-          (Array.isArray(statuses) ? statuses : []).forEach((s) => { map[s.userId] = s; });
+          (Array.isArray(statuses) ? statuses : []).forEach((s) => { map[s.user_id] = s; });
           setWebhookStatusMap(map);
         })
         .catch(() => {
@@ -305,205 +559,44 @@ export function ShareBoardModal({
               </span>
             </div>
 
-            <div className="space-y-1">
-              {members.map((member) => {
-                const isCurrentMember = member.userId === currentUserId;
-                const canEdit = isCurrentUserAdmin && !isCurrentMember && member.role !== 'owner';
-                // 색상 변경: 본인은 항상 가능, 다른 유저는 ADMIN+ 만 가능
-                const canChangeColor = onUpdateMemberColor && (isCurrentMember || isCurrentUserAdmin);
-                const webhookStatus = webhookStatusMap[member.userId];
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext items={members.map((m) => m.id)} strategy={verticalListSortingStrategy}>
+                <div className="space-y-1">
+                  {members.map((member) => {
+                    const isCurrentMember = member.userId === currentUserId;
+                    const canEdit = isCurrentUserAdmin && !isCurrentMember && member.role !== 'owner';
+                    const canChangeColor = onUpdateMemberColor && (isCurrentMember || isCurrentUserAdmin);
+                    const webhookStatus = webhookStatusMap[member.userId];
+                    const canDrag = !!onReorderMembers && isCurrentUserAdmin;
 
-                return (
-                  <div
-                    key={member.id}
-                    className="flex items-center justify-between py-1.5 px-2.5 rounded-lg hover:bg-white/[0.05] transition-colors"
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      {/* 아바타 + 색상 피커 */}
-                      <Popover onOpenChange={(open) => {
-                        if (!open) setCustomPickerMemberId(null);
-                      }}>
-                        <PopoverTrigger asChild>
-                          <button
-                            className={`relative w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-semibold whitespace-nowrap group/avatar ${
-                              getAssigneeClasses(member.name, member.assigneeColor).bg || ''
-                            }`}
-                            style={
-                              member.assigneeColor?.startsWith('#')
-                                ? { backgroundColor: member.assigneeColor }
-                                : undefined
-                            }
-                            title={canChangeColor ? t('share.changeColor') : undefined}
-                            disabled={!canChangeColor}
-                          >
-                            {getInitials(member.name)}
-                            {canChangeColor && (
-                              <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-bridge-obsidian border border-white/20 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity">
-                                <Palette className="h-2 w-2 text-slate-400" />
-                              </div>
-                            )}
-                          </button>
-                        </PopoverTrigger>
-                        {canChangeColor && (
-                          <PopoverContent className="w-auto p-2 bg-bridge-obsidian border-white/20" align="start">
-                            <div className="flex gap-1.5">
-                              {ASSIGNEE_COLOR_NAMES.map((colorName) => {
-                                const cls = getAssigneeClasses(colorName, colorName);
-                                const currentHex = getAssigneeHex(member.name, member.assigneeColor);
-                                const isSelected = cls.hex === currentHex;
-                                return (
-                                  <button
-                                    key={colorName}
-                                    onClick={() => {
-                                      onUpdateMemberColor(member.id, colorName);
-                                      setCustomPickerMemberId(null);
-                                    }}
-                                    className={`w-7 h-7 rounded-full ${cls.bg} flex items-center justify-center transition-all ${
-                                      isSelected ? 'ring-2 ring-white ring-offset-2 ring-offset-bridge-obsidian' : 'hover:scale-110'
-                                    }`}
-                                    title={colorName}
-                                  >
-                                    {isSelected && <Check className="h-3.5 w-3.5 text-white" />}
-                                  </button>
-                                );
-                              })}
-                              {/* 커스텀 컬러 + 버튼 */}
-                              <button
-                                onClick={() => {
-                                  const currentHex = getAssigneeHex(member.name, member.assigneeColor);
-                                  setCustomPickerColor(currentHex);
-                                  setCustomPickerMemberId(
-                                    customPickerMemberId === member.id ? null : member.id
-                                  );
-                                }}
-                                className={`w-7 h-7 rounded-full border border-dashed border-white/30 flex items-center justify-center transition-all hover:scale-110 hover:border-white/60 ${
-                                  customPickerMemberId === member.id ? 'ring-2 ring-white ring-offset-2 ring-offset-bridge-obsidian border-solid' : ''
-                                }`}
-                                style={
-                                  member.assigneeColor?.startsWith('#')
-                                    ? { backgroundColor: member.assigneeColor + '40', borderColor: member.assigneeColor }
-                                    : undefined
-                                }
-                                title={t('share.customColor')}
-                              >
-                                <Plus className="h-3.5 w-3.5 text-slate-400" />
-                              </button>
-                            </div>
-                            {/* 커스텀 컬러 피커 패널 */}
-                            {customPickerMemberId === member.id && (
-                              <div className="mt-2 pt-2 border-t border-white/10 space-y-2">
-                                <HexColorPicker
-                                  color={customPickerColor}
-                                  onChange={setCustomPickerColor}
-                                  style={{ width: '100%', height: 140 }}
-                                />
-                                <div className="flex items-center gap-2">
-                                  <div
-                                    className="w-7 h-7 rounded-full border border-white/20 shrink-0"
-                                    style={{ backgroundColor: customPickerColor }}
-                                  />
-                                  <input
-                                    type="text"
-                                    value={customPickerColor}
-                                    onChange={(e) => {
-                                      const v = e.target.value;
-                                      if (/^#[0-9A-Fa-f]{0,6}$/.test(v)) setCustomPickerColor(v);
-                                    }}
-                                    className="flex-1 bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white font-mono focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
-                                    maxLength={7}
-                                  />
-                                  <button
-                                    onClick={() => {
-                                      if (/^#[0-9A-Fa-f]{6}$/.test(customPickerColor)) {
-                                        onUpdateMemberColor(member.id, customPickerColor);
-                                        setCustomPickerMemberId(null);
-                                      }
-                                    }}
-                                    className="px-2.5 py-1 bg-bridge-accent text-white text-xs rounded-lg hover:bg-bridge-accent/90 transition-colors font-medium"
-                                  >
-                                    {t('common.apply')}
-                                  </button>
-                                </div>
-                              </div>
-                            )}
-                          </PopoverContent>
-                        )}
-                      </Popover>
-
-                      {/* 정보 */}
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-sm font-medium text-white truncate">
-                            {member.name}
-                          </span>
-                          {isCurrentMember && (
-                            <span className="text-[10px] text-slate-400 tracking-wide shrink-0">{t('common.me')}</span>
-                          )}
-                          <span
-                            className="shrink-0"
-                            title={
-                              webhookStatus
-                                ? webhookStatus.enabled
-                                  ? `Slack ${t('share.webhookConnected')}${webhookStatus.channelName ? ` (#${webhookStatus.channelName})` : ''}`
-                                  : `Slack ${t('share.webhookDisabled')}`
-                                : `Slack ${t('share.webhookNotConnected')}`
-                            }
-                          >
-                            <SlackIcon
-                              className={`h-3.5 w-3.5 ${
-                                webhookStatus?.enabled
-                                  ? 'text-[#36C5F0]'
-                                  : webhookStatus
-                                    ? 'text-slate-500'
-                                    : 'text-slate-700'
-                              }`}
-                            />
-                          </span>
-                          <span className="text-xs text-slate-500 truncate">{member.email}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* 역할 & 액션 */}
-                    <div className="flex items-center gap-1.5">
-                      {canEdit ? (
-                        <>
-                          <Select
-                            value={member.role}
-                            onValueChange={(value) =>
-                              onUpdateMemberRole(member.id, value as MemberRole)
-                            }
-                          >
-                            <SelectTrigger className="w-[120px] bg-white/[0.08] border-white/15 rounded-lg text-white text-sm h-8">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="admin">Admin</SelectItem>
-                              <SelectItem value="member">Member</SelectItem>
-                              <SelectItem value="viewer">Viewer</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <button
-                            onClick={() => onRemoveMember(member.id)}
-                            className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-600 hover:text-red-400 hover:bg-red-500/10 transition-all"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </>
-                      ) : (
-                        <span
-                          className={`${
-                            ROLE_COLORS[member.role]
-                          } border text-xs font-medium px-3 py-1 rounded-lg`}
-                        >
-                          {ROLE_LABELS[member.role]}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                    return (
+                      <SortableMemberRow
+                        key={member.id}
+                        member={member}
+                        canDrag={canDrag}
+                        isCurrentMember={isCurrentMember}
+                        canEdit={canEdit}
+                        canChangeColor={!!canChangeColor}
+                        webhookStatus={webhookStatus}
+                        customPickerMemberId={customPickerMemberId}
+                        customPickerColor={customPickerColor}
+                        onUpdateMemberRole={onUpdateMemberRole}
+                        onRemoveMember={onRemoveMember}
+                        onUpdateMemberColor={onUpdateMemberColor}
+                        setCustomPickerMemberId={setCustomPickerMemberId}
+                        setCustomPickerColor={setCustomPickerColor}
+                        t={t}
+                      />
+                    );
+                  })}
+                </div>
+              </SortableContext>
+            </DndContext>
           </div>
 
           {/* 권한 설명 */}
