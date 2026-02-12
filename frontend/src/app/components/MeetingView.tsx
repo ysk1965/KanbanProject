@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo, KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Bell, Trash2, ChevronDown, ChevronUp, Users, X, Loader2, Sparkles, Mic, Square as SquareIcon, FileText, CheckSquare, ChevronRight, ArrowRight, Star, BookOpen, Download } from 'lucide-react';
+import { Plus, Bell, Trash2, ChevronDown, ChevronUp, Users, X, Loader2, Sparkles, Mic, Square as SquareIcon, FileText, CheckSquare, ChevronRight, ArrowRight, Star, BookOpen } from 'lucide-react';
 import { format } from 'date-fns';
 import { meetingAPI, featureAPI, taskAPI, MeetingSummary, MeetingDetail, AISuggestionResponse, AIFeatureSuggestion, AIApplyRequest, AIApplyResult } from '../utils/api';
 import { BoardMember } from './ShareBoardModal';
@@ -16,7 +16,7 @@ function formatDuration(seconds: number): string {
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 }
 
-const MAX_RECORDING_SIZE = 200 * 1024 * 1024; // 200MB
+const MAX_RECORDING_SIZE = 100 * 1024 * 1024; // 100MB
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + 'KB';
@@ -545,29 +545,13 @@ export function MeetingView({ boardId, selectedDate, boardMembers, onRefreshSche
                               )}
 
                               {audioBlob && !isTranscribing && (
-                                <>
-                                  <button
-                                    onClick={() => handleTranscribe(meeting.id)}
-                                    className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-bridge-secondary bg-bridge-secondary/10 rounded-lg hover:bg-bridge-secondary/20 transition-colors"
-                                  >
-                                    <FileText className="h-3.5 w-3.5" />
-                                    {t('meeting.transcribe')}
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      const url = URL.createObjectURL(audioBlob);
-                                      const a = document.createElement('a');
-                                      a.href = url;
-                                      a.download = `meeting-${meeting.id}-${format(new Date(), 'yyyyMMdd-HHmmss')}.webm`;
-                                      a.click();
-                                      URL.revokeObjectURL(url);
-                                    }}
-                                    className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-400 bg-white/5 rounded-lg hover:bg-white/10 transition-colors"
-                                  >
-                                    <Download className="h-3.5 w-3.5" />
-                                    {t('meeting.downloadRecording')}
-                                  </button>
-                                </>
+                                <button
+                                  onClick={() => handleTranscribe(meeting.id)}
+                                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-bridge-secondary bg-bridge-secondary/10 rounded-lg hover:bg-bridge-secondary/20 transition-colors"
+                                >
+                                  <FileText className="h-3.5 w-3.5" />
+                                  {t('meeting.transcribe')}
+                                </button>
                               )}
 
                               {isTranscribing && (

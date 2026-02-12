@@ -2209,11 +2209,10 @@
     "startRecording": "녹음 시작",
     "stopRecording": "녹음 중지",
     "transcribe": "텍스트 변환",
-    "downloadRecording": "녹음 다운로드",
     "transcribing": "음성을 텍스트로 변환 중...",
     "transcriptPlaceholder": "녹음 후 텍스트 변환을 하거나, 직접 입력하세요...",
     "microphoneAccessDenied": "마이크 접근이 거부되었습니다. 브라우저 설정에서 마이크 권한을 허용해주세요.",
-    "transcriptFileTooLarge": "녹음 파일이 200MB를 초과합니다. 더 짧게 녹음해주세요.",
+    "transcriptFileTooLarge": "녹음 파일이 100MB를 초과합니다. 더 짧게 녹음해주세요.",
     "transcriptionError": "음성 변환에 실패했습니다. 다시 시도해주세요.",
     "saveToNote": "노트로 저장",
     "saveToNoteSuccess": "노트에 저장되었습니다"

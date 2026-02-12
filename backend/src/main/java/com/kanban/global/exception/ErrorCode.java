@@ -93,7 +93,7 @@ public enum ErrorCode {
 
     // Transcription (STT)
     TRANSCRIPTION_FILE_EMPTY(HttpStatus.BAD_REQUEST, "TR001", "음성 파일이 비어있습니다"),
-    TRANSCRIPTION_FILE_TOO_LARGE(HttpStatus.BAD_REQUEST, "TR002", "음성 파일이 200MB를 초과합니다"),
+    TRANSCRIPTION_FILE_TOO_LARGE(HttpStatus.BAD_REQUEST, "TR002", "음성 파일이 100MB를 초과합니다"),
     TRANSCRIPTION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "TR003", "음성 변환에 실패했습니다"),
 
     // Member

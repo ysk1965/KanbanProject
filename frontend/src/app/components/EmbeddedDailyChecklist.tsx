@@ -119,7 +119,7 @@ export function EmbeddedDailyChecklist({
 
   // Header row (always visible)
   const header = (
-    <div className="flex items-center justify-between text-xs">
+    <div className="flex items-center justify-between text-[11px]">
       <button
         onClick={onToggleExpand}
         className="flex items-center gap-1 text-slate-400 hover:text-white transition-colors min-w-0"
