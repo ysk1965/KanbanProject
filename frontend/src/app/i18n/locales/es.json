@@ -46,7 +46,8 @@
       "pricing": "Pricing",
       "compare": "Comparar",
       "joinNow": "JOIN NOW",
-      "startForFree": "Comenzar gratis"
+      "startForFree": "Comenzar gratis",
+      "ai": "AI"
     },
     "hero": {
       "badge": "La orquestación inteligente de PM",
@@ -137,7 +138,23 @@
       }
     },
     "ai": {
-      "premium": "Premium"
+      "premium": "Premium",
+      "insights": {
+        "text": "Análisis de rendimiento individual y dinámicas de equipo. Comprende la distribución de trabajo y los patrones de colaboración de un vistazo.",
+        "title": "Personal & Team Insights"
+      },
+      "label": "AI Intelligence",
+      "narrative": {
+        "text": "No solo métricas — Claude AI teje la actividad de tu semana en una historia coherente, revelando bloqueos y dependencias ocultas.",
+        "title": "AI Weekly Narrative"
+      },
+      "standup": {
+        "text": "Cada mañana, la IA resume el progreso del día anterior y lo envía automáticamente a tu canal de Slack.",
+        "title": "Automated Daily Standup"
+      },
+      "subtitle": "Más allá de dashboards y gráficos. La IA analiza tus tareas, bloques de tiempo, checklists y comentarios para generar insights narrativos que conectan lo que las personas podrían pasar por alto.",
+      "titleLine1": "La IA lee el",
+      "titleLine2": "contexto de tu equipo"
     },
     "pricing": {
       "badge": "PREMIUM 7 DÍAS DE PRUEBA GRATIS",
@@ -263,7 +280,10 @@
     "viewerDesc": "Solo lectura (ver tarjetas solamente)",
     "webhookConnected": "Conectado",
     "webhookDisabled": "Desactivado",
-    "webhookNotConnected": "No conectado"
+    "webhookNotConnected": "No conectado",
+    "manageSeat": "Gestionar puestos",
+    "seatUsage": "Uso de puestos",
+    "seatsUsed": "puestos en uso"
   },
   "notification": {
     "notifications": "Notificaciones",
@@ -361,7 +381,10 @@
       "milestone": "Gestión de hitos",
       "slackNotification": "Integración de notificaciones de Slack",
       "statisticsDashboard": "Panel de estadísticas"
-    }
+    },
+    "currentMembers": "Miembros de pago actuales: {{count}}",
+    "seatSelection": "Cantidad de puestos",
+    "seats": "Puestos"
   },
   "premiumBenefits": {
     "heroTitle": "Desbloquea las funciones Premium",
@@ -481,7 +504,24 @@
     "discountFormat": "{{percent}}% de descuento",
     "changePlan": "Cambiar plan",
     "startSubscription": "Iniciar suscripción",
-    "startDate": "Fecha de inicio de suscripción"
+    "startDate": "Fecha de inicio de suscripción",
+    "addSeats": "Comprar puestos adicionales",
+    "availableSeats": "Disponibles",
+    "cancelConfirmDesc": "Tu suscripción permanecerá activa hasta el final del período de facturación actual. Después, tu tablero volverá al plan gratuito.",
+    "cancelConfirmTitle": "Cancelar suscripción",
+    "canceledMessage": "Tu suscripción ha sido cancelada.",
+    "changeBillingCycle": "Cambiar ciclo de facturación",
+    "confirmCancel": "Sí, cancelar",
+    "currentSeats": "Puestos actuales",
+    "purchaseSeats": "Comprar puestos",
+    "seatUsage": "Uso de puestos",
+    "suspendedMessage": "Tu suscripción está suspendida. Contacta a soporte.",
+    "tabBilling": "Facturación",
+    "tabOverview": "Resumen",
+    "tabSeats": "Puestos",
+    "trialActive": "Prueba gratuita activa",
+    "trialEndsAt": "La prueba termina el {{date}}",
+    "usedSeats": "En uso"
   },
   "dailySchedule": {
     "timeblock": "Bloques de tiempo",
@@ -544,7 +584,13 @@
     "blockUnit": "30 min",
     "totalBlockCount": "Total de bloques:",
     "endAfterStart": "La hora de fin debe ser posterior a la hora de inicio.",
-    "minBlocksRequired": "Se requieren al menos 4 bloques."
+    "minBlocksRequired": "Se requieren al menos 4 bloques.",
+    "breakEnd": "Fin",
+    "breakStart": "Inicio",
+    "breakTime": "Hora de descanso",
+    "breakTimeDesc": "El tiempo de descanso se excluye de las horas laborales",
+    "effectiveHours": "Efectivas:",
+    "excludingBreak": "(sin {{hours}}h de descanso)"
   },
   "dailySummary": {
     "summaryButton": "Resumen",
@@ -1157,7 +1203,8 @@
     "roleChangeFailed": "Error al cambiar el rol.",
     "cannotRemoveSelf": "No puedes eliminarte a ti mismo.",
     "removeMemberFailed": "Error al eliminar al miembro.",
-    "checklist": "Lista de verificación"
+    "checklist": "Lista de verificación",
+    "viewNotes": "Notas"
   },
   "admin": {
     "backToBoards": "Volver a tableros",
@@ -1268,7 +1315,9 @@
       "tier": "Nivel",
       "members": "Miembros",
       "tasks": "Tasks",
-      "createdAt": "Creado"
+      "createdAt": "Creado",
+      "view": "Ver",
+      "viewBoard": "Ver tablero"
     },
     "boardDetail": {
       "title": "Detalle del tablero",
@@ -1305,7 +1354,23 @@
       "deleting": "Eliminando...",
       "editName": "Editar nombre del tablero",
       "nameUpdateSuccess": "El nombre del tablero ha sido actualizado.",
-      "nameUpdateFailed": "Error al actualizar el nombre del tablero."
+      "nameUpdateFailed": "Error al actualizar el nombre del tablero.",
+      "changeRole": "Cambiar rol",
+      "confirmRemoveMember": "¿Deseas eliminar a {{name}} del tablero?\nDeberás volver a invitarlo para agregarlo de nuevo.",
+      "confirmRoleChange": "¿Cambiar el rol de {{name}} a {{role}}?",
+      "enterSeatCount": "Ingresa la nueva cantidad de puestos:",
+      "enterValidSeatCount": "Ingresa una cantidad válida de puestos (1 o más).",
+      "noSeatInfo": "Sin información de puestos",
+      "noSubscription_seat": "No se puede cambiar la cantidad de puestos sin una suscripción.",
+      "removeMember": "Eliminar miembro",
+      "removeMemberFailed": "Error al eliminar miembro.",
+      "removeMemberSuccess": "{{name}} ha sido eliminado del tablero.",
+      "roleChangeFailed": "Error al cambiar el rol.",
+      "roleChangeSuccess": "El rol de {{name}} se cambió a {{role}}.",
+      "seatCount": "Puestos",
+      "seatCountUpdateFailed": "Error al cambiar la cantidad de puestos.",
+      "seatCountUpdateSuccess": "La cantidad de puestos se actualizó a {{count}}.",
+      "updateSeatCount": "Actualizar puestos"
     },
     "users": {
       "title": "Gestión de usuarios",
@@ -1356,7 +1421,17 @@
       "passwordResetEmail": "Correo de restablecimiento de contraseña",
       "activateAccount": "Activar cuenta",
       "deactivateAccount": "Desactivar cuenta",
-      "cannotDeactivateAdmin": "Las cuentas de administrador no se pueden desactivar"
+      "cannotDeactivateAdmin": "Las cuentas de administrador no se pueden desactivar",
+      "cannotDeleteOwner": "No se puede eliminar al propietario del tablero. Transfiere la propiedad primero.",
+      "cannotRemoveOwner": "No se puede eliminar al propietario del tablero.",
+      "confirmDelete": "¿Eliminar permanentemente la cuenta de {{name}}?\n\nEsta acción no se puede deshacer y todos los datos relacionados serán eliminados.",
+      "confirmRemoveFromBoard": "¿Eliminar a {{name}} del tablero \"{{board}}\"?",
+      "deleteAccount": "Eliminar cuenta permanentemente",
+      "deleteFailed": "Error al eliminar la cuenta.",
+      "deleted": "La cuenta ha sido eliminada permanentemente.",
+      "removeFromBoard": "Eliminar",
+      "removeFromBoardFailed": "Error al eliminar del tablero.",
+      "removedFromBoard": "Eliminado del tablero."
     },
     "inquiries": {
       "title": "Gestión de consultas",
@@ -1927,7 +2002,9 @@
     "selectMember": "Seleccionar miembro",
     "confirmGenerate": "Los informes de IA solo se pueden generar una vez al día. ¿Deseas generar?",
     "confirmRegenerate": "Los informes de IA solo se pueden generar una vez al día. ¿Deseas regenerar?",
-    "dailyLimitReached": "Has agotado la generación de informes de IA de hoy"
+    "dailyLimitReached": "Has agotado la generación de informes de IA de hoy",
+    "hasTranscript": "Transcripción",
+    "meetingsLabel": "Reuniones"
   },
   "compare": {
     "nav": {
@@ -2110,10 +2187,101 @@
     "startRecording": "Iniciar grabación",
     "stopRecording": "Detener grabación",
     "transcribe": "Transcribir",
+    "downloadRecording": "Descargar",
     "transcribing": "Transcribiendo audio...",
     "transcriptPlaceholder": "Grabe y transcriba, o escriba directamente...",
     "microphoneAccessDenied": "Acceso al micrófono denegado. Permita el acceso al micrófono en la configuración del navegador.",
-    "transcriptFileTooLarge": "La grabación supera los 25MB. Grabe un clip más corto.",
-    "transcriptionError": "Error en la transcripción. Inténtelo de nuevo."
+    "transcriptFileTooLarge": "La grabación supera los 200MB. Grabe un clip más corto.",
+    "transcriptionError": "Error en la transcripción. Inténtelo de nuevo.",
+    "aiClose": "Contraer",
+    "aiExpand": "Expandir",
+    "aiImportant": "Importante",
+    "aiKeyPoints": "Decisiones clave",
+    "aiNoChanges": "Sin cambios",
+    "aiNoChangesDesc": "El memo o la transcripción no han cambiado desde el último resumen de IA.",
+    "aiRecommendedTasks": "Tareas recomendadas",
+    "aiSummaryTitle": "Resumen de la reunión",
+    "saveToNote": "Guardar en notas",
+    "saveToNoteSuccess": "Guardado en notas"
+  },
+  "notes": {
+    "addTag": "Agregar etiqueta",
+    "aiAlreadyExists": "Ya existe",
+    "aiAnalyzing": "La IA está analizando tu nota...",
+    "aiApply": "Aplicar",
+    "aiApplySuccess": "Se crearon {{features}} funciones, {{tasks}} tareas y {{checklists}} checklists.",
+    "aiApplying": "Aplicando...",
+    "aiClose": "Contraer",
+    "aiDeselectAll": "Deseleccionar todo",
+    "aiError": "Ocurrió un error durante el análisis de IA. Inténtalo de nuevo.",
+    "aiExistingFeature": "Existente",
+    "aiExpand": "Expandir",
+    "aiImportant": "Importante",
+    "aiKeyPoints": "Puntos clave",
+    "aiNewFeature": "Nuevo",
+    "aiNoSuggestions": "No se encontraron elementos accionables en esta nota.",
+    "aiOrganize": "Análisis IA",
+    "aiOrganizeTitle": "Análisis de nota con IA",
+    "aiRecommendedTasks": "Tareas recomendadas",
+    "aiRetry": "Reintentar",
+    "aiSelectAll": "Seleccionar todo",
+    "aiSelectedCount": "{{count}} elementos seleccionados",
+    "aiSummaryTitle": "Resumen de nota",
+    "allTags": "Todas",
+    "autoSaved": "Guardado automáticamente",
+    "confirmDelete": "¿Estás seguro? Todos los subelementos también serán eliminados.",
+    "contentPlaceholder": "Comienza a escribir...",
+    "createFirstDocument": "Crear primer documento",
+    "createTag": "Crear",
+    "folderHint": "Selecciona un documento para editar",
+    "folderSelected": "Carpeta seleccionada",
+    "listView": "Vista de lista",
+    "newDocument": "Nuevo documento",
+    "newDocumentInFolder": "Agregar documento",
+    "newFolder": "Nueva carpeta",
+    "newSubfolder": "Agregar subcarpeta",
+    "noVersions": "No hay versiones guardadas",
+    "rename": "Renombrar",
+    "restore": "Restaurar",
+    "restoreConfirm": "¿Restaurar esta versión?",
+    "restoredVersion": "Restaurado desde la versión {{version}}",
+    "savedVersion": "Versión {{version}} guardada",
+    "searchPlaceholder": "Buscar...",
+    "selectOrCreate": "Selecciona un documento o crea uno nuevo",
+    "tagColor": "Color de etiqueta",
+    "tagName": "Nombre de etiqueta",
+    "tags": "Etiquetas",
+    "title": "Notas",
+    "titlePlaceholder": "Ingresa el título",
+    "treeView": "Vista de árbol",
+    "unsavedWarning": "Tienes cambios sin guardar. ¿Deseas salir sin guardar?",
+    "version": "Versión",
+    "versionHistory": "Historial de versiones"
+  },
+  "payment": {
+    "error": "Error de pago",
+    "errorCode": "Código de error",
+    "failed": "Pago fallido",
+    "goBack": "Volver",
+    "pleaseWait": "Confirmando tu pago. Por favor espera.",
+    "processing": "Procesando pago...",
+    "redirecting": "Redirigiendo a tu tablero...",
+    "success": "¡Pago exitoso!",
+    "tryAgain": "Reintentar",
+    "unknownError": "Ocurrió un error desconocido"
+  },
+  "seatPurchase": {
+    "additionalSeats": "Puestos adicionales",
+    "currentSeats": "Uso actual de puestos",
+    "month": "mes",
+    "newTotal": "Nuevo total",
+    "pendingInvite": "Para invitar a {{email}}, necesitas puestos adicionales.",
+    "pendingRoleChange": "Se requieren puestos adicionales para cambiar el rol del miembro.",
+    "purchaseAndContinue": "Comprar e invitar",
+    "purchaseAndPromote": "Comprar y cambiar rol",
+    "seats": "puestos",
+    "subtitle": "Se requieren puestos para invitar miembros",
+    "title": "Comprar puestos adicionales",
+    "year": "año"
   }
 }

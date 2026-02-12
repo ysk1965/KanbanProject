@@ -224,11 +224,12 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
     const rect = buttonEl.getBoundingClientRect();
     const pickerWidth = 210;
     const pickerHeight = 220;
-    let left = rect.left;
+    // 왼쪽으로 확장 (버튼 오른쪽 끝 기준)
+    let left = rect.right - pickerWidth;
     let top = rect.bottom + 4;
-    // 오른쪽 화면 밖 방지
-    if (left + pickerWidth > window.innerWidth - 8) {
-      left = window.innerWidth - pickerWidth - 8;
+    // 왼쪽 화면 밖 방지
+    if (left < 8) {
+      left = 8;
     }
     // 아래쪽 화면 밖 → 위로 표시
     if (top + pickerHeight > window.innerHeight - 8) {
@@ -769,6 +770,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
     if (emojiPickerCommentId !== commentId || !emojiPickerPos) return null;
     return createPortal(
       <div ref={emojiPickerRef}
+        data-emoji-picker
         style={{ position: 'fixed', top: emojiPickerPos.top, left: emojiPickerPos.left, zIndex: 9999 }}
         className="bg-bridge-obsidian border border-white/20 rounded-xl shadow-xl p-2 min-w-[200px]">
         {/* 기본 이모지 */}

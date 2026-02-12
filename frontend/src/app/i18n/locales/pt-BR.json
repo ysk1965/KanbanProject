@@ -46,7 +46,8 @@
       "pricing": "Pricing",
       "compare": "Comparar",
       "joinNow": "JOIN NOW",
-      "startForFree": "Comece grátis"
+      "startForFree": "Comece grátis",
+      "ai": "AI"
     },
     "hero": {
       "badge": "A Orquestração Inteligente de PM",
@@ -137,7 +138,23 @@
       }
     },
     "ai": {
-      "premium": "Premium"
+      "premium": "Premium",
+      "insights": {
+        "text": "Narrativas de desempenho individual e análise de dinâmicas de equipe. Compreenda a distribuição de trabalho e padrões de colaboração de forma rápida.",
+        "title": "Personal & Team Insights"
+      },
+      "label": "AI Intelligence",
+      "narrative": {
+        "text": "Não são apenas métricas — o Claude AI transforma a atividade da sua semana em uma história coerente, revelando bloqueios e dependências ocultas.",
+        "title": "AI Weekly Narrative"
+      },
+      "standup": {
+        "text": "Toda manhã, a IA resume o progresso do dia anterior e envia automaticamente para o seu canal no Slack.",
+        "title": "Automated Daily Standup"
+      },
+      "subtitle": "Além de dashboards e gráficos. A IA analisa suas tarefas, blocos de tempo, checklists e comentários para gerar insights narrativos que conectam pontos que as pessoas podem não perceber.",
+      "titleLine1": "A IA lê o",
+      "titleLine2": "contexto da sua equipe"
     },
     "pricing": {
       "badge": "PREMIUM 7 DIAS DE TESTE GRÁTIS",
@@ -263,7 +280,10 @@
     "viewerDesc": "Somente leitura (visualizar cards apenas)",
     "webhookConnected": "Conectado",
     "webhookDisabled": "Desativado",
-    "webhookNotConnected": "Não conectado"
+    "webhookNotConnected": "Não conectado",
+    "manageSeat": "Gerenciar vagas",
+    "seatUsage": "Uso de vagas",
+    "seatsUsed": "vagas em uso"
   },
   "notification": {
     "notifications": "Notificações",
@@ -361,7 +381,10 @@
       "milestone": "Gerenciamento de Marcos",
       "slackNotification": "Integração de Notificações Slack",
       "statisticsDashboard": "Dashboard de Estatísticas"
-    }
+    },
+    "currentMembers": "Membros pagantes atuais: {{count}}",
+    "seatSelection": "Quantidade de vagas",
+    "seats": "Vagas"
   },
   "premiumBenefits": {
     "heroTitle": "Desbloqueie os recursos Premium",
@@ -481,7 +504,24 @@
     "discountFormat": "{{percent}}% de desconto",
     "changePlan": "Alterar Plano",
     "startSubscription": "Iniciar Assinatura",
-    "startDate": "Data de início da assinatura"
+    "startDate": "Data de início da assinatura",
+    "addSeats": "Comprar vagas adicionais",
+    "availableSeats": "Disponíveis",
+    "cancelConfirmDesc": "Sua assinatura permanecerá ativa até o final do período de cobrança atual. Após isso, seu quadro será revertido para o plano gratuito.",
+    "cancelConfirmTitle": "Cancelar assinatura",
+    "canceledMessage": "Sua assinatura foi cancelada.",
+    "changeBillingCycle": "Alterar ciclo de cobrança",
+    "confirmCancel": "Sim, cancelar",
+    "currentSeats": "Vagas atuais",
+    "purchaseSeats": "Comprar vagas",
+    "seatUsage": "Uso de vagas",
+    "suspendedMessage": "Sua assinatura está suspensa. Entre em contato com o suporte.",
+    "tabBilling": "Cobrança",
+    "tabOverview": "Visão geral",
+    "tabSeats": "Vagas",
+    "trialActive": "Período de avaliação ativo",
+    "trialEndsAt": "Avaliação termina em {{date}}",
+    "usedSeats": "Em uso"
   },
   "dailySchedule": {
     "timeblock": "Blocos de Tempo",
@@ -544,7 +584,13 @@
     "blockUnit": "30 min",
     "totalBlockCount": "Total de blocos:",
     "endAfterStart": "A hora de fim deve ser após a hora de início.",
-    "minBlocksRequired": "São necessários pelo menos 4 blocos."
+    "minBlocksRequired": "São necessários pelo menos 4 blocos.",
+    "breakEnd": "Fim",
+    "breakStart": "Início",
+    "breakTime": "Intervalo",
+    "breakTimeDesc": "O intervalo é excluído das horas de trabalho",
+    "effectiveHours": "Efetivas:",
+    "excludingBreak": "(excluindo {{hours}}h de intervalo)"
   },
   "dailySummary": {
     "summaryButton": "Resumo",
@@ -1157,7 +1203,8 @@
     "roleChangeFailed": "Falha ao alterar a função.",
     "cannotRemoveSelf": "Você não pode remover a si mesmo.",
     "removeMemberFailed": "Falha ao remover membro.",
-    "checklist": "Checklist"
+    "checklist": "Checklist",
+    "viewNotes": "Notas"
   },
   "admin": {
     "backToBoards": "Voltar aos quadros",
@@ -1268,7 +1315,9 @@
       "tier": "Tier",
       "members": "Membros",
       "tasks": "Tasks",
-      "createdAt": "Criado em"
+      "createdAt": "Criado em",
+      "view": "Ver",
+      "viewBoard": "Ver quadro"
     },
     "boardDetail": {
       "title": "Detalhes do Board",
@@ -1305,7 +1354,23 @@
       "deleting": "Excluindo...",
       "editName": "Editar nome do quadro",
       "nameUpdateSuccess": "Nome do quadro atualizado.",
-      "nameUpdateFailed": "Falha ao atualizar nome do quadro."
+      "nameUpdateFailed": "Falha ao atualizar nome do quadro.",
+      "changeRole": "Alterar função",
+      "confirmRemoveMember": "Deseja remover {{name}} do quadro?\nApós a remoção, será necessário convidá-lo novamente.",
+      "confirmRoleChange": "Alterar a função de {{name}} para {{role}}?",
+      "enterSeatCount": "Digite a nova quantidade de vagas:",
+      "enterValidSeatCount": "Digite uma quantidade válida de vagas (1 ou mais).",
+      "noSeatInfo": "Sem informação de vagas",
+      "noSubscription_seat": "Não é possível alterar a quantidade de vagas sem uma assinatura.",
+      "removeMember": "Remover membro",
+      "removeMemberFailed": "Falha ao remover membro.",
+      "removeMemberSuccess": "{{name}} foi removido do quadro.",
+      "roleChangeFailed": "Falha ao alterar a função.",
+      "roleChangeSuccess": "A função de {{name}} foi alterada para {{role}}.",
+      "seatCount": "Vagas",
+      "seatCountUpdateFailed": "Falha ao alterar a quantidade de vagas.",
+      "seatCountUpdateSuccess": "Quantidade de vagas atualizada para {{count}}.",
+      "updateSeatCount": "Atualizar vagas"
     },
     "users": {
       "title": "Gerenciamento de Usuários",
@@ -1356,7 +1421,17 @@
       "passwordResetEmail": "E-mail de Redefinição de Senha",
       "activateAccount": "Ativar Conta",
       "deactivateAccount": "Desativar Conta",
-      "cannotDeactivateAdmin": "Contas de administrador não podem ser desativadas"
+      "cannotDeactivateAdmin": "Contas de administrador não podem ser desativadas",
+      "cannotDeleteOwner": "O proprietário do quadro não pode ser excluído. Transfira a propriedade primeiro.",
+      "cannotRemoveOwner": "O proprietário do quadro não pode ser removido.",
+      "confirmDelete": "Excluir permanentemente a conta de {{name}}?\n\nEsta ação não pode ser desfeita e todos os dados relacionados serão excluídos.",
+      "confirmRemoveFromBoard": "Remover {{name}} do quadro \"{{board}}\"?",
+      "deleteAccount": "Excluir conta permanentemente",
+      "deleteFailed": "Falha ao excluir a conta.",
+      "deleted": "A conta foi excluída permanentemente.",
+      "removeFromBoard": "Remover",
+      "removeFromBoardFailed": "Falha ao remover do quadro.",
+      "removedFromBoard": "Removido do quadro."
     },
     "inquiries": {
       "title": "Gerenciamento de Consultas",
@@ -1927,7 +2002,9 @@
     "selectMember": "Selecionar membro",
     "confirmGenerate": "Relatórios de IA só podem ser gerados uma vez por dia. Deseja gerar?",
     "confirmRegenerate": "Relatórios de IA só podem ser gerados uma vez por dia. Deseja regenerar?",
-    "dailyLimitReached": "Você já usou a geração de relatório de IA de hoje"
+    "dailyLimitReached": "Você já usou a geração de relatório de IA de hoje",
+    "hasTranscript": "Transcrição",
+    "meetingsLabel": "Reuniões"
   },
   "compare": {
     "nav": {
@@ -2110,10 +2187,101 @@
     "startRecording": "Iniciar gravação",
     "stopRecording": "Parar gravação",
     "transcribe": "Transcrever",
+    "downloadRecording": "Baixar",
     "transcribing": "Transcrevendo áudio...",
     "transcriptPlaceholder": "Grave e transcreva, ou digite diretamente...",
     "microphoneAccessDenied": "Acesso ao microfone negado. Permita o acesso ao microfone nas configurações do navegador.",
-    "transcriptFileTooLarge": "A gravação excede 25MB. Grave um clipe mais curto.",
-    "transcriptionError": "Falha na transcrição. Tente novamente."
+    "transcriptFileTooLarge": "A gravação excede 200MB. Grave um clipe mais curto.",
+    "transcriptionError": "Falha na transcrição. Tente novamente.",
+    "aiClose": "Recolher",
+    "aiExpand": "Expandir",
+    "aiImportant": "Importante",
+    "aiKeyPoints": "Decisões-chave",
+    "aiNoChanges": "Sem alterações",
+    "aiNoChangesDesc": "O memo ou a transcrição não foram alterados desde o último resumo da IA.",
+    "aiRecommendedTasks": "Tarefas recomendadas",
+    "aiSummaryTitle": "Resumo da reunião",
+    "saveToNote": "Salvar em notas",
+    "saveToNoteSuccess": "Salvo em notas"
+  },
+  "notes": {
+    "addTag": "Adicionar tag",
+    "aiAlreadyExists": "Já existe",
+    "aiAnalyzing": "A IA está analisando sua nota...",
+    "aiApply": "Aplicar",
+    "aiApplySuccess": "Criados {{features}} funcionalidades, {{tasks}} tarefas e {{checklists}} checklists.",
+    "aiApplying": "Aplicando...",
+    "aiClose": "Recolher",
+    "aiDeselectAll": "Desmarcar tudo",
+    "aiError": "Ocorreu um erro durante a análise da IA. Tente novamente.",
+    "aiExistingFeature": "Existente",
+    "aiExpand": "Expandir",
+    "aiImportant": "Importante",
+    "aiKeyPoints": "Pontos-chave",
+    "aiNewFeature": "Novo",
+    "aiNoSuggestions": "Nenhum item acionável encontrado nesta nota.",
+    "aiOrganize": "Análise IA",
+    "aiOrganizeTitle": "Análise de nota com IA",
+    "aiRecommendedTasks": "Tarefas recomendadas",
+    "aiRetry": "Tentar novamente",
+    "aiSelectAll": "Selecionar tudo",
+    "aiSelectedCount": "{{count}} itens selecionados",
+    "aiSummaryTitle": "Resumo da nota",
+    "allTags": "Todas",
+    "autoSaved": "Salvo automaticamente",
+    "confirmDelete": "Tem certeza? Todos os subitens também serão excluídos.",
+    "contentPlaceholder": "Comece a escrever...",
+    "createFirstDocument": "Criar primeiro documento",
+    "createTag": "Criar",
+    "folderHint": "Selecione um documento para editar",
+    "folderSelected": "Pasta selecionada",
+    "listView": "Visualização em lista",
+    "newDocument": "Novo documento",
+    "newDocumentInFolder": "Adicionar documento",
+    "newFolder": "Nova pasta",
+    "newSubfolder": "Adicionar subpasta",
+    "noVersions": "Nenhuma versão salva",
+    "rename": "Renomear",
+    "restore": "Restaurar",
+    "restoreConfirm": "Restaurar esta versão?",
+    "restoredVersion": "Restaurado da versão {{version}}",
+    "savedVersion": "Versão {{version}} salva",
+    "searchPlaceholder": "Buscar...",
+    "selectOrCreate": "Selecione um documento ou crie um novo",
+    "tagColor": "Cor da tag",
+    "tagName": "Nome da tag",
+    "tags": "Tags",
+    "title": "Notas",
+    "titlePlaceholder": "Digite o título",
+    "treeView": "Visualização em árvore",
+    "unsavedWarning": "Você tem alterações não salvas. Deseja sair sem salvar?",
+    "version": "Versão",
+    "versionHistory": "Histórico de versões"
+  },
+  "payment": {
+    "error": "Erro no pagamento",
+    "errorCode": "Código do erro",
+    "failed": "Pagamento falhou",
+    "goBack": "Voltar",
+    "pleaseWait": "Confirmando seu pagamento. Por favor, aguarde.",
+    "processing": "Processando pagamento...",
+    "redirecting": "Redirecionando para seu quadro...",
+    "success": "Pagamento realizado com sucesso!",
+    "tryAgain": "Tentar novamente",
+    "unknownError": "Ocorreu um erro desconhecido"
+  },
+  "seatPurchase": {
+    "additionalSeats": "Vagas adicionais",
+    "currentSeats": "Uso atual de vagas",
+    "month": "mês",
+    "newTotal": "Novo total",
+    "pendingInvite": "Para convidar {{email}}, você precisa de vagas adicionais.",
+    "pendingRoleChange": "São necessárias vagas adicionais para alterar a função do membro.",
+    "purchaseAndContinue": "Comprar e convidar",
+    "purchaseAndPromote": "Comprar e alterar função",
+    "seats": "vagas",
+    "subtitle": "Vagas são necessárias para convidar membros",
+    "title": "Comprar vagas adicionais",
+    "year": "ano"
   }
 }

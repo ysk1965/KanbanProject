@@ -46,7 +46,8 @@
       "pricing": "Pricing",
       "compare": "比較",
       "joinNow": "JOIN NOW",
-      "startForFree": "無料で始める"
+      "startForFree": "無料で始める",
+      "ai": "AI"
     },
     "hero": {
       "badge": "インテリジェントPMオーケストレーション",
@@ -137,7 +138,23 @@
       }
     },
     "ai": {
-      "premium": "Premium"
+      "premium": "Premium",
+      "insights": {
+        "text": "個人のパフォーマンスナラティブとチームダイナミクスの分析。業務配分とコラボレーションパターンを一目で把握できます。",
+        "title": "Personal & Team Insights"
+      },
+      "label": "AI Intelligence",
+      "narrative": {
+        "text": "単なる指標ではありません。Claude AIが一週間の活動を文脈のあるストーリーに織り上げ、隠れたボトルネックと依存関係を明らかにします。",
+        "title": "AI Weekly Narrative"
+      },
+      "standup": {
+        "text": "毎朝、AIが前日の進捗を要約し、Slackチャンネルへ自動配信します。",
+        "title": "Automated Daily Standup"
+      },
+      "subtitle": "ダッシュボードやチャートの先へ。AIがタスク、タイムブロック、チェックリスト、コメントを分析し、人が見落としがちなインサイトをナラティブで生成します。",
+      "titleLine1": "AIがチームの",
+      "titleLine2": "文脈を読み取る"
     },
     "pricing": {
       "badge": "PREMIUM 3日間無料トライアル",
@@ -263,7 +280,10 @@
     "viewerDesc": "読み取り専用（カードの閲覧のみ）",
     "webhookConnected": "連携中",
     "webhookDisabled": "無効",
-    "webhookNotConnected": "未接続"
+    "webhookNotConnected": "未接続",
+    "manageSeat": "シート管理",
+    "seatUsage": "シート使用状況",
+    "seatsUsed": "シート使用中"
   },
   "notification": {
     "notifications": "通知",
@@ -361,7 +381,10 @@
       "milestone": "マイルストーン管理",
       "slackNotification": "Slack 通知連携",
       "statisticsDashboard": "統計ダッシュボード"
-    }
+    },
+    "currentMembers": "現在の有料メンバー：{{count}}名",
+    "seatSelection": "シート数の選択",
+    "seats": "シート"
   },
   "premiumBenefits": {
     "heroTitle": "Premiumの機能をお試しください",
@@ -481,7 +504,24 @@
     "discountFormat": "{{percent}}% オフ",
     "changePlan": "プランを変更",
     "startSubscription": "サブスクリプションを開始",
-    "startDate": "サブスクリプション開始日"
+    "startDate": "サブスクリプション開始日",
+    "addSeats": "追加シートの購入",
+    "availableSeats": "空き",
+    "cancelConfirmDesc": "現在の請求期間が終了するまでサブスクリプションは維持されます。その後、無料プランに切り替わります。",
+    "cancelConfirmTitle": "サブスクリプション解約",
+    "canceledMessage": "サブスクリプションが解約されました。",
+    "changeBillingCycle": "請求サイクルの変更",
+    "confirmCancel": "はい、解約します",
+    "currentSeats": "現在のシート",
+    "purchaseSeats": "シートの購入",
+    "seatUsage": "シート使用量",
+    "suspendedMessage": "サブスクリプションが一時停止されています。サポートにお問い合わせください。",
+    "tabBilling": "請求",
+    "tabOverview": "概要",
+    "tabSeats": "シート",
+    "trialActive": "無料トライアルが有効です",
+    "trialEndsAt": "トライアル終了日：{{date}}",
+    "usedSeats": "使用中"
   },
   "dailySchedule": {
     "timeblock": "タイムブロック",
@@ -544,7 +584,13 @@
     "blockUnit": "30分",
     "totalBlockCount": "合計Block数：",
     "endAfterStart": "終了時間は開始時間より後である必要があります。",
-    "minBlocksRequired": "最低4つのBlockが必要です。"
+    "minBlocksRequired": "最低4つのBlockが必要です。",
+    "breakEnd": "終了",
+    "breakStart": "開始",
+    "breakTime": "休憩時間",
+    "breakTimeDesc": "休憩時間は勤務時間から除外されます",
+    "effectiveHours": "実働：",
+    "excludingBreak": "（休憩{{hours}}時間を除く）"
   },
   "dailySummary": {
     "summaryButton": "要約",
@@ -1157,7 +1203,8 @@
     "roleChangeFailed": "ロールの変更に失敗しました。",
     "cannotRemoveSelf": "自分自身を削除することはできません。",
     "removeMemberFailed": "メンバーの削除に失敗しました。",
-    "checklist": "チェックリスト"
+    "checklist": "チェックリスト",
+    "viewNotes": "ノート"
   },
   "admin": {
     "backToBoards": "ボードに戻る",
@@ -1268,7 +1315,9 @@
       "tier": "ティア",
       "members": "メンバー",
       "tasks": "Task",
-      "createdAt": "作成日"
+      "createdAt": "作成日",
+      "view": "表示",
+      "viewBoard": "ボードを閲覧"
     },
     "boardDetail": {
       "title": "ボード詳細",
@@ -1305,7 +1354,23 @@
       "deleting": "削除中...",
       "editName": "ボード名を編集",
       "nameUpdateSuccess": "ボード名が変更されました。",
-      "nameUpdateFailed": "ボード名の変更に失敗しました。"
+      "nameUpdateFailed": "ボード名の変更に失敗しました。",
+      "changeRole": "役割を変更",
+      "confirmRemoveMember": "{{name}}さんをボードから削除しますか？\n削除後、再度招待が必要です。",
+      "confirmRoleChange": "{{name}}さんの役割を{{role}}に変更しますか？",
+      "enterSeatCount": "新しいシート数を入力してください：",
+      "enterValidSeatCount": "有効なシート数を入力してください（1以上）。",
+      "noSeatInfo": "シート情報なし",
+      "noSubscription_seat": "サブスクリプションがないため、シート数を変更できません。",
+      "removeMember": "メンバーを削除",
+      "removeMemberFailed": "メンバーの削除に失敗しました。",
+      "removeMemberSuccess": "{{name}}さんがボードから削除されました。",
+      "roleChangeFailed": "役割の変更に失敗しました。",
+      "roleChangeSuccess": "{{name}}さんの役割が{{role}}に変更されました。",
+      "seatCount": "シート数",
+      "seatCountUpdateFailed": "シート数の変更に失敗しました。",
+      "seatCountUpdateSuccess": "シート数が{{count}}に変更されました。",
+      "updateSeatCount": "シート数を変更"
     },
     "users": {
       "title": "ユーザー管理",
@@ -1356,7 +1421,17 @@
       "passwordResetEmail": "パスワードリセットメール",
       "activateAccount": "アカウントを有効化",
       "deactivateAccount": "アカウントを無効化",
-      "cannotDeactivateAdmin": "管理者アカウントは無効化できません"
+      "cannotDeactivateAdmin": "管理者アカウントは無効化できません",
+      "cannotDeleteOwner": "ボードオーナーは削除できません。先にオーナー権限を移譲してください。",
+      "cannotRemoveOwner": "ボードオーナーは削除できません。",
+      "confirmDelete": "{{name}}さんのアカウントを完全に削除しますか？\n\nこの操作は元に戻せません。関連するすべてのデータが削除されます。",
+      "confirmRemoveFromBoard": "{{name}}さんを「{{board}}」ボードから削除しますか？",
+      "deleteAccount": "アカウントを完全に削除",
+      "deleteFailed": "アカウントの削除に失敗しました。",
+      "deleted": "アカウントが完全に削除されました。",
+      "removeFromBoard": "削除",
+      "removeFromBoardFailed": "ボードからの削除に失敗しました。",
+      "removedFromBoard": "ボードから削除しました。"
     },
     "inquiries": {
       "title": "お問い合わせ管理",
@@ -2112,10 +2187,101 @@
     "startRecording": "録音開始",
     "stopRecording": "録音停止",
     "transcribe": "テキスト変換",
+    "downloadRecording": "ダウンロード",
     "transcribing": "音声をテキストに変換中...",
     "transcriptPlaceholder": "録音してテキスト変換するか、直接入力してください...",
     "microphoneAccessDenied": "マイクへのアクセスが拒否されました。ブラウザ設定でマイクの権限を許可してください。",
-    "transcriptFileTooLarge": "録音ファイルが25MBを超えています。短く録音してください。",
-    "transcriptionError": "音声変換に失敗しました。もう一度お試しください。"
+    "transcriptFileTooLarge": "録音ファイルが200MBを超えています。短く録音してください。",
+    "transcriptionError": "音声変換に失敗しました。もう一度お試しください。",
+    "aiClose": "閉じる",
+    "aiExpand": "展開",
+    "aiImportant": "重要",
+    "aiKeyPoints": "主要な決定事項",
+    "aiNoChanges": "変更はありません",
+    "aiNoChangesDesc": "メモまたは音声記録が前回のAI要約以降に変更されていません。",
+    "aiRecommendedTasks": "推奨タスク",
+    "aiSummaryTitle": "会議サマリー",
+    "saveToNote": "ノートに保存",
+    "saveToNoteSuccess": "ノートに保存しました"
+  },
+  "notes": {
+    "addTag": "タグを追加",
+    "aiAlreadyExists": "適用済み",
+    "aiAnalyzing": "AIがノートを分析しています...",
+    "aiApply": "適用",
+    "aiApplySuccess": "{{features}}件のフィーチャー、{{tasks}}件のタスク、{{checklists}}件のチェックリストを作成しました。",
+    "aiApplying": "適用中...",
+    "aiClose": "閉じる",
+    "aiDeselectAll": "全選択解除",
+    "aiError": "AI分析中にエラーが発生しました。もう一度お試しください。",
+    "aiExistingFeature": "既存",
+    "aiExpand": "展開",
+    "aiImportant": "重要",
+    "aiKeyPoints": "主要ポイント",
+    "aiNewFeature": "新規",
+    "aiNoSuggestions": "ノートから実行可能な項目が見つかりませんでした。",
+    "aiOrganize": "AI分析",
+    "aiOrganizeTitle": "AIノート分析",
+    "aiRecommendedTasks": "推奨タスク",
+    "aiRetry": "再試行",
+    "aiSelectAll": "全選択",
+    "aiSelectedCount": "{{count}}件選択中",
+    "aiSummaryTitle": "ノートサマリー",
+    "allTags": "すべて",
+    "autoSaved": "自動保存済み",
+    "confirmDelete": "本当に削除しますか？サブアイテムもすべて削除されます。",
+    "contentPlaceholder": "内容を入力してください...",
+    "createFirstDocument": "最初のドキュメントを作成",
+    "createTag": "新規作成",
+    "folderHint": "ドキュメントを選択して編集してください",
+    "folderSelected": "フォルダが選択されました",
+    "listView": "リストビュー",
+    "newDocument": "新規ドキュメント",
+    "newDocumentInFolder": "ドキュメントを追加",
+    "newFolder": "新規フォルダ",
+    "newSubfolder": "サブフォルダを追加",
+    "noVersions": "保存されたバージョンがありません",
+    "rename": "名前を変更",
+    "restore": "復元",
+    "restoreConfirm": "このバージョンに復元しますか？",
+    "restoredVersion": "バージョン{{version}}から復元しました",
+    "savedVersion": "バージョン{{version}}を保存しました",
+    "searchPlaceholder": "検索...",
+    "selectOrCreate": "ドキュメントを選択するか、新しく作成してください",
+    "tagColor": "タグの色",
+    "tagName": "タグ名",
+    "tags": "タグ",
+    "title": "ノート",
+    "titlePlaceholder": "タイトルを入力",
+    "treeView": "ツリービュー",
+    "unsavedWarning": "保存されていない変更があります。保存せずに移動しますか？",
+    "version": "バージョン",
+    "versionHistory": "バージョン履歴"
+  },
+  "payment": {
+    "error": "決済エラー",
+    "errorCode": "エラーコード",
+    "failed": "決済に失敗しました",
+    "goBack": "戻る",
+    "pleaseWait": "決済を確認しています。しばらくお待ちください。",
+    "processing": "決済処理中...",
+    "redirecting": "ボードに移動します...",
+    "success": "決済が完了しました！",
+    "tryAgain": "再試行",
+    "unknownError": "不明なエラーが発生しました"
+  },
+  "seatPurchase": {
+    "additionalSeats": "追加シート数",
+    "currentSeats": "現在のシート使用状況",
+    "month": "月",
+    "newTotal": "変更後の合計",
+    "pendingInvite": "{{email}}を招待するには追加シートが必要です。",
+    "pendingRoleChange": "メンバーの役割を変更するには追加シートが必要です。",
+    "purchaseAndContinue": "購入して招待",
+    "purchaseAndPromote": "購入して役割を変更",
+    "seats": "シート",
+    "subtitle": "メンバーを招待するにはシートが必要です",
+    "title": "追加シートの購入",
+    "year": "年"
   }
 }

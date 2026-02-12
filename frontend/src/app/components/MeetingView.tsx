@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo, KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Bell, Trash2, ChevronDown, ChevronUp, Users, X, Loader2, Sparkles, Mic, Square as SquareIcon, FileText, CheckSquare, ChevronRight, ArrowRight, Star, BookOpen } from 'lucide-react';
+import { Plus, Bell, Trash2, ChevronDown, ChevronUp, Users, X, Loader2, Sparkles, Mic, Square as SquareIcon, FileText, CheckSquare, ChevronRight, ArrowRight, Star, BookOpen, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { meetingAPI, featureAPI, taskAPI, MeetingSummary, MeetingDetail, AISuggestionResponse, AIFeatureSuggestion, AIApplyRequest, AIApplyResult } from '../utils/api';
 import { BoardMember } from './ShareBoardModal';
@@ -16,13 +16,33 @@ function formatDuration(seconds: number): string {
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 }
 
+const MAX_RECORDING_SIZE = 200 * 1024 * 1024; // 200MB
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + 'KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + 'MB';
+}
+
 function useAudioRecorder() {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
+  const [recordingSize, setRecordingSize] = useState(0);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const sizeRef = useRef(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const stopRecordingInternal = useCallback(() => {
+    if (mediaRecorderRef.current?.state === 'recording') {
+      mediaRecorderRef.current.stop();
+    }
+    setIsRecording(false);
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
 
   const startRecording = async () => {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -32,8 +52,18 @@ function useAudioRecorder() {
     const mediaRecorder = new MediaRecorder(stream, { mimeType });
 
     chunksRef.current = [];
+    sizeRef.current = 0;
+    setRecordingSize(0);
+
     mediaRecorder.ondataavailable = (e) => {
-      if (e.data.size > 0) chunksRef.current.push(e.data);
+      if (e.data.size > 0) {
+        chunksRef.current.push(e.data);
+        sizeRef.current += e.data.size;
+        setRecordingSize(sizeRef.current);
+        if (sizeRef.current >= MAX_RECORDING_SIZE) {
+          stopRecordingInternal();
+        }
+      }
     };
     mediaRecorder.onstop = () => {
       const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
@@ -52,20 +82,12 @@ function useAudioRecorder() {
     }, 1000);
   };
 
-  const stopRecording = () => {
-    if (mediaRecorderRef.current?.state === 'recording') {
-      mediaRecorderRef.current.stop();
-    }
-    setIsRecording(false);
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-  };
+  const stopRecording = stopRecordingInternal;
 
   const clearRecording = () => {
     setAudioBlob(null);
     setRecordingDuration(0);
+    setRecordingSize(0);
   };
 
   useEffect(() => {
@@ -77,7 +99,7 @@ function useAudioRecorder() {
     };
   }, []);
 
-  return { isRecording, recordingDuration, audioBlob, startRecording, stopRecording, clearRecording };
+  return { isRecording, recordingDuration, recordingSize, audioBlob, startRecording, stopRecording, clearRecording };
 }
 
 
@@ -111,7 +133,7 @@ export function MeetingView({ boardId, selectedDate, boardMembers, onRefreshSche
   const [aiSnapshot, setAiSnapshot] = useState<Record<string, { memo: string; transcript: string }>>({});
   const [showNoChangesModal, setShowNoChangesModal] = useState(false);
 
-  const { isRecording, recordingDuration, audioBlob, startRecording, stopRecording, clearRecording } = useAudioRecorder();
+  const { isRecording, recordingDuration, recordingSize, audioBlob, startRecording, stopRecording, clearRecording } = useAudioRecorder();
   const hasMicSupport = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
   const isPublicDomain = typeof window !== 'undefined' && window.location.hostname.includes('milkyway.pe.kr');
 
@@ -251,10 +273,6 @@ export function MeetingView({ boardId, selectedDate, boardMembers, onRefreshSche
 
   const handleTranscribe = async (meetingId: string) => {
     if (!audioBlob) return;
-    if (audioBlob.size > 25 * 1024 * 1024) {
-      alert(t('meeting.transcriptFileTooLarge'));
-      return;
-    }
     setIsTranscribing(true);
     try {
       const result = await meetingAPI.transcribeAudio(boardId, meetingId, audioBlob);
@@ -512,6 +530,9 @@ export function MeetingView({ boardId, selectedDate, boardMembers, onRefreshSche
                                     <span className="text-xs text-red-400 font-mono">
                                       {formatDuration(recordingDuration)}
                                     </span>
+                                    <span className="text-[10px] text-slate-500">
+                                      {formatFileSize(recordingSize)} / {formatFileSize(MAX_RECORDING_SIZE)}
+                                    </span>
                                   </div>
                                   <button
                                     onClick={stopRecording}
@@ -524,13 +545,29 @@ export function MeetingView({ boardId, selectedDate, boardMembers, onRefreshSche
                               )}
 
                               {audioBlob && !isTranscribing && (
-                                <button
-                                  onClick={() => handleTranscribe(meeting.id)}
-                                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-bridge-secondary bg-bridge-secondary/10 rounded-lg hover:bg-bridge-secondary/20 transition-colors"
-                                >
-                                  <FileText className="h-3.5 w-3.5" />
-                                  {t('meeting.transcribe')}
-                                </button>
+                                <>
+                                  <button
+                                    onClick={() => handleTranscribe(meeting.id)}
+                                    className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-bridge-secondary bg-bridge-secondary/10 rounded-lg hover:bg-bridge-secondary/20 transition-colors"
+                                  >
+                                    <FileText className="h-3.5 w-3.5" />
+                                    {t('meeting.transcribe')}
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      const url = URL.createObjectURL(audioBlob);
+                                      const a = document.createElement('a');
+                                      a.href = url;
+                                      a.download = `meeting-${meeting.id}-${format(new Date(), 'yyyyMMdd-HHmmss')}.webm`;
+                                      a.click();
+                                      URL.revokeObjectURL(url);
+                                    }}
+                                    className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-400 bg-white/5 rounded-lg hover:bg-white/10 transition-colors"
+                                  >
+                                    <Download className="h-3.5 w-3.5" />
+                                    {t('meeting.downloadRecording')}
+                                  </button>
+                                </>
                               )}
 
                               {isTranscribing && (
@@ -542,10 +579,27 @@ export function MeetingView({ boardId, selectedDate, boardMembers, onRefreshSche
                             </div>
                           )}
 
-                          {audioBlob && audioBlob.size > 24 * 1024 * 1024 && (
-                            <p className="text-xs text-amber-400 mb-2">
-                              {t('meeting.transcriptFileTooLarge')}
-                            </p>
+                          {(isRecording || audioBlob) && (
+                            <div className="mb-2">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-[10px] text-slate-500">
+                                  {formatFileSize(isRecording ? recordingSize : (audioBlob?.size ?? 0))} / {formatFileSize(MAX_RECORDING_SIZE)}
+                                </span>
+                                <span className="text-[10px] text-slate-500">
+                                  {Math.min(100, Math.round(((isRecording ? recordingSize : (audioBlob?.size ?? 0)) / MAX_RECORDING_SIZE) * 100))}%
+                                </span>
+                              </div>
+                              <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full transition-all duration-300 ${
+                                    ((isRecording ? recordingSize : (audioBlob?.size ?? 0)) / MAX_RECORDING_SIZE) > 0.9
+                                      ? 'bg-red-500' : ((isRecording ? recordingSize : (audioBlob?.size ?? 0)) / MAX_RECORDING_SIZE) > 0.7
+                                      ? 'bg-amber-500' : 'bg-bridge-secondary'
+                                  }`}
+                                  style={{ width: `${Math.min(100, ((isRecording ? recordingSize : (audioBlob?.size ?? 0)) / MAX_RECORDING_SIZE) * 100)}%` }}
+                                />
+                              </div>
+                            </div>
                           )}
 
                           <textarea

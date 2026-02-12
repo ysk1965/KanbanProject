@@ -425,6 +425,11 @@ export function TaskDetailModal({
               e.preventDefault();
               return;
             }
+            // Prevent dialog close when emoji picker is open
+            if ((e.target as HTMLElement)?.closest?.('[data-emoji-picker]')) {
+              e.preventDefault();
+              return;
+            }
             if (hasChanges) {
               e.preventDefault();
               handleClose();
