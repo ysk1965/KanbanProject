@@ -772,7 +772,9 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
       <div ref={emojiPickerRef}
         data-emoji-picker
         style={{ position: 'fixed', top: emojiPickerPos.top, left: emojiPickerPos.left, zIndex: 9999 }}
-        className="bg-bridge-obsidian border border-white/20 rounded-xl shadow-xl p-2 min-w-[200px]">
+        className="bg-bridge-obsidian border border-white/20 rounded-xl shadow-xl p-2 min-w-[200px] pointer-events-auto"
+        onPointerDown={e => e.stopPropagation()}
+        onMouseDown={e => e.stopPropagation()}>
         {/* 기본 이모지 */}
         <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1 mb-1">{t('comment.customEmoji.default', '기본')}</div>
         <div className="grid grid-cols-4 gap-1">

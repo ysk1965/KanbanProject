@@ -44,7 +44,7 @@ public class MeetingTranscriptionService {
 
     private static final String WHISPER_API_URL = "https://api.openai.com/v1/audio/transcriptions";
     private static final String WHISPER_MODEL = "whisper-1";
-    private static final long MAX_AUDIO_SIZE = 200 * 1024 * 1024; // 200MB
+    private static final long MAX_AUDIO_SIZE = 100 * 1024 * 1024; // 100MB
     private static final long WHISPER_CHUNK_SIZE = 24 * 1024 * 1024; // 24MB (Whisper API limit with margin)
     private static final int CHUNK_DURATION_SECONDS = 600; // 10분 단위로 분할
 
