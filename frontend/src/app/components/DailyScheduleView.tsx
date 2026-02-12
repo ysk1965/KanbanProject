@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronLeft, ChevronRight, Settings, Plus, Loader2, Clock, CheckSquare, Check, FileText } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Settings, Plus, Loader2, Clock, CheckSquare, FileText } from 'lucide-react';
 import { Button } from './ui/button';
 import { format, addDays, subDays, startOfDay, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval } from 'date-fns';
 import { formatDate } from '../utils/dateUtils';
@@ -11,10 +11,9 @@ import { ChecklistCreateModal } from './ChecklistCreateModal';
 import { ScheduleSettingsModal, ScheduleDisplayMode } from './ScheduleSettingsModal';
 import { WeeklySummaryModal } from './WeeklySummaryModal';
 import { DailySummaryModal } from './DailySummaryModal';
-import { DailyChecklistView } from './DailyChecklistView';
+import { EmbeddedDailyChecklist } from './EmbeddedDailyChecklist';
 import { AddDailyChecklistModal } from './AddDailyChecklistModal';
 import { MeetingView } from './MeetingView';
-import { BoardMember as BoardMemberType } from '../types';
 import {
   scheduleAPI,
   dailyChecklistAPI,
@@ -27,7 +26,7 @@ import {
 import { getInitials, getAssigneeHex } from '../utils/assigneeColor';
 
 // 데일리 스크럼 세부 탭 타입
-type ScheduleSubTab = 'timeblock' | 'checklist' | 'meeting';
+type ScheduleSubTab = 'timeblock' | 'meeting';
 
 interface DailyScheduleViewProps {
   boardId: string;
@@ -63,8 +62,12 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
   const { t } = useTranslation();
   // viewer 역할 제외한 멤버 목록
   const activeMembers = useMemo(() => boardMembers.filter((m) => m.role !== 'viewer'), [boardMembers]);
-  // 세부 탭 상태 (타임블록 / 체크리스트)
-  const [subTab, setSubTab] = useState<ScheduleSubTab>(initialSubTab || 'timeblock');
+  // 세부 탭 상태 (타임블록 / 회의)
+  const [subTab, setSubTab] = useState<ScheduleSubTab>(
+    initialSubTab === 'meeting' ? 'meeting' : 'timeblock'
+  );
+  // 체크리스트 펼침 상태 (멤버별)
+  const [expandedChecklists, setExpandedChecklists] = useState<Set<string>>(new Set());
 
   const [viewMode, setViewMode] = useState<ScheduleViewMode>('day');
   const [selectedDate, setSelectedDate] = useState<Date>(startOfDay(new Date()));
@@ -613,13 +616,13 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
       {/* 상단 날짜 네비게이션 */}
       <div className="flex items-center justify-between px-3 md:px-6 py-2 md:py-3 bg-kanban-card border-b border-kanban-border gap-2">
         <div className="flex items-center gap-2 md:gap-4 flex-wrap min-w-0">
-          {/* 세부 탭: 타임블록 / 체크리스트 */}
+          {/* 세부 탭: 타임블록 / 회의 */}
           <div className="flex bg-kanban-bg rounded-lg p-1">
             <button
               onClick={() => {
                 if (subTab !== 'timeblock') {
                   setSubTab('timeblock');
-                  loadSchedule(); // 체크리스트에서 변경된 내용 반영
+                  loadSchedule();
                 }
               }}
               className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-all ${
@@ -630,17 +633,6 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
             >
               <Clock className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">{t('dailySchedule.timeblock')}</span>
-            </button>
-            <button
-              onClick={() => setSubTab('checklist')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-all ${
-                subTab === 'checklist'
-                  ? 'bg-bridge-accent text-white shadow-sm'
-                  : 'text-zinc-400 hover:text-zinc-300'
-              }`}
-            >
-              <CheckSquare className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">{t('dailySchedule.checklist')}</span>
             </button>
             <button
               onClick={() => setSubTab('meeting')}
@@ -745,28 +737,6 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
           boardMembers={activeMembers}
           onRefreshSchedule={loadSchedule}
         />
-      ) : subTab === 'checklist' ? (
-        /* 체크리스트 탭 */
-        <DailyChecklistView
-          boardId={boardId}
-          boardMembers={activeMembers.map((m) => ({
-            id: m.id,
-            user: {
-              id: m.userId,
-              email: m.email,
-              name: m.name,
-              profile_image: m.profileImage ?? null,
-            },
-            role: m.role === 'owner' ? 'OWNER' : m.role === 'admin' ? 'ADMIN' : m.role === 'viewer' ? 'VIEWER' : 'MEMBER',
-            joined_at: new Date().toISOString(),
-            assigneeColor: m.assigneeColor ?? null,
-          })) as BoardMemberType[]}
-          selectedDate={selectedDate}
-          onDateChange={setSelectedDate}
-          currentUserRole={currentUserRole}
-          memberColorMap={memberColorMap}
-          refreshTrigger={refreshTrigger}
-        />
       ) : (
       /* 타임블록 탭 - 스케줄 그리드 */
       <>
@@ -808,7 +778,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
               )}
             </div>
 
-            {/* 데일리 체크리스트 요약 영역 */}
+            {/* 데일리 체크리스트 영역 */}
             <div className="flex border-b border-kanban-border bg-white/[0.02]">
               <div className="w-14 md:w-20 flex-shrink-0 p-2 text-xs text-zinc-400 border-r border-kanban-border flex items-center justify-center">
                 <CheckSquare className="h-3.5 w-3.5" />
@@ -818,111 +788,77 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
                   (c) => c.user.id === member.userId
                 );
                 const items = memberChecklist?.items || [];
-                const completedCount = items.filter((i) => i.completed).length;
-                const totalCount = items.length;
 
                 return (
                   <div
                     key={`checklist-${member.userId}`}
                     className="w-36 md:w-48 flex-shrink-0 p-2 border-r border-kanban-border"
                   >
-                    {totalCount > 0 ? (
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-slate-400">{t('dailySchedule.todayChecklist')}</span>
-                          <div className="flex items-center gap-1">
-                            <span className={`font-medium ${completedCount === totalCount ? 'text-green-400' : 'text-bridge-accent'}`}>
-                              {completedCount}/{totalCount}
-                            </span>
-                            {!isViewer && (
-                              <button
-                                onClick={() => {
-                                  setAddChecklistAssigneeId(member.userId);
-                                  setShowAddChecklistModal(true);
-                                }}
-                                className="w-4 h-4 flex items-center justify-center rounded hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
-                              >
-                                <Plus className="h-3 w-3" />
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                        <div className="space-y-0.5 mt-1">
-                          {items.slice(0, 4).map((item) => (
-                            <div
-                              key={item.id}
-                              className="flex items-center gap-1.5"
-                            >
-                              <button
-                                disabled={isViewer || !item.checklist_item_id || !item.task}
-                                onClick={async () => {
-                                  if (!item.checklist_item_id || !item.task) return;
-                                  // 낙관적 업데이트
-                                  setDailyChecklists(prev => prev.map(col => ({
-                                    ...col,
-                                    items: col.items.map(i =>
-                                      i.id === item.id ? { ...i, completed: !i.completed } : i
-                                    ),
-                                  })));
-                                  try {
-                                    await checklistAPI.toggleItem(boardId, item.task.id, item.checklist_item_id);
-                                  } catch {
-                                    // 실패 시 원복
-                                    setDailyChecklists(prev => prev.map(col => ({
-                                      ...col,
-                                      items: col.items.map(i =>
-                                        i.id === item.id ? { ...i, completed: !i.completed } : i
-                                      ),
-                                    })));
-                                  }
-                                }}
-                                className={`w-3 h-3 rounded flex-shrink-0 flex items-center justify-center transition-colors ${
-                                  item.completed
-                                    ? 'bg-green-500/30 border border-green-500/50 hover:bg-green-500/40'
-                                    : 'border border-white/20 bg-white/5 hover:border-white/40'
-                                } ${!isViewer && item.checklist_item_id && item.task ? 'cursor-pointer' : 'cursor-default'}`}
-                              >
-                                {item.completed && (
-                                  <Check className="h-2 w-2 text-green-400" />
-                                )}
-                              </button>
-                              <span
-                                className={`text-[10px] truncate ${
-                                  item.completed
-                                    ? 'text-green-400/70 line-through'
-                                    : 'text-slate-400'
-                                }`}
-                              >
-                                {item.title}
-                              </span>
-                            </div>
-                          ))}
-                          {items.length > 4 && (
-                            <div className="text-[10px] text-slate-400 pl-4">
-                              {t('dailySchedule.moreItems', { count: items.length - 4 })}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-between text-xs py-1">
-                        <span className="text-slate-400">{t('dailySchedule.todayChecklist')}</span>
-                        <div className="flex items-center gap-1">
-                          <span className="text-slate-500">0</span>
-                          {!isViewer && (
-                            <button
-                              onClick={() => {
-                                setAddChecklistAssigneeId(member.userId);
-                                setShowAddChecklistModal(true);
-                              }}
-                              className="w-4 h-4 flex items-center justify-center rounded hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
-                            >
-                              <Plus className="h-3 w-3" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    )}
+                    <EmbeddedDailyChecklist
+                      boardId={boardId}
+                      items={items}
+                      isViewer={isViewer}
+                      isExpanded={expandedChecklists.has(member.userId)}
+                      onToggleExpand={() => {
+                        setExpandedChecklists((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(member.userId)) next.delete(member.userId);
+                          else next.add(member.userId);
+                          return next;
+                        });
+                      }}
+                      onToggle={async (itemId, checklistItemId, taskId, newCompleted) => {
+                        // 낙관적 업데이트 - 체크리스트
+                        setDailyChecklists((prev) =>
+                          prev.map((col) => ({
+                            ...col,
+                            items: col.items.map((i) =>
+                              i.id === itemId ? { ...i, completed: newCompleted } : i
+                            ),
+                          }))
+                        );
+                        // 낙관적 업데이트 - 스케줄 블록
+                        setColumns((prev) =>
+                          prev.map((col) => ({
+                            ...col,
+                            blocks: col.blocks.map((b) =>
+                              b.checklist_item && b.checklist_item.id === checklistItemId
+                                ? { ...b, checklist_item: { ...b.checklist_item, completed: newCompleted } }
+                                : b
+                            ),
+                          }))
+                        );
+                        try {
+                          await checklistAPI.toggleItem(boardId, taskId, checklistItemId);
+                        } catch {
+                          // 실패 시 원복
+                          setDailyChecklists((prev) =>
+                            prev.map((col) => ({
+                              ...col,
+                              items: col.items.map((i) =>
+                                i.id === itemId ? { ...i, completed: !newCompleted } : i
+                              ),
+                            }))
+                          );
+                          setColumns((prev) =>
+                            prev.map((col) => ({
+                              ...col,
+                              blocks: col.blocks.map((b) =>
+                                b.checklist_item && b.checklist_item.id === checklistItemId
+                                  ? { ...b, checklist_item: { ...b.checklist_item, completed: !newCompleted } }
+                                  : b
+                              ),
+                            }))
+                          );
+                          throw new Error('Toggle failed');
+                        }
+                      }}
+                      onRefresh={loadSchedule}
+                      onAddClick={() => {
+                        setAddChecklistAssigneeId(member.userId);
+                        setShowAddChecklistModal(true);
+                      }}
+                    />
                   </div>
                 );
               })}

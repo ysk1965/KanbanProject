@@ -1713,14 +1713,20 @@ function AddChecklistItemInput({
                   onValueChange={(val) => setAssigneeId(val === 'none' ? '' : val)}
                 >
                   <SelectTrigger className="h-7 text-xs bg-white/5 border-white/10 text-foreground">
-                    {selectedMember ? (
-                      <div className="flex items-center gap-1">
-                        <div className="w-4 h-4 rounded-full bg-bridge-accent flex items-center justify-center text-[10px] text-white flex-shrink-0 whitespace-nowrap overflow-hidden">
-                          {getInitials(selectedMember.name)}
+                    {selectedMember ? (() => {
+                      const selColor = getAssigneeClasses(selectedMember.name, selectedMember.assigneeColor);
+                      return (
+                        <div className="flex items-center gap-1">
+                          <div
+                            className={`w-4 h-4 rounded-full ${selColor.bg} flex items-center justify-center text-[10px] text-white flex-shrink-0 whitespace-nowrap overflow-hidden`}
+                            style={!selColor.bg ? { backgroundColor: selColor.hex } : undefined}
+                          >
+                            {getInitials(selectedMember.name)}
+                          </div>
+                          <span>{selectedMember.name}</span>
                         </div>
-                        <span>{selectedMember.name}</span>
-                      </div>
-                    ) : (
+                      );
+                    })() : (
                       <SelectValue placeholder={t('common.none')} />
                     )}
                   </SelectTrigger>
@@ -1728,19 +1734,25 @@ function AddChecklistItemInput({
                     <SelectItem value="none" className="text-foreground hover:bg-white/10">
                       <span className="text-xs">{t('common.none')}</span>
                     </SelectItem>
-                    {boardMembers.map((member) => (
-                      <SelectItem key={member.userId} value={member.userId} className="text-foreground hover:bg-white/10">
-                        <div className="flex items-center gap-2">
-                          <div className="w-4 h-4 rounded-full bg-bridge-accent flex items-center justify-center text-[10px] text-white flex-shrink-0 whitespace-nowrap overflow-hidden">
-                            {getInitials(member.name)}
+                    {boardMembers.map((member) => {
+                      const memberColor = getAssigneeClasses(member.name, member.assigneeColor);
+                      return (
+                        <SelectItem key={member.userId} value={member.userId} className="text-foreground hover:bg-white/10">
+                          <div className="flex items-center gap-2">
+                            <div
+                              className={`w-4 h-4 rounded-full ${memberColor.bg} flex items-center justify-center text-[10px] text-white flex-shrink-0 whitespace-nowrap overflow-hidden`}
+                              style={!memberColor.bg ? { backgroundColor: memberColor.hex } : undefined}
+                            >
+                              {getInitials(member.name)}
+                            </div>
+                            <span className="text-xs">{member.name}</span>
+                            {member.userId === currentUser?.id && (
+                              <span className="text-[10px] text-slate-400">(나)</span>
+                            )}
                           </div>
-                          <span className="text-xs">{member.name}</span>
-                          {member.userId === currentUser?.id && (
-                            <span className="text-[10px] text-slate-400">(나)</span>
-                          )}
-                        </div>
-                      </SelectItem>
-                    ))}
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               </div>
