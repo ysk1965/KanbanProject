@@ -46,7 +46,8 @@
       "pricing": "Pricing",
       "compare": "比较",
       "joinNow": "JOIN NOW",
-      "startForFree": "免费开始"
+      "startForFree": "免费开始",
+      "ai": "AI"
     },
     "hero": {
       "badge": "智能项目管理编排",
@@ -279,7 +280,10 @@
     "viewerDesc": "只读（仅查看卡片）",
     "webhookConnected": "已连接",
     "webhookDisabled": "已停用",
-    "webhookNotConnected": "未连接"
+    "webhookNotConnected": "未连接",
+    "manageSeat": "管理座位",
+    "seatUsage": "座位使用情况",
+    "seatsUsed": "座位使用中"
   },
   "notification": {
     "notifications": "通知",
@@ -377,7 +381,10 @@
       "milestone": "里程碑管理",
       "slackNotification": "Slack 通知集成",
       "statisticsDashboard": "统计仪表盘"
-    }
+    },
+    "currentMembers": "当前付费成员：{{count}}人",
+    "seatSelection": "选择座位数",
+    "seats": "座位"
   },
   "premiumBenefits": {
     "heroTitle": "解锁 Premium 功能",
@@ -497,7 +504,24 @@
     "discountFormat": "优惠 {{percent}}%",
     "changePlan": "更改方案",
     "startSubscription": "开始订阅",
-    "startDate": "订阅开始日期"
+    "startDate": "订阅开始日期",
+    "addSeats": "购买额外座位",
+    "availableSeats": "可用",
+    "cancelConfirmDesc": "订阅将在当前计费周期结束前保持有效。之后将切换为免费方案。",
+    "cancelConfirmTitle": "取消订阅",
+    "canceledMessage": "订阅已取消。",
+    "changeBillingCycle": "更改计费周期",
+    "confirmCancel": "是的，取消",
+    "currentSeats": "当前座位",
+    "purchaseSeats": "购买座位",
+    "seatUsage": "座位使用量",
+    "suspendedMessage": "订阅已暂停，请联系客服。",
+    "tabBilling": "计费",
+    "tabOverview": "概览",
+    "tabSeats": "座位",
+    "trialActive": "免费试用已激活",
+    "trialEndsAt": "试用结束日期：{{date}}",
+    "usedSeats": "使用中"
   },
   "dailySchedule": {
     "timeblock": "时间块",
@@ -560,7 +584,13 @@
     "blockUnit": "30 分钟",
     "totalBlockCount": "总区块数：",
     "endAfterStart": "结束时间必须晚于开始时间。",
-    "minBlocksRequired": "至少需要 4 个区块。"
+    "minBlocksRequired": "至少需要 4 个区块。",
+    "breakEnd": "结束",
+    "breakStart": "开始",
+    "breakTime": "午休时间",
+    "breakTimeDesc": "午休时间不计入工作时间",
+    "effectiveHours": "实际工时：",
+    "excludingBreak": "（不含{{hours}}小时午休）"
   },
   "dailySummary": {
     "summaryButton": "摘要",
@@ -1173,7 +1203,8 @@
     "roleChangeFailed": "更改角色失败。",
     "cannotRemoveSelf": "不能移除自己。",
     "removeMemberFailed": "移除成员失败。",
-    "checklist": "清单"
+    "checklist": "清单",
+    "viewNotes": "笔记"
   },
   "admin": {
     "backToBoards": "返回看板",
@@ -1284,7 +1315,9 @@
       "tier": "等级",
       "members": "成员",
       "tasks": "Task",
-      "createdAt": "创建时间"
+      "createdAt": "创建时间",
+      "view": "查看",
+      "viewBoard": "查看看板"
     },
     "boardDetail": {
       "title": "看板详情",
@@ -1321,7 +1354,23 @@
       "deleting": "删除中...",
       "editName": "编辑看板名称",
       "nameUpdateSuccess": "看板名称已更新。",
-      "nameUpdateFailed": "看板名称更新失败。"
+      "nameUpdateFailed": "看板名称更新失败。",
+      "changeRole": "更改角色",
+      "confirmRemoveMember": "确定要将{{name}}从看板中移除吗？\n移除后需要重新邀请。",
+      "confirmRoleChange": "确定要将{{name}}的角色更改为{{role}}吗？",
+      "enterSeatCount": "请输入新的座位数：",
+      "enterValidSeatCount": "请输入有效的座位数（1个以上）。",
+      "noSeatInfo": "无座位信息",
+      "noSubscription_seat": "没有订阅，无法更改座位数。",
+      "removeMember": "移除成员",
+      "removeMemberFailed": "移除成员失败。",
+      "removeMemberSuccess": "{{name}}已从看板中移除。",
+      "roleChangeFailed": "更改角色失败。",
+      "roleChangeSuccess": "{{name}}的角色已更改为{{role}}。",
+      "seatCount": "座位数",
+      "seatCountUpdateFailed": "更改座位数失败。",
+      "seatCountUpdateSuccess": "座位数已更改为{{count}}个。",
+      "updateSeatCount": "更改座位数"
     },
     "users": {
       "title": "用户管理",
@@ -1372,7 +1421,17 @@
       "passwordResetEmail": "密码重置邮件",
       "activateAccount": "激活账户",
       "deactivateAccount": "停用账户",
-      "cannotDeactivateAdmin": "管理员账户无法停用"
+      "cannotDeactivateAdmin": "管理员账户无法停用",
+      "cannotDeleteOwner": "无法删除看板所有者。请先转移所有权。",
+      "cannotRemoveOwner": "无法移除看板所有者。",
+      "confirmDelete": "确定要永久删除{{name}}的账户吗？\n\n此操作不可撤销，所有相关数据将被删除。",
+      "confirmRemoveFromBoard": "确定要将{{name}}从\"{{board}}\"看板中移除吗？",
+      "deleteAccount": "永久删除账户",
+      "deleteFailed": "删除账户失败。",
+      "deleted": "账户已被永久删除。",
+      "removeFromBoard": "移除",
+      "removeFromBoardFailed": "从看板中移除失败。",
+      "removedFromBoard": "已从看板中移除。"
     },
     "inquiries": {
       "title": "咨询管理",
@@ -1943,7 +2002,9 @@
     "selectMember": "选择成员",
     "confirmGenerate": "AI 报告每天只能生成一次。是否要生成？",
     "confirmRegenerate": "AI 报告每天只能生成一次。是否要重新生成？",
-    "dailyLimitReached": "您已使用今天的 AI 报告生成次数"
+    "dailyLimitReached": "您已使用今天的 AI 报告生成次数",
+    "hasTranscript": "录音记录",
+    "meetingsLabel": "会议"
   },
   "compare": {
     "nav": {
@@ -2126,10 +2187,101 @@
     "startRecording": "开始录音",
     "stopRecording": "停止录音",
     "transcribe": "转为文字",
+    "downloadRecording": "下载录音",
     "transcribing": "正在将语音转为文字...",
     "transcriptPlaceholder": "录音后转为文字，或直接输入...",
     "microphoneAccessDenied": "麦克风访问被拒绝，请在浏览器设置中允许麦克风权限。",
-    "transcriptFileTooLarge": "录音文件超过25MB，请录制更短的内容。",
-    "transcriptionError": "语音转换失败，请重试。"
+    "transcriptFileTooLarge": "录音文件超过200MB，请录制更短的内容。",
+    "transcriptionError": "语音转换失败，请重试。",
+    "aiClose": "收起",
+    "aiExpand": "展开",
+    "aiImportant": "重要",
+    "aiKeyPoints": "关键决策",
+    "aiNoChanges": "无变更",
+    "aiNoChangesDesc": "备忘录或语音记录自上次AI总结后未发生变更。",
+    "aiRecommendedTasks": "推荐任务",
+    "aiSummaryTitle": "会议总结",
+    "saveToNote": "保存到笔记",
+    "saveToNoteSuccess": "已保存到笔记"
+  },
+  "notes": {
+    "addTag": "添加标签",
+    "aiAlreadyExists": "已存在",
+    "aiAnalyzing": "AI正在分析笔记...",
+    "aiApply": "应用",
+    "aiApplySuccess": "已创建{{features}}个功能、{{tasks}}个任务和{{checklists}}个清单。",
+    "aiApplying": "应用中...",
+    "aiClose": "收起",
+    "aiDeselectAll": "取消全选",
+    "aiError": "AI分析过程中出现错误，请重试。",
+    "aiExistingFeature": "已有",
+    "aiExpand": "展开",
+    "aiImportant": "重要",
+    "aiKeyPoints": "关键要点",
+    "aiNewFeature": "新增",
+    "aiNoSuggestions": "未在笔记中找到可执行的项目。",
+    "aiOrganize": "AI分析",
+    "aiOrganizeTitle": "AI笔记分析",
+    "aiRecommendedTasks": "推荐任务",
+    "aiRetry": "重试",
+    "aiSelectAll": "全选",
+    "aiSelectedCount": "已选择{{count}}个项目",
+    "aiSummaryTitle": "笔记摘要",
+    "allTags": "全部",
+    "autoSaved": "已自动保存",
+    "confirmDelete": "确定要删除吗？所有子项也将被删除。",
+    "contentPlaceholder": "请输入内容...",
+    "createFirstDocument": "创建第一个文档",
+    "createTag": "新建",
+    "folderHint": "选择文档进行编辑",
+    "folderSelected": "已选择文件夹",
+    "listView": "列表视图",
+    "newDocument": "新建文档",
+    "newDocumentInFolder": "添加文档",
+    "newFolder": "新建文件夹",
+    "newSubfolder": "添加子文件夹",
+    "noVersions": "没有已保存的版本",
+    "rename": "重命名",
+    "restore": "恢复",
+    "restoreConfirm": "确定要恢复到此版本吗？",
+    "restoredVersion": "已从版本{{version}}恢复",
+    "savedVersion": "版本{{version}}已保存",
+    "searchPlaceholder": "搜索...",
+    "selectOrCreate": "请选择文档或新建一个",
+    "tagColor": "标签颜色",
+    "tagName": "标签名称",
+    "tags": "标签",
+    "title": "笔记",
+    "titlePlaceholder": "请输入标题",
+    "treeView": "树形视图",
+    "unsavedWarning": "有未保存的更改。确定要离开吗？",
+    "version": "版本",
+    "versionHistory": "版本历史"
+  },
+  "payment": {
+    "error": "支付错误",
+    "errorCode": "错误代码",
+    "failed": "支付失败",
+    "goBack": "返回",
+    "pleaseWait": "正在确认支付，请稍候。",
+    "processing": "支付处理中...",
+    "redirecting": "正在跳转到看板...",
+    "success": "支付成功！",
+    "tryAgain": "重试",
+    "unknownError": "发生未知错误"
+  },
+  "seatPurchase": {
+    "additionalSeats": "增加座位数",
+    "currentSeats": "当前座位使用量",
+    "month": "月",
+    "newTotal": "变更后总额",
+    "pendingInvite": "邀请{{email}}需要额外座位。",
+    "pendingRoleChange": "更改成员角色需要额外座位。",
+    "purchaseAndContinue": "购买并邀请",
+    "purchaseAndPromote": "购买并更改角色",
+    "seats": "座位",
+    "subtitle": "邀请成员需要座位",
+    "title": "购买额外座位",
+    "year": "年"
   }
 }

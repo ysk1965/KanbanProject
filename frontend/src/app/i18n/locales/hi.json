@@ -46,7 +46,8 @@
       "pricing": "Pricing",
       "compare": "तुलना",
       "joinNow": "JOIN NOW",
-      "startForFree": "मुफ़्त शुरू करें"
+      "startForFree": "मुफ़्त शुरू करें",
+      "ai": "AI"
     },
     "hero": {
       "badge": "बुद्धिमान PM ऑर्केस्ट्रेशन",
@@ -137,7 +138,23 @@
       }
     },
     "ai": {
-      "premium": "Premium"
+      "premium": "Premium",
+      "insights": {
+        "text": "व्यक्तिगत प्रदर्शन विवरण और टीम गतिशीलता विश्लेषण। कार्य वितरण और सहयोग पैटर्न को एक नज़र में समझें।",
+        "title": "Personal & Team Insights"
+      },
+      "label": "AI Intelligence",
+      "narrative": {
+        "text": "सिर्फ मेट्रिक्स नहीं — Claude AI आपके सप्ताह की गतिविधि को एक सार्थक कहानी में पिरोता है, छिपी बाधाओं और निर्भरताओं को उजागर करता है।",
+        "title": "AI Weekly Narrative"
+      },
+      "standup": {
+        "text": "हर सुबह, AI कल की प्रगति का सारांश बनाकर आपके Slack चैनल में स्वचालित रूप से भेजता है।",
+        "title": "Automated Daily Standup"
+      },
+      "subtitle": "डैशबोर्ड और चार्ट से परे। AI आपके टास्क, टाइम ब्लॉक, चेकलिस्ट और कमेंट का विश्लेषण करके ऐसे इनसाइट्स तैयार करता है जो इंसान चूक सकते हैं।",
+      "titleLine1": "AI आपकी टीम का",
+      "titleLine2": "संदर्भ पढ़ता है"
     },
     "pricing": {
       "badge": "PREMIUM 3 दिन मुफ़्त ट्रायल",
@@ -263,7 +280,10 @@
     "viewerDesc": "केवल पढ़ने के लिए (केवल कार्ड देखें)",
     "webhookConnected": "जुड़ा हुआ",
     "webhookDisabled": "अक्षम",
-    "webhookNotConnected": "जुड़ा नहीं"
+    "webhookNotConnected": "जुड़ा नहीं",
+    "manageSeat": "सीट प्रबंधन",
+    "seatUsage": "सीट उपयोग स्थिति",
+    "seatsUsed": "सीट उपयोग में"
   },
   "notification": {
     "notifications": "अधिसूचनाएं",
@@ -361,7 +381,10 @@
       "milestone": "माइलस्टोन प्रबंधन",
       "slackNotification": "Slack अधिसूचना एकीकरण",
       "statisticsDashboard": "सांख्यिकी डैशबोर्ड"
-    }
+    },
+    "currentMembers": "वर्तमान भुगतान सदस्य: {{count}}",
+    "seatSelection": "सीट संख्या",
+    "seats": "सीट"
   },
   "premiumBenefits": {
     "heroTitle": "Premium सुविधाएँ अनलॉक करें",
@@ -481,7 +504,24 @@
     "discountFormat": "{{percent}}% छूट",
     "changePlan": "प्लान बदलें",
     "startSubscription": "सदस्यता शुरू करें",
-    "startDate": "सदस्यता प्रारंभ तिथि"
+    "startDate": "सदस्यता प्रारंभ तिथि",
+    "addSeats": "अतिरिक्त सीट खरीदें",
+    "availableSeats": "उपलब्ध",
+    "cancelConfirmDesc": "आपकी सब्सक्रिप्शन वर्तमान बिलिंग अवधि के अंत तक सक्रिय रहेगी। उसके बाद, आपका बोर्ड निःशुल्क प्लान में बदल जाएगा।",
+    "cancelConfirmTitle": "सब्सक्रिप्शन रद्द करें",
+    "canceledMessage": "आपकी सब्सक्रिप्शन रद्द कर दी गई है।",
+    "changeBillingCycle": "बिलिंग चक्र बदलें",
+    "confirmCancel": "हां, रद्द करें",
+    "currentSeats": "वर्तमान सीट",
+    "purchaseSeats": "सीट खरीदें",
+    "seatUsage": "सीट उपयोग",
+    "suspendedMessage": "आपकी सब्सक्रिप्शन निलंबित है। कृपया सहायता से संपर्क करें।",
+    "tabBilling": "बिलिंग",
+    "tabOverview": "अवलोकन",
+    "tabSeats": "सीट",
+    "trialActive": "निःशुल्क ट्रायल सक्रिय है",
+    "trialEndsAt": "ट्रायल समाप्ति: {{date}}",
+    "usedSeats": "उपयोग में"
   },
   "dailySchedule": {
     "timeblock": "टाइम ब्लॉक",
@@ -544,7 +584,13 @@
     "blockUnit": "30 मिनट",
     "totalBlockCount": "कुल ब्लॉक:",
     "endAfterStart": "समाप्ति समय प्रारंभ समय के बाद होना चाहिए।",
-    "minBlocksRequired": "कम से कम 4 ब्लॉक आवश्यक हैं।"
+    "minBlocksRequired": "कम से कम 4 ब्लॉक आवश्यक हैं।",
+    "breakEnd": "समाप्ति",
+    "breakStart": "शुरुआत",
+    "breakTime": "ब्रेक टाइम",
+    "breakTimeDesc": "ब्रेक टाइम कार्य घंटों से बाहर है",
+    "effectiveHours": "प्रभावी:",
+    "excludingBreak": "({{hours}} घंटे ब्रेक को छोड़कर)"
   },
   "dailySummary": {
     "summaryButton": "सारांश",
@@ -1157,7 +1203,8 @@
     "roleChangeFailed": "भूमिका बदलने में विफल।",
     "cannotRemoveSelf": "आप स्वयं को हटा नहीं सकते।",
     "removeMemberFailed": "सदस्य को हटाने में विफल।",
-    "checklist": "चेकलिस्ट"
+    "checklist": "चेकलिस्ट",
+    "viewNotes": "नोट्स"
   },
   "admin": {
     "backToBoards": "बोर्ड पर वापस जाएं",
@@ -1268,7 +1315,9 @@
       "tier": "टियर",
       "members": "सदस्य",
       "tasks": "Tasks",
-      "createdAt": "बनाया गया"
+      "createdAt": "बनाया गया",
+      "view": "देखें",
+      "viewBoard": "बोर्ड देखें"
     },
     "boardDetail": {
       "title": "बोर्ड विवरण",
@@ -1305,7 +1354,23 @@
       "deleting": "हटाया जा रहा है...",
       "editName": "बोर्ड का नाम संपादित करें",
       "nameUpdateSuccess": "बोर्ड का नाम अपडेट किया गया।",
-      "nameUpdateFailed": "बोर्ड का नाम अपडेट करने में विफल।"
+      "nameUpdateFailed": "बोर्ड का नाम अपडेट करने में विफल।",
+      "changeRole": "भूमिका बदलें",
+      "confirmRemoveMember": "क्या आप {{name}} को बोर्ड से हटाना चाहते हैं?\nहटाने के बाद उन्हें दोबारा आमंत्रित करना होगा।",
+      "confirmRoleChange": "{{name}} की भूमिका {{role}} में बदलें?",
+      "enterSeatCount": "नई सीट संख्या दर्ज करें:",
+      "enterValidSeatCount": "कृपया वैध सीट संख्या दर्ज करें (1 या अधिक)।",
+      "noSeatInfo": "सीट जानकारी उपलब्ध नहीं",
+      "noSubscription_seat": "सब्सक्रिप्शन के बिना सीट संख्या नहीं बदली जा सकती।",
+      "removeMember": "सदस्य हटाएं",
+      "removeMemberFailed": "सदस्य हटाने में विफल।",
+      "removeMemberSuccess": "{{name}} को बोर्ड से हटा दिया गया।",
+      "roleChangeFailed": "भूमिका बदलने में विफल।",
+      "roleChangeSuccess": "{{name}} की भूमिका {{role}} में बदल दी गई।",
+      "seatCount": "सीट",
+      "seatCountUpdateFailed": "सीट संख्या बदलने में विफल।",
+      "seatCountUpdateSuccess": "सीट संख्या {{count}} में अपडेट की गई।",
+      "updateSeatCount": "सीट संख्या अपडेट करें"
     },
     "users": {
       "title": "उपयोगकर्ता प्रबंधन",
@@ -1356,7 +1421,17 @@
       "passwordResetEmail": "पासवर्ड रीसेट ईमेल",
       "activateAccount": "खाता सक्रिय करें",
       "deactivateAccount": "खाता निष्क्रिय करें",
-      "cannotDeactivateAdmin": "व्यवस्थापक खातों को निष्क्रिय नहीं किया जा सकता"
+      "cannotDeactivateAdmin": "व्यवस्थापक खातों को निष्क्रिय नहीं किया जा सकता",
+      "cannotDeleteOwner": "बोर्ड मालिक को हटाया नहीं जा सकता। पहले स्वामित्व ट्रांसफर करें।",
+      "cannotRemoveOwner": "बोर्ड मालिक को हटाया नहीं जा सकता।",
+      "confirmDelete": "क्या आप {{name}} का अकाउंट स्थायी रूप से हटाना चाहते हैं?\n\nयह क्रिया पूर्ववत नहीं की जा सकती और सभी संबंधित डेटा हटा दिया जाएगा।",
+      "confirmRemoveFromBoard": "{{name}} को \"{{board}}\" बोर्ड से हटाएं?",
+      "deleteAccount": "अकाउंट स्थायी रूप से हटाएं",
+      "deleteFailed": "अकाउंट हटाने में विफल।",
+      "deleted": "अकाउंट स्थायी रूप से हटा दिया गया।",
+      "removeFromBoard": "हटाएं",
+      "removeFromBoardFailed": "बोर्ड से हटाने में विफल।",
+      "removedFromBoard": "बोर्ड से हटा दिया गया।"
     },
     "inquiries": {
       "title": "पूछताछ प्रबंधन",
@@ -1927,7 +2002,9 @@
     "selectMember": "सदस्य चुनें",
     "confirmGenerate": "AI रिपोर्ट प्रतिदिन केवल एक बार बनाई जा सकती है। क्या आप बनाना चाहते हैं?",
     "confirmRegenerate": "AI रिपोर्ट प्रतिदिन केवल एक बार बनाई जा सकती है। क्या आप पुनः बनाना चाहते हैं?",
-    "dailyLimitReached": "आपने आज की AI रिपोर्ट जनरेशन का उपयोग कर लिया है"
+    "dailyLimitReached": "आपने आज की AI रिपोर्ट जनरेशन का उपयोग कर लिया है",
+    "hasTranscript": "ट्रांसक्रिप्ट",
+    "meetingsLabel": "मीटिंग"
   },
   "compare": {
     "nav": {
@@ -2110,10 +2187,101 @@
     "startRecording": "रिकॉर्डिंग शुरू करें",
     "stopRecording": "रिकॉर्डिंग बंद करें",
     "transcribe": "ट्रांसक्राइब करें",
+    "downloadRecording": "डाउनलोड",
     "transcribing": "ऑडियो ट्रांसक्राइब हो रहा है...",
     "transcriptPlaceholder": "रिकॉर्ड करें और ट्रांसक्राइब करें, या सीधे टाइप करें...",
     "microphoneAccessDenied": "माइक्रोफ़ोन एक्सेस अस्वीकृत। कृपया ब्राउज़र सेटिंग्स में माइक्रोफ़ोन की अनुमति दें।",
-    "transcriptFileTooLarge": "रिकॉर्डिंग 25MB से अधिक है। कृपया छोटी क्लिप रिकॉर्ड करें।",
-    "transcriptionError": "ट्रांसक्रिप्शन विफल। कृपया पुनः प्रयास करें।"
+    "transcriptFileTooLarge": "रिकॉर्डिंग 200MB से अधिक है। कृपया छोटी क्लिप रिकॉर्ड करें।",
+    "transcriptionError": "ट्रांसक्रिप्शन विफल। कृपया पुनः प्रयास करें।",
+    "aiClose": "संक्षिप्त करें",
+    "aiExpand": "विस्तार करें",
+    "aiImportant": "महत्वपूर्ण",
+    "aiKeyPoints": "प्रमुख निर्णय",
+    "aiNoChanges": "कोई बदलाव नहीं",
+    "aiNoChangesDesc": "पिछले AI सारांश के बाद मेमो या ट्रांसक्रिप्ट में कोई बदलाव नहीं हुआ।",
+    "aiRecommendedTasks": "सुझाए गए कार्य",
+    "aiSummaryTitle": "मीटिंग सारांश",
+    "saveToNote": "नोट में सेव करें",
+    "saveToNoteSuccess": "नोट में सेव हो गया"
+  },
+  "notes": {
+    "addTag": "टैग जोड़ें",
+    "aiAlreadyExists": "पहले से मौजूद",
+    "aiAnalyzing": "AI नोट का विश्लेषण कर रहा है...",
+    "aiApply": "लागू करें",
+    "aiApplySuccess": "{{features}} फीचर, {{tasks}} टास्क और {{checklists}} चेकलिस्ट बनाए गए।",
+    "aiApplying": "लागू हो रहा है...",
+    "aiClose": "संक्षिप्त करें",
+    "aiDeselectAll": "सभी अचयनित करें",
+    "aiError": "AI विश्लेषण में त्रुटि हुई। कृपया पुनः प्रयास करें।",
+    "aiExistingFeature": "मौजूदा",
+    "aiExpand": "विस्तार करें",
+    "aiImportant": "महत्वपूर्ण",
+    "aiKeyPoints": "मुख्य बिंदु",
+    "aiNewFeature": "नया",
+    "aiNoSuggestions": "इस नोट में कोई कार्यवाही योग्य आइटम नहीं मिला।",
+    "aiOrganize": "AI विश्लेषण",
+    "aiOrganizeTitle": "AI नोट विश्लेषण",
+    "aiRecommendedTasks": "सुझाए गए कार्य",
+    "aiRetry": "पुनः प्रयास",
+    "aiSelectAll": "सभी चुनें",
+    "aiSelectedCount": "{{count}} आइटम चयनित",
+    "aiSummaryTitle": "नोट सारांश",
+    "allTags": "सभी",
+    "autoSaved": "स्वतः सेव हो गया",
+    "confirmDelete": "क्या आप वाकई हटाना चाहते हैं? सभी उप-आइटम भी हटा दिए जाएंगे।",
+    "contentPlaceholder": "लिखना शुरू करें...",
+    "createFirstDocument": "पहला दस्तावेज़ बनाएं",
+    "createTag": "बनाएं",
+    "folderHint": "संपादित करने के लिए दस्तावेज़ चुनें",
+    "folderSelected": "फ़ोल्डर चयनित",
+    "listView": "सूची दृश्य",
+    "newDocument": "नया दस्तावेज़",
+    "newDocumentInFolder": "दस्तावेज़ जोड़ें",
+    "newFolder": "नया फ़ोल्डर",
+    "newSubfolder": "सब-फ़ोल्डर जोड़ें",
+    "noVersions": "कोई सेव किया गया संस्करण नहीं",
+    "rename": "नाम बदलें",
+    "restore": "पुनर्स्थापित करें",
+    "restoreConfirm": "इस संस्करण को पुनर्स्थापित करें?",
+    "restoredVersion": "संस्करण {{version}} से पुनर्स्थापित",
+    "savedVersion": "संस्करण {{version}} सेव हो गया",
+    "searchPlaceholder": "खोजें...",
+    "selectOrCreate": "दस्तावेज़ चुनें या नया बनाएं",
+    "tagColor": "टैग रंग",
+    "tagName": "टैग नाम",
+    "tags": "टैग",
+    "title": "नोट्स",
+    "titlePlaceholder": "शीर्षक दर्ज करें",
+    "treeView": "ट्री दृश्य",
+    "unsavedWarning": "सेव न किए गए बदलाव हैं। क्या आप बिना सेव किए जाना चाहते हैं?",
+    "version": "संस्करण",
+    "versionHistory": "संस्करण इतिहास"
+  },
+  "payment": {
+    "error": "भुगतान त्रुटि",
+    "errorCode": "त्रुटि कोड",
+    "failed": "भुगतान विफल",
+    "goBack": "वापस जाएं",
+    "pleaseWait": "भुगतान की पुष्टि हो रही है। कृपया प्रतीक्षा करें।",
+    "processing": "भुगतान प्रक्रिया में...",
+    "redirecting": "बोर्ड पर रीडायरेक्ट हो रहा है...",
+    "success": "भुगतान सफल!",
+    "tryAgain": "पुनः प्रयास",
+    "unknownError": "एक अज्ञात त्रुटि हुई"
+  },
+  "seatPurchase": {
+    "additionalSeats": "अतिरिक्त सीट",
+    "currentSeats": "वर्तमान सीट उपयोग",
+    "month": "माह",
+    "newTotal": "नया कुल",
+    "pendingInvite": "{{email}} को आमंत्रित करने के लिए अतिरिक्त सीट चाहिए।",
+    "pendingRoleChange": "सदस्य की भूमिका बदलने के लिए अतिरिक्त सीट आवश्यक है।",
+    "purchaseAndContinue": "खरीदें और आमंत्रित करें",
+    "purchaseAndPromote": "खरीदें और भूमिका बदलें",
+    "seats": "सीट",
+    "subtitle": "सदस्यों को आमंत्रित करने के लिए सीट आवश्यक हैं",
+    "title": "अतिरिक्त सीट खरीदें",
+    "year": "वर्ष"
   }
 }

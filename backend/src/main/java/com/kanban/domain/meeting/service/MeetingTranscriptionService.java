@@ -19,8 +19,14 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -33,9 +39,14 @@ public class MeetingTranscriptionService {
     @Value("${ai.openai.api-key:}")
     private String openaiApiKey;
 
+    @Value("${app.file.video.ffmpeg-path:/usr/bin/ffmpeg}")
+    private String ffmpegPath;
+
     private static final String WHISPER_API_URL = "https://api.openai.com/v1/audio/transcriptions";
     private static final String WHISPER_MODEL = "whisper-1";
-    private static final long MAX_AUDIO_SIZE = 25 * 1024 * 1024; // 25MB
+    private static final long MAX_AUDIO_SIZE = 200 * 1024 * 1024; // 200MB
+    private static final long WHISPER_CHUNK_SIZE = 24 * 1024 * 1024; // 24MB (Whisper API limit with margin)
+    private static final int CHUNK_DURATION_SECONDS = 600; // 10분 단위로 분할
 
     @Transactional
     public MeetingResponse.TranscriptResult transcribeAudio(
@@ -61,7 +72,12 @@ public class MeetingTranscriptionService {
             throw new BusinessException(ErrorCode.MEETING_NOT_FOUND);
         }
 
-        String transcriptText = callWhisperAPI(audioFile);
+        String transcriptText;
+        if (audioFile.getSize() <= WHISPER_CHUNK_SIZE) {
+            transcriptText = callWhisperAPI(audioFile);
+        } else {
+            transcriptText = splitAndTranscribe(audioFile);
+        }
 
         String existingTranscript = meeting.getTranscript();
         String finalTranscript;
@@ -80,19 +96,110 @@ public class MeetingTranscriptionService {
                 .build();
     }
 
+    private String splitAndTranscribe(MultipartFile audioFile) {
+        Path tempDir = null;
+        Path tempInput = null;
+        try {
+            tempDir = Files.createTempDirectory("audio_split_");
+            String extension = ".webm";
+            String originalName = audioFile.getOriginalFilename();
+            if (originalName != null && originalName.contains(".")) {
+                extension = originalName.substring(originalName.lastIndexOf("."));
+            }
+            tempInput = tempDir.resolve("input" + extension);
+            audioFile.transferTo(tempInput.toFile());
+
+            // FFmpeg로 청크 분할
+            String chunkPattern = tempDir.resolve("chunk_%03d" + extension).toString();
+            ProcessBuilder pb = new ProcessBuilder(
+                    ffmpegPath, "-i", tempInput.toString(),
+                    "-f", "segment", "-segment_time", String.valueOf(CHUNK_DURATION_SECONDS),
+                    "-c", "copy", "-y", chunkPattern
+            );
+            pb.redirectErrorStream(true);
+            Process process = pb.start();
+            String ffmpegOutput = new String(process.getInputStream().readAllBytes());
+            int exitCode = process.waitFor();
+
+            if (exitCode != 0) {
+                log.error("FFmpeg split failed (exit {}): {}", exitCode, ffmpegOutput);
+                throw new BusinessException(ErrorCode.TRANSCRIPTION_FAILED);
+            }
+
+            // 청크 파일 수집 및 순차 전사
+            List<Path> chunks = new ArrayList<>();
+            for (int i = 0; ; i++) {
+                Path chunk = tempDir.resolve(String.format("chunk_%03d%s", i, extension));
+                if (!Files.exists(chunk)) break;
+                chunks.add(chunk);
+            }
+
+            if (chunks.isEmpty()) {
+                throw new BusinessException(ErrorCode.TRANSCRIPTION_FAILED);
+            }
+
+            log.info("Audio split into {} chunks for transcription", chunks.size());
+
+            StringBuilder fullTranscript = new StringBuilder();
+            for (int i = 0; i < chunks.size(); i++) {
+                Path chunk = chunks.get(i);
+                byte[] chunkBytes = Files.readAllBytes(chunk);
+                String chunkText = callWhisperAPIWithBytes(chunkBytes, "chunk_" + i + extension);
+                if (fullTranscript.length() > 0) {
+                    fullTranscript.append(" ");
+                }
+                fullTranscript.append(chunkText);
+                log.info("Chunk {}/{} transcribed ({} chars)", i + 1, chunks.size(), chunkText.length());
+            }
+
+            return fullTranscript.toString();
+
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Audio split and transcribe failed: {}", e.getMessage(), e);
+            throw new BusinessException(ErrorCode.TRANSCRIPTION_FAILED);
+        } finally {
+            cleanupTempFiles(tempDir);
+        }
+    }
+
+    private void cleanupTempFiles(Path tempDir) {
+        if (tempDir == null) return;
+        try {
+            Files.walk(tempDir)
+                    .sorted((a, b) -> b.compareTo(a))
+                    .forEach(path -> {
+                        try { Files.deleteIfExists(path); } catch (IOException ignored) {}
+                    });
+        } catch (IOException e) {
+            log.warn("Failed to cleanup temp files: {}", e.getMessage());
+        }
+    }
+
     private String callWhisperAPI(MultipartFile audioFile) {
+        try {
+            return callWhisperAPIWithBytes(audioFile.getBytes(),
+                    audioFile.getOriginalFilename() != null ? audioFile.getOriginalFilename() : "recording.webm");
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Whisper API call failed: {}", e.getMessage(), e);
+            throw new BusinessException(ErrorCode.TRANSCRIPTION_FAILED);
+        }
+    }
+
+    private String callWhisperAPIWithBytes(byte[] audioBytes, String filename) {
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.MULTIPART_FORM_DATA);
             headers.setBearerAuth(openaiApiKey);
 
             MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-            body.add("file", new ByteArrayResource(audioFile.getBytes()) {
+            body.add("file", new ByteArrayResource(audioBytes) {
                 @Override
                 public String getFilename() {
-                    return audioFile.getOriginalFilename() != null
-                            ? audioFile.getOriginalFilename()
-                            : "recording.webm";
+                    return filename;
                 }
             });
             body.add("model", WHISPER_MODEL);

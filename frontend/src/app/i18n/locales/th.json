@@ -46,7 +46,8 @@
       "pricing": "Pricing",
       "compare": "เปรียบเทียบ",
       "joinNow": "JOIN NOW",
-      "startForFree": "เริ่มใช้งานฟรี"
+      "startForFree": "เริ่มใช้งานฟรี",
+      "ai": "AI"
     },
     "hero": {
       "badge": "ระบบจัดการโปรเจกต์อัจฉริยะ",
@@ -137,7 +138,23 @@
       }
     },
     "ai": {
-      "premium": "Premium"
+      "premium": "Premium",
+      "insights": {
+        "text": "วิเคราะห์ผลงานส่วนบุคคลและพลวัตของทีม ทำความเข้าใจการกระจายงานและรูปแบบความร่วมมือได้ในพริบตา",
+        "title": "Personal & Team Insights"
+      },
+      "label": "AI Intelligence",
+      "narrative": {
+        "text": "ไม่ใช่แค่ตัวเลข — Claude AI ร้อยเรียงกิจกรรมของสัปดาห์ให้เป็นเรื่องราวที่มีบริบท เปิดเผยอุปสรรคและการพึ่งพาที่ซ่อนอยู่",
+        "title": "AI Weekly Narrative"
+      },
+      "standup": {
+        "text": "ทุกเช้า AI จะสรุปความคืบหน้าของเมื่อวานและส่งไปยังช่อง Slack ของคุณโดยอัตโนมัติ",
+        "title": "Automated Daily Standup"
+      },
+      "subtitle": "เหนือกว่าแดชบอร์ดและกราฟ AI วิเคราะห์งาน, ไทม์บล็อก, เช็คลิสต์ และคอมเมนต์เพื่อสร้างข้อมูลเชิงลึกที่มนุษย์อาจมองข้าม",
+      "titleLine1": "AI อ่าน",
+      "titleLine2": "บริบทของทีมคุณ"
     },
     "pricing": {
       "badge": "PREMIUM ทดลองใช้ฟรี 3 วัน",
@@ -263,7 +280,10 @@
     "viewerDesc": "อ่านอย่างเดียว (ดูการ์ดเท่านั้น)",
     "webhookConnected": "เชื่อมต่อแล้ว",
     "webhookDisabled": "ปิดใช้งาน",
-    "webhookNotConnected": "ยังไม่ได้เชื่อมต่อ"
+    "webhookNotConnected": "ยังไม่ได้เชื่อมต่อ",
+    "manageSeat": "จัดการที่นั่ง",
+    "seatUsage": "สถานะการใช้ที่นั่ง",
+    "seatsUsed": "ที่นั่งที่ใช้อยู่"
   },
   "notification": {
     "notifications": "การแจ้งเตือน",
@@ -361,7 +381,10 @@
       "milestone": "การจัดการไมล์สโตน",
       "slackNotification": "การเชื่อมต่อการแจ้งเตือน Slack",
       "statisticsDashboard": "แดชบอร์ดสถิติ"
-    }
+    },
+    "currentMembers": "สมาชิกแบบชำระเงินปัจจุบัน: {{count}} คน",
+    "seatSelection": "จำนวนที่นั่ง",
+    "seats": "ที่นั่ง"
   },
   "premiumBenefits": {
     "heroTitle": "ปลดล็อกฟีเจอร์ Premium",
@@ -481,7 +504,24 @@
     "discountFormat": "ลด {{percent}}%",
     "changePlan": "เปลี่ยนแผน",
     "startSubscription": "เริ่มสมัครสมาชิก",
-    "startDate": "วันเริ่มต้นการสมัครสมาชิก"
+    "startDate": "วันเริ่มต้นการสมัครสมาชิก",
+    "addSeats": "ซื้อที่นั่งเพิ่มเติม",
+    "availableSeats": "ว่าง",
+    "cancelConfirmDesc": "การสมัครสมาชิกจะยังใช้งานได้จนกว่าจะสิ้นสุดรอบบิลปัจจุบัน หลังจากนั้นจะเปลี่ยนเป็นแผนฟรี",
+    "cancelConfirmTitle": "ยกเลิกการสมัครสมาชิก",
+    "canceledMessage": "ยกเลิกการสมัครสมาชิกแล้ว",
+    "changeBillingCycle": "เปลี่ยนรอบการเรียกเก็บเงิน",
+    "confirmCancel": "ใช่ ยกเลิก",
+    "currentSeats": "ที่นั่งปัจจุบัน",
+    "purchaseSeats": "ซื้อที่นั่ง",
+    "seatUsage": "การใช้ที่นั่ง",
+    "suspendedMessage": "การสมัครสมาชิกถูกระงับ กรุณาติดต่อฝ่ายสนับสนุน",
+    "tabBilling": "การเรียกเก็บเงิน",
+    "tabOverview": "ภาพรวม",
+    "tabSeats": "ที่นั่ง",
+    "trialActive": "ทดลองใช้ฟรีอยู่",
+    "trialEndsAt": "ทดลองใช้สิ้นสุด: {{date}}",
+    "usedSeats": "ใช้อยู่"
   },
   "dailySchedule": {
     "timeblock": "บล็อกเวลา",
@@ -544,7 +584,13 @@
     "blockUnit": "30 นาที",
     "totalBlockCount": "จำนวน Block ทั้งหมด:",
     "endAfterStart": "เวลาสิ้นสุดต้องอยู่หลังเวลาเริ่มต้น",
-    "minBlocksRequired": "ต้องมีอย่างน้อย 4 Block"
+    "minBlocksRequired": "ต้องมีอย่างน้อย 4 Block",
+    "breakEnd": "สิ้นสุด",
+    "breakStart": "เริ่มต้น",
+    "breakTime": "เวลาพัก",
+    "breakTimeDesc": "เวลาพักจะไม่นับรวมในชั่วโมงทำงาน",
+    "effectiveHours": "ทำงานจริง:",
+    "excludingBreak": "(ไม่รวมพัก {{hours}} ชม.)"
   },
   "dailySummary": {
     "summaryButton": "สรุป",
@@ -1157,7 +1203,8 @@
     "roleChangeFailed": "เปลี่ยนบทบาทไม่สำเร็จ",
     "cannotRemoveSelf": "ไม่สามารถลบตัวเองได้",
     "removeMemberFailed": "ลบสมาชิกไม่สำเร็จ",
-    "checklist": "เช็คลิสต์"
+    "checklist": "เช็คลิสต์",
+    "viewNotes": "โน้ต"
   },
   "admin": {
     "backToBoards": "กลับไปยังบอร์ด",
@@ -1268,7 +1315,9 @@
       "tier": "ระดับ",
       "members": "สมาชิก",
       "tasks": "Task",
-      "createdAt": "สร้างเมื่อ"
+      "createdAt": "สร้างเมื่อ",
+      "view": "ดู",
+      "viewBoard": "ดูบอร์ด"
     },
     "boardDetail": {
       "title": "รายละเอียดบอร์ด",
@@ -1305,7 +1354,23 @@
       "deleting": "กำลังลบ...",
       "editName": "แก้ไขชื่อบอร์ด",
       "nameUpdateSuccess": "อัปเดตชื่อบอร์ดแล้ว",
-      "nameUpdateFailed": "ไม่สามารถอัปเดตชื่อบอร์ดได้"
+      "nameUpdateFailed": "ไม่สามารถอัปเดตชื่อบอร์ดได้",
+      "changeRole": "เปลี่ยนบทบาท",
+      "confirmRemoveMember": "คุณต้องการลบ {{name}} ออกจากบอร์ดหรือไม่?\nหลังจากลบแล้วจะต้องเชิญใหม่อีกครั้ง",
+      "confirmRoleChange": "เปลี่ยนบทบาทของ {{name}} เป็น {{role}} หรือไม่?",
+      "enterSeatCount": "กรุณาใส่จำนวนที่นั่งใหม่:",
+      "enterValidSeatCount": "กรุณาใส่จำนวนที่นั่งที่ถูกต้อง (1 ขึ้นไป)",
+      "noSeatInfo": "ไม่มีข้อมูลที่นั่ง",
+      "noSubscription_seat": "ไม่สามารถเปลี่ยนจำนวนที่นั่งได้เนื่องจากไม่มีการสมัครสมาชิก",
+      "removeMember": "ลบสมาชิก",
+      "removeMemberFailed": "ลบสมาชิกไม่สำเร็จ",
+      "removeMemberSuccess": "{{name}} ถูกลบออกจากบอร์ดแล้ว",
+      "roleChangeFailed": "เปลี่ยนบทบาทไม่สำเร็จ",
+      "roleChangeSuccess": "บทบาทของ {{name}} ถูกเปลี่ยนเป็น {{role}} แล้ว",
+      "seatCount": "จำนวนที่นั่ง",
+      "seatCountUpdateFailed": "เปลี่ยนจำนวนที่นั่งไม่สำเร็จ",
+      "seatCountUpdateSuccess": "จำนวนที่นั่งถูกเปลี่ยนเป็น {{count}} แล้ว",
+      "updateSeatCount": "อัปเดตจำนวนที่นั่ง"
     },
     "users": {
       "title": "การจัดการผู้ใช้",
@@ -1356,7 +1421,17 @@
       "passwordResetEmail": "อีเมลรีเซ็ตรหัสผ่าน",
       "activateAccount": "เปิดใช้งานบัญชี",
       "deactivateAccount": "ปิดใช้งานบัญชี",
-      "cannotDeactivateAdmin": "ไม่สามารถปิดใช้งานบัญชีผู้ดูแลระบบได้"
+      "cannotDeactivateAdmin": "ไม่สามารถปิดใช้งานบัญชีผู้ดูแลระบบได้",
+      "cannotDeleteOwner": "ไม่สามารถลบเจ้าของบอร์ดได้ กรุณาโอนความเป็นเจ้าของก่อน",
+      "cannotRemoveOwner": "ไม่สามารถลบเจ้าของบอร์ดได้",
+      "confirmDelete": "ต้องการลบบัญชีของ {{name}} อย่างถาวรหรือไม่?\n\nการดำเนินการนี้ไม่สามารถย้อนกลับได้ และข้อมูลที่เกี่ยวข้องทั้งหมดจะถูกลบ",
+      "confirmRemoveFromBoard": "ลบ {{name}} ออกจากบอร์ด \"{{board}}\" หรือไม่?",
+      "deleteAccount": "ลบบัญชีอย่างถาวร",
+      "deleteFailed": "ลบบัญชีไม่สำเร็จ",
+      "deleted": "บัญชีถูกลบอย่างถาวรแล้ว",
+      "removeFromBoard": "ลบ",
+      "removeFromBoardFailed": "ลบออกจากบอร์ดไม่สำเร็จ",
+      "removedFromBoard": "ลบออกจากบอร์ดแล้ว"
     },
     "inquiries": {
       "title": "การจัดการคำร้อง",
@@ -1927,7 +2002,9 @@
     "selectMember": "เลือกสมาชิก",
     "confirmGenerate": "สามารถสร้างรายงาน AI ได้วันละครั้งเท่านั้น คุณต้องการสร้างหรือไม่?",
     "confirmRegenerate": "สามารถสร้างรายงาน AI ได้วันละครั้งเท่านั้น คุณต้องการสร้างใหม่หรือไม่?",
-    "dailyLimitReached": "คุณใช้การสร้างรายงาน AI ของวันนี้แล้ว"
+    "dailyLimitReached": "คุณใช้การสร้างรายงาน AI ของวันนี้แล้ว",
+    "hasTranscript": "บันทึกการสนทนา",
+    "meetingsLabel": "การประชุม"
   },
   "compare": {
     "nav": {
@@ -2110,10 +2187,101 @@
     "startRecording": "เริ่มบันทึก",
     "stopRecording": "หยุดบันทึก",
     "transcribe": "แปลงเป็นข้อความ",
+    "downloadRecording": "ดาวน์โหลด",
     "transcribing": "กำลังแปลงเสียงเป็นข้อความ...",
     "transcriptPlaceholder": "บันทึกเสียงแล้วแปลง หรือพิมพ์โดยตรง...",
     "microphoneAccessDenied": "การเข้าถึงไมโครโฟนถูกปฏิเสธ กรุณาอนุญาตการเข้าถึงไมโครโฟนในการตั้งค่าเบราว์เซอร์",
-    "transcriptFileTooLarge": "ไฟล์บันทึกเสียงเกิน 25MB กรุณาบันทึกให้สั้นลง",
-    "transcriptionError": "การแปลงเสียงล้มเหลว กรุณาลองอีกครั้ง"
+    "transcriptFileTooLarge": "ไฟล์บันทึกเสียงเกิน 200MB กรุณาบันทึกให้สั้นลง",
+    "transcriptionError": "การแปลงเสียงล้มเหลว กรุณาลองอีกครั้ง",
+    "aiClose": "ย่อ",
+    "aiExpand": "ขยาย",
+    "aiImportant": "สำคัญ",
+    "aiKeyPoints": "การตัดสินใจหลัก",
+    "aiNoChanges": "ไม่มีการเปลี่ยนแปลง",
+    "aiNoChangesDesc": "บันทึกหรือการถอดเสียงไม่มีการเปลี่ยนแปลงตั้งแต่การสรุป AI ครั้งล่าสุด",
+    "aiRecommendedTasks": "งานที่แนะนำ",
+    "aiSummaryTitle": "สรุปการประชุม",
+    "saveToNote": "บันทึกเป็นโน้ต",
+    "saveToNoteSuccess": "บันทึกเป็นโน้ตแล้ว"
+  },
+  "notes": {
+    "addTag": "เพิ่มแท็ก",
+    "aiAlreadyExists": "มีอยู่แล้ว",
+    "aiAnalyzing": "AI กำลังวิเคราะห์โน้ตของคุณ...",
+    "aiApply": "นำไปใช้",
+    "aiApplySuccess": "สร้าง {{features}} ฟีเจอร์, {{tasks}} งาน และ {{checklists}} เช็คลิสต์แล้ว",
+    "aiApplying": "กำลังนำไปใช้...",
+    "aiClose": "ย่อ",
+    "aiDeselectAll": "ยกเลิกทั้งหมด",
+    "aiError": "เกิดข้อผิดพลาดระหว่างการวิเคราะห์ AI กรุณาลองอีกครั้ง",
+    "aiExistingFeature": "ที่มีอยู่",
+    "aiExpand": "ขยาย",
+    "aiImportant": "สำคัญ",
+    "aiKeyPoints": "ประเด็นสำคัญ",
+    "aiNewFeature": "ใหม่",
+    "aiNoSuggestions": "ไม่พบรายการที่ดำเนินการได้ในโน้ตนี้",
+    "aiOrganize": "วิเคราะห์ AI",
+    "aiOrganizeTitle": "วิเคราะห์โน้ตด้วย AI",
+    "aiRecommendedTasks": "งานที่แนะนำ",
+    "aiRetry": "ลองอีกครั้ง",
+    "aiSelectAll": "เลือกทั้งหมด",
+    "aiSelectedCount": "เลือก {{count}} รายการ",
+    "aiSummaryTitle": "สรุปโน้ต",
+    "allTags": "ทั้งหมด",
+    "autoSaved": "บันทึกอัตโนมัติแล้ว",
+    "confirmDelete": "คุณแน่ใจหรือไม่? รายการย่อยทั้งหมดจะถูกลบด้วย",
+    "contentPlaceholder": "เริ่มเขียน...",
+    "createFirstDocument": "สร้างเอกสารแรก",
+    "createTag": "สร้าง",
+    "folderHint": "เลือกเอกสารเพื่อแก้ไข",
+    "folderSelected": "เลือกโฟลเดอร์แล้ว",
+    "listView": "มุมมองรายการ",
+    "newDocument": "เอกสารใหม่",
+    "newDocumentInFolder": "เพิ่มเอกสาร",
+    "newFolder": "โฟลเดอร์ใหม่",
+    "newSubfolder": "เพิ่มโฟลเดอร์ย่อย",
+    "noVersions": "ไม่มีเวอร์ชันที่บันทึก",
+    "rename": "เปลี่ยนชื่อ",
+    "restore": "กู้คืน",
+    "restoreConfirm": "กู้คืนเวอร์ชันนี้หรือไม่?",
+    "restoredVersion": "กู้คืนจากเวอร์ชัน {{version}} แล้ว",
+    "savedVersion": "บันทึกเวอร์ชัน {{version}} แล้ว",
+    "searchPlaceholder": "ค้นหา...",
+    "selectOrCreate": "เลือกเอกสารหรือสร้างใหม่",
+    "tagColor": "สีแท็ก",
+    "tagName": "ชื่อแท็ก",
+    "tags": "แท็ก",
+    "title": "โน้ต",
+    "titlePlaceholder": "ใส่ชื่อเรื่อง",
+    "treeView": "มุมมองต้นไม้",
+    "unsavedWarning": "มีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก ต้องการออกโดยไม่บันทึกหรือไม่?",
+    "version": "เวอร์ชัน",
+    "versionHistory": "ประวัติเวอร์ชัน"
+  },
+  "payment": {
+    "error": "ข้อผิดพลาดการชำระเงิน",
+    "errorCode": "รหัสข้อผิดพลาด",
+    "failed": "การชำระเงินล้มเหลว",
+    "goBack": "กลับ",
+    "pleaseWait": "กำลังยืนยันการชำระเงิน กรุณารอสักครู่",
+    "processing": "กำลังดำเนินการชำระเงิน...",
+    "redirecting": "กำลังนำทางไปยังบอร์ด...",
+    "success": "ชำระเงินสำเร็จ!",
+    "tryAgain": "ลองอีกครั้ง",
+    "unknownError": "เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ"
+  },
+  "seatPurchase": {
+    "additionalSeats": "ที่นั่งเพิ่มเติม",
+    "currentSeats": "การใช้ที่นั่งปัจจุบัน",
+    "month": "เดือน",
+    "newTotal": "ยอดรวมใหม่",
+    "pendingInvite": "ต้องการที่นั่งเพิ่มเติมเพื่อเชิญ {{email}}",
+    "pendingRoleChange": "ต้องการที่นั่งเพิ่มเติมเพื่อเปลี่ยนบทบาทสมาชิก",
+    "purchaseAndContinue": "ซื้อและเชิญ",
+    "purchaseAndPromote": "ซื้อและเปลี่ยนบทบาท",
+    "seats": "ที่นั่ง",
+    "subtitle": "ต้องมีที่นั่งเพื่อเชิญสมาชิก",
+    "title": "ซื้อที่นั่งเพิ่มเติม",
+    "year": "ปี"
   }
 }

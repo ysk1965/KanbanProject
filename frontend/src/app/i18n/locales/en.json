@@ -2209,10 +2209,11 @@
     "startRecording": "Start Recording",
     "stopRecording": "Stop Recording",
     "transcribe": "Transcribe",
+    "downloadRecording": "Download",
     "transcribing": "Transcribing audio...",
     "transcriptPlaceholder": "Record and transcribe, or type directly...",
     "microphoneAccessDenied": "Microphone access denied. Please allow microphone permission in browser settings.",
-    "transcriptFileTooLarge": "Recording exceeds 25MB. Please record a shorter clip.",
+    "transcriptFileTooLarge": "Recording exceeds 200MB. Please record a shorter clip.",
     "transcriptionError": "Transcription failed. Please try again.",
     "saveToNote": "Save to Note",
     "saveToNoteSuccess": "Saved to notes successfully"
