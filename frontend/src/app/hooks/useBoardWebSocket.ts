@@ -38,43 +38,47 @@ export function useBoardWebSocket({
       return;
     }
 
-    // WebSocket 연결 시작
-    wsManager.connect();
+    let boardSubscription: { unsubscribe: () => void } | null = null;
+    let userSubscription: { unsubscribe: () => void } | null = null;
 
-    // 1. 보드 전체 이벤트 구독
-    const boardSubscription = wsManager.subscribe(
-      `/topic/board/${boardId}`,
-      (message) => {
-        try {
-          const event: BoardWebSocketEvent = JSON.parse(message.body);
+    const subscribeToTopics = () => {
+      // 이미 구독 중이면 스킵
+      if (boardSubscription) return;
 
-          // 자기 자신의 이벤트는 스킵 (낙관적 업데이트로 이미 반영됨)
-          if (event.user_id === currentUser?.id) {
-            return;
+      // 1. 보드 전체 이벤트 구독
+      boardSubscription = wsManager.subscribe(
+        `/topic/board/${boardId}`,
+        (message) => {
+          try {
+            const event: BoardWebSocketEvent = JSON.parse(message.body);
+
+            // 자기 자신의 이벤트는 스킵 (낙관적 업데이트로 이미 반영됨)
+            if (event.user_id === currentUser?.id) {
+              return;
+            }
+
+            // 프레즌스 이벤트 처리 (온라인 사용자 관리)
+            if (event.type === 'PRESENCE_JOINED') {
+              setOnlineUsers((prev) => new Set(prev).add(event.user_id));
+            } else if (event.type === 'PRESENCE_LEFT') {
+              setOnlineUsers((prev) => {
+                const next = new Set(prev);
+                next.delete(event.user_id);
+                return next;
+              });
+            }
+
+            // 이벤트 콜백 호출
+            onEvent(event);
+          } catch (error) {
+            console.error('[useBoardWebSocket] Failed to parse board event:', error);
           }
-
-          // 프레즌스 이벤트 처리 (온라인 사용자 관리)
-          if (event.type === 'PRESENCE_JOINED') {
-            setOnlineUsers((prev) => new Set(prev).add(event.user_id));
-          } else if (event.type === 'PRESENCE_LEFT') {
-            setOnlineUsers((prev) => {
-              const next = new Set(prev);
-              next.delete(event.user_id);
-              return next;
-            });
-          }
-
-          // 이벤트 콜백 호출
-          onEvent(event);
-        } catch (error) {
-          console.error('[useBoardWebSocket] Failed to parse board event:', error);
         }
-      }
-    );
+      );
 
-    // 2. 개인 이벤트 구독 (알림 등)
-    const userSubscription = currentUser
-      ? wsManager.subscribe(
+      // 2. 개인 이벤트 구독 (알림 등)
+      if (currentUser) {
+        userSubscription = wsManager.subscribe(
           `/topic/board/${boardId}/user/${currentUser.id}`,
           (message) => {
             try {
@@ -85,11 +89,25 @@ export function useBoardWebSocket({
               console.error('[useBoardWebSocket] Failed to parse user event:', error);
             }
           }
-        )
-      : null;
+        );
+      }
+    };
 
-    // 3. 연결 상태 리스너 등록
-    const removeStatusListener = wsManager.onStatusChange(setConnectionStatus);
+    // 연결 상태 리스너: connected 시 구독
+    const removeStatusListener = wsManager.onStatusChange((status) => {
+      setConnectionStatus(status);
+      if (status === 'connected') {
+        subscribeToTopics();
+      }
+    });
+
+    // WebSocket 연결 시작 (이미 연결 중이면 내부에서 스킵)
+    wsManager.connect();
+
+    // 이미 연결된 상태라면 즉시 구독
+    if (wsManager.getStatus() === 'connected') {
+      subscribeToTopics();
+    }
 
     // Cleanup: 컴포넌트 언마운트 시 구독 해제
     return () => {
