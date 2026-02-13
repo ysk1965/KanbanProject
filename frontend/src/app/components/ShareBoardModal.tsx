@@ -17,10 +17,11 @@ import {
   SelectValue,
 } from './ui/select';
 import { Badge } from './ui/badge';
-import { X, Link as LinkIcon, Copy, Check, UserPlus, Trash2, Plus, Loader2, Palette, Users, Settings, GripVertical } from 'lucide-react';
+import { X, Link as LinkIcon, Copy, Check, UserPlus, Trash2, Plus, Loader2, Palette, Users, Settings, GripVertical, Sparkles } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { HexColorPicker } from 'react-colorful';
 import { InviteLink, slackWebhookAPI, SlackWebhookMemberStatus } from '../utils/api';
+import { AiCredits } from '../types';
 import { ASSIGNEE_COLOR_NAMES, getAssigneeClasses, getAssigneeHex, getInitials } from '../utils/assigneeColor';
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { restrictToVerticalAxis, restrictToParentElement } from '@dnd-kit/modifiers';
@@ -58,6 +59,8 @@ interface ShareBoardModalProps {
   // 시트 관리 (Owner 전용)
   seatInfo?: { seatCount: number; usedSeats: number };
   onOpenSeatManagement?: () => void;
+  // AI 크레딧 (Owner 전용)
+  aiCredits?: AiCredits | null;
 }
 
 const ROLE_LABELS: Record<MemberRole, string> = {
@@ -340,6 +343,7 @@ export function ShareBoardModal({
   // 시트 관리
   seatInfo,
   onOpenSeatManagement,
+  aiCredits,
 }: ShareBoardModalProps) {
   const { t } = useTranslation();
   const [inviteEmail, setInviteEmail] = useState('');
@@ -518,44 +522,95 @@ export function ShareBoardModal({
           </div>
           )}
 
-          {/* Owner 전용: 시트 관리 섹션 */}
-          {currentUser?.role === 'owner' && seatInfo && onOpenSeatManagement && (
-            <div className="p-4 bg-gradient-to-r from-bridge-accent/10 to-bridge-secondary/10 rounded-xl border border-bridge-accent/20">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-bridge-accent/20 rounded-lg">
-                    <Users className="h-4 w-4 text-bridge-accent" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-white">{t('share.seatUsage')}</p>
-                    <p className="text-xs text-slate-400">
-                      {seatInfo.usedSeats} / {seatInfo.seatCount} {t('share.seatsUsed')}
-                    </p>
+          {/* Owner 전용: 시트 & 크레딧 관리 섹션 */}
+          {currentUser?.role === 'owner' && (seatInfo || aiCredits) && (
+            <div className="space-y-2">
+              {/* 시트 사용 현황 */}
+              {seatInfo && onOpenSeatManagement && (
+                <div className="p-4 bg-gradient-to-r from-bridge-accent/10 to-bridge-secondary/10 rounded-xl border border-bridge-accent/20">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-bridge-accent/20 rounded-lg">
+                        <Users className="h-4 w-4 text-bridge-accent" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-white">{t('share.seatUsage')}</p>
+                        <p className="text-xs text-slate-400">
+                          {seatInfo.usedSeats} / {seatInfo.seatCount} {t('share.seatsUsed')}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="w-20 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${
+                            (seatInfo.usedSeats / seatInfo.seatCount) >= 0.9
+                              ? 'bg-red-500'
+                              : (seatInfo.usedSeats / seatInfo.seatCount) >= 0.7
+                                ? 'bg-yellow-500'
+                                : 'bg-bridge-accent'
+                          }`}
+                          style={{ width: `${Math.min((seatInfo.usedSeats / seatInfo.seatCount) * 100, 100)}%` }}
+                        />
+                      </div>
+                      <button
+                        onClick={onOpenSeatManagement}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-bridge-accent/20 text-bridge-accent text-xs font-medium rounded-lg hover:bg-bridge-accent/30 transition-all"
+                      >
+                        <Settings className="h-3.5 w-3.5" />
+                        {t('share.manageSeat')}
+                      </button>
+                    </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  {/* 시트 사용률 바 */}
-                  <div className="w-20 h-1.5 bg-white/10 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all ${
-                        (seatInfo.usedSeats / seatInfo.seatCount) >= 0.9
-                          ? 'bg-red-500'
-                          : (seatInfo.usedSeats / seatInfo.seatCount) >= 0.7
-                            ? 'bg-yellow-500'
-                            : 'bg-bridge-accent'
-                      }`}
-                      style={{ width: `${Math.min((seatInfo.usedSeats / seatInfo.seatCount) * 100, 100)}%` }}
-                    />
+              )}
+
+              {/* AI 크레딧 사용 현황 */}
+              {aiCredits && (
+                <div className="p-4 bg-gradient-to-r from-bridge-secondary/10 to-bridge-accent/10 rounded-xl border border-bridge-secondary/20">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-bridge-secondary/20 rounded-lg">
+                        <Sparkles className="h-4 w-4 text-bridge-secondary" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-white">{t('ai_credits.title')}</p>
+                        <p className="text-xs text-slate-400">
+                          {aiCredits.monthly_used} / {aiCredits.monthly_credits} {t('ai_credits.used')}
+                          {aiCredits.purchased_credits > 0 && (
+                            <span className="text-bridge-secondary"> +{aiCredits.purchased_credits}</span>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="w-20 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${
+                            aiCredits.warning_level === 'EXHAUSTED'
+                              ? 'bg-red-500'
+                              : aiCredits.warning_level === 'CRITICAL'
+                                ? 'bg-red-400'
+                                : aiCredits.warning_level === 'LOW'
+                                  ? 'bg-yellow-500'
+                                  : 'bg-bridge-secondary'
+                          }`}
+                          style={{ width: `${Math.min(aiCredits.monthly_credits > 0 ? (aiCredits.monthly_used / aiCredits.monthly_credits) * 100 : 0, 100)}%` }}
+                        />
+                      </div>
+                      <span className={`text-xs font-medium tabular-nums ${
+                        aiCredits.warning_level === 'EXHAUSTED' || aiCredits.warning_level === 'CRITICAL'
+                          ? 'text-red-400'
+                          : aiCredits.warning_level === 'LOW'
+                            ? 'text-yellow-400'
+                            : 'text-bridge-secondary'
+                      }`}>
+                        {aiCredits.total_available}
+                      </span>
+                    </div>
                   </div>
-                  <button
-                    onClick={onOpenSeatManagement}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-bridge-accent/20 text-bridge-accent text-xs font-medium rounded-lg hover:bg-bridge-accent/30 transition-all"
-                  >
-                    <Settings className="h-3.5 w-3.5" />
-                    {t('share.manageSeat')}
-                  </button>
                 </div>
-              </div>
+              )}
             </div>
           )}
 

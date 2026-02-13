@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { User, CreditCard, LogOut, Settings as SettingsIcon, ChevronDown } from 'lucide-react';
+import { CreditCard, LogOut, Settings as SettingsIcon, ChevronDown } from 'lucide-react';
 import { getInitials, getAssigneeHex } from '../utils/assigneeColor';
 
 interface UserMenuProps {
@@ -13,12 +13,11 @@ interface UserMenuProps {
   };
   assigneeColor?: string | null;
   onOpenSubscription: () => void;
-  onOpenSettings: () => void;
   onLogout: () => void;
   hideBilling?: boolean;
 }
 
-export function UserMenu({ user, assigneeColor, onOpenSubscription, onOpenSettings, onLogout, hideBilling }: UserMenuProps) {
+export function UserMenu({ user, assigneeColor, onOpenSubscription, onLogout, hideBilling }: UserMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -76,17 +75,6 @@ export function UserMenu({ user, assigneeColor, onOpenSubscription, onOpenSettin
 
           {/* 메뉴 아이템 */}
           <div className="py-2">
-            <button
-              onClick={() => {
-                onOpenSettings();
-                setIsOpen(false);
-              }}
-              className="w-full px-4 py-2 flex items-center gap-3 hover:bg-white/5 transition-colors text-muted-foreground hover:text-foreground"
-            >
-              <User className="h-4 w-4" />
-              <span>{t('user.myInfo')}</span>
-            </button>
-
             <button
               onClick={() => {
                 navigate('/settings');

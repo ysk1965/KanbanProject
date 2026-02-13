@@ -16,6 +16,8 @@ import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
+import com.kanban.global.websocket.WebSocketEventService;
+import com.kanban.global.websocket.dto.BoardEventType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -40,6 +42,7 @@ public class DailyChecklistService {
     private final TaskRepository taskRepository;
     private final UserRepository userRepository;
     private final BoardService boardService;
+    private final WebSocketEventService webSocketEventService;
 
     /**
      * 데일리 체크리스트 조회 (멤버별 컬럼 구조로 반환)
@@ -129,6 +132,10 @@ public class DailyChecklistService {
 
         log.info("Daily checklist item added: {} by user: {}", dailyChecklist.getId(), userId);
 
+        User user = userRepository.findById(userId).orElse(null);
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.SCHEDULE_CREATED,
+                userId, user != null ? user.getName() : null, Map.of("id", dailyChecklist.getId()));
+
         return DailyChecklistResponse.ItemResponse.of(dailyChecklist);
     }
 
@@ -183,6 +190,10 @@ public class DailyChecklistService {
         dailyChecklistRepository.save(dailyChecklist);
 
         log.info("Daily checklist item added with new checklist: {} by user: {}", dailyChecklist.getId(), userId);
+
+        User user = userRepository.findById(userId).orElse(null);
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.SCHEDULE_CREATED,
+                userId, user != null ? user.getName() : null, Map.of("id", dailyChecklist.getId()));
 
         return DailyChecklistResponse.ItemResponse.of(dailyChecklist);
     }
@@ -265,8 +276,13 @@ public class DailyChecklistService {
             throw new BusinessException(ErrorCode.DAILY_CHECKLIST_NOT_FOUND);
         }
 
+        String deletedId = dailyChecklist.getId();
         dailyChecklistRepository.delete(dailyChecklist);
 
         log.info("Daily checklist item removed: {} by user: {}", itemId, userId);
+
+        User user = userRepository.findById(userId).orElse(null);
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.SCHEDULE_DELETED,
+                userId, user != null ? user.getName() : null, Map.of("id", deletedId));
     }
 }

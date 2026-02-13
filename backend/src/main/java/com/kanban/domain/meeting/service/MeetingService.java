@@ -281,6 +281,12 @@ public class MeetingService {
 
         meeting.updateTranscript(transcript);
 
+        User user = userRepository.findById(userId).orElse(null);
+        List<User> participants = scheduleBlockRepository.findDistinctAssigneesByMeetingId(meetingId);
+        MeetingResponse.Detail detailResponse = MeetingResponse.Detail.of(meeting, participants, deserializeAiSuggestions(meeting));
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.MEETING_UPDATED,
+                userId, user != null ? user.getName() : null, detailResponse);
+
         return MeetingResponse.TranscriptResult.builder()
                 .meetingId(meetingId)
                 .transcript(meeting.getTranscript())

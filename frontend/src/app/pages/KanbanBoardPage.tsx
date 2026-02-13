@@ -124,6 +124,11 @@ export function KanbanBoardPage() {
     }
   }, []);
 
+  // 보드 이름 인라인 편집
+  const [isEditingBoardName, setIsEditingBoardName] = useState(false);
+  const [editingBoardName, setEditingBoardName] = useState('');
+  const boardNameInputRef = useRef<HTMLInputElement>(null);
+
   // 보드 데이터
   const [board, setBoard] = useState<Board | null>(null);
   const [blocks, setBlocks] = useState<Block[]>([]);
@@ -573,6 +578,19 @@ export function KanbanBoardPage() {
         setMeetingRefreshKey(prev => prev + 1);
         break;
 
+      // Member events → assignee color 등 멤버 정보 동기화
+      case 'MEMBER_UPDATED': {
+        const memberData = data as { id?: string; user?: { id?: string }; assignee_color?: string | null; role?: string };
+        if (memberData?.id) {
+          setBoardMembersData(prev => prev.map(m =>
+            m.id === memberData.id
+              ? { ...m, assigneeColor: memberData.assignee_color ?? null, role: (memberData.role?.toLowerCase() as MemberRole) || m.role }
+              : m
+          ));
+        }
+        break;
+      }
+
       // Notification events
       case 'NOTIFICATION_CREATED':
         setUnreadNotificationCount(prev => prev + 1);
@@ -696,6 +714,30 @@ export function KanbanBoardPage() {
   const isViewer = currentUserRole === 'viewer';
   const isOwner = currentUserRole === 'owner';
   const canEdit = !isViewer;
+
+  // 보드 이름 편집 시작
+  const handleStartEditBoardName = () => {
+    if (!canEdit || !board) return;
+    setEditingBoardName(board.name);
+    setIsEditingBoardName(true);
+    setTimeout(() => boardNameInputRef.current?.select(), 0);
+  };
+
+  // 보드 이름 저장
+  const handleSaveBoardName = async () => {
+    const trimmed = editingBoardName.trim();
+    if (!trimmed || !board || !boardId || trimmed === board.name) {
+      setIsEditingBoardName(false);
+      return;
+    }
+    try {
+      await boardService.updateBoard(boardId, trimmed, board.description);
+      setBoard((prev) => prev ? { ...prev, name: trimmed } : prev);
+    } catch (e) {
+      console.error('Failed to update board name', e);
+    }
+    setIsEditingBoardName(false);
+  };
 
   // 구독/결제 UI는 보드 Owner만 접근 가능 (시스템 ADMIN/TESTER도 숨김)
   const hideBillingForUser = hideBilling || !isOwner;
@@ -1834,7 +1876,7 @@ export function KanbanBoardPage() {
           hideBilling={hideBillingForUser}
         />
 
-        <header className="min-h-[3.5rem] md:h-16 border-b border-kanban-border flex items-center justify-between px-3 md:px-6 bg-kanban-bg shrink-0 z-30 gap-2">
+        <header className="min-h-[3.5rem] md:h-16 border-b border-kanban-border flex flex-wrap md:flex-nowrap items-center justify-between px-3 md:px-6 bg-kanban-bg shrink-0 z-30 gap-x-2 gap-y-1 py-1 md:py-0">
           {/* 좌측 영역 */}
           <div className="flex items-center gap-2 md:gap-6 min-w-0">
             {!hideBilling && (
@@ -1847,9 +1889,28 @@ export function KanbanBoardPage() {
             )}
 
             <div className="flex items-center gap-2 md:gap-3 min-w-0">
-              <h1 className="text-sm md:text-lg font-bold tracking-tight text-foreground truncate max-w-[100px] sm:max-w-[160px] md:max-w-none">
-                {board?.name || t('kanban.defaultBoardName')}
-              </h1>
+              {isEditingBoardName ? (
+                <input
+                  ref={boardNameInputRef}
+                  value={editingBoardName}
+                  onChange={(e) => setEditingBoardName(e.target.value)}
+                  onBlur={handleSaveBoardName}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleSaveBoardName();
+                    if (e.key === 'Escape') setIsEditingBoardName(false);
+                  }}
+                  className="text-sm md:text-lg font-bold tracking-tight text-foreground bg-white/5 border border-white/10 rounded-lg px-2 py-0.5 outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent max-w-[160px] sm:max-w-[200px] md:max-w-[300px]"
+                  autoFocus
+                />
+              ) : (
+                <h1
+                  className={`text-sm md:text-lg font-bold tracking-tight text-foreground truncate max-w-[100px] sm:max-w-[160px] md:max-w-none ${canEdit ? 'cursor-pointer hover:text-bridge-accent transition-colors' : ''}`}
+                  onClick={canEdit ? handleStartEditBoardName : undefined}
+                  title={canEdit ? t('common.edit') : undefined}
+                >
+                  {board?.name || t('kanban.defaultBoardName')}
+                </h1>
+              )}
 
               {/* 마일스톤 셀렉터 */}
               <div className="hidden sm:flex items-center gap-2 bg-kanban-card px-3 py-1.5 rounded-md border border-kanban-border hover:border-[#2DD4BF]/40 cursor-pointer transition-all">
@@ -1922,8 +1983,8 @@ export function KanbanBoardPage() {
           </div>
 
           {/* 중앙 탭 영역 (칸반보드, 일정, 회의 + 도메인별 노트/AI분석) */}
-          <div className="flex-1 flex justify-center min-w-0">
-          <nav className="flex items-center gap-0.5 md:gap-1 bg-kanban-card p-1 rounded-xl border border-kanban-border overflow-x-auto shrink-0">
+          <div className="flex justify-center min-w-0 order-last md:order-none w-full md:w-auto md:flex-1 pb-0.5 md:pb-0">
+          <nav className="flex items-center gap-0.5 md:gap-1 bg-kanban-card p-1 rounded-xl border border-kanban-border overflow-x-auto shrink-0 max-w-full">
             {/* 1. 칸반보드 */}
             <button
               onClick={() => handleViewModeChange('kanban')}
@@ -2064,7 +2125,6 @@ export function KanbanBoardPage() {
                 user={currentUser}
                 assigneeColor={memberColorMap[currentUser.id]}
                 onOpenSubscription={() => setIsSubscriptionModalOpen(true)}
-                onOpenSettings={() => {}}
                 onLogout={logout}
                 hideBilling={hideBillingForUser}
               />
@@ -2182,9 +2242,9 @@ export function KanbanBoardPage() {
             ) : (
             <>
             {/* 검색 + 필터 툴바 */}
-            <div className="px-3 md:px-6 py-2 md:py-3 border-b border-kanban-border flex items-center gap-2 flex-wrap">
+            <div className="px-3 md:px-6 py-2 md:py-3 border-b border-kanban-border flex items-center gap-2 overflow-x-auto md:overflow-x-visible md:flex-wrap kanban-scrollbar">
               {/* 검색 */}
-              <div className="relative w-full sm:w-80">
+              <div className="relative w-52 sm:w-80 shrink-0">
                 <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
                 <input
                   type="text"
@@ -2203,13 +2263,13 @@ export function KanbanBoardPage() {
                 )}
               </div>
 
-              <div className="h-6 w-px bg-kanban-border mx-1" />
+              <div className="h-6 w-px bg-kanban-border mx-1 shrink-0" />
 
               {/* 담당자 필터 */}
               <Popover>
                 <PopoverTrigger asChild>
                   <button
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-all ${
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-all shrink-0 ${
                       filterOptions.members.length > 0
                         ? 'bg-purple-500/20 text-purple-400 border border-purple-500/50'
                         : 'bg-kanban-surface border border-kanban-border text-zinc-400 hover:text-foreground hover:border-zinc-600'
@@ -2284,7 +2344,7 @@ export function KanbanBoardPage() {
               <Popover>
                 <PopoverTrigger asChild>
                   <button
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-all ${
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-all shrink-0 ${
                       filterOptions.features.length > 0
                         ? 'bg-[#2DD4BF]/15 text-[#2DD4BF] border border-[#2DD4BF]/40'
                         : 'bg-kanban-surface border border-kanban-border text-zinc-400 hover:text-foreground hover:border-zinc-600'
@@ -2341,7 +2401,7 @@ export function KanbanBoardPage() {
               <Popover>
                 <PopoverTrigger asChild>
                   <button
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-all ${
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-all shrink-0 ${
                       filterOptions.tags.length > 0
                         ? 'bg-teal-500/20 text-teal-400 border border-teal-500/50'
                         : 'bg-kanban-surface border border-kanban-border text-zinc-400 hover:text-foreground hover:border-zinc-600'
@@ -2395,7 +2455,7 @@ export function KanbanBoardPage() {
               <Popover>
                 <PopoverTrigger asChild>
                   <button
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-all ${
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-all shrink-0 ${
                       filterOptions.cardStatus.length > 0
                         ? 'bg-green-500/20 text-green-400 border border-green-500/50'
                         : 'bg-kanban-surface border border-kanban-border text-zinc-400 hover:text-foreground hover:border-zinc-600'
@@ -2464,10 +2524,10 @@ export function KanbanBoardPage() {
               {/* 필터 초기화 */}
               {(filterOptions.keyword || filterOptions.members.length > 0 || filterOptions.features.length > 0 || filterOptions.tags.length > 0 || filterOptions.cardStatus.length > 0) && (
                 <>
-                  <div className="h-6 w-px bg-kanban-border mx-1" />
+                  <div className="h-6 w-px bg-kanban-border mx-1 shrink-0" />
                   <button
                     onClick={() => setFilterOptions({ keyword: '', members: [], features: [], tags: [], cardStatus: [], dueDate: [] })}
-                    className="flex items-center gap-1 px-3 py-2 text-xs text-zinc-500 hover:text-foreground transition-colors"
+                    className="flex items-center gap-1 px-3 py-2 text-xs text-zinc-500 hover:text-foreground transition-colors shrink-0 whitespace-nowrap"
                   >
                     <X size={12} />
                     {t('kanban.reset')}
@@ -2476,10 +2536,10 @@ export function KanbanBoardPage() {
               )}
 
               {/* 스페이서 */}
-              <div className="flex-1" />
+              <div className="hidden md:block flex-1" />
 
               {/* 모두 펼치기/닫기 */}
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 shrink-0">
                 <button
                   onClick={() => {
                     // 체크리스트 모두 펼치기
@@ -2757,6 +2817,7 @@ export function KanbanBoardPage() {
             setIsShareBoardModalOpen(false);
             setIsSubscriptionModalOpen(true);
           } : undefined}
+          aiCredits={!hideBillingForUser ? aiCredits : undefined}
         />
 
         {!hideBillingForUser && (
