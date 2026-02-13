@@ -26,9 +26,10 @@ interface MeetingCalendarViewProps {
   boardMembers: BoardMember[];
   onRefreshSchedule?: () => void;
   aiCredits?: import('../types').AiCredits | null;
+  refreshTrigger?: number;
 }
 
-export function MeetingCalendarView({ boardId, boardMembers, onRefreshSchedule, aiCredits }: MeetingCalendarViewProps) {
+export function MeetingCalendarView({ boardId, boardMembers, onRefreshSchedule, aiCredits, refreshTrigger }: MeetingCalendarViewProps) {
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
 
@@ -72,6 +73,13 @@ export function MeetingCalendarView({ boardId, boardMembers, onRefreshSchedule, 
   useEffect(() => {
     loadMonthMeetings();
   }, [loadMonthMeetings]);
+
+  // WebSocket 이벤트로 인한 리프레시
+  useEffect(() => {
+    if (refreshTrigger && refreshTrigger > 0) {
+      loadMonthMeetings();
+    }
+  }, [refreshTrigger]);
 
   const meetingCountByDate = useMemo(() => {
     const map = new Map<string, number>();
@@ -229,6 +237,7 @@ export function MeetingCalendarView({ boardId, boardMembers, onRefreshSchedule, 
           boardMembers={activeMembers}
           onRefreshSchedule={handleRefreshSchedule}
           aiCredits={aiCredits}
+          refreshTrigger={refreshTrigger}
         />
       </div>
     </div>

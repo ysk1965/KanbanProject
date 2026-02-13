@@ -50,6 +50,7 @@ interface ShareBoardModalProps {
   onReorderMembers?: (memberIds: string[]) => void;
   currentUserId: string;
   boardId?: string;
+  onlineUserIds?: Set<string>;
   // 초대 링크 관련
   inviteLinks?: InviteLink[];
   onCreateInviteLink?: (role: string, maxUses: number, expiresIn: string) => Promise<InviteLink>;
@@ -85,6 +86,7 @@ interface SortableMemberRowProps {
   member: BoardMember;
   canDrag: boolean;
   isCurrentMember: boolean;
+  isOnline: boolean;
   canEdit: boolean;
   canChangeColor: boolean;
   webhookStatus: SlackWebhookMemberStatus | undefined;
@@ -99,7 +101,7 @@ interface SortableMemberRowProps {
 }
 
 function SortableMemberRow({
-  member, canDrag, isCurrentMember, canEdit, canChangeColor, webhookStatus,
+  member, canDrag, isCurrentMember, isOnline, canEdit, canChangeColor, webhookStatus,
   customPickerMemberId, customPickerColor,
   onUpdateMemberRole, onRemoveMember, onUpdateMemberColor,
   setCustomPickerMemberId, setCustomPickerColor, t,
@@ -148,6 +150,12 @@ function SortableMemberRow({
               disabled={!canChangeColor}
             >
               {getInitials(member.name)}
+              {/* 온라인/오프라인 상태 dot */}
+              <div
+                className={`absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-bridge-obsidian ${
+                  isOnline ? 'bg-emerald-400' : 'bg-red-400/70'
+                } ${canChangeColor ? 'group-hover/avatar:opacity-0' : ''} transition-opacity`}
+              />
               {canChangeColor && (
                 <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-bridge-obsidian border border-white/20 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity">
                   <Palette className="h-2 w-2 text-slate-400" />
@@ -324,6 +332,7 @@ export function ShareBoardModal({
   onReorderMembers,
   currentUserId,
   boardId,
+  onlineUserIds,
   // 초대 링크 관련
   inviteLinks,
   onCreateInviteLink,
@@ -580,6 +589,7 @@ export function ShareBoardModal({
                         member={member}
                         canDrag={canDrag}
                         isCurrentMember={isCurrentMember}
+                        isOnline={onlineUserIds?.has(member.userId) ?? false}
                         canEdit={canEdit}
                         canChangeColor={!!canChangeColor}
                         webhookStatus={webhookStatus}

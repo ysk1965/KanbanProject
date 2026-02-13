@@ -184,6 +184,7 @@ export function KanbanBoardPage() {
   const [isFeatureModalOpen, setIsFeatureModalOpen] = useState(false);
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [scheduleRefreshKey, setScheduleRefreshKey] = useState(0);
+  const [meetingRefreshKey, setMeetingRefreshKey] = useState(0);
   const [managementRefreshKey, setManagementRefreshKey] = useState(0);
   const [isAddBlockModalOpen, setIsAddBlockModalOpen] = useState(false);
   const [isAddFeatureModalOpen, setIsAddFeatureModalOpen] = useState(false);
@@ -506,6 +507,7 @@ export function KanbanBoardPage() {
           ...t,
           checklist_total: (t.checklist_total || 0) + 1,
         } : t));
+        setScheduleRefreshKey(prev => prev + 1);
         setWsChecklistEvent(event);
         break;
       }
@@ -515,6 +517,7 @@ export function KanbanBoardPage() {
           ...prev,
           [updateTaskId]: (prev[updateTaskId] || []).map(ci => ci.id === updatedItem.id ? updatedItem : ci)
         }));
+        setScheduleRefreshKey(prev => prev + 1);
         setWsChecklistEvent(event);
         break;
       }
@@ -528,6 +531,7 @@ export function KanbanBoardPage() {
           ...t,
           checklist_total: Math.max(0, (t.checklist_total || 0) - 1),
         } : t));
+        setScheduleRefreshKey(prev => prev + 1);
         setWsChecklistEvent(event);
         break;
       }
@@ -542,6 +546,7 @@ export function KanbanBoardPage() {
           ...t,
           checklist_completed: Math.max(0, (t.checklist_completed || 0) + delta),
         } : t));
+        setScheduleRefreshKey(prev => prev + 1);
         setWsChecklistEvent(event);
         break;
       }
@@ -559,6 +564,13 @@ export function KanbanBoardPage() {
       case 'SCHEDULE_UPDATED':
       case 'SCHEDULE_DELETED':
         setScheduleRefreshKey(prev => prev + 1);
+        break;
+
+      // Meeting events → MeetingCalendarView 리로드
+      case 'MEETING_CREATED':
+      case 'MEETING_UPDATED':
+      case 'MEETING_DELETED':
+        setMeetingRefreshKey(prev => prev + 1);
         break;
 
       // Notification events
@@ -2596,6 +2608,7 @@ export function KanbanBoardPage() {
               boardMembers={boardMembersData}
               onRefreshSchedule={() => setScheduleRefreshKey(k => k + 1)}
               aiCredits={aiCredits}
+              refreshTrigger={meetingRefreshKey}
             />
           </main>
         ) : viewMode === 'notes' ? (
@@ -2732,6 +2745,7 @@ export function KanbanBoardPage() {
           onReorderMembers={handleReorderMembers}
           currentUserId={currentUserId}
           boardId={boardId || ''}
+          onlineUserIds={onlineUsers}
           inviteLinks={inviteLinks}
           onCreateInviteLink={handleCreateInviteLink}
           onDeleteInviteLink={handleDeleteInviteLink}

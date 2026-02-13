@@ -47,6 +47,11 @@ public enum BoardEventType {
     SCHEDULE_UPDATED,
     SCHEDULE_DELETED,
 
+    // Meeting events
+    MEETING_CREATED,
+    MEETING_UPDATED,
+    MEETING_DELETED,
+
     // Presence events
     PRESENCE_JOINED,
     PRESENCE_LEFT
