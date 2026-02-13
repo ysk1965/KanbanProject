@@ -99,6 +99,13 @@ public class Subscription {
         }
     }
 
+    @PostLoad
+    private void initCreditDefaults() {
+        if (this.monthlyAiCredits == null) this.monthlyAiCredits = 0;
+        if (this.monthlyCreditsUsed == null) this.monthlyCreditsUsed = 0;
+        if (this.purchasedCredits == null) this.purchasedCredits = 0;
+    }
+
     public static Subscription createTrial(Board board) {
         return Subscription.builder()
                 .board(board)

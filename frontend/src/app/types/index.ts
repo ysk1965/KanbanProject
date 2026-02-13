@@ -1571,12 +1571,22 @@ export interface MonitoringEndpointMetric {
   error_count: number;
 }
 
+export interface MonitoringErrorEndpoint {
+  endpoint: string;
+  http_method: string;
+  error_count: number;
+  request_count: number;
+  error_rate: number;
+  status_codes: Record<string, number>;
+}
+
 export interface MonitoringApiMetrics {
   total_requests: number;
   total_errors: number;
   error_rate: number;
   avg_response_ms: number;
   top_slowest_endpoints: MonitoringEndpointMetric[];
+  top_error_endpoints: MonitoringErrorEndpoint[];
 }
 
 export interface MonitoringEc2Metrics {
