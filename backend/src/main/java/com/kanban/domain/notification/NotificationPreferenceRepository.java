@@ -12,7 +12,8 @@ public interface NotificationPreferenceRepository extends JpaRepository<Notifica
 
     Optional<NotificationPreference> findByBoardIdAndUserId(String boardId, String userId);
 
-    List<NotificationPreference> findByBoardIdAndUserIdIn(String boardId, List<String> userIds);
+    @Query("SELECT np FROM NotificationPreference np JOIN FETCH np.user WHERE np.board.id = :boardId AND np.user.id IN :userIds")
+    List<NotificationPreference> findByBoardIdAndUserIdIn(@Param("boardId") String boardId, @Param("userIds") List<String> userIds);
 
     @Modifying
     @Query("DELETE FROM NotificationPreference p WHERE p.board.id = :boardId")

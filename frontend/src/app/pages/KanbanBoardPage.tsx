@@ -73,6 +73,7 @@ import { useTranslation } from 'react-i18next';
 import { getRandomFeatureColor } from '../constants';
 import { getInitials, getAssigneeHex } from '../utils/assigneeColor';
 import { useBoardWebSocket } from '../hooks/useBoardWebSocket';
+import { wsManager } from '../utils/websocket';
 
 declare const __FE_COMMIT_HASH__: string;
 
@@ -644,7 +645,7 @@ export function KanbanBoardPage() {
     }
   }, [boardId, currentUser, isRealtimeEnabled]);
 
-  // 문의 읽지 않은 답변 수 로드
+  // 문의 읽지 않은 답변 수 로드 + WebSocket 실시간 구독
   useEffect(() => {
     if (!currentUser) return;
     const fetchUnreadInquiryCount = async () => {
@@ -656,6 +657,44 @@ export function KanbanBoardPage() {
       }
     };
     fetchUnreadInquiryCount();
+
+    // 글로벌 유저 토픽 구독 (INQUIRY_REPLIED 이벤트)
+    let subscription: { unsubscribe: () => void } | null = null;
+    const subscribeToInquiry = () => {
+      subscription = wsManager.subscribe(
+        `/topic/user/${currentUser.id}`,
+        (message) => {
+          try {
+            const event = JSON.parse(message.body);
+            if (event.type === 'INQUIRY_REPLIED') {
+              const unreadCount = event.data?.unread_count;
+              if (typeof unreadCount === 'number') {
+                setUnreadInquiryCount(unreadCount);
+              } else {
+                setUnreadInquiryCount(prev => prev + 1);
+              }
+            }
+          } catch (error) {
+            console.error('[KanbanBoardPage] Failed to parse global user event:', error);
+          }
+        }
+      );
+    };
+
+    const removeStatusListener = wsManager.onStatusChange((status) => {
+      if (status === 'connected' && !subscription) {
+        subscribeToInquiry();
+      }
+    });
+
+    if (wsManager.getStatus() === 'connected') {
+      subscribeToInquiry();
+    }
+
+    return () => {
+      subscription?.unsubscribe();
+      removeStatusListener();
+    };
   }, [currentUser, isInquiryModalOpen]);
 
   // STANDARD 전환 후 첫 방문 시 Premium 혜택 모달 자동 표시

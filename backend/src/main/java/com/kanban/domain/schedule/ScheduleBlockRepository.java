@@ -10,20 +10,42 @@ import java.util.List;
 
 public interface ScheduleBlockRepository extends JpaRepository<ScheduleBlock, String> {
 
+    @Query("SELECT sb FROM ScheduleBlock sb " +
+           "LEFT JOIN FETCH sb.checklistItem ci " +
+           "LEFT JOIN FETCH ci.task t " +
+           "LEFT JOIN FETCH t.feature " +
+           "LEFT JOIN FETCH sb.meeting " +
+           "JOIN FETCH sb.assignee " +
+           "WHERE sb.board.id = :boardId AND sb.scheduledDate = :scheduledDate AND sb.assignee.id IN :assigneeIds " +
+           "ORDER BY sb.startTime ASC")
     List<ScheduleBlock> findByBoardIdAndScheduledDateAndAssigneeIdInOrderByStartTimeAsc(
-            String boardId, LocalDate scheduledDate, List<String> assigneeIds);
+            @Param("boardId") String boardId, @Param("scheduledDate") LocalDate scheduledDate, @Param("assigneeIds") List<String> assigneeIds);
 
     List<ScheduleBlock> findByBoardIdAndScheduledDateAndAssigneeIdOrderByStartTimeAsc(
             String boardId, LocalDate scheduledDate, String assigneeId);
 
-    List<ScheduleBlock> findByChecklistItemId(String checklistItemId);
+    @Query("SELECT sb FROM ScheduleBlock sb " +
+           "LEFT JOIN FETCH sb.checklistItem ci " +
+           "LEFT JOIN FETCH ci.task t " +
+           "LEFT JOIN FETCH t.feature " +
+           "LEFT JOIN FETCH sb.meeting " +
+           "JOIN FETCH sb.assignee " +
+           "WHERE sb.checklistItem.id = :checklistItemId")
+    List<ScheduleBlock> findByChecklistItemId(@Param("checklistItemId") String checklistItemId);
 
     @Query("SELECT sb FROM ScheduleBlock sb WHERE sb.board.id = :boardId AND sb.scheduledDate = :date ORDER BY sb.assignee.id, sb.startTime")
     List<ScheduleBlock> findAllByBoardIdAndDate(@Param("boardId") String boardId, @Param("date") LocalDate date);
 
     void deleteByChecklistItemId(String checklistItemId);
 
-    @Query("SELECT sb FROM ScheduleBlock sb WHERE sb.board.id = :boardId AND sb.scheduledDate BETWEEN :startDate AND :endDate ORDER BY sb.scheduledDate, sb.startTime")
+    @Query("SELECT sb FROM ScheduleBlock sb " +
+           "LEFT JOIN FETCH sb.checklistItem ci " +
+           "LEFT JOIN FETCH ci.task t " +
+           "LEFT JOIN FETCH t.feature " +
+           "LEFT JOIN FETCH sb.meeting " +
+           "JOIN FETCH sb.assignee " +
+           "WHERE sb.board.id = :boardId AND sb.scheduledDate BETWEEN :startDate AND :endDate " +
+           "ORDER BY sb.scheduledDate, sb.startTime")
     List<ScheduleBlock> findByBoardIdAndScheduledDateBetween(
             @Param("boardId") String boardId,
             @Param("startDate") LocalDate startDate,

@@ -8,6 +8,8 @@ import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import com.kanban.global.service.FileUploadService;
+import com.kanban.global.websocket.WebSocketEventService;
+import com.kanban.global.websocket.dto.BoardEventType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -19,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -34,6 +37,7 @@ public class InquiryService {
     private final InquiryAttachmentRepository inquiryAttachmentRepository;
     private final UserRepository userRepository;
     private final FileUploadService fileUploadService;
+    private final WebSocketEventService webSocketEventService;
 
     @Transactional
     public InquiryResponse.Detail createInquiry(String userId, InquiryRequest.Create request) {
@@ -177,6 +181,16 @@ public class InquiryService {
         }
 
         log.info("Inquiry reply created: {} on inquiry: {} by admin: {}", reply.getId(), inquiryId, adminId);
+
+        // WebSocket: 문의 작성자에게 새 답변 알림
+        String inquiryOwnerId = inquiry.getUser().getId();
+        int unreadCount = inquiryRepository.countByUserIdAndHasNewReplyTrue(inquiryOwnerId);
+        webSocketEventService.sendGlobalUserEvent(
+                inquiryOwnerId,
+                BoardEventType.INQUIRY_REPLIED,
+                Map.of("inquiry_id", inquiryId, "unread_count", unreadCount)
+        );
+
         return InquiryResponse.ReplyDetail.of(reply);
     }
 

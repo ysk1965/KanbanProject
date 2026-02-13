@@ -14,7 +14,8 @@ public interface MemberSlackWebhookRepository extends JpaRepository<MemberSlackW
 
     List<MemberSlackWebhook> findByBoardId(String boardId);
 
-    List<MemberSlackWebhook> findByBoardIdAndUserIdInAndEnabledTrue(String boardId, List<String> userIds);
+    @Query("SELECT w FROM MemberSlackWebhook w JOIN FETCH w.user WHERE w.board.id = :boardId AND w.user.id IN :userIds AND w.enabled = true")
+    List<MemberSlackWebhook> findByBoardIdAndUserIdInAndEnabledTrue(@Param("boardId") String boardId, @Param("userIds") List<String> userIds);
 
     @Modifying
     @Query("DELETE FROM MemberSlackWebhook m WHERE m.board.id = :boardId")

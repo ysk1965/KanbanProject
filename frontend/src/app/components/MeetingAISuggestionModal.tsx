@@ -335,7 +335,7 @@ export default function MeetingAISuggestionModal({
       onClick={onClose}
     >
       <div
-        className="bg-bridge-obsidian rounded-2xl shadow-2xl w-[600px] max-h-[80vh] flex flex-col overflow-hidden border border-white/10"
+        className="bg-bridge-obsidian rounded-2xl shadow-2xl w-[600px] max-w-[calc(100vw-2rem)] max-h-[80vh] flex flex-col overflow-hidden border border-white/10"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}

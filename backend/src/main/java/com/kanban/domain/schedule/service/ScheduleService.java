@@ -53,12 +53,14 @@ public class ScheduleService {
         Board board = boardRepository.findById(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
+        Map<String, User> userCache = new java.util.HashMap<>();
         List<String> targetAssigneeIds = assigneeIds;
         if (targetAssigneeIds == null || targetAssigneeIds.isEmpty()) {
-            targetAssigneeIds = boardMemberRepository.findByBoardId(boardId)
-                    .stream()
-                    .map(bm -> bm.getUser().getId())
-                    .collect(Collectors.toList());
+            var members = boardMemberRepository.findByBoardId(boardId);
+            targetAssigneeIds = members.stream().map(bm -> bm.getUser().getId()).collect(Collectors.toList());
+            members.forEach(bm -> userCache.put(bm.getUser().getId(), bm.getUser()));
+        } else {
+            userRepository.findAllById(targetAssigneeIds).forEach(u -> userCache.put(u.getId(), u));
         }
 
         List<ScheduleBlock> blocks = scheduleBlockRepository
@@ -69,7 +71,7 @@ public class ScheduleService {
 
         List<ScheduleResponse.ColumnInfo> columns = new ArrayList<>();
         for (String assigneeId : targetAssigneeIds) {
-            User user = userRepository.findById(assigneeId).orElse(null);
+            User user = userCache.get(assigneeId);
             if (user == null) continue;
 
             List<ScheduleBlock> userBlocks = blocksByAssignee.getOrDefault(assigneeId, new ArrayList<>());
@@ -101,12 +103,14 @@ public class ScheduleService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
         // 대상 담당자 목록
+        Map<String, User> userCache = new java.util.HashMap<>();
         List<String> targetAssigneeIds = assigneeIds;
         if (targetAssigneeIds == null || targetAssigneeIds.isEmpty()) {
-            targetAssigneeIds = boardMemberRepository.findByBoardId(boardId)
-                    .stream()
-                    .map(bm -> bm.getUser().getId())
-                    .collect(Collectors.toList());
+            var members = boardMemberRepository.findByBoardId(boardId);
+            targetAssigneeIds = members.stream().map(bm -> bm.getUser().getId()).collect(Collectors.toList());
+            members.forEach(bm -> userCache.put(bm.getUser().getId(), bm.getUser()));
+        } else {
+            userRepository.findAllById(targetAssigneeIds).forEach(u -> userCache.put(u.getId(), u));
         }
 
         // 기간 내 모든 블록 조회 (1회 쿼리)
@@ -119,12 +123,6 @@ public class ScheduleService {
                         ScheduleBlock::getScheduledDate,
                         Collectors.groupingBy(b -> b.getAssignee().getId())
                 ));
-
-        // 담당자 정보 캐싱
-        Map<String, User> userCache = new java.util.HashMap<>();
-        for (String assigneeId : targetAssigneeIds) {
-            userRepository.findById(assigneeId).ifPresent(u -> userCache.put(assigneeId, u));
-        }
 
         // 날짜별 DayData 생성
         List<ScheduleResponse.DayData> days = new ArrayList<>();

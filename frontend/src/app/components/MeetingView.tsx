@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Users, X, Loader2, ChevronDown, RotateCw } from 'lucide-react';
+import { Plus, Users, X, Loader2, ChevronDown, RotateCw, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { meetingAPI, MeetingSummary } from '../utils/api';
@@ -14,9 +14,10 @@ interface MeetingViewProps {
   onRefreshSchedule: () => void;
   aiCredits?: import('../types').AiCredits | null;
   refreshTrigger?: number;
+  onOpenCalendar?: () => void;
 }
 
-export function MeetingView({ boardId, selectedDate, boardMembers, onRefreshSchedule, aiCredits, refreshTrigger }: MeetingViewProps) {
+export function MeetingView({ boardId, selectedDate, boardMembers, onRefreshSchedule, aiCredits, refreshTrigger, onOpenCalendar }: MeetingViewProps) {
   const { t } = useTranslation();
   const [meetings, setMeetings] = useState<MeetingSummary[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -58,15 +59,26 @@ export function MeetingView({ boardId, selectedDate, boardMembers, onRefreshSche
     <div className="flex-1 overflow-auto p-4 md:p-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-base font-semibold text-white">
-          {format(selectedDate, 'M월 d일 (E)', { locale: ko })}
-        </h3>
+        <div className="flex items-center gap-2">
+          {onOpenCalendar && (
+            <button
+              onClick={onOpenCalendar}
+              className="md:hidden p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
+            >
+              <Calendar size={18} />
+            </button>
+          )}
+          <h3 className="text-base font-semibold text-white">
+            {format(selectedDate, 'M월 d일 (E)', { locale: ko })}
+          </h3>
+        </div>
         <button
           onClick={() => setShowCreateModal(true)}
-          className="flex items-center gap-1.5 px-4 py-2 bg-bridge-accent text-white rounded-xl text-sm font-bold hover:bg-bridge-accent/90 hover:shadow-[0_0_30px_rgba(99,102,241,0.3)] transition-all"
+          className="flex items-center gap-1.5 px-3 py-2 md:px-4 bg-bridge-accent text-white rounded-xl text-sm font-bold hover:bg-bridge-accent/90 hover:shadow-[0_0_30px_rgba(99,102,241,0.3)] transition-all"
         >
           <Plus className="h-4 w-4" />
-          {t('meeting.addMeeting')}
+          <span className="hidden sm:inline">{t('meeting.addMeeting')}</span>
+          <span className="sm:hidden">{t('meeting.addMeeting')}</span>
         </button>
       </div>
 
@@ -214,7 +226,7 @@ function MeetingCreateModal({ boardId, selectedDate, onClose, onCreated }: Meeti
 
   return (
     <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-bridge-obsidian rounded-2xl shadow-2xl w-[480px] max-h-[90vh] flex flex-col overflow-hidden border border-white/10">
+      <div className="bg-bridge-obsidian rounded-2xl shadow-2xl w-[480px] max-w-[calc(100vw-2rem)] max-h-[90vh] flex flex-col overflow-hidden border border-white/10">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
           <h2 className="text-lg font-bold text-white">{t('meeting.addMeeting')}</h2>
