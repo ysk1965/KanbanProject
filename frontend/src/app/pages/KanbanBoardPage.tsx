@@ -1,14 +1,14 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { Plus, Users, Settings, Filter, ArrowLeft, LayoutGrid, Calendar, CalendarDays, Flag, Pencil, Lock, BarChart3, Search, X, User, ChevronDown, CheckCircle2, Circle, Tag as TagIcon, Layers, ChevronsDownUp, ChevronsUpDown, Sparkles, Lightbulb, MessageSquare, FileText } from 'lucide-react';
+import { Plus, Users, Settings, Filter, ArrowLeft, LayoutGrid, Calendar, Flag, Pencil, Lock, BarChart3, Search, X, User, ChevronDown, CheckCircle2, Circle, Tag as TagIcon, Layers, ChevronsDownUp, ChevronsUpDown, Lightbulb, MessageSquare, FileText } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { isWhiteLabelDomain } from '../utils/domain';
 
 // 뷰 모드 타입
-type ViewMode = 'kanban' | 'weekly' | 'schedule' | 'notes' | 'statistics' | 'ai_report';
+type ViewMode = 'kanban' | 'weekly' | 'schedule' | 'meeting' | 'notes' | 'statistics' | 'ai_report';
 import { DragProvider } from '../contexts/DragContext';
 import { useAuth } from '../contexts/AuthContext';
-import { Block, Feature, Task, Tag, Board, InviteLink, Subscription, ActivityLog, Milestone, BoardTierInfo, BoardLimits, ChecklistItem, NotificationItem } from '../types';
+import { Block, Feature, Task, Tag, Board, InviteLink, Subscription, ActivityLog, Milestone, BoardTierInfo, BoardLimits, ChecklistItem, NotificationItem, BoardWebSocketEvent, TaskComment, AiCredits } from '../types';
 import { KanbanBlock } from '../components/KanbanBlock';
 import { FeatureCard } from '../components/FeatureCard';
 import { FeatureChipSelector } from '../components/FeatureChipSelector';
@@ -30,6 +30,7 @@ import { SeatPurchaseModal } from '../components/SeatPurchaseModal';
 import { AlertModal } from '../components/AlertModal';
 import { UserMenu } from '../components/UserMenu';
 import { DailyScheduleView } from '../components/DailyScheduleView';
+import { MeetingCalendarView } from '../components/MeetingCalendarView';
 import { WeeklyScheduleView } from '../components/WeeklyScheduleView';
 import { StatisticsView } from '../components/StatisticsView';
 import { AIReportPanel } from '../components/AIReportPanel';
@@ -37,6 +38,7 @@ import { NotesView } from '../components/notes/NotesView';
 import { EmptyBoardGuide } from '../components/EmptyBoardGuide';
 import { InquiryModal } from '../components/InquiryModal';
 import { AnnouncementDisplay } from '../components/AnnouncementDisplay';
+import { AiCreditPurchaseModal } from '../components/AiCreditPurchaseModal';
 import { Button } from '../components/ui/button';
 import {
   Popover,
@@ -62,13 +64,15 @@ import {
   activityService,
   milestoneService,
   checklistService,
-  inquiryService
+  inquiryService,
+  aiCreditService
 } from '../utils/services';
 import { notificationAPI, checklistAPI, scheduleAPI } from '../utils/api';
 
 import { useTranslation } from 'react-i18next';
 import { getRandomFeatureColor } from '../constants';
 import { getInitials, getAssigneeHex } from '../utils/assigneeColor';
+import { useBoardWebSocket } from '../hooks/useBoardWebSocket';
 
 declare const __FE_COMMIT_HASH__: string;
 
@@ -94,12 +98,22 @@ export function KanbanBoardPage() {
 
   // 뷰 모드 상태 (URL 파라미터 우선, 없으면 localStorage)
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
-    if (urlView && ['kanban', 'weekly', 'schedule', 'statistics', 'ai_report'].includes(urlView)) {
+    if (urlView && ['kanban', 'weekly', 'schedule', 'meeting', 'notes', 'statistics', 'ai_report'].includes(urlView)) {
       return urlView;
     }
     const saved = localStorage.getItem(`viewMode_${boardId}`);
     return (saved as ViewMode) || 'kanban';
   });
+
+  // 병합 탭 서브모드 기억 헬퍼
+  const getScheduleSubMode = (): 'schedule' | 'weekly' => {
+    const saved = localStorage.getItem(`scheduleSubMode_${boardId}`);
+    return saved === 'weekly' ? 'weekly' : 'schedule';
+  };
+  const getAISubMode = (): 'statistics' | 'ai_report' => {
+    const saved = localStorage.getItem(`aiSubMode_${boardId}`);
+    return saved === 'ai_report' ? 'ai_report' : 'statistics';
+  };
 
   // URL 쿼리 파라미터 소비 후 제거 (뒤로가기 시 다시 트리거 방지)
   useEffect(() => {
@@ -144,6 +158,11 @@ export function KanbanBoardPage() {
     pendingMemberId?: string; // 역할 변경 시 사용
   } | null>(null);
 
+  // AI Credits 상태
+  const [aiCredits, setAiCredits] = useState<AiCredits | null>(null);
+  const [showCreditModal, setShowCreditModal] = useState(false);
+  const [creditModalMode, setCreditModalMode] = useState<'purchase' | 'exhausted'>('purchase');
+
   // 체크리스트 펼침 상태
   const [expandedChecklistTaskIds, setExpandedChecklistTaskIds] = useState<Set<string>>(new Set());
   // Feature 서브태스크 펼침 상태
@@ -175,6 +194,7 @@ export function KanbanBoardPage() {
   const [isActivityLogModalOpen, setIsActivityLogModalOpen] = useState(false);
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
   const [unreadInquiryCount, setUnreadInquiryCount] = useState(0);
+  const [wsCommentEvent, setWsCommentEvent] = useState<BoardWebSocketEvent | null>(null);
   const [isMilestoneModalOpen, setIsMilestoneModalOpen] = useState(false);
   const [selectedMilestone, setSelectedMilestone] = useState<Milestone | null>(null);
   const [isMilestoneOnboardingOpen, setIsMilestoneOnboardingOpen] = useState(false);
@@ -316,6 +336,31 @@ export function KanbanBoardPage() {
     loadBoardData();
   }, [boardId, navigate]);
 
+  // AI 크레딧 조회 (보드 로드 시)
+  useEffect(() => {
+    if (boardId) {
+      aiCreditService.getCredits(boardId)
+        .then(res => setAiCredits(res))
+        .catch(() => {}); // 실패 시 무시 (비로그인 등)
+    }
+  }, [boardId]);
+
+  // 402 이벤트 리스너 (크레딧 소진 시)
+  useEffect(() => {
+    const handler = () => {
+      setCreditModalMode('exhausted');
+      setShowCreditModal(true);
+    };
+    window.addEventListener('ai-credits-exhausted', handler);
+    return () => window.removeEventListener('ai-credits-exhausted', handler);
+  }, []);
+
+  // AI 크레딧 구매 완료 콜백
+  const handleCreditPurchaseComplete = (updatedCredits: AiCredits) => {
+    setAiCredits(updatedCredits);
+    setShowCreditModal(false);
+  };
+
   // 결제 완료 후 pending action 처리 (시트 구매 → 초대/역할변경 재시도)
   useEffect(() => {
     const pendingSeatAction = localStorage.getItem('pending_seat_action');
@@ -366,7 +411,124 @@ export function KanbanBoardPage() {
     }
   }, [board?.selected_milestone_id]);
 
-  // 알림 읽지 않은 수 폴링
+  // ======== WebSocket 실시간 동기화 ========
+  const handleWebSocketEvent = useCallback((event: BoardWebSocketEvent) => {
+    const { type, data } = event;
+
+    switch (type) {
+      // Feature events
+      case 'FEATURE_CREATED': {
+        const feature = data as Feature;
+        setFeatures(prev => prev.some(f => f.id === feature.id) ? prev : [...prev, feature]);
+        setAllFeatures(prev => prev.some(f => f.id === feature.id) ? prev : [...prev, feature]);
+        break;
+      }
+      case 'FEATURE_UPDATED': {
+        const feature = data as Feature;
+        setFeatures(prev => prev.map(f => f.id === feature.id ? feature : f));
+        setAllFeatures(prev => prev.map(f => f.id === feature.id ? feature : f));
+        break;
+      }
+      case 'FEATURE_DELETED': {
+        const { id } = data as { id: string };
+        setFeatures(prev => prev.filter(f => f.id !== id));
+        setAllFeatures(prev => prev.filter(f => f.id !== id));
+        setTasks(prev => prev.filter(t => t.feature_id !== id));
+        break;
+      }
+
+      // Task events — Feature 카운트는 서버가 계산한 값을 그대로 사용
+      case 'TASK_CREATED': {
+        const { task, feature } = data as { task: Task; feature: { id: string; total_tasks: number; completed_tasks: number; progress_percentage: number } };
+        setTasks(prev => prev.some(t => t.id === task.id) ? prev : [...prev, task]);
+        setFeatures(prev => prev.map(f => f.id === feature.id ? { ...f, ...feature } : f));
+        break;
+      }
+      case 'TASK_UPDATED': {
+        const task = data as Task;
+        setTasks(prev => prev.map(t => t.id === task.id ? { ...t, ...task } : t));
+        break;
+      }
+      case 'TASK_DELETED': {
+        const { id, feature } = data as { id: string; feature: { id: string; total_tasks: number; completed_tasks: number; progress_percentage: number } };
+        setTasks(prev => prev.filter(t => t.id !== id));
+        setFeatures(prev => prev.map(f => f.id === feature.id ? { ...f, ...feature } : f));
+        break;
+      }
+      case 'TASK_MOVED': {
+        const { task, feature } = data as { task: Task; feature: { id: string; total_tasks: number; completed_tasks: number; progress_percentage: number } };
+        setTasks(prev => prev.map(t => t.id === task.id ? { ...t, ...task } : t));
+        setFeatures(prev => prev.map(f => f.id === feature.id ? { ...f, ...feature } : f));
+        break;
+      }
+
+      // Block events
+      case 'BLOCK_CREATED': {
+        const block = data as Block;
+        setBlocks(prev => prev.some(b => b.id === block.id) ? prev : [...prev, block]);
+        break;
+      }
+      case 'BLOCK_UPDATED': {
+        const block = data as Block;
+        setBlocks(prev => prev.map(b => b.id === block.id ? block : b));
+        break;
+      }
+      case 'BLOCK_DELETED': {
+        const { id } = data as { id: string };
+        setBlocks(prev => prev.filter(b => b.id !== id));
+        break;
+      }
+      case 'BLOCKS_REORDERED': {
+        if (Array.isArray(data)) {
+          setBlocks(data as Block[]);
+        }
+        break;
+      }
+
+      // Comment events → 직접 상태 업데이트 (REST 재호출 없음)
+      case 'COMMENT_CREATED':
+      case 'COMMENT_UPDATED':
+      case 'COMMENT_DELETED':
+      case 'COMMENT_REACTION_TOGGLED':
+        setWsCommentEvent(event);
+        break;
+
+      // Notification events
+      case 'NOTIFICATION_CREATED':
+        setUnreadNotificationCount(prev => prev + 1);
+        break;
+
+      default:
+        break;
+    }
+  }, []);
+
+  // PREMIUM/TRIAL만 실시간 WebSocket 활성화, STANDARD는 기존 폴링 유지
+  const isRealtimeEnabled = tierInfo?.tier !== 'STANDARD';
+
+  const { connectionStatus, onlineUsers } = useBoardWebSocket({
+    boardId: boardId || null,
+    onEvent: handleWebSocketEvent,
+    enabled: isRealtimeEnabled,
+  });
+
+  // 재연결 시 누락된 이벤트 복구: 연결이 끊겼다가 다시 연결되면 전체 데이터 silent refetch
+  const hasConnectedBefore = useRef(false);
+  useEffect(() => {
+    if (connectionStatus === 'connected') {
+      if (hasConnectedBefore.current && boardId) {
+        const milestoneId = kanbanSelectedMilestoneId !== 'all' ? kanbanSelectedMilestoneId : undefined;
+        reloadFeaturesAndTasks(milestoneId);
+        blockService.getBlocks(boardId).then(setBlocks).catch(() => {});
+        notificationAPI.getUnreadCount(boardId)
+          .then(res => setUnreadNotificationCount(res.unread_count))
+          .catch(() => {});
+      }
+      hasConnectedBefore.current = true;
+    }
+  }, [connectionStatus, boardId]);
+
+  // 알림: PREMIUM/TRIAL은 WebSocket으로 실시간, STANDARD는 30초 폴링
   useEffect(() => {
     if (!boardId || !currentUser) return;
     const fetchUnreadCount = async () => {
@@ -378,9 +540,11 @@ export function KanbanBoardPage() {
       }
     };
     fetchUnreadCount();
-    const interval = setInterval(fetchUnreadCount, 30000);
-    return () => clearInterval(interval);
-  }, [boardId, currentUser]);
+    if (!isRealtimeEnabled) {
+      const interval = setInterval(fetchUnreadCount, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [boardId, currentUser, isRealtimeEnabled]);
 
   // 문의 읽지 않은 답변 수 로드
   useEffect(() => {
@@ -468,9 +632,19 @@ export function KanbanBoardPage() {
         return;
       }
       if (!isAdminOrOwner) {
-        // Admin 권한 없음 알림 (별도 처리 가능)
         return;
       }
+    }
+    if (mode === 'ai_report' && !canAccessStatistics) {
+      openUpgradeModal('statistics');
+      return;
+    }
+    // 병합 탭 서브모드 기억
+    if (mode === 'schedule' || mode === 'weekly') {
+      localStorage.setItem(`scheduleSubMode_${boardId}`, mode);
+    }
+    if (mode === 'statistics' || mode === 'ai_report') {
+      localStorage.setItem(`aiSubMode_${boardId}`, mode);
     }
     setViewMode(mode);
     localStorage.setItem(`viewMode_${boardId}`, mode);
@@ -1667,8 +1841,9 @@ export function KanbanBoardPage() {
             </div>
           </div>
 
-          {/* 중앙 탭 영역 */}
+          {/* 중앙 탭 영역 (5탭: 칸반보드, 일정, 회의, 노트, AI분석) */}
           <nav className="flex items-center gap-0.5 md:gap-1 bg-kanban-card p-1 rounded-xl border border-kanban-border overflow-x-auto shrink-0">
+            {/* 1. 칸반보드 */}
             <button
               onClick={() => handleViewModeChange('kanban')}
               className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
@@ -1680,37 +1855,43 @@ export function KanbanBoardPage() {
               <LayoutGrid size={14} />
               <span className="hidden md:inline">{t('kanban.viewKanban')}</span>
             </button>
+
+            {/* 2. 일정 (schedule + weekly 병합) */}
             <button
-              onClick={() => handleViewModeChange('schedule')}
+              onClick={() => {
+                const subMode = getScheduleSubMode();
+                if (subMode === 'weekly' && !canAccessSchedule) {
+                  handleViewModeChange('schedule');
+                } else {
+                  handleViewModeChange(subMode);
+                }
+              }}
               className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
-                viewMode === 'schedule'
+                viewMode === 'schedule' || viewMode === 'weekly'
                   ? 'bg-gradient-to-r from-[#2DD4BF] to-[#6366F1] text-white shadow-lg shadow-[#2DD4BF]/20'
                   : 'text-zinc-400 hover:text-zinc-200 hover:bg-kanban-surface'
               }`}
             >
               <Calendar size={14} />
-              <span className="hidden md:inline">{t('kanban.viewSchedule')}</span>
+              <span className="hidden md:inline">{t('kanban.viewScheduleTab', '일정')}</span>
             </button>
-            <button
-              onClick={() => {
-                if (!canAccessSchedule) {
-                  showAlertModal('premium');
-                  return;
-                }
-                handleViewModeChange('weekly');
-              }}
-              className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
-                viewMode === 'weekly'
-                  ? 'bg-gradient-to-r from-[#2DD4BF] to-[#6366F1] text-white shadow-lg shadow-[#2DD4BF]/20'
-                  : !canAccessSchedule
-                    ? 'text-zinc-600 cursor-not-allowed opacity-50'
+
+            {/* 3. 회의 */}
+            {!isWhiteLabelDomain && (
+              <button
+                onClick={() => handleViewModeChange('meeting')}
+                className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+                  viewMode === 'meeting'
+                    ? 'bg-gradient-to-r from-[#2DD4BF] to-[#6366F1] text-white shadow-lg shadow-[#2DD4BF]/20'
                     : 'text-zinc-400 hover:text-zinc-200 hover:bg-kanban-surface'
-              }`}
-            >
-              <CalendarDays size={14} />
-              <span className="hidden md:inline">{t('kanban.viewGantt')}</span>
-              {!canAccessSchedule && <Lock size={10} className="ml-0.5 text-zinc-500" />}
-            </button>
+                }`}
+              >
+                <Users size={14} />
+                <span className="hidden md:inline">{t('kanban.viewMeeting', '회의')}</span>
+              </button>
+            )}
+
+            {/* 4. 노트 */}
             {!isWhiteLabelDomain && (
               <button
                 onClick={() => handleViewModeChange('notes')}
@@ -1724,17 +1905,26 @@ export function KanbanBoardPage() {
                 <span className="hidden md:inline">{t('kanban.viewNotes', '노트')}</span>
               </button>
             )}
-            {isAdminOrOwner && (
+
+            {/* 5. AI분석 (statistics + ai_report 병합) */}
+            {(isAdminOrOwner || (!isViewer && !isTester)) && (
               <button
                 onClick={() => {
                   if (!canAccessStatistics) {
-                    showAlertModal('premium');
+                    openUpgradeModal('statistics');
                     return;
                   }
-                  handleViewModeChange('statistics');
+                  const subMode = getAISubMode();
+                  if (subMode === 'statistics' && !isAdminOrOwner) {
+                    handleViewModeChange('ai_report');
+                  } else if (subMode === 'ai_report' && (isViewer || isTester)) {
+                    handleViewModeChange('statistics');
+                  } else {
+                    handleViewModeChange(subMode);
+                  }
                 }}
                 className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all relative whitespace-nowrap ${
-                  viewMode === 'statistics'
+                  viewMode === 'statistics' || viewMode === 'ai_report'
                     ? 'bg-gradient-to-r from-[#2DD4BF] to-[#6366F1] text-white shadow-lg shadow-[#2DD4BF]/20'
                     : !canAccessStatistics
                       ? 'text-zinc-600 cursor-not-allowed opacity-50'
@@ -1742,29 +1932,7 @@ export function KanbanBoardPage() {
                 }`}
               >
                 <BarChart3 size={14} />
-                <span className="hidden md:inline">{t('kanban.viewStatistics')}</span>
-                {!canAccessStatistics && <Lock size={10} className="ml-0.5 text-zinc-500" />}
-              </button>
-            )}
-            {!isViewer && !isTester && (
-              <button
-                onClick={() => {
-                  if (!canAccessStatistics) {
-                    showAlertModal('premium');
-                    return;
-                  }
-                  handleViewModeChange('ai_report');
-                }}
-                className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all relative whitespace-nowrap ${
-                  viewMode === 'ai_report'
-                    ? 'bg-gradient-to-r from-[#2DD4BF] to-[#6366F1] text-white shadow-lg shadow-[#2DD4BF]/20'
-                    : !canAccessStatistics
-                      ? 'text-zinc-600 cursor-not-allowed opacity-50'
-                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-kanban-surface'
-                }`}
-              >
-                <Sparkles size={14} />
-                <span className="hidden md:inline">{t('kanban.viewAIReport')}</span>
+                <span className="hidden md:inline">{t('kanban.viewAIAnalysisTab', 'AI분석')}</span>
                 {!canAccessStatistics && <Lock size={10} className="ml-0.5 text-zinc-500" />}
               </button>
             )}
@@ -1821,6 +1989,63 @@ export function KanbanBoardPage() {
             )}
           </div>
         </header>
+
+        {/* 병합 탭 서브토글 바 */}
+        {(viewMode === 'schedule' || viewMode === 'weekly') && (
+          <div className="flex items-center justify-center py-1.5 bg-kanban-header/50 border-b border-white/5">
+            <div className="flex items-center gap-1 bg-white/5 rounded-lg p-0.5">
+              <button
+                onClick={() => handleViewModeChange('schedule')}
+                className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
+                  viewMode === 'schedule'
+                    ? 'bg-white/10 text-white'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                {t('kanban.viewSchedule')}
+              </button>
+              <button
+                onClick={() => handleViewModeChange('weekly')}
+                className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
+                  viewMode === 'weekly'
+                    ? 'bg-white/10 text-white'
+                    : !canAccessSchedule
+                      ? 'text-zinc-600 cursor-not-allowed'
+                      : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                {t('kanban.viewGantt')}
+                {!canAccessSchedule && <Lock size={10} className="inline ml-1 text-zinc-500" />}
+              </button>
+            </div>
+          </div>
+        )}
+        {(viewMode === 'statistics' || viewMode === 'ai_report') && isAdminOrOwner && !isViewer && !isTester && (
+          <div className="flex items-center justify-center py-1.5 bg-kanban-header/50 border-b border-white/5">
+            <div className="flex items-center gap-1 bg-white/5 rounded-lg p-0.5">
+              <button
+                onClick={() => handleViewModeChange('statistics')}
+                className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
+                  viewMode === 'statistics'
+                    ? 'bg-white/10 text-white'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                {t('kanban.viewStatistics')}
+              </button>
+              <button
+                onClick={() => handleViewModeChange('ai_report')}
+                className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
+                  viewMode === 'ai_report'
+                    ? 'bg-white/10 text-white'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                {t('kanban.viewAIReport')}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* 뷰 모드에 따른 컨텐츠 렌더링 */}
         {viewMode === 'weekly' ? (
@@ -2294,11 +2519,21 @@ export function KanbanBoardPage() {
               initialSubTab={urlTab as 'timeblock' | 'meeting' | undefined}
             />
           </main>
+        ) : viewMode === 'meeting' ? (
+          <main className="flex-1 overflow-hidden">
+            <MeetingCalendarView
+              boardId={boardId || ''}
+              boardMembers={boardMembersData}
+              onRefreshSchedule={() => setScheduleRefreshKey(k => k + 1)}
+              aiCredits={aiCredits}
+            />
+          </main>
         ) : viewMode === 'notes' ? (
           <main className="flex-1 overflow-hidden">
             <NotesView
               boardId={boardId || ''}
               currentUserRole={currentUserRole}
+              aiCredits={aiCredits}
             />
           </main>
         ) : viewMode === 'statistics' ? (
@@ -2396,6 +2631,7 @@ export function KanbanBoardPage() {
           boardId={boardId || ''}
           canEdit={canEdit}
           isAdminOrOwner={isAdminOrOwner}
+          wsCommentEvent={wsCommentEvent}
         />
 
         <AddBlockModal
@@ -2510,6 +2746,16 @@ export function KanbanBoardPage() {
           open={alertModal.open && !(hideBillingForUser && alertModal.type === 'premium')}
           onClose={() => setAlertModal({ ...alertModal, open: false })}
           type={alertModal.type}
+        />
+
+        {/* AI Credit Purchase Modal */}
+        <AiCreditPurchaseModal
+          isOpen={showCreditModal}
+          onClose={() => setShowCreditModal(false)}
+          boardId={boardId || ''}
+          mode={creditModalMode}
+          onPurchaseComplete={handleCreditPurchaseComplete}
+          currentCredits={aiCredits}
         />
 
         {/* Version Info */}

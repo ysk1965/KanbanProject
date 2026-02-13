@@ -1,5 +1,63 @@
 # Documentation Changelog
 
+## [2026-02-13] v1.6.0
+
+### IA v1.6.0
+- Added: Monitoring 도메인 모듈 (`domain/monitoring/`) - JVM/DB/API 메트릭, CloudWatch, Slack 알림
+- Added: WebSocket 인프라 (`global/websocket/`) - STOMP 실시간 보드 동기화 (26+ 이벤트 타입)
+- Added: `global/config/WebSocketConfig.java`, `CloudWatchConfig.java`, `WebMvcConfig.java`
+- Added: `global/interceptor/ApiMetricsInterceptor.java` - API 메트릭 수집
+- Added: `global/scheduler/MonitoringScheduler.java` - 메트릭 플러시/알림 체크/데이터 정리
+- Added: `components/notes/blocks/` - BlockNote 커스텀 블록 7종
+- Added: `components/MeetingCalendarView.tsx` - 미팅 월간 캘린더
+- Added: `components/admin/AdminMonitoringTab.tsx`, `MonitoringCharts.tsx`
+- Added: `hooks/useBoardWebSocket.ts`, `utils/websocket.ts` - WebSocket 클라이언트
+- Added: `styles/blocknote-dark.css` - BlockNote 다크 테마
+- Changed: Backend 도메인 패키지 26개 → 27개 (+ monitoring)
+- Changed: Flyway 마이그레이션 V16 → V30
+- Changed: Meeting 엔티티 반복 미팅 지원 (recurrence 필드)
+- Removed: NoteEditorToolbar.tsx, TableBubbleMenu.tsx, CustomTableCell.ts, CustomTableHeader.ts
+- Removed: tiptap.css (BlockNote로 대체)
+
+### Wireframe v1.6.0
+- Added: MeetingCalendarView - 월간 미팅 캘린더 (날짜별 미팅 표시, 반복 미팅 뱃지)
+- Added: NoteEditor BlockNote 마이그레이션 (7개 커스텀 블록: Callout, Toggle, Divider, ColumnLayout, Embed, Mention, TableOfContents)
+- Added: AdminMonitoringTab - 시스템 모니터링 대시보드 (JVM/DB/API 메트릭, 알림 설정)
+- Added: MonitoringCharts - API 메트릭 시각화 (Line/Area/Bar 차트)
+- Changed: MeetingView - 반복 미팅 UI (규칙 선택, 범위 선택: 이 미팅만/이후 모든 미팅)
+- Changed: Admin 사이드바 - 모니터링 탭 추가
+- Removed: Tiptap 에디터 관련 컴포넌트 (NoteEditorToolbar, TableBubbleMenu)
+
+### ERD v1.6.0
+- Added: api_metric_snapshots 테이블 (V30, API 메트릭 스냅샷, 인덱스 2개)
+- Added: monitoring_config 테이블 (V30, 모니터링 설정 키-값)
+- Changed: Meeting 테이블 - recurrence_rule, recurrence_group_id, recurrence_end_date 컬럼 추가 (V29, 인덱스 2개)
+- Added: Migration V17~V30 (14개 추가)
+
+### API v1.6.0
+- Added: Monitoring API (6개 엔드포인트 - dashboard, api-metrics/history, cloudwatch, alert-config GET/PUT, alert-test)
+- Added: WebSocket 엔드포인트 (/ws STOMP over SockJS, 26+ 이벤트 타입)
+- Changed: Meeting API - PUT/DELETE에 scope 파라미터 추가 (THIS_ONLY, THIS_AND_FUTURE)
+- Changed: Meeting 생성/응답에 recurrence 필드 추가
+
+### Design v1.4.0
+- Added: BlockNote 다크 테마 스타일 (blocknote-dark.css, Bridge 디자인 시스템 컬러 적용)
+- Added: 커스텀 블록 스타일 가이드 (Callout, Toggle, Divider, ColumnLayout, Embed, Mention, TableOfContents)
+- Added: 모니터링 대시보드 스타일 (메트릭 카드, 차트 컬러)
+- Removed: tiptap.css 스타일 (BlockNote로 대체)
+
+### Tech v1.6.0
+- Added: WebSocket/STOMP 인프라 (spring-boot-starter-websocket, @stomp/stompjs 7.3.0)
+- Added: BlockNote 에디터 (@blocknote/core, @blocknote/react, @blocknote/mantine v0.28.0)
+- Added: AWS CloudWatch SDK 2.25.0 연동
+- Added: Monitoring 도메인 (ApiMetricsInterceptor, MonitoringScheduler, CloudWatch)
+- Added: WebSocket 인프라 (WebSocketConfig, BoardEventType 26+, WebSocketAuthInterceptor)
+- Changed: Flyway V17~V30 마이그레이션 추가 (V29 meeting recurrence, V30 monitoring)
+- Changed: Meeting 반복 지원 (recurrenceRule, scope-based update/delete)
+- Removed: Tiptap 에디터 의존성 (BlockNote로 대체)
+
+---
+
 ## [2026-02-08] v1.5.0
 
 ### IA v1.5.0

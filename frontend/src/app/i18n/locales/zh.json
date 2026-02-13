@@ -172,8 +172,8 @@
         "tagline": "无限协作。零成本。",
         "feature1": "无限看板和任务",
         "feature2": "每日日程和清单",
-        "feature3": "实时数据同步和团队共享",
-        "feature4": "Slack 集成和实时提醒",
+        "feature3": "团队共享与协作（手动刷新）",
+        "feature4": "基本通知",
         "cta": "START FREE"
       },
       "premium": {
@@ -185,6 +185,7 @@
         "feature3": "智能项目管理仪表盘和资源分析",
         "feature4": "高级团队权限编排",
         "feature5": "AI 冲刺报告 & 洞察",
+        "feature6": "实时看板同步（无需刷新即时更新）",
         "cta": "START TRIAL"
       }
     },
@@ -1175,8 +1176,10 @@
     "noMilestone": "无里程碑",
     "editMilestone": "编辑里程碑",
     "viewKanban": "Kanban",
+    "viewScheduleTab": "日程",
     "viewSchedule": "每日日程",
     "viewGantt": "Gantt Chart",
+    "viewAIAnalysisTab": "AI分析",
     "viewStatistics": "里程碑",
     "viewAIReport": "AI 报告",
     "inquiry": "联系我们",
@@ -1204,7 +1207,8 @@
     "cannotRemoveSelf": "不能移除自己。",
     "removeMemberFailed": "移除成员失败。",
     "checklist": "清单",
-    "viewNotes": "笔记"
+    "viewNotes": "笔记",
+    "viewMeeting": "会议"
   },
   "admin": {
     "backToBoards": "返回看板",
@@ -1482,6 +1486,61 @@
       "startDate": "开始日期",
       "endDate": "结束日期",
       "saving": "保存中..."
+    },
+    "monitoring": {
+      "title": "监控",
+      "subtitle": "系统健康和性能监控",
+      "loadFailed": "加载监控数据失败",
+      "autoRefresh": "自动刷新",
+      "refresh": "刷新",
+      "jvmHeap": "JVM堆",
+      "hikariConnections": "数据库连接",
+      "apiErrorRate": "API错误率",
+      "totalRequests": "总请求数",
+      "active": "活跃",
+      "idle": "空闲",
+      "pending": "等待中",
+      "max": "最大",
+      "apiResponseTop10": "API响应时间前10",
+      "apiTrend": "API趋势（按小时）",
+      "responseTime": "响应时间",
+      "errorRate": "错误率",
+      "cloudWatch": "CloudWatch",
+      "cloudWatchNotConnected": "CloudWatch未连接",
+      "cloudWatchNotConnectedDesc": "在服务器上启用CloudWatch以查看基础设施指标",
+      "ec2Cpu": "EC2 CPU",
+      "rdsCpu": "RDS CPU",
+      "rdsConnections": "RDS连接",
+      "rdsIops": "RDS IOPS",
+      "readIops": "读取",
+      "writeIops": "写入",
+      "slackAlerts": "Slack警报设置",
+      "webhookUrl": "Webhook URL",
+      "webhookUrlPlaceholder": "https://hooks.slack.com/services/...",
+      "alertEnabled": "启用警报",
+      "saveConfig": "保存配置",
+      "testAlert": "测试警报",
+      "configSaved": "配置已保存",
+      "testSent": "测试警报已发送",
+      "noData": "无数据",
+      "serverTime": "服务器时间",
+      "aiTotalCalls": "AI调用次数",
+      "aiTotalTokens": "AI令牌使用量",
+      "aiEstimatedCost": "预估费用",
+      "aiAvgTokensPerCall": "每次调用平均令牌",
+      "last30Days": "最近30天",
+      "tokensPerCall": "tokens / call",
+      "aiUsageByBoard": "按看板的AI使用量",
+      "aiUsageByFeature": "按功能的AI使用量",
+      "openAIBilling": "OpenAI 账户用量",
+      "openAITotalCost": "月度费用",
+      "openAITotalRequests": "总请求数",
+      "openAITotalTokens": "总Token使用量",
+      "openAINotConnected": "OpenAI Admin Key 未连接",
+      "openAINotConnectedDesc": "设置 OPENAI_ADMIN_KEY 环境变量以查看账户用量",
+      "openAIDailyCost": "每日费用趋势",
+      "openAIModelUsage": "按模型使用量",
+      "openAICost": "费用"
     }
   },
   "announcements": {
@@ -2201,7 +2260,22 @@
     "aiRecommendedTasks": "推荐任务",
     "aiSummaryTitle": "会议总结",
     "saveToNote": "保存到笔记",
-    "saveToNoteSuccess": "已保存到笔记"
+    "saveToNoteSuccess": "已保存到笔记",
+    "recurrence": "重复",
+    "noRecurrence": "不重复",
+    "recurrenceWeekly": "每周",
+    "recurrenceBiweekly": "每两周",
+    "recurrenceMonthly": "每月",
+    "recurrenceEndDate": "重复结束日期",
+    "recurrenceEndDateHint": "留空则无限期重复",
+    "recurring": "重复",
+    "deleteRecurringTitle": "删除重复会议",
+    "deleteRecurringMessage": "这是一个重复会议。您想如何删除？",
+    "deleteThisOnly": "仅删除此会议",
+    "deleteThisAndFuture": "删除此会议及未来会议",
+    "editRecurringTitle": "编辑重复会议",
+    "editThisOnly": "仅编辑此会议",
+    "editThisAndFuture": "编辑此会议及未来会议"
   },
   "notes": {
     "addTag": "添加标签",
@@ -2282,5 +2356,41 @@
     "subtitle": "邀请成员需要座位",
     "title": "购买额外座位",
     "year": "年"
+  },
+  "ai_credits": {
+    "title": "AI积分",
+    "remaining": "剩余积分",
+    "monthly": "月度积分",
+    "purchased": "额外购买积分",
+    "used": "使用量",
+    "total_available": "可用",
+    "reset_date": "重置日期",
+    "warning_low": "AI积分剩余{{count}}个",
+    "warning_critical": "AI积分即将耗尽（剩余{{count}}个）",
+    "warning_exhausted": "AI积分已全部耗尽",
+    "purchase": {
+      "title": "购买AI积分",
+      "description": "购买额外的AI积分以继续使用AI功能",
+      "unit_price": "每积分₩1,000",
+      "quantity": "购买数量",
+      "quantity_unit": "积分",
+      "total_price": "支付金额",
+      "buy_button": "购买",
+      "success": "已添加{{count}}个AI积分",
+      "failed": "购买失败，请重试"
+    },
+    "exhausted_modal": {
+      "title": "AI积分耗尽",
+      "description": "AI积分已全部使用完毕。\n购买额外积分可继续使用AI功能。",
+      "buy_button": "购买积分",
+      "later_button": "稍后"
+    },
+    "admin": {
+      "title": "AI积分状态",
+      "monthly_allocation": "月度分配",
+      "monthly_usage": "月度使用",
+      "purchased_remaining": "额外购买剩余",
+      "total_remaining": "总剩余"
+    }
   }
 }

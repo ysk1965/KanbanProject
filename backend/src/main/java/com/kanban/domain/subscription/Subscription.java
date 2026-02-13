@@ -74,6 +74,21 @@ public class Subscription {
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
+    @Column(name = "monthly_ai_credits")
+    @Builder.Default
+    private Integer monthlyAiCredits = 0;
+
+    @Column(name = "monthly_credits_used")
+    @Builder.Default
+    private Integer monthlyCreditsUsed = 0;
+
+    @Column(name = "purchased_credits")
+    @Builder.Default
+    private Integer purchasedCredits = 0;
+
+    @Column(name = "credits_reset_date")
+    private LocalDateTime creditsResetDate;
+
     @PrePersist
     public void prePersist() {
         if (this.id == null) {
@@ -214,5 +229,82 @@ public class Subscription {
             return this.seatCount;
         }
         return 5; // fallback
+    }
+
+    // AI Credit Management Methods
+
+    /**
+     * 총 사용 가능 크레딧
+     */
+    public int getTotalAvailableCredits() {
+        int monthlyRemaining = Math.max(0, monthlyAiCredits - monthlyCreditsUsed);
+        return monthlyRemaining + purchasedCredits;
+    }
+
+    /**
+     * 크레딧 충분 여부
+     */
+    public boolean hasEnoughCredits(int required) {
+        return getTotalAvailableCredits() >= required;
+    }
+
+    /**
+     * 크레딧 차감 (월간 → 구매 순서)
+     */
+    public void consumeCredits(int amount) {
+        int monthlyRemaining = Math.max(0, monthlyAiCredits - monthlyCreditsUsed);
+        if (monthlyRemaining >= amount) {
+            this.monthlyCreditsUsed += amount;
+        } else {
+            // 월간 잔여 먼저 소진, 나머지는 구매 크레딧에서
+            this.monthlyCreditsUsed = this.monthlyAiCredits;
+            int fromPurchased = amount - monthlyRemaining;
+            this.purchasedCredits = Math.max(0, this.purchasedCredits - fromPurchased);
+        }
+    }
+
+    /**
+     * 크레딧 소비 소스 반환 (로깅용)
+     */
+    public String getCreditSource(int amount) {
+        int monthlyRemaining = Math.max(0, monthlyAiCredits - monthlyCreditsUsed);
+        if (monthlyRemaining >= amount) return "MONTHLY";
+        if (monthlyRemaining > 0) return "MIXED";
+        return "PURCHASED";
+    }
+
+    /**
+     * 월간 크레딧 리셋
+     */
+    public void resetMonthlyCredits() {
+        this.monthlyCreditsUsed = 0;
+        this.creditsResetDate = LocalDateTime.now(ZoneOffset.UTC).plusMonths(1);
+    }
+
+    /**
+     * 크레딧 초기화 (구독 시작/변경 시)
+     */
+    public void initializeCredits(int monthlyAmount) {
+        this.monthlyAiCredits = monthlyAmount;
+        this.monthlyCreditsUsed = 0;
+        this.creditsResetDate = LocalDateTime.now(ZoneOffset.UTC).plusMonths(1);
+    }
+
+    /**
+     * 구매 크레딧 추가
+     */
+    public void addPurchasedCredits(int amount) {
+        this.purchasedCredits += amount;
+    }
+
+    /**
+     * 경고 레벨
+     */
+    public String getWarningLevel() {
+        int available = getTotalAvailableCredits();
+        if (available <= 0) return "EXHAUSTED";
+        if (available <= 3) return "CRITICAL";
+        if (available <= 10) return "LOW";
+        return null;
     }
 }

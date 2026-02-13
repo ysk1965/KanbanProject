@@ -25,6 +25,8 @@ public class MeetingRequest {
         private LocalTime endTime;
         private String memo;
         private String color;
+        private String recurrenceRule;
+        private LocalDate recurrenceEndDate;
     }
 
     @Getter

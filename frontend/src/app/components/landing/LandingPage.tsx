@@ -484,6 +484,7 @@ export const LandingPage: React.FC = () => {
                     <li className="flex items-center gap-5"><CheckCircle size={26} className="text-bridge-secondary" /> {t('landing.pricing.premium.feature3')}</li>
                     <li className="flex items-center gap-5"><CheckCircle size={26} className="text-bridge-secondary" /> {t('landing.pricing.premium.feature4')}</li>
                     <li className="flex items-center gap-5"><CheckCircle size={26} className="text-bridge-secondary" /> {t('landing.pricing.premium.feature5')}</li>
+                    <li className="flex items-center gap-5"><CheckCircle size={26} className="text-bridge-secondary" /> {t('landing.pricing.premium.feature6')}</li>
                   </ul>
                   <button onClick={handleGetStarted} className="w-full py-9 bg-bridge-secondary text-bridge-dark rounded-full text-[12px] font-black uppercase tracking-widest shadow-2xl hover:shadow-[0_0_80px_rgba(45,212,191,0.7)] transition-all transform hover:scale-[1.03] font-jakarta">{t('landing.pricing.premium.cta')}</button>
                 </div>

@@ -80,7 +80,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,metrics,hikaricp
   endpoint:
     health:
       show-details: never
@@ -119,11 +119,14 @@ ai:
       meeting: ${CLAUDE_MODEL_MEETING:claude-haiku-4-5-20251001}
   openai:
     api-key: ${OPENAI_API_KEY:}
+    admin-key: ${OPENAI_ADMIN_KEY:}
     model:
       team: ${OPENAI_MODEL_TEAM:gpt-4o-mini}
       personal: ${OPENAI_MODEL_PERSONAL:gpt-4o-mini}
       standup: ${OPENAI_MODEL_STANDUP:gpt-4o-mini}
       meeting: ${OPENAI_MODEL_MEETING:gpt-4o-mini}
+  credit:
+    reset-cron: "0 0 0 * * *"  # 매일 자정 UTC
 
 # App Version (injected at build time)
 app.version:
@@ -141,6 +144,21 @@ toss:
 app:
   frontend-url: ${FRONTEND_URL:http://localhost:5173}
   testprod-frontend-url: ${TESTPROD_FRONTEND_URL:}
+  monitoring:
+    enabled: true
+    cloudwatch-enabled: ${CLOUDWATCH_ENABLED:false}
+    ec2-instance-id: ${EC2_INSTANCE_ID:}
+    rds-instance-id: ${RDS_INSTANCE_ID:}
+    slack-webhook-url: ${MONITORING_SLACK_WEBHOOK_URL:}
+    alert-check-interval: 300000  # 5분
+    metric-flush-interval: 3600000  # 1시간
+    data-retention-days: 7
+    thresholds:
+      cpu-percent: 80
+      memory-percent: 85
+      hikari-active-percent: 90
+      error-rate-percent: 5
+      slow-api-ms: 3000
   file:
     s3-enabled: ${S3_ENABLED:false}
     max-size: 5242880

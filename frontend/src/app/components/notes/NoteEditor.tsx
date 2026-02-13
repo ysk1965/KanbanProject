@@ -1,30 +1,41 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Save, Clock, Loader2, Tag as TagIcon, Sparkles } from 'lucide-react';
-import { useEditor, EditorContent } from '@tiptap/react';
-import { StarterKit } from '@tiptap/starter-kit';
-import { Underline } from '@tiptap/extension-underline';
-import { TextAlign } from '@tiptap/extension-text-align';
-import { TextStyle } from '@tiptap/extension-text-style';
-import { Color } from '@tiptap/extension-color';
-import { Highlight } from '@tiptap/extension-highlight';
-import { Image } from '@tiptap/extension-image';
-import { Link } from '@tiptap/extension-link';
-import { Placeholder } from '@tiptap/extension-placeholder';
-import { Table } from '@tiptap/extension-table';
-import { TableRow } from '@tiptap/extension-table-row';
-import { CustomTableCell } from './extensions/CustomTableCell';
-import { CustomTableHeader } from './extensions/CustomTableHeader';
-import { TaskList } from '@tiptap/extension-task-list';
-import { TaskItem } from '@tiptap/extension-task-item';
-import { NoteEditorToolbar } from './NoteEditorToolbar';
-import { TableBubbleMenu } from './TableBubbleMenu';
+import { BlockNoteSchema, defaultBlockSpecs, defaultInlineContentSpecs, filterSuggestionItems, insertOrUpdateBlock } from '@blocknote/core';
+import { useCreateBlockNote, SuggestionMenuController, getDefaultReactSlashMenuItems } from '@blocknote/react';
+import { BlockNoteView } from '@blocknote/shadcn';
+import '@blocknote/core/fonts/inter.css';
+import '@blocknote/shadcn/style.css';
 import { NoteTagManager } from './NoteTagManager';
 import { NoteVersionHistory } from './NoteVersionHistory';
 import { NoteAIInlineSection } from './NoteAIInlineSection';
+import { Callout } from './blocks/Callout';
+import { Toggle } from './blocks/Toggle';
+import { Divider } from './blocks/Divider';
+import { TableOfContents } from './blocks/TableOfContents';
+import { Embed } from './blocks/Embed';
+import { ColumnLayout, Column } from './blocks/ColumnLayout';
+import { Mention } from './blocks/Mention';
 import { formatDateTime } from '../../utils/dateUtils';
-import { fileAPI, noteAPI } from '../../utils/api';
-import type { NoteDetail, NoteTagInfo, NoteAISuggestionResponse } from '../../utils/api';
+import { fileAPI, noteAPI, memberAPI } from '../../utils/api';
+import type { NoteDetail, NoteTagInfo, NoteAISuggestionResponse, MemberResponse } from '../../utils/api';
+
+const schema = BlockNoteSchema.create({
+  blockSpecs: {
+    ...defaultBlockSpecs,
+    callout: Callout,
+    toggle: Toggle,
+    divider: Divider,
+    tableOfContents: TableOfContents,
+    embed: Embed,
+    columnLayout: ColumnLayout,
+    column: Column,
+  },
+  inlineContentSpecs: {
+    ...defaultInlineContentSpecs,
+    mention: Mention,
+  },
+});
 
 const AUTO_SAVE_DELAY = 30_000; // 30 seconds
 
@@ -37,9 +48,10 @@ interface NoteEditorProps {
   onSave: (noteId: string, data: { title?: string; content?: string; tagIds?: string[] }, createVersion?: boolean) => void;
   onTagsChange: () => void;
   onDirtyChange?: (isDirty: boolean) => void;
+  aiCredits?: import('../../types').AiCredits | null;
 }
 
-export function NoteEditor({ boardId, note, tags, loading, canEdit, onSave, onTagsChange, onDirtyChange }: NoteEditorProps) {
+export function NoteEditor({ boardId, note, tags, loading, canEdit, onSave, onTagsChange, onDirtyChange, aiCredits }: NoteEditorProps) {
   const { t } = useTranslation();
   const [title, setTitle] = useState(note.title);
   const [hasChanges, setHasChanges] = useState(false);
@@ -56,79 +68,147 @@ export function NoteEditor({ boardId, note, tags, loading, canEdit, onSave, onTa
   const [aiCollapsed, setAiCollapsed] = useState(false);
   const [aiContentSnapshot, setAiContentSnapshot] = useState<string | null>(note.aiContentSnapshot);
 
-  const editor = useEditor({
-    extensions: [
-      StarterKit,
-      Underline,
-      TextAlign.configure({ types: ['heading', 'paragraph'] }),
-      TextStyle,
-      Color,
-      Highlight.configure({ multicolor: true }),
-      Image.configure({ inline: false, allowBase64: true }),
-      Link.configure({ openOnClick: false, autolink: true }),
-      Placeholder.configure({ placeholder: t('notes.contentPlaceholder', '내용을 입력하세요...') }),
-      Table.configure({ resizable: true, allowTableNodeSelection: true }),
-      TableRow,
-      CustomTableCell,
-      CustomTableHeader,
-      TaskList,
-      TaskItem.configure({ nested: true }),
-    ],
-    content: note.content || '',
-    editable: canEdit,
-    onUpdate: () => {
-      setHasChanges(true);
-      setAutoSaved(false);
-    },
-    editorProps: {
-      attributes: {
-        class: 'prose prose-invert prose-sm max-w-none focus:outline-none min-h-[400px] px-6 py-4',
-      },
-      handlePaste: (_view, event) => {
-        const items = event.clipboardData?.items;
-        if (!items) return false;
-
-        for (const item of Array.from(items)) {
-          if (item.type.startsWith('image/')) {
-            event.preventDefault();
-            const file = item.getAsFile();
-            if (file) handleClipboardImage(file);
-            return true;
-          }
-        }
-        return false;
-      },
-    },
-  });
-
-  // Clipboard image upload handler
-  const handleClipboardImage = useCallback(async (file: File) => {
-    if (!editor) return;
-    try {
+  // Create BlockNote editor with custom schema
+  const editor = useCreateBlockNote({
+    schema,
+    uploadFile: async (file: File) => {
       const result = await fileAPI.smartUpload(file);
-      if (result.previewUrl) {
-        editor.chain().focus().setImage({ src: result.previewUrl }).run();
+      return result.previewUrl || '';
+    },
+    tables: {
+      cellBackgroundColor: true,
+      cellTextColor: true,
+      headers: true,
+      splitCells: true,
+    },
+  } as any);
+
+  // Custom slash menu items
+  const slashMenuItems = useMemo(() => [
+    ...getDefaultReactSlashMenuItems(editor),
+    {
+      title: 'Callout',
+      subtext: 'Highlighted callout box',
+      onItemClick: () => insertOrUpdateBlock(editor, { type: 'callout' as any }),
+      aliases: ['callout', 'panel', 'info', 'warning', 'notice'],
+      group: 'Basic blocks',
+      icon: <span style={{ fontSize: '14px', lineHeight: 1 }}>{'ℹ️'}</span>,
+    },
+    {
+      title: 'Toggle List',
+      subtext: 'Collapsible toggle list',
+      onItemClick: () => insertOrUpdateBlock(editor, { type: 'toggle' as any }),
+      aliases: ['toggle', 'collapsible', 'dropdown', 'accordion'],
+      group: 'Basic blocks',
+      icon: <span style={{ fontSize: '14px', lineHeight: 1 }}>{'▶'}</span>,
+    },
+    {
+      title: 'Divider',
+      subtext: 'Horizontal divider line',
+      onItemClick: () => insertOrUpdateBlock(editor, { type: 'divider' as any }),
+      aliases: ['divider', 'separator', 'hr', 'line'],
+      group: 'Basic blocks',
+      icon: <span style={{ fontSize: '14px', lineHeight: 1 }}>{'—'}</span>,
+    },
+    {
+      title: 'Table of Contents',
+      subtext: 'Auto-generated from headings',
+      onItemClick: () => insertOrUpdateBlock(editor, { type: 'tableOfContents' as any }),
+      aliases: ['toc', 'table of contents', 'outline', 'index'],
+      group: 'Basic blocks',
+      icon: <span style={{ fontSize: '14px', lineHeight: 1 }}>{'📑'}</span>,
+    },
+    {
+      title: 'Embed',
+      subtext: 'YouTube, Vimeo, or any link',
+      onItemClick: () => insertOrUpdateBlock(editor, { type: 'embed' as any }),
+      aliases: ['embed', 'youtube', 'vimeo', 'bookmark', 'link card', 'iframe'],
+      group: 'Media',
+      icon: <span style={{ fontSize: '14px', lineHeight: 1 }}>{'🔗'}</span>,
+    },
+    {
+      title: '2 Columns',
+      subtext: 'Side-by-side layout',
+      onItemClick: () => insertOrUpdateBlock(editor, {
+        type: 'columnLayout' as any,
+        props: { columns: 2 },
+        children: [
+          { type: 'column' as any, children: [{ type: 'paragraph' }] },
+          { type: 'column' as any, children: [{ type: 'paragraph' }] },
+        ],
+      }),
+      aliases: ['columns', '2columns', 'two columns', 'layout', 'side by side'],
+      group: 'Advanced',
+      icon: <span style={{ fontSize: '14px', lineHeight: 1 }}>{'▥'}</span>,
+    },
+    {
+      title: '3 Columns',
+      subtext: 'Three-column layout',
+      onItemClick: () => insertOrUpdateBlock(editor, {
+        type: 'columnLayout' as any,
+        props: { columns: 3 },
+        children: [
+          { type: 'column' as any, children: [{ type: 'paragraph' }] },
+          { type: 'column' as any, children: [{ type: 'paragraph' }] },
+          { type: 'column' as any, children: [{ type: 'paragraph' }] },
+        ],
+      }),
+      aliases: ['3columns', 'three columns', 'triple'],
+      group: 'Advanced',
+      icon: <span style={{ fontSize: '14px', lineHeight: 1 }}>{'▦'}</span>,
+    },
+  ], [editor]);
+
+  // @mention: lazy-fetch board members
+  const membersCache = useRef<MemberResponse[] | null>(null);
+  const getMentionItems = useCallback(async (query: string) => {
+    if (!membersCache.current) {
+      try {
+        const data = await memberAPI.getMembers(boardId);
+        membersCache.current = data.members;
+      } catch {
+        membersCache.current = [];
       }
-    } catch (err) {
-      console.error('Clipboard image upload failed:', err);
     }
-  }, [editor]);
+    const items = (membersCache.current || []).map((m) => ({
+      title: m.user.name,
+      onItemClick: () => {
+        editor.insertInlineContent([
+          { type: 'mention' as any, props: { user: m.user.name } },
+          ' ',
+        ]);
+      },
+      aliases: [m.user.email],
+      group: 'Members',
+      icon: m.user.profile_image
+        ? <img src={m.user.profile_image} alt="" className="bn-mention-avatar" />
+        : <span className="bn-mention-avatar-fallback">{m.user.name.charAt(0)}</span>,
+    }));
+    return filterSuggestionItems(items, query);
+  }, [boardId, editor]);
 
-  // Notify parent about dirty state
-  useEffect(() => {
-    onDirtyChange?.(hasChanges);
-  }, [hasChanges, onDirtyChange]);
-
-  // Reset when note changes
+  // Load content when note changes
   useEffect(() => {
     if (note.id !== noteIdRef.current) {
       noteIdRef.current = note.id;
       setTitle(note.title);
       setHasChanges(false);
       setAutoSaved(false);
-      if (editor) {
-        editor.commands.setContent(note.content || '');
-      }
+
+      const loadContent = async () => {
+        if (!note.content?.trim()) {
+          editor.replaceBlocks(editor.document, []);
+          return;
+        }
+        try {
+          const blocks = await editor.tryParseHTMLToBlocks(note.content);
+          editor.replaceBlocks(editor.document, blocks);
+        } catch (err) {
+          console.error('Failed to load note content:', err);
+        }
+      };
+      loadContent();
+
       // Reset AI state
       setAiData(null);
       setAiLoading(false);
@@ -137,24 +217,37 @@ export function NoteEditor({ boardId, note, tags, loading, canEdit, onSave, onTa
       setAiCollapsed(false);
       setAiContentSnapshot(note.aiContentSnapshot);
 
-      // Load saved AI suggestions if available
       if (note.aiSuggestions) {
         try {
-          const parsed = JSON.parse(note.aiSuggestions);
-          setAiData(parsed);
-        } catch {
-          // Ignore parse errors
-        }
+          setAiData(JSON.parse(note.aiSuggestions));
+        } catch { /* Ignore parse errors */ }
       }
     }
   }, [note.id, note.title, note.content, note.aiSuggestions, note.aiContentSnapshot, editor]);
 
-  // Update editable state
+  // Load initial content on first mount
+  const initialLoadDone = useRef(false);
   useEffect(() => {
-    if (editor) {
-      editor.setEditable(canEdit);
-    }
-  }, [editor, canEdit]);
+    if (initialLoadDone.current) return;
+    initialLoadDone.current = true;
+
+    if (!note.content?.trim()) return;
+
+    const loadInitial = async () => {
+      try {
+        const blocks = await editor.tryParseHTMLToBlocks(note.content!);
+        editor.replaceBlocks(editor.document, blocks);
+      } catch (err) {
+        console.error('Failed to load initial content:', err);
+      }
+    };
+    loadInitial();
+  }, [editor, note.content]);
+
+  // Notify parent about dirty state
+  useEffect(() => {
+    onDirtyChange?.(hasChanges);
+  }, [hasChanges, onDirtyChange]);
 
   // beforeunload warning
   useEffect(() => {
@@ -173,12 +266,23 @@ export function NoteEditor({ boardId, note, tags, loading, canEdit, onSave, onTa
     setAutoSaved(false);
   };
 
+  // Content change handler
+  const handleEditorChange = useCallback(() => {
+    setHasChanges(true);
+    setAutoSaved(false);
+  }, []);
+
+  // Get HTML content for saving
+  const getContentHTML = useCallback(async (): Promise<string> => {
+    return await editor.blocksToHTMLLossy(editor.document);
+  }, [editor]);
+
   // Manual save (creates version)
   const handleSave = useCallback(async () => {
-    if (!hasChanges || !canEdit || !editor) return;
+    if (!hasChanges || !canEdit) return;
     setSaving(true);
     try {
-      const html = editor.getHTML();
+      const html = await getContentHTML();
       await onSave(note.id, {
         title: title !== note.title ? title : undefined,
         content: html,
@@ -189,13 +293,13 @@ export function NoteEditor({ boardId, note, tags, loading, canEdit, onSave, onTa
     } finally {
       setSaving(false);
     }
-  }, [hasChanges, canEdit, editor, onSave, note.id, note.title, title, note.tags]);
+  }, [hasChanges, canEdit, getContentHTML, onSave, note.id, note.title, title, note.tags]);
 
   // Auto-save (no version creation)
   const handleAutoSave = useCallback(async () => {
-    if (!hasChanges || !canEdit || !editor) return;
+    if (!hasChanges || !canEdit) return;
     try {
-      const html = editor.getHTML();
+      const html = await getContentHTML();
       await onSave(note.id, {
         title: title !== note.title ? title : undefined,
         content: html,
@@ -206,9 +310,9 @@ export function NoteEditor({ boardId, note, tags, loading, canEdit, onSave, onTa
     } catch {
       // Silently fail auto-save
     }
-  }, [hasChanges, canEdit, editor, onSave, note.id, note.title, title, note.tags]);
+  }, [hasChanges, canEdit, getContentHTML, onSave, note.id, note.title, title, note.tags]);
 
-  // Auto-save timer: reset on every change
+  // Auto-save timer
   useEffect(() => {
     if (autoSaveTimerRef.current) {
       clearTimeout(autoSaveTimerRef.current);
@@ -228,17 +332,15 @@ export function NoteEditor({ boardId, note, tags, loading, canEdit, onSave, onTa
   // AI: check if content has changed since last AI organize
   const isAIDimmed = useCallback(() => {
     if (!aiContentSnapshot || !aiData) return false;
-    const currentContent = editor?.getHTML() || note.content || '';
-    return currentContent === aiContentSnapshot;
-  }, [aiContentSnapshot, aiData, editor, note.content]);
+    // Simple check: compare snapshot with current note content from server
+    return aiContentSnapshot === note.content;
+  }, [aiContentSnapshot, aiData, note.content]);
 
   // AI: handle organize
   const handleAIOrganize = useCallback(async () => {
     if (aiLoading) return;
 
-    // Check if content changed since last AI organize
     if (isAIDimmed()) {
-      // Just show existing suggestions
       setAiVisible(true);
       setAiCollapsed(false);
       return;
@@ -252,15 +354,13 @@ export function NoteEditor({ boardId, note, tags, loading, canEdit, onSave, onTa
       const lang = navigator.language?.split('-')[0] || 'ko';
       const data = await noteAPI.aiOrganize(boardId, note.id, lang);
       setAiData(data);
-      // Save snapshot of current content
-      const currentContent = editor?.getHTML() || note.content || '';
-      setAiContentSnapshot(currentContent);
+      setAiContentSnapshot(note.content || '');
     } catch {
       setAiError(t('notes.aiError'));
     } finally {
       setAiLoading(false);
     }
-  }, [aiLoading, isAIDimmed, boardId, note.id, note.content, editor, t]);
+  }, [aiLoading, isAIDimmed, boardId, note.id, note.content, t]);
 
   const handleAIClose = useCallback(() => {
     setAiCollapsed(true);
@@ -270,7 +370,7 @@ export function NoteEditor({ boardId, note, tags, loading, canEdit, onSave, onTa
     setAiCollapsed(false);
   }, []);
 
-  // Keyboard shortcut: Ctrl+S to save (manual, with version)
+  // Keyboard shortcut: Ctrl+S to save
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 's') {
@@ -353,11 +453,17 @@ export function NoteEditor({ boardId, note, tags, loading, canEdit, onSave, onTa
             versionCount={note.versionCount}
             canEdit={canEdit}
             onRestore={async () => {
-              // Reload note after restore
               const { noteService } = await import('../../utils/services');
               const updated = await noteService.getDetail(boardId, note.id);
-              if (editor && updated.content) {
-                editor.commands.setContent(updated.content);
+              if (updated.content?.trim()) {
+                try {
+                  const blocks = await editor.tryParseHTMLToBlocks(updated.content);
+                  editor.replaceBlocks(editor.document, blocks);
+                } catch (err) {
+                  console.error('Failed to restore content:', err);
+                }
+              } else {
+                editor.replaceBlocks(editor.document, []);
               }
               setTitle(updated.title);
               setHasChanges(false);
@@ -365,11 +471,12 @@ export function NoteEditor({ boardId, note, tags, loading, canEdit, onSave, onTa
             }}
           />
           {canEdit && (note.content?.trim()) && (
-            <button
-              onClick={handleAIOrganize}
-              disabled={aiLoading}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ml-1 disabled:opacity-50 ${
-                isAIDimmed()
+            <div className="flex items-center gap-2 ml-1">
+              <button
+                onClick={handleAIOrganize}
+                disabled={aiLoading || (aiCredits && aiCredits.total_available === 0)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 ${
+                  isAIDimmed()
                   ? 'text-slate-500 bg-white/5 cursor-default'
                   : 'text-bridge-secondary bg-bridge-secondary/10 hover:bg-bridge-secondary/20'
               }`}
@@ -380,7 +487,13 @@ export function NoteEditor({ boardId, note, tags, loading, canEdit, onSave, onTa
                 <Sparkles size={12} />
               )}
               {t('notes.aiOrganize')}
-            </button>
+              </button>
+              {aiCredits && (
+                <span className="text-xs text-slate-400">
+                  {t('ai_credits.remaining')}: {aiCredits.total_available}
+                </span>
+              )}
+            </div>
           )}
           {canEdit && (
             <button
@@ -400,13 +513,23 @@ export function NoteEditor({ boardId, note, tags, loading, canEdit, onSave, onTa
         </div>
       </div>
 
-      {/* Toolbar */}
-      {canEdit && <NoteEditorToolbar editor={editor} />}
-
-      {/* TipTap Editor Content + AI Section */}
+      {/* BlockNote Editor + AI Section */}
       <div className="flex-1 overflow-y-auto">
-        <EditorContent editor={editor} />
-        {canEdit && editor && <TableBubbleMenu editor={editor} />}
+        <BlockNoteView
+          editor={editor}
+          theme="dark"
+          editable={canEdit}
+          onChange={handleEditorChange}
+        >
+          <SuggestionMenuController
+            triggerCharacter="/"
+            getItems={async (query) => filterSuggestionItems(slashMenuItems, query)}
+          />
+          <SuggestionMenuController
+            triggerCharacter="@"
+            getItems={getMentionItems}
+          />
+        </BlockNoteView>
 
         {/* AI Inline Section */}
         {aiVisible && (

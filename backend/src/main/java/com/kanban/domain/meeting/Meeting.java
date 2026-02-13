@@ -54,6 +54,15 @@ public class Meeting {
     @Builder.Default
     private String color = "#8B5CF6";
 
+    @Column(name = "recurrence_rule", length = 20)
+    private String recurrenceRule;
+
+    @Column(name = "recurrence_group_id", length = 36)
+    private String recurrenceGroupId;
+
+    @Column(name = "recurrence_end_date")
+    private LocalDate recurrenceEndDate;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by", nullable = false)
     private User createdBy;
@@ -94,5 +103,9 @@ public class Meeting {
 
     public void updateAiSuggestions(String aiSuggestions) {
         this.aiSuggestions = aiSuggestions;
+    }
+
+    public boolean isRecurring() {
+        return this.recurrenceGroupId != null;
     }
 }

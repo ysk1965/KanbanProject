@@ -32,6 +32,7 @@ dependencies {
 
     // Spring Boot
     implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-websocket'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
@@ -53,6 +54,9 @@ dependencies {
 
     // AWS S3
     implementation 'software.amazon.awssdk:s3:2.25.0'
+
+    // AWS CloudWatch
+    implementation 'software.amazon.awssdk:cloudwatch:2.25.0'
 
     // Image Thumbnail
     implementation 'net.coobird:thumbnailator:0.4.20'

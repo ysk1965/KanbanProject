@@ -1512,3 +1512,205 @@ export interface InquiryListResponse {
   page: number;
   size: number;
 }
+
+// ========================================
+// WebSocket Events
+// ========================================
+
+export type BoardEventType =
+  | 'FEATURE_CREATED' | 'FEATURE_UPDATED' | 'FEATURE_DELETED' | 'FEATURES_REORDERED'
+  | 'TASK_CREATED' | 'TASK_UPDATED' | 'TASK_DELETED' | 'TASK_MOVED'
+  | 'BLOCK_CREATED' | 'BLOCK_UPDATED' | 'BLOCK_DELETED' | 'BLOCKS_REORDERED'
+  | 'COMMENT_CREATED' | 'COMMENT_UPDATED' | 'COMMENT_DELETED' | 'COMMENT_REACTION_TOGGLED'
+  | 'CHECKLIST_CREATED' | 'CHECKLIST_UPDATED' | 'CHECKLIST_DELETED' | 'CHECKLIST_TOGGLED'
+  | 'BOARD_UPDATED'
+  | 'MEMBER_JOINED' | 'MEMBER_LEFT' | 'MEMBER_UPDATED'
+  | 'NOTIFICATION_CREATED'
+  | 'PRESENCE_JOINED' | 'PRESENCE_LEFT';
+
+export interface BoardWebSocketEvent {
+  type: BoardEventType;
+  board_id: string;
+  user_id: string;
+  user_name: string;
+  timestamp: string;
+  data: unknown;
+}
+
+// ========================================
+// Monitoring Types
+// ========================================
+
+export interface MonitoringJvmMetrics {
+  heap_used: number;
+  heap_max: number;
+  heap_usage_percent: number;
+  non_heap_used: number;
+  live_threads: number;
+  peak_threads: number;
+  gc_pause_count: number;
+  gc_pause_total_ms: number;
+}
+
+export interface MonitoringHikariMetrics {
+  active_connections: number;
+  idle_connections: number;
+  pending_connections: number;
+  total_connections: number;
+  max_connections: number;
+  usage_percent: number;
+}
+
+export interface MonitoringEndpointMetric {
+  endpoint: string;
+  http_method: string;
+  request_count: number;
+  avg_response_ms: number;
+  max_response_ms: number;
+  p95_response_ms: number;
+  error_count: number;
+}
+
+export interface MonitoringApiMetrics {
+  total_requests: number;
+  total_errors: number;
+  error_rate: number;
+  avg_response_ms: number;
+  top_slowest_endpoints: MonitoringEndpointMetric[];
+}
+
+export interface MonitoringEc2Metrics {
+  cpu_utilization: number;
+  network_in: number;
+  network_out: number;
+}
+
+export interface MonitoringRdsMetrics {
+  cpu_utilization: number;
+  database_connections: number;
+  freeable_memory_mb: number;
+  read_iops: number;
+  write_iops: number;
+}
+
+export interface MonitoringCloudWatchMetrics {
+  ec2: MonitoringEc2Metrics | null;
+  rds: MonitoringRdsMetrics | null;
+}
+
+export interface MonitoringDashboard {
+  jvm: MonitoringJvmMetrics;
+  hikari: MonitoringHikariMetrics;
+  api: MonitoringApiMetrics;
+  cloud_watch: MonitoringCloudWatchMetrics | null;
+  server_time: string;
+}
+
+export interface MonitoringApiMetricSnapshot {
+  endpoint: string;
+  http_method: string;
+  snapshot_time: string;
+  request_count: number;
+  avg_response_ms: number;
+  max_response_ms: number;
+  p95_response_ms: number;
+  p99_response_ms: number;
+  error_count: number;
+  error_rate: number;
+}
+
+export interface MonitoringAlertConfig {
+  slack_webhook_url: string;
+  enabled: boolean;
+  thresholds: Record<string, number>;
+}
+
+export interface MonitoringAiUsageByBoard {
+  board_id: string;
+  board_name: string;
+  input_tokens: number;
+  output_tokens: number;
+  estimated_cost_usd: number;
+  call_count: number;
+}
+
+export interface MonitoringAiUsageByFeature {
+  feature_type: string;
+  input_tokens: number;
+  output_tokens: number;
+  estimated_cost_usd: number;
+  call_count: number;
+}
+
+export interface MonitoringAiUsageDailyTrend {
+  date: string;
+  input_tokens: number;
+  output_tokens: number;
+  estimated_cost_usd: number;
+  call_count: number;
+}
+
+export interface MonitoringAiUsageMetrics {
+  total_calls: number;
+  total_input_tokens: number;
+  total_output_tokens: number;
+  total_estimated_cost_usd: number;
+  by_board: MonitoringAiUsageByBoard[];
+  by_feature: MonitoringAiUsageByFeature[];
+  daily_trend: MonitoringAiUsageDailyTrend[];
+}
+
+// OpenAI 계정 빌링
+export interface OpenAIDailyCost {
+  date: string;
+  amount_usd: number;
+}
+
+export interface OpenAIModelUsage {
+  model: string;
+  input_tokens: number;
+  output_tokens: number;
+  requests: number;
+}
+
+export interface OpenAIBilling {
+  connected: boolean;
+  total_cost_usd: number | null;
+  daily_costs: OpenAIDailyCost[];
+  model_usage: OpenAIModelUsage[];
+}
+
+// ========================================
+// AI Credits
+// ========================================
+
+export interface AiCredits {
+  monthly_credits: number;
+  monthly_used: number;
+  purchased_credits: number;
+  total_available: number;
+  reset_date: string | null;
+  warning_level: 'LOW' | 'CRITICAL' | 'EXHAUSTED' | null;
+}
+
+export interface AiCreditPurchaseRequest {
+  credit_amount: number;  // 100 단위
+  payment_key?: string;
+  order_id?: string;
+  amount: number;  // 결제 금액 (원)
+}
+
+export interface AiCreditPurchaseResult {
+  purchase_id: string;
+  credit_amount: number;
+  total_amount: number;
+  updated_credits: AiCredits;
+}
+
+export interface AiCreditPurchaseHistory {
+  id: string;
+  credit_amount: number;
+  total_amount: number;
+  status: string;
+  created_at: string;
+}

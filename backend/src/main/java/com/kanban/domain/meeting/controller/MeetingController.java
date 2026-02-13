@@ -41,6 +41,17 @@ public class MeetingController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/range")
+    public ResponseEntity<List<MeetingResponse.Summary>> getMeetingsByDateRange(
+            @PathVariable String boardId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        List<MeetingResponse.Summary> response = meetingService.getMeetingsByDateRange(
+                boardId, startDate, endDate, principal.getUserId());
+        return ResponseEntity.ok(response);
+    }
+
     @GetMapping("/{meetingId}")
     public ResponseEntity<MeetingResponse.Detail> getMeetingDetail(
             @PathVariable String boardId,
@@ -66,9 +77,10 @@ public class MeetingController {
             @PathVariable String boardId,
             @PathVariable String meetingId,
             @AuthenticationPrincipal UserPrincipal principal,
-            @Valid @RequestBody MeetingRequest.Update request) {
+            @Valid @RequestBody MeetingRequest.Update request,
+            @RequestParam(defaultValue = "THIS_ONLY") String scope) {
         MeetingResponse.Detail response = meetingService.updateMeeting(
-                boardId, meetingId, principal.getUserId(), request);
+                boardId, meetingId, principal.getUserId(), request, scope);
         return ResponseEntity.ok(response);
     }
 
@@ -76,8 +88,9 @@ public class MeetingController {
     public ResponseEntity<Map<String, String>> deleteMeeting(
             @PathVariable String boardId,
             @PathVariable String meetingId,
-            @AuthenticationPrincipal UserPrincipal principal) {
-        meetingService.deleteMeeting(boardId, meetingId, principal.getUserId());
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(defaultValue = "THIS_ONLY") String scope) {
+        meetingService.deleteMeeting(boardId, meetingId, principal.getUserId(), scope);
         return ResponseEntity.ok(Map.of("message", "회의가 삭제되었습니다"));
     }
 

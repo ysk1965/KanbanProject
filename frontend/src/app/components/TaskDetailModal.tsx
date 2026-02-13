@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Task, Tag, ChecklistItem, User, Block, Feature } from '../types';
+import { Task, Tag, ChecklistItem, User, Block, Feature, BoardWebSocketEvent } from '../types';
 import { checklistAPI, taskAPI, scheduleAPI, ScheduleBlockDetailResponse } from '../utils/api';
 import { BoardMember } from './ShareBoardModal';
 import {
@@ -84,6 +84,7 @@ interface TaskDetailModalProps {
   boardId: string | null;
   canEdit?: boolean;
   isAdminOrOwner?: boolean;
+  wsCommentEvent?: BoardWebSocketEvent | null;
 }
 
 export function TaskDetailModal({
@@ -108,6 +109,7 @@ export function TaskDetailModal({
   boardId,
   canEdit = true,
   isAdminOrOwner = false,
+  wsCommentEvent,
 }: TaskDetailModalProps) {
   const { t } = useTranslation();
 
@@ -819,6 +821,7 @@ export function TaskDetailModal({
                 currentUser={currentUser}
                 canEdit={canEdit}
                 isAdminOrOwner={isAdminOrOwner}
+                wsCommentEvent={wsCommentEvent}
               />
             </div>
           )}

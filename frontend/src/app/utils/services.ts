@@ -17,6 +17,7 @@ import {
   testDataAPI,
   inquiryAPI,
   noteAPI,
+  apiClient,
 } from './api';
 import {
   mockBoards,
@@ -2294,5 +2295,71 @@ export const noteService = {
 
   deleteTag: async (boardId: string, tagId: string) => {
     return await noteAPI.deleteTag(boardId, tagId);
+  },
+};
+
+// ========================================
+// Monitoring Service
+// ========================================
+
+export const monitoringService = {
+  getDashboard: async () => {
+    const response = await apiClient.get('/admin/monitoring/dashboard');
+    return response.data || response;
+  },
+
+  getApiMetricHistory: async (hours: number = 24) => {
+    const response = await apiClient.get(`/admin/monitoring/api-metrics/history?hours=${hours}`);
+    return (response.data || response).snapshots || [];
+  },
+
+  getAlertConfig: async () => {
+    const response = await apiClient.get('/admin/monitoring/alert-config');
+    return response.data || response;
+  },
+
+  updateAlertConfig: async (config: { slack_webhook_url: string; enabled: boolean }) => {
+    const response = await apiClient.put('/admin/monitoring/alert-config', config);
+    return response.data || response;
+  },
+
+  sendTestAlert: async () => {
+    await apiClient.post('/admin/monitoring/alert-test');
+  },
+
+  getAiUsage: async (days: number = 30) => {
+    const response = await apiClient.get(`/admin/monitoring/ai-usage?days=${days}`);
+    return response.data || response;
+  },
+
+  getOpenAIBilling: async (days: number = 30) => {
+    const response = await apiClient.get(`/admin/monitoring/openai-billing?days=${days}`);
+    return response.data || response;
+  },
+};
+
+// ========================================
+// AI Credit Service
+// ========================================
+
+import type { AiCredits, AiCreditPurchaseRequest, AiCreditPurchaseResult, AiCreditPurchaseHistory } from '../types';
+
+export const aiCreditService = {
+  // 크레딧 조회
+  getCredits: async (boardId: string): Promise<AiCredits> => {
+    const response = await apiClient.get(`/boards/${boardId}/ai-credits`);
+    return response.data || response;
+  },
+
+  // 크레딧 구매
+  purchase: async (boardId: string, data: AiCreditPurchaseRequest): Promise<AiCreditPurchaseResult> => {
+    const response = await apiClient.post(`/boards/${boardId}/ai-credits/purchase`, data);
+    return response.data || response;
+  },
+
+  // 구매 이력 조회
+  getPurchases: async (boardId: string): Promise<AiCreditPurchaseHistory[]> => {
+    const response = await apiClient.get(`/boards/${boardId}/ai-credits/purchases`);
+    return (response.data || response).purchases || response.data || response;
   },
 };

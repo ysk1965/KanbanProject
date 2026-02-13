@@ -61,6 +61,8 @@ public class SecurityConfig {
                         // /api/v1/files/** 는 anyRequest().authenticated()에 의해 보호됨
                         // H2 Console
                         .requestMatchers("/h2-console/**").permitAll()
+                        // WebSocket endpoint
+                        .requestMatchers("/ws/**").permitAll()
                         // Health check
                         .requestMatchers("/health", "/actuator/**").permitAll()
                         // All other requests require authentication

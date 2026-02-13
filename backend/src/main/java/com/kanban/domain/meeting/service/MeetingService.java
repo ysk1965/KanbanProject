@@ -29,7 +29,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -54,6 +56,18 @@ public class MeetingService {
         boardService.checkViewerOrAbove(boardId, userId);
 
         List<Meeting> meetings = meetingRepository.findByBoardIdAndMeetingDateOrderByStartTimeAsc(boardId, date);
+
+        return meetings.stream().map(meeting -> {
+            int participantCount = scheduleBlockRepository.countDistinctAssigneeByMeetingId(meeting.getId());
+            return MeetingResponse.Summary.of(meeting, participantCount);
+        }).toList();
+    }
+
+    public List<MeetingResponse.Summary> getMeetingsByDateRange(String boardId, LocalDate startDate, LocalDate endDate, String userId) {
+        boardService.checkViewerOrAbove(boardId, userId);
+
+        List<Meeting> meetings = meetingRepository.findByBoardIdAndMeetingDateBetweenOrderByMeetingDateAscStartTimeAsc(
+                boardId, startDate, endDate);
 
         return meetings.stream().map(meeting -> {
             int participantCount = scheduleBlockRepository.countDistinctAssigneeByMeetingId(meeting.getId());
@@ -86,26 +100,90 @@ public class MeetingService {
         User creator = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        Meeting meeting = Meeting.builder()
+        String color = request.getColor() != null ? request.getColor() : "#8B5CF6";
+        String recurrenceRule = request.getRecurrenceRule();
+        String recurrenceGroupId = null;
+
+        if (recurrenceRule != null && !recurrenceRule.isBlank()) {
+            recurrenceGroupId = UUID.randomUUID().toString();
+        }
+
+        // 첫 번째 인스턴스 생성
+        Meeting firstMeeting = Meeting.builder()
                 .board(board)
                 .title(request.getTitle())
                 .meetingDate(request.getMeetingDate())
                 .startTime(request.getStartTime())
                 .endTime(request.getEndTime())
                 .memo(request.getMemo())
-                .color(request.getColor() != null ? request.getColor() : "#8B5CF6")
+                .color(color)
+                .recurrenceRule(recurrenceGroupId != null ? recurrenceRule : null)
+                .recurrenceGroupId(recurrenceGroupId)
+                .recurrenceEndDate(request.getRecurrenceEndDate())
                 .createdBy(creator)
                 .build();
 
-        meetingRepository.save(meeting);
+        meetingRepository.save(firstMeeting);
 
-        log.info("Meeting created: {} by user: {}", meeting.getId(), userId);
+        // 반복 인스턴스 생성
+        if (recurrenceGroupId != null) {
+            List<Meeting> recurringInstances = generateRecurringInstances(
+                    board, creator, request, recurrenceRule, recurrenceGroupId, color);
+            if (!recurringInstances.isEmpty()) {
+                meetingRepository.saveAll(recurringInstances);
+            }
+            log.info("Recurring meeting created: group={}, instances={}", recurrenceGroupId, recurringInstances.size() + 1);
+        } else {
+            log.info("Meeting created: {} by user: {}", firstMeeting.getId(), userId);
+        }
 
-        return MeetingResponse.Detail.of(meeting, List.of(), null);
+        return MeetingResponse.Detail.of(firstMeeting, List.of(), null);
+    }
+
+    private List<Meeting> generateRecurringInstances(Board board, User creator,
+                                                      MeetingRequest.Create request,
+                                                      String recurrenceRule, String recurrenceGroupId, String color) {
+        List<Meeting> instances = new ArrayList<>();
+        LocalDate currentDate = request.getMeetingDate();
+        LocalDate maxDate = currentDate.plusDays(84); // 12주
+        if (request.getRecurrenceEndDate() != null && request.getRecurrenceEndDate().isBefore(maxDate)) {
+            maxDate = request.getRecurrenceEndDate();
+        }
+
+        while (true) {
+            currentDate = getNextRecurrenceDate(currentDate, recurrenceRule);
+            if (currentDate.isAfter(maxDate)) break;
+
+            Meeting instance = Meeting.builder()
+                    .board(board)
+                    .title(request.getTitle())
+                    .meetingDate(currentDate)
+                    .startTime(request.getStartTime())
+                    .endTime(request.getEndTime())
+                    .memo(request.getMemo())
+                    .color(color)
+                    .recurrenceRule(recurrenceRule)
+                    .recurrenceGroupId(recurrenceGroupId)
+                    .recurrenceEndDate(request.getRecurrenceEndDate())
+                    .createdBy(creator)
+                    .build();
+            instances.add(instance);
+        }
+        return instances;
+    }
+
+    private LocalDate getNextRecurrenceDate(LocalDate current, String rule) {
+        return switch (rule.toUpperCase()) {
+            case "WEEKLY" -> current.plusWeeks(1);
+            case "BIWEEKLY" -> current.plusWeeks(2);
+            case "MONTHLY" -> current.plusMonths(1);
+            default -> current.plusYears(100); // 실질적으로 종료
+        };
     }
 
     @Transactional
-    public MeetingResponse.Detail updateMeeting(String boardId, String meetingId, String userId, MeetingRequest.Update request) {
+    public MeetingResponse.Detail updateMeeting(String boardId, String meetingId, String userId,
+                                                 MeetingRequest.Update request, String scope) {
         boardService.checkMemberOrAbove(boardId, userId);
 
         Meeting meeting = meetingRepository.findById(meetingId)
@@ -115,24 +193,41 @@ public class MeetingService {
             throw new BusinessException(ErrorCode.MEETING_NOT_FOUND);
         }
 
-        meeting.update(
-                request.getTitle(),
-                request.getMeetingDate(),
-                request.getStartTime(),
-                request.getEndTime(),
-                request.getMemo(),
-                request.getColor()
-        );
+        if ("THIS_AND_FUTURE".equals(scope) && meeting.isRecurring()) {
+            // 이 회의와 향후 모든 회의 업데이트
+            List<Meeting> futureMeetings = meetingRepository.findByRecurrenceGroupIdFromDate(
+                    meeting.getRecurrenceGroupId(), meeting.getMeetingDate());
+            for (Meeting m : futureMeetings) {
+                m.update(
+                        request.getTitle(),
+                        null, // meetingDate는 개별 유지
+                        request.getStartTime(),
+                        request.getEndTime(),
+                        m.getId().equals(meetingId) ? request.getMemo() : null, // memo는 현재 회의만
+                        request.getColor()
+                );
+            }
+            log.info("Recurring meetings updated from {}: group={}, count={} by user: {}",
+                    meeting.getMeetingDate(), meeting.getRecurrenceGroupId(), futureMeetings.size(), userId);
+        } else {
+            meeting.update(
+                    request.getTitle(),
+                    request.getMeetingDate(),
+                    request.getStartTime(),
+                    request.getEndTime(),
+                    request.getMemo(),
+                    request.getColor()
+            );
+            log.info("Meeting updated: {} by user: {}", meetingId, userId);
+        }
 
         List<User> participants = scheduleBlockRepository.findDistinctAssigneesByMeetingId(meetingId);
-
-        log.info("Meeting updated: {} by user: {}", meetingId, userId);
 
         return MeetingResponse.Detail.of(meeting, participants, deserializeAiSuggestions(meeting));
     }
 
     @Transactional
-    public void deleteMeeting(String boardId, String meetingId, String userId) {
+    public void deleteMeeting(String boardId, String meetingId, String userId, String scope) {
         boardService.checkMemberOrAbove(boardId, userId);
 
         Meeting meeting = meetingRepository.findById(meetingId)
@@ -142,10 +237,16 @@ public class MeetingService {
             throw new BusinessException(ErrorCode.MEETING_NOT_FOUND);
         }
 
-        // schedule_blocks의 meeting_id는 ON DELETE SET NULL로 자동 처리
-        meetingRepository.delete(meeting);
-
-        log.info("Meeting deleted: {} by user: {}", meetingId, userId);
+        if ("THIS_AND_FUTURE".equals(scope) && meeting.isRecurring()) {
+            meetingRepository.deleteByRecurrenceGroupIdFromDate(
+                    meeting.getRecurrenceGroupId(), meeting.getMeetingDate());
+            log.info("Recurring meetings deleted from {}: group={} by user: {}",
+                    meeting.getMeetingDate(), meeting.getRecurrenceGroupId(), userId);
+        } else {
+            // schedule_blocks의 meeting_id는 ON DELETE SET NULL로 자동 처리
+            meetingRepository.delete(meeting);
+            log.info("Meeting deleted: {} by user: {}", meetingId, userId);
+        }
     }
 
     @Transactional

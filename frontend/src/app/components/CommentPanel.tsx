@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
-import { TaskComment, CommentAttachment, CommentReaction, User, BoardCustomEmoji } from '../types';
+import { TaskComment, CommentAttachment, CommentReaction, User, BoardCustomEmoji, BoardWebSocketEvent } from '../types';
 import { commentAPI, fileAPI, customEmojiAPI, resolveFileUrl } from '../utils/api';
 import { BoardMember } from './ShareBoardModal';
 import { getAssigneeClasses, getInitials } from '../utils/assigneeColor';
@@ -111,11 +111,12 @@ interface CommentPanelProps {
   currentUser: User | null;
   canEdit?: boolean;
   isAdminOrOwner?: boolean;
+  wsCommentEvent?: BoardWebSocketEvent | null;
 }
 
 // ========== 컴포넌트 ==========
 
-export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEdit = true, isAdminOrOwner = false }: CommentPanelProps) {
+export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEdit = true, isAdminOrOwner = false, wsCommentEvent }: CommentPanelProps) {
   const { t } = useTranslation();
   // 댓글 목록
   const [comments, setComments] = useState<TaskComment[]>([]);
@@ -149,7 +150,9 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
   const [emojiUploadName, setEmojiUploadName] = useState('');
   const [isUploadingEmoji, setIsUploadingEmoji] = useState(false);
   const [showEmojiUpload, setShowEmojiUpload] = useState(false);
+  const [selectedEmojiFile, setSelectedEmojiFile] = useState<File | null>(null);
   const emojiFileInputRef = useRef<HTMLInputElement>(null);
+  const emojiNameInputRef = useRef<HTMLInputElement>(null);
 
   // 삭제 / 라이트박스
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
@@ -189,6 +192,39 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
   }, [boardId, taskId]);
 
   useEffect(() => { loadComments(); }, [loadComments]);
+
+  // WebSocket 실시간 댓글 직접 상태 업데이트 (REST 재호출 없음)
+  useEffect(() => {
+    if (!wsCommentEvent) return;
+    const { type, data } = wsCommentEvent;
+
+    switch (type) {
+      case 'COMMENT_CREATED': {
+        const comment = data as TaskComment;
+        if (comment.task_id !== taskId) return;
+        setComments(prev => prev.some(c => c.id === comment.id) ? prev : [...prev, comment]);
+        break;
+      }
+      case 'COMMENT_UPDATED': {
+        const comment = data as TaskComment;
+        if (comment.task_id !== taskId) return;
+        setComments(prev => prev.map(c => c.id === comment.id ? comment : c));
+        break;
+      }
+      case 'COMMENT_DELETED': {
+        const { id, task_id } = data as { id: string; task_id: string };
+        if (task_id !== taskId) return;
+        setComments(prev => prev.filter(c => c.id !== id));
+        break;
+      }
+      case 'COMMENT_REACTION_TOGGLED': {
+        const comment = data as TaskComment;
+        if (comment.task_id !== taskId) return;
+        setComments(prev => prev.map(c => c.id === comment.id ? comment : c));
+        break;
+      }
+    }
+  }, [wsCommentEvent, taskId]);
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -280,11 +316,12 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
     }
   }, [emojiPickerCommentId, loadCustomEmojis]);
 
-  const handleUploadCustomEmoji = async (file: File) => {
-    if (!emojiUploadName.trim()) return;
+  const handleUploadCustomEmoji = async (file?: File) => {
+    const uploadFile = file || selectedEmojiFile;
+    if (!emojiUploadName.trim() || !uploadFile) return;
     setIsUploadingEmoji(true);
     try {
-      const res = await customEmojiAPI.uploadEmoji(boardId, emojiUploadName.trim(), file);
+      const res = await customEmojiAPI.uploadEmoji(boardId, emojiUploadName.trim(), uploadFile);
       setCustomEmojis(prev => [...prev, {
         id: res.id,
         name: res.name,
@@ -292,6 +329,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
         content_type: res.content_type,
       }]);
       setEmojiUploadName('');
+      setSelectedEmojiFile(null);
       setShowEmojiUpload(false);
     } catch (err) {
       console.error('Failed to upload custom emoji:', err);
@@ -824,28 +862,50 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
             {/* 업로드 UI */}
             {showEmojiUpload && isAdminOrOwner && (
               <div className="mt-2 p-2 bg-white/5 rounded-lg space-y-2">
-                <input
-                  type="text"
-                  value={emojiUploadName}
-                  onChange={e => setEmojiUploadName(e.target.value)}
-                  placeholder={t('comment.customEmoji.namePlaceholder', '이모지 이름')}
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
-                  maxLength={50}
-                />
                 <div className="flex items-center gap-1.5">
                   <button
                     onClick={() => emojiFileInputRef.current?.click()}
-                    disabled={!emojiUploadName.trim() || isUploadingEmoji}
-                    className="flex-1 flex items-center justify-center gap-1 px-2 py-1 text-[10px] font-medium rounded-lg bg-bridge-accent/20 text-bridge-accent hover:bg-bridge-accent/30 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
+                    disabled={isUploadingEmoji}
+                    className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-[10px] font-medium rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
+                      selectedEmojiFile
+                        ? 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'
+                        : 'bg-bridge-accent/20 text-bridge-accent hover:bg-bridge-accent/30'
+                    }`}>
                     {isUploadingEmoji ? <Loader2 className="w-3 h-3 animate-spin" /> : <ImageIcon className="w-3 h-3" />}
-                    {t('comment.customEmoji.selectFile', '파일 선택')}
+                    {selectedEmojiFile
+                      ? selectedEmojiFile.name.length > 12
+                        ? selectedEmojiFile.name.slice(0, 12) + '…'
+                        : selectedEmojiFile.name
+                      : t('comment.customEmoji.selectFile', '파일 선택')}
                   </button>
                   <button
-                    onClick={() => { setShowEmojiUpload(false); setEmojiUploadName(''); }}
-                    className="px-2 py-1 text-[10px] font-medium rounded-lg text-slate-400 hover:text-slate-300 hover:bg-white/5 transition-all">
+                    onClick={() => { setShowEmojiUpload(false); setEmojiUploadName(''); setSelectedEmojiFile(null); }}
+                    className="px-2 py-1.5 text-[10px] font-medium rounded-lg text-slate-400 hover:text-slate-300 hover:bg-white/5 transition-all">
                     {t('common.cancel', '취소')}
                   </button>
                 </div>
+                {selectedEmojiFile && (
+                  <>
+                    <input
+                      ref={emojiNameInputRef}
+                      type="text"
+                      value={emojiUploadName}
+                      onChange={e => setEmojiUploadName(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter' && emojiUploadName.trim()) handleUploadCustomEmoji(); }}
+                      placeholder={t('comment.customEmoji.namePlaceholder', '이모지 이름')}
+                      className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
+                      maxLength={50}
+                      autoFocus
+                    />
+                    <button
+                      onClick={() => handleUploadCustomEmoji()}
+                      disabled={!emojiUploadName.trim() || isUploadingEmoji}
+                      className="w-full flex items-center justify-center gap-1 px-2 py-1.5 text-[10px] font-bold rounded-lg bg-bridge-accent text-white hover:bg-bridge-accent/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
+                      {isUploadingEmoji && <Loader2 className="w-3 h-3 animate-spin" />}
+                      {t('comment.customEmoji.upload', '업로드')}
+                    </button>
+                  </>
+                )}
                 <p className="text-[9px] text-slate-500">{t('comment.customEmoji.maxSize', 'PNG, GIF, WebP · 128KB 이하')}</p>
                 <input
                   ref={emojiFileInputRef}
@@ -854,7 +914,10 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
                   className="hidden"
                   onChange={e => {
                     const file = e.target.files?.[0];
-                    if (file) handleUploadCustomEmoji(file);
+                    if (file) {
+                      setSelectedEmojiFile(file);
+                      setTimeout(() => emojiNameInputRef.current?.focus(), 50);
+                    }
                     e.target.value = '';
                   }}
                 />

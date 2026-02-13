@@ -61,6 +61,7 @@ public class ScheduleResponse {
         private SettingsInfo settings;
         private List<ColumnInfo> columns;  // 스케줄 블록
         private List<DailyChecklistColumnInfo> dailyChecklists;  // 데일리 체크리스트
+        private List<MeetingResponse.Summary> meetings;  // 시간 지정된 회의 (타임블록 오버레이용)
     }
 
     @Getter

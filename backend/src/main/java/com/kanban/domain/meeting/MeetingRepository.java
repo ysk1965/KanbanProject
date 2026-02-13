@@ -18,4 +18,16 @@ public interface MeetingRepository extends JpaRepository<Meeting, String> {
     @Modifying
     @Query("DELETE FROM Meeting m WHERE m.board.id = :boardId")
     void deleteByBoardId(@Param("boardId") String boardId);
+
+    List<Meeting> findByRecurrenceGroupIdOrderByMeetingDateAsc(String recurrenceGroupId);
+
+    @Query("SELECT m FROM Meeting m WHERE m.recurrenceGroupId = :groupId AND m.meetingDate >= :fromDate ORDER BY m.meetingDate ASC")
+    List<Meeting> findByRecurrenceGroupIdFromDate(@Param("groupId") String groupId, @Param("fromDate") LocalDate fromDate);
+
+    @Modifying
+    @Query("DELETE FROM Meeting m WHERE m.recurrenceGroupId = :groupId AND m.meetingDate >= :fromDate")
+    void deleteByRecurrenceGroupIdFromDate(@Param("groupId") String groupId, @Param("fromDate") LocalDate fromDate);
+
+    @Query("SELECT m FROM Meeting m WHERE m.board.id = :boardId AND m.meetingDate = :date AND m.startTime IS NOT NULL ORDER BY m.startTime ASC")
+    List<Meeting> findByBoardIdAndMeetingDateWithTime(@Param("boardId") String boardId, @Param("date") LocalDate date);
 }

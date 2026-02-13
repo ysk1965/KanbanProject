@@ -16,6 +16,8 @@ import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
+import com.kanban.global.websocket.WebSocketEventService;
+import com.kanban.global.websocket.dto.BoardEventType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
@@ -40,6 +42,7 @@ public class BlockService {
     private final TaskRepository taskRepository;
     private final UserRepository userRepository;
     private final ActivityService activityService;
+    private final WebSocketEventService webSocketEventService;
 
     @Cacheable(value = "blocks", key = "#boardId", unless = "#result == null")
     public BlockResponse.ListResponse getBlocks(String boardId, String userId) {
@@ -86,7 +89,9 @@ public class BlockService {
 
         log.info("Block created: {} in board: {} by user: {}", newBlock.getId(), boardId, userId);
 
-        return BlockResponse.Detail.of(newBlock);
+        BlockResponse.Detail response = BlockResponse.Detail.of(newBlock);
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.BLOCK_CREATED, userId, user.getName(), response);
+        return response;
     }
 
     @Transactional
@@ -117,7 +122,9 @@ public class BlockService {
 
         log.info("Block updated: {} by user: {}", blockId, userId);
 
-        return BlockResponse.Detail.of(block);
+        BlockResponse.Detail response = BlockResponse.Detail.of(block);
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.BLOCK_UPDATED, userId, user.getName(), response);
+        return response;
     }
 
     @Transactional
@@ -164,6 +171,8 @@ public class BlockService {
         }
 
         log.info("Block deleted: {} by user: {}", blockId, userId);
+
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.BLOCK_DELETED, userId, user.getName(), Map.of("id", blockId));
     }
 
     @Transactional
@@ -231,6 +240,11 @@ public class BlockService {
         log.info("Blocks reordered in board: {} by user: {}", boardId, userId);
 
         List<Block> reorderedBlocks = blockRepository.findByBoardIdOrderByPositionAsc(boardId);
-        return BlockResponse.ListResponse.of(reorderedBlocks);
+        BlockResponse.ListResponse response = BlockResponse.ListResponse.of(reorderedBlocks);
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.BLOCKS_REORDERED, userId, user.getName(), response);
+        return response;
     }
 }

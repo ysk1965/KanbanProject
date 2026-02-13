@@ -28,6 +28,12 @@ public class SubscriptionResponse {
         private Integer pricePerSeat;
         private LocalDateTime nextPaymentAt;
         private LocalDateTime createdAt;
+        private Integer monthlyAiCredits;
+        private Integer monthlyCreditsUsed;
+        private Integer purchasedCredits;
+        private Integer totalAvailableCredits;
+        private LocalDateTime creditsResetDate;
+        private String creditWarningLevel;
 
         public static Detail of(Subscription subscription) {
             return Detail.builder()
@@ -45,6 +51,12 @@ public class SubscriptionResponse {
                     .pricePerSeat(subscription.getPricePerSeat())
                     .nextPaymentAt(subscription.getNextPaymentAt())
                     .createdAt(subscription.getCreatedAt())
+                    .monthlyAiCredits(subscription.getMonthlyAiCredits())
+                    .monthlyCreditsUsed(subscription.getMonthlyCreditsUsed())
+                    .purchasedCredits(subscription.getPurchasedCredits())
+                    .totalAvailableCredits(subscription.getTotalAvailableCredits())
+                    .creditsResetDate(subscription.getCreditsResetDate())
+                    .creditWarningLevel(subscription.getWarningLevel())
                     .build();
         }
     }
