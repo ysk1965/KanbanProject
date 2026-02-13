@@ -13,9 +13,10 @@ interface MeetingViewProps {
   boardMembers: BoardMember[];
   onRefreshSchedule: () => void;
   aiCredits?: import('../types').AiCredits | null;
+  refreshTrigger?: number;
 }
 
-export function MeetingView({ boardId, selectedDate, boardMembers, onRefreshSchedule, aiCredits }: MeetingViewProps) {
+export function MeetingView({ boardId, selectedDate, boardMembers, onRefreshSchedule, aiCredits, refreshTrigger }: MeetingViewProps) {
   const { t } = useTranslation();
   const [meetings, setMeetings] = useState<MeetingSummary[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -39,6 +40,13 @@ export function MeetingView({ boardId, selectedDate, boardMembers, onRefreshSche
   useEffect(() => {
     loadMeetings();
   }, [loadMeetings]);
+
+  // WebSocket 이벤트로 인한 리프레시
+  useEffect(() => {
+    if (refreshTrigger && refreshTrigger > 0) {
+      loadMeetings();
+    }
+  }, [refreshTrigger]);
 
   const handleMeetingCreated = () => {
     setShowCreateModal(false);

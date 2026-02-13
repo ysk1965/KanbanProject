@@ -23,6 +23,8 @@ import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
+import com.kanban.global.websocket.WebSocketEventService;
+import com.kanban.global.websocket.dto.BoardEventType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -31,6 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Slf4j
@@ -50,6 +53,7 @@ public class MeetingService {
     private final BoardService boardService;
     private final NotificationService notificationService;
     private final SlackNotificationService slackNotificationService;
+    private final WebSocketEventService webSocketEventService;
     private final ObjectMapper objectMapper;
 
     public List<MeetingResponse.Summary> getMeetingsByDate(String boardId, LocalDate date, String userId) {
@@ -137,7 +141,11 @@ public class MeetingService {
             log.info("Meeting created: {} by user: {}", firstMeeting.getId(), userId);
         }
 
-        return MeetingResponse.Detail.of(firstMeeting, List.of(), null);
+        MeetingResponse.Detail response = MeetingResponse.Detail.of(firstMeeting, List.of(), null);
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.MEETING_CREATED,
+                userId, creator.getName(), response);
+
+        return response;
     }
 
     private List<Meeting> generateRecurringInstances(Board board, User creator,
@@ -223,7 +231,12 @@ public class MeetingService {
 
         List<User> participants = scheduleBlockRepository.findDistinctAssigneesByMeetingId(meetingId);
 
-        return MeetingResponse.Detail.of(meeting, participants, deserializeAiSuggestions(meeting));
+        User user = userRepository.findById(userId).orElse(null);
+        MeetingResponse.Detail response = MeetingResponse.Detail.of(meeting, participants, deserializeAiSuggestions(meeting));
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.MEETING_UPDATED,
+                userId, user != null ? user.getName() : null, response);
+
+        return response;
     }
 
     @Transactional
@@ -237,6 +250,8 @@ public class MeetingService {
             throw new BusinessException(ErrorCode.MEETING_NOT_FOUND);
         }
 
+        String deletedMeetingId = meeting.getId();
+
         if ("THIS_AND_FUTURE".equals(scope) && meeting.isRecurring()) {
             meetingRepository.deleteByRecurrenceGroupIdFromDate(
                     meeting.getRecurrenceGroupId(), meeting.getMeetingDate());
@@ -247,6 +262,10 @@ public class MeetingService {
             meetingRepository.delete(meeting);
             log.info("Meeting deleted: {} by user: {}", meetingId, userId);
         }
+
+        User user = userRepository.findById(userId).orElse(null);
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.MEETING_DELETED,
+                userId, user != null ? user.getName() : null, Map.of("id", deletedMeetingId));
     }
 
     @Transactional
