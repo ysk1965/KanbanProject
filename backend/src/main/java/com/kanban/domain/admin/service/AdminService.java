@@ -423,6 +423,28 @@ public class AdminService {
     }
 
     @Transactional
+    public AdminResponse.BoardDetail adjustAiCredits(String boardId, AdminRequest.AdjustAiCredits request) {
+        boardRepository.findById(boardId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+
+        Subscription subscription = subscriptionRepository.findByBoardId(boardId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SUBSCRIPTION_NOT_FOUND));
+
+        if (request.getMonthlyAiCredits() != null) {
+            subscription.initializeCredits(request.getMonthlyAiCredits());
+        }
+
+        if (request.getAddPurchasedCredits() != null && request.getAddPurchasedCredits() > 0) {
+            subscription.addPurchasedCredits(request.getAddPurchasedCredits());
+        }
+
+        log.info("AI credits adjusted by admin: boardId={}, monthlyAiCredits={}, addPurchasedCredits={}",
+                boardId, request.getMonthlyAiCredits(), request.getAddPurchasedCredits());
+
+        return getBoard(boardId);
+    }
+
+    @Transactional
     public AdminResponse.BoardDetail updateMemberRole(String boardId, String memberId, AdminRequest.UpdateMemberRole request) {
         boardRepository.findById(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));

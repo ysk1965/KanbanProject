@@ -2087,6 +2087,11 @@ export const adminService = {
     return adminAPI.updateSeatCount(boardId, seatCount);
   },
 
+  // AI 크레딧 조정
+  adjustAiCredits: async (boardId: string, data: { monthly_ai_credits?: number; add_purchased_credits?: number }): Promise<AdminBoardDetail> => {
+    return adminAPI.adjustAiCredits(boardId, data);
+  },
+
   // 통계 조회
   getStatistics: async (): Promise<AdminStatistics> => {
     const response = await adminAPI.getStatistics();

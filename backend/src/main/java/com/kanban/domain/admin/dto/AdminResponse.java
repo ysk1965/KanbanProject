@@ -166,6 +166,11 @@ public class AdminResponse {
         private LocalDateTime trialEndsAt;
         private LocalDateTime createdAt;
         private List<MemberInfo> members;
+        // AI Credit fields
+        private Integer monthlyAiCredits;
+        private Integer monthlyCreditsUsed;
+        private Integer purchasedCredits;
+        private LocalDateTime creditsResetDate;
 
         public static BoardDetail of(Board board, int memberCount, int taskCount,
                                      Subscription subscription, List<MemberInfo> members) {
@@ -182,6 +187,10 @@ public class AdminResponse {
                     .trialEndsAt(board.getTrialEndsAt())
                     .createdAt(board.getCreatedAt())
                     .members(members)
+                    .monthlyAiCredits(subscription != null ? subscription.getMonthlyAiCredits() : null)
+                    .monthlyCreditsUsed(subscription != null ? subscription.getMonthlyCreditsUsed() : null)
+                    .purchasedCredits(subscription != null ? subscription.getPurchasedCredits() : null)
+                    .creditsResetDate(subscription != null ? subscription.getCreditsResetDate() : null)
                     .build();
         }
     }

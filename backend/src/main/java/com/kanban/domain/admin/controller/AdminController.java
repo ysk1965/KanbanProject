@@ -206,6 +206,15 @@ public class AdminController {
         return ResponseEntity.ok(adminService.updateBoardName(boardId, request));
     }
 
+    @PatchMapping("/boards/{boardId}/ai-credits")
+    public ResponseEntity<AdminResponse.BoardDetail> adjustAiCredits(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable String boardId,
+            @Valid @RequestBody AdminRequest.AdjustAiCredits request) {
+        verifyAdminAccess(principal);
+        return ResponseEntity.ok(adminService.adjustAiCredits(boardId, request));
+    }
+
     @PatchMapping("/boards/{boardId}/seat-count")
     public ResponseEntity<AdminResponse.BoardDetail> updateSeatCount(
             @AuthenticationPrincipal UserPrincipal principal,
