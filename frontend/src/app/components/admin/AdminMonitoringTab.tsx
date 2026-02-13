@@ -14,6 +14,8 @@ import {
   CreditCard,
   Zap,
   Key,
+  X,
+  ChevronRight,
 } from 'lucide-react';
 import { monitoringService } from '../../utils/services';
 import { MonitoringCharts } from './MonitoringCharts';
@@ -39,6 +41,7 @@ export function AdminMonitoringTab() {
   const [alertEnabled, setAlertEnabled] = useState(false);
   const [isSavingConfig, setIsSavingConfig] = useState(false);
   const [isSendingTest, setIsSendingTest] = useState(false);
+  const [showErrorDetail, setShowErrorDetail] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -206,11 +209,17 @@ export function AdminMonitoringTab() {
           </p>
         </div>
 
-        {/* API Error Rate */}
-        <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-6">
-          <div className="flex items-center gap-2 mb-2">
-            <AlertTriangle className="h-4 w-4 text-amber-400" />
-            <p className="text-slate-400 text-sm">{t('admin.monitoring.apiErrorRate')}</p>
+        {/* API Error Rate (Clickable) */}
+        <button
+          onClick={() => setShowErrorDetail(true)}
+          className="bg-bridge-obsidian rounded-2xl border border-white/5 p-6 text-left hover:border-amber-400/30 hover:bg-white/[0.02] transition-all group"
+        >
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-400" />
+              <p className="text-slate-400 text-sm">{t('admin.monitoring.apiErrorRate')}</p>
+            </div>
+            <ChevronRight className="h-4 w-4 text-slate-600 group-hover:text-amber-400 transition-colors" />
           </div>
           <p className="text-2xl font-bold text-white mt-1">
             {dashboard.api.error_rate.toFixed(2)}%
@@ -218,7 +227,7 @@ export function AdminMonitoringTab() {
           <p className="text-xs text-slate-500 mt-3">
             {dashboard.api.total_errors.toLocaleString()} / {dashboard.api.total_requests.toLocaleString()}
           </p>
-        </div>
+        </button>
 
         {/* Total Requests */}
         <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-6">
@@ -408,6 +417,98 @@ export function AdminMonitoringTab() {
       <div className="text-center text-slate-500 text-sm">
         {t('admin.monitoring.serverTime')}: {dashboard.server_time}
       </div>
+
+      {/* Error Detail Modal */}
+      {showErrorDetail && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowErrorDetail(false)}>
+          <div
+            className="bg-bridge-obsidian rounded-2xl border border-white/10 shadow-2xl w-full max-w-3xl max-h-[80vh] overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-white/5">
+              <div className="flex items-center gap-3">
+                <AlertTriangle className="h-5 w-5 text-amber-400" />
+                <div>
+                  <h3 className="text-lg font-bold text-white">{t('admin.monitoring.errorDetail', 'API 에러 상세')}</h3>
+                  <p className="text-sm text-slate-400 mt-0.5">
+                    {t('admin.monitoring.errorSummary', '총 {{errors}}건 / {{requests}}건 ({{rate}}%)', {
+                      errors: dashboard.api.total_errors.toLocaleString(),
+                      requests: dashboard.api.total_requests.toLocaleString(),
+                      rate: dashboard.api.error_rate.toFixed(2),
+                    })}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowErrorDetail(false)}
+                className="p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto max-h-[calc(80vh-88px)]">
+              {dashboard.api.top_error_endpoints && dashboard.api.top_error_endpoints.length > 0 ? (
+                <div className="space-y-3">
+                  {dashboard.api.top_error_endpoints.map((ep, idx) => (
+                    <div key={idx} className="bg-white/5 rounded-xl p-4 hover:bg-white/[0.07] transition-colors">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          <span className={`px-2 py-0.5 rounded text-xs font-bold shrink-0 ${
+                            ep.http_method === 'GET' ? 'bg-emerald-500/20 text-emerald-400' :
+                            ep.http_method === 'POST' ? 'bg-blue-500/20 text-blue-400' :
+                            ep.http_method === 'PUT' ? 'bg-amber-500/20 text-amber-400' :
+                            ep.http_method === 'DELETE' ? 'bg-red-500/20 text-red-400' :
+                            'bg-slate-500/20 text-slate-400'
+                          }`}>
+                            {ep.http_method}
+                          </span>
+                          <span className="text-sm text-white font-mono truncate">{ep.endpoint}</span>
+                        </div>
+                        <div className="flex items-center gap-3 shrink-0 ml-3">
+                          <span className="text-sm text-red-400 font-bold">{ep.error_count}</span>
+                          <span className="text-xs text-slate-500">/ {ep.request_count}</span>
+                          <span className="text-xs text-amber-400 font-medium">({ep.error_rate.toFixed(1)}%)</span>
+                        </div>
+                      </div>
+                      {/* Status Code Badges */}
+                      {ep.status_codes && Object.keys(ep.status_codes).length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {Object.entries(ep.status_codes)
+                            .sort(([, a], [, b]) => (b as number) - (a as number))
+                            .map(([code, count]) => (
+                              <span
+                                key={code}
+                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium ${
+                                  Number(code) >= 500
+                                    ? 'bg-red-500/15 text-red-400 border border-red-500/20'
+                                    : Number(code) === 401 || Number(code) === 403
+                                    ? 'bg-amber-500/15 text-amber-400 border border-amber-500/20'
+                                    : Number(code) === 404
+                                    ? 'bg-blue-500/15 text-blue-400 border border-blue-500/20'
+                                    : 'bg-slate-500/15 text-slate-400 border border-slate-500/20'
+                                }`}
+                              >
+                                <span className="font-bold">{code}</span>
+                                <span className="opacity-70">&times;{(count as number).toLocaleString()}</span>
+                              </span>
+                            ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12 text-slate-500">
+                  {t('admin.monitoring.noErrors', '에러가 없습니다')}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

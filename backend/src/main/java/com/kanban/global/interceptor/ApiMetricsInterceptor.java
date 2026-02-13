@@ -40,13 +40,14 @@ public class ApiMetricsInterceptor implements HandlerInterceptor {
         String path = request.getRequestURI();
         String key = method + " " + path;
 
-        boolean isError = response.getStatus() >= 400 || ex != null;
+        int statusCode = response.getStatus();
+        boolean isError = statusCode >= 400 || ex != null;
 
         try {
             enforceMaxEndpoints();
 
             EndpointStats stats = metricsMap.computeIfAbsent(key, k -> new EndpointStats());
-            stats.record(duration, isError);
+            stats.record(duration, isError, statusCode);
         } catch (Exception e) {
             log.debug("Failed to record API metrics for {}: {}", key, e.getMessage());
         }
@@ -97,13 +98,22 @@ public class ApiMetricsInterceptor implements HandlerInterceptor {
         private final double[] recentResponseTimes = new double[RECENT_BUFFER_SIZE];
         private final AtomicInteger recentIndex = new AtomicInteger();
         private final AtomicInteger recentCount = new AtomicInteger();
+        private final ConcurrentHashMap<Integer, AtomicLong> statusCodeCounts = new ConcurrentHashMap<>();
 
         public void record(long responseTimeMs, boolean isError) {
+            record(responseTimeMs, isError, 0);
+        }
+
+        public void record(long responseTimeMs, boolean isError, int statusCode) {
             totalRequests.incrementAndGet();
             totalResponseTimeMs.addAndGet(responseTimeMs);
 
             if (isError) {
                 totalErrors.incrementAndGet();
+            }
+
+            if (statusCode >= 400) {
+                statusCodeCounts.computeIfAbsent(statusCode, k -> new AtomicLong()).incrementAndGet();
             }
 
             // Update max response time atomically
@@ -146,6 +156,12 @@ public class ApiMetricsInterceptor implements HandlerInterceptor {
             long requests = totalRequests.get();
             if (requests == 0) return 0.0;
             return (double) totalErrors.get() / requests * 100.0;
+        }
+
+        public Map<Integer, Long> getStatusCodeCounts() {
+            Map<Integer, Long> result = new HashMap<>();
+            statusCodeCounts.forEach((code, count) -> result.put(code, count.get()));
+            return result;
         }
 
         public double getP95ResponseTimeMs() {

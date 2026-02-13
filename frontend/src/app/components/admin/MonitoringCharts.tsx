@@ -46,6 +46,7 @@ export function MonitoringCharts({ dashboard, history, aiUsage, openAIBilling }:
     border: '1px solid rgba(255,255,255,0.1)',
     borderRadius: '12px',
     padding: '12px',
+    color: '#e2e8f0',
   };
 
   const formatTime = (timeStr: string) => {

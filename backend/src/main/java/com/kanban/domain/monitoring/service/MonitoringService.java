@@ -283,10 +283,29 @@ public class MonitoringService {
                 .limit(10)
                 .collect(Collectors.toList());
 
+        // Collect top error endpoints (sorted by error count descending)
+        List<MonitoringResponse.ErrorEndpoint> topErrorEndpoints = new ArrayList<>();
+        for (Map.Entry<String, ApiMetricsInterceptor.EndpointStats> entry : current.entrySet()) {
+            ApiMetricsInterceptor.EndpointStats stats = entry.getValue();
+            if (stats.getTotalErrors() > 0) {
+                String[] parts = entry.getKey().split(" ", 2);
+                String method = parts.length > 0 ? parts[0] : "UNKNOWN";
+                String endpoint = parts.length > 1 ? parts[1] : entry.getKey();
+                int reqCount = (int) stats.getTotalRequests();
+                int errCount = (int) stats.getTotalErrors();
+                double endpointErrorRate = reqCount > 0 ? (double) errCount / reqCount * 100.0 : 0.0;
+                topErrorEndpoints.add(new MonitoringResponse.ErrorEndpoint(
+                        endpoint, method, errCount, reqCount, endpointErrorRate, stats.getStatusCodeCounts()
+                ));
+            }
+        }
+        topErrorEndpoints.sort((a, b) -> Integer.compare(b.errorCount(), a.errorCount()));
+        topErrorEndpoints = topErrorEndpoints.stream().limit(20).collect(Collectors.toList());
+
         double errorRate = totalRequests > 0 ? (double) totalErrors / totalRequests * 100.0 : 0.0;
         double avgResponseMs = totalRequests > 0 ? totalResponseTime / totalRequests : 0.0;
 
-        return new MonitoringResponse.ApiMetrics(totalRequests, totalErrors, errorRate, avgResponseMs, topSlowest);
+        return new MonitoringResponse.ApiMetrics(totalRequests, totalErrors, errorRate, avgResponseMs, topSlowest, topErrorEndpoints);
     }
 
     private MonitoringResponse.CloudWatchMetrics collectCloudWatchMetrics() {

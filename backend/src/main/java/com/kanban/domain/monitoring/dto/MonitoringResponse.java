@@ -33,7 +33,8 @@ public class MonitoringResponse {
         int totalErrors,
         double errorRate,
         double avgResponseMs,
-        List<EndpointMetric> topSlowestEndpoints
+        List<EndpointMetric> topSlowestEndpoints,
+        List<ErrorEndpoint> topErrorEndpoints
     ) {}
 
     public record EndpointMetric(
@@ -44,6 +45,16 @@ public class MonitoringResponse {
         double maxResponseMs,
         double p95ResponseMs,
         int errorCount
+    ) {}
+
+    // 에러 엔드포인트 상세 (상태 코드별 분류)
+    public record ErrorEndpoint(
+        String endpoint,
+        String httpMethod,
+        int errorCount,
+        int requestCount,
+        double errorRate,
+        Map<Integer, Long> statusCodes
     ) {}
 
     // CloudWatch 메트릭
