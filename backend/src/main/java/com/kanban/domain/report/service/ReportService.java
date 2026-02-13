@@ -149,12 +149,8 @@ public class ReportService {
                 .map(ReportResponse.ListItem::from)
                 .collect(Collectors.toList());
 
-        LocalDateTime todayStart = LocalDate.now(ZoneOffset.UTC).atStartOfDay();
-        long aiCallsToday = reportRepository.countAiCallsSince(boardId, userId, todayStart);
-
         return ReportResponse.ListResponse.builder()
                 .reports(items)
-                .canGenerateToday(aiCallsToday < 1)
                 .build();
     }
 

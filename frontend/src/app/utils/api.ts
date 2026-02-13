@@ -3457,7 +3457,7 @@ export const reportAPI = {
     if (reportType) params.set('report_type', reportType);
     if (targetUserId) params.set('target_user_id', targetUserId);
     const query = params.toString() ? `?${params.toString()}` : '';
-    return apiClient.get<{ reports: WeeklyReportListItem[]; can_generate_today: boolean }>(
+    return apiClient.get<{ reports: WeeklyReportListItem[] }>(
       `/boards/${boardId}/reports${query}`
     );
   },

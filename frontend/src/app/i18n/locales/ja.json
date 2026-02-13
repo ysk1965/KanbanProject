@@ -2062,8 +2062,7 @@
     "me": "自分",
     "selectMember": "メンバーを選択",
     "confirmGenerate": "AI レポートは1日1回のみ生成できます。生成しますか？",
-    "confirmRegenerate": "AI レポートは1日1回のみ生成できます。再生成しますか？",
-    "dailyLimitReached": "本日の AI レポート生成回数を使い切りました"
+    "confirmRegenerate": "AI レポートは1日1回のみ生成できます。再生成しますか？"
   },
   "compare": {
     "nav": {
