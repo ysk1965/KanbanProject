@@ -81,6 +81,7 @@ jobs:
           cp build/libs/*.jar deploy/application.jar
           cp Procfile deploy/ 2>/dev/null || true
           cp -r .ebextensions deploy/ 2>/dev/null || true
+          cp -r .platform deploy/ 2>/dev/null || true
           cd deploy && zip -r ../deploy.zip .
 
       - name: Deploy to Elastic Beanstalk
