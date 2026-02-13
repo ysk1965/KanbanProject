@@ -59,18 +59,14 @@ public class ScheduleFacadeService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
         // 대상 담당자 목록
+        Map<String, User> userCache = new java.util.HashMap<>();
         List<String> targetAssigneeIds = assigneeIds;
         if (targetAssigneeIds == null || targetAssigneeIds.isEmpty()) {
-            targetAssigneeIds = boardMemberRepository.findByBoardId(boardId)
-                    .stream()
-                    .map(bm -> bm.getUser().getId())
-                    .collect(Collectors.toList());
-        }
-
-        // 담당자 캐시
-        Map<String, User> userCache = new java.util.HashMap<>();
-        for (String assigneeId : targetAssigneeIds) {
-            userRepository.findById(assigneeId).ifPresent(u -> userCache.put(assigneeId, u));
+            var members = boardMemberRepository.findByBoardId(boardId);
+            targetAssigneeIds = members.stream().map(bm -> bm.getUser().getId()).collect(Collectors.toList());
+            members.forEach(bm -> userCache.put(bm.getUser().getId(), bm.getUser()));
+        } else {
+            userRepository.findAllById(targetAssigneeIds).forEach(u -> userCache.put(u.getId(), u));
         }
 
         // 1. 스케줄 블록 조회

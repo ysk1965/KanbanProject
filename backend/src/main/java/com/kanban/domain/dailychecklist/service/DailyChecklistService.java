@@ -54,11 +54,13 @@ public class DailyChecklistService {
         List<DailyChecklist> dailyChecklists = dailyChecklistRepository
                 .findByBoardIdAndAssignedDateOrderByPositionAsc(boardId, date);
 
-        // 보드의 모든 멤버 조회
-        List<String> memberIds = boardMemberRepository.findByBoardId(boardId)
-                .stream()
+        // 보드의 모든 멤버 조회 (JOIN FETCH user)
+        var boardMembers = boardMemberRepository.findByBoardId(boardId);
+        List<String> memberIds = boardMembers.stream()
                 .map(bm -> bm.getUser().getId())
                 .collect(Collectors.toList());
+        Map<String, User> userCache = new java.util.HashMap<>();
+        boardMembers.forEach(bm -> userCache.put(bm.getUser().getId(), bm.getUser()));
 
         // 담당자별로 그룹핑
         Map<String, List<DailyChecklist>> byAssignee = dailyChecklists.stream()
@@ -67,7 +69,7 @@ public class DailyChecklistService {
         // 컬럼 구조로 변환
         List<DailyChecklistResponse.ColumnResponse> columns = new ArrayList<>();
         for (String memberId : memberIds) {
-            User user = userRepository.findById(memberId).orElse(null);
+            User user = userCache.get(memberId);
             if (user == null) continue;
 
             List<DailyChecklist> userItems = byAssignee.getOrDefault(memberId, new ArrayList<>());

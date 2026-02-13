@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FileText, FolderPlus, FilePlus, Search, List, FolderTree, Loader2 } from 'lucide-react';
+import { FileText, FolderPlus, FilePlus, Search, List, FolderTree, Loader2, Menu } from 'lucide-react';
 import { NoteTreeSidebar } from './NoteTreeSidebar';
 import { NoteEditor } from './NoteEditor';
 import { NoteListView } from './NoteListView';
@@ -8,6 +8,7 @@ import { noteService } from '../../utils/services';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCollaboration } from '../../hooks/useCollaboration';
 import { getAssigneeHex } from '../../utils/assigneeColor';
+import { Sheet, SheetContent, SheetTitle } from '../ui/sheet';
 import type { NoteTreeItem, NoteDetail, NoteListItem, NoteTagInfo } from '../../utils/api';
 
 interface NotesViewProps {
@@ -27,6 +28,7 @@ export function NotesView({ boardId, currentUserRole, aiCredits }: NotesViewProp
   const [noteLoading, setNoteLoading] = useState(false);
   const [viewType, setViewType] = useState<'tree' | 'list'>('tree');
   const [searchQuery, setSearchQuery] = useState('');
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const hasUnsavedChangesRef = useRef(false);
 
   const isViewer = currentUserRole === 'viewer';
@@ -83,6 +85,7 @@ export function NotesView({ boardId, currentUserRole, aiCredits }: NotesViewProp
 
     setSelectedNoteId(noteId);
     setNoteLoading(true);
+    setMobileSidebarOpen(false);
     try {
       const detail = await noteService.getDetail(boardId, noteId);
       setSelectedNote(detail);
@@ -182,113 +185,146 @@ export function NotesView({ boardId, currentUserRole, aiCredits }: NotesViewProp
     );
   }
 
-  return (
-    <div className="flex h-full overflow-hidden">
-      {/* Left Sidebar - Tree */}
-      <div className="w-64 flex-shrink-0 border-r border-white/5 bg-bridge-dark flex flex-col">
-        {/* Sidebar Header */}
-        <div className="p-3 border-b border-white/5">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
-              <FileText size={14} className="text-bridge-accent" />
-              {t('notes.title', '노트')}
-            </h3>
-            <div className="flex items-center gap-0.5">
-              <button
-                onClick={() => setViewType('tree')}
-                className={`p-1 rounded transition-colors ${viewType === 'tree' ? 'text-bridge-accent bg-bridge-accent/10' : 'text-slate-400 hover:text-white'}`}
-                title={t('notes.treeView', '트리 뷰')}
-              >
-                <FolderTree size={14} />
-              </button>
-              <button
-                onClick={() => setViewType('list')}
-                className={`p-1 rounded transition-colors ${viewType === 'list' ? 'text-bridge-accent bg-bridge-accent/10' : 'text-slate-400 hover:text-white'}`}
-                title={t('notes.listView', '리스트 뷰')}
-              >
-                <List size={14} />
-              </button>
-            </div>
-          </div>
-          {/* Search */}
-          <div className="relative">
-            <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={t('notes.searchPlaceholder', '검색...')}
-              className="w-full bg-white/5 border border-white/10 rounded-lg py-1.5 pl-7 pr-3 text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-bridge-accent/50 transition-all"
-            />
-          </div>
-        </div>
-
-        {/* Tree or List Content */}
-        <div className="flex-1 overflow-y-auto p-2">
-          {viewType === 'tree' ? (
-            <NoteTreeSidebar
-              tree={tree}
-              selectedNoteId={selectedNoteId}
-              searchQuery={searchQuery}
-              onSelect={handleSelectNote}
-              onCreateFolder={handleCreateFolder}
-              onCreateDocument={handleCreateDocument}
-              onDelete={handleDeleteNote}
-              onRename={handleRenameNote}
-              onMove={handleMoveNote}
-              canEdit={canEdit}
-            />
-          ) : (
-            <NoteListView
-              boardId={boardId}
-              selectedNoteId={selectedNoteId}
-              searchQuery={searchQuery}
-              onSelect={handleSelectNote}
-              tags={tags}
-            />
-          )}
-        </div>
-
-        {/* Bottom Actions */}
-        {canEdit && (
-          <div className="p-2 border-t border-white/5 flex gap-1">
+  const sidebarContent = (
+    <>
+      {/* Sidebar Header */}
+      <div className="p-3 border-b border-white/5">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
+            <FileText size={14} className="text-bridge-accent" />
+            {t('notes.title', '노트')}
+          </h3>
+          <div className="flex items-center gap-0.5">
             <button
-              onClick={() => handleCreateDocument(null)}
-              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+              onClick={() => setViewType('tree')}
+              className={`p-1 rounded transition-colors ${viewType === 'tree' ? 'text-bridge-accent bg-bridge-accent/10' : 'text-slate-400 hover:text-white'}`}
+              title={t('notes.treeView', '트리 뷰')}
             >
-              <FilePlus size={12} />
-              {t('notes.newDocument', '새 문서')}
+              <FolderTree size={14} />
             </button>
             <button
-              onClick={() => handleCreateFolder(null)}
-              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+              onClick={() => setViewType('list')}
+              className={`p-1 rounded transition-colors ${viewType === 'list' ? 'text-bridge-accent bg-bridge-accent/10' : 'text-slate-400 hover:text-white'}`}
+              title={t('notes.listView', '리스트 뷰')}
             >
-              <FolderPlus size={12} />
-              {t('notes.newFolder', '새 폴더')}
+              <List size={14} />
             </button>
           </div>
+        </div>
+        {/* Search */}
+        <div className="relative">
+          <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={t('notes.searchPlaceholder', '검색...')}
+            className="w-full bg-white/5 border border-white/10 rounded-lg py-1.5 pl-7 pr-3 text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-bridge-accent/50 transition-all"
+          />
+        </div>
+      </div>
+
+      {/* Tree or List Content */}
+      <div className="flex-1 overflow-y-auto p-2">
+        {viewType === 'tree' ? (
+          <NoteTreeSidebar
+            tree={tree}
+            selectedNoteId={selectedNoteId}
+            searchQuery={searchQuery}
+            onSelect={handleSelectNote}
+            onCreateFolder={handleCreateFolder}
+            onCreateDocument={handleCreateDocument}
+            onDelete={handleDeleteNote}
+            onRename={handleRenameNote}
+            onMove={handleMoveNote}
+            canEdit={canEdit}
+          />
+        ) : (
+          <NoteListView
+            boardId={boardId}
+            selectedNoteId={selectedNoteId}
+            searchQuery={searchQuery}
+            onSelect={handleSelectNote}
+            tags={tags}
+          />
         )}
       </div>
+
+      {/* Bottom Actions - pinned to bottom */}
+      {canEdit && (
+        <div className="mt-auto p-2 border-t border-white/5 flex gap-1 flex-shrink-0">
+          <button
+            onClick={() => handleCreateDocument(null)}
+            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+          >
+            <FilePlus size={12} />
+            {t('notes.newDocument', '새 문서')}
+          </button>
+          <button
+            onClick={() => handleCreateFolder(null)}
+            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+          >
+            <FolderPlus size={12} />
+            {t('notes.newFolder', '새 폴더')}
+          </button>
+        </div>
+      )}
+    </>
+  );
+
+  return (
+    <div className="flex h-full overflow-hidden">
+      {/* Desktop Sidebar */}
+      <div className="hidden md:flex w-64 flex-shrink-0 border-r border-white/5 bg-bridge-dark flex-col">
+        {sidebarContent}
+      </div>
+
+      {/* Mobile Sidebar Sheet */}
+      <Sheet open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
+        <SheetContent side="left" className="w-72 p-0 bg-bridge-dark border-white/10 flex flex-col">
+          <SheetTitle className="sr-only">{t('notes.title', '노트')}</SheetTitle>
+          {sidebarContent}
+        </SheetContent>
+      </Sheet>
 
       {/* Right Content - Editor */}
       <div className="flex-1 flex flex-col overflow-hidden bg-bridge-dark">
         {selectedNote ? (
-          <NoteEditor
-            boardId={boardId}
-            note={selectedNote}
-            tags={tags}
-            loading={noteLoading}
-            canEdit={canEdit}
-            onSave={handleSaveNote}
-            onTagsChange={loadTags}
-            onDirtyChange={handleDirtyChange}
-            aiCredits={aiCredits}
-            collaboration={collaboration}
-            currentUserName={userName}
-            currentUserColor={userColor}
-          />
+          <>
+            {/* Mobile top bar with sidebar toggle */}
+            <div className="flex md:hidden items-center gap-2 px-3 py-2 border-b border-white/5">
+              <button
+                onClick={() => setMobileSidebarOpen(true)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
+              >
+                <Menu size={18} />
+              </button>
+              <span className="text-sm text-white font-medium truncate">{selectedNote.title}</span>
+            </div>
+            <NoteEditor
+              boardId={boardId}
+              note={selectedNote}
+              tags={tags}
+              loading={noteLoading}
+              canEdit={canEdit}
+              onSave={handleSaveNote}
+              onTagsChange={loadTags}
+              onDirtyChange={handleDirtyChange}
+              aiCredits={aiCredits}
+              collaboration={collaboration}
+              currentUserName={userName}
+              currentUserColor={userColor}
+            />
+          </>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-slate-500">
+            {/* Mobile: show sidebar toggle when no note selected */}
+            <button
+              onClick={() => setMobileSidebarOpen(true)}
+              className="md:hidden mb-4 p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
+            >
+              <Menu size={24} />
+            </button>
             <FileText size={48} className="mb-4 opacity-30" />
             <p className="text-sm">{t('notes.selectOrCreate', '문서를 선택하거나 새로 만들어주세요')}</p>
             {canEdit && (

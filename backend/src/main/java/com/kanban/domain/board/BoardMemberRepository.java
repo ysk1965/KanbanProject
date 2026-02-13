@@ -10,7 +10,7 @@ import java.util.Optional;
 
 public interface BoardMemberRepository extends JpaRepository<BoardMember, String> {
 
-    @Query("SELECT bm FROM BoardMember bm WHERE bm.board.id = :boardId ORDER BY COALESCE(bm.displayOrder, 999999) ASC, bm.joinedAt ASC")
+    @Query("SELECT bm FROM BoardMember bm JOIN FETCH bm.user WHERE bm.board.id = :boardId ORDER BY COALESCE(bm.displayOrder, 999999) ASC, bm.joinedAt ASC")
     List<BoardMember> findByBoardId(@Param("boardId") String boardId);
 
     Optional<BoardMember> findByBoardIdAndUserId(String boardId, String userId);
@@ -25,7 +25,7 @@ public interface BoardMemberRepository extends JpaRepository<BoardMember, String
     /**
      * 보드의 멤버를 최대 limit명까지 가입일 순으로 조회 (대시보드 미리보기용)
      */
-    @Query("SELECT bm FROM BoardMember bm WHERE bm.board.id = :boardId ORDER BY bm.joinedAt ASC LIMIT :limit")
+    @Query("SELECT bm FROM BoardMember bm JOIN FETCH bm.user WHERE bm.board.id = :boardId ORDER BY bm.joinedAt ASC LIMIT :limit")
     List<BoardMember> findTopMembersByBoardId(@Param("boardId") String boardId, @Param("limit") int limit);
 
     long countByBoardId(String boardId);

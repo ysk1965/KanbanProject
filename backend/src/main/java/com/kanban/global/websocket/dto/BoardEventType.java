@@ -54,5 +54,8 @@ public enum BoardEventType {
 
     // Presence events
     PRESENCE_JOINED,
-    PRESENCE_LEFT
+    PRESENCE_LEFT,
+
+    // Inquiry events (global user-level, not board-scoped)
+    INQUIRY_REPLIED
 }

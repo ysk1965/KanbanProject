@@ -1528,6 +1528,7 @@ export type BoardEventType =
   | 'BOARD_UPDATED'
   | 'MEMBER_JOINED' | 'MEMBER_LEFT' | 'MEMBER_UPDATED'
   | 'NOTIFICATION_CREATED'
+  | 'INQUIRY_REPLIED'
   | 'PRESENCE_JOINED' | 'PRESENCE_LEFT';
 
 export interface BoardWebSocketEvent {

@@ -56,4 +56,23 @@ public class WebSocketEventService {
             log.error("Failed to send WebSocket user event: type={}, board={}, user={}, error={}", type, boardId, userId, e.getMessage(), e);
         }
     }
+
+    /**
+     * Send a global event to a specific user (not board-scoped).
+     * Destination: /topic/user/{userId}
+     *
+     * @param userId the target user ID
+     * @param type   the event type
+     * @param data   the event payload
+     */
+    public void sendGlobalUserEvent(String userId, BoardEventType type, Object data) {
+        try {
+            WebSocketEvent event = WebSocketEvent.of(type, null, userId, null, data);
+            String destination = "/topic/user/" + userId;
+            messagingTemplate.convertAndSend(destination, event);
+            log.debug("WebSocket global user event sent: type={}, targetUser={}", type, userId);
+        } catch (Exception e) {
+            log.error("Failed to send WebSocket global user event: type={}, user={}, error={}", type, userId, e.getMessage(), e);
+        }
+    }
 }

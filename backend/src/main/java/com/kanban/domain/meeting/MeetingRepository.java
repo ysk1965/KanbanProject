@@ -10,10 +10,12 @@ import java.util.List;
 
 public interface MeetingRepository extends JpaRepository<Meeting, String> {
 
-    List<Meeting> findByBoardIdAndMeetingDateOrderByStartTimeAsc(String boardId, LocalDate meetingDate);
+    @Query("SELECT m FROM Meeting m JOIN FETCH m.createdBy WHERE m.board.id = :boardId AND m.meetingDate = :meetingDate ORDER BY m.startTime ASC")
+    List<Meeting> findByBoardIdAndMeetingDateOrderByStartTimeAsc(@Param("boardId") String boardId, @Param("meetingDate") LocalDate meetingDate);
 
+    @Query("SELECT m FROM Meeting m JOIN FETCH m.createdBy WHERE m.board.id = :boardId AND m.meetingDate BETWEEN :startDate AND :endDate ORDER BY m.meetingDate ASC, m.startTime ASC")
     List<Meeting> findByBoardIdAndMeetingDateBetweenOrderByMeetingDateAscStartTimeAsc(
-            String boardId, LocalDate startDate, LocalDate endDate);
+            @Param("boardId") String boardId, @Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
 
     @Modifying
     @Query("DELETE FROM Meeting m WHERE m.board.id = :boardId")
@@ -28,6 +30,6 @@ public interface MeetingRepository extends JpaRepository<Meeting, String> {
     @Query("DELETE FROM Meeting m WHERE m.recurrenceGroupId = :groupId AND m.meetingDate >= :fromDate")
     void deleteByRecurrenceGroupIdFromDate(@Param("groupId") String groupId, @Param("fromDate") LocalDate fromDate);
 
-    @Query("SELECT m FROM Meeting m WHERE m.board.id = :boardId AND m.meetingDate = :date AND m.startTime IS NOT NULL ORDER BY m.startTime ASC")
+    @Query("SELECT m FROM Meeting m JOIN FETCH m.createdBy WHERE m.board.id = :boardId AND m.meetingDate = :date AND m.startTime IS NOT NULL ORDER BY m.startTime ASC")
     List<Meeting> findByBoardIdAndMeetingDateWithTime(@Param("boardId") String boardId, @Param("date") LocalDate date);
 }
