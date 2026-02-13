@@ -1876,7 +1876,7 @@ export function KanbanBoardPage() {
           hideBilling={hideBillingForUser}
         />
 
-        <header className="min-h-[3.5rem] md:h-16 border-b border-kanban-border flex flex-wrap md:flex-nowrap items-center justify-between px-3 md:px-6 bg-kanban-bg shrink-0 z-30 gap-x-2 gap-y-1 py-1 md:py-0">
+        <header className="min-h-[3.5rem] md:h-16 border-b border-kanban-border flex items-center justify-between px-3 md:px-6 bg-kanban-bg shrink-0 z-30 gap-2">
           {/* 좌측 영역 */}
           <div className="flex items-center gap-2 md:gap-6 min-w-0">
             {!hideBilling && (
@@ -1982,9 +1982,9 @@ export function KanbanBoardPage() {
             </div>
           </div>
 
-          {/* 중앙 탭 영역 (칸반보드, 일정, 회의 + 도메인별 노트/AI분석) */}
-          <div className="flex justify-center min-w-0 order-last md:order-none w-full md:w-auto md:flex-1 pb-0.5 md:pb-0">
-          <nav className="flex items-center gap-0.5 md:gap-1 bg-kanban-card p-1 rounded-xl border border-kanban-border overflow-x-auto shrink-0 max-w-full">
+          {/* 중앙 탭 영역 (칸반보드, 일정, 회의 + 도메인별 노트/AI분석) - 모바일에서는 하단 탭바 사용 */}
+          <div className="hidden md:flex justify-center min-w-0 md:flex-1">
+          <nav className="flex items-center gap-1 bg-kanban-card p-1 rounded-xl border border-kanban-border overflow-x-auto shrink-0">
             {/* 1. 칸반보드 */}
             <button
               onClick={() => handleViewModeChange('kanban')}
@@ -2724,6 +2724,100 @@ export function KanbanBoardPage() {
           </main>
         ) : null}
 
+        {/* 모바일 하단 여백 (탭바 공간 확보) */}
+        <div className="h-14 shrink-0 md:hidden" />
+
+        {/* 모바일 하단 탭바 */}
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-bridge-obsidian/95 backdrop-blur-xl border-t border-white/10" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+          <div className="flex items-center justify-around px-1 pt-2 pb-1.5">
+            {/* 칸반보드 */}
+            <button
+              onClick={() => handleViewModeChange('kanban')}
+              className={`flex flex-col items-center gap-0.5 min-w-[3rem] px-2 py-1 rounded-lg transition-all ${
+                viewMode === 'kanban' ? 'text-[#2DD4BF]' : 'text-zinc-500'
+              }`}
+            >
+              <LayoutGrid size={20} />
+              <span className="text-[10px] font-medium">{t('kanban.viewKanban')}</span>
+            </button>
+
+            {/* 일정 */}
+            <button
+              onClick={() => {
+                const subMode = getScheduleSubMode();
+                if (subMode === 'weekly' && !canAccessSchedule) {
+                  handleViewModeChange('schedule');
+                } else {
+                  handleViewModeChange(subMode);
+                }
+              }}
+              className={`flex flex-col items-center gap-0.5 min-w-[3rem] px-2 py-1 rounded-lg transition-all ${
+                viewMode === 'schedule' || viewMode === 'weekly' ? 'text-[#2DD4BF]' : 'text-zinc-500'
+              }`}
+            >
+              <Calendar size={20} />
+              <span className="text-[10px] font-medium">{t('kanban.viewScheduleTab', '일정')}</span>
+            </button>
+
+            {/* 회의 */}
+            {!isWhiteLabelDomain && (
+              <button
+                onClick={() => handleViewModeChange('meeting')}
+                className={`flex flex-col items-center gap-0.5 min-w-[3rem] px-2 py-1 rounded-lg transition-all ${
+                  viewMode === 'meeting' ? 'text-[#2DD4BF]' : 'text-zinc-500'
+                }`}
+              >
+                <Users size={20} />
+                <span className="text-[10px] font-medium">{t('kanban.viewMeeting', '회의')}</span>
+              </button>
+            )}
+
+            {/* 노트 */}
+            {!isWhiteLabelDomain && (
+              <button
+                onClick={() => handleViewModeChange('notes')}
+                className={`flex flex-col items-center gap-0.5 min-w-[3rem] px-2 py-1 rounded-lg transition-all ${
+                  viewMode === 'notes' ? 'text-[#2DD4BF]' : 'text-zinc-500'
+                }`}
+              >
+                <FileText size={20} />
+                <span className="text-[10px] font-medium">{t('kanban.viewNotes', '노트')}</span>
+              </button>
+            )}
+
+            {/* AI분석 */}
+            {!isWhiteLabelDomain && (isAdminOrOwner || (!isViewer && !isTester)) && (
+              <button
+                onClick={() => {
+                  if (!canAccessStatistics) {
+                    openUpgradeModal('statistics');
+                    return;
+                  }
+                  const subMode = getAISubMode();
+                  if (subMode === 'statistics' && !isAdminOrOwner) {
+                    handleViewModeChange('ai_report');
+                  } else if (subMode === 'ai_report' && (isViewer || isTester)) {
+                    handleViewModeChange('statistics');
+                  } else {
+                    handleViewModeChange(subMode);
+                  }
+                }}
+                className={`relative flex flex-col items-center gap-0.5 min-w-[3rem] px-2 py-1 rounded-lg transition-all ${
+                  viewMode === 'statistics' || viewMode === 'ai_report'
+                    ? 'text-[#2DD4BF]'
+                    : !canAccessStatistics
+                      ? 'text-zinc-700'
+                      : 'text-zinc-500'
+                }`}
+              >
+                <BarChart3 size={20} />
+                <span className="text-[10px] font-medium">{t('kanban.viewAIAnalysisTab', 'AI분석')}</span>
+                {!canAccessStatistics && <Lock size={8} className="absolute top-0.5 right-1 text-zinc-600" />}
+              </button>
+            )}
+          </div>
+        </nav>
+
         {/* 모달들 */}
         <FeatureDetailModal
           feature={selectedFeature}
@@ -2907,7 +3001,7 @@ export function KanbanBoardPage() {
         />
 
         {/* Version Info */}
-        <div className="fixed bottom-2 right-3 text-[10px] text-slate-600 select-none pointer-events-none z-10">
+        <div className="fixed bottom-16 md:bottom-2 right-3 text-[10px] text-slate-600 select-none pointer-events-none z-10">
           FE: {typeof __FE_COMMIT_HASH__ !== 'undefined' ? __FE_COMMIT_HASH__ : 'dev'}
           {beCommit && <> · BE: {beCommit}</>}
         </div>

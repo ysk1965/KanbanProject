@@ -18,6 +18,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.*;
@@ -43,6 +44,7 @@ public class SlackNotificationService {
     }
 
     @Async
+    @Transactional(readOnly = true)
     public void sendMentionNotifications(Comment comment, User sender, Board board, String originUrl) {
         if (!board.canAccessSlack()) {
             return;
@@ -78,6 +80,7 @@ public class SlackNotificationService {
     }
 
     @Async
+    @Transactional(readOnly = true)
     public void sendChecklistAssignedNotification(ChecklistItem item, User assigner, Board board, String originUrl) {
         if (!board.canAccessSlack()) {
             return;
@@ -105,6 +108,7 @@ public class SlackNotificationService {
     }
 
     @Async
+    @Transactional(readOnly = true)
     public void sendTaskCommentNotifications(Comment comment, User sender, Board board,
                                               List<String> recipientUserIds, Set<String> excludeUserIds, String originUrl) {
         if (!board.canAccessSlack()) {
@@ -136,6 +140,7 @@ public class SlackNotificationService {
     }
 
     @Async
+    @Transactional(readOnly = true)
     public void sendMeetingMemoNotifications(Meeting meeting, User sender, Board board, List<String> participantIds, String originUrl) {
         if (!board.canAccessSlack()) {
             return;
