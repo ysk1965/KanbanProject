@@ -42,6 +42,11 @@ public enum BoardEventType {
     // Notification events
     NOTIFICATION_CREATED,
 
+    // Schedule events
+    SCHEDULE_CREATED,
+    SCHEDULE_UPDATED,
+    SCHEDULE_DELETED,
+
     // Presence events
     PRESENCE_JOINED,
     PRESENCE_LEFT

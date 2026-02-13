@@ -117,7 +117,8 @@ public class ChecklistService {
         log.info("Checklist item created: {} in task: {} by user: {}", item.getId(), taskId, userId);
 
         ChecklistResponse.Detail response = ChecklistResponse.Detail.of(item);
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.CHECKLIST_CREATED, userId, creator.getName(), response);
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.CHECKLIST_CREATED, userId, creator.getName(),
+                Map.of("task_id", taskId, "item", response));
         return response;
     }
 
@@ -162,7 +163,8 @@ public class ChecklistService {
         ChecklistResponse.Detail response = ChecklistResponse.Detail.of(item);
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.CHECKLIST_UPDATED, userId, user.getName(), response);
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.CHECKLIST_UPDATED, userId, user.getName(),
+                Map.of("task_id", taskId, "item", response));
         return response;
     }
 
@@ -196,7 +198,7 @@ public class ChecklistService {
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.CHECKLIST_DELETED, userId, user.getName(), Map.of("id", itemId));
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.CHECKLIST_DELETED, userId, user.getName(), Map.of("id", itemId, "task_id", taskId));
     }
 
     @Transactional
@@ -235,7 +237,8 @@ public class ChecklistService {
         ChecklistResponse.Detail response = ChecklistResponse.Detail.of(item);
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.CHECKLIST_TOGGLED, userId, user.getName(), response);
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.CHECKLIST_TOGGLED, userId, user.getName(),
+                Map.of("task_id", taskId, "item", response));
         return response;
     }
 

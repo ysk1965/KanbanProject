@@ -195,6 +195,7 @@ export function KanbanBoardPage() {
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
   const [unreadInquiryCount, setUnreadInquiryCount] = useState(0);
   const [wsCommentEvent, setWsCommentEvent] = useState<BoardWebSocketEvent | null>(null);
+  const [wsChecklistEvent, setWsChecklistEvent] = useState<BoardWebSocketEvent | null>(null);
   const [isMilestoneModalOpen, setIsMilestoneModalOpen] = useState(false);
   const [selectedMilestone, setSelectedMilestone] = useState<Milestone | null>(null);
   const [isMilestoneOnboardingOpen, setIsMilestoneOnboardingOpen] = useState(false);
@@ -436,6 +437,14 @@ export function KanbanBoardPage() {
         setTasks(prev => prev.filter(t => t.feature_id !== id));
         break;
       }
+      case 'FEATURES_REORDERED': {
+        const { features } = data as { features: Feature[] };
+        if (Array.isArray(features)) {
+          setFeatures(features);
+          setAllFeatures(features);
+        }
+        break;
+      }
 
       // Task events — Feature 카운트는 서버가 계산한 값을 그대로 사용
       case 'TASK_CREATED': {
@@ -479,9 +488,61 @@ export function KanbanBoardPage() {
         break;
       }
       case 'BLOCKS_REORDERED': {
-        if (Array.isArray(data)) {
-          setBlocks(data as Block[]);
+        const { blocks } = data as { blocks: Block[] };
+        if (Array.isArray(blocks)) {
+          setBlocks(blocks);
         }
+        break;
+      }
+
+      // Checklist events → TaskDetailModal 전달 + 보드 상태 직접 업데이트
+      case 'CHECKLIST_CREATED': {
+        const { item: createdItem, task_id: createTaskId } = data as { item: ChecklistItem; task_id: string };
+        setChecklistDataMap(prev => ({
+          ...prev,
+          [createTaskId]: [...(prev[createTaskId] || []), createdItem]
+        }));
+        setTasks(prev => prev.map(t => t.id === createTaskId ? {
+          ...t,
+          checklist_total: (t.checklist_total || 0) + 1,
+        } : t));
+        setWsChecklistEvent(event);
+        break;
+      }
+      case 'CHECKLIST_UPDATED': {
+        const { item: updatedItem, task_id: updateTaskId } = data as { item: ChecklistItem; task_id: string };
+        setChecklistDataMap(prev => ({
+          ...prev,
+          [updateTaskId]: (prev[updateTaskId] || []).map(ci => ci.id === updatedItem.id ? updatedItem : ci)
+        }));
+        setWsChecklistEvent(event);
+        break;
+      }
+      case 'CHECKLIST_DELETED': {
+        const { id: deletedId, task_id: deleteTaskId } = data as { id: string; task_id: string };
+        setChecklistDataMap(prev => {
+          const items = (prev[deleteTaskId] || []).filter(ci => ci.id !== deletedId);
+          return { ...prev, [deleteTaskId]: items };
+        });
+        setTasks(prev => prev.map(t => t.id === deleteTaskId ? {
+          ...t,
+          checklist_total: Math.max(0, (t.checklist_total || 0) - 1),
+        } : t));
+        setWsChecklistEvent(event);
+        break;
+      }
+      case 'CHECKLIST_TOGGLED': {
+        const { item: toggledItem, task_id: toggleTaskId } = data as { item: ChecklistItem; task_id: string };
+        setChecklistDataMap(prev => ({
+          ...prev,
+          [toggleTaskId]: (prev[toggleTaskId] || []).map(ci => ci.id === toggledItem.id ? toggledItem : ci)
+        }));
+        const delta = toggledItem.completed ? 1 : -1;
+        setTasks(prev => prev.map(t => t.id === toggleTaskId ? {
+          ...t,
+          checklist_completed: Math.max(0, (t.checklist_completed || 0) + delta),
+        } : t));
+        setWsChecklistEvent(event);
         break;
       }
 
@@ -491,6 +552,13 @@ export function KanbanBoardPage() {
       case 'COMMENT_DELETED':
       case 'COMMENT_REACTION_TOGGLED':
         setWsCommentEvent(event);
+        break;
+
+      // Schedule events → refreshTrigger로 DailyScheduleView 리로드
+      case 'SCHEDULE_CREATED':
+      case 'SCHEDULE_UPDATED':
+      case 'SCHEDULE_DELETED':
+        setScheduleRefreshKey(prev => prev + 1);
         break;
 
       // Notification events
@@ -2636,6 +2704,7 @@ export function KanbanBoardPage() {
           canEdit={canEdit}
           isAdminOrOwner={isAdminOrOwner}
           wsCommentEvent={wsCommentEvent}
+          wsChecklistEvent={wsChecklistEvent}
         />
 
         <AddBlockModal
