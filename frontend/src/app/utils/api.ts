@@ -2899,6 +2899,10 @@ export interface AdminBoardDetail extends AdminBoardSummary {
     started_at: string;
     expires_at?: string | null;
   } | null;
+  monthly_ai_credits?: number | null;
+  monthly_credits_used?: number | null;
+  purchased_credits?: number | null;
+  credits_reset_date?: string | null;
 }
 
 export interface AdminStatistics {
@@ -3115,6 +3119,11 @@ export const adminAPI = {
   // 시트 수 변경
   updateSeatCount: async (boardId: string, seatCount: number) => {
     return apiClient.patch<AdminBoardDetail>(`/admin/boards/${boardId}/seat-count`, { seat_count: seatCount });
+  },
+
+  // AI 크레딧 조정
+  adjustAiCredits: async (boardId: string, data: { monthly_ai_credits?: number; add_purchased_credits?: number }) => {
+    return apiClient.patch<AdminBoardDetail>(`/admin/boards/${boardId}/ai-credits`, data);
   },
 
   // 통계 조회

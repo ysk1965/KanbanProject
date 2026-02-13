@@ -104,4 +104,12 @@ public class AdminRequest {
         @NotNull(message = "역할은 필수입니다")
         private BoardRole role;
     }
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class AdjustAiCredits {
+        private Integer monthlyAiCredits;
+        private Integer addPurchasedCredits;
+    }
 }

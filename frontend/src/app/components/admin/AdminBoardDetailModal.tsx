@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Folder, Users, ListTodo, Calendar, Trash2, Crown, Shield, User as UserIcon, Eye, ArrowRightLeft, CalendarPlus, AlertTriangle, Armchair, ChevronDown, Link2, Copy, Check, Pencil, UserMinus } from 'lucide-react';
+import { X, Folder, Users, ListTodo, Calendar, Trash2, Crown, Shield, User as UserIcon, Eye, ArrowRightLeft, CalendarPlus, AlertTriangle, Armchair, ChevronDown, Link2, Copy, Check, Pencil, UserMinus, Sparkles, Plus } from 'lucide-react';
 import { adminService, inviteLinkService } from '../../utils/services';
 import { AdminBoardDetail } from '../../utils/api';
 import { formatDateTime, formatDate } from '../../utils/dateUtils';
@@ -164,6 +164,70 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
         } catch (err) {
           console.error('Failed to update seat count:', err);
           setToast({ message: t('admin.boardDetail.seatCountUpdateFailed'), type: 'error' });
+        } finally {
+          setIsUpdating(false);
+        }
+      },
+    });
+  };
+
+  const handleSetMonthlyCredits = () => {
+    if (!board) return;
+
+    setPromptAction({
+      title: '월간 AI 크레딧 설정',
+      message: '월간 무료 AI 크레딧 한도를 입력하세요.',
+      defaultValue: String(board.monthly_ai_credits ?? 0),
+      inputType: 'number',
+      required: true,
+      onConfirm: async (value: string) => {
+        setPromptAction(null);
+        const credits = parseInt(value, 10);
+        if (isNaN(credits) || credits < 0) {
+          setToast({ message: '유효한 크레딧 수를 입력하세요.', type: 'error' });
+          return;
+        }
+        try {
+          setIsUpdating(true);
+          const updated = await adminService.adjustAiCredits(boardId, { monthly_ai_credits: credits });
+          setBoard(updated);
+          onUpdate();
+          setToast({ message: `월간 크레딧이 ${credits}으로 설정되었습니다.`, type: 'success' });
+        } catch (err) {
+          console.error('Failed to set monthly credits:', err);
+          setToast({ message: '크레딧 설정에 실패했습니다.', type: 'error' });
+        } finally {
+          setIsUpdating(false);
+        }
+      },
+    });
+  };
+
+  const handleAddPurchasedCredits = () => {
+    if (!board) return;
+
+    setPromptAction({
+      title: '구매 크레딧 추가',
+      message: `현재 구매 크레딧: ${board.purchased_credits ?? 0}. 추가할 크레딧 수를 입력하세요.`,
+      defaultValue: '100',
+      inputType: 'number',
+      required: true,
+      onConfirm: async (value: string) => {
+        setPromptAction(null);
+        const credits = parseInt(value, 10);
+        if (isNaN(credits) || credits < 1) {
+          setToast({ message: '1 이상의 크레딧 수를 입력하세요.', type: 'error' });
+          return;
+        }
+        try {
+          setIsUpdating(true);
+          const updated = await adminService.adjustAiCredits(boardId, { add_purchased_credits: credits });
+          setBoard(updated);
+          onUpdate();
+          setToast({ message: `${credits} 크레딧이 추가되었습니다.`, type: 'success' });
+        } catch (err) {
+          console.error('Failed to add purchased credits:', err);
+          setToast({ message: '크레딧 추가에 실패했습니다.', type: 'error' });
         } finally {
           setIsUpdating(false);
         }
@@ -610,6 +674,71 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                   </div>
                 </div>
               )}
+
+              {/* AI Credits */}
+              <div className="border-t border-white/10 pt-6 space-y-4">
+                <h4 className="text-lg font-bold text-white flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-bridge-accent" />
+                  AI Credits
+                </h4>
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Monthly Credits */}
+                  <div className="bg-white/5 rounded-xl p-4">
+                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                      월간 크레딧
+                    </p>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-white font-medium">
+                          {board.monthly_credits_used ?? 0} / {board.monthly_ai_credits ?? 0}
+                        </span>
+                        <button
+                          onClick={handleSetMonthlyCredits}
+                          disabled={isUpdating}
+                          className="text-xs text-bridge-accent hover:text-bridge-accent/80 disabled:opacity-50 transition-colors"
+                        >
+                          설정
+                        </button>
+                      </div>
+                      <div className="w-full bg-white/10 rounded-full h-2">
+                        <div
+                          className="bg-bridge-accent rounded-full h-2 transition-all"
+                          style={{
+                            width: `${board.monthly_ai_credits ? Math.min(100, ((board.monthly_credits_used ?? 0) / board.monthly_ai_credits) * 100) : 0}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Purchased Credits */}
+                  <div className="bg-white/5 rounded-xl p-4">
+                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                      구매 크레딧
+                    </p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-white font-medium">
+                        {board.purchased_credits ?? 0}
+                      </span>
+                      <button
+                        onClick={handleAddPurchasedCredits}
+                        disabled={isUpdating}
+                        className="flex items-center gap-1 text-xs text-bridge-secondary hover:text-bridge-secondary/80 disabled:opacity-50 transition-colors"
+                      >
+                        <Plus className="h-3 w-3" />
+                        추가
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Reset Date */}
+                {board.credits_reset_date && (
+                  <p className="text-xs text-slate-500">
+                    다음 리셋: {formatDateTime(board.credits_reset_date)}
+                  </p>
+                )}
+              </div>
 
               {/* Admin Actions */}
               <div className="border-t border-white/10 pt-6 space-y-4">

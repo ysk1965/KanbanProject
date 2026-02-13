@@ -1841,7 +1841,7 @@ export function KanbanBoardPage() {
             </div>
           </div>
 
-          {/* 중앙 탭 영역 (5탭: 칸반보드, 일정, 회의, 노트, AI분석) */}
+          {/* 중앙 탭 영역 (3탭: 칸반보드, 일정, 회의) */}
           <nav className="flex items-center gap-0.5 md:gap-1 bg-kanban-card p-1 rounded-xl border border-kanban-border overflow-x-auto shrink-0">
             {/* 1. 칸반보드 */}
             <button
@@ -1907,7 +1907,7 @@ export function KanbanBoardPage() {
             )}
 
             {/* 5. AI분석 (statistics + ai_report 병합) */}
-            {(isAdminOrOwner || (!isViewer && !isTester)) && (
+            {!isWhiteLabelDomain && (isAdminOrOwner || (!isViewer && !isTester)) && (
               <button
                 onClick={() => {
                   if (!canAccessStatistics) {
