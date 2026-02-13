@@ -143,6 +143,7 @@ export function MeetingView({ boardId, selectedDate, boardMembers, onRefreshSche
                       onRefreshSchedule();
                     }}
                     aiCredits={aiCredits}
+                    refreshTrigger={refreshTrigger}
                   />
                 )}
               </div>

@@ -14,6 +14,8 @@ import com.kanban.global.email.EmailService;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import com.kanban.global.exception.SeatLimitException;
+import com.kanban.global.websocket.WebSocketEventService;
+import com.kanban.global.websocket.dto.BoardEventType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
@@ -41,6 +43,7 @@ public class MemberService {
     private final InviteLinkRepository inviteLinkRepository;
     private final BoardService boardService;
     private final EmailService emailService;
+    private final WebSocketEventService webSocketEventService;
 
     @Cacheable(value = "members", key = "#boardId", unless = "#result == null")
     public MemberResponse.ListResponse getMembers(String boardId, String userId) {
@@ -219,7 +222,12 @@ public class MemberService {
         log.info("Member color updated: {} to {} in board: {} by user: {}",
                 memberId, request.getAssigneeColor(), boardId, userId);
 
-        return MemberResponse.Detail.of(member);
+        MemberResponse.Detail response = MemberResponse.Detail.of(member);
+        User user = userRepository.findById(userId).orElse(null);
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.MEMBER_UPDATED,
+                userId, user != null ? user.getName() : null, response);
+
+        return response;
     }
 
     @Transactional

@@ -25,6 +25,7 @@ interface MeetingDetailPanelProps {
   onDeleted: () => void;
   onUpdated: () => void;
   aiCredits?: import('../types').AiCredits | null;
+  refreshTrigger?: number;
 }
 
 export function MeetingDetailPanel({
@@ -33,6 +34,7 @@ export function MeetingDetailPanel({
   onDeleted,
   onUpdated,
   aiCredits,
+  refreshTrigger,
 }: MeetingDetailPanelProps) {
   const { t } = useTranslation();
 
@@ -87,6 +89,13 @@ export function MeetingDetailPanel({
   useEffect(() => {
     loadDetail();
   }, [loadDetail]);
+
+  // WebSocket 이벤트로 인한 리프레시
+  useEffect(() => {
+    if (refreshTrigger && refreshTrigger > 0) {
+      loadDetail();
+    }
+  }, [refreshTrigger]);
 
   // Memo
   const handleMemoSave = async () => {

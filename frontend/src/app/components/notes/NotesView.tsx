@@ -1,10 +1,13 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FileText, FolderPlus, FilePlus, Search, List, FolderTree, Loader2 } from 'lucide-react';
 import { NoteTreeSidebar } from './NoteTreeSidebar';
 import { NoteEditor } from './NoteEditor';
 import { NoteListView } from './NoteListView';
 import { noteService } from '../../utils/services';
+import { useAuth } from '../../contexts/AuthContext';
+import { useCollaboration } from '../../hooks/useCollaboration';
+import { getAssigneeHex } from '../../utils/assigneeColor';
 import type { NoteTreeItem, NoteDetail, NoteListItem, NoteTagInfo } from '../../utils/api';
 
 interface NotesViewProps {
@@ -15,6 +18,7 @@ interface NotesViewProps {
 
 export function NotesView({ boardId, currentUserRole, aiCredits }: NotesViewProps) {
   const { t } = useTranslation();
+  const { currentUser } = useAuth();
   const [tree, setTree] = useState<NoteTreeItem[]>([]);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [selectedNote, setSelectedNote] = useState<NoteDetail | null>(null);
@@ -27,6 +31,17 @@ export function NotesView({ boardId, currentUserRole, aiCredits }: NotesViewProp
 
   const isViewer = currentUserRole === 'viewer';
   const canEdit = !isViewer;
+
+  const userName = currentUser?.name || 'Anonymous';
+  const userColor = useMemo(() => getAssigneeHex(userName), [userName]);
+
+  // Real-time collaboration for the selected note
+  const collaboration = useCollaboration({
+    noteId: selectedNoteId || '',
+    userName,
+    userColor,
+    enabled: !!selectedNoteId && selectedNote?.type === 'DOCUMENT',
+  });
 
   const loadTree = useCallback(async () => {
     try {
@@ -60,7 +75,6 @@ export function NotesView({ boardId, currentUserRole, aiCredits }: NotesViewProp
   const handleSelectNote = useCallback(async (noteId: string) => {
     if (noteId === selectedNoteId) return;
 
-    // Warn about unsaved changes
     if (hasUnsavedChangesRef.current) {
       if (!window.confirm(t('notes.unsavedWarning', '저장하지 않은 변경사항이 있습니다. 저장하지 않고 이동하시겠습니까?'))) {
         return;
@@ -104,7 +118,6 @@ export function NotesView({ boardId, currentUserRole, aiCredits }: NotesViewProp
         parentId: parentId || null,
       });
       await loadTree();
-      // Reset dirty state before switching
       hasUnsavedChangesRef.current = false;
       handleSelectNote(created.id);
     } catch (err) {
@@ -270,6 +283,9 @@ export function NotesView({ boardId, currentUserRole, aiCredits }: NotesViewProp
             onTagsChange={loadTags}
             onDirtyChange={handleDirtyChange}
             aiCredits={aiCredits}
+            collaboration={collaboration}
+            currentUserName={userName}
+            currentUserColor={userColor}
           />
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-slate-500">

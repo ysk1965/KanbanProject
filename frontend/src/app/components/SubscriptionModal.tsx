@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, CreditCard, Users, Check, Minus, Plus, Crown, AlertTriangle } from 'lucide-react';
+import { X, CreditCard, Users, Check, Minus, Plus, Crown, AlertTriangle, Sparkles, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Subscription } from '../types';
 import { formatDate as dateUtilsFormatDate } from '../utils/dateUtils';
@@ -19,6 +19,9 @@ const PRICE_PER_SEAT = {
   monthly: 5,
   yearly: 50,
 };
+
+const CREDITS_BASE = 200;
+const CREDITS_PER_SEAT = 50;
 
 export function SubscriptionModal({
   open,
@@ -320,6 +323,34 @@ export function SubscriptionModal({
                           {billingCycle === 'MONTHLY' ? t('subscription.perMonth') : t('subscription.perYear')}
                         </p>
                       </div>
+                    </div>
+
+                    {/* AI Credit Change Info */}
+                    <div className="bg-bridge-accent/5 rounded-xl border border-bridge-accent/20 p-3 mb-4">
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <Sparkles className="h-3.5 w-3.5 text-bridge-accent" />
+                        <p className="text-xs font-bold text-bridge-accent uppercase tracking-widest">
+                          {t('subscription.creditChangeLabel')}
+                        </p>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="text-center">
+                          <p className="text-slate-400 text-[10px] mb-0.5">{t('subscription.creditCurrentMonthly')}</p>
+                          <p className="text-white text-sm font-bold">
+                            {CREDITS_BASE + seatCount * CREDITS_PER_SEAT}
+                          </p>
+                        </div>
+                        <ArrowRight className="h-4 w-4 text-slate-500 mx-2" />
+                        <div className="text-center">
+                          <p className="text-slate-400 text-[10px] mb-0.5">{t('subscription.creditAfterPurchase')}</p>
+                          <p className="text-bridge-secondary text-sm font-bold">
+                            {CREDITS_BASE + (seatCount + additionalSeats) * CREDITS_PER_SEAT}
+                          </p>
+                        </div>
+                      </div>
+                      <p className="text-slate-500 text-[10px] text-center mt-1.5">
+                        {t('subscription.creditPerSeat', { count: CREDITS_PER_SEAT })}
+                      </p>
                     </div>
 
                     <button

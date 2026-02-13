@@ -9,6 +9,7 @@ import '@blocknote/shadcn/style.css';
 import { NoteTagManager } from './NoteTagManager';
 import { NoteVersionHistory } from './NoteVersionHistory';
 import { NoteAIInlineSection } from './NoteAIInlineSection';
+import { CollabPresence } from './CollabPresence';
 import { Callout } from './blocks/Callout';
 import { Toggle } from './blocks/Toggle';
 import { Divider } from './blocks/Divider';
@@ -19,6 +20,7 @@ import { Mention } from './blocks/Mention';
 import { formatDateTime } from '../../utils/dateUtils';
 import { fileAPI, noteAPI, memberAPI } from '../../utils/api';
 import type { NoteDetail, NoteTagInfo, NoteAISuggestionResponse, MemberResponse } from '../../utils/api';
+import type { CollaborationState } from '../../hooks/useCollaboration';
 
 const schema = BlockNoteSchema.create({
   blockSpecs: {
@@ -37,8 +39,6 @@ const schema = BlockNoteSchema.create({
   },
 });
 
-const AUTO_SAVE_DELAY = 30_000; // 30 seconds
-
 interface NoteEditorProps {
   boardId: string;
   note: NoteDetail;
@@ -49,16 +49,92 @@ interface NoteEditorProps {
   onTagsChange: () => void;
   onDirtyChange?: (isDirty: boolean) => void;
   aiCredits?: import('../../types').AiCredits | null;
+  collaboration: CollaborationState | null;
+  currentUserName: string;
+  currentUserColor: string;
 }
 
-export function NoteEditor({ boardId, note, tags, loading, canEdit, onSave, onTagsChange, onDirtyChange, aiCredits }: NoteEditorProps) {
+export function NoteEditor({
+  boardId, note, tags, loading, canEdit, onSave, onTagsChange, onDirtyChange, aiCredits,
+  collaboration, currentUserName, currentUserColor,
+}: NoteEditorProps) {
+  // Show brief loading while collaboration provider initializes
+  if (loading || (collaboration && collaboration.status === 'connecting' && !collaboration.provider)) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-bridge-accent" />
+      </div>
+    );
+  }
+
+  if (note.type === 'FOLDER') {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center text-slate-500">
+        <p className="text-sm">{/* Folder selected */}폴더가 선택되었습니다</p>
+        <p className="text-xs mt-1 text-slate-600">문서를 선택하여 편집하세요</p>
+      </div>
+    );
+  }
+
+  if (collaboration) {
+    return (
+      <CollabNoteEditor
+        boardId={boardId}
+        note={note}
+        tags={tags}
+        canEdit={canEdit}
+        onSave={onSave}
+        onTagsChange={onTagsChange}
+        onDirtyChange={onDirtyChange}
+        aiCredits={aiCredits}
+        collaboration={collaboration}
+        currentUserName={currentUserName}
+        currentUserColor={currentUserColor}
+      />
+    );
+  }
+
+  // Fallback: non-collaborative mode (shouldn't normally happen)
+  return (
+    <FallbackNoteEditor
+      boardId={boardId}
+      note={note}
+      tags={tags}
+      canEdit={canEdit}
+      onSave={onSave}
+      onTagsChange={onTagsChange}
+      onDirtyChange={onDirtyChange}
+      aiCredits={aiCredits}
+    />
+  );
+}
+
+/* ============================================================
+ * Collaborative Editor (Yjs-powered)
+ * ============================================================ */
+
+interface CollabEditorProps {
+  boardId: string;
+  note: NoteDetail;
+  tags: NoteTagInfo[];
+  canEdit: boolean;
+  onSave: (noteId: string, data: { title?: string; content?: string; tagIds?: string[] }, createVersion?: boolean) => void;
+  onTagsChange: () => void;
+  onDirtyChange?: (isDirty: boolean) => void;
+  aiCredits?: import('../../types').AiCredits | null;
+  collaboration: CollaborationState;
+  currentUserName: string;
+  currentUserColor: string;
+}
+
+function CollabNoteEditor({
+  boardId, note, tags, canEdit, onSave, onTagsChange, onDirtyChange, aiCredits,
+  collaboration, currentUserName, currentUserColor,
+}: CollabEditorProps) {
   const { t } = useTranslation();
   const [title, setTitle] = useState(note.title);
   const [hasChanges, setHasChanges] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [autoSaved, setAutoSaved] = useState(false);
-  const noteIdRef = useRef(note.id);
-  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // AI state
   const [aiData, setAiData] = useState<NoteAISuggestionResponse | null>(null);
@@ -68,9 +144,17 @@ export function NoteEditor({ boardId, note, tags, loading, canEdit, onSave, onTa
   const [aiCollapsed, setAiCollapsed] = useState(false);
   const [aiContentSnapshot, setAiContentSnapshot] = useState<string | null>(note.aiContentSnapshot);
 
-  // Create BlockNote editor with custom schema
+  // Create BlockNote editor with Yjs collaboration
   const editor = useCreateBlockNote({
     schema,
+    collaboration: {
+      provider: collaboration.provider,
+      fragment: collaboration.fragment,
+      user: {
+        name: currentUserName,
+        color: currentUserColor,
+      },
+    },
     uploadFile: async (file: File) => {
       const result = await fileAPI.smartUpload(file);
       return result.previewUrl || '';
@@ -81,9 +165,26 @@ export function NoteEditor({ boardId, note, tags, loading, canEdit, onSave, onTa
       headers: true,
       splitCells: true,
     },
-  } as any);
+  } as any, [collaboration.fragment]);
 
-  // Custom slash menu items
+  // Sync title when note changes
+  useEffect(() => {
+    setTitle(note.title);
+    setHasChanges(false);
+
+    // Reset AI state
+    setAiData(null);
+    setAiLoading(false);
+    setAiError(null);
+    setAiVisible(false);
+    setAiCollapsed(false);
+    setAiContentSnapshot(note.aiContentSnapshot);
+    if (note.aiSuggestions) {
+      try { setAiData(JSON.parse(note.aiSuggestions)); } catch { /* ignore */ }
+    }
+  }, [note.id]);
+
+  // Slash menu items
   const slashMenuItems = useMemo(() => [
     ...getDefaultReactSlashMenuItems(editor),
     {
@@ -187,101 +288,33 @@ export function NoteEditor({ boardId, note, tags, loading, canEdit, onSave, onTa
     return filterSuggestionItems(items, query);
   }, [boardId, editor]);
 
-  // Load content when note changes
-  useEffect(() => {
-    if (note.id !== noteIdRef.current) {
-      noteIdRef.current = note.id;
-      setTitle(note.title);
-      setHasChanges(false);
-      setAutoSaved(false);
-
-      const loadContent = async () => {
-        if (!note.content?.trim()) {
-          editor.replaceBlocks(editor.document, []);
-          return;
-        }
-        try {
-          const blocks = await editor.tryParseHTMLToBlocks(note.content);
-          editor.replaceBlocks(editor.document, blocks);
-        } catch (err) {
-          console.error('Failed to load note content:', err);
-        }
-      };
-      loadContent();
-
-      // Reset AI state
-      setAiData(null);
-      setAiLoading(false);
-      setAiError(null);
-      setAiVisible(false);
-      setAiCollapsed(false);
-      setAiContentSnapshot(note.aiContentSnapshot);
-
-      if (note.aiSuggestions) {
-        try {
-          setAiData(JSON.parse(note.aiSuggestions));
-        } catch { /* Ignore parse errors */ }
-      }
-    }
-  }, [note.id, note.title, note.content, note.aiSuggestions, note.aiContentSnapshot, editor]);
-
-  // Load initial content on first mount
-  const initialLoadDone = useRef(false);
-  useEffect(() => {
-    if (initialLoadDone.current) return;
-    initialLoadDone.current = true;
-
-    if (!note.content?.trim()) return;
-
-    const loadInitial = async () => {
-      try {
-        const blocks = await editor.tryParseHTMLToBlocks(note.content!);
-        editor.replaceBlocks(editor.document, blocks);
-      } catch (err) {
-        console.error('Failed to load initial content:', err);
-      }
-    };
-    loadInitial();
-  }, [editor, note.content]);
-
   // Notify parent about dirty state
   useEffect(() => {
     onDirtyChange?.(hasChanges);
   }, [hasChanges, onDirtyChange]);
 
-  // beforeunload warning
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (hasChanges) {
-        e.preventDefault();
-      }
-    };
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [hasChanges]);
-
   const handleTitleChange = (newTitle: string) => {
     setTitle(newTitle);
     setHasChanges(true);
-    setAutoSaved(false);
   };
 
-  // Content change handler
   const handleEditorChange = useCallback(() => {
     setHasChanges(true);
-    setAutoSaved(false);
   }, []);
 
-  // Get HTML content for saving
+  // Get HTML content from current editor state
   const getContentHTML = useCallback(async (): Promise<string> => {
     return await editor.blocksToHTMLLossy(editor.document);
   }, [editor]);
 
-  // Manual save (creates version)
+  // Manual save: persist Yjs state + create HTML version snapshot
   const handleSave = useCallback(async () => {
-    if (!hasChanges || !canEdit) return;
+    if (!canEdit) return;
     setSaving(true);
     try {
+      // 1. Persist Yjs binary state via WebSocket
+      collaboration.provider.sendFullState();
+      // 2. Create HTML version snapshot via REST API
       const html = await getContentHTML();
       await onSave(note.id, {
         title: title !== note.title ? title : undefined,
@@ -289,63 +322,36 @@ export function NoteEditor({ boardId, note, tags, loading, canEdit, onSave, onTa
         tagIds: note.tags.map(t => t.id),
       }, true);
       setHasChanges(false);
-      setAutoSaved(false);
     } finally {
       setSaving(false);
     }
-  }, [hasChanges, canEdit, getContentHTML, onSave, note.id, note.title, title, note.tags]);
+  }, [canEdit, collaboration.provider, getContentHTML, onSave, note.id, note.title, title, note.tags]);
 
-  // Auto-save (no version creation)
-  const handleAutoSave = useCallback(async () => {
-    if (!hasChanges || !canEdit) return;
-    try {
-      const html = await getContentHTML();
-      await onSave(note.id, {
-        title: title !== note.title ? title : undefined,
-        content: html,
-        tagIds: note.tags.map(t => t.id),
-      }, false);
-      setHasChanges(false);
-      setAutoSaved(true);
-    } catch {
-      // Silently fail auto-save
-    }
-  }, [hasChanges, canEdit, getContentHTML, onSave, note.id, note.title, title, note.tags]);
-
-  // Auto-save timer
+  // Keyboard shortcut: Ctrl/Cmd+S
   useEffect(() => {
-    if (autoSaveTimerRef.current) {
-      clearTimeout(autoSaveTimerRef.current);
-    }
-    if (hasChanges && canEdit) {
-      autoSaveTimerRef.current = setTimeout(() => {
-        handleAutoSave();
-      }, AUTO_SAVE_DELAY);
-    }
-    return () => {
-      if (autoSaveTimerRef.current) {
-        clearTimeout(autoSaveTimerRef.current);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        e.preventDefault();
+        handleSave();
       }
     };
-  }, [hasChanges, canEdit, handleAutoSave]);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleSave]);
 
   // AI: check if content has changed since last AI organize
   const isAIDimmed = useCallback(() => {
     if (!aiContentSnapshot || !aiData) return false;
-    // Simple check: compare snapshot with current note content from server
     return aiContentSnapshot === note.content;
   }, [aiContentSnapshot, aiData, note.content]);
 
-  // AI: handle organize
   const handleAIOrganize = useCallback(async () => {
     if (aiLoading) return;
-
     if (isAIDimmed()) {
       setAiVisible(true);
       setAiCollapsed(false);
       return;
     }
-
     setAiLoading(true);
     setAiError(null);
     setAiVisible(true);
@@ -361,43 +367,6 @@ export function NoteEditor({ boardId, note, tags, loading, canEdit, onSave, onTa
       setAiLoading(false);
     }
   }, [aiLoading, isAIDimmed, boardId, note.id, note.content, t]);
-
-  const handleAIClose = useCallback(() => {
-    setAiCollapsed(true);
-  }, []);
-
-  const handleAIExpand = useCallback(() => {
-    setAiCollapsed(false);
-  }, []);
-
-  // Keyboard shortcut: Ctrl+S to save
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
-        e.preventDefault();
-        handleSave();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleSave]);
-
-  if (loading) {
-    return (
-      <div className="flex-1 flex items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-bridge-accent" />
-      </div>
-    );
-  }
-
-  if (note.type === 'FOLDER') {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center text-slate-500">
-        <p className="text-sm">{t('notes.folderSelected', '폴더가 선택되었습니다')}</p>
-        <p className="text-xs mt-1 text-slate-600">{t('notes.folderHint', '문서를 선택하여 편집하세요')}</p>
-      </div>
-    );
-  }
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -429,15 +398,20 @@ export function NoteEditor({ boardId, note, tags, loading, canEdit, onSave, onTa
               {formatDateTime(note.updatedAt)}
               {note.updatedBy && ` · ${note.updatedBy.name}`}
             </span>
-            {autoSaved && (
-              <span className="text-[10px] text-emerald-500/70">
-                {t('notes.autoSaved', '자동 저장됨')}
-              </span>
-            )}
           </div>
         </div>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2">
+          {/* Collaboration presence */}
+          <CollabPresence
+            status={collaboration.status}
+            connectedUsers={collaboration.connectedUsers}
+            currentUserName={currentUserName}
+            currentUserColor={currentUserColor}
+          />
+
+          <div className="w-px h-5 bg-white/10" />
+
           <NoteTagManager
             boardId={boardId}
             noteId={note.id}
@@ -453,21 +427,11 @@ export function NoteEditor({ boardId, note, tags, loading, canEdit, onSave, onTa
             versionCount={note.versionCount}
             canEdit={canEdit}
             onRestore={async () => {
+              // After restoring, refetch and let the provider sync
               const { noteService } = await import('../../utils/services');
               const updated = await noteService.getDetail(boardId, note.id);
-              if (updated.content?.trim()) {
-                try {
-                  const blocks = await editor.tryParseHTMLToBlocks(updated.content);
-                  editor.replaceBlocks(editor.document, blocks);
-                } catch (err) {
-                  console.error('Failed to restore content:', err);
-                }
-              } else {
-                editor.replaceBlocks(editor.document, []);
-              }
               setTitle(updated.title);
               setHasChanges(false);
-              setAutoSaved(false);
             }}
           />
           {canEdit && (note.content?.trim()) && (
@@ -480,13 +444,13 @@ export function NoteEditor({ boardId, note, tags, loading, canEdit, onSave, onTa
                   ? 'text-slate-500 bg-white/5 cursor-default'
                   : 'text-bridge-secondary bg-bridge-secondary/10 hover:bg-bridge-secondary/20'
               }`}
-            >
-              {aiLoading ? (
-                <Loader2 size={12} className="animate-spin" />
-              ) : (
-                <Sparkles size={12} />
-              )}
-              {t('notes.aiOrganize')}
+              >
+                {aiLoading ? (
+                  <Loader2 size={12} className="animate-spin" />
+                ) : (
+                  <Sparkles size={12} />
+                )}
+                {t('notes.aiOrganize')}
               </button>
               {aiCredits && (
                 <span className="text-xs text-slate-400">
@@ -543,7 +507,7 @@ export function NoteEditor({ boardId, note, tags, loading, canEdit, onSave, onTa
                   </span>
                 </div>
                 <button
-                  onClick={handleAIExpand}
+                  onClick={() => setAiCollapsed(false)}
                   className="text-xs text-bridge-accent hover:text-bridge-accent/80 transition-colors font-medium"
                 >
                   {t('notes.aiExpand')}
@@ -557,11 +521,248 @@ export function NoteEditor({ boardId, note, tags, loading, canEdit, onSave, onTa
                 error={aiError}
                 suggestions={aiData}
                 onRetry={handleAIOrganize}
-                onClose={handleAIClose}
+                onClose={() => setAiCollapsed(true)}
               />
             )}
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+ * Fallback Editor (non-collaborative, original behavior)
+ * ============================================================ */
+
+interface FallbackEditorProps {
+  boardId: string;
+  note: NoteDetail;
+  tags: NoteTagInfo[];
+  canEdit: boolean;
+  onSave: (noteId: string, data: { title?: string; content?: string; tagIds?: string[] }, createVersion?: boolean) => void;
+  onTagsChange: () => void;
+  onDirtyChange?: (isDirty: boolean) => void;
+  aiCredits?: import('../../types').AiCredits | null;
+}
+
+const AUTO_SAVE_DELAY = 30_000;
+
+function FallbackNoteEditor({ boardId, note, tags, canEdit, onSave, onTagsChange, onDirtyChange, aiCredits }: FallbackEditorProps) {
+  const { t } = useTranslation();
+  const [title, setTitle] = useState(note.title);
+  const [hasChanges, setHasChanges] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [autoSaved, setAutoSaved] = useState(false);
+  const noteIdRef = useRef(note.id);
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const editor = useCreateBlockNote({
+    schema,
+    uploadFile: async (file: File) => {
+      const result = await fileAPI.smartUpload(file);
+      return result.previewUrl || '';
+    },
+    tables: {
+      cellBackgroundColor: true,
+      cellTextColor: true,
+      headers: true,
+      splitCells: true,
+    },
+  } as any);
+
+  const slashMenuItems = useMemo(() => [
+    ...getDefaultReactSlashMenuItems(editor),
+    // Same slash menu items as above (abbreviated for fallback)
+  ], [editor]);
+
+  const membersCache = useRef<MemberResponse[] | null>(null);
+  const getMentionItems = useCallback(async (query: string) => {
+    if (!membersCache.current) {
+      try {
+        const data = await memberAPI.getMembers(boardId);
+        membersCache.current = data.members;
+      } catch { membersCache.current = []; }
+    }
+    const items = (membersCache.current || []).map((m) => ({
+      title: m.user.name,
+      onItemClick: () => {
+        editor.insertInlineContent([
+          { type: 'mention' as any, props: { user: m.user.name } },
+          ' ',
+        ]);
+      },
+      aliases: [m.user.email],
+      group: 'Members',
+      icon: m.user.profile_image
+        ? <img src={m.user.profile_image} alt="" className="bn-mention-avatar" />
+        : <span className="bn-mention-avatar-fallback">{m.user.name.charAt(0)}</span>,
+    }));
+    return filterSuggestionItems(items, query);
+  }, [boardId, editor]);
+
+  useEffect(() => {
+    if (note.id !== noteIdRef.current) {
+      noteIdRef.current = note.id;
+      setTitle(note.title);
+      setHasChanges(false);
+      setAutoSaved(false);
+      const loadContent = async () => {
+        if (!note.content?.trim()) {
+          editor.replaceBlocks(editor.document, []);
+          return;
+        }
+        try {
+          const blocks = await editor.tryParseHTMLToBlocks(note.content);
+          editor.replaceBlocks(editor.document, blocks);
+        } catch (err) {
+          console.error('Failed to load note content:', err);
+        }
+      };
+      loadContent();
+    }
+  }, [note.id, note.title, note.content, editor]);
+
+  const initialLoadDone = useRef(false);
+  useEffect(() => {
+    if (initialLoadDone.current) return;
+    initialLoadDone.current = true;
+    if (!note.content?.trim()) return;
+    const loadInitial = async () => {
+      try {
+        const blocks = await editor.tryParseHTMLToBlocks(note.content!);
+        editor.replaceBlocks(editor.document, blocks);
+      } catch (err) {
+        console.error('Failed to load initial content:', err);
+      }
+    };
+    loadInitial();
+  }, [editor, note.content]);
+
+  useEffect(() => { onDirtyChange?.(hasChanges); }, [hasChanges, onDirtyChange]);
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasChanges) e.preventDefault();
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasChanges]);
+
+  const getContentHTML = useCallback(async (): Promise<string> => {
+    return await editor.blocksToHTMLLossy(editor.document);
+  }, [editor]);
+
+  const handleSave = useCallback(async () => {
+    if (!hasChanges || !canEdit) return;
+    setSaving(true);
+    try {
+      const html = await getContentHTML();
+      await onSave(note.id, {
+        title: title !== note.title ? title : undefined,
+        content: html,
+        tagIds: note.tags.map(t => t.id),
+      }, true);
+      setHasChanges(false);
+      setAutoSaved(false);
+    } finally {
+      setSaving(false);
+    }
+  }, [hasChanges, canEdit, getContentHTML, onSave, note.id, note.title, title, note.tags]);
+
+  const handleAutoSave = useCallback(async () => {
+    if (!hasChanges || !canEdit) return;
+    try {
+      const html = await getContentHTML();
+      await onSave(note.id, {
+        title: title !== note.title ? title : undefined,
+        content: html,
+        tagIds: note.tags.map(t => t.id),
+      }, false);
+      setHasChanges(false);
+      setAutoSaved(true);
+    } catch { /* Silently fail */ }
+  }, [hasChanges, canEdit, getContentHTML, onSave, note.id, note.title, title, note.tags]);
+
+  useEffect(() => {
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    if (hasChanges && canEdit) {
+      autoSaveTimerRef.current = setTimeout(() => { handleAutoSave(); }, AUTO_SAVE_DELAY);
+    }
+    return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current); };
+  }, [hasChanges, canEdit, handleAutoSave]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        e.preventDefault();
+        handleSave();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleSave]);
+
+  return (
+    <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="px-6 py-3 border-b border-white/5 flex items-center justify-between">
+        <div className="flex-1 min-w-0">
+          <input
+            value={title}
+            onChange={(e) => { setTitle(e.target.value); setHasChanges(true); setAutoSaved(false); }}
+            className="w-full bg-transparent text-lg font-bold text-white focus:outline-none placeholder-slate-600"
+            placeholder={t('notes.titlePlaceholder', '제목을 입력하세요')}
+            readOnly={!canEdit}
+          />
+          <div className="flex items-center gap-3 mt-1">
+            <span className="text-[10px] text-slate-500 flex items-center gap-1">
+              <Clock size={10} />
+              {formatDateTime(note.updatedAt)}
+              {note.updatedBy && ` · ${note.updatedBy.name}`}
+            </span>
+            {autoSaved && (
+              <span className="text-[10px] text-emerald-500/70">{t('notes.autoSaved', '자동 저장됨')}</span>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-1">
+          <NoteTagManager boardId={boardId} noteId={note.id} noteTags={note.tags} allTags={tags} canEdit={canEdit} onSave={(tagIds) => onSave(note.id, { tagIds })} onTagsChange={onTagsChange} />
+          <NoteVersionHistory boardId={boardId} noteId={note.id} versionCount={note.versionCount} canEdit={canEdit} onRestore={async () => {
+            const { noteService } = await import('../../utils/services');
+            const updated = await noteService.getDetail(boardId, note.id);
+            if (updated.content?.trim()) {
+              try {
+                const blocks = await editor.tryParseHTMLToBlocks(updated.content);
+                editor.replaceBlocks(editor.document, blocks);
+              } catch (err) { console.error('Failed to restore content:', err); }
+            } else {
+              editor.replaceBlocks(editor.document, []);
+            }
+            setTitle(updated.title);
+            setHasChanges(false);
+            setAutoSaved(false);
+          }} />
+          {canEdit && (
+            <button
+              onClick={handleSave}
+              disabled={!hasChanges || saving}
+              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ml-1 ${
+                hasChanges
+                  ? 'bg-bridge-accent text-white hover:bg-bridge-accent/90 shadow-lg shadow-bridge-accent/20'
+                  : 'bg-white/5 text-slate-500 cursor-not-allowed'
+              }`}
+            >
+              {saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+              {t('common.save', '저장')}
+            </button>
+          )}
+        </div>
+      </div>
+      <div className="flex-1 overflow-y-auto">
+        <BlockNoteView editor={editor} theme="dark" editable={canEdit} onChange={() => { setHasChanges(true); setAutoSaved(false); }}>
+          <SuggestionMenuController triggerCharacter="/" getItems={async (query) => filterSuggestionItems(slashMenuItems, query)} />
+          <SuggestionMenuController triggerCharacter="@" getItems={getMentionItems} />
+        </BlockNoteView>
       </div>
     </div>
   );

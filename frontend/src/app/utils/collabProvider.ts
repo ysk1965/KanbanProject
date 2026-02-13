@@ -1,0 +1,196 @@
+import * as Y from 'yjs';
+import * as awarenessProtocol from 'y-protocols/awareness';
+
+const MSG_SYNC_FULL = 0;
+const MSG_SYNC_UPDATE = 1;
+const MSG_AWARENESS = 2;
+
+export type CollabStatus = 'connecting' | 'connected' | 'disconnected';
+
+/**
+ * Custom Yjs WebSocket provider for real-time note collaboration.
+ *
+ * Uses a simple binary protocol:
+ *   [0, ...state]     Full Y.Doc state (persistence / initial sync)
+ *   [1, ...update]    Incremental Y.Doc update
+ *   [2, ...awareness] Awareness update (cursors, presence)
+ *
+ * Connects to: /ws-collab/{noteId}?token={jwt}
+ */
+export class CollabProvider {
+  private ws: WebSocket | null = null;
+  readonly doc: Y.Doc;
+  readonly awareness: awarenessProtocol.Awareness;
+  private noteId: string;
+  private wsUrl: string;
+  private statusListeners = new Set<(status: CollabStatus) => void>();
+  private status: CollabStatus = 'disconnected';
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private shouldConnect = true;
+  private autoSaveTimer: ReturnType<typeof setInterval> | null = null;
+
+  private static readonly RECONNECT_DELAY = 3000;
+  private static readonly AUTO_SAVE_INTERVAL = 30_000;
+
+  constructor(noteId: string, doc: Y.Doc, user: { name: string; color: string }) {
+    this.noteId = noteId;
+    this.doc = doc;
+    this.awareness = new awarenessProtocol.Awareness(doc);
+    this.awareness.setLocalStateField('user', user);
+
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1';
+    const wsBase = baseUrl
+      .replace('/api/v1', '')
+      .replace('https://', 'wss://')
+      .replace('http://', 'ws://');
+    const token = localStorage.getItem('access_token');
+    this.wsUrl = `${wsBase}/ws-collab/${noteId}?token=${token}`;
+
+    this.doc.on('update', this.handleDocUpdate);
+    this.awareness.on('update', this.handleAwarenessUpdate);
+  }
+
+  connect(): void {
+    if (this.ws?.readyState === WebSocket.OPEN || this.ws?.readyState === WebSocket.CONNECTING) {
+      return;
+    }
+
+    this.shouldConnect = true;
+    this.updateStatus('connecting');
+
+    this.ws = new WebSocket(this.wsUrl);
+    this.ws.binaryType = 'arraybuffer';
+
+    this.ws.onopen = () => {
+      this.updateStatus('connected');
+      this.startAutoSave();
+      // Broadcast local awareness so others know we joined
+      const update = awarenessProtocol.encodeAwarenessUpdate(
+        this.awareness,
+        [this.doc.clientID],
+      );
+      this.send(MSG_AWARENESS, update);
+    };
+
+    this.ws.onmessage = (event) => {
+      const data = new Uint8Array(event.data as ArrayBuffer);
+      if (data.length < 2) return;
+
+      const msgType = data[0];
+      const payload = data.slice(1);
+
+      switch (msgType) {
+        case MSG_SYNC_FULL:
+        case MSG_SYNC_UPDATE:
+          Y.applyUpdate(this.doc, payload, 'remote');
+          break;
+        case MSG_AWARENESS:
+          awarenessProtocol.applyAwarenessUpdate(this.awareness, payload, this);
+          break;
+      }
+    };
+
+    this.ws.onclose = () => {
+      this.updateStatus('disconnected');
+      this.stopAutoSave();
+      if (this.shouldConnect) {
+        this.scheduleReconnect();
+      }
+    };
+
+    this.ws.onerror = () => {
+      // onclose will also fire
+    };
+  }
+
+  disconnect(): void {
+    this.shouldConnect = false;
+    this.stopAutoSave();
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    // Persist full state before leaving
+    this.sendFullState();
+    // Remove awareness so others know we left
+    awarenessProtocol.removeAwarenessStates(this.awareness, [this.doc.clientID], 'disconnect');
+
+    if (this.ws) {
+      this.ws.close();
+      this.ws = null;
+    }
+    this.updateStatus('disconnected');
+  }
+
+  destroy(): void {
+    this.disconnect();
+    this.doc.off('update', this.handleDocUpdate);
+    this.awareness.off('update', this.handleAwarenessUpdate);
+    this.awareness.destroy();
+    this.statusListeners.clear();
+  }
+
+  onStatusChange(listener: (status: CollabStatus) => void): () => void {
+    this.statusListeners.add(listener);
+    listener(this.status);
+    return () => this.statusListeners.delete(listener);
+  }
+
+  /** Send full Y.Doc state for server-side persistence */
+  sendFullState(): void {
+    const state = Y.encodeStateAsUpdate(this.doc);
+    this.send(MSG_SYNC_FULL, state);
+  }
+
+  private send(type: number, payload: Uint8Array): void {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+    const msg = new Uint8Array(1 + payload.length);
+    msg[0] = type;
+    msg.set(payload, 1);
+    this.ws.send(msg);
+  }
+
+  private handleDocUpdate = (update: Uint8Array, origin: unknown): void => {
+    if (origin === 'remote') return;
+    this.send(MSG_SYNC_UPDATE, update);
+  };
+
+  private handleAwarenessUpdate = ({ added, updated, removed }: {
+    added: number[];
+    updated: number[];
+    removed: number[];
+  }): void => {
+    const changedClients = [...added, ...updated, ...removed];
+    const update = awarenessProtocol.encodeAwarenessUpdate(this.awareness, changedClients);
+    this.send(MSG_AWARENESS, update);
+  };
+
+  private scheduleReconnect(): void {
+    if (this.reconnectTimer) return;
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
+      this.connect();
+    }, CollabProvider.RECONNECT_DELAY);
+  }
+
+  private startAutoSave(): void {
+    this.stopAutoSave();
+    this.autoSaveTimer = setInterval(() => {
+      this.sendFullState();
+    }, CollabProvider.AUTO_SAVE_INTERVAL);
+  }
+
+  private stopAutoSave(): void {
+    if (this.autoSaveTimer) {
+      clearInterval(this.autoSaveTimer);
+      this.autoSaveTimer = null;
+    }
+  }
+
+  private updateStatus(status: CollabStatus): void {
+    if (this.status !== status) {
+      this.status = status;
+      this.statusListeners.forEach((l) => l(status));
+    }
+  }
+}

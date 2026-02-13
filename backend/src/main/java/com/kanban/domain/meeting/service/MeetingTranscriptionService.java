@@ -4,8 +4,12 @@ import com.kanban.domain.board.service.BoardService;
 import com.kanban.domain.meeting.Meeting;
 import com.kanban.domain.meeting.MeetingRepository;
 import com.kanban.domain.meeting.dto.MeetingResponse;
+import com.kanban.domain.user.User;
+import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
+import com.kanban.global.websocket.WebSocketEventService;
+import com.kanban.global.websocket.dto.BoardEventType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -35,6 +39,8 @@ public class MeetingTranscriptionService {
 
     private final MeetingRepository meetingRepository;
     private final BoardService boardService;
+    private final WebSocketEventService webSocketEventService;
+    private final UserRepository userRepository;
 
     @Value("${ai.openai.api-key:}")
     private String openaiApiKey;
@@ -89,6 +95,11 @@ public class MeetingTranscriptionService {
         meeting.updateTranscript(finalTranscript);
 
         log.info("Transcription completed for meeting: {} ({} chars)", meetingId, transcriptText.length());
+
+        User user = userRepository.findById(userId).orElse(null);
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.MEETING_UPDATED,
+                userId, user != null ? user.getName() : null,
+                Map.of("id", meetingId, "transcript", finalTranscript));
 
         return MeetingResponse.TranscriptResult.builder()
                 .meetingId(meetingId)

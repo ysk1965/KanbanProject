@@ -31,6 +31,8 @@ import com.kanban.global.config.AIProvider;
 import com.kanban.global.config.AIResponse;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
+import com.kanban.global.websocket.WebSocketEventService;
+import com.kanban.global.websocket.dto.BoardEventType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -59,6 +61,7 @@ public class MeetingAIService {
     private final ActivityService activityService;
     private final AiUsageLogRepository aiUsageLogRepository;
     private final AiCreditService aiCreditService;
+    private final WebSocketEventService webSocketEventService;
 
     @Value("${ai.provider:claude}")
     private String provider;
@@ -143,6 +146,11 @@ public class MeetingAIService {
         } catch (JsonProcessingException e) {
             log.warn("Failed to serialize AI suggestions for meeting: {}", meetingId, e);
         }
+
+        // Broadcast WebSocket event so other users see the AI summary in real-time
+        User user = userRepository.findById(userId).orElse(null);
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.MEETING_UPDATED,
+                userId, user != null ? user.getName() : null, Map.of("meetingId", meetingId));
 
         return suggestions;
     }

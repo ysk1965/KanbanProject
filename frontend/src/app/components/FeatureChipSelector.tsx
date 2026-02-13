@@ -25,11 +25,11 @@ export function FeatureChipSelector({
 
   return (
     <div className="px-3 md:px-6 py-2 md:py-3 border-b border-kanban-border bg-kanban-bg">
-      <div className="flex items-stretch gap-2.5 overflow-x-auto pb-1 kanban-scrollbar">
+      <div className="flex items-stretch gap-1.5 md:gap-2.5 overflow-x-auto pb-1 kanban-scrollbar">
         {/* 전체 보기 칩 */}
         <button
           onClick={onSelectAll}
-          className={`flex flex-col items-center justify-center px-5 py-2.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex-shrink-0 min-w-[64px] ${
+          className={`flex flex-col items-center justify-center px-3 md:px-5 py-2 md:py-2.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex-shrink-0 min-w-[52px] md:min-w-[64px] ${
             isAllSelected
               ? 'bg-indigo-500/20 text-indigo-300 border-2 border-indigo-500/60 shadow-[0_0_12px_rgba(99,102,241,0.15)]'
               : 'bg-kanban-surface border border-kanban-border text-zinc-500 hover:text-zinc-300 hover:border-zinc-600'
@@ -76,7 +76,7 @@ export function FeatureChipSelector({
               {/* 메인 영역 (클릭 = 상세 보기) */}
               <button
                 onClick={() => onFeatureInfoClick(feature)}
-                className="flex flex-col justify-center gap-1.5 pl-3 pr-2 py-2.5 min-w-[100px]"
+                className="flex flex-col justify-center gap-1 md:gap-1.5 pl-2 md:pl-3 pr-1.5 md:pr-2 py-2 md:py-2.5 min-w-[80px] md:min-w-[100px]"
               >
                 {/* 타이틀 */}
                 <div className="flex items-center gap-1.5">
