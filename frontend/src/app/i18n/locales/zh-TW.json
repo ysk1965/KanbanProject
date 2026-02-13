@@ -2001,8 +2001,7 @@
     "me": "我",
     "selectMember": "選擇成員",
     "confirmGenerate": "AI 報告每天只能產生一次。是否要產生？",
-    "confirmRegenerate": "AI 報告每天只能產生一次。是否要重新產生？",
-    "dailyLimitReached": "您已使用今天的 AI 報告產生次數"
+    "confirmRegenerate": "AI 報告每天只能產生一次。是否要重新產生？"
   },
   "compare": {
     "nav": {

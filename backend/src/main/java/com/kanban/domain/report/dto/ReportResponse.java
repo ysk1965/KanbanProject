@@ -80,6 +80,5 @@ public class ReportResponse {
     @AllArgsConstructor
     public static class ListResponse {
         private List<ListItem> reports;
-        private boolean canGenerateToday;
     }
 }

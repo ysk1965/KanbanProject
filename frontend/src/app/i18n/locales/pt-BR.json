@@ -2061,7 +2061,6 @@
     "selectMember": "Selecionar membro",
     "confirmGenerate": "Relatórios de IA só podem ser gerados uma vez por dia. Deseja gerar?",
     "confirmRegenerate": "Relatórios de IA só podem ser gerados uma vez por dia. Deseja regenerar?",
-    "dailyLimitReached": "Você já usou a geração de relatório de IA de hoje",
     "hasTranscript": "Transcrição",
     "meetingsLabel": "Reuniões"
   },

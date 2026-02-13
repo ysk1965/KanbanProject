@@ -1841,7 +1841,8 @@ export function KanbanBoardPage() {
             </div>
           </div>
 
-          {/* 중앙 탭 영역 (3탭: 칸반보드, 일정, 회의) */}
+          {/* 중앙 탭 영역 (칸반보드, 일정, 회의 + 도메인별 노트/AI분석) */}
+          <div className="flex-1 flex justify-center min-w-0">
           <nav className="flex items-center gap-0.5 md:gap-1 bg-kanban-card p-1 rounded-xl border border-kanban-border overflow-x-auto shrink-0">
             {/* 1. 칸반보드 */}
             <button
@@ -1937,6 +1938,7 @@ export function KanbanBoardPage() {
               </button>
             )}
           </nav>
+          </div>
 
           {/* 우측 액션 영역 */}
           <div className="flex items-center gap-1 md:gap-2 shrink-0">
@@ -2575,6 +2577,8 @@ export function KanbanBoardPage() {
                 role: m.role.toUpperCase() as any,
                 joined_at: '',
               }))}
+              aiCredits={aiCredits}
+              hideBilling={hideBilling}
             />
           </main>
         ) : null}

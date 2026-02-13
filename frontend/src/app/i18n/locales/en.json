@@ -2076,8 +2076,7 @@
     "me": "Me",
     "selectMember": "Select member",
     "confirmGenerate": "AI reports can only be generated once per day. Do you want to generate?",
-    "confirmRegenerate": "AI reports can only be generated once per day. Do you want to regenerate?",
-    "dailyLimitReached": "You've used today's AI report generation"
+    "confirmRegenerate": "AI reports can only be generated once per day. Do you want to regenerate?"
   },
   "compare": {
     "nav": {

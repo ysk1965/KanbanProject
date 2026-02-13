@@ -2061,7 +2061,6 @@
     "selectMember": "选择成员",
     "confirmGenerate": "AI 报告每天只能生成一次。是否要生成？",
     "confirmRegenerate": "AI 报告每天只能生成一次。是否要重新生成？",
-    "dailyLimitReached": "您已使用今天的 AI 报告生成次数",
     "hasTranscript": "录音记录",
     "meetingsLabel": "会议"
   },
