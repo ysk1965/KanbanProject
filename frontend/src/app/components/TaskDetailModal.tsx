@@ -85,6 +85,7 @@ interface TaskDetailModalProps {
   canEdit?: boolean;
   isAdminOrOwner?: boolean;
   wsCommentEvent?: BoardWebSocketEvent | null;
+  wsChecklistEvent?: BoardWebSocketEvent | null;
 }
 
 export function TaskDetailModal({
@@ -110,6 +111,7 @@ export function TaskDetailModal({
   canEdit = true,
   isAdminOrOwner = false,
   wsCommentEvent,
+  wsChecklistEvent,
 }: TaskDetailModalProps) {
   const { t } = useTranslation();
 
@@ -172,6 +174,50 @@ export function TaskDetailModal({
       setHasChanges(changed);
     }
   }, [initialTask, editedTask]);
+
+  // WebSocket 체크리스트 이벤트 처리
+  useEffect(() => {
+    if (!wsChecklistEvent || !task || !open) return;
+    const { type, data } = wsChecklistEvent;
+    const payload = data as Record<string, unknown>;
+    const taskId = payload.task_id as string;
+    if (taskId !== task.id) return;
+
+    switch (type) {
+      case 'CHECKLIST_TOGGLED':
+      case 'CHECKLIST_UPDATED': {
+        const item = payload.item as ChecklistItem;
+        setChecklistItems(prev => {
+          const newItems = prev.map(ci => ci.id === item.id ? { ...ci, ...item } : ci);
+          const completed = newItems.filter(ci => ci.completed).length;
+          onUpdate({ checklist_total: newItems.length, checklist_completed: completed, checklist_version: Date.now() });
+          return newItems;
+        });
+        break;
+      }
+      case 'CHECKLIST_CREATED': {
+        const item = payload.item as ChecklistItem;
+        setChecklistItems(prev => {
+          if (prev.some(ci => ci.id === item.id)) return prev;
+          const newItems = [...prev, item];
+          const completed = newItems.filter(ci => ci.completed).length;
+          onUpdate({ checklist_total: newItems.length, checklist_completed: completed, checklist_version: Date.now() });
+          return newItems;
+        });
+        break;
+      }
+      case 'CHECKLIST_DELETED': {
+        const deletedId = payload.id as string;
+        setChecklistItems(prev => {
+          const newItems = prev.filter(ci => ci.id !== deletedId);
+          const completed = newItems.filter(ci => ci.completed).length;
+          onUpdate({ checklist_total: newItems.length, checklist_completed: completed, checklist_version: Date.now() });
+          return newItems;
+        });
+        break;
+      }
+    }
+  }, [wsChecklistEvent, task, open, onUpdate]);
 
   // 체크리스트 드래그 앤 드롭 (hooks must be before early return)
   const checklistSensors = useSensors(

@@ -18,6 +18,8 @@ import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
+import com.kanban.global.websocket.WebSocketEventService;
+import com.kanban.global.websocket.dto.BoardEventType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -43,6 +45,7 @@ public class ScheduleService {
     private final TaskRepository taskRepository;
     private final UserRepository userRepository;
     private final BoardService boardService;
+    private final WebSocketEventService webSocketEventService;
 
     public ScheduleResponse.DailySchedule getDailySchedule(String boardId, LocalDate date, List<String> assigneeIds, String userId) {
         boardService.checkViewerOrAbove(boardId, userId);
@@ -200,7 +203,12 @@ public class ScheduleService {
 
         log.info("Schedule block created: {} by user: {}", block.getId(), userId);
 
-        return ScheduleResponse.BlockDetail.of(block);
+        User user = userRepository.findById(userId).orElse(null);
+        ScheduleResponse.BlockDetail response = ScheduleResponse.BlockDetail.of(block);
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.SCHEDULE_CREATED,
+                userId, user != null ? user.getName() : null, response);
+
+        return response;
     }
 
     @Transactional
@@ -247,7 +255,12 @@ public class ScheduleService {
 
         log.info("Schedule block created with new checklist item: {} by user: {}", block.getId(), userId);
 
-        return ScheduleResponse.BlockDetail.of(block);
+        User creator = userRepository.findById(userId).orElse(null);
+        ScheduleResponse.BlockDetail response = ScheduleResponse.BlockDetail.of(block);
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.SCHEDULE_CREATED,
+                userId, creator != null ? creator.getName() : null, response);
+
+        return response;
     }
 
     @Transactional
@@ -268,7 +281,12 @@ public class ScheduleService {
 
         log.info("Schedule block updated: {} by user: {}", blockId, userId);
 
-        return ScheduleResponse.BlockDetail.of(block);
+        User user = userRepository.findById(userId).orElse(null);
+        ScheduleResponse.BlockDetail response = ScheduleResponse.BlockDetail.of(block);
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.SCHEDULE_UPDATED,
+                userId, user != null ? user.getName() : null, response);
+
+        return response;
     }
 
     @Transactional
@@ -282,9 +300,14 @@ public class ScheduleService {
             throw new BusinessException(ErrorCode.SCHEDULE_BLOCK_NOT_FOUND);
         }
 
+        String deletedBlockId = block.getId();
         scheduleBlockRepository.delete(block);
 
         log.info("Schedule block deleted: {} by user: {}", blockId, userId);
+
+        User user = userRepository.findById(userId).orElse(null);
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.SCHEDULE_DELETED,
+                userId, user != null ? user.getName() : null, Map.of("id", deletedBlockId));
     }
 
     @Transactional
