@@ -20,6 +20,8 @@ import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
+import com.kanban.global.websocket.WebSocketEventService;
+import com.kanban.global.websocket.dto.BoardEventType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -43,6 +45,7 @@ public class ChecklistService {
     private final ActivityService activityService;
     private final NotificationService notificationService;
     private final SlackNotificationService slackNotificationService;
+    private final WebSocketEventService webSocketEventService;
 
     public ChecklistResponse.ListResponse getChecklist(String boardId, String taskId, String userId) {
         boardService.checkViewerOrAbove(boardId, userId);
@@ -113,7 +116,9 @@ public class ChecklistService {
 
         log.info("Checklist item created: {} in task: {} by user: {}", item.getId(), taskId, userId);
 
-        return ChecklistResponse.Detail.of(item);
+        ChecklistResponse.Detail response = ChecklistResponse.Detail.of(item);
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.CHECKLIST_CREATED, userId, creator.getName(), response);
+        return response;
     }
 
     @Transactional
@@ -154,7 +159,11 @@ public class ChecklistService {
 
         log.info("Checklist item updated: {} by user: {}", itemId, userId);
 
-        return ChecklistResponse.Detail.of(item);
+        ChecklistResponse.Detail response = ChecklistResponse.Detail.of(item);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.CHECKLIST_UPDATED, userId, user.getName(), response);
+        return response;
     }
 
     @Transactional
@@ -184,6 +193,10 @@ public class ChecklistService {
         checklistItemRepository.delete(item);
 
         log.info("Checklist item deleted: {} by user: {}", itemId, userId);
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.CHECKLIST_DELETED, userId, user.getName(), Map.of("id", itemId));
     }
 
     @Transactional
@@ -219,7 +232,11 @@ public class ChecklistService {
             log.warn("Failed to log checklist toggle activity for item: {}", itemId, e);
         }
 
-        return ChecklistResponse.Detail.of(item);
+        ChecklistResponse.Detail response = ChecklistResponse.Detail.of(item);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.CHECKLIST_TOGGLED, userId, user.getName(), response);
+        return response;
     }
 
     @Transactional

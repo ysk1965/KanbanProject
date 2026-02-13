@@ -1,8 +1,10 @@
 package com.kanban.domain.subscription;
 
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -56,4 +58,13 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Stri
             "GROUP BY TO_CHAR(current_period_start, 'YYYY-MM') ORDER BY m",
             nativeQuery = true)
     List<Object[]> getMonthlyConverted(@Param("startDate") LocalDateTime startDate);
+
+    // AI Credits
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT s FROM Subscription s WHERE s.board.id = :boardId")
+    Optional<Subscription> findByBoardIdForUpdate(@Param("boardId") String boardId);
+
+    @Query("SELECT s FROM Subscription s WHERE s.creditsResetDate IS NOT NULL AND s.creditsResetDate <= :now")
+    List<Subscription> findDueForCreditReset(@Param("now") LocalDateTime now);
 }

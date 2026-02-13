@@ -41,6 +41,20 @@ variable "claude_api_key" {
   default     = ""
 }
 
+variable "openai_api_key" {
+  description = "OpenAI API key for AI features"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "openai_admin_key" {
+  description = "OpenAI Admin API key for billing/usage monitoring"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
 variable "mail_username" {
   description = "Gmail SMTP username"
   type        = string

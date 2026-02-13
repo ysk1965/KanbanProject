@@ -1,7 +1,11 @@
 package com.kanban.domain.report.service;
 
+import com.kanban.domain.monitoring.entity.AiUsageLog;
+import com.kanban.domain.monitoring.repository.AiUsageLogRepository;
 import com.kanban.domain.report.ReportType;
+import com.kanban.domain.subscription.service.AiCreditService;
 import com.kanban.global.config.AIProvider;
+import com.kanban.global.config.AIResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -31,6 +35,8 @@ public class ReportAIService {
     }
 
     private final AIProvider aiProvider;
+    private final AiUsageLogRepository aiUsageLogRepository;
+    private final AiCreditService aiCreditService;
 
     @Value("${ai.provider:claude}")
     private String provider;
@@ -57,8 +63,10 @@ public class ReportAIService {
     private static final int MAX_TOKENS_PERSONAL = 2048;
     private static final int MAX_TOKENS_STANDUP = 1024;
 
-    public ReportAIService(AIProvider aiProvider) {
+    public ReportAIService(AIProvider aiProvider, AiUsageLogRepository aiUsageLogRepository, AiCreditService aiCreditService) {
         this.aiProvider = aiProvider;
+        this.aiUsageLogRepository = aiUsageLogRepository;
+        this.aiCreditService = aiCreditService;
     }
 
     private String getTeamModel() {
@@ -74,24 +82,66 @@ public class ReportAIService {
     }
 
     public String generateReport(ReportType reportType, String dataJson, String language) {
+        return generateReport(reportType, dataJson, language, null, null);
+    }
+
+    public String generateReport(ReportType reportType, String dataJson, String language, String boardId, String userId) {
+        String featureType = reportType == ReportType.TEAM ? "REPORT_TEAM" : "REPORT_PERSONAL";
+
+        // Consume AI credit before processing (only for user-initiated calls with boardId)
+        if (boardId != null && userId != null) {
+            aiCreditService.consumeCredit(boardId, userId, featureType, 1);
+        }
+
         String systemPrompt = buildSystemPrompt(reportType, language);
         String userPrompt = buildUserPrompt(reportType, dataJson, language);
         int maxTokens = reportType == ReportType.TEAM ? MAX_TOKENS_TEAM : MAX_TOKENS_PERSONAL;
         String model = reportType == ReportType.TEAM ? getTeamModel() : getPersonalModel();
 
         log.info("Generating {} report via AI provider (language: {})", reportType, language);
-        return aiProvider.chat(systemPrompt, userPrompt, model, maxTokens);
+        AIResponse aiResult = aiProvider.chatWithUsage(systemPrompt, userPrompt, model, maxTokens);
+
+        logAiUsage(featureType, model, boardId, userId, aiResult);
+        return aiResult.content();
     }
 
     public String generateStandupSummary(String dataJson, String language) {
+        return generateStandupSummary(dataJson, language, null, null);
+    }
+
+    public String generateStandupSummary(String dataJson, String language, String boardId, String userId) {
+        // Consume AI credit before processing (only for user-initiated calls with boardId)
+        if (boardId != null && userId != null) {
+            aiCreditService.consumeCredit(boardId, userId, "STANDUP", 1);
+        }
+
         String lang = language != null ? language : "ko";
         String systemPrompt = buildStandupSystemPrompt(lang);
         String userPrompt = "ko".equals(lang)
                 ? "다음 데이터를 기반으로 데일리 스탠드업 요약을 작성해 주세요.\n\n" + dataJson
                 : "Generate a daily standup summary from the following data:\n\n" + dataJson;
 
+        String model = getStandupModel();
         log.info("Generating standup summary via AI provider (language: {})", lang);
-        return aiProvider.chat(systemPrompt, userPrompt, getStandupModel(), MAX_TOKENS_STANDUP);
+        AIResponse aiResult = aiProvider.chatWithUsage(systemPrompt, userPrompt, model, MAX_TOKENS_STANDUP);
+
+        logAiUsage("STANDUP", model, boardId, userId, aiResult);
+        return aiResult.content();
+    }
+
+    private void logAiUsage(String featureType, String model, String boardId, String userId, AIResponse aiResult) {
+        try {
+            aiUsageLogRepository.save(AiUsageLog.builder()
+                    .boardId(boardId).userId(userId)
+                    .featureType(featureType).provider(provider.toUpperCase())
+                    .model(model)
+                    .inputTokens(aiResult.inputTokens())
+                    .outputTokens(aiResult.outputTokens())
+                    .estimatedCostUsd(AiUsageLog.calculateCost(model, aiResult.inputTokens(), aiResult.outputTokens()))
+                    .build());
+        } catch (Exception e) {
+            log.debug("Failed to save AI usage log: {}", e.getMessage());
+        }
     }
 
     private String buildSystemPrompt(ReportType reportType, String language) {

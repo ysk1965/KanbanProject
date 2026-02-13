@@ -174,7 +174,11 @@ public enum ErrorCode {
     AI_REPORT_NOT_FOUND(HttpStatus.NOT_FOUND, "AR001", "보고서를 찾을 수 없습니다"),
     AI_REPORT_GENERATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "AR002", "AI 보고서 생성에 실패했습니다"),
     AI_SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "AR003", "AI 서비스가 일시적으로 이용 불가합니다"),
-    AI_REPORT_DAILY_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "AR004", "일일 AI 보고서 생성 횟수를 초과했습니다 (1일 1회)");
+
+    // AI Credits
+    AI_CREDITS_EXHAUSTED(HttpStatus.PAYMENT_REQUIRED, "AC001", "AI 크레딧이 소진되었습니다. 추가 크레딧을 구매해주세요"),
+    AI_CREDIT_PURCHASE_AMOUNT_INVALID(HttpStatus.BAD_REQUEST, "AC002", "유효하지 않은 크레딧 구매 금액입니다"),
+    AI_CREDIT_PURCHASE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "AC003", "크레딧 구매 처리 중 오류가 발생했습니다");
 
     private final HttpStatus status;
     private final String code;

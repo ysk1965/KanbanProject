@@ -172,8 +172,8 @@
         "tagline": "Infinite Collaboration. Zero Cost.",
         "feature1": "Unlimited kanban boards & tasks",
         "feature2": "Daily schedule & checklists",
-        "feature3": "Real-time data sync & team sharing",
-        "feature4": "Slack integration & real-time alerts",
+        "feature3": "Team sharing & collaboration (manual refresh)",
+        "feature4": "Basic notifications",
         "cta": "START FREE"
       },
       "premium": {
@@ -185,6 +185,7 @@
         "feature3": "Intelligent PM dashboard & resource analysis",
         "feature4": "Advanced team permission orchestration",
         "feature5": "AI sprint report & insights",
+        "feature6": "Real-time board sync (instant updates without refresh)",
         "cta": "START TRIAL"
       }
     },
@@ -1189,9 +1190,11 @@
     "noMilestone": "No milestones",
     "editMilestone": "Edit milestone",
     "viewKanban": "Kanban",
+    "viewScheduleTab": "Schedule",
     "viewSchedule": "Daily Schedule",
     "viewGantt": "Gantt Chart",
     "viewNotes": "Notes",
+    "viewAIAnalysisTab": "AI Analysis",
     "viewStatistics": "Milestones",
     "viewAIReport": "AI Report",
     "inquiry": "Contact Us",
@@ -1218,7 +1221,8 @@
     "roleChangeFailed": "Failed to change role.",
     "cannotRemoveSelf": "You cannot remove yourself.",
     "removeMemberFailed": "Failed to remove member.",
-    "checklist": "Checklist"
+    "checklist": "Checklist",
+    "viewMeeting": "Meeting"
   },
   "announcements": {
     "title": "Announcements",
@@ -1971,6 +1975,61 @@
       "startDate": "Start Date",
       "endDate": "End Date",
       "saving": "Saving..."
+    },
+    "monitoring": {
+      "title": "Monitoring",
+      "subtitle": "System health and performance monitoring",
+      "loadFailed": "Failed to load monitoring data",
+      "autoRefresh": "Auto Refresh",
+      "refresh": "Refresh",
+      "jvmHeap": "JVM Heap",
+      "hikariConnections": "DB Connections",
+      "apiErrorRate": "API Error Rate",
+      "totalRequests": "Total Requests",
+      "active": "Active",
+      "idle": "Idle",
+      "pending": "Pending",
+      "max": "Max",
+      "apiResponseTop10": "API Response Time Top 10",
+      "apiTrend": "API Trend (Hourly)",
+      "responseTime": "Response Time",
+      "errorRate": "Error Rate",
+      "cloudWatch": "CloudWatch",
+      "cloudWatchNotConnected": "CloudWatch is not connected",
+      "cloudWatchNotConnectedDesc": "Enable CloudWatch on the server to view infrastructure metrics",
+      "ec2Cpu": "EC2 CPU",
+      "rdsCpu": "RDS CPU",
+      "rdsConnections": "RDS Connections",
+      "rdsIops": "RDS IOPS",
+      "readIops": "Read",
+      "writeIops": "Write",
+      "slackAlerts": "Slack Alert Settings",
+      "webhookUrl": "Webhook URL",
+      "webhookUrlPlaceholder": "https://hooks.slack.com/services/...",
+      "alertEnabled": "Enable Alerts",
+      "saveConfig": "Save Config",
+      "testAlert": "Test Alert",
+      "configSaved": "Configuration saved",
+      "testSent": "Test alert sent",
+      "noData": "No data",
+      "serverTime": "Server Time",
+      "aiTotalCalls": "AI Calls",
+      "aiTotalTokens": "AI Token Usage",
+      "aiEstimatedCost": "Estimated Cost",
+      "aiAvgTokensPerCall": "Avg Tokens/Call",
+      "last30Days": "Last 30 days",
+      "tokensPerCall": "tokens / call",
+      "aiUsageByBoard": "AI Usage by Board",
+      "aiUsageByFeature": "AI Usage by Feature",
+      "openAIBilling": "OpenAI Account Usage",
+      "openAITotalCost": "Monthly Cost",
+      "openAITotalRequests": "Total Requests",
+      "openAITotalTokens": "Total Token Usage",
+      "openAINotConnected": "OpenAI Admin Key Not Connected",
+      "openAINotConnectedDesc": "Set OPENAI_ADMIN_KEY environment variable to view account usage",
+      "openAIDailyCost": "Daily Cost Trend",
+      "openAIModelUsage": "Usage by Model",
+      "openAICost": "Cost"
     }
   },
   "aiReport": {
@@ -2215,7 +2274,22 @@
     "transcriptFileTooLarge": "Recording exceeds 100MB. Please record a shorter clip.",
     "transcriptionError": "Transcription failed. Please try again.",
     "saveToNote": "Save to Note",
-    "saveToNoteSuccess": "Saved to notes successfully"
+    "saveToNoteSuccess": "Saved to notes successfully",
+    "recurrence": "Recurrence",
+    "noRecurrence": "No recurrence",
+    "recurrenceWeekly": "Weekly",
+    "recurrenceBiweekly": "Biweekly",
+    "recurrenceMonthly": "Monthly",
+    "recurrenceEndDate": "Recurrence end date",
+    "recurrenceEndDateHint": "Leave blank to repeat indefinitely",
+    "recurring": "Recurring",
+    "deleteRecurringTitle": "Delete recurring meeting",
+    "deleteRecurringMessage": "This is a recurring meeting. How would you like to delete it?",
+    "deleteThisOnly": "Delete this meeting only",
+    "deleteThisAndFuture": "Delete this and future meetings",
+    "editRecurringTitle": "Edit recurring meeting",
+    "editThisOnly": "Edit this meeting only",
+    "editThisAndFuture": "Edit this and future meetings"
   },
   "payment": {
     "processing": "Processing payment...",
@@ -2283,5 +2357,41 @@
     "aiRecommendedTasks": "Recommended Tasks",
     "aiClose": "Collapse",
     "aiExpand": "Expand"
+  },
+  "ai_credits": {
+    "title": "AI Credits",
+    "remaining": "Remaining Credits",
+    "monthly": "Monthly Credits",
+    "purchased": "Purchased Credits",
+    "used": "Used",
+    "total_available": "Available",
+    "reset_date": "Reset Date",
+    "warning_low": "{{count}} AI credits remaining",
+    "warning_critical": "AI credits almost exhausted ({{count}} remaining)",
+    "warning_exhausted": "AI credits exhausted",
+    "purchase": {
+      "title": "Purchase AI Credits",
+      "description": "Purchase additional AI credits to continue using AI features",
+      "unit_price": "₩1,000 per credit",
+      "quantity": "Quantity",
+      "quantity_unit": "credits",
+      "total_price": "Total Price",
+      "buy_button": "Purchase",
+      "success": "{{count}} AI credits added",
+      "failed": "Purchase failed. Please try again"
+    },
+    "exhausted_modal": {
+      "title": "AI Credits Exhausted",
+      "description": "All AI credits have been used.\nPurchase additional credits to continue using AI features.",
+      "buy_button": "Purchase Credits",
+      "later_button": "Later"
+    },
+    "admin": {
+      "title": "AI Credit Status",
+      "monthly_allocation": "Monthly Allocation",
+      "monthly_usage": "Monthly Usage",
+      "purchased_remaining": "Purchased Remaining",
+      "total_remaining": "Total Remaining"
+    }
   }
 }

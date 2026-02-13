@@ -109,8 +109,10 @@ module "elastic_beanstalk" {
   redis_host     = ""      # No Redis - using Simple Cache
   redis_port     = ""
   jwt_secret     = var.jwt_secret
-  claude_api_key  = var.claude_api_key
-  mail_username   = var.mail_username
+  claude_api_key   = var.claude_api_key
+  openai_api_key   = var.openai_api_key
+  openai_admin_key = var.openai_admin_key
+  mail_username    = var.mail_username
   mail_password   = var.mail_password
   google_client_id = var.google_client_id
   frontend_url   = var.domain_name != "" ? "https://${var.domain_name}" : module.s3_cloudfront.cloudfront_url

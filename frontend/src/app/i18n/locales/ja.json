@@ -172,8 +172,8 @@
         "tagline": "無限のコラボレーション。ゼロコスト。",
         "feature1": "無制限の Kanban ボード & Task",
         "feature2": "デイリースケジュール & チェックリスト",
-        "feature3": "リアルタイムデータ同期 & チーム共有",
-        "feature4": "Slack 連携 & リアルタイムアラート",
+        "feature3": "チーム共有 & コラボレーション（手動更新）",
+        "feature4": "基本通知",
         "cta": "無料で始める"
       },
       "premium": {
@@ -185,6 +185,7 @@
         "feature3": "インテリジェントPM ダッシュボード & リソース分析",
         "feature4": "高度なチーム権限オーケストレーション",
         "feature5": "AI スプリントレポート & インサイト",
+        "feature6": "リアルタイムボード同期（更新なしで即時反映）",
         "cta": "トライアル開始"
       }
     },
@@ -1175,8 +1176,10 @@
     "noMilestone": "マイルストーンなし",
     "editMilestone": "マイルストーンを編集",
     "viewKanban": "Kanban",
+    "viewScheduleTab": "スケジュール",
     "viewSchedule": "デイリースケジュール",
     "viewGantt": "Gantt チャート",
+    "viewAIAnalysisTab": "AI分析",
     "viewStatistics": "マイルストーン",
     "viewAIReport": "AI レポート",
     "inquiry": "お問い合わせ",
@@ -1204,7 +1207,8 @@
     "cannotRemoveSelf": "自分自身を削除することはできません。",
     "removeMemberFailed": "メンバーの削除に失敗しました。",
     "checklist": "チェックリスト",
-    "viewNotes": "ノート"
+    "viewNotes": "ノート",
+    "viewMeeting": "会議"
   },
   "admin": {
     "backToBoards": "ボードに戻る",
@@ -1482,6 +1486,61 @@
       "startDate": "開始日",
       "endDate": "終了日",
       "saving": "保存中..."
+    },
+    "monitoring": {
+      "title": "モニタリング",
+      "subtitle": "システムの健全性とパフォーマンスの監視",
+      "loadFailed": "モニタリングデータの読み込みに失敗しました",
+      "autoRefresh": "自動更新",
+      "refresh": "更新",
+      "jvmHeap": "JVM Heap",
+      "hikariConnections": "DB接続",
+      "apiErrorRate": "APIエラー率",
+      "totalRequests": "総リクエスト数",
+      "active": "アクティブ",
+      "idle": "アイドル",
+      "pending": "保留中",
+      "max": "最大",
+      "apiResponseTop10": "API応答時間トップ10",
+      "apiTrend": "APIトレンド（時間別）",
+      "responseTime": "応答時間",
+      "errorRate": "エラー率",
+      "cloudWatch": "CloudWatch",
+      "cloudWatchNotConnected": "CloudWatchが接続されていません",
+      "cloudWatchNotConnectedDesc": "サーバーでCloudWatchを有効にすると、インフラメトリクスを確認できます",
+      "ec2Cpu": "EC2 CPU",
+      "rdsCpu": "RDS CPU",
+      "rdsConnections": "RDS接続",
+      "rdsIops": "RDS IOPS",
+      "readIops": "読み取り",
+      "writeIops": "書き込み",
+      "slackAlerts": "Slackアラート設定",
+      "webhookUrl": "Webhook URL",
+      "webhookUrlPlaceholder": "https://hooks.slack.com/services/...",
+      "alertEnabled": "アラートを有効にする",
+      "saveConfig": "設定を保存",
+      "testAlert": "テストアラート",
+      "configSaved": "設定が保存されました",
+      "testSent": "テストアラートを送信しました",
+      "noData": "データなし",
+      "serverTime": "サーバー時刻",
+      "aiTotalCalls": "AI呼び出し数",
+      "aiTotalTokens": "AIトークン使用量",
+      "aiEstimatedCost": "推定コスト",
+      "aiAvgTokensPerCall": "呼び出し平均トークン",
+      "last30Days": "過去30日間",
+      "tokensPerCall": "tokens / call",
+      "aiUsageByBoard": "ボード別AI使用量",
+      "aiUsageByFeature": "機能別AI使用量",
+      "openAIBilling": "OpenAI アカウント使用量",
+      "openAITotalCost": "月間コスト",
+      "openAITotalRequests": "総リクエスト数",
+      "openAITotalTokens": "総トークン使用量",
+      "openAINotConnected": "OpenAI Admin Key 未接続",
+      "openAINotConnectedDesc": "OPENAI_ADMIN_KEY 環境変数を設定するとアカウント使用量を確認できます",
+      "openAIDailyCost": "日別コスト推移",
+      "openAIModelUsage": "モデル別使用量",
+      "openAICost": "コスト"
     }
   },
   "announcements": {
@@ -2201,7 +2260,22 @@
     "aiRecommendedTasks": "推奨タスク",
     "aiSummaryTitle": "会議サマリー",
     "saveToNote": "ノートに保存",
-    "saveToNoteSuccess": "ノートに保存しました"
+    "saveToNoteSuccess": "ノートに保存しました",
+    "recurrence": "繰り返し",
+    "noRecurrence": "繰り返さない",
+    "recurrenceWeekly": "毎週",
+    "recurrenceBiweekly": "隔週",
+    "recurrenceMonthly": "毎月",
+    "recurrenceEndDate": "繰り返し終了日",
+    "recurrenceEndDateHint": "空欄の場合は無期限に繰り返します",
+    "recurring": "繰り返し",
+    "deleteRecurringTitle": "繰り返し会議の削除",
+    "deleteRecurringMessage": "これは繰り返し会議です。どのように削除しますか？",
+    "deleteThisOnly": "この会議のみ削除",
+    "deleteThisAndFuture": "この会議と今後の会議を削除",
+    "editRecurringTitle": "繰り返し会議の編集",
+    "editThisOnly": "この会議のみ編集",
+    "editThisAndFuture": "この会議と今後の会議を編集"
   },
   "notes": {
     "addTag": "タグを追加",
@@ -2282,5 +2356,41 @@
     "subtitle": "メンバーを招待するにはシートが必要です",
     "title": "追加シートの購入",
     "year": "年"
+  },
+  "ai_credits": {
+    "title": "AIクレジット",
+    "remaining": "残りクレジット",
+    "monthly": "月間クレジット",
+    "purchased": "追加購入クレジット",
+    "used": "使用量",
+    "total_available": "利用可能",
+    "reset_date": "リセット予定日",
+    "warning_low": "AIクレジットが残り{{count}}個です",
+    "warning_critical": "AIクレジットがほぼ消費されました（残り{{count}}個）",
+    "warning_exhausted": "AIクレジットが全て消費されました",
+    "purchase": {
+      "title": "AIクレジット購入",
+      "description": "追加のAIクレジットを購入してAI機能を引き続き使用できます",
+      "unit_price": "クレジットあたり₩1,000",
+      "quantity": "購入数量",
+      "quantity_unit": "クレジット",
+      "total_price": "支払い金額",
+      "buy_button": "購入する",
+      "success": "AIクレジット{{count}}個が追加されました",
+      "failed": "購入に失敗しました。もう一度お試しください"
+    },
+    "exhausted_modal": {
+      "title": "AIクレジット消費",
+      "description": "AIクレジットが全て使用されました。\n追加クレジットを購入するとAI機能を継続して使用できます。",
+      "buy_button": "クレジット購入",
+      "later_button": "後で"
+    },
+    "admin": {
+      "title": "AIクレジット状況",
+      "monthly_allocation": "月間割当",
+      "monthly_usage": "月間使用",
+      "purchased_remaining": "追加購入残り",
+      "total_remaining": "総残り"
+    }
   }
 }

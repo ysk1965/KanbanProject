@@ -23,6 +23,8 @@ import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import com.kanban.global.service.FileUploadService;
+import com.kanban.global.websocket.WebSocketEventService;
+import com.kanban.global.websocket.dto.BoardEventType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -50,6 +52,7 @@ public class CommentService {
     private final SlackNotificationService slackNotificationService;
     private final FileUploadService fileUploadService;
     private final ChecklistItemRepository checklistItemRepository;
+    private final WebSocketEventService webSocketEventService;
 
     private static final int MAX_ATTACHMENTS = 5;
 
@@ -186,7 +189,10 @@ public class CommentService {
 
         log.info("Comment created: {} on task: {} by user: {} with {} attachments",
                 comment.getId(), taskId, userId, comment.getAttachments().size());
-        return CommentResponse.Detail.of(comment);
+
+        CommentResponse.Detail response = CommentResponse.Detail.of(comment);
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.COMMENT_CREATED, userId, user.getName(), response);
+        return response;
     }
 
     /**
@@ -237,7 +243,12 @@ public class CommentService {
 
         log.info("Comment updated: {} by user: {} (attachments: {})",
                 commentId, userId, comment.getAttachments().size());
-        return CommentResponse.Detail.of(comment);
+
+        CommentResponse.Detail response = CommentResponse.Detail.of(comment);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.COMMENT_UPDATED, userId, user.getName(), response);
+        return response;
     }
 
     /**
@@ -261,6 +272,10 @@ public class CommentService {
 
         commentRepository.delete(comment);
         log.info("Comment deleted: {} by user: {}", commentId, userId);
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.COMMENT_DELETED, userId, user.getName(), Map.of("id", commentId, "task_id", comment.getTask().getId()));
     }
 
     /**
@@ -334,9 +349,12 @@ public class CommentService {
         // 업데이트된 리액션 목록 반환
         Map<String, String> customEmojiUrlMap = buildCustomEmojiUrlMap(boardId);
         List<CommentResponse.ReactionInfo> reactionList = buildReactionInfoList(comment.getReactions(), customEmojiUrlMap);
-        return CommentResponse.ReactionsResponse.builder()
+        CommentResponse.ReactionsResponse response = CommentResponse.ReactionsResponse.builder()
                 .reactions(reactionList)
                 .build();
+
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.COMMENT_REACTION_TOGGLED, userId, user.getName(), response);
+        return response;
     }
 
     private Map<String, String> buildCustomEmojiUrlMap(String boardId) {

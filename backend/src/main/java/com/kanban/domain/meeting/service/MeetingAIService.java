@@ -24,7 +24,11 @@ import com.kanban.domain.task.Task;
 import com.kanban.domain.task.TaskRepository;
 import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
+import com.kanban.domain.monitoring.entity.AiUsageLog;
+import com.kanban.domain.monitoring.repository.AiUsageLogRepository;
+import com.kanban.domain.subscription.service.AiCreditService;
 import com.kanban.global.config.AIProvider;
+import com.kanban.global.config.AIResponse;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -53,6 +57,8 @@ public class MeetingAIService {
     private final UserRepository userRepository;
     private final BoardService boardService;
     private final ActivityService activityService;
+    private final AiUsageLogRepository aiUsageLogRepository;
+    private final AiCreditService aiCreditService;
 
     @Value("${ai.provider:claude}")
     private String provider;
@@ -71,6 +77,9 @@ public class MeetingAIService {
 
     @Transactional
     public MeetingAIResponse.Suggestions generateSuggestions(String boardId, String meetingId, String userId, String language) {
+        // Consume AI credit before processing
+        aiCreditService.consumeCredit(boardId, userId, "MEETING_AI", 1);
+
         boardService.checkMemberOrAbove(boardId, userId);
 
         Meeting meeting = meetingRepository.findById(meetingId)
@@ -109,9 +118,23 @@ public class MeetingAIService {
         String userPrompt = buildUserPrompt(meeting.getTitle(), combinedContent, boardContext);
 
         log.info("Generating AI suggestions for meeting: {} in board: {}", meetingId, boardId);
-        String aiResponse = aiProvider.chat(systemPrompt, userPrompt, getMeetingModel(), MAX_TOKENS_MEETING);
+        String model = getMeetingModel();
+        AIResponse aiResult = aiProvider.chatWithUsage(systemPrompt, userPrompt, model, MAX_TOKENS_MEETING);
 
-        MeetingAIResponse.Suggestions suggestions = parseAIResponse(aiResponse, meetingId, meeting.getTitle());
+        try {
+            aiUsageLogRepository.save(AiUsageLog.builder()
+                    .boardId(boardId).userId(userId)
+                    .featureType("MEETING").provider(provider.toUpperCase())
+                    .model(model)
+                    .inputTokens(aiResult.inputTokens())
+                    .outputTokens(aiResult.outputTokens())
+                    .estimatedCostUsd(AiUsageLog.calculateCost(model, aiResult.inputTokens(), aiResult.outputTokens()))
+                    .build());
+        } catch (Exception e) {
+            log.debug("Failed to save AI usage log: {}", e.getMessage());
+        }
+
+        MeetingAIResponse.Suggestions suggestions = parseAIResponse(aiResult.content(), meetingId, meeting.getTitle());
 
         // Save AI suggestions to meeting for persistence
         try {

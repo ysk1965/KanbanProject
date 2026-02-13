@@ -68,10 +68,6 @@ public class ReportService {
         Board board = boardRepository.findById(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
-        if (!board.isPremium()) {
-            throw new BusinessException(ErrorCode.PREMIUM_FEATURE_REQUIRED);
-        }
-
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
@@ -101,14 +97,11 @@ public class ReportService {
             return ReportResponse.Detail.from(existing.get());
         }
 
-        // Check daily AI call limit (1 per day per user per board)
-        checkDailyLimit(boardId, userId);
-
         // Gather data and generate
         String dataJson = gatherData(boardId, targetId, reportType,
                 request.getPeriodStart(), request.getPeriodEnd(), board.getName());
 
-        String content = reportAIService.generateReport(reportType, dataJson, request.getLanguage());
+        String content = reportAIService.generateReport(reportType, dataJson, request.getLanguage(), boardId, userId);
 
         WeeklyReport report = WeeklyReport.builder()
                 .board(board)
@@ -195,10 +188,6 @@ public class ReportService {
         Board board = boardRepository.findById(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
-        if (!board.isPremium()) {
-            throw new BusinessException(ErrorCode.PREMIUM_FEATURE_REQUIRED);
-        }
-
         WeeklyReport report = reportRepository.findById(reportId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.AI_REPORT_NOT_FOUND));
 
@@ -215,9 +204,6 @@ public class ReportService {
             boardService.checkMemberOrAbove(boardId, userId);
         }
 
-        // Check daily AI call limit (1 per day per user per board)
-        checkDailyLimit(boardId, userId);
-
         String dataUserId = report.getTargetUserId() != null ? report.getTargetUserId() : userId;
         String dataJson = gatherData(boardId, dataUserId, reportType,
                 report.getPeriodStart(), report.getPeriodEnd(), board.getName());
@@ -231,19 +217,11 @@ public class ReportService {
         User regenerator = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        String content = reportAIService.generateReport(reportType, dataJson, language);
+        String content = reportAIService.generateReport(reportType, dataJson, language, boardId, userId);
         report.updateContent(content, dataJson, regenerator);
 
         log.info("Regenerated {} report {} for board: {} by: {} (language: {})", reportType, reportId, boardId, userId, language);
         return ReportResponse.Detail.from(report);
-    }
-
-    private void checkDailyLimit(String boardId, String userId) {
-        LocalDateTime todayStart = LocalDate.now(ZoneOffset.UTC).atStartOfDay();
-        long count = reportRepository.countAiCallsSince(boardId, userId, todayStart);
-        if (count >= 1) {
-            throw new BusinessException(ErrorCode.AI_REPORT_DAILY_LIMIT_EXCEEDED);
-        }
     }
 
     private Optional<WeeklyReport> findExistingReport(String boardId, String userId,

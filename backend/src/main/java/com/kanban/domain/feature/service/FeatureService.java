@@ -29,6 +29,8 @@ import com.kanban.domain.weight.TaskWeightRepository;
 import com.kanban.global.service.FileUploadService;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
+import com.kanban.global.websocket.WebSocketEventService;
+import com.kanban.global.websocket.dto.BoardEventType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
@@ -65,6 +67,7 @@ public class FeatureService {
     private final NotificationRepository notificationRepository;
     private final FileUploadService fileUploadService;
     private final ActivityService activityService;
+    private final WebSocketEventService webSocketEventService;
 
     @Cacheable(value = "features", key = "#boardId", condition = "#milestoneId == null", unless = "#result == null")
     public FeatureResponse.ListResponse getFeatures(String boardId, String userId, String milestoneId) {
@@ -144,7 +147,9 @@ public class FeatureService {
 
         log.info("Feature created: {} in board: {} by user: {}", feature.getId(), boardId, userId);
 
-        return FeatureResponse.Detail.of(feature, List.of());
+        FeatureResponse.Detail response = FeatureResponse.Detail.of(feature, List.of());
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.FEATURE_CREATED, userId, creator.getName(), response);
+        return response;
     }
 
     @Transactional
@@ -183,7 +188,9 @@ public class FeatureService {
 
         log.info("Feature updated: {} by user: {}", featureId, userId);
 
-        return FeatureResponse.Detail.of(feature, tags);
+        FeatureResponse.Detail response = FeatureResponse.Detail.of(feature, tags);
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.FEATURE_UPDATED, userId, updater.getName(), response);
+        return response;
     }
 
     @Transactional
@@ -256,6 +263,8 @@ public class FeatureService {
         }
 
         log.info("Feature deleted: {} by user: {}", featureId, userId);
+
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.FEATURE_DELETED, userId, deleter.getName(), Map.of("id", featureId));
     }
 
     @Transactional
@@ -289,10 +298,15 @@ public class FeatureService {
 
         Map<String, List<Tag>> featureTagsMap = getFeatureTagsMap(allFeatures);
         // Fetch Join으로 N+1 방지
-        return FeatureResponse.ListResponse.of(
+        FeatureResponse.ListResponse response = FeatureResponse.ListResponse.of(
                 featureRepository.findByBoardIdWithFetch(boardId),
                 featureTagsMap
         );
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.FEATURES_REORDERED, userId, user.getName(), response);
+        return response;
     }
 
     private Map<String, List<Tag>> getFeatureTagsMap(List<Feature> features) {

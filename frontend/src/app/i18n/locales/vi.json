@@ -172,8 +172,8 @@
         "tagline": "Cong tac vo han. Chi phi bang khong.",
         "feature1": "Bang kanban & nhiem vu khong gioi han",
         "feature2": "Lich trinh hang ngay & danh sach cong viec",
-        "feature3": "Dong bo du lieu thoi gian thuc & chia se doi nhom",
-        "feature4": "Tich hop Slack & canh bao thoi gian thuc",
+        "feature3": "Chia se nhom & cong tac (lam moi thu cong)",
+        "feature4": "Thong bao co ban",
         "cta": "START FREE"
       },
       "premium": {
@@ -185,6 +185,7 @@
         "feature3": "Bang dieu khien PM thong minh & phan tich tai nguyen",
         "feature4": "Dieu phoi quyen nhom nang cao",
         "feature5": "Bao cao sprint AI & thong tin chi tiet",
+        "feature6": "Dong bo bang thoi gian thuc (cap nhat tuc thi khong can lam moi)",
         "cta": "START TRIAL"
       }
     },
@@ -1175,8 +1176,10 @@
     "noMilestone": "Khong co milestone",
     "editMilestone": "Chinh sua milestone",
     "viewKanban": "Kanban",
+    "viewScheduleTab": "Lịch trình",
     "viewSchedule": "Lich trinh hang ngay",
     "viewGantt": "Bieu do Gantt",
+    "viewAIAnalysisTab": "Phân tích AI",
     "viewStatistics": "Milestone",
     "viewAIReport": "Bao cao AI",
     "inquiry": "Lien he",
@@ -1204,7 +1207,8 @@
     "cannotRemoveSelf": "Ban khong the xoa chinh minh.",
     "removeMemberFailed": "Khong the xoa thanh vien.",
     "checklist": "Danh sach kiem tra",
-    "viewNotes": "Ghi chú"
+    "viewNotes": "Ghi chú",
+    "viewMeeting": "Cuộc họp"
   },
   "admin": {
     "backToBoards": "Quay lại bảng",
@@ -1482,6 +1486,61 @@
       "startDate": "Ngay bat dau",
       "endDate": "Ngay ket thuc",
       "saving": "Dang luu..."
+    },
+    "monitoring": {
+      "title": "Giám sát",
+      "subtitle": "Giám sát sức khỏe hệ thống và hiệu suất",
+      "loadFailed": "Không thể tải dữ liệu giám sát",
+      "autoRefresh": "Tự động làm mới",
+      "refresh": "Làm mới",
+      "jvmHeap": "JVM Heap",
+      "hikariConnections": "Kết nối DB",
+      "apiErrorRate": "Tỷ lệ lỗi API",
+      "totalRequests": "Tổng số yêu cầu",
+      "active": "Hoạt động",
+      "idle": "Nhàn rỗi",
+      "pending": "Đang chờ",
+      "max": "Tối đa",
+      "apiResponseTop10": "Thời gian phản hồi API Top 10",
+      "apiTrend": "Xu hướng API (Theo giờ)",
+      "responseTime": "Thời gian phản hồi",
+      "errorRate": "Tỷ lệ lỗi",
+      "cloudWatch": "CloudWatch",
+      "cloudWatchNotConnected": "CloudWatch chưa được kết nối",
+      "cloudWatchNotConnectedDesc": "Kích hoạt CloudWatch trên máy chủ để xem số liệu cơ sở hạ tầng",
+      "ec2Cpu": "EC2 CPU",
+      "rdsCpu": "RDS CPU",
+      "rdsConnections": "Kết nối RDS",
+      "rdsIops": "RDS IOPS",
+      "readIops": "Đọc",
+      "writeIops": "Ghi",
+      "slackAlerts": "Cài đặt cảnh báo Slack",
+      "webhookUrl": "Webhook URL",
+      "webhookUrlPlaceholder": "https://hooks.slack.com/services/...",
+      "alertEnabled": "Bật cảnh báo",
+      "saveConfig": "Lưu cấu hình",
+      "testAlert": "Cảnh báo thử nghiệm",
+      "configSaved": "Cấu hình đã được lưu",
+      "testSent": "Cảnh báo thử nghiệm đã được gửi",
+      "noData": "Không có dữ liệu",
+      "serverTime": "Thời gian máy chủ",
+      "aiTotalCalls": "Số lần gọi AI",
+      "aiTotalTokens": "Lượng token AI",
+      "aiEstimatedCost": "Chi phí ước tính",
+      "aiAvgTokensPerCall": "Token trung bình/lần gọi",
+      "last30Days": "30 ngày gần đây",
+      "tokensPerCall": "tokens / call",
+      "aiUsageByBoard": "Sử dụng AI theo bảng",
+      "aiUsageByFeature": "Sử dụng AI theo tính năng",
+      "openAIBilling": "Sử dụng tài khoản OpenAI",
+      "openAITotalCost": "Chi phí hàng tháng",
+      "openAITotalRequests": "Tổng yêu cầu",
+      "openAITotalTokens": "Tổng token sử dụng",
+      "openAINotConnected": "OpenAI Admin Key chưa kết nối",
+      "openAINotConnectedDesc": "Đặt biến môi trường OPENAI_ADMIN_KEY để xem sử dụng tài khoản",
+      "openAIDailyCost": "Xu hướng chi phí hàng ngày",
+      "openAIModelUsage": "Sử dụng theo mô hình",
+      "openAICost": "Chi phí"
     }
   },
   "announcements": {
@@ -2201,7 +2260,22 @@
     "aiRecommendedTasks": "Nhiệm vụ đề xuất",
     "aiSummaryTitle": "Tóm tắt cuộc họp",
     "saveToNote": "Lưu vào ghi chú",
-    "saveToNoteSuccess": "Đã lưu vào ghi chú"
+    "saveToNoteSuccess": "Đã lưu vào ghi chú",
+    "recurrence": "Lặp lại",
+    "noRecurrence": "Không lặp lại",
+    "recurrenceWeekly": "Hàng tuần",
+    "recurrenceBiweekly": "Hai tuần một lần",
+    "recurrenceMonthly": "Hàng tháng",
+    "recurrenceEndDate": "Ngày kết thúc lặp lại",
+    "recurrenceEndDateHint": "Để trống để lặp lại vô thời hạn",
+    "recurring": "Lặp lại",
+    "deleteRecurringTitle": "Xóa cuộc họp lặp lại",
+    "deleteRecurringMessage": "Đây là cuộc họp lặp lại. Bạn muốn xóa như thế nào?",
+    "deleteThisOnly": "Chỉ xóa cuộc họp này",
+    "deleteThisAndFuture": "Xóa cuộc họp này và các cuộc họp sau",
+    "editRecurringTitle": "Chỉnh sửa cuộc họp lặp lại",
+    "editThisOnly": "Chỉ chỉnh sửa cuộc họp này",
+    "editThisAndFuture": "Chỉnh sửa cuộc họp này và các cuộc họp sau"
   },
   "notes": {
     "addTag": "Thêm thẻ",
@@ -2282,5 +2356,41 @@
     "subtitle": "Cần có chỗ để mời thành viên",
     "title": "Mua thêm chỗ",
     "year": "năm"
+  },
+  "ai_credits": {
+    "title": "Tín chỉ AI",
+    "remaining": "Tín chỉ còn lại",
+    "monthly": "Tín chỉ hàng tháng",
+    "purchased": "Tín chỉ mua thêm",
+    "used": "Đã sử dụng",
+    "total_available": "Có thể sử dụng",
+    "reset_date": "Ngày đặt lại",
+    "warning_low": "Còn {{count}} tín chỉ AI",
+    "warning_critical": "Tín chỉ AI sắp hết (còn {{count}})",
+    "warning_exhausted": "Tín chỉ AI đã hết",
+    "purchase": {
+      "title": "Mua tín chỉ AI",
+      "description": "Mua thêm tín chỉ AI để tiếp tục sử dụng các tính năng AI",
+      "unit_price": "₩1,000 mỗi tín chỉ",
+      "quantity": "Số lượng",
+      "quantity_unit": "tín chỉ",
+      "total_price": "Tổng thanh toán",
+      "buy_button": "Mua",
+      "success": "Đã thêm {{count}} tín chỉ AI",
+      "failed": "Mua thất bại. Vui lòng thử lại"
+    },
+    "exhausted_modal": {
+      "title": "Tín chỉ AI đã hết",
+      "description": "Tín chỉ AI đã được sử dụng hết.\nMua thêm tín chỉ để tiếp tục sử dụng các tính năng AI.",
+      "buy_button": "Mua tín chỉ",
+      "later_button": "Để sau"
+    },
+    "admin": {
+      "title": "Trạng thái tín chỉ AI",
+      "monthly_allocation": "Phân bổ hàng tháng",
+      "monthly_usage": "Sử dụng hàng tháng",
+      "purchased_remaining": "Mua thêm còn lại",
+      "total_remaining": "Tổng còn lại"
+    }
   }
 }

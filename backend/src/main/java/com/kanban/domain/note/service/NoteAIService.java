@@ -24,7 +24,11 @@ import com.kanban.domain.task.Task;
 import com.kanban.domain.task.TaskRepository;
 import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
+import com.kanban.domain.monitoring.entity.AiUsageLog;
+import com.kanban.domain.monitoring.repository.AiUsageLogRepository;
+import com.kanban.domain.subscription.service.AiCreditService;
 import com.kanban.global.config.AIProvider;
+import com.kanban.global.config.AIResponse;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -53,6 +57,8 @@ public class NoteAIService {
     private final UserRepository userRepository;
     private final BoardService boardService;
     private final ActivityService activityService;
+    private final AiUsageLogRepository aiUsageLogRepository;
+    private final AiCreditService aiCreditService;
 
     @Value("${ai.provider:claude}")
     private String provider;
@@ -71,6 +77,9 @@ public class NoteAIService {
 
     @Transactional
     public NoteAIResponse.Suggestions generateSuggestions(String boardId, String noteId, String userId, String language) {
+        // Consume AI credit before processing
+        aiCreditService.consumeCredit(boardId, userId, "NOTE_AI", 1);
+
         boardService.checkMemberOrAbove(boardId, userId);
 
         Note note = noteRepository.findByIdAndBoardId(noteId, boardId)
@@ -106,9 +115,23 @@ public class NoteAIService {
         String userPrompt = buildUserPrompt(note.getTitle(), plainText, boardContext);
 
         log.info("Generating AI suggestions for note: {} in board: {}", noteId, boardId);
-        String aiResponse = aiProvider.chat(systemPrompt, userPrompt, getModel(), MAX_TOKENS);
+        String model = getModel();
+        AIResponse aiResult = aiProvider.chatWithUsage(systemPrompt, userPrompt, model, MAX_TOKENS);
 
-        NoteAIResponse.Suggestions suggestions = parseAIResponse(aiResponse, noteId, note.getTitle());
+        try {
+            aiUsageLogRepository.save(AiUsageLog.builder()
+                    .boardId(boardId).userId(userId)
+                    .featureType("NOTE").provider(provider.toUpperCase())
+                    .model(model)
+                    .inputTokens(aiResult.inputTokens())
+                    .outputTokens(aiResult.outputTokens())
+                    .estimatedCostUsd(AiUsageLog.calculateCost(model, aiResult.inputTokens(), aiResult.outputTokens()))
+                    .build());
+        } catch (Exception e) {
+            log.debug("Failed to save AI usage log: {}", e.getMessage());
+        }
+
+        NoteAIResponse.Suggestions suggestions = parseAIResponse(aiResult.content(), noteId, note.getTitle());
 
         // Save AI suggestions and content snapshot to note
         try {

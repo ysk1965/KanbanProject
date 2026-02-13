@@ -1,0 +1,48 @@
+package com.kanban.global.websocket.dto;
+
+public enum BoardEventType {
+    // Feature events
+    FEATURE_CREATED,
+    FEATURE_UPDATED,
+    FEATURE_DELETED,
+    FEATURES_REORDERED,
+
+    // Task events
+    TASK_CREATED,
+    TASK_UPDATED,
+    TASK_DELETED,
+    TASK_MOVED,
+
+    // Block events
+    BLOCK_CREATED,
+    BLOCK_UPDATED,
+    BLOCK_DELETED,
+    BLOCKS_REORDERED,
+
+    // Comment events
+    COMMENT_CREATED,
+    COMMENT_UPDATED,
+    COMMENT_DELETED,
+    COMMENT_REACTION_TOGGLED,
+
+    // Checklist events
+    CHECKLIST_CREATED,
+    CHECKLIST_UPDATED,
+    CHECKLIST_DELETED,
+    CHECKLIST_TOGGLED,
+
+    // Board events
+    BOARD_UPDATED,
+
+    // Member events
+    MEMBER_JOINED,
+    MEMBER_LEFT,
+    MEMBER_UPDATED,
+
+    // Notification events
+    NOTIFICATION_CREATED,
+
+    // Presence events
+    PRESENCE_JOINED,
+    PRESENCE_LEFT
+}

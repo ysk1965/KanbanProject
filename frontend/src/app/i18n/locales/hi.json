@@ -172,8 +172,8 @@
         "tagline": "असीमित सहयोग। शून्य लागत।",
         "feature1": "असीमित Kanban बोर्ड और टास्क",
         "feature2": "दैनिक शेड्यूल और चेकलिस्ट",
-        "feature3": "रीयल-टाइम डेटा सिंक और टीम शेयरिंग",
-        "feature4": "Slack एकीकरण और रीयल-टाइम अलर्ट",
+        "feature3": "टीम शेयरिंग और सहयोग (मैनुअल रिफ्रेश)",
+        "feature4": "बेसिक नोटिफिकेशन",
         "cta": "START FREE"
       },
       "premium": {
@@ -185,6 +185,7 @@
         "feature3": "बुद्धिमान PM डैशबोर्ड और संसाधन विश्लेषण",
         "feature4": "उन्नत टीम अनुमति ऑर्केस्ट्रेशन",
         "feature5": "AI स्प्रिंट रिपोर्ट और इनसाइट्स",
+        "feature6": "रीयल-टाइम बोर्ड सिंक (रिफ्रेश के बिना तुरंत अपडेट)",
         "cta": "START TRIAL"
       }
     },
@@ -1175,8 +1176,10 @@
     "noMilestone": "कोई माइलस्टोन नहीं",
     "editMilestone": "माइलस्टोन संपादित करें",
     "viewKanban": "Kanban",
+    "viewScheduleTab": "शेड्यूल",
     "viewSchedule": "दैनिक शेड्यूल",
     "viewGantt": "Gantt चार्ट",
+    "viewAIAnalysisTab": "AI विश्लेषण",
     "viewStatistics": "माइलस्टोन",
     "viewAIReport": "AI रिपोर्ट",
     "inquiry": "संपर्क करें",
@@ -1204,7 +1207,8 @@
     "cannotRemoveSelf": "आप स्वयं को हटा नहीं सकते।",
     "removeMemberFailed": "सदस्य को हटाने में विफल।",
     "checklist": "चेकलिस्ट",
-    "viewNotes": "नोट्स"
+    "viewNotes": "नोट्स",
+    "viewMeeting": "बैठक"
   },
   "admin": {
     "backToBoards": "बोर्ड पर वापस जाएं",
@@ -1482,6 +1486,61 @@
       "startDate": "शुरुआत तारीख",
       "endDate": "समाप्ति तारीख",
       "saving": "सहेजा जा रहा है..."
+    },
+    "monitoring": {
+      "title": "निगरानी",
+      "subtitle": "सिस्टम स्वास्थ्य और प्रदर्शन निगरानी",
+      "loadFailed": "निगरानी डेटा लोड करने में विफल",
+      "autoRefresh": "स्वतः रिफ्रेश",
+      "refresh": "रिफ्रेश",
+      "jvmHeap": "JVM हीप",
+      "hikariConnections": "डीबी कनेक्शन",
+      "apiErrorRate": "API त्रुटि दर",
+      "totalRequests": "कुल अनुरोध",
+      "active": "सक्रिय",
+      "idle": "निष्क्रिय",
+      "pending": "लंबित",
+      "max": "अधिकतम",
+      "apiResponseTop10": "API प्रतिक्रिया समय शीर्ष 10",
+      "apiTrend": "API रुझान (प्रति घंटा)",
+      "responseTime": "प्रतिक्रिया समय",
+      "errorRate": "त्रुटि दर",
+      "cloudWatch": "CloudWatch",
+      "cloudWatchNotConnected": "CloudWatch कनेक्ट नहीं है",
+      "cloudWatchNotConnectedDesc": "इन्फ्रास्ट्रक्चर मेट्रिक्स देखने के लिए सर्वर पर CloudWatch सक्षम करें",
+      "ec2Cpu": "EC2 CPU",
+      "rdsCpu": "RDS CPU",
+      "rdsConnections": "RDS कनेक्शन",
+      "rdsIops": "RDS IOPS",
+      "readIops": "पढ़ना",
+      "writeIops": "लिखना",
+      "slackAlerts": "Slack अलर्ट सेटिंग्स",
+      "webhookUrl": "Webhook URL",
+      "webhookUrlPlaceholder": "https://hooks.slack.com/services/...",
+      "alertEnabled": "अलर्ट सक्षम करें",
+      "saveConfig": "कॉन्फ़िगरेशन सहेजें",
+      "testAlert": "परीक्षण अलर्ट",
+      "configSaved": "कॉन्फ़िगरेशन सहेजा गया",
+      "testSent": "परीक्षण अलर्ट भेजा गया",
+      "noData": "कोई डेटा नहीं",
+      "serverTime": "सर्वर समय",
+      "aiTotalCalls": "AI कॉल",
+      "aiTotalTokens": "AI टोकन उपयोग",
+      "aiEstimatedCost": "अनुमानित लागत",
+      "aiAvgTokensPerCall": "प्रति कॉल औसत टोकन",
+      "last30Days": "पिछले 30 दिन",
+      "tokensPerCall": "tokens / call",
+      "aiUsageByBoard": "बोर्ड अनुसार AI उपयोग",
+      "aiUsageByFeature": "फीचर अनुसार AI उपयोग",
+      "openAIBilling": "OpenAI खाता उपयोग",
+      "openAITotalCost": "मासिक लागत",
+      "openAITotalRequests": "कुल अनुरोध",
+      "openAITotalTokens": "कुल टोकन उपयोग",
+      "openAINotConnected": "OpenAI Admin Key कनेक्ट नहीं है",
+      "openAINotConnectedDesc": "खाता उपयोग देखने के लिए OPENAI_ADMIN_KEY पर्यावरण चर सेट करें",
+      "openAIDailyCost": "दैनिक लागत रुझान",
+      "openAIModelUsage": "मॉडल के अनुसार उपयोग",
+      "openAICost": "लागत"
     }
   },
   "announcements": {
@@ -2201,7 +2260,22 @@
     "aiRecommendedTasks": "सुझाए गए कार्य",
     "aiSummaryTitle": "मीटिंग सारांश",
     "saveToNote": "नोट में सेव करें",
-    "saveToNoteSuccess": "नोट में सेव हो गया"
+    "saveToNoteSuccess": "नोट में सेव हो गया",
+    "recurrence": "पुनरावृत्ति",
+    "noRecurrence": "कोई पुनरावृत्ति नहीं",
+    "recurrenceWeekly": "साप्ताहिक",
+    "recurrenceBiweekly": "पाक्षिक",
+    "recurrenceMonthly": "मासिक",
+    "recurrenceEndDate": "पुनरावृत्ति समाप्ति तिथि",
+    "recurrenceEndDateHint": "अनिश्चित काल तक दोहराने के लिए खाली छोड़ें",
+    "recurring": "आवर्ती",
+    "deleteRecurringTitle": "आवर्ती बैठक हटाएं",
+    "deleteRecurringMessage": "यह एक आवर्ती बैठक है। आप इसे कैसे हटाना चाहेंगे?",
+    "deleteThisOnly": "केवल यह बैठक हटाएं",
+    "deleteThisAndFuture": "यह और भविष्य की बैठकें हटाएं",
+    "editRecurringTitle": "आवर्ती बैठक संपादित करें",
+    "editThisOnly": "केवल यह बैठक संपादित करें",
+    "editThisAndFuture": "यह और भविष्य की बैठकें संपादित करें"
   },
   "notes": {
     "addTag": "टैग जोड़ें",
@@ -2282,5 +2356,41 @@
     "subtitle": "सदस्यों को आमंत्रित करने के लिए सीट आवश्यक हैं",
     "title": "अतिरिक्त सीट खरीदें",
     "year": "वर्ष"
+  },
+  "ai_credits": {
+    "title": "AI क्रेडिट",
+    "remaining": "शेष क्रेडिट",
+    "monthly": "मासिक क्रेडिट",
+    "purchased": "खरीदे गए क्रेडिट",
+    "used": "उपयोग किया गया",
+    "total_available": "उपलब्ध",
+    "reset_date": "रीसेट तिथि",
+    "warning_low": "{{count}} AI क्रेडिट शेष हैं",
+    "warning_critical": "AI क्रेडिट लगभग समाप्त हो गए हैं ({{count}} शेष)",
+    "warning_exhausted": "AI क्रेडिट समाप्त हो गए हैं",
+    "purchase": {
+      "title": "AI क्रेडिट खरीदें",
+      "description": "AI सुविधाओं का उपयोग जारी रखने के लिए अतिरिक्त AI क्रेडिट खरीदें",
+      "unit_price": "प्रति क्रेडिट ₩1,000",
+      "quantity": "मात्रा",
+      "quantity_unit": "क्रेडिट",
+      "total_price": "कुल मूल्य",
+      "buy_button": "खरीदें",
+      "success": "{{count}} AI क्रेडिट जोड़े गए",
+      "failed": "खरीद विफल रही। कृपया पुनः प्रयास करें"
+    },
+    "exhausted_modal": {
+      "title": "AI क्रेडिट समाप्त",
+      "description": "सभी AI क्रेडिट उपयोग हो चुके हैं।\nAI सुविधाओं का उपयोग जारी रखने के लिए अतिरिक्त क्रेडिट खरीदें।",
+      "buy_button": "क्रेडिट खरीदें",
+      "later_button": "बाद में"
+    },
+    "admin": {
+      "title": "AI क्रेडिट स्थिति",
+      "monthly_allocation": "मासिक आवंटन",
+      "monthly_usage": "मासिक उपयोग",
+      "purchased_remaining": "खरीदे गए शेष",
+      "total_remaining": "कुल शेष"
+    }
   }
 }

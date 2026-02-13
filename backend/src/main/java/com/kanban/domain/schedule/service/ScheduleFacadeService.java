@@ -8,6 +8,9 @@ import com.kanban.domain.checklist.ChecklistItem;
 import com.kanban.domain.dailychecklist.DailyChecklist;
 import com.kanban.domain.dailychecklist.DailyChecklistRepository;
 import com.kanban.domain.feature.Feature;
+import com.kanban.domain.meeting.Meeting;
+import com.kanban.domain.meeting.MeetingRepository;
+import com.kanban.domain.meeting.dto.MeetingResponse;
 import com.kanban.domain.schedule.ScheduleBlock;
 import com.kanban.domain.schedule.ScheduleBlockRepository;
 import com.kanban.domain.schedule.dto.ScheduleResponse;
@@ -39,6 +42,7 @@ public class ScheduleFacadeService {
 
     private final ScheduleBlockRepository scheduleBlockRepository;
     private final DailyChecklistRepository dailyChecklistRepository;
+    private final MeetingRepository meetingRepository;
     private final BoardRepository boardRepository;
     private final BoardMemberRepository boardMemberRepository;
     private final UserRepository userRepository;
@@ -115,6 +119,12 @@ public class ScheduleFacadeService {
                     .build());
         }
 
+        // 3. 시간이 지정된 회의 조회 (타임블록 오버레이용)
+        List<Meeting> meetingsWithTime = meetingRepository.findByBoardIdAndMeetingDateWithTime(boardId, date);
+        List<MeetingResponse.Summary> meetingSummaries = meetingsWithTime.stream()
+                .map(m -> MeetingResponse.Summary.of(m, 0))
+                .toList();
+
         log.info("Daily full data loaded: {} date {} by user: {}", boardId, date, userId);
 
         return ScheduleResponse.DailyFull.builder()
@@ -122,6 +132,7 @@ public class ScheduleFacadeService {
                 .settings(ScheduleResponse.SettingsInfo.of(board))
                 .columns(scheduleColumns)
                 .dailyChecklists(checklistColumns)
+                .meetings(meetingSummaries)
                 .build();
     }
 

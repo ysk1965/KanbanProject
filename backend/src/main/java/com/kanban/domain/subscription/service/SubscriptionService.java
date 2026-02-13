@@ -3,6 +3,7 @@ package com.kanban.domain.subscription.service;
 import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardMemberRepository;
 import com.kanban.domain.board.BoardRepository;
+import com.kanban.domain.board.BoardTier;
 import com.kanban.domain.board.service.BoardService;
 import com.kanban.domain.subscription.*;
 import com.kanban.domain.subscription.dto.SubscriptionRequest;
@@ -76,6 +77,10 @@ public class SubscriptionService {
         Board board = boardRepository.findById(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
         board.upgradeToPremium();
+
+        // Initialize AI credits for the new tier
+        int monthlyCredits = AiCreditService.getMonthlyCreditsForTier(BoardTier.PREMIUM, seatCount);
+        subscription.initializeCredits(monthlyCredits);
 
         // Mock 결제 이력 생성
         createMockPayment(subscription, subscription.getPrice(), seatCount);
@@ -191,7 +196,11 @@ public class SubscriptionService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
         board.upgradeToPremium();
 
-        // 5. 결제 이력 생성 (실제 PG 정보)
+        // 5. Initialize AI credits for the new tier
+        int monthlyCredits = AiCreditService.getMonthlyCreditsForTier(BoardTier.PREMIUM, seatCount);
+        subscription.initializeCredits(monthlyCredits);
+
+        // 6. 결제 이력 생성 (실제 PG 정보)
         createTossPayment(subscription, request.getAmount(), seatCount, request.getPaymentKey());
 
         log.info("Toss subscription confirmed for board: {} by user: {}. Seats: {}, Cycle: {}, PaymentKey: {}",

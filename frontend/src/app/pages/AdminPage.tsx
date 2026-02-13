@@ -1,5 +1,5 @@
 import { Routes, Route, NavLink, Navigate } from 'react-router-dom';
-import { LayoutDashboard, Users, Folder, CreditCard, BarChart3, Megaphone, Shield, ArrowLeft, MessageSquare } from 'lucide-react';
+import { LayoutDashboard, Users, Folder, CreditCard, BarChart3, Megaphone, Shield, ArrowLeft, MessageSquare, Activity } from 'lucide-react';
 import ErrorBoundary from '../components/ErrorBoundary';
 import { useTranslation } from 'react-i18next';
 import { AdminDashboardTab } from '../components/admin/AdminDashboardTab';
@@ -10,6 +10,7 @@ import { AdminAnalyticsTab } from '../components/admin/AdminAnalyticsTab';
 import { AdminAnnouncementsTab } from '../components/admin/AdminAnnouncementsTab';
 import { AdminSystemTab } from '../components/admin/AdminSystemTab';
 import { AdminInquiriesTab } from '../components/admin/AdminInquiriesTab';
+import { AdminMonitoringTab } from '../components/admin/AdminMonitoringTab';
 
 const navItems = [
   { path: 'dashboard', labelKey: 'admin.dashboard.title', icon: LayoutDashboard },
@@ -19,6 +20,7 @@ const navItems = [
   { path: 'subscriptions', labelKey: 'admin.subscriptions.title', icon: CreditCard },
   { path: 'announcements', labelKey: 'admin.announcements.title', icon: Megaphone },
   { path: 'system', labelKey: 'admin.system.title', icon: Shield },
+  { path: 'monitoring', labelKey: 'admin.monitoring.title', icon: Activity },
   { path: 'inquiries', labelKey: 'admin.inquiries.title', icon: MessageSquare },
 ];
 
@@ -79,6 +81,7 @@ export function AdminPage() {
                 <Route path="subscriptions" element={<AdminSubscriptionsTab />} />
                 <Route path="announcements" element={<AdminAnnouncementsTab />} />
                 <Route path="system" element={<AdminSystemTab />} />
+                <Route path="monitoring" element={<AdminMonitoringTab />} />
                 <Route path="inquiries" element={<AdminInquiriesTab />} />
               </Routes>
             </ErrorBoundary>

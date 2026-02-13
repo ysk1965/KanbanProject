@@ -172,8 +172,8 @@
         "tagline": "การทำงานร่วมกันไร้ขีดจำกัด ไม่มีค่าใช้จ่าย",
         "feature1": "บอร์ด Kanban และงานไม่จำกัด",
         "feature2": "ตารางเวลารายวันและเช็คลิสต์",
-        "feature3": "ซิงค์ข้อมูลแบบเรียลไทม์และแชร์ทีม",
-        "feature4": "การเชื่อมต่อ Slack และการแจ้งเตือนแบบเรียลไทม์",
+        "feature3": "แชร์ทีมและการทำงานร่วมกัน (รีเฟรชด้วยตนเอง)",
+        "feature4": "การแจ้งเตือนพื้นฐาน",
         "cta": "START FREE"
       },
       "premium": {
@@ -185,6 +185,7 @@
         "feature3": "แดชบอร์ด PM อัจฉริยะและการวิเคราะห์ทรัพยากร",
         "feature4": "การจัดการสิทธิ์ทีมขั้นสูง",
         "feature5": "รายงาน Sprint AI และข้อมูลเชิงลึก",
+        "feature6": "ซิงค์บอร์ดแบบเรียลไทม์ (อัปเดตทันทีไม่ต้องรีเฟรช)",
         "cta": "START TRIAL"
       }
     },
@@ -1175,8 +1176,10 @@
     "noMilestone": "ไม่มีไมล์สโตน",
     "editMilestone": "แก้ไขไมล์สโตน",
     "viewKanban": "Kanban",
+    "viewScheduleTab": "กำหนดการ",
     "viewSchedule": "ตารางรายวัน",
     "viewGantt": "Gantt Chart",
+    "viewAIAnalysisTab": "การวิเคราะห์ AI",
     "viewStatistics": "ไมล์สโตน",
     "viewAIReport": "AI Report",
     "inquiry": "ติดต่อเรา",
@@ -1204,7 +1207,8 @@
     "cannotRemoveSelf": "ไม่สามารถลบตัวเองได้",
     "removeMemberFailed": "ลบสมาชิกไม่สำเร็จ",
     "checklist": "เช็คลิสต์",
-    "viewNotes": "โน้ต"
+    "viewNotes": "โน้ต",
+    "viewMeeting": "การประชุม"
   },
   "admin": {
     "backToBoards": "กลับไปยังบอร์ด",
@@ -1482,6 +1486,61 @@
       "startDate": "วันที่เริ่ม",
       "endDate": "วันที่สิ้นสุด",
       "saving": "กำลังบันทึก..."
+    },
+    "monitoring": {
+      "title": "การตรวจสอบ",
+      "subtitle": "ตรวจสอบสุขภาพและประสิทธิภาพของระบบ",
+      "loadFailed": "โหลดข้อมูลการตรวจสอบไม่สำเร็จ",
+      "autoRefresh": "รีเฟรชอัตโนมัติ",
+      "refresh": "รีเฟรช",
+      "jvmHeap": "JVM Heap",
+      "hikariConnections": "การเชื่อมต่อ DB",
+      "apiErrorRate": "อัตราข้อผิดพลาด API",
+      "totalRequests": "คำขอทั้งหมด",
+      "active": "ใช้งานอยู่",
+      "idle": "ว่าง",
+      "pending": "รอดำเนินการ",
+      "max": "สูงสุด",
+      "apiResponseTop10": "เวลาตอบสนอง API 10 อันดับแรก",
+      "apiTrend": "แนวโน้ม API (รายชั่วโมง)",
+      "responseTime": "เวลาตอบสนอง",
+      "errorRate": "อัตราข้อผิดพลาด",
+      "cloudWatch": "CloudWatch",
+      "cloudWatchNotConnected": "CloudWatch ไม่ได้เชื่อมต่อ",
+      "cloudWatchNotConnectedDesc": "เปิดใช้งาน CloudWatch บนเซิร์ฟเวอร์เพื่อดูเมตริกโครงสร้างพื้นฐาน",
+      "ec2Cpu": "EC2 CPU",
+      "rdsCpu": "RDS CPU",
+      "rdsConnections": "การเชื่อมต่อ RDS",
+      "rdsIops": "RDS IOPS",
+      "readIops": "อ่าน",
+      "writeIops": "เขียน",
+      "slackAlerts": "การตั้งค่าการแจ้งเตือน Slack",
+      "webhookUrl": "Webhook URL",
+      "webhookUrlPlaceholder": "https://hooks.slack.com/services/...",
+      "alertEnabled": "เปิดใช้งานการแจ้งเตือน",
+      "saveConfig": "บันทึกการตั้งค่า",
+      "testAlert": "ทดสอบการแจ้งเตือน",
+      "configSaved": "บันทึกการตั้งค่าแล้ว",
+      "testSent": "ส่งการแจ้งเตือนทดสอบแล้ว",
+      "noData": "ไม่มีข้อมูล",
+      "serverTime": "เวลาเซิร์ฟเวอร์",
+      "aiTotalCalls": "จำนวนการเรียก AI",
+      "aiTotalTokens": "การใช้โทเค็น AI",
+      "aiEstimatedCost": "ค่าใช้จ่ายโดยประมาณ",
+      "aiAvgTokensPerCall": "โทเค็นเฉลี่ยต่อการเรียก",
+      "last30Days": "30 วันที่ผ่านมา",
+      "tokensPerCall": "tokens / call",
+      "aiUsageByBoard": "การใช้ AI ตามบอร์ด",
+      "aiUsageByFeature": "การใช้ AI ตามฟีเจอร์",
+      "openAIBilling": "การใช้งานบัญชี OpenAI",
+      "openAITotalCost": "ค่าใช้จ่ายรายเดือน",
+      "openAITotalRequests": "คำขอทั้งหมด",
+      "openAITotalTokens": "โทเค็นทั้งหมด",
+      "openAINotConnected": "ยังไม่ได้เชื่อมต่อ OpenAI Admin Key",
+      "openAINotConnectedDesc": "ตั้งค่าตัวแปร OPENAI_ADMIN_KEY เพื่อดูการใช้งานบัญชี",
+      "openAIDailyCost": "แนวโน้มค่าใช้จ่ายรายวัน",
+      "openAIModelUsage": "การใช้งานตามโมเดล",
+      "openAICost": "ค่าใช้จ่าย"
     }
   },
   "announcements": {
@@ -2201,7 +2260,22 @@
     "aiRecommendedTasks": "งานที่แนะนำ",
     "aiSummaryTitle": "สรุปการประชุม",
     "saveToNote": "บันทึกเป็นโน้ต",
-    "saveToNoteSuccess": "บันทึกเป็นโน้ตแล้ว"
+    "saveToNoteSuccess": "บันทึกเป็นโน้ตแล้ว",
+    "recurrence": "การทำซ้ำ",
+    "noRecurrence": "ไม่ทำซ้ำ",
+    "recurrenceWeekly": "รายสัปดาห์",
+    "recurrenceBiweekly": "ทุกสองสัปดาห์",
+    "recurrenceMonthly": "รายเดือน",
+    "recurrenceEndDate": "วันสิ้นสุดการทำซ้ำ",
+    "recurrenceEndDateHint": "เว้นว่างไว้เพื่อทำซ้ำไปเรื่อยๆ",
+    "recurring": "ทำซ้ำ",
+    "deleteRecurringTitle": "ลบการประชุมที่ทำซ้ำ",
+    "deleteRecurringMessage": "นี่คือการประชุมที่ทำซ้ำ คุณต้องการลบอย่างไร?",
+    "deleteThisOnly": "ลบเฉพาะการประชุมนี้",
+    "deleteThisAndFuture": "ลบการประชุมนี้และการประชุมในอนาคต",
+    "editRecurringTitle": "แก้ไขการประชุมที่ทำซ้ำ",
+    "editThisOnly": "แก้ไขเฉพาะการประชุมนี้",
+    "editThisAndFuture": "แก้ไขการประชุมนี้และการประชุมในอนาคต"
   },
   "notes": {
     "addTag": "เพิ่มแท็ก",
@@ -2282,5 +2356,41 @@
     "subtitle": "ต้องมีที่นั่งเพื่อเชิญสมาชิก",
     "title": "ซื้อที่นั่งเพิ่มเติม",
     "year": "ปี"
+  },
+  "ai_credits": {
+    "title": "เครดิต AI",
+    "remaining": "เครดิตที่เหลือ",
+    "monthly": "เครดิตรายเดือน",
+    "purchased": "เครดิตที่ซื้อเพิ่ม",
+    "used": "ใช้ไป",
+    "total_available": "ใช้ได้",
+    "reset_date": "วันรีเซ็ต",
+    "warning_low": "เครดิต AI เหลือ {{count}} เครดิต",
+    "warning_critical": "เครดิต AI เกือบหมด (เหลือ {{count}} เครดิต)",
+    "warning_exhausted": "เครดิต AI หมดแล้ว",
+    "purchase": {
+      "title": "ซื้อเครดิต AI",
+      "description": "ซื้อเครดิต AI เพิ่มเติมเพื่อใช้ฟีเจอร์ AI ต่อไป",
+      "unit_price": "₩1,000 ต่อเครดิต",
+      "quantity": "จำนวน",
+      "quantity_unit": "เครดิต",
+      "total_price": "ยอดชำระ",
+      "buy_button": "ซื้อ",
+      "success": "เพิ่ม {{count}} เครดิต AI แล้ว",
+      "failed": "การซื้อล้มเหลว กรุณาลองอีกครั้ง"
+    },
+    "exhausted_modal": {
+      "title": "เครดิต AI หมดแล้ว",
+      "description": "เครดิต AI ถูกใช้หมดแล้ว\nซื้อเครดิตเพิ่มเติมเพื่อใช้ฟีเจอร์ AI ต่อไป",
+      "buy_button": "ซื้อเครดิต",
+      "later_button": "ภายหลัง"
+    },
+    "admin": {
+      "title": "สถานะเครดิต AI",
+      "monthly_allocation": "จัดสรรรายเดือน",
+      "monthly_usage": "การใช้รายเดือน",
+      "purchased_remaining": "ซื้อเพิ่มที่เหลือ",
+      "total_remaining": "รวมที่เหลือ"
+    }
   }
 }

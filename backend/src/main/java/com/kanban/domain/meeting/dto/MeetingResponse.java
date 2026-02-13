@@ -25,6 +25,9 @@ public class MeetingResponse {
         private String memo;
         private String transcript;
         private String color;
+        private String recurrenceRule;
+        private String recurrenceGroupId;
+        private LocalDate recurrenceEndDate;
         private UserInfo createdBy;
         private List<ParticipantInfo> participants;
         private MeetingAIResponse.Suggestions aiSuggestions;
@@ -42,6 +45,9 @@ public class MeetingResponse {
                     .memo(meeting.getMemo())
                     .transcript(meeting.getTranscript())
                     .color(meeting.getColor())
+                    .recurrenceRule(meeting.getRecurrenceRule())
+                    .recurrenceGroupId(meeting.getRecurrenceGroupId())
+                    .recurrenceEndDate(meeting.getRecurrenceEndDate())
                     .createdBy(UserInfo.of(meeting.getCreatedBy()))
                     .participants(participants.stream().map(ParticipantInfo::of).toList())
                     .aiSuggestions(aiSuggestions)
@@ -70,6 +76,8 @@ public class MeetingResponse {
         private LocalTime endTime;
         private String color;
         private int participantCount;
+        private String recurrenceRule;
+        private String recurrenceGroupId;
 
         public static Summary of(Meeting meeting, int participantCount) {
             return Summary.builder()
@@ -80,6 +88,8 @@ public class MeetingResponse {
                     .endTime(meeting.getEndTime())
                     .color(meeting.getColor())
                     .participantCount(participantCount)
+                    .recurrenceRule(meeting.getRecurrenceRule())
+                    .recurrenceGroupId(meeting.getRecurrenceGroupId())
                     .build();
         }
     }

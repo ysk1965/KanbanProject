@@ -339,6 +339,18 @@ resource "aws_elastic_beanstalk_environment" "main" {
     value     = var.claude_api_key
   }
 
+  setting {
+    namespace = "aws:elasticbeanstalk:application:environment"
+    name      = "OPENAI_API_KEY"
+    value     = var.openai_api_key
+  }
+
+  setting {
+    namespace = "aws:elasticbeanstalk:application:environment"
+    name      = "OPENAI_ADMIN_KEY"
+    value     = var.openai_admin_key
+  }
+
   # Email (Gmail SMTP)
   setting {
     namespace = "aws:elasticbeanstalk:application:environment"

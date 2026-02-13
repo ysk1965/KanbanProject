@@ -15,6 +15,8 @@ import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
+import com.kanban.global.websocket.WebSocketEventService;
+import com.kanban.global.websocket.dto.BoardEventType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -34,6 +36,7 @@ public class NotificationService {
     private final NotificationRepository notificationRepository;
     private final NotificationPreferenceRepository preferenceRepository;
     private final UserRepository userRepository;
+    private final WebSocketEventService webSocketEventService;
 
     @Transactional
     public void createMentionNotifications(Comment comment, User sender, Board board) {
@@ -79,6 +82,10 @@ public class NotificationService {
 
             notificationRepository.save(notification);
             log.info("Mention notification created for user: {} from comment: {}", trimmedId, comment.getId());
+
+            // Send WebSocket event to specific user
+            NotificationResponse.Detail response = NotificationResponse.Detail.of(notification);
+            webSocketEventService.sendUserEvent(board.getId(), trimmedId, BoardEventType.NOTIFICATION_CREATED, response);
         }
     }
 
@@ -115,6 +122,10 @@ public class NotificationService {
 
         notificationRepository.save(notification);
         log.info("Checklist assigned notification created for user: {} item: {}", assignee.getId(), item.getId());
+
+        // Send WebSocket event to specific user
+        NotificationResponse.Detail response = NotificationResponse.Detail.of(notification);
+        webSocketEventService.sendUserEvent(board.getId(), assignee.getId(), BoardEventType.NOTIFICATION_CREATED, response);
     }
 
     @Transactional
@@ -156,6 +167,10 @@ public class NotificationService {
 
             notificationRepository.save(notification);
             log.info("Task comment notification created for user: {} from comment: {}", recipientId, comment.getId());
+
+            // Send WebSocket event to specific user
+            NotificationResponse.Detail response = NotificationResponse.Detail.of(notification);
+            webSocketEventService.sendUserEvent(board.getId(), recipientId, BoardEventType.NOTIFICATION_CREATED, response);
         }
     }
 
@@ -189,6 +204,10 @@ public class NotificationService {
 
             notificationRepository.save(notification);
             log.info("Meeting memo notification created for user: {} meeting: {}", participantId, meeting.getId());
+
+            // Send WebSocket event to specific user
+            NotificationResponse.Detail response = NotificationResponse.Detail.of(notification);
+            webSocketEventService.sendUserEvent(board.getId(), participantId, BoardEventType.NOTIFICATION_CREATED, response);
         }
     }
 

@@ -31,6 +31,11 @@ public class OpenAIProvider implements AIProvider {
 
     @Override
     public String chat(String systemPrompt, String userPrompt, String model, int maxTokens) {
+        return chatWithUsage(systemPrompt, userPrompt, model, maxTokens).content();
+    }
+
+    @Override
+    public AIResponse chatWithUsage(String systemPrompt, String userPrompt, String model, int maxTokens) {
         if (apiKey == null || apiKey.isBlank()) {
             throw new BusinessException(ErrorCode.AI_SERVICE_UNAVAILABLE);
         }
@@ -55,7 +60,7 @@ public class OpenAIProvider implements AIProvider {
             ResponseEntity<Map> response = aiRestTemplate.postForEntity(OPENAI_API_URL, entity, Map.class);
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                return extractContent(response.getBody());
+                return extractResponse(response.getBody(), model);
             }
 
             log.error("OpenAI API returned non-success status: {}", response.getStatusCode());
@@ -70,19 +75,38 @@ public class OpenAIProvider implements AIProvider {
     }
 
     @SuppressWarnings("unchecked")
-    private String extractContent(Map<String, Object> responseBody) {
+    private AIResponse extractResponse(Map<String, Object> responseBody, String model) {
+        String content = null;
+        int inputTokens = 0;
+        int outputTokens = 0;
+
         try {
             List<Map<String, Object>> choices = (List<Map<String, Object>>) responseBody.get("choices");
             if (choices != null && !choices.isEmpty()) {
                 Map<String, Object> firstChoice = choices.get(0);
                 Map<String, Object> message = (Map<String, Object>) firstChoice.get("message");
                 if (message != null) {
-                    return (String) message.get("content");
+                    content = (String) message.get("content");
                 }
             }
         } catch (Exception e) {
-            log.error("Failed to parse OpenAI API response: {}", e.getMessage());
+            log.error("Failed to parse OpenAI API response content: {}", e.getMessage());
         }
-        throw new BusinessException(ErrorCode.AI_REPORT_GENERATION_FAILED);
+
+        try {
+            Map<String, Object> usage = (Map<String, Object>) responseBody.get("usage");
+            if (usage != null) {
+                inputTokens = ((Number) usage.getOrDefault("prompt_tokens", 0)).intValue();
+                outputTokens = ((Number) usage.getOrDefault("completion_tokens", 0)).intValue();
+            }
+        } catch (Exception e) {
+            log.debug("Failed to parse OpenAI usage data: {}", e.getMessage());
+        }
+
+        if (content == null) {
+            throw new BusinessException(ErrorCode.AI_REPORT_GENERATION_FAILED);
+        }
+
+        return new AIResponse(content, inputTokens, outputTokens, model);
     }
 }

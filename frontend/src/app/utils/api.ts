@@ -165,6 +165,18 @@ class ApiClient {
           }
         }
 
+        // AI 크레딧 소진 (402 Payment Required)
+        if (response.status === 402) {
+          // AI 크레딧 소진 이벤트 발행
+          const creditExhaustedEvent = new CustomEvent('ai-credits-exhausted', {
+            detail: {
+              message: errorData.message || 'AI 크레딧이 소진되었습니다',
+              code: errorData.code || 'AI_CREDITS_EXHAUSTED',
+            },
+          });
+          window.dispatchEvent(creditExhaustedEvent);
+        }
+
         throw errorData;
       }
 
@@ -1679,6 +1691,8 @@ export interface MeetingSummary {
   end_time: string | null;
   color: string;
   participant_count: number;
+  recurrence_rule: string | null;
+  recurrence_group_id: string | null;
 }
 
 export interface MeetingDetail {
@@ -1690,6 +1704,9 @@ export interface MeetingDetail {
   memo: string | null;
   transcript: string | null;
   color: string;
+  recurrence_rule: string | null;
+  recurrence_group_id: string | null;
+  recurrence_end_date: string | null;
   created_by: { id: string; name: string; profile_image: string | null };
   participants: { id: string; name: string; profile_image: string | null }[];
   ai_suggestions: AISuggestionResponse | null;
@@ -1802,6 +1819,7 @@ export interface DailyFullResponse {
   settings: ScheduleSettingsResponse;
   columns: ScheduleColumnInfo[];
   daily_checklists: DailyChecklistColumnResponse[];
+  meetings: MeetingSummary[];
 }
 
 export interface ScheduleBlockDetailResponse {
@@ -2008,6 +2026,12 @@ export const meetingAPI = {
     );
   },
 
+  getMeetingsByDateRange: async (boardId: string, startDate: string, endDate: string): Promise<MeetingSummary[]> => {
+    return apiClient.get<MeetingSummary[]>(
+      `/boards/${boardId}/meetings/range?startDate=${startDate}&endDate=${endDate}`
+    );
+  },
+
   getMeetingDetail: async (boardId: string, meetingId: string): Promise<MeetingDetail> => {
     return apiClient.get<MeetingDetail>(
       `/boards/${boardId}/meetings/${meetingId}`
@@ -2023,6 +2047,8 @@ export const meetingAPI = {
       end_time?: string;
       memo?: string;
       color?: string;
+      recurrence_rule?: string | null;
+      recurrence_end_date?: string | null;
     }
   ): Promise<MeetingDetail> => {
     return apiClient.post<MeetingDetail>(
@@ -2041,17 +2067,20 @@ export const meetingAPI = {
       end_time?: string | null;
       memo?: string;
       color?: string;
-    }
+    },
+    scope?: 'THIS_ONLY' | 'THIS_AND_FUTURE'
   ): Promise<MeetingDetail> => {
+    const query = scope ? `?scope=${scope}` : '';
     return apiClient.put<MeetingDetail>(
-      `/boards/${boardId}/meetings/${meetingId}`,
+      `/boards/${boardId}/meetings/${meetingId}${query}`,
       data
     );
   },
 
-  deleteMeeting: async (boardId: string, meetingId: string): Promise<{ message: string }> => {
+  deleteMeeting: async (boardId: string, meetingId: string, scope?: 'THIS_ONLY' | 'THIS_AND_FUTURE'): Promise<{ message: string }> => {
+    const query = scope ? `?scope=${scope}` : '';
     return apiClient.delete<{ message: string }>(
-      `/boards/${boardId}/meetings/${meetingId}`
+      `/boards/${boardId}/meetings/${meetingId}${query}`
     );
   },
 

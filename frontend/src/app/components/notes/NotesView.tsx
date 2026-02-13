@@ -10,9 +10,10 @@ import type { NoteTreeItem, NoteDetail, NoteListItem, NoteTagInfo } from '../../
 interface NotesViewProps {
   boardId: string;
   currentUserRole: string;
+  aiCredits?: import('../../types').AiCredits | null;
 }
 
-export function NotesView({ boardId, currentUserRole }: NotesViewProps) {
+export function NotesView({ boardId, currentUserRole, aiCredits }: NotesViewProps) {
   const { t } = useTranslation();
   const [tree, setTree] = useState<NoteTreeItem[]>([]);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
@@ -268,6 +269,7 @@ export function NotesView({ boardId, currentUserRole }: NotesViewProps) {
             onSave={handleSaveNote}
             onTagsChange={loadTags}
             onDirtyChange={handleDirtyChange}
+            aiCredits={aiCredits}
           />
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-slate-500">

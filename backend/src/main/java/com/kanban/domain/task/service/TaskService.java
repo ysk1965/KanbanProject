@@ -32,6 +32,8 @@ import com.kanban.domain.weight.TaskWeightRepository;
 import com.kanban.global.service.FileUploadService;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
+import com.kanban.global.websocket.WebSocketEventService;
+import com.kanban.global.websocket.dto.BoardEventType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -72,6 +74,7 @@ public class TaskService {
     private final CommentRepository commentRepository;
     private final NotificationRepository notificationRepository;
     private final FileUploadService fileUploadService;
+    private final WebSocketEventService webSocketEventService;
 
     public TaskResponse.ListResponse getTasks(String boardId, String userId, String blockId, String featureId, String milestoneId) {
         boardService.checkViewerOrAbove(boardId, userId);
@@ -189,7 +192,10 @@ public class TaskService {
 
         log.info("Task created: {} in feature: {} by user: {}", task.getId(), featureId, userId);
 
-        return TaskResponse.Detail.of(task, List.of());
+        TaskResponse.Detail response = TaskResponse.Detail.of(task, List.of());
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.TASK_CREATED, userId, creator.getName(),
+                Map.of("task", response, "feature", buildFeatureSummary(feature)));
+        return response;
     }
 
     @Transactional
@@ -222,7 +228,9 @@ public class TaskService {
 
         log.info("Task updated: {} by user: {}", taskId, userId);
 
-        return TaskResponse.Detail.of(task, tags);
+        TaskResponse.Detail response = TaskResponse.Detail.of(task, tags);
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.TASK_UPDATED, userId, updater.getName(), response);
+        return response;
     }
 
     @Transactional
@@ -279,6 +287,9 @@ public class TaskService {
         taskRepository.delete(task);
 
         log.info("Task deleted: {} by user: {}", taskId, userId);
+
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.TASK_DELETED, userId, deleter.getName(),
+                Map.of("id", taskId, "feature", buildFeatureSummary(feature)));
     }
 
     @Transactional
@@ -339,8 +350,9 @@ public class TaskService {
                 .toList();
 
         // 블록이 변경된 경우에만 활동 로그 기록
+        User user = null;
         if (!oldBlockId.equals(targetBlock.getId())) {
-            User user = userRepository.findById(userId)
+            user = userRepository.findById(userId)
                     .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
             // Done 블록으로 이동 시 TASK_COMPLETED 로그
@@ -362,7 +374,14 @@ public class TaskService {
 
         log.info("Task moved: {} from block {} to block {} by user: {}", taskId, oldBlockId, targetBlock.getId(), userId);
 
-        return TaskResponse.Detail.of(task, tags);
+        TaskResponse.Detail response = TaskResponse.Detail.of(task, tags);
+        if (user == null) {
+            user = userRepository.findById(userId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        }
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.TASK_MOVED, userId, user.getName(),
+                Map.of("task", response, "feature", buildFeatureSummary(task.getFeature())));
+        return response;
     }
 
     @Transactional
@@ -521,6 +540,15 @@ public class TaskService {
      * Standard 보드의 Task 생성 제한 확인
      * Standard 보드는 최대 10개의 Task만 생성 가능
      */
+    private Map<String, Object> buildFeatureSummary(Feature feature) {
+        return Map.of(
+                "id", feature.getId(),
+                "total_tasks", feature.getTotalTasks(),
+                "completed_tasks", feature.getCompletedTasks(),
+                "progress_percentage", feature.getProgressPercentage()
+        );
+    }
+
     private void validateTaskLimit(Board board) {
         Integer taskLimit = board.getTaskLimit();
         if (taskLimit != null) {

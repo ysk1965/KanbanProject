@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronLeft, ChevronRight, Settings, Plus, Loader2, Clock, CheckSquare, FileText } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Settings, Plus, Loader2, Clock, CheckSquare } from 'lucide-react';
 import { Button } from './ui/button';
 import { format, addDays, subDays, startOfDay, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval } from 'date-fns';
 import { formatDate } from '../utils/dateUtils';
@@ -13,7 +13,8 @@ import { WeeklySummaryModal } from './WeeklySummaryModal';
 import { DailySummaryModal } from './DailySummaryModal';
 import { EmbeddedDailyChecklist } from './EmbeddedDailyChecklist';
 import { AddDailyChecklistModal } from './AddDailyChecklistModal';
-import { MeetingView } from './MeetingView';
+import { useNavigate } from 'react-router-dom';
+import { meetingAPI, MeetingSummary } from '../utils/api';
 import {
   scheduleAPI,
   dailyChecklistAPI,
@@ -25,9 +26,6 @@ import {
 } from '../utils/api';
 import { getInitials, getAssigneeHex } from '../utils/assigneeColor';
 
-// 데일리 스크럼 세부 탭 타입
-type ScheduleSubTab = 'timeblock' | 'meeting';
-
 interface DailyScheduleViewProps {
   boardId: string;
   boardMembers: BoardMember[];
@@ -36,7 +34,7 @@ interface DailyScheduleViewProps {
   onViewTask?: (taskId: string) => void;
   refreshTrigger?: number;
   currentUserRole?: string;
-  initialSubTab?: ScheduleSubTab;
+  initialSubTab?: string;
 }
 
 const SLOT_HEIGHT = 40; // 30분 슬롯의 높이 (px)
@@ -60,12 +58,11 @@ type ScheduleViewMode = 'day' | 'week';
 
 export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onViewFeature, onViewTask, refreshTrigger, currentUserRole, initialSubTab }: DailyScheduleViewProps) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   // viewer 역할 제외한 멤버 목록
   const activeMembers = useMemo(() => boardMembers.filter((m) => m.role !== 'viewer'), [boardMembers]);
-  // 세부 탭 상태 (타임블록 / 회의)
-  const [subTab, setSubTab] = useState<ScheduleSubTab>(
-    initialSubTab === 'meeting' ? 'meeting' : 'timeblock'
-  );
+  // 회의 오버레이 데이터
+  const [overlayMeetings, setOverlayMeetings] = useState<MeetingSummary[]>([]);
   // 체크리스트 펼침 상태 (멤버별)
   const [expandedChecklists, setExpandedChecklists] = useState<Set<string>>(new Set());
 
@@ -164,6 +161,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
         setColumns(response.columns);
         setSettings(response.settings);
         setDailyChecklists(response.daily_checklists || []);
+        setOverlayMeetings((response.meetings || []).filter(m => m.start_time && m.end_time));
       } else {
         // 주 단위: 통합 API로 7일치 데이터 1회 로드 (기존 7회 → 1회)
         const startDateStr = format(weekDays[0], 'yyyy-MM-dd');
@@ -616,43 +614,8 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
       {/* 상단 날짜 네비게이션 */}
       <div className="flex items-center justify-between px-3 md:px-6 py-2 md:py-3 bg-kanban-card border-b border-kanban-border gap-2">
         <div className="flex items-center gap-2 md:gap-4 flex-wrap min-w-0">
-          {/* 세부 탭: 타임블록 / 회의 */}
-          <div className="flex bg-kanban-bg rounded-lg p-1">
-            <button
-              onClick={() => {
-                if (subTab !== 'timeblock') {
-                  setSubTab('timeblock');
-                  loadSchedule();
-                }
-              }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-all ${
-                subTab === 'timeblock'
-                  ? 'bg-bridge-accent text-white shadow-sm'
-                  : 'text-zinc-400 hover:text-zinc-300'
-              }`}
-            >
-              <Clock className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">{t('dailySchedule.timeblock')}</span>
-            </button>
-            <button
-              onClick={() => setSubTab('meeting')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-all ${
-                subTab === 'meeting'
-                  ? 'bg-bridge-accent text-white shadow-sm'
-                  : 'text-zinc-400 hover:text-zinc-300'
-              }`}
-            >
-              <FileText className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">{t('meeting.tab')}</span>
-            </button>
-          </div>
-
-          {/* 구분선 */}
-          <div className="w-px h-6 bg-white/10" />
-
-          {/* 일/주 토글 (타임블록 탭에서만 표시) */}
-          {subTab === 'timeblock' && (
-            <div
+          {/* 일/주 토글 */}
+          <div
               className="flex bg-kanban-bg rounded-lg p-1 cursor-pointer"
               onClick={() => setViewMode(viewMode === 'day' ? 'week' : 'day')}
             >
@@ -675,7 +638,6 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
                 {t('dailySchedule.week')}
               </span>
             </div>
-          )}
 
           <div className="flex items-center gap-1">
             <Button
@@ -728,17 +690,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
         )}
       </div>
 
-      {/* 세부 탭에 따른 콘텐츠 렌더링 */}
-      {subTab === 'meeting' ? (
-        /* 회의 탭 */
-        <MeetingView
-          boardId={boardId}
-          selectedDate={selectedDate}
-          boardMembers={activeMembers}
-          onRefreshSchedule={loadSchedule}
-        />
-      ) : (
-      /* 타임블록 탭 - 스케줄 그리드 */
+      {/* 타임블록 스케줄 그리드 */}
       <>
       <div className="flex-1 overflow-auto">
         {viewMode === 'day' ? (
@@ -968,6 +920,49 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
                   })}
                 </div>
               </div>
+
+              {/* 회의 오버레이 (전체 컬럼 가로 스팬) */}
+              {overlayMeetings.length > 0 && (
+                <div className="absolute top-0 left-14 md:left-20 right-0 pointer-events-none z-[5]">
+                  {overlayMeetings.map((meeting) => {
+                    const startParts = meeting.start_time!.split(':');
+                    const endParts = meeting.end_time!.split(':');
+                    const startMinutes = parseInt(startParts[0]) * 60 + parseInt(startParts[1]);
+                    const endMinutes = parseInt(endParts[0]) * 60 + parseInt(endParts[1]);
+                    const workStartMinutes = workStartHour * 60;
+                    const top = ((startMinutes - workStartMinutes) / 30) * SLOT_HEIGHT;
+                    const height = Math.max(((endMinutes - startMinutes) / 30) * SLOT_HEIGHT, SLOT_HEIGHT);
+
+                    if (top < 0) return null;
+
+                    return (
+                      <div
+                        key={`overlay-${meeting.id}`}
+                        className="absolute left-0 right-0 rounded-lg border-2 border-dashed cursor-pointer pointer-events-auto hover:opacity-80 transition-opacity"
+                        style={{
+                          top: `${top}px`,
+                          height: `${height}px`,
+                          backgroundColor: `${meeting.color}15`,
+                          borderColor: `${meeting.color}50`,
+                        }}
+                        onClick={() => navigate(`?view=meeting&date=${meeting.meeting_date}`)}
+                      >
+                        <div className="flex items-center gap-1.5 px-3 py-1 overflow-hidden">
+                          <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: meeting.color }} />
+                          <span className="text-xs font-semibold truncate" style={{ color: meeting.color }}>
+                            {meeting.title}
+                          </span>
+                          {meeting.start_time && (
+                            <span className="text-[10px] opacity-60 flex-shrink-0" style={{ color: meeting.color }}>
+                              {meeting.start_time.slice(0, 5)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         ) : (
@@ -1102,10 +1097,9 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
         </p>
       </div>
       </>
-      )}
 
-      {/* 블록 상세 패널 (타임블록 탭에서만) */}
-      {subTab === 'timeblock' && selectedBlock && (
+      {/* 블록 상세 패널 */}
+      {selectedBlock && (
         <ScheduleDetailPanel
           block={selectedBlock}
           boardId={boardId}
@@ -1121,7 +1115,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
       )}
 
       {/* 체크리스트 모달 (타임블록 탭에서만, 선택 + 생성 통합) */}
-      {subTab === 'timeblock' && pendingBlock && showChecklistModal && (
+      {pendingBlock && showChecklistModal && (
         <ChecklistCreateModal
           boardId={boardId}
           assigneeId={pendingBlock.userId}
@@ -1159,7 +1153,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
       )}
 
       {/* 설정 모달 (타임블록 탭에서만) */}
-      {subTab === 'timeblock' && showSettingsModal && settings && (
+      {showSettingsModal && settings && (
         <ScheduleSettingsModal
           currentStartTime={settings.work_start_time}
           currentWorkHours={settings.work_hours_per_day}

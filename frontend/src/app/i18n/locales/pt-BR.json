@@ -172,8 +172,8 @@
         "tagline": "Colaboração Infinita. Custo Zero.",
         "feature1": "Boards kanban e tarefas ilimitados",
         "feature2": "Cronograma diário e checklists",
-        "feature3": "Sincronização de dados em tempo real e compartilhamento com a equipe",
-        "feature4": "Integração Slack e alertas em tempo real",
+        "feature3": "Compartilhamento de equipe e colaboração (atualização manual)",
+        "feature4": "Notificações básicas",
         "cta": "START FREE"
       },
       "premium": {
@@ -185,6 +185,7 @@
         "feature3": "Dashboard PM inteligente e análise de recursos",
         "feature4": "Orquestração avançada de permissões de equipe",
         "feature5": "Relatório de sprint AI e insights",
+        "feature6": "Sincronização de board em tempo real (atualizações instantâneas sem recarregar)",
         "cta": "START TRIAL"
       }
     },
@@ -1175,8 +1176,10 @@
     "noMilestone": "Sem marcos",
     "editMilestone": "Editar marco",
     "viewKanban": "Kanban",
+    "viewScheduleTab": "Agenda",
     "viewSchedule": "Agenda Diária",
     "viewGantt": "Gráfico Gantt",
+    "viewAIAnalysisTab": "Análise IA",
     "viewStatistics": "Marcos",
     "viewAIReport": "Relatório IA",
     "inquiry": "Fale Conosco",
@@ -1204,7 +1207,8 @@
     "cannotRemoveSelf": "Você não pode remover a si mesmo.",
     "removeMemberFailed": "Falha ao remover membro.",
     "checklist": "Checklist",
-    "viewNotes": "Notas"
+    "viewNotes": "Notas",
+    "viewMeeting": "Reunião"
   },
   "admin": {
     "backToBoards": "Voltar aos quadros",
@@ -1482,6 +1486,61 @@
       "startDate": "Data de Início",
       "endDate": "Data de Fim",
       "saving": "Salvando..."
+    },
+    "monitoring": {
+      "title": "Monitoramento",
+      "subtitle": "Monitoramento de saúde e desempenho do sistema",
+      "loadFailed": "Falha ao carregar dados de monitoramento",
+      "autoRefresh": "Atualização automática",
+      "refresh": "Atualizar",
+      "jvmHeap": "JVM Heap",
+      "hikariConnections": "Conexões DB",
+      "apiErrorRate": "Taxa de erros API",
+      "totalRequests": "Total de solicitações",
+      "active": "Ativo",
+      "idle": "Ocioso",
+      "pending": "Pendente",
+      "max": "Máximo",
+      "apiResponseTop10": "Tempo de resposta API Top 10",
+      "apiTrend": "Tendência API (Por hora)",
+      "responseTime": "Tempo de resposta",
+      "errorRate": "Taxa de erros",
+      "cloudWatch": "CloudWatch",
+      "cloudWatchNotConnected": "CloudWatch não está conectado",
+      "cloudWatchNotConnectedDesc": "Habilite o CloudWatch no servidor para visualizar métricas de infraestrutura",
+      "ec2Cpu": "EC2 CPU",
+      "rdsCpu": "RDS CPU",
+      "rdsConnections": "Conexões RDS",
+      "rdsIops": "RDS IOPS",
+      "readIops": "Leitura",
+      "writeIops": "Escrita",
+      "slackAlerts": "Configurações de alertas Slack",
+      "webhookUrl": "Webhook URL",
+      "webhookUrlPlaceholder": "https://hooks.slack.com/services/...",
+      "alertEnabled": "Habilitar alertas",
+      "saveConfig": "Salvar configuração",
+      "testAlert": "Alerta de teste",
+      "configSaved": "Configuração salva",
+      "testSent": "Alerta de teste enviado",
+      "noData": "Sem dados",
+      "serverTime": "Hora do servidor",
+      "aiTotalCalls": "Chamadas AI",
+      "aiTotalTokens": "Uso de tokens AI",
+      "aiEstimatedCost": "Custo estimado",
+      "aiAvgTokensPerCall": "Tokens médios/chamada",
+      "last30Days": "Últimos 30 dias",
+      "tokensPerCall": "tokens / call",
+      "aiUsageByBoard": "Uso de AI por quadro",
+      "aiUsageByFeature": "Uso de AI por recurso",
+      "openAIBilling": "Uso da conta OpenAI",
+      "openAITotalCost": "Custo mensal",
+      "openAITotalRequests": "Total de requisições",
+      "openAITotalTokens": "Total de tokens",
+      "openAINotConnected": "OpenAI Admin Key não conectada",
+      "openAINotConnectedDesc": "Configure a variável OPENAI_ADMIN_KEY para visualizar o uso da conta",
+      "openAIDailyCost": "Tendência de custos diários",
+      "openAIModelUsage": "Uso por modelo",
+      "openAICost": "Custo"
     }
   },
   "announcements": {
@@ -2201,7 +2260,22 @@
     "aiRecommendedTasks": "Tarefas recomendadas",
     "aiSummaryTitle": "Resumo da reunião",
     "saveToNote": "Salvar em notas",
-    "saveToNoteSuccess": "Salvo em notas"
+    "saveToNoteSuccess": "Salvo em notas",
+    "recurrence": "Recorrência",
+    "noRecurrence": "Sem recorrência",
+    "recurrenceWeekly": "Semanal",
+    "recurrenceBiweekly": "Quinzenal",
+    "recurrenceMonthly": "Mensal",
+    "recurrenceEndDate": "Data de término da recorrência",
+    "recurrenceEndDateHint": "Deixe em branco para repetir indefinidamente",
+    "recurring": "Recorrente",
+    "deleteRecurringTitle": "Excluir reunião recorrente",
+    "deleteRecurringMessage": "Esta é uma reunião recorrente. Como você deseja excluí-la?",
+    "deleteThisOnly": "Excluir apenas esta reunião",
+    "deleteThisAndFuture": "Excluir esta e futuras reuniões",
+    "editRecurringTitle": "Editar reunião recorrente",
+    "editThisOnly": "Editar apenas esta reunião",
+    "editThisAndFuture": "Editar esta e futuras reuniões"
   },
   "notes": {
     "addTag": "Adicionar tag",
@@ -2282,5 +2356,41 @@
     "subtitle": "Vagas são necessárias para convidar membros",
     "title": "Comprar vagas adicionais",
     "year": "ano"
+  },
+  "ai_credits": {
+    "title": "Créditos de IA",
+    "remaining": "Créditos restantes",
+    "monthly": "Créditos mensais",
+    "purchased": "Créditos comprados",
+    "used": "Usado",
+    "total_available": "Disponível",
+    "reset_date": "Data de reinício",
+    "warning_low": "Restam {{count}} créditos de IA",
+    "warning_critical": "Os créditos de IA estão quase esgotados ({{count}} restantes)",
+    "warning_exhausted": "Os créditos de IA foram esgotados",
+    "purchase": {
+      "title": "Comprar créditos de IA",
+      "description": "Compre créditos de IA adicionais para continuar usando os recursos de IA",
+      "unit_price": "₩1.000 por crédito",
+      "quantity": "Quantidade",
+      "quantity_unit": "créditos",
+      "total_price": "Preço total",
+      "buy_button": "Comprar",
+      "success": "{{count}} créditos de IA foram adicionados",
+      "failed": "Falha na compra. Tente novamente"
+    },
+    "exhausted_modal": {
+      "title": "Créditos de IA esgotados",
+      "description": "Todos os créditos de IA foram usados.\nCompre créditos adicionais para continuar usando os recursos de IA.",
+      "buy_button": "Comprar créditos",
+      "later_button": "Depois"
+    },
+    "admin": {
+      "title": "Status de créditos de IA",
+      "monthly_allocation": "Alocação mensal",
+      "monthly_usage": "Uso mensal",
+      "purchased_remaining": "Créditos comprados restantes",
+      "total_remaining": "Total restante"
+    }
   }
 }
