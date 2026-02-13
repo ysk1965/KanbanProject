@@ -192,7 +192,7 @@ jobs:
           fi
 
           echo "✅ Dev deployment completed!"
-          [ "$BE_RESULT" == "skipped" ] && echo "  Backend: skipped (no changes)"
-          [ "$BE_RESULT" == "success" ] && echo "  Backend: deployed"
-          [ "$FE_RESULT" == "skipped" ] && echo "  Frontend: skipped (no changes)"
-          [ "$FE_RESULT" == "success" ] && echo "  Frontend: deployed"
+          [ "$BE_RESULT" == "skipped" ] && echo "  Backend: skipped (no changes)" || true
+          [ "$BE_RESULT" == "success" ] && echo "  Backend: deployed" || true
+          [ "$FE_RESULT" == "skipped" ] && echo "  Frontend: skipped (no changes)" || true
+          [ "$FE_RESULT" == "success" ] && echo "  Frontend: deployed" || true
