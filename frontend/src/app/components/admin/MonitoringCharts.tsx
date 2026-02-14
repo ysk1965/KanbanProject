@@ -411,6 +411,7 @@ export function MonitoringCharts({ dashboard, history, aiUsage, openAIBilling }:
                       </Pie>
                       <Tooltip
                         contentStyle={tooltipStyle}
+                        itemStyle={{ color: '#e2e8f0' }}
                         formatter={(value: number, name: string) => [
                           `${value} calls`,
                           FEATURE_LABELS[name] || name,

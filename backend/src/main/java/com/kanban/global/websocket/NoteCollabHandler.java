@@ -2,8 +2,12 @@ package com.kanban.global.websocket;
 
 import com.kanban.domain.note.service.NoteCollabService;
 import com.kanban.global.security.JwtProvider;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.connection.Message;
+import org.springframework.data.redis.connection.MessageListener;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.listener.ChannelTopic;
+import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.BinaryMessage;
 import org.springframework.web.socket.CloseStatus;
@@ -13,7 +17,10 @@ import org.springframework.web.socket.handler.BinaryWebSocketHandler;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -25,20 +32,42 @@ import java.util.concurrent.ConcurrentHashMap;
  *   Type 2 (MSG_AWARENESS)   - Awareness update: cursors, presence (relayed)
  *
  * Endpoint: /ws-collab/{noteId}?token={jwt}
+ *
+ * In prod (Redis available): relays updates across instances via Redis Pub/Sub.
+ * In local/dev (no Redis): local relay only (existing behavior).
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class NoteCollabHandler extends BinaryWebSocketHandler {
 
     private final JwtProvider jwtProvider;
     private final NoteCollabService noteCollabService;
+    private final InstanceIdHolder instanceIdHolder;
+    private final Optional<StringRedisTemplate> redisTemplate;
+    private final Optional<RedisMessageListenerContainer> listenerContainer;
 
     private static final byte MSG_SYNC_FULL = 0;
     private static final byte MSG_SYNC_UPDATE = 1;
     private static final byte MSG_AWARENESS = 2;
 
+    private static final String REDIS_CHANNEL_PREFIX = "ws-collab:";
+
     private final Map<String, Room> rooms = new ConcurrentHashMap<>();
+    private final Map<String, MessageListener> redisListeners = new ConcurrentHashMap<>();
+
+    public NoteCollabHandler(
+            JwtProvider jwtProvider,
+            NoteCollabService noteCollabService,
+            InstanceIdHolder instanceIdHolder,
+            Optional<StringRedisTemplate> wsRedisTemplate,
+            Optional<RedisMessageListenerContainer> redisMessageListenerContainer
+    ) {
+        this.jwtProvider = jwtProvider;
+        this.noteCollabService = noteCollabService;
+        this.instanceIdHolder = instanceIdHolder;
+        this.redisTemplate = wsRedisTemplate;
+        this.listenerContainer = redisMessageListenerContainer;
+    }
 
     private static class Room {
         final String noteId;
@@ -69,6 +98,8 @@ public class NoteCollabHandler extends BinaryWebSocketHandler {
         // Load stored state from DB for the first session in the room
         if (room.sessions.size() == 1 && room.storedState == null) {
             noteCollabService.loadState(noteId).ifPresent(state -> room.storedState = state);
+            // Subscribe to Redis channel for this note (first local session)
+            subscribeRedisChannel(noteId);
         }
 
         // Send stored state to the newly connected client
@@ -106,8 +137,12 @@ public class NoteCollabHandler extends BinaryWebSocketHandler {
                 noteCollabService.saveState(noteId, state);
                 log.debug("Collab state persisted: noteId={}, size={}", noteId, state.length);
             }
-            case MSG_SYNC_UPDATE -> relayToOthers(room, session.getId(), data);
-            case MSG_AWARENESS -> relayToOthers(room, session.getId(), data);
+            case MSG_SYNC_UPDATE, MSG_AWARENESS -> {
+                // Relay to local peers
+                relayToOthers(room, session.getId(), data);
+                // Relay to other instances via Redis
+                publishToRedis(noteId, session.getId(), data);
+            }
             default -> log.warn("Unknown collab message type: {}", msgType);
         }
     }
@@ -133,6 +168,8 @@ public class NoteCollabHandler extends BinaryWebSocketHandler {
                 }
             }
             rooms.remove(noteId);
+            // Unsubscribe from Redis channel (last local session)
+            unsubscribeRedisChannel(noteId);
             log.debug("Collab room removed: noteId={}", noteId);
         }
     }
@@ -146,6 +183,73 @@ public class NoteCollabHandler extends BinaryWebSocketHandler {
             log.error("Error during cleanup after transport error", e);
         }
     }
+
+    // --- Redis Pub/Sub ---
+
+    private void publishToRedis(String noteId, String senderSessionId, byte[] data) {
+        redisTemplate.ifPresent(template -> {
+            try {
+                // Format: instanceId|sessionId|base64(binaryData)
+                String message = instanceIdHolder.getInstanceId()
+                        + "|" + senderSessionId
+                        + "|" + Base64.getEncoder().encodeToString(data);
+                template.convertAndSend(REDIS_CHANNEL_PREFIX + noteId, message);
+            } catch (Exception e) {
+                log.error("Failed to publish collab message to Redis: noteId={}", noteId, e);
+            }
+        });
+    }
+
+    private void subscribeRedisChannel(String noteId) {
+        listenerContainer.ifPresent(container -> {
+            String channel = REDIS_CHANNEL_PREFIX + noteId;
+            MessageListener listener = (Message message, byte[] pattern) -> {
+                try {
+                    String body = new String(message.getBody(), StandardCharsets.UTF_8);
+                    String[] parts = body.split("\\|", 3);
+                    if (parts.length < 3) return;
+
+                    String sourceInstanceId = parts[0];
+                    // Skip messages from this instance
+                    if (instanceIdHolder.getInstanceId().equals(sourceInstanceId)) return;
+
+                    byte[] binaryData = Base64.getDecoder().decode(parts[2]);
+                    Room room = rooms.get(noteId);
+                    if (room == null) return;
+
+                    BinaryMessage msg = new BinaryMessage(binaryData);
+                    room.sessions.forEach((sessionId, ws) -> {
+                        if (ws.isOpen()) {
+                            try {
+                                synchronized (ws) {
+                                    ws.sendMessage(msg);
+                                }
+                            } catch (IOException e) {
+                                log.error("Failed to relay Redis collab message to session: {}", sessionId, e);
+                            }
+                        }
+                    });
+                } catch (Exception e) {
+                    log.error("Failed to process Redis collab message: noteId={}", noteId, e);
+                }
+            };
+            container.addMessageListener(listener, new ChannelTopic(channel));
+            redisListeners.put(noteId, listener);
+            log.debug("Redis subscribed to collab channel: {}", channel);
+        });
+    }
+
+    private void unsubscribeRedisChannel(String noteId) {
+        listenerContainer.ifPresent(container -> {
+            MessageListener listener = redisListeners.remove(noteId);
+            if (listener != null) {
+                container.removeMessageListener(listener, new ChannelTopic(REDIS_CHANNEL_PREFIX + noteId));
+                log.debug("Redis unsubscribed from collab channel: {}", REDIS_CHANNEL_PREFIX + noteId);
+            }
+        });
+    }
+
+    // --- Local relay ---
 
     private void relayToOthers(Room room, String senderSessionId, byte[] data) {
         BinaryMessage msg = new BinaryMessage(data);

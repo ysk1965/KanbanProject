@@ -137,14 +137,16 @@ app.version:
 # Toss Payments
 toss:
   payments:
-    client-key: ${TOSS_CLIENT_KEY:test_ck_D5GePWvyJnrK0W0k6q8gLzN97Eoq}
-    secret-key: ${TOSS_SECRET_KEY:test_sk_zXLkKEypNArWmo50nX3lmeaxYG5R}
+    client-key: ${TOSS_CLIENT_KEY:}
+    secret-key: ${TOSS_SECRET_KEY:}
     confirm-url: https://api.tosspayments.com/v1/payments/confirm
 
 # App config
 app:
   frontend-url: ${FRONTEND_URL:http://localhost:5173}
   testprod-frontend-url: ${TESTPROD_FRONTEND_URL:}
+  websocket:
+    broker-type: ${WS_BROKER_TYPE:simple}
   monitoring:
     enabled: true
     cloudwatch-enabled: ${CLOUDWATCH_ENABLED:false}
@@ -250,7 +252,7 @@ management:
       enabled: false
 
 ---
-# Prod Profile (PostgreSQL)
+# Prod Profile (PostgreSQL + Redis Pub/Sub)
 spring:
   config:
     activate:
@@ -273,6 +275,8 @@ spring:
     show-sql: false
 
 app:
+  websocket:
+    broker-type: redis
   file:
     s3-enabled: true
     s3-bucket: ${S3_BUCKET}

@@ -13,7 +13,11 @@ import java.util.List;
 import java.util.UUID;
 
 @Entity
-@Table(name = "comments")
+@Table(name = "comments", indexes = {
+    @Index(name = "idx_comment_task_id", columnList = "task_id"),
+    @Index(name = "idx_comment_board_id", columnList = "board_id"),
+    @Index(name = "idx_comment_board_created", columnList = "board_id, created_at")
+})
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor

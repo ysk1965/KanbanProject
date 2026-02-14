@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { LanguageSwitcher } from '../LanguageSwitcher';
-import { HeroScene } from './BridgeScene';
+const HeroScene = lazy(() => import('./BridgeScene').then(m => ({ default: m.HeroScene })));
 import { KanbanDiagram, GanttDiagram, DailyScheduleDiagram, DailyChecklistDiagram, SlackNotificationDiagram, PriceComparisonDiagram, ResourcePulseDiagram, AIReportDiagram } from './Diagrams';
 import { motion, Variants, AnimatePresence } from 'framer-motion';
 import {
@@ -160,7 +160,9 @@ export const LandingPage: React.FC = () => {
 
       {/* Hero Section */}
       <header className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20">
-        <HeroScene />
+        <Suspense fallback={<div className="absolute inset-0 bg-bridge-dark" />}>
+          <HeroScene />
+        </Suspense>
         <div className="absolute inset-0 z-0 pointer-events-none bg-[radial-gradient(circle_at_center,rgba(10,14,23,0)_0%,rgba(10,14,23,0.3)_60%,#0A0E17_100%)]" />
 
         <div className="relative z-10 container mx-auto px-8 text-center">
@@ -494,7 +496,9 @@ export const LandingPage: React.FC = () => {
 
         {/* Final CTA */}
         <section className="py-72 relative overflow-hidden bg-bridge-dark text-white text-center">
-           <HeroScene />
+           <Suspense fallback={<div className="absolute inset-0 bg-bridge-dark" />}>
+             <HeroScene />
+           </Suspense>
            <div className="absolute inset-0 bg-gradient-to-t from-bridge-dark via-transparent to-bridge-dark" />
            <div className="relative z-10 max-w-6xl mx-auto px-8">
               <motion.h2
