@@ -25,6 +25,7 @@ import {
   DailyChecklistColumnResponse,
 } from '../utils/api';
 import { getInitials, getAssigneeHex } from '../utils/assigneeColor';
+import { BoardWebSocketEvent, ChecklistItem } from '../types';
 
 interface DailyScheduleViewProps {
   boardId: string;
@@ -33,6 +34,7 @@ interface DailyScheduleViewProps {
   onViewFeature?: (featureId: string) => void;
   onViewTask?: (taskId: string) => void;
   refreshTrigger?: number;
+  wsChecklistEvent?: BoardWebSocketEvent | null;
   currentUserRole?: string;
   initialSubTab?: string;
 }
@@ -56,7 +58,7 @@ const parseHour = (time: string): number => {
 
 type ScheduleViewMode = 'day' | 'week';
 
-export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onViewFeature, onViewTask, refreshTrigger, currentUserRole, initialSubTab }: DailyScheduleViewProps) {
+export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onViewFeature, onViewTask, refreshTrigger, wsChecklistEvent, currentUserRole, initialSubTab }: DailyScheduleViewProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   // viewer 역할 제외한 멤버 목록
@@ -186,6 +188,34 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
   useEffect(() => {
     loadSchedule();
   }, [loadSchedule, refreshTrigger]);
+
+  // WebSocket 체크리스트 이벤트 → 로컬 UI 업데이트 (API 호출 없음)
+  useEffect(() => {
+    if (!wsChecklistEvent) return;
+    const { type, data } = wsChecklistEvent;
+    const eventData = data as { item?: ChecklistItem; id?: string; task_id?: string };
+
+    if (type === 'CHECKLIST_TOGGLED' || type === 'CHECKLIST_UPDATED') {
+      const item = eventData.item;
+      if (!item) return;
+      // 스케줄 블록의 체크리스트 완료 상태 업데이트
+      setColumns(prev => prev.map(col => ({
+        ...col,
+        blocks: col.blocks.map(b =>
+          b.checklist_item && b.checklist_item.id === item.id
+            ? { ...b, checklist_item: { ...b.checklist_item, completed: item.completed } }
+            : b
+        ),
+      })));
+      // 데일리 체크리스트 완료 상태 업데이트
+      setDailyChecklists(prev => prev.map(col => ({
+        ...col,
+        items: col.items.map(i =>
+          i.checklist_item_id === item.id ? { ...i, completed: item.completed } : i
+        ),
+      })));
+    }
+  }, [wsChecklistEvent]);
 
   // 스케줄 데이터가 변경되면 선택된 블록도 업데이트
   useEffect(() => {

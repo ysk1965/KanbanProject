@@ -1,5 +1,5 @@
 # ElastiCache Module for KanbanProject
-# Redis Cluster
+# Redis Replication Group (Primary + Replica, Multi-AZ)
 
 # ElastiCache Subnet Group
 resource "aws_elasticache_subnet_group" "main" {
@@ -13,15 +13,33 @@ resource "aws_elasticache_subnet_group" "main" {
   }
 }
 
-# ElastiCache Cluster
-resource "aws_elasticache_cluster" "main" {
-  cluster_id           = "${var.project_name}-${var.environment}-redis"
+# Parameter Group
+resource "aws_elasticache_parameter_group" "main" {
+  name   = "${var.project_name}-${var.environment}-redis-params"
+  family = "redis7"
+
+  tags = {
+    Name        = "${var.project_name}-${var.environment}-redis-params"
+    Environment = var.environment
+  }
+}
+
+# ElastiCache Replication Group (replaces single-node cluster)
+resource "aws_elasticache_replication_group" "main" {
+  replication_group_id = "${var.project_name}-${var.environment}-redis"
+  description          = "Redis for cache + WebSocket Pub/Sub"
   engine               = "redis"
   engine_version       = var.engine_version
   node_type            = var.node_type
-  num_cache_nodes      = 1
-  parameter_group_name = "default.redis7"
+  num_cache_clusters   = var.num_cache_clusters
   port                 = 6379
+
+  multi_az_enabled           = var.num_cache_clusters > 1
+  automatic_failover_enabled = var.num_cache_clusters > 1
+  at_rest_encryption_enabled = true
+  transit_encryption_enabled = false # VPC internal, performance priority
+
+  parameter_group_name = aws_elasticache_parameter_group.main.name
   subnet_group_name    = aws_elasticache_subnet_group.main.name
   security_group_ids   = [var.security_group_id]
 

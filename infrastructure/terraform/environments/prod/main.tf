@@ -89,7 +89,8 @@ module "elasticache" {
   environment        = var.environment
   private_subnet_ids = module.vpc.private_subnet_ids
   security_group_id  = module.security_groups.redis_security_group_id
-  node_type          = "cache.t4g.micro"
+  node_type          = "cache.t4g.small"
+  num_cache_clusters = 2  # Primary + Replica, Multi-AZ
 }
 
 # Elastic Beanstalk Module - Production settings

@@ -11,7 +11,11 @@ import java.time.ZoneOffset;
 import java.util.UUID;
 
 @Entity
-@Table(name = "checklist_items")
+@Table(name = "checklist_items", indexes = {
+    @Index(name = "idx_checklist_task_id", columnList = "task_id"),
+    @Index(name = "idx_checklist_assignee_id", columnList = "assignee_id"),
+    @Index(name = "idx_checklist_task_position", columnList = "task_id, position")
+})
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor

@@ -225,6 +225,25 @@ resource "aws_elastic_beanstalk_environment" "main" {
     }
   }
 
+  # ALB Sticky Session (for WebSocket connection affinity)
+  setting {
+    namespace = "aws:elasticbeanstalk:environment:process:default"
+    name      = "StickinessEnabled"
+    value     = "true"
+  }
+
+  setting {
+    namespace = "aws:elasticbeanstalk:environment:process:default"
+    name      = "StickinessType"
+    value     = "lb_cookie"
+  }
+
+  setting {
+    namespace = "aws:elasticbeanstalk:environment:process:default"
+    name      = "StickinessLBCookieDuration"
+    value     = "3600"
+  }
+
   # Health Check
   setting {
     namespace = "aws:elasticbeanstalk:environment:process:default"

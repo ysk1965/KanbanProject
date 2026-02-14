@@ -1,7 +1,6 @@
-import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { Plus, Users, Settings, Filter, ArrowLeft, LayoutGrid, Calendar, Flag, Pencil, Lock, BarChart3, Search, X, User, ChevronDown, CheckCircle2, Circle, Tag as TagIcon, Layers, ChevronsDownUp, ChevronsUpDown, Lightbulb, MessageSquare, FileText } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
+import { Plus } from 'lucide-react';
 import { isWhiteLabelDomain } from '../utils/domain';
 
 // 뷰 모드 타입
@@ -12,46 +11,18 @@ import { Block, Feature, Task, Tag, Board, InviteLink, Subscription, ActivityLog
 import { KanbanBlock } from '../components/KanbanBlock';
 import { FeatureCard } from '../components/FeatureCard';
 import { FeatureChipSelector } from '../components/FeatureChipSelector';
-import { FeatureDetailModal } from '../components/FeatureDetailModal';
-import { TaskDetailModal } from '../components/TaskDetailModal';
-import { AddBlockModal } from '../components/AddBlockModal';
-import { AddFeatureModal } from '../components/AddFeatureModal';
 import { TrialBanner } from '../components/TrialBanner';
 import { FilterOptions } from '../components/FilterModal';
-import { ShareBoardModal, BoardMember as ShareBoardMember, MemberRole } from '../components/ShareBoardModal';
-import { SubscriptionModal } from '../components/SubscriptionModal';
-// ActivityLogModal replaced by NotificationDropdown
+import { BoardMember as ShareBoardMember, MemberRole } from '../components/ShareBoardModal';
 import { NotificationDropdown } from '../components/NotificationDropdown';
-import { MilestoneModal } from '../components/MilestoneModal';
-import { MilestoneOnboardingModal } from '../components/MilestoneOnboardingModal';
-import { UpgradeModal, UpgradeTrigger } from '../components/UpgradeModal';
-import { PremiumBenefitsModal } from '../components/PremiumBenefitsModal';
-import { SeatPurchaseModal } from '../components/SeatPurchaseModal';
-import { AlertModal } from '../components/AlertModal';
-import { UserMenu } from '../components/UserMenu';
+import { UpgradeTrigger } from '../components/UpgradeModal';
 import { DailyScheduleView } from '../components/DailyScheduleView';
 import { MeetingCalendarView } from '../components/MeetingCalendarView';
 import { WeeklyScheduleView } from '../components/WeeklyScheduleView';
-import { StatisticsView } from '../components/StatisticsView';
-import { AIReportPanel } from '../components/AIReportPanel';
-import { NotesView } from '../components/notes/NotesView';
+const StatisticsView = lazy(() => import('../components/StatisticsView').then(m => ({ default: m.StatisticsView })));
+const AIReportPanel = lazy(() => import('../components/AIReportPanel').then(m => ({ default: m.AIReportPanel })));
+const NotesView = lazy(() => import('../components/notes/NotesView').then(m => ({ default: m.NotesView })));
 import { EmptyBoardGuide } from '../components/EmptyBoardGuide';
-import { InquiryModal } from '../components/InquiryModal';
-import { AnnouncementDisplay } from '../components/AnnouncementDisplay';
-import { AiCreditPurchaseModal } from '../components/AiCreditPurchaseModal';
-import { Button } from '../components/ui/button';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '../components/ui/popover';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../components/ui/select';
 import {
   boardService,
   featureService,
@@ -64,16 +35,22 @@ import {
   activityService,
   milestoneService,
   checklistService,
-  inquiryService,
   aiCreditService
 } from '../utils/services';
 import { notificationAPI, checklistAPI, scheduleAPI } from '../utils/api';
 
 import { useTranslation } from 'react-i18next';
 import { getRandomFeatureColor } from '../constants';
-import { getInitials, getAssigneeHex } from '../utils/assigneeColor';
 import { useBoardWebSocket } from '../hooks/useBoardWebSocket';
-import { wsManager } from '../utils/websocket';
+
+// 추출된 Hook 및 컴포넌트
+import { useBoardDataLoader } from '../hooks/useBoardDataLoader';
+import { useBoardFilters } from '../hooks/useBoardFilters';
+import { useBoardPermissions } from '../hooks/useBoardPermissions';
+import { useNotificationManager } from '../hooks/useNotificationManager';
+import { KanbanBoardHeader } from '../components/KanbanBoardHeader';
+import { KanbanFilterToolbar } from '../components/KanbanFilterToolbar';
+import { BoardModalManager } from '../components/BoardModalManager';
 
 declare const __FE_COMMIT_HASH__: string;
 
@@ -125,64 +102,46 @@ export function KanbanBoardPage() {
     }
   }, []);
 
-  // 보드 이름 인라인 편집
-  const [isEditingBoardName, setIsEditingBoardName] = useState(false);
-  const [editingBoardName, setEditingBoardName] = useState('');
-  const boardNameInputRef = useRef<HTMLInputElement>(null);
+  // ======== 커스텀 Hook: 데이터 로딩 ========
+  const {
+    board, setBoard,
+    blocks, setBlocks,
+    features, setFeatures,
+    allFeatures, setAllFeatures,
+    tasks, setTasks,
+    tags, setTags,
+    inviteLinks, setInviteLinks,
+    subscription, setSubscription,
+    activities, setActivities,
+    activityCursor, setActivityCursor,
+    hasMoreActivity, setHasMoreActivity,
+    milestones, setMilestones,
+    isLoading,
+    checklistDataMap, setChecklistDataMap,
+    scheduledTaskIds, setScheduledTaskIds,
+    tierInfo, setTierInfo,
+    boardLimits, setBoardLimits,
+    boardMembersData, setBoardMembersData,
+    aiCredits, setAiCredits,
+    kanbanSelectedMilestoneId, setKanbanSelectedMilestoneId,
+    reloadFeaturesAndTasks,
+    refreshMembers,
+  } = useBoardDataLoader(boardId);
 
-  // 보드 데이터
-  const [board, setBoard] = useState<Board | null>(null);
-  const [blocks, setBlocks] = useState<Block[]>([]);
-  const [features, setFeatures] = useState<Feature[]>([]);
-  const [allFeatures, setAllFeatures] = useState<Feature[]>([]); // 마일스톤 모달용 전체 Feature
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [tags, setTags] = useState<Tag[]>([]);
-  const [inviteLinks, setInviteLinks] = useState<InviteLink[]>([]);
-  const [subscription, setSubscription] = useState<Subscription | null>(null);
-  // pricingPlans removed - seat-based billing doesn't need PricingPlan table
-  const [activities, setActivities] = useState<ActivityLog[]>([]);
-  const [activityCursor, setActivityCursor] = useState<string | undefined>();
-  const [hasMoreActivity, setHasMoreActivity] = useState(false);
-  const [milestones, setMilestones] = useState<Milestone[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  // 배치 로드된 체크리스트 데이터 (taskId -> ChecklistItem[])
-  const [checklistDataMap, setChecklistDataMap] = useState<{ [taskId: string]: ChecklistItem[] }>({});
-  // 스케줄 블록이 있는 Task ID 세트 (타임블록 정렬/표시용)
-  const [scheduledTaskIds, setScheduledTaskIds] = useState<Set<string>>(new Set());
-
-  // Tier & Limits 상태
-  const [tierInfo, setTierInfo] = useState<BoardTierInfo | null>(null);
-  const [boardLimits, setBoardLimits] = useState<BoardLimits | null>(null);
-  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
-  const [upgradeTrigger, setUpgradeTrigger] = useState<UpgradeTrigger>('task_limit');
-  const [seatPurchaseModal, setSeatPurchaseModal] = useState<{
-    open: boolean;
-    seatCount: number;
-    billableMemberCount: number;
-    pendingEmail: string;
-    pendingRole: MemberRole;
-    pendingMemberId?: string; // 역할 변경 시 사용
-  } | null>(null);
-
-  // AI Credits 상태
-  const [aiCredits, setAiCredits] = useState<AiCredits | null>(null);
-  const [showCreditModal, setShowCreditModal] = useState(false);
-  const [creditModalMode, setCreditModalMode] = useState<'purchase' | 'exhausted'>('purchase');
-
-  // 체크리스트 펼침 상태
-  const [expandedChecklistTaskIds, setExpandedChecklistTaskIds] = useState<Set<string>>(new Set());
-  // Feature 서브태스크 펼침 상태
-  const [expandedFeatureIds, setExpandedFeatureIds] = useState<Set<string>>(new Set());
-
-  // 멤버 데이터
-  const [boardMembersData, setBoardMembersData] = useState<ShareBoardMember[]>([]);
-  const currentUserId = currentUser?.id || '';
-
-  const memberColorMap = useMemo(() => {
-    const map: Record<string, string | null> = {};
-    boardMembersData.forEach((m) => { map[m.userId] = m.assigneeColor || null; });
-    return map;
-  }, [boardMembersData]);
+  // ======== 커스텀 Hook: 권한 ========
+  const {
+    canAccessSchedule,
+    canAccessMilestone,
+    canAccessSlack,
+    canAccessStatistics,
+    canViewStatistics,
+    isAdminOrOwner,
+    currentUserRole,
+    isViewer,
+    isOwner,
+    canEdit,
+    hideBillingForUser,
+  } = useBoardPermissions(tierInfo, boardMembersData, currentUser, board, hideBilling, isSystemAdmin, isTester);
 
   // 모달 상태
   const [selectedFeature, setSelectedFeature] = useState<Feature | null>(null);
@@ -199,14 +158,11 @@ export function KanbanBoardPage() {
   const [isPremiumBenefitsModalOpen, setIsPremiumBenefitsModalOpen] = useState(false);
   const [isInquiryModalOpen, setIsInquiryModalOpen] = useState(false);
   const [isActivityLogModalOpen, setIsActivityLogModalOpen] = useState(false);
-  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
-  const [unreadInquiryCount, setUnreadInquiryCount] = useState(0);
   const [wsCommentEvent, setWsCommentEvent] = useState<BoardWebSocketEvent | null>(null);
   const [wsChecklistEvent, setWsChecklistEvent] = useState<BoardWebSocketEvent | null>(null);
   const [isMilestoneModalOpen, setIsMilestoneModalOpen] = useState(false);
   const [selectedMilestone, setSelectedMilestone] = useState<Milestone | null>(null);
   const [isMilestoneOnboardingOpen, setIsMilestoneOnboardingOpen] = useState(false);
-  const [kanbanSelectedMilestoneId, setKanbanSelectedMilestoneId] = useState<string>('all');
   const [filterOptions, setFilterOptions] = useState<FilterOptions>({
     keyword: '',
     members: [],
@@ -219,6 +175,27 @@ export function KanbanBoardPage() {
   // Feature 칩 선택 상태 (null = 전체, [] = 없음, [ids] = 개별 선택)
   const [selectedFeatureIds, setSelectedFeatureIds] = useState<string[] | null>(null);
 
+  // Tier & Limits 모달 상태
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const [upgradeTrigger, setUpgradeTrigger] = useState<UpgradeTrigger>('task_limit');
+  const [seatPurchaseModal, setSeatPurchaseModal] = useState<{
+    open: boolean;
+    seatCount: number;
+    billableMemberCount: number;
+    pendingEmail: string;
+    pendingRole: MemberRole;
+    pendingMemberId?: string;
+  } | null>(null);
+
+  // AI Credits 상태
+  const [showCreditModal, setShowCreditModal] = useState(false);
+  const [creditModalMode, setCreditModalMode] = useState<'purchase' | 'exhausted'>('purchase');
+
+  // 체크리스트 펼침 상태
+  const [expandedChecklistTaskIds, setExpandedChecklistTaskIds] = useState<Set<string>>(new Set());
+  // Feature 서브태스크 펼침 상태
+  const [expandedFeatureIds, setExpandedFeatureIds] = useState<Set<string>>(new Set());
+
   // Alert Modal 상태
   const [alertModal, setAlertModal] = useState<{
     open: boolean;
@@ -229,195 +206,26 @@ export function KanbanBoardPage() {
     setAlertModal({ open: true, type });
   };
 
-  // 보드 데이터 로드 - 통합 API 사용 (기존 13개 → 2개로 감소)
-  useEffect(() => {
-    const loadBoardData = async () => {
-      if (!boardId) {
-        navigate('/boards');
-        return;
-      }
+  // 멤버 데이터 파생
+  const currentUserId = currentUser?.id || '';
 
-      try {
-        setIsLoading(true);
+  const memberColorMap = useMemo(() => {
+    const map: Record<string, string | null> = {};
+    boardMembersData.forEach((m) => { map[m.userId] = m.assigneeColor || null; });
+    return map;
+  }, [boardMembersData]);
 
-        // 통합 API 호출
-        const fullData = await boardService.getBoardFull(boardId);
+  // ======== 커스텀 Hook: 알림 ========
+  const isRealtimeEnabled = tierInfo?.tier !== 'STANDARD';
+  const {
+    unreadNotificationCount, setUnreadNotificationCount,
+    unreadInquiryCount, setUnreadInquiryCount,
+  } = useNotificationManager(boardId, currentUser, isRealtimeEnabled, isInquiryModalOpen);
 
-        // 통합 응답 분배
-        setBoard({
-          id: fullData.id,
-          name: fullData.name,
-          description: fullData.description,
-          owner: fullData.owner,
-          my_role: fullData.my_role,
-          is_starred: fullData.is_starred,
-          member_count: fullData.member_count,
-          subscription: fullData.subscription,
-          selected_milestone_id: fullData.selected_milestone_id,
-          created_at: fullData.created_at,
-          updated_at: fullData.updated_at,
-        });
-        setBlocks(fullData.blocks);
-        setTags(fullData.tags);
-        setInviteLinks(fullData.invite_links || []);
-        setSubscription(fullData.subscription_detail);
-        setActivities(fullData.activities.activities);
-        setActivityCursor(fullData.activities.next_cursor || undefined);
-        setHasMoreActivity(fullData.activities.has_more);
-
-        setMilestones(fullData.milestones.milestones);
-        setTierInfo(fullData.tier_info);
-        setBoardLimits(fullData.limits);
-        setAllFeatures(fullData.features); // 마일스톤 모달용 전체 Feature 저장
-        setBoardMembersData(fullData.members.members.map((m) => ({
-          id: m.id,
-          userId: m.user.id,
-          name: m.user.name,
-          email: m.user.email,
-          role: m.role.toLowerCase() as MemberRole,
-          assigneeColor: m.assignee_color || null,
-        })));
-
-        // 보드에 선택된 마일스톤이 있으면 해당 마일스톤으로 필터링된 데이터 로드
-        let finalTasks = fullData.tasks;
-        if (fullData.selected_milestone_id) {
-          setKanbanSelectedMilestoneId(fullData.selected_milestone_id);
-          const [filteredFeatures, filteredTasks] = await Promise.all([
-            featureService.getFeatures(boardId, fullData.selected_milestone_id),
-            taskService.getTasks(boardId, { milestone_id: fullData.selected_milestone_id }),
-          ]);
-          setFeatures(filteredFeatures);
-          setTasks(filteredTasks);
-          finalTasks = filteredTasks;
-        } else {
-          setFeatures(fullData.features);
-          setTasks(fullData.tasks);
-        }
-
-        // 체크리스트가 있는 Task들의 ID 수집 후 배치 로드
-        const taskIdsWithChecklist = finalTasks
-          .filter((t: Task) => (t.checklist_total ?? 0) > 0)
-          .map((t: Task) => t.id);
-
-        if (taskIdsWithChecklist.length > 0) {
-          try {
-            const batchChecklistData = await checklistService.getBatchChecklists(boardId, taskIdsWithChecklist);
-            // API 응답을 ChecklistItem[] 형식으로 변환
-            const checklistMap: { [taskId: string]: ChecklistItem[] } = {};
-            // 백엔드 응답 형식: { checklists: [{ task_id, total, completed, items }] }
-            const checklists = (batchChecklistData as any).checklists || [];
-            checklists.forEach((group: any) => {
-              const taskId = group.task_id || group.taskId;
-              if (group && taskId && Array.isArray(group.items)) {
-                checklistMap[taskId] = group.items.map((item: any) => ({
-                  id: item.id,
-                  title: item.title,
-                  completed: item.completed,
-                  position: item.position,
-                  due_date: item.due_date,
-                  assignee: item.assignee ? { id: item.assignee.id, name: item.assignee.name } : null,
-                }));
-              }
-            });
-            setChecklistDataMap(checklistMap);
-          } catch (error) {
-            console.warn('Failed to load batch checklists:', error);
-            // 배치 로드 실패 시 개별 로드로 fallback (DraggableCard에서 처리)
-          }
-        }
-
-        // 스케줄 블록이 있는 Task ID 로드
-        try {
-          const scheduledData = await scheduleAPI.getScheduledTaskIds(boardId);
-          setScheduledTaskIds(new Set(scheduledData.task_ids));
-        } catch (error) {
-          console.warn('Failed to load scheduled task ids:', error);
-        }
-      } catch (error) {
-        console.error('Failed to load board data:', error);
-        navigate('/boards');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadBoardData();
-  }, [boardId, navigate]);
-
-  // AI 크레딧 조회 (보드 로드 시)
-  useEffect(() => {
-    if (boardId) {
-      aiCreditService.getCredits(boardId)
-        .then(res => setAiCredits(res))
-        .catch(() => {}); // 실패 시 무시 (비로그인 등)
-    }
-  }, [boardId]);
-
-  // 402 이벤트 리스너 (크레딧 소진 시)
-  useEffect(() => {
-    const handler = () => {
-      setCreditModalMode('exhausted');
-      setShowCreditModal(true);
-    };
-    window.addEventListener('ai-credits-exhausted', handler);
-    return () => window.removeEventListener('ai-credits-exhausted', handler);
-  }, []);
-
-  // AI 크레딧 구매 완료 콜백
-  const handleCreditPurchaseComplete = (updatedCredits: AiCredits) => {
-    setAiCredits(updatedCredits);
-    setShowCreditModal(false);
-  };
-
-  // 결제 완료 후 pending action 처리 (시트 구매 → 초대/역할변경 재시도)
-  useEffect(() => {
-    const pendingSeatAction = localStorage.getItem('pending_seat_action');
-    if (pendingSeatAction && boardId && !isLoading) {
-      localStorage.removeItem('pending_seat_action');
-      try {
-        const action = JSON.parse(pendingSeatAction);
-        if (action.type === 'roleChange' && action.pendingMemberId) {
-          handleUpdateMemberRole(action.pendingMemberId, action.pendingRole);
-        } else if (action.type === 'invite' && action.pendingEmail) {
-          handleAddMember(action.pendingEmail, action.pendingRole);
-        }
-      } catch (e) {
-        console.error('Failed to process pending seat action:', e);
-      }
-    }
-  }, [boardId, isLoading]);
-
-  // ShareBoardModal 열릴 때 멤버 목록 새로고침
-  useEffect(() => {
-    if (!isShareBoardModalOpen || !boardId) return;
-
-    const refreshMembers = async () => {
-      try {
-        const membersData = await memberService.getMembers(boardId);
-        setBoardMembersData(membersData.members.map((m) => ({
-          id: m.id,
-          userId: m.user.id,
-          name: m.user.name,
-          email: m.user.email,
-          role: m.role.toLowerCase() as MemberRole,
-          assigneeColor: m.assignee_color,
-        })));
-      } catch (error) {
-        console.error('Failed to refresh members:', error);
-      }
-    };
-
-    refreshMembers();
-  }, [isShareBoardModalOpen, boardId]);
-
-  // 보드의 선택된 마일스톤 동기화
-  useEffect(() => {
-    if (board?.selected_milestone_id) {
-      setKanbanSelectedMilestoneId(board.selected_milestone_id);
-    } else {
-      setKanbanSelectedMilestoneId('all');
-    }
-  }, [board?.selected_milestone_id]);
+  // ======== 커스텀 Hook: 필터 ========
+  const { filteredFeatures, filteredTasks, sortedBlocks, getTasksForBlock } = useBoardFilters(
+    features, tasks, blocks, filterOptions, checklistDataMap, selectedFeatureIds, scheduledTaskIds
+  );
 
   // ======== WebSocket 실시간 동기화 ========
   const handleWebSocketEvent = useCallback((event: BoardWebSocketEvent) => {
@@ -453,7 +261,7 @@ export function KanbanBoardPage() {
         break;
       }
 
-      // Task events — Feature 카운트는 서버가 계산한 값을 그대로 사용
+      // Task events
       case 'TASK_CREATED': {
         const { task, feature } = data as { task: Task; feature: { id: string; total_tasks: number; completed_tasks: number; progress_percentage: number } };
         setTasks(prev => prev.some(t => t.id === task.id) ? prev : [...prev, task]);
@@ -502,7 +310,7 @@ export function KanbanBoardPage() {
         break;
       }
 
-      // Checklist events → TaskDetailModal 전달 + 보드 상태 직접 업데이트
+      // Checklist events
       case 'CHECKLIST_CREATED': {
         const { item: createdItem, task_id: createTaskId } = data as { item: ChecklistItem; task_id: string };
         setChecklistDataMap(prev => ({
@@ -513,7 +321,6 @@ export function KanbanBoardPage() {
           ...t,
           checklist_total: (t.checklist_total || 0) + 1,
         } : t));
-        setScheduleRefreshKey(prev => prev + 1);
         setWsChecklistEvent(event);
         break;
       }
@@ -523,7 +330,6 @@ export function KanbanBoardPage() {
           ...prev,
           [updateTaskId]: (prev[updateTaskId] || []).map(ci => ci.id === updatedItem.id ? updatedItem : ci)
         }));
-        setScheduleRefreshKey(prev => prev + 1);
         setWsChecklistEvent(event);
         break;
       }
@@ -537,7 +343,6 @@ export function KanbanBoardPage() {
           ...t,
           checklist_total: Math.max(0, (t.checklist_total || 0) - 1),
         } : t));
-        setScheduleRefreshKey(prev => prev + 1);
         setWsChecklistEvent(event);
         break;
       }
@@ -552,12 +357,11 @@ export function KanbanBoardPage() {
           ...t,
           checklist_completed: Math.max(0, (t.checklist_completed || 0) + delta),
         } : t));
-        setScheduleRefreshKey(prev => prev + 1);
         setWsChecklistEvent(event);
         break;
       }
 
-      // Comment events → 직접 상태 업데이트 (REST 재호출 없음)
+      // Comment events
       case 'COMMENT_CREATED':
       case 'COMMENT_UPDATED':
       case 'COMMENT_DELETED':
@@ -565,21 +369,21 @@ export function KanbanBoardPage() {
         setWsCommentEvent(event);
         break;
 
-      // Schedule events → refreshTrigger로 DailyScheduleView 리로드
+      // Schedule events
       case 'SCHEDULE_CREATED':
       case 'SCHEDULE_UPDATED':
       case 'SCHEDULE_DELETED':
         setScheduleRefreshKey(prev => prev + 1);
         break;
 
-      // Meeting events → MeetingCalendarView 리로드
+      // Meeting events
       case 'MEETING_CREATED':
       case 'MEETING_UPDATED':
       case 'MEETING_DELETED':
         setMeetingRefreshKey(prev => prev + 1);
         break;
 
-      // Member events → assignee color 등 멤버 정보 동기화
+      // Member events
       case 'MEMBER_UPDATED': {
         const memberData = data as { id?: string; user?: { id?: string }; assignee_color?: string | null; role?: string };
         if (memberData?.id) {
@@ -602,16 +406,13 @@ export function KanbanBoardPage() {
     }
   }, []);
 
-  // PREMIUM/TRIAL만 실시간 WebSocket 활성화, STANDARD는 기존 폴링 유지
-  const isRealtimeEnabled = tierInfo?.tier !== 'STANDARD';
-
   const { connectionStatus, onlineUsers } = useBoardWebSocket({
     boardId: boardId || null,
     onEvent: handleWebSocketEvent,
     enabled: isRealtimeEnabled,
   });
 
-  // 재연결 시 누락된 이벤트 복구: 연결이 끊겼다가 다시 연결되면 전체 데이터 silent refetch
+  // 재연결 시 누락된 이벤트 복구
   const hasConnectedBefore = useRef(false);
   useEffect(() => {
     if (connectionStatus === 'connected') {
@@ -627,75 +428,45 @@ export function KanbanBoardPage() {
     }
   }, [connectionStatus, boardId]);
 
-  // 알림: PREMIUM/TRIAL은 WebSocket으로 실시간, STANDARD는 30초 폴링
+  // 402 이벤트 리스너 (크레딧 소진 시)
   useEffect(() => {
-    if (!boardId || !currentUser) return;
-    const fetchUnreadCount = async () => {
-      try {
-        const response = await notificationAPI.getUnreadCount(boardId);
-        setUnreadNotificationCount(response.unread_count);
-      } catch (error) {
-        /* silently fail */
-      }
+    const handler = () => {
+      setCreditModalMode('exhausted');
+      setShowCreditModal(true);
     };
-    fetchUnreadCount();
-    if (!isRealtimeEnabled) {
-      const interval = setInterval(fetchUnreadCount, 30000);
-      return () => clearInterval(interval);
-    }
-  }, [boardId, currentUser, isRealtimeEnabled]);
+    window.addEventListener('ai-credits-exhausted', handler);
+    return () => window.removeEventListener('ai-credits-exhausted', handler);
+  }, []);
 
-  // 문의 읽지 않은 답변 수 로드 + WebSocket 실시간 구독
+  // AI 크레딧 구매 완료 콜백
+  const handleCreditPurchaseComplete = (updatedCredits: AiCredits) => {
+    setAiCredits(updatedCredits);
+    setShowCreditModal(false);
+  };
+
+  // 결제 완료 후 pending action 처리
   useEffect(() => {
-    if (!currentUser) return;
-    const fetchUnreadInquiryCount = async () => {
+    const pendingSeatAction = localStorage.getItem('pending_seat_action');
+    if (pendingSeatAction && boardId && !isLoading) {
+      localStorage.removeItem('pending_seat_action');
       try {
-        const count = await inquiryService.getUnreadReplyCount();
-        setUnreadInquiryCount(count);
-      } catch (error) {
-        /* silently fail */
-      }
-    };
-    fetchUnreadInquiryCount();
-
-    // 글로벌 유저 토픽 구독 (INQUIRY_REPLIED 이벤트)
-    let subscription: { unsubscribe: () => void } | null = null;
-    const subscribeToInquiry = () => {
-      subscription = wsManager.subscribe(
-        `/topic/user/${currentUser.id}`,
-        (message) => {
-          try {
-            const event = JSON.parse(message.body);
-            if (event.type === 'INQUIRY_REPLIED') {
-              const unreadCount = event.data?.unread_count;
-              if (typeof unreadCount === 'number') {
-                setUnreadInquiryCount(unreadCount);
-              } else {
-                setUnreadInquiryCount(prev => prev + 1);
-              }
-            }
-          } catch (error) {
-            console.error('[KanbanBoardPage] Failed to parse global user event:', error);
-          }
+        const action = JSON.parse(pendingSeatAction);
+        if (action.type === 'roleChange' && action.pendingMemberId) {
+          handleUpdateMemberRole(action.pendingMemberId, action.pendingRole);
+        } else if (action.type === 'invite' && action.pendingEmail) {
+          handleAddMember(action.pendingEmail, action.pendingRole);
         }
-      );
-    };
-
-    const removeStatusListener = wsManager.onStatusChange((status) => {
-      if (status === 'connected' && !subscription) {
-        subscribeToInquiry();
+      } catch (e) {
+        console.error('Failed to process pending seat action:', e);
       }
-    });
-
-    if (wsManager.getStatus() === 'connected') {
-      subscribeToInquiry();
     }
+  }, [boardId, isLoading]);
 
-    return () => {
-      subscription?.unsubscribe();
-      removeStatusListener();
-    };
-  }, [currentUser, isInquiryModalOpen]);
+  // ShareBoardModal 열릴 때 멤버 목록 새로고침
+  useEffect(() => {
+    if (!isShareBoardModalOpen || !boardId) return;
+    refreshMembers();
+  }, [isShareBoardModalOpen, boardId, refreshMembers]);
 
   // STANDARD 전환 후 첫 방문 시 Premium 혜택 모달 자동 표시
   useEffect(() => {
@@ -722,64 +493,11 @@ export function KanbanBoardPage() {
     return map;
   }, [milestones]);
 
-  // Premium 기능 접근 제어 헬퍼 (hideBilling 사용자는 제한 없음)
-  const canAccessSchedule = hideBilling || (tierInfo?.can_access_schedule ?? true);
-  const canAccessMilestone = hideBilling || (tierInfo?.can_access_milestone ?? true);
-  const canAccessSlack = hideBilling || (tierInfo?.can_access_slack ?? true);
-
   // Upgrade Modal 열기 헬퍼
   const openUpgradeModal = (trigger: UpgradeTrigger) => {
     setUpgradeTrigger(trigger);
     setIsUpgradeModalOpen(true);
   };
-
-  // 통계 접근 권한 (Premium 보드 + Admin 이상, hideBilling 사용자는 제한 없음)
-  const canAccessStatistics = hideBilling || (tierInfo?.can_access_statistics ?? true);
-  const isAdminOrOwner = boardMembersData?.some(
-    (m) => m.userId === currentUser?.id && (m.role === 'owner' || m.role === 'admin')
-  ) ?? false;
-  const canViewStatistics = canAccessStatistics && (isAdminOrOwner || isSystemAdmin);
-
-  // Viewer 권한 체크 - Viewer는 수정 불가
-  // System ADMIN이 멤버가 아닌 보드에 접근 시 board.my_role을 fallback으로 사용
-  const memberRole = boardMembersData?.find(
-    (m) => m.userId === currentUser?.id
-  )?.role;
-  const currentUserRole = memberRole ?? (
-    isSystemAdmin && board?.my_role
-      ? board.my_role.toLowerCase() as MemberRole
-      : undefined
-  );
-  const isViewer = currentUserRole === 'viewer';
-  const isOwner = currentUserRole === 'owner';
-  const canEdit = !isViewer;
-
-  // 보드 이름 편집 시작
-  const handleStartEditBoardName = () => {
-    if (!canEdit || !board) return;
-    setEditingBoardName(board.name);
-    setIsEditingBoardName(true);
-    setTimeout(() => boardNameInputRef.current?.select(), 0);
-  };
-
-  // 보드 이름 저장
-  const handleSaveBoardName = async () => {
-    const trimmed = editingBoardName.trim();
-    if (!trimmed || !board || !boardId || trimmed === board.name) {
-      setIsEditingBoardName(false);
-      return;
-    }
-    try {
-      await boardService.updateBoard(boardId, trimmed, board.description);
-      setBoard((prev) => prev ? { ...prev, name: trimmed } : prev);
-    } catch (e) {
-      console.error('Failed to update board name', e);
-    }
-    setIsEditingBoardName(false);
-  };
-
-  // 구독/결제 UI는 보드 Owner만 접근 가능 (시스템 ADMIN/TESTER도 숨김)
-  const hideBillingForUser = hideBilling || !isOwner;
 
   // 뷰 모드 변경 핸들러 (Premium 기능 체크)
   const handleViewModeChange = (mode: ViewMode) => {
@@ -818,7 +536,6 @@ export function KanbanBoardPage() {
       return;
     }
     if (milestone && boardId) {
-      // 목록 조회에는 features가 없으므로 상세 조회로 features 포함된 데이터를 가져옴
       try {
         const detailed = await milestoneService.getMilestone(boardId, milestone.id);
         setSelectedMilestone(detailed);
@@ -839,8 +556,6 @@ export function KanbanBoardPage() {
         billing_cycle: billingCycle,
         seat_count: seatCount,
       });
-      // requestPayment 이후 Toss 결제창으로 리다이렉트됨
-      // 여기 도달 시 사용자가 결제창을 닫은 경우
     } catch (error: any) {
       if (error?.code === 'PAY_PROCESS_CANCELED' || error?.code === 'USER_CANCEL') {
         return;
@@ -850,11 +565,10 @@ export function KanbanBoardPage() {
     }
   };
 
-  // 시트 구매 후 자동 재초대/역할변경 핸들러 (Toss 결제창 리다이렉트)
+  // 시트 구매 후 자동 재초대/역할변경 핸들러
   const handlePurchaseSeatsAndRetry = async (additionalSeats: number) => {
     if (!boardId || !seatPurchaseModal) return;
 
-    // 리다이렉트 전 pending action 저장
     const { pendingEmail, pendingRole, pendingMemberId } = seatPurchaseModal;
     const pendingAction = JSON.stringify({
       type: pendingMemberId ? 'roleChange' : 'invite',
@@ -881,61 +595,6 @@ export function KanbanBoardPage() {
     }
   };
 
-  // Feature와 Task를 milestoneId로 필터링해서 다시 로드
-  const reloadFeaturesAndTasks = async (milestoneId?: string) => {
-    if (!boardId) return;
-    try {
-      const [featuresData, tasksData] = await Promise.all([
-        featureService.getFeatures(boardId, milestoneId),
-        taskService.getTasks(boardId, milestoneId ? { milestone_id: milestoneId } : undefined),
-      ]);
-      setFeatures(featuresData);
-      setTasks(tasksData);
-
-      // 체크리스트 배치 로드
-      const taskIdsWithChecklist = tasksData
-        .filter((t: Task) => (t.checklist_total ?? 0) > 0)
-        .map((t: Task) => t.id);
-
-      if (taskIdsWithChecklist.length > 0) {
-        try {
-          const batchChecklistData = await checklistService.getBatchChecklists(boardId, taskIdsWithChecklist);
-          const checklistMap: { [taskId: string]: ChecklistItem[] } = {};
-          // 백엔드 응답 형식: { checklists: [{ task_id, total, completed, items }] }
-          const checklists = (batchChecklistData as any).checklists || [];
-          checklists.forEach((group: any) => {
-            const taskId = group.task_id || group.taskId;
-            if (group && taskId && Array.isArray(group.items)) {
-              checklistMap[taskId] = group.items.map((item: any) => ({
-                id: item.id,
-                title: item.title,
-                completed: item.completed,
-                position: item.position,
-                due_date: item.due_date,
-                assignee: item.assignee ? { id: item.assignee.id, name: item.assignee.name } : null,
-              }));
-            }
-          });
-          setChecklistDataMap(checklistMap);
-        } catch (error) {
-          console.warn('Failed to load batch checklists:', error);
-        }
-      } else {
-        setChecklistDataMap({});
-      }
-
-      // 스케줄 블록이 있는 Task ID 리로드
-      try {
-        const scheduledData = await scheduleAPI.getScheduledTaskIds(boardId);
-        setScheduledTaskIds(new Set(scheduledData.task_ids));
-      } catch (error) {
-        console.warn('Failed to load scheduled task ids:', error);
-      }
-    } catch (error) {
-      console.error('Failed to reload features and tasks:', error);
-    }
-  };
-
   // 칸반 뷰 마일스톤 선택 핸들러
   const handleKanbanMilestoneSelect = async (milestoneId: string) => {
     setKanbanSelectedMilestoneId(milestoneId);
@@ -944,7 +603,6 @@ export function KanbanBoardPage() {
         const newMilestoneId = milestoneId === 'all' ? null : milestoneId;
         await boardService.updateSelectedMilestone(boardId, newMilestoneId);
         setBoard((prev) => prev ? { ...prev, selected_milestone_id: newMilestoneId } : prev);
-        // 마일스톤에 맞게 Feature와 Task 다시 로드
         await reloadFeaturesAndTasks(newMilestoneId || undefined);
       } catch (error) {
         console.error('Failed to save selected milestone:', error);
@@ -972,7 +630,6 @@ export function KanbanBoardPage() {
       const result = await memberService.inviteMember(boardId, email, backendRole as any);
 
       if (result.type === 'DIRECT_ADD' && result.member) {
-        // 기존 사용자 - 바로 멤버로 추가됨
         setBoardMembersData([...boardMembersData, {
           id: result.member.id,
           userId: result.member.user.id,
@@ -982,7 +639,6 @@ export function KanbanBoardPage() {
         }]);
         alert(t('kanban.memberAdded', { name: result.member.user.name }));
       } else if (result.type === 'EMAIL_SENT') {
-        // 미가입 사용자 - 이메일 초대 발송됨
         alert(t('kanban.inviteEmailSent', { email: result.email }));
       }
     } catch (error: any) {
@@ -1069,7 +725,6 @@ export function KanbanBoardPage() {
     if (!boardId) return;
 
     const prevMembers = [...boardMembersData];
-    // Optimistic: reorder locally
     const memberMap = new Map(boardMembersData.map((m) => [m.id, m]));
     setBoardMembersData(memberIds.map((id) => memberMap.get(id)!).filter(Boolean));
 
@@ -1150,10 +805,6 @@ export function KanbanBoardPage() {
     setHasMoreActivity(response.has_more);
   };
 
-  const sortedBlocks = useMemo(() => {
-    return [...blocks].sort((a, b) => a.position - b.position);
-  }, [blocks]);
-
   // 블록 관리
   const handleAddBlock = async (name: string, color: string) => {
     if (!boardId) return;
@@ -1227,7 +878,6 @@ export function KanbanBoardPage() {
     const dragBlock = sortedBlocks[dragIndex];
     if (!dragBlock || dragBlock.type === 'FIXED') return;
 
-    // Task(FIXED) 블록 앞으로는 이동 불가
     const taskFixedIdx = sortedBlocks.findIndex((b) => b.fixed_type === 'TASK');
     const minInsert = taskFixedIdx >= 0 ? taskFixedIdx + 1 : 0;
 
@@ -1275,7 +925,6 @@ export function KanbanBoardPage() {
         due_date: data.dueDate,
       });
 
-      // 마일스톤에 Feature 연결
       if (data.milestoneId) {
         try {
           const updatedMilestone = await milestoneService.addFeatures(boardId, data.milestoneId, [newFeature.id]);
@@ -1286,8 +935,7 @@ export function KanbanBoardPage() {
       }
 
       setFeatures([...features, newFeature]);
-      setAllFeatures([...allFeatures, newFeature]); // 전체 Feature 목록에도 추가
-      // Feature 생성 후 바로 상세 모달 열기
+      setAllFeatures([...allFeatures, newFeature]);
       setSelectedFeature(newFeature);
       setIsFeatureModalOpen(true);
     } catch (error) {
@@ -1303,7 +951,6 @@ export function KanbanBoardPage() {
   // Feature 칩 토글
   const handleToggleFeatureChip = (featureId: string) => {
     setSelectedFeatureIds((prev) => {
-      // 전체 모드(null)에서 클릭 → 해당 Feature만 제외
       if (prev === null) {
         return features.map((f) => f.id).filter((id) => id !== featureId);
       }
@@ -1312,7 +959,6 @@ export function KanbanBoardPage() {
         return next;
       }
       const next = [...prev, featureId];
-      // 모두 선택되면 전체 모드로 전환
       return next.length === features.length ? null : next;
     });
   };
@@ -1331,7 +977,7 @@ export function KanbanBoardPage() {
         due_date: updates.due_date,
       });
       setFeatures(features.map((f) => (f.id === featureId ? updatedFeature : f)));
-      setAllFeatures(allFeatures.map((f) => (f.id === featureId ? updatedFeature : f))); // 전체 Feature 목록도 업데이트
+      setAllFeatures(allFeatures.map((f) => (f.id === featureId ? updatedFeature : f)));
     } catch (error) {
       console.error('Failed to update feature:', error);
       setFeatures(features.map((f) => (f.id === featureId ? { ...f, ...updates } : f)));
@@ -1342,7 +988,6 @@ export function KanbanBoardPage() {
   const handleDeleteFeature = async (featureId: string) => {
     if (!boardId) return;
 
-    // Optimistic UI update
     setFeatures(features.filter((f) => f.id !== featureId));
     setAllFeatures(allFeatures.filter((f) => f.id !== featureId));
     setTasks(tasks.filter((t) => t.feature_id !== featureId));
@@ -1376,10 +1021,10 @@ export function KanbanBoardPage() {
     }
   };
 
-  const handleTaskClick = (task: Task) => {
+  const handleTaskClick = useCallback((task: Task) => {
     setSelectedTask(task);
     setIsTaskModalOpen(true);
-  };
+  }, []);
 
   const handleNotificationClick = (notification: NotificationItem) => {
     if (notification.task_id) {
@@ -1400,7 +1045,6 @@ export function KanbanBoardPage() {
     );
 
     if (isOnlyChecklistUpdate) {
-      // 체크리스트 변경 시 스케줄 뷰 새로고침 트리거
       setScheduleRefreshKey((prev) => prev + 1);
       return;
     }
@@ -1460,11 +1104,6 @@ export function KanbanBoardPage() {
   };
 
   // Milestone 핸들러
-  const handleOpenMilestoneModal = (milestone?: Milestone) => {
-    setSelectedMilestone(milestone || null);
-    setIsMilestoneModalOpen(true);
-  };
-
   const handleSaveMilestone = async (data: {
     title: string;
     description?: string;
@@ -1476,7 +1115,6 @@ export function KanbanBoardPage() {
 
     try {
       if (selectedMilestone) {
-        // 수정
         const updated = await milestoneService.updateMilestone(boardId, selectedMilestone.id, {
           title: data.title,
           description: data.description,
@@ -1484,44 +1122,34 @@ export function KanbanBoardPage() {
           end_date: data.end_date,
         });
 
-        // Feature 연결 변경 처리
         const currentFeatureIds = new Set(selectedMilestone.features?.map((f) => f.id) || []);
         const newFeatureIds = new Set(data.feature_ids || []);
 
-        // 제거할 Feature들
         const featuresToRemove = [...currentFeatureIds].filter((id) => !newFeatureIds.has(id));
-        // 추가할 Feature들
         const featuresToAdd = [...newFeatureIds].filter((id) => !currentFeatureIds.has(id));
 
-        // Feature 제거
         for (const featureId of featuresToRemove) {
           await milestoneService.removeFeature(boardId, selectedMilestone.id, featureId);
         }
 
-        // Feature 추가
         if (featuresToAdd.length > 0) {
           await milestoneService.addFeatures(boardId, selectedMilestone.id, featuresToAdd);
         }
 
-        // 최신 마일스톤 데이터 다시 조회
         const refreshedMilestone = await milestoneService.getMilestone(boardId, selectedMilestone.id);
         setMilestones((prev) => prev.map((m) => (m.id === refreshedMilestone.id ? refreshedMilestone : m)));
 
-        // 현재 선택된 마일스톤이 수정한 마일스톤인 경우 features/tasks 다시 로드
         if (kanbanSelectedMilestoneId === selectedMilestone.id) {
           await reloadFeaturesAndTasks(selectedMilestone.id);
         }
       } else {
-        // 생성
         const created = await milestoneService.createMilestone(boardId, data);
         setMilestones((prev) => [...prev, created]);
 
-        // 생성된 마일스톤으로 보드 선택 업데이트
         await boardService.updateSelectedMilestone(boardId, created.id);
         setBoard((prev) => prev ? { ...prev, selected_milestone_id: created.id } : prev);
         setKanbanSelectedMilestoneId(created.id);
 
-        // 새 마일스톤으로 데이터 로드
         await reloadFeaturesAndTasks(created.id);
       }
     } catch (error) {
@@ -1537,7 +1165,6 @@ export function KanbanBoardPage() {
       await milestoneService.deleteMilestone(boardId, milestoneId);
       setMilestones((prev) => prev.filter((m) => m.id !== milestoneId));
 
-      // 삭제한 마일스톤이 현재 선택된 마일스톤인 경우 'all'로 변경
       if (kanbanSelectedMilestoneId === milestoneId) {
         setKanbanSelectedMilestoneId('all');
         await boardService.updateSelectedMilestone(boardId, null);
@@ -1590,9 +1217,7 @@ export function KanbanBoardPage() {
     }
 
     try {
-      // API 응답으로 해당 Task만 업데이트 (전체 재조회 제거)
       const movedTask = await taskService.moveTask(boardId, taskId, targetBlockId, newPosition);
-      // 응답 데이터로 로컬 상태 업데이트 (이미 낙관적 업데이트로 처리됨, 서버 응답과 동기화)
       setTasks((prevTasks) =>
         prevTasks.map((t) =>
           t.id === taskId
@@ -1602,7 +1227,6 @@ export function KanbanBoardPage() {
       );
     } catch (error) {
       console.error('Failed to move task:', error);
-      // 실패 시 원래 상태로 롤백
       setTasks((prevTasks) =>
         prevTasks.map((t) =>
           t.id === taskId
@@ -1621,7 +1245,6 @@ export function KanbanBoardPage() {
     const newFeature = features.find((f) => f.id === targetFeatureId);
     if (!oldFeature || !newFeature) return;
 
-    // 낙관적 업데이트: Task의 feature 정보 변경
     setTasks((prevTasks) =>
       prevTasks.map((t) =>
         t.id === taskId
@@ -1630,7 +1253,6 @@ export function KanbanBoardPage() {
       )
     );
 
-    // 낙관적 업데이트: 양쪽 Feature의 카운트 변경
     const oldNewTotal = oldFeature.total_tasks - 1;
     const oldNewCompleted = task.completed ? oldFeature.completed_tasks - 1 : oldFeature.completed_tasks;
     const newNewTotal = newFeature.total_tasks + 1;
@@ -1658,7 +1280,6 @@ export function KanbanBoardPage() {
       })
     );
 
-    // selectedTask도 업데이트 (모달이 닫히기 전 UI 반영)
     if (selectedTask?.id === taskId) {
       setSelectedTask((prev) =>
         prev ? { ...prev, feature_id: targetFeatureId, feature_title: newFeature.title, feature_color: newFeature.color } : prev
@@ -1670,7 +1291,6 @@ export function KanbanBoardPage() {
       setManagementRefreshKey((prev) => prev + 1);
     } catch (error) {
       console.error('Failed to move task to feature:', error);
-      // 실패 시 롤백
       setTasks((prevTasks) =>
         prevTasks.map((t) =>
           t.id === taskId
@@ -1696,14 +1316,12 @@ export function KanbanBoardPage() {
         target_task_id: targetTaskId,
       });
 
-      // 대상 Task의 체크리스트 카운트도 증가 (source는 TaskDetailModal에서 처리)
       const movedItem = tasks.find((t) => t.id === sourceTaskId);
       if (movedItem) {
         setTasks((prevTasks) =>
           prevTasks.map((t) => {
             if (t.id === targetTaskId) {
               const newTotal = (t.checklist_total || 0) + 1;
-              const wasCompleted = false; // 이동된 항목의 완료 상태는 모를 수 있으므로 refresh로 처리
               return {
                 ...t,
                 checklist_total: newTotal,
@@ -1732,7 +1350,6 @@ export function KanbanBoardPage() {
     );
 
     try {
-      // API 응답으로 해당 Task만 업데이트 (전체 재조회 제거)
       const movedTask = await taskService.moveTask(boardId, taskId, blockId, newPosition);
       setTasks((prevTasks) =>
         prevTasks.map((t) =>
@@ -1743,7 +1360,6 @@ export function KanbanBoardPage() {
       );
     } catch (error) {
       console.error('Failed to reorder task:', error);
-      // 실패 시 원래 상태로 롤백
       setTasks((prevTasks) =>
         prevTasks.map((t) => (t.id === taskId ? { ...t, position: originalPosition } : t))
       );
@@ -1762,24 +1378,29 @@ export function KanbanBoardPage() {
   // Feature 칩 선택에 따른 태스크 필터링 여부
   const showFeatureLabel = selectedFeatureIds === null || selectedFeatureIds.length !== 1;
 
-  const getTasksForBlock = (blockId: string) => {
-    let blockTasks = filteredTasks.filter((task) => task.block_id === blockId);
-    // Feature 칩 필터 적용 (null = 전체, 필터 안 함)
-    if (selectedFeatureIds !== null) {
-      blockTasks = blockTasks.filter((task) => selectedFeatureIds.includes(task.feature_id));
-    }
-    // Task 블록에서는 타임블록이 있는 카드를 위쪽으로 정렬
-    const block = sortedBlocks.find((b) => b.id === blockId);
-    if (block?.fixed_type === 'TASK' && scheduledTaskIds.size > 0) {
-      return blockTasks.sort((a, b) => {
-        const aScheduled = scheduledTaskIds.has(a.id) ? 0 : 1;
-        const bScheduled = scheduledTaskIds.has(b.id) ? 0 : 1;
-        if (aScheduled !== bScheduled) return aScheduled - bScheduled;
-        return a.position - b.position;
-      });
-    }
-    return blockTasks.sort((a, b) => a.position - b.position);
-  };
+  // 블록별 태스크 맵 캐시 (KanbanBlock 메모이제이션용)
+  const blockTasksMap = useMemo(() => {
+    const map: Record<string, Task[]> = {};
+    sortedBlocks.forEach(block => {
+      if (block.fixed_type === 'FEATURE') return;
+      let blockTasks = filteredTasks.filter((task) => task.block_id === block.id);
+      if (selectedFeatureIds !== null) {
+        blockTasks = blockTasks.filter((task) => selectedFeatureIds.includes(task.feature_id));
+      }
+      if (block.fixed_type === 'TASK' && scheduledTaskIds.size > 0) {
+        blockTasks = [...blockTasks].sort((a, b) => {
+          const aScheduled = scheduledTaskIds.has(a.id) ? 0 : 1;
+          const bScheduled = scheduledTaskIds.has(b.id) ? 0 : 1;
+          if (aScheduled !== bScheduled) return aScheduled - bScheduled;
+          return a.position - b.position;
+        });
+      } else {
+        blockTasks = [...blockTasks].sort((a, b) => a.position - b.position);
+      }
+      map[block.id] = blockTasks;
+    });
+    return map;
+  }, [filteredTasks, sortedBlocks, selectedFeatureIds, scheduledTaskIds]);
 
   const handleCreateTag = async (name: string, color: string) => {
     if (!boardId) return;
@@ -1827,72 +1448,13 @@ export function KanbanBoardPage() {
     }
   };
 
-  // 필터링 (마일스톤 필터는 API에서 처리되므로 여기서는 키워드, 멤버, 태그 필터만 적용)
-  const filteredFeatures = useMemo(() => {
-    return features.filter((feature) => {
-      if (filterOptions.keyword && !feature.title.toLowerCase().includes(filterOptions.keyword.toLowerCase())) {
-        return false;
-      }
-      if (filterOptions.members.length > 0) {
-        const hasNoAssigneeFilter = filterOptions.members.includes('__no_members__');
-        const memberNames = filterOptions.members.filter(m => m !== '__no_members__');
-        const featureAssigneeName = feature.assignee?.name;
-        const matchesNoAssignee = hasNoAssigneeFilter && !featureAssigneeName;
-        const matchesMember = memberNames.length > 0 && memberNames.some(m => featureAssigneeName === m);
-        if (!matchesNoAssignee && !matchesMember) {
-          return false;
-        }
-      }
-      if (filterOptions.tags.length > 0 && !filterOptions.tags.some((tagId) => feature.tags?.some((t) => t.id === tagId))) {
-        return false;
-      }
-      return true;
-    });
-  }, [features, filterOptions]);
-
   // Feature가 속한 마일스톤 찾기
   const getFeatureMilestone = (featureId: string): Milestone | undefined => {
     return milestones.find((m) => m.features?.some((f) => f.id === featureId));
   };
 
-  // 마일스톤 필터는 API에서 처리되므로 여기서는 키워드, 멤버, 피쳐, 태그, 상태 필터만 적용
-  const filteredTasks = useMemo(() => {
-    return tasks.filter((task) => {
-      if (filterOptions.keyword && !task.title.toLowerCase().includes(filterOptions.keyword.toLowerCase())) {
-        return false;
-      }
-      if (filterOptions.members.length > 0) {
-        const hasNoAssigneeFilter = filterOptions.members.includes('__no_members__');
-        const memberNames = filterOptions.members.filter(m => m !== '__no_members__');
-        // task.assignees (API) + checklistDataMap 보충
-        const taskAssigneeNames = new Set<string>();
-        if (task.assignees) {
-          task.assignees.forEach(a => taskAssigneeNames.add(a.name));
-        }
-        const taskChecklists = checklistDataMap[task.id] || [];
-        taskChecklists.filter(ci => ci.assignee?.name).forEach(ci => taskAssigneeNames.add(ci.assignee!.name));
-        const hasNoAssignee = taskAssigneeNames.size === 0;
-        const matchesNoAssignee = hasNoAssigneeFilter && hasNoAssignee;
-        const matchesMember = memberNames.length > 0 && memberNames.some(m => taskAssigneeNames.has(m));
-        if (!matchesNoAssignee && !matchesMember) {
-          return false;
-        }
-      }
-      if (filterOptions.features.length > 0 && !filterOptions.features.includes(task.feature_id)) {
-        return false;
-      }
-      if (filterOptions.tags.length > 0 && !filterOptions.tags.some((tagId) => task.tags?.some((t) => t.id === tagId))) {
-        return false;
-      }
-      if (filterOptions.cardStatus.length > 0) {
-        const hasStatus =
-          (filterOptions.cardStatus.includes('completed') && task.completed) ||
-          (filterOptions.cardStatus.includes('incomplete') && !task.completed);
-        if (!hasStatus) return false;
-      }
-      return true;
-    });
-  }, [tasks, filterOptions, checklistDataMap]);
+  // 현재 과금 멤버 수
+  const currentBillableMembers = subscription?.billable_member_count || boardMembersData.filter(m => m.role !== 'viewer').length || 0;
 
   if (isLoading) {
     return (
@@ -1904,272 +1466,58 @@ export function KanbanBoardPage() {
 
   return (
     <DragProvider>
-      <AnnouncementDisplay />
       <div className="min-h-screen bg-bridge-dark flex flex-col">
-        <TrialBanner
-          status={subscription?.status || 'ACTIVE'}
-          tier={tierInfo?.tier}
-          trialEndsAt={tierInfo?.trial_ends_at || subscription?.trial_ends_at}
+        <KanbanBoardHeader
+          boardId={boardId || ''}
+          board={board}
+          viewMode={viewMode}
+          onViewModeChange={handleViewModeChange}
+          canEdit={canEdit}
+          canAccessSchedule={canAccessSchedule}
+          canAccessMilestone={canAccessMilestone}
+          canAccessStatistics={canAccessStatistics}
+          isAdminOrOwner={isAdminOrOwner}
+          isViewer={isViewer}
+          isTester={isTester}
+          hideBilling={hideBilling}
+          hideBillingForUser={hideBillingForUser}
+          milestones={milestones}
+          allFeatures={allFeatures}
+          kanbanSelectedMilestoneId={kanbanSelectedMilestoneId}
+          onKanbanMilestoneSelect={handleKanbanMilestoneSelect}
+          onOpenMilestoneWithCheck={handleOpenMilestoneWithCheck}
+          onSetMilestoneOnboardingOpen={() => setIsMilestoneOnboardingOpen(true)}
+          subscription={subscription}
+          tierInfo={tierInfo}
+          unreadNotificationCount={unreadNotificationCount}
+          activities={activities}
+          hasMoreActivity={hasMoreActivity}
+          onLoadMoreActivity={handleLoadMoreActivity}
+          onNotificationClick={handleNotificationClick}
+          onUnreadCountChange={setUnreadNotificationCount}
+          canAccessSlack={canAccessSlack}
+          onSlackUpgrade={() => openUpgradeModal('slack')}
+          unreadInquiryCount={unreadInquiryCount}
+          onOpenInquiry={() => setIsInquiryModalOpen(true)}
+          onOpenShareBoard={() => setIsShareBoardModalOpen(true)}
           onOpenSubscription={() => setIsSubscriptionModalOpen(true)}
           onOpenPremiumBenefits={() => setIsPremiumBenefitsModalOpen(true)}
-          hideBilling={hideBillingForUser}
+          currentUser={currentUser}
+          memberColorMap={memberColorMap}
+          onLogout={logout}
+          getScheduleSubMode={getScheduleSubMode}
+          getAISubMode={getAISubMode}
+          openUpgradeModal={openUpgradeModal}
+          onSaveBoardName={async (name: string) => {
+            if (!board || !boardId || name === board.name) return;
+            try {
+              await boardService.updateBoard(boardId, name, board.description);
+              setBoard((prev) => prev ? { ...prev, name } : prev);
+            } catch (e) {
+              console.error('Failed to update board name', e);
+            }
+          }}
         />
-
-        <header className="min-h-[3.5rem] md:h-16 border-b border-kanban-border flex items-center justify-between px-3 md:px-6 bg-kanban-bg shrink-0 z-30 gap-2">
-          {/* 좌측 영역 */}
-          <div className="flex items-center gap-2 md:gap-6 min-w-0">
-            {!hideBilling && (
-              <button
-                onClick={() => navigate('/boards')}
-                className="p-2 hover:bg-kanban-surface rounded-lg transition-colors text-zinc-400 hover:text-foreground"
-              >
-                <ArrowLeft size={18} />
-              </button>
-            )}
-
-            <div className="flex items-center gap-2 md:gap-3 min-w-0">
-              {isEditingBoardName ? (
-                <input
-                  ref={boardNameInputRef}
-                  value={editingBoardName}
-                  onChange={(e) => setEditingBoardName(e.target.value)}
-                  onBlur={handleSaveBoardName}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleSaveBoardName();
-                    if (e.key === 'Escape') setIsEditingBoardName(false);
-                  }}
-                  className="text-sm md:text-lg font-bold tracking-tight text-foreground bg-white/5 border border-white/10 rounded-lg px-2 py-0.5 outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent max-w-[160px] sm:max-w-[200px] md:max-w-[300px]"
-                  autoFocus
-                />
-              ) : (
-                <h1
-                  className={`text-sm md:text-lg font-bold tracking-tight text-foreground truncate max-w-[100px] sm:max-w-[160px] md:max-w-none ${canEdit ? 'cursor-pointer hover:text-bridge-accent transition-colors' : ''}`}
-                  onClick={canEdit ? handleStartEditBoardName : undefined}
-                  title={canEdit ? t('common.edit') : undefined}
-                >
-                  {board?.name || t('kanban.defaultBoardName')}
-                </h1>
-              )}
-
-              {/* 마일스톤 셀렉터 */}
-              <div className="hidden sm:flex items-center gap-2 bg-kanban-card px-3 py-1.5 rounded-md border border-kanban-border hover:border-[#2DD4BF]/40 cursor-pointer transition-all">
-                <Flag size={14} className="text-[#2DD4BF]" />
-                {milestones.length > 0 ? (
-                  <Select value={kanbanSelectedMilestoneId} onValueChange={handleKanbanMilestoneSelect}>
-                    <SelectTrigger className="bg-transparent border-none text-xs font-medium text-foreground focus:ring-0 h-auto p-0 w-[120px] [&>svg]:text-zinc-400">
-                      <SelectValue placeholder={t('kanban.selectMilestone')} />
-                    </SelectTrigger>
-                    <SelectContent className="bg-kanban-card border-kanban-border">
-                      <SelectItem value="all" className="text-zinc-300 hover:bg-white/10 focus:bg-white/10 focus:text-foreground text-xs">
-                        {t('common.all')}
-                      </SelectItem>
-                      {milestones.map((milestone) => {
-                        const startDate = format(parseISO(milestone.start_date), 'M/d');
-                        const endDate = format(parseISO(milestone.end_date), 'M/d');
-                        return (
-                          <SelectItem
-                            key={milestone.id}
-                            value={milestone.id}
-                            className="text-zinc-300 hover:bg-white/10 focus:bg-white/10 focus:text-foreground text-xs"
-                          >
-                            <div className="flex flex-col">
-                              <span>{milestone.title}</span>
-                              <span className="text-zinc-500 text-[10px]">{startDate} ~ {endDate}</span>
-                            </div>
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                ) : allFeatures.length > 0 ? (
-                  <button
-                    onClick={() => setIsMilestoneOnboardingOpen(true)}
-                    className="flex items-center gap-1.5 group"
-                  >
-                    <Lightbulb size={12} className="text-[#2DD4BF] animate-pulse" />
-                    <span className="text-xs text-[#2DD4BF] group-hover:text-[#2DD4BF]/80 transition-colors">{t('kanban.startMilestone')}</span>
-                  </button>
-                ) : (
-                  <span className="text-xs text-zinc-500">{t('kanban.noMilestone')}</span>
-                )}
-              </div>
-
-              {kanbanSelectedMilestoneId !== 'all' && (
-                <button
-                  onClick={() => {
-                    const milestone = milestones.find((m) => m.id === kanbanSelectedMilestoneId);
-                    if (milestone) handleOpenMilestoneWithCheck(milestone);
-                  }}
-                  className="p-1.5 text-zinc-400 hover:text-foreground transition-colors"
-                  title={t('kanban.editMilestone')}
-                >
-                  <Pencil size={14} />
-                </button>
-              )}
-
-              <button
-                onClick={() => handleOpenMilestoneWithCheck()}
-                className={`p-1.5 transition-colors ${
-                  !canAccessMilestone
-                    ? 'text-zinc-600 hover:text-zinc-500'
-                    : 'text-zinc-400 hover:text-foreground'
-                }`}
-              >
-                <Plus size={18} />
-                {!canAccessMilestone && <Lock className="h-2.5 w-2.5 absolute -top-0.5 -right-0.5" />}
-              </button>
-            </div>
-          </div>
-
-          {/* 중앙 탭 영역 (칸반보드, 일정, 회의 + 도메인별 노트/AI분석) - 모바일에서는 하단 탭바 사용 */}
-          <div className="hidden md:flex justify-center min-w-0 md:flex-1">
-          <nav className="flex items-center gap-1 bg-kanban-card p-1 rounded-xl border border-kanban-border overflow-x-auto shrink-0">
-            {/* 1. 칸반보드 */}
-            <button
-              onClick={() => handleViewModeChange('kanban')}
-              className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
-                viewMode === 'kanban'
-                  ? 'bg-gradient-to-r from-[#2DD4BF] to-[#6366F1] text-white shadow-lg shadow-[#2DD4BF]/20'
-                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-kanban-surface'
-              }`}
-            >
-              <LayoutGrid size={14} />
-              <span className="hidden md:inline">{t('kanban.viewKanban')}</span>
-            </button>
-
-            {/* 2. 일정 (schedule + weekly 병합) */}
-            <button
-              onClick={() => {
-                const subMode = getScheduleSubMode();
-                if (subMode === 'weekly' && !canAccessSchedule) {
-                  handleViewModeChange('schedule');
-                } else {
-                  handleViewModeChange(subMode);
-                }
-              }}
-              className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
-                viewMode === 'schedule' || viewMode === 'weekly'
-                  ? 'bg-gradient-to-r from-[#2DD4BF] to-[#6366F1] text-white shadow-lg shadow-[#2DD4BF]/20'
-                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-kanban-surface'
-              }`}
-            >
-              <Calendar size={14} />
-              <span className="hidden md:inline">{t('kanban.viewScheduleTab', '일정')}</span>
-            </button>
-
-            {/* 3. 회의 */}
-            {!isWhiteLabelDomain && (
-              <button
-                onClick={() => handleViewModeChange('meeting')}
-                className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
-                  viewMode === 'meeting'
-                    ? 'bg-gradient-to-r from-[#2DD4BF] to-[#6366F1] text-white shadow-lg shadow-[#2DD4BF]/20'
-                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-kanban-surface'
-                }`}
-              >
-                <Users size={14} />
-                <span className="hidden md:inline">{t('kanban.viewMeeting', '회의')}</span>
-              </button>
-            )}
-
-            {/* 4. 노트 */}
-            {!isWhiteLabelDomain && (
-              <button
-                onClick={() => handleViewModeChange('notes')}
-                className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
-                  viewMode === 'notes'
-                    ? 'bg-gradient-to-r from-[#2DD4BF] to-[#6366F1] text-white shadow-lg shadow-[#2DD4BF]/20'
-                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-kanban-surface'
-                }`}
-              >
-                <FileText size={14} />
-                <span className="hidden md:inline">{t('kanban.viewNotes', '노트')}</span>
-              </button>
-            )}
-
-            {/* 5. AI분석 (statistics + ai_report 병합) */}
-            {!isWhiteLabelDomain && (isAdminOrOwner || (!isViewer && !isTester)) && (
-              <button
-                onClick={() => {
-                  if (!canAccessStatistics) {
-                    openUpgradeModal('statistics');
-                    return;
-                  }
-                  const subMode = getAISubMode();
-                  if (subMode === 'statistics' && !isAdminOrOwner) {
-                    handleViewModeChange('ai_report');
-                  } else if (subMode === 'ai_report' && (isViewer || isTester)) {
-                    handleViewModeChange('statistics');
-                  } else {
-                    handleViewModeChange(subMode);
-                  }
-                }}
-                className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all relative whitespace-nowrap ${
-                  viewMode === 'statistics' || viewMode === 'ai_report'
-                    ? 'bg-gradient-to-r from-[#2DD4BF] to-[#6366F1] text-white shadow-lg shadow-[#2DD4BF]/20'
-                    : !canAccessStatistics
-                      ? 'text-zinc-600 cursor-not-allowed opacity-50'
-                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-kanban-surface'
-                }`}
-              >
-                <BarChart3 size={14} />
-                <span className="hidden md:inline">{t('kanban.viewAIAnalysisTab', 'AI분석')}</span>
-                {!canAccessStatistics && <Lock size={10} className="ml-0.5 text-zinc-500" />}
-              </button>
-            )}
-          </nav>
-          </div>
-
-          {/* 우측 액션 영역 */}
-          <div className="flex items-center gap-1 md:gap-2 shrink-0">
-            <div className="flex items-center gap-0.5 md:gap-1 border-r border-kanban-border pr-2 md:pr-3 mr-0.5 md:mr-1">
-              <NotificationDropdown
-                boardId={boardId || ''}
-                unreadCount={unreadNotificationCount}
-                activities={activities}
-                hasMoreActivities={hasMoreActivity}
-                onLoadMoreActivities={handleLoadMoreActivity}
-                onNotificationClick={handleNotificationClick}
-                onUnreadCountChange={setUnreadNotificationCount}
-                canAccessSlack={canAccessSlack}
-                onSlackUpgrade={() => openUpgradeModal('slack')}
-                isAdmin={isAdminOrOwner}
-                isTester={isTester}
-              />
-              {!isTester && (
-                <button
-                  onClick={() => setIsInquiryModalOpen(true)}
-                  className="relative flex items-center gap-2 px-3 py-2 text-zinc-400 hover:text-foreground hover:bg-kanban-surface rounded-lg transition-all"
-                  title={t('kanban.inquiry')}
-                >
-                  <MessageSquare size={18} />
-                  {unreadInquiryCount > 0 && (
-                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
-                      {unreadInquiryCount > 99 ? '99+' : unreadInquiryCount}
-                    </span>
-                  )}
-                </button>
-              )}
-                <button
-                onClick={() => setIsShareBoardModalOpen(true)}
-                className="flex items-center gap-2 px-3 py-2 text-zinc-400 hover:text-foreground hover:bg-kanban-surface rounded-lg transition-all"
-              >
-                <Users size={18} />
-                <span className="hidden md:inline text-xs font-semibold">{t('kanban.team')}</span>
-              </button>
-            </div>
-
-            {currentUser && (
-              <UserMenu
-                user={currentUser}
-                assigneeColor={memberColorMap[currentUser.id]}
-                onOpenSubscription={() => setIsSubscriptionModalOpen(true)}
-                onLogout={logout}
-                hideBilling={hideBillingForUser}
-              />
-            )}
-          </div>
-        </header>
 
         {/* 병합 탭 서브토글 바 */}
         {(viewMode === 'schedule' || viewMode === 'weekly') && (
@@ -2250,7 +1598,6 @@ export function KanbanBoardPage() {
                     start_date: startDate,
                     end_date: endDate,
                   });
-                  // 로컬 상태 업데이트
                   setTasks((prev) =>
                     prev.map((t) =>
                       t.id === taskId
@@ -2281,334 +1628,24 @@ export function KanbanBoardPage() {
             ) : (
             <>
             {/* 검색 + 필터 툴바 */}
-            <div className="px-3 md:px-6 py-2 md:py-3 border-b border-kanban-border flex items-center gap-2 overflow-x-auto md:overflow-x-visible md:flex-wrap kanban-scrollbar">
-              {/* 검색 */}
-              <div className="relative w-52 sm:w-80 shrink-0">
-                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
-                <input
-                  type="text"
-                  placeholder={t('kanban.searchPlaceholder')}
-                  value={filterOptions.keyword}
-                  onChange={(e) => setFilterOptions({ ...filterOptions, keyword: e.target.value })}
-                  className="w-full bg-kanban-surface border border-kanban-border rounded-lg py-2 pl-10 pr-8 text-sm text-foreground placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-[#2DD4BF]/40 focus:border-[#2DD4BF]/40 transition-all"
-                />
-                {filterOptions.keyword && (
-                  <button
-                    onClick={() => setFilterOptions({ ...filterOptions, keyword: '' })}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-foreground transition-colors"
-                  >
-                    <X size={14} />
-                  </button>
-                )}
-              </div>
-
-              <div className="h-6 w-px bg-kanban-border mx-1 shrink-0" />
-
-              {/* 담당자 필터 */}
-              <Popover>
-                <PopoverTrigger asChild>
-                  <button
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-all shrink-0 ${
-                      filterOptions.members.length > 0
-                        ? 'bg-purple-500/20 text-purple-400 border border-purple-500/50'
-                        : 'bg-kanban-surface border border-kanban-border text-zinc-400 hover:text-foreground hover:border-zinc-600'
-                    }`}
-                  >
-                    <User size={14} />
-                    <span className="hidden sm:inline">{t('kanban.assignee')}</span>
-                    {filterOptions.members.length > 0 && (
-                      <span className="bg-purple-500 text-white text-xs px-1.5 py-0.5 rounded-full min-w-[18px]">
-                        {filterOptions.members.length}
-                      </span>
-                    )}
-                    <ChevronDown size={14} />
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="w-56 p-2 bg-kanban-card border-kanban-border" align="start">
-                  <div className="space-y-1">
-                    <button
-                      onClick={() => {
-                        const exists = filterOptions.members.includes('__no_members__');
-                        setFilterOptions({
-                          ...filterOptions,
-                          members: exists
-                            ? filterOptions.members.filter(m => m !== '__no_members__')
-                            : [...filterOptions.members, '__no_members__']
-                        });
-                      }}
-                      className={`flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm transition-all ${
-                        filterOptions.members.includes('__no_members__')
-                          ? 'bg-zinc-600 text-foreground'
-                          : 'text-zinc-300 hover:bg-white/5'
-                      }`}
-                    >
-                      <Circle size={14} className="text-zinc-400" />
-                      {t('kanban.noAssignee')}
-                    </button>
-                    {boardMembersData.map((member) => (
-                      <button
-                        key={member.id}
-                        onClick={() => {
-                          const exists = filterOptions.members.includes(member.name);
-                          setFilterOptions({
-                            ...filterOptions,
-                            members: exists
-                              ? filterOptions.members.filter(m => m !== member.name)
-                              : [...filterOptions.members, member.name]
-                          });
-                        }}
-                        className={`flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm transition-all ${
-                          filterOptions.members.includes(member.name)
-                            ? 'bg-white/10 text-white'
-                            : 'text-zinc-300 hover:bg-white/5'
-                        }`}
-                      >
-                        <div
-                          className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] text-white font-bold whitespace-nowrap overflow-hidden"
-                          style={{ backgroundColor: getAssigneeHex(member.name, member.assigneeColor) }}
-                        >
-                          {getInitials(member.name)}
-                        </div>
-                        <span className="truncate">{member.name}</span>
-                        {filterOptions.members.includes(member.name) && (
-                          <CheckCircle2 size={14} className="ml-auto text-[#2DD4BF]" />
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </PopoverContent>
-              </Popover>
-
-              {/* Feature 필터 */}
-              <Popover>
-                <PopoverTrigger asChild>
-                  <button
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-all shrink-0 ${
-                      filterOptions.features.length > 0
-                        ? 'bg-[#2DD4BF]/15 text-[#2DD4BF] border border-[#2DD4BF]/40'
-                        : 'bg-kanban-surface border border-kanban-border text-zinc-400 hover:text-foreground hover:border-zinc-600'
-                    }`}
-                  >
-                    <Layers size={14} />
-                    <span className="hidden sm:inline">Feature</span>
-                    {filterOptions.features.length > 0 && (
-                      <span className="bg-[#2DD4BF] text-white text-xs px-1.5 py-0.5 rounded-full min-w-[18px]">
-                        {filterOptions.features.length}
-                      </span>
-                    )}
-                    <ChevronDown size={14} />
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="w-64 p-2 bg-kanban-card border-kanban-border max-h-80 overflow-y-auto" align="start">
-                  <div className="space-y-1">
-                    {features.map((feature) => (
-                      <button
-                        key={feature.id}
-                        onClick={() => {
-                          const exists = filterOptions.features.includes(feature.id);
-                          setFilterOptions({
-                            ...filterOptions,
-                            features: exists
-                              ? filterOptions.features.filter(f => f !== feature.id)
-                              : [...filterOptions.features, feature.id]
-                          });
-                        }}
-                        className={`flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm transition-all ${
-                          filterOptions.features.includes(feature.id)
-                            ? 'bg-[#2DD4BF]/15 text-[#2DD4BF]'
-                            : 'text-zinc-300 hover:bg-white/5'
-                        }`}
-                      >
-                        <div
-                          className="w-3 h-3 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: feature.color || '#8B5CF6' }}
-                        />
-                        <span className="truncate">{feature.title}</span>
-                        {filterOptions.features.includes(feature.id) && (
-                          <CheckCircle2 size={14} className="ml-auto text-[#2DD4BF] flex-shrink-0" />
-                        )}
-                      </button>
-                    ))}
-                    {features.length === 0 && (
-                      <p className="text-sm text-zinc-500 text-center py-2">{t('kanban.noFeatures')}</p>
-                    )}
-                  </div>
-                </PopoverContent>
-              </Popover>
-
-              {/* 라벨 필터 */}
-              <Popover>
-                <PopoverTrigger asChild>
-                  <button
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-all shrink-0 ${
-                      filterOptions.tags.length > 0
-                        ? 'bg-teal-500/20 text-teal-400 border border-teal-500/50'
-                        : 'bg-kanban-surface border border-kanban-border text-zinc-400 hover:text-foreground hover:border-zinc-600'
-                    }`}
-                  >
-                    <TagIcon size={14} />
-                    <span className="hidden sm:inline">{t('kanban.label')}</span>
-                    {filterOptions.tags.length > 0 && (
-                      <span className="bg-teal-500 text-white text-xs px-1.5 py-0.5 rounded-full min-w-[18px]">
-                        {filterOptions.tags.length}
-                      </span>
-                    )}
-                    <ChevronDown size={14} />
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="w-56 p-2 bg-kanban-card border-kanban-border max-h-80 overflow-y-auto" align="start">
-                  <div className="space-y-1">
-                    {tags.map((tag) => (
-                      <button
-                        key={tag.id}
-                        onClick={() => {
-                          const exists = filterOptions.tags.includes(tag.id);
-                          setFilterOptions({
-                            ...filterOptions,
-                            tags: exists
-                              ? filterOptions.tags.filter(t => t !== tag.id)
-                              : [...filterOptions.tags, tag.id]
-                          });
-                        }}
-                        className={`flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm transition-all ${
-                          filterOptions.tags.includes(tag.id)
-                            ? 'ring-1 ring-white/50'
-                            : 'hover:opacity-80'
-                        }`}
-                        style={{ backgroundColor: tag.color }}
-                      >
-                        <span className="text-white truncate">{tag.name}</span>
-                        {filterOptions.tags.includes(tag.id) && (
-                          <CheckCircle2 size={14} className="ml-auto text-white flex-shrink-0" />
-                        )}
-                      </button>
-                    ))}
-                    {tags.length === 0 && (
-                      <p className="text-sm text-zinc-500 text-center py-2">{t('kanban.noLabels')}</p>
-                    )}
-                  </div>
-                </PopoverContent>
-              </Popover>
-
-              {/* 상태 필터 */}
-              <Popover>
-                <PopoverTrigger asChild>
-                  <button
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-all shrink-0 ${
-                      filterOptions.cardStatus.length > 0
-                        ? 'bg-green-500/20 text-green-400 border border-green-500/50'
-                        : 'bg-kanban-surface border border-kanban-border text-zinc-400 hover:text-foreground hover:border-zinc-600'
-                    }`}
-                  >
-                    <CheckCircle2 size={14} />
-                    <span className="hidden sm:inline">{t('kanban.status')}</span>
-                    {filterOptions.cardStatus.length > 0 && (
-                      <span className="bg-green-500 text-white text-xs px-1.5 py-0.5 rounded-full min-w-[18px]">
-                        {filterOptions.cardStatus.length}
-                      </span>
-                    )}
-                    <ChevronDown size={14} />
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="w-44 p-2 bg-kanban-card border-kanban-border" align="start">
-                  <div className="space-y-1">
-                    <button
-                      onClick={() => {
-                        const exists = filterOptions.cardStatus.includes('completed');
-                        setFilterOptions({
-                          ...filterOptions,
-                          cardStatus: exists
-                            ? filterOptions.cardStatus.filter(s => s !== 'completed')
-                            : [...filterOptions.cardStatus, 'completed']
-                        });
-                      }}
-                      className={`flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm transition-all ${
-                        filterOptions.cardStatus.includes('completed')
-                          ? 'bg-green-500/20 text-green-300'
-                          : 'text-zinc-300 hover:bg-white/5'
-                      }`}
-                    >
-                      <CheckCircle2 size={14} className="text-green-400" />
-                      {t('kanban.statusCompleted')}
-                      {filterOptions.cardStatus.includes('completed') && (
-                        <CheckCircle2 size={14} className="ml-auto text-green-400" />
-                      )}
-                    </button>
-                    <button
-                      onClick={() => {
-                        const exists = filterOptions.cardStatus.includes('incomplete');
-                        setFilterOptions({
-                          ...filterOptions,
-                          cardStatus: exists
-                            ? filterOptions.cardStatus.filter(s => s !== 'incomplete')
-                            : [...filterOptions.cardStatus, 'incomplete']
-                        });
-                      }}
-                      className={`flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm transition-all ${
-                        filterOptions.cardStatus.includes('incomplete')
-                          ? 'bg-yellow-500/20 text-yellow-300'
-                          : 'text-zinc-300 hover:bg-white/5'
-                      }`}
-                    >
-                      <Circle size={14} className="text-yellow-400" />
-                      {t('kanban.statusIncomplete')}
-                      {filterOptions.cardStatus.includes('incomplete') && (
-                        <CheckCircle2 size={14} className="ml-auto text-yellow-400" />
-                      )}
-                    </button>
-                  </div>
-                </PopoverContent>
-              </Popover>
-
-              {/* 필터 초기화 */}
-              {(filterOptions.keyword || filterOptions.members.length > 0 || filterOptions.features.length > 0 || filterOptions.tags.length > 0 || filterOptions.cardStatus.length > 0) && (
-                <>
-                  <div className="h-6 w-px bg-kanban-border mx-1 shrink-0" />
-                  <button
-                    onClick={() => setFilterOptions({ keyword: '', members: [], features: [], tags: [], cardStatus: [], dueDate: [] })}
-                    className="flex items-center gap-1 px-3 py-2 text-xs text-zinc-500 hover:text-foreground transition-colors shrink-0 whitespace-nowrap"
-                  >
-                    <X size={12} />
-                    {t('kanban.reset')}
-                  </button>
-                </>
-              )}
-
-              {/* 스페이서 */}
-              <div className="hidden md:block flex-1" />
-
-              {/* 모두 펼치기/닫기 */}
-              <div className="flex items-center gap-1 shrink-0">
-                <button
-                  onClick={() => {
-                    // 체크리스트 모두 펼치기
-                    const allTaskIds = tasks.map(t => t.id);
-                    setExpandedChecklistTaskIds(new Set(allTaskIds));
-                    // Feature 서브태스크 모두 펼치기
-                    const allFeatureIds = features.map(f => f.id);
-                    setExpandedFeatureIds(new Set(allFeatureIds));
-                  }}
-                  className="flex items-center gap-1.5 px-3 py-2 text-xs text-zinc-500 hover:text-white hover:bg-kanban-surface rounded-lg transition-colors"
-                  title={t('kanban.expandAll')}
-                >
-                  <ChevronsUpDown size={14} />
-                  <span className="hidden sm:inline">{t('kanban.expand')}</span>
-                </button>
-                <button
-                  onClick={() => {
-                    // 체크리스트 모두 닫기
-                    setExpandedChecklistTaskIds(new Set());
-                    // Feature 서브태스크 모두 닫기
-                    setExpandedFeatureIds(new Set());
-                  }}
-                  className="flex items-center gap-1.5 px-3 py-2 text-xs text-zinc-500 hover:text-white hover:bg-kanban-surface rounded-lg transition-colors"
-                  title={t('kanban.collapseAll')}
-                >
-                  <ChevronsDownUp size={14} />
-                  <span className="hidden sm:inline">{t('kanban.collapse')}</span>
-                </button>
-              </div>
-            </div>
+            <KanbanFilterToolbar
+              filterOptions={filterOptions}
+              onFilterChange={setFilterOptions}
+              features={features}
+              tags={tags}
+              boardMembersData={boardMembersData}
+              tasks={tasks}
+              onExpandAll={() => {
+                const allTaskIds = tasks.map(t => t.id);
+                setExpandedChecklistTaskIds(new Set(allTaskIds));
+                const allFeatureIds = features.map(f => f.id);
+                setExpandedFeatureIds(new Set(allFeatureIds));
+              }}
+              onCollapseAll={() => {
+                setExpandedChecklistTaskIds(new Set());
+                setExpandedFeatureIds(new Set());
+              }}
+            />
             {/* Feature 칩 선택 영역 */}
             <FeatureChipSelector
               features={filteredFeatures}
@@ -2632,10 +1669,8 @@ export function KanbanBoardPage() {
                 <div key={block.id} className="flex items-start gap-4">
                     <KanbanBlock
                       block={block}
-                      tasks={getTasksForBlock(block.id).map((task) => ({
-                        ...task,
-                        onClick: () => handleTaskClick(task),
-                      }))}
+                      tasks={blockTasksMap[block.id] || []}
+                      onTaskClick={handleTaskClick}
                       features={features}
                       onMoveTask={handleMoveTask}
                       onReorderTask={handleReorderTask}
@@ -2696,6 +1731,7 @@ export function KanbanBoardPage() {
                 if (task) handleTaskClick(task);
               }}
               refreshTrigger={scheduleRefreshKey}
+              wsChecklistEvent={wsChecklistEvent}
               currentUserRole={currentUserRole}
               initialSubTab={urlTab as 'timeblock' | 'meeting' | undefined}
             />
@@ -2712,76 +1748,72 @@ export function KanbanBoardPage() {
           </main>
         ) : viewMode === 'notes' ? (
           <main className="flex-1 overflow-hidden">
-            <NotesView
-              boardId={boardId || ''}
-              currentUserRole={currentUserRole}
-              aiCredits={aiCredits}
-            />
+            <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="w-8 h-8 border-2 border-bridge-accent border-t-transparent rounded-full animate-spin" /></div>}>
+              <NotesView
+                boardId={boardId || ''}
+                currentUserRole={currentUserRole}
+                aiCredits={aiCredits}
+              />
+            </Suspense>
           </main>
         ) : viewMode === 'statistics' ? (
           <main className="flex-1 overflow-hidden">
-            <StatisticsView
-              boardId={boardId || ''}
-              milestones={milestones}
-              tags={tags}
-              members={boardMembersData.map(m => ({
-                id: m.id,
-                user: {
-                  id: m.userId,
-                  name: m.name,
-                  email: m.email,
-                  profile_image: null,
-                },
-                role: m.role.toUpperCase() as any,
-                joined_at: '',
-              }))}
-              onTaskClick={(taskId) => {
-                const task = tasks.find(t => t.id === taskId);
-                if (task) handleTaskClick(task);
-              }}
-              managementRefreshTrigger={managementRefreshKey}
-            />
+            <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="w-8 h-8 border-2 border-bridge-accent border-t-transparent rounded-full animate-spin" /></div>}>
+              <StatisticsView
+                boardId={boardId || ''}
+                milestones={milestones}
+                tags={tags}
+                members={boardMembersData.map(m => ({
+                  id: m.id,
+                  user: {
+                    id: m.userId,
+                    name: m.name,
+                    email: m.email,
+                    profile_image: null,
+                  },
+                  role: m.role.toUpperCase() as any,
+                  joined_at: '',
+                }))}
+                onTaskClick={(taskId) => {
+                  const task = tasks.find(t => t.id === taskId);
+                  if (task) handleTaskClick(task);
+                }}
+                managementRefreshTrigger={managementRefreshKey}
+              />
+            </Suspense>
           </main>
         ) : viewMode === 'ai_report' ? (
           <main className="flex-1 overflow-hidden">
-            <AIReportPanel
-              boardId={boardId || ''}
-              members={boardMembersData.map(m => ({
-                id: m.id,
-                user: {
-                  id: m.userId,
-                  name: m.name,
-                  email: m.email,
-                  profile_image: null,
-                },
-                role: m.role.toUpperCase() as any,
-                joined_at: '',
-              }))}
-              aiCredits={aiCredits}
-              hideBilling={hideBilling}
-            />
+            <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="w-8 h-8 border-2 border-bridge-accent border-t-transparent rounded-full animate-spin" /></div>}>
+              <AIReportPanel
+                boardId={boardId || ''}
+                members={boardMembersData.map(m => ({
+                  id: m.id,
+                  user: {
+                    id: m.userId,
+                    name: m.name,
+                    email: m.email,
+                    profile_image: null,
+                  },
+                  role: m.role.toUpperCase() as any,
+                  joined_at: '',
+                }))}
+                aiCredits={aiCredits}
+                hideBilling={hideBilling}
+              />
+            </Suspense>
           </main>
         ) : null}
 
         {/* 모바일 하단 여백 (탭바 공간 확보) */}
         <div className="h-14 shrink-0 md:hidden" />
 
-        {/* 모바일 하단 탭바 */}
+        {/* 모바일 하단 탭바 - inline으로 유지 (뷰모드 의존성이 깊어서) */}
         <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-bridge-obsidian/95 backdrop-blur-xl border-t border-white/10" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
           <div className="flex items-center justify-around px-1 pt-2 pb-1.5">
-            {/* 칸반보드 */}
-            <button
-              onClick={() => handleViewModeChange('kanban')}
-              className={`flex flex-col items-center gap-0.5 min-w-[3rem] px-2 py-1 rounded-lg transition-all ${
-                viewMode === 'kanban' ? 'text-[#2DD4BF]' : 'text-zinc-500'
-              }`}
-            >
-              <LayoutGrid size={20} />
-              <span className="text-[10px] font-medium">{t('kanban.viewKanban')}</span>
-            </button>
-
-            {/* 일정 */}
-            <button
+            <MobileTabButton active={viewMode === 'kanban'} onClick={() => handleViewModeChange('kanban')} label={t('kanban.viewKanban')} icon="kanban" />
+            <MobileTabButton
+              active={viewMode === 'schedule' || viewMode === 'weekly'}
               onClick={() => {
                 const subMode = getScheduleSubMode();
                 if (subMode === 'weekly' && !canAccessSchedule) {
@@ -2790,43 +1822,18 @@ export function KanbanBoardPage() {
                   handleViewModeChange(subMode);
                 }
               }}
-              className={`flex flex-col items-center gap-0.5 min-w-[3rem] px-2 py-1 rounded-lg transition-all ${
-                viewMode === 'schedule' || viewMode === 'weekly' ? 'text-[#2DD4BF]' : 'text-zinc-500'
-              }`}
-            >
-              <Calendar size={20} />
-              <span className="text-[10px] font-medium">{t('kanban.viewScheduleTab', '일정')}</span>
-            </button>
-
-            {/* 회의 */}
+              label={t('kanban.viewScheduleTab', '일정')}
+              icon="schedule"
+            />
             {!isWhiteLabelDomain && (
-              <button
-                onClick={() => handleViewModeChange('meeting')}
-                className={`flex flex-col items-center gap-0.5 min-w-[3rem] px-2 py-1 rounded-lg transition-all ${
-                  viewMode === 'meeting' ? 'text-[#2DD4BF]' : 'text-zinc-500'
-                }`}
-              >
-                <Users size={20} />
-                <span className="text-[10px] font-medium">{t('kanban.viewMeeting', '회의')}</span>
-              </button>
+              <MobileTabButton active={viewMode === 'meeting'} onClick={() => handleViewModeChange('meeting')} label={t('kanban.viewMeeting', '회의')} icon="meeting" />
             )}
-
-            {/* 노트 */}
             {!isWhiteLabelDomain && (
-              <button
-                onClick={() => handleViewModeChange('notes')}
-                className={`flex flex-col items-center gap-0.5 min-w-[3rem] px-2 py-1 rounded-lg transition-all ${
-                  viewMode === 'notes' ? 'text-[#2DD4BF]' : 'text-zinc-500'
-                }`}
-              >
-                <FileText size={20} />
-                <span className="text-[10px] font-medium">{t('kanban.viewNotes', '노트')}</span>
-              </button>
+              <MobileTabButton active={viewMode === 'notes'} onClick={() => handleViewModeChange('notes')} label={t('kanban.viewNotes', '노트')} icon="notes" />
             )}
-
-            {/* AI분석 */}
             {!isWhiteLabelDomain && (isAdminOrOwner || (!isViewer && !isTester)) && (
-              <button
+              <MobileTabButton
+                active={viewMode === 'statistics' || viewMode === 'ai_report'}
                 onClick={() => {
                   if (!canAccessStatistics) {
                     openUpgradeModal('statistics');
@@ -2841,49 +1848,35 @@ export function KanbanBoardPage() {
                     handleViewModeChange(subMode);
                   }
                 }}
-                className={`relative flex flex-col items-center gap-0.5 min-w-[3rem] px-2 py-1 rounded-lg transition-all ${
-                  viewMode === 'statistics' || viewMode === 'ai_report'
-                    ? 'text-[#2DD4BF]'
-                    : !canAccessStatistics
-                      ? 'text-zinc-700'
-                      : 'text-zinc-500'
-                }`}
-              >
-                <BarChart3 size={20} />
-                <span className="text-[10px] font-medium">{t('kanban.viewAIAnalysisTab', 'AI분석')}</span>
-                {!canAccessStatistics && <Lock size={8} className="absolute top-0.5 right-1 text-zinc-600" />}
-              </button>
+                label={t('kanban.viewAIAnalysisTab', 'AI분석')}
+                icon="ai"
+                locked={!canAccessStatistics}
+              />
             )}
           </div>
         </nav>
 
         {/* 모달들 */}
-        <FeatureDetailModal
-          feature={selectedFeature}
-          tasks={selectedFeature ? tasks.filter((t) => t.feature_id === selectedFeature.id) : []}
+        <BoardModalManager
+          boardId={boardId || ''}
+          // Feature Modal
+          selectedFeature={selectedFeature}
+          isFeatureModalOpen={isFeatureModalOpen}
+          onCloseFeature={() => { setIsFeatureModalOpen(false); setSelectedFeature(null); }}
+          featureTasks={selectedFeature ? tasks.filter((t) => t.feature_id === selectedFeature.id) : []}
           blocks={blocks}
-          open={isFeatureModalOpen}
-          onClose={() => { setIsFeatureModalOpen(false); setSelectedFeature(null); }}
           onAddSubtask={(title) => handleAddSubtask(selectedFeature!.id, title)}
           onRenameSubtask={(taskId, newTitle) => {
             setTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, title: newTitle } : t));
           }}
           onUpdateFeature={handleUpdateFeature}
-          onDelete={handleDeleteFeature}
-          availableTags={tags}
-          onCreateTag={handleCreateTag}
-          onUpdateTag={handleUpdateTag}
-          onDeleteTag={handleDeleteTag}
-          boardId={boardId || ''}
-          canEdit={canEdit}
-        />
-
-        <TaskDetailModal
-          task={selectedTask}
-          open={isTaskModalOpen}
-          onClose={() => { setIsTaskModalOpen(false); setSelectedTask(null); }}
-          onUpdate={(updates) => selectedTask && handleUpdateTask(selectedTask.id, updates)}
-          onDelete={handleDeleteTask}
+          onDeleteFeature={handleDeleteFeature}
+          // Task Modal
+          selectedTask={selectedTask}
+          isTaskModalOpen={isTaskModalOpen}
+          onCloseTask={() => { setIsTaskModalOpen(false); setSelectedTask(null); }}
+          onUpdateTask={(updates) => selectedTask && handleUpdateTask(selectedTask.id, updates)}
+          onDeleteTask={handleDeleteTask}
           onMoveToDone={(taskId) => {
             const doneBlock = blocks.find((b) => b.fixed_type === 'DONE');
             if (doneBlock) {
@@ -2897,48 +1890,36 @@ export function KanbanBoardPage() {
           }}
           onMoveToFeature={handleMoveTaskToFeature}
           onMoveChecklistToTask={handleMoveChecklistToTask}
-          blocks={blocks}
           features={features}
           allTasks={tasks}
-          availableTags={tags}
+          wsCommentEvent={wsCommentEvent}
+          wsChecklistEvent={wsChecklistEvent}
+          // Tag
+          tags={tags}
           onCreateTag={handleCreateTag}
           onUpdateTag={handleUpdateTag}
           onDeleteTag={handleDeleteTag}
-          boardMembers={boardMembersData}
-          currentUser={currentUser}
-          boardId={boardId || ''}
-          canEdit={canEdit}
-          isAdminOrOwner={isAdminOrOwner}
-          wsCommentEvent={wsCommentEvent}
-          wsChecklistEvent={wsChecklistEvent}
-        />
-
-        <AddBlockModal
-          open={isAddBlockModalOpen}
-          onClose={() => setIsAddBlockModalOpen(false)}
-          onAdd={handleAddBlock}
-        />
-
-        <AddFeatureModal
-          open={isAddFeatureModalOpen}
-          onClose={() => setIsAddFeatureModalOpen(false)}
-          onAdd={handleAddFeature}
+          // AddBlock Modal
+          isAddBlockModalOpen={isAddBlockModalOpen}
+          onCloseAddBlock={() => setIsAddBlockModalOpen(false)}
+          onAddBlock={handleAddBlock}
+          // AddFeature Modal
+          isAddFeatureModalOpen={isAddFeatureModalOpen}
+          onCloseAddFeature={() => setIsAddFeatureModalOpen(false)}
+          onAddFeature={handleAddFeature}
           milestones={milestones}
-          defaultMilestoneId={kanbanSelectedMilestoneId}
-        />
-
-        <ShareBoardModal
-          open={isShareBoardModalOpen}
-          onClose={() => setIsShareBoardModalOpen(false)}
-          members={boardMembersData}
+          kanbanSelectedMilestoneId={kanbanSelectedMilestoneId}
+          // ShareBoard Modal
+          isShareBoardModalOpen={isShareBoardModalOpen}
+          onCloseShareBoard={() => setIsShareBoardModalOpen(false)}
+          boardMembersData={boardMembersData}
           onAddMember={handleAddMember}
           onUpdateMemberRole={handleUpdateMemberRole}
           onRemoveMember={handleRemoveMember}
           onUpdateMemberColor={handleUpdateMemberColor}
           onReorderMembers={handleReorderMembers}
           currentUserId={currentUserId}
-          boardId={boardId || ''}
-          onlineUserIds={onlineUsers}
+          onlineUsers={onlineUsers}
           inviteLinks={inviteLinks}
           onCreateInviteLink={handleCreateInviteLink}
           onDeleteInviteLink={handleDeleteInviteLink}
@@ -2951,92 +1932,57 @@ export function KanbanBoardPage() {
             setIsSubscriptionModalOpen(true);
           } : undefined}
           aiCredits={!hideBillingForUser ? aiCredits : undefined}
-        />
-
-        {!hideBillingForUser && (
-          <SubscriptionModal
-            open={isSubscriptionModalOpen}
-            onClose={() => setIsSubscriptionModalOpen(false)}
-            subscription={subscription}
-            currentBillableMembers={subscription?.billable_member_count || boardMembersData.filter(m => m.role !== 'viewer').length || 0}
-            onChangeBillingCycle={handleChangeBillingCycle}
-            onPurchaseSeats={handleSubscriptionPurchaseSeats}
-            onCancelSubscription={handleCancelSubscription}
-          />
-        )}
-
-        <InquiryModal
-          isOpen={isInquiryModalOpen}
-          onClose={() => setIsInquiryModalOpen(false)}
-        />
-
-        {/* ActivityLogModal replaced by NotificationDropdown */}
-
-        <MilestoneModal
-          isOpen={isMilestoneModalOpen}
-          onClose={() => {
-            setIsMilestoneModalOpen(false);
-            setSelectedMilestone(null);
-          }}
-          milestone={selectedMilestone}
-          features={allFeatures}
+          hideBillingForUser={hideBillingForUser}
+          // Subscription Modal
+          isSubscriptionModalOpen={isSubscriptionModalOpen}
+          onCloseSubscription={() => setIsSubscriptionModalOpen(false)}
+          subscription={subscription}
+          currentBillableMembers={currentBillableMembers}
+          onChangeBillingCycle={handleChangeBillingCycle}
+          onPurchaseSeats={handleSubscriptionPurchaseSeats}
+          onCancelSubscription={handleCancelSubscription}
+          // Inquiry Modal
+          isInquiryModalOpen={isInquiryModalOpen}
+          onCloseInquiry={() => setIsInquiryModalOpen(false)}
+          // Milestone Modal
+          isMilestoneModalOpen={isMilestoneModalOpen}
+          onCloseMilestone={() => { setIsMilestoneModalOpen(false); setSelectedMilestone(null); }}
+          selectedMilestone={selectedMilestone}
+          allFeatures={allFeatures}
           featureMilestoneCountMap={featureMilestoneCountMap}
-          onSave={handleSaveMilestone}
-          onDelete={handleDeleteMilestone}
-        />
-
-        <MilestoneOnboardingModal
-          isOpen={isMilestoneOnboardingOpen}
-          onClose={() => setIsMilestoneOnboardingOpen(false)}
+          onSaveMilestone={handleSaveMilestone}
+          onDeleteMilestone={handleDeleteMilestone}
+          // Milestone Onboarding
+          isMilestoneOnboardingOpen={isMilestoneOnboardingOpen}
+          onCloseMilestoneOnboarding={() => setIsMilestoneOnboardingOpen(false)}
           onCreateMilestone={() => handleOpenMilestoneWithCheck()}
-        />
-
-        {!hideBillingForUser && (
-          <UpgradeModal
-            open={isUpgradeModalOpen}
-            onClose={() => setIsUpgradeModalOpen(false)}
-            trigger={upgradeTrigger}
-            currentBillableMembers={subscription?.billable_member_count || boardMembersData.filter(m => m.role !== 'viewer').length || 1}
-            onUpgrade={handleSeatUpgrade}
-          />
-        )}
-
-        {!hideBillingForUser && (
-          <PremiumBenefitsModal
-            open={isPremiumBenefitsModalOpen}
-            onClose={() => setIsPremiumBenefitsModalOpen(false)}
-            currentBillableMembers={subscription?.billable_member_count || boardMembersData.filter(m => m.role !== 'viewer').length || 1}
-            onUpgrade={handleSeatUpgrade}
-          />
-        )}
-
-        {seatPurchaseModal && (
-          <SeatPurchaseModal
-            open={seatPurchaseModal.open}
-            onClose={() => setSeatPurchaseModal(null)}
-            seatCount={seatPurchaseModal.seatCount}
-            billableMemberCount={seatPurchaseModal.billableMemberCount}
-            billingCycle={subscription?.billing_cycle || 'MONTHLY'}
-            onPurchase={handlePurchaseSeatsAndRetry}
-            pendingInviteEmail={seatPurchaseModal.pendingEmail || undefined}
-            isRoleChange={!!seatPurchaseModal.pendingMemberId}
-          />
-        )}
-
-        <AlertModal
-          open={alertModal.open && !(hideBillingForUser && alertModal.type === 'premium')}
-          onClose={() => setAlertModal({ ...alertModal, open: false })}
-          type={alertModal.type}
-        />
-
-        {/* AI Credit Purchase Modal */}
-        <AiCreditPurchaseModal
-          isOpen={showCreditModal}
-          onClose={() => setShowCreditModal(false)}
-          boardId={boardId || ''}
-          mode={creditModalMode}
-          onPurchaseComplete={handleCreditPurchaseComplete}
+          // Upgrade Modal
+          isUpgradeModalOpen={isUpgradeModalOpen}
+          onCloseUpgrade={() => setIsUpgradeModalOpen(false)}
+          upgradeTrigger={upgradeTrigger}
+          onSeatUpgrade={handleSeatUpgrade}
+          // Premium Benefits Modal
+          isPremiumBenefitsModalOpen={isPremiumBenefitsModalOpen}
+          onClosePremiumBenefits={() => setIsPremiumBenefitsModalOpen(false)}
+          // Seat Purchase Modal
+          seatPurchaseModal={seatPurchaseModal}
+          onCloseSeatPurchase={() => setSeatPurchaseModal(null)}
+          billingCycle={subscription?.billing_cycle || 'MONTHLY'}
+          onPurchaseSeatsAndRetry={handlePurchaseSeatsAndRetry}
+          // Alert Modal
+          alertModal={alertModal}
+          onCloseAlert={() => setAlertModal({ ...alertModal, open: false })}
+          // AI Credit Modal
+          showCreditModal={showCreditModal}
+          onCloseCreditModal={() => setShowCreditModal(false)}
+          creditModalMode={creditModalMode}
+          onCreditPurchaseComplete={handleCreditPurchaseComplete}
           currentCredits={aiCredits}
+          // Permissions
+          canEdit={canEdit}
+          isAdminOrOwner={isAdminOrOwner}
+          currentUser={currentUser}
+          boardMembers={boardMembersData}
         />
 
         {/* Version Info */}
@@ -3046,5 +1992,41 @@ export function KanbanBoardPage() {
         </div>
       </div>
     </DragProvider>
+  );
+}
+
+// 모바일 하단 탭 버튼 컴포넌트
+import { LayoutGrid, Calendar, Users, FileText, BarChart3, Lock } from 'lucide-react';
+
+function MobileTabButton({ active, onClick, label, icon, locked }: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  icon: 'kanban' | 'schedule' | 'meeting' | 'notes' | 'ai';
+  locked?: boolean;
+}) {
+  const iconMap = {
+    kanban: <LayoutGrid size={20} />,
+    schedule: <Calendar size={20} />,
+    meeting: <Users size={20} />,
+    notes: <FileText size={20} />,
+    ai: <BarChart3 size={20} />,
+  };
+
+  return (
+    <button
+      onClick={onClick}
+      className={`relative flex flex-col items-center gap-0.5 min-w-[3rem] px-2 py-1 rounded-lg transition-all ${
+        active
+          ? 'text-[#2DD4BF]'
+          : locked
+            ? 'text-zinc-700'
+            : 'text-zinc-500'
+      }`}
+    >
+      {iconMap[icon]}
+      <span className="text-[10px] font-medium">{label}</span>
+      {locked && <Lock size={8} className="absolute top-0.5 right-1 text-zinc-600" />}
+    </button>
   );
 }

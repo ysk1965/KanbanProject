@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { useGoogleLogin } from '@react-oauth/google';
 import { Mail, Lock, User, Users, ArrowLeft, ArrowRight, Check, X } from 'lucide-react';
 import { trackEvent } from '../contexts/AnalyticsContext';
-import { HeroScene } from './landing/BridgeScene';
+const HeroScene = lazy(() => import('./landing/BridgeScene').then(m => ({ default: m.HeroScene })));
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { isGoogleOnlyLogin, isWhiteLabelDomain } from '../utils/domain';
 
@@ -129,7 +129,9 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
     <div className="min-h-screen w-full relative flex items-center justify-center p-4 md:p-8 overflow-hidden select-none text-white">
       {/* 3D Space Background */}
       <div className="absolute inset-0 z-0">
-        <HeroScene />
+        <Suspense fallback={<div className="absolute inset-0 bg-bridge-dark" />}>
+          <HeroScene />
+        </Suspense>
         {/* Overlay gradient for form readability */}
         <div className="absolute inset-0 bg-gradient-to-b from-[#0A0E17]/40 via-[#0A0E17]/60 to-[#0A0E17]/80" />
       </div>

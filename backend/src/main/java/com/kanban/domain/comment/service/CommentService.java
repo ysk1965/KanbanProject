@@ -169,18 +169,14 @@ public class CommentService {
                     .forEach(mentionedUserIds::add);
         }
 
-        List<String> taskRelatedUserIds = new ArrayList<>();
+        Set<String> taskRelatedUserIdSet = new LinkedHashSet<>();
         // 태스크 생성자
         if (task.getCreatedBy() != null) {
-            taskRelatedUserIds.add(task.getCreatedBy().getId());
+            taskRelatedUserIdSet.add(task.getCreatedBy().getId());
         }
         // 체크리스트 배정자들
-        List<String> checklistAssigneeIds = checklistItemRepository.findDistinctAssigneeIdsByTaskId(taskId);
-        for (String assigneeId : checklistAssigneeIds) {
-            if (!taskRelatedUserIds.contains(assigneeId)) {
-                taskRelatedUserIds.add(assigneeId);
-            }
-        }
+        taskRelatedUserIdSet.addAll(checklistItemRepository.findDistinctAssigneeIdsByTaskId(taskId));
+        List<String> taskRelatedUserIds = new ArrayList<>(taskRelatedUserIdSet);
 
         if (!taskRelatedUserIds.isEmpty()) {
             notificationService.createTaskCommentNotifications(comment, user, board, taskRelatedUserIds, mentionedUserIds);

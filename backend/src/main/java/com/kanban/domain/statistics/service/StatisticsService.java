@@ -107,7 +107,7 @@ public class StatisticsService {
         }
 
         // Task 조회
-        List<Task> tasks = taskRepository.findByBoardIdOrderByPositionAsc(boardId);
+        List<Task> tasks = taskRepository.findByBoardIdWithFetch(boardId);
 
         // 마일스톤/Feature 필터에 따라 Task도 필터링
         Set<String> filteredFeatureIds = features.stream()
@@ -138,7 +138,7 @@ public class StatisticsService {
         List<BoardMember> boardMembers = boardMemberRepository.findByBoardId(boardId);
 
         // Batch load: 보드의 모든 체크리스트 아이템 (N+1 방지)
-        List<ChecklistItem> allChecklistItems = checklistItemRepository.findByBoardId(boardId);
+        List<ChecklistItem> allChecklistItems = checklistItemRepository.findByBoardIdWithTask(boardId);
         Map<String, List<ChecklistItem>> checklistsByTaskId = allChecklistItems.stream()
                 .collect(Collectors.groupingBy(ci -> ci.getTask().getId()));
 
@@ -196,11 +196,11 @@ public class StatisticsService {
 
         // v7.0: Task.assignee 제거 - ChecklistItem assignee 기준으로 Task 조회
         // 본인이 담당한 ChecklistItem이 있는 Task 조회 (N+1 방지: 배치 로드)
-        List<ChecklistItem> allBoardChecklists = checklistItemRepository.findByBoardId(boardId);
+        List<ChecklistItem> allBoardChecklists = checklistItemRepository.findByBoardIdWithTask(boardId);
         Map<String, List<ChecklistItem>> personalChecklistsByTaskId = allBoardChecklists.stream()
                 .collect(Collectors.groupingBy(ci -> ci.getTask().getId()));
 
-        List<Task> myTasks = taskRepository.findByBoardIdOrderByPositionAsc(boardId).stream()
+        List<Task> myTasks = taskRepository.findByBoardIdWithFetch(boardId).stream()
                 .filter(t -> personalChecklistsByTaskId.getOrDefault(t.getId(), Collections.emptyList()).stream()
                         .anyMatch(ci -> ci.getAssignee() != null && ci.getAssignee().getId().equals(userId)))
                 .collect(Collectors.toList());

@@ -14,7 +14,13 @@ import java.time.ZoneOffset;
 import java.util.UUID;
 
 @Entity
-@Table(name = "tasks")
+@Table(name = "tasks", indexes = {
+    @Index(name = "idx_task_board_id", columnList = "board_id"),
+    @Index(name = "idx_task_feature_id", columnList = "feature_id"),
+    @Index(name = "idx_task_block_id", columnList = "block_id"),
+    @Index(name = "idx_task_board_completed", columnList = "board_id, is_completed"),
+    @Index(name = "idx_task_board_position", columnList = "board_id, position")
+})
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor

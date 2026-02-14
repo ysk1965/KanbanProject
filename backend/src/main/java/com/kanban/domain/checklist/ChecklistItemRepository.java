@@ -28,6 +28,12 @@ public interface ChecklistItemRepository extends JpaRepository<ChecklistItem, St
     @Query("SELECT c FROM ChecklistItem c WHERE c.task.board.id = :boardId ORDER BY c.task.id, c.position")
     List<ChecklistItem> findByBoardId(@Param("boardId") String boardId);
 
+    @Query("SELECT c FROM ChecklistItem c " +
+           "JOIN FETCH c.task t " +
+           "LEFT JOIN FETCH c.assignee " +
+           "WHERE t.board.id = :boardId ORDER BY t.id, c.position")
+    List<ChecklistItem> findByBoardIdWithTask(@Param("boardId") String boardId);
+
     @Query("SELECT c FROM ChecklistItem c WHERE c.task.board.id = :boardId AND c.assignee.id = :assigneeId ORDER BY c.task.id, c.position")
     List<ChecklistItem> findByBoardIdAndAssigneeId(@Param("boardId") String boardId, @Param("assigneeId") String assigneeId);
 

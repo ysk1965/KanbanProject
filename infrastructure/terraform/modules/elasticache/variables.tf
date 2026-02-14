@@ -29,3 +29,9 @@ variable "node_type" {
   type        = string
   default     = "cache.t4g.micro"
 }
+
+variable "num_cache_clusters" {
+  description = "Number of cache clusters (nodes) in the replication group. 2+ enables Multi-AZ."
+  type        = number
+  default     = 1
+}

@@ -1,4 +1,4 @@
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, memo } from 'react';
 import { Block, Task, Tag, Feature, ChecklistItem } from '../types';
 import { DraggableCard } from './DraggableCard';
 import { GripVertical, MoreVertical } from 'lucide-react';
@@ -15,11 +15,12 @@ import { useDragContext } from '../contexts/DragContext';
 
 interface KanbanBlockProps {
   block: Block;
-  tasks: (Task & { onClick?: () => void })[];
+  tasks: Task[];
   features?: Feature[];
   availableTags?: Tag[];
   onMoveTask: (taskId: string, targetBlock: string, newOrder: number) => void;
   onReorderTask: (taskId: string, blockId: string, newPosition: number) => void;
+  onTaskClick?: (task: Task) => void;
   onEditBlock?: () => void;
   onDeleteBlock?: () => void;
   onMoveBlockLeft?: () => void;
@@ -39,13 +40,14 @@ interface KanbanBlockProps {
   scheduledTaskIds?: Set<string>;
 }
 
-export function KanbanBlock({
+export const KanbanBlock = memo(function KanbanBlock({
   block,
   tasks,
   features,
   availableTags = [],
   onMoveTask,
   onReorderTask,
+  onTaskClick,
   onEditBlock,
   onDeleteBlock,
   boardId,
@@ -62,6 +64,7 @@ export function KanbanBlock({
   const blockRef = useRef<HTMLDivElement>(null);
   const dragHandleRef = useRef<HTMLDivElement>(null);
   const taskContainerRef = useRef<HTMLDivElement>(null);
+  const dragOverThrottleRef = useRef<number>(0);
 
   const {
     state,
@@ -112,6 +115,13 @@ export function KanbanBlock({
     if (!e.dataTransfer.types.includes('application/task')) {
       return;
     }
+
+    // 16ms 쓰로틀 (약 60fps)
+    const now = Date.now();
+    if (now - dragOverThrottleRef.current < 16) {
+      return;
+    }
+    dragOverThrottleRef.current = now;
 
     const draggedTask = state.draggedTask;
     if (!draggedTask) return;
@@ -396,7 +406,7 @@ export function KanbanBlock({
               task={task}
               blockId={block.id}
               index={index}
-              onClick={task.onClick}
+              onClick={() => onTaskClick?.(task)}
               availableTags={availableTags}
               features={features}
               boardId={boardId}
@@ -416,4 +426,4 @@ export function KanbanBlock({
       </div>
     </div>
   );
-}
+});

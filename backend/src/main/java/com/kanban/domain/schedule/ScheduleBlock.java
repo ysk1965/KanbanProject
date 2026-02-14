@@ -15,7 +15,11 @@ import java.time.ZoneOffset;
 import java.util.UUID;
 
 @Entity
-@Table(name = "schedule_blocks")
+@Table(name = "schedule_blocks", indexes = {
+    @Index(name = "idx_schedule_board_date", columnList = "board_id, scheduled_date"),
+    @Index(name = "idx_schedule_assignee_id", columnList = "assignee_id"),
+    @Index(name = "idx_schedule_board_date_assignee", columnList = "board_id, scheduled_date, assignee_id")
+})
 @DynamicUpdate
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
