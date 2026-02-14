@@ -211,7 +211,7 @@ app:
     local-dir: ./uploads
 
 ---
-# Dev Profile (PostgreSQL, No Redis)
+# Dev Profile (PostgreSQL + Redis)
 spring:
   config:
     activate:
@@ -232,24 +232,13 @@ spring:
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
 
-  cache:
-    type: simple
-
-  autoconfigure:
-    exclude:
-      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
-      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
-
 app:
+  websocket:
+    broker-type: redis
   file:
     s3-enabled: true
     s3-bucket: ${S3_BUCKET:bridge-kanban-attachments}
     cloudfront-domain: ${CLOUDFRONT_DOMAIN:}
-
-management:
-  health:
-    redis:
-      enabled: false
 
 ---
 # Prod Profile (PostgreSQL + Redis Pub/Sub)
