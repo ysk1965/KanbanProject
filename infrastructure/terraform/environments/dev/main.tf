@@ -1,10 +1,10 @@
 # Dev Environment - Low Cost Configuration
-# Optimized for development with minimal costs (~$45-50/month)
+# Optimized for development with minimal costs (~$60/month)
 #
 # Cost Savings:
 # - No NAT Gateway (EC2 in public subnet)
 # - Standard RDS t4g.micro instead of Aurora Serverless
-# - No ElastiCache (using Spring Simple Cache)
+# - ElastiCache t4g.micro single node (Redis cache + WebSocket Pub/Sub)
 
 terraform {
   required_version = ">= 1.5.0"
@@ -85,6 +85,18 @@ module "rds" {
   backup_retention_period = 1               # Minimal backup for dev
 }
 
+# ElastiCache Module - Single node for dev (cache + WebSocket Pub/Sub)
+module "elasticache" {
+  source = "../../modules/elasticache"
+
+  project_name       = var.project_name
+  environment        = var.environment
+  private_subnet_ids = module.vpc.private_subnet_ids
+  security_group_id  = module.security_groups.redis_security_group_id
+  node_type          = "cache.t4g.micro"  # Minimal for dev
+  num_cache_clusters = 1                  # Single node, no Multi-AZ
+}
+
 # Elastic Beanstalk Module - Public Subnet (no NAT needed)
 module "elastic_beanstalk" {
   source = "../../modules/elastic-beanstalk"
@@ -106,8 +118,8 @@ module "elastic_beanstalk" {
   database_url   = module.rds.jdbc_url
   db_username    = "kanban_admin"
   db_password    = var.db_password
-  redis_host     = ""      # No Redis - using Simple Cache
-  redis_port     = ""
+  redis_host     = module.elasticache.redis_endpoint
+  redis_port     = "6379"
   jwt_secret     = var.jwt_secret
   claude_api_key   = var.claude_api_key
   openai_api_key   = var.openai_api_key
@@ -119,7 +131,7 @@ module "elastic_beanstalk" {
 
   ssl_certificate_arn = var.domain_name != "" ? module.acm_certificate_alb[0].validated_certificate_arn : ""
 
-  depends_on = [module.rds, module.acm_certificate_alb]
+  depends_on = [module.rds, module.elasticache, module.acm_certificate_alb]
 }
 
 # ACM Certificate (ap-northeast-2 for ALB)
