@@ -58,7 +58,7 @@ resource "aws_cloudfront_distribution" "frontend" {
   enabled             = true
   is_ipv6_enabled     = true
   default_root_object = "index.html"
-  price_class         = var.environment == "prod" ? "PriceClass_All" : "PriceClass_100"
+  price_class         = var.price_class != "" ? var.price_class : (var.environment == "prod" ? "PriceClass_All" : "PriceClass_100")
   comment             = "${var.project_name} ${var.environment} frontend"
 
   origin {

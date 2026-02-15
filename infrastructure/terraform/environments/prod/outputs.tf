@@ -19,8 +19,14 @@ output "eb_application_name" {
 }
 
 output "rds_endpoint" {
-  description = "RDS cluster endpoint"
-  value       = module.rds.cluster_endpoint
+  description = "RDS endpoint"
+  value       = module.rds.endpoint
+  sensitive   = true
+}
+
+output "rds_jdbc_url" {
+  description = "RDS JDBC URL"
+  value       = module.rds.jdbc_url
   sensitive   = true
 }
 
@@ -72,4 +78,10 @@ output "frontend_url" {
 output "backend_api_url" {
   description = "Backend API URL"
   value       = var.domain_name != "" ? "https://api.${var.domain_name}" : "https://${module.elastic_beanstalk.cname}"
+}
+
+# Cost info
+output "estimated_monthly_cost" {
+  description = "Estimated monthly cost (Phase 1)"
+  value       = "~$75-95 USD/month (Phase 1: t4g.micro RDS, single Redis, 1x t3.small EC2, no NAT)"
 }
