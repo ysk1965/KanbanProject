@@ -20,7 +20,8 @@ public interface CommentRepository extends JpaRepository<Comment, String> {
     @Query("SELECT DISTINCT c FROM Comment c " +
            "LEFT JOIN FETCH c.author " +
            "LEFT JOIN FETCH c.attachments " +
-           "LEFT JOIN FETCH c.reactions " +
+           "LEFT JOIN FETCH c.reactions r " +
+           "LEFT JOIN FETCH r.user " +
            "WHERE c.task.id = :taskId " +
            "ORDER BY c.createdAt ASC")
     List<Comment> findByTaskIdWithAuthorAndReactions(@Param("taskId") String taskId);

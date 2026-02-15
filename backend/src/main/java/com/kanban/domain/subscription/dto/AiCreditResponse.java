@@ -44,4 +44,17 @@ public class AiCreditResponse {
         private String status;
         private LocalDateTime createdAt;
     }
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class UsageHistoryItem {
+        private String id;
+        private String userId;
+        private String userName;
+        private String featureType;
+        private Integer creditsUsed;
+        private LocalDateTime createdAt;
+    }
 }

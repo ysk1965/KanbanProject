@@ -77,4 +77,12 @@ public class NotificationResponse {
     public static class UnreadCountResponse {
         private long unreadCount;
     }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class UnreadCountsResponse {
+        private long unreadCount;
+        private int unreadInquiryCount;
+    }
 }

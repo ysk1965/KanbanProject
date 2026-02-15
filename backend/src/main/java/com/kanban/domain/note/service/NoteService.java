@@ -315,6 +315,43 @@ public class NoteService {
         noteTagRepository.delete(tag);
     }
 
+    // ===== Sharing =====
+
+    @Transactional
+    public NoteResponse.Detail enableShare(String boardId, String noteId, String userId) {
+        boardService.checkMemberOrAbove(boardId, userId);
+
+        Note note = getNoteOrThrow(boardId, noteId);
+        if (!note.isDocument()) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE, "폴더는 공유할 수 없습니다");
+        }
+        note.enableShare();
+
+        List<NoteResponse.TagInfo> tags = getTagsForNote(noteId);
+        int versionCount = noteVersionRepository.findMaxVersionNumber(noteId);
+        return NoteResponse.Detail.of(note, tags, versionCount);
+    }
+
+    @Transactional
+    public NoteResponse.Detail disableShare(String boardId, String noteId, String userId) {
+        boardService.checkMemberOrAbove(boardId, userId);
+
+        Note note = getNoteOrThrow(boardId, noteId);
+        note.disableShare();
+
+        List<NoteResponse.TagInfo> tags = getTagsForNote(noteId);
+        int versionCount = noteVersionRepository.findMaxVersionNumber(noteId);
+        return NoteResponse.Detail.of(note, tags, versionCount);
+    }
+
+    public NoteResponse.SharedNote getSharedNote(String shareToken) {
+        Note note = noteRepository.findByShareTokenAndIsSharedTrueAndIsDeletedFalse(shareToken)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOTE_NOT_FOUND));
+
+        List<NoteResponse.TagInfo> tags = getTagsForNote(note.getId());
+        return NoteResponse.SharedNote.of(note, tags);
+    }
+
     // ===== Helper Methods =====
 
     private Note getNoteOrThrow(String boardId, String noteId) {

@@ -100,13 +100,13 @@ export function NoteListView({ boardId, selectedNoteId, searchQuery, onSelect, t
               <FileText size={12} className="flex-shrink-0 text-slate-400" />
               <span className="text-xs font-medium truncate flex-1">{item.title}</span>
               <span className="text-[10px] text-slate-500 flex-shrink-0">
-                {formatDate(item.updatedAt)}
+                {formatDate(item.updated_at)}
               </span>
             </div>
-            {(item.parentTitle || item.tags.length > 0) && (
+            {(item.parent_title || item.tags.length > 0) && (
               <div className="flex items-center gap-2 mt-1 ml-5">
-                {item.parentTitle && (
-                  <span className="text-[10px] text-slate-500 truncate">{item.parentTitle}</span>
+                {item.parent_title && (
+                  <span className="text-[10px] text-slate-500 truncate">{item.parent_title}</span>
                 )}
                 {item.tags.map(tag => (
                   <span

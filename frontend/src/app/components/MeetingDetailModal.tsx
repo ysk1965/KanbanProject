@@ -24,7 +24,6 @@ interface MeetingDetailPanelProps {
   meetingId: string;
   onDeleted: () => void;
   onUpdated: () => void;
-  aiCredits?: import('../types').AiCredits | null;
   refreshTrigger?: number;
 }
 
@@ -33,7 +32,6 @@ export function MeetingDetailPanel({
   meetingId,
   onDeleted,
   onUpdated,
-  aiCredits,
   refreshTrigger,
 }: MeetingDetailPanelProps) {
   const { t } = useTranslation();
@@ -364,7 +362,7 @@ export function MeetingDetailPanel({
                   <div className="flex items-center gap-2">
                     <button
                       onClick={handleAIOrganize}
-                      disabled={aiLoading || (aiCredits && aiCredits.total_available === 0)}
+                      disabled={aiLoading}
                       className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg transition-colors disabled:opacity-50 ${
                         isAIDimmed()
                           ? 'text-slate-500 bg-white/5 cursor-default'
@@ -378,11 +376,6 @@ export function MeetingDetailPanel({
                       )}
                       {t('meeting.aiOrganize')}
                     </button>
-                    {aiCredits && (
-                      <span className="text-xs text-slate-400">
-                        {t('ai_credits.remaining')}: {aiCredits.total_available}
-                      </span>
-                    )}
                   </div>
                 )}
                 {detail.participants.length > 0 && (
@@ -873,14 +866,60 @@ function MeetingAIInlineSection({
                     </span>
                   )}
                 </div>
-                <ul className="space-y-1">
-                  {topic.points.map((point, j) => (
-                    <li key={j} className="flex items-start gap-2 text-sm text-slate-300">
-                      <span className="text-slate-500 mt-1 text-xs">–</span>
-                      <span className="font-light">{point}</span>
-                    </li>
-                  ))}
-                </ul>
+                {/* Structured summary: decisions / discussions / action_items */}
+                {(topic.decisions?.length || topic.discussions?.length || topic.action_items?.length) ? (
+                  <div className="space-y-2">
+                    {topic.decisions && topic.decisions.length > 0 && (
+                      <div>
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-green-400">{t('meeting.aiDecisions', 'Decisions')}</span>
+                        <ul className="mt-1 space-y-0.5">
+                          {topic.decisions.map((d, j) => (
+                            <li key={j} className="flex items-start gap-2 text-sm text-slate-300">
+                              <span className="text-green-400 mt-1 text-xs">✓</span>
+                              <span className="font-light">{d}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {topic.discussions && topic.discussions.length > 0 && (
+                      <div>
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-blue-400">{t('meeting.aiDiscussions', 'Discussions')}</span>
+                        <ul className="mt-1 space-y-0.5">
+                          {topic.discussions.map((d, j) => (
+                            <li key={j} className="flex items-start gap-2 text-sm text-slate-300">
+                              <span className="text-blue-400 mt-1 text-xs">–</span>
+                              <span className="font-light">{d}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {topic.action_items && topic.action_items.length > 0 && (
+                      <div>
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400">{t('meeting.aiActionItems', 'Action Items')}</span>
+                        <ul className="mt-1 space-y-0.5">
+                          {topic.action_items.map((a, j) => (
+                            <li key={j} className="flex items-start gap-2 text-sm text-slate-300">
+                              <span className="text-amber-400 mt-1 text-xs">→</span>
+                              <span className="font-light">{a}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                ) : topic.points && topic.points.length > 0 ? (
+                  /* Fallback: legacy points format */
+                  <ul className="space-y-1">
+                    {topic.points.map((point, j) => (
+                      <li key={j} className="flex items-start gap-2 text-sm text-slate-300">
+                        <span className="text-slate-500 mt-1 text-xs">–</span>
+                        <span className="font-light">{point}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
               </div>
             ))}
           </div>

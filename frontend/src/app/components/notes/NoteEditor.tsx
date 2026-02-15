@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Save, Clock, Loader2, Tag as TagIcon, Sparkles } from 'lucide-react';
+import { Save, Clock, Loader2, Tag as TagIcon, Sparkles, Share2, Link2, Check, X } from 'lucide-react';
 import { BlockNoteSchema, defaultBlockSpecs, defaultInlineContentSpecs, filterSuggestionItems, insertOrUpdateBlock } from '@blocknote/core';
 import { useCreateBlockNote, SuggestionMenuController, getDefaultReactSlashMenuItems } from '@blocknote/react';
 import { BlockNoteView } from '@blocknote/shadcn';
@@ -20,6 +20,7 @@ import { Mention } from './blocks/Mention';
 import { formatDateTime } from '../../utils/dateUtils';
 import { fileAPI, noteAPI, memberAPI } from '../../utils/api';
 import type { NoteDetail, NoteTagInfo, NoteAISuggestionResponse, MemberResponse } from '../../utils/api';
+import { NoteShareButton } from './NoteShareButton';
 import type { CollaborationState } from '../../hooks/useCollaboration';
 
 const schema = BlockNoteSchema.create({
@@ -48,14 +49,14 @@ interface NoteEditorProps {
   onSave: (noteId: string, data: { title?: string; content?: string; tagIds?: string[] }, createVersion?: boolean) => void;
   onTagsChange: () => void;
   onDirtyChange?: (isDirty: boolean) => void;
-  aiCredits?: import('../../types').AiCredits | null;
+  onNoteUpdate?: (note: NoteDetail) => void;
   collaboration: CollaborationState | null;
   currentUserName: string;
   currentUserColor: string;
 }
 
 export function NoteEditor({
-  boardId, note, tags, loading, canEdit, onSave, onTagsChange, onDirtyChange, aiCredits,
+  boardId, note, tags, loading, canEdit, onSave, onTagsChange, onDirtyChange, onNoteUpdate,
   collaboration, currentUserName, currentUserColor,
 }: NoteEditorProps) {
   // Show brief loading while collaboration provider initializes
@@ -86,7 +87,7 @@ export function NoteEditor({
         onSave={onSave}
         onTagsChange={onTagsChange}
         onDirtyChange={onDirtyChange}
-        aiCredits={aiCredits}
+        onNoteUpdate={onNoteUpdate}
         collaboration={collaboration}
         currentUserName={currentUserName}
         currentUserColor={currentUserColor}
@@ -104,7 +105,6 @@ export function NoteEditor({
       onSave={onSave}
       onTagsChange={onTagsChange}
       onDirtyChange={onDirtyChange}
-      aiCredits={aiCredits}
     />
   );
 }
@@ -121,14 +121,14 @@ interface CollabEditorProps {
   onSave: (noteId: string, data: { title?: string; content?: string; tagIds?: string[] }, createVersion?: boolean) => void;
   onTagsChange: () => void;
   onDirtyChange?: (isDirty: boolean) => void;
-  aiCredits?: import('../../types').AiCredits | null;
+  onNoteUpdate?: (note: NoteDetail) => void;
   collaboration: CollaborationState;
   currentUserName: string;
   currentUserColor: string;
 }
 
 function CollabNoteEditor({
-  boardId, note, tags, canEdit, onSave, onTagsChange, onDirtyChange, aiCredits,
+  boardId, note, tags, canEdit, onSave, onTagsChange, onDirtyChange, onNoteUpdate,
   collaboration, currentUserName, currentUserColor,
 }: CollabEditorProps) {
   const { t } = useTranslation();
@@ -142,7 +142,7 @@ function CollabNoteEditor({
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiVisible, setAiVisible] = useState(false);
   const [aiCollapsed, setAiCollapsed] = useState(false);
-  const [aiContentSnapshot, setAiContentSnapshot] = useState<string | null>(note.aiContentSnapshot);
+  const [aiContentSnapshot, setAiContentSnapshot] = useState<string | null>(note.ai_content_snapshot);
 
   // Create BlockNote editor with Yjs collaboration
   const editor = useCreateBlockNote({
@@ -178,9 +178,9 @@ function CollabNoteEditor({
     setAiError(null);
     setAiVisible(false);
     setAiCollapsed(false);
-    setAiContentSnapshot(note.aiContentSnapshot);
-    if (note.aiSuggestions) {
-      try { setAiData(JSON.parse(note.aiSuggestions)); } catch { /* ignore */ }
+    setAiContentSnapshot(note.ai_content_snapshot);
+    if (note.ai_suggestions) {
+      try { setAiData(JSON.parse(note.ai_suggestions)); } catch { /* ignore */ }
     }
   }, [note.id]);
 
@@ -395,8 +395,8 @@ function CollabNoteEditor({
             </div>
             <span className="text-[10px] text-slate-500 flex items-center gap-1">
               <Clock size={10} />
-              {formatDateTime(note.updatedAt)}
-              {note.updatedBy && ` · ${note.updatedBy.name}`}
+              {formatDateTime(note.updated_at)}
+              {note.updated_by && ` · ${note.updated_by.name}`}
             </span>
           </div>
         </div>
@@ -408,6 +408,13 @@ function CollabNoteEditor({
             connectedUsers={collaboration.connectedUsers}
             currentUserName={currentUserName}
             currentUserColor={currentUserColor}
+          />
+
+          <NoteShareButton
+            boardId={boardId}
+            note={note}
+            canEdit={canEdit}
+            onNoteUpdate={onNoteUpdate}
           />
 
           <div className="w-px h-5 bg-white/10" />
@@ -424,7 +431,7 @@ function CollabNoteEditor({
           <NoteVersionHistory
             boardId={boardId}
             noteId={note.id}
-            versionCount={note.versionCount}
+            versionCount={note.version_count}
             canEdit={canEdit}
             onRestore={async () => {
               // After restoring, refetch and let the provider sync
@@ -438,7 +445,7 @@ function CollabNoteEditor({
             <div className="flex items-center gap-2 ml-1">
               <button
                 onClick={handleAIOrganize}
-                disabled={aiLoading || (aiCredits && aiCredits.total_available === 0)}
+                disabled={aiLoading}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 ${
                   isAIDimmed()
                   ? 'text-slate-500 bg-white/5 cursor-default'
@@ -452,11 +459,6 @@ function CollabNoteEditor({
                 )}
                 {t('notes.aiOrganize')}
               </button>
-              {aiCredits && (
-                <span className="text-xs text-slate-400">
-                  {t('ai_credits.remaining')}: {aiCredits.total_available}
-                </span>
-              )}
             </div>
           )}
           {canEdit && (
@@ -543,12 +545,11 @@ interface FallbackEditorProps {
   onSave: (noteId: string, data: { title?: string; content?: string; tagIds?: string[] }, createVersion?: boolean) => void;
   onTagsChange: () => void;
   onDirtyChange?: (isDirty: boolean) => void;
-  aiCredits?: import('../../types').AiCredits | null;
 }
 
 const AUTO_SAVE_DELAY = 30_000;
 
-function FallbackNoteEditor({ boardId, note, tags, canEdit, onSave, onTagsChange, onDirtyChange, aiCredits }: FallbackEditorProps) {
+function FallbackNoteEditor({ boardId, note, tags, canEdit, onSave, onTagsChange, onDirtyChange }: FallbackEditorProps) {
   const { t } = useTranslation();
   const [title, setTitle] = useState(note.title);
   const [hasChanges, setHasChanges] = useState(false);
@@ -717,8 +718,8 @@ function FallbackNoteEditor({ boardId, note, tags, canEdit, onSave, onTagsChange
           <div className="flex items-center gap-3 mt-1">
             <span className="text-[10px] text-slate-500 flex items-center gap-1">
               <Clock size={10} />
-              {formatDateTime(note.updatedAt)}
-              {note.updatedBy && ` · ${note.updatedBy.name}`}
+              {formatDateTime(note.updated_at)}
+              {note.updated_by && ` · ${note.updated_by.name}`}
             </span>
             {autoSaved && (
               <span className="text-[10px] text-emerald-500/70">{t('notes.autoSaved', '자동 저장됨')}</span>
@@ -727,7 +728,7 @@ function FallbackNoteEditor({ boardId, note, tags, canEdit, onSave, onTagsChange
         </div>
         <div className="flex items-center gap-1">
           <NoteTagManager boardId={boardId} noteId={note.id} noteTags={note.tags} allTags={tags} canEdit={canEdit} onSave={(tagIds) => onSave(note.id, { tagIds })} onTagsChange={onTagsChange} />
-          <NoteVersionHistory boardId={boardId} noteId={note.id} versionCount={note.versionCount} canEdit={canEdit} onRestore={async () => {
+          <NoteVersionHistory boardId={boardId} noteId={note.id} versionCount={note.version_count} canEdit={canEdit} onRestore={async () => {
             const { noteService } = await import('../../utils/services');
             const updated = await noteService.getDetail(boardId, note.id);
             if (updated.content?.trim()) {

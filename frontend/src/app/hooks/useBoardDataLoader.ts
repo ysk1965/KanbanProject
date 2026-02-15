@@ -7,7 +7,6 @@ import {
   featureService,
   taskService,
   checklistService,
-  aiCreditService,
   memberService,
 } from '../utils/services';
 import { scheduleAPI } from '../utils/api';
@@ -91,6 +90,7 @@ export function useBoardDataLoader(boardId: string | undefined) {
         setMilestones(fullData.milestones.milestones);
         setTierInfo(fullData.tier_info);
         setBoardLimits(fullData.limits);
+        setAiCredits(fullData.ai_credits);
         setAllFeatures(fullData.features);
         setBoardMembersData(fullData.members.members.map((m) => ({
           id: m.id,
@@ -147,15 +147,6 @@ export function useBoardDataLoader(boardId: string | undefined) {
 
     loadBoardData();
   }, [boardId, navigate]);
-
-  // AI 크레딧 조회
-  useEffect(() => {
-    if (boardId) {
-      aiCreditService.getCredits(boardId)
-        .then(res => setAiCredits(res))
-        .catch(() => {});
-    }
-  }, [boardId]);
 
   // 보드의 선택된 마일스톤 동기화
   useEffect(() => {

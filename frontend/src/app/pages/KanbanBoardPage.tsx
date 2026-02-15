@@ -1484,7 +1484,7 @@ export function KanbanBoardPage() {
           milestones={milestones}
           allFeatures={allFeatures}
           kanbanSelectedMilestoneId={kanbanSelectedMilestoneId}
-          onKanbanMilestoneSelect={handleKanbanMilestoneSelect}
+          onMilestoneSelect={handleKanbanMilestoneSelect}
           onOpenMilestoneWithCheck={handleOpenMilestoneWithCheck}
           onSetMilestoneOnboardingOpen={() => setIsMilestoneOnboardingOpen(true)}
           subscription={subscription}
@@ -1742,7 +1742,6 @@ export function KanbanBoardPage() {
               boardId={boardId || ''}
               boardMembers={boardMembersData}
               onRefreshSchedule={() => setScheduleRefreshKey(k => k + 1)}
-              aiCredits={aiCredits}
               refreshTrigger={meetingRefreshKey}
             />
           </main>
@@ -1752,7 +1751,6 @@ export function KanbanBoardPage() {
               <NotesView
                 boardId={boardId || ''}
                 currentUserRole={currentUserRole}
-                aiCredits={aiCredits}
               />
             </Suspense>
           </main>
@@ -1798,7 +1796,6 @@ export function KanbanBoardPage() {
                   role: m.role.toUpperCase() as any,
                   joined_at: '',
                 }))}
-                aiCredits={aiCredits}
                 hideBilling={hideBilling}
               />
             </Suspense>
@@ -1932,6 +1929,11 @@ export function KanbanBoardPage() {
             setIsSubscriptionModalOpen(true);
           } : undefined}
           aiCredits={!hideBillingForUser ? aiCredits : undefined}
+          onOpenAiCreditPurchase={!hideBillingForUser ? () => {
+            setIsShareBoardModalOpen(false);
+            setCreditModalMode('purchase');
+            setShowCreditModal(true);
+          } : undefined}
           hideBillingForUser={hideBillingForUser}
           // Subscription Modal
           isSubscriptionModalOpen={isSubscriptionModalOpen}

@@ -12,6 +12,7 @@ import com.kanban.domain.member.dto.MemberResponse;
 import com.kanban.domain.milestone.dto.MilestoneResponse;
 import com.kanban.domain.subscription.Subscription;
 import com.kanban.domain.subscription.SubscriptionStatus;
+import com.kanban.domain.subscription.dto.AiCreditResponse;
 import com.kanban.domain.subscription.dto.SubscriptionResponse;
 import com.kanban.domain.tag.dto.TagResponse;
 import com.kanban.domain.task.dto.TaskResponse;
@@ -247,5 +248,6 @@ public class BoardResponse {
         private MilestoneResponse.ListResponse milestones;
         private TierInfo tierInfo;
         private Limits limits;
+        private AiCreditResponse.CreditInfo aiCredits;
     }
 }

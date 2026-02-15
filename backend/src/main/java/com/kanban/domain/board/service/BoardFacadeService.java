@@ -21,7 +21,9 @@ import com.kanban.domain.milestone.dto.MilestoneResponse;
 import com.kanban.domain.milestone.service.MilestoneService;
 import com.kanban.domain.subscription.Subscription;
 import com.kanban.domain.subscription.SubscriptionRepository;
+import com.kanban.domain.subscription.dto.AiCreditResponse;
 import com.kanban.domain.subscription.dto.SubscriptionResponse;
+import com.kanban.domain.subscription.service.AiCreditService;
 import com.kanban.domain.tag.dto.TagResponse;
 import com.kanban.domain.tag.service.TagService;
 import com.kanban.domain.task.TaskRepository;
@@ -66,6 +68,7 @@ public class BoardFacadeService {
     private final MemberService memberService;
     private final ActivityService activityService;
     private final MilestoneService milestoneService;
+    private final AiCreditService aiCreditService;
 
     private static final int DEFAULT_ACTIVITY_LIMIT = 20;
 
@@ -133,6 +136,14 @@ public class BoardFacadeService {
         int currentTaskCount = taskRepository.countByBoardId(boardId);
         BoardResponse.Limits limits = BoardResponse.Limits.of(board, currentTaskCount);
 
+        // 7. AI Credits
+        AiCreditResponse.CreditInfo aiCredits = null;
+        try {
+            aiCredits = aiCreditService.getCredits(boardId);
+        } catch (Exception e) {
+            log.warn("Failed to load AI credits for board {}: {}", boardId, e.getMessage());
+        }
+
         log.info("Board full data loaded: {} by user: {}", boardId, userId);
 
         return BoardResponse.Full.builder()
@@ -159,6 +170,7 @@ public class BoardFacadeService {
                 .milestones(milestonesResponse)
                 .tierInfo(tierInfo)
                 .limits(limits)
+                .aiCredits(aiCredits)
                 .build();
     }
 }

@@ -35,5 +35,7 @@ public interface NoteRepository extends JpaRepository<Note, String> {
     @Query("SELECT n FROM Note n WHERE n.parent.id IN :parentIds AND n.isDeleted = false ORDER BY n.position ASC")
     List<Note> findChildrenByParentIds(@Param("parentIds") List<String> parentIds);
 
+    Optional<Note> findByShareTokenAndIsSharedTrueAndIsDeletedFalse(String shareToken);
+
     void deleteAllByBoardId(String boardId);
 }

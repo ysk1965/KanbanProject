@@ -670,6 +670,7 @@ export interface BoardFullResponse {
   milestones: { milestones: MilestoneDetailResponse[] };
   tier_info: BoardTierResponse;
   limits: BoardLimitsResponse;
+  ai_credits: import('../types').AiCredits | null;
 }
 
 // Seat Pricing Response
@@ -1722,7 +1723,10 @@ export interface TranscriptResult {
 export interface AISummaryTopic {
   topic: string;
   important: boolean;
-  points: string[];
+  points?: string[];
+  decisions?: string[];
+  discussions?: string[];
+  action_items?: string[];
 }
 
 export interface AISuggestionResponse {
@@ -2357,7 +2361,20 @@ export interface DailyChecklistResponse {
   columns: DailyChecklistColumnResponse[];
 }
 
+export interface TimeblockDataResponse {
+  daily_checklist_items: DailyChecklistItemResponse[];
+  board_checklist_items: BoardChecklistItemResponse[];
+  meetings: MeetingSummary[];
+}
+
 export const dailyChecklistAPI = {
+  // 타임블록 모달용 통합 데이터 조회
+  getTimeblockData: async (boardId: string, date: string, assigneeId: string) => {
+    return apiClient.get<TimeblockDataResponse>(
+      `/boards/${boardId}/daily-checklists/timeblock-data?date=${date}&assigneeId=${assigneeId}`
+    );
+  },
+
   // 일일 데일리 체크리스트 조회
   getDailyChecklist: async (boardId: string, date: string) => {
     return apiClient.get<DailyChecklistResponse>(
@@ -3302,6 +3319,11 @@ export const notificationAPI = {
     return apiClient.get<{ unread_count: number }>(`/notifications/unread-count${query}`);
   },
 
+  getUnreadCounts: async (boardId?: string) => {
+    const query = boardId ? `?boardId=${boardId}` : '';
+    return apiClient.get<{ unread_count: number; unread_inquiry_count: number }>(`/notifications/unread-counts${query}`);
+  },
+
   markAsRead: async (notificationId: string) => {
     return apiClient.put<Record<string, unknown>>(`/notifications/${notificationId}/read`);
   },
@@ -3480,35 +3502,45 @@ export const reportAPI = {
 
 export interface NoteTreeItem {
   id: string;
-  parentId: string | null;
+  parent_id: string | null;
   type: 'FOLDER' | 'DOCUMENT';
   title: string;
   position: number;
   depth: number;
   tags: NoteTagInfo[];
-  createdBy: NoteUserInfo;
-  updatedBy: NoteUserInfo;
-  createdAt: string;
-  updatedAt: string;
+  created_by: NoteUserInfo;
+  updated_by: NoteUserInfo;
+  created_at: string;
+  updated_at: string;
   children: NoteTreeItem[];
 }
 
 export interface NoteDetail {
   id: string;
-  parentId: string | null;
+  parent_id: string | null;
   type: 'FOLDER' | 'DOCUMENT';
   title: string;
   content: string | null;
   position: number;
   depth: number;
   tags: NoteTagInfo[];
-  createdBy: NoteUserInfo;
-  updatedBy: NoteUserInfo;
-  createdAt: string;
-  updatedAt: string;
-  versionCount: number;
-  aiSuggestions: string | null;
-  aiContentSnapshot: string | null;
+  created_by: NoteUserInfo;
+  updated_by: NoteUserInfo;
+  created_at: string;
+  updated_at: string;
+  version_count: number;
+  ai_suggestions: string | null;
+  ai_content_snapshot: string | null;
+  is_shared: boolean;
+  share_token: string | null;
+}
+
+export interface SharedNote {
+  title: string;
+  content: string | null;
+  tags: NoteTagInfo[];
+  author_name: string;
+  updated_at: string;
 }
 
 export interface NoteAISuggestionResponse {
@@ -3530,12 +3562,12 @@ export interface NoteAIApplyResult {
 export interface NoteListItem {
   id: string;
   title: string;
-  parentId: string | null;
-  parentTitle: string | null;
+  parent_id: string | null;
+  parent_title: string | null;
   tags: NoteTagInfo[];
-  updatedBy: NoteUserInfo;
-  createdAt: string;
-  updatedAt: string;
+  updated_by: NoteUserInfo;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface NoteTagInfo {
@@ -3547,24 +3579,24 @@ export interface NoteTagInfo {
 export interface NoteUserInfo {
   id: string;
   name: string;
-  profileImage: string | null;
+  profile_image: string | null;
 }
 
 export interface NoteVersionInfo {
   id: string;
-  versionNumber: number;
+  version_number: number;
   title: string;
-  createdBy: NoteUserInfo;
-  createdAt: string;
+  created_by: NoteUserInfo;
+  created_at: string;
 }
 
 export interface NoteVersionDetail {
   id: string;
-  versionNumber: number;
+  version_number: number;
   title: string;
   content: string | null;
-  createdBy: NoteUserInfo;
-  createdAt: string;
+  created_by: NoteUserInfo;
+  created_at: string;
 }
 
 export const noteAPI = {
@@ -3641,5 +3673,19 @@ export const noteAPI = {
 
   aiApply: async (boardId: string, noteId: string, data: AIApplyRequest): Promise<NoteAIApplyResult> => {
     return apiClient.post<NoteAIApplyResult>(`/boards/${boardId}/notes/${noteId}/ai-apply`, data);
+  },
+
+  enableShare: async (boardId: string, noteId: string) => {
+    return apiClient.post<NoteDetail>(`/boards/${boardId}/notes/${noteId}/share`);
+  },
+
+  disableShare: async (boardId: string, noteId: string) => {
+    return apiClient.delete<NoteDetail>(`/boards/${boardId}/notes/${noteId}/share`);
+  },
+};
+
+export const publicNoteAPI = {
+  getSharedNote: async (shareToken: string) => {
+    return apiClient.get<SharedNote>(`/public/notes/${shareToken}`);
   },
 };

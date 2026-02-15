@@ -99,7 +99,7 @@ export function NoteTreeSidebar({
     if (overData?.type === 'reorder') {
       // Don't move to same position
       const draggedItem = flatMap.get(draggedId);
-      if (draggedItem?.parentId === overData.parentId) {
+      if (draggedItem?.parent_id === overData.parentId) {
         // Same parent: check if actually changing position
         const siblings = overData.parentId
           ? flatMap.get(overData.parentId)?.children || []

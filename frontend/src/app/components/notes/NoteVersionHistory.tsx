@@ -115,10 +115,10 @@ export function NoteVersionHistory({ boardId, noteId, versionCount, canEdit, onR
                       ← {t('notes.backToList', '목록으로')}
                     </button>
                     <p className="text-xs font-semibold text-white mt-1">
-                      v{selectedVersion.versionNumber} · {selectedVersion.title}
+                      v{selectedVersion.version_number} · {selectedVersion.title}
                     </p>
                     <p className="text-[10px] text-slate-500 mt-0.5">
-                      {selectedVersion.createdBy.name} · {formatDateTime(selectedVersion.createdAt)}
+                      {selectedVersion.created_by?.name} · {formatDateTime(selectedVersion.created_at)}
                     </p>
                   </div>
                   {canEdit && (
@@ -156,13 +156,13 @@ export function NoteVersionHistory({ boardId, noteId, versionCount, canEdit, onR
                       >
                         <div className="flex items-center justify-between">
                           <span className="text-xs font-semibold text-white">
-                            v{version.versionNumber}
+                            v{version.version_number}
                           </span>
                           <Eye size={12} className="text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </div>
                         <p className="text-[10px] text-slate-400 mt-0.5 truncate">{version.title}</p>
                         <p className="text-[10px] text-slate-500 mt-0.5">
-                          {version.createdBy.name} · {formatDateTime(version.createdAt)}
+                          {version.created_by?.name} · {formatDateTime(version.created_at)}
                         </p>
                       </button>
                     ))}

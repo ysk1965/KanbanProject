@@ -1,5 +1,6 @@
 package com.kanban.domain.subscription.controller;
 
+import com.kanban.domain.board.service.BoardService;
 import com.kanban.domain.subscription.dto.AiCreditRequest;
 import com.kanban.domain.subscription.dto.AiCreditResponse;
 import com.kanban.domain.subscription.service.AiCreditService;
@@ -20,6 +21,7 @@ import java.util.List;
 public class AiCreditController {
 
     private final AiCreditService aiCreditService;
+    private final BoardService boardService;
 
     // Credit query
     @GetMapping
@@ -45,5 +47,15 @@ public class AiCreditController {
             @PathVariable String boardId,
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
         return ResponseEntity.ok(aiCreditService.getPurchaseHistory(boardId));
+    }
+
+    // Usage history query (Admin/Owner only)
+    @GetMapping("/usage")
+    public ResponseEntity<List<AiCreditResponse.UsageHistoryItem>> getUsageHistory(
+            @PathVariable String boardId,
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @RequestParam(defaultValue = "30") int days) {
+        boardService.checkAdminOrAbove(boardId, userPrincipal.getUserId());
+        return ResponseEntity.ok(aiCreditService.getUsageHistory(boardId, days));
     }
 }

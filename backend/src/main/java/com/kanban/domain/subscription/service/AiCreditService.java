@@ -1,6 +1,7 @@
 package com.kanban.domain.subscription.service;
 
 import com.kanban.domain.board.BoardTier;
+import com.kanban.domain.monitoring.entity.AiUsageLog;
 import com.kanban.domain.monitoring.repository.AiUsageLogRepository;
 import com.kanban.domain.subscription.AiCreditPurchase;
 import com.kanban.domain.subscription.AiCreditPurchaseRepository;
@@ -8,6 +9,8 @@ import com.kanban.domain.subscription.Subscription;
 import com.kanban.domain.subscription.SubscriptionRepository;
 import com.kanban.domain.subscription.dto.AiCreditRequest;
 import com.kanban.domain.subscription.dto.AiCreditResponse;
+import com.kanban.domain.user.User;
+import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -29,6 +32,7 @@ public class AiCreditService {
     private final AiCreditPurchaseRepository aiCreditPurchaseRepository;
     private final TossPaymentsService tossPaymentsService;
     private final AiUsageLogRepository aiUsageLogRepository;
+    private final UserRepository userRepository;
 
     // === Credit Consumption (Core - Uses Pessimistic Lock) ===
 
@@ -140,6 +144,34 @@ public class AiCreditService {
                         .totalAmount(p.getTotalAmount())
                         .status(p.getStatus())
                         .createdAt(p.getCreatedAt())
+                        .build())
+                .collect(Collectors.toList());
+    }
+
+    // === Usage History ===
+
+    @Transactional(readOnly = true)
+    public List<AiCreditResponse.UsageHistoryItem> getUsageHistory(String boardId, int days) {
+        LocalDateTime since = LocalDateTime.now(ZoneOffset.UTC).minusDays(days);
+        List<AiUsageLog> logs = aiUsageLogRepository
+                .findByBoardIdAndCreatedAtAfterOrderByCreatedAtDesc(boardId, since);
+
+        Set<String> userIds = logs.stream()
+                .map(AiUsageLog::getUserId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<String, String> userNameMap = userRepository.findAllById(userIds).stream()
+                .collect(Collectors.toMap(User::getId, User::getName));
+
+        return logs.stream()
+                .limit(100)
+                .map(log -> AiCreditResponse.UsageHistoryItem.builder()
+                        .id(log.getId())
+                        .userId(log.getUserId())
+                        .userName(userNameMap.getOrDefault(log.getUserId(), "Unknown"))
+                        .featureType(log.getFeatureType())
+                        .creditsUsed(log.getCreditsUsed())
+                        .createdAt(log.getCreatedAt())
                         .build())
                 .collect(Collectors.toList());
     }

@@ -11,6 +11,7 @@ import com.kanban.domain.subscription.dto.SubscriptionResponse;
 import com.kanban.domain.subscription.dto.TossPaymentResponse;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
+import com.kanban.global.security.WebSocketAuthInterceptor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -34,6 +35,7 @@ public class SubscriptionService {
     private final BoardRepository boardRepository;
     private final BoardService boardService;
     private final TossPaymentsService tossPaymentsService;
+    private final WebSocketAuthInterceptor webSocketAuthInterceptor;
 
     public SubscriptionResponse.PricingListResponse getPricingPlans() {
         List<PricingPlan> plans = pricingPlanRepository.findByIsActiveTrueOrderByMinMembersAsc();
@@ -77,6 +79,7 @@ public class SubscriptionService {
         Board board = boardRepository.findById(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
         board.upgradeToPremium();
+        webSocketAuthInterceptor.evictTierCache(boardId);
 
         // Initialize AI credits for the new tier
         int monthlyCredits = AiCreditService.getMonthlyCreditsForTier(BoardTier.PREMIUM, seatCount);
@@ -195,6 +198,7 @@ public class SubscriptionService {
         Board board = boardRepository.findById(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
         board.upgradeToPremium();
+        webSocketAuthInterceptor.evictTierCache(boardId);
 
         // 5. Initialize AI credits for the new tier
         int monthlyCredits = AiCreditService.getMonthlyCreditsForTier(BoardTier.PREMIUM, seatCount);

@@ -2301,6 +2301,14 @@ export const noteService = {
   deleteTag: async (boardId: string, tagId: string) => {
     return await noteAPI.deleteTag(boardId, tagId);
   },
+
+  enableShare: async (boardId: string, noteId: string) => {
+    return await noteAPI.enableShare(boardId, noteId);
+  },
+
+  disableShare: async (boardId: string, noteId: string) => {
+    return await noteAPI.disableShare(boardId, noteId);
+  },
 };
 
 // ========================================
@@ -2347,7 +2355,7 @@ export const monitoringService = {
 // AI Credit Service
 // ========================================
 
-import type { AiCredits, AiCreditPurchaseRequest, AiCreditPurchaseResult, AiCreditPurchaseHistory } from '../types';
+import type { AiCredits, AiCreditPurchaseRequest, AiCreditPurchaseResult, AiCreditPurchaseHistory, AiCreditUsageHistory } from '../types';
 
 export const aiCreditService = {
   // 크레딧 조회
@@ -2366,5 +2374,11 @@ export const aiCreditService = {
   getPurchases: async (boardId: string): Promise<AiCreditPurchaseHistory[]> => {
     const response = await apiClient.get(`/boards/${boardId}/ai-credits/purchases`);
     return (response.data || response).purchases || response.data || response;
+  },
+
+  // AI 사용 내역 조회
+  getUsageHistory: async (boardId: string, days: number = 30): Promise<AiCreditUsageHistory[]> => {
+    const response = await apiClient.get(`/boards/${boardId}/ai-credits/usage?days=${days}`);
+    return response.data || response;
   },
 };

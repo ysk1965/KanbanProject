@@ -1727,3 +1727,12 @@ export interface AiCreditPurchaseHistory {
   status: string;
   created_at: string;
 }
+
+export interface AiCreditUsageHistory {
+  id: string;
+  user_id: string;
+  user_name: string;
+  feature_type: string;
+  credits_used: number;
+  created_at: string;
+}

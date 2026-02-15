@@ -113,6 +113,14 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
     }
 
     /**
+     * Tier 캐시 즉시 무효화 (구독 변경/관리자 Tier 변경 시 호출)
+     */
+    public void evictTierCache(String boardId) {
+        tierCache.remove(boardId);
+        log.debug("Tier cache evicted for board={}", boardId);
+    }
+
+    /**
      * Extract JWT token from STOMP CONNECT frame.
      * Checks Authorization header first, then falls back to token query parameter.
      */

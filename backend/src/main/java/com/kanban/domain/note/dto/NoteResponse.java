@@ -65,6 +65,8 @@ public class NoteResponse {
         private int versionCount;
         private String aiSuggestions;
         private String aiContentSnapshot;
+        private Boolean isShared;
+        private String shareToken;
 
         public static Detail of(Note note, List<TagInfo> tags, int versionCount) {
             return Detail.builder()
@@ -83,6 +85,29 @@ public class NoteResponse {
                     .versionCount(versionCount)
                     .aiSuggestions(note.getAiSuggestions())
                     .aiContentSnapshot(note.getAiContentSnapshot())
+                    .isShared(note.getIsShared())
+                    .shareToken(note.getShareToken())
+                    .build();
+        }
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class SharedNote {
+        private String title;
+        private String content;
+        private List<TagInfo> tags;
+        private String authorName;
+        private LocalDateTime updatedAt;
+
+        public static SharedNote of(Note note, List<TagInfo> tags) {
+            return SharedNote.builder()
+                    .title(note.getTitle())
+                    .content(note.getContent())
+                    .tags(tags)
+                    .authorName(note.getUpdatedBy().getName())
+                    .updatedAt(note.getUpdatedAt())
                     .build();
         }
     }

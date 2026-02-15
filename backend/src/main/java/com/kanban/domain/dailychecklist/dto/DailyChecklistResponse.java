@@ -9,11 +9,26 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 
+import com.kanban.domain.checklist.dto.ChecklistResponse;
+import com.kanban.domain.meeting.dto.MeetingResponse;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
 public class DailyChecklistResponse {
+
+    /**
+     * 타임블록 모달용 통합 응답
+     */
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class TimeblockDataResponse {
+        private List<ItemResponse> dailyChecklistItems;
+        private List<ChecklistResponse.BoardItem> boardChecklistItems;
+        private List<MeetingResponse.Summary> meetings;
+    }
 
     /**
      * 데일리 체크리스트 목록 응답 (날짜별)

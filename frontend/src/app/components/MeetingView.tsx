@@ -12,12 +12,11 @@ interface MeetingViewProps {
   selectedDate: Date;
   boardMembers: BoardMember[];
   onRefreshSchedule: () => void;
-  aiCredits?: import('../types').AiCredits | null;
   refreshTrigger?: number;
   onOpenCalendar?: () => void;
 }
 
-export function MeetingView({ boardId, selectedDate, boardMembers, onRefreshSchedule, aiCredits, refreshTrigger, onOpenCalendar }: MeetingViewProps) {
+export function MeetingView({ boardId, selectedDate, boardMembers, onRefreshSchedule, refreshTrigger, onOpenCalendar }: MeetingViewProps) {
   const { t } = useTranslation();
   const [meetings, setMeetings] = useState<MeetingSummary[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -154,7 +153,6 @@ export function MeetingView({ boardId, selectedDate, boardMembers, onRefreshSche
                       loadMeetings();
                       onRefreshSchedule();
                     }}
-                    aiCredits={aiCredits}
                     refreshTrigger={refreshTrigger}
                   />
                 )}

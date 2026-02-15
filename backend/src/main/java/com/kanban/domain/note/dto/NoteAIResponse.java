@@ -29,6 +29,9 @@ public class NoteAIResponse {
         private String topic;
         private boolean important;
         private List<String> points;
+        private List<String> decisions;
+        private List<String> discussions;
+        private List<String> actionItems;
     }
 
     @Getter
