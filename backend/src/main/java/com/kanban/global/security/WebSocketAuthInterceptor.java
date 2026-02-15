@@ -1,6 +1,7 @@
 package com.kanban.global.security;
 
 import com.kanban.domain.board.Board;
+import com.kanban.domain.board.BoardMemberRepository;
 import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.user.SystemRole;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +31,7 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
 
     private final JwtProvider jwtProvider;
     private final BoardRepository boardRepository;
+    private final BoardMemberRepository boardMemberRepository;
 
     private static final Pattern BOARD_TOPIC_PATTERN = Pattern.compile("^/topic/board/([^/]+)");
 
@@ -82,8 +84,8 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
     }
 
     /**
-     * SUBSCRIBE 시점에 보드 Tier 체크 (5분 TTL 캐시).
-     * STANDARD 보드는 WebSocket 구독을 차단한다.
+     * SUBSCRIBE 시점에 보드 멤버십 + Tier 체크.
+     * 비멤버 및 STANDARD 보드는 WebSocket 구독을 차단한다.
      */
     private void handleSubscribe(StompHeaderAccessor accessor) {
         String destination = accessor.getDestination();
@@ -92,12 +94,37 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
         Matcher matcher = BOARD_TOPIC_PATTERN.matcher(destination);
         if (matcher.find()) {
             String boardId = matcher.group(1);
+
+            // 멤버십 체크: 인증된 사용자가 해당 보드의 멤버인지 확인
+            String userId = extractUserId(accessor);
+            if (userId != null) {
+                boolean isMember = boardMemberRepository.existsByBoardIdAndUserId(boardId, userId);
+                if (!isMember) {
+                    log.warn("WebSocket SUBSCRIBE blocked: user={} is not a member of board={}", userId, boardId);
+                    throw new MessageDeliveryException("You are not a member of this board");
+                }
+            } else {
+                log.warn("WebSocket SUBSCRIBE blocked: unauthenticated user for board={}", boardId);
+                throw new MessageDeliveryException("Authentication required");
+            }
+
+            // Tier 체크: STANDARD 보드는 실시간 동기화 차단
             boolean isStandard = isBoardStandard(boardId);
             if (isStandard) {
                 log.warn("WebSocket SUBSCRIBE blocked: STANDARD board={}", boardId);
                 throw new MessageDeliveryException("Real-time sync is not available for Standard tier boards");
             }
         }
+    }
+
+    private String extractUserId(StompHeaderAccessor accessor) {
+        if (accessor.getUser() instanceof UsernamePasswordAuthenticationToken auth) {
+            Object principal = auth.getPrincipal();
+            if (principal instanceof UserPrincipal userPrincipal) {
+                return userPrincipal.getUserId();
+            }
+        }
+        return null;
     }
 
     private boolean isBoardStandard(String boardId) {

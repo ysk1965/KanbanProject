@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { History, RotateCcw, X, Loader2, Eye } from 'lucide-react';
+import DOMPurify from 'dompurify';
 import { noteService } from '../../utils/services';
 import { formatDateTime } from '../../utils/dateUtils';
 import type { NoteVersionInfo, NoteVersionDetail } from '../../utils/api';
@@ -135,7 +136,7 @@ export function NoteVersionHistory({ boardId, noteId, versionCount, canEdit, onR
                 <div className="flex-1 overflow-y-auto p-4">
                   <div
                     className="prose prose-invert prose-sm max-w-none"
-                    dangerouslySetInnerHTML={{ __html: selectedVersion.content || '' }}
+                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(selectedVersion.content || '') }}
                   />
                 </div>
               </div>
