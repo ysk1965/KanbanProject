@@ -168,13 +168,27 @@ public class ReportAIService {
                     </role>
 
                     <analysis_method>
-                    각 태스크에서 데이터를 교차 분석하세요:
-                    - 시간을 투입했는데 체크리스트가 진행되지 않았다면 → 댓글에서 원인을 찾으세요 (블로커, 재작업, 대기)
-                    - 댓글에 다른 사람 언급, 스펙 변경, 이슈가 있다면 → 외부 의존성 또는 블로커로 표시
-                    - 시간 분포가 불균일하다면 (며칠 0시간 후 급증) → 댓글 맥락으로 패턴 설명
-                    - 태스크가 완료되고 체크리스트가 모두 달성됐다면 → 간단히 마무리 언급, 과도한 설명 불필요
-                    - 댓글 내용에서 키워드를 추출하세요: 의사결정 대기("확인 부탁", "어떻게 할까요"), 이슈 보고("에러", "안 됩니다", "변경 필요"), 완료 보고("완료", "머지", "반영")
-                    - 미팅이 있다면 태스크 진행과 연결하세요: 미팅 근처의 태스크 활동은 정렬 세션, 리뷰, 의사결정 포인트를 나타낼 수 있습니다. 메모 내용으로 서술을 풍부하게 만드세요.
+                    각 태스크에서 데이터를 교차 분석하세요. 반드시 여러 데이터 소스를 연결하세요:
+
+                    교차 분석 패턴:
+                    - 시간↔체크리스트: 시간 투입 대비 체크리스트 진행이 없으면 → 댓글에서 원인을 찾으세요 (블로커, 재작업, 대기)
+                    - 댓글↔상태: 댓글에 다른 사람 언급, 스펙 변경, 이슈가 있다면 → 외부 의존성 또는 블로커로 표시
+                    - 시간 분포↔댓글: 시간 분포가 불균일하다면 (며칠 0시간 후 급증) → 댓글 시점과 대조하여 패턴 설명
+                    - 완료 패턴: 태스크 완료 + 체크리스트 달성 → 간단히 마무리 언급, 과도한 설명 불필요
+
+                    댓글 키워드 분석:
+                    - 의사결정 대기: "확인 부탁", "어떻게 할까요", "리뷰 요청"
+                    - 이슈 보고: "에러", "안 됩니다", "변경 필요", "버그"
+                    - 완료 보고: "완료", "머지", "반영", "배포"
+
+                    미팅 연결:
+                    - 미팅이 있다면 태스크 진행과 연결하세요
+                    - 미팅 근처의 태스크 활동은 정렬 세션, 리뷰, 의사결정 포인트를 나타낼 수 있습니다
+                    - 메모 내용으로 서술을 풍부하게 만드세요
+
+                    구체적 예시:
+                    - "인증 태스크에 약 5시간을 투입했지만 체크리스트 2개가 미완료로 남았다. 수요일 댓글에서 'OAuth 스펙이 변경되어 재작업 필요'라는 언급이 있어, 스펙 변경이 진행을 지연시킨 것으로 보인다."
+                    - "배포 태스크는 월~수 활동이 없다가 목요일에 집중됐다. 수요일 미팅에서 배포 일정이 확정된 후 작업이 시작된 패턴이다."
                     </analysis_method>
 
                     <output_format>
@@ -242,13 +256,26 @@ public class ReportAIService {
                 </role>
 
                 <analysis_method>
-                For each task, cross-reference the data sources:
-                - If time was invested but checklists didn't progress → the comments likely explain why (blocker, rework, waiting on someone)
-                - If comments mention other people, spec changes, or issues → flag as external dependency or blocker
-                - If time distribution is uneven (e.g., 0h for days then a spike) → explain the pattern from comment context
-                - If a task is marked completed with all checklists done → briefly note closure, don't over-explain
-                - Read comment CONTENT to extract keywords: decision-waiting ("please confirm", "need input"), issue-reporting ("error", "doesn't work", "change needed"), completion ("done", "merged", "deployed")
-                - If meetings exist, connect them to task progress: meetings near task activity may indicate alignment sessions, reviews, or decision points. Use memo content to enrich the narrative.
+                For each task, cross-reference multiple data sources — never describe a single metric in isolation:
+
+                Cross-analysis patterns:
+                - Time↔Checklists: If time was invested but checklists didn't progress → comments likely explain why (blocker, rework, waiting)
+                - Comments↔Status: If comments mention other people, spec changes, or issues → flag as external dependency or blocker
+                - Time distribution↔Comments: If time is uneven (0h for days then a spike) → correlate with comment timestamps to explain pattern
+                - Completion: Task done + all checklists achieved → briefly note closure, don't over-explain
+
+                Comment keyword analysis:
+                - Decision-waiting: "please confirm", "need input", "waiting for review"
+                - Issue-reporting: "error", "doesn't work", "change needed", "bug"
+                - Completion: "done", "merged", "deployed", "shipped"
+
+                Meeting connection:
+                - Connect meetings to task progress when relevant
+                - Activity near meetings may indicate alignment sessions, reviews, or decision points
+                - Use memo content to enrich the narrative
+
+                Concrete example:
+                - "About 5 hours were spent on the auth task, but 2 checklists remained incomplete. A Wednesday comment mentioning 'OAuth spec changed, need rework' suggests the spec change delayed progress."
                 </analysis_method>
 
                 <output_format>
@@ -311,14 +338,28 @@ public class ReportAIService {
                     </role>
 
                     <analysis_method>
-                    다음 데이터 차원을 교차 분석하세요:
-                    - 피처의 진행률이 낮은데 시간 투입이 높다면 → 댓글에서 블로커, 재작업, 스코프 변경을 찾으세요
-                    - 한 멤버가 높은 작업시간 대비 낮은 완료율이면 → 다른 멤버의 산출물에 블로킹되고 있는지 확인
-                    - 마일스톤 상태가 AT_RISK라면 → 어떤 피처/멤버가 지연 체인을 일으키는지 추적
-                    - stagnant_tasks나 stuck_checklists가 있다면 → 누가 누구를 블로킹하는지 인적 의존성 식별
-                    - 댓글 내용에서 감지: 반복 주제, 팀 간 논의, 미해결 의사결정
-                    - 멤버 간 작업량 분포 비교 → 노력이 균형적인지, 과부하/유휴 멤버가 있는지
-                    - 미팅이 있다면 미팅의 역할을 분석하세요: 미팅이 업무 블로킹 해제로 이어졌는지? 특정 피처에 미팅이 집중되어 있는지? 참가자와 태스크 진행의 관계는?
+                    다음 데이터 차원을 교차 분석하세요. 반드시 2개 이상의 데이터 포인트를 연결하세요:
+
+                    진행률↔시간 교차:
+                    - 피처 진행률 낮은데 시간 투입 높음 → 댓글에서 블로커, 재작업, 스코프 변경을 찾으세요
+                    - 피처 진행률 높은데 시간 투입 낮음 → 효율적 작업 또는 이전 준비가 결실을 맺은 것
+
+                    멤버 간 관계:
+                    - 한 멤버의 높은 작업시간 + 낮은 완료율 → 다른 멤버의 산출물에 블로킹되고 있는지 확인
+                    - stagnant_tasks나 stuck_checklists → 누가 누구를 블로킹하는지 인적 의존성 식별
+                    - 멤버 간 작업량 분포 비교 → 과부하/유휴 패턴
+
+                    리스크 추적:
+                    - 마일스톤 상태가 AT_RISK → 어떤 피처/멤버가 지연 체인을 일으키는지 추적
+                    - 댓글에서 반복 주제, 미해결 의사결정 감지
+
+                    미팅 효과 분석:
+                    - 미팅 후 블로킹 해제 패턴이 있는지?
+                    - 특정 피처에 미팅이 집중되어 있는지?
+                    - 참가자와 태스크 진행의 관계는?
+
+                    구체적 예시:
+                    - "김OO님은 인증 피처에 약 12시간을 투입했지만 체크리스트 완료율은 40%에 머물렀다. 이OO님의 API 설계 태스크가 미완료 상태여서 인증 구현이 블로킹된 것으로 보인다."
                     </analysis_method>
 
                     <output_format>
@@ -353,7 +394,7 @@ public class ReportAIService {
                     - 불릿 나열 금지. 줄글만 사용하세요.
                     - 팀원은 실명으로 언급하세요.
                     - 개별 데이터 포인트가 아닌 데이터 간 관계에 집중하세요.
-                    - 간결하게: 400~700자.
+                    - 간결하게: 500~1000자.
                     </rules>""";
         }
 
@@ -375,14 +416,28 @@ public class ReportAIService {
                 </role>
 
                 <analysis_method>
-                Cross-reference these data dimensions:
-                - If a feature has low progress but high time investment → read comments for blockers, rework, or scope changes
-                - If one member has high hours but low completion → check if their tasks are blocked by another member's deliverables
-                - If milestone status is AT_RISK → trace which specific features/members are causing the delay chain
-                - If stagnant_tasks or stuck_checklists exist → identify the human dependency (who is blocking whom)
-                - Read comment content to detect: recurring themes, cross-team discussions, unresolved decisions
-                - Compare member workload distribution → is effort balanced or is someone overloaded/underutilized?
-                - If meetings exist, analyze their role: did meetings lead to decisions that unblocked work? Are meetings concentrated around certain features? Who participated and how does that relate to task progress?
+                Cross-reference multiple data dimensions — always connect 2+ data points in each insight:
+
+                Progress↔Time:
+                - Low feature progress + high time → read comments for blockers, rework, scope changes
+                - High progress + low time → efficient work or prior preparation paying off
+
+                Member relationships:
+                - High hours + low completion for one member → check if blocked by another member's deliverables
+                - stagnant_tasks or stuck_checklists → identify the human dependency (who is blocking whom)
+                - Compare workload distribution → overloaded vs underutilized patterns
+
+                Risk tracking:
+                - AT_RISK milestones → trace which features/members cause the delay chain
+                - Comment analysis: recurring themes, cross-team discussions, unresolved decisions
+
+                Meeting impact:
+                - Did meetings lead to decisions that unblocked work?
+                - Are meetings concentrated around certain features?
+                - Participant-to-task correlation?
+
+                Concrete example:
+                - "Kim spent ~12h on auth but checklist completion is at 40%. Lee's API design task remains incomplete, likely blocking auth implementation."
                 </analysis_method>
 
                 <output_format>
@@ -417,7 +472,7 @@ public class ReportAIService {
                 - No bullet lists. Flowing prose only.
                 - Mention team members by their actual names.
                 - Focus on relationships between data, not individual data points.
-                - Keep it concise: 400-700 words.
+                - Keep it concise: 500-1000 words.
                 </rules>""", writeInLang);
     }
 

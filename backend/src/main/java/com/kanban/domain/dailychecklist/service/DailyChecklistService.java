@@ -6,10 +6,14 @@ import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.board.service.BoardService;
 import com.kanban.domain.checklist.ChecklistItem;
 import com.kanban.domain.checklist.ChecklistItemRepository;
+import com.kanban.domain.checklist.dto.ChecklistResponse;
+import com.kanban.domain.checklist.service.ChecklistService;
 import com.kanban.domain.dailychecklist.DailyChecklist;
 import com.kanban.domain.dailychecklist.DailyChecklistRepository;
 import com.kanban.domain.dailychecklist.dto.DailyChecklistRequest;
 import com.kanban.domain.dailychecklist.dto.DailyChecklistResponse;
+import com.kanban.domain.meeting.dto.MeetingResponse;
+import com.kanban.domain.meeting.service.MeetingService;
 import com.kanban.domain.task.Task;
 import com.kanban.domain.task.TaskRepository;
 import com.kanban.domain.user.User;
@@ -42,7 +46,39 @@ public class DailyChecklistService {
     private final TaskRepository taskRepository;
     private final UserRepository userRepository;
     private final BoardService boardService;
+    private final ChecklistService checklistService;
+    private final MeetingService meetingService;
     private final WebSocketEventService webSocketEventService;
+
+    /**
+     * 타임블록 모달용 통합 데이터 조회
+     * (데일리 체크리스트 + 보드 체크리스트 + 회의 목록)
+     */
+    public DailyChecklistResponse.TimeblockDataResponse getTimeblockData(
+            String boardId, LocalDate date, String assigneeId, String userId) {
+        boardService.checkViewerOrAbove(boardId, userId);
+
+        // 1. 해당 날짜/담당자의 데일리 체크리스트 (미완료만)
+        List<DailyChecklist> dailyChecklists = dailyChecklistRepository
+                .findByBoardIdAndAssignedDateAndAssigneeIdWithDetailsOrderByPositionAsc(boardId, date, assigneeId);
+        List<DailyChecklistResponse.ItemResponse> dailyItems = dailyChecklists.stream()
+                .map(DailyChecklistResponse.ItemResponse::of)
+                .filter(item -> !Boolean.TRUE.equals(item.getCompleted()))
+                .collect(Collectors.toList());
+
+        // 2. 보드 체크리스트 항목
+        ChecklistResponse.BoardListResponse boardChecklist =
+                checklistService.getBoardChecklistItems(boardId, userId, assigneeId, null);
+
+        // 3. 회의 목록
+        List<MeetingResponse.Summary> meetings = meetingService.getMeetingsByDate(boardId, date, userId);
+
+        return DailyChecklistResponse.TimeblockDataResponse.builder()
+                .dailyChecklistItems(dailyItems)
+                .boardChecklistItems(boardChecklist.getItems())
+                .meetings(meetings)
+                .build();
+    }
 
     /**
      * 데일리 체크리스트 조회 (멤버별 컬럼 구조로 반환)

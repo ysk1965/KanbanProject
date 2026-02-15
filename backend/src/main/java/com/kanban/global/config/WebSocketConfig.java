@@ -15,6 +15,8 @@ import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBr
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
 
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -34,8 +36,14 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry config) {
-        // SimpleBroker for local/dev (can be replaced with Redis Pub/Sub for prod later)
-        config.enableSimpleBroker("/topic", "/queue");
+        ThreadPoolTaskScheduler heartBeatScheduler = new ThreadPoolTaskScheduler();
+        heartBeatScheduler.setPoolSize(1);
+        heartBeatScheduler.setThreadNamePrefix("ws-heartbeat-");
+        heartBeatScheduler.initialize();
+
+        config.enableSimpleBroker("/topic", "/queue")
+                .setHeartbeatValue(new long[]{10000, 10000})
+                .setTaskScheduler(heartBeatScheduler);
         config.setApplicationDestinationPrefixes("/app");
     }
 

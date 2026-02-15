@@ -343,14 +343,60 @@ export function ScheduleDetailPanel({
                               </span>
                             )}
                           </div>
-                          <ul className="space-y-0.5">
-                            {topic.points.map((point, j) => (
-                              <li key={j} className="flex items-start gap-1.5 text-xs text-slate-300">
-                                <span className="text-slate-500 mt-0.5 text-[10px]">–</span>
-                                <span className="font-light">{point}</span>
-                              </li>
-                            ))}
-                          </ul>
+                          {/* Structured summary: decisions / discussions / action_items */}
+                          {(topic.decisions?.length || topic.discussions?.length || topic.action_items?.length) ? (
+                            <div className="space-y-1.5">
+                              {topic.decisions && topic.decisions.length > 0 && (
+                                <div>
+                                  <span className="text-[9px] font-bold uppercase tracking-widest text-green-400">{t('meeting.aiDecisions', 'Decisions')}</span>
+                                  <ul className="mt-0.5 space-y-0.5">
+                                    {topic.decisions.map((d, j) => (
+                                      <li key={j} className="flex items-start gap-1.5 text-xs text-slate-300">
+                                        <span className="text-green-400 mt-0.5 text-[10px]">✓</span>
+                                        <span className="font-light">{d}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                              {topic.discussions && topic.discussions.length > 0 && (
+                                <div>
+                                  <span className="text-[9px] font-bold uppercase tracking-widest text-blue-400">{t('meeting.aiDiscussions', 'Discussions')}</span>
+                                  <ul className="mt-0.5 space-y-0.5">
+                                    {topic.discussions.map((d, j) => (
+                                      <li key={j} className="flex items-start gap-1.5 text-xs text-slate-300">
+                                        <span className="text-blue-400 mt-0.5 text-[10px]">–</span>
+                                        <span className="font-light">{d}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                              {topic.action_items && topic.action_items.length > 0 && (
+                                <div>
+                                  <span className="text-[9px] font-bold uppercase tracking-widest text-amber-400">{t('meeting.aiActionItems', 'Action Items')}</span>
+                                  <ul className="mt-0.5 space-y-0.5">
+                                    {topic.action_items.map((a, j) => (
+                                      <li key={j} className="flex items-start gap-1.5 text-xs text-slate-300">
+                                        <span className="text-amber-400 mt-0.5 text-[10px]">→</span>
+                                        <span className="font-light">{a}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                          ) : topic.points && topic.points.length > 0 ? (
+                            /* Fallback: legacy points format */
+                            <ul className="space-y-0.5">
+                              {topic.points.map((point, j) => (
+                                <li key={j} className="flex items-start gap-1.5 text-xs text-slate-300">
+                                  <span className="text-slate-500 mt-0.5 text-[10px]">–</span>
+                                  <span className="font-light">{point}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : null}
                         </div>
                       ))}
                     </div>

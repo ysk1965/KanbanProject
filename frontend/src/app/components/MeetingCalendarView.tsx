@@ -26,11 +26,10 @@ interface MeetingCalendarViewProps {
   boardId: string;
   boardMembers: BoardMember[];
   onRefreshSchedule?: () => void;
-  aiCredits?: import('../types').AiCredits | null;
   refreshTrigger?: number;
 }
 
-export function MeetingCalendarView({ boardId, boardMembers, onRefreshSchedule, aiCredits, refreshTrigger }: MeetingCalendarViewProps) {
+export function MeetingCalendarView({ boardId, boardMembers, onRefreshSchedule, refreshTrigger }: MeetingCalendarViewProps) {
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
 
@@ -253,7 +252,6 @@ export function MeetingCalendarView({ boardId, boardMembers, onRefreshSchedule, 
           selectedDate={selectedDate}
           boardMembers={activeMembers}
           onRefreshSchedule={handleRefreshSchedule}
-          aiCredits={aiCredits}
           refreshTrigger={refreshTrigger}
           onOpenCalendar={() => setMobileSidebarOpen(true)}
         />

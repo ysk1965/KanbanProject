@@ -23,6 +23,21 @@ public class DailyChecklistController {
     private final DailyChecklistService dailyChecklistService;
 
     /**
+     * 타임블록 모달용 통합 데이터 조회
+     * GET /api/v1/boards/{boardId}/daily-checklists/timeblock-data?date={date}&assigneeId={assigneeId}
+     */
+    @GetMapping("/timeblock-data")
+    public ResponseEntity<DailyChecklistResponse.TimeblockDataResponse> getTimeblockData(
+            @PathVariable String boardId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam String assigneeId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        DailyChecklistResponse.TimeblockDataResponse response = dailyChecklistService.getTimeblockData(
+                boardId, date, assigneeId, principal.getUserId());
+        return ResponseEntity.ok(response);
+    }
+
+    /**
      * 데일리 체크리스트 조회
      * GET /api/v1/boards/{boardId}/daily-checklists?date={date}
      */

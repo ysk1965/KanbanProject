@@ -154,7 +154,8 @@
   opacity: 0;
   transition: opacity 0.15s ease;
 }
-.bn-container [class*="blockOuter"]:hover > [class*="sideMenu"] {
+.bn-container [class*="blockOuter"]:hover [class*="sideMenu"],
+.bn-container [class*="sideMenu"]:hover {
   opacity: 1;
 }
 

@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { Star, Plus, Users, LogOut, FlaskConical, Loader2, LayoutGrid, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { Star, Plus, Users, FlaskConical, Loader2, LayoutGrid, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { CreateBoardModal } from './CreateBoardModal';
 import { EditBoardModal } from './EditBoardModal';
+import { UserMenu } from './UserMenu';
 import { Button } from './ui/button';
 import {
   AlertDialog,
@@ -62,7 +63,7 @@ export function BoardListPage({
   const [isCreatingTestData, setIsCreatingTestData] = useState(false);
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { hideBilling } = useAuth();
+  const { hideBilling, currentUser } = useAuth();
 
   const handleEditBoard = (board: Board) => {
     setSelectedBoard(board);
@@ -127,15 +128,19 @@ export function BoardListPage({
                 )}
               </div>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onLogout}
-              className="text-slate-400 hover:text-white hover:bg-white/5 border border-white/20 rounded-full px-4"
-            >
-              <LogOut className="h-4 w-4 mr-2" />
-              Logout
-            </Button>
+            {currentUser && (
+              <UserMenu
+                user={{
+                  id: currentUser.id,
+                  name: currentUser.name,
+                  email: currentUser.email,
+                  avatar: currentUser.profile_image || undefined,
+                }}
+                onOpenSubscription={() => navigate('/settings')}
+                onLogout={onLogout}
+                hideBilling={hideBilling}
+              />
+            )}
           </div>
         </div>
       </header>

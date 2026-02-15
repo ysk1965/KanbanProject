@@ -102,12 +102,10 @@ public class NoteAIService {
 
         // Build board context
         List<Feature> existingFeatures = featureRepository.findByBoardIdOrderByPositionAsc(boardId);
-        Map<String, List<String>> featureTasksMap = new LinkedHashMap<>();
+        Map<String, List<Task>> featureTasksMap = new LinkedHashMap<>();
         for (Feature f : existingFeatures) {
-            List<String> taskTitles = taskRepository.findByFeatureIdOrderByPositionAsc(f.getId()).stream()
-                    .map(Task::getTitle)
-                    .toList();
-            featureTasksMap.put(f.getId(), taskTitles);
+            List<Task> tasks = taskRepository.findByFeatureIdOrderByPositionAsc(f.getId());
+            featureTasksMap.put(f.getId(), tasks);
         }
 
         String boardContext = buildBoardContextJson(existingFeatures, featureTasksMap);
@@ -308,16 +306,32 @@ public class NoteAIService {
                 You receive a note/document and a list of existing features/tasks on the board.
 
                 Your job is to:
-                1. Analyze the note content and create a structured summary
+                1. Analyze the note content and create a structured summary, clearly separating decisions, discussions, and action items
                 2. Extract actionable items and organize them into Feature → Task → Checklist hierarchy
 
+                <thinking_process>
+                Before generating output, analyze step by step:
+                1. Read the note content and identify distinct topics
+                2. For each topic, classify content into: decisions (confirmed/agreed), ongoing discussions (unresolved), and action items (assigned work)
+                3. Review the board's existing features — compare by TITLE and DESCRIPTION to find matches
+                4. Only create NEW features when no existing feature covers the topic
+                </thinking_process>
+
+                <feature_matching_rules>
+                CRITICAL: Prefer EXISTING over NEW. Follow these rules strictly:
+                - Match by SEMANTIC SIMILARITY, not just exact title match
+                - If the note topic overlaps with an existing feature's title OR description, use EXISTING
+                - When in doubt between NEW and EXISTING, choose EXISTING
+                - Only create NEW when the topic is genuinely unrelated to any existing feature
+                - Never create a NEW feature with a title that duplicates or closely resembles an existing feature
+                </feature_matching_rules>
+
                 <rules>
-                - Organize the note content into clear topics grouped by work area
+                - Organize note content into clear topics grouped by work area
+                - For each topic, separate into: decisions (what was decided/confirmed), discussions (what was debated but unresolved), and action_items (specific work to be done)
                 - Items mentioned multiple times or emphasized are important (set important: true)
                 - Identify key decisions and conclusions as key_points
                 - Remove redundancy but preserve all unique information
-                - Map actionable items to EXISTING features when the topic clearly matches
-                - Create NEW features only when the topic is genuinely new
                 - Each task should be a concrete deliverable or work item
                 - Checklist items should be specific, actionable sub-steps
                 - Keep titles concise (under 100 characters)
@@ -334,7 +348,9 @@ public class NoteAIService {
                     {
                       "topic": "Work area / Topic name",
                       "important": true,
-                      "points": ["Point 1", "Point 2"]
+                      "decisions": ["What was decided or confirmed"],
+                      "discussions": ["What was discussed but not yet resolved"],
+                      "action_items": ["Who needs to do what"]
                     }
                   ],
                   "features": [
@@ -357,6 +373,14 @@ public class NoteAIService {
                   ]
                 }
                 </output_format>
+
+                <example>
+                Given board state: [{"id":"abc-123", "title":"User Authentication", "description":"Login, signup, password reset features", "tasks":[{"title":"Implement Google OAuth"}]}]
+                And note mentions: "GitHub 소셜 로그인 추가 필요..."
+
+                CORRECT: {"type":"EXISTING", "feature_id":"abc-123", ...} — GitHub social login belongs under the existing "User Authentication" feature.
+                WRONG: {"type":"NEW", "title":"GitHub Login Feature", ...} — This would create an unnecessary duplicate.
+                </example>
                 """, langInstruction);
     }
 
@@ -375,7 +399,7 @@ public class NoteAIService {
                 """, noteTitle, truncatedContent, boardContext);
     }
 
-    private String buildBoardContextJson(List<Feature> features, Map<String, List<String>> taskMap) {
+    private String buildBoardContextJson(List<Feature> features, Map<String, List<Task>> taskMap) {
         if (features.isEmpty()) {
             return "[]";
         }
@@ -383,13 +407,16 @@ public class NoteAIService {
         StringBuilder sb = new StringBuilder("[\n");
         for (int i = 0; i < features.size(); i++) {
             Feature f = features.get(i);
-            List<String> tasks = taskMap.getOrDefault(f.getId(), List.of());
+            List<Task> tasks = taskMap.getOrDefault(f.getId(), List.of());
+            String desc = f.getDescription() != null ? escapeJson(f.getDescription()) : "";
 
-            sb.append(String.format("  {\"id\":\"%s\", \"title\":\"%s\", \"tasks\": [",
-                    f.getId(), escapeJson(f.getTitle())));
+            sb.append(String.format("  {\"id\":\"%s\", \"title\":\"%s\", \"description\":\"%s\", \"tasks\": [",
+                    f.getId(), escapeJson(f.getTitle()), desc));
 
             for (int j = 0; j < tasks.size(); j++) {
-                sb.append(String.format("\"%s\"", escapeJson(tasks.get(j))));
+                Task t = tasks.get(j);
+                String taskDesc = t.getDescription() != null ? escapeJson(t.getDescription()) : "";
+                sb.append(String.format("{\"title\":\"%s\", \"description\":\"%s\"}", escapeJson(t.getTitle()), taskDesc));
                 if (j < tasks.size() - 1) sb.append(", ");
             }
 
@@ -429,18 +456,18 @@ public class NoteAIService {
             JsonNode summaryNode = root.get("summary");
             if (summaryNode != null && summaryNode.isArray()) {
                 for (JsonNode topicNode : summaryNode) {
-                    List<String> points = new ArrayList<>();
-                    JsonNode pointsNode = topicNode.get("points");
-                    if (pointsNode != null && pointsNode.isArray()) {
-                        for (JsonNode p : pointsNode) {
-                            if (p.isTextual()) points.add(p.asText());
-                        }
-                    }
+                    List<String> points = parseStringArray(topicNode, "points");
+                    List<String> decisions = parseStringArray(topicNode, "decisions");
+                    List<String> discussions = parseStringArray(topicNode, "discussions");
+                    List<String> actionItems = parseStringArray(topicNode, "action_items");
                     boolean important = topicNode.has("important") && topicNode.get("important").asBoolean();
                     summaryTopics.add(NoteAIResponse.SummaryTopic.builder()
                             .topic(getTextOrNull(topicNode, "topic"))
                             .important(important)
                             .points(points)
+                            .decisions(decisions)
+                            .discussions(discussions)
+                            .actionItems(actionItems)
                             .build());
                 }
             }
@@ -518,6 +545,17 @@ public class NoteAIService {
         }
 
         return trimmed;
+    }
+
+    private List<String> parseStringArray(JsonNode node, String field) {
+        List<String> result = new ArrayList<>();
+        JsonNode arrayNode = node.get(field);
+        if (arrayNode != null && arrayNode.isArray()) {
+            for (JsonNode item : arrayNode) {
+                if (item.isTextual()) result.add(item.asText());
+            }
+        }
+        return result;
     }
 
     private String getTextOrNull(JsonNode node, String field) {

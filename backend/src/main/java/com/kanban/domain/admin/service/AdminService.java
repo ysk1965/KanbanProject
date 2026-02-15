@@ -21,6 +21,7 @@ import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
+import com.kanban.global.security.WebSocketAuthInterceptor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -56,6 +57,7 @@ public class AdminService {
     private final AnnouncementRepository announcementRepository;
     private final SystemConfigRepository systemConfigRepository;
     private final ObjectMapper objectMapper;
+    private final WebSocketAuthInterceptor webSocketAuthInterceptor;
 
     // ==================== Users ====================
 
@@ -315,6 +317,7 @@ public class AdminService {
                 subscription.downgradeByAdmin();
             }
         }
+        webSocketAuthInterceptor.evictTierCache(boardId);
 
         int memberCount = (int) boardMemberRepository.countByBoardId(boardId);
         int taskCount = taskRepository.countByBoardId(boardId);

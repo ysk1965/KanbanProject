@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Clock, ChevronDown, Folder, FileText, Loader2, CheckSquare, Layers, Plus, ClipboardList } from 'lucide-react';
 import { format, parseISO, isToday as isDateToday } from 'date-fns';
-import { featureAPI, taskAPI, dailyChecklistAPI, boardChecklistAPI, meetingAPI, FeatureResponse, TaskResponse, DailyChecklistItemResponse, BoardChecklistItemResponse, MeetingSummary } from '../utils/api';
+import { featureAPI, taskAPI, dailyChecklistAPI, FeatureResponse, TaskResponse, DailyChecklistItemResponse, BoardChecklistItemResponse, MeetingSummary } from '../utils/api';
 
 interface ChecklistCreateModalProps {
   boardId: string;
@@ -76,44 +76,30 @@ export function ChecklistCreateModal({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // 해당 날짜의 체크리스트 로드
+  // 타임블록 데이터 통합 로드 (데일리 체크리스트 + 보드 체크리스트 + 회의)
   useEffect(() => {
-    const loadTodayChecklists = async () => {
+    const loadTimeblockData = async () => {
       setIsLoadingToday(true);
+      setIsLoadingBoardItems(true);
+      setIsLoadingMeetings(true);
       try {
-        const response = await dailyChecklistAPI.getDailyChecklist(boardId, targetDate);
-        // 해당 assignee의 미완료 체크리스트만 필터링
-        const userColumn = response.columns?.find((c) => c.user.id === assigneeId);
-        const items = userColumn?.items?.filter((item) => !item.completed) || [];
-        setTodayChecklists(items);
+        const data = await dailyChecklistAPI.getTimeblockData(boardId, targetDate, assigneeId);
+        setTodayChecklists(data.daily_checklist_items || []);
+        setBoardItems(data.board_checklist_items || []);
+        setTodayMeetings(data.meetings || []);
       } catch (error) {
-        console.error('Failed to load today checklists:', error);
+        console.error('Failed to load timeblock data:', error);
         setTodayChecklists([]);
+        setBoardItems([]);
+        setTodayMeetings([]);
       } finally {
         setIsLoadingToday(false);
-      }
-    };
-    loadTodayChecklists();
-  }, [boardId, assigneeId, targetDate]);
-
-  // 보드 체크리스트 항목 로드
-  useEffect(() => {
-    const loadBoardItems = async () => {
-      setIsLoadingBoardItems(true);
-      try {
-        const response = await boardChecklistAPI.getItems(boardId, {
-          assignee_id: assigneeId,
-        });
-        setBoardItems(response.items);
-      } catch (error) {
-        console.error('Failed to load board checklist items:', error);
-        setBoardItems([]);
-      } finally {
         setIsLoadingBoardItems(false);
+        setIsLoadingMeetings(false);
       }
     };
-    loadBoardItems();
-  }, [boardId, assigneeId]);
+    loadTimeblockData();
+  }, [boardId, assigneeId, targetDate]);
 
   // 기존 항목 필터링: 완료 항목 제외, 오늘의 체크리스트에 이미 있는 항목 제외
   const filteredBoardItems = useMemo(() => {
@@ -126,27 +112,6 @@ export function ChecklistCreateModal({
       (item) => !item.completed && !todayItemIds.has(item.id)
     );
   }, [boardItems, todayChecklists]);
-
-  // 오늘의 회의 로드
-  useEffect(() => {
-    if (!onSelectMeeting) {
-      setIsLoadingMeetings(false);
-      return;
-    }
-    const loadTodayMeetings = async () => {
-      setIsLoadingMeetings(true);
-      try {
-        const data = await meetingAPI.getMeetings(boardId, targetDate);
-        setTodayMeetings(data);
-      } catch (error) {
-        console.error('Failed to load today meetings:', error);
-        setTodayMeetings([]);
-      } finally {
-        setIsLoadingMeetings(false);
-      }
-    };
-    loadTodayMeetings();
-  }, [boardId, onSelectMeeting, targetDate]);
 
   // Feature 목록 로드 (새로 생성 모드일 때만)
   useEffect(() => {

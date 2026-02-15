@@ -22,6 +22,7 @@ import { AdminPage } from './pages/AdminPage';
 import { PaymentSuccessPage } from './pages/PaymentSuccessPage';
 import { PaymentFailPage } from './pages/PaymentFailPage';
 import { AnnouncementsPage } from './pages/AnnouncementsPage';
+import { SharedNotePage } from './pages/SharedNotePage';
 import { AnnouncementDisplay } from './components/AnnouncementDisplay';
 import { MaintenancePage } from './components/MaintenancePage';
 import { boardService, inviteLinkService, systemService } from './utils/services';
@@ -406,6 +407,9 @@ function AppRoutes() {
       <Route path="/terms" element={<TermsPage />} />
       <Route path="/privacy" element={<PrivacyPage />} />
 
+      {/* 공유 노트 (공개 - 인증 불필요) */}
+      <Route path="/shared/note/:shareToken" element={<SharedNotePage />} />
+
       {/* 공지사항 */}
       <Route path="/announcements" element={<AnnouncementsPage />} />
 
@@ -485,6 +489,7 @@ const MAINTENANCE_ALLOWED_PATHS = [
   '/forgot-password',
   '/reset-password',
   '/verify-email',
+  '/shared/note',
 ];
 
 // 점검 모드 + 공지사항 래퍼

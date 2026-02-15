@@ -1,5 +1,6 @@
 package com.kanban.domain.notification.controller;
 
+import com.kanban.domain.inquiry.service.InquiryService;
 import com.kanban.domain.notification.dto.NotificationResponse;
 import com.kanban.domain.notification.service.NotificationService;
 import com.kanban.global.security.UserPrincipal;
@@ -18,6 +19,7 @@ import java.util.Map;
 public class NotificationController {
 
     private final NotificationService notificationService;
+    private final InquiryService inquiryService;
 
     @GetMapping
     public ResponseEntity<NotificationResponse.ListResponse> getMyNotifications(
@@ -37,6 +39,19 @@ public class NotificationController {
         NotificationResponse.UnreadCountResponse response =
                 notificationService.getUnreadCount(principal.getUserId(), boardId);
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/unread-counts")
+    public ResponseEntity<NotificationResponse.UnreadCountsResponse> getUnreadCounts(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(required = false) String boardId) {
+        NotificationResponse.UnreadCountResponse notifCount =
+                notificationService.getUnreadCount(principal.getUserId(), boardId);
+        int inquiryCount = inquiryService.getUnreadReplyCount(principal.getUserId());
+        return ResponseEntity.ok(NotificationResponse.UnreadCountsResponse.builder()
+                .unreadCount(notifCount.getUnreadCount())
+                .unreadInquiryCount(inquiryCount)
+                .build());
     }
 
     @PutMapping("/{notificationId}/read")

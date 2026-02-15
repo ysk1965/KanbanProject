@@ -63,6 +63,13 @@ public class Note {
     @Column(name = "ai_content_snapshot", columnDefinition = "TEXT")
     private String aiContentSnapshot;
 
+    @Column(name = "share_token", length = 36, unique = true)
+    private String shareToken;
+
+    @Column(name = "is_shared", nullable = false)
+    @Builder.Default
+    private Boolean isShared = false;
+
     @Column(name = "is_deleted", nullable = false)
     @Builder.Default
     private Boolean isDeleted = false;
@@ -115,6 +122,19 @@ public class Note {
 
     public void softDelete() {
         this.isDeleted = true;
+    }
+
+    public String enableShare() {
+        this.isShared = true;
+        if (this.shareToken == null) {
+            this.shareToken = UUID.randomUUID().toString();
+        }
+        return this.shareToken;
+    }
+
+    public void disableShare() {
+        this.isShared = false;
+        this.shareToken = null;
     }
 
     public void updateAiSuggestions(String aiSuggestions) {

@@ -68,7 +68,7 @@ export function AddDailyChecklistModal({
 
   // 마일스톤 필터 상태
   const [milestones, setMilestones] = useState<MilestoneSimpleResponse[]>([]);
-  const [selectedMilestoneId, setSelectedMilestoneId] = useState<string | null>(null);
+  const [selectedMilestoneId, setSelectedMilestoneId] = useState<string | undefined>(undefined); // undefined=초기, null=전체
 
   // Task별 인라인 체크리스트 추가 상태
   const [addingTaskId, setAddingTaskId] = useState<string | null>(null);
@@ -96,9 +96,67 @@ export function AddDailyChecklistModal({
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [isSubmittingTask, setIsSubmittingTask] = useState(false);
 
-  // 모든 데이터 로드 (최적화: 5회 API 호출로 통합)
+  // 데이터 그룹핑 헬퍼
+  const buildGroupedData = (
+    featuresResponse: { features: FeatureResponse[] },
+    tasksResponse: { tasks: { id: string; title: string; feature_id: string }[] },
+    checklistsResponse: { items: BoardChecklistItemResponse[] },
+  ): GroupedFeatureData[] => {
+    const featureIds = new Set(featuresResponse.features.map(f => f.id));
+    const filteredChecklists = checklistsResponse.items.filter(
+      item => item.feature && featureIds.has(item.feature.id)
+    );
+
+    const grouped = new Map<string, Map<string, BoardChecklistItemResponse[]>>();
+    filteredChecklists.forEach(item => {
+      if (!item.feature || !item.task) return;
+      if (!grouped.has(item.feature.id)) grouped.set(item.feature.id, new Map());
+      const featureGroup = grouped.get(item.feature.id)!;
+      if (!featureGroup.has(item.task.id)) featureGroup.set(item.task.id, []);
+      featureGroup.get(item.task.id)!.push(item);
+    });
+
+    const allTasks = tasksResponse.tasks.filter(t => featureIds.has(t.feature_id));
+    allTasks.forEach(task => {
+      if (!grouped.has(task.feature_id)) grouped.set(task.feature_id, new Map());
+      const featureGroup = grouped.get(task.feature_id)!;
+      if (!featureGroup.has(task.id)) featureGroup.set(task.id, []);
+    });
+
+    return featuresResponse.features.map(feature => {
+      const taskMap = grouped.get(feature.id);
+      const tasks: GroupedTaskData[] = [];
+      if (taskMap) {
+        const taskInfoMap = new Map(allTasks.filter(t => t.feature_id === feature.id).map(t => [t.id, t]));
+        taskMap.forEach((checklistItems, taskId) => {
+          const taskInfo = taskInfoMap.get(taskId);
+          const firstItem = checklistItems[0];
+          const taskTitle = taskInfo?.title || firstItem?.task?.title || '';
+          if (taskTitle) {
+            tasks.push({ task: { id: taskId, title: taskTitle }, checklistItems });
+          }
+        });
+      }
+      return { feature: { id: feature.id, title: feature.title, color: feature.color }, tasks };
+    });
+  };
+
+  // 이미 추가된 항목 ID 수집 헬퍼
+  const extractAddedIds = (dailyChecklistResponse: { columns: { items: { checklist_item_id?: string }[] }[] }): Set<string> => {
+    const addedIds = new Set<string>();
+    dailyChecklistResponse.columns.forEach((column) => {
+      column.items.forEach((item) => {
+        if (item.checklist_item_id) {
+          addedIds.add(item.checklist_item_id);
+        }
+      });
+    });
+    return addedIds;
+  };
+
+  // 초기 데이터 로드 (1회만 실행)
   useEffect(() => {
-    const loadAllData = async () => {
+    const loadInitialData = async () => {
       setIsLoading(true);
       try {
         // 1단계: 초기 데이터 병렬 로드 (보드, 마일스톤, 이미 추가된 항목)
@@ -109,108 +167,21 @@ export function AddDailyChecklistModal({
         ]);
 
         setMilestones(milestonesResponse.milestones);
-
-        // 이미 추가된 항목 ID 수집
-        const addedIds = new Set<string>();
-        dailyChecklistResponse.columns.forEach((column) => {
-          column.items.forEach((item) => {
-            if (item.checklist_item_id) {
-              addedIds.add(item.checklist_item_id);
-            }
-          });
-        });
-        setAddedChecklistItemIds(addedIds);
+        setAddedChecklistItemIds(extractAddedIds(dailyChecklistResponse));
 
         // 초기 마일스톤 설정
         const initialMilestoneId = boardResponse.selected_milestone_id || null;
-        if (selectedMilestoneId === null && initialMilestoneId) {
-          setSelectedMilestoneId(initialMilestoneId);
-        }
 
         // 2단계: Feature + Task + Checklist 병렬 로드
-        const effectiveMilestoneId = selectedMilestoneId ?? initialMilestoneId;
         const [featuresResponse, tasksResponse, checklistsResponse] = await Promise.all([
-          featureAPI.getFeatures(boardId, effectiveMilestoneId || undefined),
-          taskAPI.getTasks(boardId, effectiveMilestoneId ? { milestone_id: effectiveMilestoneId } : undefined),
+          featureAPI.getFeatures(boardId, initialMilestoneId || undefined),
+          taskAPI.getTasks(boardId, initialMilestoneId ? { milestone_id: initialMilestoneId } : undefined),
           boardChecklistAPI.getItems(boardId),
         ]);
 
-        // 3단계: 프론트엔드에서 데이터 그룹핑
-        const featureIds = new Set(featuresResponse.features.map(f => f.id));
-        const featureMap = new Map(featuresResponse.features.map(f => [f.id, f]));
-
-        // 마일스톤에 해당하는 Feature의 체크리스트만 필터링
-        const filteredChecklists = checklistsResponse.items.filter(
-          item => item.feature && featureIds.has(item.feature.id)
-        );
-
-        // Feature → Task → Checklist 그룹핑
-        const grouped = new Map<string, Map<string, BoardChecklistItemResponse[]>>();
-
-        filteredChecklists.forEach(item => {
-          if (!item.feature || !item.task) return;
-
-          if (!grouped.has(item.feature.id)) {
-            grouped.set(item.feature.id, new Map());
-          }
-
-          const featureGroup = grouped.get(item.feature.id)!;
-          if (!featureGroup.has(item.task.id)) {
-            featureGroup.set(item.task.id, []);
-          }
-
-          featureGroup.get(item.task.id)!.push(item);
-        });
-
-        // 마일스톤의 모든 Task를 Feature별로 그룹핑 (체크리스트 없는 Task도 포함)
-        const allTasks = tasksResponse.tasks.filter(t => featureIds.has(t.feature_id));
-        allTasks.forEach(task => {
-          if (!grouped.has(task.feature_id)) {
-            grouped.set(task.feature_id, new Map());
-          }
-          const featureGroup = grouped.get(task.feature_id)!;
-          if (!featureGroup.has(task.id)) {
-            featureGroup.set(task.id, []);
-          }
-        });
-
-        // GroupedFeatureData 배열로 변환 (모든 Feature/Task 포함)
-        const result: GroupedFeatureData[] = [];
-
-        // 마일스톤의 모든 Feature를 포함 (Task 유무 관계없이)
-        featuresResponse.features.forEach(feature => {
-          const taskMap = grouped.get(feature.id);
-          const tasks: GroupedTaskData[] = [];
-
-          if (taskMap) {
-            // Task 정보를 allTasks에서 찾아 매핑
-            const taskInfoMap = new Map(allTasks.filter(t => t.feature_id === feature.id).map(t => [t.id, t]));
-
-            taskMap.forEach((checklistItems, taskId) => {
-              const taskInfo = taskInfoMap.get(taskId);
-              const firstItem = checklistItems[0];
-              const taskTitle = taskInfo?.title || firstItem?.task?.title || '';
-
-              if (taskTitle) {
-                tasks.push({
-                  task: { id: taskId, title: taskTitle },
-                  checklistItems,
-                });
-              }
-            });
-          }
-
-          result.push({
-            feature: {
-              id: feature.id,
-              title: feature.title,
-              color: feature.color,
-            },
-            tasks,
-          });
-        });
-
-        setGroupedData(result);
+        setGroupedData(buildGroupedData(featuresResponse, tasksResponse, checklistsResponse));
+        // 마일스톤 초기값 설정 (이후 변경 시 별도 effect에서 처리)
+        setSelectedMilestoneId(initialMilestoneId);
       } catch (err) {
         console.error('Failed to load data:', err);
         setError(t('dailyChecklist.loadFailed'));
@@ -218,9 +189,36 @@ export function AddDailyChecklistModal({
         setIsLoading(false);
       }
     };
-    loadAllData();
+    loadInitialData();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [boardId, assignedDate, selectedMilestoneId]);
+  }, [boardId, assignedDate]);
+
+  // 마일스톤 필터 변경 시 Feature/Task/Checklist만 리로드 (초기 로드 제외)
+  useEffect(() => {
+    if (selectedMilestoneId === undefined) return; // 초기 로드 전이면 스킵
+
+    const reloadByMilestone = async () => {
+      setIsLoading(true);
+      try {
+        const [featuresResponse, tasksResponse, checklistsResponse, dailyChecklistResponse] = await Promise.all([
+          featureAPI.getFeatures(boardId, selectedMilestoneId || undefined),
+          taskAPI.getTasks(boardId, selectedMilestoneId ? { milestone_id: selectedMilestoneId } : undefined),
+          boardChecklistAPI.getItems(boardId),
+          dailyChecklistAPI.getDailyChecklist(boardId, assignedDate),
+        ]);
+
+        setAddedChecklistItemIds(extractAddedIds(dailyChecklistResponse));
+        setGroupedData(buildGroupedData(featuresResponse, tasksResponse, checklistsResponse));
+      } catch (err) {
+        console.error('Failed to reload data:', err);
+        setError(t('dailyChecklist.loadFailed'));
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    reloadByMilestone();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedMilestoneId]);
 
   // 모달 닫기 (부모 데이터 새로고침 포함)
   const handleClose = () => {
@@ -329,7 +327,7 @@ export function AddDailyChecklistModal({
       setGroupedData([]);
       setIsLoading(true);
 
-      // 데이터 리로드 (useEffect가 selectedMilestoneId에 의존하므로 강제 리로드)
+      // 데이터 리로드
       const [featuresResponse, tasksResponse, checklistsResponse, dailyChecklistResponse] = await Promise.all([
         featureAPI.getFeatures(boardId, selectedMilestoneId || undefined),
         taskAPI.getTasks(boardId, selectedMilestoneId ? { milestone_id: selectedMilestoneId } : undefined),
@@ -337,57 +335,8 @@ export function AddDailyChecklistModal({
         dailyChecklistAPI.getDailyChecklist(boardId, assignedDate),
       ]);
 
-      // 이미 추가된 항목 ID 수집
-      const addedIds = new Set<string>();
-      dailyChecklistResponse.columns.forEach((column) => {
-        column.items.forEach((item) => {
-          if (item.checklist_item_id) {
-            addedIds.add(item.checklist_item_id);
-          }
-        });
-      });
-      setAddedChecklistItemIds(addedIds);
-
-      // 데이터 그룹핑
-      const featureIds = new Set(featuresResponse.features.map(f => f.id));
-      const filteredChecklists = checklistsResponse.items.filter(
-        item => item.feature && featureIds.has(item.feature.id)
-      );
-
-      const grouped = new Map<string, Map<string, BoardChecklistItemResponse[]>>();
-      filteredChecklists.forEach(item => {
-        if (!item.feature || !item.task) return;
-        if (!grouped.has(item.feature.id)) grouped.set(item.feature.id, new Map());
-        const featureGroup = grouped.get(item.feature.id)!;
-        if (!featureGroup.has(item.task.id)) featureGroup.set(item.task.id, []);
-        featureGroup.get(item.task.id)!.push(item);
-      });
-
-      const allTasks = tasksResponse.tasks.filter(t => featureIds.has(t.feature_id));
-      allTasks.forEach(task => {
-        if (!grouped.has(task.feature_id)) grouped.set(task.feature_id, new Map());
-        const featureGroup = grouped.get(task.feature_id)!;
-        if (!featureGroup.has(task.id)) featureGroup.set(task.id, []);
-      });
-
-      const result: GroupedFeatureData[] = featuresResponse.features.map(feature => {
-        const taskMap = grouped.get(feature.id);
-        const tasks: GroupedTaskData[] = [];
-        if (taskMap) {
-          const taskInfoMap = new Map(allTasks.filter(t => t.feature_id === feature.id).map(t => [t.id, t]));
-          taskMap.forEach((checklistItems, taskId) => {
-            const taskInfo = taskInfoMap.get(taskId);
-            const firstItem = checklistItems[0];
-            const taskTitle = taskInfo?.title || firstItem?.task?.title || '';
-            if (taskTitle) {
-              tasks.push({ task: { id: taskId, title: taskTitle }, checklistItems });
-            }
-          });
-        }
-        return { feature: { id: feature.id, title: feature.title, color: feature.color }, tasks };
-      });
-
-      setGroupedData(result);
+      setAddedChecklistItemIds(extractAddedIds(dailyChecklistResponse));
+      setGroupedData(buildGroupedData(featuresResponse, tasksResponse, checklistsResponse));
     } catch (err) {
       console.error('Failed to create feature:', err);
       setError(t('dailyChecklist.featureCreateFailed'));
@@ -424,55 +373,8 @@ export function AddDailyChecklistModal({
         dailyChecklistAPI.getDailyChecklist(boardId, assignedDate),
       ]);
 
-      const addedIds = new Set<string>();
-      dailyChecklistResponse.columns.forEach((column) => {
-        column.items.forEach((item) => {
-          if (item.checklist_item_id) {
-            addedIds.add(item.checklist_item_id);
-          }
-        });
-      });
-      setAddedChecklistItemIds(addedIds);
-
-      const featureIds = new Set(featuresResponse.features.map(f => f.id));
-      const filteredChecklists = checklistsResponse.items.filter(
-        item => item.feature && featureIds.has(item.feature.id)
-      );
-
-      const grouped = new Map<string, Map<string, BoardChecklistItemResponse[]>>();
-      filteredChecklists.forEach(item => {
-        if (!item.feature || !item.task) return;
-        if (!grouped.has(item.feature.id)) grouped.set(item.feature.id, new Map());
-        const featureGroup = grouped.get(item.feature.id)!;
-        if (!featureGroup.has(item.task.id)) featureGroup.set(item.task.id, []);
-        featureGroup.get(item.task.id)!.push(item);
-      });
-
-      const allTasks = tasksResponse.tasks.filter(t => featureIds.has(t.feature_id));
-      allTasks.forEach(task => {
-        if (!grouped.has(task.feature_id)) grouped.set(task.feature_id, new Map());
-        const featureGroup = grouped.get(task.feature_id)!;
-        if (!featureGroup.has(task.id)) featureGroup.set(task.id, []);
-      });
-
-      const result: GroupedFeatureData[] = featuresResponse.features.map(feature => {
-        const taskMap = grouped.get(feature.id);
-        const tasks: GroupedTaskData[] = [];
-        if (taskMap) {
-          const taskInfoMap = new Map(allTasks.filter(t => t.feature_id === feature.id).map(t => [t.id, t]));
-          taskMap.forEach((checklistItems, taskId) => {
-            const taskInfo = taskInfoMap.get(taskId);
-            const firstItem = checklistItems[0];
-            const taskTitle = taskInfo?.title || firstItem?.task?.title || '';
-            if (taskTitle) {
-              tasks.push({ task: { id: taskId, title: taskTitle }, checklistItems });
-            }
-          });
-        }
-        return { feature: { id: feature.id, title: feature.title, color: feature.color }, tasks };
-      });
-
-      setGroupedData(result);
+      setAddedChecklistItemIds(extractAddedIds(dailyChecklistResponse));
+      setGroupedData(buildGroupedData(featuresResponse, tasksResponse, checklistsResponse));
     } catch (err) {
       console.error('Failed to create task:', err);
       setError(t('dailyChecklist.taskCreateFailed'));
@@ -611,7 +513,7 @@ export function AddDailyChecklistModal({
             {/* 마일스톤 필터 */}
             <div className="w-48">
               <select
-                value={selectedMilestoneId || ''}
+                value={selectedMilestoneId ?? ''}
                 onChange={(e) => setSelectedMilestoneId(e.target.value || null)}
                 disabled={isLoading}
                 className="w-full px-3 py-2.5 bg-kanban-card border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all disabled:opacity-50"

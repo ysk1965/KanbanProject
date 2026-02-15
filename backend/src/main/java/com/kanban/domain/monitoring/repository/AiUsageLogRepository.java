@@ -28,6 +28,8 @@ public interface AiUsageLogRepository extends JpaRepository<AiUsageLog, String> 
             "GROUP BY CAST(a.createdAt AS date) ORDER BY CAST(a.createdAt AS date) ASC")
     List<Object[]> findDailyTrendSince(@Param("since") LocalDateTime since);
 
+    List<AiUsageLog> findByBoardIdAndCreatedAtAfterOrderByCreatedAtDesc(String boardId, LocalDateTime since);
+
     @Modifying
     @Query("DELETE FROM AiUsageLog a WHERE a.createdAt < :before")
     int deleteOlderThan(@Param("before") LocalDateTime before);

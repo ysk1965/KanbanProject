@@ -38,14 +38,12 @@ import type {
   PersonalReportFeature,
   ReportMeeting,
   TeamReportData,
-  AiCredits,
 } from '../types';
 import { formatDateTime } from '../utils/dateUtils';
 
 interface AIReportPanelProps {
   boardId: string;
   members: BoardMember[];
-  aiCredits?: AiCredits | null;
   hideBilling?: boolean;
 }
 
@@ -125,7 +123,7 @@ const markdownComponents = {
   ),
 };
 
-export function AIReportPanel({ boardId, members, aiCredits, hideBilling }: AIReportPanelProps) {
+export function AIReportPanel({ boardId, members, hideBilling }: AIReportPanelProps) {
   const { t } = useTranslation();
   const { currentUser } = useAuth();
 
@@ -193,7 +191,6 @@ export function AIReportPanel({ boardId, members, aiCredits, hideBilling }: AIRe
 
   // Generate report (with confirmation)
   const handleGenerate = async () => {
-    if (!window.confirm(t('aiReport.confirmGenerate'))) return;
     setIsGenerating(true);
     setError(null);
     try {
@@ -217,7 +214,6 @@ export function AIReportPanel({ boardId, members, aiCredits, hideBilling }: AIRe
   // Regenerate (with confirmation)
   const handleRegenerate = async () => {
     if (!report) return;
-    if (!window.confirm(t('aiReport.confirmRegenerate'))) return;
     setIsGenerating(true);
     setError(null);
     try {
@@ -340,12 +336,6 @@ export function AIReportPanel({ boardId, members, aiCredits, hideBilling }: AIRe
                 )}
               </div>
 
-              {/* AI Credits remaining */}
-              {!hideBilling && aiCredits && (
-                <span className="text-xs text-slate-400">
-                  {t('ai_credits.remaining')}: {aiCredits.total_available}
-                </span>
-              )}
             </div>
           </div>
         </div>
@@ -391,12 +381,7 @@ export function AIReportPanel({ boardId, members, aiCredits, hideBilling }: AIRe
                 <div className="flex items-center gap-2">
                   <button
                     onClick={handleRegenerate}
-                    disabled={!hideBilling && aiCredits != null && aiCredits.total_available === 0}
-                    className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 text-[10px] sm:text-xs rounded-lg border border-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
-                      !hideBilling && aiCredits != null && aiCredits.total_available === 0
-                        ? 'text-slate-600'
-                        : 'text-slate-400 hover:text-white hover:bg-white/5'
-                    }`}
+                    className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 text-[10px] sm:text-xs rounded-lg border border-white/10 transition-all text-slate-400 hover:text-white hover:bg-white/5"
                   >
                     <RefreshCw className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                     <span className="hidden sm:inline">{t('aiReport.regenerate')}</span>
@@ -445,12 +430,7 @@ export function AIReportPanel({ boardId, members, aiCredits, hideBilling }: AIRe
               </p>
               <button
                 onClick={handleGenerate}
-                disabled={!hideBilling && aiCredits != null && aiCredits.total_available === 0}
-                className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all disabled:cursor-not-allowed ${
-                  !hideBilling && aiCredits != null && aiCredits.total_available === 0
-                    ? 'bg-white/5 text-slate-600'
-                    : 'bg-bridge-accent text-white hover:bg-bridge-accent/90 hover:shadow-[0_0_30px_rgba(99,102,241,0.3)]'
-                }`}
+                className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all bg-bridge-accent text-white hover:bg-bridge-accent/90 hover:shadow-[0_0_30px_rgba(99,102,241,0.3)]"
               >
                 <Sparkles className="h-4 w-4" />
                 {t('aiReport.generate')}

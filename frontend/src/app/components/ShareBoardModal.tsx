@@ -61,6 +61,7 @@ interface ShareBoardModalProps {
   onOpenSeatManagement?: () => void;
   // AI 크레딧 (Owner 전용)
   aiCredits?: AiCredits | null;
+  onOpenAiCreditPurchase?: () => void;
 }
 
 const ROLE_LABELS: Record<MemberRole, string> = {
@@ -344,6 +345,7 @@ export function ShareBoardModal({
   seatInfo,
   onOpenSeatManagement,
   aiCredits,
+  onOpenAiCreditPurchase,
 }: ShareBoardModalProps) {
   const { t } = useTranslation();
   const [inviteEmail, setInviteEmail] = useState('');
@@ -607,6 +609,15 @@ export function ShareBoardModal({
                       }`}>
                         {aiCredits.total_available}
                       </span>
+                      {onOpenAiCreditPurchase && (
+                        <button
+                          onClick={onOpenAiCreditPurchase}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-bridge-secondary/20 text-bridge-secondary text-xs font-medium rounded-lg hover:bg-bridge-secondary/30 transition-all"
+                        >
+                          <Sparkles className="h-3.5 w-3.5" />
+                          {t('ai_credits.purchase.buy_button')}
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

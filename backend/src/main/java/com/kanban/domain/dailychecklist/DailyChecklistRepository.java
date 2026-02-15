@@ -39,6 +39,21 @@ public interface DailyChecklistRepository extends JpaRepository<DailyChecklist, 
             @Param("assigneeId") String assigneeId);
 
     /**
+     * 특정 보드의 특정 날짜, 특정 담당자의 데일리 체크리스트 조회 (task/feature 포함)
+     */
+    @Query("SELECT dc FROM DailyChecklist dc " +
+           "LEFT JOIN FETCH dc.checklistItem ci " +
+           "LEFT JOIN FETCH ci.task t " +
+           "LEFT JOIN FETCH t.feature " +
+           "JOIN FETCH dc.assignee " +
+           "WHERE dc.board.id = :boardId AND dc.assignedDate = :assignedDate AND dc.assignee.id = :assigneeId " +
+           "ORDER BY dc.position ASC")
+    List<DailyChecklist> findByBoardIdAndAssignedDateAndAssigneeIdWithDetailsOrderByPositionAsc(
+            @Param("boardId") String boardId,
+            @Param("assignedDate") LocalDate assignedDate,
+            @Param("assigneeId") String assigneeId);
+
+    /**
      * 특정 보드, 날짜, 담당자의 최대 position 값 조회
      */
     @Query("SELECT MAX(dc.position) FROM DailyChecklist dc WHERE dc.board.id = :boardId AND dc.assignedDate = :assignedDate AND dc.assignee.id = :assigneeId")

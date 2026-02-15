@@ -2359,7 +2359,18 @@
     "aiImportant": "Important",
     "aiRecommendedTasks": "Recommended Tasks",
     "aiClose": "Collapse",
-    "aiExpand": "Expand"
+    "aiExpand": "Expand",
+    "share": "Share",
+    "shareTitle": "Share Document",
+    "sharePublicLink": "Public link sharing",
+    "sharePublicLinkDesc": "Anyone with the link can view this document in read-only mode",
+    "shareCopy": "Copy",
+    "shareCopied": "Copied",
+    "shareReadOnly": "READ ONLY",
+    "shareNotFound": "Document not found",
+    "shareNotAvailable": "Document unavailable",
+    "shareNotAvailableDesc": "This shared link has expired or the document has been deleted.",
+    "shareGoHome": "Go to Home"
   },
   "ai_credits": {
     "title": "AI Credits",
@@ -2395,6 +2406,16 @@
       "monthly_usage": "Monthly Usage",
       "purchased_remaining": "Purchased Remaining",
       "total_remaining": "Total Remaining"
+    },
+    "usage": {
+      "tab_title": "Usage History",
+      "empty": "No AI usage in the last 30 days",
+      "feature": {
+        "NOTE": "Note AI",
+        "MEETING": "Meeting Summary",
+        "REPORT_TEAM": "Team Report",
+        "REPORT_PERSONAL": "Personal Report"
+      }
     }
   }
 }

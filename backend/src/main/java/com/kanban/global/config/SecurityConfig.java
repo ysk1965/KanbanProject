@@ -53,6 +53,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/api/v1/pricing/**").permitAll()
                         .requestMatchers("/api/v1/invites/**").permitAll()
+                        // Public shared content (no auth required)
+                        .requestMatchers("/api/v1/public/**").permitAll()
                         // System status (maintenance check, active announcements)
                         .requestMatchers("/api/v1/system/**").permitAll()
                         // Local uploaded files (dev)

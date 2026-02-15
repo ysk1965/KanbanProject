@@ -14,10 +14,9 @@ import type { NoteTreeItem, NoteDetail, NoteListItem, NoteTagInfo } from '../../
 interface NotesViewProps {
   boardId: string;
   currentUserRole: string;
-  aiCredits?: import('../../types').AiCredits | null;
 }
 
-export function NotesView({ boardId, currentUserRole, aiCredits }: NotesViewProps) {
+export function NotesView({ boardId, currentUserRole }: NotesViewProps) {
   const { t } = useTranslation();
   const { currentUser } = useAuth();
   const [tree, setTree] = useState<NoteTreeItem[]>([]);
@@ -188,7 +187,7 @@ export function NotesView({ boardId, currentUserRole, aiCredits }: NotesViewProp
   const sidebarContent = (
     <>
       {/* Sidebar Header */}
-      <div className="p-3 border-b border-white/5">
+      <div className="p-3 border-b border-white/5 flex-shrink-0">
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
             <FileText size={14} className="text-bridge-accent" />
@@ -222,6 +221,25 @@ export function NotesView({ boardId, currentUserRole, aiCredits }: NotesViewProp
             className="w-full bg-white/5 border border-white/10 rounded-lg py-1.5 pl-7 pr-3 text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-bridge-accent/50 transition-all"
           />
         </div>
+        {/* Create Actions */}
+        {canEdit && (
+          <div className="flex gap-1 mt-2">
+            <button
+              onClick={() => handleCreateDocument(null)}
+              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+            >
+              <FilePlus size={12} />
+              {t('notes.newDocument', '새 문서')}
+            </button>
+            <button
+              onClick={() => handleCreateFolder(null)}
+              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+            >
+              <FolderPlus size={12} />
+              {t('notes.newFolder', '새 폴더')}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Tree or List Content */}
@@ -249,26 +267,6 @@ export function NotesView({ boardId, currentUserRole, aiCredits }: NotesViewProp
           />
         )}
       </div>
-
-      {/* Bottom Actions - pinned to bottom */}
-      {canEdit && (
-        <div className="mt-auto p-2 border-t border-white/5 flex gap-1 flex-shrink-0">
-          <button
-            onClick={() => handleCreateDocument(null)}
-            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
-          >
-            <FilePlus size={12} />
-            {t('notes.newDocument', '새 문서')}
-          </button>
-          <button
-            onClick={() => handleCreateFolder(null)}
-            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
-          >
-            <FolderPlus size={12} />
-            {t('notes.newFolder', '새 폴더')}
-          </button>
-        </div>
-      )}
     </>
   );
 
@@ -310,7 +308,7 @@ export function NotesView({ boardId, currentUserRole, aiCredits }: NotesViewProp
               onSave={handleSaveNote}
               onTagsChange={loadTags}
               onDirtyChange={handleDirtyChange}
-              aiCredits={aiCredits}
+              onNoteUpdate={(updated) => setSelectedNote(updated)}
               collaboration={collaboration}
               currentUserName={userName}
               currentUserColor={userColor}

@@ -123,6 +123,26 @@ public class NoteController {
         return ResponseEntity.ok(restored);
     }
 
+    // ===== Sharing =====
+
+    @PostMapping("/{noteId}/share")
+    public ResponseEntity<NoteResponse.Detail> enableShare(
+            @PathVariable String boardId,
+            @PathVariable String noteId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        NoteResponse.Detail detail = noteService.enableShare(boardId, noteId, principal.getUserId());
+        return ResponseEntity.ok(detail);
+    }
+
+    @DeleteMapping("/{noteId}/share")
+    public ResponseEntity<NoteResponse.Detail> disableShare(
+            @PathVariable String boardId,
+            @PathVariable String noteId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        NoteResponse.Detail detail = noteService.disableShare(boardId, noteId, principal.getUserId());
+        return ResponseEntity.ok(detail);
+    }
+
     // ===== AI Organize =====
 
     @PostMapping("/{noteId}/ai-organize")
