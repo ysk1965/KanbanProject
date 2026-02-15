@@ -294,7 +294,7 @@ public class NoteCollabHandler extends BinaryWebSocketHandler {
             }
         }
 
-        if (token == null || !jwtProvider.validateToken(token)) {
+        if (token == null || !jwtProvider.validateAccessToken(token)) {
             log.warn("Invalid JWT for collab WebSocket");
             return null;
         }

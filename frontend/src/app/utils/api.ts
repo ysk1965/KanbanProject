@@ -93,6 +93,7 @@ export interface ApiError {
 // API 클라이언트
 class ApiClient {
   private baseURL: string;
+  private refreshPromise: Promise<boolean> | null = null;
 
   constructor(baseURL: string) {
     this.baseURL = baseURL;
@@ -217,6 +218,20 @@ class ApiClient {
   }
 
   private async tryRefreshToken(): Promise<boolean> {
+    // 이미 refresh 진행 중이면 해당 Promise를 공유하여 중복 요청 방지
+    if (this.refreshPromise) {
+      return this.refreshPromise;
+    }
+
+    this.refreshPromise = this.executeRefreshToken();
+    try {
+      return await this.refreshPromise;
+    } finally {
+      this.refreshPromise = null;
+    }
+  }
+
+  private async executeRefreshToken(): Promise<boolean> {
     const refreshToken = getRefreshToken();
     if (!refreshToken) {
       this.redirectToLogin();
@@ -242,6 +257,7 @@ class ApiClient {
     // 세션 만료 - 로그인 페이지로 리다이렉트
     console.log('🔒 [Auth] 세션 만료, 로그인 페이지로 이동');
     clearTokens();
+    localStorage.removeItem('user');
     this.redirectToLogin();
     return false;
   }
@@ -753,36 +769,10 @@ export const authAPI = {
     return isTokenExpired(token);
   },
 
-  // refresh token으로 access token 갱신 시도
+  // refresh token으로 access token 갱신 시도 (중복 요청 방지)
   tryRefreshToken: async (): Promise<boolean> => {
-    const refreshToken = getRefreshToken();
-    if (!refreshToken) {
-      clearTokens();
-      return false;
-    }
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refresh_token: refreshToken }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setTokens(data.access_token, data.refresh_token);
-        console.log('✅ [Auth] 토큰 갱신 성공');
-        return true;
-      }
-    } catch (error) {
-      console.error('❌ [Auth] 토큰 갱신 실패:', error);
-    }
-
-    // 갱신 실패 시 토큰 정리
-    console.log('🔒 [Auth] 토큰 갱신 실패, 토큰 정리');
-    clearTokens();
-    localStorage.removeItem('user');
-    return false;
+    // ApiClient의 refreshPromise를 공유하여 모든 경로에서 단일 요청 보장
+    return apiClient['tryRefreshToken']();
   },
 
   getAccessToken,

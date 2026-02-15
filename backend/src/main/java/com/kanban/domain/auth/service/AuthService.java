@@ -102,8 +102,8 @@ public class AuthService {
 
     @Transactional
     public TokenResponse refresh(String refreshToken) {
-        // 토큰 유효성 검증
-        if (!jwtProvider.validateToken(refreshToken)) {
+        // 토큰 유효성 검증 (refresh token 타입인지 확인)
+        if (!jwtProvider.validateRefreshToken(refreshToken)) {
             throw new BusinessException(ErrorCode.INVALID_TOKEN);
         }
 

@@ -61,7 +61,7 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
     private void handleConnect(StompHeaderAccessor accessor) {
         String token = resolveToken(accessor);
 
-        if (StringUtils.hasText(token) && jwtProvider.validateToken(token)) {
+        if (StringUtils.hasText(token) && jwtProvider.validateAccessToken(token)) {
             String userId = jwtProvider.getUserIdFromToken(token);
             String email = jwtProvider.getEmailFromToken(token);
             String systemRoleStr = jwtProvider.getSystemRoleFromToken(token);

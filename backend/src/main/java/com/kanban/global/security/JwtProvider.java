@@ -33,15 +33,18 @@ public class JwtProvider {
         this.secretKey = Keys.hmacShaKeyFor(secretKeyString.getBytes(StandardCharsets.UTF_8));
     }
 
+    public static final String TOKEN_TYPE_ACCESS = "access";
+    public static final String TOKEN_TYPE_REFRESH = "refresh";
+
     public String createAccessToken(String userId, String email, String systemRole) {
-        return createToken(userId, email, systemRole, accessExpiration);
+        return createToken(userId, email, systemRole, accessExpiration, TOKEN_TYPE_ACCESS);
     }
 
     public String createRefreshToken(String userId, String email, String systemRole) {
-        return createToken(userId, email, systemRole, refreshExpiration);
+        return createToken(userId, email, systemRole, refreshExpiration, TOKEN_TYPE_REFRESH);
     }
 
-    private String createToken(String userId, String email, String systemRole, long expiration) {
+    private String createToken(String userId, String email, String systemRole, long expiration, String tokenType) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + expiration);
 
@@ -49,6 +52,7 @@ public class JwtProvider {
                 .subject(userId)
                 .claim("email", email)
                 .claim("systemRole", systemRole)
+                .claim("type", tokenType)
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(secretKey)
@@ -66,6 +70,35 @@ public class JwtProvider {
     public String getSystemRoleFromToken(String token) {
         String role = getClaims(token).get("systemRole", String.class);
         return role != null ? role : "USER";
+    }
+
+    public String getTokenType(String token) {
+        String type = getClaims(token).get("type", String.class);
+        return type != null ? type : TOKEN_TYPE_ACCESS;
+    }
+
+    public boolean validateAccessToken(String token) {
+        if (!validateToken(token)) {
+            return false;
+        }
+        String type = getTokenType(token);
+        if (!TOKEN_TYPE_ACCESS.equals(type)) {
+            log.warn("Expected access token but got: {}", type);
+            return false;
+        }
+        return true;
+    }
+
+    public boolean validateRefreshToken(String token) {
+        if (!validateToken(token)) {
+            return false;
+        }
+        String type = getTokenType(token);
+        if (!TOKEN_TYPE_REFRESH.equals(type)) {
+            log.warn("Expected refresh token but got: {}", type);
+            return false;
+        }
+        return true;
     }
 
     public boolean validateToken(String token) {
