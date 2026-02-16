@@ -3662,6 +3662,7 @@ export interface NoteCommentDetail {
   is_resolved: boolean;
   resolved_by: NoteCommentAuthor | null;
   resolved_at: string | null;
+  reactions: CommentReactionResponse[];
   replies: NoteCommentDetail[];
   created_at: string;
   updated_at: string;
@@ -3699,6 +3700,13 @@ export const noteCommentAPI = {
 
   toggleResolved: async (boardId: string, noteId: string, commentId: string) => {
     return apiClient.post<NoteCommentDetail>(`/boards/${boardId}/notes/${noteId}/comments/${commentId}/resolve`);
+  },
+
+  toggleReaction: async (boardId: string, noteId: string, commentId: string, emoji: string) => {
+    return apiClient.post<ReactionsToggleResponse>(
+      `/boards/${boardId}/notes/${noteId}/comments/${commentId}/reactions/toggle`,
+      { emoji }
+    );
   },
 };
 

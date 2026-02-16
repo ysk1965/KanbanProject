@@ -12,6 +12,8 @@ public interface NoteCommentRepository extends JpaRepository<NoteComment, String
     @Query("SELECT DISTINCT c FROM NoteComment c " +
            "LEFT JOIN FETCH c.author " +
            "LEFT JOIN FETCH c.resolvedBy " +
+           "LEFT JOIN FETCH c.reactions r " +
+           "LEFT JOIN FETCH r.user " +
            "WHERE c.note.id = :noteId " +
            "ORDER BY c.createdAt ASC")
     List<NoteComment> findByNoteIdWithDetails(@Param("noteId") String noteId);

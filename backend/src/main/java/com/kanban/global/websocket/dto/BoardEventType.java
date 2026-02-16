@@ -61,6 +61,7 @@ public enum BoardEventType {
     NOTE_COMMENT_UPDATED,
     NOTE_COMMENT_DELETED,
     NOTE_COMMENT_RESOLVED,
+    NOTE_COMMENT_REACTION_TOGGLED,
 
     // Inquiry events (global user-level, not board-scoped)
     INQUIRY_REPLIED

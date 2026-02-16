@@ -1,10 +1,14 @@
 package com.kanban.domain.note.service;
 
 import com.kanban.domain.board.Board;
+import com.kanban.domain.board.BoardCustomEmoji;
+import com.kanban.domain.board.BoardCustomEmojiRepository;
 import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.board.service.BoardService;
 import com.kanban.domain.note.Note;
 import com.kanban.domain.note.NoteComment;
+import com.kanban.domain.note.NoteCommentReaction;
+import com.kanban.domain.note.NoteCommentReactionRepository;
 import com.kanban.domain.note.NoteCommentRepository;
 import com.kanban.domain.note.NoteRepository;
 import com.kanban.domain.note.dto.NoteCommentRequest;
@@ -32,6 +36,8 @@ import java.util.stream.Collectors;
 public class NoteCommentService {
 
     private final NoteCommentRepository noteCommentRepository;
+    private final NoteCommentReactionRepository noteCommentReactionRepository;
+    private final BoardCustomEmojiRepository boardCustomEmojiRepository;
     private final NoteRepository noteRepository;
     private final BoardRepository boardRepository;
     private final UserRepository userRepository;
@@ -44,6 +50,7 @@ public class NoteCommentService {
         boardService.checkViewerOrAbove(boardId, userId);
 
         List<NoteComment> allComments = noteCommentRepository.findByNoteIdWithDetails(noteId);
+        Map<String, String> customEmojiUrlMap = buildCustomEmojiUrlMap(boardId);
 
         Map<String, List<NoteComment>> childrenMap = allComments.stream()
                 .filter(c -> c.getParent() != null)
@@ -54,9 +61,9 @@ public class NoteCommentService {
                 .map(root -> {
                     List<NoteCommentResponse.Detail> replies = childrenMap.getOrDefault(root.getId(), List.of())
                             .stream()
-                            .map(reply -> NoteCommentResponse.Detail.of(reply, List.of()))
+                            .map(reply -> NoteCommentResponse.Detail.of(reply, List.of(), customEmojiUrlMap))
                             .toList();
-                    return NoteCommentResponse.Detail.of(root, replies);
+                    return NoteCommentResponse.Detail.of(root, replies, customEmojiUrlMap);
                 })
                 .toList();
 
@@ -176,5 +183,103 @@ public class NoteCommentService {
         webSocketEventService.sendBoardEvent(boardId, BoardEventType.NOTE_COMMENT_RESOLVED,
                 userId, user.getName(), response);
         return response;
+    }
+
+    /**
+     * 이모지 리액션 토글 (추가/제거)
+     */
+    @Transactional
+    public NoteCommentResponse.ReactionsResponse toggleReaction(String boardId, String noteId, String commentId,
+                                                                  NoteCommentRequest.ToggleReaction request, String userId) {
+        boardService.checkMemberOrAbove(boardId, userId);
+
+        String emoji = request.getEmoji();
+
+        // 커스텀 이모지인 경우 보드에 존재하는지 검증
+        if (emoji.startsWith("custom:")) {
+            String emojiId = emoji.substring("custom:".length());
+            if (!boardCustomEmojiRepository.existsById(emojiId)) {
+                throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
+            }
+        }
+
+        NoteComment comment = noteCommentRepository.findById(commentId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOTE_COMMENT_NOT_FOUND));
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        Optional<NoteCommentReaction> existing = noteCommentReactionRepository.findByNoteCommentAndUserAndEmoji(
+                comment, user, emoji);
+
+        if (existing.isPresent()) {
+            comment.getReactions().remove(existing.get());
+            noteCommentReactionRepository.delete(existing.get());
+            log.info("Note comment reaction removed: {} from comment: {} by user: {}", emoji, commentId, userId);
+        } else {
+            NoteCommentReaction reaction = NoteCommentReaction.builder()
+                    .noteComment(comment)
+                    .user(user)
+                    .emoji(emoji)
+                    .build();
+            noteCommentReactionRepository.save(reaction);
+            comment.getReactions().add(reaction);
+            log.info("Note comment reaction added: {} to comment: {} by user: {}", emoji, commentId, userId);
+        }
+
+        // 업데이트된 리액션 목록 반환
+        Map<String, String> customEmojiUrlMap = buildCustomEmojiUrlMap(boardId);
+        List<NoteCommentResponse.ReactionInfo> reactionList = buildReactionInfoList(comment.getReactions(), customEmojiUrlMap);
+        NoteCommentResponse.ReactionsResponse response = NoteCommentResponse.ReactionsResponse.builder()
+                .reactions(reactionList)
+                .build();
+
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.NOTE_COMMENT_REACTION_TOGGLED,
+                userId, user.getName(), response);
+        return response;
+    }
+
+    private Map<String, String> buildCustomEmojiUrlMap(String boardId) {
+        List<BoardCustomEmoji> customEmojis = boardCustomEmojiRepository.findByBoardIdOrderByCreatedAtAsc(boardId);
+        Map<String, String> map = new HashMap<>();
+        for (BoardCustomEmoji e : customEmojis) {
+            map.put(e.getId(), e.getImageUrl());
+        }
+        return map;
+    }
+
+    private List<NoteCommentResponse.ReactionInfo> buildReactionInfoList(List<NoteCommentReaction> reactions,
+                                                                          Map<String, String> customEmojiUrlMap) {
+        if (reactions == null || reactions.isEmpty()) return List.of();
+
+        Map<String, List<NoteCommentReaction>> grouped = reactions.stream()
+                .collect(Collectors.groupingBy(
+                        NoteCommentReaction::getEmoji,
+                        LinkedHashMap::new,
+                        Collectors.toList()));
+
+        return grouped.entrySet().stream()
+                .map(entry -> {
+                    String emoji = entry.getKey();
+                    boolean isCustom = emoji.startsWith("custom:");
+                    String imageUrl = null;
+                    if (isCustom) {
+                        String emojiId = emoji.substring("custom:".length());
+                        imageUrl = customEmojiUrlMap.get(emojiId);
+                    }
+                    return NoteCommentResponse.ReactionInfo.builder()
+                            .emoji(emoji)
+                            .imageUrl(imageUrl)
+                            .isCustom(isCustom)
+                            .count(entry.getValue().size())
+                            .users(entry.getValue().stream()
+                                    .map(r -> NoteCommentResponse.ReactionUserInfo.builder()
+                                            .id(r.getUser().getId())
+                                            .name(r.getUser().getName())
+                                            .build())
+                                    .toList())
+                            .build();
+                })
+                .toList();
     }
 }

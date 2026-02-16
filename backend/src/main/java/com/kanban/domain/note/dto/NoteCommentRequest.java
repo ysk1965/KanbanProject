@@ -35,4 +35,13 @@ public class NoteCommentRequest {
 
         private List<String> mentions;
     }
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ToggleReaction {
+        @NotBlank(message = "이모지는 필수입니다")
+        @Size(max = 10, message = "이모지는 10자 이내여야 합니다")
+        private String emoji;
+    }
 }

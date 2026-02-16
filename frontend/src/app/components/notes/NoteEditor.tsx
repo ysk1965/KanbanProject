@@ -23,6 +23,7 @@ import { formatDateTime } from '../../utils/dateUtils';
 import { fileAPI, noteAPI, memberAPI } from '../../utils/api';
 import type { NoteDetail, NoteTagInfo, NoteAISuggestionResponse, MemberResponse } from '../../utils/api';
 import { NoteShareButton } from './NoteShareButton';
+import { NoteBottomComments } from './NoteBottomComments';
 import type { CollaborationState } from '../../hooks/useCollaboration';
 
 const schema = BlockNoteSchema.create({
@@ -620,7 +621,7 @@ function CollabNoteEditor({
           </div>
         )}
 
-        {/* Bottom Comments Panel */}
+        {/* Block/Thread Comments Panel (toggled) */}
         {showComments && currentUser && (
           <div ref={commentsPanelRef}>
             <NoteCommentSidebar
@@ -633,6 +634,16 @@ function CollabNoteEditor({
               onBlockIdsChange={setCommentBlockIds}
             />
           </div>
+        )}
+
+        {/* Bottom Confluence-style Comments Panel (always visible) */}
+        {currentUser && (
+          <NoteBottomComments
+            boardId={boardId}
+            noteId={note.id}
+            currentUserId={currentUser.id}
+            canEdit={canEdit}
+          />
         )}
       </div>
     </div>
@@ -657,6 +668,7 @@ const AUTO_SAVE_DELAY = 30_000;
 
 function FallbackNoteEditor({ boardId, note, tags, canEdit, onSave, onTagsChange, onDirtyChange }: FallbackEditorProps) {
   const { t } = useTranslation();
+  const { currentUser: fallbackCurrentUser } = useAuth();
   const [title, setTitle] = useState(note.title);
   const [hasChanges, setHasChanges] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -870,6 +882,16 @@ function FallbackNoteEditor({ boardId, note, tags, canEdit, onSave, onTagsChange
           <SuggestionMenuController triggerCharacter="/" getItems={async (query) => filterSuggestionItems(slashMenuItems, query)} />
           <SuggestionMenuController triggerCharacter="@" getItems={getMentionItems} />
         </BlockNoteView>
+
+        {/* Bottom Confluence-style Comments Panel */}
+        {fallbackCurrentUser && (
+          <NoteBottomComments
+            boardId={boardId}
+            noteId={note.id}
+            currentUserId={fallbackCurrentUser.id}
+            canEdit={canEdit}
+          />
+        )}
       </div>
     </div>
   );

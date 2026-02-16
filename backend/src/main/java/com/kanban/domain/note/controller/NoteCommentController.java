@@ -74,4 +74,16 @@ public class NoteCommentController {
                 boardId, commentId, principal.getUserId());
         return ResponseEntity.ok(response);
     }
+
+    @PostMapping("/{commentId}/reactions/toggle")
+    public ResponseEntity<NoteCommentResponse.ReactionsResponse> toggleReaction(
+            @PathVariable String boardId,
+            @PathVariable String noteId,
+            @PathVariable String commentId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody NoteCommentRequest.ToggleReaction request) {
+        NoteCommentResponse.ReactionsResponse response = noteCommentService.toggleReaction(
+                boardId, noteId, commentId, request, principal.getUserId());
+        return ResponseEntity.ok(response);
+    }
 }

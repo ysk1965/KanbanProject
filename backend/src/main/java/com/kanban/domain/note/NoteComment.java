@@ -4,9 +4,12 @@ import com.kanban.domain.board.Board;
 import com.kanban.domain.user.User;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.BatchSize;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -61,6 +64,11 @@ public class NoteComment {
 
     @Column(name = "resolved_at")
     private LocalDateTime resolvedAt;
+
+    @OneToMany(mappedBy = "noteComment", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    @BatchSize(size = 100)
+    private List<NoteCommentReaction> reactions = new ArrayList<>();
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;

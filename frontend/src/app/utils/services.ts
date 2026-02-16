@@ -2345,6 +2345,10 @@ export const noteCommentService = {
   toggleResolved: async (boardId: string, noteId: string, commentId: string) => {
     return await noteCommentAPI.toggleResolved(boardId, noteId, commentId);
   },
+
+  toggleReaction: async (boardId: string, noteId: string, commentId: string, emoji: string) => {
+    return await noteCommentAPI.toggleReaction(boardId, noteId, commentId, emoji);
+  },
 };
 
 // ========================================
