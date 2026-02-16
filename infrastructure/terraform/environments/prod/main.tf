@@ -1,9 +1,23 @@
-# Production Environment - Main Configuration
-# This file orchestrates all modules for the production environment
+# Production Environment - Phase 1 (Cost-Effective)
+# Optimized for early-stage production (~$75-95/month)
 #
-# Cost Optimization:
-# - No NAT Gateway (EC2 in public subnet with Security Group protection)
-# - Security maintained via SG: only ALB can reach EC2 on 5000/8080
+# Phase 1 Cost Savings vs Full Prod:
+# - Standard RDS t4g.micro instead of Aurora Serverless v2 (saves ~$130-230/month)
+# - No NAT Gateway, EC2 in public subnet (saves ~$36/month)
+# - ElastiCache t4g.micro single node (saves ~$28-38/month)
+# - EB min 1 instance (saves ~$25-65/month)
+#
+# Production Safeguards Retained:
+# - RDS deletion protection enabled
+# - RDS 3-day backup retention + final snapshot
+# - CloudWatch logging enabled
+# - Enhanced health reporting
+#
+# Phase 2 Upgrade Path (when needed):
+# - Enable Multi-AZ RDS (set multi_az = true)
+# - Add NAT Gateway (set enable_nat_gateway = true, move EC2 to private subnets)
+# - Scale ElastiCache (increase num_cache_clusters to 2)
+# - Scale EB (increase min_instances to 2)
 
 terraform {
   required_version = ">= 1.5.0"
@@ -51,14 +65,14 @@ provider "aws" {
   }
 }
 
-# VPC Module - No NAT Gateway (EC2 uses public subnet with SG protection)
+# VPC Module - No NAT Gateway for Phase 1 cost savings
 module "vpc" {
   source = "../../modules/vpc"
 
   project_name       = var.project_name
   environment        = var.environment
   vpc_cidr           = var.vpc_cidr
-  enable_nat_gateway = false
+  enable_nat_gateway = false  # Phase 1: No NAT Gateway (~$36/month saving)
 }
 
 # Security Groups Module
@@ -70,22 +84,23 @@ module "security_groups" {
   vpc_id       = module.vpc.vpc_id
 }
 
-# RDS Module - Production settings
+# RDS Simple Module - Phase 1: Standard PostgreSQL (cost-effective)
+# Phase 2+: Switch to ../../modules/rds (Aurora Serverless v2) when scaling needed
 module "rds" {
-  source = "../../modules/rds"
+  source = "../../modules/rds-simple"
 
-  project_name            = var.project_name
-  environment             = var.environment
-  private_subnet_ids      = module.vpc.private_subnet_ids
-  security_group_id       = module.security_groups.rds_security_group_id
-  master_password         = var.db_password
-  min_capacity            = 0.5
-  max_capacity            = 4     # Higher capacity for production
-  instance_count          = 2     # Multi-AZ for high availability
-  backup_retention_period = 7     # 7 days backup retention
+  project_name      = var.project_name
+  environment       = var.environment
+  subnet_ids        = module.vpc.private_subnet_ids
+  security_group_id = module.security_groups.rds_security_group_id
+  master_password   = var.db_password
+
+  instance_class          = "db.t4g.micro"  # Phase 1: Cost-effective
+  allocated_storage       = 20
+  backup_retention_period = 3               # Prod: 3-day backup (vs dev 1-day)
 }
 
-# ElastiCache Module
+# ElastiCache Module - Phase 1: Single node (cache + WebSocket Pub/Sub)
 module "elasticache" {
   source = "../../modules/elasticache"
 
@@ -93,11 +108,11 @@ module "elasticache" {
   environment        = var.environment
   private_subnet_ids = module.vpc.private_subnet_ids
   security_group_id  = module.security_groups.redis_security_group_id
-  node_type          = "cache.t4g.small"
-  num_cache_clusters = 2  # Primary + Replica, Multi-AZ
+  node_type          = "cache.t4g.micro"  # Phase 1: Single micro node
+  num_cache_clusters = 1                  # Phase 1: No Multi-AZ
 }
 
-# Elastic Beanstalk Module - Production settings
+# Elastic Beanstalk Module - Phase 1: Public Subnet, min 1 instance
 module "elastic_beanstalk" {
   source = "../../modules/elastic-beanstalk"
 
@@ -105,14 +120,14 @@ module "elastic_beanstalk" {
   environment           = var.environment
   vpc_id                = module.vpc.vpc_id
   public_subnet_ids     = module.vpc.public_subnet_ids
-  private_subnet_ids    = module.vpc.public_subnet_ids  # Use public subnets for EC2 (no NAT)
+  private_subnet_ids    = module.vpc.public_subnet_ids  # Phase 1: Use public subnets (no NAT)
   alb_security_group_id = module.security_groups.alb_security_group_id
   ec2_security_group_id = module.security_groups.eb_ec2_security_group_id
 
   instance_type       = "t3.small"
-  min_instances       = 2           # Minimum 2 for high availability
-  max_instances       = 4
-  associate_public_ip = "true"      # Public subnet, no NAT
+  min_instances       = 1    # Phase 1: Single instance
+  max_instances       = 2    # Phase 1: Scale up to 2 if needed
+  associate_public_ip = "true"  # Phase 1: Public subnet, no NAT
 
   spring_profile = "prod"
   database_url   = module.rds.jdbc_url
@@ -127,9 +142,22 @@ module "elastic_beanstalk" {
   mail_username    = var.mail_username
   mail_password   = var.mail_password
   google_client_id = var.google_client_id
-  frontend_url   = module.s3_cloudfront.cloudfront_url
+  frontend_url   = var.domain_name != "" ? "https://${var.domain_name}" : module.s3_cloudfront.cloudfront_url
 
-  depends_on = [module.rds, module.elasticache]
+  ssl_certificate_arn = var.domain_name != "" ? module.acm_certificate_alb[0].validated_certificate_arn : ""
+
+  depends_on = [module.rds, module.elasticache, module.acm_certificate_alb]
+}
+
+# ACM Certificate (ap-northeast-2 for ALB)
+module "acm_certificate_alb" {
+  count  = var.domain_name != "" ? 1 : 0
+  source = "../../modules/acm-certificate"
+
+  project_name              = var.project_name
+  environment               = "${var.environment}-alb"
+  domain_name               = var.domain_name
+  subject_alternative_names = ["*.${var.domain_name}"]
 }
 
 # ACM Certificate Module (us-east-1 for CloudFront)
@@ -157,7 +185,25 @@ module "route53" {
   domain_name  = var.domain_name
 }
 
-# ACM Certificate Validation Records
+# ACM Certificate Validation Records (ALB - ap-northeast-2)
+resource "aws_route53_record" "cert_validation_alb" {
+  for_each = var.domain_name != "" ? {
+    for dvo in module.acm_certificate_alb[0].domain_validation_options : dvo.domain_name => {
+      name   = dvo.resource_record_name
+      record = dvo.resource_record_value
+      type   = dvo.resource_record_type
+    }
+  } : {}
+
+  allow_overwrite = true
+  name            = each.value.name
+  records         = [each.value.record]
+  ttl             = 60
+  type            = each.value.type
+  zone_id         = module.route53[0].zone_id
+}
+
+# ACM Certificate Validation Records (CloudFront - us-east-1)
 resource "aws_route53_record" "cert_validation" {
   for_each = var.domain_name != "" ? {
     for dvo in module.acm_certificate[0].domain_validation_options : dvo.domain_name => {
@@ -231,6 +277,7 @@ module "s3_cloudfront" {
 
   project_name        = var.project_name
   environment         = var.environment
+  price_class         = "PriceClass_100"  # Phase 1: North America + Europe only
   acm_certificate_arn = var.domain_name != "" ? module.acm_certificate[0].validated_certificate_arn : ""
   domain_aliases      = var.domain_name != "" ? [var.domain_name, "www.${var.domain_name}"] : []
 
