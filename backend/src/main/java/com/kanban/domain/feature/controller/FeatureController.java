@@ -1,7 +1,10 @@
 package com.kanban.domain.feature.controller;
 
+import com.kanban.domain.feature.dto.FeatureAIRequest;
+import com.kanban.domain.feature.dto.FeatureAIResponse;
 import com.kanban.domain.feature.dto.FeatureRequest;
 import com.kanban.domain.feature.dto.FeatureResponse;
+import com.kanban.domain.feature.service.FeatureAIService;
 import com.kanban.domain.feature.service.FeatureService;
 import com.kanban.global.security.UserPrincipal;
 import jakarta.validation.Valid;
@@ -19,6 +22,7 @@ import java.util.Map;
 public class FeatureController {
 
     private final FeatureService featureService;
+    private final FeatureAIService featureAIService;
 
     @GetMapping
     public ResponseEntity<FeatureResponse.ListResponse> getFeatures(
@@ -72,6 +76,28 @@ public class FeatureController {
             @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody FeatureRequest.Reorder request) {
         FeatureResponse.ListResponse response = featureService.reorderFeatures(boardId, principal.getUserId(), request);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{featureId}/ai/decompose")
+    public ResponseEntity<FeatureAIResponse.TaskDecomposition> aiDecompose(
+            @PathVariable String boardId,
+            @PathVariable String featureId,
+            @RequestParam(required = false) String language,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        FeatureAIResponse.TaskDecomposition response = featureAIService.generateTaskSuggestions(
+                boardId, featureId, principal.getUserId(), language);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{featureId}/ai/apply")
+    public ResponseEntity<FeatureAIResponse.ApplyResult> aiApply(
+            @PathVariable String boardId,
+            @PathVariable String featureId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody FeatureAIRequest.ApplyDecomposition request) {
+        FeatureAIResponse.ApplyResult response = featureAIService.applyTaskSuggestions(
+                boardId, featureId, principal.getUserId(), request);
         return ResponseEntity.ok(response);
     }
 }

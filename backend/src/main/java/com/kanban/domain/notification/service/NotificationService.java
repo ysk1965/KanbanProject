@@ -4,6 +4,7 @@ import com.kanban.domain.board.Board;
 import com.kanban.domain.checklist.ChecklistItem;
 import com.kanban.domain.comment.Comment;
 import com.kanban.domain.meeting.Meeting;
+import com.kanban.domain.note.NoteComment;
 import com.kanban.domain.notification.Notification;
 import com.kanban.domain.notification.NotificationPreference;
 import com.kanban.domain.notification.NotificationPreferenceRepository;
@@ -208,6 +209,56 @@ public class NotificationService {
             // Send WebSocket event to specific user
             NotificationResponse.Detail response = NotificationResponse.Detail.of(notification);
             webSocketEventService.sendUserEvent(board.getId(), participantId, BoardEventType.NOTIFICATION_CREATED, response);
+        }
+    }
+
+    @Transactional
+    public void createNoteCommentMentionNotifications(NoteComment noteComment, User sender, Board board) {
+        if (noteComment.getMentions() == null || noteComment.getMentions().isEmpty()) {
+            return;
+        }
+
+        List<String> mentionedUserIds = Arrays.asList(noteComment.getMentions().split(","));
+
+        for (String mentionedUserId : mentionedUserIds) {
+            String trimmedId = mentionedUserId.trim();
+            if (trimmedId.equals(sender.getId())) {
+                continue;
+            }
+
+            if (!isInAppEnabled(trimmedId, board.getId(), NotificationType.NOTE_COMMENT_MENTION)) {
+                continue;
+            }
+
+            User recipient = userRepository.findById(trimmedId).orElse(null);
+            if (recipient == null) {
+                log.warn("Mentioned user not found: {}", trimmedId);
+                continue;
+            }
+
+            Map<String, Object> metadata = new HashMap<>();
+            metadata.put("senderName", sender.getName());
+            metadata.put("senderProfileImage", sender.getProfileImage() != null ? sender.getProfileImage() : "");
+            metadata.put("boardName", board.getName());
+            metadata.put("noteTitle", noteComment.getNote().getTitle());
+
+            Notification notification = Notification.builder()
+                    .recipient(recipient)
+                    .board(board)
+                    .type(NotificationType.NOTE_COMMENT_MENTION)
+                    .title(sender.getName() + "님이 노트 댓글에서 회원님을 멘션했습니다")
+                    .message(noteComment.getContent())
+                    .noteId(noteComment.getNote().getId())
+                    .commentId(noteComment.getId())
+                    .senderId(sender.getId())
+                    .metadata(metadata)
+                    .build();
+
+            notificationRepository.save(notification);
+            log.info("Note comment mention notification created for user: {} from comment: {}", trimmedId, noteComment.getId());
+
+            NotificationResponse.Detail response = NotificationResponse.Detail.of(notification);
+            webSocketEventService.sendUserEvent(board.getId(), trimmedId, BoardEventType.NOTIFICATION_CREATED, response);
         }
     }
 

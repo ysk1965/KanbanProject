@@ -1104,7 +1104,13 @@
       "deleteConfirm": "この絵文字を削除しますか？",
       "maxSize": "PNG, GIF, WebP · 128KB以下",
       "adminOnly": "管理者のみ絵文字を追加できます"
-    }
+    },
+    "aiSummarize": "AI要約",
+    "aiSummaryTitle": "AIコメント要約",
+    "aiDecisions": "決定事項",
+    "aiOpenQuestions": "未解決の質問",
+    "aiActionItems": "アクションアイテム",
+    "checklist": "チェックリスト"
   },
   "activity": {
     "title": "アクティビティログ",
@@ -1757,7 +1763,21 @@
     "saveChangesDesc": "保存されていない変更があります。保存せずに閉じると変更は破棄されます。",
     "discard": "保存しない",
     "deleteTitle": "この Feature を削除しますか？",
-    "deleteDesc": "この Feature とすべてのサブタスクが削除されます。この操作は元に戻せません。"
+    "deleteDesc": "この Feature とすべてのサブタスクが削除されます。この操作は元に戻せません。",
+    "aiDecompose": "AIタスク分解",
+    "aiDecomposeTitle": "AIタスク分解",
+    "aiAnalyzing": "AIがフィーチャーを分析しています...",
+    "aiError": "AI分析中にエラーが発生しました。もう一度お試しください。",
+    "aiRetry": "再試行",
+    "aiNoSuggestions": "生成するタスクがありません。",
+    "aiSelectAll": "全選択",
+    "aiDeselectAll": "全解除",
+    "aiSelectedCount": "{{count}}件選択済み",
+    "aiAlreadyExists": "既存",
+    "aiApply": "適用",
+    "aiApplying": "適用中...",
+    "aiApplySuccess": "{{tasks}}件のタスクと{{checklists}}件のチェックリストが作成されました。",
+    "aiApplyDone": "完了"
   },
   "weeklySchedule": {
     "day": "日",

@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Feature, Task, Tag } from '../types';
 import { FEATURE_COLORS } from '../constants';
-import { X, Trash2, ChevronDown, ClipboardList, Lightbulb, ArrowRight, Pipette, FileText, CalendarIcon, Tags } from 'lucide-react';
+import { X, Trash2, ChevronDown, ClipboardList, Lightbulb, ArrowRight, Pipette, FileText, CalendarIcon, Tags, Sparkles } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { format } from 'date-fns';
@@ -11,6 +11,7 @@ import { ko } from 'date-fns/locale';
 import { useTranslation } from 'react-i18next';
 import { TagPickerPopover } from './TagPickerPopover';
 import { featureAPI, taskAPI } from '../utils/api';
+import { FeatureAIDecomposeModal } from './FeatureAIDecomposeModal';
 
 interface FeatureDetailModalProps {
   feature: Feature | null;
@@ -55,6 +56,7 @@ export function FeatureDetailModal({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [flyingTask, setFlyingTask] = useState<{ title: string; x: number; y: number } | null>(null);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [showAIDecompose, setShowAIDecompose] = useState(false);
   const [editingTaskTitle, setEditingTaskTitle] = useState('');
   const addBtnRef = useRef<HTMLButtonElement>(null);
   const mouseDownTargetRef = useRef<EventTarget | null>(null);
@@ -424,6 +426,15 @@ export function FeatureDetailModal({
                 <div className="flex items-center gap-2">
                   <ClipboardList size={14} className="text-indigo-400" />
                   <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400">{t('featureDetail.subtaskList')}</span>
+                  {canEdit && (
+                    <button
+                      onClick={() => setShowAIDecompose(true)}
+                      className="ml-1 flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold text-bridge-accent bg-bridge-accent/10 rounded-lg hover:bg-bridge-accent/20 transition-all"
+                    >
+                      <Sparkles className="h-3 w-3" />
+                      AI
+                    </button>
+                  )}
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="w-24 h-2 bg-white/10 rounded-full overflow-hidden">
@@ -639,6 +650,19 @@ export function FeatureDetailModal({
       )}
 
       {/* Flying task animation (portal) */}
+      {showAIDecompose && feature && (
+        <FeatureAIDecomposeModal
+          boardId={boardId}
+          featureId={feature.id}
+          featureTitle={feature.title}
+          existingTaskTitles={tasks.map(t => t.title)}
+          onClose={() => setShowAIDecompose(false)}
+          onApplied={() => {
+            setShowAIDecompose(false);
+          }}
+        />
+      )}
+
       {flyingTask &&
         createPortal(
           <AnimatePresence>

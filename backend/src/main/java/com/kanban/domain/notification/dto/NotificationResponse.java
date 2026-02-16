@@ -23,6 +23,7 @@ public class NotificationResponse {
         private String boardId;
         private String boardName;
         private String taskId;
+        private String noteId;
         private String commentId;
         private SenderInfo sender;
         private boolean read;
@@ -39,6 +40,7 @@ public class NotificationResponse {
                     .boardId(n.getBoard().getId())
                     .boardName(meta != null ? (String) meta.get("boardName") : null)
                     .taskId(n.getTaskId())
+                    .noteId(n.getNoteId())
                     .commentId(n.getCommentId())
                     .sender(SenderInfo.builder()
                             .id(n.getSenderId())

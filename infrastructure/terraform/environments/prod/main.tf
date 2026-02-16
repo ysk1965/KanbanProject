@@ -1,5 +1,9 @@
 # Production Environment - Main Configuration
 # This file orchestrates all modules for the production environment
+#
+# Cost Optimization:
+# - No NAT Gateway (EC2 in public subnet with Security Group protection)
+# - Security maintained via SG: only ALB can reach EC2 on 5000/8080
 
 terraform {
   required_version = ">= 1.5.0"
@@ -47,14 +51,14 @@ provider "aws" {
   }
 }
 
-# VPC Module
+# VPC Module - No NAT Gateway (EC2 uses public subnet with SG protection)
 module "vpc" {
   source = "../../modules/vpc"
 
   project_name       = var.project_name
   environment        = var.environment
   vpc_cidr           = var.vpc_cidr
-  enable_nat_gateway = true
+  enable_nat_gateway = false
 }
 
 # Security Groups Module
@@ -101,13 +105,14 @@ module "elastic_beanstalk" {
   environment           = var.environment
   vpc_id                = module.vpc.vpc_id
   public_subnet_ids     = module.vpc.public_subnet_ids
-  private_subnet_ids    = module.vpc.private_subnet_ids
+  private_subnet_ids    = module.vpc.public_subnet_ids  # Use public subnets for EC2 (no NAT)
   alb_security_group_id = module.security_groups.alb_security_group_id
   ec2_security_group_id = module.security_groups.eb_ec2_security_group_id
 
-  instance_type = "t3.small"  # Larger instance for production
-  min_instances = 2           # Minimum 2 for high availability
-  max_instances = 4
+  instance_type       = "t3.small"
+  min_instances       = 2           # Minimum 2 for high availability
+  max_instances       = 4
+  associate_public_ip = "true"      # Public subnet, no NAT
 
   spring_profile = "prod"
   database_url   = module.rds.jdbc_url

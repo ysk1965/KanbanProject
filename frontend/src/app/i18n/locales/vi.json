@@ -1104,7 +1104,13 @@
       "deleteConfirm": "Xóa emoji này?",
       "maxSize": "PNG, GIF, WebP · Tối đa 128KB",
       "adminOnly": "Chỉ quản trị viên mới có thể thêm emoji"
-    }
+    },
+    "aiSummarize": "AI Tóm tắt",
+    "aiSummaryTitle": "AI Tóm tắt bình luận",
+    "aiDecisions": "Quyết định",
+    "aiOpenQuestions": "Câu hỏi chưa giải quyết",
+    "aiActionItems": "Hành động cần làm",
+    "checklist": "Checklist"
   },
   "activity": {
     "title": "Nhat ky hoat dong",
@@ -1757,7 +1763,21 @@
     "saveChangesDesc": "Ban co thay doi chua duoc luu. Dong ma khong luu se bo qua chung.",
     "discard": "Khong luu",
     "deleteTitle": "Xoa feature nay?",
-    "deleteDesc": "Feature nay va tat ca nhiem vu con se bi xoa. Hanh dong nay khong the hoan tac."
+    "deleteDesc": "Feature nay va tat ca nhiem vu con se bi xoa. Hanh dong nay khong the hoan tac.",
+    "aiDecompose": "AI Phân tách",
+    "aiDecomposeTitle": "AI Phân tách Task",
+    "aiAnalyzing": "AI đang phân tích tính năng...",
+    "aiError": "Đã xảy ra lỗi. Vui lòng thử lại.",
+    "aiRetry": "Thử lại",
+    "aiNoSuggestions": "Không có task nào.",
+    "aiSelectAll": "Chọn tất cả",
+    "aiDeselectAll": "Bỏ chọn",
+    "aiSelectedCount": "Đã chọn {{count}} mục",
+    "aiAlreadyExists": "Đã tồn tại",
+    "aiApply": "Áp dụng",
+    "aiApplying": "Đang áp dụng...",
+    "aiApplySuccess": "Đã tạo {{tasks}} task và {{checklists}} checklist.",
+    "aiApplyDone": "Xong"
   },
   "weeklySchedule": {
     "day": "Ngay",

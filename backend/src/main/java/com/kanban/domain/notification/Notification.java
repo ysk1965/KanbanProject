@@ -48,6 +48,9 @@ public class Notification {
     @Column(name = "task_id", length = 36)
     private String taskId;
 
+    @Column(name = "note_id", length = 36)
+    private String noteId;
+
     @Column(name = "comment_id", length = 36)
     private String commentId;
 

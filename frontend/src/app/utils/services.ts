@@ -2312,6 +2312,42 @@ export const noteService = {
 };
 
 // ========================================
+// Note Comment Service
+// ========================================
+
+import { noteCommentAPI } from './api';
+
+export const noteCommentService = {
+  getComments: async (boardId: string, noteId: string) => {
+    return await noteCommentAPI.getComments(boardId, noteId);
+  },
+
+  createComment: async (boardId: string, noteId: string, data: {
+    content: string;
+    block_id?: string | null;
+    parent_id?: string | null;
+    mentions?: string[];
+  }) => {
+    return await noteCommentAPI.createComment(boardId, noteId, data);
+  },
+
+  updateComment: async (boardId: string, noteId: string, commentId: string, data: {
+    content: string;
+    mentions?: string[];
+  }) => {
+    return await noteCommentAPI.updateComment(boardId, noteId, commentId, data);
+  },
+
+  deleteComment: async (boardId: string, noteId: string, commentId: string) => {
+    return await noteCommentAPI.deleteComment(boardId, noteId, commentId);
+  },
+
+  toggleResolved: async (boardId: string, noteId: string, commentId: string) => {
+    return await noteCommentAPI.toggleResolved(boardId, noteId, commentId);
+  },
+};
+
+// ========================================
 // Monitoring Service
 // ========================================
 
@@ -2380,5 +2416,29 @@ export const aiCreditService = {
   getUsageHistory: async (boardId: string, days: number = 30): Promise<AiCreditUsageHistory[]> => {
     const response = await apiClient.get(`/boards/${boardId}/ai-credits/usage?days=${days}`);
     return response.data || response;
+  },
+};
+
+// ========================================
+// Task Dependency Service
+// ========================================
+
+import { taskDependencyAPI } from './api';
+import type { TaskDependency } from '../types';
+
+export const taskDependencyService = {
+  getByBoard: async (boardId: string) => {
+    return taskDependencyAPI.getByBoard(boardId);
+  },
+
+  create: async (boardId: string, predecessorId: string, successorId: string) => {
+    return taskDependencyAPI.create(boardId, {
+      predecessor_id: predecessorId,
+      successor_id: successorId,
+    });
+  },
+
+  delete: async (boardId: string, dependencyId: string) => {
+    return taskDependencyAPI.delete(boardId, dependencyId);
   },
 };

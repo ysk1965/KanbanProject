@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react'
 import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
 import { TaskComment, CommentAttachment, CommentReaction, User, BoardCustomEmoji, BoardWebSocketEvent } from '../types';
-import { commentAPI, fileAPI, customEmojiAPI, resolveFileUrl } from '../utils/api';
+import { commentAPI, checklistAPI, fileAPI, customEmojiAPI, resolveFileUrl, CommentAISummaryResponse } from '../utils/api';
 import { BoardMember } from './ShareBoardModal';
 import { getAssigneeClasses, getInitials } from '../utils/assigneeColor';
 import { formatDate } from '../utils/dateUtils';
@@ -16,7 +16,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from './ui/alert-dialog';
-import { MessageSquare, Send, RefreshCw, Pencil, Trash2, X, Check, Loader2, Paperclip, Play, ChevronLeft, ChevronRight, SmilePlus, Plus, ImageIcon } from 'lucide-react';
+import { MessageSquare, Send, RefreshCw, Pencil, Trash2, X, Check, Loader2, Paperclip, Play, ChevronLeft, ChevronRight, SmilePlus, Plus, ImageIcon, Sparkles, CheckCircle2, HelpCircle, ListChecks } from 'lucide-react';
 import { VideoThumbnail } from './VideoThumbnail';
 
 const VideoLightbox = lazy(() => import('./VideoLightbox').then(m => ({ default: m.VideoLightbox })));
@@ -117,11 +117,15 @@ interface CommentPanelProps {
 // ========== 컴포넌트 ==========
 
 export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEdit = true, isAdminOrOwner = false, wsCommentEvent }: CommentPanelProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   // 댓글 목록
   const [comments, setComments] = useState<TaskComment[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // AI 요약
+  const [aiSummary, setAiSummary] = useState<CommentAISummaryResponse | null>(null);
+  const [aiSummaryLoading, setAiSummaryLoading] = useState(false);
 
   // 새 댓글 입력
   const [newComment, setNewComment] = useState('');
@@ -987,7 +991,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
 
       {/* 헤더 */}
       <div className="flex items-center px-4 py-3 border-b border-white/20">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-1">
           <MessageSquare className="h-4 w-4 text-slate-400" />
           <span className="text-sm font-medium text-foreground">{t('comment.title')}</span>
           {comments.length > 0 && <span className="text-xs text-slate-400">{comments.length}</span>}
@@ -996,10 +1000,101 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
             <RefreshCw className={`h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`} />
           </button>
         </div>
+        {comments.length >= 3 && canEdit && (
+          <button
+            onClick={async () => {
+              setAiSummaryLoading(true);
+              try {
+                const result = await commentAPI.aiSummarize(boardId, taskId, i18n.language);
+                setAiSummary(result);
+              } catch { /* ignore */ }
+              finally { setAiSummaryLoading(false); }
+            }}
+            disabled={aiSummaryLoading}
+            className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold text-bridge-accent bg-bridge-accent/10 rounded-lg hover:bg-bridge-accent/20 transition-all disabled:opacity-50"
+          >
+            {aiSummaryLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+            {t('comment.aiSummarize')}
+          </button>
+        )}
       </div>
 
       {/* 댓글 목록 */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-4 kanban-scrollbar">
+        {/* AI 요약 카드 */}
+        {aiSummary && (
+          <div className="mb-2 bg-bridge-accent/5 border border-bridge-accent/20 rounded-xl p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <Sparkles className="h-3.5 w-3.5 text-bridge-accent" />
+                <span className="text-[11px] font-bold uppercase tracking-widest text-bridge-accent">
+                  {t('comment.aiSummaryTitle')}
+                </span>
+              </div>
+              <button onClick={() => setAiSummary(null)} className="text-slate-400 hover:text-white p-0.5">
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-300">{aiSummary.summary}</p>
+
+            {aiSummary.decisions.length > 0 && (
+              <div>
+                <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">{t('comment.aiDecisions')}</span>
+                <ul className="mt-1 space-y-0.5">
+                  {aiSummary.decisions.map((d, i) => (
+                    <li key={i} className="text-xs text-slate-300 flex items-start gap-1.5">
+                      <CheckCircle2 className="h-3 w-3 text-emerald-400 mt-0.5 flex-shrink-0" />
+                      {d}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {aiSummary.open_questions.length > 0 && (
+              <div>
+                <span className="text-[10px] font-bold text-amber-400 uppercase tracking-widest">{t('comment.aiOpenQuestions')}</span>
+                <ul className="mt-1 space-y-0.5">
+                  {aiSummary.open_questions.map((q, i) => (
+                    <li key={i} className="text-xs text-slate-300 flex items-start gap-1.5">
+                      <HelpCircle className="h-3 w-3 text-amber-400 mt-0.5 flex-shrink-0" />
+                      {q}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {aiSummary.action_items.length > 0 && (
+              <div>
+                <span className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">{t('comment.aiActionItems')}</span>
+                <ul className="mt-1 space-y-1">
+                  {aiSummary.action_items.map((item, i) => (
+                    <li key={i} className="text-xs text-slate-300 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <ListChecks className="h-3 w-3 text-blue-400 flex-shrink-0" />
+                        {item.title}
+                        {item.assignee_hint && (
+                          <span className="text-[10px] text-slate-500">@{item.assignee_hint}</span>
+                        )}
+                      </span>
+                      <button
+                        onClick={async () => {
+                          try { await checklistAPI.addItem(boardId, taskId, { title: item.title }); } catch { /* ignore */ }
+                        }}
+                        className="text-[9px] text-bridge-accent hover:text-bridge-accent/80 px-1.5 py-0.5 rounded bg-bridge-accent/10 hover:bg-bridge-accent/20 transition-all whitespace-nowrap ml-2"
+                      >
+                        + {t('comment.checklist')}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+
         {isLoading ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-5 w-5 animate-spin text-slate-400" />

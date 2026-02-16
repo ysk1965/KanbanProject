@@ -83,6 +83,8 @@ public enum ErrorCode {
     // Note
     NOTE_NOT_FOUND(HttpStatus.NOT_FOUND, "NT001", "노트를 찾을 수 없습니다"),
     NOTE_VERSION_NOT_FOUND(HttpStatus.NOT_FOUND, "NT002", "노트 버전을 찾을 수 없습니다"),
+    NOTE_COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "NT003", "노트 댓글을 찾을 수 없습니다"),
+    NOTE_COMMENT_NOT_AUTHOR(HttpStatus.FORBIDDEN, "NT004", "본인의 댓글만 수정/삭제할 수 있습니다"),
 
     // Meeting
     MEETING_NOT_FOUND(HttpStatus.NOT_FOUND, "MT001", "회의를 찾을 수 없습니다"),
@@ -178,7 +180,15 @@ public enum ErrorCode {
     // AI Credits
     AI_CREDITS_EXHAUSTED(HttpStatus.PAYMENT_REQUIRED, "AC001", "AI 크레딧이 소진되었습니다. 추가 크레딧을 구매해주세요"),
     AI_CREDIT_PURCHASE_AMOUNT_INVALID(HttpStatus.BAD_REQUEST, "AC002", "유효하지 않은 크레딧 구매 금액입니다"),
-    AI_CREDIT_PURCHASE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "AC003", "크레딧 구매 처리 중 오류가 발생했습니다");
+    AI_CREDIT_PURCHASE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "AC003", "크레딧 구매 처리 중 오류가 발생했습니다"),
+
+    // AI Feature Decompose
+    AI_FEATURE_CONTENT_EMPTY(HttpStatus.BAD_REQUEST, "AF001", "피처 내용이 비어있습니다"),
+    AI_FEATURE_DECOMPOSE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "AF002", "AI 태스크 분해에 실패했습니다"),
+
+    // AI Comment Summary
+    AI_COMMENT_SUMMARY_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "ACS001", "AI 댓글 요약에 실패했습니다"),
+    AI_COMMENT_INSUFFICIENT(HttpStatus.BAD_REQUEST, "ACS002", "요약하기에 댓글 수가 부족합니다");
 
     private final HttpStatus status;
     private final String code;

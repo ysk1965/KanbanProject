@@ -1104,7 +1104,13 @@
       "deleteConfirm": "Excluir este emoji?",
       "maxSize": "PNG, GIF, WebP · Máx 128KB",
       "adminOnly": "Apenas administradores podem adicionar emojis"
-    }
+    },
+    "aiSummarize": "AI Resumo",
+    "aiSummaryTitle": "AI Resumo de Comentários",
+    "aiDecisions": "Decisões",
+    "aiOpenQuestions": "Perguntas Pendentes",
+    "aiActionItems": "Itens de Ação",
+    "checklist": "Checklist"
   },
   "activity": {
     "title": "Registro de Atividades",
@@ -1757,7 +1763,21 @@
     "saveChangesDesc": "Você tem alterações não salvas. Fechar sem salvar irá descartá-las.",
     "discard": "Não salvar",
     "deleteTitle": "Excluir esta feature?",
-    "deleteDesc": "Esta feature e todas as subtarefas serão excluídas. Esta ação não pode ser desfeita."
+    "deleteDesc": "Esta feature e todas as subtarefas serão excluídas. Esta ação não pode ser desfeita.",
+    "aiDecompose": "AI Decompor",
+    "aiDecomposeTitle": "AI Decomposição de Tarefas",
+    "aiAnalyzing": "AI está analisando a funcionalidade...",
+    "aiError": "Erro durante a análise. Tente novamente.",
+    "aiRetry": "Tentar novamente",
+    "aiNoSuggestions": "Nenhuma tarefa para gerar.",
+    "aiSelectAll": "Selecionar tudo",
+    "aiDeselectAll": "Desmarcar tudo",
+    "aiSelectedCount": "{{count}} itens selecionados",
+    "aiAlreadyExists": "Já existe",
+    "aiApply": "Aplicar",
+    "aiApplying": "Aplicando...",
+    "aiApplySuccess": "{{tasks}} tarefas e {{checklists}} checklists criados.",
+    "aiApplyDone": "Concluído"
   },
   "weeklySchedule": {
     "day": "Dia",

@@ -1104,7 +1104,13 @@
       "deleteConfirm": "यह इमोजी हटाएं?",
       "maxSize": "PNG, GIF, WebP · अधिकतम 128KB",
       "adminOnly": "केवल व्यवस्थापक इमोजी जोड़ सकते हैं"
-    }
+    },
+    "aiSummarize": "AI सारांश",
+    "aiSummaryTitle": "AI टिप्पणी सारांश",
+    "aiDecisions": "निर्णय",
+    "aiOpenQuestions": "अनसुलझे प्रश्न",
+    "aiActionItems": "कार्य आइटम",
+    "checklist": "चेकलिस्ट"
   },
   "activity": {
     "title": "गतिविधि लॉग",
@@ -1757,7 +1763,21 @@
     "saveChangesDesc": "आपके पास सहेजे नहीं गए बदलाव हैं। बिना सहेजे बंद करने पर वे खो जाएंगे।",
     "discard": "सहेजें नहीं",
     "deleteTitle": "इस Feature को हटाएं?",
-    "deleteDesc": "यह Feature और सभी उप-कार्य हटा दिए जाएंगे। यह कार्रवाई पूर्ववत नहीं की जा सकती।"
+    "deleteDesc": "यह Feature और सभी उप-कार्य हटा दिए जाएंगे। यह कार्रवाई पूर्ववत नहीं की जा सकती।",
+    "aiDecompose": "AI टास्क विभाजन",
+    "aiDecomposeTitle": "AI टास्क विभाजन",
+    "aiAnalyzing": "AI फीचर का विश्लेषण कर रहा है...",
+    "aiError": "AI विश्लेषण में त्रुटि। कृपया पुनः प्रयास करें।",
+    "aiRetry": "पुनः प्रयास",
+    "aiNoSuggestions": "कोई टास्क नहीं बनाया जा सका।",
+    "aiSelectAll": "सभी चुनें",
+    "aiDeselectAll": "सभी हटाएं",
+    "aiSelectedCount": "{{count}} आइटम चुने गए",
+    "aiAlreadyExists": "पहले से मौजूद",
+    "aiApply": "लागू करें",
+    "aiApplying": "लागू हो रहा है...",
+    "aiApplySuccess": "{{tasks}} टास्क और {{checklists}} चेकलिस्ट बनाए गए।",
+    "aiApplyDone": "पूर्ण"
   },
   "weeklySchedule": {
     "day": "दिन",

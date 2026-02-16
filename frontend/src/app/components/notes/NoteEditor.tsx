@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Save, Clock, Loader2, Tag as TagIcon, Sparkles, Share2, Link2, Check, X } from 'lucide-react';
+import { Save, Clock, Loader2, Tag as TagIcon, Sparkles, Share2, Link2, Check, X, MessageSquare } from 'lucide-react';
 import { BlockNoteSchema, defaultBlockSpecs, defaultInlineContentSpecs, filterSuggestionItems, insertOrUpdateBlock } from '@blocknote/core';
 import { useCreateBlockNote, SuggestionMenuController, getDefaultReactSlashMenuItems } from '@blocknote/react';
 import { BlockNoteView } from '@blocknote/shadcn';
@@ -9,7 +9,9 @@ import '@blocknote/shadcn/style.css';
 import { NoteTagManager } from './NoteTagManager';
 import { NoteVersionHistory } from './NoteVersionHistory';
 import { NoteAIInlineSection } from './NoteAIInlineSection';
+import { NoteCommentSidebar } from './NoteCommentSidebar';
 import { CollabPresence } from './CollabPresence';
+import { useAuth } from '../../contexts/AuthContext';
 import { Callout } from './blocks/Callout';
 import { Toggle } from './blocks/Toggle';
 import { Divider } from './blocks/Divider';
@@ -132,9 +134,19 @@ function CollabNoteEditor({
   collaboration, currentUserName, currentUserColor,
 }: CollabEditorProps) {
   const { t } = useTranslation();
+  const { currentUser } = useAuth();
   const [title, setTitle] = useState(note.title);
   const [hasChanges, setHasChanges] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Comment state
+  const [showComments, setShowComments] = useState(false);
+  const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
+  const [commentBlockIds, setCommentBlockIds] = useState<Set<string>>(new Set());
+  const editorContainerRef = useRef<HTMLDivElement>(null);
+  const [hoveredBlock, setHoveredBlock] = useState<{ id: string; top: number } | null>(null);
+  const hoveredBlockIdRef = useRef<string | null>(null);
+  const commentsPanelRef = useRef<HTMLDivElement>(null);
 
   // AI state
   const [aiData, setAiData] = useState<NoteAISuggestionResponse | null>(null);
@@ -339,6 +351,42 @@ function CollabNoteEditor({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleSave]);
 
+  // Block hover detection for comment button
+  const handleEditorMouseMove = useCallback((e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    const blockEl = target.closest('[data-id]') as HTMLElement;
+    if (!blockEl || !editorContainerRef.current) {
+      if (hoveredBlockIdRef.current) {
+        hoveredBlockIdRef.current = null;
+        setHoveredBlock(null);
+      }
+      return;
+    }
+    const id = blockEl.getAttribute('data-id');
+    if (!id || id === hoveredBlockIdRef.current) return;
+    hoveredBlockIdRef.current = id;
+    const containerRect = editorContainerRef.current.getBoundingClientRect();
+    const blockRect = blockEl.getBoundingClientRect();
+    setHoveredBlock({ id, top: blockRect.top - containerRect.top });
+  }, []);
+
+  const handleAddBlockComment = useCallback((blockId: string) => {
+    setActiveBlockId(blockId);
+    setShowComments(true);
+    setTimeout(() => {
+      commentsPanelRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
+  }, []);
+
+  // CSS for block comment indicators
+  const blockIndicatorStyle = useMemo(() => {
+    if (commentBlockIds.size === 0) return null;
+    const selectors = Array.from(commentBlockIds)
+      .map(id => `[data-id="${id}"]`)
+      .join(', ');
+    return `${selectors} { border-left: 3px solid rgba(99, 102, 241, 0.4) !important; padding-left: 8px; }`;
+  }, [commentBlockIds]);
+
   // AI: check if content has changed since last AI organize
   const isAIDimmed = useCallback(() => {
     if (!aiContentSnapshot || !aiData) return false;
@@ -417,6 +465,19 @@ function CollabNoteEditor({
             onNoteUpdate={onNoteUpdate}
           />
 
+          <button
+            onClick={() => setShowComments(!showComments)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+              showComments
+                ? 'text-bridge-accent bg-bridge-accent/10'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+            title={t('notes.comment.title', '댓글')}
+          >
+            <MessageSquare size={14} />
+            <span className="hidden sm:inline">{t('notes.comment.title', '댓글')}</span>
+          </button>
+
           <div className="w-px h-5 bg-white/10" />
 
           <NoteTagManager
@@ -479,23 +540,53 @@ function CollabNoteEditor({
         </div>
       </div>
 
-      {/* BlockNote Editor + AI Section */}
+      {/* BlockNote Editor + AI Section + Bottom Comments */}
       <div className="flex-1 overflow-y-auto">
-        <BlockNoteView
-          editor={editor}
-          theme="dark"
-          editable={canEdit}
-          onChange={handleEditorChange}
+        {/* Block comment indicator CSS */}
+        {blockIndicatorStyle && <style>{blockIndicatorStyle}</style>}
+
+        {/* Editor with block hover overlay */}
+        <div
+          ref={editorContainerRef}
+          className="relative"
+          onMouseMove={handleEditorMouseMove}
+          onMouseLeave={() => {
+            hoveredBlockIdRef.current = null;
+            setHoveredBlock(null);
+          }}
         >
-          <SuggestionMenuController
-            triggerCharacter="/"
-            getItems={async (query) => filterSuggestionItems(slashMenuItems, query)}
-          />
-          <SuggestionMenuController
-            triggerCharacter="@"
-            getItems={getMentionItems}
-          />
-        </BlockNoteView>
+          <BlockNoteView
+            editor={editor}
+            theme="dark"
+            editable={canEdit}
+            onChange={handleEditorChange}
+          >
+            <SuggestionMenuController
+              triggerCharacter="/"
+              getItems={async (query) => filterSuggestionItems(slashMenuItems, query)}
+            />
+            <SuggestionMenuController
+              triggerCharacter="@"
+              getItems={getMentionItems}
+            />
+          </BlockNoteView>
+
+          {/* Floating block comment button */}
+          {hoveredBlock && (
+            <button
+              className="absolute right-2 z-10 p-1.5 rounded-lg bg-bridge-dark border border-white/10 text-slate-500 hover:text-bridge-accent hover:border-bridge-accent/30 transition-all shadow-lg"
+              style={{ top: hoveredBlock.top + 2 }}
+              onClick={() => handleAddBlockComment(hoveredBlock.id)}
+              onMouseDown={(e) => e.preventDefault()}
+              title={t('notes.comment.addToBlock', '이 블록에 댓글 달기')}
+            >
+              <MessageSquare size={14} />
+              {commentBlockIds.has(hoveredBlock.id) && (
+                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-bridge-accent rounded-full border-2 border-bridge-dark" />
+              )}
+            </button>
+          )}
+        </div>
 
         {/* AI Inline Section */}
         {aiVisible && (
@@ -526,6 +617,21 @@ function CollabNoteEditor({
                 onClose={() => setAiCollapsed(true)}
               />
             )}
+          </div>
+        )}
+
+        {/* Bottom Comments Panel */}
+        {showComments && currentUser && (
+          <div ref={commentsPanelRef}>
+            <NoteCommentSidebar
+              boardId={boardId}
+              noteId={note.id}
+              currentUserId={currentUser.id}
+              canEdit={canEdit}
+              onClose={() => { setShowComments(false); setActiveBlockId(null); }}
+              activeBlockId={activeBlockId}
+              onBlockIdsChange={setCommentBlockIds}
+            />
           </div>
         )}
       </div>

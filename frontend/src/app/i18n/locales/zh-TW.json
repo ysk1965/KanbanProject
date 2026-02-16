@@ -1089,7 +1089,13 @@
       "deleteConfirm": "確定刪除此表情？",
       "maxSize": "PNG, GIF, WebP · 最大128KB",
       "adminOnly": "僅管理員可以新增表情"
-    }
+    },
+    "aiSummarize": "AI摘要",
+    "aiSummaryTitle": "AI留言摘要",
+    "aiDecisions": "決策",
+    "aiOpenQuestions": "待解決問題",
+    "aiActionItems": "待辦事項",
+    "checklist": "檢查清單"
   },
   "activity": {
     "title": "活動紀錄",
@@ -1713,7 +1719,21 @@
     "saveChangesDesc": "您有未儲存的變更。關閉而不儲存將捨棄這些變更。",
     "discard": "不儲存",
     "deleteTitle": "刪除此 Feature？",
-    "deleteDesc": "此 Feature 及所有子任務將被刪除。此操作無法復原。"
+    "deleteDesc": "此 Feature 及所有子任務將被刪除。此操作無法復原。",
+    "aiDecompose": "AI任務分解",
+    "aiDecomposeTitle": "AI任務分解",
+    "aiAnalyzing": "AI正在分析功能...",
+    "aiError": "AI分析時發生錯誤，請重試。",
+    "aiRetry": "重試",
+    "aiNoSuggestions": "沒有可生成的任務。",
+    "aiSelectAll": "全選",
+    "aiDeselectAll": "取消全選",
+    "aiSelectedCount": "已選{{count}}項",
+    "aiAlreadyExists": "已存在",
+    "aiApply": "套用",
+    "aiApplying": "套用中...",
+    "aiApplySuccess": "已建立{{tasks}}個任務和{{checklists}}個檢查清單。",
+    "aiApplyDone": "完成"
   },
   "weeklySchedule": {
     "day": "日",

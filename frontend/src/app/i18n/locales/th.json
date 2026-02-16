@@ -1104,7 +1104,13 @@
       "deleteConfirm": "ลบอิโมจินี้?",
       "maxSize": "PNG, GIF, WebP · สูงสุด 128KB",
       "adminOnly": "เฉพาะผู้ดูแลเท่านั้นที่เพิ่มอิโมจิได้"
-    }
+    },
+    "aiSummarize": "AI สรุป",
+    "aiSummaryTitle": "AI สรุปความคิดเห็น",
+    "aiDecisions": "การตัดสินใจ",
+    "aiOpenQuestions": "คำถามที่ยังไม่ได้ตอบ",
+    "aiActionItems": "รายการดำเนินการ",
+    "checklist": "เช็คลิสต์"
   },
   "activity": {
     "title": "บันทึกกิจกรรม",
@@ -1757,7 +1763,21 @@
     "saveChangesDesc": "คุณมีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก การปิดโดยไม่บันทึกจะทำให้การเปลี่ยนแปลงหายไป",
     "discard": "ไม่บันทึก",
     "deleteTitle": "ลบ Feature นี้?",
-    "deleteDesc": "Feature นี้และงานย่อยทั้งหมดจะถูกลบ การดำเนินการนี้ไม่สามารถย้อนกลับได้"
+    "deleteDesc": "Feature นี้และงานย่อยทั้งหมดจะถูกลบ การดำเนินการนี้ไม่สามารถย้อนกลับได้",
+    "aiDecompose": "AI แยกงาน",
+    "aiDecomposeTitle": "AI แยกงาน",
+    "aiAnalyzing": "AI กำลังวิเคราะห์ฟีเจอร์...",
+    "aiError": "เกิดข้อผิดพลาด กรุณาลองอีกครั้ง",
+    "aiRetry": "ลองอีกครั้ง",
+    "aiNoSuggestions": "ไม่มีงานที่จะสร้าง",
+    "aiSelectAll": "เลือกทั้งหมด",
+    "aiDeselectAll": "ยกเลิกทั้งหมด",
+    "aiSelectedCount": "เลือก {{count}} รายการ",
+    "aiAlreadyExists": "มีอยู่แล้ว",
+    "aiApply": "นำไปใช้",
+    "aiApplying": "กำลังนำไปใช้...",
+    "aiApplySuccess": "สร้าง {{tasks}} งาน และ {{checklists}} เช็คลิสต์แล้ว",
+    "aiApplyDone": "เสร็จ"
   },
   "weeklySchedule": {
     "day": "วัน",

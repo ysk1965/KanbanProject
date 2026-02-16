@@ -1118,7 +1118,13 @@
       "deleteConfirm": "이 이모지를 삭제하시겠습니까?",
       "maxSize": "PNG, GIF, WebP · 128KB 이하",
       "adminOnly": "관리자만 이모지를 추가할 수 있습니다"
-    }
+    },
+    "aiSummarize": "AI 요약",
+    "aiSummaryTitle": "AI 댓글 요약",
+    "aiDecisions": "결정사항",
+    "aiOpenQuestions": "미해결 질문",
+    "aiActionItems": "액션 아이템",
+    "checklist": "체크리스트"
   },
   "activity": {
     "title": "활동 로그",
@@ -1438,7 +1444,21 @@
     "saveChangesDesc": "저장하지 않은 변경사항이 있습니다. 저장하지 않고 닫으면 변경사항이 사라집니다.",
     "discard": "저장 안 함",
     "deleteTitle": "이 기능을 삭제하시겠습니까?",
-    "deleteDesc": "이 기능과 모든 서브태스크가 삭제됩니다. 이 작업은 되돌릴 수 없습니다."
+    "deleteDesc": "이 기능과 모든 서브태스크가 삭제됩니다. 이 작업은 되돌릴 수 없습니다.",
+    "aiDecompose": "AI 태스크 분해",
+    "aiDecomposeTitle": "AI 태스크 분해",
+    "aiAnalyzing": "AI가 피처를 분석하고 있습니다...",
+    "aiError": "AI 분석 중 오류가 발생했습니다. 다시 시도해주세요.",
+    "aiRetry": "다시 시도",
+    "aiNoSuggestions": "생성할 태스크가 없습니다.",
+    "aiSelectAll": "전체 선택",
+    "aiDeselectAll": "전체 해제",
+    "aiSelectedCount": "{{count}}개 항목 선택됨",
+    "aiAlreadyExists": "이미 존재",
+    "aiApply": "적용",
+    "aiApplying": "적용 중...",
+    "aiApplySuccess": "{{tasks}}개 태스크, {{checklists}}개 체크리스트가 생성되었습니다.",
+    "aiApplyDone": "완료"
   },
   "weeklySchedule": {
     "day": "일",

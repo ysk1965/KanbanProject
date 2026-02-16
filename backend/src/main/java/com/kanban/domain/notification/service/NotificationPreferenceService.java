@@ -57,7 +57,9 @@ public class NotificationPreferenceService {
                     request.getSlackChecklistAssignedEnabled(),
                     request.getSlackTaskCommentEnabled(),
                     request.getMeetingMemoSharedEnabled(),
-                    request.getSlackMeetingMemoSharedEnabled()
+                    request.getSlackMeetingMemoSharedEnabled(),
+                    request.getNoteCommentMentionEnabled(),
+                    request.getSlackNoteCommentMentionEnabled()
             );
         } else {
             Board board = boardRepository.findById(boardId)
@@ -76,6 +78,8 @@ public class NotificationPreferenceService {
                     .slackTaskCommentEnabled(request.getSlackTaskCommentEnabled() != null ? request.getSlackTaskCommentEnabled() : true)
                     .meetingMemoSharedEnabled(request.getMeetingMemoSharedEnabled() != null ? request.getMeetingMemoSharedEnabled() : true)
                     .slackMeetingMemoSharedEnabled(request.getSlackMeetingMemoSharedEnabled() != null ? request.getSlackMeetingMemoSharedEnabled() : true)
+                    .noteCommentMentionEnabled(request.getNoteCommentMentionEnabled() != null ? request.getNoteCommentMentionEnabled() : true)
+                    .slackNoteCommentMentionEnabled(request.getSlackNoteCommentMentionEnabled() != null ? request.getSlackNoteCommentMentionEnabled() : true)
                     .build();
         }
 

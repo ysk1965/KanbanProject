@@ -7,7 +7,7 @@ import { isWhiteLabelDomain } from '../utils/domain';
 type ViewMode = 'kanban' | 'weekly' | 'schedule' | 'meeting' | 'notes' | 'statistics' | 'ai_report';
 import { DragProvider } from '../contexts/DragContext';
 import { useAuth } from '../contexts/AuthContext';
-import { Block, Feature, Task, Tag, Board, InviteLink, Subscription, ActivityLog, Milestone, BoardTierInfo, BoardLimits, ChecklistItem, NotificationItem, BoardWebSocketEvent, TaskComment, AiCredits } from '../types';
+import { Block, Feature, Task, Tag, Board, InviteLink, Subscription, ActivityLog, Milestone, BoardTierInfo, BoardLimits, ChecklistItem, NotificationItem, BoardWebSocketEvent, TaskComment, AiCredits, TaskDependency } from '../types';
 import { KanbanBlock } from '../components/KanbanBlock';
 import { FeatureCard } from '../components/FeatureCard';
 import { FeatureChipSelector } from '../components/FeatureChipSelector';
@@ -35,7 +35,8 @@ import {
   activityService,
   milestoneService,
   checklistService,
-  aiCreditService
+  aiCreditService,
+  taskDependencyService
 } from '../utils/services';
 import { notificationAPI, checklistAPI, scheduleAPI } from '../utils/api';
 
@@ -172,6 +173,9 @@ export function KanbanBoardPage() {
     dueDate: [],
   });
 
+  // 태스크 의존성 상태
+  const [taskDependencies, setTaskDependencies] = useState<TaskDependency[]>([]);
+
   // Feature 칩 선택 상태 (null = 전체, [] = 없음, [ids] = 개별 선택)
   const [selectedFeatureIds, setSelectedFeatureIds] = useState<string[] | null>(null);
 
@@ -226,6 +230,15 @@ export function KanbanBoardPage() {
   const { filteredFeatures, filteredTasks, sortedBlocks, getTasksForBlock } = useBoardFilters(
     features, tasks, blocks, filterOptions, checklistDataMap, selectedFeatureIds, scheduledTaskIds
   );
+
+  // ======== 태스크 의존성 로드 ========
+  useEffect(() => {
+    if (boardId && viewMode === 'weekly') {
+      taskDependencyService.getByBoard(boardId)
+        .then(setTaskDependencies)
+        .catch(() => setTaskDependencies([]));
+    }
+  }, [boardId, viewMode]);
 
   // ======== WebSocket 실시간 동기화 ========
   const handleWebSocketEvent = useCallback((event: BoardWebSocketEvent) => {
@@ -1617,6 +1630,23 @@ export function KanbanBoardPage() {
                   setTasks(updatedTasks);
                 } catch (error) {
                   console.error('Failed to save baseline:', error);
+                }
+              }}
+              dependencies={taskDependencies}
+              onCreateDependency={async (predecessorId, successorId) => {
+                try {
+                  const newDep = await taskDependencyService.create(boardId || '', predecessorId, successorId);
+                  setTaskDependencies((prev) => [...prev, newDep]);
+                } catch (error) {
+                  console.error('Failed to create dependency:', error);
+                }
+              }}
+              onDeleteDependency={async (dependencyId) => {
+                try {
+                  await taskDependencyService.delete(boardId || '', dependencyId);
+                  setTaskDependencies((prev) => prev.filter((d) => d.id !== dependencyId));
+                } catch (error) {
+                  console.error('Failed to delete dependency:', error);
                 }
               }}
             />

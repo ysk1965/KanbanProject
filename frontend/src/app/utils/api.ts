@@ -434,6 +434,42 @@ export interface FeatureResponse {
   completed_at?: string | null;
 }
 
+// Feature AI Types
+export interface FeatureAITaskSuggestion {
+  title: string;
+  description: string | null;
+  checklists: { title: string }[];
+}
+
+export interface FeatureAIDecompositionResponse {
+  feature_id: string;
+  feature_title: string;
+  tasks: FeatureAITaskSuggestion[];
+}
+
+export interface FeatureAIApplyRequest {
+  tasks: { title: string; description?: string; checklists?: { title: string }[] }[];
+}
+
+export interface FeatureAIApplyResult {
+  tasks_created: number;
+  checklists_created: number;
+}
+
+// Comment AI Types
+export interface CommentAIActionItem {
+  title: string;
+  assignee_hint: string | null;
+}
+
+export interface CommentAISummaryResponse {
+  task_id: string;
+  summary: string;
+  decisions: string[];
+  open_questions: string[];
+  action_items: CommentAIActionItem[];
+}
+
 export interface TaskResponse {
   id: string;
   feature_id: string;
@@ -974,6 +1010,19 @@ export const featureAPI = {
       `/boards/${boardId}/features/${featureId}/tags/${tagId}`
     );
   },
+
+  aiDecompose: async (boardId: string, featureId: string, language?: string) => {
+    const params = language ? `?language=${language}` : '';
+    return apiClient.post<FeatureAIDecompositionResponse>(
+      `/boards/${boardId}/features/${featureId}/ai/decompose${params}`
+    );
+  },
+
+  aiApply: async (boardId: string, featureId: string, data: FeatureAIApplyRequest) => {
+    return apiClient.post<FeatureAIApplyResult>(
+      `/boards/${boardId}/features/${featureId}/ai/apply`, data
+    );
+  },
 };
 
 // ========================================
@@ -1422,6 +1471,13 @@ export const commentAPI = {
     return apiClient.post<ReactionsToggleResponse>(
       `/boards/${boardId}/tasks/${taskId}/comments/${commentId}/reactions/toggle`,
       { emoji }
+    );
+  },
+
+  aiSummarize: async (boardId: string, taskId: string, language?: string) => {
+    const params = language ? `?language=${language}` : '';
+    return apiClient.post<CommentAISummaryResponse>(
+      `/boards/${boardId}/tasks/${taskId}/comments/ai/summarize${params}`
     );
   },
 };
@@ -3599,6 +3655,63 @@ export interface NoteVersionDetail {
   created_at: string;
 }
 
+export interface NoteCommentAuthor {
+  id: string | null;
+  name: string;
+  profile_image: string | null;
+}
+
+export interface NoteCommentDetail {
+  id: string;
+  note_id: string;
+  block_id: string | null;
+  parent_id: string | null;
+  author: NoteCommentAuthor;
+  content: string;
+  mentions: string[];
+  is_resolved: boolean;
+  resolved_by: NoteCommentAuthor | null;
+  resolved_at: string | null;
+  replies: NoteCommentDetail[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NoteCommentListResponse {
+  threads: NoteCommentDetail[];
+  total_threads: number;
+}
+
+export const noteCommentAPI = {
+  getComments: async (boardId: string, noteId: string) => {
+    return apiClient.get<NoteCommentListResponse>(`/boards/${boardId}/notes/${noteId}/comments`);
+  },
+
+  createComment: async (boardId: string, noteId: string, data: {
+    content: string;
+    block_id?: string | null;
+    parent_id?: string | null;
+    mentions?: string[];
+  }) => {
+    return apiClient.post<NoteCommentDetail>(`/boards/${boardId}/notes/${noteId}/comments`, data);
+  },
+
+  updateComment: async (boardId: string, noteId: string, commentId: string, data: {
+    content: string;
+    mentions?: string[];
+  }) => {
+    return apiClient.put<NoteCommentDetail>(`/boards/${boardId}/notes/${noteId}/comments/${commentId}`, data);
+  },
+
+  deleteComment: async (boardId: string, noteId: string, commentId: string) => {
+    return apiClient.delete<{ message: string }>(`/boards/${boardId}/notes/${noteId}/comments/${commentId}`);
+  },
+
+  toggleResolved: async (boardId: string, noteId: string, commentId: string) => {
+    return apiClient.post<NoteCommentDetail>(`/boards/${boardId}/notes/${noteId}/comments/${commentId}/resolve`);
+  },
+};
+
 export const noteAPI = {
   getTree: async (boardId: string) => {
     return apiClient.get<NoteTreeItem[]>(`/boards/${boardId}/notes`);
@@ -3687,5 +3800,31 @@ export const noteAPI = {
 export const publicNoteAPI = {
   getSharedNote: async (shareToken: string) => {
     return apiClient.get<SharedNote>(`/public/notes/${shareToken}`);
+  },
+};
+
+// ========================================
+// Task Dependency API
+// ========================================
+
+import type { TaskDependency } from '../types';
+
+export const taskDependencyAPI = {
+  // 보드의 모든 의존성 조회
+  getByBoard: async (boardId: string): Promise<TaskDependency[]> => {
+    return apiClient.get(`/boards/${boardId}/task-dependencies`);
+  },
+
+  // 의존성 생성
+  create: async (
+    boardId: string,
+    data: { predecessor_id: string; successor_id: string }
+  ): Promise<TaskDependency> => {
+    return apiClient.post(`/boards/${boardId}/task-dependencies`, data);
+  },
+
+  // 의존성 삭제
+  delete: async (boardId: string, dependencyId: string): Promise<void> => {
+    return apiClient.delete(`/boards/${boardId}/task-dependencies/${dependencyId}`);
   },
 };

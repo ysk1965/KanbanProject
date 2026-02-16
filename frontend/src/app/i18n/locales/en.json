@@ -1118,7 +1118,13 @@
       "deleteConfirm": "Delete this emoji?",
       "maxSize": "PNG, GIF, WebP · Max 128KB",
       "adminOnly": "Only admins can add emojis"
-    }
+    },
+    "aiSummarize": "AI Summary",
+    "aiSummaryTitle": "AI Comment Summary",
+    "aiDecisions": "Decisions",
+    "aiOpenQuestions": "Open Questions",
+    "aiActionItems": "Action Items",
+    "checklist": "Checklist"
   },
   "activity": {
     "title": "Activity Log",
@@ -1438,7 +1444,21 @@
     "saveChangesDesc": "You have unsaved changes. Closing without saving will discard them.",
     "discard": "Don't save",
     "deleteTitle": "Delete this feature?",
-    "deleteDesc": "This feature and all subtasks will be deleted. This action cannot be undone."
+    "deleteDesc": "This feature and all subtasks will be deleted. This action cannot be undone.",
+    "aiDecompose": "AI Task Decompose",
+    "aiDecomposeTitle": "AI Task Decompose",
+    "aiAnalyzing": "AI is analyzing the feature...",
+    "aiError": "An error occurred during AI analysis. Please try again.",
+    "aiRetry": "Retry",
+    "aiNoSuggestions": "No tasks to generate.",
+    "aiSelectAll": "Select All",
+    "aiDeselectAll": "Deselect All",
+    "aiSelectedCount": "{{count}} items selected",
+    "aiAlreadyExists": "Already exists",
+    "aiApply": "Apply",
+    "aiApplying": "Applying...",
+    "aiApplySuccess": "{{tasks}} tasks and {{checklists}} checklists created.",
+    "aiApplyDone": "Done"
   },
   "weeklySchedule": {
     "day": "Day",

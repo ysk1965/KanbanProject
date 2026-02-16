@@ -278,6 +278,18 @@ export interface Task {
 }
 
 // ========================================
+// 태스크 의존성 타입 (FS: Finish-to-Start)
+// ========================================
+
+export interface TaskDependency {
+  id: string;
+  predecessor_id: string;
+  successor_id: string;
+  dependency_type: string;
+  created_at: string;
+}
+
+// ========================================
 // 마일스톤 타입
 // ========================================
 
