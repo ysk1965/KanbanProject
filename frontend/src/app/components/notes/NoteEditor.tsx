@@ -549,7 +549,7 @@ function CollabNoteEditor({
         {/* Editor with block hover overlay */}
         <div
           ref={editorContainerRef}
-          className="relative"
+          className="relative min-h-[60vh]"
           onMouseMove={handleEditorMouseMove}
           onMouseLeave={() => {
             hoveredBlockIdRef.current = null;
@@ -878,10 +878,12 @@ function FallbackNoteEditor({ boardId, note, tags, canEdit, onSave, onTagsChange
         </div>
       </div>
       <div className="flex-1 overflow-y-auto">
-        <BlockNoteView editor={editor} theme="dark" editable={canEdit} onChange={() => { setHasChanges(true); setAutoSaved(false); }}>
-          <SuggestionMenuController triggerCharacter="/" getItems={async (query) => filterSuggestionItems(slashMenuItems, query)} />
-          <SuggestionMenuController triggerCharacter="@" getItems={getMentionItems} />
-        </BlockNoteView>
+        <div className="min-h-[60vh]">
+          <BlockNoteView editor={editor} theme="dark" editable={canEdit} onChange={() => { setHasChanges(true); setAutoSaved(false); }}>
+            <SuggestionMenuController triggerCharacter="/" getItems={async (query) => filterSuggestionItems(slashMenuItems, query)} />
+            <SuggestionMenuController triggerCharacter="@" getItems={getMentionItems} />
+          </BlockNoteView>
+        </div>
 
         {/* Bottom Confluence-style Comments Panel */}
         {fallbackCurrentUser && (

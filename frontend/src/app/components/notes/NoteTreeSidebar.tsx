@@ -1,4 +1,4 @@
-import { useState, useCallback, Fragment } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronRight, ChevronDown, FileText, Folder, FolderOpen, MoreHorizontal, Pencil, Trash2, FolderPlus, FilePlus, GripVertical } from 'lucide-react';
 import {
@@ -29,6 +29,20 @@ interface NoteTreeSidebarProps {
   canEdit: boolean;
 }
 
+type DropZone = 'before' | 'inside' | 'after';
+
+interface DropTargetInfo {
+  id: string;
+  zone: DropZone;
+}
+
+const MAX_DEPTH = 4; // depth 0~4 = 5 levels
+
+function getMaxSubtreeDepth(item: NoteTreeItem): number {
+  if (!item.children || item.children.length === 0) return 0;
+  return 1 + Math.max(...item.children.map(getMaxSubtreeDepth));
+}
+
 export function NoteTreeSidebar({
   tree,
   selectedNoteId,
@@ -42,7 +56,8 @@ export function NoteTreeSidebar({
   canEdit,
 }: NoteTreeSidebarProps) {
   const [activeItem, setActiveItem] = useState<NoteTreeItem | null>(null);
-  const [overId, setOverId] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<DropTargetInfo | null>(null);
+  const pointerYRef = useRef<number>(0);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -71,57 +86,109 @@ export function NoteTreeSidebar({
     return false;
   };
 
+  // Track pointer Y during drag for zone calculation
+  useEffect(() => {
+    if (!activeItem) return;
+    const onPointerMove = (e: PointerEvent) => {
+      pointerYRef.current = e.clientY;
+    };
+    window.addEventListener('pointermove', onPointerMove);
+    return () => window.removeEventListener('pointermove', onPointerMove);
+  }, [activeItem]);
+
   const handleDragStart = (event: DragStartEvent) => {
     const item = flatMap.get(event.active.id as string);
     if (item) setActiveItem(item);
   };
 
   const handleDragOver = (event: DragOverEvent) => {
-    setOverId(event.over?.id as string | null);
+    const { over } = event;
+    if (!over || !activeItem) {
+      setDropTarget(null);
+      return;
+    }
+
+    const overId = over.id as string;
+
+    if (overId === 'root-drop-zone') {
+      setDropTarget({ id: 'root-drop-zone', zone: 'inside' });
+      return;
+    }
+
+    if (overId === activeItem.id || isDescendant(activeItem.id, overId)) {
+      setDropTarget(null);
+      return;
+    }
+
+    const overItem = flatMap.get(overId);
+    if (!overItem) {
+      setDropTarget(null);
+      return;
+    }
+
+    // Calculate zone from pointer Y position within element
+    const rect = over.rect;
+    const pointerY = pointerYRef.current;
+    const ratio = Math.max(0, Math.min(1, (pointerY - rect.top) / rect.height));
+
+    let zone: DropZone;
+    if (overItem.type === 'FOLDER') {
+      if (ratio < 0.25) zone = 'before';
+      else if (ratio > 0.75) zone = 'after';
+      else zone = 'inside';
+
+      // Depth validation: prevent nesting if it would exceed max depth
+      if (zone === 'inside') {
+        const maxSubDepth = activeItem.type === 'FOLDER' ? getMaxSubtreeDepth(activeItem) : 0;
+        if (overItem.depth + 1 + maxSubDepth > MAX_DEPTH) {
+          zone = ratio < 0.5 ? 'before' : 'after';
+        }
+      }
+    } else {
+      zone = ratio < 0.5 ? 'before' : 'after';
+    }
+
+    setDropTarget({ id: overId, zone });
   };
 
-  const handleDragEnd = (event: DragEndEvent) => {
-    const currentActive = activeItem;
+  const handleDragEnd = (_event: DragEndEvent) => {
+    const target = dropTarget;
+    const dragged = activeItem;
     setActiveItem(null);
-    setOverId(null);
+    setDropTarget(null);
 
-    const { active, over } = event;
-    if (!over || active.id === over.id || !currentActive) return;
+    if (!target || !dragged) return;
 
-    const draggedId = active.id as string;
-    const targetId = over.id as string;
+    if (target.id === 'root-drop-zone') {
+      onMove(dragged.id, null, 9999);
+      return;
+    }
 
-    // Prevent dropping on self or descendants
-    if (isDescendant(draggedId, targetId)) return;
+    const targetItem = flatMap.get(target.id);
+    if (!targetItem) return;
 
-    // Check if target is a reorder drop indicator
-    const overData = over.data?.current as { type?: string; parentId?: string | null; position?: number } | undefined;
-    if (overData?.type === 'reorder') {
-      // Don't move to same position
-      const draggedItem = flatMap.get(draggedId);
-      if (draggedItem?.parent_id === overData.parentId) {
-        // Same parent: check if actually changing position
-        const siblings = overData.parentId
-          ? flatMap.get(overData.parentId)?.children || []
-          : tree;
-        const currentIndex = siblings.findIndex(s => s.id === draggedId);
-        const targetPos = overData.position ?? 0;
-        if (currentIndex === targetPos || currentIndex === targetPos - 1) return;
+    const getSiblings = () =>
+      targetItem.parent_id
+        ? flatMap.get(targetItem.parent_id)?.children || []
+        : tree;
+
+    switch (target.zone) {
+      case 'before': {
+        const siblings = getSiblings();
+        const targetIndex = siblings.findIndex(s => s.id === target.id);
+        onMove(dragged.id, targetItem.parent_id, targetIndex);
+        break;
       }
-      onMove(draggedId, overData.parentId ?? null, overData.position ?? 0);
-      return;
-    }
-
-    // Drop on root zone
-    if (targetId === 'root-drop-zone') {
-      onMove(draggedId, null, 9999);
-      return;
-    }
-
-    // Drop on a folder
-    const target = flatMap.get(targetId);
-    if (target && target.type === 'FOLDER') {
-      onMove(draggedId, targetId, 9999);
+      case 'inside': {
+        onMove(dragged.id, target.id, 9999);
+        break;
+      }
+      case 'after': {
+        const siblings = getSiblings();
+        const targetIndex = siblings.findIndex(s => s.id === target.id);
+        onMove(dragged.id, targetItem.parent_id, targetIndex + 1);
+        break;
+      }
     }
   };
 
@@ -141,8 +208,8 @@ export function NoteTreeSidebar({
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <RootDropZone isOver={overId === 'root-drop-zone'} canEdit={canEdit}>
-        <div className="space-y-0">
+      <RootDropZone isOver={dropTarget?.id === 'root-drop-zone'} canEdit={canEdit}>
+        <div>
           <SiblingGroup
             items={filteredTree}
             parentId={null}
@@ -154,8 +221,8 @@ export function NoteTreeSidebar({
             onRename={onRename}
             canEdit={canEdit}
             depth={0}
-            dragOverId={overId}
             activeId={activeItem?.id ?? null}
+            dropTarget={dropTarget}
           />
         </div>
       </RootDropZone>
@@ -176,34 +243,9 @@ export function NoteTreeSidebar({
   );
 }
 
-// Drop indicator between items for reordering
-function DropIndicator({ id, parentId, position, isActive }: {
-  id: string;
-  parentId: string | null;
-  position: number;
-  isActive: boolean;
-}) {
-  const { setNodeRef, isOver } = useDroppable({
-    id,
-    data: { type: 'reorder', parentId, position },
-    disabled: !isActive,
-  });
-
-  if (!isActive) return null;
-
-  return (
-    <div
-      ref={setNodeRef}
-      className={`h-1 mx-1 my-0 rounded-full transition-all ${
-        isOver ? 'bg-bridge-accent h-0.5 mx-2' : ''
-      }`}
-    />
-  );
-}
-
 function SiblingGroup({
   items, parentId, selectedNoteId, onSelect, onCreateFolder, onCreateDocument,
-  onDelete, onRename, canEdit, depth, dragOverId, activeId,
+  onDelete, onRename, canEdit, depth, activeId, dropTarget,
 }: {
   items: NoteTreeItem[];
   parentId: string | null;
@@ -215,43 +257,27 @@ function SiblingGroup({
   onRename: (noteId: string, newTitle: string) => void;
   canEdit: boolean;
   depth: number;
-  dragOverId: string | null;
   activeId: string | null;
+  dropTarget: DropTargetInfo | null;
 }) {
-  const isDragging = activeId !== null;
-  const parentKey = parentId || 'root';
-
   return (
     <>
-      {items.map((item, index) => (
-        <Fragment key={item.id}>
-          <DropIndicator
-            id={`reorder-${parentKey}-${index}`}
-            parentId={parentId}
-            position={index}
-            isActive={isDragging}
-          />
-          <TreeItemComponent
-            item={item}
-            selectedNoteId={selectedNoteId}
-            onSelect={onSelect}
-            onCreateFolder={onCreateFolder}
-            onCreateDocument={onCreateDocument}
-            onDelete={onDelete}
-            onRename={onRename}
-            canEdit={canEdit}
-            depth={depth}
-            dragOverId={dragOverId}
-            activeId={activeId}
-          />
-        </Fragment>
+      {items.map((item) => (
+        <TreeItemComponent
+          key={item.id}
+          item={item}
+          selectedNoteId={selectedNoteId}
+          onSelect={onSelect}
+          onCreateFolder={onCreateFolder}
+          onCreateDocument={onCreateDocument}
+          onDelete={onDelete}
+          onRename={onRename}
+          canEdit={canEdit}
+          depth={depth}
+          activeId={activeId}
+          dropTarget={dropTarget}
+        />
       ))}
-      <DropIndicator
-        id={`reorder-${parentKey}-${items.length}`}
-        parentId={parentId}
-        position={items.length}
-        isActive={isDragging}
-      />
     </>
   );
 }
@@ -278,8 +304,8 @@ interface TreeItemComponentProps {
   onRename: (noteId: string, newTitle: string) => void;
   canEdit: boolean;
   depth: number;
-  dragOverId: string | null;
   activeId: string | null;
+  dropTarget: DropTargetInfo | null;
 }
 
 function TreeItemComponent({
@@ -292,8 +318,8 @@ function TreeItemComponent({
   onRename,
   canEdit,
   depth,
-  dragOverId,
   activeId,
+  dropTarget,
 }: TreeItemComponentProps) {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(true);
@@ -305,22 +331,39 @@ function TreeItemComponent({
   const isSelected = selectedNoteId === item.id;
   const hasChildren = item.children && item.children.length > 0;
   const isDragging = activeId === item.id;
-  const isDropTarget = isFolder && dragOverId === item.id && activeId !== item.id;
 
-  const { attributes, listeners, setNodeRef: setDragRef, transform } = useDraggable({
+  // Drop zone indicators
+  const isBeforeTarget = dropTarget?.id === item.id && dropTarget?.zone === 'before';
+  const isInsideTarget = dropTarget?.id === item.id && dropTarget?.zone === 'inside';
+  const isAfterTarget = dropTarget?.id === item.id && dropTarget?.zone === 'after';
+
+  // Auto-expand collapsed folders when dragging over "inside" zone
+  useEffect(() => {
+    if (isInsideTarget && isFolder && !expanded) {
+      const timer = setTimeout(() => setExpanded(true), 600);
+      return () => clearTimeout(timer);
+    }
+  }, [isInsideTarget, isFolder, expanded]);
+
+  const { attributes, listeners, setNodeRef: setDragRef } = useDraggable({
     id: item.id,
     disabled: !canEdit || renaming,
   });
 
-  const { setNodeRef: setDropRef, isOver: isDirectlyOver } = useDroppable({
+  // All items are droppable (folders: before/inside/after, documents: before/after)
+  const { setNodeRef: setDropRef } = useDroppable({
     id: item.id,
-    disabled: !canEdit || !isFolder || activeId === item.id,
+    disabled: !canEdit || activeId === item.id,
   });
 
+  // Combine drag + drop refs on the row element
+  const setRef = useCallback((node: HTMLElement | null) => {
+    setDragRef(node);
+    setDropRef(node);
+  }, [setDragRef, setDropRef]);
+
   const handleClick = () => {
-    if (isFolder) {
-      setExpanded(!expanded);
-    }
+    if (isFolder) setExpanded(!expanded);
     onSelect(item.id);
   };
 
@@ -331,36 +374,34 @@ function TreeItemComponent({
     setRenaming(false);
   };
 
-  // Combine refs for folders (both draggable + droppable)
-  const setRef = useCallback((node: HTMLElement | null) => {
-    setDragRef(node);
-    if (isFolder) setDropRef(node);
-  }, [setDragRef, setDropRef, isFolder]);
-
-  const style = transform
-    ? { transform: `translate(${transform.x}px, ${transform.y}px)` }
-    : undefined;
+  const indentPx = depth * 16 + 6;
 
   return (
-    <div ref={isFolder ? undefined : setDragRef} style={!isFolder ? style : undefined}>
+    <div className={isDragging ? 'opacity-30' : ''}>
+      {/* Before drop indicator line */}
+      {isBeforeTarget && (
+        <div
+          className="h-0.5 rounded-full bg-bridge-accent my-0.5"
+          style={{ marginLeft: indentPx, marginRight: 8 }}
+        />
+      )}
+
+      {/* Item row — draggable + droppable */}
       <div
-        ref={isFolder ? setRef : undefined}
-        style={isFolder ? style : undefined}
+        ref={setRef}
         className={`group flex items-center gap-1 px-1.5 py-1 rounded-md cursor-pointer transition-colors text-xs ${
-          isDragging
-            ? 'opacity-30'
-            : isDropTarget || isDirectlyOver
-              ? 'bg-bridge-accent/20 ring-1 ring-bridge-accent/40 text-white'
-              : isSelected
-                ? 'bg-bridge-accent/15 text-white'
-                : 'text-slate-300 hover:bg-white/5 hover:text-white'
+          isInsideTarget
+            ? 'bg-bridge-accent/20 ring-1 ring-bridge-accent/40 text-white'
+            : isSelected
+              ? 'bg-bridge-accent/15 text-white'
+              : 'text-slate-300 hover:bg-white/5 hover:text-white'
         }`}
-        style={{ ...style, paddingLeft: `${depth * 16 + 6}px` }}
+        style={{ paddingLeft: `${indentPx}px` }}
         {...attributes}
         {...listeners}
         onClick={handleClick}
       >
-        {/* Drag handle indicator */}
+        {/* Drag handle */}
         {canEdit && !renaming && (
           <span className="flex-shrink-0 opacity-0 group-hover:opacity-40 transition-opacity cursor-grab active:cursor-grabbing">
             <GripVertical size={10} />
@@ -423,7 +464,7 @@ function TreeItemComponent({
                   >
                     <Pencil size={12} /> {t('notes.rename', '이름 변경')}
                   </button>
-                  {isFolder && item.depth < 4 && (
+                  {isFolder && item.depth < MAX_DEPTH && (
                     <>
                       <button
                         onClick={(e) => { e.stopPropagation(); onCreateDocument(item.id); setMenuOpen(false); }}
@@ -459,6 +500,14 @@ function TreeItemComponent({
         )}
       </div>
 
+      {/* After drop indicator line */}
+      {isAfterTarget && (
+        <div
+          className="h-0.5 rounded-full bg-bridge-accent my-0.5"
+          style={{ marginLeft: indentPx, marginRight: 8 }}
+        />
+      )}
+
       {/* Children */}
       {isFolder && expanded && hasChildren && (
         <div>
@@ -473,8 +522,8 @@ function TreeItemComponent({
             onRename={onRename}
             canEdit={canEdit}
             depth={depth + 1}
-            dragOverId={dragOverId}
             activeId={activeId}
+            dropTarget={dropTarget}
           />
         </div>
       )}
