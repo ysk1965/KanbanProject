@@ -1,5 +1,6 @@
-# Deploy to Dev Environment
-name: Deploy to Dev
+# Deploy to All Environments (Dev + Prod)
+# Single deployment from develop branch to both domains
+name: Deploy
 
 on:
   workflow_run:
@@ -12,7 +13,8 @@ env:
   AWS_REGION: ap-northeast-2
   EB_APPLICATION_NAME: kanban-dev
   EB_ENVIRONMENT_NAME: kanban-dev-env
-  S3_BUCKET: kanban-dev-frontend
+  S3_BUCKET_DEV: kanban-dev-frontend
+  S3_BUCKET_PROD: kanban-testprod-frontend
   JAVA_VERSION: '21'
   NODE_VERSION: '20'
 
@@ -108,14 +110,14 @@ jobs:
           aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           application_name: ${{ env.EB_APPLICATION_NAME }}
           environment_name: ${{ env.EB_ENVIRONMENT_NAME }}
-          version_label: dev-${{ github.sha }}
+          version_label: ${{ github.sha }}
           region: ${{ env.AWS_REGION }}
           deployment_package: backend/deploy.zip
           wait_for_deployment: true
           wait_for_environment_recovery: 120
           use_existing_version_if_available: true
 
-  # Deploy Frontend to S3
+  # Deploy Frontend to S3 (Dev + Prod)
   deploy-frontend:
     name: Deploy Frontend
     runs-on: ubuntu-latest
@@ -153,21 +155,38 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Deploy to S3
+      - name: Deploy to S3 (Dev - milkyway.pe.kr)
         run: |
-          aws s3 sync frontend/dist s3://${{ env.S3_BUCKET }} \
+          aws s3 sync frontend/dist s3://${{ env.S3_BUCKET_DEV }} \
             --delete \
             --cache-control "max-age=31536000,public" \
             --exclude "index.html"
 
-          aws s3 cp frontend/dist/index.html s3://${{ env.S3_BUCKET }}/index.html \
+          aws s3 cp frontend/dist/index.html s3://${{ env.S3_BUCKET_DEV }}/index.html \
             --cache-control "no-cache,no-store,must-revalidate"
 
-      - name: Invalidate CloudFront (if configured)
+      - name: Deploy to S3 (Prod - bridgespots.com)
+        run: |
+          aws s3 sync frontend/dist s3://${{ env.S3_BUCKET_PROD }} \
+            --delete \
+            --cache-control "max-age=31536000,public" \
+            --exclude "index.html"
+
+          aws s3 cp frontend/dist/index.html s3://${{ env.S3_BUCKET_PROD }}/index.html \
+            --cache-control "no-cache,no-store,must-revalidate"
+
+      - name: Invalidate CloudFront (Dev - milkyway.pe.kr)
         if: vars.DEV_CLOUDFRONT_DISTRIBUTION_ID != ''
         run: |
           aws cloudfront create-invalidation \
             --distribution-id ${{ vars.DEV_CLOUDFRONT_DISTRIBUTION_ID }} \
+            --paths "/*"
+
+      - name: Invalidate CloudFront (Prod - bridgespots.com)
+        if: vars.TESTPROD_CLOUDFRONT_DISTRIBUTION_ID != ''
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ vars.TESTPROD_CLOUDFRONT_DISTRIBUTION_ID }} \
             --paths "/*"
 
   # Notify deployment status
@@ -187,12 +206,12 @@ jobs:
           echo "Frontend: ${FE_RESULT}"
 
           if [ "$BE_RESULT" == "failure" ] || [ "$FE_RESULT" == "failure" ]; then
-            echo "❌ Dev deployment failed!"
+            echo "❌ Deployment failed!"
             exit 1
           fi
 
-          echo "✅ Dev deployment completed!"
+          echo "✅ Deployment completed!"
           [ "$BE_RESULT" == "skipped" ] && echo "  Backend: skipped (no changes)" || true
-          [ "$BE_RESULT" == "success" ] && echo "  Backend: deployed" || true
+          [ "$BE_RESULT" == "success" ] && echo "  Backend: deployed to EB" || true
           [ "$FE_RESULT" == "skipped" ] && echo "  Frontend: skipped (no changes)" || true
-          [ "$FE_RESULT" == "success" ] && echo "  Frontend: deployed" || true
+          [ "$FE_RESULT" == "success" ] && echo "  Frontend: deployed to milkyway.pe.kr + bridgespots.com" || true
