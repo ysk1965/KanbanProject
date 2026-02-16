@@ -37,25 +37,31 @@ public class NoteService {
     public List<NoteResponse.TreeItem> getNoteTree(String boardId, String userId) {
         boardService.checkViewerOrAbove(boardId, userId);
 
-        List<Note> allNotes = noteRepository.findAllByBoardIdNotDeleted(boardId);
-        List<String> noteIds = allNotes.stream().map(Note::getId).toList();
+        try {
+            List<Note> allNotes = noteRepository.findAllByBoardIdNotDeleted(boardId);
+            log.info("getNoteTree: boardId={}, noteCount={}", boardId, allNotes.size());
+            List<String> noteIds = allNotes.stream().map(Note::getId).toList();
 
-        // Batch load tag mappings
-        Map<String, List<NoteResponse.TagInfo>> tagMap = getTagMapForNotes(noteIds);
+            // Batch load tag mappings
+            Map<String, List<NoteResponse.TagInfo>> tagMap = getTagMapForNotes(noteIds);
 
-        // Build tree
-        Map<String, List<Note>> childrenMap = allNotes.stream()
-                .filter(n -> n.getParent() != null)
-                .collect(Collectors.groupingBy(n -> n.getParent().getId()));
+            // Build tree
+            Map<String, List<Note>> childrenMap = allNotes.stream()
+                    .filter(n -> n.getParent() != null)
+                    .collect(Collectors.groupingBy(n -> n.getParent().getId()));
 
-        List<Note> roots = allNotes.stream()
-                .filter(n -> n.getParent() == null)
-                .sorted(Comparator.comparingInt(Note::getPosition))
-                .toList();
+            List<Note> roots = allNotes.stream()
+                    .filter(n -> n.getParent() == null)
+                    .sorted(Comparator.comparingInt(Note::getPosition))
+                    .toList();
 
-        return roots.stream()
-                .map(root -> buildTreeItem(root, childrenMap, tagMap))
-                .toList();
+            return roots.stream()
+                    .map(root -> buildTreeItem(root, childrenMap, tagMap))
+                    .toList();
+        } catch (Exception e) {
+            log.error("getNoteTree failed: boardId={}, userId={}", boardId, userId, e);
+            throw e;
+        }
     }
 
     public List<NoteResponse.ListItem> getNoteList(String boardId, String userId) {
