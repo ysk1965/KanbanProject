@@ -19,7 +19,34 @@ public class SchemaMigrationRunner implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
+        addMissingNotesColumns();
         fixNotificationTypeCheck();
+    }
+
+    /**
+     * notes 테이블에 누락된 컬럼 추가.
+     * ddl-auto: update가 NOT NULL 컬럼을 기존 데이터 테이블에 추가 못하는 문제 해결.
+     */
+    private void addMissingNotesColumns() {
+        addColumnIfNotExists("notes", "is_shared", "BOOLEAN NOT NULL DEFAULT FALSE");
+        addColumnIfNotExists("notes", "share_token", "VARCHAR(36) UNIQUE");
+        addColumnIfNotExists("notes", "ai_suggestions", "TEXT");
+        addColumnIfNotExists("notes", "ai_content_snapshot", "TEXT");
+    }
+
+    private void addColumnIfNotExists(String table, String column, String definition) {
+        try {
+            boolean exists = Boolean.TRUE.equals(jdbcTemplate.queryForObject(
+                "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = ? AND column_name = ?)",
+                Boolean.class, table, column
+            ));
+            if (!exists) {
+                jdbcTemplate.execute("ALTER TABLE " + table + " ADD COLUMN " + column + " " + definition);
+                log.info("Schema migration: added column {}.{}", table, column);
+            }
+        } catch (Exception e) {
+            log.warn("Schema migration: add column {}.{} - {}", table, column, e.getMessage());
+        }
     }
 
     /**
@@ -43,7 +70,7 @@ public class SchemaMigrationRunner implements CommandLineRunner {
 
             jdbcTemplate.execute(
                 "ALTER TABLE notifications ADD CONSTRAINT notifications_type_check " +
-                "CHECK (type IN ('COMMENT_MENTION', 'CHECKLIST_ASSIGNED', 'TASK_COMMENT'))"
+                "CHECK (type IN ('COMMENT_MENTION', 'CHECKLIST_ASSIGNED', 'TASK_COMMENT', 'NOTE_COMMENT_MENTION'))"
             );
             log.info("Schema migration: notifications_type_check constraint recreated");
         } catch (Exception e) {
