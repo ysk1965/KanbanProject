@@ -51,7 +51,7 @@ export function AddBlockModal({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md bg-kanban-bg text-zinc-300 rounded-2xl border border-white/20 shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden animate-in zoom-in-95 duration-200"
+        className="w-full max-w-md bg-bridge-dark text-zinc-300 rounded-2xl border border-white/20 shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         {/* 헤더 */}
@@ -76,7 +76,7 @@ export function AddBlockModal({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="예: In Progress"
-              className="w-full bg-kanban-input border border-white/15 rounded-xl p-3 text-white placeholder-zinc-400 focus:outline-none focus:border-indigo-500/50 transition-all text-sm"
+              className="w-full bg-bridge-obsidian border border-white/15 rounded-xl p-3 text-white placeholder-zinc-400 focus:outline-none focus:border-indigo-500/50 transition-all text-sm"
               onKeyDown={(e) => {
                 if (e.nativeEvent.isComposing) return;
                 if (e.key === 'Enter') {
@@ -96,7 +96,7 @@ export function AddBlockModal({
                   type="button"
                   className={`w-8 h-8 rounded-full transition-all duration-300 ${
                     selectedColor === color.value
-                      ? 'ring-2 ring-white ring-offset-2 ring-offset-kanban-bg scale-110'
+                      ? 'ring-2 ring-white ring-offset-2 ring-offset-bridge-dark scale-110'
                       : 'opacity-50 hover:opacity-100 hover:scale-110'
                   }`}
                   style={{

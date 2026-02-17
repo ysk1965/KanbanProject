@@ -42,7 +42,7 @@ export function MonitoringCharts({ dashboard, history, aiUsage, openAIBilling }:
   const { t } = useTranslation();
 
   const tooltipStyle = {
-    backgroundColor: '#0F1419',
+    backgroundColor: 'var(--bridge-obsidian)',
     border: '1px solid rgba(255,255,255,0.1)',
     borderRadius: '12px',
     padding: '12px',

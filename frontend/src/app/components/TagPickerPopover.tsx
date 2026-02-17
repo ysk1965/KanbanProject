@@ -50,12 +50,12 @@ export function TagPickerPopover({
           </button>
         </PopoverTrigger>
         <PopoverContent
-          className="w-56 p-0 bg-kanban-card border-kanban-border"
+          className="w-56 p-0 bg-bridge-surface border-bridge-border"
           align="start"
           sideOffset={8}
         >
           {/* Search */}
-          <div className="p-2 border-b border-kanban-border/50">
+          <div className="p-2 border-b border-bridge-border/50">
             <div className="flex items-center gap-2 px-2 py-1.5 bg-white/5 rounded-lg">
               <Search size={12} className="text-slate-400 flex-shrink-0" />
               <input
@@ -96,7 +96,7 @@ export function TagPickerPopover({
           </div>
 
           {/* Manage tags link */}
-          <div className="border-t border-kanban-border/50 p-1">
+          <div className="border-t border-bridge-border/50 p-1">
             <button
               onClick={() => {
                 setIsOpen(false);

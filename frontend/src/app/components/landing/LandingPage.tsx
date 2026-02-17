@@ -473,7 +473,7 @@ export const LandingPage: React.FC = () => {
                   <button onClick={handleGetStarted} className="w-full py-8 bg-white/10 border border-white/20 rounded-full text-[12px] font-black uppercase tracking-widest text-white hover:bg-white hover:text-bridge-dark transition-all font-jakarta">{t('landing.pricing.basic.cta')}</button>
                 </div>
 
-                <div className="p-16 bg-bridge-slate rounded-[4rem] border-2 border-bridge-secondary/40 shadow-[0_0_120px_rgba(45,212,191,0.2)] flex flex-col items-center text-center transform scale-105 relative z-10 transition-all duration-700">
+                <div className="p-16 bg-bridge-obsidian rounded-[4rem] border-2 border-bridge-secondary/40 shadow-[0_0_120px_rgba(45,212,191,0.2)] flex flex-col items-center text-center transform scale-105 relative z-10 transition-all duration-700">
                   <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-bridge-secondary text-bridge-dark px-14 py-4 rounded-full text-[12px] font-black tracking-[0.5em] uppercase shadow-2xl font-jakarta">{t('landing.pricing.premium.name')}</div>
                   <div className="flex items-baseline gap-3 mb-8">
                     <span className="text-4xl text-bridge-secondary font-jakarta font-bold">$</span>

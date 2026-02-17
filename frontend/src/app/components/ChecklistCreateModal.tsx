@@ -180,7 +180,7 @@ export function ChecklistCreateModal({
 
   return (
     <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-kanban-bg rounded-2xl shadow-2xl w-[560px] min-h-[700px] max-h-[90vh] flex flex-col overflow-hidden border border-white/10">
+      <div className="bg-bridge-dark rounded-2xl shadow-2xl w-[560px] min-h-[700px] max-h-[90vh] flex flex-col overflow-hidden border border-white/10">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
           <h2 className="text-lg font-bold text-white">{t('dailySchedule.addTimeblock')}</h2>
@@ -236,7 +236,7 @@ export function ChecklistCreateModal({
                 <FileText className="inline h-4 w-4 mr-1 text-purple-400" />
                 {t('meeting.selectMeeting', { date: dateLabel })}
               </label>
-              <div className="border border-white/10 rounded-xl max-h-48 overflow-y-auto bg-kanban-card">
+              <div className="border border-white/10 rounded-xl max-h-48 overflow-y-auto bg-bridge-surface">
                 {isLoadingMeetings ? (
                   <div className="px-4 py-4 text-slate-400 flex items-center justify-center gap-2">
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -284,7 +284,7 @@ export function ChecklistCreateModal({
               <CheckSquare className="inline h-4 w-4 mr-1 text-bridge-accent" />
               {t('dailySchedule.selectFromToday', { date: dateLabel })}
             </label>
-            <div className="border border-white/10 rounded-xl max-h-64 overflow-y-auto bg-kanban-card">
+            <div className="border border-white/10 rounded-xl max-h-64 overflow-y-auto bg-bridge-surface">
               {isLoadingToday ? (
                 <div className="px-4 py-6 text-slate-400 flex items-center justify-center gap-2">
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -333,7 +333,7 @@ export function ChecklistCreateModal({
               <ClipboardList className="inline h-4 w-4 mr-1 text-bridge-secondary" />
               {t('dailySchedule.selectFromBoard')}
             </label>
-            <div className="border border-white/10 rounded-xl max-h-48 overflow-y-auto bg-kanban-card">
+            <div className="border border-white/10 rounded-xl max-h-48 overflow-y-auto bg-bridge-surface">
               {isLoadingBoardItems ? (
                 <div className="px-4 py-6 text-slate-400 flex items-center justify-center gap-2">
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -402,7 +402,7 @@ export function ChecklistCreateModal({
               <button
                 type="button"
                 onClick={() => setIsFeatureDropdownOpen(!isFeatureDropdownOpen)}
-                className="w-full flex items-center justify-between px-4 py-3 bg-kanban-card border border-white/10 rounded-xl text-left hover:border-white/20 transition-colors"
+                className="w-full flex items-center justify-between px-4 py-3 bg-bridge-surface border border-white/10 rounded-xl text-left hover:border-white/20 transition-colors"
               >
                 {isLoadingFeatures ? (
                   <span className="text-slate-400 flex items-center gap-2">
@@ -424,7 +424,7 @@ export function ChecklistCreateModal({
               </button>
 
               {isFeatureDropdownOpen && !isLoadingFeatures && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-kanban-card border border-white/10 rounded-xl shadow-xl z-10 max-h-72 overflow-y-auto">
+                <div className="absolute top-full left-0 right-0 mt-1 bg-bridge-surface border border-white/10 rounded-xl shadow-xl z-10 max-h-72 overflow-y-auto">
                   {features.length === 0 ? (
                     <div className="px-4 py-3 text-slate-400 text-sm">{t('dailySchedule.noFeatures')}</div>
                   ) : (
@@ -463,7 +463,7 @@ export function ChecklistCreateModal({
                 type="button"
                 onClick={() => selectedFeatureId && setIsTaskDropdownOpen(!isTaskDropdownOpen)}
                 disabled={!selectedFeatureId}
-                className={`w-full flex items-center justify-between px-4 py-3 bg-kanban-card border border-white/10 rounded-xl text-left transition-colors ${
+                className={`w-full flex items-center justify-between px-4 py-3 bg-bridge-surface border border-white/10 rounded-xl text-left transition-colors ${
                   !selectedFeatureId ? 'opacity-50 cursor-not-allowed' : 'hover:border-white/20'
                 }`}
               >
@@ -483,7 +483,7 @@ export function ChecklistCreateModal({
               </button>
 
               {isTaskDropdownOpen && !isLoadingTasks && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-kanban-card border border-white/10 rounded-xl shadow-xl z-10 max-h-72 overflow-y-auto">
+                <div className="absolute top-full left-0 right-0 mt-1 bg-bridge-surface border border-white/10 rounded-xl shadow-xl z-10 max-h-72 overflow-y-auto">
                   {tasks.length === 0 ? (
                     <div className="px-4 py-3 text-slate-400 text-sm">{t('dailySchedule.noTasks')}</div>
                   ) : (
@@ -517,7 +517,7 @@ export function ChecklistCreateModal({
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder={t('dailySchedule.newChecklistPlaceholder')}
-                  className="w-full px-4 py-3 bg-kanban-card border border-white/10 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+                  className="w-full px-4 py-3 bg-bridge-surface border border-white/10 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
                 />
               </div>
             </>

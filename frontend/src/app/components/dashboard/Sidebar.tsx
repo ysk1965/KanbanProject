@@ -33,10 +33,10 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
             className="flex items-center gap-2 group cursor-pointer"
             onClick={() => handleNavigate('/')}
           >
-            <img src="/BridgeSpotsIcon.png" alt="BRIDGE SPOTS" className="w-8 h-8 rounded-lg shadow-lg shadow-[#2DD4BF]/20" />
+            <img src="/BridgeSpotsIcon.png" alt="BRIDGE SPOTS" className="w-8 h-8 rounded-lg shadow-lg shadow-bridge-secondary/20" />
             <div className="flex flex-col leading-none">
               <span className="text-lg font-bold tracking-tighter font-serif">BRIDGE</span>
-              <span className="text-[9px] font-bold text-[#2DD4BF] tracking-[0.25em] uppercase">SPOTS</span>
+              <span className="text-[9px] font-bold text-bridge-secondary tracking-[0.25em] uppercase">SPOTS</span>
             </div>
             <ChevronRight
               size={14}
@@ -62,7 +62,7 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
               onClick={() => handleNavigate(item.path)}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
                 item.active
-                  ? 'bg-[#2DD4BF]/10 text-[#2DD4BF] shadow-[inset_0_0_20px_rgba(45,212,191,0.05)]'
+                  ? 'bg-bridge-secondary/10 text-bridge-secondary shadow-[inset_0_0_20px_rgba(45,212,191,0.05)]'
                   : 'text-slate-400 hover:bg-white/5 hover:text-white'
               }`}
             >
@@ -79,7 +79,7 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
   return (
     <>
       {/* 데스크탑 사이드바 */}
-      <aside className="w-64 h-full hidden lg:flex flex-col border-r border-white/[0.06] bg-[#060a12]/50 backdrop-blur-sm">
+      <aside className="w-64 h-full hidden lg:flex flex-col border-r border-white/[0.06] bg-bridge-dark/50 backdrop-blur-sm">
         {sidebarContent}
       </aside>
 
@@ -102,7 +102,7 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
               animate={{ x: 0 }}
               exit={{ x: -280 }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed left-0 top-0 w-64 h-full bg-[#060a12] border-r border-white/[0.06] z-50 lg:hidden"
+              className="fixed left-0 top-0 w-64 h-full bg-bridge-dark border-r border-white/[0.06] z-50 lg:hidden"
             >
               {sidebarContent}
             </motion.aside>

@@ -158,29 +158,35 @@ public class CommentService {
             processFileKeys(fileKeys, boardId, comment);
         }
 
-        notificationService.createMentionNotifications(comment, user, board);
-        slackNotificationService.sendMentionNotifications(comment, user, board, originUrl);
+        // 알림 전송 (실패해도 댓글 생성은 유지)
+        try {
+            notificationService.createMentionNotifications(comment, user, board);
+            slackNotificationService.sendMentionNotifications(comment, user, board, originUrl);
 
-        // TASK_COMMENT: 태스크 관련자에게 알림 (생성자 + 체크리스트 배정자, 멘션 수신자 제외)
-        Set<String> mentionedUserIds = new HashSet<>();
-        if (comment.getMentions() != null && !comment.getMentions().isEmpty()) {
-            Arrays.stream(comment.getMentions().split(","))
-                    .map(String::trim)
-                    .forEach(mentionedUserIds::add);
-        }
+            // TASK_COMMENT: 태스크 관련자에게 알림 (생성자 + 체크리스트 배정자, 멘션 수신자 제외)
+            Set<String> mentionedUserIds = new HashSet<>();
+            if (comment.getMentions() != null && !comment.getMentions().isEmpty()) {
+                Arrays.stream(comment.getMentions().split(","))
+                        .map(String::trim)
+                        .forEach(mentionedUserIds::add);
+            }
 
-        Set<String> taskRelatedUserIdSet = new LinkedHashSet<>();
-        // 태스크 생성자
-        if (task.getCreatedBy() != null) {
-            taskRelatedUserIdSet.add(task.getCreatedBy().getId());
-        }
-        // 체크리스트 배정자들
-        taskRelatedUserIdSet.addAll(checklistItemRepository.findDistinctAssigneeIdsByTaskId(taskId));
-        List<String> taskRelatedUserIds = new ArrayList<>(taskRelatedUserIdSet);
+            Set<String> taskRelatedUserIdSet = new LinkedHashSet<>();
+            // 태스크 생성자
+            if (task.getCreatedBy() != null) {
+                taskRelatedUserIdSet.add(task.getCreatedBy().getId());
+            }
+            // 체크리스트 배정자들
+            taskRelatedUserIdSet.addAll(checklistItemRepository.findDistinctAssigneeIdsByTaskId(taskId));
+            List<String> taskRelatedUserIds = new ArrayList<>(taskRelatedUserIdSet);
 
-        if (!taskRelatedUserIds.isEmpty()) {
-            notificationService.createTaskCommentNotifications(comment, user, board, taskRelatedUserIds, mentionedUserIds);
-            slackNotificationService.sendTaskCommentNotifications(comment, user, board, taskRelatedUserIds, mentionedUserIds, originUrl);
+            if (!taskRelatedUserIds.isEmpty()) {
+                notificationService.createTaskCommentNotifications(comment, user, board, taskRelatedUserIds, mentionedUserIds);
+                slackNotificationService.sendTaskCommentNotifications(comment, user, board, taskRelatedUserIds, mentionedUserIds, originUrl);
+            }
+        } catch (Exception e) {
+            log.error("Failed to send comment notifications for comment: {} on task: {}: {}",
+                    comment.getId(), taskId, e.getMessage(), e);
         }
 
         log.info("Comment created: {} on task: {} by user: {} with {} attachments",

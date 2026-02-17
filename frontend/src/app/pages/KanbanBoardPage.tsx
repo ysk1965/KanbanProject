@@ -1652,7 +1652,7 @@ export function KanbanBoardPage() {
             />
           </main>
         ) : viewMode === 'kanban' ? (
-          <main className="flex-1 flex flex-col overflow-hidden bg-kanban-bg">
+          <main className="flex-1 flex flex-col overflow-hidden bg-bridge-dark">
             {features.length === 0 ? (
               <EmptyBoardGuide onCreateFeature={() => setIsAddFeatureModalOpen(true)} />
             ) : (
@@ -1733,7 +1733,7 @@ export function KanbanBoardPage() {
                   {block.fixed_type === 'TASK' && (
                     <button
                       onClick={() => setIsAddBlockModalOpen(true)}
-                      className="h-10 w-10 mt-4 flex items-center justify-center rounded-xl border border-dashed border-kanban-border text-zinc-500 hover:text-white hover:border-indigo-500/50 hover:bg-indigo-500/10 transition-all"
+                      className="h-10 w-10 mt-4 flex items-center justify-center rounded-xl border border-dashed border-bridge-border text-zinc-500 hover:text-white hover:border-indigo-500/50 hover:bg-indigo-500/10 transition-all"
                     >
                       <Plus className="h-5 w-5" />
                     </button>
@@ -2050,7 +2050,7 @@ function MobileTabButton({ active, onClick, label, icon, locked }: {
       onClick={onClick}
       className={`relative flex flex-col items-center gap-0.5 min-w-[3rem] px-2 py-1 rounded-lg transition-all ${
         active
-          ? 'text-[#2DD4BF]'
+          ? 'text-bridge-secondary'
           : locked
             ? 'text-zinc-700'
             : 'text-zinc-500'

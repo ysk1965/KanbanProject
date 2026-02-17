@@ -466,7 +466,7 @@ export function TaskDetailModal({
   return (
     <>
       <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="sm:max-w-[1100px] max-h-[85vh] flex flex-col overflow-hidden bg-kanban-card border border-kanban-border/50 shadow-[0_0_60px_rgba(0,0,0,0.5)] text-foreground p-0 [&>button:last-child]:hidden"
+        <DialogContent className="sm:max-w-[1100px] max-h-[85vh] flex flex-col overflow-hidden bg-bridge-surface border border-bridge-border/50 shadow-[0_0_60px_rgba(0,0,0,0.5)] text-foreground p-0 [&>button:last-child]:hidden"
           onPointerDownOutside={(e) => {
             // Prevent dialog close when lightbox is open
             if (document.querySelector('[data-lightbox-overlay]')) {
@@ -606,7 +606,7 @@ export function TaskDetailModal({
                 placeholder={t('task.noDescription')}
                 rows={3}
                 readOnly={!canEdit}
-                className={`bg-kanban-bg/50 border-kanban-border/30 text-foreground placeholder:text-slate-500 focus:ring-bridge-accent/50 focus:border-bridge-accent ${!canEdit ? 'cursor-default' : ''}`}
+                className={`bg-bridge-dark/50 border-bridge-border/30 text-foreground placeholder:text-slate-500 focus:ring-bridge-accent/50 focus:border-bridge-accent ${!canEdit ? 'cursor-default' : ''}`}
               />
             </div>
 
@@ -621,7 +621,7 @@ export function TaskDetailModal({
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
-                      className="w-full h-10 justify-start text-left font-normal bg-kanban-bg/50 border-kanban-border/30 text-foreground hover:bg-kanban-bg/70 hover:text-foreground"
+                      className="w-full h-10 justify-start text-left font-normal bg-bridge-dark/50 border-bridge-border/30 text-foreground hover:bg-bridge-dark/70 hover:text-foreground"
                     >
                       <CalendarIcon className="mr-2 h-4 w-4 text-slate-400" />
                       {editedTask.start_date || editedTask.due_date ? (
@@ -667,7 +667,7 @@ export function TaskDetailModal({
                   </PopoverContent>
                 </Popover>
               ) : (
-                <div className="w-full h-10 flex items-center bg-kanban-bg/50 border border-kanban-border/30 rounded-md px-3 text-foreground opacity-70">
+                <div className="w-full h-10 flex items-center bg-bridge-dark/50 border border-bridge-border/30 rounded-md px-3 text-foreground opacity-70">
                   <CalendarIcon className="mr-2 h-4 w-4 text-slate-400" />
                   {editedTask.start_date || editedTask.due_date ? (
                     <>
@@ -852,7 +852,7 @@ export function TaskDetailModal({
 
           {/* 오른쪽: 댓글 패널 + 닫기 버튼 */}
           {boardId && (
-            <div className="w-[420px] border-l border-kanban-border/30 flex-shrink-0 relative z-10 bg-kanban-bg/30">
+            <div className="w-[420px] border-l border-bridge-border/30 flex-shrink-0 relative z-10 bg-bridge-dark/30">
               {/* 닫기 버튼 */}
               <button
                 onClick={handleClose}

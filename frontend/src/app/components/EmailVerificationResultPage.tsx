@@ -62,7 +62,7 @@ export function EmailVerificationResultPage() {
       {/* Background Gradient */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10">
         <div
-          className="absolute w-[600px] h-[600px] rounded-full blur-[120px] opacity-[0.07] bg-gradient-to-r from-[#6366F1] to-[#2DD4BF]"
+          className="absolute w-[600px] h-[600px] rounded-full blur-[120px] opacity-[0.07] bg-gradient-to-r from-bridge-accent to-bridge-secondary"
           style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}
         />
       </div>
@@ -103,7 +103,7 @@ export function EmailVerificationResultPage() {
             </p>
             <button
               onClick={handleNavigate}
-              className="w-full h-14 bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white rounded-2xl font-bold transition-all duration-300 flex items-center justify-center gap-2 hover:shadow-[0_0_30px_rgba(99,102,241,0.3)]"
+              className="w-full h-14 bg-gradient-to-r from-bridge-accent to-indigo-600 text-white rounded-2xl font-bold transition-all duration-300 flex items-center justify-center gap-2 hover:shadow-[0_0_30px_rgba(99,102,241,0.3)]"
             >
               {isAuthenticated ? t('emailVerificationResult.goToBoards') : t('emailVerificationResult.goToLogin')}
               <ArrowRight className="w-5 h-5" />

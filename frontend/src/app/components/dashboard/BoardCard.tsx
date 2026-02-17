@@ -42,7 +42,7 @@ export function BoardCard({ board, onToggleStar, onClick, onEdit }: BoardCardPro
   return (
     <motion.div
       whileHover={{ y: -6, transition: { duration: 0.2 } }}
-      className="relative flex flex-col h-52 w-full bg-bridge-obsidian/60 backdrop-blur-sm rounded-2xl overflow-hidden group border border-white/[0.08] hover:border-[#2DD4BF]/20 transition-all shadow-xl cursor-pointer"
+      className="relative flex flex-col h-52 w-full bg-bridge-obsidian/60 backdrop-blur-sm rounded-2xl overflow-hidden group border border-white/[0.08] hover:border-bridge-secondary/20 transition-all shadow-xl cursor-pointer"
       onClick={() => onClick(board)}
     >
       {/* Dynamic Background Header */}
@@ -90,7 +90,7 @@ export function BoardCard({ board, onToggleStar, onClick, onEdit }: BoardCardPro
 
       <div className="p-4 flex flex-col h-full bg-slate-900/40">
         <div className="flex justify-between items-start mb-1">
-          <h3 className="text-md font-bold text-white group-hover:text-[#2DD4BF] transition-colors truncate pr-2">
+          <h3 className="text-md font-bold text-white group-hover:text-bridge-secondary transition-colors truncate pr-2">
             {board.name}
           </h3>
           {isOwner && <ShieldCheck size={14} className="text-bridge-accent mt-1 shrink-0" />}
@@ -111,7 +111,7 @@ export function BoardCard({ board, onToggleStar, onClick, onEdit }: BoardCardPro
               initial={{ width: 0 }}
               animate={{ width: `${progress}%` }}
               transition={{ duration: 0.5, ease: 'easeOut' }}
-              className="h-full bg-gradient-to-r from-[#2DD4BF] to-[#6366F1]"
+              className="h-full bg-gradient-to-r from-bridge-secondary to-bridge-accent"
             />
           </div>
         </div>
@@ -136,7 +136,7 @@ export function BoardCard({ board, onToggleStar, onClick, onEdit }: BoardCardPro
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-[10px] font-bold text-white bg-gradient-to-br from-[#2DD4BF] to-[#6366F1]">
+                  <div className="w-full h-full flex items-center justify-center text-[10px] font-bold text-white bg-gradient-to-br from-bridge-secondary to-bridge-accent">
                     {getInitials(member.name)}
                   </div>
                 )}
@@ -160,9 +160,9 @@ export function CreateBoardCard({ onClick }: { onClick: () => void }) {
     <motion.div
       whileHover={{ scale: 1.02 }}
       onClick={onClick}
-      className="h-52 flex flex-col items-center justify-center bg-bridge-obsidian/30 backdrop-blur-sm border-2 border-dashed border-white/15 rounded-2xl cursor-pointer hover:border-[#2DD4BF]/30 hover:bg-white/[0.02] transition-all group"
+      className="h-52 flex flex-col items-center justify-center bg-bridge-obsidian/30 backdrop-blur-sm border-2 border-dashed border-white/15 rounded-2xl cursor-pointer hover:border-bridge-secondary/30 hover:bg-white/[0.02] transition-all group"
     >
-      <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-3 group-hover:bg-[#2DD4BF]/15 group-hover:text-[#2DD4BF] transition-colors">
+      <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-3 group-hover:bg-bridge-secondary/15 group-hover:text-bridge-secondary transition-colors">
         <svg
           xmlns="http://www.w3.org/2000/svg"
           width="24"

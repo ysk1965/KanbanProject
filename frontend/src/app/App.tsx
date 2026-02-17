@@ -174,7 +174,7 @@ function LoginRoute() {
     <LoginPage
       onLogin={login}
       onSignup={signup}
-      onGoogleLogin={googleLogin}
+      onGoogleLogin={import.meta.env.VITE_GOOGLE_CLIENT_ID ? googleLogin : undefined}
       inviteInfo={inviteInfo}
     />
   );

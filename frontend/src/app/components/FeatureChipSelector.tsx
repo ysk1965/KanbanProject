@@ -24,7 +24,7 @@ export function FeatureChipSelector({
   const { t } = useTranslation();
 
   return (
-    <div className="px-3 md:px-6 py-2 md:py-3 border-b border-kanban-border bg-kanban-bg">
+    <div className="px-3 md:px-6 py-2 md:py-3 border-b border-bridge-border bg-bridge-dark">
       <div className="flex items-stretch gap-1.5 md:gap-2.5 overflow-x-auto pb-1 kanban-scrollbar">
         {/* 전체 보기 칩 */}
         <button
@@ -32,7 +32,7 @@ export function FeatureChipSelector({
           className={`flex flex-col items-center justify-center px-3 md:px-5 py-2 md:py-2.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex-shrink-0 min-w-[52px] md:min-w-[64px] ${
             isAllSelected
               ? 'bg-indigo-500/20 text-indigo-300 border-2 border-indigo-500/60 shadow-[0_0_12px_rgba(99,102,241,0.15)]'
-              : 'bg-kanban-surface border border-kanban-border text-zinc-500 hover:text-zinc-300 hover:border-zinc-600'
+              : 'bg-bridge-surface-hover border border-bridge-border text-zinc-500 hover:text-zinc-300 hover:border-zinc-600'
           }`}
         >
           <span className="text-sm font-bold">{t('common.all')}</span>
@@ -41,7 +41,7 @@ export function FeatureChipSelector({
           </span>
         </button>
 
-        <div className="w-px bg-kanban-border flex-shrink-0 my-1" />
+        <div className="w-px bg-bridge-border flex-shrink-0 my-1" />
 
         {/* Feature 칩들 */}
         {features.map((feature) => {
@@ -57,14 +57,14 @@ export function FeatureChipSelector({
               className={`relative flex items-stretch rounded-xl text-xs whitespace-nowrap transition-all flex-shrink-0 overflow-hidden ${
                 isSelected
                   ? 'border-2 shadow-lg'
-                  : 'border border-kanban-border hover:border-zinc-600 opacity-60 hover:opacity-90'
+                  : 'border border-bridge-border hover:border-zinc-600 opacity-60 hover:opacity-90'
               }`}
               style={isSelected ? {
                 backgroundColor: `${featureColor}10`,
                 borderColor: `${featureColor}66`,
                 boxShadow: `0 0 16px ${featureColor}15`,
               } : {
-                backgroundColor: 'var(--kanban-surface)',
+                backgroundColor: 'var(--bridge-surface-hover)',
               }}
             >
               {/* 좌측 컬러 바 */}
@@ -132,7 +132,7 @@ export function FeatureChipSelector({
         {/* Feature 추가 버튼 */}
         <button
           onClick={onAddFeature}
-          className="flex items-center justify-center px-4 rounded-xl text-zinc-500 hover:text-white hover:bg-kanban-surface border border-dashed border-kanban-border hover:border-indigo-500/50 transition-all flex-shrink-0"
+          className="flex items-center justify-center px-4 rounded-xl text-zinc-500 hover:text-white hover:bg-bridge-surface-hover border border-dashed border-bridge-border hover:border-indigo-500/50 transition-all flex-shrink-0"
         >
           <Plus size={16} />
         </button>

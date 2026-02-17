@@ -488,7 +488,7 @@ export function AddDailyChecklistModal({
 
   return (
     <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-kanban-bg rounded-2xl shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden border border-white/10">
+      <div className="bg-bridge-dark rounded-2xl shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden border border-white/10">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
           <div>
@@ -516,7 +516,7 @@ export function AddDailyChecklistModal({
                 value={selectedMilestoneId ?? ''}
                 onChange={(e) => setSelectedMilestoneId(e.target.value || null)}
                 disabled={isLoading}
-                className="w-full px-3 py-2.5 bg-kanban-card border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all disabled:opacity-50"
+                className="w-full px-3 py-2.5 bg-bridge-surface border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all disabled:opacity-50"
               >
                 <option value="">{t('dailyChecklist.allMilestones')}</option>
                 {milestones.map((milestone) => (
@@ -533,7 +533,7 @@ export function AddDailyChecklistModal({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={t('dailyChecklist.searchPlaceholder')}
-                className="w-full pl-10 pr-4 py-2.5 bg-kanban-card border border-white/10 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all text-sm"
+                className="w-full pl-10 pr-4 py-2.5 bg-bridge-surface border border-white/10 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all text-sm"
               />
             </div>
             {/* 새 Feature 생성 버튼 */}
@@ -546,7 +546,7 @@ export function AddDailyChecklistModal({
               className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition-all whitespace-nowrap ${
                 isCreatingFeature
                   ? 'bg-bridge-accent text-white border border-bridge-accent'
-                  : 'bg-kanban-card border border-white/10 text-slate-300 hover:text-white hover:bg-kanban-card-hover hover:border-white/20'
+                  : 'bg-bridge-surface border border-white/10 text-slate-300 hover:text-white hover:bg-bridge-surface-hover hover:border-white/20'
               }`}
             >
               <Plus className="h-4 w-4" />
@@ -556,7 +556,7 @@ export function AddDailyChecklistModal({
 
           {/* 새 Feature 인라인 생성 폼 */}
           {isCreatingFeature && (
-            <div className="flex items-center gap-3 bg-kanban-card/50 rounded-xl p-3 border border-white/10">
+            <div className="flex items-center gap-3 bg-bridge-surface/50 rounded-xl p-3 border border-white/10">
               {/* 색상 선택 */}
               <div className="flex items-center gap-1.5 flex-shrink-0">
                 {FEATURE_COLORS.map((color) => (
@@ -565,7 +565,7 @@ export function AddDailyChecklistModal({
                     onClick={() => setNewFeatureColor(color)}
                     className={`w-5 h-5 rounded-full transition-all ${
                       newFeatureColor === color
-                        ? 'ring-2 ring-white ring-offset-1 ring-offset-kanban-bg scale-110'
+                        ? 'ring-2 ring-white ring-offset-1 ring-offset-bridge-dark scale-110'
                         : 'hover:scale-110 opacity-60 hover:opacity-100'
                     }`}
                     style={{ backgroundColor: color }}
@@ -588,7 +588,7 @@ export function AddDailyChecklistModal({
                 }}
                 placeholder={t('dailyChecklist.newFeaturePlaceholder')}
                 autoFocus
-                className="flex-1 px-3 py-2 bg-kanban-card border border-white/10 rounded-lg text-white placeholder-slate-400 text-sm focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
+                className="flex-1 px-3 py-2 bg-bridge-surface border border-white/10 rounded-lg text-white placeholder-slate-400 text-sm focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
               />
               {/* 생성 버튼 */}
               <button
@@ -666,7 +666,7 @@ export function AddDailyChecklistModal({
                     {myTasksFeaturesData.map((featureData) => (
                       <div
                         key={featureData.feature.id}
-                        className="bg-kanban-card border border-white/10 rounded-xl overflow-hidden"
+                        className="bg-bridge-surface border border-white/10 rounded-xl overflow-hidden"
                       >
                         {/* Feature Header */}
                         <div className="flex items-center gap-2 px-4 py-3">
@@ -688,7 +688,7 @@ export function AddDailyChecklistModal({
                             className={`p-1 rounded-md border transition-colors ${
                               addingTaskToFeatureId === featureData.feature.id
                                 ? 'bg-bridge-accent text-white border-bridge-accent'
-                                : 'text-slate-300 border-white/10 bg-kanban-card hover:text-white hover:bg-kanban-card-hover hover:border-white/20'
+                                : 'text-slate-300 border-white/10 bg-bridge-surface hover:text-white hover:bg-bridge-surface-hover hover:border-white/20'
                             }`}
                             title={t('dailyChecklist.newTask')}
                           >
@@ -698,7 +698,7 @@ export function AddDailyChecklistModal({
 
                         {/* Feature에 Task 인라인 생성 폼 */}
                         {addingTaskToFeatureId === featureData.feature.id && (
-                          <div className="px-4 py-2 border-t border-white/10 bg-kanban-bg/30">
+                          <div className="px-4 py-2 border-t border-white/10 bg-bridge-dark/30">
                             <div className="flex gap-2">
                               <input
                                 type="text"
@@ -715,7 +715,7 @@ export function AddDailyChecklistModal({
                                 }}
                                 placeholder={t('dailyChecklist.newTaskPlaceholder')}
                                 autoFocus
-                                className="flex-1 px-3 py-1.5 bg-kanban-card border border-white/10 rounded-lg text-white placeholder-slate-400 text-sm focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
+                                className="flex-1 px-3 py-1.5 bg-bridge-surface border border-white/10 rounded-lg text-white placeholder-slate-400 text-sm focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
                               />
                               <button
                                 onClick={() => handleCreateTask(featureData.feature.id)}
@@ -767,7 +767,7 @@ export function AddDailyChecklistModal({
                                   className={`p-1 rounded-md border transition-colors ${
                                     addingTaskId === taskData.task.id
                                       ? 'bg-bridge-accent text-white border-bridge-accent'
-                                      : 'text-slate-300 border-white/10 bg-kanban-card hover:text-white hover:bg-kanban-card-hover hover:border-white/20'
+                                      : 'text-slate-300 border-white/10 bg-bridge-surface hover:text-white hover:bg-bridge-surface-hover hover:border-white/20'
                                   }`}
                                 >
                                   <Plus className="h-3.5 w-3.5" />
@@ -793,7 +793,7 @@ export function AddDailyChecklistModal({
                                       }}
                                       placeholder={t('dailyChecklist.newChecklistPlaceholder')}
                                       autoFocus
-                                      className="flex-1 px-3 py-1.5 bg-kanban-card border border-white/10 rounded-lg text-white placeholder-slate-400 text-sm focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
+                                      className="flex-1 px-3 py-1.5 bg-bridge-surface border border-white/10 rounded-lg text-white placeholder-slate-400 text-sm focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
                                     />
                                     <button
                                       onClick={() => handleAddPendingItem(taskData.task.id)}
@@ -808,7 +808,7 @@ export function AddDailyChecklistModal({
 
                               {/* Checklist Items */}
                               {!isCollapsed && (
-                              <div className="bg-kanban-bg/50 px-2 py-1">
+                              <div className="bg-bridge-dark/50 px-2 py-1">
                                 {/* 임시로 추가된 새 항목들 (pendingNewItems) */}
                                 {(pendingNewItems.get(taskData.task.id) || []).map((pendingItem) => {
                                   const isSelected = selectedItems.has(pendingItem.tempId);
@@ -951,7 +951,7 @@ export function AddDailyChecklistModal({
                     {othersTasksFeaturesData.map((featureData) => (
                       <div
                         key={featureData.feature.id}
-                        className="bg-kanban-card border border-white/10 rounded-xl overflow-hidden"
+                        className="bg-bridge-surface border border-white/10 rounded-xl overflow-hidden"
                       >
                         {/* Feature Header */}
                         <div className="flex items-center gap-2 px-4 py-3">
@@ -973,7 +973,7 @@ export function AddDailyChecklistModal({
                             className={`p-1 rounded-md border transition-colors ${
                               addingTaskToFeatureId === featureData.feature.id
                                 ? 'bg-bridge-accent text-white border-bridge-accent'
-                                : 'text-slate-300 border-white/10 bg-kanban-card hover:text-white hover:bg-kanban-card-hover hover:border-white/20'
+                                : 'text-slate-300 border-white/10 bg-bridge-surface hover:text-white hover:bg-bridge-surface-hover hover:border-white/20'
                             }`}
                             title={t('dailyChecklist.newTask')}
                           >
@@ -983,7 +983,7 @@ export function AddDailyChecklistModal({
 
                         {/* Feature에 Task 인라인 생성 폼 */}
                         {addingTaskToFeatureId === featureData.feature.id && (
-                          <div className="px-4 py-2 border-t border-white/10 bg-kanban-bg/30">
+                          <div className="px-4 py-2 border-t border-white/10 bg-bridge-dark/30">
                             <div className="flex gap-2">
                               <input
                                 type="text"
@@ -1000,7 +1000,7 @@ export function AddDailyChecklistModal({
                                 }}
                                 placeholder={t('dailyChecklist.newTaskPlaceholder')}
                                 autoFocus
-                                className="flex-1 px-3 py-1.5 bg-kanban-card border border-white/10 rounded-lg text-white placeholder-slate-400 text-sm focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
+                                className="flex-1 px-3 py-1.5 bg-bridge-surface border border-white/10 rounded-lg text-white placeholder-slate-400 text-sm focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
                               />
                               <button
                                 onClick={() => handleCreateTask(featureData.feature.id)}
@@ -1052,7 +1052,7 @@ export function AddDailyChecklistModal({
                                   className={`p-1 rounded-md border transition-colors ${
                                     addingTaskId === taskData.task.id
                                       ? 'bg-bridge-accent text-white border-bridge-accent'
-                                      : 'text-slate-300 border-white/10 bg-kanban-card hover:text-white hover:bg-kanban-card-hover hover:border-white/20'
+                                      : 'text-slate-300 border-white/10 bg-bridge-surface hover:text-white hover:bg-bridge-surface-hover hover:border-white/20'
                                   }`}
                                 >
                                   <Plus className="h-3.5 w-3.5" />
@@ -1078,7 +1078,7 @@ export function AddDailyChecklistModal({
                                       }}
                                       placeholder={t('dailyChecklist.newChecklistPlaceholder')}
                                       autoFocus
-                                      className="flex-1 px-3 py-1.5 bg-kanban-card border border-white/10 rounded-lg text-white placeholder-slate-400 text-sm focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
+                                      className="flex-1 px-3 py-1.5 bg-bridge-surface border border-white/10 rounded-lg text-white placeholder-slate-400 text-sm focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
                                     />
                                     <button
                                       onClick={() => handleAddPendingItem(taskData.task.id)}
@@ -1093,7 +1093,7 @@ export function AddDailyChecklistModal({
 
                               {/* Checklist Items */}
                               {!isCollapsed && (
-                              <div className="bg-kanban-bg/50 px-2 py-1">
+                              <div className="bg-bridge-dark/50 px-2 py-1">
                                 {/* 임시로 추가된 새 항목들 (pendingNewItems) */}
                                 {(pendingNewItems.get(taskData.task.id) || []).map((pendingItem) => {
                                   const isSelected = selectedItems.has(pendingItem.tempId);

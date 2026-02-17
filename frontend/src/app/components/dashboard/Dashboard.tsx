@@ -158,7 +158,7 @@ export function Dashboard({
 
 
   return (
-    <div className="flex h-screen text-white overflow-hidden selection:bg-[#2DD4BF]/30" style={{ background: 'radial-gradient(ellipse at 20% 0%, #0d1525 0%, #060a12 50%, #030508 100%)' }}>
+    <div className="flex h-screen text-white overflow-hidden selection:bg-bridge-secondary/30" style={{ background: 'radial-gradient(ellipse at 20% 0%, var(--bridge-dark) 0%, var(--bridge-dark) 50%, #030508 100%)' }}>
       {/* Cosmic Background */}
       <div className="absolute inset-0 pointer-events-none">
         {/* Teal nebula - top right */}
@@ -180,7 +180,7 @@ export function Dashboard({
       {/* Main Content */}
       <div className="flex-1 flex flex-col relative z-10">
         {/* Header */}
-        <header className="h-16 border-b border-white/[0.06] bg-[#060a12]/60 backdrop-blur-sm px-4 md:px-8 flex items-center justify-between">
+        <header className="h-16 border-b border-white/[0.06] bg-bridge-dark/60 backdrop-blur-sm px-4 md:px-8 flex items-center justify-between">
           <div className="flex items-center gap-4 flex-1">
             {/* 모바일 햄버거 메뉴 */}
             <button
@@ -199,7 +199,7 @@ export function Dashboard({
               <input
                 type="text"
                 placeholder="Quick search projects..."
-                className="w-full bg-white/5 border border-white/[0.08] rounded-xl py-2 pl-10 pr-4 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-[#2DD4BF]/40 focus:bg-white/[0.06] transition-all"
+                className="w-full bg-white/5 border border-white/[0.08] rounded-xl py-2 pl-10 pr-4 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-bridge-secondary/40 focus:bg-white/[0.06] transition-all"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -225,7 +225,7 @@ export function Dashboard({
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center text-sm font-bold bg-gradient-to-br from-[#2DD4BF] to-[#6366F1]">
+                <div className="w-full h-full flex items-center justify-center text-sm font-bold bg-gradient-to-br from-bridge-secondary to-bridge-accent">
                   {getInitials(user?.name || 'U')}
                 </div>
               )}
@@ -242,13 +242,13 @@ export function Dashboard({
                 <h1 className="text-3xl font-bold font-serif mb-1">Your Projects</h1>
                 <p className="text-slate-400 text-sm">
                   Managing{' '}
-                  <span className="text-[#2DD4BF] font-bold">{boards.length}</span>{' '}
+                  <span className="text-bridge-secondary font-bold">{boards.length}</span>{' '}
                   active workspaces
                 </p>
               </div>
               <button
                 onClick={() => setIsCreateModalOpen(true)}
-                className="flex items-center justify-center gap-2 px-6 py-2.5 bg-gradient-to-r from-[#2DD4BF] to-[#6366F1] rounded-xl font-bold text-sm shadow-lg shadow-[#2DD4BF]/15 hover:scale-105 active:scale-95 transition-all"
+                className="flex items-center justify-center gap-2 px-6 py-2.5 bg-gradient-to-r from-bridge-secondary to-bridge-accent rounded-xl font-bold text-sm shadow-lg shadow-bridge-secondary/15 hover:scale-105 active:scale-95 transition-all"
               >
                 <Plus size={18} /> Create New Board
               </button>
@@ -263,7 +263,7 @@ export function Dashboard({
                 </p>
                 <button
                   onClick={() => setSearchQuery('')}
-                  className="mt-2 text-[#2DD4BF] text-sm font-bold hover:underline"
+                  className="mt-2 text-bridge-secondary text-sm font-bold hover:underline"
                 >
                   Clear search
                 </button>
@@ -277,7 +277,7 @@ export function Dashboard({
                 <p className="text-slate-400 font-medium">{t('board.noBoards')}</p>
                 <button
                   onClick={() => setIsCreateModalOpen(true)}
-                  className="mt-4 px-6 py-2 bg-[#2DD4BF] text-[#0d1525] text-sm font-bold rounded-xl hover:bg-[#2DD4BF]/90 transition-colors"
+                  className="mt-4 px-6 py-2 bg-bridge-secondary text-bridge-dark text-sm font-bold rounded-xl hover:bg-bridge-secondary/90 transition-colors"
                 >
                   {t('board.createFirst')}
                 </button>
@@ -312,7 +312,7 @@ export function Dashboard({
             {filteredBoards.length > 0 && (
               <section>
                 <div className="flex items-center gap-2 mb-6">
-                  <LayoutGrid size={18} className="text-[#2DD4BF]" />
+                  <LayoutGrid size={18} className="text-bridge-secondary" />
                   <h2 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">
                     Workspace Boards
                   </h2>

@@ -7,14 +7,10 @@
   --bridge-accent: #6366F1;
   --bridge-secondary: #2DD4BF;
 
-  /* Kanban Dark Theme Colors (cosmic navy tint) */
-  --kanban-bg: #0C1220;
-  --kanban-card: #1c263b;
-  --kanban-card-hover: #253148;
-  --kanban-border: #33415c;
-  --kanban-border-hover: #3f4f6c;
-  --kanban-surface: #29364e;
-  --kanban-input: #111c27;
+  /* Bridge Surface Scale (cosmic navy tint) */
+  --bridge-surface: #1c263b;
+  --bridge-surface-hover: #253148;
+  --bridge-border: #33415c;
 
   --font-size: 16px;
   --background: #ffffff;
@@ -101,14 +97,10 @@
   --bridge-accent: #6366F1;
   --bridge-secondary: #14B8A6;
 
-  /* Kanban Light Theme Colors */
-  --kanban-bg: #F1F5F9;
-  --kanban-card: #FFFFFF;
-  --kanban-card-hover: #F8FAFC;
-  --kanban-border: #E2E8F0;
-  --kanban-border-hover: #CBD5E1;
-  --kanban-surface: #F8FAFC;
-  --kanban-input: #FFFFFF;
+  /* Bridge Surface Scale */
+  --bridge-surface: #FFFFFF;
+  --bridge-surface-hover: #F8FAFC;
+  --bridge-border: #E2E8F0;
 
   /* shadcn/ui Light Colors */
   --background: #FFFFFF;
@@ -243,14 +235,10 @@
   --color-bridge-accent: var(--bridge-accent);
   --color-bridge-secondary: var(--bridge-secondary);
 
-  /* Kanban Theme Utilities */
-  --color-kanban-bg: var(--kanban-bg);
-  --color-kanban-card: var(--kanban-card);
-  --color-kanban-card-hover: var(--kanban-card-hover);
-  --color-kanban-border: var(--kanban-border);
-  --color-kanban-border-hover: var(--kanban-border-hover);
-  --color-kanban-surface: var(--kanban-surface);
-  --color-kanban-input: var(--kanban-input);
+  /* Bridge Surface Utilities */
+  --color-bridge-surface: var(--bridge-surface);
+  --color-bridge-surface-hover: var(--bridge-surface-hover);
+  --color-bridge-border: var(--bridge-border);
 }
 
 /* Glass morphism effect */
@@ -482,14 +470,6 @@ html {
   animation: bannerProgress 5s linear infinite;
 }
 
-/* BridgeSpots Slate Color */
-:root {
-  --bridge-slate: #161B22;
-}
-
-@theme inline {
-  --color-bridge-slate: var(--bridge-slate);
-}
 
 /* ===== Plyr Video Player - Bridge Theme ===== */
 .plyr-bridge-theme {

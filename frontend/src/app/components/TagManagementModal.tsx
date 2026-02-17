@@ -70,7 +70,7 @@ export function TagManagementModal({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="bg-kanban-card border-kanban-border sm:max-w-md">
+      <DialogContent className="bg-bridge-surface border-bridge-border sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-foreground">{t('tags.management')}</DialogTitle>
         </DialogHeader>
@@ -85,7 +85,7 @@ export function TagManagementModal({
             <div key={tag.id}>
               {editingId === tag.id ? (
                 /* Editing mode */
-                <div className="p-3 rounded-xl bg-kanban-bg/50 border border-kanban-border/50 space-y-3">
+                <div className="p-3 rounded-xl bg-bridge-dark/50 border border-bridge-border/50 space-y-3">
                   <div className="flex items-center gap-2">
                     <input
                       value={editName}
@@ -121,7 +121,7 @@ export function TagManagementModal({
                           key={color}
                           onClick={() => setEditColor(color)}
                           className={`w-6 h-6 rounded-full transition-all ${
-                            editColor === color ? 'ring-2 ring-white ring-offset-2 ring-offset-kanban-card scale-110' : 'hover:scale-110'
+                            editColor === color ? 'ring-2 ring-white ring-offset-2 ring-offset-bridge-surface scale-110' : 'hover:scale-110'
                           }`}
                           style={{ backgroundColor: color }}
                         />
@@ -179,7 +179,7 @@ export function TagManagementModal({
         </div>
 
         {/* Create new tag */}
-        <div className="pt-3 border-t border-kanban-border/50 space-y-3">
+        <div className="pt-3 border-t border-bridge-border/50 space-y-3">
           <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
             {t('tags.createNew')}
           </span>
@@ -218,7 +218,7 @@ export function TagManagementModal({
                 key={color}
                 onClick={() => setNewColor(color)}
                 className={`w-6 h-6 rounded-full transition-all ${
-                  newColor === color ? 'ring-2 ring-white ring-offset-2 ring-offset-kanban-card scale-110' : 'hover:scale-110'
+                  newColor === color ? 'ring-2 ring-white ring-offset-2 ring-offset-bridge-surface scale-110' : 'hover:scale-110'
                 }`}
                 style={{ backgroundColor: color }}
               />

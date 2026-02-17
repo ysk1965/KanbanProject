@@ -30,7 +30,7 @@ export function KanbanFilterToolbar({
   const { t } = useTranslation();
 
   return (
-    <div className="px-3 md:px-6 py-2 md:py-3 border-b border-kanban-border flex items-center gap-2 overflow-x-auto md:overflow-x-visible md:flex-wrap kanban-scrollbar">
+    <div className="px-3 md:px-6 py-2 md:py-3 border-b border-bridge-border flex items-center gap-2 overflow-x-auto md:overflow-x-visible md:flex-wrap kanban-scrollbar">
       {/* 검색 */}
       <div className="relative w-52 sm:w-80 shrink-0">
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
@@ -39,7 +39,7 @@ export function KanbanFilterToolbar({
           placeholder={t('kanban.searchPlaceholder')}
           value={filterOptions.keyword}
           onChange={(e) => onFilterChange({ ...filterOptions, keyword: e.target.value })}
-          className="w-full bg-kanban-surface border border-kanban-border rounded-lg py-2 pl-10 pr-8 text-sm text-foreground placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-[#2DD4BF]/40 focus:border-[#2DD4BF]/40 transition-all"
+          className="w-full bg-bridge-surface-hover border border-bridge-border rounded-lg py-2 pl-10 pr-8 text-sm text-foreground placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-bridge-secondary/40 focus:border-bridge-secondary/40 transition-all"
         />
         {filterOptions.keyword && (
           <button
@@ -51,7 +51,7 @@ export function KanbanFilterToolbar({
         )}
       </div>
 
-      <div className="h-6 w-px bg-kanban-border mx-1 shrink-0" />
+      <div className="h-6 w-px bg-bridge-border mx-1 shrink-0" />
 
       {/* 담당자 필터 */}
       <Popover>
@@ -60,7 +60,7 @@ export function KanbanFilterToolbar({
             className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-all shrink-0 ${
               filterOptions.members.length > 0
                 ? 'bg-purple-500/20 text-purple-400 border border-purple-500/50'
-                : 'bg-kanban-surface border border-kanban-border text-zinc-400 hover:text-foreground hover:border-zinc-600'
+                : 'bg-bridge-surface-hover border border-bridge-border text-zinc-400 hover:text-foreground hover:border-zinc-600'
             }`}
           >
             <User size={14} />
@@ -73,7 +73,7 @@ export function KanbanFilterToolbar({
             <ChevronDown size={14} />
           </button>
         </PopoverTrigger>
-        <PopoverContent className="w-56 p-2 bg-kanban-card border-kanban-border" align="start">
+        <PopoverContent className="w-56 p-2 bg-bridge-surface border-bridge-border" align="start">
           <div className="space-y-1">
             <button
               onClick={() => {
@@ -120,7 +120,7 @@ export function KanbanFilterToolbar({
                 </div>
                 <span className="truncate">{member.name}</span>
                 {filterOptions.members.includes(member.name) && (
-                  <CheckCircle2 size={14} className="ml-auto text-[#2DD4BF]" />
+                  <CheckCircle2 size={14} className="ml-auto text-bridge-secondary" />
                 )}
               </button>
             ))}
@@ -134,21 +134,21 @@ export function KanbanFilterToolbar({
           <button
             className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-all shrink-0 ${
               filterOptions.features.length > 0
-                ? 'bg-[#2DD4BF]/15 text-[#2DD4BF] border border-[#2DD4BF]/40'
-                : 'bg-kanban-surface border border-kanban-border text-zinc-400 hover:text-foreground hover:border-zinc-600'
+                ? 'bg-bridge-secondary/15 text-bridge-secondary border border-bridge-secondary/40'
+                : 'bg-bridge-surface-hover border border-bridge-border text-zinc-400 hover:text-foreground hover:border-zinc-600'
             }`}
           >
             <Layers size={14} />
             <span className="hidden sm:inline">Feature</span>
             {filterOptions.features.length > 0 && (
-              <span className="bg-[#2DD4BF] text-white text-xs px-1.5 py-0.5 rounded-full min-w-[18px]">
+              <span className="bg-bridge-secondary text-white text-xs px-1.5 py-0.5 rounded-full min-w-[18px]">
                 {filterOptions.features.length}
               </span>
             )}
             <ChevronDown size={14} />
           </button>
         </PopoverTrigger>
-        <PopoverContent className="w-64 p-2 bg-kanban-card border-kanban-border max-h-80 overflow-y-auto" align="start">
+        <PopoverContent className="w-64 p-2 bg-bridge-surface border-bridge-border max-h-80 overflow-y-auto" align="start">
           <div className="space-y-1">
             {features.map((feature) => (
               <button
@@ -164,7 +164,7 @@ export function KanbanFilterToolbar({
                 }}
                 className={`flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm transition-all ${
                   filterOptions.features.includes(feature.id)
-                    ? 'bg-[#2DD4BF]/15 text-[#2DD4BF]'
+                    ? 'bg-bridge-secondary/15 text-bridge-secondary'
                     : 'text-zinc-300 hover:bg-white/5'
                 }`}
               >
@@ -174,7 +174,7 @@ export function KanbanFilterToolbar({
                 />
                 <span className="truncate">{feature.title}</span>
                 {filterOptions.features.includes(feature.id) && (
-                  <CheckCircle2 size={14} className="ml-auto text-[#2DD4BF] flex-shrink-0" />
+                  <CheckCircle2 size={14} className="ml-auto text-bridge-secondary flex-shrink-0" />
                 )}
               </button>
             ))}
@@ -192,7 +192,7 @@ export function KanbanFilterToolbar({
             className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-all shrink-0 ${
               filterOptions.tags.length > 0
                 ? 'bg-teal-500/20 text-teal-400 border border-teal-500/50'
-                : 'bg-kanban-surface border border-kanban-border text-zinc-400 hover:text-foreground hover:border-zinc-600'
+                : 'bg-bridge-surface-hover border border-bridge-border text-zinc-400 hover:text-foreground hover:border-zinc-600'
             }`}
           >
             <TagIcon size={14} />
@@ -205,7 +205,7 @@ export function KanbanFilterToolbar({
             <ChevronDown size={14} />
           </button>
         </PopoverTrigger>
-        <PopoverContent className="w-56 p-2 bg-kanban-card border-kanban-border max-h-80 overflow-y-auto" align="start">
+        <PopoverContent className="w-56 p-2 bg-bridge-surface border-bridge-border max-h-80 overflow-y-auto" align="start">
           <div className="space-y-1">
             {tags.map((tag) => (
               <button
@@ -246,7 +246,7 @@ export function KanbanFilterToolbar({
             className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-all shrink-0 ${
               filterOptions.cardStatus.length > 0
                 ? 'bg-green-500/20 text-green-400 border border-green-500/50'
-                : 'bg-kanban-surface border border-kanban-border text-zinc-400 hover:text-foreground hover:border-zinc-600'
+                : 'bg-bridge-surface-hover border border-bridge-border text-zinc-400 hover:text-foreground hover:border-zinc-600'
             }`}
           >
             <CheckCircle2 size={14} />
@@ -259,7 +259,7 @@ export function KanbanFilterToolbar({
             <ChevronDown size={14} />
           </button>
         </PopoverTrigger>
-        <PopoverContent className="w-44 p-2 bg-kanban-card border-kanban-border" align="start">
+        <PopoverContent className="w-44 p-2 bg-bridge-surface border-bridge-border" align="start">
           <div className="space-y-1">
             <button
               onClick={() => {
@@ -312,7 +312,7 @@ export function KanbanFilterToolbar({
       {/* 필터 초기화 */}
       {(filterOptions.keyword || filterOptions.members.length > 0 || filterOptions.features.length > 0 || filterOptions.tags.length > 0 || filterOptions.cardStatus.length > 0) && (
         <>
-          <div className="h-6 w-px bg-kanban-border mx-1 shrink-0" />
+          <div className="h-6 w-px bg-bridge-border mx-1 shrink-0" />
           <button
             onClick={() => onFilterChange({ keyword: '', members: [], features: [], tags: [], cardStatus: [], dueDate: [] })}
             className="flex items-center gap-1 px-3 py-2 text-xs text-zinc-500 hover:text-foreground transition-colors shrink-0 whitespace-nowrap"
@@ -330,7 +330,7 @@ export function KanbanFilterToolbar({
       <div className="flex items-center gap-1 shrink-0">
         <button
           onClick={onExpandAll}
-          className="flex items-center gap-1.5 px-3 py-2 text-xs text-zinc-500 hover:text-white hover:bg-kanban-surface rounded-lg transition-colors"
+          className="flex items-center gap-1.5 px-3 py-2 text-xs text-zinc-500 hover:text-white hover:bg-bridge-surface-hover rounded-lg transition-colors"
           title={t('kanban.expandAll')}
         >
           <ChevronsUpDown size={14} />
@@ -338,7 +338,7 @@ export function KanbanFilterToolbar({
         </button>
         <button
           onClick={onCollapseAll}
-          className="flex items-center gap-1.5 px-3 py-2 text-xs text-zinc-500 hover:text-white hover:bg-kanban-surface rounded-lg transition-colors"
+          className="flex items-center gap-1.5 px-3 py-2 text-xs text-zinc-500 hover:text-white hover:bg-bridge-surface-hover rounded-lg transition-colors"
           title={t('kanban.collapseAll')}
         >
           <ChevronsDownUp size={14} />

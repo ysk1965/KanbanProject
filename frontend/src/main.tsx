@@ -21,10 +21,14 @@ import("./lib/firebase")
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
 
+const AppWithRouter = (
+  <BrowserRouter>
+    <App />
+  </BrowserRouter>
+);
+
 createRoot(document.getElementById("root")!).render(
-  <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>
-  </GoogleOAuthProvider>
+  GOOGLE_CLIENT_ID
+    ? <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>{AppWithRouter}</GoogleOAuthProvider>
+    : AppWithRouter
 );

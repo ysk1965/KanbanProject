@@ -53,7 +53,7 @@ export function AddFeatureModal({ open, onClose, onAdd, milestones = [], default
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg bg-kanban-bg text-zinc-300 rounded-2xl border border-white/20 shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden animate-in zoom-in-95 duration-200"
+        className="w-full max-w-lg bg-bridge-dark text-zinc-300 rounded-2xl border border-white/20 shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         {/* 헤더 */}
@@ -76,7 +76,7 @@ export function AddFeatureModal({ open, onClose, onAdd, milestones = [], default
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder={t('feature.titlePlaceholder')}
-              className="w-full bg-kanban-input border border-white/15 rounded-xl p-3 text-foreground placeholder-zinc-500 focus:outline-none focus:border-indigo-500/50 transition-all text-sm"
+              className="w-full bg-bridge-obsidian border border-white/15 rounded-xl p-3 text-foreground placeholder-zinc-500 focus:outline-none focus:border-indigo-500/50 transition-all text-sm"
               autoFocus
             />
           </div>
@@ -88,7 +88,7 @@ export function AddFeatureModal({ open, onClose, onAdd, milestones = [], default
               onChange={(e) => setDescription(e.target.value)}
               placeholder={t('feature.descriptionPlaceholder')}
               rows={3}
-              className="w-full bg-kanban-input border border-white/15 rounded-xl p-3 text-foreground placeholder-zinc-500 focus:outline-none focus:border-indigo-500/50 transition-all resize-none text-sm"
+              className="w-full bg-bridge-obsidian border border-white/15 rounded-xl p-3 text-foreground placeholder-zinc-500 focus:outline-none focus:border-indigo-500/50 transition-all resize-none text-sm"
             />
           </div>
 
@@ -99,7 +99,7 @@ export function AddFeatureModal({ open, onClose, onAdd, milestones = [], default
                 type="date"
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
-                className="w-full bg-kanban-card-hover border border-white/15 rounded-lg px-4 py-2.5 focus:outline-none focus:border-indigo-500/50 text-xs font-bold text-zinc-200"
+                className="w-full bg-bridge-surface-hover border border-white/15 rounded-lg px-4 py-2.5 focus:outline-none focus:border-indigo-500/50 text-xs font-bold text-zinc-200"
               />
               <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" size={14} />
             </div>
@@ -112,7 +112,7 @@ export function AddFeatureModal({ open, onClose, onAdd, milestones = [], default
                 <select
                   value={milestoneId}
                   onChange={(e) => setMilestoneId(e.target.value)}
-                  className="w-full appearance-none bg-kanban-card-hover border border-white/15 rounded-lg px-4 py-2.5 focus:outline-none focus:border-indigo-500/50 text-xs font-bold text-zinc-200 cursor-pointer"
+                  className="w-full appearance-none bg-bridge-surface-hover border border-white/15 rounded-lg px-4 py-2.5 focus:outline-none focus:border-indigo-500/50 text-xs font-bold text-zinc-200 cursor-pointer"
                 >
                   <option value="">{t('kanban.noMilestone', '없음')}</option>
                   {milestones.map((m) => (

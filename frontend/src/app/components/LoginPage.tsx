@@ -26,31 +26,17 @@ interface LoginPageProps {
   inviteInfo?: InviteInfo | null;
 }
 
-export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo }: LoginPageProps) {
+function GoogleLoginButton({ onGoogleLogin, mode, setError }: {
+  onGoogleLogin: (code: string) => Promise<void>;
+  mode: 'login' | 'signup';
+  setError: (error: string) => void;
+}) {
   const { t } = useTranslation();
-  const [mode, setMode] = useState<'login' | 'signup'>(inviteInfo ? 'signup' : 'login');
-  const [email, setEmail] = useState('');
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [agreeToTerms, setAgreeToTerms] = useState(false);
-  const [passwordFocused, setPasswordFocused] = useState(false);
-  const navigate = useNavigate();
-  const location = useLocation();
-  const showBackButton = location.state?.from === 'landing' || location.state?.from === 'compare';
-
-  const [beCommit, setBeCommit] = useState<string>('');
-  useEffect(() => {
-    const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1';
-    const origin = (() => { try { return new URL(apiBase).origin; } catch { return 'http://localhost:8080'; } })();
-    fetch(`${origin}/health`).then(r => r.json()).then(d => setBeCommit(d.commit || '')).catch(() => {});
-  }, []);
 
   const googleLogin = useGoogleLogin({
-    onSuccess: async (response) => {
-      if (response.code && onGoogleLogin) {
+    onSuccess: async (response: any) => {
+      if (response.code) {
         setIsGoogleLoading(true);
         setError('');
         try {
@@ -76,6 +62,50 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
     },
     flow: 'auth-code',
   });
+
+  return (
+    <button
+      type="button"
+      onClick={() => googleLogin()}
+      disabled={isGoogleLoading}
+      className="flex items-center justify-center gap-3 bg-white/[0.03] border border-white/[0.08] text-white h-[44px] rounded-xl font-semibold w-full transition-all hover:bg-white/[0.06] hover:border-white/[0.15] cursor-pointer active:scale-[0.98]"
+    >
+      {isGoogleLoading ? (
+        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+      ) : (
+        <>
+          <img
+            src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg"
+            className="w-5 h-5"
+            alt="google"
+          />
+          <span className="text-sm font-semibold">{t('auth.continueWithGoogle')}</span>
+        </>
+      )}
+    </button>
+  );
+}
+
+export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo }: LoginPageProps) {
+  const { t } = useTranslation();
+  const [mode, setMode] = useState<'login' | 'signup'>(inviteInfo ? 'signup' : 'login');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [agreeToTerms, setAgreeToTerms] = useState(false);
+  const [passwordFocused, setPasswordFocused] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const showBackButton = location.state?.from === 'landing' || location.state?.from === 'compare';
+
+  const [beCommit, setBeCommit] = useState<string>('');
+  useEffect(() => {
+    const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1';
+    const origin = (() => { try { return new URL(apiBase).origin; } catch { return 'http://localhost:8080'; } })();
+    fetch(`${origin}/health`).then(r => r.json()).then(d => setBeCommit(d.commit || '')).catch(() => {});
+  }, []);
 
   // 비밀번호 검증 규칙
   const passwordValidation = {
@@ -133,7 +163,7 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
           <HeroScene />
         </Suspense>
         {/* Overlay gradient for form readability */}
-        <div className="absolute inset-0 bg-gradient-to-b from-[#0A0E17]/40 via-[#0A0E17]/60 to-[#0A0E17]/80" />
+        <div className="absolute inset-0 bg-gradient-to-b from-bridge-dark/40 via-bridge-dark/60 to-bridge-dark/80" />
       </div>
 
       {/* Back Button - only shown when navigated from landing or compare page */}
@@ -175,8 +205,8 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
         />
 
         {/* Corner glow accents */}
-        <div className="absolute -top-20 -right-20 w-40 h-40 bg-[#2DD4BF] opacity-[0.04] blur-[60px] rounded-full"></div>
-        <div className="absolute -bottom-16 -left-16 w-32 h-32 bg-[#6366F1] opacity-[0.05] blur-[50px] rounded-full"></div>
+        <div className="absolute -top-20 -right-20 w-40 h-40 bg-bridge-secondary opacity-[0.04] blur-[60px] rounded-full"></div>
+        <div className="absolute -bottom-16 -left-16 w-32 h-32 bg-bridge-accent opacity-[0.05] blur-[50px] rounded-full"></div>
 
         {/* Banner */}
         <div className="mb-8 sm:mb-10 flex justify-center">
@@ -223,31 +253,11 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
         </div>
 
         {/* Social Auth Section */}
+        {onGoogleLogin && (
         <div className="mb-6 sm:mb-8">
-          <button
-            type="button"
-            onClick={() => onGoogleLogin && googleLogin()}
-            disabled={!onGoogleLogin || isGoogleLoading}
-            className={`flex items-center justify-center gap-3 bg-white/[0.03] border border-white/[0.08] text-white h-[44px] rounded-xl font-semibold w-full transition-all ${
-              onGoogleLogin
-                ? 'hover:bg-white/[0.06] hover:border-white/[0.15] cursor-pointer active:scale-[0.98]'
-                : 'cursor-not-allowed opacity-50'
-            }`}
-          >
-            {isGoogleLoading ? (
-              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-            ) : (
-              <>
-                <img
-                  src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg"
-                  className="w-5 h-5"
-                  alt="google"
-                />
-                <span className="text-sm font-semibold">{t('auth.continueWithGoogle')}</span>
-              </>
-            )}
-          </button>
+          <GoogleLoginButton onGoogleLogin={onGoogleLogin} mode={mode} setError={setError} />
         </div>
+        )}
 
         {/* Divider */}
         {!isGoogleOnlyLogin && (
@@ -256,7 +266,7 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
             <div className="w-full border-t border-white/[0.06]"></div>
           </div>
           <div className="relative flex justify-center text-[10px] uppercase font-bold tracking-[0.2em] text-slate-500">
-            <span className="bg-[#0a0f1a] px-4 py-1 rounded-full border border-white/[0.08]">
+            <span className="bg-bridge-dark px-4 py-1 rounded-full border border-white/[0.08]">
               {mode === 'login' ? t('auth.secureLogin') : t('auth.createAccount')}
             </span>
           </div>
@@ -269,13 +279,13 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
           {mode === 'signup' && (
             <div className="space-y-2">
               <div className="relative group">
-                <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-600 group-focus-within:text-[#2DD4BF]/80 transition-colors" />
+                <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-600 group-focus-within:text-bridge-secondary/80 transition-colors" />
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder={t('auth.namePlaceholder')}
-                  className="w-full bg-white/[0.03] border border-white/[0.08] text-white pl-12 pr-4 h-13 py-3 rounded-xl focus:outline-none focus:border-[#2DD4BF]/40 focus:ring-2 focus:ring-[#2DD4BF]/10 transition-all placeholder:text-slate-600"
+                  className="w-full bg-white/[0.03] border border-white/[0.08] text-white pl-12 pr-4 h-13 py-3 rounded-xl focus:outline-none focus:border-bridge-secondary/40 focus:ring-2 focus:ring-bridge-secondary/10 transition-all placeholder:text-slate-600"
                   required
                 />
               </div>
@@ -284,13 +294,13 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
 
           <div className="space-y-2">
             <div className="relative group">
-              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-600 group-focus-within:text-[#2DD4BF] transition-colors" />
+              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-600 group-focus-within:text-bridge-secondary transition-colors" />
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder={t('auth.emailPlaceholder')}
-                className="w-full bg-white/[0.03] border border-white/[0.08] text-white pl-12 pr-4 h-13 py-3 rounded-xl focus:outline-none focus:border-[#2DD4BF]/40 focus:ring-2 focus:ring-[#2DD4BF]/10 transition-all placeholder:text-slate-600"
+                className="w-full bg-white/[0.03] border border-white/[0.08] text-white pl-12 pr-4 h-13 py-3 rounded-xl focus:outline-none focus:border-bridge-secondary/40 focus:ring-2 focus:ring-bridge-secondary/10 transition-all placeholder:text-slate-600"
                 required
               />
             </div>
@@ -298,7 +308,7 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
 
           <div className="space-y-2">
             <div className="relative group">
-              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-600 group-focus-within:text-[#2DD4BF] transition-colors" />
+              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-600 group-focus-within:text-bridge-secondary transition-colors" />
               <input
                 type="password"
                 value={password}
@@ -306,7 +316,7 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
                 onFocus={() => setPasswordFocused(true)}
                 onBlur={() => setPasswordFocused(false)}
                 placeholder={t('auth.passwordPlaceholder')}
-                className="w-full bg-white/[0.03] border border-white/[0.08] text-white pl-12 pr-4 h-13 py-3 rounded-xl focus:outline-none focus:border-[#2DD4BF]/40 focus:ring-2 focus:ring-[#2DD4BF]/10 transition-all placeholder:text-slate-600"
+                className="w-full bg-white/[0.03] border border-white/[0.08] text-white pl-12 pr-4 h-13 py-3 rounded-xl focus:outline-none focus:border-bridge-secondary/40 focus:ring-2 focus:ring-bridge-secondary/10 transition-all placeholder:text-slate-600"
                 required
                 minLength={8}
               />
@@ -339,7 +349,7 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
               <div className="text-right">
                 <Link
                   to="/forgot-password"
-                  className="text-sm text-slate-500 hover:text-[#2DD4BF]/80 transition-colors"
+                  className="text-sm text-slate-500 hover:text-bridge-secondary/80 transition-colors"
                 >
                   {t('auth.forgotPassword')}
                 </Link>
@@ -359,7 +369,7 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
                 />
                 <div className={`w-5 h-5 rounded-md border-2 transition-all flex items-center justify-center ${
                   agreeToTerms
-                    ? 'bg-[#2DD4BF] border-[#2DD4BF]'
+                    ? 'bg-bridge-secondary border-bridge-secondary'
                     : 'border-white/30 group-hover:border-white/50'
                 }`}>
                   {agreeToTerms && (
@@ -370,11 +380,11 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
                 </div>
               </div>
               <span className="text-sm text-slate-500 leading-relaxed">
-                <Link to="/terms" className="text-[#2DD4BF]/80 hover:text-[#2DD4BF] transition-colors" target="_blank">
+                <Link to="/terms" className="text-bridge-secondary/80 hover:text-bridge-secondary transition-colors" target="_blank">
                   {t('auth.termsOfService')}
                 </Link>
                 {' '}{t('common.and')}{' '}
-                <Link to="/privacy" className="text-[#2DD4BF]/80 hover:text-[#2DD4BF] transition-colors" target="_blank">
+                <Link to="/privacy" className="text-bridge-secondary/80 hover:text-bridge-secondary transition-colors" target="_blank">
                   {t('auth.privacyPolicy')}
                 </Link>
                 {t('auth.agreeToTerms')}
@@ -390,8 +400,8 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
 
           <button
             type="submit"
-            disabled={isLoading || isGoogleLoading || (mode === 'signup' && (!agreeToTerms || !isPasswordValid))}
-            className="w-full h-13 text-white rounded-xl font-semibold transition-all duration-300 flex items-center justify-center space-x-3 transform active:scale-[0.98] mt-6 group overflow-hidden relative disabled:opacity-40 disabled:cursor-not-allowed bg-gradient-to-r from-[#2DD4BF]/90 to-[#6366F1]/80 hover:from-[#2DD4BF] hover:to-[#6366F1] shadow-[0_4px_24px_rgba(45,212,191,0.2)]"
+            disabled={isLoading || (mode === 'signup' && (!agreeToTerms || !isPasswordValid))}
+            className="w-full h-13 text-white rounded-xl font-semibold transition-all duration-300 flex items-center justify-center space-x-3 transform active:scale-[0.98] mt-6 group overflow-hidden relative disabled:opacity-40 disabled:cursor-not-allowed bg-gradient-to-r from-bridge-secondary/90 to-bridge-accent/80 hover:from-bridge-secondary hover:to-bridge-accent shadow-[0_4px_24px_rgba(45,212,191,0.2)]"
           >
             <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
             {isLoading ? (
@@ -421,7 +431,7 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
             {mode === 'login' ? t('auth.noAccount') : t('auth.hasAccount')}
             <button
               onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
-              className="ml-2 text-[#2DD4BF] font-semibold hover:text-[#2DD4BF]/80 transition-colors"
+              className="ml-2 text-bridge-secondary font-semibold hover:text-bridge-secondary/80 transition-colors"
             >
               {mode === 'login' ? t('auth.signUp') : t('auth.signIn')}
             </button>

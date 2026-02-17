@@ -67,7 +67,7 @@ export function EmptyBoardGuide({ onCreateFeature }: EmptyBoardGuideProps) {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15 + index * 0.15, duration: 0.5 }}
-              className={`w-64 bg-kanban-card rounded-2xl border border-kanban-border p-6 transition-all ${step.borderHover}`}
+              className={`w-64 bg-bridge-surface rounded-2xl border border-bridge-border p-6 transition-all ${step.borderHover}`}
             >
               <div className="flex items-center gap-3 mb-4">
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${step.iconBg}`}>

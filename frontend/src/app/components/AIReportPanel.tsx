@@ -252,6 +252,91 @@ export function AIReportPanel({ boardId, members, hideBilling }: AIReportPanelPr
 
   return (
     <div className="h-full flex flex-col md:flex-row bg-bridge-dark">
+      {/* Sidebar - Report history (left) */}
+      {reportHistory.length > 0 && (
+        <>
+          {/* Mobile history toggle button */}
+          <button
+            onClick={() => setShowHistory(!showHistory)}
+            className="md:hidden fixed bottom-4 left-4 z-20 flex items-center gap-2 px-4 py-2.5 bg-bridge-obsidian border border-white/10 rounded-xl text-xs font-medium text-slate-300 shadow-lg"
+          >
+            <Clock className="h-3.5 w-3.5" />
+            {t('aiReport.history')}
+            <span className="text-[10px] bg-bridge-accent/20 text-bridge-accent px-1.5 py-0.5 rounded-full">{reportHistory.length}</span>
+          </button>
+
+          {/* Mobile history overlay */}
+          {showHistory && (
+            <div className="md:hidden fixed inset-0 z-30 bg-black/50" onClick={() => setShowHistory(false)}>
+              <div
+                className="absolute left-0 top-0 h-full w-72 bg-bridge-dark border-r border-white/10 flex flex-col"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                    {t('aiReport.history')}
+                  </h4>
+                  <button onClick={() => setShowHistory(false)} className="p-1 text-slate-500 hover:text-white">
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                </div>
+                <div className="flex-1 overflow-y-auto">
+                  {reportHistory.map((item) => (
+                    <button
+                      key={item.id}
+                      onClick={() => { handleLoadHistoryReport(item.id); setShowHistory(false); }}
+                      className={`w-full text-left px-4 py-3 border-b border-white/5 hover:bg-white/5 transition-colors ${
+                        report?.id === item.id ? 'bg-bridge-accent/10 border-l-2 border-l-bridge-accent' : ''
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <FileText className="h-3.5 w-3.5 text-slate-500" />
+                        <span className="text-xs font-medium text-white">
+                          {item.period_start} ~ {item.period_end.slice(5)}
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-slate-600">
+                        {item.generated_by_name} · {formatDateTime(item.created_at)}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Desktop sidebar */}
+          <div className="hidden md:flex w-64 border-r border-white/10 flex-col overflow-hidden">
+            <div className="px-4 py-3 border-b border-white/10">
+              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                {t('aiReport.history')}
+              </h4>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {reportHistory.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => handleLoadHistoryReport(item.id)}
+                  className={`w-full text-left px-4 py-3 border-b border-white/5 hover:bg-white/5 transition-colors ${
+                    report?.id === item.id ? 'bg-bridge-accent/10 border-l-2 border-l-bridge-accent' : ''
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <FileText className="h-3.5 w-3.5 text-slate-500" />
+                    <span className="text-xs font-medium text-white">
+                      {item.period_start} ~ {item.period_end.slice(5)}
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-slate-600">
+                    {item.generated_by_name} · {formatDateTime(item.created_at)}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* Header */}
@@ -440,90 +525,6 @@ export function AIReportPanel({ boardId, members, hideBilling }: AIReportPanelPr
         </div>
       </div>
 
-      {/* Sidebar - Report history */}
-      {reportHistory.length > 0 && (
-        <>
-          {/* Mobile history toggle button */}
-          <button
-            onClick={() => setShowHistory(!showHistory)}
-            className="md:hidden fixed bottom-4 right-4 z-20 flex items-center gap-2 px-4 py-2.5 bg-bridge-obsidian border border-white/10 rounded-xl text-xs font-medium text-slate-300 shadow-lg"
-          >
-            <Clock className="h-3.5 w-3.5" />
-            {t('aiReport.history')}
-            <span className="text-[10px] bg-bridge-accent/20 text-bridge-accent px-1.5 py-0.5 rounded-full">{reportHistory.length}</span>
-          </button>
-
-          {/* Mobile history overlay */}
-          {showHistory && (
-            <div className="md:hidden fixed inset-0 z-30 bg-black/50" onClick={() => setShowHistory(false)}>
-              <div
-                className="absolute right-0 top-0 h-full w-72 bg-bridge-dark border-l border-white/10 flex flex-col"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
-                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                    {t('aiReport.history')}
-                  </h4>
-                  <button onClick={() => setShowHistory(false)} className="p-1 text-slate-500 hover:text-white">
-                    <ChevronRight className="h-4 w-4" />
-                  </button>
-                </div>
-                <div className="flex-1 overflow-y-auto">
-                  {reportHistory.map((item) => (
-                    <button
-                      key={item.id}
-                      onClick={() => { handleLoadHistoryReport(item.id); setShowHistory(false); }}
-                      className={`w-full text-left px-4 py-3 border-b border-white/5 hover:bg-white/5 transition-colors ${
-                        report?.id === item.id ? 'bg-bridge-accent/10 border-l-2 border-l-bridge-accent' : ''
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 mb-1">
-                        <FileText className="h-3.5 w-3.5 text-slate-500" />
-                        <span className="text-xs font-medium text-white">
-                          {item.period_start} ~ {item.period_end.slice(5)}
-                        </span>
-                      </div>
-                      <div className="text-[10px] text-slate-600">
-                        {item.generated_by_name} · {formatDateTime(item.created_at)}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Desktop sidebar */}
-          <div className="hidden md:flex w-64 border-l border-white/10 flex-col overflow-hidden">
-            <div className="px-4 py-3 border-b border-white/10">
-              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                {t('aiReport.history')}
-              </h4>
-            </div>
-            <div className="flex-1 overflow-y-auto">
-              {reportHistory.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => handleLoadHistoryReport(item.id)}
-                  className={`w-full text-left px-4 py-3 border-b border-white/5 hover:bg-white/5 transition-colors ${
-                    report?.id === item.id ? 'bg-bridge-accent/10 border-l-2 border-l-bridge-accent' : ''
-                  }`}
-                >
-                  <div className="flex items-center gap-2 mb-1">
-                    <FileText className="h-3.5 w-3.5 text-slate-500" />
-                    <span className="text-xs font-medium text-white">
-                      {item.period_start} ~ {item.period_end.slice(5)}
-                    </span>
-                  </div>
-                  <div className="text-[10px] text-slate-600">
-                    {item.generated_by_name} · {formatDateTime(item.created_at)}
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        </>
-      )}
     </div>
   );
 }

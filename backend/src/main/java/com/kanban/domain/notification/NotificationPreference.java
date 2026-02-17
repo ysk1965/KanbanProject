@@ -65,11 +65,11 @@ public class NotificationPreference {
     @Builder.Default
     private Boolean slackMeetingMemoSharedEnabled = true;
 
-    @Column(name = "note_comment_mention_enabled", nullable = false)
+    @Column(name = "note_comment_mention_enabled", nullable = false, columnDefinition = "boolean not null default true")
     @Builder.Default
     private Boolean noteCommentMentionEnabled = true;
 
-    @Column(name = "slack_note_comment_mention_enabled", nullable = false)
+    @Column(name = "slack_note_comment_mention_enabled", nullable = false, columnDefinition = "boolean not null default true")
     @Builder.Default
     private Boolean slackNoteCommentMentionEnabled = true;
 

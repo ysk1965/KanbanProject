@@ -36,7 +36,7 @@ export function FeatureCard({ feature, onClick, availableTags = [], tasks = [], 
   return (
     <div
       onClick={onClick}
-      className="group relative bg-kanban-card-hover rounded-2xl border border-kanban-border p-5 hover:border-indigo-500/50 hover:shadow-2xl hover:shadow-indigo-500/10 transition-all cursor-pointer overflow-hidden kanban-glow"
+      className="group relative bg-bridge-surface-hover rounded-2xl border border-bridge-border p-5 hover:border-indigo-500/50 hover:shadow-2xl hover:shadow-indigo-500/10 transition-all cursor-pointer overflow-hidden kanban-glow"
     >
       {/* 좌측 컬러 바 */}
       <div
@@ -59,7 +59,7 @@ export function FeatureCard({ feature, onClick, availableTags = [], tasks = [], 
 
           {/* 마일스톤 뱃지 */}
           {milestone && (
-            <div className="flex items-center gap-2 bg-kanban-card px-2 py-0.5 rounded-md border border-kanban-border mt-2">
+            <div className="flex items-center gap-2 bg-bridge-surface px-2 py-0.5 rounded-md border border-bridge-border mt-2">
               <Flag size={10} className="text-indigo-400" />
               <span className="text-[10px] text-indigo-400 font-bold">{milestone.title}</span>
             </div>
@@ -96,7 +96,7 @@ export function FeatureCard({ feature, onClick, availableTags = [], tasks = [], 
             {Math.round(progressPercent)}%
           </span>
         </div>
-        <div className="h-1.5 w-full bg-kanban-surface rounded-full overflow-hidden">
+        <div className="h-1.5 w-full bg-bridge-surface-hover rounded-full overflow-hidden">
           <div
             className="h-full transition-all duration-1000 ease-out rounded-full"
             style={{
@@ -109,7 +109,7 @@ export function FeatureCard({ feature, onClick, availableTags = [], tasks = [], 
       </div>
 
       {/* 추가 정보 */}
-      <div className="flex items-center justify-between border-t border-kanban-border pt-4 mt-1 pl-2">
+      <div className="flex items-center justify-between border-t border-bridge-border pt-4 mt-1 pl-2">
         <div className="flex items-center gap-3">
           {feature.due_date && (
             <div className="flex items-center gap-1.5 text-zinc-400">
@@ -138,11 +138,11 @@ export function FeatureCard({ feature, onClick, availableTags = [], tasks = [], 
 
       {/* 서브태스크 목록 */}
       {isExpanded && tasks.length > 0 && (
-        <div className="mt-4 pt-4 border-t border-kanban-border pl-2 space-y-2">
+        <div className="mt-4 pt-4 border-t border-bridge-border pl-2 space-y-2">
           {tasks.map((task) => (
             <div
               key={task.id}
-              className="flex items-center gap-2 p-2 rounded-lg bg-kanban-surface hover:bg-white/5 transition-colors"
+              className="flex items-center gap-2 p-2 rounded-lg bg-bridge-surface-hover hover:bg-white/5 transition-colors"
             >
               <div
                 className={`w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 ${

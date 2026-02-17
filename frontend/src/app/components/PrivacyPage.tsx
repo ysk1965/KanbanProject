@@ -31,7 +31,7 @@ export function PrivacyPage() {
         >
           {/* Title */}
           <div className="flex items-center gap-4 mb-8">
-            <div className="w-14 h-14 bg-gradient-to-br from-[#6366F1] to-[#2DD4BF] rounded-2xl flex items-center justify-center">
+            <div className="w-14 h-14 bg-gradient-to-br from-bridge-accent to-bridge-secondary rounded-2xl flex items-center justify-center">
               <Shield className="w-7 h-7 text-white" />
             </div>
             <div>

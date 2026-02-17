@@ -212,13 +212,13 @@ export function FeatureDetailModal({
         onClick={(e) => { if (e.target === e.currentTarget && mouseDownTargetRef.current === e.currentTarget) handleClose(); }}
       >
         <div
-          className="w-full max-w-xl bg-kanban-card text-zinc-300 rounded-2xl border border-white/10 shadow-[0_0_60px_rgba(0,0,0,0.5)] overflow-hidden animate-in zoom-in-95 duration-200"
+          className="w-full max-w-xl bg-bridge-surface text-zinc-300 rounded-2xl border border-white/10 shadow-[0_0_60px_rgba(0,0,0,0.5)] overflow-hidden animate-in zoom-in-95 duration-200"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Feature color accent line */}
           <div className="h-[3px] w-full" style={{ backgroundColor: selectedColor }} />
           {/* Top Control Bar */}
-          <div className="flex items-center justify-between px-6 py-5 border-b border-kanban-border/30 bg-kanban-surface/20">
+          <div className="flex items-center justify-between px-6 py-5 border-b border-bridge-border/30 bg-bridge-surface-hover/20">
             <div className="flex items-center gap-3 flex-1">
               {canEdit ? (
                 <Popover>
@@ -317,7 +317,7 @@ export function FeatureDetailModal({
                 value={editedFeature.description || ''}
                 onChange={(e) => canEdit && updateEditedFeature({ description: e.target.value })}
                 readOnly={!canEdit}
-                className={`w-full min-h-[100px] bg-kanban-bg/50 border border-kanban-border/30 rounded-xl p-4 text-zinc-300 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all resize-none text-sm leading-relaxed ${!canEdit ? 'cursor-default' : ''}`}
+                className={`w-full min-h-[100px] bg-bridge-dark/50 border border-bridge-border/30 rounded-xl p-4 text-zinc-300 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all resize-none text-sm leading-relaxed ${!canEdit ? 'cursor-default' : ''}`}
               />
             </section>
 
@@ -332,7 +332,7 @@ export function FeatureDetailModal({
                   <Popover>
                     <PopoverTrigger asChild>
                       <button
-                        className="w-full h-10 flex items-center gap-2 text-left bg-kanban-bg/50 border border-kanban-border/30 rounded-lg px-4 py-2.5 text-xs font-bold text-zinc-200 hover:bg-kanban-bg/70 transition-colors"
+                        className="w-full h-10 flex items-center gap-2 text-left bg-bridge-dark/50 border border-bridge-border/30 rounded-lg px-4 py-2.5 text-xs font-bold text-zinc-200 hover:bg-bridge-dark/70 transition-colors"
                       >
                         <CalendarIcon className="h-4 w-4 text-slate-400" />
                         {editedFeature.due_date ? (
@@ -367,7 +367,7 @@ export function FeatureDetailModal({
                     </PopoverContent>
                   </Popover>
                 ) : (
-                  <div className="w-full h-10 flex items-center gap-2 bg-kanban-bg/50 border border-kanban-border/30 rounded-lg px-4 py-2.5 text-xs font-bold text-zinc-200 opacity-70">
+                  <div className="w-full h-10 flex items-center gap-2 bg-bridge-dark/50 border border-bridge-border/30 rounded-lg px-4 py-2.5 text-xs font-bold text-zinc-200 opacity-70">
                     <CalendarIcon className="h-4 w-4 text-slate-400" />
                     {editedFeature.due_date ? (
                       format(new Date(editedFeature.due_date), 'yyyy. MM. dd.', { locale: ko })
@@ -449,7 +449,7 @@ export function FeatureDetailModal({
                 </div>
               </div>
 
-              <div className="bg-kanban-bg/40 border border-kanban-border/30 rounded-xl overflow-hidden">
+              <div className="bg-bridge-dark/40 border border-bridge-border/30 rounded-xl overflow-hidden">
                 {/* Task Entries */}
                 <div className="divide-y divide-white/5">
                   {tasks.length === 0 && (
@@ -546,7 +546,7 @@ export function FeatureDetailModal({
 
                 {/* Quick Add Dock - Viewer는 서브태스크 추가 불가 */}
                 {canEdit && (
-                  <div className="bg-kanban-bg/30 p-2 flex gap-2 border-t border-kanban-border/20">
+                  <div className="bg-bridge-dark/30 p-2 flex gap-2 border-t border-bridge-border/20">
                     <input
                       type="text"
                       placeholder={t('featureDetail.newSubtaskPlaceholder')}
@@ -556,7 +556,7 @@ export function FeatureDetailModal({
                         if (e.nativeEvent.isComposing) return;
                         if (e.key === 'Enter') handleAddSubtask();
                       }}
-                      className="flex-1 bg-kanban-bg/50 border border-kanban-border/30 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-bridge-accent/50 focus:border-bridge-accent text-zinc-300 placeholder-zinc-500 transition-all"
+                      className="flex-1 bg-bridge-dark/50 border border-bridge-border/30 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-bridge-accent/50 focus:border-bridge-accent text-zinc-300 placeholder-zinc-500 transition-all"
                     />
                     <button
                       ref={addBtnRef}
@@ -597,7 +597,7 @@ export function FeatureDetailModal({
       {/* Confirm Dialog */}
       {showConfirmDialog && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md bg-kanban-card rounded-2xl border border-kanban-border/50 p-6 shadow-2xl">
+          <div className="w-full max-w-md bg-bridge-surface rounded-2xl border border-bridge-border/50 p-6 shadow-2xl">
             <h3 className="text-lg font-bold text-foreground mb-2">{t('featureDetail.saveChangesTitle')}</h3>
             <p className="text-sm text-zinc-400 mb-6">
               {t('featureDetail.saveChangesDesc')}
@@ -623,7 +623,7 @@ export function FeatureDetailModal({
       {/* Delete Dialog */}
       {showDeleteDialog && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md bg-kanban-card rounded-2xl border border-kanban-border/50 p-6 shadow-2xl">
+          <div className="w-full max-w-md bg-bridge-surface rounded-2xl border border-bridge-border/50 p-6 shadow-2xl">
             <h3 className="text-lg font-bold text-foreground mb-2">{t('featureDetail.deleteTitle')}</h3>
             <p className="text-sm text-zinc-400 mb-6">
               {t('featureDetail.deleteDesc')}

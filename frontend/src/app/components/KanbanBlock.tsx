@@ -255,7 +255,7 @@ export const KanbanBlock = memo(function KanbanBlock({
   // 플레이스홀더 JSX
   const placeholderElement = (
     <div
-      className="h-16 border-2 border-dashed border-[#2DD4BF]/50 rounded-xl bg-[#2DD4BF]/10 flex items-center justify-center"
+      className="h-16 border-2 border-dashed border-bridge-secondary/50 rounded-xl bg-bridge-secondary/10 flex items-center justify-center"
       onDragEnter={(e) => {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
@@ -270,7 +270,7 @@ export const KanbanBlock = memo(function KanbanBlock({
         handleTaskDrop(e);
       }}
     >
-      <span className="text-[#2DD4BF] text-xs font-semibold pointer-events-none">{t('kanbanBlock.dropHere')}</span>
+      <span className="text-bridge-secondary text-xs font-semibold pointer-events-none">{t('kanbanBlock.dropHere')}</span>
     </div>
   );
 
@@ -296,19 +296,19 @@ export const KanbanBlock = memo(function KanbanBlock({
         handleTaskDrop(e);
         handleBlockDrop(e);
       }}
-      className={`relative flex flex-col bg-kanban-card rounded-2xl border border-kanban-border min-w-[260px] max-w-[260px] md:min-w-[280px] md:max-w-[280px] transition-all duration-200 ${
-        taskPlaceholderInThisBlock ? 'ring-2 ring-[#2DD4BF]/50 bg-[#2DD4BF]/5' : ''
+      className={`relative flex flex-col bg-bridge-surface rounded-2xl border border-bridge-border min-w-[260px] max-w-[260px] md:min-w-[280px] md:max-w-[280px] transition-all duration-200 ${
+        taskPlaceholderInThisBlock ? 'ring-2 ring-bridge-secondary/50 bg-bridge-secondary/5' : ''
       } ${isThisBlockDragging ? 'opacity-40 scale-95 rotate-1' : ''} ${
-        state.blockPlaceholderIndex === blockIndex && state.draggedBlock ? 'ring-2 ring-[#2DD4BF]' : ''
+        state.blockPlaceholderIndex === blockIndex && state.draggedBlock ? 'ring-2 ring-bridge-secondary' : ''
       }`}
     >
       {/* 드롭 인디케이터 (왼쪽) */}
       {state.blockPlaceholderIndex === blockIndex && state.draggedBlock && (
-        <div className="absolute -left-2 top-0 bottom-0 w-1 bg-[#2DD4BF] rounded-full animate-pulse" />
+        <div className="absolute -left-2 top-0 bottom-0 w-1 bg-bridge-secondary rounded-full animate-pulse" />
       )}
 
       {/* 블록 헤더 */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-kanban-border group">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-bridge-border group">
         {/* 드래그 핸들 - 커스텀 블록만 표시 */}
         {isCustomBlock && (
           <div
@@ -316,7 +316,7 @@ export const KanbanBlock = memo(function KanbanBlock({
             draggable
             onDragStart={handleBlockDragStart}
             onDragEnd={handleBlockDragEnd}
-            className="cursor-grab active:cursor-grabbing p-1 -ml-1 mr-1 rounded-lg hover:bg-kanban-surface opacity-40 group-hover:opacity-100 transition-all"
+            className="cursor-grab active:cursor-grabbing p-1 -ml-1 mr-1 rounded-lg hover:bg-bridge-surface-hover opacity-40 group-hover:opacity-100 transition-all"
             title={t('kanbanBlock.dragToMove')}
           >
             <GripVertical className="h-4 w-4 text-zinc-400" />
@@ -330,24 +330,24 @@ export const KanbanBlock = memo(function KanbanBlock({
             />
           )}
           <h3 className="font-bold text-sm text-foreground tracking-tight">{block.name}</h3>
-          <span className="text-xs font-semibold text-zinc-400 bg-kanban-surface px-2 py-0.5 rounded-md">{tasks.length}</span>
+          <span className="text-xs font-semibold text-zinc-400 bg-bridge-surface-hover px-2 py-0.5 rounded-md">{tasks.length}</span>
         </div>
 
         {!isFixedBlock && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-zinc-400 hover:text-foreground hover:bg-kanban-surface opacity-0 group-hover:opacity-100 transition-all">
+              <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover opacity-0 group-hover:opacity-100 transition-all">
                 <MoreVertical className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-kanban-card border-kanban-border">
-              <DropdownMenuItem onClick={onEditBlock} className="text-zinc-300 hover:bg-kanban-surface hover:text-foreground text-xs">
+            <DropdownMenuContent align="end" className="bg-bridge-surface border-bridge-border">
+              <DropdownMenuItem onClick={onEditBlock} className="text-zinc-300 hover:bg-bridge-surface-hover hover:text-foreground text-xs">
                 {t('kanbanBlock.rename')}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={onEditBlock} className="text-zinc-300 hover:bg-kanban-surface hover:text-foreground text-xs">
+              <DropdownMenuItem onClick={onEditBlock} className="text-zinc-300 hover:bg-bridge-surface-hover hover:text-foreground text-xs">
                 {t('kanbanBlock.changeColor')}
               </DropdownMenuItem>
-              <DropdownMenuSeparator className="bg-kanban-border" />
+              <DropdownMenuSeparator className="bg-bridge-border" />
               <DropdownMenuItem
                 onClick={onDeleteBlock}
                 className="text-red-400 hover:bg-red-500/10 hover:text-red-300 text-xs"

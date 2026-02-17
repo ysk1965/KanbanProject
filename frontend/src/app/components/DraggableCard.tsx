@@ -267,9 +267,9 @@ export function DraggableCard({
       data-task-id={task.id}
       data-task-index={index}
       draggable={!shouldDisablePointerEvents}
-      className={`group relative bg-kanban-card-hover rounded-xl border border-kanban-border px-3 py-2.5 hover:border-[#2DD4BF]/40 hover:shadow-2xl hover:shadow-[#2DD4BF]/10 transition-all cursor-pointer overflow-hidden kanban-glow select-none ${
+      className={`group relative bg-bridge-surface-hover rounded-xl border border-bridge-border px-3 py-2.5 hover:border-bridge-secondary/40 hover:shadow-2xl hover:shadow-bridge-secondary/10 transition-all cursor-pointer overflow-hidden kanban-glow select-none ${
         isDragging || isThisCardDragging
-          ? 'opacity-30 scale-95 border-2 border-dashed border-[#2DD4BF]'
+          ? 'opacity-30 scale-95 border-2 border-dashed border-bridge-secondary'
           : ''
       } ${task.completed ? 'opacity-60' : ''} ${
         shouldDisablePointerEvents ? 'pointer-events-none' : ''
@@ -319,7 +319,7 @@ export function DraggableCard({
               >
                 {linkedFeature.title}
               </span>
-              <h4 className="font-bold text-foreground text-[13px] leading-snug group-hover:text-[#2DD4BF] transition-colors line-clamp-2">
+              <h4 className="font-bold text-foreground text-[13px] leading-snug group-hover:text-bridge-secondary transition-colors line-clamp-2">
                 {displayTitle}
               </h4>
             </div>
@@ -330,7 +330,7 @@ export function DraggableCard({
                 style={{ backgroundColor: featureColor }}
                 title={linkedFeature.title}
               />
-              <h4 className="font-bold text-foreground text-[13px] leading-snug group-hover:text-[#2DD4BF] transition-colors truncate">
+              <h4 className="font-bold text-foreground text-[13px] leading-snug group-hover:text-bridge-secondary transition-colors truncate">
                 {displayTitle}
               </h4>
             </div>
@@ -341,7 +341,7 @@ export function DraggableCard({
               className="w-1.5 h-1.5 rounded-full flex-shrink-0"
               style={{ backgroundColor: task.completed ? '#22c55e' : featureColor }}
             />
-            <h4 className="font-bold text-foreground text-[13px] leading-snug group-hover:text-[#2DD4BF] transition-colors truncate">
+            <h4 className="font-bold text-foreground text-[13px] leading-snug group-hover:text-bridge-secondary transition-colors truncate">
               {displayTitle}
             </h4>
           </div>
@@ -382,7 +382,7 @@ export function DraggableCard({
       )}
 
       {/* 체크리스트 & 담당자 */}
-      <div className="flex items-center justify-between border-t border-kanban-border pt-2 pl-2.5">
+      <div className="flex items-center justify-between border-t border-bridge-border pt-2 pl-2.5">
         <div className="flex items-center gap-3">
           {isScheduled && (
             <div className="flex items-center gap-1" title={t('card.hasTimeblock', 'Timeblock scheduled')}>
@@ -427,7 +427,7 @@ export function DraggableCard({
               {allAssignees.slice(0, 3).map((assignee, index) => (
                 <div
                   key={assignee.id}
-                  className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white border-2 border-kanban-card-hover whitespace-nowrap overflow-hidden"
+                  className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white border-2 border-bridge-surface-hover whitespace-nowrap overflow-hidden"
                   style={{
                     backgroundColor: getAssigneeHex(assignee.name, memberColorMap?.[assignee.id]),
                     zIndex: 3 - index,
@@ -439,7 +439,7 @@ export function DraggableCard({
               ))}
               {allAssignees.length > 3 && (
                 <div
-                  className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold text-white bg-zinc-600 border-2 border-kanban-card-hover"
+                  className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold text-white bg-zinc-600 border-2 border-bridge-surface-hover"
                   style={{ zIndex: 0 }}
                   title={allAssignees.slice(3).map(a => a.name).join(', ')}
                 >
@@ -456,7 +456,7 @@ export function DraggableCard({
 
       {/* 체크리스트 펼침 */}
       {isChecklistExpanded && hasChecklist && boardId && (
-        <div className="mt-2 pt-2 border-t border-kanban-border space-y-1 pl-2.5">
+        <div className="mt-2 pt-2 border-t border-bridge-border space-y-1 pl-2.5">
           {isLoading ? (
             <div className="text-xs text-zinc-400">{t('common.loading')}</div>
           ) : (
@@ -465,7 +465,7 @@ export function DraggableCard({
               .map((item) => (
                 <div
                   key={item.id}
-                  className="flex items-center gap-2 p-2 rounded-lg bg-kanban-surface hover:bg-white/5 transition-colors"
+                  className="flex items-center gap-2 p-2 rounded-lg bg-bridge-surface-hover hover:bg-white/5 transition-colors"
                   onClick={(e) => handleToggleItem(e, item.id)}
                 >
                   <div

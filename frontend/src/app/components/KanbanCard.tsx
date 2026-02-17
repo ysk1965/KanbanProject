@@ -138,7 +138,7 @@ export function KanbanCard({
   return (
     <div
       ref={drag}
-      className={`group relative bg-kanban-card-hover rounded-2xl border border-kanban-border p-5 hover:border-indigo-500/50 hover:shadow-2xl hover:shadow-indigo-500/10 transition-all cursor-pointer overflow-hidden kanban-glow ${
+      className={`group relative bg-bridge-surface-hover rounded-2xl border border-bridge-border p-5 hover:border-indigo-500/50 hover:shadow-2xl hover:shadow-indigo-500/10 transition-all cursor-pointer overflow-hidden kanban-glow ${
         isDragging ? 'opacity-50 scale-95' : ''
       } ${task.completed ? 'border-green-500/30' : ''}`}
       onClick={onClick}
@@ -217,7 +217,7 @@ export function KanbanCard({
       )}
 
       {/* 체크리스트 & 담당자 */}
-      <div className="flex items-center justify-between border-t border-kanban-border pt-3 mt-1 pl-4">
+      <div className="flex items-center justify-between border-t border-bridge-border pt-3 mt-1 pl-4">
         <div className="flex items-center gap-3">
           {hasChecklist && (
             <button
@@ -263,7 +263,7 @@ export function KanbanCard({
 
       {/* 체크리스트 펼침 */}
       {isExpanded && hasChecklist && boardId && (
-        <div className="mt-3 pt-3 border-t border-kanban-border space-y-1.5 pl-4">
+        <div className="mt-3 pt-3 border-t border-bridge-border space-y-1.5 pl-4">
           {isLoading ? (
             <div className="text-xs text-zinc-400">{t('common.loading')}</div>
           ) : (
@@ -272,7 +272,7 @@ export function KanbanCard({
               .map((item) => (
                 <div
                   key={item.id}
-                  className="flex items-center gap-2 p-2 rounded-lg bg-kanban-surface hover:bg-white/5 transition-colors"
+                  className="flex items-center gap-2 p-2 rounded-lg bg-bridge-surface-hover hover:bg-white/5 transition-colors"
                   onClick={(e) => handleToggleItem(e, item.id)}
                 >
                   <div

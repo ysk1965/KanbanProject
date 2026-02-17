@@ -183,7 +183,7 @@ export function SettingsPage() {
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-[#6366F1] to-[#2DD4BF] rounded-xl flex items-center justify-center">
+            <div className="w-10 h-10 bg-gradient-to-br from-bridge-accent to-bridge-secondary rounded-xl flex items-center justify-center">
               <Settings className="w-5 h-5 text-white" />
             </div>
             <div>

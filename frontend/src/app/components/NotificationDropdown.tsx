@@ -292,7 +292,7 @@ export function NotificationDropdown({
     <Popover open={isOpen} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <button
-          className="relative flex items-center gap-2 px-3 py-2 text-zinc-400 hover:text-foreground hover:bg-kanban-surface rounded-lg transition-all"
+          className="relative flex items-center gap-2 px-3 py-2 text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover rounded-lg transition-all"
         >
           <Bell size={18} />
           {unreadCount > 0 && (

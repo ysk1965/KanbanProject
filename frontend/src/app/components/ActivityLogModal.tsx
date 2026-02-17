@@ -189,9 +189,9 @@ export function ActivityLogModal({
 
   return (
     <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
-      <div className="bg-kanban-bg rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="bg-bridge-dark rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
         {/* 헤더 */}
-        <div className="flex items-center justify-between p-6 border-b border-kanban-border">
+        <div className="flex items-center justify-between p-6 border-b border-bridge-border">
           <div className="flex items-center gap-2">
             <Activity className="h-5 w-5 text-indigo-400" />
             <h2 className="text-xl font-semibold text-foreground">{t('activity.title')}</h2>
@@ -216,7 +216,7 @@ export function ActivityLogModal({
               {activities.map((activity) => (
                 <div
                   key={activity.id}
-                  className="flex gap-4 p-4 bg-kanban-card rounded-lg border border-kanban-border hover:border-white/20 transition-colors"
+                  className="flex gap-4 p-4 bg-bridge-surface rounded-lg border border-bridge-border hover:border-white/20 transition-colors"
                 >
                   {/* 아바타 */}
                   <div className="flex-shrink-0">
@@ -249,7 +249,7 @@ export function ActivityLogModal({
                   onClick={handleLoadMore}
                   disabled={isLoading}
                   variant="outline"
-                  className="w-full border-kanban-border text-zinc-300 hover:bg-white/5 hover:text-white"
+                  className="w-full border-bridge-border text-zinc-300 hover:bg-white/5 hover:text-white"
                 >
                   {isLoading ? (
                     t('activity.loading')
@@ -266,11 +266,11 @@ export function ActivityLogModal({
         </div>
 
         {/* 푸터 */}
-        <div className="border-t border-kanban-border p-4 bg-kanban-card">
+        <div className="border-t border-bridge-border p-4 bg-bridge-surface">
           <Button
             onClick={onClose}
             variant="outline"
-            className="w-full border-kanban-border text-zinc-300 hover:bg-white/5 hover:text-white"
+            className="w-full border-bridge-border text-zinc-300 hover:bg-white/5 hover:text-white"
           >
             {t('common.close')}
           </Button>

@@ -17,7 +17,7 @@ export function MilestoneOnboardingModal({
 
   return (
     <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-kanban-bg rounded-2xl w-full max-w-xl overflow-hidden border border-white/20 shadow-[0_0_50px_rgba(0,0,0,0.5)]">
+      <div className="bg-bridge-dark rounded-2xl w-full max-w-xl overflow-hidden border border-white/20 shadow-[0_0_50px_rgba(0,0,0,0.5)]">
         {/* 헤더 */}
         <div className="relative px-6 pt-6 pb-4">
           <button

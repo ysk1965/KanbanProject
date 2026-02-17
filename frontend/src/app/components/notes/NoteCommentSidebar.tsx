@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { MessageSquarePlus, X, Loader2, Filter, ChevronDown, ChevronUp, Hash } from 'lucide-react';
 import { noteCommentService } from '../../utils/services';
 import { memberAPI } from '../../utils/api';
+import { wsManager } from '../../utils/websocket';
+import type { BoardWebSocketEvent } from '../../types';
 import { NoteCommentThread } from './NoteCommentThread';
 import { NoteCommentInput } from './NoteCommentInput';
 import type { NoteCommentDetail, NoteCommentListResponse, MemberResponse } from '../../utils/api';
@@ -54,6 +56,24 @@ export function NoteCommentSidebar({
     loadComments();
     loadMembers();
   }, [loadComments, loadMembers]);
+
+  // ========== WebSocket: real-time comment sync ==========
+
+  const NOTE_COMMENT_EVENTS = ['NOTE_COMMENT_CREATED', 'NOTE_COMMENT_UPDATED', 'NOTE_COMMENT_DELETED', 'NOTE_COMMENT_RESOLVED', 'NOTE_COMMENT_REACTION_TOGGLED'];
+
+  useEffect(() => {
+    const sub = wsManager.subscribe(`/topic/board/${boardId}`, (message) => {
+      try {
+        const event: BoardWebSocketEvent = JSON.parse(message.body);
+        if (!NOTE_COMMENT_EVENTS.includes(event.type)) return;
+        if (event.user_id === currentUserId) return;
+        const data = event.data as { note_id?: string };
+        if (data?.note_id !== noteId) return;
+        loadComments();
+      } catch { /* ignore */ }
+    });
+    return () => sub.unsubscribe();
+  }, [boardId, noteId, currentUserId, loadComments]);
 
   // Emit block IDs with comments to parent
   useEffect(() => {

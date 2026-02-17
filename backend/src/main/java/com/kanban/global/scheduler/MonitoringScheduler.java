@@ -2,7 +2,6 @@ package com.kanban.global.scheduler;
 
 import com.kanban.domain.monitoring.service.MonitoringAlertService;
 import com.kanban.domain.monitoring.service.MonitoringService;
-import com.kanban.domain.subscription.service.AiCreditService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,7 +15,6 @@ public class MonitoringScheduler {
 
     private final MonitoringService monitoringService;
     private final MonitoringAlertService monitoringAlertService;
-    private final AiCreditService aiCreditService;
 
     @Value("${app.monitoring.enabled:true}")
     private boolean monitoringEnabled;
@@ -69,16 +67,4 @@ public class MonitoringScheduler {
         }
     }
 
-    /**
-     * Resets monthly AI credits for subscriptions whose reset date has passed.
-     * Runs daily at midnight UTC.
-     */
-    @Scheduled(cron = "${ai.credit.reset-cron:0 0 0 * * *}")
-    public void resetMonthlyAiCredits() {
-        try {
-            aiCreditService.resetMonthlyCredits();
-        } catch (Exception e) {
-            log.error("Failed to reset monthly AI credits: {}", e.getMessage(), e);
-        }
-    }
 }

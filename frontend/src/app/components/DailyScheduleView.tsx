@@ -642,17 +642,17 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
       }}
     >
       {/* 상단 날짜 네비게이션 */}
-      <div className="flex items-center justify-between px-3 md:px-6 py-2 md:py-3 bg-kanban-card border-b border-kanban-border gap-2">
+      <div className="flex items-center justify-between px-3 md:px-6 py-2 md:py-3 bg-bridge-surface border-b border-bridge-border gap-2">
         <div className="flex items-center gap-2 md:gap-4 flex-wrap min-w-0">
           {/* 일/주 토글 */}
           <div
-              className="flex bg-kanban-bg rounded-lg p-1 cursor-pointer"
+              className="flex bg-bridge-dark rounded-lg p-1 cursor-pointer"
               onClick={() => setViewMode(viewMode === 'day' ? 'week' : 'day')}
             >
               <span
                 className={`px-3 py-1 text-sm rounded-md transition-colors ${
                   viewMode === 'day'
-                    ? 'bg-kanban-surface text-white'
+                    ? 'bg-bridge-surface-hover text-white'
                     : 'text-zinc-400'
                 }`}
               >
@@ -661,7 +661,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
               <span
                 className={`px-3 py-1 text-sm rounded-md transition-colors ${
                   viewMode === 'week'
-                    ? 'bg-kanban-surface text-white'
+                    ? 'bg-bridge-surface-hover text-white'
                     : 'text-zinc-400'
                 }`}
               >
@@ -699,8 +699,8 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
             onClick={handleToday}
             className={
               (viewMode === 'day' ? isToday : isTodayInWeek)
-                ? 'bg-gradient-to-r from-[#2DD4BF] to-[#6366F1] text-white'
-                : 'border-kanban-border text-zinc-300 hover:bg-white/5 hover:text-foreground'
+                ? 'bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white'
+                : 'border-bridge-border text-zinc-300 hover:bg-white/5 hover:text-foreground'
             }
           >
             {t('dailySchedule.today')}
@@ -712,7 +712,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
             variant="outline"
             size="sm"
             onClick={() => setShowSettingsModal(true)}
-            className="border-kanban-border text-zinc-300 hover:bg-white/5 hover:text-foreground"
+            className="border-bridge-border text-zinc-300 hover:bg-white/5 hover:text-foreground"
           >
             <Settings className="h-4 w-4 md:mr-2" />
             <span className="hidden md:inline">{t('dailySchedule.settings')}</span>
@@ -727,14 +727,14 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
           /* 일 단위 뷰 */
           <div className="min-w-max">
             {/* 헤더: 시간/블록 + 멤버 컬럼 */}
-            <div className="flex sticky top-0 bg-kanban-card z-10 border-b border-kanban-border">
-              <div className="w-14 md:w-20 flex-shrink-0 p-2 md:p-3 text-xs md:text-sm font-medium text-zinc-400 border-r border-kanban-border">
+            <div className="flex sticky top-0 bg-bridge-surface z-10 border-b border-bridge-border">
+              <div className="w-14 md:w-20 flex-shrink-0 p-2 md:p-3 text-xs md:text-sm font-medium text-zinc-400 border-r border-bridge-border">
                 {displayMode === 'block' ? t('dailySchedule.block') : t('dailySchedule.time')}
               </div>
               {activeMembers.map((member) => (
                 <div
                   key={member.userId}
-                  className="w-36 md:w-48 flex-shrink-0 p-2 md:p-3 border-r border-kanban-border"
+                  className="w-36 md:w-48 flex-shrink-0 p-2 md:p-3 border-r border-bridge-border"
                 >
                   <div className="flex items-center gap-2">
                     <div
@@ -761,8 +761,8 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
             </div>
 
             {/* 데일리 체크리스트 영역 */}
-            <div className="flex border-b border-kanban-border bg-white/[0.02]">
-              <div className="w-14 md:w-20 flex-shrink-0 p-2 text-xs text-zinc-400 border-r border-kanban-border flex items-center justify-center">
+            <div className="flex border-b border-bridge-border bg-white/[0.02]">
+              <div className="w-14 md:w-20 flex-shrink-0 p-2 text-xs text-zinc-400 border-r border-bridge-border flex items-center justify-center">
                 <CheckSquare className="h-3.5 w-3.5" />
               </div>
               {activeMembers.map((member) => {
@@ -774,7 +774,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
                 return (
                   <div
                     key={`checklist-${member.userId}`}
-                    className="w-36 md:w-48 flex-shrink-0 p-2 border-r border-kanban-border"
+                    className="w-36 md:w-48 flex-shrink-0 p-2 border-r border-bridge-border"
                   >
                     <EmbeddedDailyChecklist
                       boardId={boardId}
@@ -851,9 +851,9 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
               {timeSlots.map((time, slotIndex) => {
                 const isBreak = isBreakSlot(time);
                 return (
-                <div key={time} className={`flex border-b border-kanban-border ${isBreak ? 'bg-amber-900/5' : ''}`} style={{ height: `${SLOT_HEIGHT}px` }}>
+                <div key={time} className={`flex border-b border-bridge-border ${isBreak ? 'bg-amber-900/5' : ''}`} style={{ height: `${SLOT_HEIGHT}px` }}>
                   {/* 시간/블록 라벨 */}
-                  <div className={`w-14 md:w-20 flex-shrink-0 p-2 text-xs border-r border-kanban-border bg-kanban-bg ${isBreak ? 'text-amber-500/50' : 'text-zinc-400'}`}>
+                  <div className={`w-14 md:w-20 flex-shrink-0 p-2 text-xs border-r border-bridge-border bg-bridge-dark ${isBreak ? 'text-amber-500/50' : 'text-zinc-400'}`}>
                     {displayMode === 'block'
                       ? `${slotIndex + 1}`
                       : time.endsWith(':00') ? time : ''}
@@ -864,12 +864,12 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
                     return (
                       <div
                         key={`${member.userId}-${time}`}
-                        className={`w-36 md:w-48 flex-shrink-0 border-r border-kanban-border transition-colors group relative h-full ${
+                        className={`w-36 md:w-48 flex-shrink-0 border-r border-bridge-border transition-colors group relative h-full ${
                           isBreak ? (isDragging ? 'cursor-pointer' : 'cursor-not-allowed') : isViewer ? 'cursor-default' : 'cursor-pointer'
                         } ${
                           isBreak
-                            ? (isSelected ? 'bg-[#2DD4BF]/5' : '')
-                            : isSelected ? 'bg-[#2DD4BF]/20' : isViewer ? '' : 'hover:bg-white/5'
+                            ? (isSelected ? 'bg-bridge-secondary/5' : '')
+                            : isSelected ? 'bg-bridge-secondary/20' : isViewer ? '' : 'hover:bg-white/5'
                         }`}
                         onMouseDown={isBreak ? undefined : (e) => handleMouseDown(e, member.userId, slotIndex)}
                         onMouseEnter={(isBreak && !isDragging) ? undefined : () => handleMouseEnter(member.userId, slotIndex)}
@@ -891,7 +891,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
                     );
                   })}
                   {activeMembers.length === 0 && (
-                    <div className="flex-1 border-r border-kanban-border h-full" />
+                    <div className="flex-1 border-r border-bridge-border h-full" />
                   )}
                 </div>
                 );
@@ -999,8 +999,8 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
           /* 주 단위 뷰 */
           <div className="min-w-max">
             {/* 헤더: 멤버 + 요일 */}
-            <div className="flex sticky top-0 bg-kanban-card z-10 border-b border-kanban-border">
-              <div className="w-24 md:w-32 flex-shrink-0 p-2 md:p-3 text-xs md:text-sm font-medium text-zinc-400 border-r border-kanban-border">
+            <div className="flex sticky top-0 bg-bridge-surface z-10 border-b border-bridge-border">
+              <div className="w-24 md:w-32 flex-shrink-0 p-2 md:p-3 text-xs md:text-sm font-medium text-zinc-400 border-r border-bridge-border">
                 멤버
               </div>
               {weekDays.map((day) => {
@@ -1009,14 +1009,14 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
                 return (
                   <div
                     key={dateStr}
-                    className={`w-28 md:w-36 flex-shrink-0 p-2 md:p-3 border-r border-kanban-border text-center ${
-                      isCurrentDay ? 'bg-[#2DD4BF]/10' : ''
+                    className={`w-28 md:w-36 flex-shrink-0 p-2 md:p-3 border-r border-bridge-border text-center ${
+                      isCurrentDay ? 'bg-bridge-secondary/10' : ''
                     }`}
                   >
-                    <div className={`text-sm font-medium ${isCurrentDay ? 'text-[#2DD4BF]' : 'text-foreground'}`}>
+                    <div className={`text-sm font-medium ${isCurrentDay ? 'text-bridge-secondary' : 'text-foreground'}`}>
                       {formatDate(day, 'E')}
                     </div>
-                    <div className={`text-xs ${isCurrentDay ? 'text-[#2DD4BF]' : 'text-zinc-400'}`}>
+                    <div className={`text-xs ${isCurrentDay ? 'text-bridge-secondary' : 'text-zinc-400'}`}>
                       {formatDate(day, 'M/d')}
                     </div>
                   </div>
@@ -1026,9 +1026,9 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
 
             {/* 멤버별 행 */}
             {activeMembers.map((member) => (
-              <div key={member.userId} className="flex border-b border-kanban-border">
+              <div key={member.userId} className="flex border-b border-bridge-border">
                 {/* 멤버 정보 */}
-                <div className="w-24 md:w-32 flex-shrink-0 p-2 md:p-3 border-r border-kanban-border bg-kanban-bg">
+                <div className="w-24 md:w-32 flex-shrink-0 p-2 md:p-3 border-r border-bridge-border bg-bridge-dark">
                   <div className="flex items-center gap-2">
                     <div
                       className="w-8 h-8 rounded-full flex items-center justify-center text-sm text-white font-medium"
@@ -1058,8 +1058,8 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
                   return (
                     <div
                       key={dateStr}
-                      className={`w-28 md:w-36 flex-shrink-0 p-2 border-r border-kanban-border min-h-[100px] ${
-                        isCurrentDay ? 'bg-[#2DD4BF]/8' : ''
+                      className={`w-28 md:w-36 flex-shrink-0 p-2 border-r border-bridge-border min-h-[100px] ${
+                        isCurrentDay ? 'bg-bridge-secondary/8' : ''
                       }`}
                     >
                       <div className="space-y-1">
@@ -1116,7 +1116,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
       </div>
 
       {/* 하단 안내 */}
-      <div className="px-3 md:px-6 py-2 md:py-3 bg-kanban-card border-t border-kanban-border">
+      <div className="px-3 md:px-6 py-2 md:py-3 bg-bridge-surface border-t border-bridge-border">
         <p className="text-sm text-zinc-400">
           {isViewer
             ? t('dailySchedule.viewerGuide')
