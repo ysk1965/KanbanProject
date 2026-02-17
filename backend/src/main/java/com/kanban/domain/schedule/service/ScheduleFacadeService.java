@@ -57,6 +57,7 @@ public class ScheduleFacadeService {
 
         Board board = boardRepository.findById(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        validateScheduleAccess(board);
 
         // 대상 담당자 목록
         Map<String, User> userCache = new java.util.HashMap<>();
@@ -148,5 +149,12 @@ public class ScheduleFacadeService {
                 .task(task != null ? ScheduleResponse.TaskInfo.of(task) : null)
                 .feature(feature != null ? ScheduleResponse.FeatureInfo.of(feature) : null)
                 .build();
+    }
+
+    private void validateScheduleAccess(Board board) {
+        board.checkAndUpdateTierIfTrialExpired();
+        if (!board.canAccessSchedule()) {
+            throw new BusinessException(ErrorCode.PREMIUM_FEATURE_REQUIRED);
+        }
     }
 }

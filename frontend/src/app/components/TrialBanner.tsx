@@ -7,12 +7,13 @@ interface TrialBannerProps {
   status: SubscriptionStatus;
   onOpenSubscription?: () => void;
   onOpenPremiumBenefits?: () => void;
+  onTrialEnding?: () => void;
   tier?: BoardTier;
   trialEndsAt?: string | null;
   hideBilling?: boolean;
 }
 
-export function TrialBanner({ status, onOpenSubscription, onOpenPremiumBenefits, tier, trialEndsAt, hideBilling }: TrialBannerProps) {
+export function TrialBanner({ status, onOpenSubscription, onOpenPremiumBenefits, onTrialEnding, tier, trialEndsAt, hideBilling }: TrialBannerProps) {
   const { t } = useTranslation();
 
   // TESTER/ADMIN 사용자 또는 milkyway.pe.kr 도메인은 과금 배너 숨김
@@ -67,7 +68,7 @@ export function TrialBanner({ status, onOpenSubscription, onOpenPremiumBenefits,
           <Button
             size="sm"
             className={`h-7 text-xs ${buttonClass}`}
-            onClick={onOpenPremiumBenefits || onOpenSubscription}
+            onClick={isUrgent ? (onTrialEnding || onOpenPremiumBenefits || onOpenSubscription) : (onOpenPremiumBenefits || onOpenSubscription)}
           >
             {t('trial.upgradeToPremium')}
           </Button>

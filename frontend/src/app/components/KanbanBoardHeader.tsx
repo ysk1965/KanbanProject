@@ -119,6 +119,7 @@ export function KanbanBoardHeader({
         trialEndsAt={tierInfo?.trial_ends_at || subscription?.trial_ends_at}
         onOpenSubscription={onOpenSubscription}
         onOpenPremiumBenefits={onOpenPremiumBenefits}
+        onTrialEnding={() => onOpenUpgradeModal('trial_ending')}
         hideBilling={hideBillingForUser}
       />
 
