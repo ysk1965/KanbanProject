@@ -57,15 +57,34 @@ public class SubscriptionScheduler {
     /**
      * AI 크레딧 월간 리셋: 매시간 5분에 실행
      * - creditsResetDate가 현재 시각 이전인 구독의 월간 크레딧을 리셋
-     * - 각 구독의 monthlyCreditsUsed → 0, creditsResetDate → +1개월
+     * - 건별 트랜잭션 분리: 하나의 실패가 다른 구독에 영향 주지 않음
      */
     @Scheduled(cron = "0 5 * * * *")
-    @Transactional
     public void resetMonthlyAiCredits() {
         try {
-            aiCreditService.resetMonthlyCredits();
+            List<String> subscriptionIds = aiCreditService.findSubscriptionIdsDueForReset();
+
+            if (subscriptionIds.isEmpty()) {
+                return;
+            }
+
+            int success = 0;
+            int failed = 0;
+
+            for (String subscriptionId : subscriptionIds) {
+                try {
+                    aiCreditService.resetSingleSubscriptionCredits(subscriptionId);
+                    success++;
+                } catch (Exception e) {
+                    failed++;
+                    log.error("Failed to reset credits for subscription {}: {}", subscriptionId, e.getMessage());
+                }
+            }
+
+            log.info("Monthly AI credits reset completed: {} success, {} failed out of {} total",
+                    success, failed, subscriptionIds.size());
         } catch (Exception e) {
-            log.error("Failed to reset monthly AI credits: {}", e.getMessage(), e);
+            log.error("Failed to fetch subscriptions for credit reset: {}", e.getMessage(), e);
         }
     }
 }

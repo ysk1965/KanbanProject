@@ -178,18 +178,19 @@ public class AiCreditService {
 
     // === Monthly Reset (Called by Scheduler) ===
 
+    @Transactional(readOnly = true)
+    public List<String> findSubscriptionIdsDueForReset() {
+        return subscriptionRepository.findDueForCreditReset(LocalDateTime.now(ZoneOffset.UTC))
+                .stream()
+                .map(Subscription::getId)
+                .toList();
+    }
+
     @Transactional
-    public void resetMonthlyCredits() {
-        List<Subscription> dueForReset = subscriptionRepository.findDueForCreditReset(
-                LocalDateTime.now(ZoneOffset.UTC));
-
-        for (Subscription subscription : dueForReset) {
-            subscription.resetMonthlyCredits();
-        }
-
-        if (!dueForReset.isEmpty()) {
-            log.info("Monthly AI credits reset for {} subscriptions", dueForReset.size());
-        }
+    public void resetSingleSubscriptionCredits(String subscriptionId) {
+        Subscription subscription = subscriptionRepository.findById(subscriptionId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SUBSCRIPTION_NOT_FOUND));
+        subscription.resetMonthlyCredits();
     }
 
     // === Tier-Based Monthly Credit Allocation ===
