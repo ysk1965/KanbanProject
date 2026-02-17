@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { Send, BookHeart, ChevronLeft, ChevronRight, Check, Sparkles, RotateCcw, BookOpen, Pencil } from 'lucide-react';
+import { Send, BookHeart, ChevronLeft, ChevronRight, Check, Sparkles, RotateCcw, BookOpen, Pencil, Calendar as CalendarIcon, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import {
   startOfMonth,
@@ -40,6 +40,7 @@ export function PersonalDiary() {
   const [message, setMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showMobileSidebar, setShowMobileSidebar] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const currentDateObj = new Date(currentDate + 'T00:00:00');
@@ -196,6 +197,7 @@ export function PersonalDiary() {
     if (!isSameMonth(day, calendarMonth)) {
       setCalendarMonth(startOfMonth(day));
     }
+    setShowMobileSidebar(false);
   };
 
   const handlePrevMonth = () => setCalendarMonth(subMonths(calendarMonth, 1));
@@ -207,14 +209,42 @@ export function PersonalDiary() {
   };
 
   return (
-    <div className="h-full flex">
+    <div className="h-full flex relative">
+      {/* Mobile Sidebar Toggle Button */}
+      <button
+        onClick={() => setShowMobileSidebar(true)}
+        className="md:hidden fixed bottom-20 left-4 z-40 w-11 h-11 rounded-full bg-bridge-accent shadow-lg shadow-bridge-accent/30 flex items-center justify-center text-white hover:bg-bridge-accent/90 transition-colors"
+      >
+        <CalendarIcon size={18} />
+      </button>
+
+      {/* Mobile Sidebar Overlay */}
+      {showMobileSidebar && (
+        <div
+          className="md:hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+          onClick={() => setShowMobileSidebar(false)}
+        />
+      )}
+
       {/* Sidebar - Calendar & Diary List */}
-      <div className="w-[340px] flex-shrink-0 border-r border-white/5 flex flex-col overflow-hidden">
+      <div className={`
+        fixed md:relative inset-y-0 left-0 z-50 md:z-auto
+        w-[300px] md:w-[340px] flex-shrink-0 border-r border-white/5 flex flex-col overflow-hidden
+        bg-bridge-dark md:bg-transparent
+        transition-transform duration-300 ease-in-out
+        ${showMobileSidebar ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+      `}>
         <div className="px-4 pt-4 pb-2 flex-shrink-0">
           {/* Title */}
           <div className="flex items-center gap-2.5 mb-4">
             <BookOpen size={18} className="text-bridge-accent" />
             <h2 className="text-base font-bold text-white">AI 다이어리</h2>
+            <button
+              onClick={() => setShowMobileSidebar(false)}
+              className="md:hidden ml-auto p-1.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+            >
+              <X size={16} />
+            </button>
           </div>
 
           {/* Month Navigation */}
@@ -337,7 +367,7 @@ export function PersonalDiary() {
               {diaryList.map((d) => (
                 <button
                   key={d.id}
-                  onClick={() => setCurrentDate(d.diary_date)}
+                  onClick={() => { setCurrentDate(d.diary_date); setShowMobileSidebar(false); }}
                   className={`w-full text-left p-2.5 rounded-xl transition-all group ${
                     d.diary_date === currentDate
                       ? 'bg-bridge-accent/15 border border-bridge-accent/30'
@@ -389,12 +419,12 @@ export function PersonalDiary() {
           </div>
         ) : !diary ? (
           /* No diary for this date - Warm Welcome */
-          <div className="flex-1 flex flex-col items-center justify-center p-8">
+          <div className="flex-1 flex flex-col items-center justify-center p-4 md:p-8">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, ease: 'easeOut' }}
-              className="flex flex-col items-center gap-5 max-w-md text-center"
+              className="flex flex-col items-center gap-4 md:gap-5 max-w-md text-center"
             >
               {/* Greeting icon */}
               <motion.div
@@ -452,11 +482,11 @@ export function PersonalDiary() {
           </div>
         ) : diary.status === 'COMPLETED' ? (
           /* Completed Diary View */
-          <div className="flex-1 overflow-auto p-8 custom-scrollbar">
+          <div className="flex-1 overflow-auto p-4 md:p-8 custom-scrollbar">
             <div className="max-w-2xl mx-auto">
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h2 className="text-2xl font-bold font-serif text-white mb-1">
+              <div className="flex items-center justify-between mb-4 md:mb-6 gap-3">
+                <div className="min-w-0">
+                  <h2 className="text-lg md:text-2xl font-bold font-serif text-white mb-1 truncate">
                     {diary.title || `${formatDate(diary.diary_date)}의 일기`}
                   </h2>
                   {diary.mood && (
@@ -519,8 +549,8 @@ export function PersonalDiary() {
           /* Chatting Mode */
           <>
             {/* Chat Messages */}
-            <div className="flex-1 overflow-auto p-6 space-y-4 custom-scrollbar">
-              <div className="max-w-2xl mx-auto space-y-4">
+            <div className="flex-1 overflow-auto p-3 md:p-6 space-y-3 md:space-y-4 custom-scrollbar">
+              <div className="max-w-2xl mx-auto space-y-3 md:space-y-4">
                 {diary.messages?.map((msg) => (
                   <ChatBubble key={msg.id} message={msg} />
                 ))}
@@ -548,10 +578,10 @@ export function PersonalDiary() {
 
             {/* Complete Button + Mood Selector */}
             {diary.messages && diary.messages.filter((m) => m.role === 'USER').length >= 5 && (
-              <div className="border-t border-white/[0.06] px-6 py-3">
+              <div className="border-t border-white/[0.06] px-3 md:px-6 py-2 md:py-3">
                 <div className="max-w-2xl mx-auto">
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <span className="text-[11px] font-bold uppercase tracking-widest text-slate-500">
+                  <div className="flex items-center gap-2 md:gap-3 flex-wrap">
+                    <span className="text-[10px] md:text-[11px] font-bold uppercase tracking-widest text-slate-500 w-full md:w-auto">
                       오늘의 기분:
                     </span>
                     {MOODS.map((mood) => (
@@ -580,8 +610,8 @@ export function PersonalDiary() {
             )}
 
             {/* Input */}
-            <div className="border-t border-white/[0.06] px-6 py-4">
-              <div className="max-w-2xl mx-auto flex gap-3">
+            <div className="border-t border-white/[0.06] px-3 md:px-6 py-3 md:py-4">
+              <div className="max-w-2xl mx-auto flex gap-2 md:gap-3">
                 <input
                   type="text"
                   value={message}
@@ -633,7 +663,7 @@ function ChatBubble({ message }: { message: DiaryMessage }) {
         </div>
       )}
       <div
-        className={`max-w-[80%] px-4 py-3 rounded-2xl text-sm leading-relaxed ${
+        className={`max-w-[90%] md:max-w-[80%] px-3 md:px-4 py-2.5 md:py-3 rounded-2xl text-sm leading-relaxed ${
           isAI
             ? 'bg-bridge-obsidian/60 border border-white/5 rounded-tl-sm text-slate-300'
             : 'bg-bridge-accent/15 border border-bridge-accent/20 rounded-tr-sm text-white'

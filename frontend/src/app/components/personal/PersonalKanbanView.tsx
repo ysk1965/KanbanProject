@@ -87,7 +87,7 @@ export function PersonalKanbanView({ boardId, onTaskClick, onFeatureClick }: Per
 
   return (
     <DragProvider>
-      <div className="flex gap-4 p-4 overflow-x-auto h-full">
+      <div className="flex gap-3 md:gap-4 p-3 md:p-4 overflow-x-auto h-full">
         {sortedBlocks.map((block, index) => (
           <KanbanBlock
             key={block.id}

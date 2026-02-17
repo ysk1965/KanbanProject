@@ -349,14 +349,14 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
   return (
     <div className="h-full flex flex-col bg-bridge-dark overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 md:px-6 py-3 border-b border-white/5">
-        <div className="flex items-center gap-3">
-          <button onClick={goToPrevMonth} className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/5 transition-colors">
-            <ChevronLeft size={18} />
+      <div className="flex items-center justify-between px-3 md:px-6 py-2 md:py-3 border-b border-white/5">
+        <div className="flex items-center gap-2 md:gap-3">
+          <button onClick={goToPrevMonth} className="p-1 md:p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/5 transition-colors">
+            <ChevronLeft size={16} className="md:w-[18px] md:h-[18px]" />
           </button>
-          <h2 className="text-base font-bold text-white min-w-[120px] text-center">{monthLabel}</h2>
-          <button onClick={goToNextMonth} className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/5 transition-colors">
-            <ChevronRight size={18} />
+          <h2 className="text-sm md:text-base font-bold text-white min-w-[80px] md:min-w-[120px] text-center">{monthLabel}</h2>
+          <button onClick={goToNextMonth} className="p-1 md:p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/5 transition-colors">
+            <ChevronRight size={16} className="md:w-[18px] md:h-[18px]" />
           </button>
         </div>
         <div className="flex items-center gap-2">
@@ -366,7 +366,7 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
             <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-red-500" />{t('weeklySchedule.overdue', '마감 초과')}</span>
             <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />{t('weeklySchedule.completed', '완료')}</span>
           </div>
-          <button onClick={goToToday} className="px-3 py-1 text-xs font-medium rounded-lg bg-white/5 text-zinc-300 hover:bg-white/10 hover:text-white transition-colors">
+          <button onClick={goToToday} className="px-2 md:px-3 py-1 text-[10px] md:text-xs font-medium rounded-lg bg-white/5 text-zinc-300 hover:bg-white/10 hover:text-white transition-colors">
             {t('calendar.today', '오늘')}
           </button>
         </div>
@@ -377,7 +377,7 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
         {dayLabels.map((label, i) => (
           <div
             key={label}
-            className={`py-2 text-center text-[11px] font-bold uppercase tracking-widest ${
+            className={`py-1.5 md:py-2 text-center text-[10px] md:text-[11px] font-bold uppercase tracking-widest ${
               i === 0 ? 'text-red-400/70' : i === 6 ? 'text-blue-400/70' : 'text-slate-500'
             }`}
           >
@@ -434,10 +434,10 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
                       } ${isTodayCell ? 'ring-1 ring-inset ring-bridge-accent/30 bg-bridge-accent/[0.04]' : ''}`}
                     >
                       {/* Date number */}
-                      <div className="px-1.5 pt-1 flex items-center justify-between shrink-0">
+                      <div className="px-1 md:px-1.5 pt-0.5 md:pt-1 flex items-center justify-between shrink-0">
                         <button
                           onClick={() => openDayModal(dateKey, date)}
-                          className={`text-[11px] font-semibold w-6 h-6 flex items-center justify-center rounded-full transition-colors ${
+                          className={`text-[10px] md:text-[11px] font-semibold w-5 h-5 md:w-6 md:h-6 flex items-center justify-center rounded-full transition-colors ${
                             totalItems > 0 ? 'cursor-pointer hover:bg-white/10' : 'cursor-default'
                           } ${
                             isTodayCell
@@ -460,7 +460,7 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
 
                       {/* Spanning feature bar slots */}
                       {maxLane > 0 && (
-                        <div className="shrink-0">
+                        <div className="shrink-0 hidden sm:block">
                           {Array.from({ length: maxLane }, (_, lane) => {
                             const span = spans.find(
                               (s) => s.lane === lane && s.startCol <= colIdx && s.endCol >= colIdx,
@@ -507,8 +507,24 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
                         </div>
                       )}
 
-                      {/* Per-day content */}
-                      <div className="px-1 md:px-1.5 pb-0.5 flex-1 space-y-0.5 overflow-hidden">
+                      {/* Mobile: dot indicators only */}
+                      {totalItems > 0 && (
+                        <div className="sm:hidden flex justify-center gap-0.5 py-0.5">
+                          {allGroups.slice(0, 3).map((g) => (
+                            <span
+                              key={g.feature.id}
+                              className="w-1.5 h-1.5 rounded-full"
+                              style={{ backgroundColor: g.feature.color || '#6366F1' }}
+                            />
+                          ))}
+                          {totalItems > 3 && (
+                            <span className="text-[8px] text-zinc-500 leading-none">+</span>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Per-day content (desktop) */}
+                      <div className="px-0.5 md:px-1.5 pb-0.5 flex-1 space-y-0.5 overflow-hidden hidden sm:block">
                         {/* Tasks from spanning features */}
                         {visibleSpanningTasks.map((task) => (
                           <button
@@ -603,15 +619,15 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
       {/* ── Day Detail Modal ── */}
       {modalDate && modalDayData && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm"
           onClick={() => setModalDate(null)}
         >
           <div
-            className="bg-bridge-obsidian rounded-2xl border border-white/10 shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col animate-in fade-in zoom-in-95 duration-200"
+            className="bg-bridge-obsidian rounded-t-2xl sm:rounded-2xl border border-white/10 shadow-2xl w-full sm:max-w-lg max-h-[85vh] sm:max-h-[80vh] flex flex-col animate-in fade-in zoom-in-95 duration-200"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 shrink-0">
+            <div className="flex items-center justify-between px-4 md:px-6 py-3 md:py-4 border-b border-white/5 shrink-0">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-bridge-accent/10 flex items-center justify-center">
                   <Calendar size={18} className="text-bridge-accent" />
@@ -634,7 +650,7 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
             </div>
 
             {/* Modal body */}
-            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+            <div className="flex-1 overflow-y-auto px-4 md:px-6 py-3 md:py-4 space-y-3 md:space-y-4">
               {modalDayData.featureGroups.map((group) => {
                 const f = group.feature;
                 const isFeatureDueDay = f.due_date && f.due_date.substring(0, 10) === modalDate.dateKey;
@@ -740,7 +756,7 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
             </div>
 
             {/* Modal footer - legend */}
-            <div className="flex items-center gap-4 px-6 py-3 border-t border-white/5 shrink-0">
+            <div className="flex items-center gap-3 md:gap-4 px-4 md:px-6 py-2 md:py-3 border-t border-white/5 shrink-0 flex-wrap">
               <span className="flex items-center gap-1.5 text-[10px] text-zinc-500"><span className="w-2 h-2 rounded-full bg-bridge-secondary" />{t('weeklySchedule.inProgress', '진행 중')}</span>
               <span className="flex items-center gap-1.5 text-[10px] text-zinc-500"><span className="w-2 h-2 rounded-full bg-orange-500" />{t('weeklySchedule.dueSoon', '마감 임박')}</span>
               <span className="flex items-center gap-1.5 text-[10px] text-zinc-500"><span className="w-2 h-2 rounded-full bg-red-500" />{t('weeklySchedule.overdue', '마감 초과')}</span>

@@ -41,7 +41,7 @@ function WidgetCard({
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay }}
-      className="bg-bridge-obsidian rounded-2xl border border-white/5 p-5 flex flex-col min-h-[300px]"
+      className="bg-bridge-obsidian rounded-2xl border border-white/5 p-4 md:p-5 flex flex-col min-h-[240px] md:min-h-[300px]"
     >
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2.5">
@@ -199,7 +199,7 @@ function TodayScheduleWidget({
                 }`}
               >
                 <div className="w-1 h-6 rounded-full" style={{ backgroundColor: ev.color || '#6366F1' }} />
-                <div className="w-[90px] flex-shrink-0">
+                <div className="w-[70px] md:w-[90px] flex-shrink-0">
                   <span className={`text-[11px] font-mono ${
                     status === 'current' ? 'text-bridge-accent' : 'text-slate-400'
                   }`}>
@@ -613,7 +613,7 @@ function DiaryWidget({
         </div>
       ) : !diary ? (
         /* Not written yet */
-        <div className="flex-1 flex flex-col items-center justify-center text-center gap-3 px-4">
+        <div className="flex-1 flex flex-col items-center justify-center text-center gap-2 md:gap-3 px-3 md:px-4">
           {greeting.icon}
           <div>
             <p className="text-base font-bold text-white mb-1">{greeting.text}</p>
@@ -687,8 +687,8 @@ export function PersonalOverview({ boardId, tasks, onNavigateTab }: PersonalOver
   const todayDate = getTodayDateString();
 
   return (
-    <div className="h-full overflow-auto p-6">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 max-w-6xl mx-auto">
+    <div className="h-full overflow-auto p-3 md:p-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-5 max-w-6xl mx-auto">
         <TodayScheduleWidget
           todayDate={todayDate}
           onViewAll={() => onNavigateTab('schedule')}

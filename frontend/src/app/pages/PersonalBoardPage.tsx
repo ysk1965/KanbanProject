@@ -132,23 +132,31 @@ export function PersonalBoardPage() {
   return (
     <div className="flex flex-col h-screen bg-bridge-dark text-white selection:bg-bridge-secondary/30">
       {/* Header */}
-      <header className="h-14 border-b border-white/[0.06] bg-bridge-obsidian/80 backdrop-blur-sm px-4 md:px-6 flex items-center gap-4">
-        <button
-          onClick={() => navigate('/boards')}
-          className="p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors"
-        >
-          <ArrowLeft size={18} />
-        </button>
+      <header className="border-b border-white/[0.06] bg-bridge-obsidian/80 backdrop-blur-sm px-3 md:px-6 flex flex-col md:flex-row md:items-center md:h-14">
+        <div className="flex items-center gap-3 h-12 md:h-14 flex-shrink-0">
+          <button
+            onClick={() => navigate('/boards')}
+            className="p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors"
+          >
+            <ArrowLeft size={18} />
+          </button>
 
-        <h1 className="text-lg font-bold font-serif">My Space</h1>
+          <h1 className="text-base md:text-lg font-bold font-serif">My Space</h1>
+
+          {/* Quick Capture shortcut hint */}
+          <div className="ml-auto hidden md:flex items-center gap-1.5 text-slate-500 text-xs">
+            <Command size={12} />
+            <span>K</span>
+          </div>
+        </div>
 
         {/* Tabs */}
-        <div className="flex items-center gap-1 ml-6 bg-white/5 rounded-xl p-1">
+        <div className="flex items-center gap-1 md:ml-6 bg-white/5 rounded-xl p-1 overflow-x-auto scrollbar-hide mb-2 md:mb-0">
           {tabs.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`relative flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              className={`relative flex items-center gap-1.5 px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-all flex-shrink-0 ${
                 activeTab === tab.key
                   ? 'text-white'
                   : 'text-slate-400 hover:text-white hover:bg-white/5'
@@ -161,24 +169,20 @@ export function PersonalBoardPage() {
                   transition={{ type: 'spring', duration: 0.3 }}
                 />
               )}
-              <tab.icon size={16} className="relative z-10" />
+              <tab.icon size={14} className="relative z-10 md:w-4 md:h-4" />
               <span className="relative z-10 hidden sm:inline">{tab.label}</span>
             </button>
           ))}
-        </div>
-
-        {/* Quick Capture shortcut hint */}
-        <div className="ml-auto hidden md:flex items-center gap-1.5 text-slate-500 text-xs">
-          <Command size={12} />
-          <span>K</span>
         </div>
       </header>
 
       {/* Content */}
       <main className="flex-1 overflow-hidden flex">
-        {/* Today Sidebar — kanban 탭일 때만 */}
+        {/* Today Sidebar — kanban 탭일 때만 (모바일에서 숨김) */}
         {activeTab === 'kanban' && personalBoardId && (
-          <TodaySidebar boardId={personalBoardId} />
+          <div className="hidden md:block">
+            <TodaySidebar boardId={personalBoardId} />
+          </div>
         )}
 
         <div className="flex-1 overflow-hidden">
