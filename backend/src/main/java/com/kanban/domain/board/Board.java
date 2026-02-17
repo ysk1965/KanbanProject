@@ -140,6 +140,41 @@ public class Board extends BaseTimeEntity {
     }
 
     /**
+     * 통계 기능 접근 가능 여부
+     */
+    public boolean canAccessStatistics() {
+        return isPremium();
+    }
+
+    /**
+     * AI 리포트 기능 접근 가능 여부
+     */
+    public boolean canAccessReport() {
+        return isPremium();
+    }
+
+    /**
+     * 미팅 기능 접근 가능 여부
+     */
+    public boolean canAccessMeeting() {
+        return isPremium();
+    }
+
+    /**
+     * 노트 기능 접근 가능 여부
+     */
+    public boolean canAccessNote() {
+        return isPremium();
+    }
+
+    /**
+     * 데일리 체크리스트 접근 가능 여부
+     */
+    public boolean canAccessDailyChecklist() {
+        return isPremium();
+    }
+
+    /**
      * Slack 연동 기능 접근 가능 여부
      */
     public boolean canAccessSlack() {

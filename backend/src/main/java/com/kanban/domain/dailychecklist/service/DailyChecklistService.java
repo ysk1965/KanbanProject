@@ -57,6 +57,7 @@ public class DailyChecklistService {
     public DailyChecklistResponse.TimeblockDataResponse getTimeblockData(
             String boardId, LocalDate date, String assigneeId, String userId) {
         boardService.checkViewerOrAbove(boardId, userId);
+        validateDailyChecklistAccess(boardId);
 
         // 1. 해당 날짜/담당자의 데일리 체크리스트 (미완료만)
         List<DailyChecklist> dailyChecklists = dailyChecklistRepository
@@ -85,6 +86,7 @@ public class DailyChecklistService {
      */
     public DailyChecklistResponse.ListResponse getDailyChecklist(String boardId, LocalDate date, String userId) {
         boardService.checkViewerOrAbove(boardId, userId);
+        validateDailyChecklistAccess(boardId);
 
         // 해당 날짜의 모든 데일리 체크리스트 조회
         List<DailyChecklist> dailyChecklists = dailyChecklistRepository
@@ -322,5 +324,14 @@ public class DailyChecklistService {
         User user = userRepository.findById(userId).orElse(null);
         webSocketEventService.sendBoardEvent(boardId, BoardEventType.SCHEDULE_DELETED,
                 userId, user != null ? user.getName() : null, Map.of("id", deletedId));
+    }
+
+    private void validateDailyChecklistAccess(String boardId) {
+        Board board = boardRepository.findById(boardId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        board.checkAndUpdateTierIfTrialExpired();
+        if (!board.canAccessDailyChecklist()) {
+            throw new BusinessException(ErrorCode.PREMIUM_FEATURE_REQUIRED);
+        }
     }
 }

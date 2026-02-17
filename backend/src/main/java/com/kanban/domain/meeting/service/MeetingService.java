@@ -58,6 +58,7 @@ public class MeetingService {
 
     public List<MeetingResponse.Summary> getMeetingsByDate(String boardId, LocalDate date, String userId) {
         boardService.checkViewerOrAbove(boardId, userId);
+        validateMeetingAccess(boardId);
 
         List<Meeting> meetings = meetingRepository.findByBoardIdAndMeetingDateOrderByStartTimeAsc(boardId, date);
 
@@ -69,6 +70,7 @@ public class MeetingService {
 
     public List<MeetingResponse.Summary> getMeetingsByDateRange(String boardId, LocalDate startDate, LocalDate endDate, String userId) {
         boardService.checkViewerOrAbove(boardId, userId);
+        validateMeetingAccess(boardId);
 
         List<Meeting> meetings = meetingRepository.findByBoardIdAndMeetingDateBetweenOrderByMeetingDateAscStartTimeAsc(
                 boardId, startDate, endDate);
@@ -97,6 +99,7 @@ public class MeetingService {
     @Transactional
     public MeetingResponse.Detail createMeeting(String boardId, String userId, MeetingRequest.Create request) {
         boardService.checkMemberOrAbove(boardId, userId);
+        validateMeetingAccess(boardId);
 
         Board board = boardRepository.findById(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
@@ -428,6 +431,15 @@ public class MeetingService {
         } catch (Exception e) {
             log.warn("Failed to deserialize AI suggestions for meeting: {}", meeting.getId(), e);
             return null;
+        }
+    }
+
+    private void validateMeetingAccess(String boardId) {
+        Board board = boardRepository.findById(boardId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        board.checkAndUpdateTierIfTrialExpired();
+        if (!board.canAccessMeeting()) {
+            throw new BusinessException(ErrorCode.PREMIUM_FEATURE_REQUIRED);
         }
     }
 }

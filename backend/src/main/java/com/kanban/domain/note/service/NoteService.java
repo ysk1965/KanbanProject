@@ -36,6 +36,7 @@ public class NoteService {
 
     public List<NoteResponse.TreeItem> getNoteTree(String boardId, String userId) {
         boardService.checkViewerOrAbove(boardId, userId);
+        validateNoteAccess(boardId);
 
         try {
             List<Note> allNotes = noteRepository.findAllByBoardIdNotDeleted(boardId);
@@ -93,6 +94,7 @@ public class NoteService {
     @Transactional
     public NoteResponse.Detail createNote(String boardId, String userId, NoteRequest.Create request) {
         boardService.checkMemberOrAbove(boardId, userId);
+        validateNoteAccess(boardId);
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
@@ -449,6 +451,15 @@ public class NoteService {
             if (child.isFolder()) {
                 updateDescendantDepths(child);
             }
+        }
+    }
+
+    private void validateNoteAccess(String boardId) {
+        Board board = boardRepository.findById(boardId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        board.checkAndUpdateTierIfTrialExpired();
+        if (!board.canAccessNote()) {
+            throw new BusinessException(ErrorCode.PREMIUM_FEATURE_REQUIRED);
         }
     }
 }
