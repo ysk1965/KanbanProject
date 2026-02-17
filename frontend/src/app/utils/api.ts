@@ -3808,6 +3808,100 @@ export const publicNoteAPI = {
 // Task Dependency API
 // ========================================
 
+import type { PersonalEvent, DiaryDetail, DiarySimple, DiaryAiReply } from '../types';
+
+// ========================================
+// Personal Event API
+// ========================================
+
+export const personalEventAPI = {
+  getByDate: async (date: string): Promise<PersonalEvent[]> => {
+    return apiClient.get(`/personal/events?date=${date}`);
+  },
+
+  getWeekly: async (startDate: string, endDate: string): Promise<PersonalEvent[]> => {
+    return apiClient.get(`/personal/events/weekly?start_date=${startDate}&end_date=${endDate}`);
+  },
+
+  create: async (data: {
+    title: string;
+    description?: string;
+    event_date: string;
+    start_time?: string;
+    end_time?: string;
+    color?: string;
+    all_day?: boolean;
+  }): Promise<PersonalEvent> => {
+    return apiClient.post('/personal/events', data);
+  },
+
+  update: async (eventId: string, data: {
+    title?: string;
+    description?: string;
+    event_date?: string;
+    start_time?: string | null;
+    end_time?: string | null;
+    color?: string;
+    all_day?: boolean;
+  }): Promise<PersonalEvent> => {
+    return apiClient.put(`/personal/events/${eventId}`, data);
+  },
+
+  delete: async (eventId: string): Promise<void> => {
+    return apiClient.delete(`/personal/events/${eventId}`);
+  },
+};
+
+// ========================================
+// Diary API
+// ========================================
+
+export const diaryAPI = {
+  getByDate: async (date: string): Promise<DiaryDetail | null> => {
+    return apiClient.get(`/diary?date=${date}`);
+  },
+
+  getById: async (diaryId: string): Promise<DiaryDetail> => {
+    return apiClient.get(`/diary/${diaryId}`);
+  },
+
+  getList: async (year: number, month: number): Promise<DiarySimple[]> => {
+    return apiClient.get(`/diary/list?year=${year}&month=${month}`);
+  },
+
+  create: async (diaryDate: string): Promise<DiaryDetail> => {
+    return apiClient.post('/diary', { diary_date: diaryDate });
+  },
+
+  sendMessage: async (diaryId: string, content: string): Promise<DiaryAiReply> => {
+    return apiClient.post(`/diary/${diaryId}/messages`, { content });
+  },
+
+  complete: async (diaryId: string, data: {
+    title?: string;
+    content?: string;
+    mood?: string;
+  }): Promise<DiaryDetail> => {
+    return apiClient.put(`/diary/${diaryId}/complete`, data);
+  },
+
+  update: async (diaryId: string, data: {
+    title?: string;
+    content?: string;
+    mood?: string;
+  }): Promise<DiaryDetail> => {
+    return apiClient.put(`/diary/${diaryId}`, data);
+  },
+
+  delete: async (diaryId: string): Promise<void> => {
+    return apiClient.delete(`/diary/${diaryId}`);
+  },
+};
+
+// ========================================
+// Task Dependency API
+// ========================================
+
 import type { TaskDependency } from '../types';
 
 export const taskDependencyAPI = {
