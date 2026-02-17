@@ -3,6 +3,7 @@ package com.kanban.global.scheduler;
 import com.kanban.domain.board.Board;
 import com.kanban.domain.subscription.Subscription;
 import com.kanban.domain.subscription.SubscriptionRepository;
+import com.kanban.domain.subscription.service.AiCreditService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -19,6 +20,7 @@ import java.util.List;
 public class SubscriptionScheduler {
 
     private final SubscriptionRepository subscriptionRepository;
+    private final AiCreditService aiCreditService;
 
     /**
      * Trial 만료 자동 처리: 매시간 실행
@@ -49,6 +51,21 @@ public class SubscriptionScheduler {
             log.info("Trial expiration: {} subscriptions expired and downgraded to STANDARD", count);
         } catch (Exception e) {
             log.error("Failed to process trial expirations: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * AI 크레딧 월간 리셋: 매시간 5분에 실행
+     * - creditsResetDate가 현재 시각 이전인 구독의 월간 크레딧을 리셋
+     * - 각 구독의 monthlyCreditsUsed → 0, creditsResetDate → +1개월
+     */
+    @Scheduled(cron = "0 5 * * * *")
+    @Transactional
+    public void resetMonthlyAiCredits() {
+        try {
+            aiCreditService.resetMonthlyCredits();
+        } catch (Exception e) {
+            log.error("Failed to reset monthly AI credits: {}", e.getMessage(), e);
         }
     }
 }
