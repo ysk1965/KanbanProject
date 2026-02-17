@@ -9,6 +9,7 @@ import { InviteLandingPage } from './components/InviteLandingPage';
 import { LandingPage } from './components/landing/LandingPage';
 import { ComparisonPage } from './components/landing/ComparisonPage';
 import { KanbanBoardPage } from './pages/KanbanBoardPage';
+import { PersonalBoardPage } from './pages/PersonalBoardPage';
 import { EmailVerificationPendingPage } from './components/EmailVerificationPendingPage';
 import { EmailVerificationResultPage } from './components/EmailVerificationResultPage';
 import { ForgotPasswordPage } from './components/ForgotPasswordPage';
@@ -430,6 +431,16 @@ function AppRoutes() {
         element={
           <PrivateRoute>
             <BoardsRoute />
+          </PrivateRoute>
+        }
+      />
+
+      {/* 개인 보드 (일정 + AI 일기) */}
+      <Route
+        path="/my-board"
+        element={
+          <PrivateRoute>
+            <PersonalBoardPage />
           </PrivateRoute>
         }
       />

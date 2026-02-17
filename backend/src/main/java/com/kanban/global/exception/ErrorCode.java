@@ -188,7 +188,17 @@ public enum ErrorCode {
 
     // AI Comment Summary
     AI_COMMENT_SUMMARY_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "ACS001", "AI 댓글 요약에 실패했습니다"),
-    AI_COMMENT_INSUFFICIENT(HttpStatus.BAD_REQUEST, "ACS002", "요약하기에 댓글 수가 부족합니다");
+    AI_COMMENT_INSUFFICIENT(HttpStatus.BAD_REQUEST, "ACS002", "요약하기에 댓글 수가 부족합니다"),
+
+    // Personal
+    PERSONAL_EVENT_NOT_FOUND(HttpStatus.NOT_FOUND, "PE001", "개인 일정을 찾을 수 없습니다"),
+    PERSONAL_ACCESS_DENIED(HttpStatus.FORBIDDEN, "PE002", "본인의 데이터만 접근할 수 있습니다"),
+
+    // Diary
+    DIARY_NOT_FOUND(HttpStatus.NOT_FOUND, "DI001", "일기를 찾을 수 없습니다"),
+    DIARY_ALREADY_EXISTS(HttpStatus.CONFLICT, "DI002", "해당 날짜에 이미 일기가 존재합니다"),
+    DIARY_ACCESS_DENIED(HttpStatus.FORBIDDEN, "DI003", "본인의 일기만 접근할 수 있습니다"),
+    DIARY_ALREADY_COMPLETED(HttpStatus.BAD_REQUEST, "DI004", "이미 완성된 일기입니다");
 
     private final HttpStatus status;
     private final String code;

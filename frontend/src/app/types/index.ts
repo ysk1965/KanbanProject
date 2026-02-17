@@ -1751,3 +1751,61 @@ export interface AiCreditUsageHistory {
   credits_used: number;
   created_at: string;
 }
+
+// ========================================
+// 개인 일정 (Personal Event)
+// ========================================
+
+export interface PersonalEvent {
+  id: string;
+  title: string;
+  description?: string | null;
+  event_date: string;
+  start_time?: string | null;
+  end_time?: string | null;
+  color: string;
+  all_day: boolean;
+  created_at: string;
+  updated_at?: string;
+}
+
+// ========================================
+// AI 일기 (Diary)
+// ========================================
+
+export type DiaryStatus = 'CHATTING' | 'COMPLETED';
+
+export interface DiarySimple {
+  id: string;
+  diary_date: string;
+  title?: string | null;
+  mood?: string | null;
+  status: DiaryStatus;
+  created_at: string;
+}
+
+export interface DiaryMessage {
+  id: string;
+  role: 'USER' | 'AI';
+  content: string;
+  message_order: number;
+  created_at: string;
+}
+
+export interface DiaryDetail {
+  id: string;
+  diary_date: string;
+  title?: string | null;
+  content?: string | null;
+  mood?: string | null;
+  status: DiaryStatus;
+  messages: DiaryMessage[];
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface DiaryAiReply {
+  diary_id: string;
+  user_message: DiaryMessage;
+  ai_message: DiaryMessage;
+}

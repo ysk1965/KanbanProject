@@ -2430,8 +2430,8 @@ export const aiCreditService = {
 // Task Dependency Service
 // ========================================
 
-import { taskDependencyAPI } from './api';
-import type { TaskDependency } from '../types';
+import { taskDependencyAPI, personalEventAPI, diaryAPI } from './api';
+import type { TaskDependency, PersonalEvent, DiaryDetail, DiarySimple, DiaryAiReply } from '../types';
 
 export const taskDependencyService = {
   getByBoard: async (boardId: string) => {
@@ -2447,5 +2447,93 @@ export const taskDependencyService = {
 
   delete: async (boardId: string, dependencyId: string) => {
     return taskDependencyAPI.delete(boardId, dependencyId);
+  },
+};
+
+// ========================================
+// Personal Event Service
+// ========================================
+
+export const personalEventService = {
+  getByDate: async (date: string): Promise<PersonalEvent[]> => {
+    return personalEventAPI.getByDate(date);
+  },
+
+  getWeekly: async (startDate: string, endDate: string): Promise<PersonalEvent[]> => {
+    return personalEventAPI.getWeekly(startDate, endDate);
+  },
+
+  create: async (data: {
+    title: string;
+    description?: string;
+    event_date: string;
+    start_time?: string;
+    end_time?: string;
+    color?: string;
+    all_day?: boolean;
+  }): Promise<PersonalEvent> => {
+    return personalEventAPI.create(data);
+  },
+
+  update: async (eventId: string, data: {
+    title?: string;
+    description?: string;
+    event_date?: string;
+    start_time?: string | null;
+    end_time?: string | null;
+    color?: string;
+    all_day?: boolean;
+  }): Promise<PersonalEvent> => {
+    return personalEventAPI.update(eventId, data);
+  },
+
+  delete: async (eventId: string): Promise<void> => {
+    return personalEventAPI.delete(eventId);
+  },
+};
+
+// ========================================
+// Diary Service
+// ========================================
+
+export const diaryService = {
+  getByDate: async (date: string): Promise<DiaryDetail | null> => {
+    return diaryAPI.getByDate(date);
+  },
+
+  getById: async (diaryId: string): Promise<DiaryDetail> => {
+    return diaryAPI.getById(diaryId);
+  },
+
+  getList: async (year: number, month: number): Promise<DiarySimple[]> => {
+    return diaryAPI.getList(year, month);
+  },
+
+  create: async (diaryDate: string): Promise<DiaryDetail> => {
+    return diaryAPI.create(diaryDate);
+  },
+
+  sendMessage: async (diaryId: string, content: string): Promise<DiaryAiReply> => {
+    return diaryAPI.sendMessage(diaryId, content);
+  },
+
+  complete: async (diaryId: string, data: {
+    title?: string;
+    content?: string;
+    mood?: string;
+  }): Promise<DiaryDetail> => {
+    return diaryAPI.complete(diaryId, data);
+  },
+
+  update: async (diaryId: string, data: {
+    title?: string;
+    content?: string;
+    mood?: string;
+  }): Promise<DiaryDetail> => {
+    return diaryAPI.update(diaryId, data);
+  },
+
+  delete: async (diaryId: string): Promise<void> => {
+    return diaryAPI.delete(diaryId);
   },
 };

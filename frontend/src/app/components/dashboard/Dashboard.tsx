@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Search, Plus, Star, LayoutGrid, LogOut, Package2, AlertTriangle, Menu, FlaskConical } from 'lucide-react';
+import { Search, Plus, Star, LayoutGrid, LogOut, Package2, AlertTriangle, Menu, FlaskConical, CalendarDays, BookHeart } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
 import { Board } from '../../types';
@@ -89,6 +90,7 @@ export function Dashboard({
   onRefreshBoards,
 }: DashboardProps) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { user, logout, isAdmin } = useAuth();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -286,6 +288,47 @@ export function Dashboard({
                   {t('board.createFirst')}
                 </button>
               </div>
+            )}
+
+            {/* My Board - Personal Board */}
+            {!searchQuery && (
+              <section>
+                <div className="flex items-center gap-2 mb-6">
+                  <BookHeart size={18} className="text-bridge-accent" />
+                  <h2 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">
+                    My Board
+                  </h2>
+                </div>
+                <motion.button
+                  onClick={() => navigate('/my-board')}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="w-full max-w-lg group relative overflow-hidden rounded-2xl border border-white/10 hover:border-bridge-accent/40 transition-all"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-br from-bridge-accent/20 via-purple-500/10 to-bridge-secondary/20 opacity-60 group-hover:opacity-100 transition-opacity" />
+                  <div className="relative p-6 flex items-center gap-6">
+                    <div className="flex gap-3">
+                      <div className="w-12 h-12 rounded-xl bg-bridge-accent/20 border border-bridge-accent/30 flex items-center justify-center">
+                        <CalendarDays size={22} className="text-bridge-accent" />
+                      </div>
+                      <div className="w-12 h-12 rounded-xl bg-purple-500/20 border border-purple-500/30 flex items-center justify-center">
+                        <BookHeart size={22} className="text-purple-400" />
+                      </div>
+                    </div>
+                    <div className="text-left">
+                      <h3 className="text-lg font-bold text-white mb-1">My Space</h3>
+                      <p className="text-sm text-slate-400">
+                        Personal Schedule & AI Diary
+                      </p>
+                    </div>
+                    <div className="ml-auto text-slate-500 group-hover:text-white transition-colors">
+                      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <path d="M7 5l5 5-5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </div>
+                  </div>
+                </motion.button>
+              </section>
             )}
 
             {/* Starred Section */}
