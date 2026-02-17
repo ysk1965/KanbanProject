@@ -14,6 +14,7 @@ import { getInitials, getAssigneeHex } from '../utils/assigneeColor';
 import {
   useAudioRecorder, formatDuration, formatFileSize, MAX_RECORDING_SIZE,
 } from '../hooks/useAudioRecorder';
+import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
 
 // ============================
 // MeetingDetailPanel (Inline expandable)
@@ -437,9 +438,10 @@ export function MeetingDetailPanel({
       </div>
 
       {/* No Changes Modal */}
-      {showNoChangesModal && (
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-bridge-obsidian rounded-2xl shadow-2xl w-[360px] border border-white/10 p-6 text-center">
+      <Dialog open={showNoChangesModal} onOpenChange={setShowNoChangesModal}>
+        <DialogContent className="bg-bridge-obsidian text-foreground border-white/10 w-[360px] max-w-[calc(100%-2rem)] p-0 gap-0 [&>button:last-child]:hidden overflow-hidden rounded-2xl">
+          <DialogTitle className="sr-only">{t('meeting.aiNoChanges')}</DialogTitle>
+          <div className="p-6 text-center">
             <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-white/5 flex items-center justify-center">
               <Sparkles className="h-6 w-6 text-slate-400" />
             </div>
@@ -456,13 +458,14 @@ export function MeetingDetailPanel({
               {t('common.confirm') || '확인'}
             </button>
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Scope Modal */}
-      {deleteScopeModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-bridge-obsidian rounded-2xl border border-white/10 p-6 w-[400px] shadow-2xl">
+      <Dialog open={deleteScopeModal} onOpenChange={setDeleteScopeModal}>
+        <DialogContent className="bg-bridge-obsidian text-foreground border-white/10 w-[400px] max-w-[calc(100%-2rem)] p-0 gap-0 [&>button:last-child]:hidden overflow-hidden rounded-2xl">
+          <DialogTitle className="sr-only">{t('meeting.deleteRecurringTitle', '반복 회의 삭제')}</DialogTitle>
+          <div className="p-6">
             <h3 className="text-lg font-bold text-white mb-2">
               {t('meeting.deleteRecurringTitle', '반복 회의 삭제')}
             </h3>
@@ -490,8 +493,8 @@ export function MeetingDetailPanel({
               </button>
             </div>
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

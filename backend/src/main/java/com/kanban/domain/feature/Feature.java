@@ -44,6 +44,9 @@ public class Feature extends BaseTimeEntity {
     @JoinColumn(name = "assignee_id")
     private User assignee;
 
+    @Column(name = "start_date")
+    private LocalDate startDate;
+
     @Column(name = "due_date")
     private LocalDate dueDate;
 
@@ -78,10 +81,11 @@ public class Feature extends BaseTimeEntity {
         }
     }
 
-    public void updateInfo(String title, String description, String color, LocalDate dueDate) {
+    public void updateInfo(String title, String description, String color, LocalDate startDate, LocalDate dueDate) {
         if (title != null) this.title = title;
         if (description != null) this.description = description;
         if (color != null) this.color = color;
+        this.startDate = startDate;
         this.dueDate = dueDate;
     }
 

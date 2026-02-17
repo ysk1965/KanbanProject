@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useCallback, useRef } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Clock, CheckCircle2, BarChart3, Calendar, FileText, MessageSquare, ChevronLeft } from 'lucide-react';
 import { format } from 'date-fns';
@@ -6,6 +6,7 @@ import { ko } from 'date-fns/locale';
 import { ScheduleBlockInfo, ScheduleColumnInfo, CommentSummaryItem, commentAPI } from '../utils/api';
 import { getInitials } from '../utils/assigneeColor';
 import { BoardMember } from './ShareBoardModal';
+import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
 
 interface WeeklySummaryModalProps {
   boardId: string;
@@ -41,8 +42,6 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
   const [commentsFetched, setCommentsFetched] = useState(false);
   // 댓글 상세 뷰 상태
   const [commentDetailRow, setCommentDetailRow] = useState<WeeklyRecordRow | null>(null);
-  const mouseDownTargetRef = useRef<EventTarget | null>(null);
-
   // 전체 블록 수집
   const allBlocks = useMemo(() => {
     const blocks: { date: string; block: ScheduleBlockInfo }[] = [];
@@ -275,13 +274,11 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
   }, [weeklyRecords]);
 
   return (
-    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50" onMouseDown={(e) => { mouseDownTargetRef.current = e.target; }} onClick={(e) => { if (e.target === e.currentTarget && mouseDownTargetRef.current === e.currentTarget) onClose(); }}>
-      <div
-        className="bg-bridge-obsidian rounded-xl shadow-2xl w-[560px] max-h-[85vh] flex flex-col overflow-hidden border border-white/20"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <Dialog open onOpenChange={() => onClose()}>
+      <DialogContent className="bg-bridge-obsidian text-foreground border-white/10 w-[560px] max-w-[calc(100%-2rem)] max-h-[85vh] flex flex-col p-0 gap-0 [&>button:last-child]:hidden overflow-hidden rounded-xl">
+        <DialogTitle className="sr-only">{member.name} {weekRangeLabel} {t('weeklySummary.weekSummary')}</DialogTitle>
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/20">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-sm text-white font-medium">
               {getInitials(member.name)}
@@ -583,15 +580,15 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-white/20 flex justify-center">
+        <div className="px-6 py-4 border-t border-white/10 flex justify-center">
           <button
             onClick={onClose}
-            className="px-8 py-2.5 bg-white/5 border border-white/20 text-white rounded-xl hover:bg-white/10 transition-all text-sm"
+            className="px-8 py-2.5 bg-white/5 border border-white/10 text-white rounded-xl hover:bg-white/10 transition-all text-sm"
           >
             {t('common.close')}
           </button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

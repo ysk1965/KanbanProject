@@ -4,6 +4,7 @@ import { X, Search, Loader2, CheckSquare, ChevronDown } from 'lucide-react';
 import { Clock } from 'lucide-react';
 import { boardChecklistAPI, BoardChecklistItemResponse } from '../utils/api';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from './ui/collapsible';
+import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
 
 interface ChecklistSelectModalProps {
   boardId: string;
@@ -77,8 +78,9 @@ export function ChecklistSelectModal({
   }, [filteredItems]);
 
   return (
-    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
-      <div className="bg-bridge-obsidian rounded-2xl shadow-2xl w-[500px] max-h-[80vh] flex flex-col overflow-hidden border border-white/20">
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent className="bg-bridge-obsidian text-foreground border-white/20 max-w-[500px] p-0 gap-0 [&>button:last-child]:hidden overflow-hidden rounded-2xl max-h-[80vh] flex flex-col">
+        <DialogTitle className="sr-only">{t('checklist.selectTitle')}</DialogTitle>
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/20">
           <h2 className="text-xl font-semibold text-foreground">{t('checklist.selectTitle')}</h2>
@@ -207,7 +209,7 @@ export function ChecklistSelectModal({
             {t('checklist.selectFooter')}
           </p>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

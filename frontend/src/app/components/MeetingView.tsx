@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Users, X, Loader2, ChevronDown, RotateCw, Calendar } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, getDay, getDate } from 'date-fns';
 import { ko } from 'date-fns/locale';
+import i18n from 'i18next';
 import { meetingAPI, MeetingSummary } from '../utils/api';
 import { BoardMember } from './ShareBoardModal';
 import { MeetingDetailPanel } from './MeetingDetailModal';
@@ -282,6 +283,21 @@ function MeetingCreateModal({ boardId, selectedDate, onClose, onCreated }: Meeti
               <option value="BIWEEKLY">{t('meeting.recurrenceBiweekly', '격주')}</option>
               <option value="MONTHLY">{t('meeting.recurrenceMonthly', '매월')}</option>
             </select>
+            {recurrenceRule && (
+              <p className="mt-1.5 text-xs text-bridge-secondary/80">
+                {(() => {
+                  const dayName = format(selectedDate, 'EEEE', { locale: i18n.language === 'ko' ? ko : undefined });
+                  const dayOfMonth = getDate(selectedDate);
+                  if (recurrenceRule === 'WEEKLY') {
+                    return t('meeting.recurrenceHintWeekly', '매주 {{day}}에 반복됩니다', { day: dayName });
+                  } else if (recurrenceRule === 'BIWEEKLY') {
+                    return t('meeting.recurrenceHintBiweekly', '격주 {{day}}에 반복됩니다', { day: dayName });
+                  } else {
+                    return t('meeting.recurrenceHintMonthly', '매월 {{date}}일에 반복됩니다', { date: dayOfMonth });
+                  }
+                })()}
+              </p>
+            )}
           </div>
 
           {recurrenceRule && (

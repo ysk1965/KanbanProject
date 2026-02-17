@@ -437,6 +437,7 @@ export interface FeatureResponse {
   color: string;
   assignee: AssigneeResponse | null;
   priority: 'HIGH' | 'MEDIUM' | 'LOW' | null;
+  start_date: string | null;
   due_date: string | null;
   status: 'ACTIVE' | 'COMPLETED';
   total_tasks: number;
@@ -958,6 +959,7 @@ export const featureAPI = {
       description?: string;
       color?: string;
       assignee_id?: string;
+      start_date?: string;
       due_date?: string;
     }
   ) => {
@@ -972,6 +974,7 @@ export const featureAPI = {
       description?: string;
       color?: string;
       assignee_id?: string | null;
+      start_date?: string | null;
       due_date?: string | null;
     }
   ) => {

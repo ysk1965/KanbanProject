@@ -56,7 +56,7 @@ export function CreateBoardModal({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="bg-bridge-obsidian text-foreground border-white/20 max-w-md">
+      <DialogContent className="bg-bridge-obsidian text-foreground border-white/10 max-w-md">
         <DialogHeader>
           <DialogTitle className="text-foreground">{t('createBoard.title')}</DialogTitle>
           <DialogDescription className="text-slate-400">
@@ -88,7 +88,7 @@ export function CreateBoardModal({
               value={boardName}
               onChange={(e) => setBoardName(e.target.value)}
               placeholder={t('createBoard.namePlaceholder')}
-              className="bg-bridge-dark border-white/20 text-foreground placeholder:text-slate-400 focus:border-blue-500"
+              className="bg-bridge-dark border-white/10 text-foreground placeholder:text-slate-400 focus:border-bridge-accent"
               onKeyDown={(e) => {
                 if (e.nativeEvent.isComposing) return;
                 if (e.key === 'Enter' && !e.shiftKey) {
@@ -108,7 +108,7 @@ export function CreateBoardModal({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder={t('createBoard.descriptionPlaceholder')}
-              className="bg-bridge-dark border-white/20 text-foreground placeholder:text-slate-400 focus:border-blue-500 resize-none"
+              className="bg-bridge-dark border-white/10 text-foreground placeholder:text-slate-400 focus:border-bridge-accent resize-none"
               rows={3}
             />
           </div>
@@ -123,7 +123,7 @@ export function CreateBoardModal({
                   onClick={() => setSelectedGradient(gradient.value)}
                   className={`h-12 rounded-lg transition-all ${
                     selectedGradient === gradient.value
-                      ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-bridge-obsidian scale-105'
+                      ? 'ring-2 ring-bridge-accent ring-offset-2 ring-offset-bridge-obsidian scale-105'
                       : 'hover:scale-105'
                   }`}
                   style={{ background: gradient.value }}
@@ -136,18 +136,18 @@ export function CreateBoardModal({
         </div>
 
         {/* 액션 버튼 */}
-        <div className="flex justify-end gap-2 pt-4 border-t border-white/20">
+        <div className="flex justify-end gap-2 pt-4 border-t border-white/10">
           <Button
             variant="outline"
             onClick={handleClose}
-            className="border-white/20 text-slate-300 hover:bg-white/5 hover:text-foreground"
+            className="border-white/10 text-slate-300 hover:bg-white/5 hover:text-foreground"
           >
             {t('common.cancel')}
           </Button>
           <Button
             onClick={handleCreate}
             disabled={!boardName.trim()}
-            className="bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
+            className="bg-bridge-accent hover:bg-bridge-accent/90 text-white disabled:opacity-50"
           >
             {t('common.create')}
           </Button>

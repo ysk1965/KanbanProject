@@ -100,8 +100,8 @@ public class DailyStandupScheduler {
                     : "No activity was recorded yesterday.";
             payload = buildSlackPayload(board, noActivityMsg, yesterday, config.getLanguage());
         } else {
-            // 3. AI 요약 생성
-            String summary = reportAIService.generateStandupSummary(dataJson, config.getLanguage());
+            // 3. AI 요약 생성 (크레딧 차감 포함)
+            String summary = reportAIService.generateStandupSummary(dataJson, config.getLanguage(), board.getId(), null);
             payload = buildSlackPayload(board, summary, yesterday, config.getLanguage());
         }
 

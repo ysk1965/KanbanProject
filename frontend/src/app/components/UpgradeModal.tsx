@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Check, Rocket, Calendar, BarChart3, Target, MessageSquare, Minus, Plus, Users } from 'lucide-react';
+import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
 
 export type UpgradeTrigger =
   | 'weekly_schedule'
@@ -42,8 +43,6 @@ export function UpgradeModal({
   const minSeats = Math.max(currentBillableMembers, 1);
   const [seatCount, setSeatCount] = useState(minSeats);
 
-  if (!open) return null;
-
   const triggerTitle = t(`upgrade.triggers.${trigger}.title`);
   const triggerDescription = t(`upgrade.triggers.${trigger}.description`);
   const pricePerSeat = billingCycle === 'MONTHLY' ? PRICE_PER_SEAT.monthly : PRICE_PER_SEAT.yearly;
@@ -67,8 +66,9 @@ export function UpgradeModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-bridge-obsidian rounded-2xl shadow-2xl w-full max-w-lg border border-white/20 overflow-hidden">
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="bg-bridge-obsidian text-foreground border-white/10 max-w-lg p-0 gap-0 [&>button:last-child]:hidden overflow-hidden rounded-2xl">
+        <DialogTitle className="sr-only">{t('upgrade.title')}</DialogTitle>
         {/* Header */}
         <div className="relative px-6 pt-6 pb-4">
           <button
@@ -86,7 +86,7 @@ export function UpgradeModal({
           </div>
 
           {/* Trigger message */}
-          <div className="bg-bridge-dark/50 rounded-xl p-4 border border-white/15">
+          <div className="bg-bridge-dark/50 rounded-xl p-4 border border-white/10">
             <p className="text-foreground font-medium mb-1">{triggerTitle}</p>
             <p className="text-slate-400 text-sm">{triggerDescription}</p>
           </div>
@@ -161,7 +161,7 @@ export function UpgradeModal({
               className={`relative p-4 rounded-xl border transition-all ${
                 billingCycle === 'MONTHLY'
                   ? 'border-bridge-accent bg-bridge-accent/10'
-                  : 'border-white/20 hover:border-white/20 hover:bg-white/5'
+                  : 'border-white/10 hover:border-white/10 hover:bg-white/5'
               }`}
             >
               <div className="text-left">
@@ -182,7 +182,7 @@ export function UpgradeModal({
               className={`relative p-4 rounded-xl border transition-all ${
                 billingCycle === 'YEARLY'
                   ? 'border-bridge-accent bg-bridge-accent/10'
-                  : 'border-white/20 hover:border-white/20 hover:bg-white/5'
+                  : 'border-white/10 hover:border-white/10 hover:bg-white/5'
               }`}
             >
               <div className="absolute -top-2 -right-2">
@@ -217,7 +217,7 @@ export function UpgradeModal({
         <div className="px-6 pb-6 flex gap-3">
           <button
             onClick={onClose}
-            className="flex-1 px-4 py-3 bg-white/5 border border-white/20 text-foreground rounded-xl font-medium hover:bg-white/10 transition-all"
+            className="flex-1 px-4 py-3 bg-white/5 border border-white/10 text-foreground rounded-xl font-medium hover:bg-white/10 transition-all"
           >
             {t('common.later')}
           </button>
@@ -229,7 +229,7 @@ export function UpgradeModal({
             {isProcessing ? t('common.processing') : t('upgrade.startPremium')}
           </button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

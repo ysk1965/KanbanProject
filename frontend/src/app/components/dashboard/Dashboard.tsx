@@ -10,6 +10,7 @@ import { Sidebar } from './Sidebar';
 import { BoardCard, CreateBoardCard } from './BoardCard';
 import { CreateBoardModal } from './CreateBoardModal';
 import { EditBoardModal } from './EditBoardModal';
+import { OnboardingModal } from '../OnboardingModal';
 
 interface DashboardProps {
   boards: Board[];
@@ -95,6 +96,9 @@ export function Dashboard({
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [editTarget, setEditTarget] = useState<Board | null>(null);
   const [isCreatingTestBoard, setIsCreatingTestBoard] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(
+    () => localStorage.getItem('bridge_show_onboarding') === 'true'
+  );
 
   // 테스트 보드 생성/참여 (개발용)
   const handleCreateTestBoard = async () => {
@@ -375,6 +379,12 @@ export function Dashboard({
           <span className="hidden sm:inline">{isCreatingTestBoard ? t('board.creating') : 'Test Board'}</span>
         </button>
       )}
+
+      {/* Onboarding Modal */}
+      <OnboardingModal
+        isOpen={showOnboarding}
+        onClose={() => setShowOnboarding(false)}
+      />
 
       {/* Custom Scrollbar Styles */}
       <style>{`

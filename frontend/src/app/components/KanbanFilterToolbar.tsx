@@ -20,17 +20,19 @@ interface KanbanFilterToolbarProps {
   // Expand/Collapse
   onExpandAll: () => void;
   onCollapseAll: () => void;
+  hideExpandCollapse?: boolean;
 }
 
 export function KanbanFilterToolbar({
   filterOptions, onFilterChange,
   features, tags, boardMembersData, tasks,
   onExpandAll, onCollapseAll,
+  hideExpandCollapse,
 }: KanbanFilterToolbarProps) {
   const { t } = useTranslation();
 
   return (
-    <div className="px-3 md:px-6 py-2 md:py-3 border-b border-bridge-border flex items-center gap-2 overflow-x-auto md:overflow-x-visible md:flex-wrap kanban-scrollbar">
+    <div className="px-3 md:px-6 py-2 md:py-3 border-b border-bridge-border flex items-center gap-2 overflow-x-auto md:overflow-x-visible md:flex-wrap shrink-0 kanban-scrollbar">
       {/* 검색 */}
       <div className="relative w-52 sm:w-80 shrink-0">
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
@@ -327,24 +329,26 @@ export function KanbanFilterToolbar({
       <div className="hidden md:block flex-1" />
 
       {/* 모두 펼치기/닫기 */}
-      <div className="flex items-center gap-1 shrink-0">
-        <button
-          onClick={onExpandAll}
-          className="flex items-center gap-1.5 px-3 py-2 text-xs text-zinc-500 hover:text-white hover:bg-bridge-surface-hover rounded-lg transition-colors"
-          title={t('kanban.expandAll')}
-        >
-          <ChevronsUpDown size={14} />
-          <span className="hidden sm:inline">{t('kanban.expand')}</span>
-        </button>
-        <button
-          onClick={onCollapseAll}
-          className="flex items-center gap-1.5 px-3 py-2 text-xs text-zinc-500 hover:text-white hover:bg-bridge-surface-hover rounded-lg transition-colors"
-          title={t('kanban.collapseAll')}
-        >
-          <ChevronsDownUp size={14} />
-          <span className="hidden sm:inline">{t('kanban.collapse')}</span>
-        </button>
-      </div>
+      {!hideExpandCollapse && (
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            onClick={onExpandAll}
+            className="flex items-center gap-1.5 px-3 py-2 text-xs text-zinc-500 hover:text-white hover:bg-bridge-surface-hover rounded-lg transition-colors"
+            title={t('kanban.expandAll')}
+          >
+            <ChevronsUpDown size={14} />
+            <span className="hidden sm:inline">{t('kanban.expand')}</span>
+          </button>
+          <button
+            onClick={onCollapseAll}
+            className="flex items-center gap-1.5 px-3 py-2 text-xs text-zinc-500 hover:text-white hover:bg-bridge-surface-hover rounded-lg transition-colors"
+            title={t('kanban.collapseAll')}
+          >
+            <ChevronsDownUp size={14} />
+            <span className="hidden sm:inline">{t('kanban.collapse')}</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }

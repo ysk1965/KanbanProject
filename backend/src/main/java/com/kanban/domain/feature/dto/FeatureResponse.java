@@ -27,6 +27,7 @@ public class FeatureResponse {
         private String title;
         private String color;
         private AssigneeInfo assignee;
+        private LocalDate startDate;
         private LocalDate dueDate;
         private FeatureStatus status;
         private int totalTasks;
@@ -41,6 +42,7 @@ public class FeatureResponse {
                     .title(feature.getTitle())
                     .color(feature.getColor())
                     .assignee(feature.getAssignee() != null ? AssigneeInfo.of(feature) : null)
+                    .startDate(feature.getStartDate())
                     .dueDate(feature.getDueDate())
                     .status(feature.getStatus())
                     .totalTasks(feature.getTotalTasks())
@@ -64,6 +66,7 @@ public class FeatureResponse {
         private String description;
         private String color;
         private AssigneeInfo assignee;
+        private LocalDate startDate;
         private LocalDate dueDate;
         private FeatureStatus status;
         private int totalTasks;
@@ -83,6 +86,7 @@ public class FeatureResponse {
                     .description(feature.getDescription())
                     .color(feature.getColor())
                     .assignee(feature.getAssignee() != null ? AssigneeInfo.of(feature) : null)
+                    .startDate(feature.getStartDate())
                     .dueDate(feature.getDueDate())
                     .status(feature.getStatus())
                     .totalTasks(feature.getTotalTasks())

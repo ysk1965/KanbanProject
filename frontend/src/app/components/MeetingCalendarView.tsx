@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, Repeat, Clock } from 'lucide-react';
 import {
   startOfMonth,
   endOfMonth,
@@ -89,6 +89,17 @@ export function MeetingCalendarView({ boardId, boardMembers, onRefreshSchedule, 
       map.set(dateKey, (map.get(dateKey) || 0) + 1);
     });
     return map;
+  }, [monthMeetings]);
+
+  // Recurring meeting series (grouped by recurrence_group_id)
+  const recurringSeries = useMemo(() => {
+    const groupMap = new Map<string, MeetingSummary>();
+    monthMeetings.forEach((meeting) => {
+      if (meeting.recurrence_group_id && !groupMap.has(meeting.recurrence_group_id)) {
+        groupMap.set(meeting.recurrence_group_id, meeting);
+      }
+    });
+    return Array.from(groupMap.values());
   }, [monthMeetings]);
 
   const calendarDays = useMemo(() => {
@@ -227,6 +238,83 @@ export function MeetingCalendarView({ boardId, boardMembers, onRefreshSchedule, 
           </div>
         </div>
       </div>
+
+      {/* Recurring Meetings Section */}
+      {recurringSeries.length > 0 && (
+        <div className="px-4 pb-4 flex-1 overflow-y-auto min-h-0">
+          <div className="flex items-center gap-2 mb-2">
+            <Repeat size={14} className="text-bridge-secondary" />
+            <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+              {t('meeting.recurring', '반복')} {t('meeting.tab', '회의')}
+            </span>
+          </div>
+          <div className="space-y-1.5">
+            {recurringSeries.map((meeting) => {
+              const ruleLabel =
+                meeting.recurrence_rule === 'WEEKLY'
+                  ? t('meeting.recurrenceWeekly', '매주')
+                  : meeting.recurrence_rule === 'BIWEEKLY'
+                    ? t('meeting.recurrenceBiweekly', '격주')
+                    : t('meeting.recurrenceMonthly', '매월');
+
+              const timeStr =
+                meeting.start_time && meeting.end_time
+                  ? `${meeting.start_time.slice(0, 5)} - ${meeting.end_time.slice(0, 5)}`
+                  : meeting.start_time
+                    ? meeting.start_time.slice(0, 5)
+                    : null;
+
+              // Find next occurrence of this series
+              const nextDate = monthMeetings
+                .filter(
+                  (m) =>
+                    m.recurrence_group_id === meeting.recurrence_group_id &&
+                    m.meeting_date >= format(new Date(), 'yyyy-MM-dd')
+                )
+                .sort((a, b) => a.meeting_date.localeCompare(b.meeting_date))[0];
+
+              return (
+                <button
+                  key={meeting.recurrence_group_id}
+                  onClick={() => {
+                    if (nextDate) {
+                      const date = parseISO(nextDate.meeting_date);
+                      setSelectedDate(date);
+                      if (!isSameMonth(date, currentMonth)) {
+                        setCurrentMonth(startOfMonth(date));
+                      }
+                    }
+                  }}
+                  className="w-full text-left p-2.5 rounded-xl bg-white/[0.03] border border-white/5 hover:bg-white/[0.06] hover:border-white/10 transition-all group"
+                >
+                  <div className="flex items-start gap-2.5">
+                    <div
+                      className="w-1 h-8 rounded-full flex-shrink-0 mt-0.5"
+                      style={{ backgroundColor: meeting.color || '#8B5CF6' }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[13px] font-medium text-white truncate group-hover:text-bridge-secondary transition-colors">
+                        {meeting.title}
+                      </div>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <span className="text-[10px] font-semibold text-bridge-secondary/80 bg-bridge-secondary/10 px-1.5 py-0.5 rounded">
+                          {ruleLabel}
+                        </span>
+                        {timeStr && (
+                          <span className="flex items-center gap-0.5 text-[10px] text-slate-500">
+                            <Clock size={9} />
+                            {timeStr}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </>
   );
 

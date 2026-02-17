@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { ChevronDown, ChevronRight as ChevronRightIcon, FileText, Calendar as CalendarIcon, Link2 } from 'lucide-react';
+import { ChevronDown, ChevronRight as ChevronRightIcon, FileText, Calendar as CalendarIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from './ui/button';
 import { Calendar } from './ui/calendar';
@@ -163,8 +163,12 @@ export function WeeklyScheduleView({
   // 드래그 완료 직후 클릭 방지 플래그
   const justFinishedDragRef = useRef(false);
 
-  // 의존성 연결 모드 (선행 태스크 ID)
-  const [linkingFrom, setLinkingFrom] = useState<string | null>(null);
+  // 드래그-투-커넥트 상태 (의존성 연결)
+  const [dragLink, setDragLink] = useState<{
+    fromTaskId: string;
+    cursorX: number;
+    cursorY: number;
+  } | null>(null);
 
   // 스크롤 컨테이너 ref
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -474,16 +478,44 @@ export function WeeklyScheduleView({
     };
   }, []);
 
-  // ESC로 의존성 연결 모드 취소
+  // 드래그-투-커넥트: 마우스 이동/해제 처리
+  const isDragLinking = dragLink !== null;
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && linkingFrom) {
-        setLinkingFrom(null);
+    if (!isDragLinking) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const rect = timelineRef.current?.getBoundingClientRect();
+      if (rect) {
+        setDragLink(prev => prev ? {
+          ...prev,
+          cursorX: e.clientX - rect.left,
+          cursorY: e.clientY - rect.top,
+        } : null);
       }
     };
+
+    const handleMouseUp = () => {
+      setDragLink(null);
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setDragLink(null);
+      }
+    };
+
+    document.body.style.cursor = 'crosshair';
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
     document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [linkingFrom]);
+
+    return () => {
+      document.body.style.cursor = '';
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isDragLinking]);
 
   // Feature 토글
   const toggleFeature = (featureId: string) => {
@@ -931,22 +963,6 @@ export function WeeklyScheduleView({
         </div>
       </div>
 
-      {/* 의존성 연결 모드 배너 */}
-      {linkingFrom && (
-        <div className="flex items-center justify-center gap-3 px-4 py-2 bg-bridge-accent/20 border-b border-bridge-accent/30">
-          <Link2 className="w-4 h-4 text-bridge-accent" />
-          <span className="text-sm text-bridge-accent font-medium">
-            연결할 대상 태스크를 클릭하세요
-          </span>
-          <button
-            onClick={() => setLinkingFrom(null)}
-            className="px-2 py-0.5 text-xs bg-white/10 rounded text-zinc-300 hover:bg-white/20 transition-colors"
-          >
-            취소 (ESC)
-          </button>
-        </div>
-      )}
-
       {/* 메인 그리드 */}
       <div className="flex-1 flex overflow-hidden">
         {/* 왼쪽 고정 열 (Feature/Task 이름) */}
@@ -1207,8 +1223,8 @@ export function WeeklyScheduleView({
                                 className={`absolute top-1/2 -translate-y-1/2 h-6 ${barColor} rounded transition-colors group ${
                                   isDraggingThis ? 'cursor-grabbing opacity-80 shadow-lg' :
                                   isResizingThis ? 'brightness-110' :
-                                  linkingFrom === task.id ? 'ring-2 ring-bridge-accent ring-offset-1 ring-offset-transparent animate-pulse cursor-default' :
-                                  linkingFrom ? 'cursor-crosshair hover:brightness-125 hover:ring-2 hover:ring-white/50' :
+                                  dragLink?.fromTaskId === task.id ? 'ring-2 ring-bridge-accent brightness-110' :
+                                  dragLink ? 'cursor-crosshair hover:brightness-125 hover:ring-2 hover:ring-bridge-accent/60' :
                                   'cursor-pointer hover:brightness-110'
                                 }`}
                                 style={{
@@ -1216,19 +1232,25 @@ export function WeeklyScheduleView({
                                   width: taskBarPosition.width,
                                   minWidth: 20,
                                 }}
-                                onMouseDown={canDragResize ? (e) => handleLongPressStart(e, task.id, task) : undefined}
-                                onMouseUp={canDragResize ? handleLongPressEnd : undefined}
+                                onMouseDown={canDragResize ? (e) => {
+                                  if (!(e.target as HTMLElement).closest('[data-connect-handle]')) {
+                                    handleLongPressStart(e, task.id, task);
+                                  }
+                                } : undefined}
+                                onMouseUp={(e) => {
+                                  if (canDragResize) handleLongPressEnd();
+                                  if (dragLink && dragLink.fromTaskId !== task.id && onCreateDependency) {
+                                    e.stopPropagation();
+                                    onCreateDependency(dragLink.fromTaskId, task.id);
+                                    setDragLink(null);
+                                    justFinishedDragRef.current = true;
+                                    setTimeout(() => { justFinishedDragRef.current = false; }, 100);
+                                  }
+                                }}
                                 onMouseLeave={canDragResize ? handleLongPressEnd : undefined}
                                 onClick={() => {
                                   if (!resizing && !dragging && !justFinishedDragRef.current) {
-                                    if (linkingFrom) {
-                                      if (linkingFrom !== task.id && onCreateDependency) {
-                                        onCreateDependency(linkingFrom, task.id);
-                                      }
-                                      setLinkingFrom(null);
-                                    } else {
-                                      onViewTask?.(task.id);
-                                    }
+                                    onViewTask?.(task.id);
                                   }
                                 }}
                               >
@@ -1254,18 +1276,26 @@ export function WeeklyScheduleView({
                                     }}
                                   />
                                 )}
-                                {/* 의존성 연결 버튼 */}
-                                {onCreateDependency && !linkingFrom && (
+                                {/* 의존성 드래그 커넥트 핸들 */}
+                                {onCreateDependency && !dragLink && (
                                   <div
-                                    className="absolute -right-3 top-1/2 -translate-y-1/2 w-5 h-5 bg-bridge-accent rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-20"
-                                    onClick={(e) => {
+                                    data-connect-handle
+                                    className="absolute -right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 bg-bridge-accent rounded-full border-2 border-bridge-dark opacity-0 group-hover:opacity-100 transition-opacity cursor-crosshair z-20 hover:scale-150 hover:border-bridge-accent/50"
+                                    title="드래그하여 의존성 연결"
+                                    onMouseDown={(e) => {
+                                      e.preventDefault();
                                       e.stopPropagation();
-                                      setLinkingFrom(task.id);
+                                      handleLongPressEnd();
+                                      const rect = timelineRef.current?.getBoundingClientRect();
+                                      if (rect) {
+                                        setDragLink({
+                                          fromTaskId: task.id,
+                                          cursorX: e.clientX - rect.left,
+                                          cursorY: e.clientY - rect.top,
+                                        });
+                                      }
                                     }}
-                                    title="의존성 연결"
-                                  >
-                                    <Link2 className="w-3 h-3 text-white" />
-                                  </div>
+                                  />
                                 )}
                                 {/* Task 이름 + 체크리스트 원형 게이지 */}
                                 <div className="px-2 h-full flex items-center gap-1.5 overflow-hidden pointer-events-none">
@@ -1309,13 +1339,14 @@ export function WeeklyScheduleView({
               })}
 
               {/* 의존성 화살표 오버레이 */}
-              {dependencies.length > 0 && (
+              {(dependencies.length > 0 || dragLink) && (
                 <DependencyArrows
                   dependencies={dependencies}
                   taskPositions={taskPositions}
                   onDeleteDependency={onDeleteDependency}
                   containerWidth={totalGridWidth}
                   containerHeight={timelineHeight}
+                  previewLine={dragLink}
                 />
               )}
             </div>

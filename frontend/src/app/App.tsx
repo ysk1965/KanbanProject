@@ -105,6 +105,7 @@ function LoginRoute() {
 
   const signup = async (email: string, password: string, name: string) => {
     await authSignup(email, password, name);
+    localStorage.setItem('bridge_show_onboarding', 'true');
     await handleLoginSuccess();
   };
 

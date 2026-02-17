@@ -57,6 +57,7 @@ export function NoteTreeSidebar({
 }: NoteTreeSidebarProps) {
   const [activeItem, setActiveItem] = useState<NoteTreeItem | null>(null);
   const [dropTarget, setDropTarget] = useState<DropTargetInfo | null>(null);
+  const dropTargetRef = useRef<DropTargetInfo | null>(null);
   const pointerYRef = useRef<number>(0);
 
   const sensors = useSensors(
@@ -99,36 +100,18 @@ export function NoteTreeSidebar({
   const handleDragStart = (event: DragStartEvent) => {
     const item = flatMap.get(event.active.id as string);
     if (item) setActiveItem(item);
+    // Initialize pointer Y from activator event to avoid stale 0 value
+    if (event.activatorEvent instanceof PointerEvent) {
+      pointerYRef.current = event.activatorEvent.clientY;
+    }
   };
 
-  const handleDragOver = (event: DragOverEvent) => {
-    const { over } = event;
-    if (!over || !activeItem) {
-      setDropTarget(null);
-      return;
-    }
-
-    const overId = over.id as string;
-
-    if (overId === 'root-drop-zone') {
-      setDropTarget({ id: 'root-drop-zone', zone: 'inside' });
-      return;
-    }
-
-    if (overId === activeItem.id || isDescendant(activeItem.id, overId)) {
-      setDropTarget(null);
-      return;
-    }
-
-    const overItem = flatMap.get(overId);
-    if (!overItem) {
-      setDropTarget(null);
-      return;
-    }
-
-    // Calculate zone from pointer Y position within element
-    const rect = over.rect;
-    const pointerY = pointerYRef.current;
+  const calculateDropZone = (
+    overItem: NoteTreeItem,
+    rect: { top: number; height: number },
+    pointerY: number,
+    draggedItem: NoteTreeItem,
+  ): DropZone => {
     const ratio = Math.max(0, Math.min(1, (pointerY - rect.top) / rect.height));
 
     let zone: DropZone;
@@ -139,7 +122,7 @@ export function NoteTreeSidebar({
 
       // Depth validation: prevent nesting if it would exceed max depth
       if (zone === 'inside') {
-        const maxSubDepth = activeItem.type === 'FOLDER' ? getMaxSubtreeDepth(activeItem) : 0;
+        const maxSubDepth = draggedItem.type === 'FOLDER' ? getMaxSubtreeDepth(draggedItem) : 0;
         if (overItem.depth + 1 + maxSubDepth > MAX_DEPTH) {
           zone = ratio < 0.5 ? 'before' : 'after';
         }
@@ -147,45 +130,88 @@ export function NoteTreeSidebar({
     } else {
       zone = ratio < 0.5 ? 'before' : 'after';
     }
-
-    setDropTarget({ id: overId, zone });
+    return zone;
   };
 
-  const handleDragEnd = (_event: DragEndEvent) => {
-    const target = dropTarget;
+  const setDropTargetBoth = (value: DropTargetInfo | null) => {
+    dropTargetRef.current = value;
+    setDropTarget(value);
+  };
+
+  const handleDragOver = (event: DragOverEvent) => {
+    const { over } = event;
+    if (!over || !activeItem) {
+      setDropTargetBoth(null);
+      return;
+    }
+
+    const overId = over.id as string;
+
+    if (overId === 'root-drop-zone') {
+      setDropTargetBoth({ id: 'root-drop-zone', zone: 'inside' });
+      return;
+    }
+
+    if (overId === activeItem.id || isDescendant(activeItem.id, overId)) {
+      setDropTargetBoth(null);
+      return;
+    }
+
+    const overItem = flatMap.get(overId);
+    if (!overItem) {
+      setDropTargetBoth(null);
+      return;
+    }
+
+    const zone = calculateDropZone(overItem, over.rect, pointerYRef.current, activeItem);
+    setDropTargetBoth({ id: overId, zone });
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
     const dragged = activeItem;
     setActiveItem(null);
-    setDropTarget(null);
+    setDropTargetBoth(null);
 
-    if (!target || !dragged) return;
+    if (!dragged) return;
 
-    if (target.id === 'root-drop-zone') {
+    // Use event.over + pointerYRef to compute the final zone directly,
+    // avoiding stale React state issues with dropTarget
+    const { over } = event;
+    if (!over) return;
+
+    const overId = over.id as string;
+
+    if (overId === 'root-drop-zone') {
       onMove(dragged.id, null, 9999);
       return;
     }
 
-    const targetItem = flatMap.get(target.id);
+    if (overId === dragged.id || isDescendant(dragged.id, overId)) return;
+
+    const targetItem = flatMap.get(overId);
     if (!targetItem) return;
+
+    const zone = calculateDropZone(targetItem, over.rect, pointerYRef.current, dragged);
 
     const getSiblings = () =>
       targetItem.parent_id
         ? flatMap.get(targetItem.parent_id)?.children || []
         : tree;
 
-    switch (target.zone) {
+    switch (zone) {
       case 'before': {
         const siblings = getSiblings();
-        const targetIndex = siblings.findIndex(s => s.id === target.id);
+        const targetIndex = siblings.findIndex(s => s.id === overId);
         onMove(dragged.id, targetItem.parent_id, targetIndex);
         break;
       }
       case 'inside': {
-        onMove(dragged.id, target.id, 9999);
+        onMove(dragged.id, overId, 9999);
         break;
       }
       case 'after': {
         const siblings = getSiblings();
-        const targetIndex = siblings.findIndex(s => s.id === target.id);
+        const targetIndex = siblings.findIndex(s => s.id === overId);
         onMove(dragged.id, targetItem.parent_id, targetIndex + 1);
         break;
       }

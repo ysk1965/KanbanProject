@@ -1,7 +1,7 @@
 import { useRef, useCallback, memo } from 'react';
 import { Block, Task, Tag, Feature, ChecklistItem } from '../types';
 import { DraggableCard } from './DraggableCard';
-import { GripVertical, MoreVertical } from 'lucide-react';
+import { GripVertical, MoreVertical, Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from './ui/button';
 import {
@@ -38,6 +38,7 @@ interface KanbanBlockProps {
   memberColorMap?: Record<string, string | null>;
   showFeatureLabel?: boolean;
   scheduledTaskIds?: Set<string>;
+  onQuickAddTask?: (blockId: string) => void;
 }
 
 export const KanbanBlock = memo(function KanbanBlock({
@@ -59,6 +60,7 @@ export const KanbanBlock = memo(function KanbanBlock({
   memberColorMap,
   showFeatureLabel,
   scheduledTaskIds,
+  onQuickAddTask,
 }: KanbanBlockProps) {
   const { t } = useTranslation();
   const blockRef = useRef<HTMLDivElement>(null);
@@ -362,7 +364,7 @@ export const KanbanBlock = memo(function KanbanBlock({
       {/* 카드 리스트 */}
       <div
         ref={taskContainerRef}
-        className="flex-1 p-3 space-y-3 overflow-y-auto max-h-[calc(100vh-250px)] kanban-scrollbar"
+        className="flex-1 p-3 space-y-3 overflow-y-auto min-h-0 kanban-scrollbar"
         onDragEnter={(e) => {
           e.preventDefault();
           e.stopPropagation();
@@ -424,6 +426,19 @@ export const KanbanBlock = memo(function KanbanBlock({
           placeholderElement
         )}
       </div>
+
+      {/* Quick Add Card Button - always visible at bottom */}
+      {onQuickAddTask && (
+        <div className="px-3 py-2.5 border-t border-white/5">
+          <button
+            onClick={() => onQuickAddTask(block.id)}
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-400 hover:text-foreground hover:bg-white/5 rounded-lg transition-all group"
+          >
+            <Plus size={16} className="text-slate-500 group-hover:text-bridge-accent transition-colors" />
+            <span className="text-xs font-medium">{t('quickAdd.addCard', 'Add a card')}</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 });

@@ -371,6 +371,7 @@ export const featureService = {
       description?: string;
       color?: string;
       assignee_id?: string;
+      start_date?: string;
       due_date?: string;
     }
   ): Promise<Feature> => {
@@ -387,6 +388,7 @@ export const featureService = {
           description: data.description,
           color: data.color || '#3B82F6',
           assignee: null,
+          start_date: data.start_date || null,
           due_date: data.due_date || null,
           status: 'ACTIVE',
           total_tasks: 0,
@@ -412,6 +414,7 @@ export const featureService = {
       description?: string;
       color?: string;
       assignee_id?: string | null;
+      start_date?: string | null;
       due_date?: string | null;
     }
   ): Promise<Feature> => {

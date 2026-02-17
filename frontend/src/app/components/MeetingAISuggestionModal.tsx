@@ -11,6 +11,7 @@ import {
   AIApplyRequest,
   AIApplyResult,
 } from '../utils/api';
+import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
 
 interface MeetingAISuggestionModalProps {
   boardId: string;
@@ -330,14 +331,9 @@ export default function MeetingAISuggestionModal({
   };
 
   return (
-    <div
-      className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50"
-      onClick={onClose}
-    >
-      <div
-        className="bg-bridge-obsidian rounded-2xl shadow-2xl w-[600px] max-w-[calc(100vw-2rem)] max-h-[80vh] flex flex-col overflow-hidden border border-white/10"
-        onClick={e => e.stopPropagation()}
-      >
+    <Dialog open onOpenChange={() => onClose()}>
+      <DialogContent className="bg-bridge-obsidian text-foreground border-white/10 w-[600px] max-w-[calc(100vw-2rem)] max-h-[80vh] flex flex-col p-0 gap-0 [&>button:last-child]:hidden overflow-hidden rounded-2xl">
+        <DialogTitle className="sr-only">{t('meeting.aiOrganizeTitle')}</DialogTitle>
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
           <div className="flex items-center gap-2">
@@ -553,7 +549,7 @@ export default function MeetingAISuggestionModal({
             <p className="text-xs text-red-400 text-center">{error}</p>
           </div>
         )}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

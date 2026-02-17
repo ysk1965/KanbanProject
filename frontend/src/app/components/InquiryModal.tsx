@@ -5,6 +5,7 @@ import { inquiryService } from '../utils/services';
 import { fileAPI } from '../utils/api';
 import type { InquirySummary, InquiryDetail, InquiryStatus } from '../types';
 import { formatDate } from '../utils/dateUtils';
+import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
 
 interface InquiryModalProps {
   isOpen: boolean;
@@ -120,12 +121,10 @@ export function InquiryModal({ isOpen, onClose }: InquiryModalProps) {
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/30 backdrop-blur-[2px]" onClick={onClose} />
-      <div className="relative bg-bridge-obsidian rounded-2xl border border-white/10 shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col">
+    <Dialog open={isOpen} onOpenChange={() => onClose()}>
+      <DialogContent className="bg-bridge-obsidian text-foreground border-white/10 max-w-lg max-h-[80vh] flex flex-col p-0 gap-0 [&>button:last-child]:hidden overflow-hidden rounded-2xl">
+        <DialogTitle className="sr-only">{t('inquiry.title')}</DialogTitle>
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
           <div className="flex items-center gap-3">
@@ -275,8 +274,8 @@ export function InquiryModal({ isOpen, onClose }: InquiryModalProps) {
             </button>
           </div>
         )}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

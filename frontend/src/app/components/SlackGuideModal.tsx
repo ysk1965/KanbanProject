@@ -76,7 +76,7 @@ export function SlackGuideModal({ open, onOpenChange }: SlackGuideModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[520px] max-h-[80vh] overflow-hidden bg-bridge-obsidian border-white/20 text-foreground p-0 [&>button:last-child]:top-5 [&>button:last-child]:right-5">
+      <DialogContent className="sm:max-w-[520px] max-h-[80vh] overflow-hidden bg-bridge-obsidian border-white/10 text-foreground p-0 [&>button:last-child]:top-5 [&>button:last-child]:right-5">
         <div className="overflow-y-auto max-h-[80vh] p-6">
           <DialogHeader className="mb-5">
             <DialogTitle className="text-base font-semibold text-foreground flex items-center gap-2">

@@ -1203,6 +1203,7 @@
     "viewScheduleTab": "Schedule",
     "viewSchedule": "Daily Schedule",
     "viewGantt": "Gantt Chart",
+    "viewCalendar": "Calendar",
     "viewNotes": "Notes",
     "viewAIAnalysisTab": "AI Analysis",
     "viewStatistics": "Milestones",
@@ -1377,6 +1378,17 @@
     "changeColor": "Change color",
     "deleteBlock": "Delete block"
   },
+  "quickAdd": {
+    "title": "Add a card",
+    "addCard": "Add a card",
+    "feature": "Feature",
+    "newFeature": "Create new Feature",
+    "featurePlaceholder": "Enter feature name",
+    "selectExisting": "← Select existing Feature",
+    "taskTitle": "Task title",
+    "taskPlaceholder": "Enter task title",
+    "tasksCount": "tasks"
+  },
   "dailyChecklistView": {
     "loadFailed": "Failed to load data.",
     "today": "Today",
@@ -1429,6 +1441,8 @@
     "descriptionPlaceholder": "Enter a feature description...",
     "priority": "Priority",
     "dueDate": "Due Date",
+    "dateRange": "Date Range",
+    "selectDateRange": "Select start ~ end date",
     "selectDate": "Select a date",
     "removeDate": "Remove date",
     "noDate": "No date",
@@ -1474,7 +1488,28 @@
     "noLinkedFeatures": "No linked features",
     "saveBaseline": "Save Baseline",
     "showBaseline": "Baseline",
-    "baselineSaved": "Baseline saved"
+    "baselineSaved": "Baseline saved",
+    "completed": "Completed"
+  },
+  "calendar": {
+    "today": "Today",
+    "prevMonth": "Previous month",
+    "nextMonth": "Next month",
+    "yearSuffix": "",
+    "monthSuffix": "",
+    "moreItems": "+{{count}} more",
+    "daySuffix": "",
+    "featureCount": " features",
+    "taskCount": " tasks",
+    "otherTasks": "Other Tasks",
+    "noTasks": "No tasks",
+    "sun": "Sun",
+    "mon": "Mon",
+    "tue": "Tue",
+    "wed": "Wed",
+    "thu": "Thu",
+    "fri": "Fri",
+    "sat": "Sat"
   },
   "management": {
     "statusOnTrack": "On Track",
@@ -2305,6 +2340,9 @@
     "recurrenceMonthly": "Monthly",
     "recurrenceEndDate": "Recurrence end date",
     "recurrenceEndDateHint": "Leave blank to repeat indefinitely",
+    "recurrenceHintWeekly": "Repeats every {{day}}",
+    "recurrenceHintBiweekly": "Repeats every other {{day}}",
+    "recurrenceHintMonthly": "Repeats on the {{date}}th of every month",
     "recurring": "Recurring",
     "deleteRecurringTitle": "Delete recurring meeting",
     "deleteRecurringMessage": "This is a recurring meeting. How would you like to delete it?",
@@ -2436,6 +2474,43 @@
         "REPORT_TEAM": "Team Report",
         "REPORT_PERSONAL": "Personal Report"
       }
+    }
+  },
+  "onboarding": {
+    "skip": "Skip",
+    "continue": "Continue",
+    "start": "Get Started",
+    "welcome": {
+      "badge": "Welcome",
+      "title": "Welcome to\nBRIDGE!",
+      "subtitle": "Manage projects systematically and collaborate efficiently with your team. BRIDGE is here to help.",
+      "highlight1": "Intuitive Kanban board for project management",
+      "highlight2": "AI-powered meeting notes & team analytics",
+      "highlight3": "Real-time team collaboration & notifications"
+    },
+    "features": {
+      "title": "Explore Key Features",
+      "subtitle": "Here are the main features BRIDGE offers.",
+      "kanban": "Kanban Board",
+      "kanbanDesc": "Drag & drop task management",
+      "schedule": "Schedule",
+      "scheduleDesc": "Gantt chart & weekly roadmap",
+      "meeting": "Meeting",
+      "meetingDesc": "AI meeting transcript",
+      "notes": "Notes",
+      "notesDesc": "Team shared documents",
+      "ai": "AI Analysis",
+      "aiDesc": "Team productivity insights",
+      "slack": "Slack",
+      "slackDesc": "Real-time notifications"
+    },
+    "quickstart": {
+      "badge": "Quick Start",
+      "title": "You're all set\nto start!",
+      "subtitle": "Create a board and start your first project.",
+      "tip1": "Create a board and invite your team members",
+      "tip2": "Add features and tasks to organize your project",
+      "tip3": "Use drag & drop to update progress"
     }
   }
 }

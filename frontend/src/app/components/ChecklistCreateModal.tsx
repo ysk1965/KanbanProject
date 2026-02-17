@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { X, Clock, ChevronDown, Folder, FileText, Loader2, CheckSquare, Layers, Plus, ClipboardList } from 'lucide-react';
 import { format, parseISO, isToday as isDateToday } from 'date-fns';
 import { featureAPI, taskAPI, dailyChecklistAPI, FeatureResponse, TaskResponse, DailyChecklistItemResponse, BoardChecklistItemResponse, MeetingSummary } from '../utils/api';
+import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
 
 interface ChecklistCreateModalProps {
   boardId: string;
@@ -179,8 +180,9 @@ export function ChecklistCreateModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-bridge-dark rounded-2xl shadow-2xl w-[560px] min-h-[700px] max-h-[90vh] flex flex-col overflow-hidden border border-white/10">
+    <Dialog open onOpenChange={() => onClose()}>
+      <DialogContent className="bg-bridge-dark text-foreground border-white/10 w-[560px] max-w-[calc(100%-2rem)] min-h-[700px] max-h-[90vh] flex flex-col p-0 gap-0 [&>button:last-child]:hidden overflow-hidden rounded-2xl">
+        <DialogTitle className="sr-only">{t('dailySchedule.addTimeblock')}</DialogTitle>
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
           <h2 className="text-lg font-bold text-white">{t('dailySchedule.addTimeblock')}</h2>
@@ -547,7 +549,7 @@ export function ChecklistCreateModal({
             )}
           </button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

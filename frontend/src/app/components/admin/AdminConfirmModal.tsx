@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, X } from 'lucide-react';
+import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
 
 // ==================== Confirm Modal ====================
 
@@ -32,43 +33,44 @@ export function ConfirmModal({
     if (isOpen) confirmRef.current?.focus();
   }, [isOpen]);
 
-  if (!isOpen) return null;
-
   const confirmBg = variant === 'danger'
     ? 'bg-red-500 hover:bg-red-600'
     : 'bg-bridge-accent hover:bg-bridge-accent/90';
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30 backdrop-blur-sm">
-      <div className="bg-bridge-obsidian rounded-2xl border border-white/10 p-6 shadow-2xl w-full max-w-sm mx-4">
-        <div className="flex items-start gap-3 mb-4">
-          {variant === 'danger' && (
-            <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center flex-shrink-0">
-              <AlertTriangle className="h-5 w-5 text-red-400" />
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onCancel(); }}>
+      <DialogContent className="bg-bridge-obsidian text-foreground border-white/10 max-w-sm p-0 gap-0 [&>button:last-child]:hidden overflow-hidden rounded-2xl">
+        <DialogTitle className="sr-only">{title}</DialogTitle>
+        <div className="p-6">
+          <div className="flex items-start gap-3 mb-4">
+            {variant === 'danger' && (
+              <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center flex-shrink-0">
+                <AlertTriangle className="h-5 w-5 text-red-400" />
+              </div>
+            )}
+            <div>
+              <h3 className="text-lg font-bold text-white">{title}</h3>
+              <p className="text-slate-400 text-sm mt-1 whitespace-pre-line">{message}</p>
             </div>
-          )}
-          <div>
-            <h3 className="text-lg font-bold text-white">{title}</h3>
-            <p className="text-slate-400 text-sm mt-1 whitespace-pre-line">{message}</p>
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={onCancel}
+              className="flex-1 px-4 py-2.5 bg-white/5 border border-white/10 text-white rounded-xl hover:bg-white/10 transition-all text-sm font-medium"
+            >
+              {cancelLabel || t('common.cancel')}
+            </button>
+            <button
+              ref={confirmRef}
+              onClick={onConfirm}
+              className={`flex-1 px-4 py-2.5 text-white rounded-xl font-bold transition-all text-sm ${confirmBg}`}
+            >
+              {confirmLabel || t('common.confirm')}
+            </button>
           </div>
         </div>
-        <div className="flex gap-3">
-          <button
-            onClick={onCancel}
-            className="flex-1 px-4 py-2.5 bg-white/5 border border-white/10 text-white rounded-xl hover:bg-white/10 transition-all text-sm font-medium"
-          >
-            {cancelLabel || t('common.cancel')}
-          </button>
-          <button
-            ref={confirmRef}
-            onClick={onConfirm}
-            className={`flex-1 px-4 py-2.5 text-white rounded-xl font-bold transition-all text-sm ${confirmBg}`}
-          >
-            {confirmLabel || t('common.confirm')}
-          </button>
-        </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -112,44 +114,45 @@ export function PromptModal({
     }
   }, [isOpen, defaultValue]);
 
-  if (!isOpen) return null;
-
   const handleSubmit = () => {
     if (required && !value.trim()) return;
     onConfirm(value);
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30 backdrop-blur-sm">
-      <div className="bg-bridge-obsidian rounded-2xl border border-white/10 p-6 shadow-2xl w-full max-w-sm mx-4">
-        <h3 className="text-lg font-bold text-white mb-1">{title}</h3>
-        <p className="text-slate-400 text-sm mb-4 whitespace-pre-line">{message}</p>
-        <input
-          ref={inputRef}
-          type={inputType}
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-          placeholder={placeholder}
-          className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all mb-4"
-        />
-        <div className="flex gap-3">
-          <button
-            onClick={onCancel}
-            className="flex-1 px-4 py-2.5 bg-white/5 border border-white/10 text-white rounded-xl hover:bg-white/10 transition-all text-sm font-medium"
-          >
-            {cancelLabel || t('common.cancel')}
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={required && !value.trim()}
-            className="flex-1 px-4 py-2.5 bg-bridge-accent text-white rounded-xl font-bold hover:bg-bridge-accent/90 disabled:opacity-50 transition-all text-sm"
-          >
-            {confirmLabel || t('common.confirm')}
-          </button>
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onCancel(); }}>
+      <DialogContent className="bg-bridge-obsidian text-foreground border-white/10 max-w-sm p-0 gap-0 [&>button:last-child]:hidden overflow-hidden rounded-2xl">
+        <DialogTitle className="sr-only">{title}</DialogTitle>
+        <div className="p-6">
+          <h3 className="text-lg font-bold text-white mb-1">{title}</h3>
+          <p className="text-slate-400 text-sm mb-4 whitespace-pre-line">{message}</p>
+          <input
+            ref={inputRef}
+            type={inputType}
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+            placeholder={placeholder}
+            className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all mb-4"
+          />
+          <div className="flex gap-3">
+            <button
+              onClick={onCancel}
+              className="flex-1 px-4 py-2.5 bg-white/5 border border-white/10 text-white rounded-xl hover:bg-white/10 transition-all text-sm font-medium"
+            >
+              {cancelLabel || t('common.cancel')}
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={required && !value.trim()}
+              className="flex-1 px-4 py-2.5 bg-bridge-accent text-white rounded-xl font-bold hover:bg-bridge-accent/90 disabled:opacity-50 transition-all text-sm"
+            >
+              {confirmLabel || t('common.confirm')}
+            </button>
+          </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -183,48 +186,49 @@ export function SelectModal({
     if (isOpen) setSelectedId('');
   }, [isOpen]);
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30 backdrop-blur-sm">
-      <div className="bg-bridge-obsidian rounded-2xl border border-white/10 p-6 shadow-2xl w-full max-w-md mx-4 max-h-[80vh] flex flex-col">
-        <h3 className="text-lg font-bold text-white mb-1">{title}</h3>
-        <p className="text-slate-400 text-sm mb-4">{message}</p>
-        <div className="space-y-2 overflow-y-auto flex-1 mb-4">
-          {options.map((opt) => (
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onCancel(); }}>
+      <DialogContent className="bg-bridge-obsidian text-foreground border-white/10 max-w-md p-0 gap-0 [&>button:last-child]:hidden overflow-hidden rounded-2xl max-h-[80vh] flex flex-col">
+        <DialogTitle className="sr-only">{title}</DialogTitle>
+        <div className="p-6 flex flex-col flex-1 min-h-0">
+          <h3 className="text-lg font-bold text-white mb-1">{title}</h3>
+          <p className="text-slate-400 text-sm mb-4">{message}</p>
+          <div className="space-y-2 overflow-y-auto flex-1 mb-4">
+            {options.map((opt) => (
+              <button
+                key={opt.id}
+                onClick={() => setSelectedId(opt.id)}
+                className={`w-full text-left p-3 rounded-xl border transition-all ${
+                  selectedId === opt.id
+                    ? 'border-bridge-accent bg-bridge-accent/10'
+                    : 'border-white/5 bg-white/5 hover:bg-white/10'
+                }`}
+              >
+                <p className="text-white text-sm font-medium">{opt.label}</p>
+                {opt.description && (
+                  <p className="text-slate-400 text-xs mt-0.5">{opt.description}</p>
+                )}
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-3">
             <button
-              key={opt.id}
-              onClick={() => setSelectedId(opt.id)}
-              className={`w-full text-left p-3 rounded-xl border transition-all ${
-                selectedId === opt.id
-                  ? 'border-bridge-accent bg-bridge-accent/10'
-                  : 'border-white/5 bg-white/5 hover:bg-white/10'
-              }`}
+              onClick={onCancel}
+              className="flex-1 px-4 py-2.5 bg-white/5 border border-white/10 text-white rounded-xl hover:bg-white/10 transition-all text-sm font-medium"
             >
-              <p className="text-white text-sm font-medium">{opt.label}</p>
-              {opt.description && (
-                <p className="text-slate-400 text-xs mt-0.5">{opt.description}</p>
-              )}
+              {cancelLabel || t('common.cancel')}
             </button>
-          ))}
+            <button
+              onClick={() => selectedId && onConfirm(selectedId)}
+              disabled={!selectedId}
+              className="flex-1 px-4 py-2.5 bg-bridge-accent text-white rounded-xl font-bold hover:bg-bridge-accent/90 disabled:opacity-50 transition-all text-sm"
+            >
+              {confirmLabel || t('common.confirm')}
+            </button>
+          </div>
         </div>
-        <div className="flex gap-3">
-          <button
-            onClick={onCancel}
-            className="flex-1 px-4 py-2.5 bg-white/5 border border-white/10 text-white rounded-xl hover:bg-white/10 transition-all text-sm font-medium"
-          >
-            {cancelLabel || t('common.cancel')}
-          </button>
-          <button
-            onClick={() => selectedId && onConfirm(selectedId)}
-            disabled={!selectedId}
-            className="flex-1 px-4 py-2.5 bg-bridge-accent text-white rounded-xl font-bold hover:bg-bridge-accent/90 disabled:opacity-50 transition-all text-sm"
-          >
-            {confirmLabel || t('common.confirm')}
-          </button>
-        </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

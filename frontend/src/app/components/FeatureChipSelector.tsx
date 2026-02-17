@@ -24,7 +24,7 @@ export function FeatureChipSelector({
   const { t } = useTranslation();
 
   return (
-    <div className="px-3 md:px-6 py-2 md:py-3 border-b border-bridge-border bg-bridge-dark">
+    <div className="px-3 md:px-6 py-2 md:py-3 border-b border-bridge-border bg-bridge-dark shrink-0">
       <div className="flex items-stretch gap-1.5 md:gap-2.5 overflow-x-auto pb-1 kanban-scrollbar">
         {/* 전체 보기 칩 */}
         <button

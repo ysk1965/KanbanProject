@@ -161,14 +161,14 @@ function SortableMemberRow({
                 } ${canChangeColor ? 'group-hover/avatar:opacity-0' : ''} transition-opacity`}
               />
               {canChangeColor && (
-                <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-bridge-obsidian border border-white/20 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity">
+                <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-bridge-obsidian border border-white/10 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity">
                   <Palette className="h-2 w-2 text-slate-400" />
                 </div>
               )}
             </button>
           </PopoverTrigger>
           {canChangeColor && onUpdateMemberColor && (
-            <PopoverContent className="w-auto p-2 bg-bridge-obsidian border-white/20" align="start">
+            <PopoverContent className="w-auto p-2 bg-bridge-obsidian border-white/10" align="start">
               <div className="flex gap-1.5">
                 {ASSIGNEE_COLOR_NAMES.map((colorName) => {
                   const cls = getAssigneeClasses(colorName, colorName);
@@ -220,7 +220,7 @@ function SortableMemberRow({
                   />
                   <div className="flex items-center gap-2">
                     <div
-                      className="w-7 h-7 rounded-full border border-white/20 shrink-0"
+                      className="w-7 h-7 rounded-full border border-white/10 shrink-0"
                       style={{ backgroundColor: customPickerColor }}
                     />
                     <input
@@ -295,7 +295,7 @@ function SortableMemberRow({
                 onUpdateMemberRole(member.id, value as MemberRole)
               }
             >
-              <SelectTrigger className="w-[120px] bg-white/[0.08] border-white/15 rounded-lg text-white text-sm h-8">
+              <SelectTrigger className="w-[120px] bg-white/[0.08] border-white/10 rounded-lg text-white text-sm h-8">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -458,7 +458,7 @@ export function ShareBoardModal({
                 value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
                 placeholder={t('share.emailPlaceholder')}
-                className="flex-1 bg-white/[0.08] border-white/15 rounded-xl text-white placeholder:text-slate-400 focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+                className="flex-1 bg-white/[0.08] border-white/10 rounded-xl text-white placeholder:text-slate-400 focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
                 onKeyDown={(e) => {
                   if (e.nativeEvent.isComposing) return;
                   if (e.key === 'Enter') {
@@ -470,7 +470,7 @@ export function ShareBoardModal({
                 value={inviteRole}
                 onValueChange={(value) => setInviteRole(value as MemberRole)}
               >
-                <SelectTrigger className="w-[130px] bg-white/[0.08] border-white/15 rounded-xl text-white">
+                <SelectTrigger className="w-[130px] bg-white/[0.08] border-white/10 rounded-xl text-white">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -699,7 +699,7 @@ export function ShareBoardModal({
         <div className="flex justify-end pt-4 border-t border-white/10">
           <button
             onClick={onClose}
-            className="px-5 py-2 bg-white/[0.08] border border-white/15 text-slate-200 rounded-xl text-sm font-medium hover:bg-white/15 hover:text-white transition-all"
+            className="px-5 py-2 bg-white/[0.08] border border-white/10 text-slate-200 rounded-xl text-sm font-medium hover:bg-white/15 hover:text-white transition-all"
           >
             {t('common.close')}
           </button>

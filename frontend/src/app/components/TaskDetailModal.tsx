@@ -604,7 +604,7 @@ export function TaskDetailModal({
                 value={editedTask.description || ''}
                 onChange={(e) => canEdit && updateEditedTask({ description: e.target.value })}
                 placeholder={t('task.noDescription')}
-                rows={3}
+                rows={5}
                 readOnly={!canEdit}
                 className={`bg-bridge-dark/50 border-bridge-border/30 text-foreground placeholder:text-slate-500 focus:ring-bridge-accent/50 focus:border-bridge-accent ${!canEdit ? 'cursor-default' : ''}`}
               />
@@ -770,17 +770,17 @@ export function TaskDetailModal({
           <div className="mt-6 pt-6 border-t border-white/10">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <CheckSquare className="h-5 w-5 text-indigo-400" />
+                <CheckSquare className="h-5 w-5" style={{ color: task.feature_color || '#6366F1' }} />
                 <Label className="text-base font-semibold text-foreground">CheckList</Label>
               </div>
               <div className="flex items-center gap-3">
                 <div className="w-24 h-2 bg-white/10 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-indigo-500 rounded-full transition-all duration-300"
-                    style={{ width: `${checklistProgress}%` }}
+                    className="h-full rounded-full transition-all duration-300"
+                    style={{ width: `${checklistProgress}%`, backgroundColor: task.feature_color || '#6366F1' }}
                   />
                 </div>
-                <span className="text-sm font-semibold text-indigo-400">
+                <span className="text-sm font-semibold" style={{ color: task.feature_color || '#6366F1' }}>
                   {checklistProgress}%
                 </span>
               </div>
@@ -790,8 +790,8 @@ export function TaskDetailModal({
             <div className="space-y-2">
               {checklistItems.length === 0 && (
                 <div className="flex items-start gap-3 px-1 py-3">
-                  <div className="w-7 h-7 rounded-lg bg-indigo-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <Lightbulb size={14} className="text-indigo-400" />
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5" style={{ backgroundColor: `${task.feature_color || '#6366F1'}15` }}>
+                    <Lightbulb size={14} style={{ color: task.feature_color || '#6366F1' }} />
                   </div>
                   <div>
                     <p className="text-xs font-semibold text-zinc-300 mb-1">
@@ -1317,17 +1317,19 @@ function ChecklistItemRow({
       <button
         onClick={canEdit ? onToggle : undefined}
         disabled={!canEdit}
-        className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 ${
-          item.completed ? 'bg-green-500' : 'bg-slate-600 hover:bg-slate-500'
+        className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 transition-all duration-200 ${
+          item.completed
+            ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]'
+            : 'border-2 border-slate-500 hover:border-slate-300 bg-transparent'
         } ${!canEdit ? 'cursor-default' : ''}`}
       >
         {item.completed && (
           <svg
-            className="w-3 h-3 text-white"
+            className="w-3.5 h-3.5 text-white"
             fill="none"
             strokeLinecap="round"
             strokeLinejoin="round"
-            strokeWidth="2"
+            strokeWidth="3"
             viewBox="0 0 24 24"
             stroke="currentColor"
           >

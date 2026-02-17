@@ -2,18 +2,18 @@
 
 /* Bridge Theme Colors - Dark Mode (Default) */
 :root {
-  --bridge-dark: #0A0E17;
-  --bridge-obsidian: #0F1419;
+  --bridge-dark: #191f2d;
+  --bridge-obsidian: #151B28;
   --bridge-accent: #6366F1;
   --bridge-secondary: #2DD4BF;
 
   /* Bridge Surface Scale (cosmic navy tint) */
-  --bridge-surface: #1c263b;
-  --bridge-surface-hover: #253148;
-  --bridge-border: #33415c;
+  --bridge-surface: #1e2a42;
+  --bridge-surface-hover: #2a3a58;
+  --bridge-border: #384d6e;
 
   --font-size: 16px;
-  --background: #ffffff;
+  --background: #090606;
   --foreground: oklch(0.145 0 0);
   --card: #ffffff;
   --card-foreground: oklch(0.145 0 0);
@@ -243,7 +243,7 @@
 
 /* Glass morphism effect */
 .glass {
-  background: rgba(15, 20, 25, 0.8);
+  background: rgba(21, 27, 40, 0.8);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
 }

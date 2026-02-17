@@ -4,7 +4,7 @@ import { Plus } from 'lucide-react';
 import { isWhiteLabelDomain } from '../utils/domain';
 
 // 뷰 모드 타입
-type ViewMode = 'kanban' | 'weekly' | 'schedule' | 'meeting' | 'notes' | 'statistics' | 'ai_report';
+type ViewMode = 'kanban' | 'weekly' | 'schedule' | 'calendar' | 'meeting' | 'notes' | 'statistics' | 'ai_report';
 import { DragProvider } from '../contexts/DragContext';
 import { useAuth } from '../contexts/AuthContext';
 import { Block, Feature, Task, Tag, Board, InviteLink, Subscription, ActivityLog, Milestone, BoardTierInfo, BoardLimits, ChecklistItem, NotificationItem, BoardWebSocketEvent, TaskComment, AiCredits, TaskDependency } from '../types';
@@ -19,10 +19,12 @@ import { UpgradeTrigger } from '../components/UpgradeModal';
 import { DailyScheduleView } from '../components/DailyScheduleView';
 import { MeetingCalendarView } from '../components/MeetingCalendarView';
 import { WeeklyScheduleView } from '../components/WeeklyScheduleView';
+import { CalendarView } from '../components/CalendarView';
 const StatisticsView = lazy(() => import('../components/StatisticsView').then(m => ({ default: m.StatisticsView })));
 const AIReportPanel = lazy(() => import('../components/AIReportPanel').then(m => ({ default: m.AIReportPanel })));
 const NotesView = lazy(() => import('../components/notes/NotesView').then(m => ({ default: m.NotesView })));
 import { EmptyBoardGuide } from '../components/EmptyBoardGuide';
+import { QuickAddTaskModal } from '../components/QuickAddTaskModal';
 import {
   boardService,
   featureService,
@@ -77,7 +79,7 @@ export function KanbanBoardPage() {
 
   // 뷰 모드 상태 (URL 파라미터 우선, 없으면 localStorage)
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
-    if (urlView && ['kanban', 'weekly', 'schedule', 'meeting', 'notes', 'statistics', 'ai_report'].includes(urlView)) {
+    if (urlView && ['kanban', 'weekly', 'schedule', 'calendar', 'meeting', 'notes', 'statistics', 'ai_report'].includes(urlView)) {
       return urlView;
     }
     const saved = localStorage.getItem(`viewMode_${boardId}`);
@@ -85,9 +87,11 @@ export function KanbanBoardPage() {
   });
 
   // 병합 탭 서브모드 기억 헬퍼
-  const getScheduleSubMode = (): 'schedule' | 'weekly' => {
+  const getScheduleSubMode = (): 'schedule' | 'weekly' | 'calendar' => {
     const saved = localStorage.getItem(`scheduleSubMode_${boardId}`);
-    return saved === 'weekly' ? 'weekly' : 'schedule';
+    if (saved === 'weekly') return 'weekly';
+    if (saved === 'calendar') return 'calendar';
+    return 'schedule';
   };
   const getAISubMode = (): 'statistics' | 'ai_report' => {
     const saved = localStorage.getItem(`aiSubMode_${boardId}`);
@@ -194,6 +198,10 @@ export function KanbanBoardPage() {
   // AI Credits 상태
   const [showCreditModal, setShowCreditModal] = useState(false);
   const [creditModalMode, setCreditModalMode] = useState<'purchase' | 'exhausted'>('purchase');
+
+  // Quick Add Task 모달 상태
+  const [quickAddBlockId, setQuickAddBlockId] = useState<string | null>(null);
+  const [isQuickAddSubmitting, setIsQuickAddSubmitting] = useState(false);
 
   // 체크리스트 펼침 상태
   const [expandedChecklistTaskIds, setExpandedChecklistTaskIds] = useState<Set<string>>(new Set());
@@ -531,8 +539,20 @@ export function KanbanBoardPage() {
       openUpgradeModal('statistics');
       return;
     }
+    // 캘린더 진입 시 기본 담당자 필터 (현재 사용자)
+    if (mode === 'calendar' && currentUser && filterOptions.members.length === 0) {
+      setFilterOptions((prev) => ({ ...prev, members: [currentUser.name] }));
+    }
+    // 캘린더에서 벗어날 때 자동 적용된 필터만 정리
+    if (mode !== 'calendar' && viewMode === 'calendar') {
+      const isOnlyMyFilter = filterOptions.members.length === 1 && currentUser && filterOptions.members[0] === currentUser.name
+        && !filterOptions.keyword && filterOptions.features.length === 0 && filterOptions.tags.length === 0 && filterOptions.cardStatus.length === 0;
+      if (isOnlyMyFilter) {
+        setFilterOptions((prev) => ({ ...prev, members: [] }));
+      }
+    }
     // 병합 탭 서브모드 기억
-    if (mode === 'schedule' || mode === 'weekly') {
+    if (mode === 'schedule' || mode === 'weekly' || mode === 'calendar') {
       localStorage.setItem(`scheduleSubMode_${boardId}`, mode);
     }
     if (mode === 'statistics' || mode === 'ai_report') {
@@ -925,6 +945,7 @@ export function KanbanBoardPage() {
   const handleAddFeature = async (data: {
     title: string;
     description?: string;
+    startDate?: string;
     dueDate?: string;
     milestoneId?: string;
   }) => {
@@ -935,6 +956,7 @@ export function KanbanBoardPage() {
         title: data.title,
         description: data.description,
         color: getRandomFeatureColor(),
+        start_date: data.startDate,
         due_date: data.dueDate,
       });
 
@@ -987,6 +1009,7 @@ export function KanbanBoardPage() {
         description: updates.description,
         color: updates.color,
         assignee_id: updates.assignee?.id,
+        start_date: updates.start_date,
         due_date: updates.due_date,
       });
       setFeatures(features.map((f) => (f.id === featureId ? updatedFeature : f)));
@@ -1031,6 +1054,63 @@ export function KanbanBoardPage() {
       );
     } catch (error: any) {
       console.error('Failed to create task:', error);
+    }
+  };
+
+  // Quick Add: 블록 하단 "Add a card" 버튼으로 태스크 빠른 생성
+  const handleQuickAddTask = async (data: {
+    featureId?: string;
+    newFeatureTitle?: string;
+    taskTitle: string;
+  }) => {
+    if (!boardId || !quickAddBlockId) return;
+    setIsQuickAddSubmitting(true);
+
+    try {
+      let featureId = data.featureId;
+
+      // 새 Feature 생성이 필요한 경우
+      if (!featureId && data.newFeatureTitle) {
+        const newFeature = await featureService.createFeature(boardId, {
+          title: data.newFeatureTitle,
+          color: getRandomFeatureColor(),
+        });
+        setFeatures(prev => [...prev, newFeature]);
+        setAllFeatures(prev => [...prev, newFeature]);
+        featureId = newFeature.id;
+      }
+
+      if (!featureId) return;
+
+      // Task 생성
+      const newTask = await taskService.createTask(boardId, featureId, {
+        title: data.taskTitle,
+      });
+
+      // TASK 블록이 아닌 다른 블록에서 추가한 경우 → 해당 블록으로 이동
+      const taskBlock = blocks.find(b => b.fixed_type === 'TASK');
+      if (taskBlock && quickAddBlockId !== taskBlock.id) {
+        const targetBlockTasks = tasks.filter(t => t.block_id === quickAddBlockId);
+        await taskService.moveTask(boardId, newTask.id, quickAddBlockId, targetBlockTasks.length);
+        const targetBlock = blocks.find(b => b.id === quickAddBlockId);
+        const doneBlock = blocks.find(b => b.fixed_type === 'DONE');
+        newTask.block_id = quickAddBlockId;
+        newTask.block_name = targetBlock?.name;
+        newTask.completed = quickAddBlockId === doneBlock?.id;
+      }
+
+      setTasks(prev => [...prev, newTask]);
+      setFeatures(prev =>
+        prev.map(f =>
+          f.id === featureId ? { ...f, total_tasks: f.total_tasks + 1 } : f
+        )
+      );
+
+      setQuickAddBlockId(null);
+    } catch (error) {
+      console.error('Failed to quick add task:', error);
+    } finally {
+      setIsQuickAddSubmitting(false);
     }
   };
 
@@ -1479,7 +1559,7 @@ export function KanbanBoardPage() {
 
   return (
     <DragProvider>
-      <div className="min-h-screen bg-bridge-dark flex flex-col">
+      <div className="h-screen bg-bridge-dark flex flex-col overflow-hidden">
         <KanbanBoardHeader
           boardId={boardId || ''}
           board={board}
@@ -1533,7 +1613,7 @@ export function KanbanBoardPage() {
         />
 
         {/* 병합 탭 서브토글 바 */}
-        {(viewMode === 'schedule' || viewMode === 'weekly') && (
+        {(viewMode === 'schedule' || viewMode === 'weekly' || viewMode === 'calendar') && (
           <div className="flex items-center justify-center py-1.5 bg-kanban-header/50 border-b border-white/5">
             <div className="flex items-center gap-1 bg-white/5 rounded-lg p-0.5">
               <button
@@ -1558,6 +1638,16 @@ export function KanbanBoardPage() {
               >
                 {t('kanban.viewGantt')}
                 {!canAccessSchedule && <Lock size={10} className="inline ml-1 text-zinc-500" />}
+              </button>
+              <button
+                onClick={() => handleViewModeChange('calendar')}
+                className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
+                  viewMode === 'calendar'
+                    ? 'bg-white/10 text-white'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                {t('kanban.viewCalendar', '캘린더')}
               </button>
             </div>
           </div>
@@ -1688,15 +1778,15 @@ export function KanbanBoardPage() {
             />
 
             {/* 칸반 보드 */}
-            <div className="flex-1 p-3 md:p-6 overflow-x-auto kanban-scrollbar">
-              <div className="flex gap-3 md:gap-4 min-w-max">
+            <div className="flex-1 p-3 md:p-6 overflow-x-auto overflow-y-hidden min-h-0 kanban-scrollbar">
+              <div className="flex gap-3 md:gap-4 min-w-max h-full">
               {sortedBlocks.filter((b) => b.fixed_type !== 'FEATURE').map((block) => {
               const customBlocks = sortedBlocks.filter((b) => b.type === 'CUSTOM');
               const customBlockIndex = customBlocks.findIndex((b) => b.id === block.id);
               const sortedBlockIndex = sortedBlocks.findIndex((b) => b.id === block.id);
 
               return (
-                <div key={block.id} className="flex items-start gap-4">
+                <div key={block.id} className="flex items-stretch gap-4">
                     <KanbanBlock
                       block={block}
                       tasks={blockTasksMap[block.id] || []}
@@ -1728,12 +1818,13 @@ export function KanbanBoardPage() {
                       memberColorMap={memberColorMap}
                       showFeatureLabel={showFeatureLabel}
                       scheduledTaskIds={scheduledTaskIds}
+                      onQuickAddTask={canEdit ? (blockId) => setQuickAddBlockId(blockId) : undefined}
                     />
 
                   {block.fixed_type === 'TASK' && (
                     <button
                       onClick={() => setIsAddBlockModalOpen(true)}
-                      className="h-10 w-10 mt-4 flex items-center justify-center rounded-xl border border-dashed border-bridge-border text-zinc-500 hover:text-white hover:border-indigo-500/50 hover:bg-indigo-500/10 transition-all"
+                      className="h-10 w-10 mt-4 self-start flex items-center justify-center rounded-xl border border-dashed border-bridge-border text-zinc-500 hover:text-white hover:border-indigo-500/50 hover:bg-indigo-500/10 transition-all"
                     >
                       <Plus className="h-5 w-5" />
                     </button>
@@ -1764,6 +1855,34 @@ export function KanbanBoardPage() {
               wsChecklistEvent={wsChecklistEvent}
               currentUserRole={currentUserRole}
               initialSubTab={urlTab as 'timeblock' | 'meeting' | undefined}
+            />
+          </main>
+        ) : viewMode === 'calendar' ? (
+          <main className="flex-1 flex flex-col overflow-hidden">
+            <KanbanFilterToolbar
+              filterOptions={filterOptions}
+              onFilterChange={setFilterOptions}
+              features={features}
+              tags={tags}
+              boardMembersData={boardMembersData}
+              tasks={tasks}
+              onExpandAll={() => {}}
+              onCollapseAll={() => {}}
+              hideExpandCollapse
+            />
+            <CalendarView
+              boardId={boardId || ''}
+              features={filteredFeatures}
+              tasks={filteredTasks}
+              checklistDataMap={checklistDataMap}
+              onViewFeature={(featureId) => {
+                const feature = features.find((f) => f.id === featureId) || allFeatures.find((f) => f.id === featureId);
+                if (feature) handleFeatureClick(feature);
+              }}
+              onViewTask={(taskId) => {
+                const task = tasks.find((t) => t.id === taskId);
+                if (task) handleTaskClick(task);
+              }}
             />
           </main>
         ) : viewMode === 'meeting' ? (
@@ -1840,7 +1959,7 @@ export function KanbanBoardPage() {
           <div className="flex items-center justify-around px-1 pt-2 pb-1.5">
             <MobileTabButton active={viewMode === 'kanban'} onClick={() => handleViewModeChange('kanban')} label={t('kanban.viewKanban')} icon="kanban" />
             <MobileTabButton
-              active={viewMode === 'schedule' || viewMode === 'weekly'}
+              active={viewMode === 'schedule' || viewMode === 'weekly' || viewMode === 'calendar'}
               onClick={() => {
                 const subMode = getScheduleSubMode();
                 if (subMode === 'weekly' && !canAccessSchedule) {
@@ -1882,6 +2001,16 @@ export function KanbanBoardPage() {
             )}
           </div>
         </nav>
+
+        {/* Quick Add Task Modal */}
+        <QuickAddTaskModal
+          open={!!quickAddBlockId}
+          onClose={() => setQuickAddBlockId(null)}
+          features={features}
+          blockName={blocks.find(b => b.id === quickAddBlockId)?.name}
+          onSubmit={handleQuickAddTask}
+          isSubmitting={isQuickAddSubmitting}
+        />
 
         {/* 모달들 */}
         <BoardModalManager

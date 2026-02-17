@@ -15,6 +15,11 @@ interface DependencyArrowsProps {
   onDeleteDependency?: (dependencyId: string) => void;
   containerWidth: number;
   containerHeight: number;
+  previewLine?: {
+    fromTaskId: string;
+    cursorX: number;
+    cursorY: number;
+  } | null;
 }
 
 /**
@@ -41,10 +46,56 @@ const calculateArrowPath = (
     const midX = startX + dx / 2;
     return `M ${startX} ${startY} C ${midX} ${startY}, ${midX} ${endY}, ${endX} ${endY}`;
   } else {
-    // 역방향 또는 겹침: 아래로 우회하는 경로
-    const offset = 30;
-    const belowY = Math.max(startY, endY) + 40;
-    return `M ${startX} ${startY} L ${startX + offset} ${startY} L ${startX + offset} ${belowY} L ${endX - offset} ${belowY} L ${endX - offset} ${endY} L ${endX} ${endY}`;
+    // 역방향 또는 겹침: 바 사이 갭으로 우회하는 둥근 경로
+    const gap = 30; // 좌우 여유
+    const rightX = startX + gap;
+    const leftX = endX - gap;
+
+    const fromBottom = from.top + from.height;
+    const toBottom = to.top + to.height;
+
+    // 라우팅 Y: 두 바 사이 갭의 중앙으로 통과
+    let routeY: number;
+    if (endY >= startY) {
+      // successor가 아래: from 바 하단과 to 바 상단 사이 갭
+      if (fromBottom + 4 < to.top) {
+        routeY = (fromBottom + to.top) / 2;
+      } else {
+        // 바가 겹침 → 둘 다 아래로 우회
+        routeY = Math.max(fromBottom, toBottom) + 20;
+      }
+    } else {
+      // successor가 위: to 바 하단과 from 바 상단 사이 갭
+      if (toBottom + 4 < from.top) {
+        routeY = (toBottom + from.top) / 2;
+      } else {
+        // 바가 겹침 → 둘 다 위로 우회
+        routeY = Math.min(from.top, to.top) - 20;
+      }
+    }
+
+    // 코너 반경: 사용 가능한 공간에 맞게 제한
+    const r = Math.max(4, Math.min(14,
+      Math.abs(routeY - startY) * 0.45,
+      Math.abs(endY - routeY) * 0.45
+    ));
+
+    // 수직 방향 부호
+    const dy1 = routeY > startY ? 1 : -1; // start → route
+    const dy2 = endY > routeY ? 1 : -1;   // route → end
+
+    return [
+      `M ${startX} ${startY}`,
+      `L ${rightX - r} ${startY}`,
+      `Q ${rightX} ${startY}, ${rightX} ${startY + r * dy1}`,
+      `L ${rightX} ${routeY - r * dy1}`,
+      `Q ${rightX} ${routeY}, ${rightX - r} ${routeY}`,
+      `L ${leftX + r} ${routeY}`,
+      `Q ${leftX} ${routeY}, ${leftX} ${routeY + r * dy2}`,
+      `L ${leftX} ${endY - r * dy2}`,
+      `Q ${leftX} ${endY}, ${leftX + r} ${endY}`,
+      `L ${endX} ${endY}`,
+    ].join(' ');
   }
 };
 
@@ -68,11 +119,27 @@ const calculateMidPoint = (
     const midY = (startY + endY) / 2;
     return { x: midX, y: midY };
   } else {
-    // 우회 경로의 중간점
-    const offset = 30;
-    const belowY = Math.max(startY, endY) + 40;
-    const midX = (startX + offset + endX - offset) / 2;
-    return { x: midX, y: belowY };
+    // 우회 경로의 중간점: 수평 구간 중앙
+    const fromBottom = from.top + from.height;
+    const toBottom = to.top + to.height;
+
+    let routeY: number;
+    if (endY >= startY) {
+      if (fromBottom + 4 < to.top) {
+        routeY = (fromBottom + to.top) / 2;
+      } else {
+        routeY = Math.max(fromBottom, toBottom) + 20;
+      }
+    } else {
+      if (toBottom + 4 < from.top) {
+        routeY = (toBottom + from.top) / 2;
+      } else {
+        routeY = Math.min(from.top, to.top) - 20;
+      }
+    }
+
+    const midX = (startX + endX) / 2;
+    return { x: midX, y: routeY };
   }
 };
 
@@ -82,6 +149,7 @@ export function DependencyArrows({
   onDeleteDependency,
   containerWidth,
   containerHeight,
+  previewLine,
 }: DependencyArrowsProps) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
@@ -92,7 +160,7 @@ export function DependencyArrows({
     );
   }, [dependencies, taskPositions]);
 
-  if (validDependencies.length === 0) return null;
+  if (validDependencies.length === 0 && !previewLine) return null;
 
   return (
     <svg
@@ -128,6 +196,29 @@ export function DependencyArrows({
           />
         </marker>
       </defs>
+
+      {/* 드래그 프리뷰 라인 */}
+      {previewLine && taskPositions.has(previewLine.fromTaskId) && (() => {
+        const from = taskPositions.get(previewLine.fromTaskId)!;
+        const startX = from.left + from.width;
+        const startY = from.top + from.height / 2;
+        const endX = previewLine.cursorX;
+        const endY = previewLine.cursorY;
+        const dx = endX - startX;
+        const midX = startX + dx / 2;
+        const path = `M ${startX} ${startY} C ${midX} ${startY}, ${midX} ${endY}, ${endX} ${endY}`;
+
+        return (
+          <path
+            d={path}
+            fill="none"
+            stroke="rgba(99, 102, 241, 0.5)"
+            strokeWidth={2}
+            strokeDasharray="6 4"
+            className="pointer-events-none"
+          />
+        );
+      })()}
 
       {/* 각 의존성 화살표 */}
       {validDependencies.map((dep) => {

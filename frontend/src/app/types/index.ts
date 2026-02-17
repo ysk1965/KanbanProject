@@ -232,6 +232,7 @@ export interface Feature {
   description?: string;
   color: string;
   assignee: Assignee | null;
+  start_date: string | null;
   due_date: string | null;
   status: FeatureStatus;
   total_tasks: number;

@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { Lock, AlertCircle, X } from 'lucide-react';
+import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
 
 interface AlertModalProps {
   open: boolean;
@@ -11,7 +12,6 @@ interface AlertModalProps {
 
 export function AlertModal({ open, onClose, type, title, message }: AlertModalProps) {
   const { t } = useTranslation();
-  if (!open) return null;
 
   const defaultContent = {
     premium: {
@@ -34,19 +34,13 @@ export function AlertModal({ open, onClose, type, title, message }: AlertModalPr
   const Icon = content.icon;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/30 backdrop-blur-sm"
-        onClick={onClose}
-      />
-
-      {/* Modal */}
-      <div className="relative bg-bridge-obsidian border border-white/20 rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="bg-bridge-obsidian text-foreground border-white/10 max-w-sm p-0 gap-0 [&>button:last-child]:hidden overflow-hidden rounded-2xl">
+        <DialogTitle className="sr-only">{type === 'premium' ? 'Premium Alert' : 'Permission Alert'}</DialogTitle>
         {/* Close button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-1 text-zinc-400 hover:text-foreground transition-colors"
+          className="absolute top-4 right-4 p-1 text-slate-400 hover:text-foreground transition-colors z-10"
         >
           <X size={18} />
         </button>
@@ -64,7 +58,7 @@ export function AlertModal({ open, onClose, type, title, message }: AlertModalPr
           </h3>
 
           {/* Message */}
-          <p className="text-sm text-zinc-400 leading-relaxed whitespace-pre-line">
+          <p className="text-sm text-slate-400 leading-relaxed whitespace-pre-line">
             {message || content.message}
           </p>
         </div>
@@ -73,12 +67,12 @@ export function AlertModal({ open, onClose, type, title, message }: AlertModalPr
         <div className="px-6 pb-6">
           <button
             onClick={onClose}
-            className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/20 rounded-xl text-sm font-semibold text-foreground transition-all"
+            className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-sm font-semibold text-foreground transition-all"
           >
             {t('common.confirm')}
           </button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -25,6 +25,8 @@ public class FeatureRequest {
 
         private String assigneeId;
 
+        private LocalDate startDate;
+
         private LocalDate dueDate;
     }
 
@@ -40,6 +42,8 @@ public class FeatureRequest {
         private String color;
 
         private String assigneeId;
+
+        private LocalDate startDate;
 
         private LocalDate dueDate;
     }

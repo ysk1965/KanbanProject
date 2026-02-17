@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { motion, AnimatePresence } from 'framer-motion';
 import { X, Users, Plus, Minus } from 'lucide-react';
+import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
 
 interface SeatPurchaseModalProps {
   open: boolean;
@@ -56,134 +56,118 @@ export function SeatPurchaseModal({
   };
 
   return (
-    <AnimatePresence>
-      {open && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-            onClick={onClose}
-          />
+    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent className="bg-bridge-obsidian text-foreground border-white/10 max-w-md p-0 gap-0 [&>button:last-child]:hidden overflow-hidden rounded-2xl">
+        <DialogTitle className="sr-only">{t('seatPurchase.title')}</DialogTitle>
 
-          {/* Modal */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="relative w-full max-w-md bg-bridge-obsidian rounded-2xl border border-white/10 shadow-2xl p-6"
+        <div className="p-6">
+          {/* Close */}
+          <button
+            onClick={onClose}
+            className="absolute right-4 top-4 p-1 text-white/60 hover:text-white transition-colors"
           >
-            {/* Close */}
+            <X className="h-5 w-5" />
+          </button>
+
+          {/* Header */}
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2.5 bg-bridge-accent/10 rounded-xl">
+              <Users className="h-5 w-5 text-bridge-accent" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-white">{t('seatPurchase.title')}</h2>
+              <p className="text-sm text-slate-400">{t('seatPurchase.subtitle')}</p>
+            </div>
+          </div>
+
+          {/* Current seat usage */}
+          <div className="bg-white/5 rounded-xl p-4 mb-4 border border-white/10">
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-slate-400">{t('seatPurchase.currentSeats')}</span>
+              <span className="text-lg font-bold text-white">
+                {billableMemberCount} / {seatCount}
+              </span>
+            </div>
+            <div className="mt-2 h-1.5 bg-white/10 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-bridge-accent rounded-full"
+                style={{ width: `${Math.min((billableMemberCount / seatCount) * 100, 100)}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Pending action notice */}
+          {(pendingInviteEmail || isRoleChange) && (
+            <div className="bg-bridge-accent/5 border border-bridge-accent/20 rounded-xl p-3 mb-4">
+              <p className="text-sm text-slate-300">
+                {isRoleChange
+                  ? t('seatPurchase.pendingRoleChange')
+                  : t('seatPurchase.pendingInvite', { email: pendingInviteEmail })}
+              </p>
+            </div>
+          )}
+
+          {/* Quantity selector */}
+          <div className="mb-4">
+            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3 block">
+              {t('seatPurchase.additionalSeats')}
+            </label>
+            <div className="flex items-center justify-center gap-4">
+              <button
+                onClick={() => setAdditionalSeats(Math.max(1, additionalSeats - 1))}
+                disabled={additionalSeats <= 1}
+                className="p-2 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <Minus className="h-4 w-4 text-white" />
+              </button>
+              <span className="text-3xl font-bold text-white w-16 text-center">{additionalSeats}</span>
+              <button
+                onClick={() => setAdditionalSeats(additionalSeats + 1)}
+                className="p-2 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors"
+              >
+                <Plus className="h-4 w-4 text-white" />
+              </button>
+            </div>
+          </div>
+
+          {/* Price breakdown */}
+          <div className="bg-white/5 rounded-xl p-4 mb-6 border border-white/10">
+            <div className="flex justify-between text-sm mb-2">
+              <span className="text-slate-400">
+                {additionalSeats} {t('seatPurchase.seats')} × ${pricePerSeat}/{period}
+              </span>
+              <span className="text-white font-bold">${additionalCost}</span>
+            </div>
+            <div className="border-t border-white/10 mt-2 pt-2 flex justify-between text-sm">
+              <span className="text-slate-400">{t('seatPurchase.newTotal')}</span>
+              <span className="text-bridge-secondary font-bold">
+                {newSeatCount} {t('seatPurchase.seats')}, ${newTotalPrice}/{period}
+              </span>
+            </div>
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex gap-3">
             <button
               onClick={onClose}
-              className="absolute right-4 top-4 p-1 text-white/60 hover:text-white transition-colors"
+              className="flex-1 px-4 py-3 bg-white/5 border border-white/10 text-slate-300 rounded-xl font-medium hover:bg-white/10 transition-all"
             >
-              <X className="h-5 w-5" />
+              {t('common.cancel')}
             </button>
-
-            {/* Header */}
-            <div className="flex items-center gap-3 mb-6">
-              <div className="p-2.5 bg-bridge-accent/10 rounded-xl">
-                <Users className="h-5 w-5 text-bridge-accent" />
-              </div>
-              <div>
-                <h2 className="text-lg font-bold text-white">{t('seatPurchase.title')}</h2>
-                <p className="text-sm text-slate-400">{t('seatPurchase.subtitle')}</p>
-              </div>
-            </div>
-
-            {/* Current seat usage */}
-            <div className="bg-white/5 rounded-xl p-4 mb-4 border border-white/10">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-slate-400">{t('seatPurchase.currentSeats')}</span>
-                <span className="text-lg font-bold text-white">
-                  {billableMemberCount} / {seatCount}
-                </span>
-              </div>
-              <div className="mt-2 h-1.5 bg-white/10 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-bridge-accent rounded-full"
-                  style={{ width: `${Math.min((billableMemberCount / seatCount) * 100, 100)}%` }}
-                />
-              </div>
-            </div>
-
-            {/* Pending action notice */}
-            {(pendingInviteEmail || isRoleChange) && (
-              <div className="bg-bridge-accent/5 border border-bridge-accent/20 rounded-xl p-3 mb-4">
-                <p className="text-sm text-slate-300">
-                  {isRoleChange
-                    ? t('seatPurchase.pendingRoleChange')
-                    : t('seatPurchase.pendingInvite', { email: pendingInviteEmail })}
-                </p>
-              </div>
-            )}
-
-            {/* Quantity selector */}
-            <div className="mb-4">
-              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3 block">
-                {t('seatPurchase.additionalSeats')}
-              </label>
-              <div className="flex items-center justify-center gap-4">
-                <button
-                  onClick={() => setAdditionalSeats(Math.max(1, additionalSeats - 1))}
-                  disabled={additionalSeats <= 1}
-                  className="p-2 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                >
-                  <Minus className="h-4 w-4 text-white" />
-                </button>
-                <span className="text-3xl font-bold text-white w-16 text-center">{additionalSeats}</span>
-                <button
-                  onClick={() => setAdditionalSeats(additionalSeats + 1)}
-                  className="p-2 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors"
-                >
-                  <Plus className="h-4 w-4 text-white" />
-                </button>
-              </div>
-            </div>
-
-            {/* Price breakdown */}
-            <div className="bg-white/5 rounded-xl p-4 mb-6 border border-white/10">
-              <div className="flex justify-between text-sm mb-2">
-                <span className="text-slate-400">
-                  {additionalSeats} {t('seatPurchase.seats')} × ${pricePerSeat}/{period}
-                </span>
-                <span className="text-white font-bold">${additionalCost}</span>
-              </div>
-              <div className="border-t border-white/10 mt-2 pt-2 flex justify-between text-sm">
-                <span className="text-slate-400">{t('seatPurchase.newTotal')}</span>
-                <span className="text-bridge-secondary font-bold">
-                  {newSeatCount} {t('seatPurchase.seats')}, ${newTotalPrice}/{period}
-                </span>
-              </div>
-            </div>
-
-            {/* Action buttons */}
-            <div className="flex gap-3">
-              <button
-                onClick={onClose}
-                className="flex-1 px-4 py-3 bg-white/5 border border-white/10 text-slate-300 rounded-xl font-medium hover:bg-white/10 transition-all"
-              >
-                {t('common.cancel')}
-              </button>
-              <button
-                onClick={handlePurchase}
-                disabled={isProcessing}
-                className="flex-1 px-4 py-3 bg-bridge-accent text-white rounded-xl font-bold hover:bg-bridge-accent/90 hover:shadow-[0_0_30px_rgba(99,102,241,0.3)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isProcessing
-                  ? t('common.processing')
-                  : isRoleChange
-                    ? t('seatPurchase.purchaseAndPromote')
-                    : t('seatPurchase.purchaseAndContinue')}
-              </button>
-            </div>
-          </motion.div>
+            <button
+              onClick={handlePurchase}
+              disabled={isProcessing}
+              className="flex-1 px-4 py-3 bg-bridge-accent text-white rounded-xl font-bold hover:bg-bridge-accent/90 hover:shadow-[0_0_30px_rgba(99,102,241,0.3)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isProcessing
+                ? t('common.processing')
+                : isRoleChange
+                  ? t('seatPurchase.purchaseAndPromote')
+                  : t('seatPurchase.purchaseAndContinue')}
+            </button>
+          </div>
         </div>
-      )}
-    </AnimatePresence>
+      </DialogContent>
+    </Dialog>
   );
 }

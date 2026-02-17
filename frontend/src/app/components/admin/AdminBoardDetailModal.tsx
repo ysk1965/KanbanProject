@@ -5,6 +5,7 @@ import { adminService, inviteLinkService } from '../../utils/services';
 import { AdminBoardDetail } from '../../utils/api';
 import { formatDateTime, formatDate } from '../../utils/dateUtils';
 import { ConfirmModal, PromptModal, SelectModal, Toast } from './AdminConfirmModal';
+import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
 
 interface AdminBoardDetailModalProps {
   boardId: string;
@@ -427,446 +428,445 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
+    <>
+      <Dialog open={true} onOpenChange={(open) => { if (!open) onClose(); }}>
+        <DialogContent className="bg-bridge-obsidian text-foreground border-white/20 max-w-2xl p-0 gap-0 [&>button:last-child]:hidden overflow-hidden rounded-2xl max-h-[90vh] flex flex-col">
+          <DialogTitle className="sr-only">{t('admin.boardDetail.title')}</DialogTitle>
+          {/* Header */}
+          <div className="flex items-center justify-between px-6 py-4 border-b border-white/15">
+            <h2 className="text-xl font-bold text-white">{t('admin.boardDetail.title')}</h2>
+            <button
+              onClick={onClose}
+              className="p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
 
-      {/* Modal */}
-      <div className="relative bg-bridge-obsidian rounded-2xl border border-white/20 w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/15">
-          <h2 className="text-xl font-bold text-white">{t('admin.boardDetail.title')}</h2>
-          <button
-            onClick={onClose}
-            className="p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
-          {isLoading && (
-            <div className="flex items-center justify-center h-64">
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-bridge-accent" />
-            </div>
-          )}
-
-          {error && (
-            <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-6 text-center">
-              <p className="text-red-400">{error}</p>
-            </div>
-          )}
-
-          {!isLoading && !error && board && (
-            <div className="space-y-6">
-              {/* Board Info */}
-              <div className="flex items-start gap-4">
-                <div className="w-16 h-16 rounded-xl bg-bridge-accent/20 flex items-center justify-center">
-                  <Folder className="h-8 w-8 text-bridge-accent" />
-                </div>
-                <div className="flex-1">
-                  {isEditingName ? (
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        value={editingName}
-                        onChange={(e) => setEditingName(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') handleSaveName();
-                          if (e.key === 'Escape') setIsEditingName(false);
-                        }}
-                        autoFocus
-                        className="flex-1 bg-white/5 border border-white/10 rounded-xl py-2 px-3
-                          text-xl font-bold text-white placeholder-slate-600
-                          focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent
-                          transition-all"
-                      />
-                      <button
-                        onClick={handleSaveName}
-                        disabled={isUpdating}
-                        className="px-3 py-2 bg-bridge-accent text-white rounded-lg text-sm font-medium
-                          hover:bg-bridge-accent/90 disabled:opacity-50 transition-colors"
-                      >
-                        {t('common.save')}
-                      </button>
-                      <button
-                        onClick={() => setIsEditingName(false)}
-                        className="px-3 py-2 bg-white/5 text-slate-400 rounded-lg text-sm
-                          hover:bg-white/10 transition-colors"
-                      >
-                        {t('common.cancel')}
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2 group">
-                      <h3 className="text-xl font-bold text-white">{board.name}</h3>
-                      <button
-                        onClick={handleStartEditName}
-                        className="p-1 text-slate-500 hover:text-bridge-accent opacity-0 group-hover:opacity-100 transition-all"
-                        title={t('admin.boardDetail.editName')}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </button>
-                    </div>
-                  )}
-                  {board.description && (
-                    <p className="text-slate-400 mt-1">{board.description}</p>
-                  )}
-                </div>
+          {/* Content */}
+          <div className="p-6 overflow-y-auto flex-1">
+            {isLoading && (
+              <div className="flex items-center justify-center h-64">
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-bridge-accent" />
               </div>
+            )}
 
-              {/* Info Grid */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-white/5 rounded-xl p-4">
-                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-                    {t('admin.boardDetail.tier')}
-                  </p>
-                  <select
-                    value={board.tier}
-                    onChange={(e) => handleTierChange(e.target.value as typeof TIER_OPTIONS[number])}
-                    disabled={isUpdating}
-                    className={`${getTierStyle(board.tier)} px-3 py-1 rounded-full text-sm font-medium
-                      border-0 focus:outline-none cursor-pointer disabled:opacity-50`}
-                  >
-                    {TIER_OPTIONS.map((tier) => (
-                      <option key={tier} value={tier} className="bg-bridge-dark text-white">
-                        {tier}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="bg-white/5 rounded-xl p-4">
-                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-                    {t('admin.boardDetail.owner')}
-                  </p>
-                  <div>
-                    <p className="text-white font-medium">{board.owner_name}</p>
-                    <p className="text-slate-400 text-sm">{board.owner_email}</p>
-                  </div>
-                </div>
-
-                <div className="bg-white/5 rounded-xl p-4">
-                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-                    {t('admin.boardDetail.memberCount')}
-                  </p>
-                  <p className="text-white flex items-center gap-2">
-                    <Users className="h-5 w-5 text-bridge-accent" />
-                    {t('admin.common.countPeople', { count: board.member_count })}
-                  </p>
-                </div>
-
-                <div className="bg-white/5 rounded-xl p-4">
-                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-                    {t('admin.boardDetail.taskCount')}
-                  </p>
-                  <p className="text-white flex items-center gap-2">
-                    <ListTodo className="h-5 w-5 text-bridge-secondary" />
-                    {t('admin.common.countItems', { count: board.task_count })}
-                  </p>
-                </div>
-
-                <div className="bg-white/5 rounded-xl p-4">
-                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-                    {t('admin.boardDetail.seatCount')}
-                  </p>
-                  <div className="flex items-center justify-between">
-                    <p className="text-white flex items-center gap-2">
-                      <Armchair className="h-5 w-5 text-amber-400" />
-                      {board.seat_count != null ? board.seat_count : t('admin.boardDetail.noSeatInfo')}
-                    </p>
-                    <button
-                      onClick={handleUpdateSeatCount}
-                      disabled={isUpdating}
-                      className="text-xs text-bridge-accent hover:text-bridge-accent/80 disabled:opacity-50 transition-colors"
-                    >
-                      {t('common.edit')}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="bg-white/5 rounded-xl p-4">
-                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-                    {t('admin.boardDetail.createdAt')}
-                  </p>
-                  <p className="text-white flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-slate-400" />
-                    {formatDateLocal(board.created_at)}
-                  </p>
-                </div>
-
-                <div className="bg-white/5 rounded-xl p-4">
-                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-                    {t('admin.boardDetail.subscriptionStatus')}
-                  </p>
-                  {board.subscription ? (
-                    <span
-                      className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
-                        board.subscription.status === 'ACTIVE'
-                          ? 'bg-green-500/20 text-green-400'
-                          : board.subscription.status === 'CANCELLED'
-                          ? 'bg-red-500/20 text-red-400'
-                          : 'bg-slate-500/20 text-slate-400'
-                      }`}
-                    >
-                      {board.subscription.status}
-                    </span>
-                  ) : (
-                    <span className="text-slate-400">{t('admin.boardDetail.noSubscription')}</span>
-                  )}
-                </div>
+            {error && (
+              <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-6 text-center">
+                <p className="text-red-400">{error}</p>
               </div>
+            )}
 
-              {/* Members List */}
-              {board.members && board.members.length > 0 && (
-                <div>
-                  <h4 className="text-lg font-bold text-white mb-4">{t('admin.boardDetail.memberList')}</h4>
-                  <div className="space-y-2 max-h-60 overflow-y-auto">
-                    {board.members.map((member) => (
-                      <div
-                        key={member.id}
-                        className="bg-white/5 rounded-xl p-4 flex items-center justify-between"
-                      >
-                        <div className="flex items-center gap-3">
-                          {getRoleIcon(member.role)}
-                          <div>
-                            <p className="text-white font-medium">{member.name}</p>
-                            <p className="text-slate-400 text-sm">{member.email}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {member.role === 'OWNER' ? (
-                            <span className="px-3 py-1 rounded-full text-xs font-medium bg-amber-500/20 text-amber-400">
-                              OWNER
-                            </span>
-                          ) : (
-                            <>
-                              <div className="relative">
-                                <select
-                                  value={member.role}
-                                  onChange={(e) => handleRoleChange(member.id, member.name, e.target.value as 'ADMIN' | 'MEMBER' | 'VIEWER')}
-                                  disabled={isUpdating}
-                                  className={`${getRoleBadgeStyle(member.role)} appearance-none pl-3 pr-7 py-1 rounded-full text-xs font-medium
-                                    border-0 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 cursor-pointer disabled:opacity-50 transition-colors`}
-                                >
-                                  {ROLE_OPTIONS.map((role) => (
-                                    <option key={role} value={role} className="bg-bridge-dark text-white">
-                                      {role}
-                                    </option>
-                                  ))}
-                                </select>
-                                <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 h-3 w-3 pointer-events-none opacity-60" />
-                              </div>
-                              <button
-                                onClick={() => handleRemoveMember(member.id, member.name)}
-                                disabled={isUpdating}
-                                className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-all disabled:opacity-50"
-                                title={t('admin.boardDetail.removeMember')}
-                              >
-                                <UserMinus className="h-4 w-4" />
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    ))}
+            {!isLoading && !error && board && (
+              <div className="space-y-6">
+                {/* Board Info */}
+                <div className="flex items-start gap-4">
+                  <div className="w-16 h-16 rounded-xl bg-bridge-accent/20 flex items-center justify-center">
+                    <Folder className="h-8 w-8 text-bridge-accent" />
                   </div>
-                </div>
-              )}
-
-              {/* AI Credits */}
-              <div className="border-t border-white/10 pt-6 space-y-4">
-                <h4 className="text-lg font-bold text-white flex items-center gap-2">
-                  <Sparkles className="h-5 w-5 text-bridge-accent" />
-                  AI Credits
-                </h4>
-                <div className="grid grid-cols-2 gap-4">
-                  {/* Monthly Credits */}
-                  <div className="bg-white/5 rounded-xl p-4">
-                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-                      월간 크레딧
-                    </p>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-white font-medium">
-                          {board.monthly_credits_used ?? 0} / {board.monthly_ai_credits ?? 0}
-                        </span>
+                  <div className="flex-1">
+                    {isEditingName ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={editingName}
+                          onChange={(e) => setEditingName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleSaveName();
+                            if (e.key === 'Escape') setIsEditingName(false);
+                          }}
+                          autoFocus
+                          className="flex-1 bg-white/5 border border-white/10 rounded-xl py-2 px-3
+                            text-xl font-bold text-white placeholder-slate-600
+                            focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent
+                            transition-all"
+                        />
                         <button
-                          onClick={handleSetMonthlyCredits}
+                          onClick={handleSaveName}
                           disabled={isUpdating}
-                          className="text-xs text-bridge-accent hover:text-bridge-accent/80 disabled:opacity-50 transition-colors"
+                          className="px-3 py-2 bg-bridge-accent text-white rounded-lg text-sm font-medium
+                            hover:bg-bridge-accent/90 disabled:opacity-50 transition-colors"
                         >
-                          설정
+                          {t('common.save')}
+                        </button>
+                        <button
+                          onClick={() => setIsEditingName(false)}
+                          className="px-3 py-2 bg-white/5 text-slate-400 rounded-lg text-sm
+                            hover:bg-white/10 transition-colors"
+                        >
+                          {t('common.cancel')}
                         </button>
                       </div>
-                      <div className="w-full bg-white/10 rounded-full h-2">
-                        <div
-                          className="bg-bridge-accent rounded-full h-2 transition-all"
-                          style={{
-                            width: `${board.monthly_ai_credits ? Math.min(100, ((board.monthly_credits_used ?? 0) / board.monthly_ai_credits) * 100) : 0}%`,
-                          }}
-                        />
+                    ) : (
+                      <div className="flex items-center gap-2 group">
+                        <h3 className="text-xl font-bold text-white">{board.name}</h3>
+                        <button
+                          onClick={handleStartEditName}
+                          className="p-1 text-slate-500 hover:text-bridge-accent opacity-0 group-hover:opacity-100 transition-all"
+                          title={t('admin.boardDetail.editName')}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
                       </div>
+                    )}
+                    {board.description && (
+                      <p className="text-slate-400 mt-1">{board.description}</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Info Grid */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-white/5 rounded-xl p-4">
+                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                      {t('admin.boardDetail.tier')}
+                    </p>
+                    <select
+                      value={board.tier}
+                      onChange={(e) => handleTierChange(e.target.value as typeof TIER_OPTIONS[number])}
+                      disabled={isUpdating}
+                      className={`${getTierStyle(board.tier)} px-3 py-1 rounded-full text-sm font-medium
+                        border-0 focus:outline-none cursor-pointer disabled:opacity-50`}
+                    >
+                      {TIER_OPTIONS.map((tier) => (
+                        <option key={tier} value={tier} className="bg-bridge-dark text-white">
+                          {tier}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="bg-white/5 rounded-xl p-4">
+                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                      {t('admin.boardDetail.owner')}
+                    </p>
+                    <div>
+                      <p className="text-white font-medium">{board.owner_name}</p>
+                      <p className="text-slate-400 text-sm">{board.owner_email}</p>
                     </div>
                   </div>
 
-                  {/* Purchased Credits */}
                   <div className="bg-white/5 rounded-xl p-4">
                     <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-                      구매 크레딧
+                      {t('admin.boardDetail.memberCount')}
+                    </p>
+                    <p className="text-white flex items-center gap-2">
+                      <Users className="h-5 w-5 text-bridge-accent" />
+                      {t('admin.common.countPeople', { count: board.member_count })}
+                    </p>
+                  </div>
+
+                  <div className="bg-white/5 rounded-xl p-4">
+                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                      {t('admin.boardDetail.taskCount')}
+                    </p>
+                    <p className="text-white flex items-center gap-2">
+                      <ListTodo className="h-5 w-5 text-bridge-secondary" />
+                      {t('admin.common.countItems', { count: board.task_count })}
+                    </p>
+                  </div>
+
+                  <div className="bg-white/5 rounded-xl p-4">
+                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                      {t('admin.boardDetail.seatCount')}
                     </p>
                     <div className="flex items-center justify-between">
-                      <span className="text-white font-medium">
-                        {board.purchased_credits ?? 0}
-                      </span>
+                      <p className="text-white flex items-center gap-2">
+                        <Armchair className="h-5 w-5 text-amber-400" />
+                        {board.seat_count != null ? board.seat_count : t('admin.boardDetail.noSeatInfo')}
+                      </p>
                       <button
-                        onClick={handleAddPurchasedCredits}
+                        onClick={handleUpdateSeatCount}
                         disabled={isUpdating}
-                        className="flex items-center gap-1 text-xs text-bridge-secondary hover:text-bridge-secondary/80 disabled:opacity-50 transition-colors"
+                        className="text-xs text-bridge-accent hover:text-bridge-accent/80 disabled:opacity-50 transition-colors"
                       >
-                        <Plus className="h-3 w-3" />
-                        추가
+                        {t('common.edit')}
                       </button>
                     </div>
                   </div>
-                </div>
 
-                {/* Reset Date */}
-                {board.credits_reset_date && (
-                  <p className="text-xs text-slate-500">
-                    다음 리셋: {formatDateTime(board.credits_reset_date)}
-                  </p>
-                )}
-              </div>
-
-              {/* Admin Actions */}
-              <div className="border-t border-white/10 pt-6 space-y-4">
-                <h4 className="text-lg font-bold text-white flex items-center gap-2">
-                  <AlertTriangle className="h-5 w-5 text-amber-400" />
-                  {t('admin.common.adminActions')}
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {/* 소유권 이전 */}
-                  <button
-                    onClick={handleTransferOwnership}
-                    disabled={isUpdating || !board.members || board.members.length <= 1}
-                    className="flex items-center justify-center gap-2 px-4 py-3 bg-purple-500/10 border border-purple-500/30 rounded-xl text-purple-400 hover:bg-purple-500/20 transition-colors disabled:opacity-50"
-                    title={!board.members || board.members.length <= 1 ? t('admin.boardDetail.noEligibleMembers') : undefined}
-                  >
-                    <ArrowRightLeft className="h-4 w-4" />
-                    {t('admin.boardDetail.transferOwnership')}
-                  </button>
-
-                  {/* Trial 연장 */}
-                  <button
-                    onClick={handleExtendTrial}
-                    disabled={isUpdating}
-                    className="flex items-center justify-center gap-2 px-4 py-3 bg-teal-500/10 border border-teal-500/30 rounded-xl text-teal-400 hover:bg-teal-500/20 transition-colors disabled:opacity-50"
-                  >
-                    <CalendarPlus className="h-4 w-4" />
-                    {t('admin.boardDetail.extendTrial')}
-                    {board.trial_ends_at && (
-                      <span className="text-xs text-teal-400/70">
-                        ({formatDateLocal(board.trial_ends_at).split(' ')[0]})
-                      </span>
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              {/* Invite Link Generator */}
-              <div className="border-t border-white/10 pt-6 space-y-4">
-                <h4 className="text-lg font-bold text-white flex items-center gap-2">
-                  <Link2 className="h-5 w-5 text-bridge-accent" />
-                  초대 URL 생성
-                </h4>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <select
-                      id="invite-role-select"
-                      defaultValue="MEMBER"
-                      className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
-                    >
-                      <option value="VIEWER" className="bg-bridge-dark text-white">VIEWER</option>
-                      <option value="MEMBER" className="bg-bridge-dark text-white">MEMBER</option>
-                      <option value="ADMIN" className="bg-bridge-dark text-white">ADMIN</option>
-                    </select>
-                    <button
-                      onClick={() => {
-                        const select = document.getElementById('invite-role-select') as HTMLSelectElement;
-                        handleGenerateInviteLink(select.value as 'ADMIN' | 'MEMBER' | 'VIEWER');
-                      }}
-                      disabled={isGeneratingInvite}
-                      className="flex items-center gap-2 px-4 py-2 bg-bridge-accent/10 border border-bridge-accent/30 rounded-lg text-bridge-accent hover:bg-bridge-accent/20 transition-colors disabled:opacity-50 text-sm font-medium"
-                    >
-                      <Link2 className="h-4 w-4" />
-                      {isGeneratingInvite ? '생성 중...' : '링크 생성 (7일)'}
-                    </button>
+                  <div className="bg-white/5 rounded-xl p-4">
+                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                      {t('admin.boardDetail.createdAt')}
+                    </p>
+                    <p className="text-white flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-slate-400" />
+                      {formatDateLocal(board.created_at)}
+                    </p>
                   </div>
 
-                  {inviteCode && (
-                    <div className="space-y-2">
-                      {[
-                        { domain: 'bridgespots.com', label: 'BRIDGE SPOTS' },
-                        { domain: 'milkyway.pe.kr', label: 'Milkyway' },
-                      ].map(({ domain, label }) => (
+                  <div className="bg-white/5 rounded-xl p-4">
+                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                      {t('admin.boardDetail.subscriptionStatus')}
+                    </p>
+                    {board.subscription ? (
+                      <span
+                        className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+                          board.subscription.status === 'ACTIVE'
+                            ? 'bg-green-500/20 text-green-400'
+                            : board.subscription.status === 'CANCELLED'
+                            ? 'bg-red-500/20 text-red-400'
+                            : 'bg-slate-500/20 text-slate-400'
+                        }`}
+                      >
+                        {board.subscription.status}
+                      </span>
+                    ) : (
+                      <span className="text-slate-400">{t('admin.boardDetail.noSubscription')}</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Members List */}
+                {board.members && board.members.length > 0 && (
+                  <div>
+                    <h4 className="text-lg font-bold text-white mb-4">{t('admin.boardDetail.memberList')}</h4>
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                      {board.members.map((member) => (
                         <div
-                          key={domain}
-                          className="flex items-center gap-2 bg-white/5 rounded-lg p-3"
+                          key={member.id}
+                          className="bg-white/5 rounded-xl p-4 flex items-center justify-between"
                         >
-                          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest shrink-0 w-28">
-                            {label}
-                          </span>
-                          <code className="flex-1 text-sm text-slate-300 truncate">
-                            https://{domain}/invite/{inviteCode}
-                          </code>
-                          <button
-                            onClick={() => handleCopyInviteUrl(domain)}
-                            className="shrink-0 p-1.5 rounded-md hover:bg-white/10 transition-colors"
-                            title="복사"
-                          >
-                            {copiedDomain === domain ? (
-                              <Check className="h-4 w-4 text-green-400" />
+                          <div className="flex items-center gap-3">
+                            {getRoleIcon(member.role)}
+                            <div>
+                              <p className="text-white font-medium">{member.name}</p>
+                              <p className="text-slate-400 text-sm">{member.email}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {member.role === 'OWNER' ? (
+                              <span className="px-3 py-1 rounded-full text-xs font-medium bg-amber-500/20 text-amber-400">
+                                OWNER
+                              </span>
                             ) : (
-                              <Copy className="h-4 w-4 text-slate-400" />
+                              <>
+                                <div className="relative">
+                                  <select
+                                    value={member.role}
+                                    onChange={(e) => handleRoleChange(member.id, member.name, e.target.value as 'ADMIN' | 'MEMBER' | 'VIEWER')}
+                                    disabled={isUpdating}
+                                    className={`${getRoleBadgeStyle(member.role)} appearance-none pl-3 pr-7 py-1 rounded-full text-xs font-medium
+                                      border-0 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 cursor-pointer disabled:opacity-50 transition-colors`}
+                                  >
+                                    {ROLE_OPTIONS.map((role) => (
+                                      <option key={role} value={role} className="bg-bridge-dark text-white">
+                                        {role}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 h-3 w-3 pointer-events-none opacity-60" />
+                                </div>
+                                <button
+                                  onClick={() => handleRemoveMember(member.id, member.name)}
+                                  disabled={isUpdating}
+                                  className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-all disabled:opacity-50"
+                                  title={t('admin.boardDetail.removeMember')}
+                                >
+                                  <UserMinus className="h-4 w-4" />
+                                </button>
+                              </>
                             )}
-                          </button>
+                          </div>
                         </div>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {/* AI Credits */}
+                <div className="border-t border-white/10 pt-6 space-y-4">
+                  <h4 className="text-lg font-bold text-white flex items-center gap-2">
+                    <Sparkles className="h-5 w-5 text-bridge-accent" />
+                    AI Credits
+                  </h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Monthly Credits */}
+                    <div className="bg-white/5 rounded-xl p-4">
+                      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                        월간 크레딧
+                      </p>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-white font-medium">
+                            {board.monthly_credits_used ?? 0} / {board.monthly_ai_credits ?? 0}
+                          </span>
+                          <button
+                            onClick={handleSetMonthlyCredits}
+                            disabled={isUpdating}
+                            className="text-xs text-bridge-accent hover:text-bridge-accent/80 disabled:opacity-50 transition-colors"
+                          >
+                            설정
+                          </button>
+                        </div>
+                        <div className="w-full bg-white/10 rounded-full h-2">
+                          <div
+                            className="bg-bridge-accent rounded-full h-2 transition-all"
+                            style={{
+                              width: `${board.monthly_ai_credits ? Math.min(100, ((board.monthly_credits_used ?? 0) / board.monthly_ai_credits) * 100) : 0}%`,
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Purchased Credits */}
+                    <div className="bg-white/5 rounded-xl p-4">
+                      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                        구매 크레딧
+                      </p>
+                      <div className="flex items-center justify-between">
+                        <span className="text-white font-medium">
+                          {board.purchased_credits ?? 0}
+                        </span>
+                        <button
+                          onClick={handleAddPurchasedCredits}
+                          disabled={isUpdating}
+                          className="flex items-center gap-1 text-xs text-bridge-secondary hover:text-bridge-secondary/80 disabled:opacity-50 transition-colors"
+                        >
+                          <Plus className="h-3 w-3" />
+                          추가
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Reset Date */}
+                  {board.credits_reset_date && (
+                    <p className="text-xs text-slate-500">
+                      다음 리셋: {formatDateTime(board.credits_reset_date)}
+                    </p>
                   )}
                 </div>
-              </div>
 
-              {/* Danger Zone */}
-              <div className="border-t border-white/15 pt-6">
-                <h4 className="text-lg font-bold text-red-400 mb-4">{t('admin.boardDetail.dangerZone')}</h4>
-                <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-white font-medium">{t('admin.boardDetail.deleteBoard')}</p>
-                      <p className="text-slate-400 text-sm">
-                        {t('admin.boardDetail.deleteWarning')}
-                      </p>
-                    </div>
+                {/* Admin Actions */}
+                <div className="border-t border-white/10 pt-6 space-y-4">
+                  <h4 className="text-lg font-bold text-white flex items-center gap-2">
+                    <AlertTriangle className="h-5 w-5 text-amber-400" />
+                    {t('admin.common.adminActions')}
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {/* 소유권 이전 */}
                     <button
-                      onClick={handleDelete}
-                      disabled={isDeleting}
-                      className="px-4 py-2 bg-red-500/20 text-red-400 rounded-lg font-medium
-                        hover:bg-red-500/30 disabled:opacity-50 disabled:cursor-not-allowed
-                        transition-colors flex items-center gap-2"
+                      onClick={handleTransferOwnership}
+                      disabled={isUpdating || !board.members || board.members.length <= 1}
+                      className="flex items-center justify-center gap-2 px-4 py-3 bg-purple-500/10 border border-purple-500/30 rounded-xl text-purple-400 hover:bg-purple-500/20 transition-colors disabled:opacity-50"
+                      title={!board.members || board.members.length <= 1 ? t('admin.boardDetail.noEligibleMembers') : undefined}
                     >
-                      <Trash2 className="h-4 w-4" />
-                      {isDeleting ? t('admin.boardDetail.deleting') : t('common.delete')}
+                      <ArrowRightLeft className="h-4 w-4" />
+                      {t('admin.boardDetail.transferOwnership')}
+                    </button>
+
+                    {/* Trial 연장 */}
+                    <button
+                      onClick={handleExtendTrial}
+                      disabled={isUpdating}
+                      className="flex items-center justify-center gap-2 px-4 py-3 bg-teal-500/10 border border-teal-500/30 rounded-xl text-teal-400 hover:bg-teal-500/20 transition-colors disabled:opacity-50"
+                    >
+                      <CalendarPlus className="h-4 w-4" />
+                      {t('admin.boardDetail.extendTrial')}
+                      {board.trial_ends_at && (
+                        <span className="text-xs text-teal-400/70">
+                          ({formatDateLocal(board.trial_ends_at).split(' ')[0]})
+                        </span>
+                      )}
                     </button>
                   </div>
                 </div>
+
+                {/* Invite Link Generator */}
+                <div className="border-t border-white/10 pt-6 space-y-4">
+                  <h4 className="text-lg font-bold text-white flex items-center gap-2">
+                    <Link2 className="h-5 w-5 text-bridge-accent" />
+                    초대 URL 생성
+                  </h4>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <select
+                        id="invite-role-select"
+                        defaultValue="MEMBER"
+                        className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
+                      >
+                        <option value="VIEWER" className="bg-bridge-dark text-white">VIEWER</option>
+                        <option value="MEMBER" className="bg-bridge-dark text-white">MEMBER</option>
+                        <option value="ADMIN" className="bg-bridge-dark text-white">ADMIN</option>
+                      </select>
+                      <button
+                        onClick={() => {
+                          const select = document.getElementById('invite-role-select') as HTMLSelectElement;
+                          handleGenerateInviteLink(select.value as 'ADMIN' | 'MEMBER' | 'VIEWER');
+                        }}
+                        disabled={isGeneratingInvite}
+                        className="flex items-center gap-2 px-4 py-2 bg-bridge-accent/10 border border-bridge-accent/30 rounded-lg text-bridge-accent hover:bg-bridge-accent/20 transition-colors disabled:opacity-50 text-sm font-medium"
+                      >
+                        <Link2 className="h-4 w-4" />
+                        {isGeneratingInvite ? '생성 중...' : '링크 생성 (7일)'}
+                      </button>
+                    </div>
+
+                    {inviteCode && (
+                      <div className="space-y-2">
+                        {[
+                          { domain: 'bridgespots.com', label: 'BRIDGE SPOTS' },
+                          { domain: 'milkyway.pe.kr', label: 'Milkyway' },
+                        ].map(({ domain, label }) => (
+                          <div
+                            key={domain}
+                            className="flex items-center gap-2 bg-white/5 rounded-lg p-3"
+                          >
+                            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest shrink-0 w-28">
+                              {label}
+                            </span>
+                            <code className="flex-1 text-sm text-slate-300 truncate">
+                              https://{domain}/invite/{inviteCode}
+                            </code>
+                            <button
+                              onClick={() => handleCopyInviteUrl(domain)}
+                              className="shrink-0 p-1.5 rounded-md hover:bg-white/10 transition-colors"
+                              title="복사"
+                            >
+                              {copiedDomain === domain ? (
+                                <Check className="h-4 w-4 text-green-400" />
+                              ) : (
+                                <Copy className="h-4 w-4 text-slate-400" />
+                              )}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Danger Zone */}
+                <div className="border-t border-white/15 pt-6">
+                  <h4 className="text-lg font-bold text-red-400 mb-4">{t('admin.boardDetail.dangerZone')}</h4>
+                  <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-white font-medium">{t('admin.boardDetail.deleteBoard')}</p>
+                        <p className="text-slate-400 text-sm">
+                          {t('admin.boardDetail.deleteWarning')}
+                        </p>
+                      </div>
+                      <button
+                        onClick={handleDelete}
+                        disabled={isDeleting}
+                        className="px-4 py-2 bg-red-500/20 text-red-400 rounded-lg font-medium
+                          hover:bg-red-500/30 disabled:opacity-50 disabled:cursor-not-allowed
+                          transition-colors flex items-center gap-2"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        {isDeleting ? t('admin.boardDetail.deleting') : t('common.delete')}
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
-          )}
-        </div>
-      </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {confirmAction && (
         <ConfirmModal
@@ -913,6 +913,6 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
           onClose={() => setToast(null)}
         />
       )}
-    </div>
+    </>
   );
 }

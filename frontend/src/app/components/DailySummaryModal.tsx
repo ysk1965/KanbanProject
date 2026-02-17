@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Clock, MessageSquare, AtSign, CheckCircle2 } from 'lucide-react';
 import { format } from 'date-fns';
@@ -7,6 +7,7 @@ import { ScheduleBlockInfo, CommentSummaryItem, MentionSummaryItem, commentAPI }
 import { getInitials, getAssigneeHex } from '../utils/assigneeColor';
 import { BoardMember } from './ShareBoardModal';
 import { formatDateTime } from '../utils/dateUtils';
+import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
 
 interface DailySummaryModalProps {
   boardId: string;
@@ -37,8 +38,6 @@ export function DailySummaryModal({ boardId, member, selectedDate, blocks, onClo
   const [mentions, setMentions] = useState<MentionSummaryItem[]>([]);
   const [mentionsLoading, setMentionsLoading] = useState(false);
   const [mentionsFetched, setMentionsFetched] = useState(false);
-
-  const mouseDownTargetRef = useRef<EventTarget | null>(null);
 
   const dateStr = format(selectedDate, 'yyyy-MM-dd');
   const dateLabel = format(selectedDate, 'M월 d일 (E)', { locale: ko });
@@ -110,17 +109,11 @@ export function DailySummaryModal({ boardId, member, selectedDate, blocks, onClo
   }, [blocks]);
 
   return (
-    <div
-      className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
-      onMouseDown={(e) => { mouseDownTargetRef.current = e.target; }}
-      onClick={(e) => { if (e.target === e.currentTarget && mouseDownTargetRef.current === e.currentTarget) onClose(); }}
-    >
-      <div
-        className="bg-bridge-obsidian rounded-xl shadow-2xl w-[520px] max-h-[80vh] flex flex-col overflow-hidden border border-white/20"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <Dialog open onOpenChange={() => onClose()}>
+      <DialogContent className="bg-bridge-obsidian text-foreground border-white/10 w-[520px] max-w-[calc(100%-2rem)] max-h-[80vh] flex flex-col p-0 gap-0 [&>button:last-child]:hidden overflow-hidden rounded-xl">
+        <DialogTitle className="sr-only">{member.name} {dateLabel} {t('dailySummary.title')}</DialogTitle>
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/20">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
           <div className="flex items-center gap-3">
             <div
               className="w-10 h-10 rounded-full flex items-center justify-center text-sm text-white font-medium"
@@ -320,7 +313,7 @@ export function DailySummaryModal({ boardId, member, selectedDate, blocks, onClo
             )
           )}
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

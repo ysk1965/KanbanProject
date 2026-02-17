@@ -23,6 +23,7 @@ import {
   MilestoneSimpleResponse,
 } from '../utils/api';
 import { FEATURE_COLORS, getRandomFeatureColor } from '../constants';
+import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
 
 interface AddDailyChecklistModalProps {
   boardId: string;
@@ -487,8 +488,9 @@ export function AddDailyChecklistModal({
 
 
   return (
-    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-bridge-dark rounded-2xl shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden border border-white/10">
+    <Dialog open onOpenChange={() => handleClose()}>
+      <DialogContent className="bg-bridge-dark text-foreground border-white/10 max-w-4xl max-h-[85vh] flex flex-col p-0 gap-0 [&>button:last-child]:hidden overflow-hidden rounded-2xl">
+        <DialogTitle className="sr-only">{t('dailyChecklist.addTitle')}</DialogTitle>
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
           <div>
@@ -1221,7 +1223,7 @@ export function AddDailyChecklistModal({
             </button>
           </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

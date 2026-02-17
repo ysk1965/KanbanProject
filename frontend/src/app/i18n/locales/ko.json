@@ -265,7 +265,7 @@
     "description": "보드를 팀원과 공유합니다",
     "emailPlaceholder": "이메일 주소 또는 이름",
     "invite": "초대",
-    "linkShareDesc": "링크를 통해 누구나 Observer로 참여할 수 있습니다",
+    "linkShareDesc": "링크를 통해 누구나 Viewer로 참여할 수 있습니다",
     "creating": "생성 중...",
     "copied": "복사 완료!",
     "copyLink": "링크 복사",
@@ -1203,6 +1203,7 @@
     "viewScheduleTab": "일정",
     "viewSchedule": "데일리스케줄",
     "viewGantt": "간트차트",
+    "viewCalendar": "캘린더",
     "viewNotes": "노트",
     "viewAIAnalysisTab": "AI분석",
     "viewStatistics": "마일스톤",
@@ -1377,6 +1378,17 @@
     "changeColor": "색상 변경",
     "deleteBlock": "블록 삭제"
   },
+  "quickAdd": {
+    "title": "카드 추가",
+    "addCard": "Add a card",
+    "feature": "Feature",
+    "newFeature": "새 Feature 만들기",
+    "featurePlaceholder": "Feature 이름을 입력하세요",
+    "selectExisting": "← 기존 Feature 선택",
+    "taskTitle": "태스크 제목",
+    "taskPlaceholder": "태스크 제목을 입력하세요",
+    "tasksCount": "개 태스크"
+  },
   "dailyChecklistView": {
     "loadFailed": "데이터를 불러오는데 실패했습니다.",
     "today": "오늘",
@@ -1429,6 +1441,8 @@
     "descriptionPlaceholder": "FEATURE 설명을 입력하세요...",
     "priority": "우선순위",
     "dueDate": "마감일",
+    "dateRange": "기간",
+    "selectDateRange": "시작일 ~ 종료일을 선택하세요",
     "selectDate": "날짜를 선택하세요",
     "removeDate": "날짜 삭제",
     "noDate": "날짜 없음",
@@ -1474,7 +1488,28 @@
     "noLinkedFeatures": "연결된 Feature가 없습니다",
     "saveBaseline": "기준선 저장",
     "showBaseline": "기준선",
-    "baselineSaved": "기준선이 저장되었습니다"
+    "baselineSaved": "기준선이 저장되었습니다",
+    "completed": "완료"
+  },
+  "calendar": {
+    "today": "오늘",
+    "prevMonth": "이전 달",
+    "nextMonth": "다음 달",
+    "yearSuffix": "년",
+    "monthSuffix": "월",
+    "moreItems": "+{{count}}개 더보기",
+    "daySuffix": "일",
+    "featureCount": "개 피처",
+    "taskCount": "개 태스크",
+    "otherTasks": "기타 태스크",
+    "noTasks": "태스크 없음",
+    "sun": "일",
+    "mon": "월",
+    "tue": "화",
+    "wed": "수",
+    "thu": "목",
+    "fri": "금",
+    "sat": "토"
   },
   "management": {
     "statusOnTrack": "순조로움",
@@ -2305,6 +2340,9 @@
     "recurrenceMonthly": "매월",
     "recurrenceEndDate": "반복 종료일",
     "recurrenceEndDateHint": "비워두면 계속 반복됩니다",
+    "recurrenceHintWeekly": "매주 {{day}}에 반복됩니다",
+    "recurrenceHintBiweekly": "격주 {{day}}에 반복됩니다",
+    "recurrenceHintMonthly": "매월 {{date}}일에 반복됩니다",
     "recurring": "반복",
     "deleteRecurringTitle": "반복 회의 삭제",
     "deleteRecurringMessage": "이 회의는 반복 회의입니다. 어떻게 삭제하시겠습니까?",
@@ -2435,6 +2473,43 @@
         "REPORT_TEAM": "팀 리포트",
         "REPORT_PERSONAL": "개인 리포트"
       }
+    }
+  },
+  "onboarding": {
+    "skip": "건너뛰기",
+    "continue": "계속",
+    "start": "시작하기",
+    "welcome": {
+      "badge": "시작하기",
+      "title": "BRIDGE에 오신 걸\n환영합니다!",
+      "subtitle": "프로젝트를 체계적으로 관리하고, 팀과 효율적으로 협업하세요. BRIDGE가 도와드립니다.",
+      "highlight1": "직관적인 칸반 보드로 프로젝트 관리",
+      "highlight2": "AI 기반 회의록 & 팀 분석",
+      "highlight3": "실시간 팀 협업 & 알림"
+    },
+    "features": {
+      "title": "핵심 기능을 살펴보세요",
+      "subtitle": "BRIDGE에서 제공하는 주요 기능들을 소개합니다.",
+      "kanban": "칸반 보드",
+      "kanbanDesc": "드래그 앤 드롭 태스크 관리",
+      "schedule": "일정 관리",
+      "scheduleDesc": "간트 차트 & 주간 로드맵",
+      "meeting": "미팅",
+      "meetingDesc": "AI 회의록 자동 생성",
+      "notes": "노트",
+      "notesDesc": "팀 공유 문서 작성",
+      "ai": "AI 분석",
+      "aiDesc": "팀 생산성 인사이트",
+      "slack": "슬랙 연동",
+      "slackDesc": "실시간 알림 전달"
+    },
+    "quickstart": {
+      "badge": "Quick Start",
+      "title": "시작할 준비가\n되었습니다!",
+      "subtitle": "보드를 만들고 첫 프로젝트를 시작해보세요.",
+      "tip1": "보드를 생성하고 팀원을 초대하세요",
+      "tip2": "피처와 태스크를 추가해 프로젝트를 구성하세요",
+      "tip3": "드래그 앤 드롭으로 진행 상태를 업데이트하세요"
     }
   }
 }

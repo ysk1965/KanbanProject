@@ -72,7 +72,7 @@ interface KanbanBoardHeaderProps {
   onLogout: () => void;
   isTester: boolean;
   // Schedule sub mode helpers
-  getScheduleSubMode: () => 'schedule' | 'weekly';
+  getScheduleSubMode: () => 'schedule' | 'weekly' | 'calendar';
   getAISubMode: () => 'statistics' | 'ai_report';
 }
 
@@ -254,7 +254,7 @@ export function KanbanBoardHeader({
               }
             }}
             className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
-              viewMode === 'schedule' || viewMode === 'weekly'
+              viewMode === 'schedule' || viewMode === 'weekly' || viewMode === 'calendar'
                 ? 'bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20'
                 : 'text-zinc-400 hover:text-zinc-200 hover:bg-bridge-surface-hover'
             }`}
