@@ -1250,7 +1250,7 @@ export const subscriptionService = {
           trial_ends_at: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
           current_period_end: null,
           billable_member_count: 1,
-          member_limit: 5,
+          member_limit: 999999,
         };
       }
       throw error;
