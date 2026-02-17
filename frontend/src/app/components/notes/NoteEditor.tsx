@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Save, Clock, Loader2, Tag as TagIcon, Sparkles, Share2, Link2, Check, X, MessageSquare } from 'lucide-react';
 import { BlockNoteSchema, defaultBlockSpecs, defaultInlineContentSpecs, filterSuggestionItems, insertOrUpdateBlock } from '@blocknote/core';
-import { useCreateBlockNote, SuggestionMenuController, getDefaultReactSlashMenuItems } from '@blocknote/react';
+import { useCreateBlockNote, SuggestionMenuController, getDefaultReactSlashMenuItems, TableHandlesController } from '@blocknote/react';
 import { BlockNoteView } from '@blocknote/shadcn';
 import '@blocknote/core/fonts/inter.css';
 import '@blocknote/shadcn/style.css';
@@ -270,6 +270,16 @@ function CollabNoteEditor({
       aliases: ['3columns', 'three columns', 'triple'],
       group: 'Advanced',
       icon: <span style={{ fontSize: '14px', lineHeight: 1 }}>{'▦'}</span>,
+    },
+    {
+      title: 'Table',
+      subtext: 'Insert a table',
+      onItemClick: () => {
+        insertOrUpdateBlock(editor, { type: 'table' as any });
+      },
+      aliases: ['table', 'grid', '표', '테이블'],
+      group: 'Basic blocks',
+      icon: <span style={{ fontSize: '14px', lineHeight: 1 }}>{'📊'}</span>,
     },
   ], [editor]);
 
@@ -570,6 +580,7 @@ function CollabNoteEditor({
               triggerCharacter="@"
               getItems={getMentionItems}
             />
+            <TableHandlesController />
           </BlockNoteView>
 
           {/* Floating block comment button */}
@@ -693,6 +704,16 @@ function FallbackNoteEditor({ boardId, note, tags, canEdit, onSave, onTagsChange
   const slashMenuItems = useMemo(() => [
     ...getDefaultReactSlashMenuItems(editor),
     // Same slash menu items as above (abbreviated for fallback)
+    {
+      title: 'Table',
+      subtext: 'Insert a table',
+      onItemClick: () => {
+        insertOrUpdateBlock(editor, { type: 'table' as any });
+      },
+      aliases: ['table', 'grid', '표', '테이블'],
+      group: 'Basic blocks',
+      icon: <span style={{ fontSize: '14px', lineHeight: 1 }}>{'📊'}</span>,
+    },
   ], [editor]);
 
   const membersCache = useRef<MemberResponse[] | null>(null);
@@ -882,6 +903,7 @@ function FallbackNoteEditor({ boardId, note, tags, canEdit, onSave, onTagsChange
           <BlockNoteView editor={editor} theme="dark" editable={canEdit} onChange={() => { setHasChanges(true); setAutoSaved(false); }}>
             <SuggestionMenuController triggerCharacter="/" getItems={async (query) => filterSuggestionItems(slashMenuItems, query)} />
             <SuggestionMenuController triggerCharacter="@" getItems={getMentionItems} />
+            <TableHandlesController />
           </BlockNoteView>
         </div>
 

@@ -109,23 +109,195 @@
   color: #e2e8f0;
 }
 
-/* Table styling */
+/* ============================================
+   Table Styling - Enhanced
+   ============================================ */
 .bn-container table {
   border-collapse: collapse;
   width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
 }
+
 .bn-container th,
 .bn-container td {
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   padding: 0.5rem 0.75rem;
   text-align: left;
   color: #e2e8f0;
   font-size: 0.85rem;
+  position: relative;
+  min-width: 80px;
+  vertical-align: top;
+  transition: background-color 0.15s ease;
 }
+
 .bn-container th {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.06);
   font-weight: 600;
   color: #fff;
+  font-size: 0.8rem;
+  text-transform: none;
+  letter-spacing: 0.01em;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+/* Row hover highlight */
+.bn-container tr:hover td {
+  background-color: rgba(255, 255, 255, 0.025);
+}
+
+.bn-container tr:hover th {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Cell selection/focus */
+.bn-container td:focus-within,
+.bn-container th:focus-within {
+  outline: none;
+  box-shadow: inset 0 0 0 2px rgba(99, 102, 241, 0.5);
+  z-index: 1;
+}
+
+/* Cell selection range (BlockNote adds data attributes) */
+.bn-container td[data-selected="true"],
+.bn-container th[data-selected="true"] {
+  background-color: rgba(99, 102, 241, 0.12) !important;
+  box-shadow: inset 0 0 0 2px rgba(99, 102, 241, 0.4);
+}
+
+/* Table handle styles */
+[data-table-handle] {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+table:hover [data-table-handle],
+[data-table-handle]:hover {
+  opacity: 1;
+}
+
+/* Table handle drag indicator */
+.bn-container [class*="tableHandle"] {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  transition: all 0.15s ease;
+  cursor: grab;
+}
+
+.bn-container [class*="tableHandle"]:hover {
+  background: rgba(99, 102, 241, 0.15);
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+.bn-container [class*="tableHandle"]:active {
+  cursor: grabbing;
+  background: rgba(99, 102, 241, 0.25);
+}
+
+/* Extend button (add row/column) */
+.bn-container [class*="extendButton"],
+.bn-container [class*="ExtendButton"] {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.3);
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.bn-container [class*="extendButton"]:hover,
+.bn-container [class*="ExtendButton"]:hover {
+  background: rgba(99, 102, 241, 0.1);
+  border-color: rgba(99, 102, 241, 0.3);
+  color: rgba(99, 102, 241, 0.8);
+}
+
+/* Table handle menu (context menu) */
+.bn-container [class*="tableHandleMenu"],
+[data-radix-popper-content-wrapper] [class*="tableHandleMenu"] {
+  background: #0F1419 !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5) !important;
+  overflow: hidden;
+}
+
+/* Table handle menu items */
+.bn-container [class*="tableHandleMenu"] button,
+[data-radix-popper-content-wrapper] [class*="tableHandleMenu"] button {
+  color: #e2e8f0 !important;
+  transition: background-color 0.1s ease;
+}
+
+.bn-container [class*="tableHandleMenu"] button:hover,
+[data-radix-popper-content-wrapper] [class*="tableHandleMenu"] button:hover {
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: #fff !important;
+}
+
+/* Column resize handle */
+.bn-container [class*="columnResize"],
+.bn-container [class*="resize-handle"] {
+  width: 3px !important;
+  background: transparent;
+  cursor: col-resize;
+  transition: background-color 0.15s ease;
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 3;
+}
+
+.bn-container [class*="columnResize"]:hover,
+.bn-container [class*="resize-handle"]:hover {
+  background: rgba(99, 102, 241, 0.6) !important;
+}
+
+.bn-container [class*="columnResize"]:active,
+.bn-container [class*="resize-handle"]:active {
+  background: rgba(99, 102, 241, 0.8) !important;
+  width: 3px !important;
+}
+
+/* Merged cell visual indicator */
+.bn-container td[colspan],
+.bn-container th[colspan],
+.bn-container td[rowspan],
+.bn-container th[rowspan] {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/* Empty cell placeholder */
+.bn-container td:empty::before,
+.bn-container th:empty::before {
+  content: '';
+  display: block;
+  min-height: 1.2em;
+}
+
+/* First row top border radius */
+.bn-container table tr:first-child th:first-child,
+.bn-container table tr:first-child td:first-child {
+  border-top-left-radius: 6px;
+}
+
+.bn-container table tr:first-child th:last-child,
+.bn-container table tr:first-child td:last-child {
+  border-top-right-radius: 6px;
+}
+
+/* Last row bottom border radius */
+.bn-container table tr:last-child td:first-child {
+  border-bottom-left-radius: 6px;
+}
+
+.bn-container table tr:last-child td:last-child {
+  border-bottom-right-radius: 6px;
 }
 
 /* Checkbox accent color */
