@@ -63,6 +63,12 @@ public class Meeting {
     @Column(name = "recurrence_end_date")
     private LocalDate recurrenceEndDate;
 
+    @Column(name = "recurrence_days_of_week", length = 20)
+    private String recurrenceDaysOfWeek;
+
+    @Column(name = "recurrence_week_of_month")
+    private Integer recurrenceWeekOfMonth;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by", nullable = false)
     private User createdBy;

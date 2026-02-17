@@ -1,19 +1,32 @@
-import { useState, useEffect, useRef } from 'react';
-import { Send, BookHeart, ChevronLeft, ChevronRight, Check, Sparkles, RotateCcw } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { Send, BookHeart, ChevronLeft, ChevronRight, Check, Sparkles, RotateCcw, BookOpen, Pencil } from 'lucide-react';
+import { motion } from 'framer-motion';
+import {
+  startOfMonth,
+  endOfMonth,
+  startOfWeek,
+  endOfWeek,
+  eachDayOfInterval,
+  format,
+  isSameMonth,
+  isToday as isTodayFn,
+  addMonths,
+  subMonths,
+} from 'date-fns';
+import { ko } from 'date-fns/locale';
 import { diaryService } from '../../utils/services';
 import { formatDate } from '../../utils/dateUtils';
 import type { DiaryDetail, DiaryMessage, DiarySimple } from '../../types';
 
 const MOODS = [
-  { emoji: '\u{1F60A}', label: 'Happy', value: 'happy' },
-  { emoji: '\u{1F60C}', label: 'Calm', value: 'calm' },
-  { emoji: '\u{1F914}', label: 'Thoughtful', value: 'thoughtful' },
-  { emoji: '\u{1F614}', label: 'Tired', value: 'tired' },
-  { emoji: '\u{1F622}', label: 'Sad', value: 'sad' },
-  { emoji: '\u{1F620}', label: 'Frustrated', value: 'frustrated' },
-  { emoji: '\u{1F929}', label: 'Excited', value: 'excited' },
-  { emoji: '\u{1F971}', label: 'Bored', value: 'bored' },
+  { emoji: '\u{1F60A}', label: '행복', value: 'happy' },
+  { emoji: '\u{1F60C}', label: '평온', value: 'calm' },
+  { emoji: '\u{1F914}', label: '생각 많은', value: 'thoughtful' },
+  { emoji: '\u{1F614}', label: '피곤', value: 'tired' },
+  { emoji: '\u{1F622}', label: '슬픔', value: 'sad' },
+  { emoji: '\u{1F620}', label: '짜증', value: 'frustrated' },
+  { emoji: '\u{1F929}', label: '신남', value: 'excited' },
+  { emoji: '\u{1F971}', label: '지루', value: 'bored' },
 ];
 
 function toDateString(d: Date): string {
@@ -30,13 +43,26 @@ export function PersonalDiary() {
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const currentDateObj = new Date(currentDate + 'T00:00:00');
-  const year = currentDateObj.getFullYear();
-  const month = currentDateObj.getMonth() + 1;
+  const [calendarMonth, setCalendarMonth] = useState(startOfMonth(currentDateObj));
+
+  // Sync calendar month when currentDate changes to a different month
+  useEffect(() => {
+    const dateMonth = startOfMonth(new Date(currentDate + 'T00:00:00'));
+    if (!isSameMonth(dateMonth, calendarMonth)) {
+      setCalendarMonth(dateMonth);
+    }
+  }, [currentDate]);
+
+  const calendarYear = calendarMonth.getFullYear();
+  const calendarMonthNum = calendarMonth.getMonth() + 1;
 
   useEffect(() => {
     loadDiary();
-    loadDiaryList();
   }, [currentDate]);
+
+  useEffect(() => {
+    loadDiaryList();
+  }, [calendarYear, calendarMonthNum]);
 
   useEffect(() => {
     scrollToBottom();
@@ -61,7 +87,7 @@ export function PersonalDiary() {
 
   const loadDiaryList = async () => {
     try {
-      const data = await diaryService.getList(year, month);
+      const data = await diaryService.getList(calendarYear, calendarMonthNum);
       setDiaryList(data);
     } catch (error) {
       console.error('Failed to load diary list:', error);
@@ -115,14 +141,19 @@ export function PersonalDiary() {
     }
   };
 
+  const [isCompleting, setIsCompleting] = useState(false);
+
   const handleCompleteDiary = async (mood?: string) => {
-    if (!diary) return;
+    if (!diary || isCompleting) return;
+    setIsCompleting(true);
     try {
       const data = await diaryService.complete(diary.id, { mood });
       setDiary(data);
       loadDiaryList();
     } catch (error) {
       console.error('Failed to complete diary:', error);
+    } finally {
+      setIsCompleting(false);
     }
   };
 
@@ -138,75 +169,212 @@ export function PersonalDiary() {
     }
   };
 
-  const navigateDate = (direction: number) => {
-    const d = new Date(currentDate + 'T00:00:00');
-    d.setDate(d.getDate() + direction);
-    setCurrentDate(toDateString(d));
-  };
-
   const today = toDateString(new Date());
   const isToday = currentDate === today;
 
   // Diary dates for the mini calendar indicators
-  const diaryDates = new Set(diaryList.map((d) => d.diary_date));
+  const diaryDateMap = useMemo(() => {
+    const map = new Map<string, DiarySimple>();
+    diaryList.forEach((d) => map.set(d.diary_date, d));
+    return map;
+  }, [diaryList]);
+
+  // Calendar grid days
+  const calendarDays = useMemo(() => {
+    const monthStart = startOfMonth(calendarMonth);
+    const monthEnd = endOfMonth(calendarMonth);
+    const calStart = startOfWeek(monthStart, { weekStartsOn: 0 });
+    const calEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
+    return eachDayOfInterval({ start: calStart, end: calEnd });
+  }, [calendarMonth]);
+
+  const weekDays = ['일', '월', '화', '수', '목', '금', '토'];
+
+  const handleCalendarDateClick = (day: Date) => {
+    const dateStr = format(day, 'yyyy-MM-dd');
+    setCurrentDate(dateStr);
+    if (!isSameMonth(day, calendarMonth)) {
+      setCalendarMonth(startOfMonth(day));
+    }
+  };
+
+  const handlePrevMonth = () => setCalendarMonth(subMonths(calendarMonth, 1));
+  const handleNextMonth = () => setCalendarMonth(addMonths(calendarMonth, 1));
+  const handleCalendarToday = () => {
+    const now = new Date();
+    setCalendarMonth(startOfMonth(now));
+    setCurrentDate(toDateString(now));
+  };
 
   return (
     <div className="h-full flex">
-      {/* Sidebar - Mini Calendar & Diary List */}
-      <div className="w-64 border-r border-white/[0.06] bg-bridge-obsidian/40 flex flex-col">
-        {/* Date Navigation */}
-        <div className="p-4 border-b border-white/[0.06]">
-          <div className="flex items-center justify-between mb-3">
-            <button onClick={() => navigateDate(-1)} className="p-1.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
-              <ChevronLeft size={16} />
-            </button>
-            <span className="text-sm font-bold text-white">{formatDate(currentDate)}</span>
-            <button onClick={() => navigateDate(1)} className="p-1.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
-              <ChevronRight size={16} />
-            </button>
+      {/* Sidebar - Calendar & Diary List */}
+      <div className="w-[340px] flex-shrink-0 border-r border-white/5 flex flex-col overflow-hidden">
+        <div className="px-4 pt-4 pb-2 flex-shrink-0">
+          {/* Title */}
+          <div className="flex items-center gap-2.5 mb-4">
+            <BookOpen size={18} className="text-bridge-accent" />
+            <h2 className="text-base font-bold text-white">AI 다이어리</h2>
           </div>
-          {!isToday && (
-            <button
-              onClick={() => setCurrentDate(today)}
-              className="w-full py-1.5 text-xs font-bold text-bridge-secondary border border-bridge-secondary/30 rounded-lg hover:bg-bridge-secondary/10 transition-colors"
-            >
-              Go to Today
-            </button>
-          )}
+
+          {/* Month Navigation */}
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-sm font-semibold text-white">
+              {format(calendarMonth, 'yyyy년 M월', { locale: ko })}
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={handlePrevMonth}
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <button
+                onClick={handleCalendarToday}
+                className="px-2 py-0.5 text-[10px] font-semibold rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
+              >
+                오늘
+              </button>
+              <button
+                onClick={handleNextMonth}
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Mini Calendar Grid */}
+        <div className="px-4 pb-4 flex-shrink-0">
+          <div className="bg-bridge-obsidian rounded-xl border border-white/5 p-3">
+            {/* Weekday header */}
+            <div className="grid grid-cols-7 mb-1">
+              {weekDays.map((day, i) => (
+                <div
+                  key={day}
+                  className={`text-center text-[10px] font-bold uppercase tracking-widest py-1 ${
+                    i === 0 ? 'text-red-400/60' : i === 6 ? 'text-blue-400/60' : 'text-slate-500'
+                  }`}
+                >
+                  {day}
+                </div>
+              ))}
+            </div>
+
+            {/* Date grid */}
+            <div className="grid grid-cols-7 gap-0.5">
+              {calendarDays.map((day) => {
+                const dateKey = format(day, 'yyyy-MM-dd');
+                const diaryEntry = diaryDateMap.get(dateKey);
+                const isCurrentMonth = isSameMonth(day, calendarMonth);
+                const isSelected = dateKey === currentDate;
+                const isTodayDate = isTodayFn(day);
+                const dayOfWeek = day.getDay();
+
+                return (
+                  <button
+                    key={dateKey}
+                    onClick={() => handleCalendarDateClick(day)}
+                    className={`
+                      relative flex flex-col items-center justify-center py-2 rounded-lg transition-all min-h-[44px]
+                      ${isSelected
+                        ? 'bg-bridge-accent/20 border border-bridge-accent/50'
+                        : 'border border-transparent hover:bg-white/5'
+                      }
+                      ${!isCurrentMonth ? 'opacity-30' : ''}
+                    `}
+                  >
+                    <span
+                      className={`
+                        text-xs font-medium leading-none
+                        ${isTodayDate
+                          ? 'bg-bridge-accent text-white rounded-full w-6 h-6 flex items-center justify-center text-[11px]'
+                          : isSelected
+                            ? 'text-white'
+                            : dayOfWeek === 0
+                              ? 'text-red-400/80'
+                              : dayOfWeek === 6
+                                ? 'text-blue-400/80'
+                                : 'text-slate-300'
+                        }
+                      `}
+                    >
+                      {format(day, 'd')}
+                    </span>
+                    {diaryEntry && (
+                      <span className={`mt-1 w-1.5 h-1.5 rounded-full ${
+                        diaryEntry.status === 'COMPLETED' ? 'bg-bridge-secondary' : 'bg-amber-400'
+                      }`} />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
 
         {/* Diary List for Current Month */}
-        <div className="flex-1 overflow-auto p-3 space-y-2 custom-scrollbar">
-          <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-3 px-1">
-            {currentDateObj.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+        <div className="flex-1 overflow-auto px-4 pb-4 min-h-0 custom-scrollbar">
+          <div className="flex items-center gap-2 mb-2">
+            <BookHeart size={14} className="text-bridge-secondary" />
+            <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+              이번 달 일기
+            </span>
+            {diaryList.length > 0 && (
+              <span className="text-[10px] font-bold text-bridge-secondary bg-bridge-secondary/10 px-1.5 py-0.5 rounded">
+                {diaryList.length}
+              </span>
+            )}
           </div>
-          {diaryList.length === 0 && (
-            <div className="text-center text-slate-500 text-xs py-8">No diary entries this month</div>
+          {diaryList.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-slate-500 text-xs">이번 달 일기가 아직 없어요</p>
+              <p className="text-slate-600 text-[10px] mt-1">오늘부터 시작해볼까요?</p>
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              {diaryList.map((d) => (
+                <button
+                  key={d.id}
+                  onClick={() => setCurrentDate(d.diary_date)}
+                  className={`w-full text-left p-2.5 rounded-xl transition-all group ${
+                    d.diary_date === currentDate
+                      ? 'bg-bridge-accent/15 border border-bridge-accent/30'
+                      : 'bg-white/[0.03] border border-white/5 hover:bg-white/[0.06] hover:border-white/10'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className={`w-1 h-8 rounded-full flex-shrink-0 ${
+                      d.status === 'COMPLETED' ? 'bg-bridge-secondary' : 'bg-amber-400'
+                    }`} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[13px] font-medium text-white truncate group-hover:text-bridge-accent transition-colors">
+                          {d.title || format(new Date(d.diary_date + 'T00:00:00'), 'M월 d일')}
+                        </span>
+                        <span className="text-sm flex-shrink-0 ml-2">
+                          {d.mood ? MOODS.find((m) => m.value === d.mood)?.emoji || '' : ''}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
+                          d.status === 'COMPLETED'
+                            ? 'text-bridge-secondary/80 bg-bridge-secondary/10'
+                            : 'text-amber-400/80 bg-amber-400/10'
+                        }`}>
+                          {d.status === 'COMPLETED' ? '완료' : '작성 중'}
+                        </span>
+                        <span className="text-[10px] text-slate-500">
+                          {format(new Date(d.diary_date + 'T00:00:00'), 'M/d (E)', { locale: ko })}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
           )}
-          {diaryList.map((d) => (
-            <button
-              key={d.id}
-              onClick={() => setCurrentDate(d.diary_date)}
-              className={`w-full text-left px-3 py-2.5 rounded-xl transition-all ${
-                d.diary_date === currentDate
-                  ? 'bg-bridge-accent/15 border border-bridge-accent/30'
-                  : 'hover:bg-white/5 border border-transparent'
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-white">{d.diary_date.slice(5)}</span>
-                <span className="text-xs">
-                  {d.mood ? MOODS.find((m) => m.value === d.mood)?.emoji || '' : ''}
-                </span>
-              </div>
-              {d.title && (
-                <div className="text-[11px] text-slate-400 mt-1 truncate">{d.title}</div>
-              )}
-              <div className={`text-[10px] mt-1 ${d.status === 'COMPLETED' ? 'text-bridge-secondary' : 'text-amber-400'}`}>
-                {d.status === 'COMPLETED' ? 'Completed' : 'In progress...'}
-              </div>
-            </button>
-          ))}
         </div>
       </div>
 
@@ -214,29 +382,73 @@ export function PersonalDiary() {
       <div className="flex-1 flex flex-col">
         {isLoading ? (
           <div className="flex-1 flex items-center justify-center">
-            <div className="text-slate-400 text-sm">Loading...</div>
+            <div className="flex items-center gap-2 text-slate-400 text-sm">
+              <div className="w-4 h-4 border-2 border-bridge-accent/30 border-t-bridge-accent rounded-full animate-spin" />
+              불러오는 중...
+            </div>
           </div>
         ) : !diary ? (
-          /* No diary for this date - Start Button */
-          <div className="flex-1 flex flex-col items-center justify-center gap-6 p-8">
-            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-bridge-accent/20 to-purple-500/20 border border-bridge-accent/30 flex items-center justify-center">
-              <BookHeart size={36} className="text-bridge-accent" />
-            </div>
-            <div className="text-center">
-              <h3 className="text-xl font-bold text-white mb-2">
-                {isToday ? "Start Today's Diary" : `Diary for ${formatDate(currentDate)}`}
-              </h3>
-              <p className="text-slate-400 text-sm max-w-sm">
-                AI will ask you questions about your day. Through our conversation, your diary will be completed naturally.
-              </p>
-            </div>
-            <button
-              onClick={handleStartDiary}
-              className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-bridge-accent to-purple-500 text-white font-bold rounded-xl shadow-lg shadow-bridge-accent/20 hover:scale-105 active:scale-95 transition-all"
+          /* No diary for this date - Warm Welcome */
+          <div className="flex-1 flex flex-col items-center justify-center p-8">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, ease: 'easeOut' }}
+              className="flex flex-col items-center gap-5 max-w-md text-center"
             >
-              <Sparkles size={18} />
-              Start Conversation
-            </button>
+              {/* Greeting icon */}
+              <motion.div
+                initial={{ scale: 0.8 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
+                className="relative"
+              >
+                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-bridge-accent/20 via-purple-500/15 to-bridge-secondary/20 border border-white/10 flex items-center justify-center">
+                  <Pencil size={32} className="text-bridge-accent" />
+                </div>
+                <div className="absolute -top-1 -right-1 w-7 h-7 rounded-full bg-bridge-secondary/20 border border-bridge-secondary/30 flex items-center justify-center">
+                  <Sparkles size={13} className="text-bridge-secondary" />
+                </div>
+              </motion.div>
+
+              {/* Time-aware greeting */}
+              <div>
+                <h3 className="text-xl font-bold text-white mb-2">
+                  {isToday ? (
+                    <>
+                      {new Date().getHours() < 12
+                        ? '좋은 아침이에요 ☀️'
+                        : new Date().getHours() < 18
+                          ? '좋은 오후예요 🌤'
+                          : '수고한 하루였죠 🌙'}
+                    </>
+                  ) : (
+                    `${format(new Date(currentDate + 'T00:00:00'), 'M월 d일', { locale: ko })}의 기록`
+                  )}
+                </h3>
+                <p className="text-slate-400 text-sm leading-relaxed">
+                  {isToday
+                    ? 'AI가 오늘 하루에 대해 물어볼게요.\n편하게 대화하다 보면 일기가 자연스럽게 완성돼요.'
+                    : '이 날의 기억을 되살려 볼까요?\nAI와 함께 그날의 이야기를 기록해보세요.'}
+                </p>
+              </div>
+
+              {/* CTA Button */}
+              <motion.button
+                whileHover={{ scale: 1.04 }}
+                whileTap={{ scale: 0.96 }}
+                onClick={handleStartDiary}
+                className="flex items-center gap-2.5 px-8 py-3.5 bg-gradient-to-r from-bridge-accent to-purple-500 text-white font-bold rounded-xl shadow-lg shadow-bridge-accent/25 transition-shadow hover:shadow-bridge-accent/40"
+              >
+                <Sparkles size={18} />
+                {isToday ? '오늘의 일기 시작하기' : '일기 작성하기'}
+              </motion.button>
+
+              {/* Subtle hint */}
+              <p className="text-[11px] text-slate-600 mt-1">
+                보통 3~5분이면 하루를 정리할 수 있어요
+              </p>
+            </motion.div>
           </div>
         ) : diary.status === 'COMPLETED' ? (
           /* Completed Diary View */
@@ -245,7 +457,7 @@ export function PersonalDiary() {
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h2 className="text-2xl font-bold font-serif text-white mb-1">
-                    {diary.title || `${formatDate(diary.diary_date)}'s Diary`}
+                    {diary.title || `${formatDate(diary.diary_date)}의 일기`}
                   </h2>
                   {diary.mood && (
                     <span className="text-lg">
@@ -258,13 +470,13 @@ export function PersonalDiary() {
                   className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-400 border border-white/10 rounded-xl hover:text-white hover:bg-white/5 transition-all"
                 >
                   <RotateCcw size={14} />
-                  Continue
+                  이어서 쓰기
                 </button>
               </div>
 
               <div className="bg-bridge-obsidian/60 rounded-2xl border border-white/5 p-6">
                 <div className="prose prose-invert max-w-none text-slate-300 leading-relaxed whitespace-pre-wrap">
-                  {diary.content || 'No content yet.'}
+                  {diary.content || '아직 내용이 없습니다.'}
                 </div>
               </div>
 
@@ -272,7 +484,7 @@ export function PersonalDiary() {
               {diary.messages && diary.messages.length > 0 && (
                 <div className="mt-8">
                   <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-4">
-                    Conversation
+                    대화 기록
                   </h3>
                   <div className="space-y-3">
                     {diary.messages.map((msg) => (
@@ -282,6 +494,26 @@ export function PersonalDiary() {
                 </div>
               )}
             </div>
+          </div>
+        ) : isCompleting ? (
+          /* AI Generating Diary Content */
+          <div className="flex-1 flex flex-col items-center justify-center gap-5 p-8">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="flex flex-col items-center gap-4"
+            >
+              <div className="relative">
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-bridge-accent/20 via-purple-500/15 to-bridge-secondary/20 border border-white/10 flex items-center justify-center">
+                  <Sparkles size={28} className="text-bridge-accent animate-pulse" />
+                </div>
+                <div className="absolute inset-0 w-16 h-16 rounded-full border-2 border-bridge-accent/30 border-t-bridge-accent animate-spin" />
+              </div>
+              <div className="text-center">
+                <h3 className="text-lg font-bold text-white mb-1">일기를 정리하고 있어요</h3>
+                <p className="text-slate-400 text-sm">대화 내용을 바탕으로 오늘의 일기를 작성 중...</p>
+              </div>
+            </motion.div>
           </div>
         ) : (
           /* Chatting Mode */
@@ -315,18 +547,19 @@ export function PersonalDiary() {
             </div>
 
             {/* Complete Button + Mood Selector */}
-            {diary.messages && diary.messages.filter((m) => m.role === 'USER').length >= 2 && (
+            {diary.messages && diary.messages.filter((m) => m.role === 'USER').length >= 5 && (
               <div className="border-t border-white/[0.06] px-6 py-3">
                 <div className="max-w-2xl mx-auto">
                   <div className="flex items-center gap-3 flex-wrap">
                     <span className="text-[11px] font-bold uppercase tracking-widest text-slate-500">
-                      Complete with mood:
+                      오늘의 기분:
                     </span>
                     {MOODS.map((mood) => (
                       <button
                         key={mood.value}
                         onClick={() => handleCompleteDiary(mood.value)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 border border-white/10 rounded-full text-xs hover:bg-white/10 hover:border-white/20 transition-all"
+                        disabled={isCompleting}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 border border-white/10 rounded-full text-xs hover:bg-white/10 hover:border-white/20 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
                         title={mood.label}
                       >
                         <span>{mood.emoji}</span>
@@ -335,10 +568,11 @@ export function PersonalDiary() {
                     ))}
                     <button
                       onClick={() => handleCompleteDiary()}
-                      className="flex items-center gap-1.5 px-4 py-1.5 bg-bridge-secondary/20 border border-bridge-secondary/30 text-bridge-secondary rounded-full text-xs font-bold hover:bg-bridge-secondary/30 transition-all"
+                      disabled={isCompleting}
+                      className="flex items-center gap-1.5 px-4 py-1.5 bg-bridge-secondary/20 border border-bridge-secondary/30 text-bridge-secondary rounded-full text-xs font-bold hover:bg-bridge-secondary/30 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
                     >
                       <Check size={14} />
-                      Complete
+                      일기 완성
                     </button>
                   </div>
                 </div>
@@ -358,7 +592,7 @@ export function PersonalDiary() {
                       handleSendMessage();
                     }
                   }}
-                  placeholder="Tell me about your day..."
+                  placeholder="오늘 하루를 이야기해주세요..."
                   className="flex-1 bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
                   disabled={isSending}
                 />

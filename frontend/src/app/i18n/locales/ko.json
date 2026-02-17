@@ -258,7 +258,29 @@
       "upgradePro": "프리미엄 업그레이드",
       "upgradeDesc": "무제한 보드와 고급 통계 기능을 사용해보세요.",
       "viewPlans": "플랜 보기"
-    }
+    },
+    "searchPlaceholder": "프로젝트 검색...",
+    "logout": "로그아웃",
+    "mySpace": "마이 스페이스",
+    "mySpaceDesc": "개인 일정 & AI 다이어리",
+    "yourProjects": "내 프로젝트",
+    "managingWorkspaces": "{{count}}개의 활성 워크스페이스 관리 중",
+    "createNewBoard": "새 보드 만들기",
+    "noSearchResult": "\"{{query}}\"에 해당하는 보드가 없습니다",
+    "clearSearch": "검색 초기화",
+    "starredBoards": "즐겨찾기",
+    "workspaceBoards": "워크스페이스 보드",
+    "testBoard": "테스트 보드",
+    "trialPlan": "체험판",
+    "noDescription": "설명 없음",
+    "tasksProgress": "태스크 진행률",
+    "memberCount": "{{count}}명",
+    "newBoard": "새 보드",
+    "boardName": "보드 이름",
+    "description": "설명",
+    "backgroundColor": "배경 색상",
+    "cancel": "취소",
+    "createBoard": "보드 생성"
   },
   "share": {
     "title": "보드 공유",
@@ -1778,7 +1800,13 @@
       "totalBoards": "전체 보드",
       "activeSubscriptions": "활성 구독",
       "active": "활성: {{count}}",
-      "tierDistribution": "보드 티어 분포"
+      "tierDistribution": "보드 티어 분포",
+      "personalBoardMetrics": "Personal Board",
+      "personalBoards": "개인 보드",
+      "adoptionRate": "채택률",
+      "activePersonalBoards": "활성 (30일)",
+      "totalDiaryEntries": "일기 수",
+      "boardTypeDistribution": "보드 유형 분포"
     },
     "analytics": {
       "title": "분석 / 리포트",
@@ -1869,7 +1897,11 @@
       "tasks": "태스크",
       "createdAt": "생성일",
       "view": "보기",
-      "viewBoard": "보드 열람"
+      "viewBoard": "보드 열람",
+      "type": "유형",
+      "allTypes": "전체 유형",
+      "typeTeam": "팀",
+      "typePersonal": "개인"
     },
     "boardDetail": {
       "title": "보드 상세",
@@ -1922,7 +1954,12 @@
       "deleting": "삭제 중...",
       "editName": "보드 이름 수정",
       "nameUpdateSuccess": "보드 이름이 변경되었습니다.",
-      "nameUpdateFailed": "보드 이름 변경에 실패했습니다."
+      "nameUpdateFailed": "보드 이름 변경에 실패했습니다.",
+      "personalActivity": "개인 활동",
+      "diaryEntries": "일기",
+      "completionRate": "{{rate}}% 완료",
+      "events": "일정",
+      "lastActivity": "마지막 활동"
     },
     "users": {
       "title": "사용자 관리",
@@ -1933,6 +1970,7 @@
       "role": "역할",
       "provider": "가입방식",
       "boards": "보드",
+      "personalBoard": "PB",
       "joinedAt": "가입일"
     },
     "userDetail": {
@@ -1983,7 +2021,14 @@
       "confirmRemoveFromBoard": "{{name}}님을 \"{{board}}\" 보드에서 내보내시겠습니까?",
       "removedFromBoard": "보드에서 내보냈습니다.",
       "removeFromBoardFailed": "보드에서 내보내기에 실패했습니다.",
-      "cannotRemoveOwner": "보드 Owner는 내보낼 수 없습니다."
+      "cannotRemoveOwner": "보드 Owner는 내보낼 수 없습니다.",
+      "personalBoard": "Personal Board",
+      "pbTasks": "태스크",
+      "pbDiary": "일기",
+      "pbEvents": "일정",
+      "pbCreatedAt": "생성일",
+      "noPersonalBoard": "아직 개인 보드가 생성되지 않았습니다",
+      "createPersonalBoard": "생성"
     },
     "inquiries": {
       "title": "문의 관리",

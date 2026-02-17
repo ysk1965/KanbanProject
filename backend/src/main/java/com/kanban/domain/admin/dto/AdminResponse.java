@@ -46,8 +46,13 @@ public class AdminResponse {
         private Boolean isActive;
         private LocalDateTime deactivatedAt;
         private String deactivatedReason;
+        private Boolean hasPersonalBoard;
 
         public static UserSummary of(User user, int boardCount) {
+            return of(user, boardCount, null);
+        }
+
+        public static UserSummary of(User user, int boardCount, Boolean hasPersonalBoard) {
             return UserSummary.builder()
                     .id(user.getId())
                     .email(user.getEmail())
@@ -62,6 +67,7 @@ public class AdminResponse {
                     .isActive(user.getIsActive())
                     .deactivatedAt(user.getDeactivatedAt())
                     .deactivatedReason(user.getDeactivatedReason())
+                    .hasPersonalBoard(hasPersonalBoard)
                     .build();
         }
     }
@@ -86,6 +92,13 @@ public class AdminResponse {
         private LocalDateTime deactivatedAt;
         private String deactivatedReason;
         private List<BoardSummary> boards;
+        // Personal Board fields
+        private Boolean hasPersonalBoard;
+        private String personalBoardId;
+        private LocalDateTime personalBoardCreatedAt;
+        private Integer personalBoardTaskCount;
+        private Long personalBoardDiaryCount;
+        private Long personalBoardEventCount;
 
         public static UserDetail of(User user, int boardCount, List<BoardSummary> boards) {
             return UserDetail.builder()
@@ -105,6 +118,35 @@ public class AdminResponse {
                     .deactivatedAt(user.getDeactivatedAt())
                     .deactivatedReason(user.getDeactivatedReason())
                     .boards(boards)
+                    .hasPersonalBoard(false)
+                    .build();
+        }
+
+        public static UserDetail of(User user, int boardCount, List<BoardSummary> boards,
+                                     Board personalBoard, int pbTaskCount, long pbDiaryCount, long pbEventCount) {
+            return UserDetail.builder()
+                    .id(user.getId())
+                    .email(user.getEmail())
+                    .name(user.getName())
+                    .profileImage(user.getProfileImage())
+                    .emailVerified(user.getEmailVerified())
+                    .authProvider(user.getAuthProvider())
+                    .authProviderId(user.getAuthProviderId())
+                    .systemRole(user.getSystemRole() != null ? user.getSystemRole() : SystemRole.USER)
+                    .boardCount(boardCount)
+                    .lastLoginAt(user.getLastLoginAt())
+                    .createdAt(user.getCreatedAt())
+                    .emailVerifiedAt(user.getEmailVerifiedAt())
+                    .isActive(user.getIsActive())
+                    .deactivatedAt(user.getDeactivatedAt())
+                    .deactivatedReason(user.getDeactivatedReason())
+                    .boards(boards)
+                    .hasPersonalBoard(true)
+                    .personalBoardId(personalBoard.getId())
+                    .personalBoardCreatedAt(personalBoard.getCreatedAt())
+                    .personalBoardTaskCount(pbTaskCount)
+                    .personalBoardDiaryCount(pbDiaryCount)
+                    .personalBoardEventCount(pbEventCount)
                     .build();
         }
     }
@@ -128,6 +170,7 @@ public class AdminResponse {
         private String description;
         private OwnerInfo owner;
         private BoardTier tier;
+        private String boardType;
         private int memberCount;
         private int taskCount;
         private SubscriptionStatus subscriptionStatus;
@@ -141,6 +184,7 @@ public class AdminResponse {
                     .description(board.getDescription())
                     .owner(OwnerInfo.of(board.getOwner()))
                     .tier(board.getTier())
+                    .boardType(board.getBoardType() != null ? board.getBoardType().name() : "TEAM")
                     .memberCount(memberCount)
                     .taskCount(taskCount)
                     .subscriptionStatus(subscription != null ? subscription.getStatus() : null)
@@ -159,6 +203,7 @@ public class AdminResponse {
         private String description;
         private OwnerInfo owner;
         private BoardTier tier;
+        private String boardType;
         private int memberCount;
         private int taskCount;
         private SubscriptionStatus subscriptionStatus;
@@ -171,6 +216,11 @@ public class AdminResponse {
         private Integer monthlyCreditsUsed;
         private Integer purchasedCredits;
         private LocalDateTime creditsResetDate;
+        // Personal Board fields
+        private Long diaryCount;
+        private Double diaryCompletionRate;
+        private Long personalEventCount;
+        private LocalDateTime lastActivityAt;
 
         public static BoardDetail of(Board board, int memberCount, int taskCount,
                                      Subscription subscription, List<MemberInfo> members) {
@@ -180,6 +230,7 @@ public class AdminResponse {
                     .description(board.getDescription())
                     .owner(OwnerInfo.of(board.getOwner()))
                     .tier(board.getTier())
+                    .boardType(board.getBoardType() != null ? board.getBoardType().name() : "TEAM")
                     .memberCount(memberCount)
                     .taskCount(taskCount)
                     .subscriptionStatus(subscription != null ? subscription.getStatus() : null)
@@ -191,6 +242,35 @@ public class AdminResponse {
                     .monthlyCreditsUsed(subscription != null ? subscription.getMonthlyCreditsUsed() : null)
                     .purchasedCredits(subscription != null ? subscription.getPurchasedCredits() : null)
                     .creditsResetDate(subscription != null ? subscription.getCreditsResetDate() : null)
+                    .build();
+        }
+
+        public static BoardDetail ofPersonal(Board board, int memberCount, int taskCount,
+                                             Subscription subscription, List<MemberInfo> members,
+                                             Long diaryCount, Double diaryCompletionRate,
+                                             Long personalEventCount, LocalDateTime lastActivityAt) {
+            return BoardDetail.builder()
+                    .id(board.getId())
+                    .name(board.getName())
+                    .description(board.getDescription())
+                    .owner(OwnerInfo.of(board.getOwner()))
+                    .tier(board.getTier())
+                    .boardType("PERSONAL")
+                    .memberCount(memberCount)
+                    .taskCount(taskCount)
+                    .subscriptionStatus(subscription != null ? subscription.getStatus() : null)
+                    .seatCount(subscription != null ? subscription.getSeatCount() : null)
+                    .trialEndsAt(board.getTrialEndsAt())
+                    .createdAt(board.getCreatedAt())
+                    .members(members)
+                    .monthlyAiCredits(subscription != null ? subscription.getMonthlyAiCredits() : null)
+                    .monthlyCreditsUsed(subscription != null ? subscription.getMonthlyCreditsUsed() : null)
+                    .purchasedCredits(subscription != null ? subscription.getPurchasedCredits() : null)
+                    .creditsResetDate(subscription != null ? subscription.getCreditsResetDate() : null)
+                    .diaryCount(diaryCount)
+                    .diaryCompletionRate(diaryCompletionRate)
+                    .personalEventCount(personalEventCount)
+                    .lastActivityAt(lastActivityAt)
                     .build();
         }
     }
@@ -249,6 +329,11 @@ public class AdminResponse {
         private long standardBoards;
         private long premiumBoards;
         private long activeSubscriptions;
+        // Personal Board metrics
+        private long personalBoards;
+        private double personalBoardAdoption;
+        private long activePersonalBoards;
+        private long totalDiaryEntries;
     }
 
     @Getter
@@ -352,6 +437,53 @@ public class AdminResponse {
                     .createdAt(subscription.getCreatedAt())
                     .build();
         }
+    }
+
+    // ==================== Personal Board Analytics DTOs ====================
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class PersonalBoardStats {
+        private long totalPersonalBoards;
+        private double adoptionRate;
+        private List<DailyCount> trend;
+
+        @Getter
+        @Builder
+        @AllArgsConstructor
+        public static class DailyCount {
+            private String date;
+            private long count;
+        }
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class DiaryStats {
+        private long totalEntries;
+        private double completionRate;
+        private long activeUsers;
+        private List<DailyDiaryData> trend;
+
+        @Getter
+        @Builder
+        @AllArgsConstructor
+        public static class DailyDiaryData {
+            private String date;
+            private long count;
+        }
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class PersonalConversionStats {
+        private long personalOnly;
+        private long both;
+        private double conversionRate;
+        private List<PersonalBoardStats.DailyCount> trend;
     }
 
     // ==================== Announcement ====================

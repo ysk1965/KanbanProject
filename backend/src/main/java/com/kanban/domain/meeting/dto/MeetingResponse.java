@@ -28,6 +28,8 @@ public class MeetingResponse {
         private String recurrenceRule;
         private String recurrenceGroupId;
         private LocalDate recurrenceEndDate;
+        private String recurrenceDaysOfWeek;
+        private Integer recurrenceWeekOfMonth;
         private UserInfo createdBy;
         private List<ParticipantInfo> participants;
         private MeetingAIResponse.Suggestions aiSuggestions;
@@ -48,6 +50,8 @@ public class MeetingResponse {
                     .recurrenceRule(meeting.getRecurrenceRule())
                     .recurrenceGroupId(meeting.getRecurrenceGroupId())
                     .recurrenceEndDate(meeting.getRecurrenceEndDate())
+                    .recurrenceDaysOfWeek(meeting.getRecurrenceDaysOfWeek())
+                    .recurrenceWeekOfMonth(meeting.getRecurrenceWeekOfMonth())
                     .createdBy(UserInfo.of(meeting.getCreatedBy()))
                     .participants(participants.stream().map(ParticipantInfo::of).toList())
                     .aiSuggestions(aiSuggestions)
@@ -78,6 +82,8 @@ public class MeetingResponse {
         private int participantCount;
         private String recurrenceRule;
         private String recurrenceGroupId;
+        private String recurrenceDaysOfWeek;
+        private Integer recurrenceWeekOfMonth;
 
         public static Summary of(Meeting meeting, int participantCount) {
             return Summary.builder()
@@ -90,6 +96,8 @@ public class MeetingResponse {
                     .participantCount(participantCount)
                     .recurrenceRule(meeting.getRecurrenceRule())
                     .recurrenceGroupId(meeting.getRecurrenceGroupId())
+                    .recurrenceDaysOfWeek(meeting.getRecurrenceDaysOfWeek())
+                    .recurrenceWeekOfMonth(meeting.getRecurrenceWeekOfMonth())
                     .build();
         }
     }

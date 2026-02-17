@@ -258,7 +258,29 @@
       "upgradePro": "升级 Pro",
       "upgradeDesc": "试用无限看板和高级分析功能。",
       "viewPlans": "查看方案"
-    }
+    },
+    "searchPlaceholder": "搜索项目...",
+    "logout": "退出登录",
+    "mySpace": "我的空间",
+    "mySpaceDesc": "个人日程 & AI日记",
+    "yourProjects": "我的项目",
+    "managingWorkspaces": "正在管理 {{count}} 个活跃工作区",
+    "createNewBoard": "创建新看板",
+    "noSearchResult": "未找到与「{{query}}」相关的看板",
+    "clearSearch": "清除搜索",
+    "starredBoards": "收藏看板",
+    "workspaceBoards": "工作区看板",
+    "testBoard": "测试看板",
+    "trialPlan": "试用版",
+    "noDescription": "暂无描述",
+    "tasksProgress": "任务进度",
+    "memberCount": "{{count}} 名成员",
+    "newBoard": "新建看板",
+    "boardName": "看板名称",
+    "description": "描述",
+    "backgroundColor": "背景颜色",
+    "cancel": "取消",
+    "createBoard": "创建看板"
   },
   "share": {
     "title": "共享看板",
@@ -1240,7 +1262,13 @@
       "totalBoards": "总看板数",
       "activeSubscriptions": "活跃订阅",
       "active": "活跃：{{count}}",
-      "tierDistribution": "看板等级分布"
+      "tierDistribution": "看板等级分布",
+      "personalBoardMetrics": "个人看板",
+      "personalBoards": "个人看板",
+      "adoptionRate": "采用率",
+      "activePersonalBoards": "活跃 (30天)",
+      "totalDiaryEntries": "日记数",
+      "boardTypeDistribution": "看板类型分布"
     },
     "analytics": {
       "title": "分析 / 报告",
@@ -1331,7 +1359,11 @@
       "tasks": "Task",
       "createdAt": "创建时间",
       "view": "查看",
-      "viewBoard": "查看看板"
+      "viewBoard": "查看看板",
+      "type": "类型",
+      "allTypes": "所有类型",
+      "typeTeam": "团队",
+      "typePersonal": "个人"
     },
     "boardDetail": {
       "title": "看板详情",
@@ -1384,7 +1416,12 @@
       "seatCount": "座位数",
       "seatCountUpdateFailed": "更改座位数失败。",
       "seatCountUpdateSuccess": "座位数已更改为{{count}}个。",
-      "updateSeatCount": "更改座位数"
+      "updateSeatCount": "更改座位数",
+      "personalActivity": "个人活动",
+      "diaryEntries": "日记",
+      "completionRate": "{{rate}}% 完成",
+      "events": "日程",
+      "lastActivity": "最近活动"
     },
     "users": {
       "title": "用户管理",

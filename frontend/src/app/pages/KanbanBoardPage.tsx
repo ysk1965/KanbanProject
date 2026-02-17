@@ -207,6 +207,8 @@ export function KanbanBoardPage() {
   const [expandedChecklistTaskIds, setExpandedChecklistTaskIds] = useState<Set<string>>(new Set());
   // Feature 서브태스크 펼침 상태
   const [expandedFeatureIds, setExpandedFeatureIds] = useState<Set<string>>(new Set());
+  // 방금 Done으로 이동된 태스크 ID (완료 애니메이션용)
+  const [recentlyCompletedTaskIds, setRecentlyCompletedTaskIds] = useState<Set<string>>(new Set());
 
   // Alert Modal 상태
   const [alertModal, setAlertModal] = useState<{
@@ -1280,6 +1282,18 @@ export function KanbanBoardPage() {
     const isMovingToDone = doneBlock?.id === targetBlockId;
     const isNowCompleted = isMovingToDone;
 
+    // 완료 애니메이션 트리거
+    if (!wasInDone && isMovingToDone) {
+      setRecentlyCompletedTaskIds((prev) => new Set(prev).add(taskId));
+      setTimeout(() => {
+        setRecentlyCompletedTaskIds((prev) => {
+          const next = new Set(prev);
+          next.delete(taskId);
+          return next;
+        });
+      }, 1800);
+    }
+
     setTasks((prevTasks) =>
       prevTasks.map((t) =>
         t.id === taskId
@@ -1819,6 +1833,7 @@ export function KanbanBoardPage() {
                       showFeatureLabel={showFeatureLabel}
                       scheduledTaskIds={scheduledTaskIds}
                       onQuickAddTask={canEdit ? (blockId) => setQuickAddBlockId(blockId) : undefined}
+                      recentlyCompletedTaskIds={recentlyCompletedTaskIds}
                     />
 
                   {block.fixed_type === 'TASK' && (

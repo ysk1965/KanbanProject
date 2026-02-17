@@ -79,6 +79,7 @@ export function FeatureDetailModal({
   const [flyingTask, setFlyingTask] = useState<{ title: string; x: number; y: number } | null>(null);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [showAIDecompose, setShowAIDecompose] = useState(false);
+  const [dateCalendarOpen, setDateCalendarOpen] = useState(false);
   const [editingTaskTitle, setEditingTaskTitle] = useState('');
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const addBtnRef = useRef<HTMLButtonElement>(null);
@@ -383,7 +384,7 @@ export function FeatureDetailModal({
                   <Label className="text-[11px] font-bold uppercase tracking-widest text-slate-400">{t('featureDetail.dateRange')}</Label>
                 </div>
                 {canEdit ? (
-                  <Popover>
+                  <Popover open={dateCalendarOpen} onOpenChange={setDateCalendarOpen}>
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
@@ -427,15 +428,25 @@ export function FeatureDetailModal({
                         className="bg-bridge-obsidian text-foreground"
                       />
                       {(editedFeature.start_date || editedFeature.due_date) && (
-                        <div className="p-2 border-t border-white/10">
+                        <div className="p-2 border-t border-white/10 flex gap-2">
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="w-full text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                            className="flex-1 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10"
                             onClick={() => updateEditedFeature({ start_date: null, due_date: null })}
                           >
                             {t('featureDetail.removeDate')}
                           </Button>
+                          {editedFeature.start_date && editedFeature.due_date && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="flex-1 text-xs text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10 font-bold"
+                              onClick={() => setDateCalendarOpen(false)}
+                            >
+                              {t('common.confirm', '확인')}
+                            </Button>
+                          )}
                         </div>
                       )}
                     </PopoverContent>

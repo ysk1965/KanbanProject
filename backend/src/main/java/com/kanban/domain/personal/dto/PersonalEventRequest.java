@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.List;
 
 public class PersonalEventRequest {
 
@@ -27,6 +28,10 @@ public class PersonalEventRequest {
         private LocalTime endTime;
         private String color;
         private Boolean allDay;
+
+        private String recurrenceRule;
+        private LocalDate recurrenceEndDate;
+        private List<Integer> recurrenceDaysOfWeek;
     }
 
     @Getter

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, User as UserIcon, Mail, Shield, Calendar, Folder, CheckCircle, XCircle, Key, Image, Clock, Ban, UserCheck, KeyRound, MailCheck, AlertTriangle, Trash2, UserMinus } from 'lucide-react';
+import { X, User as UserIcon, Mail, Shield, Calendar, Folder, CheckCircle, XCircle, Key, Image, Clock, Ban, UserCheck, KeyRound, MailCheck, AlertTriangle, Trash2, UserMinus, BookOpen, CalendarDays, ListTodo, Plus } from 'lucide-react';
 import { adminService } from '../../utils/services';
 import { AdminUserDetail, AdminBoardSummary } from '../../utils/api';
 import { formatDateTime } from '../../utils/dateUtils';
@@ -368,6 +368,74 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
                       {t('admin.common.countItems', { count: user.member_board_count })}
                     </p>
                   </div>
+                </div>
+
+                {/* Personal Board Section */}
+                <div className="bg-purple-500/5 border border-purple-500/20 rounded-xl p-4">
+                  <h4 className="text-sm font-bold text-purple-400 mb-3 flex items-center gap-2">
+                    <UserIcon className="h-4 w-4" />
+                    {t('admin.userDetail.personalBoard', 'Personal Board')}
+                  </h4>
+                  {user.has_personal_board ? (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      <div className="bg-white/5 rounded-lg p-3">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">
+                          {t('admin.userDetail.pbTasks', 'Tasks')}
+                        </p>
+                        <p className="text-white text-sm flex items-center gap-2">
+                          <ListTodo className="h-3.5 w-3.5 text-purple-400" />
+                          {user.personal_board_task_count ?? 0}
+                        </p>
+                      </div>
+                      <div className="bg-white/5 rounded-lg p-3">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">
+                          {t('admin.userDetail.pbDiary', 'Diary')}
+                        </p>
+                        <p className="text-white text-sm flex items-center gap-2">
+                          <BookOpen className="h-3.5 w-3.5 text-purple-400" />
+                          {user.personal_board_diary_count ?? 0}
+                        </p>
+                      </div>
+                      <div className="bg-white/5 rounded-lg p-3">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">
+                          {t('admin.userDetail.pbEvents', 'Events')}
+                        </p>
+                        <p className="text-white text-sm flex items-center gap-2">
+                          <CalendarDays className="h-3.5 w-3.5 text-purple-400" />
+                          {user.personal_board_event_count ?? 0}
+                        </p>
+                      </div>
+                      <div className="bg-white/5 rounded-lg p-3">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">
+                          {t('admin.userDetail.pbCreatedAt', 'Created')}
+                        </p>
+                        <p className="text-white text-sm flex items-center gap-2">
+                          <Calendar className="h-3.5 w-3.5 text-purple-400" />
+                          {user.personal_board_created_at ? formatDateLocal(user.personal_board_created_at) : '-'}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between">
+                      <p className="text-slate-400 text-sm">{t('admin.userDetail.noPersonalBoard', 'No personal board created yet')}</p>
+                      <button
+                        onClick={async () => {
+                          try {
+                            await adminService.createPersonalBoard(user.id);
+                            onUpdate();
+                            loadUserDetail();
+                          } catch {
+                            // error handled silently
+                          }
+                        }}
+                        disabled={isUpdating}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-purple-400 bg-purple-500/10 border border-purple-500/30 rounded-lg hover:bg-purple-500/20 transition-colors disabled:opacity-50"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        {t('admin.userDetail.createPersonalBoard', 'Create')}
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* OAuth Provider Info */}

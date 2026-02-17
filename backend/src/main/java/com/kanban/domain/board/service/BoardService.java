@@ -134,6 +134,63 @@ public class BoardService {
         blockRepository.save(doneBlock);
     }
 
+    /**
+     * Personal Board 생성 (1인 1개 제한)
+     */
+    @Transactional
+    public BoardResponse.Detail createPersonalBoard(String userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        if (boardRepository.existsByOwnerIdAndBoardType(userId, BoardType.PERSONAL)) {
+            throw new BusinessException(ErrorCode.PERSONAL_BOARD_ALREADY_EXISTS);
+        }
+
+        boolean skipBilling = user.getSystemRole() == SystemRole.TESTER
+                || user.getSystemRole() == SystemRole.ADMIN;
+
+        Board board = Board.builder()
+                .name("My Board")
+                .description("Personal workspace")
+                .owner(user)
+                .boardType(BoardType.PERSONAL)
+                .tier(skipBilling ? BoardTier.PREMIUM : BoardTier.TRIAL)
+                .build();
+        boardRepository.save(board);
+
+        BoardMember ownerMember = BoardMember.builder()
+                .board(board)
+                .user(user)
+                .role(BoardRole.OWNER)
+                .build();
+        boardMemberRepository.save(ownerMember);
+
+        createDefaultBlocks(board);
+
+        Subscription subscription = skipBilling
+                ? Subscription.createPremium(board)
+                : Subscription.createTrial(board);
+        subscriptionRepository.save(subscription);
+
+        log.info("Personal board created: {} for user: {}", board.getId(), userId);
+
+        return BoardResponse.Detail.of(board, BoardRole.OWNER, false, 1, subscription);
+    }
+
+    /**
+     * Personal Board 조회 (없으면 lazy 생성)
+     */
+    @Transactional
+    public BoardResponse.Detail ensurePersonalBoard(String userId) {
+        return boardRepository.findByOwnerIdAndBoardType(userId, BoardType.PERSONAL)
+                .map(board -> {
+                    boolean isStarred = userBoardStarRepository.existsByUserIdAndBoardId(userId, board.getId());
+                    Subscription subscription = subscriptionRepository.findByBoardId(board.getId()).orElse(null);
+                    return BoardResponse.Detail.of(board, BoardRole.OWNER, isStarred, 1, subscription);
+                })
+                .orElseGet(() -> createPersonalBoard(userId));
+    }
+
     public List<BoardResponse.Simple> getMyBoards(String userId) {
         List<BoardResponse.Simple> result = new ArrayList<>();
 
@@ -371,6 +428,17 @@ public class BoardService {
                     .isStarred(true)
                     .build();
         }
+    }
+
+    /**
+     * Personal Board에서 팀 전용 기능 접근 시 차단
+     */
+    public void checkTeamBoardOnly(String boardId) {
+        boardRepository.findById(boardId).ifPresent(board -> {
+            if (board.isPersonal()) {
+                throw new BusinessException(ErrorCode.PERSONAL_BOARD_NO_INVITE);
+            }
+        });
     }
 
     // 권한 확인 헬퍼 메서드

@@ -30,10 +30,18 @@ export interface AdminUser {
   board_count: number;
   last_login_at: string | null;
   created_at: string;
+  has_personal_board?: boolean;
 }
 
 export interface AdminUserDetail extends AdminUser {
   boards: AdminBoardSummary[];
+  // Personal Board fields
+  has_personal_board?: boolean;
+  personal_board_id?: string | null;
+  personal_board_created_at?: string | null;
+  personal_board_task_count?: number | null;
+  personal_board_diary_count?: number | null;
+  personal_board_event_count?: number | null;
 }
 
 export interface AdminBoardSummary {
@@ -42,6 +50,7 @@ export interface AdminBoardSummary {
   description: string | null;
   owner: { id: string; name: string; email: string; profile_image: string | null };
   tier: BoardTier;
+  board_type?: BoardType;
   member_count: number;
   task_count: number;
   subscription_status: SubscriptionStatus | null;
@@ -51,6 +60,11 @@ export interface AdminBoardSummary {
 
 export interface AdminBoardDetail extends AdminBoardSummary {
   members: { id: string; name: string; email: string; profile_image: string | null; role: BoardRole; joined_at: string }[];
+  // Personal Board fields
+  diary_count?: number | null;
+  diary_completion_rate?: number | null;
+  personal_event_count?: number | null;
+  last_activity_at?: string | null;
 }
 
 export interface AdminStatistics {
@@ -61,6 +75,11 @@ export interface AdminStatistics {
   standard_boards: number;
   premium_boards: number;
   active_subscriptions: number;
+  // Personal Board metrics (P1)
+  personal_boards?: number;
+  personal_board_adoption?: number;
+  active_personal_boards?: number;
+  total_diary_entries?: number;
 }
 
 export interface AdminSubscription {
@@ -84,6 +103,8 @@ export interface AdminSubscription {
 export type BoardRole = 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER';
 /** @deprecated Use BoardRole instead */
 export type Role = BoardRole;
+
+export type BoardType = 'TEAM' | 'PERSONAL';
 
 // ========================================
 // 구독 관련 타입
@@ -138,6 +159,7 @@ export interface Board {
   id: string;
   name: string;
   description?: string | null;
+  board_type?: BoardType;
   owner?: BoardOwner;
   role?: BoardRole;
   my_role?: BoardRole;
@@ -1765,6 +1787,10 @@ export interface PersonalEvent {
   end_time?: string | null;
   color: string;
   all_day: boolean;
+  recurrence_rule?: string | null;
+  recurrence_group_id?: string | null;
+  recurrence_end_date?: string | null;
+  recurrence_days_of_week?: string | null;
   created_at: string;
   updated_at?: string;
 }

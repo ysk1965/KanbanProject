@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, ChevronLeft, ChevronRight, Shield, User as UserIcon, Mail, Calendar } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Shield, User as UserIcon, Mail, Calendar, Check, Minus } from 'lucide-react';
 import { adminService } from '../../utils/services';
 import { UserListResponse } from '../../utils/api';
 import { AdminUserDetailModal } from './AdminUserDetailModal';
@@ -119,6 +119,9 @@ export function AdminUsersTab() {
                   <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
                     {t('admin.users.boards')}
                   </th>
+                  <th className="text-center px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                    {t('admin.users.personalBoard', 'PB')}
+                  </th>
                   <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
                     {t('admin.users.joinedAt')}
                   </th>
@@ -180,6 +183,13 @@ export function AdminUsersTab() {
                     </td>
                     <td className="px-3 py-3 md:px-6 md:py-4">
                       <span className="text-white">{user.board_count}</span>
+                    </td>
+                    <td className="px-3 py-3 md:px-6 md:py-4 text-center">
+                      {user.has_personal_board ? (
+                        <Check className="h-4 w-4 text-purple-400 mx-auto" />
+                      ) : (
+                        <Minus className="h-4 w-4 text-slate-600 mx-auto" />
+                      )}
                     </td>
                     <td className="px-3 py-3 md:px-6 md:py-4">
                       <span className="text-slate-400 flex items-center gap-1">

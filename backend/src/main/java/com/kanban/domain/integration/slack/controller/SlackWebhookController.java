@@ -1,5 +1,6 @@
 package com.kanban.domain.integration.slack.controller;
 
+import com.kanban.domain.board.service.BoardService;
 import com.kanban.domain.integration.slack.dto.SlackWebhookRequest;
 import com.kanban.domain.integration.slack.dto.SlackWebhookResponse;
 import com.kanban.domain.integration.slack.service.SlackWebhookService;
@@ -18,6 +19,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class SlackWebhookController {
 
+    private final BoardService boardService;
     private final SlackWebhookService slackWebhookService;
 
     @GetMapping("/statuses")
@@ -45,6 +47,7 @@ public class SlackWebhookController {
             @PathVariable String boardId,
             @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody SlackWebhookRequest.Upsert request) {
+        boardService.checkTeamBoardOnly(boardId);
         SlackWebhookResponse.Detail response = slackWebhookService.upsertMyWebhook(
                 boardId, principal.getUserId(), request);
         return ResponseEntity.ok(response);
@@ -54,6 +57,7 @@ public class SlackWebhookController {
     public ResponseEntity<Map<String, String>> deleteMyWebhook(
             @PathVariable String boardId,
             @AuthenticationPrincipal UserPrincipal principal) {
+        boardService.checkTeamBoardOnly(boardId);
         slackWebhookService.deleteMyWebhook(boardId, principal.getUserId());
         return ResponseEntity.ok(Map.of("message", "Slack 웹훅이 삭제되었습니다"));
     }

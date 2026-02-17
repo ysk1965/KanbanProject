@@ -1,5 +1,6 @@
 package com.kanban.domain.invite.controller;
 
+import com.kanban.domain.board.service.BoardService;
 import com.kanban.domain.invite.dto.InviteRequest;
 import com.kanban.domain.invite.dto.InviteResponse;
 import com.kanban.domain.invite.service.InviteService;
@@ -16,6 +17,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class InviteController {
 
+    private final BoardService boardService;
     private final InviteService inviteService;
 
     // Board 내 초대 링크 관리 API
@@ -32,6 +34,7 @@ public class InviteController {
             @PathVariable String boardId,
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestBody InviteRequest.Create request) {
+        boardService.checkTeamBoardOnly(boardId);
         InviteResponse.Detail response = inviteService.createInviteLink(boardId, principal.getUserId(), request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -41,6 +44,7 @@ public class InviteController {
             @PathVariable String boardId,
             @PathVariable String inviteId,
             @AuthenticationPrincipal UserPrincipal principal) {
+        boardService.checkTeamBoardOnly(boardId);
         inviteService.deleteInviteLink(boardId, inviteId, principal.getUserId());
         return ResponseEntity.ok(Map.of("message", "초대 링크가 비활성화되었습니다"));
     }

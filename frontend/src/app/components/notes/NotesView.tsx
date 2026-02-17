@@ -187,55 +187,55 @@ export function NotesView({ boardId, currentUserRole }: NotesViewProps) {
   const sidebarContent = (
     <>
       {/* Sidebar Header */}
-      <div className="p-3 border-b border-white/5 flex-shrink-0">
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
-            <FileText size={14} className="text-bridge-accent" />
+      <div className="p-4 border-b border-white/5 flex-shrink-0">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-base font-bold text-white flex items-center gap-2">
+            <FileText size={18} className="text-bridge-accent" />
             {t('notes.title', '노트')}
           </h3>
-          <div className="flex items-center gap-0.5">
+          <div className="flex items-center gap-1">
             <button
               onClick={() => setViewType('tree')}
-              className={`p-1 rounded transition-colors ${viewType === 'tree' ? 'text-bridge-accent bg-bridge-accent/10' : 'text-slate-400 hover:text-white'}`}
+              className={`p-1.5 rounded transition-colors ${viewType === 'tree' ? 'text-bridge-accent bg-bridge-accent/10' : 'text-slate-400 hover:text-white'}`}
               title={t('notes.treeView', '트리 뷰')}
             >
-              <FolderTree size={14} />
+              <FolderTree size={16} />
             </button>
             <button
               onClick={() => setViewType('list')}
-              className={`p-1 rounded transition-colors ${viewType === 'list' ? 'text-bridge-accent bg-bridge-accent/10' : 'text-slate-400 hover:text-white'}`}
+              className={`p-1.5 rounded transition-colors ${viewType === 'list' ? 'text-bridge-accent bg-bridge-accent/10' : 'text-slate-400 hover:text-white'}`}
               title={t('notes.listView', '리스트 뷰')}
             >
-              <List size={14} />
+              <List size={16} />
             </button>
           </div>
         </div>
         {/* Search */}
         <div className="relative">
-          <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={t('notes.searchPlaceholder', '검색...')}
-            className="w-full bg-white/5 border border-white/10 rounded-lg py-1.5 pl-7 pr-3 text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-bridge-accent/50 transition-all"
+            className="w-full bg-white/5 border border-white/10 rounded-lg py-2 pl-9 pr-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-bridge-accent/50 transition-all"
           />
         </div>
         {/* Create Actions */}
         {canEdit && (
-          <div className="flex gap-1 mt-2">
+          <div className="flex gap-1.5 mt-3">
             <button
               onClick={() => handleCreateDocument(null)}
-              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+              className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
             >
-              <FilePlus size={12} />
+              <FilePlus size={15} />
               {t('notes.newDocument', '새 문서')}
             </button>
             <button
               onClick={() => handleCreateFolder(null)}
-              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+              className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
             >
-              <FolderPlus size={12} />
+              <FolderPlus size={15} />
               {t('notes.newFolder', '새 폴더')}
             </button>
           </div>
@@ -243,7 +243,7 @@ export function NotesView({ boardId, currentUserRole }: NotesViewProps) {
       </div>
 
       {/* Tree or List Content */}
-      <div className="flex-1 overflow-y-auto p-2">
+      <div className="flex-1 overflow-y-auto p-3">
         {viewType === 'tree' ? (
           <NoteTreeSidebar
             tree={tree}
@@ -273,7 +273,7 @@ export function NotesView({ boardId, currentUserRole }: NotesViewProps) {
   return (
     <div className="flex h-full overflow-hidden">
       {/* Desktop Sidebar */}
-      <div className="hidden md:flex w-64 flex-shrink-0 border-r border-white/5 bg-bridge-dark flex-col">
+      <div className="hidden md:flex w-[340px] flex-shrink-0 border-r border-white/5 bg-bridge-dark flex-col">
         {sidebarContent}
       </div>
 

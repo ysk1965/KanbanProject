@@ -31,6 +31,13 @@ public class BoardController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
+    @GetMapping("/personal")
+    public ResponseEntity<BoardResponse.Detail> getPersonalBoard(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        BoardResponse.Detail response = boardService.ensurePersonalBoard(principal.getUserId());
+        return ResponseEntity.ok(response);
+    }
+
     @GetMapping
     public ResponseEntity<List<BoardResponse.Simple>> getMyBoards(
             @AuthenticationPrincipal UserPrincipal principal) {

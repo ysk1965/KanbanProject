@@ -4,6 +4,7 @@ import com.kanban.domain.auth.dto.GoogleAuthRequest;
 import com.kanban.domain.auth.dto.LoginRequest;
 import com.kanban.domain.auth.dto.SignupRequest;
 import com.kanban.domain.auth.dto.TokenResponse;
+import com.kanban.domain.board.service.BoardService;
 import com.kanban.domain.user.EmailVerificationToken;
 import com.kanban.domain.user.EmailVerificationTokenRepository;
 import com.kanban.domain.user.PasswordResetToken;
@@ -41,6 +42,7 @@ public class AuthService {
     private final JwtProvider jwtProvider;
     private final GoogleAuthService googleAuthService;
     private final EmailService emailService;
+    private final BoardService boardService;
 
     private static final int EMAIL_VERIFICATION_EXPIRATION_HOURS = 24;
     private static final int PASSWORD_RESET_EXPIRATION_HOURS = 1;
@@ -67,6 +69,13 @@ public class AuthService {
 
         userRepository.saveAndFlush(user);
         log.info("New user created: {}", user.getEmail());
+
+        // Personal Board 자동 생성
+        try {
+            boardService.createPersonalBoard(user.getId());
+        } catch (Exception e) {
+            log.warn("Failed to create personal board for user {}: {}", user.getId(), e.getMessage());
+        }
 
         // 이메일 인증 토큰 생성 및 발송
         EmailVerificationToken verificationToken = EmailVerificationToken.create(user, EMAIL_VERIFICATION_EXPIRATION_HOURS);
@@ -202,6 +211,13 @@ public class AuthService {
 
         userRepository.save(user);
         log.info("New Google user created: {}", user.getEmail());
+
+        // Personal Board 자동 생성
+        try {
+            boardService.createPersonalBoard(user.getId());
+        } catch (Exception e) {
+            log.warn("Failed to create personal board for user {}: {}", user.getId(), e.getMessage());
+        }
 
         return createTokenResponse(user);
     }

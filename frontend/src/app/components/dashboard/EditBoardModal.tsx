@@ -106,7 +106,7 @@ export function EditBoardModal({ isOpen, board, onClose, onUpdate, onDelete }: E
             {/* Board Name */}
             <div className="space-y-1.5">
               <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-                Board Name <span className="text-rose-500">*</span>
+                {t('dashboard.boardName')} <span className="text-rose-500">*</span>
               </label>
               <input
                 autoFocus
@@ -127,7 +127,7 @@ export function EditBoardModal({ isOpen, board, onClose, onUpdate, onDelete }: E
             {/* Description */}
             <div className="space-y-1.5">
               <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-                Description
+                {t('dashboard.description')}
               </label>
               <textarea
                 rows={3}

@@ -258,7 +258,29 @@
       "upgradePro": "Mejorar a Pro",
       "upgradeDesc": "Prueba tableros ilimitados y análisis avanzados.",
       "viewPlans": "Ver planes"
-    }
+    },
+    "searchPlaceholder": "Buscar proyectos...",
+    "logout": "Cerrar sesión",
+    "mySpace": "Mi espacio",
+    "mySpaceDesc": "Agenda personal y diario con IA",
+    "yourProjects": "Mis proyectos",
+    "managingWorkspaces": "Gestionando {{count}} espacios de trabajo activos",
+    "createNewBoard": "Crear nuevo tablero",
+    "noSearchResult": "No se encontraron tableros para \"{{query}}\"",
+    "clearSearch": "Limpiar búsqueda",
+    "starredBoards": "Tableros favoritos",
+    "workspaceBoards": "Tableros del espacio de trabajo",
+    "testBoard": "Tablero de prueba",
+    "trialPlan": "Prueba",
+    "noDescription": "Sin descripción",
+    "tasksProgress": "Progreso de tareas",
+    "memberCount": "{{count}} miembros",
+    "newBoard": "Nuevo tablero",
+    "boardName": "Nombre del tablero",
+    "description": "Descripción",
+    "backgroundColor": "Color de fondo",
+    "cancel": "Cancelar",
+    "createBoard": "Crear tablero"
   },
   "share": {
     "title": "Compartir tablero",
@@ -1240,7 +1262,13 @@
       "totalBoards": "Total de tableros",
       "activeSubscriptions": "Suscripciones activas",
       "active": "Activas: {{count}}",
-      "tierDistribution": "Distribución de niveles de tableros"
+      "tierDistribution": "Distribución de niveles de tableros",
+      "personalBoardMetrics": "Tablero Personal",
+      "personalBoards": "Tableros Personales",
+      "adoptionRate": "Tasa de Adopción",
+      "activePersonalBoards": "Activos (30d)",
+      "totalDiaryEntries": "Entradas de Diario",
+      "boardTypeDistribution": "Distribución de Tipos de Tablero"
     },
     "analytics": {
       "title": "Analítica / Informes",
@@ -1331,7 +1359,11 @@
       "tasks": "Tasks",
       "createdAt": "Creado",
       "view": "Ver",
-      "viewBoard": "Ver tablero"
+      "viewBoard": "Ver tablero",
+      "type": "Tipo",
+      "allTypes": "Todos los tipos",
+      "typeTeam": "Equipo",
+      "typePersonal": "Personal"
     },
     "boardDetail": {
       "title": "Detalle del tablero",
@@ -1384,7 +1416,12 @@
       "seatCount": "Puestos",
       "seatCountUpdateFailed": "Error al cambiar la cantidad de puestos.",
       "seatCountUpdateSuccess": "La cantidad de puestos se actualizó a {{count}}.",
-      "updateSeatCount": "Actualizar puestos"
+      "updateSeatCount": "Actualizar puestos",
+      "personalActivity": "Actividad Personal",
+      "diaryEntries": "Diario",
+      "completionRate": "{{rate}}% Completado",
+      "events": "Eventos",
+      "lastActivity": "Última Actividad"
     },
     "users": {
       "title": "Gestión de usuarios",

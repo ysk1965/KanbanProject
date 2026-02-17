@@ -258,7 +258,29 @@
       "upgradePro": "Pro में अपग्रेड करें",
       "upgradeDesc": "असीमित बोर्ड और उन्नत एनालिटिक्स आज़माएं।",
       "viewPlans": "प्लान देखें"
-    }
+    },
+    "searchPlaceholder": "प्रोजेक्ट खोजें...",
+    "logout": "लॉग आउट",
+    "mySpace": "मेरा स्पेस",
+    "mySpaceDesc": "व्यक्तिगत शेड्यूल & AI डायरी",
+    "yourProjects": "मेरे प्रोजेक्ट",
+    "managingWorkspaces": "{{count}} सक्रिय वर्कस्पेस का प्रबंधन",
+    "createNewBoard": "नया बोर्ड बनाएं",
+    "noSearchResult": "\"{{query}}\" के लिए कोई बोर्ड नहीं मिला",
+    "clearSearch": "खोज साफ़ करें",
+    "starredBoards": "तारांकित बोर्ड",
+    "workspaceBoards": "वर्कस्पेस बोर्ड",
+    "testBoard": "टेस्ट बोर्ड",
+    "trialPlan": "ट्रायल",
+    "noDescription": "कोई विवरण नहीं",
+    "tasksProgress": "कार्य प्रगति",
+    "memberCount": "{{count}} सदस्य",
+    "newBoard": "नया बोर्ड",
+    "boardName": "बोर्ड का नाम",
+    "description": "विवरण",
+    "backgroundColor": "पृष्ठभूमि रंग",
+    "cancel": "रद्द करें",
+    "createBoard": "बोर्ड बनाएं"
   },
   "share": {
     "title": "बोर्ड साझा करें",
@@ -1240,7 +1262,13 @@
       "totalBoards": "कुल बोर्ड",
       "activeSubscriptions": "सक्रिय सदस्यताएं",
       "active": "सक्रिय: {{count}}",
-      "tierDistribution": "बोर्ड टियर वितरण"
+      "tierDistribution": "बोर्ड टियर वितरण",
+      "personalBoardMetrics": "व्यक्तिगत बोर्ड",
+      "personalBoards": "व्यक्तिगत बोर्ड",
+      "adoptionRate": "अपनाने की दर",
+      "activePersonalBoards": "सक्रिय (30 दिन)",
+      "totalDiaryEntries": "डायरी प्रविष्टियाँ",
+      "boardTypeDistribution": "बोर्ड प्रकार वितरण"
     },
     "analytics": {
       "title": "विश्लेषण / रिपोर्ट",
@@ -1331,7 +1359,11 @@
       "tasks": "Tasks",
       "createdAt": "बनाया गया",
       "view": "देखें",
-      "viewBoard": "बोर्ड देखें"
+      "viewBoard": "बोर्ड देखें",
+      "type": "प्रकार",
+      "allTypes": "सभी प्रकार",
+      "typeTeam": "टीम",
+      "typePersonal": "व्यक्तिगत"
     },
     "boardDetail": {
       "title": "बोर्ड विवरण",
@@ -1384,7 +1416,12 @@
       "seatCount": "सीट",
       "seatCountUpdateFailed": "सीट संख्या बदलने में विफल।",
       "seatCountUpdateSuccess": "सीट संख्या {{count}} में अपडेट की गई।",
-      "updateSeatCount": "सीट संख्या अपडेट करें"
+      "updateSeatCount": "सीट संख्या अपडेट करें",
+      "personalActivity": "व्यक्तिगत गतिविधि",
+      "diaryEntries": "डायरी",
+      "completionRate": "{{rate}}% पूर्ण",
+      "events": "कार्यक्रम",
+      "lastActivity": "अंतिम गतिविधि"
     },
     "users": {
       "title": "उपयोगकर्ता प्रबंधन",

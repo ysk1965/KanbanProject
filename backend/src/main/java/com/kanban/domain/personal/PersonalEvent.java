@@ -11,7 +11,8 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "personal_events", indexes = {
-        @Index(name = "idx_personal_event_user_date", columnList = "user_id, event_date")
+        @Index(name = "idx_personal_event_user_date", columnList = "user_id, event_date"),
+        @Index(name = "idx_personal_event_recurrence_group", columnList = "recurrence_group_id")
 })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -50,11 +51,27 @@ public class PersonalEvent extends BaseTimeEntity {
     @Builder.Default
     private Boolean allDay = false;
 
+    @Column(name = "recurrence_rule", length = 20)
+    private String recurrenceRule;
+
+    @Column(name = "recurrence_group_id", length = 36)
+    private String recurrenceGroupId;
+
+    @Column(name = "recurrence_end_date")
+    private LocalDate recurrenceEndDate;
+
+    @Column(name = "recurrence_days_of_week", length = 20)
+    private String recurrenceDaysOfWeek;
+
     @PrePersist
     public void prePersist() {
         if (this.id == null) {
             this.id = UUID.randomUUID().toString();
         }
+    }
+
+    public boolean isRecurring() {
+        return this.recurrenceGroupId != null;
     }
 
     public void update(String title, String description, LocalDate eventDate,

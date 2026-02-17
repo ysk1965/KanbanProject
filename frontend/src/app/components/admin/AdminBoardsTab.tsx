@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, ChevronLeft, ChevronRight, Folder, Users, ListTodo, Calendar, Filter, Eye } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Folder, Users, User, ListTodo, Calendar, Filter, Eye } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { adminService } from '../../utils/services';
 import { BoardListResponse } from '../../utils/api';
@@ -18,11 +18,18 @@ export function AdminBoardsTab() {
     { value: 'PREMIUM', label: 'PREMIUM' },
     { value: 'ENTERPRISE', label: 'ENTERPRISE' },
   ];
+  const TYPE_OPTIONS = [
+    { value: '', label: t('admin.boards.allTypes', 'All Types') },
+    { value: 'TEAM', label: t('admin.boards.typeTeam', 'Team') },
+    { value: 'PERSONAL', label: t('admin.boards.typePersonal', 'Personal') },
+  ];
+
   const [boards, setBoards] = useState<BoardListResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [tierFilter, setTierFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
   const [page, setPage] = useState(0);
   const [selectedBoardId, setSelectedBoardId] = useState<string | null>(null);
 
@@ -35,6 +42,7 @@ export function AdminBoardsTab() {
         size: 20,
         search: search || undefined,
         tier: tierFilter || undefined,
+        board_type: typeFilter || undefined,
       });
       setBoards(data);
     } catch (err) {
@@ -43,7 +51,7 @@ export function AdminBoardsTab() {
     } finally {
       setIsLoading(false);
     }
-  }, [page, search, tierFilter]);
+  }, [page, search, tierFilter, typeFilter]);
 
   useEffect(() => {
     loadBoards();
@@ -131,6 +139,25 @@ export function AdminBoardsTab() {
             ))}
           </select>
         </div>
+        <div className="relative">
+          <select
+            value={typeFilter}
+            onChange={(e) => {
+              setTypeFilter(e.target.value);
+              setPage(0);
+            }}
+            className="bg-bridge-obsidian border border-white/20 rounded-xl py-3 pl-4 pr-8
+              text-white appearance-none cursor-pointer
+              focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent
+              transition-all"
+          >
+            {TYPE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value} className="bg-bridge-dark">
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* Error State */}
@@ -162,6 +189,9 @@ export function AdminBoardsTab() {
                 <tr className="border-b border-white/15">
                   <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
                     {t('admin.boards.board')}
+                  </th>
+                  <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                    {t('admin.boards.type', 'Type')}
                   </th>
                   <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
                     {t('admin.boards.owner')}
@@ -203,6 +233,22 @@ export function AdminBoardsTab() {
                           )}
                         </div>
                       </div>
+                    </td>
+                    <td className="px-3 py-3 md:px-6 md:py-4">
+                      <span
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${
+                          board.board_type === 'PERSONAL'
+                            ? 'bg-purple-500/20 text-purple-400'
+                            : 'bg-slate-500/20 text-slate-400'
+                        }`}
+                      >
+                        {board.board_type === 'PERSONAL' ? (
+                          <User className="h-3 w-3" />
+                        ) : (
+                          <Users className="h-3 w-3" />
+                        )}
+                        {board.board_type === 'PERSONAL' ? t('admin.boards.typePersonal', 'Personal') : t('admin.boards.typeTeam', 'Team')}
+                      </span>
                     </td>
                     <td className="px-3 py-3 md:px-6 md:py-4">
                       <div>

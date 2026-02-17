@@ -64,8 +64,9 @@ public class PersonalEventController {
     @DeleteMapping("/{eventId}")
     public ResponseEntity<Map<String, String>> deleteEvent(
             @AuthenticationPrincipal UserPrincipal principal,
-            @PathVariable String eventId) {
-        personalEventService.deleteEvent(principal.getUserId(), eventId);
+            @PathVariable String eventId,
+            @RequestParam(defaultValue = "THIS_ONLY") String scope) {
+        personalEventService.deleteEvent(principal.getUserId(), eventId, scope);
         return ResponseEntity.ok(Map.of("message", "일정이 삭제되었습니다"));
     }
 }

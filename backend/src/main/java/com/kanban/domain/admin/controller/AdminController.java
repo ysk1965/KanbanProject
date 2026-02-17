@@ -5,6 +5,7 @@ import com.kanban.domain.admin.dto.AdminResponse;
 import com.kanban.domain.admin.service.AdminService;
 import com.kanban.domain.announcement.AnnouncementType;
 import com.kanban.domain.board.BoardTier;
+import com.kanban.domain.board.BoardType;
 import com.kanban.domain.inquiry.InquiryStatus;
 import com.kanban.domain.inquiry.dto.InquiryRequest;
 import com.kanban.domain.inquiry.dto.InquiryResponse;
@@ -111,6 +112,15 @@ public class AdminController {
         return ResponseEntity.ok(Map.of("message", "비밀번호 재설정 메일이 발송되었습니다"));
     }
 
+    @PostMapping("/users/{userId}/create-personal-board")
+    public ResponseEntity<Map<String, String>> createPersonalBoardForUser(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable String userId) {
+        verifyAdminAccess(principal);
+        adminService.createPersonalBoardForUser(userId);
+        return ResponseEntity.ok(Map.of("message", "Personal Board가 생성되었습니다"));
+    }
+
     @DeleteMapping("/users/{userId}")
     public ResponseEntity<Map<String, String>> deleteUser(
             @AuthenticationPrincipal UserPrincipal principal,
@@ -138,9 +148,10 @@ public class AdminController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String search,
-            @RequestParam(required = false) BoardTier tier) {
+            @RequestParam(required = false) BoardTier tier,
+            @RequestParam(name = "board_type", required = false) BoardType boardType) {
         verifyAdminAccess(principal);
-        return ResponseEntity.ok(adminService.getBoards(page, size, search, tier));
+        return ResponseEntity.ok(adminService.getBoards(page, size, search, tier, boardType));
     }
 
     @GetMapping("/boards/{boardId}")
@@ -257,6 +268,32 @@ public class AdminController {
             @RequestParam(defaultValue = "365") @Min(1) @Max(730) int days) {
         verifyAdminAccess(principal);
         return ResponseEntity.ok(adminService.getConversionStats(days));
+    }
+
+    // ==================== Personal Board Analytics ====================
+
+    @GetMapping("/statistics/personal-boards")
+    public ResponseEntity<AdminResponse.PersonalBoardStats> getPersonalBoardStats(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(defaultValue = "30") @Min(1) @Max(365) int days) {
+        verifyAdminAccess(principal);
+        return ResponseEntity.ok(adminService.getPersonalBoardStats(days));
+    }
+
+    @GetMapping("/statistics/diary")
+    public ResponseEntity<AdminResponse.DiaryStats> getDiaryStats(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(defaultValue = "30") @Min(1) @Max(365) int days) {
+        verifyAdminAccess(principal);
+        return ResponseEntity.ok(adminService.getDiaryStats(days));
+    }
+
+    @GetMapping("/statistics/personal-conversion")
+    public ResponseEntity<AdminResponse.PersonalConversionStats> getPersonalConversionStats(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(defaultValue = "365") @Min(1) @Max(730) int days) {
+        verifyAdminAccess(principal);
+        return ResponseEntity.ok(adminService.getPersonalConversionStats(days));
     }
 
     // ==================== Subscriptions ====================

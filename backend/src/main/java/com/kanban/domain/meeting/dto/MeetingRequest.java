@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.List;
 
 public class MeetingRequest {
 
@@ -27,6 +28,8 @@ public class MeetingRequest {
         private String color;
         private String recurrenceRule;
         private LocalDate recurrenceEndDate;
+        private List<Integer> recurrenceDaysOfWeek;
+        private Integer recurrenceWeekOfMonth;
     }
 
     @Getter

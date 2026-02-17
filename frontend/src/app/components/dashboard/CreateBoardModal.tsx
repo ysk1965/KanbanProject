@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, Check } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
 
@@ -18,6 +19,7 @@ interface CreateBoardModalProps {
 }
 
 export function CreateBoardModal({ isOpen, onClose, onCreate }: CreateBoardModalProps) {
+  const { t } = useTranslation();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [selectedColor, setSelectedColor] = useState(GRADIENTS[0]);
@@ -66,7 +68,7 @@ export function CreateBoardModal({ isOpen, onClose, onCreate }: CreateBoardModal
             {/* Board Name */}
             <div className="space-y-1.5">
               <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-                Board Name <span className="text-rose-500">*</span>
+                {t('dashboard.boardName')} <span className="text-rose-500">*</span>
               </label>
               <input
                 autoFocus
@@ -87,13 +89,13 @@ export function CreateBoardModal({ isOpen, onClose, onCreate }: CreateBoardModal
             {/* Description */}
             <div className="space-y-1.5">
               <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-                Description
+                {t('dashboard.description')}
               </label>
               <textarea
                 rows={2}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="보드에 대한 간단한 설명 (선택)"
+                placeholder={t('board.boardDescPlaceholder')}
                 className="w-full bg-white/5 border border-white/20 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-bridge-accent focus:ring-2 focus:ring-bridge-accent/20 transition-all resize-none"
               />
             </div>
@@ -101,7 +103,7 @@ export function CreateBoardModal({ isOpen, onClose, onCreate }: CreateBoardModal
             {/* Background Color */}
             <div className="space-y-1.5">
               <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-                Background Color
+                {t('dashboard.backgroundColor')}
               </label>
               <div className="grid grid-cols-6 gap-3">
                 {GRADIENTS.map((color, i) => (
@@ -128,14 +130,14 @@ export function CreateBoardModal({ isOpen, onClose, onCreate }: CreateBoardModal
               onClick={handleClose}
               className="flex-1 py-3 text-sm font-bold text-slate-400 hover:text-white transition-colors"
             >
-              Cancel
+              {t('dashboard.cancel')}
             </button>
             <button
               disabled={!name.trim()}
               onClick={handleCreate}
               className="flex-[2] py-3 bg-gradient-to-r from-bridge-accent to-purple-500 text-sm font-bold rounded-xl shadow-lg shadow-bridge-accent/20 disabled:opacity-50 disabled:grayscale hover:shadow-bridge-accent/40 transition-all"
             >
-              Create Board
+              {t('dashboard.createBoard')}
             </button>
           </div>
         </div>

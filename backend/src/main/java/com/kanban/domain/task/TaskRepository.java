@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -44,6 +45,9 @@ public interface TaskRepository extends JpaRepository<Task, String> {
 
     @Query("SELECT t FROM Task t WHERE t.board.id = :boardId AND t.isCompleted = :isCompleted ORDER BY t.position ASC")
     List<Task> findByBoardIdAndIsCompleted(@Param("boardId") String boardId, @Param("isCompleted") Boolean isCompleted);
+
+    @Query("SELECT t FROM Task t WHERE t.board.id = :boardId AND t.dueDate = :date AND t.isCompleted = false ORDER BY t.position ASC")
+    List<Task> findByBoardIdAndDueDateAndNotCompleted(@Param("boardId") String boardId, @Param("date") LocalDate date);
 
     @Query("SELECT MAX(t.position) FROM Task t WHERE t.block.id = :blockId")
     Integer findMaxPositionByBlockId(@Param("blockId") String blockId);
@@ -114,6 +118,31 @@ public interface TaskRepository extends JpaRepository<Task, String> {
            "AND t.dueDate < CURRENT_DATE " +
            "ORDER BY t.dueDate ASC")
     List<Task> findOverdueTasks(@Param("boardId") String boardId);
+
+    /**
+     * 여러 보드의 오늘 마감 미완료 Task 조회
+     */
+    @Query("SELECT t FROM Task t JOIN FETCH t.feature JOIN FETCH t.block JOIN FETCH t.board " +
+           "WHERE t.board.id IN :boardIds AND t.dueDate = CURRENT_DATE AND t.isCompleted = false " +
+           "ORDER BY t.board.id, t.position ASC")
+    List<Task> findTodayTasksByBoardIds(@Param("boardIds") List<String> boardIds);
+
+    /**
+     * 여러 보드의 이번 주 마감 미완료 Task 조회
+     */
+    @Query("SELECT t FROM Task t JOIN FETCH t.feature JOIN FETCH t.block JOIN FETCH t.board " +
+           "WHERE t.board.id IN :boardIds AND t.dueDate BETWEEN :start AND :end AND t.isCompleted = false " +
+           "ORDER BY t.dueDate ASC, t.board.id, t.position ASC")
+    List<Task> findWeekTasksByBoardIds(@Param("boardIds") List<String> boardIds,
+                                       @Param("start") LocalDate start, @Param("end") LocalDate end);
+
+    /**
+     * 여러 보드의 마감 초과 미완료 Task 조회
+     */
+    @Query("SELECT t FROM Task t JOIN FETCH t.feature JOIN FETCH t.block JOIN FETCH t.board " +
+           "WHERE t.board.id IN :boardIds AND t.dueDate < CURRENT_DATE AND t.isCompleted = false " +
+           "ORDER BY t.dueDate ASC, t.board.id, t.position ASC")
+    List<Task> findOverdueTasksByBoardIds(@Param("boardIds") List<String> boardIds);
 
     @Modifying
     @Query("DELETE FROM Task t WHERE t.board.id = :boardId")

@@ -230,6 +230,24 @@ export const boardService = {
     const data = await boardAPI.getBoardFull(boardId);
     return data;
   },
+
+  getPersonalBoard: async () => {
+    const data = await boardAPI.getPersonalBoard();
+    return data;
+  },
+
+  getTodayData: async (boardId: string) => {
+    const data = await boardAPI.getTodayData(boardId);
+    return data;
+  },
+
+  moveTask: async (taskId: string, data: { target_board_id: string; target_block_id: string }) => {
+    await boardAPI.moveTask(taskId, data);
+  },
+
+  copyTask: async (taskId: string, data: { target_board_id: string; target_block_id: string }) => {
+    await boardAPI.copyTask(taskId, data);
+  },
 };
 
 // ========================================
@@ -1965,6 +1983,9 @@ import {
   SignupTrend,
   ActiveUserStats,
   ConversionStats,
+  PersonalBoardStats,
+  DiaryStats,
+  PersonalConversionStats,
   AnnouncementDetail,
   MaintenanceStatus,
 } from './api';
@@ -2021,6 +2042,11 @@ export const adminService = {
     return adminAPI.sendPasswordResetEmail(userId);
   },
 
+  // Personal Board 생성
+  createPersonalBoard: async (userId: string): Promise<{ message: string }> => {
+    return adminAPI.createPersonalBoard(userId);
+  },
+
   // 사용자 영구 삭제
   deleteUser: async (userId: string): Promise<void> => {
     await adminAPI.deleteUser(userId);
@@ -2037,6 +2063,7 @@ export const adminService = {
     size?: number;
     search?: string;
     tier?: string;
+    board_type?: string;
   }): Promise<BoardListResponse> => {
     const response = await adminAPI.getBoards(params);
     return response;
@@ -2123,6 +2150,21 @@ export const adminService = {
   // Analytics: 결제 전환율
   getConversionStats: async (days: number = 365): Promise<ConversionStats> => {
     return await adminAPI.getConversionStats(days);
+  },
+
+  // Analytics: Personal Board 통계
+  getPersonalBoardStats: async (days: number = 30): Promise<PersonalBoardStats> => {
+    return await adminAPI.getPersonalBoardStats(days);
+  },
+
+  // Analytics: Diary 통계
+  getDiaryStats: async (days: number = 30): Promise<DiaryStats> => {
+    return await adminAPI.getDiaryStats(days);
+  },
+
+  // Analytics: Personal → Team 전환 통계
+  getPersonalConversionStats: async (days: number = 365): Promise<PersonalConversionStats> => {
+    return await adminAPI.getPersonalConversionStats(days);
   },
 
   // 공지사항 관리
@@ -2471,6 +2513,9 @@ export const personalEventService = {
     end_time?: string;
     color?: string;
     all_day?: boolean;
+    recurrence_rule?: string;
+    recurrence_end_date?: string;
+    recurrence_days_of_week?: number[];
   }): Promise<PersonalEvent> => {
     return personalEventAPI.create(data);
   },
@@ -2487,8 +2532,8 @@ export const personalEventService = {
     return personalEventAPI.update(eventId, data);
   },
 
-  delete: async (eventId: string): Promise<void> => {
-    return personalEventAPI.delete(eventId);
+  delete: async (eventId: string, scope?: string): Promise<void> => {
+    return personalEventAPI.delete(eventId, scope);
   },
 };
 

@@ -54,6 +54,11 @@ public class Board extends BaseTimeEntity {
     private String selectedMilestoneId;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "board_type", length = 20)
+    @Builder.Default
+    private BoardType boardType = BoardType.TEAM;
+
+    @Enumerated(EnumType.STRING)
     @Column(name = "tier", length = 20)
     @Builder.Default
     private BoardTier tier = BoardTier.TRIAL;
@@ -69,6 +74,14 @@ public class Board extends BaseTimeEntity {
         if (this.tier == BoardTier.TRIAL && this.trialEndsAt == null) {
             this.trialEndsAt = LocalDateTime.now(ZoneOffset.UTC).plusDays(7);
         }
+    }
+
+    public boolean isPersonal() {
+        return this.boardType == BoardType.PERSONAL;
+    }
+
+    public boolean canInviteMembers() {
+        return !isPersonal();
     }
 
     public void updateInfo(String name, String description) {

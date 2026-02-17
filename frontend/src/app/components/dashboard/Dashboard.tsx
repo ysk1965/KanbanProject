@@ -1,17 +1,19 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Search, Plus, Star, LayoutGrid, LogOut, Package2, AlertTriangle, Menu, FlaskConical, CalendarDays, BookHeart } from 'lucide-react';
+import { Search, Plus, Star, LayoutGrid, LogOut, Package2, AlertTriangle, Menu, FlaskConical, CalendarDays, BookHeart, Clock, ListTodo } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
 import { Board } from '../../types';
 import { testDataAPI } from '../../utils/api';
+import { boardService } from '../../utils/services';
 import { getInitials } from '../../utils/assigneeColor';
 import { Sidebar } from './Sidebar';
 import { BoardCard, CreateBoardCard } from './BoardCard';
 import { CreateBoardModal } from './CreateBoardModal';
 import { EditBoardModal } from './EditBoardModal';
 import { OnboardingModal } from '../OnboardingModal';
+import { MyTasksWidget } from './MyTasksWidget';
 
 interface DashboardProps {
   boards: Board[];
@@ -101,6 +103,25 @@ export function Dashboard({
   const [showOnboarding, setShowOnboarding] = useState(
     () => localStorage.getItem('bridge_show_onboarding') === 'true'
   );
+
+  // Personal Board Today 데이터
+  const [todayData, setTodayData] = useState<{
+    due_today_tasks: Array<{ id: string; title: string }>;
+    in_progress_tasks: Array<{ id: string; title: string }>;
+    completion_rate: number;
+  } | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const board = await boardService.getPersonalBoard();
+        const data = await boardService.getTodayData(board.id);
+        setTodayData(data as any);
+      } catch {
+        // Personal board may not exist yet
+      }
+    })();
+  }, []);
 
   // 테스트 보드 생성/참여 (개발용)
   const handleCreateTestBoard = async () => {
@@ -204,7 +225,7 @@ export function Dashboard({
               />
               <input
                 type="text"
-                placeholder="Quick search projects..."
+                placeholder={t('dashboard.searchPlaceholder')}
                 className="w-full bg-white/5 border border-white/[0.08] rounded-xl py-2 pl-10 pr-4 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-bridge-secondary/40 focus:bg-white/[0.06] transition-all"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -219,7 +240,7 @@ export function Dashboard({
               className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors text-sm font-medium"
             >
               <LogOut size={16} />
-              <span className="hidden sm:inline">Logout</span>
+              <span className="hidden sm:inline">{t('dashboard.logout')}</span>
             </button>
 
             {/* Profile Avatar */}
@@ -242,21 +263,113 @@ export function Dashboard({
         {/* Main Content Area */}
         <main className="flex-1 overflow-y-auto p-8 custom-scrollbar">
           <div className="max-w-7xl mx-auto space-y-10">
+            {/* My Board - Personal Board (최상단) */}
+            {!searchQuery && (
+              <section>
+                <motion.button
+                  onClick={() => navigate('/my-board')}
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.99 }}
+                  className="w-full max-w-2xl group relative overflow-hidden rounded-2xl border border-white/10 hover:border-bridge-accent/40 transition-all"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-br from-bridge-accent/20 via-purple-500/10 to-bridge-secondary/20 opacity-60 group-hover:opacity-100 transition-opacity" />
+                  <div className="relative p-6">
+                    <div className="flex items-center gap-6">
+                      <div className="flex gap-3">
+                        <div className="w-12 h-12 rounded-xl bg-bridge-accent/20 border border-bridge-accent/30 flex items-center justify-center">
+                          <CalendarDays size={22} className="text-bridge-accent" />
+                        </div>
+                        <div className="w-12 h-12 rounded-xl bg-purple-500/20 border border-purple-500/30 flex items-center justify-center">
+                          <BookHeart size={22} className="text-purple-400" />
+                        </div>
+                      </div>
+                      <div className="text-left flex-1">
+                        <h3 className="text-lg font-bold text-white mb-1">{t('dashboard.mySpace')}</h3>
+                        <p className="text-sm text-slate-400">
+                          {t('dashboard.mySpaceDesc')}
+                        </p>
+                      </div>
+                      <div className="ml-auto text-slate-500 group-hover:text-white transition-colors">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                          <path d="M7 5l5 5-5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </div>
+                    </div>
+
+                    {/* Today Preview */}
+                    {todayData && (todayData.due_today_tasks.length > 0 || todayData.in_progress_tasks.length > 0) && (
+                      <div className="mt-4 pt-4 border-t border-white/10 space-y-3">
+                        {/* Progress bar */}
+                        <div className="flex items-center gap-3">
+                          <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-gradient-to-r from-bridge-secondary to-bridge-accent rounded-full transition-all"
+                              style={{ width: `${Math.round(todayData.completion_rate)}%` }}
+                            />
+                          </div>
+                          <span className="text-[10px] font-bold text-bridge-secondary">
+                            {Math.round(todayData.completion_rate)}%
+                          </span>
+                        </div>
+
+                        <div className="flex gap-4 text-left">
+                          {/* Due today */}
+                          {todayData.due_today_tasks.length > 0 && (
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1 mb-1">
+                                <Clock size={10} className="text-orange-400" />
+                                <span className="text-[10px] text-orange-400 font-bold">
+                                  {t('personal.dueToday', '오늘 마감')} {todayData.due_today_tasks.length}
+                                </span>
+                              </div>
+                              {todayData.due_today_tasks.slice(0, 3).map((task) => (
+                                <div key={task.id} className="text-[11px] text-slate-300 truncate">
+                                  {task.title}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* In progress */}
+                          {todayData.in_progress_tasks.length > 0 && (
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1 mb-1">
+                                <ListTodo size={10} className="text-bridge-accent" />
+                                <span className="text-[10px] text-bridge-accent font-bold">
+                                  {t('personal.inProgress', '진행중')} {todayData.in_progress_tasks.length}
+                                </span>
+                              </div>
+                              {todayData.in_progress_tasks.slice(0, 3).map((task) => (
+                                <div key={task.id} className="text-[11px] text-slate-300 truncate">
+                                  {task.title}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </motion.button>
+              </section>
+            )}
+
+            {/* My Tasks Widget - Cross-board task overview */}
+            {!searchQuery && <MyTasksWidget />}
+
             {/* Header Content */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
-                <h1 className="text-3xl font-bold font-serif mb-1">Your Projects</h1>
+                <h1 className="text-3xl font-bold font-serif mb-1">{t('dashboard.yourProjects')}</h1>
                 <p className="text-slate-400 text-sm">
-                  Managing{' '}
-                  <span className="text-bridge-secondary font-bold">{boards.length}</span>{' '}
-                  active workspaces
+                  {t('dashboard.managingWorkspaces', { count: boards.length })}
                 </p>
               </div>
               <button
                 onClick={() => setIsCreateModalOpen(true)}
                 className="flex items-center justify-center gap-2 px-6 py-2.5 bg-gradient-to-r from-bridge-secondary to-bridge-accent rounded-xl font-bold text-sm shadow-lg shadow-bridge-secondary/15 hover:scale-105 active:scale-95 transition-all"
               >
-                <Plus size={18} /> Create New Board
+                <Plus size={18} /> {t('dashboard.createNewBoard')}
               </button>
             </div>
 
@@ -265,13 +378,13 @@ export function Dashboard({
               <div className="h-64 flex flex-col items-center justify-center bg-bridge-obsidian/30 border-2 border-dashed rounded-3xl border-white/20">
                 <Package2 size={48} className="text-slate-400 mb-4" />
                 <p className="text-slate-400 font-medium">
-                  No boards found for "{searchQuery}"
+                  {t('dashboard.noSearchResult', { query: searchQuery })}
                 </p>
                 <button
                   onClick={() => setSearchQuery('')}
                   className="mt-2 text-bridge-secondary text-sm font-bold hover:underline"
                 >
-                  Clear search
+                  {t('dashboard.clearSearch')}
                 </button>
               </div>
             )}
@@ -290,54 +403,13 @@ export function Dashboard({
               </div>
             )}
 
-            {/* My Board - Personal Board */}
-            {!searchQuery && (
-              <section>
-                <div className="flex items-center gap-2 mb-6">
-                  <BookHeart size={18} className="text-bridge-accent" />
-                  <h2 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">
-                    My Board
-                  </h2>
-                </div>
-                <motion.button
-                  onClick={() => navigate('/my-board')}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className="w-full max-w-lg group relative overflow-hidden rounded-2xl border border-white/10 hover:border-bridge-accent/40 transition-all"
-                >
-                  <div className="absolute inset-0 bg-gradient-to-br from-bridge-accent/20 via-purple-500/10 to-bridge-secondary/20 opacity-60 group-hover:opacity-100 transition-opacity" />
-                  <div className="relative p-6 flex items-center gap-6">
-                    <div className="flex gap-3">
-                      <div className="w-12 h-12 rounded-xl bg-bridge-accent/20 border border-bridge-accent/30 flex items-center justify-center">
-                        <CalendarDays size={22} className="text-bridge-accent" />
-                      </div>
-                      <div className="w-12 h-12 rounded-xl bg-purple-500/20 border border-purple-500/30 flex items-center justify-center">
-                        <BookHeart size={22} className="text-purple-400" />
-                      </div>
-                    </div>
-                    <div className="text-left">
-                      <h3 className="text-lg font-bold text-white mb-1">My Space</h3>
-                      <p className="text-sm text-slate-400">
-                        Personal Schedule & AI Diary
-                      </p>
-                    </div>
-                    <div className="ml-auto text-slate-500 group-hover:text-white transition-colors">
-                      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                        <path d="M7 5l5 5-5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    </div>
-                  </div>
-                </motion.button>
-              </section>
-            )}
-
             {/* Starred Section */}
             {starredBoards.length > 0 && !searchQuery && (
               <section>
                 <div className="flex items-center gap-2 mb-6">
                   <Star size={18} className="text-amber-500" fill="#F59E0B" />
                   <h2 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">
-                    Starred Boards
+                    {t('dashboard.starredBoards')}
                   </h2>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -361,7 +433,7 @@ export function Dashboard({
                 <div className="flex items-center gap-2 mb-6">
                   <LayoutGrid size={18} className="text-bridge-secondary" />
                   <h2 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">
-                    Workspace Boards
+                    {t('dashboard.workspaceBoards')}
                   </h2>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -419,7 +491,7 @@ export function Dashboard({
           title={t('board.testBoardTitle')}
         >
           <FlaskConical size={18} className={isCreatingTestBoard ? 'animate-pulse' : ''} />
-          <span className="hidden sm:inline">{isCreatingTestBoard ? t('board.creating') : 'Test Board'}</span>
+          <span className="hidden sm:inline">{isCreatingTestBoard ? t('board.creating') : t('dashboard.testBoard')}</span>
         </button>
       )}
 

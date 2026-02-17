@@ -29,6 +29,7 @@ export function AddFeatureModal({ open, onClose, onAdd, milestones = [], default
   const [description, setDescription] = useState('');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [milestoneId, setMilestoneId] = useState('');
+  const [calendarOpen, setCalendarOpen] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -95,7 +96,7 @@ export function AddFeatureModal({ open, onClose, onAdd, milestones = [], default
 
           <div className="space-y-2">
             <label className="kanban-label block">{t('featureDetail.dateRange')}</label>
-            <Popover>
+            <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
               <PopoverTrigger asChild>
                 <button
                   type="button"
@@ -125,14 +126,23 @@ export function AddFeatureModal({ open, onClose, onAdd, milestones = [], default
                   className="bg-bridge-obsidian text-foreground"
                 />
                 {dateRange && (
-                  <div className="p-2 border-t border-white/10">
+                  <div className="p-2 border-t border-white/10 flex gap-2">
                     <button
                       type="button"
                       onClick={() => setDateRange(undefined)}
-                      className="w-full text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-md py-1.5 transition-colors"
+                      className="flex-1 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-md py-1.5 transition-colors"
                     >
                       {t('featureDetail.removeDate')}
                     </button>
+                    {dateRange.from && dateRange.to && (
+                      <button
+                        type="button"
+                        onClick={() => setCalendarOpen(false)}
+                        className="flex-1 text-xs text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10 rounded-md py-1.5 transition-colors font-bold"
+                      >
+                        {t('common.confirm', '확인')}
+                      </button>
+                    )}
                   </div>
                 )}
               </PopoverContent>

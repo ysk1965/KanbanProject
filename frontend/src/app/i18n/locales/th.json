@@ -258,7 +258,29 @@
       "upgradePro": "อัปเกรดเป็น Pro",
       "upgradeDesc": "ลองใช้บอร์ดไม่จำกัดและการวิเคราะห์ขั้นสูง",
       "viewPlans": "ดูแผนราคา"
-    }
+    },
+    "searchPlaceholder": "ค้นหาโปรเจกต์...",
+    "logout": "ออกจากระบบ",
+    "mySpace": "พื้นที่ของฉัน",
+    "mySpaceDesc": "ตารางส่วนตัว & ไดอารี่ AI",
+    "yourProjects": "โปรเจกต์ของคุณ",
+    "managingWorkspaces": "กำลังจัดการ {{count}} พื้นที่ทำงาน",
+    "createNewBoard": "สร้างบอร์ดใหม่",
+    "noSearchResult": "ไม่พบบอร์ดสำหรับ \"{{query}}\"",
+    "clearSearch": "ล้างการค้นหา",
+    "starredBoards": "บอร์ดที่ชื่นชอบ",
+    "workspaceBoards": "บอร์ดพื้นที่ทำงาน",
+    "testBoard": "บอร์ดทดสอบ",
+    "trialPlan": "ทดลองใช้",
+    "noDescription": "ยังไม่มีคำอธิบาย",
+    "tasksProgress": "ความคืบหน้างาน",
+    "memberCount": "{{count}} สมาชิก",
+    "newBoard": "บอร์ดใหม่",
+    "boardName": "ชื่อบอร์ด",
+    "description": "คำอธิบาย",
+    "backgroundColor": "สีพื้นหลัง",
+    "cancel": "ยกเลิก",
+    "createBoard": "สร้างบอร์ด"
   },
   "share": {
     "title": "แชร์บอร์ด",
@@ -1240,7 +1262,13 @@
       "totalBoards": "บอร์ดทั้งหมด",
       "activeSubscriptions": "สมาชิกที่ใช้งานอยู่",
       "active": "ใช้งาน: {{count}}",
-      "tierDistribution": "การกระจายระดับบอร์ด"
+      "tierDistribution": "การกระจายระดับบอร์ด",
+      "personalBoardMetrics": "บอร์ดส่วนตัว",
+      "personalBoards": "บอร์ดส่วนตัว",
+      "adoptionRate": "อัตราการใช้งาน",
+      "activePersonalBoards": "ใช้งานอยู่ (30 วัน)",
+      "totalDiaryEntries": "จำนวนไดอารี่",
+      "boardTypeDistribution": "การกระจายประเภทบอร์ด"
     },
     "analytics": {
       "title": "การวิเคราะห์ / รายงาน",
@@ -1331,7 +1359,11 @@
       "tasks": "Task",
       "createdAt": "สร้างเมื่อ",
       "view": "ดู",
-      "viewBoard": "ดูบอร์ด"
+      "viewBoard": "ดูบอร์ด",
+      "type": "ประเภท",
+      "allTypes": "ทุกประเภท",
+      "typeTeam": "ทีม",
+      "typePersonal": "ส่วนตัว"
     },
     "boardDetail": {
       "title": "รายละเอียดบอร์ด",
@@ -1384,7 +1416,12 @@
       "seatCount": "จำนวนที่นั่ง",
       "seatCountUpdateFailed": "เปลี่ยนจำนวนที่นั่งไม่สำเร็จ",
       "seatCountUpdateSuccess": "จำนวนที่นั่งถูกเปลี่ยนเป็น {{count}} แล้ว",
-      "updateSeatCount": "อัปเดตจำนวนที่นั่ง"
+      "updateSeatCount": "อัปเดตจำนวนที่นั่ง",
+      "personalActivity": "กิจกรรมส่วนตัว",
+      "diaryEntries": "ไดอารี่",
+      "completionRate": "{{rate}}% เสร็จสิ้น",
+      "events": "กิจกรรม",
+      "lastActivity": "กิจกรรมล่าสุด"
     },
     "users": {
       "title": "การจัดการผู้ใช้",

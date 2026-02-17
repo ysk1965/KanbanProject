@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, CheckCircle2, ChevronDown, Plus, Layers } from 'lucide-react';
+import { X, CheckCircle2, ChevronDown, Plus, Layers, Zap } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
 import type { Feature } from '../types';
 
@@ -15,6 +15,10 @@ interface QuickAddTaskModalProps {
     taskTitle: string;
   }) => void;
   isSubmitting?: boolean;
+  /** Simple mode: title-only input with continuous adding */
+  isSimpleMode?: boolean;
+  /** Callback after successful add in simple mode (for continuous adding) */
+  onAdded?: () => void;
 }
 
 export function QuickAddTaskModal({
@@ -24,12 +28,15 @@ export function QuickAddTaskModal({
   blockName,
   onSubmit,
   isSubmitting = false,
+  isSimpleMode = false,
+  onAdded,
 }: QuickAddTaskModalProps) {
   const { t } = useTranslation();
   const [selectedFeatureId, setSelectedFeatureId] = useState<string>('');
   const [isCreatingFeature, setIsCreatingFeature] = useState(false);
   const [newFeatureTitle, setNewFeatureTitle] = useState('');
   const [taskTitle, setTaskTitle] = useState('');
+  const [addedCount, setAddedCount] = useState(0);
   const taskTitleRef = useRef<HTMLInputElement>(null);
   const featureTitleRef = useRef<HTMLInputElement>(null);
 
@@ -40,21 +47,24 @@ export function QuickAddTaskModal({
       setIsCreatingFeature(features.length === 0);
       setNewFeatureTitle('');
       setTaskTitle('');
+      setAddedCount(0);
     }
   }, [open, features]);
 
-  // Auto-focus: feature title if creating, else task title
+  // Auto-focus
   useEffect(() => {
     if (!open) return;
     const timer = setTimeout(() => {
-      if (isCreatingFeature && features.length === 0) {
+      if (isSimpleMode) {
+        taskTitleRef.current?.focus();
+      } else if (isCreatingFeature && features.length === 0) {
         featureTitleRef.current?.focus();
       } else {
         taskTitleRef.current?.focus();
       }
     }, 100);
     return () => clearTimeout(timer);
-  }, [open, isCreatingFeature, features.length]);
+  }, [open, isSimpleMode, isCreatingFeature, features.length]);
 
   const handleFeatureChange = (value: string) => {
     if (value === '__new__') {
@@ -68,29 +78,103 @@ export function QuickAddTaskModal({
     }
   };
 
-  const canSubmit =
-    taskTitle.trim() &&
-    (isCreatingFeature ? newFeatureTitle.trim() : selectedFeatureId) &&
-    !isSubmitting;
+  const canSubmitSimple = taskTitle.trim() && !isSubmitting;
+  const canSubmit = isSimpleMode
+    ? canSubmitSimple
+    : taskTitle.trim() &&
+      (isCreatingFeature ? newFeatureTitle.trim() : selectedFeatureId) &&
+      !isSubmitting;
 
   const handleSubmit = () => {
     if (!canSubmit) return;
-    onSubmit({
-      featureId: isCreatingFeature ? undefined : selectedFeatureId,
-      newFeatureTitle: isCreatingFeature ? newFeatureTitle.trim() : undefined,
-      taskTitle: taskTitle.trim(),
-    });
+    if (isSimpleMode) {
+      onSubmit({
+        featureId: features.length > 0 ? features[0].id : undefined,
+        taskTitle: taskTitle.trim(),
+      });
+      // Clear for next input (continuous adding)
+      setTaskTitle('');
+      setAddedCount((c) => c + 1);
+      onAdded?.();
+      setTimeout(() => taskTitleRef.current?.focus(), 50);
+    } else {
+      onSubmit({
+        featureId: isCreatingFeature ? undefined : selectedFeatureId,
+        newFeatureTitle: isCreatingFeature ? newFeatureTitle.trim() : undefined,
+        taskTitle: taskTitle.trim(),
+      });
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.nativeEvent.isComposing) return;
     if (e.key === 'Enter' && !e.shiftKey && canSubmit) {
       e.preventDefault();
       handleSubmit();
+    }
+    if (e.key === 'Escape') {
+      onClose();
     }
   };
 
   const selectedFeature = features.find((f) => f.id === selectedFeatureId);
 
+  // Simple Mode UI
+  if (isSimpleMode) {
+    return (
+      <Dialog open={open} onOpenChange={onClose}>
+        <DialogContent className="bg-bridge-dark text-foreground border-white/10 max-w-md p-0 gap-0 [&>button:last-child]:hidden overflow-hidden rounded-2xl">
+          <DialogTitle className="sr-only">{t('quickAdd.quickCapture', '빠른 추가')}</DialogTitle>
+
+          <div className="px-5 py-4">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-7 h-7 rounded-lg bg-bridge-secondary/10 flex items-center justify-center">
+                <Zap size={14} className="text-bridge-secondary" />
+              </div>
+              <div className="flex-1">
+                <h2 className="text-sm font-bold text-foreground">{t('quickAdd.quickCapture', '빠른 추가')}</h2>
+                <p className="text-[10px] text-slate-500">Enter {t('quickAdd.toContinue', '로 연속 추가')} · Esc {t('quickAdd.toClose', '로 닫기')}</p>
+              </div>
+              {addedCount > 0 && (
+                <span className="text-xs text-bridge-secondary font-medium">
+                  +{addedCount}
+                </span>
+              )}
+              <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-foreground transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+
+            <input
+              ref={taskTitleRef}
+              type="text"
+              value={taskTitle}
+              onChange={(e) => setTaskTitle(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={t('quickAdd.quickPlaceholder', '할 일을 입력하세요...')}
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-foreground placeholder-slate-500 focus:outline-none focus:border-bridge-secondary/50 focus:ring-1 focus:ring-bridge-secondary/20 transition-all text-sm"
+              autoFocus
+            />
+
+            <div className="flex items-center justify-between mt-3">
+              <span className="text-[10px] text-slate-500">
+                {blockName && `→ ${blockName}`}
+              </span>
+              <button
+                onClick={handleSubmit}
+                disabled={!canSubmitSimple}
+                className="px-4 py-1.5 bg-bridge-secondary/20 text-bridge-secondary text-xs font-bold rounded-lg hover:bg-bridge-secondary/30 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                {isSubmitting ? '...' : 'Enter ↵'}
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  // Standard Mode UI
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="bg-bridge-dark text-foreground border-white/10 max-w-lg p-0 gap-0 [&>button:last-child]:hidden overflow-hidden rounded-2xl">

@@ -39,6 +39,8 @@ interface KanbanBlockProps {
   showFeatureLabel?: boolean;
   scheduledTaskIds?: Set<string>;
   onQuickAddTask?: (blockId: string) => void;
+  isPersonal?: boolean;
+  recentlyCompletedTaskIds?: Set<string>;
 }
 
 export const KanbanBlock = memo(function KanbanBlock({
@@ -61,6 +63,8 @@ export const KanbanBlock = memo(function KanbanBlock({
   showFeatureLabel,
   scheduledTaskIds,
   onQuickAddTask,
+  isPersonal = false,
+  recentlyCompletedTaskIds,
 }: KanbanBlockProps) {
   const { t } = useTranslation();
   const blockRef = useRef<HTMLDivElement>(null);
@@ -418,6 +422,8 @@ export const KanbanBlock = memo(function KanbanBlock({
               memberColorMap={memberColorMap}
               showFeatureLabel={showFeatureLabel}
               isScheduled={scheduledTaskIds?.has(task.id)}
+              hideAssignees={isPersonal}
+              justCompleted={recentlyCompletedTaskIds?.has(task.id)}
             />
           </div>
         ))}

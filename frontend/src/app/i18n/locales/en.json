@@ -258,7 +258,29 @@
       "upgradePro": "Upgrade Pro",
       "upgradeDesc": "Try unlimited boards and advanced analytics.",
       "viewPlans": "View Plans"
-    }
+    },
+    "searchPlaceholder": "Quick search projects...",
+    "logout": "Logout",
+    "mySpace": "My Space",
+    "mySpaceDesc": "Personal Schedule & AI Diary",
+    "yourProjects": "Your Projects",
+    "managingWorkspaces": "Managing {{count}} active workspaces",
+    "createNewBoard": "Create New Board",
+    "noSearchResult": "No boards found for \"{{query}}\"",
+    "clearSearch": "Clear search",
+    "starredBoards": "Starred Boards",
+    "workspaceBoards": "Workspace Boards",
+    "testBoard": "Test Board",
+    "trialPlan": "Trial Plan",
+    "noDescription": "No description provided",
+    "tasksProgress": "Tasks Progress",
+    "memberCount": "{{count}} members",
+    "newBoard": "New Board",
+    "boardName": "Board Name",
+    "description": "Description",
+    "backgroundColor": "Background Color",
+    "cancel": "Cancel",
+    "createBoard": "Create Board"
   },
   "share": {
     "title": "Share Board",
@@ -1778,7 +1800,13 @@
       "totalBoards": "Total Boards",
       "activeSubscriptions": "Active Subscriptions",
       "active": "Active: {{count}}",
-      "tierDistribution": "Board Tier Distribution"
+      "tierDistribution": "Board Tier Distribution",
+      "personalBoardMetrics": "Personal Board",
+      "personalBoards": "Personal Boards",
+      "adoptionRate": "Adoption Rate",
+      "activePersonalBoards": "Active (30d)",
+      "totalDiaryEntries": "Diary Entries",
+      "boardTypeDistribution": "Board Type Distribution"
     },
     "analytics": {
       "title": "Analytics / Reports",
@@ -1869,7 +1897,11 @@
       "tasks": "Tasks",
       "createdAt": "Created",
       "view": "View",
-      "viewBoard": "View Board"
+      "viewBoard": "View Board",
+      "type": "Type",
+      "allTypes": "All Types",
+      "typeTeam": "Team",
+      "typePersonal": "Personal"
     },
     "boardDetail": {
       "title": "Board Detail",
@@ -1922,7 +1954,12 @@
       "deleting": "Deleting...",
       "editName": "Edit board name",
       "nameUpdateSuccess": "Board name has been updated.",
-      "nameUpdateFailed": "Failed to update board name."
+      "nameUpdateFailed": "Failed to update board name.",
+      "personalActivity": "Personal Activity",
+      "diaryEntries": "Diary",
+      "completionRate": "{{rate}}% Completed",
+      "events": "Events",
+      "lastActivity": "Last Activity"
     },
     "users": {
       "title": "User Management",
@@ -1933,6 +1970,7 @@
       "role": "Role",
       "provider": "Provider",
       "boards": "Boards",
+      "personalBoard": "PB",
       "joinedAt": "Joined"
     },
     "userDetail": {
@@ -1983,7 +2021,14 @@
       "confirmRemoveFromBoard": "Remove {{name}} from \"{{board}}\" board?",
       "removedFromBoard": "Removed from board.",
       "removeFromBoardFailed": "Failed to remove from board.",
-      "cannotRemoveOwner": "Board owner cannot be removed."
+      "cannotRemoveOwner": "Board owner cannot be removed.",
+      "personalBoard": "Personal Board",
+      "pbTasks": "Tasks",
+      "pbDiary": "Diary",
+      "pbEvents": "Events",
+      "pbCreatedAt": "Created",
+      "noPersonalBoard": "No personal board created yet",
+      "createPersonalBoard": "Create"
     },
     "inquiries": {
       "title": "Inquiry Management",

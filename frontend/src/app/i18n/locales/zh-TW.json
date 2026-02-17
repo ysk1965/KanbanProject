@@ -257,7 +257,29 @@
       "upgradePro": "升級 Pro",
       "upgradeDesc": "試用無限看板和進階分析功能。",
       "viewPlans": "查看方案"
-    }
+    },
+    "searchPlaceholder": "搜尋專案...",
+    "logout": "登出",
+    "mySpace": "我的空間",
+    "mySpaceDesc": "個人行程 & AI日記",
+    "yourProjects": "我的專案",
+    "managingWorkspaces": "正在管理 {{count}} 個活躍工作區",
+    "createNewBoard": "建立新看板",
+    "noSearchResult": "未找到與「{{query}}」相關的看板",
+    "clearSearch": "清除搜尋",
+    "starredBoards": "收藏看板",
+    "workspaceBoards": "工作區看板",
+    "testBoard": "測試看板",
+    "trialPlan": "試用版",
+    "noDescription": "尚無描述",
+    "tasksProgress": "任務進度",
+    "memberCount": "{{count}} 名成員",
+    "newBoard": "新建看板",
+    "boardName": "看板名稱",
+    "description": "描述",
+    "backgroundColor": "背景顏色",
+    "cancel": "取消",
+    "createBoard": "建立看板"
   },
   "share": {
     "title": "共享看板",
@@ -1224,7 +1246,13 @@
       "totalBoards": "總看板數",
       "activeSubscriptions": "活躍訂閱",
       "active": "活躍：{{count}}",
-      "tierDistribution": "看板等級分佈"
+      "tierDistribution": "看板等級分佈",
+      "personalBoardMetrics": "個人看板",
+      "personalBoards": "個人看板",
+      "adoptionRate": "採用率",
+      "activePersonalBoards": "活躍 (30天)",
+      "totalDiaryEntries": "日記數",
+      "boardTypeDistribution": "看板類型分佈"
     },
     "analytics": {
       "title": "分析 / 報告",
@@ -1313,7 +1341,13 @@
       "tier": "等級",
       "members": "成員",
       "tasks": "Task",
-      "createdAt": "建立時間"
+      "createdAt": "建立時間",
+      "view": "檢視",
+      "viewBoard": "檢視看板",
+      "type": "類型",
+      "allTypes": "所有類型",
+      "typeTeam": "團隊",
+      "typePersonal": "個人"
     },
     "boardDetail": {
       "title": "看板詳情",
@@ -1350,7 +1384,12 @@
       "deleting": "刪除中...",
       "editName": "編輯看板名稱",
       "nameUpdateSuccess": "看板名稱已更新。",
-      "nameUpdateFailed": "看板名稱更新失敗。"
+      "nameUpdateFailed": "看板名稱更新失敗。",
+      "personalActivity": "個人活動",
+      "diaryEntries": "日記",
+      "completionRate": "{{rate}}% 完成",
+      "events": "行程",
+      "lastActivity": "最近活動"
     },
     "users": {
       "title": "使用者管理",

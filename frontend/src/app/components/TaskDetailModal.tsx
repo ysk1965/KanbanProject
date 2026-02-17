@@ -34,7 +34,8 @@ import {
 import { Badge } from './ui/badge';
 import { Calendar } from './ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import { X, Plus, Trash2, Clock, CheckSquare, CalendarIcon, FileText, Tags, Users, Layers, Pencil, CheckCircle2, Undo2, ChevronDown, ChevronRight, Loader2, MessageSquare, Lightbulb, ArrowRightLeft, GripVertical } from 'lucide-react';
+import { X, Plus, Trash2, Clock, CheckSquare, CalendarIcon, FileText, Tags, Users, Layers, Pencil, CheckCircle2, Undo2, ChevronDown, ChevronRight, Loader2, MessageSquare, Lightbulb, ArrowRightLeft, GripVertical, ArrowRight, Copy } from 'lucide-react';
+import { TaskMoveModal } from './TaskMoveModal';
 import { CommentPanel } from './CommentPanel';
 import { TagPickerPopover } from './TagPickerPopover';
 import { getAssigneeClasses, getInitials } from '../utils/assigneeColor';
@@ -84,6 +85,7 @@ interface TaskDetailModalProps {
   boardId: string | null;
   canEdit?: boolean;
   isAdminOrOwner?: boolean;
+  isPersonal?: boolean;
   wsCommentEvent?: BoardWebSocketEvent | null;
   wsChecklistEvent?: BoardWebSocketEvent | null;
 }
@@ -110,6 +112,7 @@ export function TaskDetailModal({
   boardId,
   canEdit = true,
   isAdminOrOwner = false,
+  isPersonal = false,
   wsCommentEvent,
   wsChecklistEvent,
 }: TaskDetailModalProps) {
@@ -131,6 +134,7 @@ export function TaskDetailModal({
   const [selectedTargetTaskId, setSelectedTargetTaskId] = useState<string | null>(null);
   const [checklistMoveSearch, setChecklistMoveSearch] = useState('');
   const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [moveCopyMode, setMoveCopyMode] = useState<'move' | 'copy' | null>(null);
 
   // 체크리스트 상태
   const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
@@ -579,6 +583,24 @@ export function TaskDetailModal({
                     <Button
                       variant="ghost"
                       size="sm"
+                      onClick={() => setMoveCopyMode('move')}
+                      className="text-slate-400 hover:text-white hover:bg-white/10"
+                      title={t('task.moveToBoard', '다른 보드로 이동')}
+                    >
+                      <ArrowRight className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setMoveCopyMode('copy')}
+                      className="text-slate-400 hover:text-white hover:bg-white/10"
+                      title={t('task.copyToBoard', '다른 보드로 복사')}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={() => setShowDeleteDialog(true)}
                       className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
                     >
@@ -682,7 +704,8 @@ export function TaskDetailModal({
               )}
             </div>
 
-            {/* 담당자 섹션 (체크리스트 담당자들) */}
+            {/* 담당자 섹션 (체크리스트 담당자들) — Personal Board에서는 숨김 */}
+            {!isPersonal && (
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Users className="h-4 w-4 text-slate-400" />
@@ -723,6 +746,7 @@ export function TaskDetailModal({
                 })()}
               </div>
             </div>
+            )}
 
             {/* 태그 섹션 */}
             <div className="space-y-2">
@@ -827,13 +851,14 @@ export function TaskDetailModal({
                       boardMembers={boardMembers}
                       boardId={boardId}
                       canEdit={canEdit}
+                      isPersonal={isPersonal}
                     />
                   ))}
                 </SortableContext>
               </DndContext>
 
               {/* 새 항목 추가 - Viewer는 추가 불가 */}
-              {canEdit && <AddChecklistItemInput onAdd={handleAddChecklistItem} boardMembers={boardMembers} currentUser={currentUser} />}
+              {canEdit && <AddChecklistItemInput onAdd={handleAddChecklistItem} boardMembers={boardMembers} currentUser={currentUser} isPersonal={isPersonal} />}
             </div>
           </div>
 
@@ -1177,6 +1202,24 @@ export function TaskDetailModal({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Task 이동/복사 모달 */}
+      {task && moveCopyMode && boardId && (
+        <TaskMoveModal
+          open={!!moveCopyMode}
+          onClose={() => setMoveCopyMode(null)}
+          taskId={task.id}
+          taskTitle={task.title}
+          currentBoardId={boardId}
+          mode={moveCopyMode}
+          onSuccess={() => {
+            setMoveCopyMode(null);
+            if (moveCopyMode === 'move') {
+              onClose();
+            }
+          }}
+        />
+      )}
     </>
   );
 }
@@ -1191,6 +1234,7 @@ function SortableChecklistItemRow(props: {
   boardMembers: BoardMember[];
   boardId: string | null;
   canEdit?: boolean;
+  isPersonal?: boolean;
 }) {
   const {
     attributes,
@@ -1231,6 +1275,7 @@ function ChecklistItemRow({
   boardMembers,
   boardId,
   canEdit = true,
+  isPersonal = false,
   dragHandleProps,
 }: {
   item: ChecklistItem;
@@ -1241,6 +1286,7 @@ function ChecklistItemRow({
   boardMembers: BoardMember[];
   boardId: string | null;
   canEdit?: boolean;
+  isPersonal?: boolean;
   dragHandleProps?: React.HTMLAttributes<HTMLElement>;
 }) {
   const { t } = useTranslation();
@@ -1446,8 +1492,8 @@ function ChecklistItemRow({
           </div>
         )}
 
-        {/* 담당자 - 클릭하면 수정 (Viewer는 읽기 전용) */}
-        {canEdit ? (
+        {/* 담당자 - Personal Board에서는 숨김 */}
+        {!isPersonal && (canEdit ? (
           <Popover>
             <PopoverTrigger asChild>
               {item.assignee && assigneeColor ? (
@@ -1535,7 +1581,7 @@ function ChecklistItemRow({
               </div>
             </div>
           )
-        )}
+        ))}
       </div>
 
       {/* 타임블록 총합 시간 + 토글 버튼 */}
@@ -1632,10 +1678,12 @@ function AddChecklistItemInput({
   onAdd,
   boardMembers,
   currentUser,
+  isPersonal = false,
 }: {
   onAdd: (data: { title: string; start_date?: string; due_date?: string; assignee_id?: string }) => void;
   boardMembers: BoardMember[];
   currentUser: User | null;
+  isPersonal?: boolean;
 }) {
   const { t } = useTranslation();
   const [value, setValue] = useState('');
@@ -1761,7 +1809,8 @@ function AddChecklistItemInput({
                 </Popover>
               </div>
 
-              {/* 담당자 */}
+              {/* 담당자 — Personal Board에서는 숨김 */}
+              {!isPersonal && (
               <div className="flex-1">
                 <label className="text-xs text-slate-400 block mb-1">{t('task.assignee')}</label>
                 <Select
@@ -1812,6 +1861,7 @@ function AddChecklistItemInput({
                   </SelectContent>
                 </Select>
               </div>
+              )}
             </div>
         </div>
       </div>

@@ -118,6 +118,7 @@ ai:
       personal: ${CLAUDE_MODEL_PERSONAL:claude-haiku-4-5-20251001}
       standup: ${CLAUDE_MODEL_STANDUP:claude-haiku-4-5-20251001}
       meeting: ${CLAUDE_MODEL_MEETING:claude-haiku-4-5-20251001}
+      diary: ${CLAUDE_MODEL_DIARY:claude-haiku-4-5-20251001}
   openai:
     api-key: ${OPENAI_API_KEY:}
     admin-key: ${OPENAI_ADMIN_KEY:}
@@ -126,6 +127,7 @@ ai:
       personal: ${OPENAI_MODEL_PERSONAL:gpt-4o-mini}
       standup: ${OPENAI_MODEL_STANDUP:gpt-4o-mini}
       meeting: ${OPENAI_MODEL_MEETING:gpt-4o-mini}
+      diary: ${OPENAI_MODEL_DIARY:gpt-4o-mini}
   credit:
     reset-cron: "0 0 0 * * *"  # 매일 자정 UTC
 

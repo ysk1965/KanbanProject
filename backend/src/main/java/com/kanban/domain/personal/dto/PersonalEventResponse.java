@@ -23,6 +23,10 @@ public class PersonalEventResponse {
         private LocalTime endTime;
         private String color;
         private boolean allDay;
+        private String recurrenceRule;
+        private String recurrenceGroupId;
+        private LocalDate recurrenceEndDate;
+        private String recurrenceDaysOfWeek;
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;
 
@@ -36,6 +40,10 @@ public class PersonalEventResponse {
                     .endTime(event.getEndTime())
                     .color(event.getColor())
                     .allDay(event.getAllDay())
+                    .recurrenceRule(event.getRecurrenceRule())
+                    .recurrenceGroupId(event.getRecurrenceGroupId())
+                    .recurrenceEndDate(event.getRecurrenceEndDate())
+                    .recurrenceDaysOfWeek(event.getRecurrenceDaysOfWeek())
                     .createdAt(event.getCreatedAt())
                     .updatedAt(event.getUpdatedAt())
                     .build();

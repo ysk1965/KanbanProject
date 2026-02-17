@@ -258,7 +258,29 @@
       "upgradePro": "Proにアップグレード",
       "upgradeDesc": "無制限のボードと高度な分析をお試しください。",
       "viewPlans": "プランを見る"
-    }
+    },
+    "searchPlaceholder": "プロジェクトを検索...",
+    "logout": "ログアウト",
+    "mySpace": "マイスペース",
+    "mySpaceDesc": "個人スケジュール & AIダイアリー",
+    "yourProjects": "マイプロジェクト",
+    "managingWorkspaces": "{{count}}件のアクティブワークスペースを管理中",
+    "createNewBoard": "新しいボードを作成",
+    "noSearchResult": "「{{query}}」に該当するボードが見つかりません",
+    "clearSearch": "検索をクリア",
+    "starredBoards": "お気に入り",
+    "workspaceBoards": "ワークスペースボード",
+    "testBoard": "テストボード",
+    "trialPlan": "トライアル",
+    "noDescription": "説明なし",
+    "tasksProgress": "タスク進捗",
+    "memberCount": "{{count}}名",
+    "newBoard": "新しいボード",
+    "boardName": "ボード名",
+    "description": "説明",
+    "backgroundColor": "背景色",
+    "cancel": "キャンセル",
+    "createBoard": "ボードを作成"
   },
   "share": {
     "title": "ボードを共有",
@@ -1240,7 +1262,13 @@
       "totalBoards": "合計ボード数",
       "activeSubscriptions": "アクティブサブスクリプション",
       "active": "アクティブ: {{count}}",
-      "tierDistribution": "ボードティア分布"
+      "tierDistribution": "ボードティア分布",
+      "personalBoardMetrics": "パーソナルボード",
+      "personalBoards": "パーソナルボード",
+      "adoptionRate": "採用率",
+      "activePersonalBoards": "アクティブ (30日)",
+      "totalDiaryEntries": "日記数",
+      "boardTypeDistribution": "ボードタイプ分布"
     },
     "analytics": {
       "title": "分析 / レポート",
@@ -1331,7 +1359,11 @@
       "tasks": "Task",
       "createdAt": "作成日",
       "view": "表示",
-      "viewBoard": "ボードを閲覧"
+      "viewBoard": "ボードを閲覧",
+      "type": "タイプ",
+      "allTypes": "すべてのタイプ",
+      "typeTeam": "チーム",
+      "typePersonal": "個人"
     },
     "boardDetail": {
       "title": "ボード詳細",
@@ -1384,7 +1416,12 @@
       "seatCount": "シート数",
       "seatCountUpdateFailed": "シート数の変更に失敗しました。",
       "seatCountUpdateSuccess": "シート数が{{count}}に変更されました。",
-      "updateSeatCount": "シート数を変更"
+      "updateSeatCount": "シート数を変更",
+      "personalActivity": "個人アクティビティ",
+      "diaryEntries": "日記",
+      "completionRate": "{{rate}}% 完了",
+      "events": "イベント",
+      "lastActivity": "最終アクティビティ"
     },
     "users": {
       "title": "ユーザー管理",

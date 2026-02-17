@@ -115,20 +115,17 @@ export function NoteTreeSidebar({
     const ratio = Math.max(0, Math.min(1, (pointerY - rect.top) / rect.height));
 
     let zone: DropZone;
-    if (overItem.type === 'FOLDER') {
-      if (ratio < 0.25) zone = 'before';
-      else if (ratio > 0.75) zone = 'after';
-      else zone = 'inside';
+    // All items (folders & documents) support inside drop (Notion-style)
+    if (ratio < 0.25) zone = 'before';
+    else if (ratio > 0.75) zone = 'after';
+    else zone = 'inside';
 
-      // Depth validation: prevent nesting if it would exceed max depth
-      if (zone === 'inside') {
-        const maxSubDepth = draggedItem.type === 'FOLDER' ? getMaxSubtreeDepth(draggedItem) : 0;
-        if (overItem.depth + 1 + maxSubDepth > MAX_DEPTH) {
-          zone = ratio < 0.5 ? 'before' : 'after';
-        }
+    // Depth validation: prevent nesting if it would exceed max depth
+    if (zone === 'inside') {
+      const maxSubDepth = getMaxSubtreeDepth(draggedItem);
+      if (overItem.depth + 1 + maxSubDepth > MAX_DEPTH) {
+        zone = ratio < 0.5 ? 'before' : 'after';
       }
-    } else {
-      zone = ratio < 0.5 ? 'before' : 'after';
     }
     return zone;
   };
@@ -255,13 +252,13 @@ export function NoteTreeSidebar({
 
       <DragOverlay dropAnimation={null}>
         {activeItem && (
-          <div className="flex items-center gap-1.5 px-2 py-1 bg-bridge-obsidian border border-bridge-accent/50 rounded-md shadow-lg text-xs text-white opacity-90">
+          <div className="flex items-center gap-2.5 px-3 py-2 bg-bridge-obsidian border border-bridge-accent/50 rounded-lg shadow-lg text-[15px] text-white opacity-90">
             {activeItem.type === 'FOLDER' ? (
-              <Folder size={14} className="text-bridge-accent" />
+              <Folder size={18} className="text-bridge-accent" />
             ) : (
-              <FileText size={14} className="text-slate-400" />
+              <FileText size={18} className="text-slate-400" />
             )}
-            <span className="truncate max-w-[150px]">{activeItem.title}</span>
+            <span className="truncate max-w-[200px]">{activeItem.title}</span>
           </div>
         )}
       </DragOverlay>
@@ -363,20 +360,20 @@ function TreeItemComponent({
   const isInsideTarget = dropTarget?.id === item.id && dropTarget?.zone === 'inside';
   const isAfterTarget = dropTarget?.id === item.id && dropTarget?.zone === 'after';
 
-  // Auto-expand collapsed folders when dragging over "inside" zone
+  // Auto-expand collapsed items when dragging over "inside" zone
   useEffect(() => {
-    if (isInsideTarget && isFolder && !expanded) {
+    if (isInsideTarget && !expanded) {
       const timer = setTimeout(() => setExpanded(true), 600);
       return () => clearTimeout(timer);
     }
-  }, [isInsideTarget, isFolder, expanded]);
+  }, [isInsideTarget, expanded]);
 
   const { attributes, listeners, setNodeRef: setDragRef } = useDraggable({
     id: item.id,
     disabled: !canEdit || renaming,
   });
 
-  // All items are droppable (folders: before/inside/after, documents: before/after)
+  // All items are droppable (before/inside/after)
   const { setNodeRef: setDropRef } = useDroppable({
     id: item.id,
     disabled: !canEdit || activeId === item.id,
@@ -389,7 +386,7 @@ function TreeItemComponent({
   }, [setDragRef, setDropRef]);
 
   const handleClick = () => {
-    if (isFolder) setExpanded(!expanded);
+    if (hasChildren || isFolder) setExpanded(!expanded);
     onSelect(item.id);
   };
 
@@ -400,7 +397,7 @@ function TreeItemComponent({
     setRenaming(false);
   };
 
-  const indentPx = depth * 16 + 6;
+  const indentPx = depth * 20 + 8;
 
   return (
     <div className={isDragging ? 'opacity-30' : ''}>
@@ -415,14 +412,19 @@ function TreeItemComponent({
       {/* Item row — draggable + droppable */}
       <div
         ref={setRef}
-        className={`group flex items-center gap-1 px-1.5 py-1 rounded-md cursor-pointer transition-colors text-xs ${
+        className={`group flex items-center gap-2 px-2.5 py-2 rounded-lg cursor-pointer transition-all duration-150 text-[15px] ${
           isInsideTarget
-            ? 'bg-bridge-accent/20 ring-1 ring-bridge-accent/40 text-white'
+            ? 'bg-bridge-accent/20 text-white'
             : isSelected
               ? 'bg-bridge-accent/15 text-white'
               : 'text-slate-300 hover:bg-white/5 hover:text-white'
         }`}
-        style={{ paddingLeft: `${indentPx}px` }}
+        style={{
+          paddingLeft: `${indentPx}px`,
+          ...(isInsideTarget ? {
+            boxShadow: '0 0 16px rgba(99,102,241,0.5), inset 0 0 0 1.5px rgba(99,102,241,0.6)',
+          } : {}),
+        }}
         {...attributes}
         {...listeners}
         onClick={handleClick}
@@ -430,27 +432,27 @@ function TreeItemComponent({
         {/* Drag handle */}
         {canEdit && !renaming && (
           <span className="flex-shrink-0 opacity-0 group-hover:opacity-40 transition-opacity cursor-grab active:cursor-grabbing">
-            <GripVertical size={10} />
+            <GripVertical size={14} />
           </span>
         )}
 
-        {/* Expand/Collapse for folders */}
-        {isFolder ? (
+        {/* Expand/Collapse */}
+        {(isFolder || hasChildren) ? (
           <button
             onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
             className="flex-shrink-0 p-0.5 hover:bg-white/10 rounded"
           >
-            {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+            {expanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
           </button>
         ) : (
-          <span className="w-4 flex-shrink-0" />
+          <span className="w-6 flex-shrink-0" />
         )}
 
         {/* Icon */}
         {isFolder ? (
-          expanded ? <FolderOpen size={14} className="flex-shrink-0 text-bridge-accent" /> : <Folder size={14} className="flex-shrink-0 text-bridge-accent" />
+          expanded ? <FolderOpen size={18} className="flex-shrink-0 text-bridge-accent" /> : <Folder size={18} className="flex-shrink-0 text-bridge-accent" />
         ) : (
-          <FileText size={14} className="flex-shrink-0 text-slate-400" />
+          <FileText size={18} className="flex-shrink-0 text-slate-400" />
         )}
 
         {/* Title */}
@@ -463,7 +465,7 @@ function TreeItemComponent({
               if (e.key === 'Enter') handleRenameSubmit();
               if (e.key === 'Escape') { setRenaming(false); setRenameValue(item.title); }
             }}
-            className="flex-1 min-w-0 bg-white/10 border border-bridge-accent/50 rounded px-1 py-0.5 text-xs text-white focus:outline-none"
+            className="flex-1 min-w-0 bg-white/10 border border-bridge-accent/50 rounded px-2 py-1 text-[15px] text-white focus:outline-none"
             autoFocus
             onClick={(e) => e.stopPropagation()}
           />
@@ -478,31 +480,31 @@ function TreeItemComponent({
               onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }}
               className="p-0.5 hover:bg-white/10 rounded"
             >
-              <MoreHorizontal size={12} />
+              <MoreHorizontal size={16} />
             </button>
             {menuOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
-                <div className="absolute right-0 top-full mt-1 z-50 bg-bridge-obsidian border border-white/10 rounded-lg shadow-xl py-1 min-w-[140px]">
+                <div className="absolute right-0 top-full mt-1 z-50 bg-bridge-obsidian border border-white/10 rounded-lg shadow-xl py-1.5 min-w-[160px]">
                   <button
                     onClick={(e) => { e.stopPropagation(); setRenaming(true); setRenameValue(item.title); setMenuOpen(false); }}
-                    className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-slate-300 hover:bg-white/5 hover:text-white"
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-slate-300 hover:bg-white/5 hover:text-white"
                   >
-                    <Pencil size={12} /> {t('notes.rename', '이름 변경')}
+                    <Pencil size={14} /> {t('notes.rename', '이름 변경')}
                   </button>
-                  {isFolder && item.depth < MAX_DEPTH && (
+                  {item.depth < MAX_DEPTH && (
                     <>
                       <button
                         onClick={(e) => { e.stopPropagation(); onCreateDocument(item.id); setMenuOpen(false); }}
-                        className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-slate-300 hover:bg-white/5 hover:text-white"
+                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-slate-300 hover:bg-white/5 hover:text-white"
                       >
-                        <FilePlus size={12} /> {t('notes.newDocumentInFolder', '문서 추가')}
+                        <FilePlus size={14} /> {t('notes.newDocumentInFolder', '문서 추가')}
                       </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); onCreateFolder(item.id); setMenuOpen(false); }}
-                        className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-slate-300 hover:bg-white/5 hover:text-white"
+                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-slate-300 hover:bg-white/5 hover:text-white"
                       >
-                        <FolderPlus size={12} /> {t('notes.newSubfolder', '하위 폴더')}
+                        <FolderPlus size={14} /> {t('notes.newSubfolder', '하위 폴더')}
                       </button>
                     </>
                   )}
@@ -515,9 +517,9 @@ function TreeItemComponent({
                       }
                       setMenuOpen(false);
                     }}
-                    className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-red-400 hover:bg-red-500/10 hover:text-red-300"
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300"
                   >
-                    <Trash2 size={12} /> {t('common.delete', '삭제')}
+                    <Trash2 size={14} /> {t('common.delete', '삭제')}
                   </button>
                 </div>
               </>
@@ -535,7 +537,7 @@ function TreeItemComponent({
       )}
 
       {/* Children */}
-      {isFolder && expanded && hasChildren && (
+      {expanded && hasChildren && (
         <div>
           <SiblingGroup
             items={item.children}

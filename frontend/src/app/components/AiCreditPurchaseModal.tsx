@@ -17,7 +17,7 @@ interface AiCreditPurchaseModalProps {
 }
 
 const CREDIT_PACKAGES = [100, 200, 300, 500, 1000];
-const PRICE_PER_CREDIT = 1000; // KRW
+const PRICE_PER_CREDIT = 10; // KRW
 
 function featureTypeStyle(type: string): string {
   switch (type) {

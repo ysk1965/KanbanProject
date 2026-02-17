@@ -7,6 +7,9 @@ import {
   ArrowDownRight,
   BarChart3,
   RefreshCw,
+  BookOpen,
+  UserCheck,
+  ArrowRightLeft,
 } from 'lucide-react';
 import {
   LineChart,
@@ -25,6 +28,9 @@ import type {
   SignupTrend,
   ActiveUserStats,
   ConversionStats,
+  PersonalBoardStats,
+  DiaryStats,
+  PersonalConversionStats,
 } from '../../utils/api';
 
 type PeriodOption = 7 | 14 | 30 | 90;
@@ -34,10 +40,15 @@ export function AdminAnalyticsTab() {
   const [signupTrend, setSignupTrend] = useState<SignupTrend | null>(null);
   const [activeUserStats, setActiveUserStats] = useState<ActiveUserStats | null>(null);
   const [conversionStats, setConversionStats] = useState<ConversionStats | null>(null);
+  const [pbStats, setPbStats] = useState<PersonalBoardStats | null>(null);
+  const [diaryStats, setDiaryStats] = useState<DiaryStats | null>(null);
+  const [pbConversionStats, setPbConversionStats] = useState<PersonalConversionStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [signupDays, setSignupDays] = useState<PeriodOption>(30);
   const [dauDays, setDauDays] = useState<PeriodOption>(30);
+  const [pbDays, setPbDays] = useState<PeriodOption>(30);
+  const [diaryDays, setDiaryDays] = useState<PeriodOption>(30);
 
   useEffect(() => {
     loadAllData();

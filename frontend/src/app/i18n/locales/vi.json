@@ -258,7 +258,29 @@
       "upgradePro": "Nang cap Pro",
       "upgradeDesc": "Thu bang khong gioi han va phan tich nang cao.",
       "viewPlans": "Xem goi dich vu"
-    }
+    },
+    "searchPlaceholder": "Tìm kiếm dự án...",
+    "logout": "Đăng xuất",
+    "mySpace": "Không gian của tôi",
+    "mySpaceDesc": "Lịch cá nhân & Nhật ký AI",
+    "yourProjects": "Dự án của bạn",
+    "managingWorkspaces": "Đang quản lý {{count}} không gian làm việc",
+    "createNewBoard": "Tạo bảng mới",
+    "noSearchResult": "Không tìm thấy bảng nào cho \"{{query}}\"",
+    "clearSearch": "Xóa tìm kiếm",
+    "starredBoards": "Bảng yêu thích",
+    "workspaceBoards": "Bảng không gian làm việc",
+    "testBoard": "Bảng thử nghiệm",
+    "trialPlan": "Dùng thử",
+    "noDescription": "Chưa có mô tả",
+    "tasksProgress": "Tiến độ công việc",
+    "memberCount": "{{count}} thành viên",
+    "newBoard": "Bảng mới",
+    "boardName": "Tên bảng",
+    "description": "Mô tả",
+    "backgroundColor": "Màu nền",
+    "cancel": "Hủy",
+    "createBoard": "Tạo bảng"
   },
   "share": {
     "title": "Chia se bang",
@@ -1240,7 +1262,13 @@
       "totalBoards": "Tong so bang",
       "activeSubscriptions": "Dang ky dang hoat dong",
       "active": "Hoat dong: {{count}}",
-      "tierDistribution": "Phan bo cap bang"
+      "tierDistribution": "Phan bo cap bang",
+      "personalBoardMetrics": "Bảng cá nhân",
+      "personalBoards": "Bảng cá nhân",
+      "adoptionRate": "Tỷ lệ sử dụng",
+      "activePersonalBoards": "Hoạt động (30 ngày)",
+      "totalDiaryEntries": "Số nhật ký",
+      "boardTypeDistribution": "Phân bố loại bảng"
     },
     "analytics": {
       "title": "Phan tich / Bao cao",
@@ -1331,7 +1359,11 @@
       "tasks": "Nhiem vu",
       "createdAt": "Ngay tao",
       "view": "Xem",
-      "viewBoard": "Xem bảng"
+      "viewBoard": "Xem bảng",
+      "type": "Loại",
+      "allTypes": "Tất cả loại",
+      "typeTeam": "Nhóm",
+      "typePersonal": "Cá nhân"
     },
     "boardDetail": {
       "title": "Chi tiet bang",
@@ -1384,7 +1416,12 @@
       "seatCount": "Số chỗ",
       "seatCountUpdateFailed": "Cập nhật số chỗ thất bại.",
       "seatCountUpdateSuccess": "Số chỗ đã được cập nhật thành {{count}}.",
-      "updateSeatCount": "Cập nhật số chỗ"
+      "updateSeatCount": "Cập nhật số chỗ",
+      "personalActivity": "Hoạt động cá nhân",
+      "diaryEntries": "Nhật ký",
+      "completionRate": "{{rate}}% Hoàn thành",
+      "events": "Sự kiện",
+      "lastActivity": "Hoạt động gần đây"
     },
     "users": {
       "title": "Quan ly nguoi dung",

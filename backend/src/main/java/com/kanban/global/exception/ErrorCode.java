@@ -56,6 +56,9 @@ public enum ErrorCode {
     BOARD_ACCESS_DENIED(HttpStatus.FORBIDDEN, "B002", "보드에 접근 권한이 없습니다"),
     BOARD_SUSPENDED(HttpStatus.FORBIDDEN, "B003", "보드가 정지 상태입니다"),
     PREMIUM_FEATURE_REQUIRED(HttpStatus.FORBIDDEN, "B004", "이 기능은 Premium에서만 사용 가능합니다"),
+    PERSONAL_BOARD_ALREADY_EXISTS(HttpStatus.CONFLICT, "B005", "이미 개인 보드가 존재합니다"),
+    PERSONAL_BOARD_NO_INVITE(HttpStatus.FORBIDDEN, "B006", "개인 보드에는 멤버를 초대할 수 없습니다"),
+    PERSONAL_BOARD_NO_MEETING(HttpStatus.FORBIDDEN, "B007", "개인 보드에서는 회의 기능을 사용할 수 없습니다"),
 
     // Block
     BLOCK_NOT_FOUND(HttpStatus.NOT_FOUND, "BL001", "블록을 찾을 수 없습니다"),

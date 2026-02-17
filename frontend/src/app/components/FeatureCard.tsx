@@ -1,7 +1,8 @@
 import { Feature, Task, Milestone } from '../types';
-import { Calendar, ChevronDown, ChevronRight, Flag } from 'lucide-react';
-import { useState } from 'react';
+import { Calendar, Check, ChevronDown, ChevronRight, Flag } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CompletionParticles } from './CompletionParticles';
 
 interface FeatureCardProps {
   feature: Feature;
@@ -20,6 +21,23 @@ export function FeatureCard({ feature, onClick, availableTags = [], tasks = [], 
   const featureTags = feature.tags || [];
   const featureColor = feature.color || '#8B5CF6';
   const [internalIsExpanded, setInternalIsExpanded] = useState(false);
+  const [justCompleted, setJustCompleted] = useState(false);
+  const prevProgressRef = useRef(progressPercent);
+
+  useEffect(() => {
+    const prev = prevProgressRef.current;
+    prevProgressRef.current = progressPercent;
+    if (prev < 100 && progressPercent === 100 && feature.total_tasks > 0) {
+      // 프로그레스 바 transition(duration-1000)이 끝에 도달하는 시점에 맞춤
+      const arriveTimer = setTimeout(() => {
+        setJustCompleted(true);
+      }, 950);
+      const clearTimer = setTimeout(() => {
+        setJustCompleted(false);
+      }, 950 + 1500);
+      return () => { clearTimeout(arriveTimer); clearTimeout(clearTimer); };
+    }
+  }, [progressPercent, feature.total_tasks]);
 
   // 외부 제어가 있으면 외부 상태 사용, 없으면 내부 상태 사용
   const isExpanded = externalIsExpanded !== undefined ? externalIsExpanded : internalIsExpanded;
@@ -87,24 +105,28 @@ export function FeatureCard({ feature, onClick, availableTags = [], tasks = [], 
       )}
 
       {/* 진행률 */}
-      <div className="mb-4 pl-2">
+      <div className={`mb-4 pl-2 relative ${justCompleted ? 'feature-complete-pulse' : ''}`}>
         <div className="flex justify-between text-[11px] mb-1.5">
           <span className="text-zinc-400 font-medium">
             {t('feature.completedCount', { completed: feature.completed_tasks, total: feature.total_tasks })}
           </span>
-          <span className={`font-bold ${isCompleted ? 'text-green-400' : 'text-foreground'}`}>
+          <span className={`font-bold flex items-center gap-1 ${isCompleted ? 'text-green-400' : 'text-foreground'} ${justCompleted ? 'progress-text-bounce' : ''}`}>
             {Math.round(progressPercent)}%
+            {isCompleted && (
+              <Check size={12} className={`text-green-400 ${justCompleted ? 'progress-check-pop' : ''}`} strokeWidth={3} />
+            )}
           </span>
         </div>
-        <div className="h-1.5 w-full bg-bridge-surface-hover rounded-full overflow-hidden">
+        <div className={`relative h-1.5 w-full bg-bridge-surface-hover rounded-full overflow-visible ${justCompleted ? 'progress-border-flash' : ''}`}>
           <div
-            className="h-full transition-all duration-1000 ease-out rounded-full"
+            className={`h-full rounded-full transition-all duration-1000 ease-out ${justCompleted ? 'progress-bar-inner' : ''}`}
             style={{
               width: `${progressPercent}%`,
               backgroundColor: isCompleted ? '#22c55e' : featureColor,
               boxShadow: `0 0 10px ${isCompleted ? '#22c55e' : featureColor}44`,
             }}
           />
+          <CompletionParticles active={justCompleted} variant="bar" />
         </div>
       </div>
 

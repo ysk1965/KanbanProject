@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Folder, Users, ListTodo, Calendar, Trash2, Crown, Shield, User as UserIcon, Eye, ArrowRightLeft, CalendarPlus, AlertTriangle, Armchair, ChevronDown, Link2, Copy, Check, Pencil, UserMinus, Sparkles, Plus } from 'lucide-react';
+import { X, Folder, Users, ListTodo, Calendar, Trash2, Crown, Shield, User as UserIcon, Eye, ArrowRightLeft, CalendarPlus, AlertTriangle, Armchair, ChevronDown, Link2, Copy, Check, Pencil, UserMinus, Sparkles, Plus, BookOpen, CalendarDays, Clock } from 'lucide-react';
 import { adminService, inviteLinkService } from '../../utils/services';
 import { AdminBoardDetail } from '../../utils/api';
 import { formatDateTime, formatDate } from '../../utils/dateUtils';
@@ -457,12 +457,14 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
               </div>
             )}
 
-            {!isLoading && !error && board && (
+            {!isLoading && !error && board && (() => {
+              const isPersonal = board.board_type === 'PERSONAL';
+              return (
               <div className="space-y-6">
                 {/* Board Info */}
                 <div className="flex items-start gap-4">
-                  <div className="w-16 h-16 rounded-xl bg-bridge-accent/20 flex items-center justify-center">
-                    <Folder className="h-8 w-8 text-bridge-accent" />
+                  <div className={`w-16 h-16 rounded-xl flex items-center justify-center ${isPersonal ? 'bg-purple-500/20' : 'bg-bridge-accent/20'}`}>
+                    {isPersonal ? <UserIcon className="h-8 w-8 text-purple-400" /> : <Folder className="h-8 w-8 text-bridge-accent" />}
                   </div>
                   <div className="flex-1">
                     {isEditingName ? (
@@ -500,6 +502,12 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                     ) : (
                       <div className="flex items-center gap-2 group">
                         <h3 className="text-xl font-bold text-white">{board.name}</h3>
+                        {isPersonal && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-500/20 text-purple-400">
+                            <UserIcon className="h-3 w-3" />
+                            {t('admin.boards.typePersonal', 'Personal')}
+                          </span>
+                        )}
                         <button
                           onClick={handleStartEditName}
                           className="p-1 text-slate-500 hover:text-bridge-accent opacity-0 group-hover:opacity-100 transition-all"
@@ -566,6 +574,7 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                     </p>
                   </div>
 
+                  {!isPersonal && (
                   <div className="bg-white/5 rounded-xl p-4">
                     <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
                       {t('admin.boardDetail.seatCount')}
@@ -584,6 +593,7 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                       </button>
                     </div>
                   </div>
+                  )}
 
                   <div className="bg-white/5 rounded-xl p-4">
                     <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
@@ -617,8 +627,61 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                   </div>
                 </div>
 
+                {/* Personal Board Activity */}
+                {isPersonal && (
+                  <div className="border-t border-white/10 pt-6 space-y-4">
+                    <h4 className="text-lg font-bold text-white flex items-center gap-2">
+                      <UserIcon className="h-5 w-5 text-purple-400" />
+                      {t('admin.boardDetail.personalActivity', 'Personal Activity')}
+                    </h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="bg-white/5 rounded-xl p-4">
+                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                          {t('admin.boardDetail.taskCount')}
+                        </p>
+                        <p className="text-white text-xl font-bold flex items-center gap-2">
+                          <ListTodo className="h-5 w-5 text-bridge-secondary" />
+                          {board.task_count}
+                        </p>
+                      </div>
+                      <div className="bg-white/5 rounded-xl p-4">
+                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                          {t('admin.boardDetail.diaryEntries', 'Diary Entries')}
+                        </p>
+                        <p className="text-white text-xl font-bold flex items-center gap-2">
+                          <BookOpen className="h-5 w-5 text-bridge-accent" />
+                          {board.diary_count ?? 0}
+                        </p>
+                        {board.diary_completion_rate != null && (
+                          <p className="text-slate-400 text-sm mt-1">
+                            {t('admin.boardDetail.completionRate', '{{rate}}% completed').replace('{{rate}}', String(board.diary_completion_rate))}
+                          </p>
+                        )}
+                      </div>
+                      <div className="bg-white/5 rounded-xl p-4">
+                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                          {t('admin.boardDetail.events', 'Events')}
+                        </p>
+                        <p className="text-white text-xl font-bold flex items-center gap-2">
+                          <CalendarDays className="h-5 w-5 text-amber-400" />
+                          {board.personal_event_count ?? 0}
+                        </p>
+                      </div>
+                      <div className="bg-white/5 rounded-xl p-4">
+                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                          {t('admin.boardDetail.lastActivity', 'Last Activity')}
+                        </p>
+                        <p className="text-white text-sm flex items-center gap-2">
+                          <Clock className="h-4 w-4 text-slate-400" />
+                          {board.last_activity_at ? formatDateLocal(board.last_activity_at) : '-'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Members List */}
-                {board.members && board.members.length > 0 && (
+                {!isPersonal && board.members && board.members.length > 0 && (
                   <div>
                     <h4 className="text-lg font-bold text-white mb-4">{t('admin.boardDetail.memberList')}</h4>
                     <div className="space-y-2 max-h-60 overflow-y-auto">
@@ -746,7 +809,8 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                     {t('admin.common.adminActions')}
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {/* 소유권 이전 */}
+                    {/* 소유권 이전 (Personal Board에서는 숨김) */}
+                    {!isPersonal && (
                     <button
                       onClick={handleTransferOwnership}
                       disabled={isUpdating || !board.members || board.members.length <= 1}
@@ -756,6 +820,7 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                       <ArrowRightLeft className="h-4 w-4" />
                       {t('admin.boardDetail.transferOwnership')}
                     </button>
+                    )}
 
                     {/* Trial 연장 */}
                     <button
@@ -774,7 +839,8 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                   </div>
                 </div>
 
-                {/* Invite Link Generator */}
+                {/* Invite Link Generator (Personal Board에서는 숨김) */}
+                {!isPersonal && (
                 <div className="border-t border-white/10 pt-6 space-y-4">
                   <h4 className="text-lg font-bold text-white flex items-center gap-2">
                     <Link2 className="h-5 w-5 text-bridge-accent" />
@@ -837,6 +903,7 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                     )}
                   </div>
                 </div>
+                )}
 
                 {/* Danger Zone */}
                 <div className="border-t border-white/15 pt-6">
@@ -863,7 +930,8 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                   </div>
                 </div>
               </div>
-            )}
+              );
+            })()}
           </div>
         </DialogContent>
       </Dialog>

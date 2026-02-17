@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Users, X, Loader2, ChevronDown, RotateCw, Calendar } from 'lucide-react';
-import { format, getDay, getDate } from 'date-fns';
+import { format, getDay, getDate, addDays } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import i18n from 'i18next';
 import { meetingAPI, MeetingSummary } from '../utils/api';
@@ -195,7 +195,21 @@ function MeetingCreateModal({ boardId, selectedDate, onClose, onCreated }: Meeti
   const [memo, setMemo] = useState('');
   const [recurrenceRule, setRecurrenceRule] = useState<string>('');
   const [recurrenceEndDate, setRecurrenceEndDate] = useState<string>('');
+  const [recurrenceDaysOfWeek, setRecurrenceDaysOfWeek] = useState<number[]>([getDay(selectedDate)]);
+  const [monthlyMode, setMonthlyMode] = useState<'DATE' | 'NTH_WEEKDAY'>('DATE');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // 매월 N번째 X요일 계산
+  const weekOfMonth = Math.ceil(getDate(selectedDate) / 7);
+  const selectedDayOfWeek = getDay(selectedDate); // 0=Sun
+  const getOrdinalKo = (n: number) => {
+    const ordinals: Record<number, string> = { 1: '첫째', 2: '둘째', 3: '셋째', 4: '넷째', 5: '다섯째' };
+    return ordinals[n] || `${n}번째`;
+  };
+  const selectedDayName = (() => {
+    const locale = i18n.language === 'ko' ? ko : undefined;
+    return format(selectedDate, 'EEEE', { locale });
+  })();
 
   const titleInputRef = useRef<HTMLInputElement>(null);
 
@@ -209,12 +223,19 @@ function MeetingCreateModal({ boardId, selectedDate, onClose, onCreated }: Meeti
     if (!canSubmit) return;
     setIsSubmitting(true);
     try {
+      const isWeeklyType = recurrenceRule === 'WEEKLY' || recurrenceRule === 'BIWEEKLY';
+      const isMonthlyNthWeekday = recurrenceRule === 'MONTHLY' && monthlyMode === 'NTH_WEEKDAY';
+
       await meetingAPI.createMeeting(boardId, {
         title: title.trim(),
         meeting_date: format(selectedDate, 'yyyy-MM-dd'),
         memo: memo || undefined,
         recurrence_rule: recurrenceRule || null,
         recurrence_end_date: recurrenceEndDate || null,
+        recurrence_days_of_week: isWeeklyType && recurrenceDaysOfWeek.length > 0
+          ? recurrenceDaysOfWeek
+          : isMonthlyNthWeekday ? [selectedDayOfWeek] : null,
+        recurrence_week_of_month: isMonthlyNthWeekday ? weekOfMonth : null,
       });
       onCreated();
     } catch (error) {
@@ -283,17 +304,97 @@ function MeetingCreateModal({ boardId, selectedDate, onClose, onCreated }: Meeti
               <option value="BIWEEKLY">{t('meeting.recurrenceBiweekly', '격주')}</option>
               <option value="MONTHLY">{t('meeting.recurrenceMonthly', '매월')}</option>
             </select>
+
+            {/* 요일 선택 (매주/격주) - 복수 선택 가능 */}
+            {(recurrenceRule === 'WEEKLY' || recurrenceRule === 'BIWEEKLY') && (
+              <div className="flex gap-1.5 mt-3">
+                {[1, 2, 3, 4, 5, 6, 0].map(dayValue => {
+                  const diff = dayValue - getDay(selectedDate);
+                  const refDate = addDays(selectedDate, diff);
+                  const label = format(refDate, 'EEE', { locale: i18n.language === 'ko' ? ko : undefined });
+                  const isSelected = recurrenceDaysOfWeek.includes(dayValue);
+                  return (
+                    <button
+                      key={dayValue}
+                      type="button"
+                      onClick={() => {
+                        setRecurrenceDaysOfWeek(prev => {
+                          if (prev.includes(dayValue)) {
+                            // 최소 1개는 유지
+                            if (prev.length <= 1) return prev;
+                            return prev.filter(d => d !== dayValue);
+                          }
+                          return [...prev, dayValue];
+                        });
+                      }}
+                      className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                        isSelected
+                          ? 'bg-bridge-accent text-white shadow-lg shadow-bridge-accent/20'
+                          : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* 매월 반복 모드 선택 */}
+            {recurrenceRule === 'MONTHLY' && (
+              <div className="flex gap-2 mt-3">
+                <button
+                  type="button"
+                  onClick={() => setMonthlyMode('DATE')}
+                  className={`flex-1 py-2.5 px-3 text-xs font-bold rounded-lg transition-all text-left ${
+                    monthlyMode === 'DATE'
+                      ? 'bg-bridge-accent text-white shadow-lg shadow-bridge-accent/20'
+                      : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
+                  }`}
+                >
+                  {t('meeting.monthlyByDate', '매월 {{date}}일', { date: getDate(selectedDate) })}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMonthlyMode('NTH_WEEKDAY')}
+                  className={`flex-1 py-2.5 px-3 text-xs font-bold rounded-lg transition-all text-left ${
+                    monthlyMode === 'NTH_WEEKDAY'
+                      ? 'bg-bridge-accent text-white shadow-lg shadow-bridge-accent/20'
+                      : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
+                  }`}
+                >
+                  {t('meeting.monthlyByWeekday', '매월 {{nth}} {{day}}', {
+                    nth: getOrdinalKo(weekOfMonth),
+                    day: selectedDayName
+                  })}
+                </button>
+              </div>
+            )}
+
             {recurrenceRule && (
               <p className="mt-1.5 text-xs text-bridge-secondary/80">
                 {(() => {
-                  const dayName = format(selectedDate, 'EEEE', { locale: i18n.language === 'ko' ? ko : undefined });
-                  const dayOfMonth = getDate(selectedDate);
-                  if (recurrenceRule === 'WEEKLY') {
-                    return t('meeting.recurrenceHintWeekly', '매주 {{day}}에 반복됩니다', { day: dayName });
-                  } else if (recurrenceRule === 'BIWEEKLY') {
-                    return t('meeting.recurrenceHintBiweekly', '격주 {{day}}에 반복됩니다', { day: dayName });
+                  if (recurrenceRule === 'WEEKLY' || recurrenceRule === 'BIWEEKLY') {
+                    const dayOrder = [1, 2, 3, 4, 5, 6, 0];
+                    const sorted = [...recurrenceDaysOfWeek].sort((a, b) => dayOrder.indexOf(a) - dayOrder.indexOf(b));
+                    const locale = i18n.language === 'ko' ? ko : undefined;
+                    const dayNames = sorted.map(dv => {
+                      const diff = dv - getDay(selectedDate);
+                      return format(addDays(selectedDate, diff), 'EEEE', { locale });
+                    });
+                    const dayStr = dayNames.join(', ');
+                    if (recurrenceRule === 'WEEKLY') {
+                      return t('meeting.recurrenceHintWeekly', '매주 {{day}}에 반복됩니다', { day: dayStr });
+                    } else {
+                      return t('meeting.recurrenceHintBiweekly', '격주 {{day}}에 반복됩니다', { day: dayStr });
+                    }
+                  } else if (monthlyMode === 'NTH_WEEKDAY') {
+                    return t('meeting.recurrenceHintMonthlyNth', '매월 {{nth}} {{day}}에 반복됩니다', {
+                      nth: getOrdinalKo(weekOfMonth),
+                      day: selectedDayName
+                    });
                   } else {
-                    return t('meeting.recurrenceHintMonthly', '매월 {{date}}일에 반복됩니다', { date: dayOfMonth });
+                    return t('meeting.recurrenceHintMonthly', '매월 {{date}}일에 반복됩니다', { date: getDate(selectedDate) });
                   }
                 })()}
               </p>

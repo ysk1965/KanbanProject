@@ -30,11 +30,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -115,11 +118,27 @@ public class MeetingService {
             recurrenceGroupId = UUID.randomUUID().toString();
         }
 
+        // recurrenceDaysOfWeek를 콤마 구분 문자열로 변환
+        String daysOfWeekStr = null;
+        if (recurrenceGroupId != null && request.getRecurrenceDaysOfWeek() != null
+                && !request.getRecurrenceDaysOfWeek().isEmpty()) {
+            daysOfWeekStr = request.getRecurrenceDaysOfWeek().stream()
+                    .map(String::valueOf)
+                    .collect(Collectors.joining(","));
+        }
+
+        // 첫 번째 인스턴스의 날짜 결정
+        LocalDate firstMeetingDate = request.getMeetingDate();
+        if (daysOfWeekStr != null && ("WEEKLY".equals(recurrenceRule) || "BIWEEKLY".equals(recurrenceRule))) {
+            // 선택된 요일 중 meetingDate 이후 가장 가까운 날짜
+            firstMeetingDate = findFirstMatchingDate(request.getMeetingDate(), request.getRecurrenceDaysOfWeek());
+        }
+
         // 첫 번째 인스턴스 생성
         Meeting firstMeeting = Meeting.builder()
                 .board(board)
                 .title(request.getTitle())
-                .meetingDate(request.getMeetingDate())
+                .meetingDate(firstMeetingDate)
                 .startTime(request.getStartTime())
                 .endTime(request.getEndTime())
                 .memo(request.getMemo())
@@ -127,6 +146,8 @@ public class MeetingService {
                 .recurrenceRule(recurrenceGroupId != null ? recurrenceRule : null)
                 .recurrenceGroupId(recurrenceGroupId)
                 .recurrenceEndDate(request.getRecurrenceEndDate())
+                .recurrenceDaysOfWeek(daysOfWeekStr)
+                .recurrenceWeekOfMonth(request.getRecurrenceWeekOfMonth())
                 .createdBy(creator)
                 .build();
 
@@ -135,7 +156,8 @@ public class MeetingService {
         // 반복 인스턴스 생성
         if (recurrenceGroupId != null) {
             List<Meeting> recurringInstances = generateRecurringInstances(
-                    board, creator, request, recurrenceRule, recurrenceGroupId, color);
+                    board, creator, request, recurrenceRule, recurrenceGroupId, color,
+                    firstMeetingDate, daysOfWeekStr, request.getRecurrenceWeekOfMonth());
             if (!recurringInstances.isEmpty()) {
                 meetingRepository.saveAll(recurringInstances);
             }
@@ -153,34 +175,129 @@ public class MeetingService {
 
     private List<Meeting> generateRecurringInstances(Board board, User creator,
                                                       MeetingRequest.Create request,
-                                                      String recurrenceRule, String recurrenceGroupId, String color) {
+                                                      String recurrenceRule, String recurrenceGroupId,
+                                                      String color, LocalDate firstMeetingDate,
+                                                      String daysOfWeekStr, Integer weekOfMonth) {
         List<Meeting> instances = new ArrayList<>();
-        LocalDate currentDate = request.getMeetingDate();
-        LocalDate maxDate = currentDate.plusDays(84); // 12주
+        LocalDate maxDate = firstMeetingDate.plusDays(84); // 12주
         if (request.getRecurrenceEndDate() != null && request.getRecurrenceEndDate().isBefore(maxDate)) {
             maxDate = request.getRecurrenceEndDate();
         }
 
-        while (true) {
-            currentDate = getNextRecurrenceDate(currentDate, recurrenceRule);
-            if (currentDate.isAfter(maxDate)) break;
+        List<DayOfWeek> targetDays = parseDaysOfWeek(daysOfWeekStr);
 
-            Meeting instance = Meeting.builder()
-                    .board(board)
-                    .title(request.getTitle())
-                    .meetingDate(currentDate)
-                    .startTime(request.getStartTime())
-                    .endTime(request.getEndTime())
-                    .memo(request.getMemo())
-                    .color(color)
-                    .recurrenceRule(recurrenceRule)
-                    .recurrenceGroupId(recurrenceGroupId)
-                    .recurrenceEndDate(request.getRecurrenceEndDate())
-                    .createdBy(creator)
-                    .build();
-            instances.add(instance);
+        if (!targetDays.isEmpty() && ("WEEKLY".equals(recurrenceRule) || "BIWEEKLY".equals(recurrenceRule))) {
+            // 복수 요일 반복: 선택된 요일별로 인스턴스 생성
+            int weekStep = "BIWEEKLY".equals(recurrenceRule) ? 2 : 1;
+            LocalDate weekStart = firstMeetingDate.with(DayOfWeek.MONDAY);
+
+            while (!weekStart.isAfter(maxDate)) {
+                for (DayOfWeek dow : targetDays) {
+                    LocalDate instanceDate = weekStart.with(dow);
+                    if (!instanceDate.isAfter(firstMeetingDate)) continue;
+                    if (instanceDate.isAfter(maxDate)) continue;
+
+                    instances.add(buildRecurringInstance(board, creator, request, instanceDate,
+                            recurrenceRule, recurrenceGroupId, color, daysOfWeekStr, weekOfMonth));
+                }
+                weekStart = weekStart.plusWeeks(weekStep);
+            }
+        } else if ("MONTHLY".equals(recurrenceRule) && weekOfMonth != null && !targetDays.isEmpty()) {
+            // 매월 N번째 X요일 반복
+            DayOfWeek targetDow = targetDays.get(0);
+            LocalDate currentMonth = firstMeetingDate.plusMonths(1).withDayOfMonth(1);
+
+            while (!currentMonth.isAfter(maxDate)) {
+                LocalDate instanceDate = getNthDayOfWeekInMonth(currentMonth, targetDow, weekOfMonth);
+                if (instanceDate != null && !instanceDate.isAfter(maxDate)) {
+                    instances.add(buildRecurringInstance(board, creator, request, instanceDate,
+                            recurrenceRule, recurrenceGroupId, color, daysOfWeekStr, weekOfMonth));
+                }
+                currentMonth = currentMonth.plusMonths(1);
+            }
+        } else {
+            // 매월 날짜 기준 반복 (기존 로직)
+            LocalDate currentDate = firstMeetingDate;
+            while (true) {
+                currentDate = getNextRecurrenceDate(currentDate, recurrenceRule);
+                if (currentDate.isAfter(maxDate)) break;
+
+                instances.add(buildRecurringInstance(board, creator, request, currentDate,
+                        recurrenceRule, recurrenceGroupId, color, daysOfWeekStr, weekOfMonth));
+            }
         }
         return instances;
+    }
+
+    /**
+     * 해당 월의 N번째 특정 요일 날짜 반환
+     */
+    private LocalDate getNthDayOfWeekInMonth(LocalDate firstOfMonth, DayOfWeek dayOfWeek, int nth) {
+        LocalDate firstTarget = firstOfMonth.with(TemporalAdjusters.firstInMonth(dayOfWeek));
+        LocalDate result = firstTarget.plusWeeks(nth - 1);
+        // 같은 달인지 확인
+        if (result.getMonth() != firstOfMonth.getMonth()) return null;
+        return result;
+    }
+
+    private Meeting buildRecurringInstance(Board board, User creator, MeetingRequest.Create request,
+                                           LocalDate meetingDate, String recurrenceRule,
+                                           String recurrenceGroupId, String color,
+                                           String daysOfWeekStr, Integer weekOfMonth) {
+        return Meeting.builder()
+                .board(board)
+                .title(request.getTitle())
+                .meetingDate(meetingDate)
+                .startTime(request.getStartTime())
+                .endTime(request.getEndTime())
+                .memo(request.getMemo())
+                .color(color)
+                .recurrenceRule(recurrenceRule)
+                .recurrenceGroupId(recurrenceGroupId)
+                .recurrenceEndDate(request.getRecurrenceEndDate())
+                .recurrenceDaysOfWeek(daysOfWeekStr)
+                .recurrenceWeekOfMonth(weekOfMonth)
+                .createdBy(creator)
+                .build();
+    }
+
+    /**
+     * JS dayOfWeek(0=Sun,1=Mon,...,6=Sat) → Java DayOfWeek 변환 후 선택된 요일 목록 반환
+     */
+    private List<DayOfWeek> parseDaysOfWeek(String daysOfWeekStr) {
+        if (daysOfWeekStr == null || daysOfWeekStr.isBlank()) return List.of();
+        try {
+            return List.of(daysOfWeekStr.split(",")).stream()
+                    .map(String::trim)
+                    .map(Integer::parseInt)
+                    .map(this::jsDayToJavaDayOfWeek)
+                    .sorted()
+                    .toList();
+        } catch (Exception e) {
+            log.warn("Failed to parse recurrenceDaysOfWeek: {}", daysOfWeekStr);
+            return List.of();
+        }
+    }
+
+    /**
+     * JS day index (0=Sun) → Java DayOfWeek (MONDAY=1 ... SUNDAY=7)
+     */
+    private DayOfWeek jsDayToJavaDayOfWeek(int jsDay) {
+        return jsDay == 0 ? DayOfWeek.SUNDAY : DayOfWeek.of(jsDay);
+    }
+
+    /**
+     * meetingDate 이후(당일 포함) 가장 가까운 선택 요일의 날짜 반환
+     */
+    private LocalDate findFirstMatchingDate(LocalDate meetingDate, List<Integer> daysOfWeek) {
+        for (int i = 0; i < 7; i++) {
+            LocalDate candidate = meetingDate.plusDays(i);
+            int jsDay = candidate.getDayOfWeek() == DayOfWeek.SUNDAY ? 0 : candidate.getDayOfWeek().getValue();
+            if (daysOfWeek.contains(jsDay)) {
+                return candidate;
+            }
+        }
+        return meetingDate; // fallback
     }
 
     private LocalDate getNextRecurrenceDate(LocalDate current, String rule) {

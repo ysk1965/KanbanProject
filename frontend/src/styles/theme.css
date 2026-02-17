@@ -471,6 +471,193 @@ html {
 }
 
 
+/* ===== Feature 100% Completion Animation ===== */
+@keyframes completionPulse {
+  0% {
+    box-shadow: 0 0 8px rgba(34, 197, 94, 0.3);
+  }
+  40% {
+    box-shadow: 0 0 25px rgba(34, 197, 94, 0.6), 0 0 50px rgba(34, 197, 94, 0.2);
+  }
+  100% {
+    box-shadow: 0 0 12px rgba(34, 197, 94, 0.25);
+  }
+}
+
+@keyframes completionBarShine {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+@keyframes completionBorderFlash {
+  0% {
+    border-color: rgba(34, 197, 94, 0.7);
+    box-shadow: 0 0 20px rgba(34, 197, 94, 0.15);
+  }
+  50% {
+    border-color: rgba(34, 197, 94, 0.9);
+    box-shadow: 0 0 30px rgba(34, 197, 94, 0.25);
+  }
+  100% {
+    border-color: rgba(34, 197, 94, 0.3);
+    box-shadow: none;
+  }
+}
+
+@keyframes completionCheckPop {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 1;
+  }
+  75% {
+    transform: scale(0.9);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes completionTextBounce {
+  0% {
+    transform: scale(1);
+  }
+  30% {
+    transform: scale(1.2);
+  }
+  60% {
+    transform: scale(0.95);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.feature-complete-pulse .progress-bar-inner {
+  animation: completionPulse 0.8s ease-out;
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.3) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: completionPulse 0.8s ease-out, completionBarShine 0.6s ease-out 0.2s;
+}
+
+.feature-complete-pulse .progress-border-flash {
+  animation: completionBorderFlash 1s ease-out;
+}
+
+.feature-complete-pulse .progress-check-pop {
+  animation: completionCheckPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.3s both;
+}
+
+.feature-complete-pulse .progress-text-bounce {
+  animation: completionTextBounce 0.5s ease-out 0.3s;
+}
+
+/* Completion Particles — burst from endpoint */
+@keyframes particleBurst {
+  0% {
+    transform: translate(0, 0) scale(1.2);
+    opacity: 1;
+  }
+  20% {
+    opacity: 1;
+    transform: translate(calc(var(--px) * 0.5), calc(var(--py) * 0.5)) scale(1);
+  }
+  100% {
+    transform: translate(var(--px), var(--py)) scale(0);
+    opacity: 0;
+  }
+}
+
+@keyframes burstFlash {
+  0% {
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 0.9;
+  }
+  40% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0.6;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1.5);
+    opacity: 0;
+  }
+}
+
+.completion-particle {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: particleBurst var(--duration) cubic-bezier(0.16, 1, 0.3, 1) var(--delay) both;
+  background: var(--particle-color);
+  box-shadow: 0 0 4px var(--particle-color), 0 0 8px var(--particle-color);
+  width: var(--size);
+  height: var(--size);
+  left: var(--x);
+  top: var(--y);
+}
+
+/* Card completion — dropped into Done */
+@keyframes cardCompleteBurst {
+  0% {
+    box-shadow: 0 0 0 rgba(34, 197, 94, 0);
+  }
+  30% {
+    box-shadow: 0 0 20px rgba(34, 197, 94, 0.35), inset 0 0 15px rgba(34, 197, 94, 0.08);
+  }
+  100% {
+    box-shadow: 0 0 8px rgba(34, 197, 94, 0.1);
+  }
+}
+
+@keyframes cardCheckPop {
+  0% {
+    transform: scale(0) rotate(-45deg);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.4) rotate(0deg);
+    opacity: 1;
+  }
+  75% {
+    transform: scale(0.85);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.card-complete-burst {
+  animation: cardCompleteBurst 1s ease-out both;
+}
+
+.card-check-pop {
+  animation: cardCheckPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.completion-flash {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(34, 197, 94, 0.8) 0%, rgba(34, 197, 94, 0) 70%);
+  pointer-events: none;
+  animation: burstFlash 0.5s ease-out both;
+}
+
 /* ===== Plyr Video Player - Bridge Theme ===== */
 .plyr-bridge-theme {
   --plyr-color-main: var(--bridge-accent);

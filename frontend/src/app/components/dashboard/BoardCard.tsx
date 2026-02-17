@@ -1,5 +1,6 @@
 import { Star, Users, MoreHorizontal, ShieldCheck } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import { Board } from '../../types';
 import { getInitials } from '../../utils/assigneeColor';
 
@@ -31,6 +32,7 @@ interface BoardCardProps {
 }
 
 export function BoardCard({ board, onToggleStar, onClick, onEdit }: BoardCardProps) {
+  const { t } = useTranslation();
   const isTrial = board.subscription?.status === 'TRIAL' && board.tier !== 'PREMIUM';
   const taskCount = board.task_count ?? 0;
   const completedTasks = board.completed_tasks ?? 0;
@@ -83,7 +85,7 @@ export function BoardCard({ board, onToggleStar, onClick, onEdit }: BoardCardPro
 
         {isTrial && (
           <div className="absolute bottom-2 left-3 px-2 py-0.5 bg-black/40 backdrop-blur-md rounded text-[9px] font-bold text-bridge-secondary border border-bridge-secondary/30 uppercase tracking-widest">
-            Trial Plan
+            {t('dashboard.trialPlan')}
           </div>
         )}
       </div>
@@ -97,13 +99,13 @@ export function BoardCard({ board, onToggleStar, onClick, onEdit }: BoardCardPro
         </div>
 
         <p className="text-[11px] text-slate-400 mb-4 line-clamp-1 h-4">
-          {board.description || 'No description provided'}
+          {board.description || t('dashboard.noDescription')}
         </p>
 
         {/* Progress Section */}
         <div className="space-y-1.5 mt-auto">
           <div className="flex justify-between items-center text-[10px] font-bold">
-            <span className="text-slate-400 uppercase tracking-tighter">Tasks Progress</span>
+            <span className="text-slate-400 uppercase tracking-tighter">{t('dashboard.tasksProgress')}</span>
             <span className="text-slate-300">{progress}%</span>
           </div>
           <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
@@ -119,7 +121,7 @@ export function BoardCard({ board, onToggleStar, onClick, onEdit }: BoardCardPro
         <div className="flex justify-between items-center mt-4">
           <div className="flex items-center gap-1.5 text-slate-400">
             <Users size={12} />
-            <span className="text-[11px] font-medium">{board.member_count} members</span>
+            <span className="text-[11px] font-medium">{t('dashboard.memberCount', { count: board.member_count })}</span>
           </div>
 
           {/* Member Avatars */}
@@ -156,6 +158,7 @@ export function BoardCard({ board, onToggleStar, onClick, onEdit }: BoardCardPro
 
 // 새 보드 생성 카드
 export function CreateBoardCard({ onClick }: { onClick: () => void }) {
+  const { t } = useTranslation();
   return (
     <motion.div
       whileHover={{ scale: 1.02 }}
@@ -179,7 +182,7 @@ export function CreateBoardCard({ onClick }: { onClick: () => void }) {
         </svg>
       </div>
       <span className="text-xs font-bold text-slate-400 group-hover:text-slate-300 uppercase tracking-widest">
-        New Board
+        {t('dashboard.newBoard')}
       </span>
     </motion.div>
   );

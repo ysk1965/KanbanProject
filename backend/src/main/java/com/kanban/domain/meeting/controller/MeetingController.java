@@ -1,5 +1,6 @@
 package com.kanban.domain.meeting.controller;
 
+import com.kanban.domain.board.service.BoardService;
 import com.kanban.domain.meeting.dto.MeetingAIRequest;
 import com.kanban.domain.meeting.dto.MeetingAIResponse;
 import com.kanban.domain.meeting.dto.MeetingRequest;
@@ -27,6 +28,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class MeetingController {
 
+    private final BoardService boardService;
     private final MeetingService meetingService;
     private final MeetingAIService meetingAIService;
     private final MeetingTranscriptionService meetingTranscriptionService;
@@ -67,6 +69,7 @@ public class MeetingController {
             @PathVariable String boardId,
             @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody MeetingRequest.Create request) {
+        boardService.checkTeamBoardOnly(boardId);
         MeetingResponse.Detail response = meetingService.createMeeting(
                 boardId, principal.getUserId(), request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);

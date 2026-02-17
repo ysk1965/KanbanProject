@@ -258,7 +258,29 @@
       "upgradePro": "Upgrade Pro",
       "upgradeDesc": "Experimente boards ilimitados e análises avançadas.",
       "viewPlans": "Ver Planos"
-    }
+    },
+    "searchPlaceholder": "Buscar projetos...",
+    "logout": "Sair",
+    "mySpace": "Meu espaço",
+    "mySpaceDesc": "Agenda pessoal & Diário com IA",
+    "yourProjects": "Meus projetos",
+    "managingWorkspaces": "Gerenciando {{count}} espaços de trabalho ativos",
+    "createNewBoard": "Criar novo board",
+    "noSearchResult": "Nenhum board encontrado para \"{{query}}\"",
+    "clearSearch": "Limpar busca",
+    "starredBoards": "Boards favoritos",
+    "workspaceBoards": "Boards do espaço de trabalho",
+    "testBoard": "Board de teste",
+    "trialPlan": "Teste",
+    "noDescription": "Sem descrição",
+    "tasksProgress": "Progresso das tarefas",
+    "memberCount": "{{count}} membros",
+    "newBoard": "Novo board",
+    "boardName": "Nome do board",
+    "description": "Descrição",
+    "backgroundColor": "Cor de fundo",
+    "cancel": "Cancelar",
+    "createBoard": "Criar board"
   },
   "share": {
     "title": "Compartilhar Board",
@@ -1240,7 +1262,13 @@
       "totalBoards": "Total de Boards",
       "activeSubscriptions": "Assinaturas Ativas",
       "active": "Ativos: {{count}}",
-      "tierDistribution": "Distribuição de Tiers dos Boards"
+      "tierDistribution": "Distribuição de Tiers dos Boards",
+      "personalBoardMetrics": "Board Pessoal",
+      "personalBoards": "Boards Pessoais",
+      "adoptionRate": "Taxa de Adoção",
+      "activePersonalBoards": "Ativos (30d)",
+      "totalDiaryEntries": "Entradas de Diário",
+      "boardTypeDistribution": "Distribuição de Tipos de Board"
     },
     "analytics": {
       "title": "Análises / Relatórios",
@@ -1331,7 +1359,11 @@
       "tasks": "Tasks",
       "createdAt": "Criado em",
       "view": "Ver",
-      "viewBoard": "Ver quadro"
+      "viewBoard": "Ver quadro",
+      "type": "Tipo",
+      "allTypes": "Todos os Tipos",
+      "typeTeam": "Equipe",
+      "typePersonal": "Pessoal"
     },
     "boardDetail": {
       "title": "Detalhes do Board",
@@ -1384,7 +1416,12 @@
       "seatCount": "Vagas",
       "seatCountUpdateFailed": "Falha ao alterar a quantidade de vagas.",
       "seatCountUpdateSuccess": "Quantidade de vagas atualizada para {{count}}.",
-      "updateSeatCount": "Atualizar vagas"
+      "updateSeatCount": "Atualizar vagas",
+      "personalActivity": "Atividade Pessoal",
+      "diaryEntries": "Diário",
+      "completionRate": "{{rate}}% Concluído",
+      "events": "Eventos",
+      "lastActivity": "Última Atividade"
     },
     "users": {
       "title": "Gerenciamento de Usuários",

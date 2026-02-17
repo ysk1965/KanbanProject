@@ -1,5 +1,6 @@
 package com.kanban.domain.member.controller;
 
+import com.kanban.domain.board.service.BoardService;
 import com.kanban.domain.member.dto.MemberRequest;
 import com.kanban.domain.member.dto.MemberResponse;
 import com.kanban.domain.member.service.MemberService;
@@ -18,6 +19,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class MemberController {
 
+    private final BoardService boardService;
     private final MemberService memberService;
 
     @GetMapping
@@ -33,6 +35,7 @@ public class MemberController {
             @PathVariable String boardId,
             @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody MemberRequest.Invite request) {
+        boardService.checkTeamBoardOnly(boardId);
         MemberResponse.InviteResult response = memberService.inviteMember(boardId, principal.getUserId(), request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }

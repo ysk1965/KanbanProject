@@ -5,6 +5,7 @@ import { checklistAPI } from '../utils/api';
 import { useDragContext } from '../contexts/DragContext';
 import { getAssigneeHex, getInitials } from '../utils/assigneeColor';
 import { useTranslation } from 'react-i18next';
+import { CompletionParticles } from './CompletionParticles';
 
 // 클릭으로 인정할 최대 이동 거리 (픽셀)
 const CLICK_THRESHOLD = 5;
@@ -24,6 +25,8 @@ interface DraggableCardProps {
   memberColorMap?: Record<string, string | null>;
   showFeatureLabel?: boolean;
   isScheduled?: boolean;
+  hideAssignees?: boolean;
+  justCompleted?: boolean;
 }
 
 export function DraggableCard({
@@ -40,6 +43,8 @@ export function DraggableCard({
   memberColorMap,
   showFeatureLabel = false,
   isScheduled = false,
+  hideAssignees = false,
+  justCompleted = false,
 }: DraggableCardProps) {
   const { t } = useTranslation();
   const ref = useRef<HTMLDivElement>(null);
@@ -267,11 +272,13 @@ export function DraggableCard({
       data-task-id={task.id}
       data-task-index={index}
       draggable={!shouldDisablePointerEvents}
-      className={`group relative bg-bridge-surface-hover rounded-xl border border-bridge-border px-3 py-2.5 hover:border-bridge-secondary/40 hover:shadow-2xl hover:shadow-bridge-secondary/10 transition-all cursor-pointer overflow-hidden kanban-glow select-none ${
+      className={`group relative bg-bridge-surface-hover rounded-xl border px-3 py-2.5 hover:border-bridge-secondary/40 hover:shadow-2xl hover:shadow-bridge-secondary/10 transition-all cursor-pointer overflow-hidden kanban-glow select-none ${
         isDragging || isThisCardDragging
           ? 'opacity-30 scale-95 border-2 border-dashed border-bridge-secondary'
-          : ''
-      } ${task.completed ? 'opacity-60' : ''} ${
+          : justCompleted
+            ? 'card-complete-burst border-green-500/60'
+            : 'border-bridge-border'
+      } ${task.completed && !justCompleted ? 'opacity-60' : ''} ${
         shouldDisablePointerEvents ? 'pointer-events-none' : ''
       }`}
       onMouseDown={handleMouseDown}
@@ -298,8 +305,15 @@ export function DraggableCard({
 
       {/* 완료 체크 배지 */}
       {task.completed && (
-        <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-green-500 flex items-center justify-center shadow-[0_0_8px_rgba(34,197,94,0.4)]">
-          <Check className="w-3 h-3 text-white" strokeWidth={3} />
+        <div className={`absolute top-2 right-2 ${justCompleted ? 'z-20' : ''}`}>
+          <div className={`relative w-5 h-5 rounded-full bg-green-500 flex items-center justify-center shadow-[0_0_8px_rgba(34,197,94,0.4)] ${justCompleted ? 'card-check-pop' : ''}`}>
+            <Check className="w-3 h-3 text-white" strokeWidth={3} />
+          </div>
+          {justCompleted && (
+            <div className="absolute inset-0 w-5 h-5">
+              <CompletionParticles active={true} count={10} variant="chip" />
+            </div>
+          )}
         </div>
       )}
 
@@ -421,7 +435,7 @@ export function DraggableCard({
         </div>
 
         {/* 담당자들 */}
-        {allAssignees.length > 0 && (
+        {!hideAssignees && allAssignees.length > 0 && (
           <div className="flex items-center">
             <div className="flex items-center -space-x-2">
               {allAssignees.slice(0, 3).map((assignee, index) => (

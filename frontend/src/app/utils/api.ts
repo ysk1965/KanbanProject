@@ -376,6 +376,7 @@ export interface BoardListItem {
   id: string;
   name: string;
   description: string | null;
+  board_type?: 'TEAM' | 'PERSONAL';
   role: 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER';
   is_starred: boolean;
   member_count: number;
@@ -397,6 +398,7 @@ export interface BoardDetail {
   id: string;
   name: string;
   description: string | null;
+  board_type?: 'TEAM' | 'PERSONAL';
   owner: BoardOwner;
   my_role: 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER';
   is_starred: boolean;
@@ -693,11 +695,25 @@ export interface BoardLimitsResponse {
  * 보드 진입 시 필요한 모든 데이터를 한 번에 반환하는 통합 응답
  * 기존 13개 개별 API 호출을 1개로 통합
  */
+export interface TodayData {
+  due_today_tasks: TaskResponse[];
+  in_progress_tasks: TaskResponse[];
+  personal_events: import('../types').PersonalEvent[];
+  daily_checklist: any[];
+  completion_rate: number;
+}
+
+export interface TaskMoveRequest {
+  target_board_id: string;
+  target_block_id: string;
+}
+
 export interface BoardFullResponse {
   // 기본 보드 정보
   id: string;
   name: string;
   description: string | null;
+  board_type?: 'TEAM' | 'PERSONAL';
   owner: BoardOwner;
   my_role: 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER';
   is_starred: boolean;
@@ -856,7 +872,32 @@ export const userAPI = {
   deleteAccount: async () => {
     return apiClient.delete<{ message: string }>('/users/me');
   },
+
+  getMyTasks: async (filter: 'today' | 'week' | 'overdue' = 'today') => {
+    return apiClient.get<MyTasksResponse>(`/users/me/tasks?filter=${filter}`);
+  },
 };
+
+export interface MyTasksBoardGroup {
+  board_id: string;
+  board_name: string;
+  board_type?: string;
+  tasks: Array<{
+    id: string;
+    title: string;
+    due_date: string | null;
+    is_completed: boolean;
+    block_name: string;
+    feature_title: string;
+    feature_color: string;
+  }>;
+}
+
+export interface MyTasksResponse {
+  boards: MyTasksBoardGroup[];
+  total_count: number;
+  filter: string;
+}
 
 // ========================================
 // Board API
@@ -907,6 +948,22 @@ export const boardAPI = {
    */
   getBoardFull: async (boardId: string) => {
     return apiClient.get<BoardFullResponse>(`/boards/${boardId}/full`);
+  },
+
+  getPersonalBoard: async () => {
+    return apiClient.get<BoardDetail>('/boards/personal');
+  },
+
+  getTodayData: async (boardId: string) => {
+    return apiClient.get<TodayData>(`/boards/${boardId}/today`);
+  },
+
+  moveTask: async (taskId: string, data: TaskMoveRequest) => {
+    return apiClient.post<void>(`/tasks/${taskId}/move`, data);
+  },
+
+  copyTask: async (taskId: string, data: TaskMoveRequest) => {
+    return apiClient.post<void>(`/tasks/${taskId}/copy`, data);
   },
 };
 
@@ -2102,6 +2159,8 @@ export const meetingAPI = {
       color?: string;
       recurrence_rule?: string | null;
       recurrence_end_date?: string | null;
+      recurrence_days_of_week?: number[] | null;
+      recurrence_week_of_month?: number | null;
     }
   ): Promise<MeetingDetail> => {
     return apiClient.post<MeetingDetail>(
@@ -2925,6 +2984,7 @@ export interface AdminUserSummary {
   is_active: boolean;
   deactivated_at?: string | null;
   deactivated_reason?: string | null;
+  has_personal_board?: boolean;
 }
 
 export interface AdminUserDetail extends AdminUserSummary {
@@ -2933,6 +2993,13 @@ export interface AdminUserDetail extends AdminUserSummary {
   member_board_count: number;
   auth_provider_id?: string | null;
   email_verified_at?: string | null;
+  // Personal Board fields
+  has_personal_board?: boolean;
+  personal_board_id?: string | null;
+  personal_board_created_at?: string | null;
+  personal_board_task_count?: number | null;
+  personal_board_diary_count?: number | null;
+  personal_board_event_count?: number | null;
 }
 
 export interface AdminBoardSummary {
@@ -2940,6 +3007,7 @@ export interface AdminBoardSummary {
   name: string;
   description?: string | null;
   tier: 'FREE' | 'TRIAL' | 'STANDARD' | 'PREMIUM' | 'ENTERPRISE';
+  board_type?: 'TEAM' | 'PERSONAL';
   owner_id: string;
   owner_name: string;
   owner_email: string;
@@ -2969,6 +3037,11 @@ export interface AdminBoardDetail extends AdminBoardSummary {
   monthly_credits_used?: number | null;
   purchased_credits?: number | null;
   credits_reset_date?: string | null;
+  // Personal Board fields
+  diary_count?: number | null;
+  diary_completion_rate?: number | null;
+  personal_event_count?: number | null;
+  last_activity_at?: string | null;
 }
 
 export interface AdminStatistics {
@@ -2979,6 +3052,11 @@ export interface AdminStatistics {
   standard_boards: number;
   premium_boards: number;
   active_subscriptions: number;
+  // Personal Board metrics (P1)
+  personal_boards?: number;
+  personal_board_adoption?: number;
+  active_personal_boards?: number;
+  total_diary_entries?: number;
 }
 
 // Analytics Types
@@ -3020,6 +3098,37 @@ export interface ConversionStats {
   trial_in_progress: number;
   trial_expired_not_converted: number;
   trend: MonthlyConversion[];
+}
+
+// Personal Board Analytics Types
+export interface PersonalBoardStatsData {
+  date: string;
+  count: number;
+}
+
+export interface PersonalBoardStats {
+  total_personal_boards: number;
+  adoption_rate: number;
+  trend: PersonalBoardStatsData[];
+}
+
+export interface DiaryStatsData {
+  date: string;
+  count: number;
+}
+
+export interface DiaryStats {
+  total_entries: number;
+  completion_rate: number;
+  active_users: number;
+  trend: DiaryStatsData[];
+}
+
+export interface PersonalConversionStats {
+  personal_only: number;
+  both: number;
+  conversion_rate: number;
+  trend: PersonalBoardStatsData[];
 }
 
 // Announcement Types
@@ -3125,6 +3234,11 @@ export const adminAPI = {
     return apiClient.post<{ message: string }>(`/admin/users/${userId}/send-password-reset`, {});
   },
 
+  // Personal Board 생성
+  createPersonalBoard: async (userId: string) => {
+    return apiClient.post<{ message: string }>(`/admin/users/${userId}/create-personal-board`, {});
+  },
+
   // 사용자 영구 삭제
   deleteUser: async (userId: string) => {
     return apiClient.delete<{ message: string }>(`/admin/users/${userId}`);
@@ -3136,12 +3250,13 @@ export const adminAPI = {
   },
 
   // 보드 목록 조회
-  getBoards: async (params: { page?: number; size?: number; search?: string; tier?: string }) => {
+  getBoards: async (params: { page?: number; size?: number; search?: string; tier?: string; board_type?: string }) => {
     const searchParams = new URLSearchParams();
     if (params.page !== undefined) searchParams.append('page', params.page.toString());
     if (params.size !== undefined) searchParams.append('size', params.size.toString());
     if (params.search) searchParams.append('search', params.search);
     if (params.tier) searchParams.append('tier', params.tier);
+    if (params.board_type) searchParams.append('board_type', params.board_type);
     return apiClient.get<BoardListResponse>(
       `/admin/boards?${searchParams.toString()}`
     );
@@ -3210,6 +3325,21 @@ export const adminAPI = {
   // Analytics: 결제 전환율
   getConversionStats: async (days: number = 365) => {
     return apiClient.get<ConversionStats>(`/admin/statistics/conversion?days=${days}`);
+  },
+
+  // Analytics: Personal Board 통계
+  getPersonalBoardStats: async (days: number = 30) => {
+    return apiClient.get<PersonalBoardStats>(`/admin/statistics/personal-boards?days=${days}`);
+  },
+
+  // Analytics: Diary 통계
+  getDiaryStats: async (days: number = 30) => {
+    return apiClient.get<DiaryStats>(`/admin/statistics/diary?days=${days}`);
+  },
+
+  // Analytics: Personal → Team 전환 통계
+  getPersonalConversionStats: async (days: number = 365) => {
+    return apiClient.get<PersonalConversionStats>(`/admin/statistics/personal-conversion?days=${days}`);
   },
 
   // 구독 목록 조회
@@ -3753,7 +3883,10 @@ export const noteAPI = {
     parentId?: string | null;
     position?: number;
   }) => {
-    return apiClient.put<NoteDetail>(`/boards/${boardId}/notes/${noteId}/move`, data);
+    return apiClient.put<NoteDetail>(`/boards/${boardId}/notes/${noteId}/move`, {
+      parent_id: data.parentId,
+      position: data.position,
+    });
   },
 
   getVersions: async (boardId: string, noteId: string) => {
@@ -3831,6 +3964,9 @@ export const personalEventAPI = {
     end_time?: string;
     color?: string;
     all_day?: boolean;
+    recurrence_rule?: string;
+    recurrence_end_date?: string;
+    recurrence_days_of_week?: number[];
   }): Promise<PersonalEvent> => {
     return apiClient.post('/personal/events', data);
   },
@@ -3847,8 +3983,9 @@ export const personalEventAPI = {
     return apiClient.put(`/personal/events/${eventId}`, data);
   },
 
-  delete: async (eventId: string): Promise<void> => {
-    return apiClient.delete(`/personal/events/${eventId}`);
+  delete: async (eventId: string, scope?: string): Promise<void> => {
+    const query = scope ? `?scope=${scope}` : '';
+    return apiClient.delete(`/personal/events/${eventId}${query}`);
   },
 };
 
@@ -3858,7 +3995,9 @@ export const personalEventAPI = {
 
 export const diaryAPI = {
   getByDate: async (date: string): Promise<DiaryDetail | null> => {
-    return apiClient.get(`/diary?date=${date}`);
+    const data = await apiClient.get<DiaryDetail | null>(`/diary?date=${date}`);
+    // Backend returns null (empty body) when no diary exists → apiClient returns {}
+    return data && (data as DiaryDetail).id ? data : null;
   },
 
   getById: async (diaryId: string): Promise<DiaryDetail> => {

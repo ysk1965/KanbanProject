@@ -32,6 +32,7 @@ public class DiaryService {
     private final DiaryEntryRepository diaryEntryRepository;
     private final DiaryMessageRepository diaryMessageRepository;
     private final UserRepository userRepository;
+    private final DiaryAIService diaryAIService;
 
     public DiaryResponse.Detail getDiary(String userId, LocalDate date) {
         DiaryEntry entry = diaryEntryRepository.findByUserIdAndDate(userId, date)
@@ -110,8 +111,8 @@ public class DiaryService {
                 .build();
         diaryMessageRepository.save(userMessage);
 
-        // AI 응답 생성 (현재는 규칙 기반, 추후 LLM 연동)
-        String aiReplyContent = generateAiReply(entry, request.getContent(), nextOrder);
+        // AI 응답 생성 (LLM 기반)
+        String aiReplyContent = diaryAIService.generateChatReply(entry, request.getContent());
         DiaryMessage aiMessage = DiaryMessage.builder()
                 .diary(entry)
                 .role("AI")
@@ -138,15 +139,18 @@ public class DiaryService {
             throw new BusinessException(ErrorCode.DIARY_ACCESS_DENIED);
         }
 
-        // 대화 내용을 기반으로 일기 완성
+        // 대화 내용을 기반으로 AI가 일기 생성
         String finalContent = request.getContent();
-        if (finalContent == null || finalContent.isBlank()) {
-            finalContent = compileDiaryFromMessages(entry);
-        }
-
         String title = request.getTitle();
-        if (title == null || title.isBlank()) {
-            title = entry.getDiaryDate().toString() + "의 일기";
+
+        if ((finalContent == null || finalContent.isBlank()) || (title == null || title.isBlank())) {
+            DiaryAIService.DiaryContent aiContent = diaryAIService.generateDiaryContent(entry);
+            if (finalContent == null || finalContent.isBlank()) {
+                finalContent = aiContent.content();
+            }
+            if (title == null || title.isBlank()) {
+                title = aiContent.title();
+            }
         }
 
         entry.complete(title, finalContent, request.getMood());
@@ -183,37 +187,4 @@ public class DiaryService {
         log.info("Diary deleted: {} by user: {}", diaryId, userId);
     }
 
-    /**
-     * 규칙 기반 AI 응답 생성 (추후 LLM 연동 가능)
-     */
-    private String generateAiReply(DiaryEntry entry, String userMessage, int messageOrder) {
-        // 대화 순서에 따라 다른 질문
-        if (messageOrder <= 2) {
-            return "그렇군요! 조금 더 자세히 이야기해주실 수 있나요? 어떤 상황이었나요?";
-        } else if (messageOrder <= 4) {
-            return "그때 어떤 기분이 들었나요? 감정을 표현해본다면?";
-        } else if (messageOrder <= 6) {
-            return "오늘 하루 중 스스로에게 해주고 싶은 말이 있다면?";
-        } else if (messageOrder <= 8) {
-            return "좋은 이야기 감사합니다. 내일은 어떤 하루가 되면 좋겠나요?";
-        } else {
-            return "오늘 이야기를 충분히 나눈 것 같아요. '일기 완성' 버튼을 눌러서 오늘의 일기를 정리해볼까요?";
-        }
-    }
-
-    /**
-     * 대화 메시지를 기반으로 일기 내용 컴파일
-     */
-    private String compileDiaryFromMessages(DiaryEntry entry) {
-        List<DiaryMessage> messages = diaryMessageRepository.findByDiaryIdOrderByMessageOrder(entry.getId());
-        StringBuilder sb = new StringBuilder();
-
-        for (DiaryMessage msg : messages) {
-            if ("USER".equals(msg.getRole())) {
-                sb.append(msg.getContent()).append("\n\n");
-            }
-        }
-
-        return sb.toString().trim();
-    }
 }
