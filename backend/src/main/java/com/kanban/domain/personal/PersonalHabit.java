@@ -65,7 +65,7 @@ public class PersonalHabit extends BaseTimeEntity {
     private Integer bestStreak = 0;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "importance", nullable = false, length = 10)
+    @Column(name = "importance", nullable = false, length = 10, columnDefinition = "VARCHAR(10) NOT NULL DEFAULT 'MEDIUM'")
     @Builder.Default
     private HabitImportance importance = HabitImportance.MEDIUM;
 

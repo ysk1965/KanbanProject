@@ -72,7 +72,7 @@ public class User extends BaseTimeEntity {
     private String deactivatedReason;
 
     // Personal Space
-    @Column(name = "personal_space_enabled", nullable = false)
+    @Column(name = "personal_space_enabled", nullable = false, columnDefinition = "BOOLEAN NOT NULL DEFAULT false")
     @Builder.Default
     private Boolean personalSpaceEnabled = false;
 
