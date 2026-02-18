@@ -1966,8 +1966,8 @@ export function KanbanBoardPage() {
           </main>
         ) : null}
 
-        {/* 모바일 하단 여백 (탭바 공간 확보) */}
-        <div className="h-14 shrink-0 md:hidden" />
+        {/* 모바일 하단 여백 (탭바 + safe area 공간 확보) */}
+        <div className="shrink-0 md:hidden" style={{ height: 'calc(3.5rem + env(safe-area-inset-bottom, 0px))' }} />
 
         {/* 모바일 하단 탭바 - inline으로 유지 (뷰모드 의존성이 깊어서) */}
         <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-bridge-obsidian/95 backdrop-blur-xl border-t border-white/10" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>

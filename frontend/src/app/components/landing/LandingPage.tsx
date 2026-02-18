@@ -117,7 +117,7 @@ export const LandingPage: React.FC = () => {
     <div className="min-h-screen bg-bridge-dark text-slate-200 selection:bg-bridge-accent selection:text-white font-inter overflow-x-hidden">
 
       {/* Navigation */}
-      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-700 ${scrolled ? 'glass border-b border-white/15 py-4' : 'bg-transparent py-8'}`}>
+      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-700 safe-top ${scrolled ? 'glass border-b border-white/15 py-4' : 'bg-transparent py-8'}`}>
         <div className="container mx-auto px-8 flex justify-between items-center">
           <div className="flex items-center gap-3 cursor-pointer group" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
             <img src="/BridgeSpotsIcon.png" alt="BridgeSpots" className="w-10 h-10 rounded-xl shadow-[0_0_20px_rgba(99,102,241,0.6)] group-hover:scale-110 transition-all duration-500" />

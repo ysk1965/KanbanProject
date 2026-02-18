@@ -230,7 +230,7 @@ export function SettingsPage() {
   return (
     <div className="min-h-screen w-full bg-bridge-dark text-foreground">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-bridge-obsidian/80 backdrop-blur-xl border-b border-white/15">
+      <header className="sticky top-0 z-50 bg-bridge-obsidian/80 backdrop-blur-xl border-b border-white/15 safe-top">
         <div className="max-w-3xl mx-auto px-6 py-4 flex items-center gap-4">
           <button
             onClick={() => navigate(-1)}

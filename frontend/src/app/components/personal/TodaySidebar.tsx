@@ -53,7 +53,8 @@ export function TodaySidebar({ tasks, onTaskClick }: TodaySidebarProps) {
       {/* Mobile Toggle Button */}
       <button
         onClick={() => setShowMobileSidebar(true)}
-        className="md:hidden fixed bottom-20 left-4 z-40 w-11 h-11 rounded-full bg-bridge-secondary shadow-lg shadow-bridge-secondary/30 flex items-center justify-center text-white hover:bg-bridge-secondary/90 transition-colors"
+        className="md:hidden fixed left-4 z-40 w-11 h-11 rounded-full bg-bridge-secondary shadow-lg shadow-bridge-secondary/30 flex items-center justify-center text-white hover:bg-bridge-secondary/90 transition-colors"
+        style={{ bottom: 'calc(5rem + env(safe-area-inset-bottom, 0px))' }}
       >
         <Clock size={18} />
       </button>

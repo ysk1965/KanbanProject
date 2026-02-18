@@ -241,6 +241,36 @@
   --color-bridge-border: var(--bridge-border);
 }
 
+/* ===== Safe Area (Notch) Utilities ===== */
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.safe-left {
+  padding-left: env(safe-area-inset-left);
+}
+.safe-right {
+  padding-right: env(safe-area-inset-right);
+}
+.safe-x {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+.safe-y {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Drawer/Sheet safe area by direction */
+[data-vaul-drawer-direction="bottom"] {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+[data-vaul-drawer-direction="top"] {
+  padding-top: env(safe-area-inset-top);
+}
+
 /* Glass morphism effect */
 .glass {
   background: rgba(21, 27, 40, 0.8);
