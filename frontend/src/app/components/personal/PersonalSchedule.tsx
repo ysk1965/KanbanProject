@@ -30,8 +30,8 @@ const SLOT_HEIGHT = 40;
 const DEFAULT_START_HOUR = 7;
 const DEFAULT_END_HOUR = 23;
 const DAY_LABELS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
-const COL_MIN_W = 'min-w-[130px]';
-const TIME_COL_W = 'w-16';
+const COL_MIN_W = 'min-w-[100px] md:min-w-[130px]';
+const TIME_COL_W = 'w-12 md:w-16';
 const STORAGE_KEY = 'bridge-personal-schedule-settings';
 
 interface ScheduleSettings {
@@ -405,9 +405,9 @@ export function PersonalSchedule() {
 
   // ---- Render ----
   return (
-    <div className="h-full flex">
-      {/* ======== Left Sidebar ======== */}
-      <div className="w-[340px] flex-shrink-0 border-r border-white/5 flex flex-col overflow-hidden">
+    <div className="h-full flex flex-col md:flex-row">
+      {/* ======== Left Sidebar (desktop only) ======== */}
+      <div className="hidden md:flex md:w-[340px] flex-shrink-0 border-r border-white/5 flex-col overflow-hidden">
         <div className="px-4 pt-4 pb-2 flex-shrink-0">
           {/* Title */}
           <div className="flex items-center gap-2.5 mb-4">
@@ -595,26 +595,27 @@ export function PersonalSchedule() {
         }}
       >
         {/* ======== Navigation header ======== */}
-        <div className="flex items-center justify-between px-3 md:px-6 py-3 border-b border-white/[0.06] flex-shrink-0">
-          <div className="flex items-center gap-2 md:gap-3">
+        <div className="flex items-center justify-between px-3 md:px-6 py-2 md:py-3 border-b border-white/[0.06] flex-shrink-0">
+          <div className="flex items-center gap-1.5 md:gap-3">
             <button
               onClick={handlePrev}
-              className="p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors"
+              className="p-1.5 md:p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors"
             >
-              <ChevronLeft size={18} />
+              <ChevronLeft size={16} className="md:w-[18px] md:h-[18px]" />
             </button>
-            <h2 className="text-sm md:text-lg font-bold min-w-0 sm:min-w-[260px] text-center whitespace-nowrap">
-              {format(weekDays[0], 'MMM d')} - {format(weekDays[6], 'MMM d, yyyy')}
+            <h2 className="text-xs md:text-lg font-bold min-w-0 text-center whitespace-nowrap">
+              <span className="hidden sm:inline">{format(weekDays[0], 'MMM d')} - {format(weekDays[6], 'MMM d, yyyy')}</span>
+              <span className="sm:hidden">{format(weekDays[0], 'M/d')} - {format(weekDays[6], 'M/d')}</span>
             </h2>
             <button
               onClick={handleNext}
-              className="p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors"
+              className="p-1.5 md:p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors"
             >
-              <ChevronRight size={18} />
+              <ChevronRight size={16} className="md:w-[18px] md:h-[18px]" />
             </button>
             <button
               onClick={handleToday}
-              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${
+              className={`px-2 md:px-3 py-1 md:py-1.5 text-[10px] md:text-xs font-bold rounded-lg transition-colors ${
                 isTodayInWeek
                   ? 'bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white'
                   : 'text-bridge-secondary border border-bridge-secondary/30 hover:bg-bridge-secondary/10'
@@ -625,13 +626,13 @@ export function PersonalSchedule() {
             {isLoading && <Loader2 className="h-4 w-4 text-slate-400 animate-spin" />}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 md:gap-2">
             <button
               onClick={() => setShowSettings(true)}
-              className="p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors"
+              className="p-1.5 md:p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors"
               title="Schedule settings"
             >
-              <Settings size={18} />
+              <Settings size={16} className="md:w-[18px] md:h-[18px]" />
             </button>
             <button
               onClick={() => {
@@ -641,7 +642,7 @@ export function PersonalSchedule() {
                 setCreateInitialRecurrence('');
                 setIsCreateOpen(true);
               }}
-              className="flex items-center gap-2 px-4 py-2 bg-bridge-accent text-white text-sm font-bold rounded-xl hover:bg-bridge-accent/90 transition-colors"
+              className="flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 bg-bridge-accent text-white text-xs md:text-sm font-bold rounded-xl hover:bg-bridge-accent/90 transition-colors"
             >
               <Plus size={16} />
               <span className="hidden sm:inline">Add Event</span>
@@ -651,7 +652,7 @@ export function PersonalSchedule() {
 
         {/* ======== Time-grid ======== */}
         <div className="flex-1 overflow-auto">
-          <div className="min-w-[760px]">
+          <div className="min-w-[600px] md:min-w-[760px]">
           {/* ---- Day headers (sticky) ---- */}
           <div className="flex sticky top-0 bg-bridge-obsidian/95 backdrop-blur-sm z-10 border-b border-white/[0.06]">
             <div className={`${TIME_COL_W} flex-shrink-0 border-r border-white/[0.06]`} />
@@ -931,8 +932,9 @@ export function PersonalSchedule() {
 
         {/* ======== Bottom guide ======== */}
         <div className="px-3 md:px-6 py-2 border-t border-white/[0.06] flex-shrink-0">
-          <p className="text-xs text-slate-500">
-            Drag on the grid to create a new event, or click an existing event to edit
+          <p className="text-[10px] md:text-xs text-slate-500">
+            <span className="hidden sm:inline">Drag on the grid to create a new event, or click an existing event to edit</span>
+            <span className="sm:hidden">Tap to create or edit events</span>
           </p>
         </div>
       </div>

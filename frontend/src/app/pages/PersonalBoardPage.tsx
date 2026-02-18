@@ -171,9 +171,9 @@ export function PersonalBoardPage() {
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.95 }}
           onClick={() => setQuickCaptureOpen(true)}
-          className="fixed bottom-6 right-6 w-14 h-14 rounded-full bg-bridge-accent shadow-lg shadow-bridge-accent/30 flex items-center justify-center text-white hover:bg-bridge-accent/90 transition-colors z-50"
+          className="fixed bottom-6 right-6 w-12 h-12 md:w-14 md:h-14 rounded-full bg-bridge-accent shadow-lg shadow-bridge-accent/30 flex items-center justify-center text-white hover:bg-bridge-accent/90 transition-colors z-50"
         >
-          <Plus size={24} />
+          <Plus size={20} className="md:w-6 md:h-6" />
         </motion.button>
       )}
 

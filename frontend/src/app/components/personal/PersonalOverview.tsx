@@ -38,7 +38,7 @@ function WidgetCard({
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay }}
-      className="bg-bridge-obsidian rounded-2xl border border-white/5 p-5 flex flex-col min-h-[340px]"
+      className="bg-bridge-obsidian rounded-2xl border border-white/5 p-4 md:p-5 flex flex-col min-h-[240px] md:min-h-[340px]"
     >
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2.5">
@@ -154,9 +154,9 @@ function TodayScheduleWidget({
           {allDayEvents.map(ev => {
             const color = ev.color || '#6366F1';
             return (
-              <div key={ev.id} className="flex items-center gap-3">
-                <div className="w-[46px] flex-shrink-0 text-right">
-                  <span className="text-[13px] text-slate-500 font-light">All day</span>
+              <div key={ev.id} className="flex items-center gap-2.5 md:gap-3">
+                <div className="w-[40px] md:w-[46px] flex-shrink-0 text-right">
+                  <span className="text-[11px] md:text-[13px] text-slate-500 font-light">All day</span>
                 </div>
                 <div className="flex-shrink-0">
                   <div className="w-2.5 h-2.5 rounded-full border-[1.5px]" style={{ borderColor: color }} />
@@ -177,9 +177,9 @@ function TodayScheduleWidget({
             const status = getStatus(ev);
             const color = ev.color || '#6366F1';
             return (
-              <div key={ev.id} className="flex items-start gap-3">
-                <div className="w-[46px] flex-shrink-0 pt-3 text-right">
-                  <span className="text-[13px] text-slate-500 font-light">{ev.start_time?.slice(0, 5)}</span>
+              <div key={ev.id} className="flex items-start gap-2.5 md:gap-3">
+                <div className="w-[40px] md:w-[46px] flex-shrink-0 pt-3 text-right">
+                  <span className="text-[11px] md:text-[13px] text-slate-500 font-light">{ev.start_time?.slice(0, 5)}</span>
                 </div>
                 <div className="flex-shrink-0 pt-[14px]">
                   <div className="w-2.5 h-2.5 rounded-full border-[1.5px]" style={{ borderColor: color }} />
@@ -602,8 +602,8 @@ export function PersonalOverview({ onNavigateTab }: PersonalOverviewProps) {
   const todayDate = getTodayDateString();
 
   return (
-    <div className="h-full overflow-auto p-6">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 max-w-[1800px] mx-auto h-[calc(100%-1rem)]">
+    <div className="h-full overflow-auto p-3 md:p-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-5 max-w-[1800px] mx-auto h-[calc(100%-1rem)]">
         <TodayScheduleWidget
           todayDate={todayDate}
           onViewAll={() => onNavigateTab('schedule')}
