@@ -1,10 +1,10 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { ChevronLeft, ChevronRight, Plus, Trash2, X, Loader2, Settings, RotateCw, CalendarDays, Clock, CheckCircle2, ListTodo, AlertCircle, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Trash2, X, Loader2, Settings, RotateCw, CalendarDays, Clock, CheckCircle2, ListTodo, AlertCircle, Search, Flame, ChevronDown, ChevronUp, Hash } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { personalEventService, personalTaskService } from '../../utils/services';
 import { personalHabitAPI } from '../../utils/api';
 import { formatDate } from '../../utils/dateUtils';
-import type { PersonalEvent, PersonalTask, PersonalTaskPriority, HabitWeeklyRow } from '../../types';
+import type { PersonalEvent, PersonalTask, PersonalTaskPriority, HabitWeeklyRow, HabitFrequency } from '../../types';
 import {
   startOfWeek,
   endOfWeek,
@@ -94,6 +94,9 @@ export function PersonalSchedule() {
   const [createStartTime, setCreateStartTime] = useState('');
   const [createEndTime, setCreateEndTime] = useState('');
   const [createInitialRecurrence, setCreateInitialRecurrence] = useState('');
+
+  // Habit create modal
+  const [isCreateHabitOpen, setIsCreateHabitOpen] = useState(false);
 
   // Edit modal
   const [editEvent, setEditEvent] = useState<PersonalEvent | null>(null);
@@ -214,6 +217,25 @@ export function PersonalSchedule() {
       await personalHabitAPI.checkIn(habitId, { log_date: date, increment: 1 });
     } catch {
       await loadHabits(); // revert on error
+    }
+  };
+
+  const handleCreateHabit = async (data: {
+    title: string;
+    description?: string;
+    icon?: string;
+    color?: string;
+    frequency_type?: HabitFrequency;
+    frequency_days?: string;
+    target_count?: number;
+    unit?: string;
+  }) => {
+    try {
+      await personalHabitAPI.create(data);
+      setIsCreateHabitOpen(false);
+      await loadHabits();
+    } catch (err) {
+      console.error('Failed to create habit:', err);
     }
   };
 
@@ -978,53 +1000,66 @@ export function PersonalSchedule() {
           )}
 
           {/* ---- Habits row ---- */}
-          {habitRows.length > 0 && (
-            <div className="flex border-b border-white/[0.06] bg-purple-500/[0.03]">
-              <div
-                className={`${TIME_COL_W} flex-shrink-0 p-2 text-[10px] text-purple-400/70 border-r border-white/[0.06] flex items-center justify-center`}
-              >
-                <CheckCircle2 size={12} />
-              </div>
-              {weekDays.map((day) => {
-                const ds = toDateString(day);
-                const dayHabits = habitsByDate[ds] || [];
-                return (
-                  <div
-                    key={`hb-${ds}`}
-                    className={`flex-1 ${COL_MIN_W} p-1.5 border-r border-white/[0.06] space-y-1`}
-                  >
-                    {dayHabits.map((item) => (
-                      <div
-                        key={item.habit_id}
-                        className={`group flex items-center gap-1.5 px-2 py-1 rounded-md text-xs cursor-pointer transition-all ${
-                          item.is_completed
-                            ? 'bg-bridge-secondary/10 border-l-[3px] border-bridge-secondary/40'
-                            : 'bg-purple-400/10 border-l-[3px] border-purple-400/60 hover:bg-purple-400/15'
-                        }`}
-                        onClick={() => handleHabitCheckIn(item.habit_id, ds)}
-                      >
+          <div className="border-b border-white/[0.06] bg-purple-500/[0.03]">
+            {habitRows.length > 0 && (
+              <div className="flex">
+                <div
+                  className={`${TIME_COL_W} flex-shrink-0 p-2 text-[10px] text-purple-400/70 border-r border-white/[0.06] flex items-center justify-center`}
+                >
+                  <CheckCircle2 size={12} />
+                </div>
+                {weekDays.map((day) => {
+                  const ds = toDateString(day);
+                  const dayHabits = habitsByDate[ds] || [];
+                  return (
+                    <div
+                      key={`hb-${ds}`}
+                      className={`flex-1 ${COL_MIN_W} p-1.5 border-r border-white/[0.06] space-y-1`}
+                    >
+                      {dayHabits.map((item) => (
                         <div
-                          className={`w-3 h-3 rounded-full border flex items-center justify-center flex-shrink-0 transition-all ${
+                          key={item.habit_id}
+                          className={`group flex items-center gap-1.5 px-2 py-1 rounded-md text-xs cursor-pointer transition-all ${
                             item.is_completed
-                              ? 'bg-bridge-secondary border-bridge-secondary'
-                              : 'border-purple-400/40'
+                              ? 'bg-bridge-secondary/10 border-l-[3px] border-bridge-secondary/40'
+                              : 'bg-purple-400/10 border-l-[3px] border-purple-400/60 hover:bg-purple-400/15'
                           }`}
+                          onClick={() => handleHabitCheckIn(item.habit_id, ds)}
                         >
-                          {item.is_completed && <CheckCircle2 size={8} className="text-white" />}
+                          <div
+                            className={`w-3 h-3 rounded-full border flex items-center justify-center flex-shrink-0 transition-all ${
+                              item.is_completed
+                                ? 'bg-bridge-secondary border-bridge-secondary'
+                                : 'border-purple-400/40'
+                            }`}
+                          >
+                            {item.is_completed && <CheckCircle2 size={8} className="text-white" />}
+                          </div>
+                          <span className={`truncate ${
+                            item.is_completed ? 'line-through text-slate-500' : 'text-white/80'
+                          }`}>
+                            {item.icon && <span className="mr-0.5">{item.icon}</span>}
+                            {item.title}
+                          </span>
                         </div>
-                        <span className={`truncate ${
-                          item.is_completed ? 'line-through text-slate-500' : 'text-white/80'
-                        }`}>
-                          {item.icon && <span className="mr-0.5">{item.icon}</span>}
-                          {item.title}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                );
-              })}
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {/* Add Habit button */}
+            <div className="flex">
+              <div className={`${TIME_COL_W} flex-shrink-0 border-r border-white/[0.06]`} />
+              <button
+                onClick={() => setIsCreateHabitOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] text-purple-400/70 hover:text-purple-300 hover:bg-purple-400/5 transition-all rounded-md m-1"
+              >
+                <Plus size={12} />
+                Add Habit
+              </button>
             </div>
-          )}
+          </div>
 
           {/* ---- Time slot rows + event overlay ---- */}
           <div className="relative">
@@ -1275,6 +1310,15 @@ export function PersonalSchedule() {
             onClose={() => setEditEvent(null)}
             onDelete={handleDeleteEvent}
             onUpdate={handleUpdateEvent}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isCreateHabitOpen && (
+          <CreateHabitModal
+            onClose={() => setIsCreateHabitOpen(false)}
+            onCreate={handleCreateHabit}
           />
         )}
       </AnimatePresence>
@@ -2015,6 +2059,335 @@ function ScheduleSettingsModal({
             className="flex-1 py-3 bg-bridge-accent text-white text-sm font-bold rounded-xl hover:bg-bridge-accent/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
           >
             Save
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+/* ================================================================
+   Create Habit Modal (Progressive Disclosure)
+   ================================================================ */
+
+const HABIT_COLORS = [
+  '#8B5CF6', '#6366F1', '#EC4899', '#F43F5E',
+  '#F59E0B', '#10B981', '#06B6D4', '#3B82F6',
+];
+
+const HABIT_ICONS = [
+  '🏃', '📚', '💧', '🧘', '💪', '🎯', '✍️', '🎵',
+  '🧠', '🌿', '💊', '🍎', '😴', '🚶', '🧹', '📵',
+];
+
+const FREQUENCY_PRESETS: { value: HabitFrequency; label: string }[] = [
+  { value: 'DAILY', label: 'Every Day' },
+  { value: 'WEEKDAY', label: 'Weekdays' },
+  { value: 'CUSTOM', label: 'Custom' },
+];
+
+const DAY_CHIPS = [
+  { value: 1, label: 'M' },
+  { value: 2, label: 'T' },
+  { value: 3, label: 'W' },
+  { value: 4, label: 'T' },
+  { value: 5, label: 'F' },
+  { value: 6, label: 'S' },
+  { value: 0, label: 'S' },
+];
+
+function CreateHabitModal({
+  onClose,
+  onCreate,
+}: {
+  onClose: () => void;
+  onCreate: (data: {
+    title: string;
+    description?: string;
+    icon?: string;
+    color?: string;
+    frequency_type?: HabitFrequency;
+    frequency_days?: string;
+    target_count?: number;
+    unit?: string;
+  }) => void;
+}) {
+  const [title, setTitle] = useState('');
+  const [frequencyType, setFrequencyType] = useState<HabitFrequency>('DAILY');
+  const [customDays, setCustomDays] = useState<number[]>([]);
+  const [showMore, setShowMore] = useState(false);
+
+  // Advanced fields
+  const [icon, setIcon] = useState('');
+  const [color, setColor] = useState(HABIT_COLORS[0]);
+  const [goalType, setGoalType] = useState<'check' | 'count'>('check');
+  const [targetCount, setTargetCount] = useState(1);
+  const [unit, setUnit] = useState('');
+  const [description, setDescription] = useState('');
+
+  const isValid = title.trim().length > 0 && (frequencyType !== 'CUSTOM' || customDays.length > 0);
+
+  const toggleDay = (day: number) => {
+    setCustomDays(prev => prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]);
+  };
+
+  const handleSubmit = () => {
+    if (!isValid) return;
+    onCreate({
+      title: title.trim(),
+      description: description.trim() || undefined,
+      icon: icon || undefined,
+      color,
+      frequency_type: frequencyType,
+      frequency_days: frequencyType === 'CUSTOM' ? customDays.sort((a, b) => a - b).join(',') : undefined,
+      target_count: goalType === 'count' ? targetCount : 1,
+      unit: goalType === 'count' && unit.trim() ? unit.trim() : undefined,
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/40 backdrop-blur-sm">
+      <motion.div
+        initial={{ opacity: 0, y: 20, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 20, scale: 0.98 }}
+        className="w-full sm:max-w-md bg-bridge-obsidian rounded-t-2xl sm:rounded-2xl border border-white/10 p-5 md:p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Flame size={18} className="text-purple-400" />
+            <h3 className="text-base md:text-lg font-bold text-white">New Habit</h3>
+          </div>
+          <button onClick={onClose} className="p-1 text-slate-400 hover:text-white transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          {/* Habit Name */}
+          <div>
+            <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
+              Habit Name
+            </label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+              placeholder="e.g. Morning Run, Read 10 pages"
+              className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-white text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition-all"
+              autoFocus
+            />
+          </div>
+
+          {/* Frequency */}
+          <div>
+            <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">
+              Frequency
+            </label>
+            <div className="flex gap-1.5">
+              {FREQUENCY_PRESETS.map(({ value, label }) => (
+                <button
+                  key={value}
+                  onClick={() => {
+                    setFrequencyType(value);
+                    if (value !== 'CUSTOM') setCustomDays([]);
+                  }}
+                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                    frequencyType === value
+                      ? 'bg-purple-500 text-white shadow-sm'
+                      : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Custom Day Selector */}
+          {frequencyType === 'CUSTOM' && (
+            <div>
+              <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">
+                Repeat on
+              </label>
+              <div className="flex gap-1.5">
+                {DAY_CHIPS.map(({ value, label }) => (
+                  <button
+                    key={value}
+                    onClick={() => toggleDay(value)}
+                    className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-all ${
+                      customDays.includes(value)
+                        ? 'bg-purple-500 text-white'
+                        : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {customDays.length === 0 && (
+                <p className="mt-1.5 text-xs text-amber-400">Select at least one day</p>
+              )}
+            </div>
+          )}
+
+          {/* More Options Toggle */}
+          <button
+            onClick={() => setShowMore(!showMore)}
+            className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-300 transition-colors"
+          >
+            {showMore ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            {showMore ? 'Less options' : 'More options'}
+          </button>
+
+          {/* Expanded Options */}
+          <AnimatePresence>
+            {showMore && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="space-y-4 overflow-hidden"
+              >
+                {/* Icon Picker */}
+                <div>
+                  <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">
+                    Icon
+                  </label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {HABIT_ICONS.map((emoji) => (
+                      <button
+                        key={emoji}
+                        onClick={() => setIcon(icon === emoji ? '' : emoji)}
+                        className={`w-9 h-9 flex items-center justify-center rounded-lg text-base transition-all ${
+                          icon === emoji
+                            ? 'bg-purple-500/20 ring-2 ring-purple-500 scale-110'
+                            : 'bg-white/5 hover:bg-white/10 hover:scale-105'
+                        }`}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Color Picker */}
+                <div>
+                  <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">
+                    Color
+                  </label>
+                  <div className="flex gap-2">
+                    {HABIT_COLORS.map((c) => (
+                      <button
+                        key={c}
+                        onClick={() => setColor(c)}
+                        className={`w-7 h-7 rounded-full transition-all ${
+                          color === c
+                            ? 'ring-2 ring-white ring-offset-2 ring-offset-bridge-obsidian scale-110'
+                            : 'hover:scale-110'
+                        }`}
+                        style={{ backgroundColor: c }}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Goal Type */}
+                <div>
+                  <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">
+                    Goal Type
+                  </label>
+                  <div className="flex gap-1.5">
+                    <button
+                      onClick={() => { setGoalType('check'); setTargetCount(1); setUnit(''); }}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold rounded-lg transition-all ${
+                        goalType === 'check'
+                          ? 'bg-purple-500 text-white shadow-sm'
+                          : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                      }`}
+                    >
+                      <CheckCircle2 size={14} />
+                      Check-off
+                    </button>
+                    <button
+                      onClick={() => setGoalType('count')}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold rounded-lg transition-all ${
+                        goalType === 'count'
+                          ? 'bg-purple-500 text-white shadow-sm'
+                          : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                      }`}
+                    >
+                      <Hash size={14} />
+                      Count
+                    </button>
+                  </div>
+                </div>
+
+                {/* Target Count + Unit (only for count goal) */}
+                {goalType === 'count' && (
+                  <div className="flex gap-3">
+                    <div className="w-24">
+                      <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
+                        Target
+                      </label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={999}
+                        value={targetCount}
+                        onChange={(e) => setTargetCount(Math.max(1, parseInt(e.target.value) || 1))}
+                        className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
+                        Unit
+                      </label>
+                      <input
+                        type="text"
+                        value={unit}
+                        onChange={(e) => setUnit(e.target.value)}
+                        placeholder="e.g. glasses, pages, km"
+                        className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-white text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Description */}
+                <div>
+                  <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
+                    Description
+                  </label>
+                  <textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Why this habit matters to you"
+                    rows={2}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-white text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all resize-none"
+                  />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-3 mt-6">
+          <button
+            onClick={onClose}
+            className="flex-1 py-3 text-sm font-bold text-slate-400 hover:text-white border border-white/10 rounded-xl hover:bg-white/5 transition-all"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={!isValid}
+            className="flex-1 py-3 bg-purple-500 text-white text-sm font-bold rounded-xl hover:bg-purple-500/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+          >
+            Add Habit
           </button>
         </div>
       </motion.div>
