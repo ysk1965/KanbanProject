@@ -204,9 +204,9 @@ function QuickCaptureModal({ onClose, onSubmit }: {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-start justify-center pt-[20vh]"
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-start justify-center sm:pt-[20vh]"
       onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="w-full max-w-lg bg-bridge-obsidian rounded-2xl border border-white/10 shadow-2xl p-4">
+      <div className="w-full sm:max-w-lg bg-bridge-obsidian rounded-t-2xl sm:rounded-2xl border border-white/10 shadow-2xl p-4">
         <input
           autoFocus
           value={title}

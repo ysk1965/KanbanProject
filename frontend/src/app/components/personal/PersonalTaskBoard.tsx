@@ -249,8 +249,8 @@ export function PersonalTaskBoard({ tasks, onRefresh }: PersonalTaskBoardProps) 
         <div className={`bg-bridge-obsidian rounded-xl border transition-all ${
           isAddFocused ? 'border-bridge-accent/50 shadow-lg shadow-bridge-accent/5' : 'border-white/10'
         }`}>
-          <div className="flex items-center gap-3 px-4 py-3">
-            <Plus size={18} className={isAddFocused ? 'text-bridge-accent' : 'text-slate-500'} />
+          <div className="flex items-center gap-3 px-3 md:px-4 py-3">
+            <Plus size={18} className={`shrink-0 ${isAddFocused ? 'text-bridge-accent' : 'text-slate-500'}`} />
             <input
               ref={addInputRef}
               value={newTitle}
@@ -266,16 +266,27 @@ export function PersonalTaskBoard({ tasks, onRefresh }: PersonalTaskBoardProps) 
                 }
               }}
               placeholder={t('personal.tasks.addPlaceholder', '할 일 추가...')}
-              className="flex-1 bg-transparent text-sm text-white placeholder-slate-600 outline-none"
+              className="flex-1 min-w-0 bg-transparent text-sm text-white placeholder-slate-600 outline-none"
             />
             <input
               type="date"
               value={newDueDate}
               onChange={(e) => setNewDueDate(e.target.value)}
-              className="bg-transparent text-xs text-slate-400 border border-white/10 rounded-lg px-2 py-1 outline-none focus:border-bridge-accent/50 [color-scheme:dark] w-[130px]"
+              className="hidden sm:block bg-transparent text-xs text-slate-400 border border-white/10 rounded-lg px-2 py-1 outline-none focus:border-bridge-accent/50 [color-scheme:dark] w-[130px]"
             />
             <PriorityDropdown value={newPriority} onChange={setNewPriority} />
           </div>
+          {/* Mobile date input - shown below the main input on small screens */}
+          {isAddFocused && (
+            <div className="sm:hidden px-3 pb-2">
+              <input
+                type="date"
+                value={newDueDate}
+                onChange={(e) => setNewDueDate(e.target.value)}
+                className="w-full bg-transparent text-xs text-slate-400 border border-white/10 rounded-lg px-3 py-1.5 outline-none focus:border-bridge-accent/50 [color-scheme:dark]"
+              />
+            </div>
+          )}
           {isAddFocused && newTitle.trim() && (
             <div className="px-4 pb-3">
               <div className="flex items-center justify-between pt-2 border-t border-white/5">
@@ -292,7 +303,7 @@ export function PersonalTaskBoard({ tasks, onRefresh }: PersonalTaskBoardProps) 
         </div>
 
         {/* ── Stats Bar ── */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 md:gap-3 flex-wrap">
           <span className="text-xs text-slate-400">
             {t('personal.tasks.active', '활성')}
             <span className="ml-1 text-bridge-secondary font-bold">{activeTasks.length}</span>
@@ -303,7 +314,7 @@ export function PersonalTaskBoard({ tasks, onRefresh }: PersonalTaskBoardProps) 
             <span className="ml-1 text-emerald-400 font-bold">{completedTasks.length}</span>
           </span>
           <div className="flex-1" />
-          <span className="text-[10px] text-slate-500">
+          <span className="text-[10px] text-slate-500 hidden sm:inline">
             이번 주: ~{saturdayLabel} (토)
           </span>
         </div>
@@ -312,14 +323,14 @@ export function PersonalTaskBoard({ tasks, onRefresh }: PersonalTaskBoardProps) 
         {activeTasks.length > 0 ? (
           <div className="space-y-0">
             {/* Column axis labels */}
-            <div className="grid grid-cols-2 gap-1.5 mb-1.5">
-              <div className="text-center">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 mb-1.5">
+              <div className="text-center hidden sm:block">
                 <span className="text-[10px] tracking-[0.15em] uppercase font-bold text-red-400/80">
                   🔥 급함
                 </span>
                 <span className="text-[10px] text-slate-500 ml-1.5">~{saturdayLabel}</span>
               </div>
-              <div className="text-center">
+              <div className="text-center hidden sm:block">
                 <span className="text-[10px] tracking-[0.15em] uppercase font-bold text-slate-400/80">
                   📅 안급함
                 </span>
@@ -327,8 +338,8 @@ export function PersonalTaskBoard({ tasks, onRefresh }: PersonalTaskBoardProps) 
               </div>
             </div>
 
-            {/* Matrix 2x2 Grid */}
-            <div className="grid grid-cols-2 gap-1.5">
+            {/* Matrix 2x2 Grid (1 col on mobile, 2 cols on sm+) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
               {/* Row 1: 중요 */}
               <QuadrantCell
                 quadrant="q1"
@@ -391,7 +402,7 @@ export function PersonalTaskBoard({ tasks, onRefresh }: PersonalTaskBoardProps) 
             </div>
 
             {/* Row axis labels (side) */}
-            <div className="flex items-center gap-3 mt-2">
+            <div className="flex items-center gap-2 sm:gap-3 mt-2 flex-wrap">
               <div className="flex items-center gap-1.5">
                 <div className="w-2 h-2 rounded-full bg-orange-500" />
                 <span className="text-[10px] text-slate-500">중요 = 높음/긴급</span>
@@ -401,7 +412,7 @@ export function PersonalTaskBoard({ tasks, onRefresh }: PersonalTaskBoardProps) 
                 <span className="text-[10px] text-slate-500">보통 = 기본</span>
               </div>
               <div className="flex-1" />
-              <span className="text-[10px] text-slate-500 italic">드래그로 이동 가능</span>
+              <span className="text-[10px] text-slate-500 italic hidden sm:inline">드래그로 이동 가능</span>
             </div>
           </div>
         ) : (
@@ -507,7 +518,7 @@ function QuadrantCell({
         onDrop();
       }}
       className={`
-        rounded-xl border transition-all min-h-[260px] flex flex-col
+        rounded-xl border transition-all min-h-[180px] sm:min-h-[260px] flex flex-col
         ${cfg.border} ${cfg.bg}
         ${isDragOver ? `${cfg.dropBorder} border-dashed ring-1 ring-current/20 scale-[1.01]` : ''}
       `}
@@ -727,10 +738,10 @@ function TaskDetailModal({ task, onClose, onUpdate, onDelete, onToggleComplete }
     <div
       ref={backdropRef}
       onClick={(e) => { if (e.target === backdropRef.current) onClose(); }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm sm:p-4"
     >
       <div
-        className="bg-bridge-obsidian rounded-2xl border border-white/10 shadow-2xl w-full max-w-md overflow-hidden"
+        className="bg-bridge-obsidian rounded-t-2xl sm:rounded-2xl border border-white/10 shadow-2xl w-full sm:max-w-md overflow-hidden max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
