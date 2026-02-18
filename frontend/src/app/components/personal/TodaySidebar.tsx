@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronLeft, ChevronRight, Clock, CheckCircle2, Calendar, ListTodo, Loader2, Flame } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, CheckCircle2, Calendar, ListTodo, Loader2, Flame, X } from 'lucide-react';
 import { personalDashboardAPI } from '../../utils/api';
 import { PersonalDashboardToday, PersonalTask } from '../../types';
 import { getDDay } from '../../utils/dateUtils';
@@ -13,6 +13,7 @@ interface TodaySidebarProps {
 export function TodaySidebar({ tasks, onTaskClick }: TodaySidebarProps) {
   const { t } = useTranslation();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [showMobileSidebar, setShowMobileSidebar] = useState(false);
   const [todayData, setTodayData] = useState<PersonalDashboardToday | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -48,12 +49,36 @@ export function TodaySidebar({ tasks, onTaskClick }: TodaySidebarProps) {
   }, [tasks]);
 
   return (
-    <div
-      style={{ width: isCollapsed ? 44 : 340 }}
-      className="h-full border-r border-white/[0.06] bg-bridge-obsidian/50 flex-shrink-0 overflow-hidden transition-[width] duration-200"
-    >
+    <>
+      {/* Mobile Toggle Button */}
+      <button
+        onClick={() => setShowMobileSidebar(true)}
+        className="md:hidden fixed bottom-20 left-4 z-40 w-11 h-11 rounded-full bg-bridge-secondary shadow-lg shadow-bridge-secondary/30 flex items-center justify-center text-white hover:bg-bridge-secondary/90 transition-colors"
+      >
+        <Clock size={18} />
+      </button>
+
+      {/* Mobile Overlay Backdrop */}
+      {showMobileSidebar && (
+        <div
+          className="md:hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+          onClick={() => setShowMobileSidebar(false)}
+        />
+      )}
+
+      <div
+        style={{ width: isCollapsed ? 44 : 340 }}
+        className={`
+          fixed md:relative inset-y-0 left-0 z-50 md:z-auto
+          h-full border-r border-white/[0.06] bg-bridge-obsidian/95 md:bg-bridge-obsidian/50
+          flex-shrink-0 overflow-hidden
+          transition-all duration-300 ease-in-out
+          ${showMobileSidebar ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+          md:transition-[width] md:duration-200
+        `}
+      >
         {isCollapsed ? (
-          <div className="flex flex-col items-center py-4">
+          <div className="hidden md:flex flex-col items-center py-4">
             <button
               onClick={() => setIsCollapsed(false)}
               className="p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
@@ -66,12 +91,20 @@ export function TodaySidebar({ tasks, onTaskClick }: TodaySidebarProps) {
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06]">
               <h3 className="text-base font-bold text-white">{t('personal.today', 'Today')}</h3>
-              <button
-                onClick={() => setIsCollapsed(true)}
-                className="p-1.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
-              >
-                <ChevronLeft size={14} />
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setShowMobileSidebar(false)}
+                  className="md:hidden p-1.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+                >
+                  <X size={14} />
+                </button>
+                <button
+                  onClick={() => setIsCollapsed(true)}
+                  className="hidden md:block p-1.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+                >
+                  <ChevronLeft size={14} />
+                </button>
+              </div>
             </div>
 
             {/* Content */}
@@ -249,7 +282,8 @@ export function TodaySidebar({ tasks, onTaskClick }: TodaySidebarProps) {
             </div>
           </div>
         )}
-    </div>
+      </div>
+    </>
   );
 }
 

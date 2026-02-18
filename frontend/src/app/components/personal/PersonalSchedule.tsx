@@ -98,6 +98,9 @@ export function PersonalSchedule() {
   // Habit create modal
   const [isCreateHabitOpen, setIsCreateHabitOpen] = useState(false);
 
+  // Mobile sidebar
+  const [showMobileSidebar, setShowMobileSidebar] = useState(false);
+
   // Edit modal
   const [editEvent, setEditEvent] = useState<PersonalEvent | null>(null);
 
@@ -619,14 +622,42 @@ export function PersonalSchedule() {
 
   // ---- Render ----
   return (
-    <div className="h-full flex flex-col md:flex-row">
-      {/* ======== Left Sidebar (desktop only) ======== */}
-      <div className="hidden md:flex md:w-[340px] flex-shrink-0 border-r border-white/5 flex-col overflow-hidden">
+    <div className="h-full flex flex-col md:flex-row relative">
+      {/* Mobile Sidebar Toggle */}
+      <button
+        onClick={() => setShowMobileSidebar(true)}
+        className="md:hidden fixed bottom-20 left-4 z-40 w-11 h-11 rounded-full bg-bridge-accent shadow-lg shadow-bridge-accent/30 flex items-center justify-center text-white hover:bg-bridge-accent/90 transition-colors"
+      >
+        <CalendarDays size={18} />
+      </button>
+
+      {/* Mobile Overlay Backdrop */}
+      {showMobileSidebar && (
+        <div
+          className="md:hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+          onClick={() => setShowMobileSidebar(false)}
+        />
+      )}
+
+      {/* ======== Left Sidebar ======== */}
+      <div className={`
+        fixed md:relative inset-y-0 left-0 z-50 md:z-auto
+        w-[300px] md:w-[340px] flex-shrink-0 border-r border-white/5 flex flex-col overflow-hidden
+        bg-bridge-dark md:bg-transparent
+        transition-transform duration-300 ease-in-out
+        ${showMobileSidebar ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+      `}>
         <div className="px-4 pt-4 pb-2 flex-shrink-0">
           {/* Title */}
           <div className="flex items-center gap-2.5 mb-4">
             <CalendarDays size={18} className="text-bridge-accent" />
             <h2 className="text-base font-bold text-white">Schedule</h2>
+            <button
+              onClick={() => setShowMobileSidebar(false)}
+              className="md:hidden ml-auto p-1.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+            >
+              <X size={16} />
+            </button>
           </div>
 
           {/* Month Navigation */}
@@ -866,7 +897,7 @@ export function PersonalSchedule() {
 
         {/* ======== Time-grid ======== */}
         <div className="flex-1 overflow-auto">
-          <div className="min-w-[600px] md:min-w-[760px]">
+          <div className="min-w-[520px] md:min-w-[760px]">
           {/* ---- Day headers (sticky) ---- */}
           <div className="flex sticky top-0 bg-bridge-obsidian/95 backdrop-blur-sm z-10 border-b border-white/[0.06]">
             <div className={`${TIME_COL_W} flex-shrink-0 border-r border-white/[0.06]`} />

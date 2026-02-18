@@ -309,7 +309,7 @@ export function PersonalCalendar() {
                     } ${isTodayCell ? 'ring-1 ring-inset ring-bridge-accent/30 bg-bridge-accent/[0.04]' : ''}`}
                   >
                     {/* Date number */}
-                    <div className="px-1.5 pt-1 flex items-center justify-between shrink-0">
+                    <div className="px-1 sm:px-1.5 pt-1 flex items-center justify-between shrink-0">
                       <span
                         className={`text-[11px] font-semibold w-6 h-6 flex items-center justify-center rounded-full ${
                           isTodayCell
@@ -423,18 +423,18 @@ function DayDetailModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm"
       onClick={onClose}
     >
       <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        className="bg-bridge-obsidian rounded-2xl border border-white/10 shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 20 }}
+        className="bg-bridge-obsidian rounded-t-2xl sm:rounded-2xl border border-white/10 shadow-2xl w-full sm:max-w-lg max-h-[85vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 shrink-0">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-white/5 shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-bridge-accent/10 flex items-center justify-center">
               <Calendar size={18} className="text-bridge-accent" />
@@ -468,7 +468,7 @@ function DayDetailModal({
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-1.5">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-1.5">
           {items.map((item) => (
             <div
               key={item.id}
@@ -555,7 +555,7 @@ function DayDetailModal({
         </div>
 
         {/* Footer legend */}
-        <div className="flex items-center gap-4 px-6 py-3 border-t border-white/5 shrink-0">
+        <div className="flex items-center gap-3 sm:gap-4 px-4 sm:px-6 py-3 border-t border-white/5 shrink-0 flex-wrap">
           <span className="flex items-center gap-1.5 text-[10px] text-zinc-500">
             <ListTodo size={10} className="text-bridge-accent" />
             Task deadline
@@ -612,12 +612,12 @@ function CreateEventModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/40 backdrop-blur-sm">
       <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        className="w-full max-w-md bg-bridge-obsidian rounded-2xl border border-white/10 p-6 shadow-2xl"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 20 }}
+        className="w-full sm:max-w-md bg-bridge-obsidian rounded-t-2xl sm:rounded-2xl border border-white/10 p-5 md:p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
       >
         <div className="flex items-center justify-between mb-5">
           <h3 className="text-lg font-bold text-white">New Event</h3>
