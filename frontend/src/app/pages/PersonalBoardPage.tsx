@@ -116,23 +116,6 @@ export function PersonalBoardPage() {
           </nav>
         </div>
 
-        {/* 모바일 탭 */}
-        <div className="flex md:hidden items-center gap-1 bg-bridge-surface p-1 rounded-xl border border-bridge-border overflow-x-auto">
-          {tabs.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
-                activeTab === tab.key
-                  ? 'bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              <tab.icon size={14} />
-            </button>
-          ))}
-        </div>
-
         {/* 우측 영역 */}
         <div className="flex items-center gap-2">
           <div className="hidden md:flex items-center gap-1.5 text-zinc-500 text-xs">
@@ -165,11 +148,34 @@ export function PersonalBoardPage() {
         </div>
       </main>
 
+      {/* 모바일 하단 여백 (탭바 공간 확보) */}
+      <div className="h-14 shrink-0 md:hidden" />
+
+      {/* 모바일 하단 탭바 */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-bridge-obsidian/95 backdrop-blur-xl border-t border-white/10" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        <div className="flex items-center justify-around px-1 pt-2 pb-1.5">
+          {tabs.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`relative flex flex-col items-center gap-0.5 min-w-[3rem] px-2 py-1 rounded-lg transition-all ${
+                activeTab === tab.key
+                  ? 'text-bridge-secondary'
+                  : 'text-zinc-500'
+              }`}
+            >
+              <tab.icon size={20} />
+              <span className="text-[10px] font-medium">{tab.label}</span>
+            </button>
+          ))}
+        </div>
+      </nav>
+
       {/* Floating Quick Capture Button */}
       {activeTab === 'tasks' && (
         <button
           onClick={() => setQuickCaptureOpen(true)}
-          className="fixed bottom-6 right-6 w-12 h-12 md:w-14 md:h-14 rounded-full bg-bridge-accent shadow-lg shadow-bridge-accent/30 flex items-center justify-center text-white hover:bg-bridge-accent/90 hover:scale-105 active:scale-95 transition-all z-50"
+          className="fixed bottom-20 md:bottom-6 right-6 w-12 h-12 md:w-14 md:h-14 rounded-full bg-bridge-accent shadow-lg shadow-bridge-accent/30 flex items-center justify-center text-white hover:bg-bridge-accent/90 hover:scale-105 active:scale-95 transition-all z-50"
         >
           <Plus size={20} className="md:w-6 md:h-6" />
         </button>
