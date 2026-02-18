@@ -470,7 +470,7 @@ export function TaskDetailModal({
   return (
     <>
       <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="sm:max-w-[1100px] max-h-[85vh] flex flex-col overflow-hidden bg-bridge-surface border border-bridge-border/50 shadow-[0_0_60px_rgba(0,0,0,0.5)] text-foreground p-0 [&>button:last-child]:hidden"
+        <DialogContent className="sm:max-w-[1100px] max-h-[calc(var(--visual-viewport-height,100vh)*0.85)] flex flex-col overflow-hidden bg-bridge-surface border border-bridge-border/50 shadow-[0_0_60px_rgba(0,0,0,0.5)] text-foreground p-0 [&>button:last-child]:hidden"
           onPointerDownOutside={(e) => {
             // Prevent dialog close when lightbox is open
             if (document.querySelector('[data-lightbox-overlay]')) {

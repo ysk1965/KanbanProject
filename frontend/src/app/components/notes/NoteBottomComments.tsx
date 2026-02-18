@@ -635,7 +635,7 @@ export function NoteBottomComments({
 
       {/* New comment input */}
       {canEdit && (
-        <div className="px-6 pb-4 pt-1">
+        <div className="px-6 pb-4 pt-1 keyboard-sticky-bottom">
           <div className="relative">
             <MentionDropdown isEdit={false} />
             <textarea

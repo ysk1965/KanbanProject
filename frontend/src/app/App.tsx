@@ -31,6 +31,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Board } from './types';
 import type { MaintenanceStatus } from './utils/api';
 import { trackEvent } from './contexts/AnalyticsContext';
+import { useVisualViewport, useKeyboardAutoScroll } from './hooks/useVisualViewport';
 
 // 인증이 필요한 라우트 래퍼
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -549,6 +550,10 @@ function MaintenanceGuard({ children }: { children: React.ReactNode }) {
 
 // App 컴포넌트
 function App() {
+  // 모바일 키보드 대응: visual viewport CSS 변수 + 자동 스크롤
+  useVisualViewport();
+  useKeyboardAutoScroll();
+
   return (
     <ErrorBoundary>
       <ThemeProvider defaultTheme="dark">

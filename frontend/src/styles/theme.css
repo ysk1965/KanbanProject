@@ -708,3 +708,33 @@ html {
 .plyr-bridge-theme .plyr__menu__container .plyr__control--back:hover {
   background: rgba(255, 255, 255, 0.05);
 }
+
+/* =============================================
+   Mobile Keyboard Awareness
+   ============================================= */
+
+/* 키보드가 올라왔을 때 모든 Dialog/모달의 max-height를 visual viewport 기준으로 제한 */
+[data-keyboard-open] [data-slot="dialog-content"] {
+  max-height: calc(var(--visual-viewport-height) - 1rem) !important;
+  top: 0.5rem !important;
+  transform: translateX(-50%) translateY(0) !important;
+  transition: top 0.2s ease, max-height 0.2s ease, transform 0.2s ease;
+}
+
+/* 키보드가 올라왔을 때 overlay를 스크롤 가능하게 */
+[data-keyboard-open] [data-slot="dialog-overlay"] {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 키보드가 올라왔을 때 fixed 모달 (비-Dialog 기반)도 대응 */
+[data-keyboard-open] .fixed.inset-0 {
+  max-height: var(--visual-viewport-height);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* min-h-screen 사용하는 페이지들의 키보드 대응 */
+[data-keyboard-open] .min-h-screen {
+  min-height: var(--visual-viewport-height) !important;
+}
