@@ -1,10 +1,10 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { ChevronLeft, ChevronRight, Plus, Trash2, X, Loader2, Settings, RotateCw, CalendarDays, Clock, CheckCircle2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Trash2, X, Loader2, Settings, RotateCw, CalendarDays, Clock, CheckCircle2, ListTodo, AlertCircle, Search } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { personalEventService } from '../../utils/services';
+import { personalEventService, personalTaskService } from '../../utils/services';
 import { personalHabitAPI } from '../../utils/api';
 import { formatDate } from '../../utils/dateUtils';
-import type { PersonalEvent, HabitWeeklyRow } from '../../types';
+import type { PersonalEvent, PersonalTask, PersonalTaskPriority, HabitWeeklyRow } from '../../types';
 import {
   startOfWeek,
   endOfWeek,
@@ -25,6 +25,11 @@ const EVENT_COLORS = [
   '#6366F1', '#8B5CF6', '#EC4899', '#F43F5E',
   '#F59E0B', '#10B981', '#06B6D4', '#3B82F6',
 ];
+
+const PRIORITY_DOT: Record<string, string> = {
+  MEDIUM: 'bg-amber-400',
+  HIGH: 'bg-orange-500', URGENT: 'bg-red-500',
+};
 
 const SLOT_HEIGHT = 40;
 const DEFAULT_START_HOUR = 7;
@@ -74,6 +79,7 @@ const toDateString = (d: Date): string => format(d, 'yyyy-MM-dd');
 export function PersonalSchedule() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState<PersonalEvent[]>([]);
+  const [tasks, setTasks] = useState<PersonalTask[]>([]);
   const [habitRows, setHabitRows] = useState<HabitWeeklyRow[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [settings, setSettings] = useState<ScheduleSettings>(loadSettings);
@@ -99,6 +105,15 @@ export function PersonalSchedule() {
     endSlotIndex: number;
   } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+
+  // Event block drag/resize interaction
+  const [eventInteraction, setEventInteraction] = useState<{
+    eventId: string;
+    type: 'drag' | 'resize-top' | 'resize-bottom';
+    offsetPx: number;
+  } | null>(null);
+  const eventOffsetRef = useRef(0);
+  const eventLongPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const timeSlots = useMemo(() => generateTimeSlots(startHour, endHour), [startHour, endHour]);
 
@@ -127,6 +142,20 @@ export function PersonalSchedule() {
   useEffect(() => {
     loadEvents();
   }, [loadEvents]);
+
+  // ---- Load tasks with due dates ----
+  const loadTasks = useCallback(async () => {
+    try {
+      const all = await personalTaskService.getTasks();
+      setTasks(all.filter((t: PersonalTask) => t.due_date && t.status !== 'ARCHIVED'));
+    } catch {
+      setTasks([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadTasks();
+  }, [loadTasks]);
 
   // ---- Load habits for visible week ----
   const loadHabits = useCallback(async () => {
@@ -158,6 +187,19 @@ export function PersonalSchedule() {
     });
     return grouped;
   }, [habitRows]);
+
+  // Group tasks by due_date for the visible week
+  const tasksByDate = useMemo(() => {
+    const grouped: Record<string, PersonalTask[]> = {};
+    tasks.forEach((t) => {
+      if (t.due_date && t.due_date >= startDate && t.due_date <= endDate) {
+        (grouped[t.due_date] ??= []).push(t);
+      }
+    });
+    return grouped;
+  }, [tasks, startDate, endDate]);
+
+  const hasTasksDue = useMemo(() => Object.keys(tasksByDate).length > 0, [tasksByDate]);
 
   const handleHabitCheckIn = async (habitId: string, date: string) => {
     // Optimistic update
@@ -293,6 +335,154 @@ export function PersonalSchedule() {
     }
   };
 
+  // ---- Event block drag/resize handlers ----
+  const fmtMinToTime = (min: number): string => {
+    const h = Math.floor(min / 60);
+    const m = min % 60;
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+  };
+
+  const handleEventTimeChange = async (eventId: string, newStartTime: string, newEndTime: string) => {
+    setEvents(prev => prev.map(ev =>
+      ev.id === eventId ? { ...ev, start_time: newStartTime, end_time: newEndTime } : ev
+    ));
+    try {
+      await personalEventService.update(eventId, { start_time: newStartTime, end_time: newEndTime });
+    } catch {
+      loadEvents();
+    }
+  };
+
+  const handleEventResizeStart = (e: React.MouseEvent, ev: PersonalEvent, handle: 'top' | 'bottom') => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (!ev.start_time || !ev.end_time) return;
+
+    const type = handle === 'top' ? 'resize-top' as const : 'resize-bottom' as const;
+    const [esh, esm] = ev.start_time.split(':').map(Number);
+    const [eeh, eem] = ev.end_time.split(':').map(Number);
+    const origStartMin = esh * 60 + esm;
+    const origEndMin = eeh * 60 + eem;
+    const startY = e.clientY;
+    const workStartMin = startHour * 60;
+    const workEndMin = endHour * 60;
+
+    eventOffsetRef.current = 0;
+    setEventInteraction({ eventId: ev.id, type, offsetPx: 0 });
+    document.body.style.userSelect = 'none';
+
+    const onMove = (me: MouseEvent) => {
+      const deltaY = me.clientY - startY;
+      const snapped = Math.round(deltaY / SLOT_HEIGHT) * SLOT_HEIGHT;
+      eventOffsetRef.current = snapped;
+      setEventInteraction({ eventId: ev.id, type, offsetPx: snapped });
+    };
+
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      document.body.style.userSelect = '';
+
+      const finalOffset = eventOffsetRef.current;
+      setEventInteraction(null);
+      eventOffsetRef.current = 0;
+
+      if (finalOffset === 0) return;
+
+      const deltaMin = (finalOffset / SLOT_HEIGHT) * 30;
+      let newStartMin = origStartMin;
+      let newEndMin = origEndMin;
+
+      if (type === 'resize-top') {
+        newStartMin = origStartMin + deltaMin;
+        newStartMin = Math.max(workStartMin, Math.min(origEndMin - 30, newStartMin));
+      } else {
+        newEndMin = origEndMin + deltaMin;
+        newEndMin = Math.min(workEndMin, Math.max(origStartMin + 30, newEndMin));
+      }
+
+      handleEventTimeChange(ev.id, fmtMinToTime(newStartMin), fmtMinToTime(newEndMin));
+    };
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  };
+
+  const handleEventDragStart = (e: React.MouseEvent, ev: PersonalEvent) => {
+    if ((e.target as HTMLElement).dataset.resizeHandle) return;
+    e.stopPropagation();
+    e.preventDefault();
+    if (!ev.start_time || !ev.end_time) return;
+
+    const startY = e.clientY;
+    const [esh, esm] = ev.start_time.split(':').map(Number);
+    const [eeh, eem] = ev.end_time.split(':').map(Number);
+    const origStartMin = esh * 60 + esm;
+    const origEndMin = eeh * 60 + eem;
+    const duration = origEndMin - origStartMin;
+    const workStartMin = startHour * 60;
+    const workEndMin = endHour * 60;
+    const origTop = ((origStartMin - workStartMin) / 30) * SLOT_HEIGHT;
+
+    eventLongPressTimer.current = setTimeout(() => {
+      eventOffsetRef.current = 0;
+      setEventInteraction({ eventId: ev.id, type: 'drag', offsetPx: 0 });
+      document.body.style.userSelect = 'none';
+
+      const onMove = (me: MouseEvent) => {
+        const deltaY = me.clientY - startY;
+        const newTop = origTop + deltaY;
+        const snappedTop = Math.round(newTop / SLOT_HEIGHT) * SLOT_HEIGHT;
+        const snappedOffset = snappedTop - origTop;
+        eventOffsetRef.current = snappedOffset;
+        setEventInteraction({ eventId: ev.id, type: 'drag', offsetPx: snappedOffset });
+      };
+
+      const onUp = () => {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        document.body.style.userSelect = '';
+
+        const finalOffset = eventOffsetRef.current;
+        setEventInteraction(null);
+        eventOffsetRef.current = 0;
+
+        if (finalOffset === 0) return;
+
+        const deltaMin = (finalOffset / SLOT_HEIGHT) * 30;
+        let newStartMin = origStartMin + deltaMin;
+        let newEndMin = newStartMin + duration;
+
+        if (newStartMin < workStartMin) {
+          newStartMin = workStartMin;
+          newEndMin = workStartMin + duration;
+        }
+        if (newEndMin > workEndMin) {
+          newEndMin = workEndMin;
+          newStartMin = workEndMin - duration;
+        }
+
+        handleEventTimeChange(ev.id, fmtMinToTime(newStartMin), fmtMinToTime(newEndMin));
+      };
+
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    }, 150);
+  };
+
+  const handleEventMouseUp = () => {
+    if (eventLongPressTimer.current) {
+      clearTimeout(eventLongPressTimer.current);
+      eventLongPressTimer.current = null;
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (eventLongPressTimer.current) clearTimeout(eventLongPressTimer.current);
+    };
+  }, []);
+
   // ---- Current time indicator ----
   const [now, setNow] = useState(new Date());
   useEffect(() => {
@@ -363,8 +553,10 @@ export function PersonalSchedule() {
     events.forEach((e) => set.add(e.event_date));
     // Also include habit dates
     habitRows.forEach((row) => row.days.forEach((d) => { if (d.is_completed || d.count > 0) set.add(d.date); }));
+    // Also include task due dates
+    tasks.forEach((t) => { if (t.due_date) set.add(t.due_date); });
     return set;
-  }, [monthlyEvents, events, habitRows]);
+  }, [monthlyEvents, events, habitRows, tasks]);
 
   // Recurring events extracted from loaded data
   const recurringEvents = useMemo(() => {
@@ -728,6 +920,63 @@ export function PersonalSchedule() {
             </div>
           )}
 
+          {/* ---- Task deadlines row ---- */}
+          {hasTasksDue && (
+            <div className="flex border-b border-white/[0.06] bg-amber-500/[0.03]">
+              <div
+                className={`${TIME_COL_W} flex-shrink-0 p-2 text-[10px] text-amber-400/70 border-r border-white/[0.06] flex items-center justify-center`}
+              >
+                <ListTodo size={12} />
+              </div>
+              {weekDays.map((day) => {
+                const ds = toDateString(day);
+                const dayTasks = tasksByDate[ds] || [];
+                return (
+                  <div
+                    key={`tk-${ds}`}
+                    className={`flex-1 ${COL_MIN_W} p-1.5 border-r border-white/[0.06] space-y-1`}
+                  >
+                    {dayTasks.map((task) => {
+                      const isDone = task.status === 'DONE';
+                      const isOverdue = !isDone && task.due_date! < todayStr;
+                      const priorityColors: Record<string, string> = {
+                        URGENT: 'bg-red-500',
+                        HIGH: 'bg-orange-500',
+                        MEDIUM: 'bg-amber-500',
+                        LOW: 'bg-blue-400',
+                        NONE: 'bg-slate-500',
+                      };
+                      return (
+                        <div
+                          key={task.id}
+                          className={`group flex items-center gap-1.5 px-2 py-1 rounded-md text-xs cursor-default transition-all ${
+                            isDone
+                              ? 'bg-slate-500/10 border-l-[3px] border-slate-500/30'
+                              : isOverdue
+                                ? 'bg-red-500/10 border-l-[3px] border-red-500/60'
+                                : 'bg-amber-500/10 border-l-[3px] border-amber-500/40'
+                          }`}
+                        >
+                          <div
+                            className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${priorityColors[task.priority] || 'bg-slate-500'}`}
+                          />
+                          <span className={`truncate ${
+                            isDone ? 'line-through text-slate-500' : isOverdue ? 'text-red-300' : 'text-white/80'
+                          }`}>
+                            {task.title}
+                          </span>
+                          {isOverdue && (
+                            <AlertCircle size={10} className="text-red-400 flex-shrink-0 ml-auto" />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
           {/* ---- Habits row ---- */}
           {habitRows.length > 0 && (
             <div className="flex border-b border-white/[0.06] bg-purple-500/[0.03]">
@@ -873,39 +1122,84 @@ export function PersonalSchedule() {
                         const workStartMin = startHour * 60;
                         const evTop = ((startMin - workStartMin) / 30) * SLOT_HEIGHT;
 
-                        let evHeight = SLOT_HEIGHT;
+                        let endMin = startMin + 30;
                         if (ev.end_time) {
                           const [eh, em] = ev.end_time.split(':').map(Number);
-                          const endMin = eh * 60 + em;
-                          evHeight = Math.max(
-                            ((endMin - startMin) / 30) * SLOT_HEIGHT,
-                            SLOT_HEIGHT * 0.6,
-                          );
+                          endMin = eh * 60 + em;
                         }
+                        const evHeight = Math.max(((endMin - startMin) / 30) * SLOT_HEIGHT, SLOT_HEIGHT * 0.6);
 
                         if (evTop < 0) return null;
+
+                        // Drag/resize visual adjustments
+                        const isActive = eventInteraction?.eventId === ev.id;
+                        const interType = isActive ? eventInteraction!.type : null;
+                        const offset = isActive ? eventInteraction!.offsetPx : 0;
+
+                        let displayTop = evTop;
+                        let displayHeight = evHeight;
+                        let displayStartTime = ev.start_time.slice(0, 5);
+                        let displayEndTime = ev.end_time?.slice(0, 5) || '';
+
+                        if (isActive && offset !== 0) {
+                          const deltaMin = (offset / SLOT_HEIGHT) * 30;
+                          if (interType === 'drag') {
+                            displayTop = evTop + offset;
+                            displayStartTime = fmtMinToTime(startMin + deltaMin);
+                            displayEndTime = fmtMinToTime(endMin + deltaMin);
+                          } else if (interType === 'resize-top') {
+                            displayTop = evTop + offset;
+                            displayHeight = evHeight - offset;
+                            displayStartTime = fmtMinToTime(startMin + deltaMin);
+                          } else if (interType === 'resize-bottom') {
+                            displayHeight = evHeight + offset;
+                            displayEndTime = fmtMinToTime(endMin + deltaMin);
+                          }
+                          displayHeight = Math.max(displayHeight, SLOT_HEIGHT * 0.6);
+                        }
 
                         return (
                           <div
                             key={ev.id}
-                            onClick={() => setEditEvent(ev)}
-                            className="absolute left-1 right-1 rounded-md border-l-4 px-2 py-1 pointer-events-auto cursor-pointer hover:shadow-lg transition-shadow overflow-hidden group"
+                            onClick={() => !eventInteraction && setEditEvent(ev)}
+                            onMouseDown={(e) => handleEventDragStart(e, ev)}
+                            onMouseUp={handleEventMouseUp}
+                            onMouseLeave={() => {
+                              if (eventLongPressTimer.current && !eventInteraction) {
+                                clearTimeout(eventLongPressTimer.current);
+                                eventLongPressTimer.current = null;
+                              }
+                            }}
+                            className={`absolute left-1 right-1 rounded-md border-l-4 px-2 py-1 pointer-events-auto overflow-hidden group
+                              ${isActive && interType === 'drag'
+                                ? 'cursor-grabbing shadow-2xl ring-2 ring-white/30 z-20'
+                                : isActive
+                                  ? 'cursor-ns-resize shadow-lg z-20'
+                                  : 'cursor-pointer hover:shadow-lg transition-shadow'
+                              }`}
                             style={{
-                              top: `${evTop}px`,
-                              height: `${evHeight}px`,
+                              top: `${displayTop}px`,
+                              height: `${displayHeight}px`,
                               backgroundColor: `${ev.color}25`,
                               borderLeftColor: ev.color,
                             }}
                           >
+                            {/* Top resize handle */}
+                            <div
+                              data-resize-handle="true"
+                              className="absolute top-0 left-0 right-0 h-2 cursor-ns-resize hover:bg-white/20 transition-colors z-10"
+                              onMouseDown={(e) => handleEventResizeStart(e, ev, 'top')}
+                            />
+
                             <div className="flex flex-col h-full overflow-hidden">
                               <span className="text-xs font-medium text-white truncate flex items-center gap-1">
                                 {ev.recurrence_group_id && <RotateCw className="h-2.5 w-2.5 text-purple-400 flex-shrink-0" />}
                                 {ev.title}
                               </span>
-                              {evHeight > 30 && ev.start_time && (
+                              {displayHeight > 30 && (
                                 <span className="text-[10px] text-slate-400">
-                                  {ev.start_time.slice(0, 5)}
-                                  {ev.end_time && ` - ${ev.end_time.slice(0, 5)}`}
+                                  {displayStartTime}
+                                  {displayEndTime && ` - ${displayEndTime}`}
                                 </span>
                               )}
                             </div>
@@ -918,6 +1212,13 @@ export function PersonalSchedule() {
                             >
                               <Trash2 size={10} />
                             </button>
+
+                            {/* Bottom resize handle */}
+                            <div
+                              data-resize-handle="true"
+                              className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize hover:bg-white/20 transition-colors z-10"
+                              onMouseDown={(e) => handleEventResizeStart(e, ev, 'bottom')}
+                            />
                           </div>
                         );
                       })}
@@ -933,7 +1234,7 @@ export function PersonalSchedule() {
         {/* ======== Bottom guide ======== */}
         <div className="px-3 md:px-6 py-2 border-t border-white/[0.06] flex-shrink-0">
           <p className="text-[10px] md:text-xs text-slate-500">
-            <span className="hidden sm:inline">Drag on the grid to create a new event, or click an existing event to edit</span>
+            <span className="hidden sm:inline">Drag on the grid to create a new event, or drag edges to resize. Long-press to move</span>
             <span className="sm:hidden">Tap to create or edit events</span>
           </p>
         </div>
@@ -1018,6 +1319,50 @@ function CreateEventModal({
   const [recurrenceEndDate, setRecurrenceEndDate] = useState('');
   const [recurrenceDaysOfWeek, setRecurrenceDaysOfWeek] = useState<number[]>([]);
 
+  // Mode & task selection state
+  const [mode, setMode] = useState<'new' | 'task'>('new');
+  const [tasks, setTasks] = useState<PersonalTask[]>([]);
+  const [isLoadingTasks, setIsLoadingTasks] = useState(false);
+  const [taskSearch, setTaskSearch] = useState('');
+  const [selectedTask, setSelectedTask] = useState<PersonalTask | null>(null);
+
+  // Fetch tasks when switching to task mode
+  useEffect(() => {
+    if (mode === 'task' && tasks.length === 0 && !isLoadingTasks) {
+      setIsLoadingTasks(true);
+      personalTaskService.getTasks()
+        .then((all: PersonalTask[]) => setTasks(all.filter(t => t.status !== 'DONE' && t.status !== 'ARCHIVED')))
+        .catch(console.error)
+        .finally(() => setIsLoadingTasks(false));
+    }
+  }, [mode]);
+
+  const filteredTasks = useMemo(() => {
+    if (!taskSearch.trim()) return tasks;
+    const q = taskSearch.toLowerCase();
+    return tasks.filter(t =>
+      t.title.toLowerCase().includes(q) ||
+      (t.category && t.category.toLowerCase().includes(q)) ||
+      t.tags?.some(tag => tag.name.toLowerCase().includes(q)),
+    );
+  }, [tasks, taskSearch]);
+
+  const handleSelectTask = (task: PersonalTask) => {
+    setSelectedTask(task);
+    setTitle(task.title);
+    setDescription(task.description || '');
+    if (task.color && EVENT_COLORS.includes(task.color)) {
+      setColor(task.color);
+    }
+  };
+
+  const handleClearTask = () => {
+    setSelectedTask(null);
+    setTitle('');
+    setDescription('');
+    setColor(EVENT_COLORS[0]);
+  };
+
   const handleSubmit = () => {
     if (!title.trim()) return;
     if (recurrenceRule && !recurrenceEndDate) return;
@@ -1036,6 +1381,8 @@ function CreateEventModal({
     });
   };
 
+  const showForm = mode === 'new' || selectedTask !== null;
+
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/40 backdrop-blur-sm">
       <motion.div
@@ -1044,176 +1391,288 @@ function CreateEventModal({
         exit={{ opacity: 0, y: 20, scale: 0.98 }}
         className="w-full sm:max-w-md bg-bridge-obsidian rounded-t-2xl sm:rounded-2xl border border-white/10 p-5 md:p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
       >
-        <div className="flex items-center justify-between mb-4 md:mb-5">
+        <div className="flex items-center justify-between mb-3">
           <h3 className="text-base md:text-lg font-bold text-white">New Event</h3>
           <button onClick={onClose} className="p-1 text-slate-400 hover:text-white transition-colors">
             <X size={18} />
           </button>
         </div>
 
-        <div className="space-y-3 md:space-y-4">
-          {/* Date */}
-          <div>
-            <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-              Date
-            </label>
-            <div className="text-sm text-white/80 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5">
-              {formatDate(date)}
-            </div>
-          </div>
-
-          {/* Title */}
-          <div>
-            <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-              Title
-            </label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-              placeholder="Event title"
-              className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-white text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
-              autoFocus
-            />
-          </div>
-
-          {/* Description */}
-          <div>
-            <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-              Description
-            </label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Optional description"
-              rows={2}
-              className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-white text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all resize-none"
-            />
-          </div>
-
-          {/* Time inputs */}
-          <div className="flex gap-3">
-            <div className="flex-1">
-              <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-                Start
-              </label>
-              <input
-                type="time"
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-white text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
-              />
-            </div>
-            <div className="flex-1">
-              <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-                End
-              </label>
-              <input
-                type="time"
-                value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-white text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
-              />
-            </div>
-          </div>
-
-          {/* Color picker */}
-          <div>
-            <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">
-              Color
-            </label>
-            <div className="flex gap-2">
-              {EVENT_COLORS.map((c) => (
-                <button
-                  key={c}
-                  onClick={() => setColor(c)}
-                  className={`w-7 h-7 rounded-full transition-all ${
-                    color === c
-                      ? 'ring-2 ring-white ring-offset-2 ring-offset-bridge-obsidian scale-110'
-                      : 'hover:scale-110'
-                  }`}
-                  style={{ backgroundColor: c }}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* Recurrence */}
-          <div>
-            <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-              Repeat
-            </label>
-            <select
-              value={recurrenceRule}
-              onChange={(e) => {
-                setRecurrenceRule(e.target.value);
-                if (!e.target.value) {
-                  setRecurrenceDaysOfWeek([]);
-                  setRecurrenceEndDate('');
-                }
-              }}
-              className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-white text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
-            >
-              <option value="" className="bg-bridge-obsidian">No repeat</option>
-              <option value="DAILY" className="bg-bridge-obsidian">Every day</option>
-              <option value="WEEKLY" className="bg-bridge-obsidian">Every week</option>
-            </select>
-          </div>
-
-          {recurrenceRule === 'WEEKLY' && (
-            <div>
-              <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-                Repeat on
-              </label>
-              <div className="flex gap-1.5">
-                {[0, 1, 2, 3, 4, 5, 6].map((dayValue) => {
-                  const labels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-                  const isSelected = recurrenceDaysOfWeek.includes(dayValue);
-                  return (
-                    <button
-                      key={dayValue}
-                      type="button"
-                      onClick={() => {
-                        setRecurrenceDaysOfWeek((prev) =>
-                          isSelected ? prev.filter((d) => d !== dayValue) : [...prev, dayValue],
-                        );
-                      }}
-                      className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
-                        isSelected
-                          ? 'bg-bridge-accent text-white'
-                          : 'bg-white/5 text-slate-400 hover:bg-white/10'
-                      }`}
-                    >
-                      {labels[dayValue]}
-                    </button>
-                  );
-                })}
-              </div>
-              {recurrenceDaysOfWeek.length === 0 && (
-                <p className="mt-1 text-xs text-amber-400">Select at least one day</p>
-              )}
-            </div>
-          )}
-
-          {recurrenceRule && (
-            <div>
-              <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-                Repeat until
-              </label>
-              <input
-                type="date"
-                value={recurrenceEndDate}
-                onChange={(e) => setRecurrenceEndDate(e.target.value)}
-                min={date}
-                className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-white text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
-              />
-              {!recurrenceEndDate && (
-                <p className="mt-1 text-xs text-amber-400">End date is required for recurring events</p>
-              )}
-            </div>
-          )}
+        {/* Mode toggle */}
+        <div className="flex gap-1 p-1 bg-white/5 rounded-xl mb-4 md:mb-5">
+          <button
+            onClick={() => { setMode('new'); setSelectedTask(null); setTitle(''); setDescription(''); setColor(EVENT_COLORS[0]); }}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold rounded-lg transition-all ${
+              mode === 'new'
+                ? 'bg-bridge-accent text-white shadow-sm'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Plus size={14} />
+            New Event
+          </button>
+          <button
+            onClick={() => setMode('task')}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold rounded-lg transition-all ${
+              mode === 'task'
+                ? 'bg-bridge-accent text-white shadow-sm'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <ListTodo size={14} />
+            From Task
+          </button>
         </div>
+
+        {/* Task selection list (only when task mode & no task selected yet) */}
+        {mode === 'task' && !selectedTask && (
+          <div className="space-y-3">
+            <div className="relative">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+              <input
+                type="text"
+                value={taskSearch}
+                onChange={(e) => setTaskSearch(e.target.value)}
+                placeholder="Search tasks..."
+                className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 pl-9 pr-4 text-white text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+                autoFocus
+              />
+            </div>
+
+            <div className="max-h-[40vh] overflow-y-auto space-y-1.5 -mx-1 px-1">
+              {isLoadingTasks ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-5 w-5 text-slate-400 animate-spin" />
+                </div>
+              ) : filteredTasks.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <ListTodo size={24} className="text-slate-600 mb-2" />
+                  <p className="text-sm text-slate-500">
+                    {tasks.length === 0 ? 'No active tasks' : 'No tasks match your search'}
+                  </p>
+                  {tasks.length === 0 && (
+                    <button
+                      onClick={() => setMode('new')}
+                      className="mt-2 text-xs text-bridge-accent hover:text-bridge-accent/80 transition-colors"
+                    >
+                      Create a new event instead
+                    </button>
+                  )}
+                </div>
+              ) : (
+                filteredTasks.map((task) => (
+                  <button
+                    key={task.id}
+                    onClick={() => handleSelectTask(task)}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/5 hover:border-white/10 transition-all text-left group"
+                  >
+                    {task.priority !== 'NONE' && (
+                      <div className={`w-2 h-2 rounded-full shrink-0 ${PRIORITY_DOT[task.priority]}`} />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm text-white truncate block">{task.title}</span>
+                      {(task.category || task.due_date) && (
+                        <div className="flex items-center gap-2 mt-0.5">
+                          {task.category && <span className="text-[10px] text-slate-500">{task.category}</span>}
+                          {task.due_date && <span className="text-[10px] text-slate-500">{formatDate(task.due_date)}</span>}
+                        </div>
+                      )}
+                    </div>
+                    {task.color && (
+                      <div
+                        className="w-3 h-3 rounded-full shrink-0 opacity-60 group-hover:opacity-100 transition-opacity"
+                        style={{ backgroundColor: task.color }}
+                      />
+                    )}
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Event form (new mode OR task selected) */}
+        {showForm && (
+          <div className="space-y-3 md:space-y-4">
+            {/* Selected task indicator */}
+            {selectedTask && (
+              <div className="flex items-center gap-2 px-3 py-2 bg-bridge-accent/10 border border-bridge-accent/20 rounded-xl">
+                <CheckCircle2 size={14} className="text-bridge-accent shrink-0" />
+                <span className="text-xs text-bridge-accent flex-1 truncate">
+                  Scheduling: {selectedTask.title}
+                </span>
+                <button
+                  onClick={handleClearTask}
+                  className="p-0.5 text-bridge-accent/60 hover:text-bridge-accent transition-colors"
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            )}
+
+            {/* Date */}
+            <div>
+              <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
+                Date
+              </label>
+              <div className="text-sm text-white/80 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5">
+                {formatDate(date)}
+              </div>
+            </div>
+
+            {/* Title */}
+            <div>
+              <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
+                Title
+              </label>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+                placeholder="Event title"
+                className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-white text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+                autoFocus={mode === 'new'}
+              />
+            </div>
+
+            {/* Description */}
+            <div>
+              <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
+                Description
+              </label>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Optional description"
+                rows={2}
+                className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-white text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all resize-none"
+              />
+            </div>
+
+            {/* Time inputs */}
+            <div className="flex gap-3">
+              <div className="flex-1">
+                <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
+                  Start
+                </label>
+                <input
+                  type="time"
+                  value={startTime}
+                  onChange={(e) => setStartTime(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-white text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+                />
+              </div>
+              <div className="flex-1">
+                <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
+                  End
+                </label>
+                <input
+                  type="time"
+                  value={endTime}
+                  onChange={(e) => setEndTime(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-white text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+                />
+              </div>
+            </div>
+
+            {/* Color picker */}
+            <div>
+              <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">
+                Color
+              </label>
+              <div className="flex gap-2">
+                {EVENT_COLORS.map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => setColor(c)}
+                    className={`w-7 h-7 rounded-full transition-all ${
+                      color === c
+                        ? 'ring-2 ring-white ring-offset-2 ring-offset-bridge-obsidian scale-110'
+                        : 'hover:scale-110'
+                    }`}
+                    style={{ backgroundColor: c }}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Recurrence */}
+            <div>
+              <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
+                Repeat
+              </label>
+              <select
+                value={recurrenceRule}
+                onChange={(e) => {
+                  setRecurrenceRule(e.target.value);
+                  if (!e.target.value) {
+                    setRecurrenceDaysOfWeek([]);
+                    setRecurrenceEndDate('');
+                  }
+                }}
+                className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-white text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+              >
+                <option value="" className="bg-bridge-obsidian">No repeat</option>
+                <option value="DAILY" className="bg-bridge-obsidian">Every day</option>
+                <option value="WEEKLY" className="bg-bridge-obsidian">Every week</option>
+              </select>
+            </div>
+
+            {recurrenceRule === 'WEEKLY' && (
+              <div>
+                <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
+                  Repeat on
+                </label>
+                <div className="flex gap-1.5">
+                  {[0, 1, 2, 3, 4, 5, 6].map((dayValue) => {
+                    const labels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                    const isSelected = recurrenceDaysOfWeek.includes(dayValue);
+                    return (
+                      <button
+                        key={dayValue}
+                        type="button"
+                        onClick={() => {
+                          setRecurrenceDaysOfWeek((prev) =>
+                            isSelected ? prev.filter((d) => d !== dayValue) : [...prev, dayValue],
+                          );
+                        }}
+                        className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                          isSelected
+                            ? 'bg-bridge-accent text-white'
+                            : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                        }`}
+                      >
+                        {labels[dayValue]}
+                      </button>
+                    );
+                  })}
+                </div>
+                {recurrenceDaysOfWeek.length === 0 && (
+                  <p className="mt-1 text-xs text-amber-400">Select at least one day</p>
+                )}
+              </div>
+            )}
+
+            {recurrenceRule && (
+              <div>
+                <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
+                  Repeat until
+                </label>
+                <input
+                  type="date"
+                  value={recurrenceEndDate}
+                  onChange={(e) => setRecurrenceEndDate(e.target.value)}
+                  min={date}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-white text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+                />
+                {!recurrenceEndDate && (
+                  <p className="mt-1 text-xs text-amber-400">End date is required for recurring events</p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Actions */}
         <div className="flex gap-3 mt-6">
@@ -1223,13 +1682,15 @@ function CreateEventModal({
           >
             Cancel
           </button>
-          <button
-            onClick={handleSubmit}
-            disabled={!title.trim() || (!!recurrenceRule && !recurrenceEndDate) || (recurrenceRule === 'WEEKLY' && recurrenceDaysOfWeek.length === 0)}
-            className="flex-1 py-3 bg-bridge-accent text-white text-sm font-bold rounded-xl hover:bg-bridge-accent/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-          >
-            Create
-          </button>
+          {showForm && (
+            <button
+              onClick={handleSubmit}
+              disabled={!title.trim() || (!!recurrenceRule && !recurrenceEndDate) || (recurrenceRule === 'WEEKLY' && recurrenceDaysOfWeek.length === 0)}
+              className="flex-1 py-3 bg-bridge-accent text-white text-sm font-bold rounded-xl hover:bg-bridge-accent/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+            >
+              Create
+            </button>
+          )}
         </div>
       </motion.div>
     </div>

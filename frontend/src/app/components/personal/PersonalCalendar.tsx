@@ -21,8 +21,6 @@ const PRIORITY_COLORS: Record<string, string> = {
   URGENT: '#EF4444',
   HIGH: '#F97316',
   MEDIUM: '#EAB308',
-  LOW: '#22C55E',
-  NONE: '#6366F1',
 };
 
 const EVENT_COLORS = [

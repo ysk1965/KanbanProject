@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { CalendarDays, BookHeart, ArrowLeft, LayoutGrid, Calendar, Plus, Command, Home, Loader2 } from 'lucide-react';
-import { motion } from 'framer-motion';
 import { PersonalSchedule } from '../components/personal/PersonalSchedule';
 import { PersonalDiary } from '../components/personal/PersonalDiary';
 import { PersonalTaskBoard } from '../components/personal/PersonalTaskBoard';
@@ -165,16 +164,12 @@ export function PersonalBoardPage() {
 
       {/* Floating Quick Capture Button */}
       {activeTab === 'tasks' && (
-        <motion.button
-          initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.95 }}
+        <button
           onClick={() => setQuickCaptureOpen(true)}
-          className="fixed bottom-6 right-6 w-12 h-12 md:w-14 md:h-14 rounded-full bg-bridge-accent shadow-lg shadow-bridge-accent/30 flex items-center justify-center text-white hover:bg-bridge-accent/90 transition-colors z-50"
+          className="fixed bottom-6 right-6 w-12 h-12 md:w-14 md:h-14 rounded-full bg-bridge-accent shadow-lg shadow-bridge-accent/30 flex items-center justify-center text-white hover:bg-bridge-accent/90 hover:scale-105 active:scale-95 transition-all z-50"
         >
           <Plus size={20} className="md:w-6 md:h-6" />
-        </motion.button>
+        </button>
       )}
 
       {/* Quick Capture Modal (간소화) */}
@@ -208,11 +203,7 @@ function QuickCaptureModal({ onClose, onSubmit }: {
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-start justify-center pt-[20vh]"
       onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <motion.div
-        initial={{ opacity: 0, y: -20, scale: 0.95 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        className="w-full max-w-lg bg-bridge-obsidian rounded-2xl border border-white/10 shadow-2xl p-4"
-      >
+      <div className="w-full max-w-lg bg-bridge-obsidian rounded-2xl border border-white/10 shadow-2xl p-4">
         <input
           autoFocus
           value={title}
@@ -243,7 +234,7 @@ function QuickCaptureModal({ onClose, onSubmit }: {
             추가
           </button>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }

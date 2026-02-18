@@ -1,42 +1,56 @@
-import { useState, useMemo, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useMemo, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  Plus, Check, AlertTriangle, Clock, Calendar, CalendarDays,
-  Inbox, Trash2, Flag, X, CalendarClock, Package, ChevronDown,
+  Plus, Check, Trash2, Flag, Calendar, ChevronDown,
+  Inbox, Flame, CalendarClock, Zap, Archive, X,
 } from 'lucide-react';
 import { personalTaskAPI } from '../../utils/api';
 import { PersonalTask, PersonalTaskPriority } from '../../types';
-import {
-  getDDay, getDeadlineGroup, getWeekRangeLabel, getTodayDateString,
-  type DeadlineGroup, type DdayUrgency,
-} from '../../utils/dateUtils';
+import { getDDay, getTodayDateString, type DdayUrgency } from '../../utils/dateUtils';
+import { startOfDay, parseISO, addDays, format } from 'date-fns';
 
-// ── Types ───────────────────────────────────────────────────
+// ── Types ─────────────────────────────────────────────────────
 
 interface PersonalTaskBoardProps {
   tasks: PersonalTask[];
   onRefresh: () => void;
 }
 
-type SortBy = 'deadline' | 'priority' | 'created';
+type Quadrant = 'q1' | 'q2' | 'q3' | 'q4';
 
-// ── Constants ───────────────────────────────────────────────
-
-const GROUP_ORDER: DeadlineGroup[] = [
-  'overdue', 'today', 'tomorrow', 'thisWeek', 'nextWeek', 'later', 'noDate',
-];
-
-const PRIORITY_ORDER: Record<PersonalTaskPriority, number> = {
-  URGENT: 4, HIGH: 3, MEDIUM: 2, LOW: 1, NONE: 0,
-};
+// ── Constants ─────────────────────────────────────────────────
 
 const PRIORITY_CONFIG: Record<PersonalTaskPriority, { label: string; color: string; dot: string }> = {
-  NONE:   { label: '없음', color: '',              dot: '' },
-  LOW:    { label: '낮음', color: 'text-blue-400',   dot: 'bg-blue-400' },
   MEDIUM: { label: '보통', color: 'text-amber-400',  dot: 'bg-amber-400' },
   HIGH:   { label: '높음', color: 'text-orange-500', dot: 'bg-orange-500' },
   URGENT: { label: '긴급', color: 'text-red-500',    dot: 'bg-red-500' },
+};
+
+const QUADRANT_CONFIG: Record<Quadrant, {
+  label: string; sublabel: string; icon: React.ElementType;
+  color: string; border: string; bg: string; headerBg: string;
+  dropBorder: string;
+}> = {
+  q1: {
+    label: '지금 바로', sublabel: 'Do First', icon: Flame,
+    color: 'text-red-400', border: 'border-red-500/20', bg: 'bg-red-500/[0.03]',
+    headerBg: 'bg-red-500/10', dropBorder: 'border-red-400/50',
+  },
+  q2: {
+    label: '계획하기', sublabel: 'Schedule', icon: CalendarClock,
+    color: 'text-bridge-accent', border: 'border-bridge-accent/20', bg: 'bg-bridge-accent/[0.03]',
+    headerBg: 'bg-bridge-accent/10', dropBorder: 'border-bridge-accent/50',
+  },
+  q3: {
+    label: '빨리 처리', sublabel: 'Quick Do', icon: Zap,
+    color: 'text-amber-400', border: 'border-amber-500/20', bg: 'bg-amber-500/[0.03]',
+    headerBg: 'bg-amber-500/10', dropBorder: 'border-amber-400/50',
+  },
+  q4: {
+    label: '나중에', sublabel: 'Later', icon: Archive,
+    color: 'text-slate-400', border: 'border-white/10', bg: 'bg-white/[0.02]',
+    headerBg: 'bg-white/5', dropBorder: 'border-slate-400/50',
+  },
 };
 
 const DDAY_STYLES: Record<DdayUrgency, string> = {
@@ -47,28 +61,48 @@ const DDAY_STYLES: Record<DdayUrgency, string> = {
   none:    '',
 };
 
-const GROUP_CONFIG: Record<DeadlineGroup, { icon: React.ElementType; color: string; bg: string }> = {
-  overdue:  { icon: AlertTriangle, color: 'text-red-400',    bg: 'bg-red-500/10' },
-  today:    { icon: Clock,         color: 'text-orange-400', bg: 'bg-orange-500/10' },
-  tomorrow: { icon: CalendarClock, color: 'text-amber-400',  bg: 'bg-amber-500/10' },
-  thisWeek: { icon: Calendar,      color: 'text-slate-400',  bg: 'bg-white/5' },
-  nextWeek: { icon: CalendarDays,  color: 'text-slate-400',  bg: 'bg-white/5' },
-  later:    { icon: Package,       color: 'text-slate-500',  bg: 'bg-white/5' },
-  noDate:   { icon: Inbox,         color: 'text-slate-500',  bg: 'bg-white/5' },
-};
+// ── Helpers ───────────────────────────────────────────────────
 
-// ── Main Component ──────────────────────────────────────────
+function getThisSaturday(): Date {
+  const today = startOfDay(new Date());
+  const day = today.getDay();
+  const daysUntilSat = day === 6 ? 0 : (6 - day);
+  return addDays(today, daysUntilSat);
+}
+
+function isTaskUrgent(dueDate: string | null): boolean {
+  if (!dueDate) return true;
+  const due = startOfDay(parseISO(dueDate));
+  return due <= getThisSaturday();
+}
+
+function getNextMondayString(): string {
+  const sat = getThisSaturday();
+  return format(addDays(sat, 2), 'yyyy-MM-dd');
+}
+
+function getQuadrant(task: PersonalTask): Quadrant {
+  const isImportant = task.priority === 'HIGH' || task.priority === 'URGENT';
+  const urgent = isTaskUrgent(task.due_date);
+  if (isImportant && urgent) return 'q1';
+  if (isImportant) return 'q2';
+  if (urgent) return 'q3';
+  return 'q4';
+}
+
+// ── Main Component ────────────────────────────────────────────
 
 export function PersonalTaskBoard({ tasks, onRefresh }: PersonalTaskBoardProps) {
   const { t } = useTranslation();
-  const [sortBy, setSortBy] = useState<SortBy>('deadline');
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
-  const [showCompleted, setShowCompleted] = useState(true);
+  const [showCompleted, setShowCompleted] = useState(false);
+  const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+  const [dragOverQuadrant, setDragOverQuadrant] = useState<Quadrant | null>(null);
 
   // Quick add
   const [newTitle, setNewTitle] = useState('');
   const [newDueDate, setNewDueDate] = useState(getTodayDateString());
-  const [newPriority, setNewPriority] = useState<PersonalTaskPriority>('NONE');
+  const [newPriority, setNewPriority] = useState<PersonalTaskPriority>('MEDIUM');
   const [isAddFocused, setIsAddFocused] = useState(false);
   const addInputRef = useRef<HTMLInputElement>(null);
 
@@ -84,36 +118,26 @@ export function PersonalTaskBoard({ tasks, onRefresh }: PersonalTaskBoardProps) 
     [tasks],
   );
 
-  // ── Group by deadline ──
-  const groupedTasks = useMemo(() => {
-    const groups = new Map<DeadlineGroup, PersonalTask[]>();
-    GROUP_ORDER.forEach(g => groups.set(g, []));
-
+  // ── Group by quadrant ──
+  const quadrants = useMemo(() => {
+    const result: Record<Quadrant, PersonalTask[]> = { q1: [], q2: [], q3: [], q4: [] };
     for (const task of activeTasks) {
-      const group = getDeadlineGroup(task.due_date);
-      groups.get(group)!.push(task);
+      result[getQuadrant(task)].push(task);
     }
-
-    // Sort within each group
-    for (const [, list] of groups) {
+    for (const list of Object.values(result)) {
       list.sort((a, b) => {
-        if (sortBy === 'priority') {
-          const pd = PRIORITY_ORDER[b.priority] - PRIORITY_ORDER[a.priority];
-          if (pd !== 0) return pd;
-        }
-        if (sortBy === 'created') {
-          return (b.created_at ?? '').localeCompare(a.created_at ?? '');
-        }
-        // Default: due date asc, then position
+        // Priority desc, then due date asc
+        const po = { URGENT: 3, HIGH: 2, MEDIUM: 1 };
+        const pd = (po[b.priority] ?? 0) - (po[a.priority] ?? 0);
+        if (pd !== 0) return pd;
         if (a.due_date && b.due_date) return a.due_date.localeCompare(b.due_date);
         if (a.due_date) return -1;
         if (b.due_date) return 1;
         return a.position - b.position;
       });
     }
-
-    return groups;
-  }, [activeTasks, sortBy]);
+    return result;
+  }, [activeTasks]);
 
   // ── Handlers ──
   const handleAddTask = async () => {
@@ -121,12 +145,12 @@ export function PersonalTaskBoard({ tasks, onRefresh }: PersonalTaskBoardProps) 
     try {
       await personalTaskAPI.create({
         title: newTitle.trim(),
-        due_date: newDueDate || undefined,
-        priority: newPriority !== 'NONE' ? newPriority : undefined,
+        due_date: newDueDate || getTodayDateString(),
+        priority: newPriority,
       });
       setNewTitle('');
       setNewDueDate(getTodayDateString());
-      setNewPriority('NONE');
+      setNewPriority('MEDIUM');
       onRefresh();
     } catch (error) {
       console.error('Failed to create task:', error);
@@ -152,7 +176,7 @@ export function PersonalTaskBoard({ tasks, onRefresh }: PersonalTaskBoardProps) 
     }
   };
 
-  const handleUpdate = async (taskId: string, data: {
+  const handleUpdate = useCallback(async (taskId: string, data: {
     title?: string;
     due_date?: string | null;
     priority?: PersonalTaskPriority;
@@ -164,24 +188,62 @@ export function PersonalTaskBoard({ tasks, onRefresh }: PersonalTaskBoardProps) 
     } catch (error) {
       console.error('Failed to update task:', error);
     }
-  };
+  }, [onRefresh]);
 
-  // ── Group label ──
-  function groupLabel(group: DeadlineGroup): string {
-    switch (group) {
-      case 'overdue':  return t('personal.tasks.overdue', '기한 지남');
-      case 'today':    return t('personal.tasks.today', '오늘');
-      case 'tomorrow': return t('personal.tasks.tomorrow', '내일');
-      case 'thisWeek': return `${t('personal.tasks.thisWeek', '이번 주')} (${getWeekRangeLabel('thisWeek')})`;
-      case 'nextWeek': return `${t('personal.tasks.nextWeek', '다음 주')} (${getWeekRangeLabel('nextWeek')})`;
-      case 'later':    return t('personal.tasks.later', '나중에');
-      case 'noDate':   return t('personal.tasks.noDate', '마감일 없음');
+  // ── DnD handlers ──
+  const handleDragStart = useCallback((taskId: string) => {
+    setDraggedTaskId(taskId);
+  }, []);
+
+  const handleDragEnd = useCallback(() => {
+    setDraggedTaskId(null);
+    setDragOverQuadrant(null);
+  }, []);
+
+  const handleQuadrantDrop = useCallback((targetQuadrant: Quadrant) => {
+    if (!draggedTaskId) return;
+    const task = activeTasks.find(t => t.id === draggedTaskId);
+    if (!task) return;
+
+    const currentQuadrant = getQuadrant(task);
+    if (currentQuadrant === targetQuadrant) {
+      setDraggedTaskId(null);
+      setDragOverQuadrant(null);
+      return;
     }
-  }
+
+    const updates: { priority?: PersonalTaskPriority; due_date?: string } = {};
+
+    // Priority change
+    const targetImportant = targetQuadrant === 'q1' || targetQuadrant === 'q2';
+    const currentImportant = currentQuadrant === 'q1' || currentQuadrant === 'q2';
+    if (targetImportant && !currentImportant) {
+      updates.priority = 'HIGH';
+    } else if (!targetImportant && currentImportant) {
+      updates.priority = 'MEDIUM';
+    }
+
+    // Urgency change
+    const targetUrgent = targetQuadrant === 'q1' || targetQuadrant === 'q3';
+    const currentUrgent = currentQuadrant === 'q1' || currentQuadrant === 'q3';
+    if (targetUrgent && !currentUrgent) {
+      updates.due_date = getTodayDateString();
+    } else if (!targetUrgent && currentUrgent) {
+      updates.due_date = getNextMondayString();
+    }
+
+    if (Object.keys(updates).length > 0) {
+      handleUpdate(draggedTaskId, updates);
+    }
+    setDraggedTaskId(null);
+    setDragOverQuadrant(null);
+  }, [draggedTaskId, activeTasks, handleUpdate]);
+
+  const saturdayLabel = format(getThisSaturday(), 'M/d');
 
   return (
     <div className="h-full overflow-y-auto custom-scrollbar">
-      <div className="max-w-3xl mx-auto p-4 md:p-6 space-y-4">
+      <div className="max-w-5xl mx-auto p-4 md:p-6 space-y-4">
 
         {/* ── Quick Add Bar ── */}
         <div className={`bg-bridge-obsidian rounded-xl border transition-all ${
@@ -198,7 +260,7 @@ export function PersonalTaskBoard({ tasks, onRefresh }: PersonalTaskBoardProps) 
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.nativeEvent.isComposing) handleAddTask();
                 if (e.key === 'Escape') {
-                  setNewTitle(''); setNewDueDate(getTodayDateString()); setNewPriority('NONE');
+                  setNewTitle(''); setNewDueDate(getTodayDateString()); setNewPriority('MEDIUM');
                   setIsAddFocused(false);
                   addInputRef.current?.blur();
                 }
@@ -214,108 +276,156 @@ export function PersonalTaskBoard({ tasks, onRefresh }: PersonalTaskBoardProps) 
             />
             <PriorityDropdown value={newPriority} onChange={setNewPriority} />
           </div>
-          <AnimatePresence>
-            {isAddFocused && newTitle.trim() && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                className="overflow-hidden"
-              >
-                <div className="px-4 pb-3">
-                  <div className="flex items-center justify-between pt-2 border-t border-white/5">
-                    <span className="text-[10px] text-slate-500">Enter {t('personal.tasks.toAdd', '추가')} · Esc {t('common.cancel', '취소')}</span>
-                    <button
-                      onClick={handleAddTask}
-                      className="px-3 py-1 bg-bridge-accent text-white text-xs rounded-lg font-medium hover:bg-bridge-accent/90 transition-colors"
-                    >
-                      {t('personal.tasks.add', '추가')}
-                    </button>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* ── Sort Bar ── */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-slate-400">
-              {t('personal.tasks.active', '활성')}
-              <span className="ml-1 text-bridge-secondary font-bold">{activeTasks.length}</span>
-            </span>
-            <span className="text-white/10">·</span>
-            <span className="text-xs text-slate-400">
-              {t('personal.tasks.completed', '완료됨')}
-              <span className="ml-1 text-emerald-400 font-bold">{completedTasks.length}</span>
-            </span>
-          </div>
-
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as SortBy)}
-            className="bg-white/5 border border-white/10 rounded-lg text-xs text-slate-400 px-2 py-1.5 outline-none focus:border-bridge-accent/50 [color-scheme:dark]"
-          >
-            <option value="deadline">{t('personal.tasks.sortDeadline', '마감일순')}</option>
-            <option value="priority">{t('personal.tasks.sortPriority', '우선순위순')}</option>
-            <option value="created">{t('personal.tasks.sortCreated', '생성순')}</option>
-          </select>
-        </div>
-
-        {/* ── Active Tasks: Grouped by deadline ── */}
-        <div className="space-y-6">
-          {GROUP_ORDER.map(group => {
-            const list = groupedTasks.get(group) || [];
-            if (list.length === 0) return null;
-
-            const cfg = GROUP_CONFIG[group];
-            const Icon = cfg.icon;
-
-            return (
-              <div key={group}>
-                <div className="flex items-center gap-2 mb-2">
-                  <div className={`p-1 rounded-md ${cfg.bg}`}>
-                    <Icon size={14} className={cfg.color} />
-                  </div>
-                  <span className="text-xs font-bold text-slate-300">{groupLabel(group)}</span>
-                  <span className={`text-[10px] font-bold ${cfg.color}`}>{list.length}</span>
-                </div>
-
-                <div className="space-y-1">
-                  <AnimatePresence>
-                    {list.map(task => (
-                      <TaskItem
-                        key={task.id}
-                        task={task}
-                        isExpanded={expandedTaskId === task.id}
-                        onToggleComplete={() => handleToggleComplete(task)}
-                        onToggleExpand={() => setExpandedTaskId(expandedTaskId === task.id ? null : task.id)}
-                        onDelete={() => handleDelete(task.id)}
-                        onUpdate={(data) => handleUpdate(task.id, data)}
-                      />
-                    ))}
-                  </AnimatePresence>
-                </div>
+          {isAddFocused && newTitle.trim() && (
+            <div className="px-4 pb-3">
+              <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                <span className="text-[10px] text-slate-500">Enter {t('personal.tasks.toAdd', '추가')} · Esc {t('common.cancel', '취소')}</span>
+                <button
+                  onClick={handleAddTask}
+                  className="px-3 py-1 bg-bridge-accent text-white text-xs rounded-lg font-medium hover:bg-bridge-accent/90 transition-colors"
+                >
+                  {t('personal.tasks.add', '추가')}
+                </button>
               </div>
-            );
-          })}
-
-          {activeTasks.length === 0 && (
-            <div className="text-center py-16">
-              <Inbox size={48} className="mx-auto text-slate-600 mb-4" />
-              <p className="text-slate-400 text-sm mb-1">{t('personal.tasks.emptyActive', '할 일이 없습니다')}</p>
-              <p className="text-slate-600 text-xs">{t('personal.tasks.emptyActiveHint', '위 입력창에 새로운 할 일을 추가해보세요')}</p>
             </div>
           )}
         </div>
 
-        {/* ── Completed Section (collapsible) ── */}
+        {/* ── Stats Bar ── */}
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-slate-400">
+            {t('personal.tasks.active', '활성')}
+            <span className="ml-1 text-bridge-secondary font-bold">{activeTasks.length}</span>
+          </span>
+          <span className="text-white/10">·</span>
+          <span className="text-xs text-slate-400">
+            {t('personal.tasks.completed', '완료됨')}
+            <span className="ml-1 text-emerald-400 font-bold">{completedTasks.length}</span>
+          </span>
+          <div className="flex-1" />
+          <span className="text-[10px] text-slate-500">
+            이번 주: ~{saturdayLabel} (토)
+          </span>
+        </div>
+
+        {/* ── Eisenhower Matrix ── */}
+        {activeTasks.length > 0 ? (
+          <div className="space-y-0">
+            {/* Column axis labels */}
+            <div className="grid grid-cols-2 gap-1.5 mb-1.5">
+              <div className="text-center">
+                <span className="text-[10px] tracking-[0.15em] uppercase font-bold text-red-400/80">
+                  🔥 급함
+                </span>
+                <span className="text-[10px] text-slate-500 ml-1.5">~{saturdayLabel}</span>
+              </div>
+              <div className="text-center">
+                <span className="text-[10px] tracking-[0.15em] uppercase font-bold text-slate-400/80">
+                  📅 안급함
+                </span>
+                <span className="text-[10px] text-slate-500 ml-1.5">다음 주+</span>
+              </div>
+            </div>
+
+            {/* Matrix 2x2 Grid */}
+            <div className="grid grid-cols-2 gap-1.5">
+              {/* Row 1: 중요 */}
+              <QuadrantCell
+                quadrant="q1"
+                tasks={quadrants.q1}
+                isDragOver={dragOverQuadrant === 'q1'}
+                draggedTaskId={draggedTaskId}
+                expandedTaskId={expandedTaskId}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+                onDragOver={() => setDragOverQuadrant('q1')}
+                onDragLeave={() => setDragOverQuadrant(null)}
+                onDrop={() => handleQuadrantDrop('q1')}
+                onToggleComplete={handleToggleComplete}
+                onToggleExpand={(id) => setExpandedTaskId(expandedTaskId === id ? null : id)}
+                onDelete={handleDelete}
+                onUpdate={handleUpdate}
+              />
+              <QuadrantCell
+                quadrant="q2"
+                tasks={quadrants.q2}
+                isDragOver={dragOverQuadrant === 'q2'}
+                draggedTaskId={draggedTaskId}
+                expandedTaskId={expandedTaskId}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+                onDragOver={() => setDragOverQuadrant('q2')}
+                onDragLeave={() => setDragOverQuadrant(null)}
+                onDrop={() => handleQuadrantDrop('q2')}
+                onToggleComplete={handleToggleComplete}
+                onToggleExpand={(id) => setExpandedTaskId(expandedTaskId === id ? null : id)}
+                onDelete={handleDelete}
+                onUpdate={handleUpdate}
+              />
+
+              {/* Row 2: 보통 */}
+              <QuadrantCell
+                quadrant="q3"
+                tasks={quadrants.q3}
+                isDragOver={dragOverQuadrant === 'q3'}
+                draggedTaskId={draggedTaskId}
+                expandedTaskId={expandedTaskId}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+                onDragOver={() => setDragOverQuadrant('q3')}
+                onDragLeave={() => setDragOverQuadrant(null)}
+                onDrop={() => handleQuadrantDrop('q3')}
+                onToggleComplete={handleToggleComplete}
+                onToggleExpand={(id) => setExpandedTaskId(expandedTaskId === id ? null : id)}
+                onDelete={handleDelete}
+                onUpdate={handleUpdate}
+              />
+              <QuadrantCell
+                quadrant="q4"
+                tasks={quadrants.q4}
+                isDragOver={dragOverQuadrant === 'q4'}
+                draggedTaskId={draggedTaskId}
+                expandedTaskId={expandedTaskId}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+                onDragOver={() => setDragOverQuadrant('q4')}
+                onDragLeave={() => setDragOverQuadrant(null)}
+                onDrop={() => handleQuadrantDrop('q4')}
+                onToggleComplete={handleToggleComplete}
+                onToggleExpand={(id) => setExpandedTaskId(expandedTaskId === id ? null : id)}
+                onDelete={handleDelete}
+                onUpdate={handleUpdate}
+              />
+            </div>
+
+            {/* Row axis labels (side) */}
+            <div className="flex items-center gap-3 mt-2">
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-orange-500" />
+                <span className="text-[10px] text-slate-500">중요 = 높음/긴급</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-amber-400" />
+                <span className="text-[10px] text-slate-500">보통 = 기본</span>
+              </div>
+              <div className="flex-1" />
+              <span className="text-[10px] text-slate-500 italic">드래그로 이동 가능</span>
+            </div>
+          </div>
+        ) : (
+          <div className="text-center py-16">
+            <Inbox size={48} className="mx-auto text-slate-600 mb-4" />
+            <p className="text-slate-400 text-sm mb-1">{t('personal.tasks.emptyActive', '할 일이 없습니다')}</p>
+            <p className="text-slate-600 text-xs">{t('personal.tasks.emptyActiveHint', '위 입력창에 새로운 할 일을 추가해보세요')}</p>
+          </div>
+        )}
+
+        {/* ── Completed Section ── */}
         {completedTasks.length > 0 && (
           <div>
             <button
               onClick={() => setShowCompleted(!showCompleted)}
-              className="flex items-center gap-2 w-full py-2 group/completed"
+              className="flex items-center gap-2 w-full py-2"
             >
               <div className="h-px flex-1 bg-white/5" />
               <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 hover:bg-white/[0.08] transition-colors">
@@ -332,30 +442,18 @@ export function PersonalTaskBoard({ tasks, onRefresh }: PersonalTaskBoardProps) 
               <div className="h-px flex-1 bg-white/5" />
             </button>
 
-            <AnimatePresence>
-              {showCompleted && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="overflow-hidden"
-                >
-                  <div className="space-y-1 pt-2">
-                    {completedTasks.map(task => (
-                      <TaskItem
-                        key={task.id}
-                        task={task}
-                        isExpanded={expandedTaskId === task.id}
-                        onToggleComplete={() => handleToggleComplete(task)}
-                        onToggleExpand={() => setExpandedTaskId(expandedTaskId === task.id ? null : task.id)}
-                        onDelete={() => handleDelete(task.id)}
-                        onUpdate={(data) => handleUpdate(task.id, data)}
-                      />
-                    ))}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+            {showCompleted && (
+              <div className="space-y-1 pt-2">
+                {completedTasks.map(task => (
+                  <CompletedTaskRow
+                    key={task.id}
+                    task={task}
+                    onToggleComplete={() => handleToggleComplete(task)}
+                    onDelete={() => handleDelete(task.id)}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -363,105 +461,209 @@ export function PersonalTaskBoard({ tasks, onRefresh }: PersonalTaskBoardProps) 
   );
 }
 
-// ── TaskItem ────────────────────────────────────────────────
+// ── QuadrantCell ──────────────────────────────────────────────
 
-function TaskItem({ task, isExpanded, onToggleComplete, onToggleExpand, onDelete, onUpdate }: {
+function QuadrantCell({
+  quadrant, tasks, isDragOver, draggedTaskId, expandedTaskId,
+  onDragStart, onDragEnd, onDragOver, onDragLeave, onDrop,
+  onToggleComplete, onToggleExpand, onDelete, onUpdate,
+}: {
+  quadrant: Quadrant;
+  tasks: PersonalTask[];
+  isDragOver: boolean;
+  draggedTaskId: string | null;
+  expandedTaskId: string | null;
+  onDragStart: (id: string) => void;
+  onDragEnd: () => void;
+  onDragOver: () => void;
+  onDragLeave: () => void;
+  onDrop: () => void;
+  onToggleComplete: (task: PersonalTask) => void;
+  onToggleExpand: (id: string) => void;
+  onDelete: (id: string) => void;
+  onUpdate: (id: string, data: { title?: string; due_date?: string | null; priority?: PersonalTaskPriority; description?: string }) => void;
+}) {
+  const cfg = QUADRANT_CONFIG[quadrant];
+  const Icon = cfg.icon;
+
+  return (
+    <div
+      onDragOver={(e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        onDragOver();
+      }}
+      onDragLeave={(e) => {
+        if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+        onDragLeave();
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        onDrop();
+      }}
+      className={`
+        rounded-xl border transition-all min-h-[260px] flex flex-col
+        ${cfg.border} ${cfg.bg}
+        ${isDragOver ? `${cfg.dropBorder} border-dashed ring-1 ring-current/20 scale-[1.01]` : ''}
+      `}
+    >
+      {/* Header */}
+      <div className={`flex items-center gap-2 px-3 py-2 rounded-t-xl ${cfg.headerBg}`}>
+        <Icon size={13} className={cfg.color} />
+        <span className={`text-xs font-bold ${cfg.color}`}>{cfg.label}</span>
+        <span className="text-[9px] text-slate-500">{cfg.sublabel}</span>
+        <div className="flex-1" />
+        <span className={`text-[10px] font-bold ${cfg.color}`}>{tasks.length}</span>
+      </div>
+
+      {/* Tasks */}
+      <div className="flex-1 p-1.5 space-y-1 overflow-y-auto max-h-[400px] custom-scrollbar">
+        {tasks.length === 0 && !isDragOver && (
+          <div className="flex items-center justify-center h-full min-h-[80px]">
+            <span className="text-[10px] text-slate-600">비어있음</span>
+          </div>
+        )}
+
+        {isDragOver && tasks.length === 0 && (
+          <div className="h-12 border border-dashed border-bridge-secondary/40 rounded-lg bg-bridge-secondary/5 flex items-center justify-center">
+            <span className="text-[10px] text-bridge-secondary">여기에 놓기</span>
+          </div>
+        )}
+
+        {tasks.map(task => (
+          <MatrixTaskCard
+            key={task.id}
+            task={task}
+            isDragging={draggedTaskId === task.id}
+            isExpanded={expandedTaskId === task.id}
+            onDragStart={() => onDragStart(task.id)}
+            onDragEnd={onDragEnd}
+            onToggleComplete={() => onToggleComplete(task)}
+            onToggleExpand={() => onToggleExpand(task.id)}
+            onDelete={() => onDelete(task.id)}
+            onUpdate={(data) => onUpdate(task.id, data)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── MatrixTaskCard ────────────────────────────────────────────
+
+function MatrixTaskCard({
+  task, isDragging, isExpanded,
+  onDragStart, onDragEnd, onToggleComplete, onToggleExpand, onDelete, onUpdate,
+}: {
   task: PersonalTask;
+  isDragging: boolean;
   isExpanded: boolean;
+  onDragStart: () => void;
+  onDragEnd: () => void;
   onToggleComplete: () => void;
   onToggleExpand: () => void;
   onDelete: () => void;
   onUpdate: (data: { title?: string; due_date?: string | null; priority?: PersonalTaskPriority; description?: string }) => void;
 }) {
-  const isDone = task.status === 'DONE';
   const dday = getDDay(task.due_date);
-  const priorityCfg = PRIORITY_CONFIG[task.priority];
+  const priorityCfg = PRIORITY_CONFIG[task.priority] ?? PRIORITY_CONFIG.MEDIUM;
 
   return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 5 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, x: -20 }}
+    <div
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer?.setData('text/plain', task.id);
+        onDragStart();
+      }}
+      onDragEnd={onDragEnd}
       className="group"
     >
-      {/* Main Row */}
+      {/* Card */}
       <div
         onClick={onToggleExpand}
-        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-all ${
-          isDone
-            ? 'bg-white/[0.02] hover:bg-white/[0.04]'
-            : 'bg-bridge-obsidian hover:bg-white/[0.06] border border-white/5 hover:border-white/10'
-        }`}
+        className={`
+          flex items-center gap-2 px-2.5 py-2 rounded-lg cursor-grab active:cursor-grabbing
+          bg-bridge-obsidian border border-white/5 hover:border-white/10
+          transition-all hover:bg-white/[0.04]
+          ${isDragging ? 'opacity-40 rotate-1' : ''}
+        `}
       >
         {/* Checkbox */}
         <button
           onClick={(e) => { e.stopPropagation(); onToggleComplete(); }}
-          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
-            isDone ? 'bg-emerald-500 border-emerald-500' : 'border-slate-600 hover:border-bridge-accent'
-          }`}
+          className="w-4 h-4 rounded-full border-[1.5px] border-slate-600 hover:border-bridge-accent flex items-center justify-center shrink-0 transition-colors"
         >
-          {isDone && <Check size={12} className="text-white" />}
         </button>
 
-        {/* Content */}
+        {/* Title + meta */}
         <div className="flex-1 min-w-0">
-          <span className={`text-sm ${isDone ? 'line-through text-slate-500' : 'text-white'}`}>
-            {task.title}
-          </span>
-          {(task.tags?.length > 0 || task.checklists?.length > 0 || task.category) && (
-            <div className="flex items-center gap-2 mt-1 flex-wrap">
-              {task.category && (
-                <span className="text-[10px] text-slate-500">{task.category}</span>
-              )}
+          <span className="text-[12px] text-white leading-tight line-clamp-2">{task.title}</span>
+          {(task.checklists?.length > 0 || task.tags?.length > 0) && (
+            <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
               {task.tags?.map(tag => (
                 <span
                   key={tag.id}
-                  className="text-[10px] px-1.5 py-0.5 rounded-md bg-white/5 text-slate-400"
+                  className="text-[9px] px-1 py-0 rounded bg-white/5 text-slate-400"
                   style={tag.color ? { backgroundColor: `${tag.color}20`, color: tag.color } : {}}
                 >
                   {tag.name}
                 </span>
               ))}
-              {task.checklists && task.checklists.length > 0 && (
-                <span className="text-[10px] text-slate-500">
-                  ✓ {task.checklists.filter(c => c.is_completed).length}/{task.checklists.length}
+              {task.checklists?.length > 0 && (
+                <span className="text-[9px] text-slate-500">
+                  ✓{task.checklists.filter(c => c.is_completed).length}/{task.checklists.length}
                 </span>
               )}
             </div>
           )}
         </div>
 
-        {/* Right: priority dot + D-day badge + delete */}
-        <div className="flex items-center gap-2 shrink-0">
-          {task.priority !== 'NONE' && (
-            <div className={`w-2 h-2 rounded-full ${priorityCfg.dot}`} title={priorityCfg.label} />
-          )}
+        {/* Priority dot + D-day */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          <div className={`w-1.5 h-1.5 rounded-full ${priorityCfg.dot}`} />
           {dday.urgency !== 'none' && (
-            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${DDAY_STYLES[dday.urgency]}`}>
+            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${DDAY_STYLES[dday.urgency]}`}>
               {dday.text}
             </span>
           )}
-          <button
-            onClick={(e) => { e.stopPropagation(); onDelete(); }}
-            className="p-1 text-slate-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
-          >
-            <Trash2 size={12} />
-          </button>
         </div>
       </div>
 
       {/* Expanded Edit */}
-      <AnimatePresence>
-        {isExpanded && (
-          <TaskExpanded task={task} onUpdate={onUpdate} onDelete={onDelete} />
-        )}
-      </AnimatePresence>
-    </motion.div>
+      {isExpanded && (
+        <TaskExpanded task={task} onUpdate={onUpdate} onDelete={onDelete} />
+      )}
+    </div>
   );
 }
 
-// ── TaskExpanded (inline edit) ──────────────────────────────
+// ── CompletedTaskRow ──────────────────────────────────────────
+
+function CompletedTaskRow({ task, onToggleComplete, onDelete }: {
+  task: PersonalTask;
+  onToggleComplete: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <div className="flex items-center gap-3 px-3 py-2 rounded-xl bg-white/[0.02] hover:bg-white/[0.04] transition-colors group">
+      <button
+        onClick={onToggleComplete}
+        className="w-5 h-5 rounded-full bg-emerald-500 border-2 border-emerald-500 flex items-center justify-center shrink-0"
+      >
+        <Check size={12} className="text-white" />
+      </button>
+      <span className="flex-1 text-sm line-through text-slate-500 truncate">{task.title}</span>
+      <button
+        onClick={onDelete}
+        className="p-1 text-slate-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
+      >
+        <Trash2 size={12} />
+      </button>
+    </div>
+  );
+}
+
+// ── TaskExpanded ──────────────────────────────────────────────
 
 function TaskExpanded({ task, onUpdate, onDelete }: {
   task: PersonalTask;
@@ -475,7 +677,6 @@ function TaskExpanded({ task, onUpdate, onDelete }: {
   const [description, setDescription] = useState(task.description ?? '');
 
   const save = (patch: Parameters<typeof onUpdate>[0]) => {
-    // Only send changed fields
     const filtered: typeof patch = {};
     if (patch.title !== undefined && patch.title !== task.title) filtered.title = patch.title;
     if (patch.due_date !== undefined && patch.due_date !== (task.due_date ?? '')) filtered.due_date = patch.due_date;
@@ -485,43 +686,28 @@ function TaskExpanded({ task, onUpdate, onDelete }: {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, height: 0 }}
-      animate={{ opacity: 1, height: 'auto' }}
-      exit={{ opacity: 0, height: 0 }}
-      className="overflow-hidden"
-    >
-      <div className="ml-8 mt-1 p-3 bg-white/[0.03] rounded-xl border border-white/5 space-y-3">
-        {/* Title */}
+    <div>
+      <div className="mt-1 p-2.5 bg-white/[0.03] rounded-lg border border-white/5 space-y-2">
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           onBlur={() => save({ title })}
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) save({ title }); }}
-          className="w-full bg-transparent text-sm text-white outline-none border-b border-white/10 pb-2 focus:border-bridge-accent/50 transition-colors"
+          className="w-full bg-transparent text-xs text-white outline-none border-b border-white/10 pb-1.5 focus:border-bridge-accent/50 transition-colors"
         />
 
-        {/* Due date + Priority */}
-        <div className="flex items-center gap-4 flex-wrap">
-          <div className="flex items-center gap-2">
-            <Calendar size={12} className="text-slate-500" />
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-1.5">
+            <Calendar size={11} className="text-slate-500" />
             <input
               type="date"
               value={dueDate}
-              onChange={(e) => { setDueDate(e.target.value); save({ due_date: e.target.value || null }); }}
-              className="bg-transparent text-xs text-slate-400 outline-none [color-scheme:dark]"
+              onChange={(e) => { setDueDate(e.target.value); save({ due_date: e.target.value || getTodayDateString() }); }}
+              className="bg-transparent text-[11px] text-slate-400 outline-none [color-scheme:dark]"
             />
-            {dueDate && (
-              <button
-                onClick={() => { setDueDate(''); save({ due_date: null }); }}
-                className="p-0.5 text-slate-600 hover:text-red-400 transition-colors"
-              >
-                <X size={10} />
-              </button>
-            )}
           </div>
-          <div className="flex items-center gap-2">
-            <Flag size={12} className="text-slate-500" />
+          <div className="flex items-center gap-1.5">
+            <Flag size={11} className="text-slate-500" />
             <PriorityInline
               value={priority}
               onChange={(p) => { setPriority(p); save({ priority: p }); }}
@@ -529,18 +715,16 @@ function TaskExpanded({ task, onUpdate, onDelete }: {
           </div>
         </div>
 
-        {/* Description */}
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           onBlur={() => save({ description })}
           placeholder={t('personal.tasks.descPlaceholder', '메모 추가...')}
           rows={2}
-          className="w-full bg-transparent text-xs text-slate-300 placeholder-slate-600 outline-none resize-none"
+          className="w-full bg-transparent text-[11px] text-slate-300 placeholder-slate-600 outline-none resize-none"
         />
 
-        {/* Delete action */}
-        <div className="flex justify-end pt-2 border-t border-white/5">
+        <div className="flex justify-end pt-1.5 border-t border-white/5">
           <button
             onClick={onDelete}
             className="flex items-center gap-1 text-[10px] text-slate-500 hover:text-red-400 transition-colors"
@@ -550,18 +734,18 @@ function TaskExpanded({ task, onUpdate, onDelete }: {
           </button>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
-// ── PriorityDropdown (compact, for quick add bar) ───────────
+// ── PriorityDropdown ─────────────────────────────────────────
 
 function PriorityDropdown({ value, onChange }: {
   value: PersonalTaskPriority;
   onChange: (p: PersonalTaskPriority) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const ALL: PersonalTaskPriority[] = ['NONE', 'LOW', 'MEDIUM', 'HIGH', 'URGENT'];
+  const ALL: PersonalTaskPriority[] = ['MEDIUM', 'HIGH', 'URGENT'];
 
   return (
     <div className="relative">
@@ -570,10 +754,7 @@ function PriorityDropdown({ value, onChange }: {
         className="p-1.5 rounded-lg border border-white/10 hover:bg-white/5 transition-colors"
         title="우선순위"
       >
-        {value === 'NONE'
-          ? <Flag size={12} className="text-slate-500" />
-          : <div className={`w-3 h-3 rounded-full ${PRIORITY_CONFIG[value].dot}`} />
-        }
+        <div className={`w-3 h-3 rounded-full ${PRIORITY_CONFIG[value].dot}`} />
       </button>
       {open && (
         <>
@@ -587,8 +768,7 @@ function PriorityDropdown({ value, onChange }: {
                   value === p ? 'text-white' : 'text-slate-400'
                 }`}
               >
-                {p !== 'NONE' && <div className={`w-2 h-2 rounded-full ${PRIORITY_CONFIG[p].dot}`} />}
-                {p === 'NONE' && <div className="w-2 h-2" />}
+                <div className={`w-2 h-2 rounded-full ${PRIORITY_CONFIG[p].dot}`} />
                 {PRIORITY_CONFIG[p].label}
               </button>
             ))}
@@ -599,28 +779,26 @@ function PriorityDropdown({ value, onChange }: {
   );
 }
 
-// ── PriorityInline (for expanded edit) ──────────────────────
+// ── PriorityInline ───────────────────────────────────────────
 
 function PriorityInline({ value, onChange }: {
   value: PersonalTaskPriority;
   onChange: (p: PersonalTaskPriority) => void;
 }) {
-  const ALL: PersonalTaskPriority[] = ['NONE', 'LOW', 'MEDIUM', 'HIGH', 'URGENT'];
+  const ALL: PersonalTaskPriority[] = ['MEDIUM', 'HIGH', 'URGENT'];
 
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center gap-0.5">
       {ALL.map(p => (
         <button
           key={p}
           onClick={() => onChange(p)}
-          className={`text-[10px] px-2 py-0.5 rounded-md transition-all ${
+          className={`text-[10px] px-1.5 py-0.5 rounded-md transition-all ${
             value === p
-              ? p === 'NONE'
-                ? 'bg-white/10 text-white'
-                : `bg-current/10 ${PRIORITY_CONFIG[p].color} font-bold`
+              ? `${PRIORITY_CONFIG[p].color} font-bold`
               : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
           }`}
-          style={value === p && p !== 'NONE' ? {
+          style={value === p ? {
             backgroundColor: `color-mix(in srgb, currentColor 15%, transparent)`,
           } : undefined}
         >

@@ -47,7 +47,7 @@ public class PersonalTask extends BaseTimeEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "priority", nullable = false, length = 10)
     @Builder.Default
-    private PersonalTaskPriority priority = PersonalTaskPriority.NONE;
+    private PersonalTaskPriority priority = PersonalTaskPriority.MEDIUM;
 
     @Column(name = "due_date")
     private LocalDate dueDate;

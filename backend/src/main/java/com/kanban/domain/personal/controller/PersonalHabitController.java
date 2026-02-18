@@ -83,8 +83,8 @@ public class PersonalHabitController {
     public ResponseEntity<List<PersonalHabitResponse.LogEntry>> getHabitLogs(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable String habitId,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+            @RequestParam("start_date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam("end_date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         return ResponseEntity.ok(personalHabitService.getHabitLogs(principal.getUserId(), habitId, startDate, endDate));
     }
 
@@ -97,8 +97,8 @@ public class PersonalHabitController {
     @GetMapping("/weekly")
     public ResponseEntity<PersonalHabitResponse.WeeklyMatrix> getWeeklyMatrix(
             @AuthenticationPrincipal UserPrincipal principal,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+            @RequestParam("start_date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam("end_date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         return ResponseEntity.ok(personalHabitService.getWeeklyMatrix(principal.getUserId(), startDate, endDate));
     }
 }

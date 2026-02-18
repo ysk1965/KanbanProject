@@ -1839,7 +1839,7 @@ export interface DiaryAiReply {
 // ─── Personal Task (v9.0 MySpace) ───
 
 export type PersonalTaskStatus = 'TODO' | 'IN_PROGRESS' | 'DONE' | 'ARCHIVED';
-export type PersonalTaskPriority = 'NONE' | 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+export type PersonalTaskPriority = 'MEDIUM' | 'HIGH' | 'URGENT';
 export type HabitFrequency = 'DAILY' | 'WEEKDAY' | 'WEEKEND' | 'CUSTOM';
 
 export interface PersonalTask {

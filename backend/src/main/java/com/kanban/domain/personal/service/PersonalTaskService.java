@@ -12,6 +12,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.List;
 
 @Service
@@ -53,8 +55,8 @@ public class PersonalTaskService {
                 .user(user)
                 .title(request.getTitle())
                 .description(request.getDescription())
-                .priority(request.getPriority() != null ? request.getPriority() : PersonalTaskPriority.NONE)
-                .dueDate(request.getDueDate())
+                .priority(request.getPriority() != null ? request.getPriority() : PersonalTaskPriority.MEDIUM)
+                .dueDate(request.getDueDate() != null ? request.getDueDate() : LocalDate.now(ZoneOffset.UTC))
                 .category(request.getCategory())
                 .color(request.getColor())
                 .build();

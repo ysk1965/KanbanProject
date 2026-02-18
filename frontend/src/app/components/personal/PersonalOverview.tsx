@@ -1,12 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Clock, CalendarDays, CheckCircle2, BookHeart, Sparkles,
-  ArrowRight, Sun, Sunset, Moon, Loader2, Flame,
+  ArrowRight, Sun, Sunset, Moon, Loader2, Flame, Check,
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { personalEventService, diaryService } from '../../utils/services';
-import { personalTaskAPI, personalHabitAPI } from '../../utils/api';
+import { personalTaskAPI, personalHabitAPI, personalEventAPI } from '../../utils/api';
 import { getTodayDateString } from '../../utils/dateUtils';
 import { PersonalEvent, DiaryDetail, PersonalTask, HabitTodayItem } from '../../types';
 
@@ -62,6 +62,53 @@ function ViewAllButton({ onClick, label }: { onClick: () => void; label?: string
       <span>{label || 'View all'}</span>
       <ArrowRight size={12} />
     </button>
+  );
+}
+
+// ── Check Particles ─────────────────────────────────────────────────
+
+const PARTICLE_COLORS = ['#34d399', '#6ee7b7', '#a7f3d0', '#2dd4bf', '#5eead4', '#fbbf24', '#f9a8d4'];
+
+function CheckParticles({ trigger }: { trigger: boolean }) {
+  const particles = useMemo(() => Array.from({ length: 8 }, (_, i) => {
+    const angle = (i / 8) * 360;
+    const rad = (angle * Math.PI) / 180;
+    const distance = 14 + Math.random() * 10;
+    return {
+      id: i,
+      x: Math.cos(rad) * distance,
+      y: Math.sin(rad) * distance,
+      color: PARTICLE_COLORS[i % PARTICLE_COLORS.length],
+      size: 2.5 + Math.random() * 2,
+      delay: i * 0.02,
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [trigger]);
+
+  return (
+    <AnimatePresence>
+      {trigger && particles.map(p => (
+        <motion.div
+          key={p.id}
+          initial={{ x: 0, y: 0, scale: 1, opacity: 1 }}
+          animate={{ x: p.x, y: p.y, scale: 0, opacity: 0 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.5, delay: p.delay, ease: 'easeOut' }}
+          style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            width: p.size,
+            height: p.size,
+            marginTop: -p.size / 2,
+            marginLeft: -p.size / 2,
+            borderRadius: '50%',
+            backgroundColor: p.color,
+            pointerEvents: 'none',
+          }}
+        />
+      ))}
+    </AnimatePresence>
   );
 }
 
@@ -216,38 +263,122 @@ function TodayScheduleWidget({
 
 // ── 우상단: Upcoming Deadlines (PersonalTask 기반) ───────────────────
 
+type DeadlineItem =
+  | { kind: 'task'; id: string; date: string; title: string; priority: string; status: string; category?: string | null; isDone: boolean }
+  | { kind: 'event'; id: string; date: string; title: string; color: string; startTime?: string | null };
+
 function UpcomingDeadlinesWidget({
   todayDate,
   onViewAll,
+  onNavigateCalendar,
 }: {
   todayDate: string;
   onViewAll: () => void;
+  onNavigateCalendar: () => void;
 }) {
   const { t } = useTranslation();
-  const [tasks, setTasks] = useState<PersonalTask[]>([]);
+  const [items, setItems] = useState<DeadlineItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [togglingIds, setTogglingIds] = useState<Set<string>>(new Set());
+  const [animatingIds, setAnimatingIds] = useState<Set<string>>(new Set());
 
   const today = new Date(todayDate + 'T00:00:00');
+
+  const priorityOrder: Record<string, number> = { URGENT: 4, HIGH: 3, MEDIUM: 2, LOW: 1, NONE: 0 };
+  const sortDeadlines = useCallback((list: DeadlineItem[]) =>
+    [...list].sort((a, b) => {
+      const aDone = a.kind === 'task' && a.isDone ? 1 : 0;
+      const bDone = b.kind === 'task' && b.isDone ? 1 : 0;
+      if (aDone !== bDone) return aDone - bDone;
+      const dateCmp = a.date.localeCompare(b.date);
+      if (dateCmp !== 0) return dateCmp;
+      const aPri = a.kind === 'task' ? (priorityOrder[a.priority] ?? 0) : -1;
+      const bPri = b.kind === 'task' ? (priorityOrder[b.priority] ?? 0) : -1;
+      return bPri - aPri;
+    }), []);
 
   useEffect(() => {
     (async () => {
       try {
         setIsLoading(true);
-        const data = await personalTaskAPI.getAll();
-        const filtered = data
-          .filter(t => t.status !== 'DONE' && t.status !== 'ARCHIVED' && t.due_date)
-          .sort((a, b) => a.due_date!.localeCompare(b.due_date!));
-        setTasks(filtered);
+
+        // Fetch upcoming range: today ~ 30 days ahead
+        const endDate = new Date(today);
+        endDate.setDate(endDate.getDate() + 30);
+        const endDateStr = endDate.toISOString().split('T')[0];
+
+        const [taskData, eventData] = await Promise.all([
+          personalTaskAPI.getAll(),
+          personalEventAPI.getWeekly(todayDate, endDateStr),
+        ]);
+
+        const taskItems: DeadlineItem[] = taskData
+          .filter(t => t.status !== 'ARCHIVED' && t.due_date)
+          .map(t => ({
+            kind: 'task' as const,
+            id: t.id,
+            date: t.due_date!,
+            title: t.title,
+            priority: t.priority,
+            status: t.status,
+            category: t.category,
+            isDone: t.status === 'DONE',
+          }));
+
+        const eventItems: DeadlineItem[] = eventData.map(ev => ({
+          kind: 'event' as const,
+          id: ev.id,
+          date: ev.event_date,
+          title: ev.title,
+          color: ev.color || '#6366F1',
+          startTime: ev.start_time,
+        }));
+
+        const merged = sortDeadlines([...taskItems, ...eventItems]);
+
+        setItems(merged);
       } catch {
-        console.error('Failed to load tasks');
+        console.error('Failed to load deadlines');
       } finally {
         setIsLoading(false);
       }
     })();
   }, [todayDate]);
 
-  const getDday = (dueDate: string) => {
-    const due = new Date(dueDate + 'T00:00:00');
+  const handleToggleTask = useCallback(async (taskId: string, currentlyDone: boolean) => {
+    setTogglingIds(prev => new Set(prev).add(taskId));
+    try {
+      const newStatus = currentlyDone ? 'TODO' as const : 'DONE' as const;
+      await personalTaskAPI.updateStatus(taskId, newStatus);
+
+      // Update done state immediately (triggers check animation)
+      setItems(prev => prev.map(item =>
+        item.kind === 'task' && item.id === taskId
+          ? { ...item, isDone: !currentlyDone, status: newStatus }
+          : item
+      ));
+      setTogglingIds(prev => { const n = new Set(prev); n.delete(taskId); return n; });
+
+      // Mark as animating → after delay, re-sort
+      if (!currentlyDone) {
+        setAnimatingIds(prev => new Set(prev).add(taskId));
+        setTimeout(() => {
+          setAnimatingIds(prev => { const n = new Set(prev); n.delete(taskId); return n; });
+          // Re-sort: done items to bottom, then date, then priority
+          setItems(prev => sortDeadlines(prev));
+        }, 600);
+      } else {
+        // Unchecking → re-sort immediately
+        setItems(prev => sortDeadlines(prev));
+      }
+    } catch {
+      console.error('Failed to toggle task status');
+      setTogglingIds(prev => { const n = new Set(prev); n.delete(taskId); return n; });
+    }
+  }, [sortDeadlines]);
+
+  const getDday = (dateStr: string) => {
+    const due = new Date(dateStr + 'T00:00:00');
     return Math.round((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
   };
 
@@ -256,8 +387,8 @@ function UpcomingDeadlinesWidget({
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
-  const displayTasks = tasks.slice(0, 8);
-  const remaining = tasks.length - 8;
+  const displayItems = items.slice(0, 8);
+  const remaining = items.length - 8;
 
   const PRIORITY_DOT: Record<string, string> = {
     URGENT: '#EF4444',
@@ -272,9 +403,9 @@ function UpcomingDeadlinesWidget({
       icon={<CalendarDays size={16} className="text-bridge-accent" />}
       title={t('personal.overview.upcomingDeadlines', 'Upcoming Deadlines')}
       badge={
-        tasks.length > 0 ? (
+        items.length > 0 ? (
           <span className="text-[10px] font-bold text-bridge-accent bg-bridge-accent/10 px-1.5 py-0.5 rounded-full">
-            {tasks.length}
+            {items.length}
           </span>
         ) : null
       }
@@ -285,50 +416,172 @@ function UpcomingDeadlinesWidget({
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="w-5 h-5 animate-spin text-bridge-accent/50" />
         </div>
-      ) : tasks.length === 0 ? (
+      ) : items.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center text-center gap-2">
           <CalendarDays size={28} className="text-slate-600" />
           <p className="text-sm text-slate-500">{t('personal.overview.noDeadlines', 'No upcoming deadlines')}</p>
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto custom-scrollbar space-y-1 -mx-1 px-1">
-          {displayTasks.map(task => {
-            const dday = getDday(task.due_date!);
+          {displayItems.map(item => {
+            const dday = getDday(item.date);
             const isOverdue = dday < 0;
+
+            if (item.kind === 'event') {
+              return (
+                <button
+                  key={`event-${item.id}`}
+                  onClick={onNavigateCalendar}
+                  className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl hover:bg-white/5 transition-colors text-left"
+                >
+                  <CalendarDays size={14} className="flex-shrink-0" style={{ color: item.color }} />
+                  <div className="w-[60px] flex-shrink-0">
+                    <span className="text-[11px] text-slate-400">{formatDueDate(item.date)}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs truncate text-slate-300">{item.title}</div>
+                    {item.startTime && (
+                      <div className="text-[10px] text-slate-500">{item.startTime.slice(0, 5)}</div>
+                    )}
+                  </div>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${
+                    isOverdue
+                      ? 'text-red-400 bg-red-400/10'
+                      : dday === 0
+                      ? 'text-bridge-secondary bg-bridge-secondary/10'
+                      : dday <= 3
+                      ? 'text-amber-400 bg-amber-400/10'
+                      : dday <= 7
+                      ? 'text-blue-400 bg-blue-400/10'
+                      : 'text-slate-400 bg-white/5'
+                  }`}>
+                    {isOverdue
+                      ? `D+${Math.abs(dday)}`
+                      : dday === 0
+                      ? t('personal.overview.today', 'Today')
+                      : `D-${dday}`}
+                  </span>
+                </button>
+              );
+            }
+
+            // Task item
+            const isDone = item.isDone;
+            const isToggling = togglingIds.has(item.id);
+            const isAnimating = animatingIds.has(item.id);
+            const dotColor = PRIORITY_DOT[item.priority] || '#6366F1';
             return (
-              <button
-                key={task.id}
-                onClick={onViewAll}
-                className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl hover:bg-white/5 transition-colors text-left"
+              <motion.div
+                key={`task-${item.id}`}
+                layout
+                transition={{ layout: { type: 'spring', stiffness: 500, damping: 35 } }}
+                className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl hover:bg-white/5 transition-colors ${isDone && !isAnimating ? 'opacity-50' : ''}`}
               >
-                <div className="w-1 h-6 rounded-full" style={{ backgroundColor: PRIORITY_DOT[task.priority] || '#6366F1' }} />
-                <div className="w-[60px] flex-shrink-0">
-                  <span className="text-[11px] text-slate-400">{formatDueDate(task.due_date!)}</span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs text-slate-300 truncate">{task.title}</div>
-                  {task.category && (
-                    <div className="text-[10px] text-slate-500">{task.category}</div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (!isToggling && !isAnimating) handleToggleTask(item.id, isDone);
+                  }}
+                  disabled={isToggling || isAnimating}
+                  className="flex-shrink-0 w-[18px] h-[18px] relative overflow-visible"
+                >
+                  {isToggling ? (
+                    <Loader2 size={16} className="animate-spin text-bridge-accent/50" />
+                  ) : (
+                    <>
+                      {/* Empty circle */}
+                      <motion.div
+                        className="absolute inset-0 rounded-full border-2"
+                        style={{ borderColor: isDone ? '#34d399' : dotColor }}
+                        animate={isDone ? { borderColor: '#34d399' } : { borderColor: dotColor }}
+                        transition={{ duration: 0.2 }}
+                      />
+                      {/* Fill + check */}
+                      <AnimatePresence>
+                        {isDone && (
+                          <motion.div
+                            initial={{ scale: 0, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0, opacity: 0 }}
+                            transition={{ type: 'spring', stiffness: 500, damping: 25 }}
+                            className="absolute inset-0 rounded-full bg-emerald-400 flex items-center justify-center"
+                          >
+                            <motion.div
+                              initial={{ pathLength: 0, opacity: 0 }}
+                              animate={{ pathLength: 1, opacity: 1 }}
+                              transition={{ delay: 0.1, duration: 0.2 }}
+                            >
+                              <Check size={11} className="text-white" strokeWidth={3} />
+                            </motion.div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                      {/* Particles */}
+                      <CheckParticles trigger={isAnimating} />
+                    </>
                   )}
-                </div>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${
-                  isOverdue
-                    ? 'text-red-400 bg-red-400/10'
-                    : dday === 0
-                    ? 'text-bridge-secondary bg-bridge-secondary/10'
-                    : dday <= 3
-                    ? 'text-amber-400 bg-amber-400/10'
-                    : dday <= 7
-                    ? 'text-blue-400 bg-blue-400/10'
-                    : 'text-slate-400 bg-white/5'
-                }`}>
-                  {isOverdue
-                    ? `D+${Math.abs(dday)}`
-                    : dday === 0
-                    ? t('personal.overview.today', 'Today')
-                    : `D-${dday}`}
-                </span>
-              </button>
+                </button>
+                <button
+                  onClick={onViewAll}
+                  className="flex-1 flex items-center gap-2.5 min-w-0 text-left"
+                >
+                  <div className="w-[60px] flex-shrink-0">
+                    <span className="text-[11px] text-slate-400">{formatDueDate(item.date)}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <motion.div
+                      animate={{
+                        color: isDone ? '#64748b' : '#cbd5e1',
+                      }}
+                      transition={{ duration: 0.3 }}
+                      className={`text-xs truncate ${isDone ? 'line-through' : ''}`}
+                    >
+                      {item.title}
+                    </motion.div>
+                    {item.category && (
+                      <div className="text-[10px] text-slate-500">{item.category}</div>
+                    )}
+                  </div>
+                  <AnimatePresence mode="wait">
+                    {isDone ? (
+                      <motion.span
+                        key="done"
+                        initial={{ scale: 0.8, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0.8, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 text-emerald-400 bg-emerald-400/10"
+                      >
+                        {t('personal.overview.done', 'Done')}
+                      </motion.span>
+                    ) : (
+                      <motion.span
+                        key="dday"
+                        initial={{ scale: 0.8, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0.8, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${
+                        isOverdue
+                          ? 'text-red-400 bg-red-400/10'
+                          : dday === 0
+                          ? 'text-bridge-secondary bg-bridge-secondary/10'
+                          : dday <= 3
+                          ? 'text-amber-400 bg-amber-400/10'
+                          : dday <= 7
+                          ? 'text-blue-400 bg-blue-400/10'
+                          : 'text-slate-400 bg-white/5'
+                      }`}>
+                        {isOverdue
+                          ? `D+${Math.abs(dday)}`
+                          : dday === 0
+                          ? t('personal.overview.today', 'Today')
+                          : `D-${dday}`}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </button>
+              </motion.div>
             );
           })}
           {remaining > 0 && (
@@ -611,6 +864,7 @@ export function PersonalOverview({ onNavigateTab }: PersonalOverviewProps) {
         <UpcomingDeadlinesWidget
           todayDate={todayDate}
           onViewAll={() => onNavigateTab('tasks')}
+          onNavigateCalendar={() => onNavigateTab('calendar')}
         />
         <HabitsTodayWidget
           onViewAll={() => onNavigateTab('schedule')}

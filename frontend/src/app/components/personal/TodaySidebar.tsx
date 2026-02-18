@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronLeft, ChevronRight, Clock, CheckCircle2, Calendar, ListTodo, Loader2, Flame, AlertTriangle } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { ChevronLeft, ChevronRight, Clock, CheckCircle2, Calendar, ListTodo, Loader2, Flame } from 'lucide-react';
 import { personalDashboardAPI } from '../../utils/api';
 import { PersonalDashboardToday, PersonalTask } from '../../types';
 import { getDDay } from '../../utils/dateUtils';
@@ -35,25 +34,24 @@ export function TodaySidebar({ tasks, onTaskClick }: TodaySidebarProps) {
 
   const completionRate = todayData ? Math.round(todayData.task_completion_rate * 100) : 0;
 
-  // Upcoming deadlines: overdue + within 3 days (from tasks prop)
-  const upcomingDeadlines = useMemo(() => {
-    if (!tasks) return [];
-    return tasks
-      .filter(t => t.status !== 'DONE' && t.status !== 'ARCHIVED' && t.due_date)
+  // Today's tasks: D-Day tasks including completed ones
+  const todayTasks = useMemo(() => {
+    if (!tasks) return { active: [] as (PersonalTask & { dday: ReturnType<typeof getDDay> })[], done: [] as (PersonalTask & { dday: ReturnType<typeof getDDay> })[] };
+    const dday = tasks
+      .filter(t => t.status !== 'ARCHIVED' && t.due_date)
       .map(t => ({ ...t, dday: getDDay(t.due_date) }))
-      .filter(t => t.dday.diff <= 3) // overdue + within 3 days
-      .sort((a, b) => a.dday.diff - b.dday.diff);
+      .filter(t => t.dday.diff === 0); // D-Day only
+    return {
+      active: dday.filter(t => t.status !== 'DONE'),
+      done: dday.filter(t => t.status === 'DONE'),
+    };
   }, [tasks]);
 
   return (
-    <AnimatePresence mode="wait">
-      <motion.div
-        key={isCollapsed ? 'collapsed' : 'expanded'}
-        initial={{ width: isCollapsed ? 280 : 44 }}
-        animate={{ width: isCollapsed ? 44 : 280 }}
-        transition={{ type: 'spring', duration: 0.3 }}
-        className="h-full border-r border-white/[0.06] bg-bridge-obsidian/50 flex-shrink-0 overflow-hidden"
-      >
+    <div
+      style={{ width: isCollapsed ? 44 : 340 }}
+      className="h-full border-r border-white/[0.06] bg-bridge-obsidian/50 flex-shrink-0 overflow-hidden transition-[width] duration-200"
+    >
         {isCollapsed ? (
           <div className="flex flex-col items-center py-4">
             <button
@@ -67,7 +65,7 @@ export function TodaySidebar({ tasks, onTaskClick }: TodaySidebarProps) {
           <div className="flex flex-col h-full">
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06]">
-              <h3 className="text-sm font-bold text-white">{t('personal.today', 'Today')}</h3>
+              <h3 className="text-base font-bold text-white">{t('personal.today', 'Today')}</h3>
               <button
                 onClick={() => setIsCollapsed(true)}
                 className="p-1.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
@@ -87,48 +85,57 @@ export function TodaySidebar({ tasks, onTaskClick }: TodaySidebarProps) {
                   {/* Progress */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">
+                      <span className="text-[11px] uppercase tracking-widest text-slate-400 font-bold">
                         {t('personal.progress', '진행률')}
                       </span>
-                      <span className="text-xs font-bold text-bridge-secondary">
+                      <span className="text-sm font-bold text-bridge-secondary">
                         {completionRate}%
                       </span>
                     </div>
                     <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${completionRate}%` }}
-                        transition={{ duration: 0.5, ease: 'easeOut' }}
-                        className="h-full bg-gradient-to-r from-bridge-secondary to-bridge-accent rounded-full"
+                      <div
+                        style={{ width: `${completionRate}%` }}
+                        className="h-full bg-gradient-to-r from-bridge-secondary to-bridge-accent rounded-full transition-[width] duration-300"
                       />
                     </div>
                   </div>
 
-                  {/* Upcoming Deadlines (from tasks prop) */}
-                  {upcomingDeadlines.length > 0 && (
+                  {/* Today's D-Day Tasks */}
+                  {(todayTasks.active.length > 0 || todayTasks.done.length > 0) && (
                     <Section
-                      icon={<AlertTriangle size={12} />}
-                      title={t('personal.upcomingDeadlines', '다가오는 마감')}
-                      count={upcomingDeadlines.length}
-                      color="text-red-400"
+                      icon={<Clock size={12} />}
+                      title={t('personal.todayDeadline', '오늘 마감')}
+                      count={todayTasks.active.length + todayTasks.done.length}
+                      color="text-orange-400"
                     >
-                      {upcomingDeadlines.map((task) => {
-                        const ddayStyle = task.dday.urgency === 'overdue'
-                          ? 'text-red-400 font-bold'
-                          : task.dday.urgency === 'today'
-                          ? 'text-orange-400 font-bold'
-                          : 'text-amber-400';
-                        return (
-                          <button
-                            key={task.id}
-                            onClick={() => onTaskClick?.(task.id)}
-                            className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-white/5 transition-colors flex items-center justify-between gap-2"
-                          >
-                            <span className="text-xs text-foreground truncate">{task.title}</span>
-                            <span className={`text-[10px] shrink-0 ${ddayStyle}`}>{task.dday.text}</span>
-                          </button>
-                        );
-                      })}
+                      {todayTasks.active.map((task) => (
+                        <button
+                          key={task.id}
+                          onClick={() => onTaskClick?.(task.id)}
+                          className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-white/5 transition-colors flex items-center justify-between gap-2"
+                        >
+                          <span className="text-[13px] text-foreground truncate">{task.title}</span>
+                          <span className="text-[11px] shrink-0 text-orange-400 font-bold">{task.dday.text}</span>
+                        </button>
+                      ))}
+                      {todayTasks.done.length > 0 && (
+                        <div className="mt-1.5 pt-1.5 border-t border-white/[0.06]">
+                          <div className="flex items-center justify-center gap-1 mb-1">
+                            <CheckCircle2 size={10} className="text-bridge-secondary" />
+                            <span className="text-[11px] text-slate-500">{t('personal.completed', '완료됨')} {todayTasks.done.length}</span>
+                          </div>
+                          {todayTasks.done.map((task) => (
+                            <button
+                              key={task.id}
+                              onClick={() => onTaskClick?.(task.id)}
+                              className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-white/5 transition-colors flex items-center justify-between gap-2"
+                            >
+                              <span className="text-[13px] text-slate-500 line-through truncate">{task.title}</span>
+                              <span className="text-[11px] shrink-0 text-bridge-secondary font-bold">{task.dday.text}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </Section>
                   )}
 
@@ -181,9 +188,9 @@ export function TodaySidebar({ tasks, onTaskClick }: TodaySidebarProps) {
                     >
                       {todayData.personal_events.map((event) => (
                         <div key={event.id} className="px-2 py-1.5 rounded-lg hover:bg-white/5 transition-colors">
-                          <div className="text-xs text-foreground truncate">{event.title}</div>
+                          <div className="text-[13px] text-foreground truncate">{event.title}</div>
                           {event.start_time && (
-                            <div className="text-[10px] text-slate-500 mt-0.5">
+                            <div className="text-[11px] text-slate-500 mt-0.5">
                               {event.start_time}{event.end_time ? ` - ${event.end_time}` : ''}
                             </div>
                           )}
@@ -210,18 +217,18 @@ export function TodaySidebar({ tasks, onTaskClick }: TodaySidebarProps) {
                             {item.is_completed && <CheckCircle2 size={10} className="text-white" />}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <span className={`text-xs ${item.is_completed ? 'line-through text-slate-500' : 'text-foreground'}`}>
+                            <span className={`text-[13px] ${item.is_completed ? 'line-through text-slate-500' : 'text-foreground'}`}>
                               {item.icon && <span className="mr-1">{item.icon}</span>}
                               {item.title}
                             </span>
                             {item.target_count > 1 && (
-                              <span className="text-[10px] text-slate-500 ml-1">
+                              <span className="text-[11px] text-slate-500 ml-1">
                                 {item.completed_count}/{item.target_count}{item.unit ? ` ${item.unit}` : ''}
                               </span>
                             )}
                           </div>
                           {item.current_streak > 0 && (
-                            <span className="text-[10px] text-orange-400 font-bold">{item.current_streak}d</span>
+                            <span className="text-[11px] text-orange-400 font-bold">{item.current_streak}d</span>
                           )}
                         </div>
                       ))}
@@ -242,8 +249,7 @@ export function TodaySidebar({ tasks, onTaskClick }: TodaySidebarProps) {
             </div>
           </div>
         )}
-      </motion.div>
-    </AnimatePresence>
+    </div>
   );
 }
 
@@ -264,8 +270,8 @@ function Section({
     <div className="space-y-1.5">
       <div className="flex items-center gap-1.5">
         <span className={color}>{icon}</span>
-        <span className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">{title}</span>
-        <span className={`text-[10px] font-bold ${color}`}>{count}</span>
+        <span className="text-[11px] uppercase tracking-widest text-slate-400 font-bold">{title}</span>
+        <span className={`text-[11px] font-bold ${color}`}>{count}</span>
       </div>
       <div className="space-y-0.5">{children}</div>
     </div>
@@ -288,11 +294,11 @@ function TaskItem({
       onClick={onClick}
       className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-white/5 transition-colors group"
     >
-      <div className={`text-xs truncate ${completed ? 'line-through text-slate-500' : 'text-foreground'}`}>
+      <div className={`text-[13px] truncate ${completed ? 'line-through text-slate-500' : 'text-foreground'}`}>
         {title}
       </div>
       {subtitle && (
-        <div className="text-[10px] text-slate-500 truncate mt-0.5">{subtitle}</div>
+        <div className="text-[11px] text-slate-500 truncate mt-0.5">{subtitle}</div>
       )}
     </button>
   );
