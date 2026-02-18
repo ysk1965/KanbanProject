@@ -11,7 +11,7 @@ import { personalTaskAPI, personalHabitAPI, personalEventAPI } from '../../utils
 import { getTodayDateString } from '../../utils/dateUtils';
 import { PersonalEvent, DiaryDetail, PersonalTask, HabitTodayItem, HabitFrequency } from '../../types';
 
-type TabType = 'overview' | 'tasks' | 'schedule' | 'calendar' | 'diary';
+type TabType = 'overview' | 'tasks' | 'schedule' | 'habits' | 'calendar' | 'diary';
 
 interface PersonalOverviewProps {
   onNavigateTab: (tab: TabType) => void;
@@ -917,7 +917,7 @@ export function PersonalOverview({ onNavigateTab }: PersonalOverviewProps) {
           onNavigateCalendar={() => onNavigateTab('calendar')}
         />
         <HabitsTodayWidget
-          onViewAll={() => onNavigateTab('schedule')}
+          onViewAll={() => onNavigateTab('habits')}
         />
         <DiaryWidget
           todayDate={todayDate}
