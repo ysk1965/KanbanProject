@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { CalendarDays, BookHeart, ArrowLeft, LayoutGrid, Calendar, Plus, Command, Home, Loader2, Flame } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { PersonalSchedule } from '../components/personal/PersonalSchedule';
 import { PersonalDiary } from '../components/personal/PersonalDiary';
 import { PersonalTaskBoard } from '../components/personal/PersonalTaskBoard';
@@ -158,12 +159,19 @@ export function PersonalBoardPage() {
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`relative flex flex-col items-center gap-0.5 min-w-[3rem] px-2 py-1 rounded-lg transition-all ${
+              className={`relative flex flex-col items-center gap-0.5 min-w-[3rem] px-2 py-1 rounded-lg transition-colors ${
                 activeTab === tab.key
                   ? 'text-bridge-secondary'
                   : 'text-zinc-500'
               }`}
             >
+              {activeTab === tab.key && (
+                <motion.div
+                  layoutId="personal-tab-indicator"
+                  className="absolute -top-2 left-1/2 -translate-x-1/2 w-8 h-[3px] rounded-full bg-bridge-secondary"
+                  transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                />
+              )}
               <tab.icon size={20} />
               <span className="text-[10px] font-medium">{tab.label}</span>
             </button>

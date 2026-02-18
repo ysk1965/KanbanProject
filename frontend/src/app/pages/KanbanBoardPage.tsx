@@ -2173,6 +2173,7 @@ export function KanbanBoardPage() {
 
 // 모바일 하단 탭 버튼 컴포넌트
 import { LayoutGrid, Calendar, Users, FileText, BarChart3, Lock } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 function MobileTabButton({ active, onClick, label, icon, locked }: {
   active: boolean;
@@ -2192,7 +2193,7 @@ function MobileTabButton({ active, onClick, label, icon, locked }: {
   return (
     <button
       onClick={onClick}
-      className={`relative flex flex-col items-center gap-0.5 min-w-[3rem] px-2 py-1 rounded-lg transition-all ${
+      className={`relative flex flex-col items-center gap-0.5 min-w-[3rem] px-2 py-1 rounded-lg transition-colors ${
         active
           ? 'text-bridge-secondary'
           : locked
@@ -2200,6 +2201,13 @@ function MobileTabButton({ active, onClick, label, icon, locked }: {
             : 'text-zinc-500'
       }`}
     >
+      {active && (
+        <motion.div
+          layoutId="kanban-tab-indicator"
+          className="absolute -top-2 left-1/2 -translate-x-1/2 w-8 h-[3px] rounded-full bg-bridge-secondary"
+          transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+        />
+      )}
       {iconMap[icon]}
       <span className="text-[10px] font-medium">{label}</span>
       {locked && <Lock size={8} className="absolute top-0.5 right-1 text-zinc-600" />}
