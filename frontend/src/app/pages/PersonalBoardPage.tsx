@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { CalendarDays, BookHeart, ArrowLeft, LayoutGrid, Calendar, Plus, Command, Home, Loader2, Flame } from 'lucide-react';
+import { CalendarDays, BookHeart, ArrowLeft, LayoutGrid, Calendar, Plus, Command, Home, Loader2, Flag } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { PersonalSchedule } from '../components/personal/PersonalSchedule';
 import { PersonalDiary } from '../components/personal/PersonalDiary';
@@ -9,11 +9,12 @@ import { PersonalTaskBoard } from '../components/personal/PersonalTaskBoard';
 import { TodaySidebar } from '../components/personal/TodaySidebar';
 import { PersonalOverview } from '../components/personal/PersonalOverview';
 import { PersonalCalendar } from '../components/personal/PersonalCalendar';
-import { PersonalHabits } from '../components/personal/PersonalHabits';
-import { personalTaskAPI } from '../utils/api';
-import { PersonalTask } from '../types';
 
-type TabType = 'overview' | 'tasks' | 'schedule' | 'habits' | 'calendar' | 'diary';
+import { personalTaskAPI } from '../utils/api';
+import { PersonalTask, PersonalTaskPriority } from '../types';
+import { getTodayDateString } from '../utils/dateUtils';
+
+type TabType = 'overview' | 'tasks' | 'schedule' | 'calendar' | 'diary';
 
 export function PersonalBoardPage() {
   const { t } = useTranslation();
@@ -25,12 +26,11 @@ export function PersonalBoardPage() {
   const [refreshKey, setRefreshKey] = useState(0);
 
   const tabs = [
-    { key: 'overview' as TabType, label: 'Overview', icon: Home },
-    { key: 'tasks' as TabType, label: 'Tasks', icon: LayoutGrid },
-    { key: 'schedule' as TabType, label: 'Schedule', icon: CalendarDays },
-    { key: 'habits' as TabType, label: 'Habits', icon: Flame },
-    { key: 'calendar' as TabType, label: 'Calendar', icon: Calendar },
-    { key: 'diary' as TabType, label: 'AI Diary', icon: BookHeart },
+    { key: 'overview' as TabType, label: t('personal.tabs.overview', 'Overview'), icon: Home },
+    { key: 'tasks' as TabType, label: t('personal.tabs.todo', 'ToDo'), icon: LayoutGrid },
+    { key: 'schedule' as TabType, label: t('personal.tabs.schedule', 'Schedule'), icon: CalendarDays },
+    { key: 'calendar' as TabType, label: t('personal.tabs.calendar', 'Calendar'), icon: Calendar },
+    { key: 'diary' as TabType, label: t('personal.tabs.diary', 'AI Diary'), icon: BookHeart },
   ];
 
   // PersonalTask 로드 (board 의존 없이 user 기반)
@@ -62,9 +62,9 @@ export function PersonalBoardPage() {
   }, []);
 
   // Quick Capture: PersonalTask 생성 (Feature 불필요)
-  const handleQuickCapture = useCallback(async (title: string, dueDate?: string) => {
+  const handleQuickCapture = useCallback(async (title: string, dueDate?: string, priority?: PersonalTaskPriority) => {
     try {
-      await personalTaskAPI.create({ title, due_date: dueDate || undefined });
+      await personalTaskAPI.create({ title, due_date: dueDate || undefined, priority: priority || 'MEDIUM' });
       setRefreshKey(k => k + 1);
     } catch (error) {
       console.error('Failed to create task:', error);
@@ -143,7 +143,6 @@ export function PersonalBoardPage() {
             />
           )}
           {activeTab === 'schedule' && <PersonalSchedule />}
-          {activeTab === 'habits' && <PersonalHabits />}
           {activeTab === 'calendar' && <PersonalCalendar />}
           {activeTab === 'diary' && <PersonalDiary />}
         </div>
@@ -200,22 +199,32 @@ export function PersonalBoardPage() {
   );
 }
 
-// 간소화된 Quick Capture 모달 (마감일 지원)
+// 간소화된 Quick Capture 모달 (마감일 + 우선순위 지원)
+const PRIORITY_OPTIONS: { value: PersonalTaskPriority; label: string; dot: string; color: string }[] = [
+  { value: 'MEDIUM', label: '보통', dot: 'bg-amber-400', color: 'text-amber-400' },
+  { value: 'HIGH',   label: '높음', dot: 'bg-orange-500', color: 'text-orange-500' },
+  { value: 'URGENT', label: '긴급', dot: 'bg-red-500', color: 'text-red-500' },
+];
+
 function QuickCaptureModal({ onClose, onSubmit }: {
   onClose: () => void;
-  onSubmit: (title: string, dueDate?: string) => void;
+  onSubmit: (title: string, dueDate?: string, priority?: PersonalTaskPriority) => void;
 }) {
   const [title, setTitle] = useState('');
-  const [dueDate, setDueDate] = useState('');
+  const [dueDate, setDueDate] = useState(getTodayDateString());
+  const [priority, setPriority] = useState<PersonalTaskPriority>('MEDIUM');
+  const [showPriority, setShowPriority] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async () => {
     if (!title.trim()) return;
     setIsSubmitting(true);
-    await onSubmit(title.trim(), dueDate || undefined);
+    await onSubmit(title.trim(), dueDate || undefined, priority);
     setIsSubmitting(false);
     onClose();
   };
+
+  const currentPriority = PRIORITY_OPTIONS.find(p => p.value === priority)!;
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-start justify-center sm:pt-[20vh]"
@@ -233,7 +242,7 @@ function QuickCaptureModal({ onClose, onSubmit }: {
           className="w-full bg-transparent text-white text-lg placeholder-slate-600 outline-none py-2"
         />
         <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/5">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <input
               type="date"
               value={dueDate}
@@ -241,7 +250,36 @@ function QuickCaptureModal({ onClose, onSubmit }: {
               className="bg-transparent text-xs text-slate-400 border border-white/10 rounded-lg px-2 py-1 outline-none focus:border-bridge-accent/50 [color-scheme:dark]"
               placeholder="마감일"
             />
-            <span className="text-xs text-slate-500">Enter로 추가</span>
+            {/* Priority selector */}
+            <div className="relative">
+              <button
+                onClick={() => setShowPriority(!showPriority)}
+                className="flex items-center gap-1.5 px-2 py-1 border border-white/10 rounded-lg hover:bg-white/5 transition-colors"
+              >
+                <div className={`w-2 h-2 rounded-full ${currentPriority.dot}`} />
+                <span className={`text-xs ${currentPriority.color}`}>{currentPriority.label}</span>
+              </button>
+              {showPriority && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowPriority(false)} />
+                  <div className="absolute left-0 bottom-full mb-1 bg-bridge-obsidian border border-white/10 rounded-lg shadow-xl z-50 py-1 min-w-[100px]">
+                    {PRIORITY_OPTIONS.map(p => (
+                      <button
+                        key={p.value}
+                        onClick={() => { setPriority(p.value); setShowPriority(false); }}
+                        className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-white/5 transition-colors ${
+                          priority === p.value ? 'text-white' : 'text-slate-400'
+                        }`}
+                      >
+                        <div className={`w-2 h-2 rounded-full ${p.dot}`} />
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+            <span className="text-xs text-slate-500 hidden sm:inline">Enter로 추가</span>
           </div>
           <button
             onClick={handleSubmit}

@@ -75,6 +75,8 @@ public class DiaryResponse {
         private String role;
         private String content;
         private int messageOrder;
+        private String audioUrl;
+        private Integer audioDurationSeconds;
         private LocalDateTime createdAt;
 
         public static MessageDetail of(DiaryMessage message) {
@@ -83,6 +85,8 @@ public class DiaryResponse {
                     .role(message.getRole())
                     .content(message.getContent())
                     .messageOrder(message.getMessageOrder())
+                    .audioUrl(message.getAudioUrl())
+                    .audioDurationSeconds(message.getAudioDurationSeconds())
                     .createdAt(message.getCreatedAt())
                     .build();
         }
@@ -95,5 +99,17 @@ public class DiaryResponse {
         private String diaryId;
         private MessageDetail userMessage;
         private MessageDetail aiMessage;
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class VoiceReply {
+        private String diaryId;
+        private String userText;
+        private MessageDetail userMessage;
+        private String aiText;
+        private MessageDetail aiMessage;
+        private String aiAudioUrl;
     }
 }

@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ChevronLeft, ChevronRight, Plus, Trash2, X, Loader2, Settings, RotateCw, CalendarDays, Clock, CheckCircle2, ListTodo, AlertCircle, Search, Flame, ChevronDown, ChevronUp, Hash } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { personalEventService, personalTaskService } from '../../utils/services';
 import { personalHabitAPI } from '../../utils/api';
 import { formatDate } from '../../utils/dateUtils';
-import type { PersonalEvent, PersonalTask, PersonalTaskPriority, HabitWeeklyRow, HabitFrequency } from '../../types';
+import type { PersonalEvent, PersonalTask, PersonalTaskPriority, PersonalHabit, HabitWeeklyRow, HabitFrequency } from '../../types';
 import {
   startOfWeek,
   endOfWeek,
@@ -13,13 +14,14 @@ import {
   eachDayOfInterval,
   addWeeks,
   subWeeks,
+  addDays,
+  subDays,
   addMonths,
   subMonths,
   isSameMonth,
   isToday as isTodayFn,
   format,
 } from 'date-fns';
-import { ko } from 'date-fns/locale';
 
 const EVENT_COLORS = [
   '#6366F1', '#8B5CF6', '#EC4899', '#F43F5E',
@@ -34,7 +36,6 @@ const PRIORITY_DOT: Record<string, string> = {
 const SLOT_HEIGHT = 40;
 const DEFAULT_START_HOUR = 7;
 const DEFAULT_END_HOUR = 23;
-const DAY_LABELS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 const COL_MIN_W = 'min-w-[100px] md:min-w-[130px]';
 const TIME_COL_W = 'w-12 md:w-16';
 const STORAGE_KEY = 'bridge-personal-schedule-settings';
@@ -77,6 +78,7 @@ const toDateString = (d: Date): string => format(d, 'yyyy-MM-dd');
    PersonalSchedule — Weekly time-grid view
    ================================================================ */
 export function PersonalSchedule() {
+  const { t } = useTranslation();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState<PersonalEvent[]>([]);
   const [tasks, setTasks] = useState<PersonalTask[]>([]);
@@ -84,6 +86,11 @@ export function PersonalSchedule() {
   const [isLoading, setIsLoading] = useState(false);
   const [settings, setSettings] = useState<ScheduleSettings>(loadSettings);
   const [showSettings, setShowSettings] = useState(false);
+
+  // View mode: day or week (mobile defaults to day, desktop to week)
+  const [viewMode, setViewMode] = useState<'day' | 'week'>(() =>
+    typeof window !== 'undefined' && window.innerWidth < 768 ? 'day' : 'week'
+  );
 
   const startHour = settings.startHour;
   const endHour = settings.endHour;
@@ -124,13 +131,14 @@ export function PersonalSchedule() {
   const timeSlots = useMemo(() => generateTimeSlots(startHour, endHour), [startHour, endHour]);
 
   const weekDays = useMemo(() => {
+    if (viewMode === 'day') return [currentDate];
     const ws = startOfWeek(currentDate, { weekStartsOn: 0 });
     const we = endOfWeek(currentDate, { weekStartsOn: 0 });
     return eachDayOfInterval({ start: ws, end: we });
-  }, [currentDate]);
+  }, [currentDate, viewMode]);
 
   const startDate = toDateString(weekDays[0]);
-  const endDate = toDateString(weekDays[6]);
+  const endDate = toDateString(weekDays[weekDays.length - 1]);
 
   // ---- Data loading ----
   const loadEvents = useCallback(async () => {
@@ -217,7 +225,7 @@ export function PersonalSchedule() {
       };
     }));
     try {
-      await personalHabitAPI.checkIn(habitId, { log_date: date, increment: 1 });
+      await personalHabitAPI.checkIn(habitId, { log_date: date });
     } catch {
       await loadHabits(); // revert on error
     }
@@ -243,12 +251,12 @@ export function PersonalSchedule() {
   };
 
   // ---- Navigation ----
-  const handlePrev = () => setCurrentDate((d) => subWeeks(d, 1));
-  const handleNext = () => setCurrentDate((d) => addWeeks(d, 1));
+  const handlePrev = () => setCurrentDate((d) => viewMode === 'day' ? subDays(d, 1) : subWeeks(d, 1));
+  const handleNext = () => setCurrentDate((d) => viewMode === 'day' ? addDays(d, 1) : addWeeks(d, 1));
   const handleToday = () => setCurrentDate(new Date());
 
   const todayStr = toDateString(new Date());
-  const isTodayInWeek = weekDays.some((d) => toDateString(d) === todayStr);
+  const isTodayInView = weekDays.some((d) => toDateString(d) === todayStr);
 
   // ---- Events grouped by date ----
   const { allDayByDate, timedByDate, hasAllDay } = useMemo(() => {
@@ -541,7 +549,7 @@ export function PersonalSchedule() {
 
   // Sync calendar month when navigating weeks
   useEffect(() => {
-    const weekMid = weekDays[3]; // use mid-week to determine month
+    const weekMid = weekDays[Math.min(3, weekDays.length - 1)]; // use mid-week to determine month
     const weekMonth = startOfMonth(weekMid);
     if (!isSameMonth(weekMonth, calendarMonth)) {
       setCalendarMonth(weekMonth);
@@ -597,7 +605,15 @@ export function PersonalSchedule() {
     return result;
   }, [monthlyEvents, events]);
 
-  const miniCalWeekDays = ['일', '월', '화', '수', '목', '금', '토'];
+  const miniCalWeekDays = [
+    t('personal.schedule.weekSun'),
+    t('personal.schedule.weekMon'),
+    t('personal.schedule.weekTue'),
+    t('personal.schedule.weekWed'),
+    t('personal.schedule.weekThu'),
+    t('personal.schedule.weekFri'),
+    t('personal.schedule.weekSat'),
+  ];
 
   const handleCalendarDateClick = (day: Date) => {
     // Navigate the weekly view to the week containing this date
@@ -611,13 +627,21 @@ export function PersonalSchedule() {
   const handleNextMonth = () => setCalendarMonth(addMonths(calendarMonth, 1));
 
   const formatRecurrenceLabel = (e: PersonalEvent): string => {
-    if (e.recurrence_rule === 'DAILY') return 'Every day';
+    if (e.recurrence_rule === 'DAILY') return t('personal.schedule.everyDay');
     if (e.recurrence_rule === 'WEEKLY' && e.recurrence_days_of_week) {
-      const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const dayLabels = [
+        t('personal.schedule.daySun'),
+        t('personal.schedule.dayMon'),
+        t('personal.schedule.dayTue'),
+        t('personal.schedule.dayWed'),
+        t('personal.schedule.dayThu'),
+        t('personal.schedule.dayFri'),
+        t('personal.schedule.daySat'),
+      ];
       const days = e.recurrence_days_of_week.split(',').map(Number);
       return days.map((d) => dayLabels[d]).join(', ');
     }
-    return 'Recurring';
+    return t('personal.schedule.recurring');
   };
 
   // ---- Render ----
@@ -652,7 +676,7 @@ export function PersonalSchedule() {
           {/* Title */}
           <div className="flex items-center gap-2.5 mb-4">
             <CalendarDays size={18} className="text-bridge-accent" />
-            <h2 className="text-base font-bold text-white">Schedule</h2>
+            <h2 className="text-base font-bold text-white">{t('personal.schedule.title')}</h2>
             <button
               onClick={() => setShowMobileSidebar(false)}
               className="md:hidden ml-auto p-1.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
@@ -664,7 +688,7 @@ export function PersonalSchedule() {
           {/* Month Navigation */}
           <div className="flex items-center justify-between mb-3">
             <span className="text-sm font-semibold text-white">
-              {format(calendarMonth, 'yyyy년 M월', { locale: ko })}
+              {t('personal.schedule.monthYear', { year: format(calendarMonth, 'yyyy'), month: format(calendarMonth, 'M') })}
             </span>
             <div className="flex items-center gap-1">
               <button
@@ -677,7 +701,7 @@ export function PersonalSchedule() {
                 onClick={handleToday}
                 className="px-2 py-0.5 text-[10px] font-semibold rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
               >
-                오늘
+                {t('personal.schedule.today')}
               </button>
               <button
                 onClick={handleNextMonth}
@@ -763,7 +787,7 @@ export function PersonalSchedule() {
             <div className="flex items-center gap-2">
               <RotateCw size={14} className="text-purple-400" />
               <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
-                Recurring
+                {t('personal.schedule.recurring')}
               </span>
               {recurringEvents.length > 0 && (
                 <span className="text-[10px] font-bold text-purple-400 bg-purple-400/10 px-1.5 py-0.5 rounded">
@@ -782,14 +806,14 @@ export function PersonalSchedule() {
               className="flex items-center gap-1 px-2 py-1 text-[10px] font-bold text-purple-400 bg-purple-400/10 rounded-lg hover:bg-purple-400/20 transition-colors"
             >
               <Plus size={12} />
-              Add
+              {t('personal.schedule.add')}
             </button>
           </div>
           {recurringEvents.length === 0 ? (
             <div className="text-center py-6">
               <RotateCw size={20} className="mx-auto text-slate-600 mb-2" />
-              <p className="text-slate-500 text-xs">No recurring events</p>
-              <p className="text-slate-600 text-[10px] mt-1">Create an event with repeat to see it here</p>
+              <p className="text-slate-500 text-xs">{t('personal.schedule.noRecurring')}</p>
+              <p className="text-slate-600 text-[10px] mt-1">{t('personal.schedule.noRecurringHint')}</p>
             </div>
           ) : (
             <div className="space-y-1.5">
@@ -850,8 +874,17 @@ export function PersonalSchedule() {
               <ChevronLeft size={16} className="md:w-[18px] md:h-[18px]" />
             </button>
             <h2 className="text-xs md:text-lg font-bold min-w-0 text-center whitespace-nowrap">
-              <span className="hidden sm:inline">{format(weekDays[0], 'MMM d')} - {format(weekDays[6], 'MMM d, yyyy')}</span>
-              <span className="sm:hidden">{format(weekDays[0], 'M/d')} - {format(weekDays[6], 'M/d')}</span>
+              {viewMode === 'day' ? (
+                <>
+                  <span className="hidden sm:inline">{format(weekDays[0], 'EEE, MMM d, yyyy')}</span>
+                  <span className="sm:hidden">{format(weekDays[0], 'EEE M/d')}</span>
+                </>
+              ) : (
+                <>
+                  <span className="hidden sm:inline">{format(weekDays[0], 'MMM d')} - {format(weekDays[weekDays.length - 1], 'MMM d, yyyy')}</span>
+                  <span className="sm:hidden">{format(weekDays[0], 'M/d')} - {format(weekDays[weekDays.length - 1], 'M/d')}</span>
+                </>
+              )}
             </h2>
             <button
               onClick={handleNext}
@@ -862,13 +895,36 @@ export function PersonalSchedule() {
             <button
               onClick={handleToday}
               className={`px-2 md:px-3 py-1 md:py-1.5 text-[10px] md:text-xs font-bold rounded-lg transition-colors ${
-                isTodayInWeek
+                isTodayInView
                   ? 'bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white'
                   : 'text-bridge-secondary border border-bridge-secondary/30 hover:bg-bridge-secondary/10'
               }`}
             >
-              Today
+              {t('personal.schedule.today')}
             </button>
+            {/* Day / Week toggle */}
+            <div className="flex items-center bg-white/5 rounded-lg p-0.5">
+              <button
+                onClick={() => setViewMode('day')}
+                className={`px-2 md:px-2.5 py-0.5 md:py-1 text-[10px] md:text-xs font-bold rounded-md transition-all ${
+                  viewMode === 'day'
+                    ? 'bg-bridge-accent text-white shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                {t('personal.schedule.viewDay', 'Day')}
+              </button>
+              <button
+                onClick={() => setViewMode('week')}
+                className={`px-2 md:px-2.5 py-0.5 md:py-1 text-[10px] md:text-xs font-bold rounded-md transition-all ${
+                  viewMode === 'week'
+                    ? 'bg-bridge-accent text-white shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                {t('personal.schedule.viewWeek', 'Week')}
+              </button>
+            </div>
             {isLoading && <Loader2 className="h-4 w-4 text-slate-400 animate-spin" />}
           </div>
 
@@ -876,7 +932,7 @@ export function PersonalSchedule() {
             <button
               onClick={() => setShowSettings(true)}
               className="p-1.5 md:p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors"
-              title="Schedule settings"
+              title={t('personal.schedule.settings')}
             >
               <Settings size={16} className="md:w-[18px] md:h-[18px]" />
             </button>
@@ -891,14 +947,14 @@ export function PersonalSchedule() {
               className="flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 bg-bridge-accent text-white text-xs md:text-sm font-bold rounded-xl hover:bg-bridge-accent/90 transition-colors"
             >
               <Plus size={16} />
-              <span className="hidden sm:inline">Add Event</span>
+              <span className="hidden sm:inline">{t('personal.schedule.addEvent')}</span>
             </button>
           </div>
         </div>
 
         {/* ======== Time-grid ======== */}
         <div className="flex-1 overflow-auto">
-          <div className="min-w-[520px] md:min-w-[760px]">
+          <div className={viewMode === 'day' ? '' : 'min-w-[520px] md:min-w-[760px]'}>
           {/* ---- Day headers (sticky) ---- */}
           <div className="flex sticky top-0 bg-bridge-obsidian/95 backdrop-blur-sm z-10 border-b border-white/[0.06]">
             <div className={`${TIME_COL_W} flex-shrink-0 border-r border-white/[0.06]`} />
@@ -914,10 +970,18 @@ export function PersonalSchedule() {
                 >
                   <div
                     className={`text-[10px] font-bold uppercase tracking-widest ${
-                      isToday ? 'text-bridge-secondary' : idx === 0 ? 'text-red-400/60' : idx === 6 ? 'text-blue-400/60' : 'text-slate-500'
+                      isToday ? 'text-bridge-secondary' : day.getDay() === 0 ? 'text-red-400/60' : day.getDay() === 6 ? 'text-blue-400/60' : 'text-slate-500'
                     }`}
                   >
-                    {DAY_LABELS[idx]}
+                    {[
+                      t('personal.schedule.daySun'),
+                      t('personal.schedule.dayMon'),
+                      t('personal.schedule.dayTue'),
+                      t('personal.schedule.dayWed'),
+                      t('personal.schedule.dayThu'),
+                      t('personal.schedule.dayFri'),
+                      t('personal.schedule.daySat'),
+                    ][day.getDay()]}
                   </div>
                   <div className={`text-lg font-bold ${isToday ? 'text-bridge-secondary' : 'text-white'}`}>
                     {day.getDate()}
@@ -933,7 +997,7 @@ export function PersonalSchedule() {
               <div
                 className={`${TIME_COL_W} flex-shrink-0 p-2 text-[10px] text-slate-500 border-r border-white/[0.06] flex items-center justify-center font-bold tracking-wider`}
               >
-                ALL
+                {t('personal.schedule.all')}
               </div>
               {weekDays.map((day) => {
                 const ds = toDateString(day);
@@ -1088,7 +1152,7 @@ export function PersonalSchedule() {
                 className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] text-purple-400/70 hover:text-purple-300 hover:bg-purple-400/5 transition-all rounded-md m-1"
               >
                 <Plus size={12} />
-                Add Habit
+                {t('personal.schedule.addHabit')}
               </button>
             </div>
           </div>
@@ -1138,7 +1202,7 @@ export function PersonalSchedule() {
             ))}
 
             {/* ---- Current time indicator ---- */}
-            {isTodayInWeek && currentTimeTop != null && (
+            {isTodayInView && currentTimeTop != null && (
               <div
                 ref={indicatorRef}
                 className="absolute left-0 right-0 z-[5] pointer-events-none flex items-center"
@@ -1301,8 +1365,8 @@ export function PersonalSchedule() {
         {/* ======== Bottom guide ======== */}
         <div className="px-3 md:px-6 py-2 border-t border-white/[0.06] flex-shrink-0">
           <p className="text-[10px] md:text-xs text-slate-500">
-            <span className="hidden sm:inline">Drag on the grid to create a new event, or drag edges to resize. Long-press to move</span>
-            <span className="sm:hidden">Tap to create or edit events</span>
+            <span className="hidden sm:inline">{t('personal.schedule.dragToCreateFull')}</span>
+            <span className="sm:hidden">{t('personal.schedule.tapToCreate')}</span>
           </p>
         </div>
       </div>
@@ -1386,6 +1450,7 @@ function CreateEventModal({
     recurrence_days_of_week?: number[];
   }) => void;
 }) {
+  const { t } = useTranslation();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [startTime, setStartTime] = useState(initialStartTime || '');
@@ -1395,21 +1460,30 @@ function CreateEventModal({
   const [recurrenceEndDate, setRecurrenceEndDate] = useState('');
   const [recurrenceDaysOfWeek, setRecurrenceDaysOfWeek] = useState<number[]>([]);
 
-  // Mode & task selection state
+  // Mode & selection state
   const [mode, setMode] = useState<'new' | 'task'>('new');
   const [tasks, setTasks] = useState<PersonalTask[]>([]);
-  const [isLoadingTasks, setIsLoadingTasks] = useState(false);
+  const [habits, setHabits] = useState<PersonalHabit[]>([]);
+  const [isLoadingItems, setIsLoadingItems] = useState(false);
   const [taskSearch, setTaskSearch] = useState('');
   const [selectedTask, setSelectedTask] = useState<PersonalTask | null>(null);
+  const [selectedHabit, setSelectedHabit] = useState<PersonalHabit | null>(null);
 
-  // Fetch tasks when switching to task mode
+  // Fetch tasks & habits when switching to task mode
   useEffect(() => {
-    if (mode === 'task' && tasks.length === 0 && !isLoadingTasks) {
-      setIsLoadingTasks(true);
-      personalTaskService.getTasks()
-        .then((all: PersonalTask[]) => setTasks(all.filter(t => t.status !== 'DONE' && t.status !== 'ARCHIVED')))
-        .catch(console.error)
-        .finally(() => setIsLoadingTasks(false));
+    if (mode === 'task' && tasks.length === 0 && habits.length === 0 && !isLoadingItems) {
+      setIsLoadingItems(true);
+      Promise.all([
+        personalTaskService.getTasks()
+          .then((all: PersonalTask[]) => all.filter(t => t.status !== 'DONE' && t.status !== 'ARCHIVED'))
+          .catch(() => [] as PersonalTask[]),
+        personalHabitAPI.getAll()
+          .then((all: PersonalHabit[]) => all.filter(h => h.is_active))
+          .catch(() => [] as PersonalHabit[]),
+      ]).then(([fetchedTasks, fetchedHabits]) => {
+        setTasks(fetchedTasks);
+        setHabits(fetchedHabits);
+      }).finally(() => setIsLoadingItems(false));
     }
   }, [mode]);
 
@@ -1423,8 +1497,15 @@ function CreateEventModal({
     );
   }, [tasks, taskSearch]);
 
+  const filteredHabits = useMemo(() => {
+    if (!taskSearch.trim()) return habits;
+    const q = taskSearch.toLowerCase();
+    return habits.filter(h => h.title.toLowerCase().includes(q));
+  }, [habits, taskSearch]);
+
   const handleSelectTask = (task: PersonalTask) => {
     setSelectedTask(task);
+    setSelectedHabit(null);
     setTitle(task.title);
     setDescription(task.description || '');
     if (task.color && EVENT_COLORS.includes(task.color)) {
@@ -1432,8 +1513,18 @@ function CreateEventModal({
     }
   };
 
-  const handleClearTask = () => {
+  const handleSelectHabit = (habit: PersonalHabit) => {
+    setSelectedHabit(habit);
     setSelectedTask(null);
+    setTitle(`${habit.icon ? habit.icon + ' ' : ''}${habit.title}`);
+    setDescription('');
+    const closest = EVENT_COLORS.includes(habit.color) ? habit.color : EVENT_COLORS[0];
+    setColor(closest);
+  };
+
+  const handleClearSelection = () => {
+    setSelectedTask(null);
+    setSelectedHabit(null);
     setTitle('');
     setDescription('');
     setColor(EVENT_COLORS[0]);
@@ -1457,7 +1548,7 @@ function CreateEventModal({
     });
   };
 
-  const showForm = mode === 'new' || selectedTask !== null;
+  const showForm = mode === 'new' || selectedTask !== null || selectedHabit !== null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/40 backdrop-blur-sm">
@@ -1468,7 +1559,7 @@ function CreateEventModal({
         className="w-full sm:max-w-md bg-bridge-obsidian rounded-t-2xl sm:rounded-2xl border border-white/10 p-5 md:p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
       >
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-base md:text-lg font-bold text-white">New Event</h3>
+          <h3 className="text-base md:text-lg font-bold text-white">{t('personal.schedule.newEvent')}</h3>
           <button onClick={onClose} className="p-1 text-slate-400 hover:text-white transition-colors">
             <X size={18} />
           </button>
@@ -1477,7 +1568,7 @@ function CreateEventModal({
         {/* Mode toggle */}
         <div className="flex gap-1 p-1 bg-white/5 rounded-xl mb-4 md:mb-5">
           <button
-            onClick={() => { setMode('new'); setSelectedTask(null); setTitle(''); setDescription(''); setColor(EVENT_COLORS[0]); }}
+            onClick={() => { setMode('new'); setSelectedTask(null); setSelectedHabit(null); setTitle(''); setDescription(''); setColor(EVENT_COLORS[0]); }}
             className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold rounded-lg transition-all ${
               mode === 'new'
                 ? 'bg-bridge-accent text-white shadow-sm'
@@ -1485,7 +1576,7 @@ function CreateEventModal({
             }`}
           >
             <Plus size={14} />
-            New Event
+            {t('personal.schedule.newEvent')}
           </button>
           <button
             onClick={() => setMode('task')}
@@ -1496,12 +1587,12 @@ function CreateEventModal({
             }`}
           >
             <ListTodo size={14} />
-            From Task
+            {t('personal.schedule.fromTask')}
           </button>
         </div>
 
-        {/* Task selection list (only when task mode & no task selected yet) */}
-        {mode === 'task' && !selectedTask && (
+        {/* To Do selection list (tasks + habits) */}
+        {mode === 'task' && !selectedTask && !selectedHabit && (
           <div className="space-y-3">
             <div className="relative">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
@@ -1509,59 +1600,98 @@ function CreateEventModal({
                 type="text"
                 value={taskSearch}
                 onChange={(e) => setTaskSearch(e.target.value)}
-                placeholder="Search tasks..."
+                placeholder={t('personal.schedule.searchTasks')}
                 className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 pl-9 pr-4 text-white text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
                 autoFocus
               />
             </div>
 
             <div className="max-h-[40vh] overflow-y-auto space-y-1.5 -mx-1 px-1">
-              {isLoadingTasks ? (
+              {isLoadingItems ? (
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="h-5 w-5 text-slate-400 animate-spin" />
                 </div>
-              ) : filteredTasks.length === 0 ? (
+              ) : filteredTasks.length === 0 && filteredHabits.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-8 text-center">
                   <ListTodo size={24} className="text-slate-600 mb-2" />
                   <p className="text-sm text-slate-500">
-                    {tasks.length === 0 ? 'No active tasks' : 'No tasks match your search'}
+                    {tasks.length === 0 && habits.length === 0 ? t('personal.schedule.noActiveTasks') : t('personal.schedule.noMatchingTasks')}
                   </p>
-                  {tasks.length === 0 && (
+                  {tasks.length === 0 && habits.length === 0 && (
                     <button
                       onClick={() => setMode('new')}
                       className="mt-2 text-xs text-bridge-accent hover:text-bridge-accent/80 transition-colors"
                     >
-                      Create a new event instead
+                      {t('personal.schedule.createNewInstead')}
                     </button>
                   )}
                 </div>
               ) : (
-                filteredTasks.map((task) => (
-                  <button
-                    key={task.id}
-                    onClick={() => handleSelectTask(task)}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/5 hover:border-white/10 transition-all text-left group"
-                  >
-                    {task.priority !== 'NONE' && (
-                      <div className={`w-2 h-2 rounded-full shrink-0 ${PRIORITY_DOT[task.priority]}`} />
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <span className="text-sm text-white truncate block">{task.title}</span>
-                      {(task.category || task.due_date) && (
-                        <div className="flex items-center gap-2 mt-0.5">
-                          {task.category && <span className="text-[10px] text-slate-500">{task.category}</span>}
-                          {task.due_date && <span className="text-[10px] text-slate-500">{formatDate(task.due_date)}</span>}
-                        </div>
-                      )}
-                    </div>
-                    {task.color && (
-                      <div
-                        className="w-3 h-3 rounded-full shrink-0 opacity-60 group-hover:opacity-100 transition-opacity"
-                        style={{ backgroundColor: task.color }}
-                      />
-                    )}
-                  </button>
-                ))
+                <>
+                  {/* Tasks section */}
+                  {filteredTasks.length > 0 && (
+                    <>
+                      <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500 px-1 pt-1">
+                        {t('personal.schedule.tasksSection')}
+                      </div>
+                      {filteredTasks.map((task) => (
+                        <button
+                          key={task.id}
+                          onClick={() => handleSelectTask(task)}
+                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/5 hover:border-white/10 transition-all text-left group"
+                        >
+                          {task.priority !== 'NONE' && (
+                            <div className={`w-2 h-2 rounded-full shrink-0 ${PRIORITY_DOT[task.priority]}`} />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <span className="text-sm text-white truncate block">{task.title}</span>
+                            {(task.category || task.due_date) && (
+                              <div className="flex items-center gap-2 mt-0.5">
+                                {task.category && <span className="text-[10px] text-slate-500">{task.category}</span>}
+                                {task.due_date && <span className="text-[10px] text-slate-500">{formatDate(task.due_date)}</span>}
+                              </div>
+                            )}
+                          </div>
+                          {task.color && (
+                            <div
+                              className="w-3 h-3 rounded-full shrink-0 opacity-60 group-hover:opacity-100 transition-opacity"
+                              style={{ backgroundColor: task.color }}
+                            />
+                          )}
+                        </button>
+                      ))}
+                    </>
+                  )}
+
+                  {/* Habits section */}
+                  {filteredHabits.length > 0 && (
+                    <>
+                      <div className={`text-[10px] font-bold uppercase tracking-widest text-slate-500 px-1 ${filteredTasks.length > 0 ? 'pt-3' : 'pt-1'}`}>
+                        {t('personal.schedule.habitsSection')}
+                      </div>
+                      {filteredHabits.map((habit) => (
+                        <button
+                          key={habit.id}
+                          onClick={() => handleSelectHabit(habit)}
+                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/5 hover:border-white/10 transition-all text-left group"
+                        >
+                          <span className="text-sm shrink-0">{habit.icon || '🔄'}</span>
+                          <div className="flex-1 min-w-0">
+                            <span className="text-sm text-white truncate block">{habit.title}</span>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <Flame size={10} className="text-slate-500" />
+                              <span className="text-[10px] text-slate-500">{t('personal.schedule.streakDays', { count: habit.current_streak })}</span>
+                            </div>
+                          </div>
+                          <div
+                            className="w-3 h-3 rounded-full shrink-0 opacity-60 group-hover:opacity-100 transition-opacity"
+                            style={{ backgroundColor: habit.color }}
+                          />
+                        </button>
+                      ))}
+                    </>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -1570,15 +1700,15 @@ function CreateEventModal({
         {/* Event form (new mode OR task selected) */}
         {showForm && (
           <div className="space-y-3 md:space-y-4">
-            {/* Selected task indicator */}
-            {selectedTask && (
+            {/* Selected item indicator */}
+            {(selectedTask || selectedHabit) && (
               <div className="flex items-center gap-2 px-3 py-2 bg-bridge-accent/10 border border-bridge-accent/20 rounded-xl">
                 <CheckCircle2 size={14} className="text-bridge-accent shrink-0" />
                 <span className="text-xs text-bridge-accent flex-1 truncate">
-                  Scheduling: {selectedTask.title}
+                  {t('personal.schedule.scheduling', { title: selectedTask?.title || selectedHabit?.title || '' })}
                 </span>
                 <button
-                  onClick={handleClearTask}
+                  onClick={handleClearSelection}
                   className="p-0.5 text-bridge-accent/60 hover:text-bridge-accent transition-colors"
                 >
                   <X size={12} />
@@ -1589,7 +1719,7 @@ function CreateEventModal({
             {/* Date */}
             <div>
               <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-                Date
+                {t('personal.schedule.date')}
               </label>
               <div className="text-sm text-white/80 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5">
                 {formatDate(date)}
@@ -1599,14 +1729,14 @@ function CreateEventModal({
             {/* Title */}
             <div>
               <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-                Title
+                {t('personal.schedule.eventTitle')}
               </label>
               <input
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-                placeholder="Event title"
+                placeholder={t('personal.schedule.eventTitlePlaceholder')}
                 className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-white text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
                 autoFocus={mode === 'new'}
               />
@@ -1615,12 +1745,12 @@ function CreateEventModal({
             {/* Description */}
             <div>
               <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-                Description
+                {t('personal.schedule.description')}
               </label>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Optional description"
+                placeholder={t('personal.schedule.optionalDesc')}
                 rows={2}
                 className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-white text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all resize-none"
               />
@@ -1630,7 +1760,7 @@ function CreateEventModal({
             <div className="flex gap-3">
               <div className="flex-1">
                 <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-                  Start
+                  {t('personal.schedule.start')}
                 </label>
                 <input
                   type="time"
@@ -1641,7 +1771,7 @@ function CreateEventModal({
               </div>
               <div className="flex-1">
                 <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-                  End
+                  {t('personal.schedule.end')}
                 </label>
                 <input
                   type="time"
@@ -1655,7 +1785,7 @@ function CreateEventModal({
             {/* Color picker */}
             <div>
               <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">
-                Color
+                {t('personal.schedule.color')}
               </label>
               <div className="flex gap-2">
                 {EVENT_COLORS.map((c) => (
@@ -1676,7 +1806,7 @@ function CreateEventModal({
             {/* Recurrence */}
             <div>
               <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-                Repeat
+                {t('personal.schedule.repeat')}
               </label>
               <select
                 value={recurrenceRule}
@@ -1689,20 +1819,28 @@ function CreateEventModal({
                 }}
                 className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-white text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
               >
-                <option value="" className="bg-bridge-obsidian">No repeat</option>
-                <option value="DAILY" className="bg-bridge-obsidian">Every day</option>
-                <option value="WEEKLY" className="bg-bridge-obsidian">Every week</option>
+                <option value="" className="bg-bridge-obsidian">{t('personal.schedule.noRepeat')}</option>
+                <option value="DAILY" className="bg-bridge-obsidian">{t('personal.schedule.everyDay')}</option>
+                <option value="WEEKLY" className="bg-bridge-obsidian">{t('personal.schedule.everyWeek')}</option>
               </select>
             </div>
 
             {recurrenceRule === 'WEEKLY' && (
               <div>
                 <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-                  Repeat on
+                  {t('personal.schedule.repeatOn')}
                 </label>
                 <div className="flex gap-1.5">
                   {[0, 1, 2, 3, 4, 5, 6].map((dayValue) => {
-                    const labels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                    const labels = [
+                      t('personal.schedule.daySun'),
+                      t('personal.schedule.dayMon'),
+                      t('personal.schedule.dayTue'),
+                      t('personal.schedule.dayWed'),
+                      t('personal.schedule.dayThu'),
+                      t('personal.schedule.dayFri'),
+                      t('personal.schedule.daySat'),
+                    ];
                     const isSelected = recurrenceDaysOfWeek.includes(dayValue);
                     return (
                       <button
@@ -1725,7 +1863,7 @@ function CreateEventModal({
                   })}
                 </div>
                 {recurrenceDaysOfWeek.length === 0 && (
-                  <p className="mt-1 text-xs text-amber-400">Select at least one day</p>
+                  <p className="mt-1 text-xs text-amber-400">{t('personal.schedule.selectDay')}</p>
                 )}
               </div>
             )}
@@ -1733,7 +1871,7 @@ function CreateEventModal({
             {recurrenceRule && (
               <div>
                 <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-                  Repeat until
+                  {t('personal.schedule.repeatUntil')}
                 </label>
                 <input
                   type="date"
@@ -1743,7 +1881,7 @@ function CreateEventModal({
                   className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-white text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
                 />
                 {!recurrenceEndDate && (
-                  <p className="mt-1 text-xs text-amber-400">End date is required for recurring events</p>
+                  <p className="mt-1 text-xs text-amber-400">{t('personal.schedule.endDateRequired')}</p>
                 )}
               </div>
             )}
@@ -1756,7 +1894,7 @@ function CreateEventModal({
             onClick={onClose}
             className="flex-1 py-3 text-sm font-bold text-slate-400 hover:text-white border border-white/10 rounded-xl hover:bg-white/5 transition-all"
           >
-            Cancel
+            {t('personal.schedule.cancel')}
           </button>
           {showForm && (
             <button
@@ -1764,7 +1902,7 @@ function CreateEventModal({
               disabled={!title.trim() || (!!recurrenceRule && !recurrenceEndDate) || (recurrenceRule === 'WEEKLY' && recurrenceDaysOfWeek.length === 0)}
               className="flex-1 py-3 bg-bridge-accent text-white text-sm font-bold rounded-xl hover:bg-bridge-accent/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
             >
-              Create
+              {t('personal.schedule.create')}
             </button>
           )}
         </div>
@@ -1798,6 +1936,7 @@ function EventDetailModal({
     },
   ) => void;
 }) {
+  const { t } = useTranslation();
   const [title, setTitle] = useState(event.title);
   const [description, setDescription] = useState(event.description || '');
   const [startTime, setStartTime] = useState(event.start_time?.slice(0, 5) || '');
@@ -1826,7 +1965,7 @@ function EventDetailModal({
         className="w-full sm:max-w-md bg-bridge-obsidian rounded-t-2xl sm:rounded-2xl border border-white/10 p-5 md:p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
       >
         <div className="flex items-center justify-between mb-4 md:mb-5">
-          <h3 className="text-base md:text-lg font-bold text-white">Edit Event</h3>
+          <h3 className="text-base md:text-lg font-bold text-white">{t('personal.schedule.editEvent')}</h3>
           <div className="flex items-center gap-2">
             <button
               onClick={() => {
@@ -1837,7 +1976,7 @@ function EventDetailModal({
                 }
               }}
               className="p-1.5 text-slate-400 hover:text-rose-400 transition-colors"
-              title="Delete event"
+              title={t('personal.schedule.deleteEvent')}
             >
               <Trash2 size={16} />
             </button>
@@ -1849,24 +1988,24 @@ function EventDetailModal({
 
         {showDeleteScope && (
           <div className="mb-4 p-4 bg-white/5 rounded-xl border border-white/10 space-y-2.5">
-            <p className="text-sm text-slate-300 font-medium">This is a recurring event</p>
+            <p className="text-sm text-slate-300 font-medium">{t('personal.schedule.recurringEvent')}</p>
             <button
               onClick={() => onDelete(event.id, 'THIS_ONLY')}
               className="w-full px-4 py-2.5 text-sm font-semibold bg-white/5 border border-white/10 rounded-xl text-white hover:bg-white/10 transition-all"
             >
-              Delete this event only
+              {t('personal.schedule.deleteThisOnly')}
             </button>
             <button
               onClick={() => onDelete(event.id, 'THIS_AND_FUTURE')}
               className="w-full px-4 py-2.5 text-sm font-semibold bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 hover:bg-red-500/20 transition-all"
             >
-              Delete this and all future events
+              {t('personal.schedule.deleteThisAndFuture')}
             </button>
             <button
               onClick={() => setShowDeleteScope(false)}
               className="w-full px-4 py-2 text-xs text-slate-500 hover:text-slate-300 transition-colors"
             >
-              Cancel
+              {t('personal.schedule.cancel')}
             </button>
           </div>
         )}
@@ -1875,7 +2014,7 @@ function EventDetailModal({
           {/* Date */}
           <div>
             <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-              Date
+              {t('personal.schedule.date')}
             </label>
             <div className="text-sm text-white/80 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5">
               {formatDate(event.event_date)}
@@ -1884,7 +2023,7 @@ function EventDetailModal({
               <div className="flex items-center gap-1.5 mt-2">
                 <RotateCw className="h-3 w-3 text-purple-400" />
                 <span className="text-xs text-purple-400">
-                  {event.recurrence_rule === 'DAILY' ? 'Repeats daily' : 'Repeats weekly'}
+                  {event.recurrence_rule === 'DAILY' ? t('personal.schedule.repeatsDaily') : t('personal.schedule.repeatsWeekly')}
                   {event.recurrence_end_date && ` until ${formatDate(event.recurrence_end_date)}`}
                 </span>
               </div>
@@ -1894,7 +2033,7 @@ function EventDetailModal({
           {/* Title */}
           <div>
             <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-              Title
+              {t('personal.schedule.eventTitle')}
             </label>
             <input
               type="text"
@@ -1909,12 +2048,12 @@ function EventDetailModal({
           {/* Description */}
           <div>
             <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-              Description
+              {t('personal.schedule.description')}
             </label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Optional description"
+              placeholder={t('personal.schedule.optionalDesc')}
               rows={2}
               className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-white text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all resize-none"
             />
@@ -1924,7 +2063,7 @@ function EventDetailModal({
           <div className="flex gap-3">
             <div className="flex-1">
               <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-                Start
+                {t('personal.schedule.start')}
               </label>
               <input
                 type="time"
@@ -1935,7 +2074,7 @@ function EventDetailModal({
             </div>
             <div className="flex-1">
               <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-                End
+                {t('personal.schedule.end')}
               </label>
               <input
                 type="time"
@@ -1949,7 +2088,7 @@ function EventDetailModal({
           {/* Color */}
           <div>
             <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">
-              Color
+              {t('personal.schedule.color')}
             </label>
             <div className="flex gap-2">
               {EVENT_COLORS.map((c) => (
@@ -1974,14 +2113,14 @@ function EventDetailModal({
             onClick={onClose}
             className="flex-1 py-3 text-sm font-bold text-slate-400 hover:text-white border border-white/10 rounded-xl hover:bg-white/5 transition-all"
           >
-            Cancel
+            {t('personal.schedule.cancel')}
           </button>
           <button
             onClick={handleSave}
             disabled={!title.trim()}
             className="flex-1 py-3 bg-bridge-accent text-white text-sm font-bold rounded-xl hover:bg-bridge-accent/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
           >
-            Save
+            {t('personal.schedule.save')}
           </button>
         </div>
       </motion.div>
@@ -2003,6 +2142,7 @@ function ScheduleSettingsModal({
   onSave: (s: ScheduleSettings) => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [sHour, setSHour] = useState(settings.startHour);
   const [eHour, setEHour] = useState(settings.endHour);
 
@@ -2024,7 +2164,7 @@ function ScheduleSettingsModal({
         className="w-full sm:max-w-sm bg-bridge-obsidian rounded-t-2xl sm:rounded-2xl border border-white/10 p-5 md:p-6 shadow-2xl"
       >
         <div className="flex items-center justify-between mb-4 md:mb-5">
-          <h3 className="text-base md:text-lg font-bold text-white">Schedule Settings</h3>
+          <h3 className="text-base md:text-lg font-bold text-white">{t('personal.schedule.settingsTitle')}</h3>
           <button onClick={onClose} className="p-1 text-slate-400 hover:text-white transition-colors">
             <X size={18} />
           </button>
@@ -2033,7 +2173,7 @@ function ScheduleSettingsModal({
         <div className="space-y-4">
           <div>
             <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-              Start Time
+              {t('personal.schedule.settingsStartTime')}
             </label>
             <select
               value={sHour}
@@ -2050,7 +2190,7 @@ function ScheduleSettingsModal({
 
           <div>
             <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-              End Time
+              {t('personal.schedule.settingsEndTime')}
             </label>
             <select
               value={eHour}
@@ -2066,11 +2206,11 @@ function ScheduleSettingsModal({
           </div>
 
           {!isValid && (
-            <p className="text-xs text-rose-400">End time must be after start time</p>
+            <p className="text-xs text-rose-400">{t('personal.schedule.settingsEndAfterStart')}</p>
           )}
 
           <div className="bg-white/5 rounded-xl px-4 py-3 border border-white/5">
-            <span className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Preview</span>
+            <span className="text-[11px] font-bold uppercase tracking-widest text-slate-500">{t('personal.schedule.settingsPreview')}</span>
             <p className="text-sm text-white mt-1">
               {fmtHour(sHour)} — {fmtHour(eHour)}{' '}
               <span className="text-slate-400">({eHour - sHour}h)</span>
@@ -2083,14 +2223,14 @@ function ScheduleSettingsModal({
             onClick={onClose}
             className="flex-1 py-3 text-sm font-bold text-slate-400 hover:text-white border border-white/10 rounded-xl hover:bg-white/5 transition-all"
           >
-            Cancel
+            {t('personal.schedule.cancel')}
           </button>
           <button
             onClick={handleSave}
             disabled={!isValid}
             className="flex-1 py-3 bg-bridge-accent text-white text-sm font-bold rounded-xl hover:bg-bridge-accent/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
           >
-            Save
+            {t('personal.schedule.save')}
           </button>
         </div>
       </motion.div>
@@ -2112,11 +2252,7 @@ const HABIT_ICONS = [
   '🧠', '🌿', '💊', '🍎', '😴', '🚶', '🧹', '📵',
 ];
 
-const FREQUENCY_PRESETS: { value: HabitFrequency; label: string }[] = [
-  { value: 'DAILY', label: 'Every Day' },
-  { value: 'WEEKDAY', label: 'Weekdays' },
-  { value: 'CUSTOM', label: 'Custom' },
-];
+const FREQUENCY_PRESET_VALUES: HabitFrequency[] = ['DAILY', 'WEEKDAY', 'CUSTOM'];
 
 const DAY_CHIPS = [
   { value: 1, label: 'M' },
@@ -2144,6 +2280,7 @@ function CreateHabitModal({
     unit?: string;
   }) => void;
 }) {
+  const { t } = useTranslation();
   const [title, setTitle] = useState('');
   const [frequencyType, setFrequencyType] = useState<HabitFrequency>('DAILY');
   const [customDays, setCustomDays] = useState<number[]>([]);
@@ -2156,6 +2293,13 @@ function CreateHabitModal({
   const [targetCount, setTargetCount] = useState(1);
   const [unit, setUnit] = useState('');
   const [description, setDescription] = useState('');
+
+  const frequencyLabels: Record<HabitFrequency, string> = {
+    DAILY: t('personal.habit.everyDay'),
+    WEEKDAY: t('personal.habit.weekdays'),
+    CUSTOM: t('personal.habit.custom'),
+    WEEKEND: t('personal.habit.weekends'),
+  };
 
   const isValid = title.trim().length > 0 && (frequencyType !== 'CUSTOM' || customDays.length > 0);
 
@@ -2189,7 +2333,7 @@ function CreateHabitModal({
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Flame size={18} className="text-purple-400" />
-            <h3 className="text-base md:text-lg font-bold text-white">New Habit</h3>
+            <h3 className="text-base md:text-lg font-bold text-white">{t('personal.habit.newHabit')}</h3>
           </div>
           <button onClick={onClose} className="p-1 text-slate-400 hover:text-white transition-colors">
             <X size={18} />
@@ -2200,14 +2344,14 @@ function CreateHabitModal({
           {/* Habit Name */}
           <div>
             <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-              Habit Name
+              {t('personal.habit.habitName')}
             </label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-              placeholder="e.g. Morning Run, Read 10 pages"
+              placeholder={t('personal.habit.habitPlaceholder')}
               className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-white text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition-all"
               autoFocus
             />
@@ -2216,10 +2360,10 @@ function CreateHabitModal({
           {/* Frequency */}
           <div>
             <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">
-              Frequency
+              {t('personal.habit.frequency')}
             </label>
             <div className="flex gap-1.5">
-              {FREQUENCY_PRESETS.map(({ value, label }) => (
+              {FREQUENCY_PRESET_VALUES.map((value) => (
                 <button
                   key={value}
                   onClick={() => {
@@ -2232,7 +2376,7 @@ function CreateHabitModal({
                       : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
                   }`}
                 >
-                  {label}
+                  {frequencyLabels[value]}
                 </button>
               ))}
             </div>
@@ -2242,7 +2386,7 @@ function CreateHabitModal({
           {frequencyType === 'CUSTOM' && (
             <div>
               <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">
-                Repeat on
+                {t('personal.habit.repeatOn')}
               </label>
               <div className="flex gap-1.5">
                 {DAY_CHIPS.map(({ value, label }) => (
@@ -2260,7 +2404,7 @@ function CreateHabitModal({
                 ))}
               </div>
               {customDays.length === 0 && (
-                <p className="mt-1.5 text-xs text-amber-400">Select at least one day</p>
+                <p className="mt-1.5 text-xs text-amber-400">{t('personal.habit.selectDay')}</p>
               )}
             </div>
           )}
@@ -2271,7 +2415,7 @@ function CreateHabitModal({
             className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-300 transition-colors"
           >
             {showMore ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-            {showMore ? 'Less options' : 'More options'}
+            {showMore ? t('personal.habit.lessOptions') : t('personal.habit.moreOptions')}
           </button>
 
           {/* Expanded Options */}
@@ -2286,7 +2430,7 @@ function CreateHabitModal({
                 {/* Icon Picker */}
                 <div>
                   <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">
-                    Icon
+                    {t('personal.habit.icon')}
                   </label>
                   <div className="flex flex-wrap gap-1.5">
                     {HABIT_ICONS.map((emoji) => (
@@ -2308,7 +2452,7 @@ function CreateHabitModal({
                 {/* Color Picker */}
                 <div>
                   <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">
-                    Color
+                    {t('personal.habit.color')}
                   </label>
                   <div className="flex gap-2">
                     {HABIT_COLORS.map((c) => (
@@ -2329,7 +2473,7 @@ function CreateHabitModal({
                 {/* Goal Type */}
                 <div>
                   <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">
-                    Goal Type
+                    {t('personal.habit.goalType')}
                   </label>
                   <div className="flex gap-1.5">
                     <button
@@ -2341,7 +2485,7 @@ function CreateHabitModal({
                       }`}
                     >
                       <CheckCircle2 size={14} />
-                      Check-off
+                      {t('personal.habit.checkOff')}
                     </button>
                     <button
                       onClick={() => setGoalType('count')}
@@ -2352,7 +2496,7 @@ function CreateHabitModal({
                       }`}
                     >
                       <Hash size={14} />
-                      Count
+                      {t('personal.habit.count')}
                     </button>
                   </div>
                 </div>
@@ -2362,7 +2506,7 @@ function CreateHabitModal({
                   <div className="flex gap-3">
                     <div className="w-24">
                       <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-                        Target
+                        {t('personal.habit.target')}
                       </label>
                       <input
                         type="number"
@@ -2375,13 +2519,13 @@ function CreateHabitModal({
                     </div>
                     <div className="flex-1">
                       <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-                        Unit
+                        {t('personal.habit.unit')}
                       </label>
                       <input
                         type="text"
                         value={unit}
                         onChange={(e) => setUnit(e.target.value)}
-                        placeholder="e.g. glasses, pages, km"
+                        placeholder={t('personal.habit.unitPlaceholder')}
                         className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-white text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all"
                       />
                     </div>
@@ -2391,12 +2535,12 @@ function CreateHabitModal({
                 {/* Description */}
                 <div>
                   <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-                    Description
+                    {t('personal.habit.description')}
                   </label>
                   <textarea
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Why this habit matters to you"
+                    placeholder={t('personal.habit.descPlaceholder')}
                     rows={2}
                     className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-white text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all resize-none"
                   />
@@ -2412,14 +2556,14 @@ function CreateHabitModal({
             onClick={onClose}
             className="flex-1 py-3 text-sm font-bold text-slate-400 hover:text-white border border-white/10 rounded-xl hover:bg-white/5 transition-all"
           >
-            Cancel
+            {t('personal.habit.cancel')}
           </button>
           <button
             onClick={handleSubmit}
             disabled={!isValid}
             className="flex-1 py-3 bg-purple-500 text-white text-sm font-bold rounded-xl hover:bg-purple-500/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
           >
-            Add Habit
+            {t('personal.habit.addHabit')}
           </button>
         </div>
       </motion.div>

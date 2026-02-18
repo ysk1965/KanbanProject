@@ -25,6 +25,7 @@ public class TokenResponse {
         private Boolean emailVerified;
         private String provider;
         private String systemRole;
+        private Boolean personalSpaceEnabled;
     }
 
     public static TokenResponse of(String accessToken, String refreshToken, UserInfo user) {

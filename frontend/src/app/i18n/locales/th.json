@@ -252,8 +252,7 @@
   "dashboard": {
     "sidebar": {
       "allBoards": "บอร์ดทั้งหมด",
-      "favorites": "รายการโปรด",
-      "teamMembers": "สมาชิกในทีม",
+      "myBoard": "บอร์ดของฉัน",
       "settings": "การตั้งค่า",
       "upgradePro": "อัปเกรดเป็น Pro",
       "upgradeDesc": "ลองใช้บอร์ดไม่จำกัดและการวิเคราะห์ขั้นสูง",
@@ -2485,6 +2484,44 @@
       "monthly_usage": "การใช้รายเดือน",
       "purchased_remaining": "ซื้อเพิ่มที่เหลือ",
       "total_remaining": "รวมที่เหลือ"
+    }
+  },
+  "personal": {
+    "tabs": {
+      "overview": "ภาพรวม",
+      "todo": "สิ่งที่ต้องทำ",
+      "schedule": "กำหนดการ",
+      "calendar": "ปฏิทิน",
+      "diary": "ไดอารี่ AI"
+    },
+    "overview": {
+      "noEvents": "ไม่มีกิจกรรมวันนี้",
+      "addSchedule": "เพิ่มกำหนดการ",
+      "noDeadlines": "ไม่มีกำหนดส่งที่จะถึง",
+      "addDeadline": "เพิ่มงาน"
+    },
+    "calendar": {
+      "task": "งาน",
+      "event": "กิจกรรม",
+      "today": "วันนี้",
+      "addEvent": "เพิ่มกิจกรรม",
+      "tasksCount": "{{count}} งาน",
+      "eventsCount": "{{count}} กิจกรรม",
+      "taskDeadline": "กำหนดเสร็จงาน",
+      "overdue": "เกินกำหนด",
+      "recurring": "ซ้ำ",
+      "noItems": "ไม่มีรายการสำหรับวันนี้",
+      "newEvent": "กิจกรรมใหม่",
+      "date": "วันที่",
+      "title": "ชื่อเรื่อง",
+      "eventTitle": "ชื่อกิจกรรม",
+      "description": "คำอธิบาย",
+      "optionalDesc": "คำอธิบายเพิ่มเติม",
+      "allDay": "ตลอดวัน",
+      "start": "เริ่มต้น",
+      "end": "สิ้นสุด",
+      "color": "สี",
+      "thisWeek": "สัปดาห์นี้"
     }
   }
 }

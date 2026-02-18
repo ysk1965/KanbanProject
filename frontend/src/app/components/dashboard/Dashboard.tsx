@@ -5,7 +5,7 @@ import { Search, Plus, Star, LayoutGrid, LogOut, Package2, AlertTriangle, Menu, 
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
 import { Board } from '../../types';
-import { testDataAPI, personalDashboardAPI } from '../../utils/api';
+import { testDataAPI, personalDashboardAPI, personalSpaceAPI, resolveFileUrl } from '../../utils/api';
 import { boardService } from '../../utils/services';
 import { getInitials } from '../../utils/assigneeColor';
 import { Sidebar } from './Sidebar';
@@ -13,7 +13,7 @@ import { BoardCard, CreateBoardCard, getGradient } from './BoardCard';
 import { CreateBoardModal } from './CreateBoardModal';
 import { EditBoardModal } from './EditBoardModal';
 import { OnboardingModal } from '../OnboardingModal';
-import { MyTasksWidget } from './MyTasksWidget';
+
 
 interface DashboardProps {
   boards: Board[];
@@ -96,7 +96,7 @@ export function Dashboard({
 }: DashboardProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { user, logout, isAdmin } = useAuth();
+  const { currentUser, logout, isAdmin, updateCurrentUser } = useAuth();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -128,6 +128,13 @@ export function Dashboard({
       }
     })();
   }, []);
+
+  // 보드가 하나도 없으면 자동으로 생성 모달 오픈
+  useEffect(() => {
+    if (boards.length === 0) {
+      setIsCreateModalOpen(true);
+    }
+  }, [boards]);
 
   // 테스트 보드 생성/참여 (개발용)
   const handleCreateTestBoard = async () => {
@@ -206,8 +213,20 @@ export function Dashboard({
     ? (todayData.due_today_tasks?.length || 0) + (todayData.in_progress_tasks?.length || 0)
     : 0;
 
+  const hasPersonalSpace = currentUser?.personal_space_enabled ?? false;
+
+  const handleActivatePersonalSpace = async () => {
+    try {
+      await personalSpaceAPI.activate();
+      updateCurrentUser({ personal_space_enabled: true });
+      navigate('/my-board');
+    } catch (error) {
+      console.error('Failed to activate personal space:', error);
+    }
+  };
+
   return (
-    <div className="flex h-screen text-white overflow-hidden selection:bg-bridge-secondary/30" style={{ background: 'radial-gradient(ellipse at 20% 0%, var(--bridge-dark) 0%, var(--bridge-dark) 50%, #030508 100%)' }}>
+    <div className="fixed inset-0 flex text-white overflow-hidden selection:bg-bridge-secondary/30" style={{ background: 'radial-gradient(ellipse at 20% 0%, var(--bridge-dark) 0%, var(--bridge-dark) 50%, #030508 100%)' }}>
       {/* Cosmic Background */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute w-[600px] h-[600px] rounded-full blur-[200px]" style={{ top: '-10%', right: '-5%', background: 'radial-gradient(circle, rgba(45,212,191,0.06) 0%, transparent 70%)' }} />
@@ -227,7 +246,7 @@ export function Dashboard({
       />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col relative z-10 min-w-0">
+      <div className="flex-1 flex flex-col relative z-10 min-w-0 min-h-0">
         {/* Header */}
         <header className="h-14 border-b border-white/[0.06] bg-bridge-dark/60 backdrop-blur-sm px-4 md:px-6 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -278,16 +297,22 @@ export function Dashboard({
               <span className="hidden sm:inline text-xs font-medium">{t('dashboard.logout')}</span>
             </button>
 
-            {/* Profile Avatar */}
-            <div className="w-9 h-9 rounded-xl overflow-hidden border border-white/10 bg-slate-700 shrink-0">
-              {user?.profile_image ? (
-                <img src={user.profile_image} alt={user.name} className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-xs font-bold bg-gradient-to-br from-bridge-secondary to-bridge-accent">
-                  {getInitials(user?.name || 'U')}
-                </div>
-              )}
-            </div>
+            {/* Profile Avatar + Name */}
+            <button
+              onClick={() => navigate('/settings')}
+              className="flex items-center gap-2 hover:bg-white/5 rounded-xl px-2 py-1.5 transition-colors"
+            >
+              <div className="w-9 h-9 rounded-xl overflow-hidden border border-white/10 bg-slate-700 shrink-0">
+                {currentUser?.profile_image ? (
+                  <img src={resolveFileUrl(currentUser.profile_image)} alt={currentUser.name} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-xs font-bold bg-gradient-to-br from-bridge-secondary to-bridge-accent">
+                    {getInitials(currentUser?.name || 'U')}
+                  </div>
+                )}
+              </div>
+              <span className="hidden sm:inline text-xs font-medium text-slate-300">{currentUser?.name}</span>
+            </button>
           </div>
         </header>
 
@@ -324,79 +349,57 @@ export function Dashboard({
         </AnimatePresence>
 
         {/* Main Content Area */}
-        <main className="flex-1 overflow-y-auto px-6 md:px-8 py-6 custom-scrollbar">
+        <main className={`flex-1 min-h-0 overflow-y-auto px-6 md:px-8 py-6 custom-scrollbar ${hasPersonalSpace ? 'pb-20 lg:pb-6' : ''}`}>
           <div className="max-w-7xl mx-auto space-y-6">
 
-            {/* Top Row: My Space + Quick Stats */}
-            {!searchQuery && (
-              <div className="flex gap-4 flex-col sm:flex-row">
-                {/* My Space Card - Compact */}
-                <motion.button
-                  onClick={() => navigate('/my-board')}
-                  whileHover={{ scale: 1.01 }}
-                  whileTap={{ scale: 0.99 }}
-                  className="flex-1 group relative overflow-hidden rounded-2xl border border-white/[0.08] hover:border-bridge-accent/30 transition-all"
-                >
-                  <div className="absolute inset-0 bg-gradient-to-r from-bridge-accent/15 via-purple-500/8 to-bridge-secondary/15 opacity-50 group-hover:opacity-80 transition-opacity" />
-                  <div className="relative px-5 py-4 flex items-center gap-4">
-                    <div className="flex gap-2 shrink-0">
-                      <div className="w-10 h-10 rounded-xl bg-bridge-accent/20 border border-bridge-accent/20 flex items-center justify-center">
-                        <CalendarDays size={18} className="text-bridge-accent" />
-                      </div>
-                      <div className="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-500/20 flex items-center justify-center">
-                        <BookHeart size={18} className="text-purple-400" />
-                      </div>
+            {/* My Space Card (My Space가 있을 때만, 모바일에서는 하단 바로 대체) */}
+            {!searchQuery && hasPersonalSpace && (
+              <motion.button
+                onClick={() => navigate('/my-board')}
+                whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.99 }}
+                className="hidden lg:block w-full group relative overflow-hidden rounded-2xl border border-white/[0.08] hover:border-bridge-accent/30 transition-all"
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-bridge-accent/15 via-purple-500/8 to-bridge-secondary/15 opacity-50 group-hover:opacity-80 transition-opacity" />
+                <div className="relative px-5 py-4 flex items-center gap-4">
+                  <div className="flex gap-2 shrink-0">
+                    <div className="w-10 h-10 rounded-xl bg-bridge-accent/20 border border-bridge-accent/20 flex items-center justify-center">
+                      <CalendarDays size={18} className="text-bridge-accent" />
                     </div>
-                    <div className="text-left flex-1 min-w-0">
-                      <h3 className="text-sm font-bold text-white mb-0.5">{t('dashboard.mySpace')}</h3>
-                      <p className="text-[11px] text-slate-500 truncate">
-                        {t('dashboard.mySpaceDesc')}
-                      </p>
+                    <div className="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-500/20 flex items-center justify-center">
+                      <BookHeart size={18} className="text-purple-400" />
                     </div>
-                    {todayTaskCount > 0 && (
-                      <div className="shrink-0 flex items-center gap-1.5 px-2.5 py-1 bg-bridge-accent/15 rounded-lg">
-                        <ListTodo size={12} className="text-bridge-accent" />
-                        <span className="text-[11px] font-bold text-bridge-accent">{todayTaskCount}</span>
-                      </div>
-                    )}
-                    <ChevronRight size={16} className="text-slate-600 group-hover:text-white shrink-0 transition-colors" />
                   </div>
-
-                  {/* Compact Progress Bar */}
-                  {todayData && todayData.completion_rate > 0 && (
-                    <div className="relative px-5 pb-3">
-                      <div className="h-1 bg-white/5 rounded-full overflow-hidden">
-                        <motion.div
-                          className="h-full bg-gradient-to-r from-bridge-secondary to-bridge-accent rounded-full"
-                          initial={{ width: 0 }}
-                          animate={{ width: `${Math.round(todayData.completion_rate)}%` }}
-                          transition={{ duration: 0.8, ease: 'easeOut' }}
-                        />
-                      </div>
+                  <div className="text-left flex-1 min-w-0">
+                    <h3 className="text-sm font-bold text-white mb-0.5">{t('dashboard.mySpace')}</h3>
+                    <p className="text-[11px] text-slate-500 truncate">
+                      {t('dashboard.mySpaceDesc')}
+                    </p>
+                  </div>
+                  {todayTaskCount > 0 && (
+                    <div className="shrink-0 flex items-center gap-1.5 px-2.5 py-1 bg-bridge-accent/15 rounded-lg">
+                      <ListTodo size={12} className="text-bridge-accent" />
+                      <span className="text-[11px] font-bold text-bridge-accent">{todayTaskCount}</span>
                     </div>
                   )}
-                </motion.button>
-
-                {/* Quick Stats Cards */}
-                <div className="flex gap-3 sm:shrink-0">
-                  <div className="flex-1 sm:w-28 px-4 py-3 rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-sm text-center">
-                    <div className="text-2xl font-bold text-white font-serif">{boards.length}</div>
-                    <div className="text-[10px] text-slate-500 font-medium uppercase tracking-wider mt-0.5">
-                      {t('dashboard.totalBoards', 'Boards')}
-                    </div>
-                  </div>
-                  <div className="flex-1 sm:w-28 px-4 py-3 rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-sm text-center">
-                    <div className="text-2xl font-bold text-amber-500 font-serif">{starredBoards.length}</div>
-                    <div className="text-[10px] text-slate-500 font-medium uppercase tracking-wider mt-0.5">
-                      {t('dashboard.starred', 'Starred')}
-                    </div>
-                  </div>
+                  <ChevronRight size={16} className="text-slate-600 group-hover:text-white shrink-0 transition-colors" />
                 </div>
-              </div>
-            )}
 
-            {/* My Tasks Widget */}
-            {!searchQuery && <MyTasksWidget />}
+                {/* Compact Progress Bar */}
+                {todayData && todayData.completion_rate > 0 && (
+                  <div className="relative px-5 pb-3">
+                    <div className="h-1 bg-white/5 rounded-full overflow-hidden">
+                      <motion.div
+                        className="h-full bg-gradient-to-r from-bridge-secondary to-bridge-accent rounded-full"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${Math.round(todayData.completion_rate)}%` }}
+                        transition={{ duration: 0.8, ease: 'easeOut' }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </motion.button>
+            )}
 
             {/* Project Section Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
@@ -583,6 +586,8 @@ export function Dashboard({
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onCreate={onCreateBoard}
+        hasPersonalSpace={hasPersonalSpace}
+        onActivatePersonalSpace={handleActivatePersonalSpace}
       />
 
       {/* Edit Board Modal */}
@@ -601,6 +606,33 @@ export function Dashboard({
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDeleteConfirm}
       />
+
+      {/* Mobile Bottom Bar - My Space Quick Access */}
+      {hasPersonalSpace && (
+        <div className="fixed bottom-0 inset-x-0 z-40 lg:hidden safe-bottom">
+          <div className="bg-bridge-obsidian/95 backdrop-blur-xl border-t border-white/[0.08]">
+            <button
+              onClick={() => navigate('/my-board')}
+              className="w-full flex items-center justify-between px-5 py-3.5 active:bg-white/5 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-bridge-accent/20 to-purple-500/20 border border-white/10 flex items-center justify-center">
+                  <CalendarDays size={16} className="text-bridge-accent" />
+                </div>
+                <div className="text-left">
+                  <span className="text-sm font-bold text-white">{t('dashboard.mySpace')}</span>
+                  {todayTaskCount > 0 && (
+                    <span className="ml-2 text-[10px] font-bold text-bridge-accent bg-bridge-accent/15 px-1.5 py-0.5 rounded">
+                      {todayTaskCount}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <ChevronRight size={16} className="text-slate-500" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Test Board Creation Button (Admin Only) */}
       {isAdmin && (

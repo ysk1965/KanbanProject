@@ -13,6 +13,7 @@ export interface User {
   theme?: 'dark' | 'light';
   provider?: 'email' | 'google';
   system_role?: SystemRole;
+  personal_space_enabled?: boolean;
 }
 
 // ========================================
@@ -1815,6 +1816,8 @@ export interface DiaryMessage {
   role: 'USER' | 'AI';
   content: string;
   message_order: number;
+  audio_url?: string | null;
+  audio_duration_seconds?: number | null;
   created_at: string;
 }
 
@@ -1836,11 +1839,27 @@ export interface DiaryAiReply {
   ai_message: DiaryMessage;
 }
 
+export interface DiaryVoiceReply {
+  diary_id: string;
+  user_text: string;
+  user_message: DiaryMessage;
+  ai_text: string;
+  ai_message: DiaryMessage;
+  ai_audio_url: string;
+}
+
+export interface DiaryVoiceSettings {
+  voice_type: string;
+  auto_play: boolean;
+  speed: number;
+}
+
 // ─── Personal Task (v9.0 MySpace) ───
 
 export type PersonalTaskStatus = 'TODO' | 'IN_PROGRESS' | 'DONE' | 'ARCHIVED';
 export type PersonalTaskPriority = 'MEDIUM' | 'HIGH' | 'URGENT';
 export type HabitFrequency = 'DAILY' | 'WEEKDAY' | 'WEEKEND' | 'CUSTOM';
+export type HabitImportance = 'HIGH' | 'MEDIUM';
 
 export interface PersonalTask {
   id: string;
@@ -1882,6 +1901,7 @@ export interface PersonalHabit {
   frequency_days: string | null;
   target_count: number;
   unit: string | null;
+  importance: HabitImportance;
   current_streak: number;
   best_streak: number;
   position: number;
@@ -1908,6 +1928,11 @@ export interface HabitTodayItem {
   is_completed: boolean;
   unit: string | null;
   current_streak: number;
+  importance: HabitImportance;
+  frequency_type: HabitFrequency;
+  frequency_days: string | null;
+  weekly_target: number;
+  weekly_completed: number;
 }
 
 export interface HabitWeeklyRow {

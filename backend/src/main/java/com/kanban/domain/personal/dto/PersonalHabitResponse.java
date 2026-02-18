@@ -1,6 +1,7 @@
 package com.kanban.domain.personal.dto;
 
 import com.kanban.domain.personal.HabitFrequency;
+import com.kanban.domain.personal.HabitImportance;
 import com.kanban.domain.personal.PersonalHabit;
 import com.kanban.domain.personal.PersonalHabitLog;
 import lombok.AllArgsConstructor;
@@ -26,6 +27,7 @@ public class PersonalHabitResponse {
         private String frequencyDays;
         private int targetCount;
         private String unit;
+        private HabitImportance importance;
         private int currentStreak;
         private int bestStreak;
         private int position;
@@ -44,6 +46,7 @@ public class PersonalHabitResponse {
                     .frequencyDays(habit.getFrequencyDays())
                     .targetCount(habit.getTargetCount())
                     .unit(habit.getUnit())
+                    .importance(habit.getImportance())
                     .currentStreak(habit.getCurrentStreak())
                     .bestStreak(habit.getBestStreak())
                     .position(habit.getPosition())
@@ -67,8 +70,14 @@ public class PersonalHabitResponse {
         private boolean isCompleted;
         private String unit;
         private int currentStreak;
+        private HabitImportance importance;
+        private HabitFrequency frequencyType;
+        private String frequencyDays;
+        private int weeklyTarget;
+        private int weeklyCompleted;
 
-        public static TodayItem of(PersonalHabit habit, PersonalHabitLog log) {
+        public static TodayItem of(PersonalHabit habit, PersonalHabitLog log,
+                                    int weeklyTarget, int weeklyCompleted) {
             return TodayItem.builder()
                     .habitId(habit.getId())
                     .title(habit.getTitle())
@@ -79,6 +88,11 @@ public class PersonalHabitResponse {
                     .isCompleted(log != null && log.getIsCompleted())
                     .unit(habit.getUnit())
                     .currentStreak(habit.getCurrentStreak())
+                    .importance(habit.getImportance())
+                    .frequencyType(habit.getFrequencyType())
+                    .frequencyDays(habit.getFrequencyDays())
+                    .weeklyTarget(weeklyTarget)
+                    .weeklyCompleted(weeklyCompleted)
                     .build();
         }
     }

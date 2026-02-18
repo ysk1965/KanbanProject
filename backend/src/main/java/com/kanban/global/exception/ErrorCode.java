@@ -57,6 +57,7 @@ public enum ErrorCode {
     BOARD_SUSPENDED(HttpStatus.FORBIDDEN, "B003", "보드가 정지 상태입니다"),
     PREMIUM_FEATURE_REQUIRED(HttpStatus.FORBIDDEN, "B004", "이 기능은 Premium에서만 사용 가능합니다"),
     PERSONAL_BOARD_NO_INVITE(HttpStatus.FORBIDDEN, "B006", "개인 보드에는 멤버를 초대할 수 없습니다"),
+    PERSONAL_SPACE_ALREADY_ENABLED(HttpStatus.CONFLICT, "B007", "이미 개인 공간이 활성화되어 있습니다"),
 
     // Block
     BLOCK_NOT_FOUND(HttpStatus.NOT_FOUND, "BL001", "블록을 찾을 수 없습니다"),
@@ -206,7 +207,13 @@ public enum ErrorCode {
     DIARY_NOT_FOUND(HttpStatus.NOT_FOUND, "DI001", "일기를 찾을 수 없습니다"),
     DIARY_ALREADY_EXISTS(HttpStatus.CONFLICT, "DI002", "해당 날짜에 이미 일기가 존재합니다"),
     DIARY_ACCESS_DENIED(HttpStatus.FORBIDDEN, "DI003", "본인의 일기만 접근할 수 있습니다"),
-    DIARY_ALREADY_COMPLETED(HttpStatus.BAD_REQUEST, "DI004", "이미 완성된 일기입니다");
+    DIARY_ALREADY_COMPLETED(HttpStatus.BAD_REQUEST, "DI004", "이미 완성된 일기입니다"),
+
+    // Diary Voice
+    DIARY_VOICE_FILE_EMPTY(HttpStatus.BAD_REQUEST, "DV001", "음성 파일이 비어있습니다"),
+    DIARY_VOICE_FILE_TOO_LARGE(HttpStatus.BAD_REQUEST, "DV002", "음성 파일이 25MB를 초과합니다"),
+    DIARY_VOICE_STT_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "DV003", "음성 인식에 실패했습니다"),
+    DIARY_VOICE_TTS_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "DV004", "음성 생성에 실패했습니다");
 
     private final HttpStatus status;
     private final String code;

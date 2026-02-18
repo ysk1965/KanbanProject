@@ -30,7 +30,22 @@ const EVENT_COLORS = [
 
 const DAY_LABELS_KO = ['일', '월', '화', '수', '목', '금', '토'];
 const DAY_LABELS_EN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const DAY_LABELS_SHORT_KO = ['일', '월', '화', '수', '목', '금', '토'];
+const DAY_LABELS_SHORT_EN = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const MAX_VISIBLE_ITEMS = 3;
+
+function getWeekDays(today: Date): Date[] {
+  const dayOfWeek = today.getDay();
+  const startOfWeek = new Date(today);
+  startOfWeek.setDate(today.getDate() - dayOfWeek);
+  const days: Date[] = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(startOfWeek);
+    d.setDate(startOfWeek.getDate() + i);
+    days.push(d);
+  }
+  return days;
+}
 
 interface CalendarItem {
   id: string;
@@ -236,11 +251,11 @@ export function PersonalCalendar() {
           <div className="hidden md:flex items-center gap-3 mr-3 text-[10px] text-zinc-500">
             <span className="flex items-center gap-1">
               <ListTodo size={10} className="text-bridge-accent" />
-              Task
+              {t('personal.calendar.task')}
             </span>
             <span className="flex items-center gap-1">
               <CalendarDays size={10} className="text-bridge-secondary" />
-              Event
+              {t('personal.calendar.event')}
             </span>
           </div>
           <button
@@ -251,20 +266,37 @@ export function PersonalCalendar() {
                 : 'text-bridge-secondary border border-bridge-secondary/30 hover:bg-bridge-secondary/10'
             }`}
           >
-            Today
+            {t('personal.calendar.today')}
           </button>
           <button
             onClick={() => {
               setCreateDate(todayKey);
               setIsCreateOpen(true);
             }}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-bridge-accent text-white text-xs font-bold rounded-lg hover:bg-bridge-accent/90 transition-colors"
+            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-bridge-accent text-white text-xs font-bold rounded-lg hover:bg-bridge-accent/90 transition-colors"
           >
             <Plus size={14} />
-            <span className="hidden sm:inline">Event</span>
+            <span>{t('personal.calendar.event')}</span>
           </button>
         </div>
       </div>
+
+      {/* Weekly mini timeline */}
+      <WeeklyTimeline
+        today={today}
+        todayKey={todayKey}
+        dayItemsMap={dayItemsMap}
+        isKo={isKo}
+        onDayClick={(dateKey, date) => {
+          const items = dayItemsMap.get(dateKey) || [];
+          if (items.length > 0) {
+            setModalDate({ dateKey, date });
+          } else {
+            setCreateDate(dateKey);
+            setIsCreateOpen(true);
+          }
+        }}
+      />
 
       {/* Day-of-week header */}
       <div className="grid grid-cols-7 border-b border-white/5 shrink-0">
@@ -366,6 +398,17 @@ export function PersonalCalendar() {
         </div>
       </div>
 
+      {/* FAB - 우하단 일정 추가 */}
+      <button
+        onClick={() => {
+          setCreateDate(todayKey);
+          setIsCreateOpen(true);
+        }}
+        className="fixed bottom-20 md:bottom-6 right-6 w-12 h-12 md:w-14 md:h-14 rounded-full bg-bridge-accent text-white shadow-lg shadow-bridge-accent/30 flex items-center justify-center hover:bg-bridge-accent/90 hover:scale-105 active:scale-95 transition-all z-50"
+      >
+        <Plus size={20} className="md:w-6 md:h-6" />
+      </button>
+
       {/* ── Day Detail Modal ── */}
       <AnimatePresence>
         {modalDate && (
@@ -399,6 +442,127 @@ export function PersonalCalendar() {
   );
 }
 
+// ── Weekly Mini Timeline ──
+
+function WeeklyTimeline({
+  today,
+  todayKey,
+  dayItemsMap,
+  isKo,
+  onDayClick,
+}: {
+  today: Date;
+  todayKey: string;
+  dayItemsMap: Map<string, CalendarItem[]>;
+  isKo: boolean;
+  onDayClick: (dateKey: string, date: Date) => void;
+}) {
+  const { t } = useTranslation();
+  const weekDays = useMemo(() => getWeekDays(today), [today]);
+  const shortLabels = isKo ? DAY_LABELS_SHORT_KO : DAY_LABELS_SHORT_EN;
+
+  // Find the max item count this week for proportional bars
+  const maxItems = useMemo(() => {
+    let max = 0;
+    weekDays.forEach((d) => {
+      const count = (dayItemsMap.get(toDateKey(d)) || []).length;
+      if (count > max) max = count;
+    });
+    return Math.max(max, 1);
+  }, [weekDays, dayItemsMap]);
+
+  return (
+    <div className="px-3 md:px-5 py-2.5 border-b border-white/5 shrink-0">
+      <div className="flex items-center gap-1.5 mb-2">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
+          {t('personal.calendar.thisWeek', 'This Week')}
+        </span>
+      </div>
+      <div className="grid grid-cols-7 gap-1.5">
+        {weekDays.map((date, i) => {
+          const dateKey = toDateKey(date);
+          const items = dayItemsMap.get(dateKey) || [];
+          const isToday = dateKey === todayKey;
+          const taskCount = items.filter((x) => x.type === 'task').length;
+          const eventCount = items.filter((x) => x.type === 'event').length;
+          const overdueCount = items.filter((x) => x.isOverdue).length;
+          const totalCount = items.length;
+          const barHeight = totalCount > 0 ? Math.max(4, Math.round((totalCount / maxItems) * 28)) : 0;
+          const isPast = dateKey < todayKey;
+
+          return (
+            <button
+              key={i}
+              onClick={() => onDayClick(dateKey, date)}
+              className={`flex flex-col items-center gap-0.5 py-1.5 rounded-xl transition-all ${
+                isToday
+                  ? 'bg-bridge-accent/10 ring-1 ring-bridge-accent/30'
+                  : 'hover:bg-white/5'
+              }`}
+            >
+              {/* Day label */}
+              <span className={`text-[9px] font-bold uppercase ${
+                i === 0 ? 'text-red-400/60' : i === 6 ? 'text-blue-400/60' : 'text-slate-600'
+              }`}>
+                {shortLabels[i]}
+              </span>
+
+              {/* Date number */}
+              <span className={`text-xs font-bold leading-none ${
+                isToday
+                  ? 'text-bridge-accent'
+                  : isPast
+                    ? 'text-zinc-600'
+                    : 'text-zinc-300'
+              }`}>
+                {date.getDate()}
+              </span>
+
+              {/* Bar */}
+              <div className="w-full px-1 mt-0.5">
+                <div className="w-full h-7 flex items-end justify-center">
+                  {totalCount > 0 ? (
+                    <div
+                      className="w-full max-w-[20px] rounded-sm flex flex-col overflow-hidden transition-all"
+                      style={{ height: barHeight }}
+                    >
+                      {/* Event portion (teal) */}
+                      {eventCount > 0 && (
+                        <div
+                          className="w-full bg-bridge-secondary/60"
+                          style={{ flex: eventCount }}
+                        />
+                      )}
+                      {/* Task portion (indigo) */}
+                      {taskCount > 0 && (
+                        <div
+                          className={`w-full ${overdueCount > 0 ? 'bg-red-400/60' : 'bg-bridge-accent/60'}`}
+                          style={{ flex: taskCount }}
+                        />
+                      )}
+                    </div>
+                  ) : (
+                    <div className="w-1 h-1 rounded-full bg-white/10" />
+                  )}
+                </div>
+              </div>
+
+              {/* Count badge */}
+              {totalCount > 0 && (
+                <span className={`text-[8px] font-bold tabular-nums ${
+                  isToday ? 'text-bridge-accent' : 'text-zinc-500'
+                }`}>
+                  {totalCount}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ── Day Detail Modal ──
 
 function DayDetailModal({
@@ -418,6 +582,7 @@ function DayDetailModal({
   onDeleteEvent: (eventId: string) => void;
   onAddEvent: () => void;
 }) {
+  const { t } = useTranslation();
   const taskCount = items.filter(i => i.type === 'task').length;
   const eventCount = items.filter(i => i.type === 'event').length;
 
@@ -444,9 +609,9 @@ function DayDetailModal({
                 {date.getMonth() + 1}월 {date.getDate()}일 ({dayLabels[date.getDay()]})
               </h3>
               <p className="text-xs text-zinc-500 mt-0.5">
-                {taskCount > 0 && `${taskCount} tasks`}
+                {taskCount > 0 && t('personal.calendar.tasksCount', { count: taskCount })}
                 {taskCount > 0 && eventCount > 0 && ' · '}
-                {eventCount > 0 && `${eventCount} events`}
+                {eventCount > 0 && t('personal.calendar.eventsCount', { count: eventCount })}
               </p>
             </div>
           </div>
@@ -454,7 +619,7 @@ function DayDetailModal({
             <button
               onClick={onAddEvent}
               className="p-2 rounded-xl text-zinc-400 hover:text-bridge-accent hover:bg-white/5 transition-colors"
-              title="Add event"
+              title={t('personal.calendar.addEvent')}
             >
               <Plus size={18} />
             </button>
@@ -501,12 +666,12 @@ function DayDetailModal({
                 <div className="flex items-center gap-2 mt-0.5">
                   {item.type === 'task' && (
                     <span className="text-[10px] font-semibold text-bridge-accent/70 bg-bridge-accent/10 px-1.5 py-0.5 rounded">
-                      Task
+                      {t('personal.calendar.task')}
                     </span>
                   )}
                   {item.type === 'event' && (
                     <span className="text-[10px] font-semibold text-bridge-secondary/70 bg-bridge-secondary/10 px-1.5 py-0.5 rounded">
-                      Event
+                      {t('personal.calendar.event')}
                     </span>
                   )}
                   {item.startTime && (
@@ -517,7 +682,7 @@ function DayDetailModal({
                     </span>
                   )}
                   {item.isOverdue && (
-                    <span className="text-[10px] font-semibold text-red-400">Overdue</span>
+                    <span className="text-[10px] font-semibold text-red-400">{t('personal.calendar.overdue')}</span>
                   )}
                   {item.task?.priority && item.task.priority !== 'NONE' && (
                     <span className="text-[10px] text-zinc-500">{item.task.priority}</span>
@@ -525,7 +690,7 @@ function DayDetailModal({
                   {item.event?.recurrence_group_id && (
                     <span className="text-[10px] text-purple-400 flex items-center gap-0.5">
                       <RotateCw size={8} />
-                      Recurring
+                      {t('personal.calendar.recurring')}
                     </span>
                   )}
                 </div>
@@ -549,7 +714,7 @@ function DayDetailModal({
           {items.length === 0 && (
             <div className="text-center py-8">
               <Calendar size={24} className="mx-auto text-zinc-600 mb-2" />
-              <p className="text-zinc-500 text-sm">No items for this day</p>
+              <p className="text-zinc-500 text-sm">{t('personal.calendar.noItems')}</p>
             </div>
           )}
         </div>
@@ -558,15 +723,15 @@ function DayDetailModal({
         <div className="flex items-center gap-3 sm:gap-4 px-4 sm:px-6 py-3 border-t border-white/5 shrink-0 flex-wrap">
           <span className="flex items-center gap-1.5 text-[10px] text-zinc-500">
             <ListTodo size={10} className="text-bridge-accent" />
-            Task deadline
+            {t('personal.calendar.taskDeadline')}
           </span>
           <span className="flex items-center gap-1.5 text-[10px] text-zinc-500">
             <CalendarDays size={10} className="text-bridge-secondary" />
-            Event
+            {t('personal.calendar.event')}
           </span>
           <span className="flex items-center gap-1.5 text-[10px] text-zinc-500">
             <span className="w-2 h-2 rounded-full bg-red-500" />
-            Overdue
+            {t('personal.calendar.overdue')}
           </span>
         </div>
       </motion.div>
@@ -592,6 +757,7 @@ function CreateEventModal({
     all_day: boolean;
   }) => void;
 }) {
+  const { t } = useTranslation();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [startTime, setStartTime] = useState('');
@@ -620,7 +786,7 @@ function CreateEventModal({
         className="w-full sm:max-w-md bg-bridge-obsidian rounded-t-2xl sm:rounded-2xl border border-white/10 p-5 md:p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
       >
         <div className="flex items-center justify-between mb-5">
-          <h3 className="text-lg font-bold text-white">New Event</h3>
+          <h3 className="text-lg font-bold text-white">{t('personal.calendar.newEvent')}</h3>
           <button onClick={onClose} className="p-1 text-slate-400 hover:text-white transition-colors">
             <X size={18} />
           </button>
@@ -629,7 +795,7 @@ function CreateEventModal({
         <div className="space-y-4">
           {/* Date */}
           <div>
-            <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">Date</label>
+            <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">{t('personal.calendar.date')}</label>
             <div className="text-sm text-white/80 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5">
               {formatDate(date)}
             </div>
@@ -637,13 +803,13 @@ function CreateEventModal({
 
           {/* Title */}
           <div>
-            <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">Title</label>
+            <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">{t('personal.calendar.title')}</label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-              placeholder="Event title"
+              placeholder={t('personal.calendar.eventTitle')}
               className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-white text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
               autoFocus
             />
@@ -651,11 +817,11 @@ function CreateEventModal({
 
           {/* Description */}
           <div>
-            <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">Description</label>
+            <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">{t('personal.calendar.description')}</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Optional description"
+              placeholder={t('personal.calendar.optionalDesc')}
               rows={2}
               className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-white text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all resize-none"
             />
@@ -669,14 +835,14 @@ function CreateEventModal({
             >
               <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${allDay ? 'left-5' : 'left-0.5'}`} />
             </button>
-            <span className="text-sm text-slate-300">All day</span>
+            <span className="text-sm text-slate-300">{t('personal.calendar.allDay')}</span>
           </div>
 
           {/* Time inputs (only if not all-day) */}
           {!allDay && (
             <div className="flex gap-3">
               <div className="flex-1">
-                <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">Start</label>
+                <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">{t('personal.calendar.start')}</label>
                 <input
                   type="time"
                   value={startTime}
@@ -685,7 +851,7 @@ function CreateEventModal({
                 />
               </div>
               <div className="flex-1">
-                <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">End</label>
+                <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">{t('personal.calendar.end')}</label>
                 <input
                   type="time"
                   value={endTime}
@@ -698,7 +864,7 @@ function CreateEventModal({
 
           {/* Color picker */}
           <div>
-            <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">Color</label>
+            <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">{t('personal.calendar.color')}</label>
             <div className="flex gap-2">
               {EVENT_COLORS.map((c) => (
                 <button
@@ -722,14 +888,14 @@ function CreateEventModal({
             onClick={onClose}
             className="flex-1 py-3 text-sm font-bold text-slate-400 hover:text-white border border-white/10 rounded-xl hover:bg-white/5 transition-all"
           >
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             onClick={handleSubmit}
             disabled={!title.trim()}
             className="flex-1 py-3 bg-bridge-accent text-white text-sm font-bold rounded-xl hover:bg-bridge-accent/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
           >
-            Create
+            {t('common.create')}
           </button>
         </div>
       </motion.div>

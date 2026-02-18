@@ -252,8 +252,7 @@
   "dashboard": {
     "sidebar": {
       "allBoards": "सभी बोर्ड",
-      "favorites": "पसंदीदा",
-      "teamMembers": "टीम सदस्य",
+      "myBoard": "मेरा बोर्ड",
       "settings": "सेटिंग्स",
       "upgradePro": "Pro में अपग्रेड करें",
       "upgradeDesc": "असीमित बोर्ड और उन्नत एनालिटिक्स आज़माएं।",
@@ -2485,6 +2484,44 @@
       "monthly_usage": "मासिक उपयोग",
       "purchased_remaining": "खरीदे गए शेष",
       "total_remaining": "कुल शेष"
+    }
+  },
+  "personal": {
+    "tabs": {
+      "overview": "होम",
+      "todo": "कार्य",
+      "schedule": "शेड्यूल",
+      "calendar": "कैलेंडर",
+      "diary": "AI डायरी"
+    },
+    "overview": {
+      "noEvents": "आज कोई कार्यक्रम नहीं",
+      "addSchedule": "शेड्यूल जोड़ें",
+      "noDeadlines": "कोई आगामी समय सीमा नहीं",
+      "addDeadline": "कार्य जोड़ें"
+    },
+    "calendar": {
+      "task": "कार्य",
+      "event": "घटना",
+      "today": "आज",
+      "addEvent": "घटना जोड़ें",
+      "tasksCount": "{{count}} कार्य",
+      "eventsCount": "{{count}} घटना",
+      "taskDeadline": "कार्य की अंतिम तिथि",
+      "overdue": "अतिदेय",
+      "recurring": "दोहराएं",
+      "noItems": "इस दिन के लिए कोई आइटम नहीं",
+      "newEvent": "नई घटना",
+      "date": "तारीख",
+      "title": "शीर्षक",
+      "eventTitle": "घटना का शीर्षक",
+      "description": "विवरण",
+      "optionalDesc": "वैकल्पिक विवरण",
+      "allDay": "पूरे दिन",
+      "start": "शुरुआत",
+      "end": "अंत",
+      "color": "रंग",
+      "thisWeek": "इस सप्ताह"
     }
   }
 }

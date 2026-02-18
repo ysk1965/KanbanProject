@@ -232,6 +232,7 @@ public class AuthService {
                 .emailVerified(user.getEmailVerified())
                 .provider(provider)
                 .systemRole(systemRole)
+                .personalSpaceEnabled(user.getPersonalSpaceEnabled())
                 .build();
 
         return TokenResponse.of(accessToken, refreshToken, userInfo);

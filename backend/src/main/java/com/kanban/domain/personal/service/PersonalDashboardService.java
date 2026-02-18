@@ -56,7 +56,7 @@ public class PersonalDashboardService {
                 .collect(Collectors.toMap(l -> l.getHabit().getId(), l -> l));
 
         List<PersonalHabitResponse.TodayItem> habitsToday = activeHabits.stream()
-                .map(h -> PersonalHabitResponse.TodayItem.of(h, logMap.get(h.getId())))
+                .map(h -> PersonalHabitResponse.TodayItem.of(h, logMap.get(h.getId()), 0, 0))
                 .toList();
 
         // Stats

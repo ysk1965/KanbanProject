@@ -255,14 +255,27 @@ export function TodaySidebar({ tasks, onTaskClick }: TodaySidebarProps) {
                               {item.icon && <span className="mr-1">{item.icon}</span>}
                               {item.title}
                             </span>
-                            {item.target_count > 1 && (
-                              <span className="text-[11px] text-slate-500 ml-1">
-                                {item.completed_count}/{item.target_count}{item.unit ? ` ${item.unit}` : ''}
-                              </span>
-                            )}
                           </div>
+                          {item.target_count > 1 && (
+                            <div className="flex items-center gap-0.5 shrink-0">
+                              {Array.from({ length: Math.min(item.target_count, 7) }).map((_, i) => (
+                                <div
+                                  key={i}
+                                  className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
+                                    i >= item.completed_count ? 'bg-white/[0.08] border border-white/10' : ''
+                                  }`}
+                                  style={i < item.completed_count ? {
+                                    backgroundColor: item.color || '#8B5CF6',
+                                  } : {}}
+                                />
+                              ))}
+                              {item.target_count > 7 && (
+                                <span className="text-[8px] text-slate-500 ml-0.5">+{item.target_count - 7}</span>
+                              )}
+                            </div>
+                          )}
                           {item.current_streak > 0 && (
-                            <span className="text-[11px] text-orange-400 font-bold">{item.current_streak}d</span>
+                            <span className="text-[11px] text-orange-400 font-bold shrink-0">{item.current_streak}d</span>
                           )}
                         </div>
                       ))}

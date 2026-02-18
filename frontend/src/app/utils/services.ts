@@ -2490,7 +2490,7 @@ export const aiCreditService = {
 // ========================================
 
 import { taskDependencyAPI, personalEventAPI, diaryAPI } from './api';
-import type { TaskDependency, PersonalEvent, DiaryDetail, DiarySimple, DiaryAiReply } from '../types';
+import type { TaskDependency, PersonalEvent, DiaryDetail, DiarySimple, DiaryAiReply, DiaryVoiceReply, DiaryVoiceSettings } from '../types';
 
 export const taskDependencyService = {
   getByBoard: async (boardId: string) => {
@@ -2605,6 +2605,18 @@ export const diaryService = {
 
   delete: async (diaryId: string): Promise<void> => {
     return diaryAPI.delete(diaryId);
+  },
+
+  sendVoiceMessage: async (diaryId: string, audioBlob: Blob): Promise<DiaryVoiceReply> => {
+    return diaryAPI.sendVoiceMessage(diaryId, audioBlob);
+  },
+
+  getVoiceSettings: async (): Promise<DiaryVoiceSettings> => {
+    return diaryAPI.getVoiceSettings();
+  },
+
+  updateVoiceSettings: async (data: Partial<DiaryVoiceSettings>): Promise<DiaryVoiceSettings> => {
+    return diaryAPI.updateVoiceSettings(data);
   },
 };
 

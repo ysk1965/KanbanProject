@@ -252,8 +252,7 @@
   "dashboard": {
     "sidebar": {
       "allBoards": "Todos os Boards",
-      "favorites": "Favoritos",
-      "teamMembers": "Membros da Equipe",
+      "myBoard": "Meu Quadro",
       "settings": "Configurações",
       "upgradePro": "Upgrade Pro",
       "upgradeDesc": "Experimente boards ilimitados e análises avançadas.",
@@ -2485,6 +2484,44 @@
       "monthly_usage": "Uso mensal",
       "purchased_remaining": "Créditos comprados restantes",
       "total_remaining": "Total restante"
+    }
+  },
+  "personal": {
+    "tabs": {
+      "overview": "Início",
+      "todo": "Tarefas",
+      "schedule": "Agenda",
+      "calendar": "Calendário",
+      "diary": "Diário IA"
+    },
+    "overview": {
+      "noEvents": "Nenhum evento hoje",
+      "addSchedule": "Adicionar agenda",
+      "noDeadlines": "Nenhum prazo próximo",
+      "addDeadline": "Adicionar tarefa"
+    },
+    "calendar": {
+      "task": "Tarefa",
+      "event": "Evento",
+      "today": "Hoje",
+      "addEvent": "Adicionar evento",
+      "tasksCount": "{{count}} tarefas",
+      "eventsCount": "{{count}} eventos",
+      "taskDeadline": "Prazo da tarefa",
+      "overdue": "Atrasado",
+      "recurring": "Recorrente",
+      "noItems": "Nenhum item para este dia",
+      "newEvent": "Novo evento",
+      "date": "Data",
+      "title": "Título",
+      "eventTitle": "Título do evento",
+      "description": "Descrição",
+      "optionalDesc": "Descrição opcional",
+      "allDay": "O dia todo",
+      "start": "Início",
+      "end": "Fim",
+      "color": "Cor",
+      "thisWeek": "Esta semana"
     }
   }
 }

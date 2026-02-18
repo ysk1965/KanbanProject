@@ -252,8 +252,7 @@
   "dashboard": {
     "sidebar": {
       "allBoards": "全部看板",
-      "favorites": "收藏",
-      "teamMembers": "团队成员",
+      "myBoard": "我的看板",
       "settings": "设置",
       "upgradePro": "升级 Pro",
       "upgradeDesc": "试用无限看板和高级分析功能。",
@@ -2485,6 +2484,44 @@
       "monthly_usage": "月度使用",
       "purchased_remaining": "额外购买剩余",
       "total_remaining": "总剩余"
+    }
+  },
+  "personal": {
+    "tabs": {
+      "overview": "概览",
+      "todo": "待办",
+      "schedule": "日程",
+      "calendar": "日历",
+      "diary": "AI日记"
+    },
+    "overview": {
+      "noEvents": "今天没有活动",
+      "addSchedule": "添加日程",
+      "noDeadlines": "没有即将到来的截止日期",
+      "addDeadline": "添加任务"
+    },
+    "calendar": {
+      "task": "任务",
+      "event": "事件",
+      "today": "今天",
+      "addEvent": "添加事件",
+      "tasksCount": "{{count}} 个任务",
+      "eventsCount": "{{count}} 个事件",
+      "taskDeadline": "任务截止日期",
+      "overdue": "逾期",
+      "recurring": "重复",
+      "noItems": "此日期没有项目",
+      "newEvent": "新建事件",
+      "date": "日期",
+      "title": "标题",
+      "eventTitle": "事件标题",
+      "description": "描述",
+      "optionalDesc": "可选描述",
+      "allDay": "全天",
+      "start": "开始",
+      "end": "结束",
+      "color": "颜色",
+      "thisWeek": "本周"
     }
   }
 }

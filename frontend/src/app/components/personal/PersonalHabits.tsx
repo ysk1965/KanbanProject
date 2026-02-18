@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Plus, Flame, CheckCircle2, Trash2, X, Loader2,
   ChevronDown, ChevronUp, Hash, Pencil, MoreHorizontal,
@@ -6,7 +7,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { personalHabitAPI } from '../../utils/api';
-import type { PersonalHabit, HabitTodayItem, HabitFrequency } from '../../types';
+import type { PersonalHabit, HabitTodayItem, HabitFrequency, HabitImportance } from '../../types';
 
 /* ================================================================
    Constants
@@ -22,37 +23,22 @@ const HABIT_ICONS = [
   '🧠', '🌿', '💊', '🍎', '😴', '🚶', '🧹', '📵',
 ];
 
-const FREQ_PRESETS: { value: HabitFrequency; label: string }[] = [
-  { value: 'DAILY', label: 'Every Day' },
-  { value: 'WEEKDAY', label: 'Weekdays' },
-  { value: 'CUSTOM', label: 'Custom' },
-];
+const DAY_CHIP_VALUES = [1, 2, 3, 4, 5, 6, 0];
 
-const DAY_CHIPS = [
-  { value: 1, label: 'M' },
-  { value: 2, label: 'T' },
-  { value: 3, label: 'W' },
-  { value: 4, label: 'T' },
-  { value: 5, label: 'F' },
-  { value: 6, label: 'S' },
-  { value: 0, label: 'S' },
-];
+const DAY_KEYS = ['calendar.sun', 'calendar.mon', 'calendar.tue', 'calendar.wed', 'calendar.thu', 'calendar.fri', 'calendar.sat'] as const;
 
-const FREQ_LABELS: Record<HabitFrequency, string> = {
-  DAILY: 'Every day',
-  WEEKDAY: 'Weekdays',
-  WEEKEND: 'Weekends',
-  CUSTOM: 'Custom',
-};
-
-const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-function formatFrequency(habit: PersonalHabit): string {
+function formatFrequency(habit: PersonalHabit, t: (key: string, options?: Record<string, unknown>) => string): string {
   if (habit.frequency_type === 'CUSTOM' && habit.frequency_days) {
     const days = habit.frequency_days.split(',').map(Number);
-    return days.map(d => DAY_NAMES[d]).join(', ');
+    return days.map(d => t(DAY_KEYS[d])).join(', ');
   }
-  return FREQ_LABELS[habit.frequency_type] || habit.frequency_type;
+  const freqLabels: Record<HabitFrequency, string> = {
+    DAILY: t('personal.habit.everyDay'),
+    WEEKDAY: t('personal.habit.weekdays'),
+    WEEKEND: t('personal.habit.weekends'),
+    CUSTOM: t('personal.habit.custom'),
+  };
+  return freqLabels[habit.frequency_type] || habit.frequency_type;
 }
 
 /* ================================================================
@@ -60,6 +46,7 @@ function formatFrequency(habit: PersonalHabit): string {
    ================================================================ */
 
 export function PersonalHabits() {
+  const { t } = useTranslation();
   const [habits, setHabits] = useState<PersonalHabit[]>([]);
   const [todayItems, setTodayItems] = useState<HabitTodayItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -151,7 +138,7 @@ export function PersonalHabits() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Flame size={22} className="text-purple-400" />
-            <h2 className="text-lg md:text-xl font-bold text-white">Habits</h2>
+            <h2 className="text-lg md:text-xl font-bold text-white">{t('personal.habit.habits')}</h2>
             {habits.length > 0 && (
               <span className="text-xs font-bold text-purple-400 bg-purple-400/10 px-2 py-0.5 rounded-full">
                 {habits.length}
@@ -163,7 +150,7 @@ export function PersonalHabits() {
             className="flex items-center gap-1.5 px-4 py-2 bg-purple-500 text-white text-sm font-bold rounded-xl hover:bg-purple-500/90 transition-all"
           >
             <Plus size={16} />
-            New Habit
+            {t('personal.habit.newHabit')}
           </button>
         </div>
 
@@ -172,27 +159,27 @@ export function PersonalHabits() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <StatCard
               icon={<Target size={16} className="text-purple-400" />}
-              label="Today"
+              label={t('personal.habit.today')}
               value={`${stats.todayCompleted}/${stats.todayTotal}`}
               sub={stats.todayTotal > 0 ? `${Math.round((stats.todayCompleted / stats.todayTotal) * 100)}%` : '—'}
             />
             <StatCard
               icon={<Flame size={16} className="text-orange-400" />}
-              label="Active Streaks"
+              label={t('personal.habit.activeStreaks')}
               value={String(stats.totalCurrentStreak)}
-              sub="combined days"
+              sub={t('personal.habit.combinedDays')}
             />
             <StatCard
               icon={<TrendingUp size={16} className="text-emerald-400" />}
-              label="Best Streak"
+              label={t('personal.habit.bestStreak')}
               value={String(stats.bestStreak)}
-              sub="days"
+              sub={t('personal.habit.days')}
             />
             <StatCard
               icon={<Zap size={16} className="text-amber-400" />}
-              label="Total Habits"
+              label={t('personal.habit.totalHabits')}
               value={String(stats.total)}
-              sub="tracking"
+              sub={t('personal.habit.tracking')}
             />
           </div>
         )}
@@ -201,7 +188,7 @@ export function PersonalHabits() {
         {todayItems.length > 0 && (
           <section>
             <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-3">
-              Today&apos;s Progress
+              {t('personal.habit.todaysProgress')}
             </h3>
             <div className="space-y-1.5">
               {todayItems.map(item => {
@@ -233,12 +220,31 @@ export function PersonalHabits() {
                         {item.icon && <span className="mr-1.5">{item.icon}</span>}
                         {item.title}
                       </div>
-                      {item.target_count > 1 && (
-                        <div className="text-[11px] text-slate-500 mt-0.5">
-                          {item.completed_count}/{item.target_count}{item.unit ? ` ${item.unit}` : ''}
-                        </div>
-                      )}
                     </div>
+                    {item.target_count > 1 && (
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        {Array.from({ length: Math.min(item.target_count, 7) }).map((_, i) => (
+                          <motion.div
+                            key={i}
+                            initial={false}
+                            animate={{ scale: i < item.completed_count ? 1 : 0.8 }}
+                            transition={{ type: 'spring', stiffness: 400, damping: 15 }}
+                            className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
+                              i >= item.completed_count ? 'bg-white/[0.08] border border-white/10' : ''
+                            }`}
+                            style={i < item.completed_count ? {
+                              backgroundColor: habit?.color || '#8B5CF6',
+                              boxShadow: `0 0 6px ${habit?.color || '#8B5CF6'}40`,
+                            } : {}}
+                          />
+                        ))}
+                        {item.target_count > 7 && (
+                          <span className="text-[10px] text-slate-500 font-medium">
+                            +{item.target_count - 7}
+                          </span>
+                        )}
+                      </div>
+                    )}
                     {item.current_streak > 0 && (
                       <div className="flex items-center gap-1 text-xs text-orange-400 font-bold flex-shrink-0">
                         <Flame size={12} />
@@ -259,7 +265,7 @@ export function PersonalHabits() {
         {/* All Habits List */}
         <section>
           <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-3">
-            {habits.length > 0 ? 'All Habits' : ''}
+            {habits.length > 0 ? t('personal.habit.allHabits') : ''}
           </h3>
 
           {habits.length === 0 ? (
@@ -343,6 +349,8 @@ function StatCard({ icon, label, value, sub }: {
    ================================================================ */
 
 function EmptyState({ onAdd }: { onAdd: () => void }) {
+  const { t } = useTranslation();
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -352,16 +360,16 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
       <div className="w-16 h-16 rounded-2xl bg-purple-500/10 flex items-center justify-center mb-4">
         <Flame size={32} className="text-purple-400" />
       </div>
-      <h3 className="text-lg font-bold text-white mb-2">Start building habits</h3>
+      <h3 className="text-lg font-bold text-white mb-2">{t('personal.habit.startBuilding')}</h3>
       <p className="text-sm text-slate-400 mb-6 max-w-xs">
-        Track daily routines, build streaks, and stay consistent with your goals.
+        {t('personal.habit.startBuildingDesc')}
       </p>
       <button
         onClick={onAdd}
         className="flex items-center gap-2 px-5 py-2.5 bg-purple-500 text-white text-sm font-bold rounded-xl hover:bg-purple-500/90 transition-all"
       >
         <Plus size={16} />
-        Add Your First Habit
+        {t('personal.habit.addFirstHabit')}
       </button>
     </motion.div>
   );
@@ -376,6 +384,7 @@ function HabitCard({ habit, onEdit, onDelete }: {
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  const { t } = useTranslation();
   const [showMenu, setShowMenu] = useState(false);
 
   return (
@@ -408,7 +417,7 @@ function HabitCard({ habit, onEdit, onDelete }: {
           <div className="flex items-center gap-3 mt-1">
             <span className="text-[11px] text-slate-400 flex items-center gap-1">
               <Calendar size={10} />
-              {formatFrequency(habit)}
+              {formatFrequency(habit, t)}
             </span>
             {habit.target_count > 1 && (
               <span className="text-[11px] text-slate-400 flex items-center gap-1">
@@ -419,7 +428,7 @@ function HabitCard({ habit, onEdit, onDelete }: {
             {habit.best_streak > 0 && (
               <span className="text-[11px] text-slate-500 flex items-center gap-1">
                 <TrendingUp size={10} />
-                Best: {habit.best_streak}d
+                {t('personal.habit.bestLabel', { days: habit.best_streak })}
               </span>
             )}
           </div>
@@ -445,14 +454,14 @@ function HabitCard({ habit, onEdit, onDelete }: {
                   className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-300 hover:bg-white/5 transition-colors"
                 >
                   <Pencil size={12} />
-                  Edit
+                  {t('personal.habit.edit')}
                 </button>
                 <button
                   onClick={() => { setShowMenu(false); onDelete(); }}
                   className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-400 hover:bg-red-400/5 transition-colors"
                 >
                   <Trash2 size={12} />
-                  Delete
+                  {t('personal.habit.delete')}
                 </button>
               </div>
             </>
@@ -467,7 +476,7 @@ function HabitCard({ habit, onEdit, onDelete }: {
    Habit Form Modal (Create & Edit — shared)
    ================================================================ */
 
-interface HabitFormData {
+export interface HabitFormData {
   title: string;
   description?: string;
   icon?: string;
@@ -476,13 +485,15 @@ interface HabitFormData {
   frequency_days?: string;
   target_count?: number;
   unit?: string;
+  importance?: HabitImportance;
 }
 
-function HabitFormModal({ habit, onClose, onSubmit }: {
+export function HabitFormModal({ habit, onClose, onSubmit }: {
   habit?: PersonalHabit;
   onClose: () => void;
   onSubmit: (data: HabitFormData) => void;
 }) {
+  const { t } = useTranslation();
   const isEdit = !!habit;
 
   const [title, setTitle] = useState(habit?.title || '');
@@ -491,6 +502,7 @@ function HabitFormModal({ habit, onClose, onSubmit }: {
     habit?.frequency_days ? habit.frequency_days.split(',').map(Number) : [],
   );
   const [showMore, setShowMore] = useState(isEdit);
+  const [importance, setImportance] = useState<HabitImportance>(habit?.importance || 'MEDIUM');
 
   const [icon, setIcon] = useState(habit?.icon || '');
   const [color, setColor] = useState(habit?.color || HABIT_COLORS[0]);
@@ -518,11 +530,12 @@ function HabitFormModal({ habit, onClose, onSubmit }: {
       frequency_days: frequencyType === 'CUSTOM' ? customDays.sort((a, b) => a - b).join(',') : undefined,
       target_count: goalType === 'count' ? targetCount : 1,
       unit: goalType === 'count' && unit.trim() ? unit.trim() : undefined,
+      importance,
     });
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/40 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4 bg-black/40 backdrop-blur-sm">
       <motion.div
         initial={{ opacity: 0, y: 20, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -534,7 +547,7 @@ function HabitFormModal({ habit, onClose, onSubmit }: {
           <div className="flex items-center gap-2">
             <Flame size={18} className="text-purple-400" />
             <h3 className="text-base md:text-lg font-bold text-white">
-              {isEdit ? 'Edit Habit' : 'New Habit'}
+              {isEdit ? t('personal.habit.editHabit') : t('personal.habit.newHabit')}
             </h3>
           </div>
           <button onClick={onClose} className="p-1 text-slate-400 hover:text-white transition-colors">
@@ -546,14 +559,14 @@ function HabitFormModal({ habit, onClose, onSubmit }: {
           {/* Habit Name */}
           <div>
             <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-              Habit Name
+              {t('personal.habit.habitName')}
             </label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-              placeholder="e.g. Morning Run, Read 10 pages"
+              placeholder={t('personal.habit.habitPlaceholder')}
               className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-white text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition-all"
               autoFocus
             />
@@ -562,10 +575,14 @@ function HabitFormModal({ habit, onClose, onSubmit }: {
           {/* Frequency */}
           <div>
             <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">
-              Frequency
+              {t('personal.habit.frequency')}
             </label>
             <div className="flex gap-1.5">
-              {FREQ_PRESETS.map(({ value, label }) => (
+              {([
+                { value: 'DAILY' as HabitFrequency, label: t('personal.habit.everyDay') },
+                { value: 'WEEKDAY' as HabitFrequency, label: t('personal.habit.weekdays') },
+                { value: 'CUSTOM' as HabitFrequency, label: t('personal.habit.custom') },
+              ]).map(({ value, label }) => (
                 <button
                   key={value}
                   onClick={() => {
@@ -588,10 +605,10 @@ function HabitFormModal({ habit, onClose, onSubmit }: {
           {frequencyType === 'CUSTOM' && (
             <div>
               <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">
-                Repeat on
+                {t('personal.habit.repeatOn')}
               </label>
               <div className="flex gap-1.5">
-                {DAY_CHIPS.map(({ value, label }) => (
+                {DAY_CHIP_VALUES.map(v => ({ value: v, label: t(DAY_KEYS[v]).charAt(0) })).map(({ value, label }) => (
                   <button
                     key={value}
                     onClick={() => toggleDay(value)}
@@ -606,10 +623,39 @@ function HabitFormModal({ habit, onClose, onSubmit }: {
                 ))}
               </div>
               {customDays.length === 0 && (
-                <p className="mt-1.5 text-xs text-amber-400">Select at least one day</p>
+                <p className="mt-1.5 text-xs text-amber-400">{t('personal.habit.selectDay')}</p>
               )}
             </div>
           )}
+
+          {/* Importance */}
+          <div>
+            <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">
+              {t('personal.habit.importance')}
+            </label>
+            <div className="flex gap-1.5">
+              <button
+                onClick={() => setImportance('HIGH')}
+                className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                  importance === 'HIGH'
+                    ? 'bg-orange-500 text-white shadow-sm'
+                    : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                ⭐ {t('personal.habit.important')}
+              </button>
+              <button
+                onClick={() => setImportance('MEDIUM')}
+                className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                  importance === 'MEDIUM'
+                    ? 'bg-slate-500 text-white shadow-sm'
+                    : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                {t('personal.habit.normal')}
+              </button>
+            </div>
+          </div>
 
           {/* More Options Toggle */}
           <button
@@ -617,7 +663,7 @@ function HabitFormModal({ habit, onClose, onSubmit }: {
             className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-300 transition-colors"
           >
             {showMore ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-            {showMore ? 'Less options' : 'More options'}
+            {showMore ? t('personal.habit.lessOptions') : t('personal.habit.moreOptions')}
           </button>
 
           {/* Expanded Options */}
@@ -632,7 +678,7 @@ function HabitFormModal({ habit, onClose, onSubmit }: {
                 {/* Icon Picker */}
                 <div>
                   <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">
-                    Icon
+                    {t('personal.habit.icon')}
                   </label>
                   <div className="flex flex-wrap gap-1.5">
                     {HABIT_ICONS.map((emoji) => (
@@ -654,7 +700,7 @@ function HabitFormModal({ habit, onClose, onSubmit }: {
                 {/* Color Picker */}
                 <div>
                   <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">
-                    Color
+                    {t('personal.habit.color')}
                   </label>
                   <div className="flex gap-2">
                     {HABIT_COLORS.map((c) => (
@@ -675,7 +721,7 @@ function HabitFormModal({ habit, onClose, onSubmit }: {
                 {/* Goal Type */}
                 <div>
                   <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">
-                    Goal Type
+                    {t('personal.habit.goalType')}
                   </label>
                   <div className="flex gap-1.5">
                     <button
@@ -687,7 +733,7 @@ function HabitFormModal({ habit, onClose, onSubmit }: {
                       }`}
                     >
                       <CheckCircle2 size={14} />
-                      Check-off
+                      {t('personal.habit.checkOff')}
                     </button>
                     <button
                       onClick={() => setGoalType('count')}
@@ -698,7 +744,7 @@ function HabitFormModal({ habit, onClose, onSubmit }: {
                       }`}
                     >
                       <Hash size={14} />
-                      Count
+                      {t('personal.habit.count')}
                     </button>
                   </div>
                 </div>
@@ -708,7 +754,7 @@ function HabitFormModal({ habit, onClose, onSubmit }: {
                   <div className="flex gap-3">
                     <div className="w-24">
                       <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-                        Target
+                        {t('personal.habit.target')}
                       </label>
                       <input
                         type="number"
@@ -721,13 +767,13 @@ function HabitFormModal({ habit, onClose, onSubmit }: {
                     </div>
                     <div className="flex-1">
                       <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-                        Unit
+                        {t('personal.habit.unit')}
                       </label>
                       <input
                         type="text"
                         value={unit}
                         onChange={(e) => setUnit(e.target.value)}
-                        placeholder="e.g. glasses, pages, km"
+                        placeholder={t('personal.habit.unitPlaceholder')}
                         className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-white text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all"
                       />
                     </div>
@@ -737,12 +783,12 @@ function HabitFormModal({ habit, onClose, onSubmit }: {
                 {/* Description */}
                 <div>
                   <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-                    Description
+                    {t('personal.habit.description')}
                   </label>
                   <textarea
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Why this habit matters to you"
+                    placeholder={t('personal.habit.descPlaceholder')}
                     rows={2}
                     className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-white text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all resize-none"
                   />
@@ -758,14 +804,14 @@ function HabitFormModal({ habit, onClose, onSubmit }: {
             onClick={onClose}
             className="flex-1 py-3 text-sm font-bold text-slate-400 hover:text-white border border-white/10 rounded-xl hover:bg-white/5 transition-all"
           >
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             onClick={handleSubmit}
             disabled={!isValid}
             className="flex-1 py-3 bg-purple-500 text-white text-sm font-bold rounded-xl hover:bg-purple-500/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
           >
-            {isEdit ? 'Save Changes' : 'Add Habit'}
+            {isEdit ? t('personal.habit.saveChanges') : t('personal.habit.addHabit')}
           </button>
         </div>
       </motion.div>
@@ -777,13 +823,15 @@ function HabitFormModal({ habit, onClose, onSubmit }: {
    Delete Confirm Modal
    ================================================================ */
 
-function DeleteConfirmModal({ habitName, onConfirm, onCancel }: {
+export function DeleteConfirmModal({ habitName, onConfirm, onCancel }: {
   habitName: string;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const { t } = useTranslation();
+
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/40 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4 bg-black/40 backdrop-blur-sm">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -795,14 +843,13 @@ function DeleteConfirmModal({ habitName, onConfirm, onCancel }: {
             <Trash2 size={18} className="text-red-400" />
           </div>
           <div>
-            <h3 className="text-base font-bold text-white">Delete Habit</h3>
-            <p className="text-xs text-slate-400 mt-0.5">This action cannot be undone</p>
+            <h3 className="text-base font-bold text-white">{t('personal.habit.deleteHabit')}</h3>
+            <p className="text-xs text-slate-400 mt-0.5">{t('personal.habit.deleteWarning')}</p>
           </div>
         </div>
 
         <p className="text-sm text-slate-300 mb-6">
-          Are you sure you want to delete <span className="font-bold text-white">&ldquo;{habitName}&rdquo;</span>?
-          All streak data and history will be permanently lost.
+          {t('personal.habit.deleteConfirm', { name: habitName })}
         </p>
 
         <div className="flex gap-3">
@@ -810,13 +857,13 @@ function DeleteConfirmModal({ habitName, onConfirm, onCancel }: {
             onClick={onCancel}
             className="flex-1 py-2.5 text-sm font-bold text-slate-400 hover:text-white border border-white/10 rounded-xl hover:bg-white/5 transition-all"
           >
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             onClick={onConfirm}
             className="flex-1 py-2.5 bg-red-500 text-white text-sm font-bold rounded-xl hover:bg-red-500/90 transition-all"
           >
-            Delete
+            {t('common.delete')}
           </button>
         </div>
       </motion.div>

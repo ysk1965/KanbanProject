@@ -252,8 +252,7 @@
   "dashboard": {
     "sidebar": {
       "allBoards": "Todos los tableros",
-      "favorites": "Favoritos",
-      "teamMembers": "Miembros del equipo",
+      "myBoard": "Mi Tablero",
       "settings": "Configuración",
       "upgradePro": "Mejorar a Pro",
       "upgradeDesc": "Prueba tableros ilimitados y análisis avanzados.",
@@ -2485,6 +2484,44 @@
       "monthly_usage": "Uso mensual",
       "purchased_remaining": "Créditos comprados restantes",
       "total_remaining": "Total restante"
+    }
+  },
+  "personal": {
+    "tabs": {
+      "overview": "Inicio",
+      "todo": "Tareas",
+      "schedule": "Horario",
+      "calendar": "Calendario",
+      "diary": "Diario IA"
+    },
+    "overview": {
+      "noEvents": "No hay eventos hoy",
+      "addSchedule": "Agregar horario",
+      "noDeadlines": "No hay plazos próximos",
+      "addDeadline": "Agregar tarea"
+    },
+    "calendar": {
+      "task": "Tarea",
+      "event": "Evento",
+      "today": "Hoy",
+      "addEvent": "Agregar evento",
+      "tasksCount": "{{count}} tareas",
+      "eventsCount": "{{count}} eventos",
+      "taskDeadline": "Fecha límite de la tarea",
+      "overdue": "Vencido",
+      "recurring": "Recurrente",
+      "noItems": "Sin elementos para este día",
+      "newEvent": "Nuevo evento",
+      "date": "Fecha",
+      "title": "Título",
+      "eventTitle": "Título del evento",
+      "description": "Descripción",
+      "optionalDesc": "Descripción opcional",
+      "allDay": "Todo el día",
+      "start": "Inicio",
+      "end": "Fin",
+      "color": "Color",
+      "thisWeek": "Esta semana"
     }
   }
 }

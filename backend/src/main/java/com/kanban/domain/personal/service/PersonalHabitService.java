@@ -11,8 +11,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -55,6 +57,7 @@ public class PersonalHabitService {
                 .frequencyDays(request.getFrequencyDays())
                 .targetCount(request.getTargetCount() != null ? request.getTargetCount() : 1)
                 .unit(request.getUnit())
+                .importance(request.getImportance() != null ? request.getImportance() : HabitImportance.MEDIUM)
                 .build();
 
         habitRepository.save(habit);
@@ -66,7 +69,7 @@ public class PersonalHabitService {
         PersonalHabit habit = findHabitAndVerifyOwner(userId, habitId);
         habit.update(request.getTitle(), request.getDescription(), request.getIcon(), request.getColor(),
                 request.getFrequencyType(), request.getFrequencyDays(),
-                request.getTargetCount(), request.getUnit());
+                request.getTargetCount(), request.getUnit(), request.getImportance());
         return PersonalHabitResponse.Detail.of(habit);
     }
 
@@ -87,13 +90,15 @@ public class PersonalHabitService {
     @Transactional
     public PersonalHabitResponse.TodayItem checkIn(String userId, String habitId, PersonalHabitRequest.CheckIn request) {
         PersonalHabit habit = findHabitAndVerifyOwner(userId, habitId);
-        LocalDate today = LocalDate.now(ZoneOffset.UTC);
+        LocalDate targetDate = (request != null && request.getLogDate() != null)
+                ? request.getLogDate()
+                : LocalDate.now(ZoneOffset.UTC);
 
-        PersonalHabitLog log = habitLogRepository.findByHabitIdAndLogDate(habitId, today)
+        PersonalHabitLog log = habitLogRepository.findByHabitIdAndLogDate(habitId, targetDate)
                 .orElseGet(() -> {
                     PersonalHabitLog newLog = PersonalHabitLog.builder()
                             .habit(habit)
-                            .logDate(today)
+                            .logDate(targetDate)
                             .build();
                     return habitLogRepository.save(newLog);
                 });
@@ -108,9 +113,17 @@ public class PersonalHabitService {
             // note is set via builder, we need to handle it
         }
 
-        updateStreak(habit, today);
+        updateStreak(habit, targetDate);
 
-        return PersonalHabitResponse.TodayItem.of(habit, log);
+        // Recalculate weekly stats
+        LocalDate weekStart = targetDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        LocalDate weekEnd = targetDate.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY));
+        int weeklyTarget = getWeeklyTarget(habit, weekStart, weekEnd);
+        int weeklyCompleted = (int) habitLogRepository
+                .findByHabitIdAndDateRange(habitId, weekStart, weekEnd)
+                .stream().filter(PersonalHabitLog::getIsCompleted).count();
+
+        return PersonalHabitResponse.TodayItem.of(habit, log, weeklyTarget, weeklyCompleted);
     }
 
     // ─── Today / Weekly ───
@@ -124,9 +137,23 @@ public class PersonalHabitService {
                 .stream()
                 .collect(Collectors.toMap(l -> l.getHabit().getId(), l -> l));
 
+        // Weekly stats: Monday ~ Sunday
+        LocalDate weekStart = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        LocalDate weekEnd = today.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY));
+        Map<String, List<PersonalHabitLog>> weeklyLogs = habitLogRepository
+                .findByHabitIdsAndDateRange(habitIds, weekStart, weekEnd)
+                .stream()
+                .collect(Collectors.groupingBy(l -> l.getHabit().getId()));
+
         return habits.stream()
                 .filter(h -> isScheduledForDate(h, today))
-                .map(h -> PersonalHabitResponse.TodayItem.of(h, logMap.get(h.getId())))
+                .map(h -> {
+                    int weeklyTarget = getWeeklyTarget(h, weekStart, weekEnd);
+                    int weeklyCompleted = (int) weeklyLogs.getOrDefault(h.getId(), List.of())
+                            .stream().filter(PersonalHabitLog::getIsCompleted).count();
+                    return PersonalHabitResponse.TodayItem.of(
+                            h, logMap.get(h.getId()), weeklyTarget, weeklyCompleted);
+                })
                 .toList();
     }
 
@@ -195,6 +222,14 @@ public class PersonalHabitService {
         }
 
         habit.updateStreak(streak);
+    }
+
+    private int getWeeklyTarget(PersonalHabit habit, LocalDate weekStart, LocalDate weekEnd) {
+        int count = 0;
+        for (LocalDate d = weekStart; !d.isAfter(weekEnd); d = d.plusDays(1)) {
+            if (isScheduledForDate(habit, d)) count++;
+        }
+        return count;
     }
 
     private boolean isScheduledForDate(PersonalHabit habit, LocalDate date) {

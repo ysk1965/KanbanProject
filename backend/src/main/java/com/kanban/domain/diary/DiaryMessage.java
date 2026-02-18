@@ -33,6 +33,12 @@ public class DiaryMessage extends BaseTimeEntity {
     @Column(name = "message_order", nullable = false)
     private Integer messageOrder;
 
+    @Column(name = "audio_url", length = 500)
+    private String audioUrl;
+
+    @Column(name = "audio_duration_seconds")
+    private Integer audioDurationSeconds;
+
     @PrePersist
     public void prePersist() {
         if (this.id == null) {

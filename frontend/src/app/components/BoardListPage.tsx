@@ -17,7 +17,7 @@ import {
   AlertDialogTitle,
 } from './ui/alert-dialog';
 import type { Board } from '../types';
-import { testDataAPI } from '../utils/api';
+import { testDataAPI, personalSpaceAPI } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
 
 interface BoardListPageProps {
@@ -63,7 +63,7 @@ export function BoardListPage({
   const [isCreatingTestData, setIsCreatingTestData] = useState(false);
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { hideBilling, currentUser } = useAuth();
+  const { hideBilling, currentUser, updateCurrentUser } = useAuth();
 
   const handleEditBoard = (board: Board) => {
     setSelectedBoard(board);
@@ -102,6 +102,17 @@ export function BoardListPage({
   };
 
   const starredBoards = boards.filter((b) => b.is_starred);
+  const hasPersonalSpace = currentUser?.personal_space_enabled ?? false;
+
+  const handleActivatePersonalSpace = async () => {
+    try {
+      await personalSpaceAPI.activate();
+      updateCurrentUser({ personal_space_enabled: true });
+      navigate('/my-board');
+    } catch (error) {
+      console.error('Failed to activate personal space:', error);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-bridge-dark text-white">
@@ -236,6 +247,8 @@ export function BoardListPage({
           onCreateBoard(name, description);
           setIsCreateModalOpen(false);
         }}
+        hasPersonalSpace={hasPersonalSpace}
+        onActivatePersonalSpace={handleActivatePersonalSpace}
       />
 
       {/* 보드 수정 모달 */}

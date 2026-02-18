@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { CreditCard, LogOut, Settings as SettingsIcon, ChevronDown } from 'lucide-react';
 import { getInitials, getAssigneeHex } from '../utils/assigneeColor';
+import { resolveFileUrl } from '../utils/api';
 
 interface UserMenuProps {
   user: {
@@ -48,9 +49,9 @@ export function UserMenu({ user, assigneeColor, onOpenSubscription, onLogout, hi
       >
         {user.avatar ? (
           <img
-            src={user.avatar}
+            src={resolveFileUrl(user.avatar)}
             alt={user.name}
-            className="w-8 h-8 rounded-full"
+            className="w-8 h-8 rounded-full object-cover"
           />
         ) : (
           <div

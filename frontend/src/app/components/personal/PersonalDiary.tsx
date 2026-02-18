@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
-import { Send, BookHeart, ChevronLeft, ChevronRight, Check, Sparkles, RotateCcw, BookOpen, Pencil, RefreshCw, AlertTriangle, X, CalendarIcon } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { Send, BookHeart, ChevronLeft, ChevronRight, Check, Sparkles, RotateCcw, BookOpen, Pencil, RefreshCw, AlertTriangle, X, CalendarIcon, Mic, Volume2, Play, Pause, Square } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import {
   startOfMonth,
   endOfMonth,
@@ -13,27 +14,42 @@ import {
   addMonths,
   subMonths,
 } from 'date-fns';
-import { ko } from 'date-fns/locale';
 import { diaryService } from '../../utils/services';
 import { formatDate } from '../../utils/dateUtils';
 import type { DiaryDetail, DiaryMessage, DiarySimple } from '../../types';
+import type { TFunction } from 'i18next';
 
-const MOODS = [
-  { emoji: '\u{1F60A}', label: '행복', value: 'happy' },
-  { emoji: '\u{1F60C}', label: '평온', value: 'calm' },
-  { emoji: '\u{1F914}', label: '생각 많은', value: 'thoughtful' },
-  { emoji: '\u{1F614}', label: '피곤', value: 'tired' },
-  { emoji: '\u{1F622}', label: '슬픔', value: 'sad' },
-  { emoji: '\u{1F620}', label: '짜증', value: 'frustrated' },
-  { emoji: '\u{1F929}', label: '신남', value: 'excited' },
-  { emoji: '\u{1F971}', label: '지루', value: 'bored' },
+const MOOD_ENTRIES = [
+  { emoji: '\u{1F60A}', key: 'moodHappy', value: 'happy' },
+  { emoji: '\u{1F60C}', key: 'moodCalm', value: 'calm' },
+  { emoji: '\u{1F914}', key: 'moodThoughtful', value: 'thoughtful' },
+  { emoji: '\u{1F614}', key: 'moodTired', value: 'tired' },
+  { emoji: '\u{1F622}', key: 'moodSad', value: 'sad' },
+  { emoji: '\u{1F620}', key: 'moodFrustrated', value: 'frustrated' },
+  { emoji: '\u{1F929}', key: 'moodExcited', value: 'excited' },
+  { emoji: '\u{1F971}', key: 'moodBored', value: 'bored' },
 ];
+
+function getMoods(t: TFunction) {
+  return MOOD_ENTRIES.map((m) => ({
+    emoji: m.emoji,
+    label: t(`personal.diary.${m.key}`),
+    value: m.value,
+  }));
+}
 
 function toDateString(d: Date): string {
   return d.toISOString().split('T')[0];
 }
 
+// ============================
+// Voice Recording States
+// ============================
+type VoiceState = 'idle' | 'recording' | 'processing' | 'ai-speaking';
+
 export function PersonalDiary() {
+  const { t } = useTranslation();
+  const MOODS = useMemo(() => getMoods(t), [t]);
   const [currentDate, setCurrentDate] = useState(toDateString(new Date()));
   const [diary, setDiary] = useState<DiaryDetail | null>(null);
   const [diaryList, setDiaryList] = useState<DiarySimple[]>([]);
@@ -43,8 +59,22 @@ export function PersonalDiary() {
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
+  // Voice state
+  const [voiceState, setVoiceState] = useState<VoiceState>('idle');
+  const [recordingDuration, setRecordingDuration] = useState(0);
+  const [hasMicSupport, setHasMicSupport] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
   const currentDateObj = new Date(currentDate + 'T00:00:00');
   const [calendarMonth, setCalendarMonth] = useState(startOfMonth(currentDateObj));
+
+  // Check mic support
+  useEffect(() => {
+    setHasMicSupport(!!navigator.mediaDevices?.getUserMedia);
+  }, []);
 
   // Sync calendar month when currentDate changes to a different month
   useEffect(() => {
@@ -68,6 +98,20 @@ export function PersonalDiary() {
   useEffect(() => {
     scrollToBottom();
   }, [diary?.messages]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (mediaRecorderRef.current?.state === 'recording') {
+        mediaRecorderRef.current.stop();
+      }
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
 
   const scrollToBottom = () => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -142,6 +186,139 @@ export function PersonalDiary() {
     }
   };
 
+  // ============================
+  // Voice Recording Handlers
+  // ============================
+
+  const startRecording = useCallback(async () => {
+    if (!diary || voiceState !== 'idle') return;
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus'
+        : 'audio/webm';
+      const mediaRecorder = new MediaRecorder(stream, { mimeType });
+
+      chunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          chunksRef.current.push(e.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop());
+        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+        if (blob.size > 0) {
+          handleVoiceSubmit(blob);
+        } else {
+          setVoiceState('idle');
+        }
+      };
+
+      mediaRecorder.start(500);
+      mediaRecorderRef.current = mediaRecorder;
+      setVoiceState('recording');
+      setRecordingDuration(0);
+
+      // Vibrate on mobile
+      if (navigator.vibrate) navigator.vibrate(50);
+
+      timerRef.current = setInterval(() => {
+        setRecordingDuration((d) => d + 1);
+      }, 1000);
+    } catch (error) {
+      console.error('Failed to start recording:', error);
+      setVoiceState('idle');
+    }
+  }, [diary, voiceState]);
+
+  const stopRecording = useCallback(() => {
+    if (mediaRecorderRef.current?.state === 'recording') {
+      mediaRecorderRef.current.stop();
+    }
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    // Vibrate on mobile
+    if (navigator.vibrate) navigator.vibrate(30);
+  }, []);
+
+  const handleVoiceSubmit = async (audioBlob: Blob) => {
+    if (!diary) return;
+
+    setVoiceState('processing');
+    setIsSending(true);
+
+    // Optimistic: add placeholder user message
+    const tempUserMsg: DiaryMessage = {
+      id: `temp-voice-${Date.now()}`,
+      role: 'USER',
+      content: t('personal.diary.voiceProcessing'),
+      message_order: (diary.messages?.length || 0) + 1,
+      created_at: new Date().toISOString(),
+    };
+    setDiary((prev) => prev ? { ...prev, messages: [...(prev.messages || []), tempUserMsg] } : prev);
+
+    try {
+      const reply = await diaryService.sendVoiceMessage(diary.id, audioBlob);
+
+      // Replace temp message with actual messages
+      setDiary((prev) => {
+        if (!prev) return prev;
+        const msgs = prev.messages.filter((m) => m.id !== tempUserMsg.id);
+        return {
+          ...prev,
+          messages: [...msgs, reply.user_message, reply.ai_message],
+        };
+      });
+
+      // Auto-play AI voice response
+      if (reply.ai_audio_url) {
+        setVoiceState('ai-speaking');
+        const audio = new Audio(reply.ai_audio_url);
+        audioRef.current = audio;
+        audio.onended = () => {
+          setVoiceState('idle');
+          audioRef.current = null;
+        };
+        audio.onerror = () => {
+          setVoiceState('idle');
+          audioRef.current = null;
+        };
+        audio.play().catch(() => {
+          setVoiceState('idle');
+          audioRef.current = null;
+        });
+      } else {
+        setVoiceState('idle');
+      }
+    } catch (error) {
+      console.error('Failed to process voice message:', error);
+      setDiary((prev) => prev ? { ...prev, messages: prev.messages.filter((m) => m.id !== tempUserMsg.id) } : prev);
+      setVoiceState('idle');
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const stopAiSpeaking = useCallback(() => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    setVoiceState('idle');
+  }, []);
+
+  const formatRecordTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+
   const [isCompleting, setIsCompleting] = useState(false);
 
   const handleCompleteDiary = async (mood?: string) => {
@@ -201,7 +378,15 @@ export function PersonalDiary() {
     return eachDayOfInterval({ start: calStart, end: calEnd });
   }, [calendarMonth]);
 
-  const weekDays = ['일', '월', '화', '수', '목', '금', '토'];
+  const weekDays = [
+    t('personal.diary.sun'),
+    t('personal.diary.mon'),
+    t('personal.diary.tue'),
+    t('personal.diary.wed'),
+    t('personal.diary.thu'),
+    t('personal.diary.fri'),
+    t('personal.diary.sat'),
+  ];
 
   const handleCalendarDateClick = (day: Date) => {
     const dateStr = format(day, 'yyyy-MM-dd');
@@ -251,7 +436,7 @@ export function PersonalDiary() {
           {/* Title */}
           <div className="flex items-center gap-2.5 mb-4">
             <BookOpen size={18} className="text-bridge-accent" />
-            <h2 className="text-base font-bold text-white">AI 다이어리</h2>
+            <h2 className="text-base font-bold text-white">{t('personal.diary.title')}</h2>
             <button
               onClick={() => setShowMobileSidebar(false)}
               className="md:hidden ml-auto p-1.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
@@ -263,7 +448,7 @@ export function PersonalDiary() {
           {/* Month Navigation */}
           <div className="flex items-center justify-between mb-3">
             <span className="text-sm font-semibold text-white">
-              {format(calendarMonth, 'yyyy년 M월', { locale: ko })}
+              {format(calendarMonth, t('personal.diary.yearMonthFormat'))}
             </span>
             <div className="flex items-center gap-1">
               <button
@@ -276,7 +461,7 @@ export function PersonalDiary() {
                 onClick={handleCalendarToday}
                 className="px-2 py-0.5 text-[10px] font-semibold rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
               >
-                오늘
+                {t('personal.diary.today')}
               </button>
               <button
                 onClick={handleNextMonth}
@@ -362,7 +547,7 @@ export function PersonalDiary() {
           <div className="flex items-center gap-2 mb-2">
             <BookHeart size={14} className="text-bridge-secondary" />
             <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
-              이번 달 일기
+              {t('personal.diary.monthDiaries')}
             </span>
             {diaryList.length > 0 && (
               <span className="text-[10px] font-bold text-bridge-secondary bg-bridge-secondary/10 px-1.5 py-0.5 rounded">
@@ -372,8 +557,8 @@ export function PersonalDiary() {
           </div>
           {diaryList.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-slate-500 text-xs">이번 달 일기가 아직 없어요</p>
-              <p className="text-slate-600 text-[10px] mt-1">오늘부터 시작해볼까요?</p>
+              <p className="text-slate-500 text-xs">{t('personal.diary.noMonthDiaries')}</p>
+              <p className="text-slate-600 text-[10px] mt-1">{t('personal.diary.startToday')}</p>
             </div>
           ) : (
             <div className="space-y-1.5">
@@ -394,7 +579,7 @@ export function PersonalDiary() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
                         <span className="text-[13px] font-medium text-white truncate group-hover:text-bridge-accent transition-colors">
-                          {d.title || format(new Date(d.diary_date + 'T00:00:00'), 'M월 d일')}
+                          {d.title || format(new Date(d.diary_date + 'T00:00:00'), t('personal.diary.monthDayFormat'))}
                         </span>
                         <span className="text-sm flex-shrink-0 ml-2">
                           {d.mood ? MOODS.find((m) => m.value === d.mood)?.emoji || '' : ''}
@@ -406,10 +591,10 @@ export function PersonalDiary() {
                             ? 'text-bridge-secondary/80 bg-bridge-secondary/10'
                             : 'text-amber-400/80 bg-amber-400/10'
                         }`}>
-                          {d.status === 'COMPLETED' ? '완료' : '작성 중'}
+                          {d.status === 'COMPLETED' ? t('personal.diary.completed') : t('personal.diary.writing')}
                         </span>
                         <span className="text-[10px] text-slate-500">
-                          {format(new Date(d.diary_date + 'T00:00:00'), 'M/d (E)', { locale: ko })}
+                          {format(new Date(d.diary_date + 'T00:00:00'), t('personal.diary.dateShortFormat'))}
                         </span>
                       </div>
                     </div>
@@ -427,7 +612,7 @@ export function PersonalDiary() {
           <div className="flex-1 flex items-center justify-center">
             <div className="flex items-center gap-2 text-slate-400 text-sm">
               <div className="w-4 h-4 border-2 border-bridge-accent/30 border-t-bridge-accent rounded-full animate-spin" />
-              불러오는 중...
+              {t('personal.diary.loading')}
             </div>
           </div>
         ) : !diary ? (
@@ -460,19 +645,19 @@ export function PersonalDiary() {
                   {isToday ? (
                     <>
                       {new Date().getHours() < 12
-                        ? '좋은 아침이에요 ☀️'
+                        ? t('personal.diary.morningGreeting')
                         : new Date().getHours() < 18
-                          ? '좋은 오후예요 🌤'
-                          : '수고한 하루였죠 🌙'}
+                          ? t('personal.diary.afternoonGreeting')
+                          : t('personal.diary.eveningGreeting')}
                     </>
                   ) : (
-                    `${format(new Date(currentDate + 'T00:00:00'), 'M월 d일', { locale: ko })}의 기록`
+                    t('personal.diary.dateRecord', { date: format(new Date(currentDate + 'T00:00:00'), t('personal.diary.monthDayFormat')) })
                   )}
                 </h3>
                 <p className="text-slate-400 text-sm leading-relaxed">
                   {isToday
-                    ? 'AI가 오늘 하루에 대해 물어볼게요.\n편하게 대화하다 보면 일기가 자연스럽게 완성돼요.'
-                    : '이 날의 기억을 되살려 볼까요?\nAI와 함께 그날의 이야기를 기록해보세요.'}
+                    ? t('personal.diary.todayPrompt')
+                    : t('personal.diary.pastPrompt')}
                 </p>
               </div>
 
@@ -484,12 +669,12 @@ export function PersonalDiary() {
                 className="flex items-center gap-2.5 px-8 py-3.5 bg-gradient-to-r from-bridge-accent to-purple-500 text-white font-bold rounded-xl shadow-lg shadow-bridge-accent/25 transition-shadow hover:shadow-bridge-accent/40"
               >
                 <Sparkles size={18} />
-                {isToday ? '오늘의 일기 시작하기' : '일기 작성하기'}
+                {isToday ? t('personal.diary.startDiary') : t('personal.diary.writeDiary')}
               </motion.button>
 
               {/* Subtle hint */}
               <p className="text-[11px] text-slate-600 mt-1">
-                보통 3~5분이면 하루를 정리할 수 있어요
+                {t('personal.diary.canContinue')}
               </p>
             </motion.div>
           </div>
@@ -500,7 +685,7 @@ export function PersonalDiary() {
               <div className="flex items-center justify-between mb-4 md:mb-6 gap-3">
                 <div className="min-w-0">
                   <h2 className="text-lg md:text-2xl font-bold font-serif text-white mb-1 truncate">
-                    {diary.title || `${formatDate(diary.diary_date)}의 일기`}
+                    {diary.title || t('personal.diary.diaryOf', { date: formatDate(diary.diary_date) })}
                   </h2>
                   {diary.mood && (
                     <span className="text-lg">
@@ -514,21 +699,21 @@ export function PersonalDiary() {
                     className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-400 border border-white/10 rounded-xl hover:text-white hover:bg-white/5 transition-all"
                   >
                     <RotateCcw size={14} />
-                    이어서 쓰기
+                    {t('personal.diary.continueWriting')}
                   </button>
                   <button
                     onClick={() => setShowResetConfirm(true)}
                     className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-400 border border-white/10 rounded-xl hover:text-red-400 hover:border-red-400/30 hover:bg-red-400/5 transition-all"
                   >
                     <RefreshCw size={14} />
-                    다시 대화하기
+                    {t('personal.diary.restartConversation')}
                   </button>
                 </div>
               </div>
 
               <div className="bg-bridge-obsidian/60 rounded-2xl border border-white/5 p-6">
                 <div className="prose prose-invert max-w-none text-slate-300 leading-relaxed whitespace-pre-wrap">
-                  {diary.content || '아직 내용이 없습니다.'}
+                  {diary.content || t('personal.diary.noContent')}
                 </div>
               </div>
 
@@ -536,7 +721,7 @@ export function PersonalDiary() {
               {diary.messages && diary.messages.length > 0 && (
                 <div className="mt-8">
                   <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-4">
-                    대화 기록
+                    {t('personal.diary.conversationHistory')}
                   </h3>
                   <div className="space-y-3">
                     {diary.messages.map((msg) => (
@@ -562,8 +747,8 @@ export function PersonalDiary() {
                 <div className="absolute inset-0 w-16 h-16 rounded-full border-2 border-bridge-accent/30 border-t-bridge-accent animate-spin" />
               </div>
               <div className="text-center">
-                <h3 className="text-lg font-bold text-white mb-1">일기를 정리하고 있어요</h3>
-                <p className="text-slate-400 text-sm">대화 내용을 바탕으로 오늘의 일기를 작성 중...</p>
+                <h3 className="text-lg font-bold text-white mb-1">{t('personal.diary.generating')}</h3>
+                <p className="text-slate-400 text-sm">{t('personal.diary.generatingDesc')}</p>
               </div>
             </motion.div>
           </div>
@@ -586,10 +771,15 @@ export function PersonalDiary() {
                       <Sparkles size={14} className="text-bridge-accent" />
                     </div>
                     <div className="bg-bridge-obsidian/60 border border-white/5 rounded-2xl rounded-tl-sm px-4 py-3">
-                      <div className="flex gap-1">
-                        <div className="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                        <div className="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                        <div className="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                      <div className="flex items-center gap-2">
+                        {voiceState === 'processing' && (
+                          <span className="text-xs text-slate-400 mr-1">{t('personal.diary.voiceListening')}</span>
+                        )}
+                        <div className="flex gap-1">
+                          <div className="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                          <div className="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                          <div className="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                        </div>
                       </div>
                     </div>
                   </motion.div>
@@ -604,7 +794,7 @@ export function PersonalDiary() {
                 <div className="max-w-2xl mx-auto">
                   <div className="flex items-center gap-2 md:gap-3 flex-wrap">
                     <span className="text-[10px] md:text-[11px] font-bold uppercase tracking-widest text-slate-500 w-full md:w-auto">
-                      오늘의 기분:
+                      {t('personal.diary.todaysMood')}
                     </span>
                     {MOODS.map((mood) => (
                       <button
@@ -624,37 +814,127 @@ export function PersonalDiary() {
                       className="flex items-center gap-1.5 px-4 py-1.5 bg-bridge-secondary/20 border border-bridge-secondary/30 text-bridge-secondary rounded-full text-xs font-bold hover:bg-bridge-secondary/30 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
                     >
                       <Check size={14} />
-                      일기 완성
+                      {t('personal.diary.completeDiary')}
                     </button>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Input */}
+            {/* Input + Voice */}
             <div className="border-t border-white/[0.06] px-3 md:px-6 py-3 md:py-4">
-              <div className="max-w-2xl mx-auto flex gap-2 md:gap-3">
-                <input
-                  type="text"
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSendMessage();
-                    }
-                  }}
-                  placeholder="오늘 하루를 이야기해주세요..."
-                  className="flex-1 bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
-                  disabled={isSending}
-                />
-                <button
-                  onClick={handleSendMessage}
-                  disabled={!message.trim() || isSending}
-                  className="p-3 bg-bridge-accent text-white rounded-xl hover:bg-bridge-accent/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                >
-                  <Send size={18} />
-                </button>
+              <div className="max-w-2xl mx-auto">
+                {/* Recording indicator */}
+                <AnimatePresence>
+                  {voiceState === 'recording' && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="mb-3 flex items-center justify-center gap-3"
+                    >
+                      <div className="flex items-center gap-2 px-4 py-2 bg-red-500/10 border border-red-500/20 rounded-xl">
+                        <div className="w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse" />
+                        <span className="text-sm font-bold text-red-400">{formatRecordTime(recordingDuration)}</span>
+                        <span className="text-xs text-red-400/60">{t('personal.diary.voiceRecording')}</span>
+                      </div>
+                    </motion.div>
+                  )}
+                  {voiceState === 'ai-speaking' && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="mb-3 flex items-center justify-center gap-3"
+                    >
+                      <div className="flex items-center gap-2 px-4 py-2 bg-bridge-secondary/10 border border-bridge-secondary/20 rounded-xl">
+                        <Volume2 size={16} className="text-bridge-secondary animate-pulse" />
+                        <span className="text-sm text-bridge-secondary">{t('personal.diary.voiceAiSpeaking')}</span>
+                        <button
+                          onClick={stopAiSpeaking}
+                          className="ml-2 p-1 bg-white/10 rounded-lg hover:bg-white/20 transition-colors"
+                        >
+                          <Square size={12} className="text-white" />
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                <div className="flex gap-2 md:gap-3 items-center">
+                  <input
+                    type="text"
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSendMessage();
+                      }
+                    }}
+                    placeholder={t('personal.diary.inputPlaceholder')}
+                    className="flex-1 bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+                    disabled={isSending || voiceState !== 'idle'}
+                  />
+                  <button
+                    onClick={handleSendMessage}
+                    disabled={!message.trim() || isSending || voiceState !== 'idle'}
+                    className="p-3 bg-bridge-accent text-white rounded-xl hover:bg-bridge-accent/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                  >
+                    <Send size={18} />
+                  </button>
+
+                  {/* Push-to-Talk Button */}
+                  {hasMicSupport && (
+                    <button
+                      onMouseDown={voiceState === 'idle' ? startRecording : undefined}
+                      onMouseUp={voiceState === 'recording' ? stopRecording : undefined}
+                      onMouseLeave={voiceState === 'recording' ? stopRecording : undefined}
+                      onTouchStart={voiceState === 'idle' ? (e) => { e.preventDefault(); startRecording(); } : undefined}
+                      onTouchEnd={voiceState === 'recording' ? (e) => { e.preventDefault(); stopRecording(); } : undefined}
+                      onClick={voiceState === 'ai-speaking' ? stopAiSpeaking : undefined}
+                      disabled={isSending && voiceState === 'idle'}
+                      className={`
+                        relative p-3 rounded-xl transition-all select-none touch-none
+                        ${voiceState === 'recording'
+                          ? 'bg-red-500 text-white scale-110 shadow-lg shadow-red-500/30'
+                          : voiceState === 'processing'
+                            ? 'bg-amber-500/20 text-amber-400 cursor-wait'
+                            : voiceState === 'ai-speaking'
+                              ? 'bg-bridge-secondary/20 text-bridge-secondary'
+                              : 'bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed'
+                        }
+                      `}
+                      title={
+                        voiceState === 'recording' ? t('personal.diary.voiceRelease') :
+                        voiceState === 'ai-speaking' ? t('personal.diary.voiceStopAi') :
+                        t('personal.diary.voiceHold')
+                      }
+                    >
+                      {voiceState === 'recording' ? (
+                        <Mic size={18} className="animate-pulse" />
+                      ) : voiceState === 'processing' ? (
+                        <div className="w-[18px] h-[18px] border-2 border-amber-400/30 border-t-amber-400 rounded-full animate-spin" />
+                      ) : voiceState === 'ai-speaking' ? (
+                        <Volume2 size={18} className="animate-pulse" />
+                      ) : (
+                        <Mic size={18} />
+                      )}
+
+                      {/* Recording pulse ring */}
+                      {voiceState === 'recording' && (
+                        <span className="absolute inset-0 rounded-xl border-2 border-red-500 animate-ping opacity-30" />
+                      )}
+                    </button>
+                  )}
+                </div>
+
+                {/* Voice hint */}
+                {hasMicSupport && voiceState === 'idle' && !isSending && (
+                  <p className="text-[10px] text-slate-600 text-center mt-2">
+                    {t('personal.diary.voiceHint')}
+                  </p>
+                )}
               </div>
             </div>
           </>
@@ -683,10 +963,9 @@ export function PersonalDiary() {
                 <AlertTriangle size={22} className="text-red-400" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-white mb-1">대화를 다시 시작할까요?</h3>
-                <p className="text-sm text-slate-400 leading-relaxed">
-                  기존 대화 내용과 생성된 일기가 모두 삭제되고,<br />
-                  새로운 대화가 시작됩니다.
+                <h3 className="text-lg font-bold text-white mb-1">{t('personal.diary.resetTitle')}</h3>
+                <p className="text-sm text-slate-400 leading-relaxed whitespace-pre-line">
+                  {t('personal.diary.resetWarning')}
                 </p>
               </div>
               <div className="flex items-center gap-3 w-full mt-1">
@@ -694,13 +973,13 @@ export function PersonalDiary() {
                   onClick={() => setShowResetConfirm(false)}
                   className="flex-1 px-4 py-2.5 text-sm font-bold text-slate-300 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all"
                 >
-                  취소
+                  {t('personal.diary.cancel')}
                 </button>
                 <button
                   onClick={handleReset}
                   className="flex-1 px-4 py-2.5 text-sm font-bold text-white bg-red-500/80 rounded-xl hover:bg-red-500 transition-all"
                 >
-                  다시 시작
+                  {t('personal.diary.restart')}
                 </button>
               </div>
             </div>
@@ -717,6 +996,50 @@ export function PersonalDiary() {
   );
 }
 
+// ============================
+// Audio Playback Button
+// ============================
+function AudioPlayButton({ src }: { src: string }) {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const audioElRef = useRef<HTMLAudioElement | null>(null);
+
+  const togglePlay = () => {
+    if (isPlaying && audioElRef.current) {
+      audioElRef.current.pause();
+      setIsPlaying(false);
+      return;
+    }
+
+    const audio = new Audio(src);
+    audioElRef.current = audio;
+    audio.onended = () => setIsPlaying(false);
+    audio.onerror = () => setIsPlaying(false);
+    audio.play().catch(() => setIsPlaying(false));
+    setIsPlaying(true);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (audioElRef.current) {
+        audioElRef.current.pause();
+      }
+    };
+  }, []);
+
+  return (
+    <button
+      onClick={togglePlay}
+      className="flex items-center gap-1.5 mt-1.5 px-2 py-1 bg-white/5 rounded-lg text-[11px] text-slate-400 hover:text-white hover:bg-white/10 transition-all"
+    >
+      {isPlaying ? <Pause size={11} /> : <Play size={11} />}
+      <Volume2 size={11} />
+    </button>
+  );
+}
+
+// ============================
+// Chat Bubble
+// ============================
 function ChatBubble({ message }: { message: DiaryMessage }) {
   const isAI = message.role === 'AI';
 
@@ -739,6 +1062,8 @@ function ChatBubble({ message }: { message: DiaryMessage }) {
         }`}
       >
         {message.content}
+        {/* Show audio play button if message has audio */}
+        {message.audio_url && <AudioPlayButton src={message.audio_url} />}
       </div>
     </motion.div>
   );

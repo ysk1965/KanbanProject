@@ -252,8 +252,7 @@
   "dashboard": {
     "sidebar": {
       "allBoards": "すべてのボード",
-      "favorites": "お気に入り",
-      "teamMembers": "チームメンバー",
+      "myBoard": "マイボード",
       "settings": "設定",
       "upgradePro": "Proにアップグレード",
       "upgradeDesc": "無制限のボードと高度な分析をお試しください。",
@@ -2485,6 +2484,44 @@
       "monthly_usage": "月間使用",
       "purchased_remaining": "追加購入残り",
       "total_remaining": "総残り"
+    }
+  },
+  "personal": {
+    "tabs": {
+      "overview": "ホーム",
+      "todo": "やること",
+      "schedule": "スケジュール",
+      "calendar": "カレンダー",
+      "diary": "AIダイアリー"
+    },
+    "overview": {
+      "noEvents": "今日のイベントはありません",
+      "addSchedule": "スケジュールを追加",
+      "noDeadlines": "予定されている締め切りはありません",
+      "addDeadline": "タスクを追加"
+    },
+    "calendar": {
+      "task": "タスク",
+      "event": "イベント",
+      "today": "今日",
+      "addEvent": "イベントを追加",
+      "tasksCount": "{{count}}件のタスク",
+      "eventsCount": "{{count}}件のイベント",
+      "taskDeadline": "タスク期限",
+      "overdue": "期限切れ",
+      "recurring": "繰り返し",
+      "noItems": "この日のアイテムはありません",
+      "newEvent": "新規イベント",
+      "date": "日付",
+      "title": "タイトル",
+      "eventTitle": "イベントタイトル",
+      "description": "説明",
+      "optionalDesc": "オプションの説明",
+      "allDay": "終日",
+      "start": "開始",
+      "end": "終了",
+      "color": "色",
+      "thisWeek": "今週"
     }
   }
 }

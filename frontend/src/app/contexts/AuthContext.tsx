@@ -150,7 +150,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const updateCurrentUser = (updates: Partial<User>) => {
     setCurrentUser((prev) => {
       if (!prev) return prev;
-      return { ...prev, ...updates };
+      const updated = { ...prev, ...updates };
+      localStorage.setItem('user', JSON.stringify(updated));
+      return updated;
     });
   };
 

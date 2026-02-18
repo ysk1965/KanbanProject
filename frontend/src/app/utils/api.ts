@@ -3960,7 +3960,21 @@ export const publicNoteAPI = {
 // Task Dependency API
 // ========================================
 
-import type { PersonalEvent, DiaryDetail, DiarySimple, DiaryAiReply } from '../types';
+import type { PersonalEvent, DiaryDetail, DiarySimple, DiaryAiReply, DiaryVoiceReply, DiaryVoiceSettings } from '../types';
+
+// ========================================
+// Personal Space API
+// ========================================
+
+export const personalSpaceAPI = {
+  activate: async (): Promise<{ personal_space_enabled: boolean }> => {
+    return apiClient.post('/personal-space/activate', {});
+  },
+
+  getStatus: async (): Promise<{ personal_space_enabled: boolean }> => {
+    return apiClient.get('/personal-space/status');
+  },
+};
 
 // ========================================
 // Personal Event API
@@ -4061,6 +4075,38 @@ export const diaryAPI = {
 
   delete: async (diaryId: string): Promise<void> => {
     return apiClient.delete(`/diary/${diaryId}`);
+  },
+
+  // Voice endpoints
+  sendVoiceMessage: async (diaryId: string, audioBlob: Blob): Promise<DiaryVoiceReply> => {
+    const formData = new FormData();
+    formData.append('file', audioBlob, 'recording.webm');
+
+    const response = await authenticatedFetch(
+      `${API_BASE_URL}/diary/${diaryId}/voice-message`,
+      {
+        method: 'POST',
+        body: formData,
+      }
+    );
+
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({
+        code: 'UNKNOWN',
+        message: response.statusText,
+      }));
+      throw errData;
+    }
+
+    return response.json();
+  },
+
+  getVoiceSettings: async (): Promise<DiaryVoiceSettings> => {
+    return apiClient.get('/diary/voice-settings');
+  },
+
+  updateVoiceSettings: async (data: Partial<DiaryVoiceSettings>): Promise<DiaryVoiceSettings> => {
+    return apiClient.put('/diary/voice-settings', data);
   },
 };
 
@@ -4209,6 +4255,7 @@ export const personalHabitAPI = {
     frequency_days?: string;
     target_count?: number;
     unit?: string;
+    importance?: import('../types').HabitImportance;
   }): Promise<import('../types').PersonalHabit> => {
     return apiClient.post('/personal/habits', data);
   },
@@ -4222,6 +4269,7 @@ export const personalHabitAPI = {
     frequency_days?: string;
     target_count?: number;
     unit?: string;
+    importance?: import('../types').HabitImportance;
   }): Promise<import('../types').PersonalHabit> => {
     return apiClient.put(`/personal/habits/${habitId}`, data);
   },
@@ -4234,8 +4282,8 @@ export const personalHabitAPI = {
     return apiClient.put(`/personal/habits/${habitId}/position`, { position });
   },
 
-  checkIn: async (habitId: string, note?: string): Promise<import('../types').HabitTodayItem> => {
-    return apiClient.post(`/personal/habits/${habitId}/check-in`, note ? { note } : {});
+  checkIn: async (habitId: string, options?: { note?: string; log_date?: string }): Promise<import('../types').HabitTodayItem> => {
+    return apiClient.post(`/personal/habits/${habitId}/check-in`, options ?? {});
   },
 
   getLogs: async (habitId: string, startDate: string, endDate: string): Promise<import('../types').PersonalHabitLog[]> => {

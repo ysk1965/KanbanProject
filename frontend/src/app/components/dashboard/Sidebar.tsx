@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { LayoutGrid, Star, Users, Settings, ChevronRight, ChevronLeft, X, Clock } from 'lucide-react';
+import { LayoutGrid, User, Settings, ChevronRight, ChevronLeft, X, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Board } from '../../types';
 import { getGradient } from './BoardCard';
@@ -23,30 +23,24 @@ export function Sidebar({ isOpen = true, onClose, boards = [], onSelectBoard, is
 
   // Determine active menu item from URL
   useEffect(() => {
-    if (location.search.includes('filter=starred')) setActiveItem('starred');
-    else if (location.pathname.includes('/teams')) setActiveItem('teams');
+    if (location.pathname.includes('/my-board')) setActiveItem('myBoard');
     else if (location.pathname.includes('/settings')) setActiveItem('settings');
     else setActiveItem('all');
   }, [location]);
 
   const menuItems = [
     { key: 'all', icon: <LayoutGrid size={18} />, label: t('dashboard.sidebar.allBoards'), path: '/boards' },
-    { key: 'starred', icon: <Star size={18} />, label: t('dashboard.sidebar.favorites'), path: '/boards?filter=starred' },
-    { key: 'teams', icon: <Users size={18} />, label: t('dashboard.sidebar.teamMembers'), path: '/teams' },
+    { key: 'myBoard', icon: <User size={18} />, label: t('dashboard.sidebar.myBoard'), path: '/my-board' },
     { key: 'settings', icon: <Settings size={18} />, label: t('dashboard.sidebar.settings'), path: '/settings' },
   ];
 
-  // Starred boards (max 5)
-  const starredBoards = boards.filter(b => b.is_starred).slice(0, 5);
-
-  // Recent boards - sort by updated_at desc, take 5, exclude starred to avoid duplicate
+  // Recent boards - sort by updated_at desc, take 5
   const recentBoards = [...boards]
     .sort((a, b) => {
       const aDate = a.updated_at || a.created_at;
       const bDate = b.updated_at || b.created_at;
       return new Date(bDate).getTime() - new Date(aDate).getTime();
     })
-    .filter(b => !b.is_starred)
     .slice(0, 5);
 
   const handleNavigate = (path: string) => {
@@ -136,23 +130,6 @@ export function Sidebar({ isOpen = true, onClose, boards = [], onSelectBoard, is
           ))}
         </nav>
       </div>
-
-      {/* Starred Boards */}
-      {!isCollapsed && starredBoards.length > 0 && (
-        <div className="px-5 mt-2">
-          <div className="flex items-center gap-2 px-2.5 mb-2">
-            <Star size={11} className="text-amber-500" fill="#F59E0B" />
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-              {t('dashboard.sidebar.favorites')}
-            </span>
-          </div>
-          <div className="space-y-0.5">
-            {starredBoards.map(board => (
-              <BoardPill key={board.id} board={board} />
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Recent Boards */}
       {!isCollapsed && recentBoards.length > 0 && (

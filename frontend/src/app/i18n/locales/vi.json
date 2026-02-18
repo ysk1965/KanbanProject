@@ -252,8 +252,7 @@
   "dashboard": {
     "sidebar": {
       "allBoards": "Tat ca cac bang",
-      "favorites": "Yeu thich",
-      "teamMembers": "Thanh vien doi nhom",
+      "myBoard": "Bảng của tôi",
       "settings": "Cai dat",
       "upgradePro": "Nang cap Pro",
       "upgradeDesc": "Thu bang khong gioi han va phan tich nang cao.",
@@ -2485,6 +2484,44 @@
       "monthly_usage": "Sử dụng hàng tháng",
       "purchased_remaining": "Mua thêm còn lại",
       "total_remaining": "Tổng còn lại"
+    }
+  },
+  "personal": {
+    "tabs": {
+      "overview": "Tổng quan",
+      "todo": "Việc cần làm",
+      "schedule": "Lịch trình",
+      "calendar": "Lịch",
+      "diary": "Nhật ký AI"
+    },
+    "overview": {
+      "noEvents": "Không có sự kiện hôm nay",
+      "addSchedule": "Thêm lịch trình",
+      "noDeadlines": "Không có hạn chót sắp tới",
+      "addDeadline": "Thêm công việc"
+    },
+    "calendar": {
+      "task": "Nhiệm vụ",
+      "event": "Sự kiện",
+      "today": "Hôm nay",
+      "addEvent": "Thêm sự kiện",
+      "tasksCount": "{{count}} nhiệm vụ",
+      "eventsCount": "{{count}} sự kiện",
+      "taskDeadline": "Hạn chót nhiệm vụ",
+      "overdue": "Quá hạn",
+      "recurring": "Lặp lại",
+      "noItems": "Không có mục nào cho ngày này",
+      "newEvent": "Sự kiện mới",
+      "date": "Ngày",
+      "title": "Tiêu đề",
+      "eventTitle": "Tiêu đề sự kiện",
+      "description": "Mô tả",
+      "optionalDesc": "Mô tả tùy chọn",
+      "allDay": "Cả ngày",
+      "start": "Bắt đầu",
+      "end": "Kết thúc",
+      "color": "Màu",
+      "thisWeek": "Tuần này"
     }
   }
 }

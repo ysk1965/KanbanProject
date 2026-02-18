@@ -64,6 +64,11 @@ public class PersonalHabit extends BaseTimeEntity {
     @Builder.Default
     private Integer bestStreak = 0;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "importance", nullable = false, length = 10)
+    @Builder.Default
+    private HabitImportance importance = HabitImportance.MEDIUM;
+
     @Column(name = "position", nullable = false)
     @Builder.Default
     private Integer position = 0;
@@ -85,7 +90,7 @@ public class PersonalHabit extends BaseTimeEntity {
 
     public void update(String title, String description, String icon, String color,
                        HabitFrequency frequencyType, String frequencyDays,
-                       Integer targetCount, String unit) {
+                       Integer targetCount, String unit, HabitImportance importance) {
         if (title != null) this.title = title;
         if (description != null) this.description = description;
         this.icon = icon;
@@ -94,6 +99,7 @@ public class PersonalHabit extends BaseTimeEntity {
         this.frequencyDays = frequencyDays;
         if (targetCount != null) this.targetCount = targetCount;
         this.unit = unit;
+        if (importance != null) this.importance = importance;
     }
 
     public void updatePosition(int position) {

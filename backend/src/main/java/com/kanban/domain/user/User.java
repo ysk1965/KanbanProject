@@ -71,6 +71,11 @@ public class User extends BaseTimeEntity {
     @Column(name = "deactivated_reason", length = 500)
     private String deactivatedReason;
 
+    // Personal Space
+    @Column(name = "personal_space_enabled", nullable = false)
+    @Builder.Default
+    private Boolean personalSpaceEnabled = false;
+
     // Personal AI Credits
     @Column(name = "personal_ai_credits")
     @Builder.Default
@@ -159,6 +164,12 @@ public class User extends BaseTimeEntity {
         this.isActive = true;
         this.deactivatedAt = null;
         this.deactivatedReason = null;
+    }
+
+    // === Personal Space ===
+
+    public void enablePersonalSpace() {
+        this.personalSpaceEnabled = true;
     }
 
     // === Personal AI Credit Management ===
