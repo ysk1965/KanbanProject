@@ -15,11 +15,14 @@ import {
   Settings,
   Moon,
   Globe,
+  Camera,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { userService } from '../utils/services';
+import { resolveFileUrl } from '../utils/api';
+import { getInitials, getAssigneeHex } from '../utils/assigneeColor';
 import { Switch } from './ui/switch';
 
 export function SettingsPage() {
@@ -33,6 +36,11 @@ export function SettingsPage() {
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSuccess, setProfileSuccess] = useState(false);
   const [profileError, setProfileError] = useState('');
+
+  // Profile Image State
+  const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [imageUploading, setImageUploading] = useState(false);
+  const [imageError, setImageError] = useState('');
 
   // Password State
   const [currentPassword, setCurrentPassword] = useState('');
@@ -53,8 +61,53 @@ export function SettingsPage() {
   useEffect(() => {
     if (currentUser) {
       setName(currentUser.name || '');
+      setProfileImage(currentUser.profile_image || null);
     }
   }, [currentUser]);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      setImageError(t('settings.imageTypeError'));
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setImageError(t('settings.imageSizeError'));
+      return;
+    }
+
+    setImageUploading(true);
+    setImageError('');
+
+    try {
+      const response = await userService.uploadProfileImage(file);
+      setProfileImage(response.profile_image);
+      updateCurrentUser({ profile_image: response.profile_image });
+    } catch (err: any) {
+      setImageError(err.message || t('settings.imageUploadFailed'));
+    } finally {
+      setImageUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleImageDelete = async () => {
+    setImageUploading(true);
+    setImageError('');
+
+    try {
+      await userService.deleteProfileImage();
+      setProfileImage(null);
+      updateCurrentUser({ profile_image: null });
+    } catch (err: any) {
+      setImageError(err.message || t('settings.imageDeleteFailed'));
+    } finally {
+      setImageUploading(false);
+    }
+  };
 
   const handleProfileSave = async () => {
     if (!name.trim()) {
@@ -68,6 +121,7 @@ export function SettingsPage() {
 
     try {
       await userService.updateProfile({ name: name.trim() });
+      updateCurrentUser({ name: name.trim() });
       setProfileSuccess(true);
       setTimeout(() => setProfileSuccess(false), 3000);
     } catch (err: any) {
@@ -171,6 +225,8 @@ export function SettingsPage() {
     }
   };
 
+  const resolvedImageUrl = profileImage ? resolveFileUrl(profileImage) : null;
+
   return (
     <div className="min-h-screen w-full bg-bridge-dark text-foreground">
       {/* Header */}
@@ -211,6 +267,66 @@ export function SettingsPage() {
               <p className="text-sm text-slate-400">{t('settings.profileDesc')}</p>
             </div>
           </div>
+
+          {/* Profile Image */}
+          <div className="flex items-center gap-6 mb-6">
+            <div className="relative group">
+              {resolvedImageUrl ? (
+                <img
+                  src={resolvedImageUrl}
+                  alt={currentUser?.name || ''}
+                  className="w-20 h-20 rounded-full object-cover border-2 border-white/10"
+                />
+              ) : (
+                <div
+                  className="w-20 h-20 rounded-full flex items-center justify-center text-white text-xl font-bold border-2 border-white/10"
+                  style={{ backgroundColor: getAssigneeHex(currentUser?.name || '') }}
+                >
+                  {getInitials(currentUser?.name || '')}
+                </div>
+              )}
+
+              {/* Upload overlay on hover */}
+              <label
+                className={`absolute inset-0 rounded-full bg-black/50 flex items-center justify-center cursor-pointer
+                  opacity-0 group-hover:opacity-100 transition-opacity
+                  ${imageUploading ? 'opacity-100 cursor-wait' : ''}`}
+              >
+                {imageUploading ? (
+                  <Loader2 className="w-6 h-6 text-white animate-spin" />
+                ) : (
+                  <Camera className="w-6 h-6 text-white" />
+                )}
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/gif,image/webp"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                  disabled={imageUploading}
+                />
+              </label>
+            </div>
+
+            <div className="space-y-1">
+              <p className="text-sm text-slate-300">{t('settings.profileImageDesc')}</p>
+              <p className="text-xs text-slate-500">{t('settings.profileImageHint')}</p>
+              {profileImage && (
+                <button
+                  onClick={handleImageDelete}
+                  disabled={imageUploading}
+                  className="text-xs text-red-400 hover:text-red-300 transition-colors disabled:opacity-50"
+                >
+                  {t('settings.removeProfileImage')}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {imageError && (
+            <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 mb-4">
+              <p className="text-red-400 text-sm">{imageError}</p>
+            </div>
+          )}
 
           <div className="space-y-4">
             <div>

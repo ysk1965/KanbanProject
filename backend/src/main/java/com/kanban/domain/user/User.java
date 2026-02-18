@@ -108,6 +108,14 @@ public class User extends BaseTimeEntity {
         }
     }
 
+    public void updateProfileImage(String profileImage) {
+        this.profileImage = profileImage;
+    }
+
+    public void clearProfileImage() {
+        this.profileImage = null;
+    }
+
     public void updateTheme(String theme) {
         if (theme != null && (theme.equals("dark") || theme.equals("light"))) {
             this.theme = theme;

@@ -1182,6 +1182,30 @@ export const userService = {
     return response;
   },
 
+  // 프로필 이미지 업로드
+  uploadProfileImage: async (file: File) => {
+    const response = await userAPI.uploadProfileImage(file);
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      user.profile_image = response.profile_image;
+      localStorage.setItem('user', JSON.stringify(user));
+    }
+    return response;
+  },
+
+  // 프로필 이미지 삭제
+  deleteProfileImage: async () => {
+    const response = await userAPI.deleteProfileImage();
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      user.profile_image = '';
+      localStorage.setItem('user', JSON.stringify(user));
+    }
+    return response;
+  },
+
   // 비밀번호 변경
   changePassword: async (currentPassword: string, newPassword: string) => {
     return userAPI.changePassword(currentPassword, newPassword);

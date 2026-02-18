@@ -103,6 +103,21 @@ public class LocalFileUploadService implements FileUploadService {
     }
 
     @Override
+    public String uploadDirect(MultipartFile file, String key) {
+        validateFile(file);
+        try {
+            Path filePath = Paths.get(localDir, key);
+            Files.createDirectories(filePath.getParent());
+            Files.write(filePath, file.getBytes());
+            log.info("File uploaded directly to local: {}", filePath);
+            return String.format("/uploads/%s", key);
+        } catch (IOException e) {
+            log.error("Failed to upload file directly: {}", key, e);
+            throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @Override
     public PermanentResult moveToPermanent(String tempKey, String boardId, String commentId) {
         Path tempPath = Paths.get(localDir, tempKey);
 

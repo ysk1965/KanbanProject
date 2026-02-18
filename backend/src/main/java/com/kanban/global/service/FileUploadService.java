@@ -21,6 +21,9 @@ public interface FileUploadService {
         return null;
     }
 
+    /** 지정된 key 경로에 직접 업로드 (temp 단계 없음) */
+    String uploadDirect(MultipartFile file, String key);
+
     /** 임시 파일 → 영구 경로 이동 + 썸네일 생성 */
     PermanentResult moveToPermanent(String tempKey, String boardId, String commentId);
 

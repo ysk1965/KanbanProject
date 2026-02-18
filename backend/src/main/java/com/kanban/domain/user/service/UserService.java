@@ -23,11 +23,17 @@ import com.kanban.domain.user.dto.ChangePasswordRequest;
 import com.kanban.domain.user.dto.UpdateProfileRequest;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
+import com.kanban.global.service.FileUploadService;
+import com.kanban.global.util.MediaUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.net.URI;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -41,6 +47,7 @@ public class UserService {
     private final EmailVerificationTokenRepository emailVerificationTokenRepository;
     private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final PasswordEncoder passwordEncoder;
+    private final FileUploadService fileUploadService;
     private final NotificationRepository notificationRepository;
     private final ActivityLogRepository activityLogRepository;
     private final UserBoardStarRepository userBoardStarRepository;
@@ -69,6 +76,63 @@ public class UserService {
 
         log.info("Profile updated for user: {}", user.getEmail());
         return user;
+    }
+
+    @Transactional
+    public User updateProfileImage(String userId, MultipartFile file) {
+        fileUploadService.validateFile(file);
+        User user = getUser(userId);
+
+        // 기존 이미지 삭제
+        deleteOldProfileImage(user);
+
+        // 새 이미지 업로드
+        String extension = MediaUtils.getExtension(file.getOriginalFilename());
+        String key = String.format("profiles/%s/%s%s", userId, UUID.randomUUID(), extension);
+        String url = fileUploadService.uploadDirect(file, key);
+
+        user.updateProfileImage(url);
+        userRepository.save(user);
+
+        log.info("Profile image updated for user: {}", user.getEmail());
+        return user;
+    }
+
+    @Transactional
+    public User deleteProfileImage(String userId) {
+        User user = getUser(userId);
+        deleteOldProfileImage(user);
+        user.clearProfileImage();
+        userRepository.save(user);
+
+        log.info("Profile image deleted for user: {}", user.getEmail());
+        return user;
+    }
+
+    private void deleteOldProfileImage(User user) {
+        String oldImage = user.getProfileImage();
+        if (oldImage == null || oldImage.isEmpty()) return;
+        // Google OAuth 이미지는 삭제하지 않음
+        if (oldImage.contains("googleusercontent.com") || oldImage.contains("googleapis.com")) return;
+
+        try {
+            String key = extractKeyFromUrl(oldImage);
+            if (key != null) {
+                fileUploadService.delete(key);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to delete old profile image: {}", oldImage, e);
+        }
+    }
+
+    private String extractKeyFromUrl(String url) {
+        if (url.startsWith("/uploads/")) return url.substring("/uploads/".length());
+        try {
+            String path = new URI(url).getPath();
+            return path.startsWith("/") ? path.substring(1) : path;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     @Transactional

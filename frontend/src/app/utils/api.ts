@@ -861,6 +861,45 @@ export const userAPI = {
     return apiClient.delete<{ message: string }>('/users/me');
   },
 
+  uploadProfileImage: async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await authenticatedFetch(`${API_BASE_URL}/users/me/profile-image`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({
+        code: 'UNKNOWN', message: response.statusText,
+      }));
+      throw errData;
+    }
+
+    return response.json() as Promise<{
+      id: string;
+      email: string;
+      name: string;
+      profile_image: string;
+      email_verified: boolean;
+      theme: string;
+      provider: string;
+    }>;
+  },
+
+  deleteProfileImage: async () => {
+    return apiClient.delete<{
+      id: string;
+      email: string;
+      name: string;
+      profile_image: string;
+      email_verified: boolean;
+      theme: string;
+      provider: string;
+    }>('/users/me/profile-image');
+  },
+
   getMyTasks: async (filter: 'today' | 'week' | 'overdue' = 'today') => {
     return apiClient.get<MyTasksResponse>(`/users/me/tasks?filter=${filter}`);
   },

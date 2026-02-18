@@ -122,6 +122,25 @@ public class S3FileUploadService implements FileUploadService {
     }
 
     @Override
+    public String uploadDirect(MultipartFile file, String key) {
+        validateFile(file);
+        try {
+            PutObjectRequest putRequest = PutObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(key)
+                    .contentType(file.getContentType())
+                    .contentLength(file.getSize())
+                    .build();
+            s3Client.putObject(putRequest, RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
+            log.info("File uploaded directly to S3: {}", key);
+            return buildUrl(key);
+        } catch (IOException e) {
+            log.error("Failed to upload file directly: {}", key, e);
+            throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @Override
     public PresignResult presignUpload(String fileName, String contentType, long fileSize) {
         // 검증
         if (!allowedTypes.contains(contentType)) {

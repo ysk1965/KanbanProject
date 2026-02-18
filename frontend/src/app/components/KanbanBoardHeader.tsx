@@ -364,7 +364,10 @@ export function KanbanBoardHeader({
 
           {currentUser && (
             <UserMenu
-              user={currentUser}
+              user={{
+                ...currentUser,
+                avatar: currentUser.profile_image || undefined,
+              }}
               assigneeColor={memberColorMap[currentUser.id]}
               onOpenSubscription={onOpenSubscription}
               onLogout={onLogout}

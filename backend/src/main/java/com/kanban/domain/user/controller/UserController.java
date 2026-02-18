@@ -10,7 +10,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.util.HashMap;
 import java.util.Map;
 
 @RestController
@@ -26,16 +28,7 @@ public class UserController {
     @GetMapping("/me")
     public ResponseEntity<Map<String, Object>> getMe(@AuthenticationPrincipal UserPrincipal principal) {
         User user = userService.getUser(principal.getUserId());
-        String provider = "GOOGLE".equals(user.getAuthProvider()) ? "google" : "email";
-        return ResponseEntity.ok(Map.of(
-                "id", user.getId(),
-                "email", user.getEmail(),
-                "name", user.getName(),
-                "profile_image", user.getProfileImage() != null ? user.getProfileImage() : "",
-                "email_verified", user.getEmailVerified(),
-                "theme", user.getTheme() != null ? user.getTheme() : "dark",
-                "provider", provider
-        ));
+        return ResponseEntity.ok(toUserResponse(user));
     }
 
     /**
@@ -47,16 +40,30 @@ public class UserController {
             @RequestBody UpdateProfileRequest request
     ) {
         User user = userService.updateProfile(principal.getUserId(), request);
-        String provider = "GOOGLE".equals(user.getAuthProvider()) ? "google" : "email";
-        return ResponseEntity.ok(Map.of(
-                "id", user.getId(),
-                "email", user.getEmail(),
-                "name", user.getName(),
-                "profile_image", user.getProfileImage() != null ? user.getProfileImage() : "",
-                "email_verified", user.getEmailVerified(),
-                "theme", user.getTheme() != null ? user.getTheme() : "dark",
-                "provider", provider
-        ));
+        return ResponseEntity.ok(toUserResponse(user));
+    }
+
+    /**
+     * 프로필 이미지 업로드
+     */
+    @PostMapping("/me/profile-image")
+    public ResponseEntity<Map<String, Object>> uploadProfileImage(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestPart("file") MultipartFile file
+    ) {
+        User user = userService.updateProfileImage(principal.getUserId(), file);
+        return ResponseEntity.ok(toUserResponse(user));
+    }
+
+    /**
+     * 프로필 이미지 삭제
+     */
+    @DeleteMapping("/me/profile-image")
+    public ResponseEntity<Map<String, Object>> deleteProfileImage(
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        User user = userService.deleteProfileImage(principal.getUserId());
+        return ResponseEntity.ok(toUserResponse(user));
     }
 
     /**
@@ -78,5 +85,18 @@ public class UserController {
     public ResponseEntity<Map<String, String>> deleteAccount(@AuthenticationPrincipal UserPrincipal principal) {
         userService.deleteAccount(principal.getUserId());
         return ResponseEntity.ok(Map.of("message", "계정이 삭제되었습니다"));
+    }
+
+    private Map<String, Object> toUserResponse(User user) {
+        String provider = "GOOGLE".equals(user.getAuthProvider()) ? "google" : "email";
+        Map<String, Object> response = new HashMap<>();
+        response.put("id", user.getId());
+        response.put("email", user.getEmail());
+        response.put("name", user.getName());
+        response.put("profile_image", user.getProfileImage() != null ? user.getProfileImage() : "");
+        response.put("email_verified", user.getEmailVerified());
+        response.put("theme", user.getTheme() != null ? user.getTheme() : "dark");
+        response.put("provider", provider);
+        return response;
     }
 }
