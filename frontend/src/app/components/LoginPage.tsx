@@ -156,7 +156,7 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
   };
 
   return (
-    <div className="min-h-screen w-full relative flex items-center justify-center p-4 md:p-8 overflow-hidden select-none text-white">
+    <div className="w-full relative flex items-center justify-center p-4 md:p-8 overflow-hidden select-none text-white" style={{ minHeight: 'var(--visual-viewport-height, 100vh)' }}>
       {/* 3D Space Background */}
       <div className="absolute inset-0 z-0">
         <Suspense fallback={<div className="absolute inset-0 bg-bridge-dark" />}>
