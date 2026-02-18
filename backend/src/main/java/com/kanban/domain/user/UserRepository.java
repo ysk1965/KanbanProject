@@ -7,12 +7,21 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import org.springframework.data.jpa.repository.Modifying;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Lock;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 public interface UserRepository extends JpaRepository<User, String> {
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT u FROM User u WHERE u.id = :id")
+    Optional<User> findByIdForUpdate(@Param("id") String id);
+
+    @Query("SELECT u.id FROM User u WHERE u.isActive = true AND u.personalCreditsResetDate < :now")
+    List<String> findUserIdsDueForPersonalCreditReset(@Param("now") LocalDateTime now);
 
     long countBySystemRole(SystemRole systemRole);
 
@@ -48,4 +57,5 @@ public interface UserRepository extends JpaRepository<User, String> {
             "GROUP BY CAST(last_active_at AS DATE) ORDER BY active_date",
             nativeQuery = true)
     List<Object[]> getDailyActiveUserTrend(@Param("startDate") LocalDateTime startDate);
+
 }

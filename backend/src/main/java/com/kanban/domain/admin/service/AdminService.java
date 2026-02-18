@@ -9,9 +9,6 @@ import com.kanban.domain.announcement.AnnouncementType;
 import com.kanban.domain.auth.service.AuthService;
 import com.kanban.domain.board.*;
 import com.kanban.domain.board.service.BoardService;
-import com.kanban.domain.diary.DiaryEntryRepository;
-import com.kanban.domain.diary.DiaryStatus;
-import com.kanban.domain.personal.PersonalEventRepository;
 import com.kanban.domain.user.service.UserService;
 import com.kanban.domain.subscription.Subscription;
 import com.kanban.domain.subscription.SubscriptionRepository;
@@ -59,8 +56,6 @@ public class AdminService {
     private final UserService userService;
     private final AnnouncementRepository announcementRepository;
     private final SystemConfigRepository systemConfigRepository;
-    private final DiaryEntryRepository diaryEntryRepository;
-    private final PersonalEventRepository personalEventRepository;
     private final ObjectMapper objectMapper;
     private final WebSocketAuthInterceptor webSocketAuthInterceptor;
 
@@ -85,16 +80,10 @@ public class AdminService {
                         row -> ((Number) row[1]).intValue()
                 ));
 
-        // Batch load: Personal Board 소유 여부 (N+1 방지)
-        java.util.Set<String> personalBoardOwnerIds = userIds.isEmpty()
-                ? java.util.Collections.emptySet()
-                : new java.util.HashSet<>(boardRepository.findPersonalBoardOwnerIds(userIds));
-
         List<AdminResponse.UserSummary> users = userPage.getContent().stream()
                 .map(user -> AdminResponse.UserSummary.of(
                         user,
-                        boardCountMap.getOrDefault(user.getId(), 0),
-                        personalBoardOwnerIds.contains(user.getId())))
+                        boardCountMap.getOrDefault(user.getId(), 0)))
                 .collect(Collectors.toList());
 
         return AdminResponse.UserList.builder()
@@ -113,16 +102,6 @@ public class AdminService {
         int boardCount = boards.size();
 
         List<AdminResponse.BoardSummary> boardSummaries = toBoardSummaries(boards);
-
-        // Personal Board 상세 정보
-        Optional<Board> personalBoard = boardRepository.findByOwnerIdAndBoardType(userId, BoardType.PERSONAL);
-        if (personalBoard.isPresent()) {
-            Board pb = personalBoard.get();
-            int pbTaskCount = taskRepository.countByBoardId(pb.getId());
-            long pbDiaryCount = diaryEntryRepository.countByUserId(userId);
-            long pbEventCount = personalEventRepository.countByUserId(userId);
-            return AdminResponse.UserDetail.of(user, boardCount, boardSummaries, pb, pbTaskCount, pbDiaryCount, pbEventCount);
-        }
 
         return AdminResponse.UserDetail.of(user, boardCount, boardSummaries);
     }
@@ -170,17 +149,6 @@ public class AdminService {
     }
 
     // ==================== User Actions ====================
-
-    @Transactional
-    public void createPersonalBoardForUser(String userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        if (boardRepository.existsByOwnerIdAndBoardType(userId, BoardType.PERSONAL)) {
-            throw new BusinessException(ErrorCode.PERSONAL_BOARD_ALREADY_EXISTS);
-        }
-        boardService.createPersonalBoard(userId);
-        log.info("Personal board created by admin for user: userId={}", userId);
-    }
 
     @Transactional
     public AdminResponse.UserSummary deactivateUser(String userId, AdminRequest.DeactivateUser request) {
@@ -322,18 +290,6 @@ public class AdminService {
         List<AdminResponse.MemberInfo> members = boardMembers.stream()
                 .map(AdminResponse.MemberInfo::of)
                 .collect(Collectors.toList());
-
-        if (board.isPersonal()) {
-            String ownerId = board.getOwner().getId();
-            long diaryCount = diaryEntryRepository.countByUserId(ownerId);
-            long completedDiaries = diaryEntryRepository.countByUserIdAndStatus(ownerId, DiaryStatus.COMPLETED);
-            double completionRate = diaryCount > 0 ? (double) completedDiaries / diaryCount * 100 : 0;
-            long eventCount = personalEventRepository.countByUserId(ownerId);
-            LocalDateTime lastActivity = board.getUpdatedAt();
-
-            return AdminResponse.BoardDetail.ofPersonal(board, memberCount, taskCount, subscription, members,
-                    diaryCount, Math.round(completionRate * 10.0) / 10.0, eventCount, lastActivity);
-        }
 
         return AdminResponse.BoardDetail.of(board, memberCount, taskCount, subscription, members);
     }
@@ -569,12 +525,6 @@ public class AdminService {
 
         long activeSubscriptions = subscriptionRepository.countByStatus(SubscriptionStatus.ACTIVE);
 
-        // Personal Board 메트릭
-        long personalBoards = boardRepository.countByBoardType(BoardType.PERSONAL);
-        double personalBoardAdoption = totalUsers > 0 ? Math.round((double) personalBoards / totalUsers * 1000.0) / 10.0 : 0;
-        long activePersonalBoards = boardRepository.countActivePersonalBoards(activeThreshold);
-        long totalDiaryEntries = diaryEntryRepository.count();
-
         return AdminResponse.Statistics.builder()
                 .totalUsers(totalUsers)
                 .activeUsers(activeUsers)
@@ -583,10 +533,6 @@ public class AdminService {
                 .standardBoards(tierCounts.getOrDefault(BoardTier.STANDARD, 0L))
                 .premiumBoards(tierCounts.getOrDefault(BoardTier.PREMIUM, 0L))
                 .activeSubscriptions(activeSubscriptions)
-                .personalBoards(personalBoards)
-                .personalBoardAdoption(personalBoardAdoption)
-                .activePersonalBoards(activePersonalBoards)
-                .totalDiaryEntries(totalDiaryEntries)
                 .build();
     }
 
@@ -689,88 +635,6 @@ public class AdminService {
                 .conversionRate(Math.round(conversionRate * 10.0) / 10.0)
                 .trialInProgress(trialInProgress)
                 .trialExpiredNotConverted(trialExpiredNotConverted)
-                .trend(trend)
-                .build();
-    }
-
-    // ==================== Personal Board Analytics ====================
-
-    public AdminResponse.PersonalBoardStats getPersonalBoardStats(int days) {
-        LocalDateTime startDate = LocalDateTime.now(ZoneOffset.UTC).minusDays(days);
-
-        long totalPersonalBoards = boardRepository.countByBoardType(BoardType.PERSONAL);
-        long totalUsers = userRepository.count();
-        double adoptionRate = totalUsers > 0
-                ? Math.round((double) totalPersonalBoards / totalUsers * 1000.0) / 10.0
-                : 0;
-
-        List<Object[]> rows = boardRepository.getPersonalBoardCreationTrend(startDate);
-        List<AdminResponse.PersonalBoardStats.DailyCount> trend = new java.util.ArrayList<>();
-        for (Object[] row : rows) {
-            trend.add(AdminResponse.PersonalBoardStats.DailyCount.builder()
-                    .date(row[0].toString())
-                    .count(((Number) row[1]).longValue())
-                    .build());
-        }
-
-        return AdminResponse.PersonalBoardStats.builder()
-                .totalPersonalBoards(totalPersonalBoards)
-                .adoptionRate(adoptionRate)
-                .trend(trend)
-                .build();
-    }
-
-    public AdminResponse.DiaryStats getDiaryStats(int days) {
-        LocalDateTime startDate = LocalDateTime.now(ZoneOffset.UTC).minusDays(days);
-
-        long totalEntries = diaryEntryRepository.count();
-        long completedEntries = diaryEntryRepository.countByStatus(DiaryStatus.COMPLETED);
-        double completionRate = totalEntries > 0
-                ? Math.round((double) completedEntries / totalEntries * 1000.0) / 10.0
-                : 0;
-        long activeUsers = diaryEntryRepository.countActiveDiaryUsers(startDate);
-
-        List<Object[]> rows = diaryEntryRepository.getDiaryTrend(startDate);
-        List<AdminResponse.DiaryStats.DailyDiaryData> trend = new java.util.ArrayList<>();
-        for (Object[] row : rows) {
-            trend.add(AdminResponse.DiaryStats.DailyDiaryData.builder()
-                    .date(row[0].toString())
-                    .count(((Number) row[1]).longValue())
-                    .build());
-        }
-
-        return AdminResponse.DiaryStats.builder()
-                .totalEntries(totalEntries)
-                .completionRate(completionRate)
-                .activeUsers(activeUsers)
-                .trend(trend)
-                .build();
-    }
-
-    public AdminResponse.PersonalConversionStats getPersonalConversionStats(int days) {
-        LocalDateTime startDate = LocalDateTime.now(ZoneOffset.UTC).minusDays(days);
-
-        long personalOnly = boardRepository.countUsersWithOnlyPersonalBoard();
-        long both = boardRepository.countUsersWithBothBoardTypes();
-        long totalWithPb = personalOnly + both;
-        double conversionRate = totalWithPb > 0
-                ? Math.round((double) both / totalWithPb * 1000.0) / 10.0
-                : 0;
-
-        // PB 생성 추이를 conversion 트렌드로 재사용
-        List<Object[]> rows = boardRepository.getPersonalBoardCreationTrend(startDate);
-        List<AdminResponse.PersonalBoardStats.DailyCount> trend = new java.util.ArrayList<>();
-        for (Object[] row : rows) {
-            trend.add(AdminResponse.PersonalBoardStats.DailyCount.builder()
-                    .date(row[0].toString())
-                    .count(((Number) row[1]).longValue())
-                    .build());
-        }
-
-        return AdminResponse.PersonalConversionStats.builder()
-                .personalOnly(personalOnly)
-                .both(both)
-                .conversionRate(conversionRate)
                 .trend(trend)
                 .build();
     }

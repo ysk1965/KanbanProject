@@ -1,15 +1,15 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Search, Plus, Star, LayoutGrid, LogOut, Package2, AlertTriangle, Menu, FlaskConical, CalendarDays, BookHeart, Clock, ListTodo } from 'lucide-react';
+import { Search, Plus, Star, LayoutGrid, LogOut, Package2, AlertTriangle, Menu, FlaskConical, CalendarDays, BookHeart, ListTodo, List, Grid3X3, ChevronRight, X, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
 import { Board } from '../../types';
-import { testDataAPI } from '../../utils/api';
+import { testDataAPI, personalDashboardAPI } from '../../utils/api';
 import { boardService } from '../../utils/services';
 import { getInitials } from '../../utils/assigneeColor';
 import { Sidebar } from './Sidebar';
-import { BoardCard, CreateBoardCard } from './BoardCard';
+import { BoardCard, CreateBoardCard, getGradient } from './BoardCard';
 import { CreateBoardModal } from './CreateBoardModal';
 import { EditBoardModal } from './EditBoardModal';
 import { OnboardingModal } from '../OnboardingModal';
@@ -82,6 +82,9 @@ function DeleteConfirmModal({
   );
 }
 
+type ViewMode = 'grid' | 'list';
+type BoardFilter = 'all' | 'owned' | 'joined';
+
 export function Dashboard({
   boards,
   onSelectBoard,
@@ -96,10 +99,14 @@ export function Dashboard({
   const { user, logout, isAdmin } = useAuth();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [editTarget, setEditTarget] = useState<Board | null>(null);
   const [isCreatingTestBoard, setIsCreatingTestBoard] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [boardFilter, setBoardFilter] = useState<BoardFilter>('all');
   const [showOnboarding, setShowOnboarding] = useState(
     () => localStorage.getItem('bridge_show_onboarding') === 'true'
   );
@@ -114,11 +121,10 @@ export function Dashboard({
   useEffect(() => {
     (async () => {
       try {
-        const board = await boardService.getPersonalBoard();
-        const data = await boardService.getTodayData(board.id);
+        const data = await personalDashboardAPI.getToday();
         setTodayData(data as any);
       } catch {
-        // Personal board may not exist yet
+        // Personal dashboard data may not be available
       }
     })();
   }, []);
@@ -130,7 +136,6 @@ export function Dashboard({
     try {
       const response = await testDataAPI.createTestBoard();
       onRefreshBoards();
-      // 보드로 바로 이동
       onSelectBoard(response.board_id);
     } catch (error) {
       console.error('Failed to create/join test board:', error);
@@ -145,14 +150,28 @@ export function Dashboard({
     [boards]
   );
 
-  // 검색 필터링
-  const filteredBoards = useMemo(
-    () =>
-      boards.filter((b) =>
-        b.name.toLowerCase().includes(searchQuery.toLowerCase())
-      ),
-    [boards, searchQuery]
-  );
+  // 검색 + 필터링
+  const filteredBoards = useMemo(() => {
+    let result = boards;
+
+    // Text search
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter((b) =>
+        b.name.toLowerCase().includes(q) ||
+        (b.description?.toLowerCase().includes(q))
+      );
+    }
+
+    // Board filter
+    if (boardFilter === 'owned') {
+      result = result.filter(b => b.role === 'OWNER');
+    } else if (boardFilter === 'joined') {
+      result = result.filter(b => b.role !== 'OWNER');
+    }
+
+    return result;
+  }, [boards, searchQuery, boardFilter]);
 
   const handleBoardClick = (board: Board) => {
     onSelectBoard(board.id);
@@ -183,76 +202,88 @@ export function Dashboard({
     setEditTarget(null);
   };
 
+  const todayTaskCount = todayData
+    ? (todayData.due_today_tasks?.length || 0) + (todayData.in_progress_tasks?.length || 0)
+    : 0;
 
   return (
     <div className="flex h-screen text-white overflow-hidden selection:bg-bridge-secondary/30" style={{ background: 'radial-gradient(ellipse at 20% 0%, var(--bridge-dark) 0%, var(--bridge-dark) 50%, #030508 100%)' }}>
       {/* Cosmic Background */}
       <div className="absolute inset-0 pointer-events-none">
-        {/* Teal nebula - top right */}
-        <div className="absolute w-[600px] h-[600px] rounded-full blur-[200px]" style={{ top: '-10%', right: '-5%', background: 'radial-gradient(circle, rgba(45,212,191,0.08) 0%, transparent 70%)' }} />
-        {/* Indigo nebula - bottom left */}
-        <div className="absolute w-[500px] h-[500px] rounded-full blur-[180px]" style={{ bottom: '-5%', left: '-5%', background: 'radial-gradient(circle, rgba(99,102,241,0.06) 0%, transparent 70%)' }} />
-        {/* Star field */}
-        <div className="star-bg opacity-40" style={{ position: 'absolute', inset: 0 }} />
-        {/* Vignette */}
+        <div className="absolute w-[600px] h-[600px] rounded-full blur-[200px]" style={{ top: '-10%', right: '-5%', background: 'radial-gradient(circle, rgba(45,212,191,0.06) 0%, transparent 70%)' }} />
+        <div className="absolute w-[500px] h-[500px] rounded-full blur-[180px]" style={{ bottom: '-5%', left: '-5%', background: 'radial-gradient(circle, rgba(99,102,241,0.05) 0%, transparent 70%)' }} />
+        <div className="star-bg opacity-30" style={{ position: 'absolute', inset: 0 }} />
         <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at center, transparent 50%, rgba(3,5,8,0.5) 100%)' }} />
       </div>
 
-      {/* Sidebar */}
+      {/* Sidebar - now with boards data */}
       <Sidebar
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
+        boards={boards}
+        onSelectBoard={onSelectBoard}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
       />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col relative z-10">
+      <div className="flex-1 flex flex-col relative z-10 min-w-0">
         {/* Header */}
-        <header className="h-16 border-b border-white/[0.06] bg-bridge-dark/60 backdrop-blur-sm px-4 md:px-8 flex items-center justify-between">
-          <div className="flex items-center gap-4 flex-1">
-            {/* 모바일 햄버거 메뉴 */}
+        <header className="h-14 border-b border-white/[0.06] bg-bridge-dark/60 backdrop-blur-sm px-4 md:px-6 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            {/* Mobile hamburger */}
             <button
               onClick={() => setIsSidebarOpen(true)}
-              className="lg:hidden p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors"
+              className="lg:hidden p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors shrink-0"
             >
-              <Menu size={20} />
+              <Menu size={18} />
             </button>
 
-            {/* Search */}
-            <div className="relative w-full max-w-sm hidden md:block">
-              <Search
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                size={16}
-              />
+            {/* Desktop Search */}
+            <div className="relative w-full max-w-xs hidden md:block">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={15} />
               <input
                 type="text"
                 placeholder={t('dashboard.searchPlaceholder')}
-                className="w-full bg-white/5 border border-white/[0.08] rounded-xl py-2 pl-10 pr-4 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-bridge-secondary/40 focus:bg-white/[0.06] transition-all"
+                className="w-full bg-white/[0.04] border border-white/[0.06] rounded-xl py-1.5 pl-9 pr-4 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-bridge-secondary/30 focus:bg-white/[0.06] transition-all"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white"
+                >
+                  <X size={14} />
+                </button>
+              )}
             </div>
+
+            {/* Mobile Search Toggle */}
+            <button
+              onClick={() => setMobileSearchOpen(!mobileSearchOpen)}
+              className="md:hidden p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors shrink-0"
+            >
+              <Search size={18} />
+            </button>
           </div>
 
-          <div className="flex items-center gap-5">
+          <div className="flex items-center gap-4">
             {/* Logout */}
             <button
               onClick={logout}
-              className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors text-sm font-medium"
+              className="flex items-center gap-2 text-slate-500 hover:text-white transition-colors text-sm"
             >
-              <LogOut size={16} />
-              <span className="hidden sm:inline">{t('dashboard.logout')}</span>
+              <LogOut size={15} />
+              <span className="hidden sm:inline text-xs font-medium">{t('dashboard.logout')}</span>
             </button>
 
             {/* Profile Avatar */}
-            <div className="w-10 h-10 rounded-xl overflow-hidden border border-white/20 bg-slate-700">
+            <div className="w-9 h-9 rounded-xl overflow-hidden border border-white/10 bg-slate-700 shrink-0">
               {user?.profile_image ? (
-                <img
-                  src={user.profile_image}
-                  alt={user.name}
-                  className="w-full h-full object-cover"
-                />
+                <img src={user.profile_image} alt={user.name} className="w-full h-full object-cover" />
               ) : (
-                <div className="w-full h-full flex items-center justify-center text-sm font-bold bg-gradient-to-br from-bridge-secondary to-bridge-accent">
+                <div className="w-full h-full flex items-center justify-center text-xs font-bold bg-gradient-to-br from-bridge-secondary to-bridge-accent">
                   {getInitials(user?.name || 'U')}
                 </div>
               )}
@@ -260,143 +291,191 @@ export function Dashboard({
           </div>
         </header>
 
+        {/* Mobile Search Bar (expandable) */}
+        <AnimatePresence>
+          {mobileSearchOpen && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="md:hidden border-b border-white/[0.06] bg-bridge-dark/60 backdrop-blur-sm overflow-hidden"
+            >
+              <div className="px-4 py-3">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={15} />
+                  <input
+                    autoFocus
+                    type="text"
+                    placeholder={t('dashboard.searchPlaceholder')}
+                    className="w-full bg-white/[0.04] border border-white/[0.06] rounded-xl py-2 pl-9 pr-10 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-bridge-secondary/30 transition-all"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                  <button
+                    onClick={() => { setMobileSearchOpen(false); setSearchQuery(''); }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Main Content Area */}
-        <main className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-          <div className="max-w-7xl mx-auto space-y-10">
-            {/* My Board - Personal Board (최상단) */}
+        <main className="flex-1 overflow-y-auto px-6 md:px-8 py-6 custom-scrollbar">
+          <div className="max-w-7xl mx-auto space-y-6">
+
+            {/* Top Row: My Space + Quick Stats */}
             {!searchQuery && (
-              <section>
+              <div className="flex gap-4 flex-col sm:flex-row">
+                {/* My Space Card - Compact */}
                 <motion.button
                   onClick={() => navigate('/my-board')}
                   whileHover={{ scale: 1.01 }}
                   whileTap={{ scale: 0.99 }}
-                  className="w-full max-w-2xl group relative overflow-hidden rounded-2xl border border-white/10 hover:border-bridge-accent/40 transition-all"
+                  className="flex-1 group relative overflow-hidden rounded-2xl border border-white/[0.08] hover:border-bridge-accent/30 transition-all"
                 >
-                  <div className="absolute inset-0 bg-gradient-to-br from-bridge-accent/20 via-purple-500/10 to-bridge-secondary/20 opacity-60 group-hover:opacity-100 transition-opacity" />
-                  <div className="relative p-6">
-                    <div className="flex items-center gap-6">
-                      <div className="flex gap-3">
-                        <div className="w-12 h-12 rounded-xl bg-bridge-accent/20 border border-bridge-accent/30 flex items-center justify-center">
-                          <CalendarDays size={22} className="text-bridge-accent" />
-                        </div>
-                        <div className="w-12 h-12 rounded-xl bg-purple-500/20 border border-purple-500/30 flex items-center justify-center">
-                          <BookHeart size={22} className="text-purple-400" />
-                        </div>
+                  <div className="absolute inset-0 bg-gradient-to-r from-bridge-accent/15 via-purple-500/8 to-bridge-secondary/15 opacity-50 group-hover:opacity-80 transition-opacity" />
+                  <div className="relative px-5 py-4 flex items-center gap-4">
+                    <div className="flex gap-2 shrink-0">
+                      <div className="w-10 h-10 rounded-xl bg-bridge-accent/20 border border-bridge-accent/20 flex items-center justify-center">
+                        <CalendarDays size={18} className="text-bridge-accent" />
                       </div>
-                      <div className="text-left flex-1">
-                        <h3 className="text-lg font-bold text-white mb-1">{t('dashboard.mySpace')}</h3>
-                        <p className="text-sm text-slate-400">
-                          {t('dashboard.mySpaceDesc')}
-                        </p>
-                      </div>
-                      <div className="ml-auto text-slate-500 group-hover:text-white transition-colors">
-                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                          <path d="M7 5l5 5-5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
+                      <div className="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-500/20 flex items-center justify-center">
+                        <BookHeart size={18} className="text-purple-400" />
                       </div>
                     </div>
-
-                    {/* Today Preview */}
-                    {todayData && (todayData.due_today_tasks.length > 0 || todayData.in_progress_tasks.length > 0) && (
-                      <div className="mt-4 pt-4 border-t border-white/10 space-y-3">
-                        {/* Progress bar */}
-                        <div className="flex items-center gap-3">
-                          <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-gradient-to-r from-bridge-secondary to-bridge-accent rounded-full transition-all"
-                              style={{ width: `${Math.round(todayData.completion_rate)}%` }}
-                            />
-                          </div>
-                          <span className="text-[10px] font-bold text-bridge-secondary">
-                            {Math.round(todayData.completion_rate)}%
-                          </span>
-                        </div>
-
-                        <div className="flex gap-4 text-left">
-                          {/* Due today */}
-                          {todayData.due_today_tasks.length > 0 && (
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-1 mb-1">
-                                <Clock size={10} className="text-orange-400" />
-                                <span className="text-[10px] text-orange-400 font-bold">
-                                  {t('personal.dueToday', '오늘 마감')} {todayData.due_today_tasks.length}
-                                </span>
-                              </div>
-                              {todayData.due_today_tasks.slice(0, 3).map((task) => (
-                                <div key={task.id} className="text-[11px] text-slate-300 truncate">
-                                  {task.title}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-
-                          {/* In progress */}
-                          {todayData.in_progress_tasks.length > 0 && (
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-1 mb-1">
-                                <ListTodo size={10} className="text-bridge-accent" />
-                                <span className="text-[10px] text-bridge-accent font-bold">
-                                  {t('personal.inProgress', '진행중')} {todayData.in_progress_tasks.length}
-                                </span>
-                              </div>
-                              {todayData.in_progress_tasks.slice(0, 3).map((task) => (
-                                <div key={task.id} className="text-[11px] text-slate-300 truncate">
-                                  {task.title}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
+                    <div className="text-left flex-1 min-w-0">
+                      <h3 className="text-sm font-bold text-white mb-0.5">{t('dashboard.mySpace')}</h3>
+                      <p className="text-[11px] text-slate-500 truncate">
+                        {t('dashboard.mySpaceDesc')}
+                      </p>
+                    </div>
+                    {todayTaskCount > 0 && (
+                      <div className="shrink-0 flex items-center gap-1.5 px-2.5 py-1 bg-bridge-accent/15 rounded-lg">
+                        <ListTodo size={12} className="text-bridge-accent" />
+                        <span className="text-[11px] font-bold text-bridge-accent">{todayTaskCount}</span>
                       </div>
                     )}
+                    <ChevronRight size={16} className="text-slate-600 group-hover:text-white shrink-0 transition-colors" />
                   </div>
+
+                  {/* Compact Progress Bar */}
+                  {todayData && todayData.completion_rate > 0 && (
+                    <div className="relative px-5 pb-3">
+                      <div className="h-1 bg-white/5 rounded-full overflow-hidden">
+                        <motion.div
+                          className="h-full bg-gradient-to-r from-bridge-secondary to-bridge-accent rounded-full"
+                          initial={{ width: 0 }}
+                          animate={{ width: `${Math.round(todayData.completion_rate)}%` }}
+                          transition={{ duration: 0.8, ease: 'easeOut' }}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </motion.button>
-              </section>
+
+                {/* Quick Stats Cards */}
+                <div className="flex gap-3 sm:shrink-0">
+                  <div className="flex-1 sm:w-28 px-4 py-3 rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-sm text-center">
+                    <div className="text-2xl font-bold text-white font-serif">{boards.length}</div>
+                    <div className="text-[10px] text-slate-500 font-medium uppercase tracking-wider mt-0.5">
+                      {t('dashboard.totalBoards', 'Boards')}
+                    </div>
+                  </div>
+                  <div className="flex-1 sm:w-28 px-4 py-3 rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-sm text-center">
+                    <div className="text-2xl font-bold text-amber-500 font-serif">{starredBoards.length}</div>
+                    <div className="text-[10px] text-slate-500 font-medium uppercase tracking-wider mt-0.5">
+                      {t('dashboard.starred', 'Starred')}
+                    </div>
+                  </div>
+                </div>
+              </div>
             )}
 
-            {/* My Tasks Widget - Cross-board task overview */}
+            {/* My Tasks Widget */}
             {!searchQuery && <MyTasksWidget />}
 
-            {/* Header Content */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            {/* Project Section Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
               <div>
-                <h1 className="text-3xl font-bold font-serif mb-1">{t('dashboard.yourProjects')}</h1>
-                <p className="text-slate-400 text-sm">
+                <h1 className="text-2xl font-bold font-serif mb-0.5">{t('dashboard.yourProjects')}</h1>
+                <p className="text-slate-500 text-xs">
                   {t('dashboard.managingWorkspaces', { count: boards.length })}
                 </p>
               </div>
-              <button
-                onClick={() => setIsCreateModalOpen(true)}
-                className="flex items-center justify-center gap-2 px-6 py-2.5 bg-gradient-to-r from-bridge-secondary to-bridge-accent rounded-xl font-bold text-sm shadow-lg shadow-bridge-secondary/15 hover:scale-105 active:scale-95 transition-all"
-              >
-                <Plus size={18} /> {t('dashboard.createNewBoard')}
-              </button>
+
+              <div className="flex items-center gap-2">
+                {/* Board Filter */}
+                <div className="flex items-center gap-0.5 bg-white/[0.03] rounded-lg p-0.5">
+                  {(['all', 'owned', 'joined'] as BoardFilter[]).map((f) => (
+                    <button
+                      key={f}
+                      onClick={() => setBoardFilter(f)}
+                      className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${
+                        boardFilter === f
+                          ? 'text-white bg-white/10'
+                          : 'text-slate-500 hover:text-slate-300'
+                      }`}
+                    >
+                      {f === 'all' && t('dashboard.filterAll', 'All')}
+                      {f === 'owned' && t('dashboard.filterOwned', 'Mine')}
+                      {f === 'joined' && t('dashboard.filterJoined', 'Joined')}
+                    </button>
+                  ))}
+                </div>
+
+                {/* View Toggle */}
+                <div className="flex items-center gap-0.5 bg-white/[0.03] rounded-lg p-0.5">
+                  <button
+                    onClick={() => setViewMode('grid')}
+                    className={`p-1.5 rounded-md transition-all ${viewMode === 'grid' ? 'text-white bg-white/10' : 'text-slate-500 hover:text-white'}`}
+                  >
+                    <Grid3X3 size={14} />
+                  </button>
+                  <button
+                    onClick={() => setViewMode('list')}
+                    className={`p-1.5 rounded-md transition-all ${viewMode === 'list' ? 'text-white bg-white/10' : 'text-slate-500 hover:text-white'}`}
+                  >
+                    <List size={14} />
+                  </button>
+                </div>
+
+                {/* Create Button */}
+                <button
+                  onClick={() => setIsCreateModalOpen(true)}
+                  className="flex items-center gap-1.5 px-4 py-1.5 bg-gradient-to-r from-bridge-secondary to-bridge-accent rounded-xl font-bold text-xs shadow-lg shadow-bridge-secondary/10 hover:shadow-bridge-secondary/20 hover:scale-105 active:scale-95 transition-all"
+                >
+                  <Plus size={15} /> {t('dashboard.createNewBoard')}
+                </button>
+              </div>
             </div>
 
-            {/* Empty State */}
+            {/* Empty States */}
             {filteredBoards.length === 0 && searchQuery && (
-              <div className="h-64 flex flex-col items-center justify-center bg-bridge-obsidian/30 border-2 border-dashed rounded-3xl border-white/20">
-                <Package2 size={48} className="text-slate-400 mb-4" />
-                <p className="text-slate-400 font-medium">
+              <div className="h-48 flex flex-col items-center justify-center bg-white/[0.02] border border-dashed rounded-2xl border-white/10">
+                <Package2 size={36} className="text-slate-600 mb-3" />
+                <p className="text-slate-500 font-medium text-sm">
                   {t('dashboard.noSearchResult', { query: searchQuery })}
                 </p>
                 <button
                   onClick={() => setSearchQuery('')}
-                  className="mt-2 text-bridge-secondary text-sm font-bold hover:underline"
+                  className="mt-2 text-bridge-secondary text-xs font-bold hover:underline"
                 >
                   {t('dashboard.clearSearch')}
                 </button>
               </div>
             )}
 
-            {/* No boards at all */}
             {boards.length === 0 && !searchQuery && (
-              <div className="h-64 flex flex-col items-center justify-center bg-bridge-obsidian/30 border-2 border-dashed rounded-3xl border-white/20">
-                <Package2 size={48} className="text-slate-400 mb-4" />
-                <p className="text-slate-400 font-medium">{t('board.noBoards')}</p>
+              <div className="h-48 flex flex-col items-center justify-center bg-white/[0.02] border border-dashed rounded-2xl border-white/10">
+                <Package2 size={36} className="text-slate-600 mb-3" />
+                <p className="text-slate-500 font-medium text-sm">{t('board.noBoards')}</p>
                 <button
                   onClick={() => setIsCreateModalOpen(true)}
-                  className="mt-4 px-6 py-2 bg-bridge-secondary text-bridge-dark text-sm font-bold rounded-xl hover:bg-bridge-secondary/90 transition-colors"
+                  className="mt-3 px-5 py-2 bg-bridge-secondary text-bridge-dark text-xs font-bold rounded-xl hover:bg-bridge-secondary/90 transition-colors"
                 >
                   {t('board.createFirst')}
                 </button>
@@ -404,55 +483,97 @@ export function Dashboard({
             )}
 
             {/* Starred Section */}
-            {starredBoards.length > 0 && !searchQuery && (
+            {starredBoards.length > 0 && !searchQuery && boardFilter === 'all' && (
               <section>
-                <div className="flex items-center gap-2 mb-6">
-                  <Star size={18} className="text-amber-500" fill="#F59E0B" />
-                  <h2 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">
+                <div className="flex items-center gap-2 mb-4">
+                  <Star size={14} className="text-amber-500" fill="#F59E0B" />
+                  <h2 className="text-[11px] font-bold text-slate-500 uppercase tracking-[0.15em]">
                     {t('dashboard.starredBoards')}
                   </h2>
+                  <span className="text-[10px] text-slate-600">{starredBoards.length}</span>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  {starredBoards.map((board) => (
-                    <BoardCard
-                      key={board.id}
-                      board={board}
-                      onToggleStar={onToggleStar}
-                      onClick={handleBoardClick}
-                      onDelete={onDeleteBoard ? handleDeleteClick : undefined}
-                      onEdit={handleEditClick}
-                    />
-                  ))}
-                </div>
+                {viewMode === 'grid' ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {starredBoards.map((board) => (
+                      <BoardCard
+                        key={board.id}
+                        board={board}
+                        onToggleStar={onToggleStar}
+                        onClick={handleBoardClick}
+                        onDelete={onDeleteBoard ? handleDeleteClick : undefined}
+                        onEdit={handleEditClick}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {starredBoards.map((board) => (
+                      <BoardListItem
+                        key={board.id}
+                        board={board}
+                        onToggleStar={onToggleStar}
+                        onClick={handleBoardClick}
+                        onEdit={handleEditClick}
+                      />
+                    ))}
+                  </div>
+                )}
               </section>
             )}
 
-            {/* Main Section */}
+            {/* Main Board Section */}
             {filteredBoards.length > 0 && (
               <section>
-                <div className="flex items-center gap-2 mb-6">
-                  <LayoutGrid size={18} className="text-bridge-secondary" />
-                  <h2 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">
+                <div className="flex items-center gap-2 mb-4">
+                  <LayoutGrid size={14} className="text-bridge-secondary" />
+                  <h2 className="text-[11px] font-bold text-slate-500 uppercase tracking-[0.15em]">
                     {t('dashboard.workspaceBoards')}
                   </h2>
+                  <span className="text-[10px] text-slate-600">{filteredBoards.length}</span>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  {filteredBoards.map((board) => (
-                    <BoardCard
-                      key={board.id}
-                      board={board}
-                      onToggleStar={onToggleStar}
-                      onClick={handleBoardClick}
-                      onDelete={onDeleteBoard ? handleDeleteClick : undefined}
-                      onEdit={handleEditClick}
-                    />
-                  ))}
 
-                  {/* Create Card Button */}
-                  <CreateBoardCard onClick={() => setIsCreateModalOpen(true)} />
-                </div>
+                {viewMode === 'grid' ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {filteredBoards.map((board) => (
+                      <BoardCard
+                        key={board.id}
+                        board={board}
+                        onToggleStar={onToggleStar}
+                        onClick={handleBoardClick}
+                        onDelete={onDeleteBoard ? handleDeleteClick : undefined}
+                        onEdit={handleEditClick}
+                      />
+                    ))}
+                    <CreateBoardCard onClick={() => setIsCreateModalOpen(true)} />
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {filteredBoards.map((board) => (
+                      <BoardListItem
+                        key={board.id}
+                        board={board}
+                        onToggleStar={onToggleStar}
+                        onClick={handleBoardClick}
+                        onEdit={handleEditClick}
+                      />
+                    ))}
+                    {/* Create button in list mode */}
+                    <button
+                      onClick={() => setIsCreateModalOpen(true)}
+                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-dashed border-white/10 hover:border-bridge-secondary/30 hover:bg-white/[0.02] transition-all group"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-white/5 group-hover:bg-bridge-secondary/15 flex items-center justify-center transition-colors">
+                        <Plus size={16} className="text-slate-500 group-hover:text-bridge-secondary transition-colors" />
+                      </div>
+                      <span className="text-xs font-bold text-slate-500 group-hover:text-slate-300 uppercase tracking-wider transition-colors">
+                        {t('dashboard.newBoard')}
+                      </span>
+                    </button>
+                  </div>
+                )}
               </section>
             )}
+
           </div>
         </main>
       </div>
@@ -463,7 +584,6 @@ export function Dashboard({
         onClose={() => setIsCreateModalOpen(false)}
         onCreate={onCreateBoard}
       />
-
 
       {/* Edit Board Modal */}
       <EditBoardModal
@@ -487,10 +607,10 @@ export function Dashboard({
         <button
           onClick={handleCreateTestBoard}
           disabled={isCreatingTestBoard}
-          className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 bg-amber-500/90 hover:bg-amber-500 text-black font-bold text-sm rounded-xl shadow-lg shadow-amber-500/30 transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-2.5 bg-amber-500/90 hover:bg-amber-500 text-black font-bold text-xs rounded-xl shadow-lg shadow-amber-500/30 transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
           title={t('board.testBoardTitle')}
         >
-          <FlaskConical size={18} className={isCreatingTestBoard ? 'animate-pulse' : ''} />
+          <FlaskConical size={16} className={isCreatingTestBoard ? 'animate-pulse' : ''} />
           <span className="hidden sm:inline">{isCreatingTestBoard ? t('board.creating') : t('dashboard.testBoard')}</span>
         </button>
       )}
@@ -503,23 +623,92 @@ export function Dashboard({
 
       {/* Custom Scrollbar Styles */}
       <style>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.05); border-radius: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.1); }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.04); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.08); }
         .star-bg {
           background-image:
-            radial-gradient(1px 1px at 20px 30px, rgba(255,255,255,0.4), transparent),
-            radial-gradient(1px 1px at 80px 60px, rgba(255,255,255,0.25), transparent),
-            radial-gradient(1.5px 1.5px at 150px 20px, rgba(255,255,255,0.35), transparent),
-            radial-gradient(1px 1px at 200px 90px, rgba(255,255,255,0.2), transparent),
-            radial-gradient(1px 1px at 40px 110px, rgba(255,255,255,0.3), transparent),
-            radial-gradient(1.5px 1.5px at 280px 45px, rgba(45,212,191,0.25), transparent),
-            radial-gradient(1px 1px at 320px 80px, rgba(255,255,255,0.2), transparent),
-            radial-gradient(1px 1px at 110px 130px, rgba(99,102,241,0.2), transparent);
+            radial-gradient(1px 1px at 20px 30px, rgba(255,255,255,0.3), transparent),
+            radial-gradient(1px 1px at 80px 60px, rgba(255,255,255,0.2), transparent),
+            radial-gradient(1.5px 1.5px at 150px 20px, rgba(255,255,255,0.25), transparent),
+            radial-gradient(1px 1px at 200px 90px, rgba(255,255,255,0.15), transparent),
+            radial-gradient(1px 1px at 40px 110px, rgba(255,255,255,0.2), transparent),
+            radial-gradient(1.5px 1.5px at 280px 45px, rgba(45,212,191,0.15), transparent),
+            radial-gradient(1px 1px at 320px 80px, rgba(255,255,255,0.15), transparent),
+            radial-gradient(1px 1px at 110px 130px, rgba(99,102,241,0.15), transparent);
           background-size: 400px 160px;
         }
       `}</style>
     </div>
+  );
+}
+
+// List view item for boards
+function BoardListItem({ board, onToggleStar, onClick, onEdit }: {
+  board: Board;
+  onToggleStar: (id: string) => void;
+  onClick: (board: Board) => void;
+  onEdit?: (board: Board) => void;
+}) {
+  const { t } = useTranslation();
+  const isTrial = board.subscription?.status === 'TRIAL' && board.tier !== 'PREMIUM';
+  const taskCount = board.task_count ?? 0;
+  const completedTasks = board.completed_tasks ?? 0;
+  const progress = taskCount > 0 ? Math.round((completedTasks / taskCount) * 100) : 0;
+  const members = board.members ?? [];
+
+  return (
+    <motion.div
+      whileHover={{ x: 2 }}
+      onClick={() => onClick(board)}
+      className="flex items-center gap-4 px-4 py-3 rounded-xl bg-white/[0.02] border border-white/[0.06] hover:border-white/[0.12] hover:bg-white/[0.03] cursor-pointer transition-all group"
+    >
+      {/* Color indicator */}
+      <div className="w-10 h-10 rounded-lg shrink-0 overflow-hidden"
+        style={{ background: getGradient(board.id) }}
+      />
+
+      {/* Board info */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <h3 className="text-sm font-bold text-white truncate group-hover:text-bridge-secondary transition-colors">
+            {board.name}
+          </h3>
+          {isTrial && (
+            <span className="px-1.5 py-0.5 bg-bridge-secondary/10 text-bridge-secondary text-[8px] font-bold uppercase tracking-wider rounded shrink-0">
+              {t('dashboard.trialPlan')}
+            </span>
+          )}
+        </div>
+        <p className="text-[11px] text-slate-500 truncate">{board.description || t('dashboard.noDescription')}</p>
+      </div>
+
+      {/* Progress */}
+      <div className="hidden md:flex items-center gap-2 shrink-0 w-28">
+        <div className="flex-1 h-1 bg-white/5 rounded-full overflow-hidden">
+          <div className="h-full bg-gradient-to-r from-bridge-secondary to-bridge-accent rounded-full" style={{ width: `${progress}%` }} />
+        </div>
+        <span className="text-[10px] font-bold text-slate-500 w-8 text-right">{progress}%</span>
+      </div>
+
+      {/* Members */}
+      <div className="hidden sm:flex items-center gap-1.5 text-slate-500 shrink-0">
+        <Users size={12} />
+        <span className="text-[10px] font-medium">{board.member_count}</span>
+      </div>
+
+      {/* Star */}
+      <button
+        onClick={(e) => { e.stopPropagation(); onToggleStar(board.id); }}
+        className="p-1.5 hover:bg-white/5 rounded-lg transition-colors shrink-0"
+      >
+        <Star
+          size={14}
+          fill={board.is_starred ? '#F59E0B' : 'transparent'}
+          stroke={board.is_starred ? '#F59E0B' : 'rgba(255,255,255,0.3)'}
+        />
+      </button>
+    </motion.div>
   );
 }

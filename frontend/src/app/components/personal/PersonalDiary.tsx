@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { Send, BookHeart, ChevronLeft, ChevronRight, Check, Sparkles, RotateCcw, BookOpen, Pencil, Calendar as CalendarIcon, X } from 'lucide-react';
+import { Send, BookHeart, ChevronLeft, ChevronRight, Check, Sparkles, RotateCcw, BookOpen, Pencil, RefreshCw, AlertTriangle, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import {
   startOfMonth,
@@ -161,12 +161,24 @@ export function PersonalDiary() {
   const handleReopen = async () => {
     if (!diary) return;
     try {
-      const data = await diaryService.update(diary.id, {});
-      // Reopen by changing status back to CHATTING
-      setDiary({ ...data, status: 'CHATTING' });
-      loadDiary();
+      const data = await diaryService.reopen(diary.id);
+      setDiary(data);
     } catch (error) {
       console.error('Failed to reopen diary:', error);
+    }
+  };
+
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+
+  const handleReset = async () => {
+    if (!diary) return;
+    try {
+      const data = await diaryService.reset(diary.id);
+      setDiary(data);
+      setShowResetConfirm(false);
+      loadDiaryList();
+    } catch (error) {
+      console.error('Failed to reset diary:', error);
     }
   };
 
@@ -495,13 +507,22 @@ export function PersonalDiary() {
                     </span>
                   )}
                 </div>
-                <button
-                  onClick={handleReopen}
-                  className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-400 border border-white/10 rounded-xl hover:text-white hover:bg-white/5 transition-all"
-                >
-                  <RotateCcw size={14} />
-                  이어서 쓰기
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleReopen}
+                    className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-400 border border-white/10 rounded-xl hover:text-white hover:bg-white/5 transition-all"
+                  >
+                    <RotateCcw size={14} />
+                    이어서 쓰기
+                  </button>
+                  <button
+                    onClick={() => setShowResetConfirm(true)}
+                    className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-400 border border-white/10 rounded-xl hover:text-red-400 hover:border-red-400/30 hover:bg-red-400/5 transition-all"
+                  >
+                    <RefreshCw size={14} />
+                    다시 대화하기
+                  </button>
+                </div>
               </div>
 
               <div className="bg-bridge-obsidian/60 rounded-2xl border border-white/5 p-6">
@@ -638,6 +659,53 @@ export function PersonalDiary() {
           </>
         )}
       </div>
+
+      {/* Reset Confirm Modal */}
+      {showResetConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowResetConfirm(false)} />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.15 }}
+            className="relative bg-bridge-obsidian rounded-2xl border border-white/10 p-6 shadow-2xl max-w-sm w-full mx-4"
+          >
+            <button
+              onClick={() => setShowResetConfirm(false)}
+              className="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="flex flex-col items-center text-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center">
+                <AlertTriangle size={22} className="text-red-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white mb-1">대화를 다시 시작할까요?</h3>
+                <p className="text-sm text-slate-400 leading-relaxed">
+                  기존 대화 내용과 생성된 일기가 모두 삭제되고,<br />
+                  새로운 대화가 시작됩니다.
+                </p>
+              </div>
+              <div className="flex items-center gap-3 w-full mt-1">
+                <button
+                  onClick={() => setShowResetConfirm(false)}
+                  className="flex-1 px-4 py-2.5 text-sm font-bold text-slate-300 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={handleReset}
+                  className="flex-1 px-4 py-2.5 text-sm font-bold text-white bg-red-500/80 rounded-xl hover:bg-red-500 transition-all"
+                >
+                  다시 시작
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       <style>{`
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }

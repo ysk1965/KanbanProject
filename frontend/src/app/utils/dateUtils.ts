@@ -1,4 +1,4 @@
-import { format, formatDistance, parseISO, type Locale } from 'date-fns';
+import { format, formatDistance, parseISO, differenceInCalendarDays, startOfDay, endOfWeek, startOfWeek, addDays, type Locale } from 'date-fns';
 import { ko } from 'date-fns/locale/ko';
 import { enUS } from 'date-fns/locale/en-US';
 import { ja } from 'date-fns/locale/ja';
@@ -131,4 +131,60 @@ export function getTodayDateString(): string {
 // 현재 시간 UTC ISO
 export function nowUTC(): string {
   return new Date().toISOString();
+}
+
+// ── D-day & Deadline Group ──────────────────────────────────
+
+export type DeadlineGroup = 'overdue' | 'today' | 'tomorrow' | 'thisWeek' | 'nextWeek' | 'later' | 'noDate';
+export type DdayUrgency = 'overdue' | 'today' | 'soon' | 'normal' | 'none';
+
+export interface DdayInfo {
+  text: string;
+  diff: number;
+  urgency: DdayUrgency;
+}
+
+/** D-day 계산 (due_date: "yyyy-MM-dd" 형식의 날짜 문자열) */
+export function getDDay(dueDate: string | null | undefined): DdayInfo {
+  if (!dueDate) return { text: '', diff: 0, urgency: 'none' };
+  const today = startOfDay(new Date());
+  const due = startOfDay(parseISO(dueDate));
+  const diff = differenceInCalendarDays(due, today);
+
+  if (diff < 0) return { text: `D+${Math.abs(diff)}`, diff, urgency: 'overdue' };
+  if (diff === 0) return { text: 'D-Day', diff: 0, urgency: 'today' };
+  if (diff <= 3) return { text: `D-${diff}`, diff, urgency: 'soon' };
+  return { text: `D-${diff}`, diff, urgency: 'normal' };
+}
+
+/** 마감일 기준 그룹 분류 */
+export function getDeadlineGroup(dueDate: string | null | undefined): DeadlineGroup {
+  if (!dueDate) return 'noDate';
+  const today = startOfDay(new Date());
+  const due = startOfDay(parseISO(dueDate));
+  const diff = differenceInCalendarDays(due, today);
+
+  if (diff < 0) return 'overdue';
+  if (diff === 0) return 'today';
+  if (diff === 1) return 'tomorrow';
+
+  const weekEnd = endOfWeek(today, { weekStartsOn: 1 });
+  const nextWeekEnd = addDays(weekEnd, 7);
+
+  if (due <= weekEnd) return 'thisWeek';
+  if (due <= nextWeekEnd) return 'nextWeek';
+  return 'later';
+}
+
+/** 그룹 라벨에 사용할 주간 날짜 범위 문자열 */
+export function getWeekRangeLabel(group: 'thisWeek' | 'nextWeek'): string {
+  const today = startOfDay(new Date());
+  const weekStart = group === 'thisWeek'
+    ? addDays(today, 1) // 내일부터 (오늘·내일은 별도 그룹)
+    : addDays(endOfWeek(today, { weekStartsOn: 1 }), 1);
+  const weekEnd = group === 'thisWeek'
+    ? endOfWeek(today, { weekStartsOn: 1 })
+    : addDays(endOfWeek(today, { weekStartsOn: 1 }), 7);
+
+  return `${format(weekStart, 'M/d')}~${format(weekEnd, 'M/d')}`;
 }

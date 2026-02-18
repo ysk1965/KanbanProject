@@ -13,6 +13,9 @@ import com.kanban.domain.schedule.ScheduleBlock;
 import com.kanban.domain.schedule.ScheduleBlockRepository;
 import com.kanban.domain.task.Task;
 import com.kanban.domain.task.TaskRepository;
+import com.kanban.domain.monitoring.entity.AiUsageLog;
+import com.kanban.domain.monitoring.repository.AiUsageLogRepository;
+import com.kanban.domain.subscription.service.AiCreditService;
 import com.kanban.global.config.AIProvider;
 import com.kanban.global.config.AIResponse;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +41,8 @@ public class DiaryAIService {
     private final MeetingRepository meetingRepository;
     private final ScheduleBlockRepository scheduleBlockRepository;
     private final DailyChecklistRepository dailyChecklistRepository;
+    private final AiUsageLogRepository aiUsageLogRepository;
+    private final AiCreditService aiCreditService;
 
     @Value("${ai.provider:claude}")
     private String provider;
@@ -97,6 +102,9 @@ public class DiaryAIService {
      * 대화 맥락을 기반으로 AI 응답 생성
      */
     public String generateChatReply(DiaryEntry entry, String userMessage) {
+        // Consume user-level AI credit before processing
+        aiCreditService.consumeUserCredit(entry.getUser().getId(), "DIARY_CHAT", 1);
+
         List<DiaryMessage> messages = diaryMessageRepository.findByDiaryIdOrderByMessageOrder(entry.getId());
 
         StringBuilder conversationContext = new StringBuilder();
@@ -128,6 +136,7 @@ public class DiaryAIService {
             AIResponse result = aiProvider.chatWithUsage(CHAT_SYSTEM_PROMPT, conversationContext.toString(), model, 500);
             log.debug("Diary chat AI response generated for diary: {}, tokens: in={}, out={}",
                     entry.getId(), result.inputTokens(), result.outputTokens());
+            logAiUsage("DIARY_CHAT", model, null, entry.getUser().getId(), result);
             return result.content();
         } catch (Exception e) {
             log.warn("AI chat reply failed for diary: {}, falling back to rule-based", entry.getId(), e);
@@ -150,12 +159,11 @@ public class DiaryAIService {
             List<String> boardIds = boards.stream().map(Board::getId).toList();
             StringBuilder context = new StringBuilder();
 
-            // 1. 오늘 마감 태스크
-            List<Task> todayTasks = taskRepository.findTodayTasksByBoardIds(boardIds);
-            // 마감일이 해당 날짜인 것만 필터 (findTodayTasksByBoardIds는 CURRENT_DATE 기준이므로)
-            if (date.equals(LocalDate.now()) && !todayTasks.isEmpty()) {
+            // 1. 해당 날짜 마감 태스크 (명시적 date 파라미터 사용, CURRENT_DATE 의존 제거)
+            List<Task> dateTasks = taskRepository.findWeekTasksByBoardIds(boardIds, date, date);
+            if (!dateTasks.isEmpty()) {
                 context.append("[오늘 마감 태스크]\n");
-                for (Task t : todayTasks) {
+                for (Task t : dateTasks) {
                     context.append("- ").append(t.getTitle());
                     if (t.getFeature() != null) {
                         context.append(" (").append(t.getFeature().getTitle()).append(")");
@@ -276,6 +284,9 @@ public class DiaryAIService {
      * 대화 내용을 기반으로 AI 일기 컨텐츠 생성
      */
     public DiaryContent generateDiaryContent(DiaryEntry entry) {
+        // Consume user-level AI credit before processing
+        aiCreditService.consumeUserCredit(entry.getUser().getId(), "DIARY_GENERATE", 1);
+
         List<DiaryMessage> messages = diaryMessageRepository.findByDiaryIdOrderByMessageOrder(entry.getId());
 
         if (messages.isEmpty()) {
@@ -300,6 +311,7 @@ public class DiaryAIService {
             AIResponse result = aiProvider.chatWithUsage(DIARY_SYSTEM_PROMPT, conversationContext.toString(), model, 1024);
             log.info("Diary content generated for diary: {}, tokens: in={}, out={}",
                     entry.getId(), result.inputTokens(), result.outputTokens());
+            logAiUsage("DIARY_GENERATE", model, null, entry.getUser().getId(), result);
             return parseDiaryContent(result.content(), entry);
         } catch (Exception e) {
             log.warn("AI diary content generation failed for diary: {}, falling back to compilation", entry.getId(), e);
@@ -310,6 +322,21 @@ public class DiaryAIService {
     // ============================
     // Helpers
     // ============================
+
+    private void logAiUsage(String featureType, String model, String boardId, String userId, AIResponse aiResult) {
+        try {
+            aiUsageLogRepository.save(AiUsageLog.builder()
+                    .boardId(boardId).userId(userId)
+                    .featureType(featureType).provider(provider.toUpperCase())
+                    .model(model)
+                    .inputTokens(aiResult.inputTokens())
+                    .outputTokens(aiResult.outputTokens())
+                    .estimatedCostUsd(AiUsageLog.calculateCost(model, aiResult.inputTokens(), aiResult.outputTokens()))
+                    .build());
+        } catch (Exception e) {
+            log.debug("Failed to save AI usage log: {}", e.getMessage());
+        }
+    }
 
     /**
      * AI 응답에서 제목과 본문을 파싱
@@ -363,7 +390,7 @@ public class DiaryAIService {
             "그때 어떤 기분이 들었어? 감정을 표현해본다면?",
             "그 일이 있기 전에는 어떤 하루를 보내고 있었어?",
             "혹시 오늘 만난 사람 중에 기억에 남는 사람이 있어?",
-            "오늘 하루 중 스스로에게 해주고 싶은 말이 있다면?",
+            "오늘 하루 중 나 자신에게 해주고 싶은 말이 있다면?",
             "오늘 감사했던 일이 있었을까? 아주 작은 것이라도!",
             "내일은 어떤 하루가 되면 좋겠어?",
             "요즘 가장 많이 생각하는 건 뭐야?",

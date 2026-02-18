@@ -22,11 +22,18 @@ import java.util.List;
 public class DiaryService {
 
     private static final String[] OPENING_QUESTIONS = {
-            "오늘 하루는 어땠나요? 한마디로 표현해본다면?",
-            "오늘 가장 기억에 남는 순간이 있었나요?",
-            "오늘 하루를 색으로 표현한다면 어떤 색일까요?",
-            "오늘 하루 중 감사했던 일이 있나요?",
-            "오늘 어떤 기분으로 하루를 보냈나요?"
+            "오늘 하루 어땠어? 한마디로 표현해본다면?",
+            "오늘 가장 기억에 남는 순간이 있었어?",
+            "오늘 하루를 색으로 표현한다면 어떤 색일까?",
+            "오늘 하루 중 감사했던 일이 있었어?",
+            "오늘 어떤 기분으로 하루를 보냈어?",
+            "오늘 하루 중 가장 웃었던 순간은 뭐야?",
+            "오늘 누군가에게 고마웠던 적 있어?",
+            "오늘 나한테 수고했다고 말해주고 싶은 일이 있어?",
+            "오늘 가장 몰입했던 시간은 언제였어?",
+            "오늘 하루를 이모지 하나로 표현한다면? 그 이유도 궁금해!",
+            "오늘 하루, 예상과 다르게 흘러간 부분이 있었어?",
+            "오늘 하루 중 나를 가장 설레게 한 건 뭐야?"
     };
 
     private final DiaryEntryRepository diaryEntryRepository;
@@ -156,6 +163,48 @@ public class DiaryService {
         entry.complete(title, finalContent, request.getMood());
 
         log.info("Diary completed: {} by user: {}", diaryId, userId);
+        return DiaryResponse.Detail.of(entry);
+    }
+
+    @Transactional
+    public DiaryResponse.Detail reopenDiary(String userId, String diaryId) {
+        DiaryEntry entry = diaryEntryRepository.findById(diaryId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.DIARY_NOT_FOUND));
+
+        if (!entry.isOwner(userId)) {
+            throw new BusinessException(ErrorCode.DIARY_ACCESS_DENIED);
+        }
+
+        entry.reopen();
+
+        log.info("Diary reopened: {} by user: {}", diaryId, userId);
+        return DiaryResponse.Detail.of(entry);
+    }
+
+    @Transactional
+    public DiaryResponse.Detail resetDiary(String userId, String diaryId) {
+        DiaryEntry entry = diaryEntryRepository.findById(diaryId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.DIARY_NOT_FOUND));
+
+        if (!entry.isOwner(userId)) {
+            throw new BusinessException(ErrorCode.DIARY_ACCESS_DENIED);
+        }
+
+        entry.reset();
+        diaryEntryRepository.flush();
+
+        // 새 첫 질문 추가
+        String openingQuestion = OPENING_QUESTIONS[(int) (Math.random() * OPENING_QUESTIONS.length)];
+        DiaryMessage aiMessage = DiaryMessage.builder()
+                .diary(entry)
+                .role("AI")
+                .content(openingQuestion)
+                .messageOrder(1)
+                .build();
+        diaryMessageRepository.save(aiMessage);
+        entry.addMessage(aiMessage);
+
+        log.info("Diary reset: {} by user: {}", diaryId, userId);
         return DiaryResponse.Detail.of(entry);
     }
 

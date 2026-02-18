@@ -58,7 +58,64 @@ public class AiCreditService {
                 boardId, userId, featureType, creditCost, creditSource, subscription.getTotalAvailableCredits());
     }
 
-    // === Credit Query ===
+    // === User-Level Credit Consumption (Personal features like Diary) ===
+
+    @Transactional
+    public void consumeUserCredit(String userId, String featureType, int creditCost) {
+        User user = userRepository.findByIdForUpdate(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        // Initialize credits if first use (no reset date set yet)
+        if (user.getPersonalCreditsResetDate() == null) {
+            user.initializePersonalCredits();
+        }
+
+        if (!user.hasEnoughPersonalCredits(creditCost)) {
+            throw new BusinessException(ErrorCode.PERSONAL_AI_CREDITS_EXHAUSTED);
+        }
+
+        user.consumePersonalCredits(creditCost);
+
+        log.info("Personal AI credit consumed - user: {}, feature: {}, cost: {}, remaining: {}",
+                userId, featureType, creditCost, user.getPersonalAvailableCredits());
+    }
+
+    @Transactional(readOnly = true)
+    public AiCreditResponse.CreditInfo getUserCredits(String userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        int available = user.getPersonalAvailableCredits();
+        String warningLevel = null;
+        if (available <= 0) warningLevel = "EXHAUSTED";
+        else if (available <= 3) warningLevel = "CRITICAL";
+        else if (available <= 10) warningLevel = "LOW";
+
+        return AiCreditResponse.CreditInfo.builder()
+                .monthlyCredits(user.getPersonalAiCredits())
+                .monthlyUsed(user.getPersonalCreditsUsed())
+                .purchasedCredits(0)
+                .totalAvailable(available)
+                .resetDate(user.getPersonalCreditsResetDate())
+                .warningLevel(warningLevel)
+                .build();
+    }
+
+    // === User Credit Monthly Reset ===
+
+    @Transactional(readOnly = true)
+    public List<String> findUserIdsDueForPersonalCreditReset() {
+        return userRepository.findUserIdsDueForPersonalCreditReset(LocalDateTime.now(ZoneOffset.UTC));
+    }
+
+    @Transactional
+    public void resetSingleUserPersonalCredits(String userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        user.resetPersonalCredits();
+    }
+
+    // === Credit Query (Board-level) ===
 
     @Transactional(readOnly = true)
     public AiCreditResponse.CreditInfo getCredits(String boardId) {

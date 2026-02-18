@@ -18,6 +18,10 @@ import {
   inquiryAPI,
   noteAPI,
   apiClient,
+  personalTaskAPI,
+  personalTagAPI,
+  personalHabitAPI,
+  personalDashboardAPI,
 } from './api';
 import {
   mockBoards,
@@ -228,16 +232,6 @@ export const boardService = {
    */
   getBoardFull: async (boardId: string) => {
     const data = await boardAPI.getBoardFull(boardId);
-    return data;
-  },
-
-  getPersonalBoard: async () => {
-    const data = await boardAPI.getPersonalBoard();
-    return data;
-  },
-
-  getTodayData: async (boardId: string) => {
-    const data = await boardAPI.getTodayData(boardId);
     return data;
   },
 
@@ -1983,11 +1977,11 @@ import {
   SignupTrend,
   ActiveUserStats,
   ConversionStats,
-  PersonalBoardStats,
   DiaryStats,
   PersonalConversionStats,
   AnnouncementDetail,
   MaintenanceStatus,
+  BulkCreateResult,
 } from './api';
 
 export const adminService = {
@@ -2152,11 +2146,6 @@ export const adminService = {
     return await adminAPI.getConversionStats(days);
   },
 
-  // Analytics: Personal Board 통계
-  getPersonalBoardStats: async (days: number = 30): Promise<PersonalBoardStats> => {
-    return await adminAPI.getPersonalBoardStats(days);
-  },
-
   // Analytics: Diary 통계
   getDiaryStats: async (days: number = 30): Promise<DiaryStats> => {
     return await adminAPI.getDiaryStats(days);
@@ -2200,6 +2189,10 @@ export const adminService = {
 
   deleteAnnouncement: async (id: string): Promise<void> => {
     await adminAPI.deleteAnnouncement(id);
+  },
+
+  bulkCreatePersonalBoards: async (): Promise<BulkCreateResult> => {
+    return await adminAPI.bulkCreatePersonalBoards();
   },
 
   // 점검 모드
@@ -2570,6 +2563,14 @@ export const diaryService = {
     return diaryAPI.complete(diaryId, data);
   },
 
+  reopen: async (diaryId: string): Promise<DiaryDetail> => {
+    return diaryAPI.reopen(diaryId);
+  },
+
+  reset: async (diaryId: string): Promise<DiaryDetail> => {
+    return diaryAPI.reset(diaryId);
+  },
+
   update: async (diaryId: string, data: {
     title?: string;
     content?: string;
@@ -2581,4 +2582,47 @@ export const diaryService = {
   delete: async (diaryId: string): Promise<void> => {
     return diaryAPI.delete(diaryId);
   },
+};
+
+// ─── Personal Task Service (v9.0) ───
+
+export const personalTaskService = {
+  getTasks: personalTaskAPI.getAll,
+  getTask: personalTaskAPI.getById,
+  createTask: personalTaskAPI.create,
+  updateTask: personalTaskAPI.update,
+  updateStatus: personalTaskAPI.updateStatus,
+  updatePosition: personalTaskAPI.updatePosition,
+  deleteTask: personalTaskAPI.delete,
+  getCategories: personalTaskAPI.getCategories,
+  addChecklist: personalTaskAPI.addChecklist,
+  updateChecklist: personalTaskAPI.updateChecklist,
+  toggleChecklist: personalTaskAPI.toggleChecklist,
+  deleteChecklist: personalTaskAPI.deleteChecklist,
+  assignTag: personalTaskAPI.assignTag,
+  unassignTag: personalTaskAPI.unassignTag,
+};
+
+export const personalTagService = {
+  getTags: personalTagAPI.getAll,
+  createTag: personalTagAPI.create,
+  updateTag: personalTagAPI.update,
+  deleteTag: personalTagAPI.delete,
+};
+
+export const personalHabitService = {
+  getHabits: personalHabitAPI.getAll,
+  getHabit: personalHabitAPI.getById,
+  createHabit: personalHabitAPI.create,
+  updateHabit: personalHabitAPI.update,
+  deleteHabit: personalHabitAPI.delete,
+  updatePosition: personalHabitAPI.updatePosition,
+  checkIn: personalHabitAPI.checkIn,
+  getLogs: personalHabitAPI.getLogs,
+  getToday: personalHabitAPI.getToday,
+  getWeekly: personalHabitAPI.getWeekly,
+};
+
+export const personalDashboardService = {
+  getToday: personalDashboardAPI.getToday,
 };

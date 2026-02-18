@@ -7,7 +7,6 @@ import {
   ArrowDownRight,
   BarChart3,
   RefreshCw,
-  BookOpen,
   UserCheck,
   ArrowRightLeft,
 } from 'lucide-react';
@@ -28,7 +27,6 @@ import type {
   SignupTrend,
   ActiveUserStats,
   ConversionStats,
-  PersonalBoardStats,
   DiaryStats,
   PersonalConversionStats,
 } from '../../utils/api';
@@ -40,14 +38,12 @@ export function AdminAnalyticsTab() {
   const [signupTrend, setSignupTrend] = useState<SignupTrend | null>(null);
   const [activeUserStats, setActiveUserStats] = useState<ActiveUserStats | null>(null);
   const [conversionStats, setConversionStats] = useState<ConversionStats | null>(null);
-  const [pbStats, setPbStats] = useState<PersonalBoardStats | null>(null);
   const [diaryStats, setDiaryStats] = useState<DiaryStats | null>(null);
   const [pbConversionStats, setPbConversionStats] = useState<PersonalConversionStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [signupDays, setSignupDays] = useState<PeriodOption>(30);
   const [dauDays, setDauDays] = useState<PeriodOption>(30);
-  const [pbDays, setPbDays] = useState<PeriodOption>(30);
   const [diaryDays, setDiaryDays] = useState<PeriodOption>(30);
 
   useEffect(() => {
@@ -62,18 +58,26 @@ export function AdminAnalyticsTab() {
     loadActiveUserStats();
   }, [dauDays]);
 
+  useEffect(() => {
+    loadDiaryStats();
+  }, [diaryDays]);
+
   const loadAllData = async () => {
     try {
       setIsLoading(true);
       setError(null);
-      const [signup, active, conversion] = await Promise.all([
+      const [signup, active, conversion, diary, pbConversion] = await Promise.all([
         adminService.getSignupTrend(signupDays),
         adminService.getActiveUserStats(dauDays),
         adminService.getConversionStats(365),
+        adminService.getDiaryStats(diaryDays),
+        adminService.getPersonalConversionStats(365),
       ]);
       setSignupTrend(signup);
       setActiveUserStats(active);
       setConversionStats(conversion);
+      setDiaryStats(diary);
+      setPbConversionStats(pbConversion);
     } catch (err) {
       console.error('Failed to load analytics:', err);
       setError(t('admin.analytics.loadFailed'));
@@ -97,6 +101,15 @@ export function AdminAnalyticsTab() {
       setActiveUserStats(data);
     } catch (err) {
       console.error('Failed to load active user stats:', err);
+    }
+  };
+
+  const loadDiaryStats = async () => {
+    try {
+      const data = await adminService.getDiaryStats(diaryDays);
+      setDiaryStats(data);
+    } catch (err) {
+      console.error('Failed to load diary stats:', err);
     }
   };
 
@@ -363,6 +376,113 @@ export function AdminAnalyticsTab() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Diary Engagement Chart */}
+      {diaryStats && (
+        <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-4 md:p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2">
+              <UserCheck className="h-5 w-5 text-emerald-400" />
+              <h3 className="text-lg font-bold text-white">{t('admin.analytics.diaryEngagement', 'Diary Engagement')}</h3>
+            </div>
+            <PeriodSelector value={diaryDays} onChange={setDiaryDays} options={periodOptions} />
+          </div>
+
+          {/* Diary Summary Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
+            <ConversionMetric
+              label={t('admin.analytics.totalDiaryEntries', 'Total Entries')}
+              value={diaryStats.total_entries}
+            />
+            <ConversionMetric
+              label={t('admin.analytics.diaryCompletionRate', 'Completion Rate')}
+              value={`${diaryStats.completion_rate}%`}
+              highlight
+            />
+            <ConversionMetric
+              label={t('admin.analytics.diaryActiveUsers', 'Active Users')}
+              value={diaryStats.active_users}
+              positive
+            />
+          </div>
+
+          {diaryStats.trend.length > 0 && (
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={diaryStats.trend}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                  <XAxis dataKey="date" tickFormatter={formatDate} stroke="#64748b" fontSize={12} />
+                  <YAxis stroke="#64748b" fontSize={12} allowDecimals={false} />
+                  <Tooltip
+                    contentStyle={tooltipStyle}
+                    labelFormatter={(label) => `${t('admin.analytics.date')}: ${label}`}
+                    formatter={(value: number) => [value, t('admin.analytics.diaryEntries', 'Diary Entries')]}
+                  />
+                  <Bar dataKey="count" fill="#10b981" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Personal -> Team Conversion */}
+      {pbConversionStats && (
+        <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-4 md:p-6">
+          <div className="flex items-center gap-2 mb-6">
+            <ArrowRightLeft className="h-5 w-5 text-bridge-secondary" />
+            <h3 className="text-lg font-bold text-white">{t('admin.analytics.pbConversion', 'Personal Board Conversion')}</h3>
+          </div>
+
+          {/* Conversion Summary */}
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
+            <ConversionMetric
+              label={t('admin.analytics.personalOnly', 'Personal Only')}
+              value={pbConversionStats.personal_only}
+            />
+            <ConversionMetric
+              label={t('admin.analytics.personalAndTeam', 'Personal + Team')}
+              value={pbConversionStats.both}
+              positive
+            />
+            <ConversionMetric
+              label={t('admin.analytics.pbConversionRate', 'Conversion Rate')}
+              value={`${pbConversionStats.conversion_rate}%`}
+              highlight
+            />
+          </div>
+
+          {/* Conversion Progress Bar */}
+          {(() => {
+            const total = pbConversionStats.personal_only + pbConversionStats.both;
+            if (total === 0) return null;
+            const bothPct = (pbConversionStats.both / total) * 100;
+            const personalPct = (pbConversionStats.personal_only / total) * 100;
+            return (
+              <div className="space-y-2">
+                <div className="h-4 bg-white/5 rounded-full overflow-hidden flex">
+                  {bothPct > 0 && (
+                    <div className="h-full bg-bridge-secondary transition-all duration-500" style={{ width: `${bothPct}%` }} />
+                  )}
+                  {personalPct > 0 && (
+                    <div className="h-full bg-purple-500/60 transition-all duration-500" style={{ width: `${personalPct}%` }} />
+                  )}
+                </div>
+                <div className="flex gap-4 text-xs">
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-bridge-secondary" />
+                    <span className="text-slate-400">{t('admin.analytics.personalAndTeam', 'Personal + Team')} {bothPct.toFixed(1)}%</span>
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-purple-500/60" />
+                    <span className="text-slate-400">{t('admin.analytics.personalOnly', 'Personal Only')} {personalPct.toFixed(1)}%</span>
+                  </span>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
     </div>

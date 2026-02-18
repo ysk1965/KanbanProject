@@ -1,17 +1,25 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { ChevronLeft, ChevronRight, Plus, Trash2, X, Loader2, Settings, RotateCw } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Trash2, X, Loader2, Settings, RotateCw, CalendarDays, Clock, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { personalEventService } from '../../utils/services';
+import { personalHabitAPI } from '../../utils/api';
 import { formatDate } from '../../utils/dateUtils';
-import type { PersonalEvent } from '../../types';
+import type { PersonalEvent, HabitWeeklyRow } from '../../types';
 import {
   startOfWeek,
   endOfWeek,
+  startOfMonth,
+  endOfMonth,
   eachDayOfInterval,
   addWeeks,
   subWeeks,
+  addMonths,
+  subMonths,
+  isSameMonth,
+  isToday as isTodayFn,
   format,
 } from 'date-fns';
+import { ko } from 'date-fns/locale';
 
 const EVENT_COLORS = [
   '#6366F1', '#8B5CF6', '#EC4899', '#F43F5E',
@@ -21,9 +29,9 @@ const EVENT_COLORS = [
 const SLOT_HEIGHT = 40;
 const DEFAULT_START_HOUR = 7;
 const DEFAULT_END_HOUR = 23;
-const DAY_LABELS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
-const COL_MIN_W = 'min-w-[100px] md:min-w-[130px]';
-const TIME_COL_W = 'w-12 md:w-16';
+const DAY_LABELS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+const COL_MIN_W = 'min-w-[130px]';
+const TIME_COL_W = 'w-16';
 const STORAGE_KEY = 'bridge-personal-schedule-settings';
 
 interface ScheduleSettings {
@@ -66,6 +74,7 @@ const toDateString = (d: Date): string => format(d, 'yyyy-MM-dd');
 export function PersonalSchedule() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState<PersonalEvent[]>([]);
+  const [habitRows, setHabitRows] = useState<HabitWeeklyRow[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [settings, setSettings] = useState<ScheduleSettings>(loadSettings);
   const [showSettings, setShowSettings] = useState(false);
@@ -78,6 +87,7 @@ export function PersonalSchedule() {
   const [createDate, setCreateDate] = useState('');
   const [createStartTime, setCreateStartTime] = useState('');
   const [createEndTime, setCreateEndTime] = useState('');
+  const [createInitialRecurrence, setCreateInitialRecurrence] = useState('');
 
   // Edit modal
   const [editEvent, setEditEvent] = useState<PersonalEvent | null>(null);
@@ -93,8 +103,8 @@ export function PersonalSchedule() {
   const timeSlots = useMemo(() => generateTimeSlots(startHour, endHour), [startHour, endHour]);
 
   const weekDays = useMemo(() => {
-    const ws = startOfWeek(currentDate, { weekStartsOn: 1 });
-    const we = endOfWeek(currentDate, { weekStartsOn: 1 });
+    const ws = startOfWeek(currentDate, { weekStartsOn: 0 });
+    const we = endOfWeek(currentDate, { weekStartsOn: 0 });
     return eachDayOfInterval({ start: ws, end: we });
   }, [currentDate]);
 
@@ -117,6 +127,53 @@ export function PersonalSchedule() {
   useEffect(() => {
     loadEvents();
   }, [loadEvents]);
+
+  // ---- Load habits for visible week ----
+  const loadHabits = useCallback(async () => {
+    try {
+      const data = await personalHabitAPI.getWeekly(startDate, endDate);
+      setHabitRows(data.habits ?? []);
+    } catch {
+      setHabitRows([]);
+    }
+  }, [startDate, endDate]);
+
+  useEffect(() => {
+    loadHabits();
+  }, [loadHabits]);
+
+  // Group habit completions by date
+  const habitsByDate = useMemo(() => {
+    const grouped: Record<string, { habit_id: string; title: string; icon?: string; is_completed: boolean; count: number }[]> = {};
+    habitRows.forEach((row) => {
+      row.days.forEach((day) => {
+        (grouped[day.date] ??= []).push({
+          habit_id: row.habit_id,
+          title: row.title,
+          icon: row.icon,
+          is_completed: day.is_completed,
+          count: day.count,
+        });
+      });
+    });
+    return grouped;
+  }, [habitRows]);
+
+  const handleHabitCheckIn = async (habitId: string, date: string) => {
+    // Optimistic update
+    setHabitRows(prev => prev.map(row => {
+      if (row.habit_id !== habitId) return row;
+      return {
+        ...row,
+        days: row.days.map(d => d.date === date ? { ...d, is_completed: !d.is_completed, count: d.is_completed ? 0 : 1 } : d),
+      };
+    }));
+    try {
+      await personalHabitAPI.checkIn(habitId, { log_date: date, increment: 1 });
+    } catch {
+      await loadHabits(); // revert on error
+    }
+  };
 
   // ---- Navigation ----
   const handlePrev = () => setCurrentDate((d) => subWeeks(d, 1));
@@ -170,6 +227,7 @@ export function PersonalSchedule() {
     setCreateDate(dateStr);
     setCreateStartTime(st);
     setCreateEndTime(et);
+    setCreateInitialRecurrence('');
     setIsCreateOpen(true);
 
     setIsDragging(false);
@@ -262,76 +320,338 @@ export function PersonalSchedule() {
     scrolledRef.current = false;
   }, [currentDate]);
 
+  // ---- Mini calendar state ----
+  const [calendarMonth, setCalendarMonth] = useState(() => startOfMonth(currentDate));
+  const [monthlyEvents, setMonthlyEvents] = useState<PersonalEvent[]>([]);
+
+  // Sync calendar month when navigating weeks
+  useEffect(() => {
+    const weekMid = weekDays[3]; // use mid-week to determine month
+    const weekMonth = startOfMonth(weekMid);
+    if (!isSameMonth(weekMonth, calendarMonth)) {
+      setCalendarMonth(weekMonth);
+    }
+  }, [weekDays]);
+
+  // Load monthly events for mini calendar indicators
+  useEffect(() => {
+    const fetchMonthly = async () => {
+      try {
+        const ms = startOfMonth(calendarMonth);
+        const me = endOfMonth(calendarMonth);
+        const data = await personalEventService.getWeekly(toDateString(ms), toDateString(me));
+        setMonthlyEvents(data);
+      } catch { /* ignore */ }
+    };
+    fetchMonthly();
+  }, [calendarMonth]);
+
+  // Calendar grid days
+  const calendarDays = useMemo(() => {
+    const monthStart = startOfMonth(calendarMonth);
+    const monthEnd = endOfMonth(calendarMonth);
+    const calStart = startOfWeek(monthStart, { weekStartsOn: 0 });
+    const calEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
+    return eachDayOfInterval({ start: calStart, end: calEnd });
+  }, [calendarMonth]);
+
+  // Events by date for mini calendar dots
+  const eventDateSet = useMemo(() => {
+    const set = new Set<string>();
+    monthlyEvents.forEach((e) => set.add(e.event_date));
+    // Also include currently loaded weekly events
+    events.forEach((e) => set.add(e.event_date));
+    // Also include habit dates
+    habitRows.forEach((row) => row.days.forEach((d) => { if (d.is_completed || d.count > 0) set.add(d.date); }));
+    return set;
+  }, [monthlyEvents, events, habitRows]);
+
+  // Recurring events extracted from loaded data
+  const recurringEvents = useMemo(() => {
+    const seen = new Set<string>();
+    const result: PersonalEvent[] = [];
+    // Combine monthly + weekly events
+    [...monthlyEvents, ...events].forEach((e) => {
+      if (e.recurrence_group_id && !seen.has(e.recurrence_group_id)) {
+        seen.add(e.recurrence_group_id);
+        result.push(e);
+      }
+    });
+    return result;
+  }, [monthlyEvents, events]);
+
+  const miniCalWeekDays = ['일', '월', '화', '수', '목', '금', '토'];
+
+  const handleCalendarDateClick = (day: Date) => {
+    // Navigate the weekly view to the week containing this date
+    setCurrentDate(day);
+    if (!isSameMonth(day, calendarMonth)) {
+      setCalendarMonth(startOfMonth(day));
+    }
+  };
+
+  const handlePrevMonth = () => setCalendarMonth(subMonths(calendarMonth, 1));
+  const handleNextMonth = () => setCalendarMonth(addMonths(calendarMonth, 1));
+
+  const formatRecurrenceLabel = (e: PersonalEvent): string => {
+    if (e.recurrence_rule === 'DAILY') return 'Every day';
+    if (e.recurrence_rule === 'WEEKLY' && e.recurrence_days_of_week) {
+      const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const days = e.recurrence_days_of_week.split(',').map(Number);
+      return days.map((d) => dayLabels[d]).join(', ');
+    }
+    return 'Recurring';
+  };
+
   // ---- Render ----
   return (
-    <div
-      className="h-full flex flex-col"
-      onMouseUp={handleMouseUp}
-      onMouseLeave={() => {
-        if (isDragging) {
-          setIsDragging(false);
-          setDragState(null);
-        }
-      }}
-    >
-      {/* ======== Navigation header ======== */}
-      <div className="flex items-center justify-between px-3 md:px-6 py-2 md:py-3 border-b border-white/[0.06] flex-shrink-0">
-        <div className="flex items-center gap-1.5 md:gap-3">
-          <button
-            onClick={handlePrev}
-            className="p-1.5 md:p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors"
-          >
-            <ChevronLeft size={16} className="md:w-[18px] md:h-[18px]" />
-          </button>
-          <h2 className="text-xs md:text-lg font-bold min-w-0 text-center whitespace-nowrap">
-            <span className="hidden sm:inline">{format(weekDays[0], 'MMM d')} - {format(weekDays[6], 'MMM d, yyyy')}</span>
-            <span className="sm:hidden">{format(weekDays[0], 'M/d')} - {format(weekDays[6], 'M/d')}</span>
-          </h2>
-          <button
-            onClick={handleNext}
-            className="p-1.5 md:p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors"
-          >
-            <ChevronRight size={16} className="md:w-[18px] md:h-[18px]" />
-          </button>
-          <button
-            onClick={handleToday}
-            className={`px-2 md:px-3 py-1 md:py-1.5 text-[10px] md:text-xs font-bold rounded-lg transition-colors ${
-              isTodayInWeek
-                ? 'bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white'
-                : 'text-bridge-secondary border border-bridge-secondary/30 hover:bg-bridge-secondary/10'
-            }`}
-          >
-            Today
-          </button>
-          {isLoading && <Loader2 className="h-4 w-4 text-slate-400 animate-spin" />}
+    <div className="h-full flex">
+      {/* ======== Left Sidebar ======== */}
+      <div className="w-[340px] flex-shrink-0 border-r border-white/5 flex flex-col overflow-hidden">
+        <div className="px-4 pt-4 pb-2 flex-shrink-0">
+          {/* Title */}
+          <div className="flex items-center gap-2.5 mb-4">
+            <CalendarDays size={18} className="text-bridge-accent" />
+            <h2 className="text-base font-bold text-white">Schedule</h2>
+          </div>
+
+          {/* Month Navigation */}
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-sm font-semibold text-white">
+              {format(calendarMonth, 'yyyy년 M월', { locale: ko })}
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={handlePrevMonth}
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <button
+                onClick={handleToday}
+                className="px-2 py-0.5 text-[10px] font-semibold rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
+              >
+                오늘
+              </button>
+              <button
+                onClick={handleNextMonth}
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
         </div>
 
-        <div className="flex items-center gap-1.5 md:gap-2">
-          <button
-            onClick={() => setShowSettings(true)}
-            className="p-1.5 md:p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors"
-            title="Schedule settings"
-          >
-            <Settings size={16} className="md:w-[18px] md:h-[18px]" />
-          </button>
-          <button
-            onClick={() => {
-              setCreateDate(todayStr);
-              setCreateStartTime('');
-              setCreateEndTime('');
-              setIsCreateOpen(true);
-            }}
-            className="flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 bg-bridge-accent text-white text-xs md:text-sm font-bold rounded-xl hover:bg-bridge-accent/90 transition-colors"
-          >
-            <Plus size={14} className="md:w-4 md:h-4" />
-            <span className="hidden sm:inline">Add Event</span>
-          </button>
+        {/* Mini Calendar Grid */}
+        <div className="px-4 pb-4 flex-shrink-0">
+          <div className="bg-bridge-obsidian rounded-xl border border-white/5 p-3">
+            {/* Weekday header */}
+            <div className="grid grid-cols-7 mb-1">
+              {miniCalWeekDays.map((day, i) => (
+                <div
+                  key={`${day}-${i}`}
+                  className={`text-center text-[10px] font-bold uppercase tracking-widest py-1 ${
+                    i === 0 ? 'text-red-400/60' : i === 6 ? 'text-blue-400/60' : 'text-slate-500'
+                  }`}
+                >
+                  {day}
+                </div>
+              ))}
+            </div>
+
+            {/* Date grid */}
+            <div className="grid grid-cols-7 gap-0.5">
+              {calendarDays.map((day) => {
+                const dateKey = toDateString(day);
+                const hasEvent = eventDateSet.has(dateKey);
+                const isCurrentMonth = isSameMonth(day, calendarMonth);
+                const isTodayDate = isTodayFn(day);
+                // Highlight if the date falls in the current displayed week
+                const isInCurrentWeek = weekDays.some((wd) => toDateString(wd) === dateKey);
+                const dayOfWeek = day.getDay();
+
+                return (
+                  <button
+                    key={dateKey}
+                    onClick={() => handleCalendarDateClick(day)}
+                    className={`
+                      relative flex flex-col items-center justify-center py-1.5 rounded-lg transition-all min-h-[36px]
+                      ${isInCurrentWeek
+                        ? 'bg-bridge-accent/10 border border-bridge-accent/20'
+                        : 'border border-transparent hover:bg-white/5'
+                      }
+                      ${!isCurrentMonth ? 'opacity-30' : ''}
+                    `}
+                  >
+                    <span
+                      className={`
+                        text-xs font-medium leading-none
+                        ${isTodayDate
+                          ? 'bg-bridge-accent text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px]'
+                          : isInCurrentWeek
+                            ? 'text-white'
+                            : dayOfWeek === 0
+                              ? 'text-red-400/80'
+                              : dayOfWeek === 6
+                                ? 'text-blue-400/80'
+                                : 'text-slate-300'
+                        }
+                      `}
+                    >
+                      {format(day, 'd')}
+                    </span>
+                    {hasEvent && (
+                      <span className="mt-0.5 w-1 h-1 rounded-full bg-bridge-secondary" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Recurring Events List */}
+        <div className="flex-1 overflow-auto px-4 pb-4 min-h-0 custom-scrollbar">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <RotateCw size={14} className="text-purple-400" />
+              <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+                Recurring
+              </span>
+              {recurringEvents.length > 0 && (
+                <span className="text-[10px] font-bold text-purple-400 bg-purple-400/10 px-1.5 py-0.5 rounded">
+                  {recurringEvents.length}
+                </span>
+              )}
+            </div>
+            <button
+              onClick={() => {
+                setCreateDate(todayStr);
+                setCreateStartTime('');
+                setCreateEndTime('');
+                setCreateInitialRecurrence('WEEKLY');
+                setIsCreateOpen(true);
+              }}
+              className="flex items-center gap-1 px-2 py-1 text-[10px] font-bold text-purple-400 bg-purple-400/10 rounded-lg hover:bg-purple-400/20 transition-colors"
+            >
+              <Plus size={12} />
+              Add
+            </button>
+          </div>
+          {recurringEvents.length === 0 ? (
+            <div className="text-center py-6">
+              <RotateCw size={20} className="mx-auto text-slate-600 mb-2" />
+              <p className="text-slate-500 text-xs">No recurring events</p>
+              <p className="text-slate-600 text-[10px] mt-1">Create an event with repeat to see it here</p>
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              {recurringEvents.map((e) => (
+                <button
+                  key={e.recurrence_group_id}
+                  onClick={() => setEditEvent(e)}
+                  className="w-full text-left p-2.5 rounded-xl transition-all group bg-white/[0.03] border border-white/5 hover:bg-white/[0.06] hover:border-white/10"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div
+                      className="w-1 h-8 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: e.color }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <span className="text-[13px] font-medium text-white truncate block group-hover:text-bridge-accent transition-colors">
+                        {e.title}
+                      </span>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <span className="text-[10px] font-semibold text-purple-400/80 bg-purple-400/10 px-1.5 py-0.5 rounded">
+                          {formatRecurrenceLabel(e)}
+                        </span>
+                        {e.start_time && (
+                          <span className="text-[10px] text-slate-500 flex items-center gap-0.5">
+                            <Clock size={8} />
+                            {e.start_time.slice(0, 5)}
+                            {e.end_time && ` - ${e.end_time.slice(0, 5)}`}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* ======== Time-grid ======== */}
-      <div className="flex-1 overflow-auto">
-        <div className="min-w-[750px] md:min-w-[1060px]">
+      {/* ======== Main Time Grid ======== */}
+      <div
+        className="flex-1 flex flex-col min-w-0"
+        onMouseUp={handleMouseUp}
+        onMouseLeave={() => {
+          if (isDragging) {
+            setIsDragging(false);
+            setDragState(null);
+          }
+        }}
+      >
+        {/* ======== Navigation header ======== */}
+        <div className="flex items-center justify-between px-3 md:px-6 py-3 border-b border-white/[0.06] flex-shrink-0">
+          <div className="flex items-center gap-2 md:gap-3">
+            <button
+              onClick={handlePrev}
+              className="p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors"
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <h2 className="text-sm md:text-lg font-bold min-w-0 sm:min-w-[260px] text-center whitespace-nowrap">
+              {format(weekDays[0], 'MMM d')} - {format(weekDays[6], 'MMM d, yyyy')}
+            </h2>
+            <button
+              onClick={handleNext}
+              className="p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors"
+            >
+              <ChevronRight size={18} />
+            </button>
+            <button
+              onClick={handleToday}
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${
+                isTodayInWeek
+                  ? 'bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white'
+                  : 'text-bridge-secondary border border-bridge-secondary/30 hover:bg-bridge-secondary/10'
+              }`}
+            >
+              Today
+            </button>
+            {isLoading && <Loader2 className="h-4 w-4 text-slate-400 animate-spin" />}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowSettings(true)}
+              className="p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors"
+              title="Schedule settings"
+            >
+              <Settings size={18} />
+            </button>
+            <button
+              onClick={() => {
+                setCreateDate(todayStr);
+                setCreateStartTime('');
+                setCreateEndTime('');
+                setCreateInitialRecurrence('');
+                setIsCreateOpen(true);
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-bridge-accent text-white text-sm font-bold rounded-xl hover:bg-bridge-accent/90 transition-colors"
+            >
+              <Plus size={16} />
+              <span className="hidden sm:inline">Add Event</span>
+            </button>
+          </div>
+        </div>
+
+        {/* ======== Time-grid ======== */}
+        <div className="flex-1 overflow-auto">
+          <div className="min-w-[760px]">
           {/* ---- Day headers (sticky) ---- */}
           <div className="flex sticky top-0 bg-bridge-obsidian/95 backdrop-blur-sm z-10 border-b border-white/[0.06]">
             <div className={`${TIME_COL_W} flex-shrink-0 border-r border-white/[0.06]`} />
@@ -347,7 +667,7 @@ export function PersonalSchedule() {
                 >
                   <div
                     className={`text-[10px] font-bold uppercase tracking-widest ${
-                      isToday ? 'text-bridge-secondary' : 'text-slate-500'
+                      isToday ? 'text-bridge-secondary' : idx === 0 ? 'text-red-400/60' : idx === 6 ? 'text-blue-400/60' : 'text-slate-500'
                     }`}
                   >
                     {DAY_LABELS[idx]}
@@ -399,6 +719,55 @@ export function PersonalSchedule() {
                         >
                           <Trash2 size={10} />
                         </button>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* ---- Habits row ---- */}
+          {habitRows.length > 0 && (
+            <div className="flex border-b border-white/[0.06] bg-purple-500/[0.03]">
+              <div
+                className={`${TIME_COL_W} flex-shrink-0 p-2 text-[10px] text-purple-400/70 border-r border-white/[0.06] flex items-center justify-center`}
+              >
+                <CheckCircle2 size={12} />
+              </div>
+              {weekDays.map((day) => {
+                const ds = toDateString(day);
+                const dayHabits = habitsByDate[ds] || [];
+                return (
+                  <div
+                    key={`hb-${ds}`}
+                    className={`flex-1 ${COL_MIN_W} p-1.5 border-r border-white/[0.06] space-y-1`}
+                  >
+                    {dayHabits.map((item) => (
+                      <div
+                        key={item.habit_id}
+                        className={`group flex items-center gap-1.5 px-2 py-1 rounded-md text-xs cursor-pointer transition-all ${
+                          item.is_completed
+                            ? 'bg-bridge-secondary/10 border-l-[3px] border-bridge-secondary/40'
+                            : 'bg-purple-400/10 border-l-[3px] border-purple-400/60 hover:bg-purple-400/15'
+                        }`}
+                        onClick={() => handleHabitCheckIn(item.habit_id, ds)}
+                      >
+                        <div
+                          className={`w-3 h-3 rounded-full border flex items-center justify-center flex-shrink-0 transition-all ${
+                            item.is_completed
+                              ? 'bg-bridge-secondary border-bridge-secondary'
+                              : 'border-purple-400/40'
+                          }`}
+                        >
+                          {item.is_completed && <CheckCircle2 size={8} className="text-white" />}
+                        </div>
+                        <span className={`truncate ${
+                          item.is_completed ? 'line-through text-slate-500' : 'text-white/80'
+                        }`}>
+                          {item.icon && <span className="mr-0.5">{item.icon}</span>}
+                          {item.title}
+                        </span>
                       </div>
                     ))}
                   </div>
@@ -560,12 +929,12 @@ export function PersonalSchedule() {
         </div>
       </div>
 
-      {/* ======== Bottom guide ======== */}
-      <div className="px-3 md:px-6 py-2 border-t border-white/[0.06] flex-shrink-0">
-        <p className="text-[10px] md:text-xs text-slate-500">
-          <span className="hidden sm:inline">Drag on the grid to create a new event, or click an existing event to edit</span>
-          <span className="sm:hidden">Tap to create or edit events</span>
-        </p>
+        {/* ======== Bottom guide ======== */}
+        <div className="px-3 md:px-6 py-2 border-t border-white/[0.06] flex-shrink-0">
+          <p className="text-xs text-slate-500">
+            Drag on the grid to create a new event, or click an existing event to edit
+          </p>
+        </div>
       </div>
 
       {/* ======== Modals ======== */}
@@ -575,6 +944,7 @@ export function PersonalSchedule() {
             date={createDate}
             initialStartTime={createStartTime}
             initialEndTime={createEndTime}
+            initialRecurrenceRule={createInitialRecurrence}
             onClose={() => setIsCreateOpen(false)}
             onCreate={handleCreateEvent}
           />
@@ -616,12 +986,14 @@ function CreateEventModal({
   date,
   initialStartTime,
   initialEndTime,
+  initialRecurrenceRule,
   onClose,
   onCreate,
 }: {
   date: string;
   initialStartTime?: string;
   initialEndTime?: string;
+  initialRecurrenceRule?: string;
   onClose: () => void;
   onCreate: (data: {
     title: string;
@@ -640,8 +1012,7 @@ function CreateEventModal({
   const [startTime, setStartTime] = useState(initialStartTime || '');
   const [endTime, setEndTime] = useState(initialEndTime || '');
   const [color, setColor] = useState(EVENT_COLORS[0]);
-  const [allDay, setAllDay] = useState(false);
-  const [recurrenceRule, setRecurrenceRule] = useState('');
+  const [recurrenceRule, setRecurrenceRule] = useState(initialRecurrenceRule || '');
   const [recurrenceEndDate, setRecurrenceEndDate] = useState('');
   const [recurrenceDaysOfWeek, setRecurrenceDaysOfWeek] = useState<number[]>([]);
 
@@ -652,10 +1023,10 @@ function CreateEventModal({
     onCreate({
       title: title.trim(),
       description: description.trim() || undefined,
-      start_time: allDay ? undefined : startTime || undefined,
-      end_time: allDay ? undefined : endTime || undefined,
+      start_time: startTime || undefined,
+      end_time: endTime || undefined,
       color,
-      all_day: allDay,
+      all_day: false,
       recurrence_rule: recurrenceRule || undefined,
       recurrence_end_date: recurrenceEndDate || undefined,
       recurrence_days_of_week: recurrenceRule === 'WEEKLY' && recurrenceDaysOfWeek.length > 0
@@ -719,44 +1090,31 @@ function CreateEventModal({
             />
           </div>
 
-          {/* All day toggle */}
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={allDay}
-              onChange={(e) => setAllDay(e.target.checked)}
-              className="w-4 h-4 rounded border-white/20 bg-white/5 text-bridge-accent focus:ring-bridge-accent/50"
-            />
-            <span className="text-sm text-slate-300">All day</span>
-          </label>
-
           {/* Time inputs */}
-          {!allDay && (
-            <div className="flex gap-3">
-              <div className="flex-1">
-                <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-                  Start
-                </label>
-                <input
-                  type="time"
-                  value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-white text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
-                />
-              </div>
-              <div className="flex-1">
-                <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-                  End
-                </label>
-                <input
-                  type="time"
-                  value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-white text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
-                />
-              </div>
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
+                Start
+              </label>
+              <input
+                type="time"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-white text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+              />
             </div>
-          )}
+            <div className="flex-1">
+              <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
+                End
+              </label>
+              <input
+                type="time"
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-white text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+              />
+            </div>
+          </div>
 
           {/* Color picker */}
           <div>
@@ -906,7 +1264,6 @@ function EventDetailModal({
   const [startTime, setStartTime] = useState(event.start_time?.slice(0, 5) || '');
   const [endTime, setEndTime] = useState(event.end_time?.slice(0, 5) || '');
   const [color, setColor] = useState(event.color);
-  const [allDay, setAllDay] = useState(event.all_day);
   const [showDeleteScope, setShowDeleteScope] = useState(false);
 
   const handleSave = () => {
@@ -915,10 +1272,9 @@ function EventDetailModal({
       title: title.trim(),
       description: description.trim() || undefined,
       event_date: event.event_date,
-      start_time: allDay ? null : startTime || null,
-      end_time: allDay ? null : endTime || null,
+      start_time: startTime || null,
+      end_time: endTime || null,
       color,
-      all_day: allDay,
     });
   };
 
@@ -1025,44 +1381,31 @@ function EventDetailModal({
             />
           </div>
 
-          {/* All day */}
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={allDay}
-              onChange={(e) => setAllDay(e.target.checked)}
-              className="w-4 h-4 rounded border-white/20 bg-white/5 text-bridge-accent focus:ring-bridge-accent/50"
-            />
-            <span className="text-sm text-slate-300">All day</span>
-          </label>
-
           {/* Time */}
-          {!allDay && (
-            <div className="flex gap-3">
-              <div className="flex-1">
-                <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-                  Start
-                </label>
-                <input
-                  type="time"
-                  value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-white text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
-                />
-              </div>
-              <div className="flex-1">
-                <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-                  End
-                </label>
-                <input
-                  type="time"
-                  value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-white text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
-                />
-              </div>
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
+                Start
+              </label>
+              <input
+                type="time"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-white text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+              />
             </div>
-          )}
+            <div className="flex-1">
+              <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
+                End
+              </label>
+              <input
+                type="time"
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-white text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+              />
+            </div>
+          </div>
 
           {/* Color */}
           <div>

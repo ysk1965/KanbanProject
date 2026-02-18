@@ -1835,3 +1835,109 @@ export interface DiaryAiReply {
   user_message: DiaryMessage;
   ai_message: DiaryMessage;
 }
+
+// ─── Personal Task (v9.0 MySpace) ───
+
+export type PersonalTaskStatus = 'TODO' | 'IN_PROGRESS' | 'DONE' | 'ARCHIVED';
+export type PersonalTaskPriority = 'NONE' | 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+export type HabitFrequency = 'DAILY' | 'WEEKDAY' | 'WEEKEND' | 'CUSTOM';
+
+export interface PersonalTask {
+  id: string;
+  title: string;
+  description?: string | null;
+  status: PersonalTaskStatus;
+  priority: PersonalTaskPriority;
+  due_date: string | null;
+  category: string | null;
+  color: string | null;
+  position: number;
+  completed_at: string | null;
+  checklists: PersonalTaskChecklistItem[];
+  tags: PersonalTagInfo[];
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface PersonalTaskChecklistItem {
+  id: string;
+  title: string;
+  is_completed: boolean;
+  position: number;
+}
+
+export interface PersonalTagInfo {
+  id: string;
+  name: string;
+  color: string | null;
+}
+
+export interface PersonalHabit {
+  id: string;
+  title: string;
+  description?: string | null;
+  icon: string | null;
+  color: string;
+  frequency_type: HabitFrequency;
+  frequency_days: string | null;
+  target_count: number;
+  unit: string | null;
+  current_streak: number;
+  best_streak: number;
+  position: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface PersonalHabitLog {
+  id: string;
+  log_date: string;
+  completed_count: number;
+  is_completed: boolean;
+  note: string | null;
+}
+
+export interface HabitTodayItem {
+  habit_id: string;
+  title: string;
+  icon: string | null;
+  color: string;
+  target_count: number;
+  completed_count: number;
+  is_completed: boolean;
+  unit: string | null;
+  current_streak: number;
+}
+
+export interface HabitWeeklyRow {
+  habit_id: string;
+  title: string;
+  icon: string | null;
+  color: string;
+  days: HabitDayStatus[];
+}
+
+export interface HabitDayStatus {
+  date: string;
+  completed_count: number;
+  target_count: number;
+  is_completed: boolean;
+}
+
+export interface HabitWeeklyMatrix {
+  habits: HabitWeeklyRow[];
+  start_date: string;
+  end_date: string;
+}
+
+export interface PersonalDashboardToday {
+  due_today_tasks: PersonalTask[];
+  in_progress_tasks: PersonalTask[];
+  personal_events: PersonalEvent[];
+  habits_today: HabitTodayItem[];
+  task_completion_rate: number;
+  habit_completion_rate: number;
+  active_task_count: number;
+  completed_today_count: number;
+}

@@ -116,6 +116,18 @@ public class PersonalEventService {
                 request.getAllDay()
         );
 
+        // 반복 일정의 색상 변경 시 같은 그룹 전체에 적용
+        if (request.getColor() != null && event.isRecurring()) {
+            List<PersonalEvent> groupEvents = personalEventRepository
+                    .findByRecurrenceGroupIdOrderByEventDateAsc(event.getRecurrenceGroupId());
+            for (PersonalEvent e : groupEvents) {
+                if (!e.getId().equals(eventId)) {
+                    e.update(null, null, null, e.getStartTime(), e.getEndTime(), request.getColor(), null);
+                }
+            }
+            log.info("Recurring event color updated for group: {} ({} events)", event.getRecurrenceGroupId(), groupEvents.size());
+        }
+
         log.info("Personal event updated: {} by user: {}", eventId, userId);
         return PersonalEventResponse.Detail.of(event);
     }

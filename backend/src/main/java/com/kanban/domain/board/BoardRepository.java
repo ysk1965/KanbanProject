@@ -8,7 +8,6 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -78,25 +77,4 @@ public interface BoardRepository extends JpaRepository<Board, String> {
 
     // Personal Board Admin 메서드
     long countByBoardType(BoardType boardType);
-
-    @Query("SELECT COUNT(b) FROM Board b WHERE b.boardType = 'PERSONAL' AND b.updatedAt >= :since")
-    long countActivePersonalBoards(@Param("since") LocalDateTime since);
-
-    @Query("SELECT b.owner.id FROM Board b WHERE b.boardType = 'PERSONAL' AND b.owner.id IN :userIds")
-    List<String> findPersonalBoardOwnerIds(@Param("userIds") List<String> userIds);
-
-    // P2 Analytics: Personal Board 생성 추이
-    @Query(value = "SELECT CAST(created_at AS DATE) as create_date, COUNT(*) as cnt " +
-            "FROM boards WHERE board_type = 'PERSONAL' AND created_at >= :startDate " +
-            "GROUP BY CAST(created_at AS DATE) ORDER BY create_date",
-            nativeQuery = true)
-    List<Object[]> getPersonalBoardCreationTrend(@Param("startDate") LocalDateTime startDate);
-
-    @Query("SELECT COUNT(DISTINCT b.owner.id) FROM Board b WHERE b.boardType = 'PERSONAL' " +
-            "AND b.owner.id NOT IN (SELECT DISTINCT b2.owner.id FROM Board b2 WHERE b2.boardType = 'TEAM')")
-    long countUsersWithOnlyPersonalBoard();
-
-    @Query("SELECT COUNT(DISTINCT b.owner.id) FROM Board b WHERE b.boardType = 'PERSONAL' " +
-            "AND b.owner.id IN (SELECT DISTINCT b2.owner.id FROM Board b2 WHERE b2.boardType = 'TEAM')")
-    long countUsersWithBothBoardTypes();
 }

@@ -92,4 +92,12 @@ public class DiaryEntry extends BaseTimeEntity {
     public void reopen() {
         this.status = DiaryStatus.CHATTING;
     }
+
+    public void reset() {
+        this.title = null;
+        this.content = null;
+        this.mood = null;
+        this.status = DiaryStatus.CHATTING;
+        this.messages.clear();
+    }
 }

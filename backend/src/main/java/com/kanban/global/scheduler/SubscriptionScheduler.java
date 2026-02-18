@@ -87,4 +87,37 @@ public class SubscriptionScheduler {
             log.error("Failed to fetch subscriptions for credit reset: {}", e.getMessage(), e);
         }
     }
+
+    /**
+     * 유저 개인 AI 크레딧 월간 리셋: 매시간 10분에 실행
+     * - personalCreditsResetDate가 현재 시각 이전인 유저의 개인 크레딧을 리셋
+     */
+    @Scheduled(cron = "0 10 * * * *")
+    public void resetUserPersonalAiCredits() {
+        try {
+            List<String> userIds = aiCreditService.findUserIdsDueForPersonalCreditReset();
+
+            if (userIds.isEmpty()) {
+                return;
+            }
+
+            int success = 0;
+            int failed = 0;
+
+            for (String userId : userIds) {
+                try {
+                    aiCreditService.resetSingleUserPersonalCredits(userId);
+                    success++;
+                } catch (Exception e) {
+                    failed++;
+                    log.error("Failed to reset personal credits for user {}: {}", userId, e.getMessage());
+                }
+            }
+
+            log.info("User personal AI credits reset completed: {} success, {} failed out of {} total",
+                    success, failed, userIds.size());
+        } catch (Exception e) {
+            log.error("Failed to fetch users for personal credit reset: {}", e.getMessage(), e);
+        }
+    }
 }

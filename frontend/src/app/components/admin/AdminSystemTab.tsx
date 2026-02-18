@@ -27,13 +27,12 @@ export function AdminSystemTab() {
     try {
       setIsLoading(true);
       setError(null);
-      const data = await adminService.getMaintenanceStatus();
-      console.log('🔧 [AdminSystemTab] Maintenance status loaded:', data);
-      setMaintenance(data);
-      setMessage(data.message || '');
-      setEstimatedEndAt(toDateTimeLocalValue(data.estimated_end_at));
+      const maintenanceData = await adminService.getMaintenanceStatus();
+      setMaintenance(maintenanceData);
+      setMessage(maintenanceData.message || '');
+      setEstimatedEndAt(toDateTimeLocalValue(maintenanceData.estimated_end_at));
     } catch (err) {
-      console.error('Failed to load maintenance status:', err);
+      console.error('Failed to load system status:', err);
       setError(t('admin.system.loadFailed'));
     } finally {
       setIsLoading(false);

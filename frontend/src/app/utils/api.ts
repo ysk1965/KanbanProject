@@ -691,18 +691,6 @@ export interface BoardLimitsResponse {
   can_create_task: boolean;
 }
 
-/**
- * 보드 진입 시 필요한 모든 데이터를 한 번에 반환하는 통합 응답
- * 기존 13개 개별 API 호출을 1개로 통합
- */
-export interface TodayData {
-  due_today_tasks: TaskResponse[];
-  in_progress_tasks: TaskResponse[];
-  personal_events: import('../types').PersonalEvent[];
-  daily_checklist: any[];
-  completion_rate: number;
-}
-
 export interface TaskMoveRequest {
   target_board_id: string;
   target_block_id: string;
@@ -948,14 +936,6 @@ export const boardAPI = {
    */
   getBoardFull: async (boardId: string) => {
     return apiClient.get<BoardFullResponse>(`/boards/${boardId}/full`);
-  },
-
-  getPersonalBoard: async () => {
-    return apiClient.get<BoardDetail>('/boards/personal');
-  },
-
-  getTodayData: async (boardId: string) => {
-    return apiClient.get<TodayData>(`/boards/${boardId}/today`);
   },
 
   moveTask: async (taskId: string, data: TaskMoveRequest) => {
@@ -2521,6 +2501,13 @@ export const dailyChecklistAPI = {
     );
   },
 
+  // 날짜 범위 내 체크리스트 조회 (캘린더용)
+  getChecklistRange: async (boardId: string, startDate: string, endDate: string, assigneeId: string) => {
+    return apiClient.get<DailyChecklistItem[]>(
+      `/boards/${boardId}/daily-checklists/range?startDate=${startDate}&endDate=${endDate}&assigneeId=${assigneeId}`
+    );
+  },
+
   // 우선순위 순서 변경
   updatePosition: async (
     boardId: string,
@@ -3100,18 +3087,6 @@ export interface ConversionStats {
   trend: MonthlyConversion[];
 }
 
-// Personal Board Analytics Types
-export interface PersonalBoardStatsData {
-  date: string;
-  count: number;
-}
-
-export interface PersonalBoardStats {
-  total_personal_boards: number;
-  adoption_rate: number;
-  trend: PersonalBoardStatsData[];
-}
-
 export interface DiaryStatsData {
   date: string;
   count: number;
@@ -3128,7 +3103,7 @@ export interface PersonalConversionStats {
   personal_only: number;
   both: number;
   conversion_rate: number;
-  trend: PersonalBoardStatsData[];
+  trend: { date: string; count: number }[];
 }
 
 // Announcement Types
@@ -3151,6 +3126,12 @@ export interface MaintenanceStatus {
   message: string | null;
   estimated_end_at: string | null;
   started_at: string | null;
+}
+
+export interface BulkCreateResult {
+  created: number;
+  failed: number;
+  total: number;
 }
 
 export interface AdminSubscriptionSummary {
@@ -3327,11 +3308,6 @@ export const adminAPI = {
     return apiClient.get<ConversionStats>(`/admin/statistics/conversion?days=${days}`);
   },
 
-  // Analytics: Personal Board 통계
-  getPersonalBoardStats: async (days: number = 30) => {
-    return apiClient.get<PersonalBoardStats>(`/admin/statistics/personal-boards?days=${days}`);
-  },
-
   // Analytics: Diary 통계
   getDiaryStats: async (days: number = 30) => {
     return apiClient.get<DiaryStats>(`/admin/statistics/diary?days=${days}`);
@@ -3385,6 +3361,10 @@ export const adminAPI = {
 
   deleteAnnouncement: async (id: string) => {
     return apiClient.delete<{ message: string }>(`/admin/announcements/${id}`);
+  },
+
+  bulkCreatePersonalBoards: async () => {
+    return apiClient.post<BulkCreateResult>('/admin/system/bulk-create-personal-boards', {});
   },
 
   // 점검 모드
@@ -4024,6 +4004,14 @@ export const diaryAPI = {
     return apiClient.put(`/diary/${diaryId}/complete`, data);
   },
 
+  reopen: async (diaryId: string): Promise<DiaryDetail> => {
+    return apiClient.put(`/diary/${diaryId}/reopen`, {});
+  },
+
+  reset: async (diaryId: string): Promise<DiaryDetail> => {
+    return apiClient.put(`/diary/${diaryId}/reset`, {});
+  },
+
   update: async (diaryId: string, data: {
     title?: string;
     content?: string;
@@ -4060,5 +4048,174 @@ export const taskDependencyAPI = {
   // 의존성 삭제
   delete: async (boardId: string, dependencyId: string): Promise<void> => {
     return apiClient.delete(`/boards/${boardId}/task-dependencies/${dependencyId}`);
+  },
+};
+
+// ─── Personal Task API (v9.0) ───
+
+export const personalTaskAPI = {
+  getAll: async (): Promise<import('../types').PersonalTask[]> => {
+    return apiClient.get('/personal/tasks');
+  },
+
+  getById: async (taskId: string): Promise<import('../types').PersonalTask> => {
+    return apiClient.get(`/personal/tasks/${taskId}`);
+  },
+
+  create: async (data: {
+    title: string;
+    description?: string;
+    priority?: import('../types').PersonalTaskPriority;
+    due_date?: string;
+    category?: string;
+    color?: string;
+  }): Promise<import('../types').PersonalTask> => {
+    return apiClient.post('/personal/tasks', data);
+  },
+
+  update: async (taskId: string, data: {
+    title?: string;
+    description?: string;
+    priority?: import('../types').PersonalTaskPriority;
+    due_date?: string | null;
+    category?: string | null;
+    color?: string;
+  }): Promise<import('../types').PersonalTask> => {
+    return apiClient.put(`/personal/tasks/${taskId}`, data);
+  },
+
+  updateStatus: async (taskId: string, status: import('../types').PersonalTaskStatus): Promise<import('../types').PersonalTask> => {
+    return apiClient.patch(`/personal/tasks/${taskId}/status`, { status });
+  },
+
+  updatePosition: async (taskId: string, data: {
+    status?: import('../types').PersonalTaskStatus;
+    position: number;
+  }): Promise<void> => {
+    return apiClient.put(`/personal/tasks/${taskId}/position`, data);
+  },
+
+  delete: async (taskId: string): Promise<void> => {
+    return apiClient.delete(`/personal/tasks/${taskId}`);
+  },
+
+  getCategories: async (): Promise<string[]> => {
+    return apiClient.get('/personal/tasks/categories');
+  },
+
+  // Checklists
+  addChecklist: async (taskId: string, title: string): Promise<import('../types').PersonalTaskChecklistItem> => {
+    return apiClient.post(`/personal/tasks/${taskId}/checklists`, { title });
+  },
+
+  updateChecklist: async (taskId: string, checklistId: string, title: string): Promise<import('../types').PersonalTaskChecklistItem> => {
+    return apiClient.put(`/personal/tasks/${taskId}/checklists/${checklistId}`, { title });
+  },
+
+  toggleChecklist: async (taskId: string, checklistId: string): Promise<import('../types').PersonalTaskChecklistItem> => {
+    return apiClient.patch(`/personal/tasks/${taskId}/checklists/${checklistId}/toggle`, {});
+  },
+
+  deleteChecklist: async (taskId: string, checklistId: string): Promise<void> => {
+    return apiClient.delete(`/personal/tasks/${taskId}/checklists/${checklistId}`);
+  },
+
+  // Tags assignment
+  assignTag: async (taskId: string, tagId: string): Promise<void> => {
+    return apiClient.post(`/personal/tasks/${taskId}/tags/${tagId}`, {});
+  },
+
+  unassignTag: async (taskId: string, tagId: string): Promise<void> => {
+    return apiClient.delete(`/personal/tasks/${taskId}/tags/${tagId}`);
+  },
+};
+
+// ─── Personal Tag API (v9.0) ───
+
+export const personalTagAPI = {
+  getAll: async (): Promise<import('../types').PersonalTagInfo[]> => {
+    return apiClient.get('/personal/tags');
+  },
+
+  create: async (data: { name: string; color?: string }): Promise<import('../types').PersonalTagInfo> => {
+    return apiClient.post('/personal/tags', data);
+  },
+
+  update: async (tagId: string, data: { name?: string; color?: string }): Promise<import('../types').PersonalTagInfo> => {
+    return apiClient.put(`/personal/tags/${tagId}`, data);
+  },
+
+  delete: async (tagId: string): Promise<void> => {
+    return apiClient.delete(`/personal/tags/${tagId}`);
+  },
+};
+
+// ─── Personal Habit API (v9.0) ───
+
+export const personalHabitAPI = {
+  getAll: async (): Promise<import('../types').PersonalHabit[]> => {
+    return apiClient.get('/personal/habits');
+  },
+
+  getById: async (habitId: string): Promise<import('../types').PersonalHabit> => {
+    return apiClient.get(`/personal/habits/${habitId}`);
+  },
+
+  create: async (data: {
+    title: string;
+    description?: string;
+    icon?: string;
+    color?: string;
+    frequency_type?: import('../types').HabitFrequency;
+    frequency_days?: string;
+    target_count?: number;
+    unit?: string;
+  }): Promise<import('../types').PersonalHabit> => {
+    return apiClient.post('/personal/habits', data);
+  },
+
+  update: async (habitId: string, data: {
+    title?: string;
+    description?: string;
+    icon?: string;
+    color?: string;
+    frequency_type?: import('../types').HabitFrequency;
+    frequency_days?: string;
+    target_count?: number;
+    unit?: string;
+  }): Promise<import('../types').PersonalHabit> => {
+    return apiClient.put(`/personal/habits/${habitId}`, data);
+  },
+
+  delete: async (habitId: string): Promise<void> => {
+    return apiClient.delete(`/personal/habits/${habitId}`);
+  },
+
+  updatePosition: async (habitId: string, position: number): Promise<void> => {
+    return apiClient.put(`/personal/habits/${habitId}/position`, { position });
+  },
+
+  checkIn: async (habitId: string, note?: string): Promise<import('../types').HabitTodayItem> => {
+    return apiClient.post(`/personal/habits/${habitId}/check-in`, note ? { note } : {});
+  },
+
+  getLogs: async (habitId: string, startDate: string, endDate: string): Promise<import('../types').PersonalHabitLog[]> => {
+    return apiClient.get(`/personal/habits/${habitId}/logs?start_date=${startDate}&end_date=${endDate}`);
+  },
+
+  getToday: async (): Promise<import('../types').HabitTodayItem[]> => {
+    return apiClient.get('/personal/habits/today');
+  },
+
+  getWeekly: async (startDate: string, endDate: string): Promise<import('../types').HabitWeeklyMatrix> => {
+    return apiClient.get(`/personal/habits/weekly?start_date=${startDate}&end_date=${endDate}`);
+  },
+};
+
+// ─── Personal Dashboard API (v9.0) ───
+
+export const personalDashboardAPI = {
+  getToday: async (): Promise<import('../types').PersonalDashboardToday> => {
+    return apiClient.get('/personal/dashboard/today');
   },
 };

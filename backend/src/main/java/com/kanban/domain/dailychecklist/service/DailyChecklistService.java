@@ -82,7 +82,23 @@ public class DailyChecklistService {
     }
 
     /**
-     * 데일리 체크리스트 조회 (멤버별 컬럼 구조로 반환)
+     * 날짜 범위 내 데일리 체크리스트 조회 (캘린더용)
+     */
+    public List<DailyChecklistResponse.ItemResponse> getChecklistItemsInRange(
+            String boardId, LocalDate startDate, LocalDate endDate, String assigneeId, String userId) {
+        boardService.checkViewerOrAbove(boardId, userId);
+        validateDailyChecklistAccess(boardId);
+
+        List<DailyChecklist> items = dailyChecklistRepository
+                .findByBoardIdAndAssignedDateBetweenAndAssigneeId(boardId, startDate, endDate, assigneeId);
+
+        return items.stream()
+                .map(DailyChecklistResponse.ItemResponse::of)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 데일리 체리스트 조회 (멤버별 컬럼 구조로 반환)
      */
     public DailyChecklistResponse.ListResponse getDailyChecklist(String boardId, LocalDate date, String userId) {
         boardService.checkViewerOrAbove(boardId, userId);

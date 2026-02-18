@@ -3,6 +3,8 @@ package com.kanban.domain.diary.controller;
 import com.kanban.domain.diary.dto.DiaryRequest;
 import com.kanban.domain.diary.dto.DiaryResponse;
 import com.kanban.domain.diary.service.DiaryService;
+import com.kanban.domain.subscription.dto.AiCreditResponse;
+import com.kanban.domain.subscription.service.AiCreditService;
 import com.kanban.global.security.UserPrincipal;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +24,13 @@ import java.util.Map;
 public class DiaryController {
 
     private final DiaryService diaryService;
+    private final AiCreditService aiCreditService;
+
+    @GetMapping("/credits")
+    public ResponseEntity<AiCreditResponse.CreditInfo> getPersonalCredits(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(aiCreditService.getUserCredits(principal.getUserId()));
+    }
 
     @GetMapping
     public ResponseEntity<DiaryResponse.Detail> getDiary(
@@ -71,6 +80,22 @@ public class DiaryController {
             @PathVariable String diaryId,
             @Valid @RequestBody DiaryRequest.Complete request) {
         DiaryResponse.Detail response = diaryService.completeDiary(principal.getUserId(), diaryId, request);
+        return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/{diaryId}/reopen")
+    public ResponseEntity<DiaryResponse.Detail> reopenDiary(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable String diaryId) {
+        DiaryResponse.Detail response = diaryService.reopenDiary(principal.getUserId(), diaryId);
+        return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/{diaryId}/reset")
+    public ResponseEntity<DiaryResponse.Detail> resetDiary(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable String diaryId) {
+        DiaryResponse.Detail response = diaryService.resetDiary(principal.getUserId(), diaryId);
         return ResponseEntity.ok(response);
     }
 

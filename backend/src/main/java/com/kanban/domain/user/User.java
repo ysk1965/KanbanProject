@@ -71,6 +71,18 @@ public class User extends BaseTimeEntity {
     @Column(name = "deactivated_reason", length = 500)
     private String deactivatedReason;
 
+    // Personal AI Credits
+    @Column(name = "personal_ai_credits")
+    @Builder.Default
+    private Integer personalAiCredits = 30;
+
+    @Column(name = "personal_credits_used")
+    @Builder.Default
+    private Integer personalCreditsUsed = 0;
+
+    @Column(name = "personal_credits_reset_date")
+    private LocalDateTime personalCreditsResetDate;
+
     @PrePersist
     public void prePersist() {
         if (this.id == null) {
@@ -139,5 +151,36 @@ public class User extends BaseTimeEntity {
         this.isActive = true;
         this.deactivatedAt = null;
         this.deactivatedReason = null;
+    }
+
+    // === Personal AI Credit Management ===
+
+    @PostLoad
+    private void initPersonalCreditDefaults() {
+        if (this.personalAiCredits == null) this.personalAiCredits = 30;
+        if (this.personalCreditsUsed == null) this.personalCreditsUsed = 0;
+    }
+
+    public int getPersonalAvailableCredits() {
+        return Math.max(0, personalAiCredits - personalCreditsUsed);
+    }
+
+    public boolean hasEnoughPersonalCredits(int required) {
+        return getPersonalAvailableCredits() >= required;
+    }
+
+    public void consumePersonalCredits(int amount) {
+        this.personalCreditsUsed += amount;
+    }
+
+    public void resetPersonalCredits() {
+        this.personalCreditsUsed = 0;
+        this.personalCreditsResetDate = LocalDateTime.now(ZoneOffset.UTC).plusMonths(1);
+    }
+
+    public void initializePersonalCredits() {
+        this.personalAiCredits = 30;
+        this.personalCreditsUsed = 0;
+        this.personalCreditsResetDate = LocalDateTime.now(ZoneOffset.UTC).plusMonths(1);
     }
 }

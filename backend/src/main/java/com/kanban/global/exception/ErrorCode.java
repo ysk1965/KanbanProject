@@ -56,9 +56,7 @@ public enum ErrorCode {
     BOARD_ACCESS_DENIED(HttpStatus.FORBIDDEN, "B002", "보드에 접근 권한이 없습니다"),
     BOARD_SUSPENDED(HttpStatus.FORBIDDEN, "B003", "보드가 정지 상태입니다"),
     PREMIUM_FEATURE_REQUIRED(HttpStatus.FORBIDDEN, "B004", "이 기능은 Premium에서만 사용 가능합니다"),
-    PERSONAL_BOARD_ALREADY_EXISTS(HttpStatus.CONFLICT, "B005", "이미 개인 보드가 존재합니다"),
     PERSONAL_BOARD_NO_INVITE(HttpStatus.FORBIDDEN, "B006", "개인 보드에는 멤버를 초대할 수 없습니다"),
-    PERSONAL_BOARD_NO_MEETING(HttpStatus.FORBIDDEN, "B007", "개인 보드에서는 회의 기능을 사용할 수 없습니다"),
 
     // Block
     BLOCK_NOT_FOUND(HttpStatus.NOT_FOUND, "BL001", "블록을 찾을 수 없습니다"),
@@ -184,6 +182,7 @@ public enum ErrorCode {
     AI_CREDITS_EXHAUSTED(HttpStatus.PAYMENT_REQUIRED, "AC001", "AI 크레딧이 소진되었습니다. 추가 크레딧을 구매해주세요"),
     AI_CREDIT_PURCHASE_AMOUNT_INVALID(HttpStatus.BAD_REQUEST, "AC002", "유효하지 않은 크레딧 구매 금액입니다"),
     AI_CREDIT_PURCHASE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "AC003", "크레딧 구매 처리 중 오류가 발생했습니다"),
+    PERSONAL_AI_CREDITS_EXHAUSTED(HttpStatus.PAYMENT_REQUIRED, "AC004", "개인 AI 크레딧이 소진되었습니다"),
 
     // AI Feature Decompose
     AI_FEATURE_CONTENT_EMPTY(HttpStatus.BAD_REQUEST, "AF001", "피처 내용이 비어있습니다"),
@@ -196,6 +195,12 @@ public enum ErrorCode {
     // Personal
     PERSONAL_EVENT_NOT_FOUND(HttpStatus.NOT_FOUND, "PE001", "개인 일정을 찾을 수 없습니다"),
     PERSONAL_ACCESS_DENIED(HttpStatus.FORBIDDEN, "PE002", "본인의 데이터만 접근할 수 있습니다"),
+    PERSONAL_TASK_NOT_FOUND(HttpStatus.NOT_FOUND, "PT001", "개인 할 일을 찾을 수 없습니다"),
+    PERSONAL_CHECKLIST_NOT_FOUND(HttpStatus.NOT_FOUND, "PT002", "체크리스트 항목을 찾을 수 없습니다"),
+    PERSONAL_TAG_NOT_FOUND(HttpStatus.NOT_FOUND, "PT003", "태그를 찾을 수 없습니다"),
+    PERSONAL_TAG_DUPLICATE(HttpStatus.CONFLICT, "PT004", "이미 동일한 이름의 태그가 존재합니다"),
+    PERSONAL_TAG_ALREADY_ASSIGNED(HttpStatus.CONFLICT, "PT005", "이미 할당된 태그입니다"),
+    PERSONAL_HABIT_NOT_FOUND(HttpStatus.NOT_FOUND, "PH001", "습관을 찾을 수 없습니다"),
 
     // Diary
     DIARY_NOT_FOUND(HttpStatus.NOT_FOUND, "DI001", "일기를 찾을 수 없습니다"),

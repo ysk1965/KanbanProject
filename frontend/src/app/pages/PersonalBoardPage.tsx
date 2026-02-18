@@ -1,64 +1,51 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { CalendarDays, BookHeart, ArrowLeft, LayoutGrid, Calendar, Plus, Command, Home } from 'lucide-react';
+import { CalendarDays, BookHeart, ArrowLeft, LayoutGrid, Calendar, Plus, Command, Home, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { PersonalSchedule } from '../components/personal/PersonalSchedule';
 import { PersonalDiary } from '../components/personal/PersonalDiary';
-import { PersonalKanbanView } from '../components/personal/PersonalKanbanView';
+import { PersonalTaskBoard } from '../components/personal/PersonalTaskBoard';
 import { TodaySidebar } from '../components/personal/TodaySidebar';
 import { PersonalOverview } from '../components/personal/PersonalOverview';
-import { CalendarView } from '../components/CalendarView';
-import { QuickAddTaskModal } from '../components/QuickAddTaskModal';
-import { boardService, taskService, featureService } from '../utils/services';
-import { boardAPI, BoardFullResponse } from '../utils/api';
-import { Block, Feature, Task, ChecklistItem } from '../types';
-import { Loader2 } from 'lucide-react';
+import { PersonalCalendar } from '../components/personal/PersonalCalendar';
+import { personalTaskAPI } from '../utils/api';
+import { PersonalTask } from '../types';
 
-type TabType = 'overview' | 'kanban' | 'schedule' | 'diary' | 'calendar';
+type TabType = 'overview' | 'tasks' | 'schedule' | 'calendar' | 'diary';
 
 export function PersonalBoardPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabType>('overview');
-  const [personalBoardId, setPersonalBoardId] = useState<string | null>(null);
-  const [blocks, setBlocks] = useState<Block[]>([]);
-  const [features, setFeatures] = useState<Feature[]>([]);
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [checklistDataMap, setChecklistDataMap] = useState<{ [taskId: string]: ChecklistItem[] }>({});
+  const [tasks, setTasks] = useState<PersonalTask[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [quickCaptureOpen, setQuickCaptureOpen] = useState(false);
-  const [isSubmittingTask, setIsSubmittingTask] = useState(false);
-  const [kanbanRefreshKey, setKanbanRefreshKey] = useState(0);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const tabs = [
     { key: 'overview' as TabType, label: 'Overview', icon: Home },
-    { key: 'kanban' as TabType, label: 'Kanban', icon: LayoutGrid },
+    { key: 'tasks' as TabType, label: 'Tasks', icon: LayoutGrid },
     { key: 'schedule' as TabType, label: 'Schedule', icon: CalendarDays },
-    { key: 'diary' as TabType, label: 'AI Diary', icon: BookHeart },
     { key: 'calendar' as TabType, label: 'Calendar', icon: Calendar },
+    { key: 'diary' as TabType, label: 'AI Diary', icon: BookHeart },
   ];
 
-  // Personal Board 로드 (lazy 생성)
+  // PersonalTask 로드 (board 의존 없이 user 기반)
   useEffect(() => {
-    const loadPersonalBoard = async () => {
+    const loadTasks = async () => {
       try {
         setIsLoading(true);
-        const board = await boardService.getPersonalBoard();
-        setPersonalBoardId(board.id);
-
-        const fullData: BoardFullResponse = await boardAPI.getBoardFull(board.id);
-        setBlocks(fullData.blocks || []);
-        setFeatures(fullData.features || []);
-        setTasks(fullData.tasks || []);
+        const data = await personalTaskAPI.getAll();
+        setTasks(data);
       } catch (error) {
-        console.error('Failed to load personal board:', error);
+        console.error('Failed to load personal tasks:', error);
       } finally {
         setIsLoading(false);
       }
     };
-    loadPersonalBoard();
-  }, []);
+    loadTasks();
+  }, [refreshKey]);
 
   // Ctrl+K / Cmd+K 단축키
   useEffect(() => {
@@ -72,54 +59,17 @@ export function PersonalBoardPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Quick Capture: Task 생성
-  const handleQuickCapture = useCallback(async (data: {
-    featureId?: string;
-    newFeatureTitle?: string;
-    taskTitle: string;
-  }) => {
-    if (!personalBoardId) return;
+  // Quick Capture: PersonalTask 생성 (Feature 불필요)
+  const handleQuickCapture = useCallback(async (title: string, dueDate?: string) => {
     try {
-      setIsSubmittingTask(true);
-
-      let featureId = data.featureId;
-
-      // Feature가 없으면 기본 Feature 생성
-      if (!featureId && features.length === 0) {
-        const newFeature = await featureService.createFeature(personalBoardId, {
-          title: data.newFeatureTitle || 'Personal',
-        });
-        featureId = newFeature.id;
-        setFeatures(prev => [...prev, newFeature]);
-      } else if (!featureId && features.length > 0) {
-        featureId = features[0].id;
-      }
-
-      if (!featureId) return;
-
-      await taskService.createTask(personalBoardId, featureId, {
-        title: data.taskTitle,
-      });
-
-      // Refresh kanban view
-      setKanbanRefreshKey(k => k + 1);
-
-      // Reload data for calendar tab
-      const fullData = await boardAPI.getBoardFull(personalBoardId);
-      setTasks(fullData.tasks || []);
-      setFeatures(fullData.features || []);
-      setBlocks(fullData.blocks || []);
+      await personalTaskAPI.create({ title, due_date: dueDate || undefined });
+      setRefreshKey(k => k + 1);
     } catch (error) {
       console.error('Failed to create task:', error);
-    } finally {
-      setIsSubmittingTask(false);
     }
-  }, [personalBoardId, features]);
+  }, []);
 
-  // 첫 번째 블록 (To Do) 이름
-  const firstBlockName = blocks.length > 0
-    ? [...blocks].sort((a, b) => a.position - b.position)[0]?.name
-    : 'To Do';
+  const refresh = useCallback(() => setRefreshKey(k => k + 1), []);
 
   if (isLoading) {
     return (
@@ -132,90 +82,89 @@ export function PersonalBoardPage() {
   return (
     <div className="flex flex-col h-screen bg-bridge-dark text-white selection:bg-bridge-secondary/30">
       {/* Header */}
-      <header className="border-b border-white/[0.06] bg-bridge-obsidian/80 backdrop-blur-sm px-3 md:px-6 flex flex-col md:flex-row md:items-center md:h-14">
-        <div className="flex items-center gap-3 h-12 md:h-14 flex-shrink-0">
+      <header className="min-h-[3.5rem] md:h-16 border-b border-bridge-border flex items-center justify-between px-3 md:px-6 bg-bridge-dark shrink-0 z-30 gap-2">
+        {/* 좌측 영역 */}
+        <div className="flex items-center gap-2 md:gap-4 min-w-0">
           <button
             onClick={() => navigate('/boards')}
-            className="p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors"
+            className="p-2 hover:bg-bridge-surface-hover rounded-lg transition-colors text-zinc-400 hover:text-foreground"
           >
             <ArrowLeft size={18} />
           </button>
 
-          <h1 className="text-base md:text-lg font-bold font-serif">My Space</h1>
-
-          {/* Quick Capture shortcut hint */}
-          <div className="ml-auto hidden md:flex items-center gap-1.5 text-slate-500 text-xs">
-            <Command size={12} />
-            <span>K</span>
-          </div>
+          <h1 className="text-sm md:text-lg font-bold tracking-tight text-foreground truncate">My Space</h1>
         </div>
 
-        {/* Tabs */}
-        <div className="flex items-center gap-1 md:ml-6 bg-white/5 rounded-xl p-1 overflow-x-auto scrollbar-hide mb-2 md:mb-0">
+        {/* 중앙 탭 영역 */}
+        <div className="hidden md:flex justify-center min-w-0 md:flex-1">
+          <nav className="flex items-center gap-1 bg-bridge-surface p-1 rounded-xl border border-bridge-border overflow-x-auto shrink-0">
+            {tabs.map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+                  activeTab === tab.key
+                    ? 'bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20'
+                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-bridge-surface-hover'
+                }`}
+              >
+                <tab.icon size={14} />
+                <span className="hidden md:inline">{tab.label}</span>
+              </button>
+            ))}
+          </nav>
+        </div>
+
+        {/* 모바일 탭 */}
+        <div className="flex md:hidden items-center gap-1 bg-bridge-surface p-1 rounded-xl border border-bridge-border overflow-x-auto">
           {tabs.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`relative flex items-center gap-1.5 px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-all flex-shrink-0 ${
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
                 activeTab === tab.key
-                  ? 'text-white'
-                  : 'text-slate-400 hover:text-white hover:bg-white/5'
+                  ? 'bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20'
+                  : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
-              {activeTab === tab.key && (
-                <motion.div
-                  layoutId="personal-tab-bg"
-                  className="absolute inset-0 bg-bridge-accent/20 border border-bridge-accent/30 rounded-lg"
-                  transition={{ type: 'spring', duration: 0.3 }}
-                />
-              )}
-              <tab.icon size={14} className="relative z-10 md:w-4 md:h-4" />
-              <span className="relative z-10 hidden sm:inline">{tab.label}</span>
+              <tab.icon size={14} />
             </button>
           ))}
+        </div>
+
+        {/* 우측 영역 */}
+        <div className="flex items-center gap-2">
+          <div className="hidden md:flex items-center gap-1.5 text-zinc-500 text-xs">
+            <Command size={12} />
+            <span>K</span>
+          </div>
         </div>
       </header>
 
       {/* Content */}
       <main className="flex-1 overflow-hidden flex">
-        {/* Today Sidebar — kanban 탭일 때만 (모바일에서 숨김) */}
-        {activeTab === 'kanban' && personalBoardId && (
-          <div className="hidden md:block">
-            <TodaySidebar boardId={personalBoardId} />
-          </div>
-        )}
+        {/* Today Sidebar — tasks 탭일 때만 */}
+        {activeTab === 'tasks' && <TodaySidebar tasks={tasks} />}
 
         <div className="flex-1 overflow-hidden">
-          {activeTab === 'overview' && personalBoardId && (
-            <PersonalOverview
-              boardId={personalBoardId}
-              tasks={tasks}
-              onNavigateTab={setActiveTab}
-            />
+          {activeTab === 'overview' && (
+            <PersonalOverview onNavigateTab={setActiveTab} />
           )}
-          {activeTab === 'kanban' && personalBoardId && (
-            <PersonalKanbanView
-              key={kanbanRefreshKey}
-              boardId={personalBoardId}
+          {activeTab === 'tasks' && (
+            <PersonalTaskBoard
+              key={refreshKey}
+              tasks={tasks}
+              onRefresh={refresh}
             />
           )}
           {activeTab === 'schedule' && <PersonalSchedule />}
+          {activeTab === 'calendar' && <PersonalCalendar />}
           {activeTab === 'diary' && <PersonalDiary />}
-          {activeTab === 'calendar' && personalBoardId && (
-            <CalendarView
-              boardId={personalBoardId}
-              features={features}
-              tasks={tasks}
-              checklistDataMap={checklistDataMap}
-              onViewFeature={() => {}}
-              onViewTask={() => {}}
-            />
-          )}
         </div>
       </main>
 
       {/* Floating Quick Capture Button */}
-      {activeTab === 'kanban' && (
+      {activeTab === 'tasks' && (
         <motion.button
           initial={{ scale: 0, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -228,16 +177,73 @@ export function PersonalBoardPage() {
         </motion.button>
       )}
 
-      {/* Quick Capture Modal */}
-      <QuickAddTaskModal
-        open={quickCaptureOpen}
-        onClose={() => setQuickCaptureOpen(false)}
-        features={features}
-        blockName={firstBlockName}
-        onSubmit={handleQuickCapture}
-        isSubmitting={isSubmittingTask}
-        isSimpleMode
-      />
+      {/* Quick Capture Modal (간소화) */}
+      {quickCaptureOpen && (
+        <QuickCaptureModal
+          onClose={() => setQuickCaptureOpen(false)}
+          onSubmit={handleQuickCapture}
+        />
+      )}
+    </div>
+  );
+}
+
+// 간소화된 Quick Capture 모달 (마감일 지원)
+function QuickCaptureModal({ onClose, onSubmit }: {
+  onClose: () => void;
+  onSubmit: (title: string, dueDate?: string) => void;
+}) {
+  const [title, setTitle] = useState('');
+  const [dueDate, setDueDate] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!title.trim()) return;
+    setIsSubmitting(true);
+    await onSubmit(title.trim(), dueDate || undefined);
+    setIsSubmitting(false);
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-start justify-center pt-[20vh]"
+      onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <motion.div
+        initial={{ opacity: 0, y: -20, scale: 0.95 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        className="w-full max-w-lg bg-bridge-obsidian rounded-2xl border border-white/10 shadow-2xl p-4"
+      >
+        <input
+          autoFocus
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.nativeEvent.isComposing) handleSubmit();
+            if (e.key === 'Escape') onClose();
+          }}
+          placeholder="할 일을 입력하세요..."
+          className="w-full bg-transparent text-white text-lg placeholder-slate-600 outline-none py-2"
+        />
+        <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/5">
+          <div className="flex items-center gap-3">
+            <input
+              type="date"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+              className="bg-transparent text-xs text-slate-400 border border-white/10 rounded-lg px-2 py-1 outline-none focus:border-bridge-accent/50 [color-scheme:dark]"
+              placeholder="마감일"
+            />
+            <span className="text-xs text-slate-500">Enter로 추가</span>
+          </div>
+          <button
+            onClick={handleSubmit}
+            disabled={!title.trim() || isSubmitting}
+            className="px-4 py-1.5 bg-bridge-accent text-white text-sm rounded-lg font-medium disabled:opacity-50 hover:bg-bridge-accent/90 transition-colors"
+          >
+            추가
+          </button>
+        </div>
+      </motion.div>
     </div>
   );
 }
