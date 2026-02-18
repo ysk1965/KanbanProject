@@ -225,7 +225,8 @@ export function PersonalDiary() {
       {/* Mobile Sidebar Toggle Button */}
       <button
         onClick={() => setShowMobileSidebar(true)}
-        className="md:hidden fixed bottom-20 left-4 z-40 w-11 h-11 rounded-full bg-bridge-accent shadow-lg shadow-bridge-accent/30 flex items-center justify-center text-white hover:bg-bridge-accent/90 transition-colors"
+        className="md:hidden fixed left-4 z-40 w-11 h-11 rounded-full bg-bridge-accent shadow-lg shadow-bridge-accent/30 flex items-center justify-center text-white hover:bg-bridge-accent/90 transition-colors"
+        style={{ bottom: 'calc(5rem + env(safe-area-inset-bottom, 0px))' }}
       >
         <CalendarIcon size={18} />
       </button>
