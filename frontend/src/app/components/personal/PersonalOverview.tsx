@@ -3,14 +3,15 @@ import { useTranslation } from 'react-i18next';
 import {
   Clock, CalendarDays, CheckCircle2, BookHeart, Sparkles,
   ArrowRight, Sun, Sunset, Moon, Loader2, Flame, Check,
+  Plus, X, ChevronDown, ChevronUp, Hash,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { personalEventService, diaryService } from '../../utils/services';
 import { personalTaskAPI, personalHabitAPI, personalEventAPI } from '../../utils/api';
 import { getTodayDateString } from '../../utils/dateUtils';
-import { PersonalEvent, DiaryDetail, PersonalTask, HabitTodayItem } from '../../types';
+import { PersonalEvent, DiaryDetail, PersonalTask, HabitTodayItem, HabitFrequency } from '../../types';
 
-type TabType = 'overview' | 'tasks' | 'schedule' | 'calendar' | 'diary';
+type TabType = 'overview' | 'tasks' | 'schedule' | 'habits' | 'calendar' | 'diary';
 
 interface PersonalOverviewProps {
   onNavigateTab: (tab: TabType) => void;
@@ -605,20 +606,42 @@ function HabitsTodayWidget({
   const { t } = useTranslation();
   const [habits, setHabits] = useState<HabitTodayItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+
+  const loadHabits = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const data = await personalHabitAPI.getToday();
+      setHabits(data);
+    } catch {
+      console.error('Failed to load habits');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    (async () => {
-      try {
-        setIsLoading(true);
-        const data = await personalHabitAPI.getToday();
-        setHabits(data);
-      } catch {
-        console.error('Failed to load habits');
-      } finally {
-        setIsLoading(false);
-      }
-    })();
-  }, []);
+    loadHabits();
+  }, [loadHabits]);
+
+  const handleCreateHabit = async (data: {
+    title: string;
+    description?: string;
+    icon?: string;
+    color?: string;
+    frequency_type?: HabitFrequency;
+    frequency_days?: string;
+    target_count?: number;
+    unit?: string;
+  }) => {
+    try {
+      await personalHabitAPI.create(data);
+      setIsCreateOpen(false);
+      await loadHabits();
+    } catch (err) {
+      console.error('Failed to create habit:', err);
+    }
+  };
 
   const completedCount = habits.filter(h => h.is_completed).length;
   const totalCount = habits.length;
@@ -644,7 +667,18 @@ function HabitsTodayWidget({
           </span>
         ) : null
       }
-      action={<ViewAllButton onClick={onViewAll} />}
+      action={
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => setIsCreateOpen(true)}
+            className="p-1 text-slate-500 hover:text-purple-400 transition-colors"
+            title={t('personal.overview.addHabit', 'Add habit')}
+          >
+            <Plus size={14} />
+          </button>
+          <ViewAllButton onClick={onViewAll} />
+        </div>
+      }
       delay={0.1}
     >
       {isLoading ? (
@@ -652,10 +686,16 @@ function HabitsTodayWidget({
           <Loader2 className="w-5 h-5 animate-spin text-bridge-accent/50" />
         </div>
       ) : habits.length === 0 ? (
-        <div className="flex-1 flex flex-col items-center justify-center text-center gap-2">
+        <div className="flex-1 flex flex-col items-center justify-center text-center gap-3">
           <Flame size={28} className="text-slate-600" />
           <p className="text-sm text-slate-500">{t('personal.overview.noHabits', 'No habits set up yet')}</p>
-          <p className="text-[11px] text-slate-600">{t('personal.overview.addHabitsHint', 'Set up daily habits in the Schedule tab')}</p>
+          <button
+            onClick={() => setIsCreateOpen(true)}
+            className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-purple-400 bg-purple-400/10 hover:bg-purple-400/20 rounded-xl transition-all"
+          >
+            <Plus size={14} />
+            {t('personal.overview.addFirstHabit', 'Add Your First Habit')}
+          </button>
         </div>
       ) : (
         <div className="flex flex-col flex-1">
@@ -712,6 +752,16 @@ function HabitsTodayWidget({
           </div>
         </div>
       )}
+
+      {/* Create Habit Modal */}
+      <AnimatePresence>
+        {isCreateOpen && (
+          <OverviewCreateHabitModal
+            onClose={() => setIsCreateOpen(false)}
+            onCreate={handleCreateHabit}
+          />
+        )}
+      </AnimatePresence>
     </WidgetCard>
   );
 }
@@ -867,13 +917,334 @@ export function PersonalOverview({ onNavigateTab }: PersonalOverviewProps) {
           onNavigateCalendar={() => onNavigateTab('calendar')}
         />
         <HabitsTodayWidget
-          onViewAll={() => onNavigateTab('schedule')}
+          onViewAll={() => onNavigateTab('habits')}
         />
         <DiaryWidget
           todayDate={todayDate}
           onViewAll={() => onNavigateTab('diary')}
         />
       </div>
+    </div>
+  );
+}
+
+/* ================================================================
+   Create Habit Modal for Overview (Lightweight version)
+   ================================================================ */
+
+const OV_HABIT_COLORS = [
+  '#8B5CF6', '#6366F1', '#EC4899', '#F43F5E',
+  '#F59E0B', '#10B981', '#06B6D4', '#3B82F6',
+];
+
+const OV_HABIT_ICONS = [
+  '🏃', '📚', '💧', '🧘', '💪', '🎯', '✍️', '🎵',
+  '🧠', '🌿', '💊', '🍎', '😴', '🚶', '🧹', '📵',
+];
+
+const OV_FREQ_PRESETS: { value: HabitFrequency; label: string }[] = [
+  { value: 'DAILY', label: 'Every Day' },
+  { value: 'WEEKDAY', label: 'Weekdays' },
+  { value: 'CUSTOM', label: 'Custom' },
+];
+
+const OV_DAY_CHIPS = [
+  { value: 1, label: 'M' },
+  { value: 2, label: 'T' },
+  { value: 3, label: 'W' },
+  { value: 4, label: 'T' },
+  { value: 5, label: 'F' },
+  { value: 6, label: 'S' },
+  { value: 0, label: 'S' },
+];
+
+function OverviewCreateHabitModal({
+  onClose,
+  onCreate,
+}: {
+  onClose: () => void;
+  onCreate: (data: {
+    title: string;
+    description?: string;
+    icon?: string;
+    color?: string;
+    frequency_type?: HabitFrequency;
+    frequency_days?: string;
+    target_count?: number;
+    unit?: string;
+  }) => void;
+}) {
+  const { t } = useTranslation();
+  const [title, setTitle] = useState('');
+  const [frequencyType, setFrequencyType] = useState<HabitFrequency>('DAILY');
+  const [customDays, setCustomDays] = useState<number[]>([]);
+  const [showMore, setShowMore] = useState(false);
+
+  const [icon, setIcon] = useState('');
+  const [color, setColor] = useState(OV_HABIT_COLORS[0]);
+  const [goalType, setGoalType] = useState<'check' | 'count'>('check');
+  const [targetCount, setTargetCount] = useState(1);
+  const [unit, setUnit] = useState('');
+  const [description, setDescription] = useState('');
+
+  const isValid = title.trim().length > 0 && (frequencyType !== 'CUSTOM' || customDays.length > 0);
+
+  const toggleDay = (day: number) => {
+    setCustomDays(prev => prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]);
+  };
+
+  const handleSubmit = () => {
+    if (!isValid) return;
+    onCreate({
+      title: title.trim(),
+      description: description.trim() || undefined,
+      icon: icon || undefined,
+      color,
+      frequency_type: frequencyType,
+      frequency_days: frequencyType === 'CUSTOM' ? customDays.sort((a, b) => a - b).join(',') : undefined,
+      target_count: goalType === 'count' ? targetCount : 1,
+      unit: goalType === 'count' && unit.trim() ? unit.trim() : undefined,
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/40 backdrop-blur-sm">
+      <motion.div
+        initial={{ opacity: 0, y: 20, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 20, scale: 0.98 }}
+        className="w-full sm:max-w-md bg-bridge-obsidian rounded-t-2xl sm:rounded-2xl border border-white/10 p-5 md:p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
+      >
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Flame size={18} className="text-purple-400" />
+            <h3 className="text-base md:text-lg font-bold text-white">
+              {t('personal.habit.newHabit', 'New Habit')}
+            </h3>
+          </div>
+          <button onClick={onClose} className="p-1 text-slate-400 hover:text-white transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
+              {t('personal.habit.habitName', 'Habit Name')}
+            </label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+              placeholder={t('personal.habit.habitPlaceholder', 'e.g. Morning Run, Read 10 pages')}
+              className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-white text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition-all"
+              autoFocus
+            />
+          </div>
+
+          <div>
+            <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">
+              {t('personal.habit.frequency', 'Frequency')}
+            </label>
+            <div className="flex gap-1.5">
+              {OV_FREQ_PRESETS.map(({ value, label }) => (
+                <button
+                  key={value}
+                  onClick={() => {
+                    setFrequencyType(value);
+                    if (value !== 'CUSTOM') setCustomDays([]);
+                  }}
+                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                    frequencyType === value
+                      ? 'bg-purple-500 text-white shadow-sm'
+                      : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {frequencyType === 'CUSTOM' && (
+            <div>
+              <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">
+                {t('personal.habit.repeatOn', 'Repeat on')}
+              </label>
+              <div className="flex gap-1.5">
+                {OV_DAY_CHIPS.map(({ value, label }) => (
+                  <button
+                    key={value}
+                    onClick={() => toggleDay(value)}
+                    className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-all ${
+                      customDays.includes(value)
+                        ? 'bg-purple-500 text-white'
+                        : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {customDays.length === 0 && (
+                <p className="mt-1.5 text-xs text-amber-400">
+                  {t('personal.habit.selectDay', 'Select at least one day')}
+                </p>
+              )}
+            </div>
+          )}
+
+          <button
+            onClick={() => setShowMore(!showMore)}
+            className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-300 transition-colors"
+          >
+            {showMore ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            {showMore ? t('personal.habit.lessOptions', 'Less options') : t('personal.habit.moreOptions', 'More options')}
+          </button>
+
+          <AnimatePresence>
+            {showMore && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="space-y-4 overflow-hidden"
+              >
+                <div>
+                  <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">
+                    {t('personal.habit.icon', 'Icon')}
+                  </label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {OV_HABIT_ICONS.map((emoji) => (
+                      <button
+                        key={emoji}
+                        onClick={() => setIcon(icon === emoji ? '' : emoji)}
+                        className={`w-9 h-9 flex items-center justify-center rounded-lg text-base transition-all ${
+                          icon === emoji
+                            ? 'bg-purple-500/20 ring-2 ring-purple-500 scale-110'
+                            : 'bg-white/5 hover:bg-white/10 hover:scale-105'
+                        }`}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">
+                    {t('personal.habit.color', 'Color')}
+                  </label>
+                  <div className="flex gap-2">
+                    {OV_HABIT_COLORS.map((c) => (
+                      <button
+                        key={c}
+                        onClick={() => setColor(c)}
+                        className={`w-7 h-7 rounded-full transition-all ${
+                          color === c
+                            ? 'ring-2 ring-white ring-offset-2 ring-offset-bridge-obsidian scale-110'
+                            : 'hover:scale-110'
+                        }`}
+                        style={{ backgroundColor: c }}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">
+                    {t('personal.habit.goalType', 'Goal Type')}
+                  </label>
+                  <div className="flex gap-1.5">
+                    <button
+                      onClick={() => { setGoalType('check'); setTargetCount(1); setUnit(''); }}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold rounded-lg transition-all ${
+                        goalType === 'check'
+                          ? 'bg-purple-500 text-white shadow-sm'
+                          : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                      }`}
+                    >
+                      <CheckCircle2 size={14} />
+                      {t('personal.habit.checkOff', 'Check-off')}
+                    </button>
+                    <button
+                      onClick={() => setGoalType('count')}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold rounded-lg transition-all ${
+                        goalType === 'count'
+                          ? 'bg-purple-500 text-white shadow-sm'
+                          : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                      }`}
+                    >
+                      <Hash size={14} />
+                      {t('personal.habit.count', 'Count')}
+                    </button>
+                  </div>
+                </div>
+
+                {goalType === 'count' && (
+                  <div className="flex gap-3">
+                    <div className="w-24">
+                      <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
+                        {t('personal.habit.target', 'Target')}
+                      </label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={999}
+                        value={targetCount}
+                        onChange={(e) => setTargetCount(Math.max(1, parseInt(e.target.value) || 1))}
+                        className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
+                        {t('personal.habit.unit', 'Unit')}
+                      </label>
+                      <input
+                        type="text"
+                        value={unit}
+                        onChange={(e) => setUnit(e.target.value)}
+                        placeholder={t('personal.habit.unitPlaceholder', 'e.g. glasses, pages, km')}
+                        className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-white text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
+                    {t('personal.habit.description', 'Description')}
+                  </label>
+                  <textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder={t('personal.habit.descPlaceholder', 'Why this habit matters to you')}
+                    rows={2}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-white text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all resize-none"
+                  />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        <div className="flex gap-3 mt-6">
+          <button
+            onClick={onClose}
+            className="flex-1 py-3 text-sm font-bold text-slate-400 hover:text-white border border-white/10 rounded-xl hover:bg-white/5 transition-all"
+          >
+            {t('common.cancel', 'Cancel')}
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={!isValid}
+            className="flex-1 py-3 bg-purple-500 text-white text-sm font-bold rounded-xl hover:bg-purple-500/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+          >
+            {t('personal.habit.addHabit', 'Add Habit')}
+          </button>
+        </div>
+      </motion.div>
     </div>
   );
 }

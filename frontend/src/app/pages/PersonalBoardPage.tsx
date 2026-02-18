@@ -1,17 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { CalendarDays, BookHeart, ArrowLeft, LayoutGrid, Calendar, Plus, Command, Home, Loader2 } from 'lucide-react';
+import { CalendarDays, BookHeart, ArrowLeft, LayoutGrid, Calendar, Plus, Command, Home, Loader2, Flame } from 'lucide-react';
 import { PersonalSchedule } from '../components/personal/PersonalSchedule';
 import { PersonalDiary } from '../components/personal/PersonalDiary';
 import { PersonalTaskBoard } from '../components/personal/PersonalTaskBoard';
 import { TodaySidebar } from '../components/personal/TodaySidebar';
 import { PersonalOverview } from '../components/personal/PersonalOverview';
 import { PersonalCalendar } from '../components/personal/PersonalCalendar';
+import { PersonalHabits } from '../components/personal/PersonalHabits';
 import { personalTaskAPI } from '../utils/api';
 import { PersonalTask } from '../types';
 
-type TabType = 'overview' | 'tasks' | 'schedule' | 'calendar' | 'diary';
+type TabType = 'overview' | 'tasks' | 'schedule' | 'habits' | 'calendar' | 'diary';
 
 export function PersonalBoardPage() {
   const { t } = useTranslation();
@@ -26,6 +27,7 @@ export function PersonalBoardPage() {
     { key: 'overview' as TabType, label: 'Overview', icon: Home },
     { key: 'tasks' as TabType, label: 'Tasks', icon: LayoutGrid },
     { key: 'schedule' as TabType, label: 'Schedule', icon: CalendarDays },
+    { key: 'habits' as TabType, label: 'Habits', icon: Flame },
     { key: 'calendar' as TabType, label: 'Calendar', icon: Calendar },
     { key: 'diary' as TabType, label: 'AI Diary', icon: BookHeart },
   ];
@@ -157,6 +159,7 @@ export function PersonalBoardPage() {
             />
           )}
           {activeTab === 'schedule' && <PersonalSchedule />}
+          {activeTab === 'habits' && <PersonalHabits />}
           {activeTab === 'calendar' && <PersonalCalendar />}
           {activeTab === 'diary' && <PersonalDiary />}
         </div>
