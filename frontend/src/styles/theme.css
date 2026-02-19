@@ -264,6 +264,21 @@
   padding-bottom: env(safe-area-inset-bottom);
 }
 
+/* FAB (Floating Action Button) — mobile: above bottom tab bar + safe area, desktop: normal */
+.fab-bottom-safe {
+  bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+}
+@media (min-width: 768px) {
+  .fab-bottom-safe {
+    bottom: 1.5rem;
+  }
+}
+
+/* Toast notification — offset by safe area */
+.toast-bottom-safe {
+  bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
+}
+
 /* Drawer/Sheet safe area by direction */
 [data-vaul-drawer-direction="bottom"] {
   padding-bottom: env(safe-area-inset-bottom);

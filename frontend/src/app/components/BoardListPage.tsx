@@ -117,7 +117,7 @@ export function BoardListPage({
   return (
     <div className="min-h-screen bg-bridge-dark text-white">
       {/* 헤더 */}
-      <header className="border-b border-white/15 glass">
+      <header className="border-b border-white/15 glass safe-top">
         <div className="max-w-7xl mx-auto px-8 py-6">
           <div className="flex items-center justify-between">
             <div
