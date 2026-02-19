@@ -939,11 +939,11 @@ export const boardAPI = {
     return apiClient.get<BoardDetail>(`/boards/${boardId}`);
   },
 
-  createBoard: async (data: { name: string; description?: string }) => {
+  createBoard: async (data: { name: string; description?: string; background_gradient?: string }) => {
     return apiClient.post<BoardDetail>('/boards', data);
   },
 
-  updateBoard: async (boardId: string, data: { name?: string; description?: string }) => {
+  updateBoard: async (boardId: string, data: { name?: string; description?: string; background_gradient?: string }) => {
     return apiClient.put<BoardDetail>(`/boards/${boardId}`, data);
   },
 

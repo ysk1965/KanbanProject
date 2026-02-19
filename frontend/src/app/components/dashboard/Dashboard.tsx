@@ -18,7 +18,7 @@ import { OnboardingModal } from '../OnboardingModal';
 interface DashboardProps {
   boards: Board[];
   onSelectBoard: (boardId: string) => void;
-  onCreateBoard: (name: string, description?: string) => void;
+  onCreateBoard: (name: string, description?: string, backgroundGradient?: string) => void;
   onToggleStar: (boardId: string) => void;
   onDeleteBoard?: (boardId: string) => void;
   onUpdateBoard?: (boardId: string, name: string, description?: string) => void;

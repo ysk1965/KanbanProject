@@ -15,7 +15,7 @@ const GRADIENTS = [
 interface CreateBoardModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onCreate: (name: string, description?: string) => void;
+  onCreate: (name: string, description?: string, backgroundGradient?: string) => void;
   hasPersonalSpace: boolean;
   onActivatePersonalSpace: () => void;
 }
@@ -44,7 +44,7 @@ export function CreateBoardModal({ isOpen, onClose, onCreate, hasPersonalSpace, 
 
   const handleCreate = () => {
     if (name.trim()) {
-      onCreate(name.trim(), description.trim() || undefined);
+      onCreate(name.trim(), description.trim() || undefined, selectedColor);
       handleClose();
     }
   };

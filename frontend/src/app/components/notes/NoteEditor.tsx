@@ -552,14 +552,14 @@ function CollabNoteEditor({
       </div>
 
       {/* BlockNote Editor + AI Section + Bottom Comments */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto p-4">
         {/* Block comment indicator CSS */}
         {blockIndicatorStyle && <style>{blockIndicatorStyle}</style>}
 
         {/* Editor with block hover overlay */}
         <div
           ref={editorContainerRef}
-          className="relative min-h-[60vh]"
+          className="relative min-h-[60vh] bg-bridge-obsidian rounded-2xl border border-white/5"
           onMouseMove={handleEditorMouseMove}
           onMouseLeave={() => {
             hoveredBlockIdRef.current = null;
@@ -898,8 +898,8 @@ function FallbackNoteEditor({ boardId, note, tags, canEdit, onSave, onTagsChange
           )}
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto">
-        <div className="min-h-[60vh]">
+      <div className="flex-1 overflow-y-auto p-4">
+        <div className="min-h-[60vh] bg-bridge-obsidian rounded-2xl border border-white/5">
           <BlockNoteView editor={editor} theme="dark" editable={canEdit} onChange={() => { setHasChanges(true); setAutoSaved(false); }}>
             <SuggestionMenuController triggerCharacter="/" getItems={async (query) => filterSuggestionItems(slashMenuItems, query)} />
             <SuggestionMenuController triggerCharacter="@" getItems={getMentionItems} />

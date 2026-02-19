@@ -150,6 +150,7 @@ public class BoardFacadeService {
                 .id(board.getId())
                 .name(board.getName())
                 .description(board.getDescription())
+                .backgroundGradient(board.getBackgroundGradient())
                 .boardType(board.getBoardType())
                 .owner(BoardResponse.OwnerInfo.of(board))
                 .myRole(myRole)

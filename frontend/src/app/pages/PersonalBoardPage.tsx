@@ -94,7 +94,7 @@ export function PersonalBoardPage() {
             <ArrowLeft size={18} />
           </button>
 
-          <h1 className="text-sm md:text-lg font-bold tracking-tight text-foreground truncate">My Space</h1>
+          <h1 className="text-sm md:text-lg font-bold tracking-tight text-foreground truncate">{t('dashboard.mySpace')}</h1>
         </div>
 
         {/* 중앙 탭 영역 */}

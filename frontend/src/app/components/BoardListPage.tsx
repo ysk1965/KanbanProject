@@ -23,7 +23,7 @@ import { useAuth } from '../contexts/AuthContext';
 interface BoardListPageProps {
   boards: Board[];
   onSelectBoard: (boardId: string) => void;
-  onCreateBoard: (name: string, description?: string) => void;
+  onCreateBoard: (name: string, description?: string, backgroundGradient?: string) => void;
   onUpdateBoard: (boardId: string, name: string, description?: string) => void;
   onDeleteBoard: (boardId: string) => void;
   onToggleStar: (boardId: string) => void;
@@ -31,14 +31,14 @@ interface BoardListPageProps {
   onRefreshBoards?: () => void;
 }
 
-// 보드 색상 gradient 생성 (Bridge 테마)
+// 보드 색상 gradient 생성 (dashboard/BoardCard와 동일)
 const BOARD_GRADIENTS = [
-  'linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)',  // Indigo (Bridge accent)
-  'linear-gradient(135deg, #2DD4BF 0%, #14B8A6 100%)',  // Teal (Bridge secondary)
-  'linear-gradient(135deg, #818CF8 0%, #6366F1 100%)',  // Light indigo
-  'linear-gradient(135deg, #34D399 0%, #10B981 100%)',  // Emerald
-  'linear-gradient(135deg, #A78BFA 0%, #8B5CF6 100%)',  // Violet
-  'linear-gradient(135deg, #F472B6 0%, #EC4899 100%)',  // Pink
+  'linear-gradient(135deg, #6366F1 0%, #a855f7 100%)',  // Indigo Purple
+  'linear-gradient(135deg, #2DD4BF 0%, #0891B2 100%)',  // Teal Cyan
+  'linear-gradient(135deg, #F43F5E 0%, #FB923C 100%)',  // Rose Orange
+  'linear-gradient(135deg, #10B981 0%, #3B82F6 100%)',  // Green Blue
+  'linear-gradient(135deg, #F59E0B 0%, #EF4444 100%)',  // Amber Red
+  'linear-gradient(135deg, #8B5CF6 0%, #D946EF 100%)',  // Violet Pink
 ];
 
 function getBoardGradient(boardId: string): string {
@@ -243,8 +243,8 @@ export function BoardListPage({
       <CreateBoardModal
         open={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
-        onCreateBoard={(name, description) => {
-          onCreateBoard(name, description);
+        onCreateBoard={(name, description, backgroundGradient) => {
+          onCreateBoard(name, description, backgroundGradient);
           setIsCreateModalOpen(false);
         }}
         hasPersonalSpace={hasPersonalSpace}
@@ -324,7 +324,7 @@ function BoardCard({ board, onClick, onToggleStar, onEdit, onDelete }: BoardCard
       {/* 배경 그라데이션 */}
       <div
         className="absolute inset-0"
-        style={{ background: getBoardGradient(board.id) }}
+        style={{ background: board.background_gradient || getBoardGradient(board.id) }}
       />
 
       {/* 패턴 오버레이 */}

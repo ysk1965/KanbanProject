@@ -32,6 +32,7 @@ import { Board } from './types';
 import type { MaintenanceStatus } from './utils/api';
 import { trackEvent } from './contexts/AnalyticsContext';
 import { useVisualViewport, useKeyboardAutoScroll } from './hooks/useVisualViewport';
+import { PWAUpdatePrompt } from './components/PWAUpdatePrompt';
 
 // 인증이 필요한 라우트 래퍼
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -217,9 +218,9 @@ function BoardsRoute() {
     navigate(`/boards/${boardId}`);
   };
 
-  const handleCreateBoard = async (name: string, description?: string) => {
+  const handleCreateBoard = async (name: string, description?: string, backgroundGradient?: string) => {
     try {
-      const newBoard = await boardService.createBoard(name, description);
+      const newBoard = await boardService.createBoard(name, description, backgroundGradient);
       setBoards([...boards, newBoard]);
       trackEvent('board_create', { board_id: newBoard.id });
     } catch (error) {
@@ -561,6 +562,7 @@ function App() {
           <AuthProvider>
             <AnalyticsProvider>
               <AppRoutes />
+              <PWAUpdatePrompt />
             </AnalyticsProvider>
           </AuthProvider>
         </MaintenanceGuard>

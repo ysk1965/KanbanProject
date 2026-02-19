@@ -53,6 +53,9 @@ public class Board extends BaseTimeEntity {
     @Column(name = "selected_milestone_id", length = 36)
     private String selectedMilestoneId;
 
+    @Column(name = "background_gradient")
+    private String backgroundGradient;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "board_type", length = 20)
     @Builder.Default
@@ -91,6 +94,10 @@ public class Board extends BaseTimeEntity {
         if (description != null) {
             this.description = description;
         }
+    }
+
+    public void updateBackgroundGradient(String backgroundGradient) {
+        this.backgroundGradient = backgroundGradient;
     }
 
     public boolean isOwner(String userId) {

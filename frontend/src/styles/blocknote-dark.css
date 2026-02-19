@@ -3,7 +3,7 @@
 /* Force dark color scheme */
 .bn-container[data-color-scheme="dark"] {
   /* Editor background & text */
-  --bn-colors-editor-background: #0A0E17;
+  --bn-colors-editor-background: #0F1419;
   --bn-colors-editor-text: #e2e8f0;
 
   /* Menu (slash menu, formatting toolbar, etc.) */
@@ -47,6 +47,15 @@
 
   /* Font */
   --bn-font-family: inherit;
+}
+
+/* Make editor fill card container */
+.bn-container {
+  height: 100%;
+}
+
+.bn-container [class*="editor"] {
+  min-height: 100%;
 }
 
 /* Typography overrides for Bridge style */

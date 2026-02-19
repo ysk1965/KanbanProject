@@ -97,9 +97,9 @@ export const boardService = {
     }
   },
 
-  createBoard: async (name: string, description?: string): Promise<Board> => {
+  createBoard: async (name: string, description?: string, backgroundGradient?: string): Promise<Board> => {
     try {
-      const board = await boardAPI.createBoard({ name, description });
+      const board = await boardAPI.createBoard({ name, description, background_gradient: backgroundGradient });
       return board;
     } catch (error) {
       console.warn('API failed, using mock data for create board', error);

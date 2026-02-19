@@ -34,6 +34,7 @@ public class BoardResponse {
         private String id;
         private String name;
         private String description;
+        private String backgroundGradient;
         private BoardType boardType;
         private BoardRole role;
         private boolean isStarred;
@@ -51,6 +52,7 @@ public class BoardResponse {
                     .id(board.getId())
                     .name(board.getName())
                     .description(board.getDescription())
+                    .backgroundGradient(board.getBackgroundGradient())
                     .boardType(board.getBoardType())
                     .role(role)
                     .isStarred(isStarred)
@@ -88,6 +90,7 @@ public class BoardResponse {
         private String id;
         private String name;
         private String description;
+        private String backgroundGradient;
         private BoardType boardType;
         private OwnerInfo owner;
         private BoardRole myRole;
@@ -104,6 +107,7 @@ public class BoardResponse {
                     .id(board.getId())
                     .name(board.getName())
                     .description(board.getDescription())
+                    .backgroundGradient(board.getBackgroundGradient())
                     .boardType(board.getBoardType())
                     .owner(OwnerInfo.of(board))
                     .myRole(myRole)
@@ -231,6 +235,7 @@ public class BoardResponse {
         private String id;
         private String name;
         private String description;
+        private String backgroundGradient;
         private BoardType boardType;
         private OwnerInfo owner;
         private BoardRole myRole;

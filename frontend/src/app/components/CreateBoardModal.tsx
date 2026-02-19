@@ -13,20 +13,20 @@ import { Button } from './ui/button';
 import { Label } from './ui/label';
 import { User, Users, ArrowLeft, CalendarDays, BookHeart, Sparkles } from 'lucide-react';
 
-// 보드 색상 gradient 생성
+// 보드 색상 gradient 생성 (dashboard/CreateBoardModal과 동일)
 const BOARD_GRADIENTS = [
-  { name: 'Purple', value: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' },
-  { name: 'Pink', value: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' },
-  { name: 'Blue', value: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' },
-  { name: 'Orange', value: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)' },
-  { name: 'Teal', value: 'linear-gradient(135deg, #30cfd0 0%, #330867 100%)' },
-  { name: 'Pastel', value: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)' },
+  { name: 'Indigo Purple', value: 'linear-gradient(135deg, #6366F1 0%, #a855f7 100%)' },
+  { name: 'Teal Cyan', value: 'linear-gradient(135deg, #2DD4BF 0%, #0891B2 100%)' },
+  { name: 'Rose Orange', value: 'linear-gradient(135deg, #F43F5E 0%, #FB923C 100%)' },
+  { name: 'Green Blue', value: 'linear-gradient(135deg, #10B981 0%, #3B82F6 100%)' },
+  { name: 'Amber Red', value: 'linear-gradient(135deg, #F59E0B 0%, #EF4444 100%)' },
+  { name: 'Violet Pink', value: 'linear-gradient(135deg, #8B5CF6 0%, #D946EF 100%)' },
 ];
 
 interface CreateBoardModalProps {
   open: boolean;
   onClose: () => void;
-  onCreateBoard: (name: string, description?: string) => void;
+  onCreateBoard: (name: string, description?: string, backgroundGradient?: string) => void;
   hasPersonalSpace?: boolean;
   onActivatePersonalSpace?: () => void;
 }
@@ -52,7 +52,7 @@ export function CreateBoardModal({
 
   const handleCreate = () => {
     if (boardName.trim()) {
-      onCreateBoard(boardName.trim(), description.trim() || undefined);
+      onCreateBoard(boardName.trim(), description.trim() || undefined, selectedGradient);
       setBoardName('');
       setDescription('');
       setSelectedGradient(BOARD_GRADIENTS[0].value);

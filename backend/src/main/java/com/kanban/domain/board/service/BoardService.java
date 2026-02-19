@@ -14,6 +14,10 @@ import com.kanban.domain.integration.slack.MemberSlackWebhookRepository;
 import com.kanban.domain.standup.DailyStandupConfigRepository;
 import com.kanban.domain.dailychecklist.DailyChecklistRepository;
 import com.kanban.domain.feature.FeatureRepository;
+import com.kanban.domain.meeting.MeetingRepository;
+import com.kanban.domain.note.NoteCommentRepository;
+import com.kanban.domain.note.NoteRepository;
+import com.kanban.domain.note.NoteTagRepository;
 import com.kanban.domain.invite.InviteLinkRepository;
 import com.kanban.domain.milestone.MilestoneAllocationRepository;
 import com.kanban.domain.milestone.MilestoneFeatureRepository;
@@ -29,6 +33,7 @@ import com.kanban.domain.subscription.SubscriptionRepository;
 import com.kanban.domain.tag.FeatureTagRepository;
 import com.kanban.domain.tag.TagRepository;
 import com.kanban.domain.tag.TaskTagRepository;
+import com.kanban.domain.task.TaskDependencyRepository;
 import com.kanban.domain.task.TaskRepository;
 import com.kanban.domain.user.SystemRole;
 import com.kanban.domain.user.User;
@@ -83,6 +88,12 @@ public class BoardService {
     private final DailyStandupConfigRepository dailyStandupConfigRepository;
     private final NotificationPreferenceRepository notificationPreferenceRepository;
     private final ReportRepository reportRepository;
+    private final MeetingRepository meetingRepository;
+    private final NoteCommentRepository noteCommentRepository;
+    private final NoteRepository noteRepository;
+    private final NoteTagRepository noteTagRepository;
+    private final BoardCustomEmojiRepository boardCustomEmojiRepository;
+    private final TaskDependencyRepository taskDependencyRepository;
     private final FileUploadService fileUploadService;
 
     @Transactional
@@ -97,6 +108,7 @@ public class BoardService {
         Board board = Board.builder()
                 .name(request.getName())
                 .description(request.getDescription())
+                .backgroundGradient(request.getBackgroundGradient())
                 .owner(user)
                 .tier(skipBilling ? BoardTier.PREMIUM : BoardTier.TRIAL)
                 .build();
@@ -195,6 +207,9 @@ public class BoardService {
         }
 
         board.updateInfo(request.getName(), request.getDescription());
+        if (request.getBackgroundGradient() != null) {
+            board.updateBackgroundGradient(request.getBackgroundGradient());
+        }
 
         boolean isStarred = userBoardStarRepository.existsByUserIdAndBoardId(userId, boardId);
         int memberCount = boardMemberRepository.countBillableMembers(boardId);
@@ -246,27 +261,35 @@ public class BoardService {
         inviteLinkRepository.deleteByBoardId(boardId);
         reportRepository.deleteByBoardId(boardId);
 
-        // 7) Task → Feature → Block 순서
+        // 7) 미팅, 노트 (board_id FK)
+        meetingRepository.deleteByBoardId(boardId);
+        noteCommentRepository.deleteByBoardId(boardId);
+        noteRepository.deleteAllByBoardId(boardId);
+        noteTagRepository.deleteAllByBoardId(boardId);
+
+        // 8) Task 의존성 → Task → Feature → Block 순서
+        taskDependencyRepository.deleteByBoardId(boardId);
         taskRepository.deleteByBoardId(boardId);
         featureRepository.deleteByBoardId(boardId);
         blockRepository.deleteByBoardId(boardId);
 
-        // 8) 태그, 가중치 레벨, 마일스톤
+        // 9) 태그, 가중치 레벨, 마일스톤, 커스텀 이모지
         tagRepository.deleteByBoardId(boardId);
         weightLevelRepository.deleteByBoardId(boardId);
         milestoneRepository.deleteByBoardId(boardId);
+        boardCustomEmojiRepository.deleteByBoardId(boardId);
 
-        // 9) Slack 웹훅 + 스탠드업 설정
+        // 10) Slack 웹훅 + 스탠드업 설정
         dailyStandupConfigRepository.deleteByBoardId(boardId);
         memberSlackWebhookRepository.deleteByBoardId(boardId);
 
-        // 10) 결제 이력 → 구독 → 보드 멤버십
+        // 11) 결제 이력 → 구독 → 보드 멤버십
         paymentHistoryRepository.deleteByBoardId(boardId);
         userBoardStarRepository.deleteByBoardId(boardId);
         boardMemberRepository.deleteByBoardId(boardId);
         subscriptionRepository.deleteByBoardId(boardId);
 
-        // 11) 보드 삭제
+        // 12) 보드 삭제
         boardRepository.delete(board);
         log.info("Board deleted: {} by user: {}", boardId, userId);
     }
@@ -301,6 +324,12 @@ public class BoardService {
         inviteLinkRepository.deleteByBoardId(boardId);
         reportRepository.deleteByBoardId(boardId);
 
+        meetingRepository.deleteByBoardId(boardId);
+        noteCommentRepository.deleteByBoardId(boardId);
+        noteRepository.deleteAllByBoardId(boardId);
+        noteTagRepository.deleteAllByBoardId(boardId);
+
+        taskDependencyRepository.deleteByBoardId(boardId);
         taskRepository.deleteByBoardId(boardId);
         featureRepository.deleteByBoardId(boardId);
         blockRepository.deleteByBoardId(boardId);
@@ -308,6 +337,7 @@ public class BoardService {
         tagRepository.deleteByBoardId(boardId);
         weightLevelRepository.deleteByBoardId(boardId);
         milestoneRepository.deleteByBoardId(boardId);
+        boardCustomEmojiRepository.deleteByBoardId(boardId);
 
         dailyStandupConfigRepository.deleteByBoardId(boardId);
         memberSlackWebhookRepository.deleteByBoardId(boardId);
