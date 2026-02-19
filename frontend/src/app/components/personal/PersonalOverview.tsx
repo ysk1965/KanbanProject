@@ -736,13 +736,33 @@ function HabitsTodayWidget({
                 onClick={() => handleCheckIn(habit.habit_id)}
                 className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl hover:bg-white/5 transition-colors"
               >
-                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${
-                  habit.is_completed
-                    ? 'bg-bridge-secondary border-bridge-secondary'
-                    : 'border-white/20 hover:border-bridge-secondary/50'
-                }`}>
-                  {habit.is_completed && <CheckCircle2 size={10} className="text-white" />}
-                </div>
+                {/* Check circle with animation */}
+                <motion.div
+                  className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                    habit.is_completed
+                      ? 'bg-bridge-secondary border-bridge-secondary'
+                      : 'border-white/20 hover:border-bridge-secondary/50'
+                  }`}
+                  initial={false}
+                  animate={habit.is_completed ? {
+                    scale: [1, 1.3, 0.9, 1.1, 1],
+                  } : { scale: 1 }}
+                  transition={{ duration: 0.4, ease: 'easeOut' }}
+                >
+                  <AnimatePresence mode="wait">
+                    {habit.is_completed && (
+                      <motion.div
+                        key="check"
+                        initial={{ scale: 0, rotate: -90, opacity: 0 }}
+                        animate={{ scale: 1, rotate: 0, opacity: 1 }}
+                        exit={{ scale: 0, rotate: 90, opacity: 0 }}
+                        transition={{ type: 'spring', stiffness: 500, damping: 15, delay: 0.1 }}
+                      >
+                        <CheckCircle2 size={10} className="text-white" />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
                 <div className="flex-1 min-w-0 text-left">
                   <div className={`text-xs truncate ${
                     habit.is_completed ? 'line-through text-slate-500' : 'text-slate-300'
@@ -751,25 +771,15 @@ function HabitsTodayWidget({
                     {habit.title}
                   </div>
                 </div>
-                {habit.target_count > 1 && (
-                  <div className="flex items-center gap-1 flex-shrink-0">
-                    {Array.from({ length: Math.min(habit.target_count, 7) }).map((_, i) => (
-                      <div
-                        key={i}
-                        className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                          i >= habit.completed_count ? 'bg-white/[0.08] border border-white/10' : ''
-                        }`}
-                        style={i < habit.completed_count ? {
-                          backgroundColor: habit.color || '#8B5CF6',
-                          boxShadow: `0 0 4px ${habit.color || '#8B5CF6'}40`,
-                        } : {}}
-                      />
-                    ))}
-                    {habit.target_count > 7 && (
-                      <span className="text-[8px] text-slate-500">+{habit.target_count - 7}</span>
-                    )}
-                  </div>
+                {/* Weekly progress donut ring */}
+                {habit.weekly_target > 0 && (
+                  <OverviewWeeklyDonut
+                    completed={habit.weekly_completed}
+                    target={habit.weekly_target}
+                    color={habit.color || '#8B5CF6'}
+                  />
                 )}
+                {/* Streak fire */}
                 {habit.current_streak > 0 && (
                   <div className="flex items-center gap-0.5 text-[10px] text-orange-400 font-bold flex-shrink-0">
                     <Flame size={10} />
@@ -792,6 +802,60 @@ function HabitsTodayWidget({
         )}
       </AnimatePresence>
     </WidgetCard>
+  );
+}
+
+// ── Weekly Donut (compact for overview) ──────────────────────────────
+
+function OverviewWeeklyDonut({ completed, target, color }: {
+  completed: number;
+  target: number;
+  color: string;
+}) {
+  const size = 22;
+  const strokeWidth = 2.5;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const rate = Math.min(completed / Math.max(target, 1), 1);
+  const isComplete = completed >= target;
+
+  return (
+    <div className="relative flex-shrink-0" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="block" style={{ transform: 'rotate(-90deg)' }}>
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="rgba(255,255,255,0.06)"
+          strokeWidth={strokeWidth}
+        />
+        <motion.circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke={isComplete ? '#2DD4BF' : color}
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          initial={{ strokeDashoffset: circumference }}
+          animate={{ strokeDashoffset: circumference * (1 - rate) }}
+          transition={{ duration: 0.6, ease: 'easeOut' }}
+          style={{ strokeDasharray: circumference }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <span
+          className="font-bold leading-none"
+          style={{
+            fontSize: 6,
+            color: isComplete ? '#2DD4BF' : 'rgba(255,255,255,0.5)',
+          }}
+        >
+          {completed}/{target}
+        </span>
+      </div>
+    </div>
   );
 }
 

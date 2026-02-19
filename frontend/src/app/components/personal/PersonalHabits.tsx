@@ -197,22 +197,50 @@ export function PersonalHabits() {
                   <motion.div
                     key={item.habit_id}
                     layout
-                    className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all cursor-pointer ${
+                    className={`relative flex items-center gap-3 px-4 py-3 rounded-xl transition-all cursor-pointer overflow-hidden ${
                       item.is_completed
                         ? 'bg-bridge-secondary/5 border border-bridge-secondary/20'
                         : 'bg-white/[0.03] border border-white/5 hover:bg-white/[0.06]'
                     }`}
                     onClick={() => handleCheckIn(item.habit_id)}
                   >
-                    <div
-                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${
+                    {/* Check circle with animation */}
+                    <motion.div
+                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
                         item.is_completed
                           ? 'bg-bridge-secondary border-bridge-secondary'
                           : 'border-white/20 hover:border-purple-400'
                       }`}
+                      initial={false}
+                      animate={item.is_completed ? {
+                        scale: [1, 1.3, 0.9, 1.1, 1],
+                      } : { scale: 1 }}
+                      transition={{ duration: 0.4, ease: 'easeOut' }}
                     >
-                      {item.is_completed && <CheckCircle2 size={12} className="text-white" />}
-                    </div>
+                      <AnimatePresence mode="wait">
+                        {item.is_completed && (
+                          <motion.div
+                            key="check"
+                            initial={{ scale: 0, rotate: -90, opacity: 0 }}
+                            animate={{ scale: 1, rotate: 0, opacity: 1 }}
+                            exit={{ scale: 0, rotate: 90, opacity: 0 }}
+                            transition={{ type: 'spring', stiffness: 500, damping: 15, delay: 0.1 }}
+                          >
+                            <CheckCircle2 size={12} className="text-white" />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </motion.div>
+                    {/* Completion ripple effect */}
+                    {item.is_completed && (
+                      <motion.div
+                        className="absolute left-[22px] top-1/2 -translate-x-1/2 -translate-y-1/2 w-5 h-5 rounded-full pointer-events-none"
+                        initial={{ scale: 1, opacity: 0.4 }}
+                        animate={{ scale: 2.5, opacity: 0 }}
+                        transition={{ duration: 0.6, ease: 'easeOut' }}
+                        style={{ backgroundColor: habit?.color || '#2DD4BF' }}
+                      />
+                    )}
                     <div className="flex-1 min-w-0">
                       <div className={`text-sm font-medium ${
                         item.is_completed ? 'line-through text-slate-500' : 'text-white'
@@ -221,30 +249,16 @@ export function PersonalHabits() {
                         {item.title}
                       </div>
                     </div>
-                    {item.target_count > 1 && (
-                      <div className="flex items-center gap-1.5 flex-shrink-0">
-                        {Array.from({ length: Math.min(item.target_count, 7) }).map((_, i) => (
-                          <motion.div
-                            key={i}
-                            initial={false}
-                            animate={{ scale: i < item.completed_count ? 1 : 0.8 }}
-                            transition={{ type: 'spring', stiffness: 400, damping: 15 }}
-                            className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
-                              i >= item.completed_count ? 'bg-white/[0.08] border border-white/10' : ''
-                            }`}
-                            style={i < item.completed_count ? {
-                              backgroundColor: habit?.color || '#8B5CF6',
-                              boxShadow: `0 0 6px ${habit?.color || '#8B5CF6'}40`,
-                            } : {}}
-                          />
-                        ))}
-                        {item.target_count > 7 && (
-                          <span className="text-[10px] text-slate-500 font-medium">
-                            +{item.target_count - 7}
-                          </span>
-                        )}
-                      </div>
+                    {/* Weekly progress donut ring */}
+                    {item.weekly_target > 0 && (
+                      <WeeklyDonut
+                        completed={item.weekly_completed}
+                        target={item.weekly_target}
+                        color={habit?.color || '#8B5CF6'}
+                        size={28}
+                      />
                     )}
+                    {/* Streak fire */}
                     {item.current_streak > 0 && (
                       <div className="flex items-center gap-1 text-xs text-orange-400 font-bold flex-shrink-0">
                         <Flame size={12} />
@@ -341,6 +355,65 @@ function StatCard({ icon, label, value, sub }: {
       <div className="text-xl md:text-2xl font-bold text-white">{value}</div>
       <div className="text-[11px] text-slate-500 mt-0.5">{sub}</div>
     </motion.div>
+  );
+}
+
+/* ================================================================
+   Weekly Donut — circular ring showing weekly progress
+   ================================================================ */
+
+function WeeklyDonut({ completed, target, color, size = 28 }: {
+  completed: number;
+  target: number;
+  color: string;
+  size?: number;
+}) {
+  const strokeWidth = 3;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const rate = Math.min(completed / Math.max(target, 1), 1);
+  const isComplete = completed >= target;
+
+  return (
+    <div className="relative flex-shrink-0" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="block" style={{ transform: 'rotate(-90deg)' }}>
+        {/* Background ring */}
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="rgba(255,255,255,0.06)"
+          strokeWidth={strokeWidth}
+        />
+        {/* Progress ring */}
+        <motion.circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke={isComplete ? '#2DD4BF' : color}
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          initial={{ strokeDashoffset: circumference }}
+          animate={{ strokeDashoffset: circumference * (1 - rate) }}
+          transition={{ duration: 0.6, ease: 'easeOut' }}
+          style={{ strokeDasharray: circumference }}
+        />
+      </svg>
+      {/* Center text */}
+      <div className="absolute inset-0 flex items-center justify-center">
+        <span
+          className="font-bold leading-none"
+          style={{
+            fontSize: size <= 24 ? 7 : 8,
+            color: isComplete ? '#2DD4BF' : 'rgba(255,255,255,0.6)',
+          }}
+        >
+          {completed}/{target}
+        </span>
+      </div>
+    </div>
   );
 }
 
