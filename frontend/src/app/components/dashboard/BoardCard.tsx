@@ -68,12 +68,12 @@ export function BoardCard({ board, onToggleStar, onClick, onDelete, onEdit }: Bo
   return (
     <motion.div
       whileHover={{ y: -4, transition: { duration: 0.2 } }}
-      className="relative flex flex-col h-[13rem] w-full bg-bridge-obsidian/60 backdrop-blur-sm rounded-2xl overflow-hidden group border border-white/[0.06] hover:border-white/[0.15] transition-all shadow-lg hover:shadow-xl hover:shadow-bridge-accent/5 cursor-pointer"
+      className="relative flex flex-col h-[13rem] w-full bg-bridge-obsidian/60 backdrop-blur-sm rounded-2xl group border border-white/[0.06] hover:border-white/[0.15] transition-all shadow-lg hover:shadow-xl hover:shadow-bridge-accent/5 cursor-pointer"
       onClick={() => onClick(board)}
     >
       {/* Dynamic Background Header - Compact */}
       <div
-        className="h-16 w-full relative overflow-hidden shrink-0"
+        className="h-16 w-full relative overflow-hidden shrink-0 rounded-t-2xl"
         style={{ background: getGradient(board.id) }}
       >
         {/* Shimmer effect on hover */}
