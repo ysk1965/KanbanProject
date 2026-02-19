@@ -445,7 +445,6 @@ public class NoteService {
     private void validateNoteAccess(String boardId) {
         Board board = boardRepository.findById(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
-        board.checkAndUpdateTierIfTrialExpired();
         if (!board.canAccessNote()) {
             throw new BusinessException(ErrorCode.PREMIUM_FEATURE_REQUIRED);
         }

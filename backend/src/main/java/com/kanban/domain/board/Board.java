@@ -131,6 +131,19 @@ public class Board extends BaseTimeEntity {
     }
 
     /**
+     * Trial 만료를 고려한 실질적 Premium 여부 확인 (읽기 전용, 엔티티 변경 없음)
+     * readOnly 트랜잭션에서 안전하게 사용 가능
+     */
+    public boolean isEffectivelyPremium() {
+        if (this.tier == BoardTier.PREMIUM) return true;
+        if (this.tier == BoardTier.TRIAL) {
+            return this.trialEndsAt != null &&
+                   LocalDateTime.now(ZoneOffset.UTC).isBefore(this.trialEndsAt);
+        }
+        return false;
+    }
+
+    /**
      * Standard 보드인지 확인
      */
     public boolean isStandard() {
@@ -141,14 +154,14 @@ public class Board extends BaseTimeEntity {
      * 스케줄 기능(위클리/데일리) 접근 가능 여부
      */
     public boolean canAccessSchedule() {
-        return isPremium();
+        return isEffectivelyPremium();
     }
 
     /**
      * 마일스톤 기능 접근 가능 여부
      */
     public boolean canAccessMilestone() {
-        return isPremium();
+        return isEffectivelyPremium();
     }
 
     /**
@@ -163,42 +176,42 @@ public class Board extends BaseTimeEntity {
      * 통계 기능 접근 가능 여부
      */
     public boolean canAccessStatistics() {
-        return isPremium();
+        return isEffectivelyPremium();
     }
 
     /**
      * AI 리포트 기능 접근 가능 여부
      */
     public boolean canAccessReport() {
-        return isPremium();
+        return isEffectivelyPremium();
     }
 
     /**
      * 미팅 기능 접근 가능 여부
      */
     public boolean canAccessMeeting() {
-        return isPremium();
+        return isEffectivelyPremium();
     }
 
     /**
      * 노트 기능 접근 가능 여부
      */
     public boolean canAccessNote() {
-        return isPremium();
+        return isEffectivelyPremium();
     }
 
     /**
      * 데일리 체크리스트 접근 가능 여부
      */
     public boolean canAccessDailyChecklist() {
-        return isPremium();
+        return isEffectivelyPremium();
     }
 
     /**
      * Slack 연동 기능 접근 가능 여부
      */
     public boolean canAccessSlack() {
-        return isPremium();
+        return isEffectivelyPremium();
     }
 
     /**

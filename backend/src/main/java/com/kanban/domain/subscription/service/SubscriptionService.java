@@ -158,6 +158,12 @@ public class SubscriptionService {
 
         subscription.cancel();
 
+        // Board tier도 함께 다운그레이드
+        Board board = boardRepository.findById(boardId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        board.downgradeToStandard();
+        webSocketAuthInterceptor.evictTierCache(boardId);
+
         log.info("Subscription canceled for board: {} by user: {}", boardId, userId);
     }
 

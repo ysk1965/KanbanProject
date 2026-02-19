@@ -144,7 +144,6 @@ public class FeatureAIService {
 
         Board board = boardRepository.findByIdWithLock(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
-        board.checkAndUpdateTierIfTrialExpired();
 
         Feature feature = featureRepository.findById(featureId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.FEATURE_NOT_FOUND));

@@ -137,9 +137,9 @@ public class Subscription {
      * Admin에 의한 STANDARD 전환 시 구독 상태 동기화
      */
     public void downgradeByAdmin() {
-        this.status = SubscriptionStatus.TRIAL;
+        this.status = SubscriptionStatus.CANCELED;
         this.plan = null;
-        this.trialEndsAt = LocalDateTime.now(ZoneOffset.UTC).plusDays(7);
+        this.trialEndsAt = null;
     }
 
     public boolean isActive() {

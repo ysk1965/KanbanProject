@@ -151,7 +151,6 @@ public class NoteAIService {
 
         Board board = boardRepository.findByIdWithLock(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
-        board.checkAndUpdateTierIfTrialExpired();
 
         User creator = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));

@@ -366,7 +366,6 @@ public class ScheduleService {
     }
 
     private void validateScheduleAccess(Board board) {
-        board.checkAndUpdateTierIfTrialExpired();
         if (!board.canAccessSchedule()) {
             throw new BusinessException(ErrorCode.PREMIUM_FEATURE_REQUIRED);
         }

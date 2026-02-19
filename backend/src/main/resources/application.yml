@@ -225,6 +225,7 @@ spring:
 
   jpa:
     defer-datasource-initialization: false
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
 
   datasource:
     url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/kanban_dev}
@@ -237,9 +238,6 @@ spring:
       connection-timeout: 20000
       idle-timeout: 300000
       max-lifetime: 1200000
-
-  jpa:
-    database-platform: org.hibernate.dialect.PostgreSQLDialect
 
 app:
   websocket:
@@ -262,6 +260,10 @@ spring:
 
   jpa:
     defer-datasource-initialization: false
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
 
   datasource:
     url: ${DATABASE_URL}
@@ -272,12 +274,6 @@ spring:
       connection-timeout: 20000
       idle-timeout: 300000
       max-lifetime: 1200000
-
-  jpa:
-    database-platform: org.hibernate.dialect.PostgreSQLDialect
-    hibernate:
-      ddl-auto: validate
-    show-sql: false
 
 app:
   websocket:

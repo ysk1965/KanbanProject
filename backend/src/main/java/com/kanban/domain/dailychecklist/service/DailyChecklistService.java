@@ -345,7 +345,6 @@ public class DailyChecklistService {
     private void validateDailyChecklistAccess(String boardId) {
         Board board = boardRepository.findById(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
-        board.checkAndUpdateTierIfTrialExpired();
         if (!board.canAccessDailyChecklist()) {
             throw new BusinessException(ErrorCode.PREMIUM_FEATURE_REQUIRED);
         }

@@ -516,7 +516,6 @@ public class ReportService {
     }
 
     private void validateReportAccess(Board board) {
-        board.checkAndUpdateTierIfTrialExpired();
         if (!board.canAccessReport()) {
             throw new BusinessException(ErrorCode.PREMIUM_FEATURE_REQUIRED);
         }

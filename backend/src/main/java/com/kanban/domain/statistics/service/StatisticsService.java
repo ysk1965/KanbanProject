@@ -721,7 +721,6 @@ public class StatisticsService {
     }
 
     private void validateStatisticsAccess(Board board) {
-        board.checkAndUpdateTierIfTrialExpired();
         if (!board.canAccessStatistics()) {
             throw new BusinessException(ErrorCode.PREMIUM_FEATURE_REQUIRED);
         }
