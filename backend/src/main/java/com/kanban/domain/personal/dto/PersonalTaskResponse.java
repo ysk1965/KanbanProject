@@ -83,7 +83,7 @@ public class PersonalTaskResponse {
     public static class ChecklistItem {
         private String id;
         private String title;
-        private boolean isCompleted;
+        private Boolean isCompleted;
         private int position;
 
         public static ChecklistItem of(PersonalTaskChecklist checklist) {

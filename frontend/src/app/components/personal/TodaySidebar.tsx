@@ -1,9 +1,12 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronLeft, ChevronRight, Clock, CheckCircle2, Calendar, ListTodo, Loader2, Flame, X } from 'lucide-react';
-import { personalDashboardAPI } from '../../utils/api';
-import { PersonalDashboardToday, PersonalTask } from '../../types';
+import { ChevronLeft, ChevronRight, Clock, CheckCircle2, Calendar, ListTodo, Loader2, Flame, X, Pencil, Trash2 } from 'lucide-react';
+import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
+import { personalDashboardAPI, personalHabitAPI } from '../../utils/api';
+import { PersonalDashboardToday, PersonalTask, PersonalHabit } from '../../types';
 import { getDDay } from '../../utils/dateUtils';
+import { HabitFormModal, DeleteConfirmModal } from './PersonalHabits';
+import type { HabitFormData } from './PersonalHabits';
 
 interface TodaySidebarProps {
   tasks?: PersonalTask[];
@@ -16,6 +19,8 @@ export function TodaySidebar({ tasks, onTaskClick }: TodaySidebarProps) {
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
   const [todayData, setTodayData] = useState<PersonalDashboardToday | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [editHabitData, setEditHabitData] = useState<PersonalHabit | null>(null);
+  const [deleteHabitTarget, setDeleteHabitTarget] = useState<{ id: string; title: string } | null>(null);
 
   const loadTodayData = useCallback(async () => {
     try {
@@ -32,6 +37,35 @@ export function TodaySidebar({ tasks, onTaskClick }: TodaySidebarProps) {
   useEffect(() => {
     loadTodayData();
   }, [loadTodayData]);
+
+  const handleHabitEdit = async (habitId: string) => {
+    try {
+      const habit = await personalHabitAPI.getById(habitId);
+      setEditHabitData(habit);
+    } catch (err) {
+      console.error('Failed to load habit for editing:', err);
+    }
+  };
+
+  const handleHabitUpdate = async (habitId: string, data: HabitFormData) => {
+    try {
+      await personalHabitAPI.update(habitId, data);
+      setEditHabitData(null);
+      loadTodayData();
+    } catch (err) {
+      console.error('Failed to update habit:', err);
+    }
+  };
+
+  const handleHabitDelete = async (habitId: string) => {
+    try {
+      await personalHabitAPI.delete(habitId);
+      setDeleteHabitTarget(null);
+      loadTodayData();
+    } catch (err) {
+      console.error('Failed to delete habit:', err);
+    }
+  };
 
   const completionRate = todayData ? Math.round(todayData.task_completion_rate * 100) : 0;
 
@@ -241,20 +275,76 @@ export function TodaySidebar({ tasks, onTaskClick }: TodaySidebarProps) {
                       count={todayData.habits_today.length}
                       color="text-purple-400"
                     >
-                      {todayData.habits_today.map((item) => (
-                        <div key={item.habit_id} className="flex items-center gap-2 px-2 py-1.5">
-                          <div className={`w-3.5 h-3.5 rounded border ${
-                            item.is_completed
-                              ? 'bg-bridge-secondary border-bridge-secondary'
-                              : 'border-white/20'
-                          } flex items-center justify-center`}>
-                            {item.is_completed && <CheckCircle2 size={10} className="text-white" />}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <span className={`text-[13px] ${item.is_completed ? 'line-through text-slate-500' : 'text-foreground'}`}>
-                              {item.icon && <span className="mr-1">{item.icon}</span>}
-                              {item.title}
-                            </span>
+                      {[...todayData.habits_today]
+                        .sort((a, b) => (a.is_completed ? 1 : 0) - (b.is_completed ? 1 : 0))
+                        .map((item) => (
+                        <motion.div
+                          key={item.habit_id}
+                          layout
+                          transition={{ type: 'spring', stiffness: 500, damping: 35, mass: 0.8 }}
+                          className="group w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/5 transition-colors"
+                        >
+                          <div
+                            className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer"
+                            onClick={async () => {
+                              const prevCompleted = item.is_completed;
+                              // Optimistic update: toggle immediately
+                              setTodayData(prev => prev ? {
+                                ...prev,
+                                habits_today: prev.habits_today.map(h =>
+                                  h.habit_id === item.habit_id ? { ...h, is_completed: !prevCompleted } : h
+                                ),
+                              } : prev);
+                              try {
+                                const updated = await personalHabitAPI.checkIn(item.habit_id);
+                                setTodayData(prev => prev ? {
+                                  ...prev,
+                                  habits_today: prev.habits_today.map(h =>
+                                    h.habit_id === item.habit_id ? { ...h, ...updated } : h
+                                  ),
+                                } : prev);
+                              } catch {
+                                // Revert on failure
+                                setTodayData(prev => prev ? {
+                                  ...prev,
+                                  habits_today: prev.habits_today.map(h =>
+                                    h.habit_id === item.habit_id ? { ...h, is_completed: prevCompleted } : h
+                                  ),
+                                } : prev);
+                                console.error('Failed to check in habit');
+                              }
+                            }}
+                          >
+                            <motion.div
+                              className={`w-3.5 h-3.5 rounded-full border-[1.5px] flex items-center justify-center shrink-0 transition-colors ${
+                                item.is_completed
+                                  ? 'bg-bridge-secondary border-bridge-secondary'
+                                  : 'border-white/20 hover:border-bridge-secondary/50'
+                              }`}
+                              initial={false}
+                              animate={item.is_completed ? { scale: [1, 1.3, 0.9, 1.1, 1] } : { scale: 1 }}
+                              transition={{ duration: 0.4, ease: 'easeOut' }}
+                            >
+                              <AnimatePresence mode="wait">
+                                {item.is_completed && (
+                                  <motion.div
+                                    key="check"
+                                    initial={{ scale: 0, opacity: 0 }}
+                                    animate={{ scale: 1, opacity: 1 }}
+                                    exit={{ scale: 0, opacity: 0 }}
+                                    transition={{ type: 'spring', stiffness: 500, damping: 15 }}
+                                  >
+                                    <CheckCircle2 size={8} className="text-white" />
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </motion.div>
+                            <div className="flex-1 min-w-0 text-left">
+                              <span className={`text-[13px] ${item.is_completed ? 'line-through text-slate-500' : 'text-foreground'}`}>
+                                {item.icon && <span className="mr-1">{item.icon}</span>}
+                                {item.title}
+                              </span>
+                            </div>
                           </div>
                           {item.target_count > 1 && (
                             <div className="flex items-center gap-0.5 shrink-0">
@@ -277,7 +367,22 @@ export function TodaySidebar({ tasks, onTaskClick }: TodaySidebarProps) {
                           {item.current_streak > 0 && (
                             <span className="text-[11px] text-orange-400 font-bold shrink-0">{item.current_streak}d</span>
                           )}
-                        </div>
+                          {/* Edit/Delete on hover */}
+                          <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={() => handleHabitEdit(item.habit_id)}
+                              className="p-0.5 text-slate-500 hover:text-white rounded transition-colors"
+                            >
+                              <Pencil size={10} />
+                            </button>
+                            <button
+                              onClick={() => setDeleteHabitTarget({ id: item.habit_id, title: item.title })}
+                              className="p-0.5 text-slate-500 hover:text-red-400 rounded transition-colors"
+                            >
+                              <Trash2 size={10} />
+                            </button>
+                          </div>
+                        </motion.div>
                       ))}
                     </Section>
                   )}
@@ -297,6 +402,28 @@ export function TodaySidebar({ tasks, onTaskClick }: TodaySidebarProps) {
           </div>
         )}
       </div>
+
+      {/* Habit Edit Modal */}
+      <AnimatePresence>
+        {editHabitData && (
+          <HabitFormModal
+            habit={editHabitData}
+            onClose={() => setEditHabitData(null)}
+            onSubmit={(data) => handleHabitUpdate(editHabitData.id, data)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Habit Delete Confirm Modal */}
+      <AnimatePresence>
+        {deleteHabitTarget && (
+          <DeleteConfirmModal
+            habitName={deleteHabitTarget.title}
+            onConfirm={() => handleHabitDelete(deleteHabitTarget.id)}
+            onCancel={() => setDeleteHabitTarget(null)}
+          />
+        )}
+      </AnimatePresence>
     </>
   );
 }

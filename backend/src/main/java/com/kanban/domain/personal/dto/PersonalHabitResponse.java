@@ -31,7 +31,7 @@ public class PersonalHabitResponse {
         private int currentStreak;
         private int bestStreak;
         private int position;
-        private boolean isActive;
+        private Boolean isActive;
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;
 
@@ -67,7 +67,7 @@ public class PersonalHabitResponse {
         private String color;
         private int targetCount;
         private int completedCount;
-        private boolean isCompleted;
+        private Boolean isCompleted;
         private String unit;
         private int currentStreak;
         private HabitImportance importance;
@@ -104,7 +104,7 @@ public class PersonalHabitResponse {
         private String id;
         private LocalDate logDate;
         private int completedCount;
-        private boolean isCompleted;
+        private Boolean isCompleted;
         private String note;
 
         public static LogEntry of(PersonalHabitLog log) {
@@ -145,6 +145,6 @@ public class PersonalHabitResponse {
         private LocalDate date;
         private int completedCount;
         private int targetCount;
-        private boolean isCompleted;
+        private Boolean isCompleted;
     }
 }

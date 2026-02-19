@@ -85,8 +85,8 @@ public class PersonalTask extends BaseTimeEntity {
         if (title != null) this.title = title;
         if (description != null) this.description = description;
         if (priority != null) this.priority = priority;
-        this.dueDate = dueDate;
-        this.category = category;
+        if (dueDate != null) this.dueDate = dueDate;
+        if (category != null) this.category = category;
         if (color != null) this.color = color;
     }
 

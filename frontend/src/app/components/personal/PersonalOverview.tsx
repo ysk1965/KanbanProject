@@ -39,7 +39,7 @@ function WidgetCard({
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay }}
-      className="bg-bridge-obsidian rounded-2xl border border-white/5 p-4 md:p-5 flex flex-col min-h-[140px] md:min-h-[340px]"
+      className="bg-bridge-obsidian rounded-2xl border border-white/5 p-4 md:p-5 flex flex-col min-h-[140px] lg:min-h-0 overflow-hidden"
     >
       <div className="flex items-center justify-between mb-2.5 md:mb-4">
         <div className="flex items-center gap-2.5">
@@ -49,7 +49,7 @@ function WidgetCard({
         </div>
         {action}
       </div>
-      <div className="flex-1 flex flex-col">{children}</div>
+      <div className="flex-1 flex flex-col min-h-0">{children}</div>
     </motion.div>
   );
 }
@@ -663,10 +663,18 @@ function HabitsTodayWidget({
   const rate = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
 
   const handleCheckIn = async (habitId: string) => {
+    // Optimistic update — immediately show checked
+    setHabits(prev => prev.map(h =>
+      h.habit_id === habitId ? { ...h, is_completed: true } : h
+    ));
     try {
       const updated = await personalHabitAPI.checkIn(habitId);
       setHabits(prev => prev.map(h => h.habit_id === habitId ? updated : h));
     } catch {
+      // Revert on failure
+      setHabits(prev => prev.map(h =>
+        h.habit_id === habitId ? { ...h, is_completed: false } : h
+      ));
       console.error('Failed to check in');
     }
   };
@@ -999,7 +1007,7 @@ export function PersonalOverview({ onNavigateTab }: PersonalOverviewProps) {
 
   return (
     <div className="h-full overflow-auto p-3 md:p-6">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5 md:gap-5 max-w-[1800px] mx-auto h-[calc(100%-1rem)]">
+      <div className="grid grid-cols-1 lg:grid-cols-2 lg:grid-rows-2 gap-2.5 md:gap-5 max-w-[1800px] mx-auto lg:h-[calc(100%-1rem)]">
         <TodayScheduleWidget
           todayDate={todayDate}
           onViewAll={() => onNavigateTab('schedule')}
@@ -1010,7 +1018,7 @@ export function PersonalOverview({ onNavigateTab }: PersonalOverviewProps) {
           onNavigateCalendar={() => onNavigateTab('calendar')}
         />
         <HabitsTodayWidget
-          onViewAll={() => onNavigateTab('habits')}
+          onViewAll={() => onNavigateTab('tasks')}
         />
         <DiaryWidget
           todayDate={todayDate}

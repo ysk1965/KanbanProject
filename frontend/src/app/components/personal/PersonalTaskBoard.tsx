@@ -17,6 +17,7 @@ import type { HabitFormData } from './PersonalHabits';
 interface PersonalTaskBoardProps {
   tasks: PersonalTask[];
   onRefresh: () => void;
+  onOptimisticUpdate: (taskId: string, updates: Partial<PersonalTask>) => void;
 }
 
 type Quadrant = 'q1' | 'q2' | 'q3' | 'q4';
@@ -126,7 +127,7 @@ function getHabitQuadrant(habit: HabitTodayItem): Quadrant {
 
 // ── Main Component ────────────────────────────────────────────
 
-export function PersonalTaskBoard({ tasks, onRefresh }: PersonalTaskBoardProps) {
+export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: PersonalTaskBoardProps) {
   const { t } = useTranslation();
   const [modalTaskId, setModalTaskId] = useState<string | null>(null);
   const [showCompleted, setShowCompleted] = useState(false);
@@ -178,11 +179,8 @@ export function PersonalTaskBoard({ tasks, onRefresh }: PersonalTaskBoardProps) 
     [tasks],
   );
 
-  // Active habits (not yet met weekly goal, or today's check-in pending)
-  const activeHabits = useMemo(
-    () => todayHabits.filter(h => h.weekly_completed < h.weekly_target || !h.is_completed),
-    [todayHabits],
-  );
+  // All today's habits (completed ones show with check marks)
+  const activeHabits = useMemo(() => todayHabits, [todayHabits]);
 
   // ── Group by quadrant ──
   const taskQuadrants = useMemo(() => {
@@ -208,6 +206,10 @@ export function PersonalTaskBoard({ tasks, onRefresh }: PersonalTaskBoardProps) 
     const result: Record<Quadrant, HabitTodayItem[]> = { q1: [], q2: [], q3: [], q4: [] };
     for (const habit of activeHabits) {
       result[getHabitQuadrant(habit)].push(habit);
+    }
+    // Sort: uncompleted first, completed last
+    for (const list of Object.values(result)) {
+      list.sort((a, b) => (a.is_completed ? 1 : 0) - (b.is_completed ? 1 : 0));
     }
     return result;
   }, [activeHabits]);
@@ -303,21 +305,33 @@ export function PersonalTaskBoard({ tasks, onRefresh }: PersonalTaskBoardProps) 
     }
 
     if (Object.keys(updates).length > 0) {
-      handleUpdate(draggedTaskId, updates);
+      // Optimistic: 로컬 state만 즉시 변경 → 옮긴 카드만 부드럽게 이동
+      onOptimisticUpdate(draggedTaskId, updates);
+      // Background API call (실패 시 전체 리프레시로 롤백)
+      personalTaskAPI.update(draggedTaskId, updates).catch(() => onRefresh());
     }
     setDraggedTaskId(null);
     setDragOverQuadrant(null);
-  }, [draggedTaskId, activeTasks, handleUpdate]);
+  }, [draggedTaskId, activeTasks, onOptimisticUpdate, onRefresh]);
 
   // ── Habit handlers ──
   const handleHabitCheckIn = useCallback(async (habitId: string) => {
+    // Optimistic toggle — immediately flip is_completed
+    const prev_completed = todayHabits.find(h => h.habit_id === habitId)?.is_completed ?? false;
+    setTodayHabits(prev => prev.map(h =>
+      h.habit_id === habitId ? { ...h, is_completed: !h.is_completed } : h
+    ));
     try {
       const updated = await personalHabitAPI.checkIn(habitId);
       setTodayHabits(prev => prev.map(h => h.habit_id === habitId ? updated : h));
     } catch {
+      // Revert on failure
+      setTodayHabits(prev => prev.map(h =>
+        h.habit_id === habitId ? { ...h, is_completed: prev_completed } : h
+      ));
       console.error('Failed to check in habit');
     }
-  }, []);
+  }, [todayHabits]);
 
   const handleHabitCreate = useCallback(async (data: HabitFormData) => {
     try {
@@ -526,6 +540,11 @@ export function PersonalTaskBoard({ tasks, onRefresh }: PersonalTaskBoardProps) 
                   onOpenModal={(id) => setModalTaskId(id)}
                   onUpdate={handleUpdate}
                   onHabitCheckIn={handleHabitCheckIn}
+                  onHabitEdit={(habitId) => {
+                    const habit = allHabits.find(h => h.id === habitId);
+                    if (habit) setEditHabitData(habit);
+                  }}
+                  onHabitDelete={(habitId) => setDeleteHabitId(habitId)}
                 />
               ))}
             </div>
@@ -653,6 +672,7 @@ function QuadrantCell({
   quadrant, tasks, habits, isDragOver, draggedTaskId,
   onDragStart, onDragEnd, onDragOver, onDragLeave, onDrop,
   onToggleComplete, onOpenModal, onUpdate, onHabitCheckIn,
+  onHabitEdit, onHabitDelete,
 }: {
   quadrant: Quadrant;
   tasks: PersonalTask[];
@@ -668,6 +688,8 @@ function QuadrantCell({
   onOpenModal: (id: string) => void;
   onUpdate: (id: string, data: { title?: string; due_date?: string | null; priority?: PersonalTaskPriority; description?: string }) => void;
   onHabitCheckIn: (habitId: string) => void;
+  onHabitEdit: (habitId: string) => void;
+  onHabitDelete: (habitId: string) => void;
 }) {
   const { t } = useTranslation();
   const cfg = QUADRANT_CONFIG[quadrant];
@@ -720,25 +742,7 @@ function QuadrantCell({
         )}
 
         <AnimatePresence mode="popLayout">
-          {/* Habits first */}
-          {habits.map(habit => (
-            <motion.div
-              key={`habit-${habit.habit_id}`}
-              layoutId={`habit-${habit.habit_id}`}
-              layout
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              transition={{ type: 'spring', stiffness: 500, damping: 35, mass: 0.8 }}
-            >
-              <HabitMatrixCard
-                habit={habit}
-                onCheckIn={() => onHabitCheckIn(habit.habit_id)}
-              />
-            </motion.div>
-          ))}
-
-          {/* Then tasks */}
+          {/* Tasks first */}
           {tasks.map(task => (
             <motion.div
               key={task.id}
@@ -760,6 +764,26 @@ function QuadrantCell({
               />
             </motion.div>
           ))}
+
+          {/* Habits below */}
+          {habits.map(habit => (
+            <motion.div
+              key={`habit-${habit.habit_id}`}
+              layoutId={`habit-${habit.habit_id}`}
+              layout
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 35, mass: 0.8 }}
+            >
+              <HabitMatrixCard
+                habit={habit}
+                onCheckIn={() => onHabitCheckIn(habit.habit_id)}
+                onEdit={() => onHabitEdit(habit.habit_id)}
+                onDelete={() => onHabitDelete(habit.habit_id)}
+              />
+            </motion.div>
+          ))}
         </AnimatePresence>
       </div>
     </div>
@@ -768,9 +792,11 @@ function QuadrantCell({
 
 // ── HabitMatrixCard ──────────────────────────────────────────
 
-function HabitMatrixCard({ habit, onCheckIn }: {
+function HabitMatrixCard({ habit, onCheckIn, onEdit, onDelete }: {
   habit: HabitTodayItem;
   onCheckIn: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
 }) {
   const { t } = useTranslation();
   const urgencyRatio = getHabitUrgencyRatio(habit);
@@ -779,14 +805,40 @@ function HabitMatrixCard({ habit, onCheckIn }: {
     <div
       onClick={onCheckIn}
       className={`
-        flex items-center gap-2 px-2.5 py-2 rounded-lg cursor-pointer
+        group flex items-center gap-2 px-2.5 py-2 rounded-lg cursor-pointer
         border transition-all
         ${habit.is_completed
-          ? 'bg-purple-500/5 border-purple-500/20 opacity-60'
+          ? 'bg-bridge-secondary/5 border-bridge-secondary/20'
           : 'bg-bridge-obsidian border-white/5 hover:border-purple-400/30 hover:bg-purple-500/5'
         }
       `}
     >
+      {/* Check circle (left) */}
+      <motion.div
+        className={`w-5 h-5 rounded-full border-[1.5px] flex items-center justify-center shrink-0 transition-colors ${
+          habit.is_completed
+            ? 'bg-bridge-secondary border-bridge-secondary shadow-[0_0_8px_rgba(45,212,191,0.4)]'
+            : 'border-white/20 hover:border-bridge-secondary/50'
+        }`}
+        initial={false}
+        animate={habit.is_completed ? { scale: [1, 1.3, 0.9, 1.1, 1] } : { scale: 1 }}
+        transition={{ duration: 0.4, ease: 'easeOut' }}
+      >
+        <AnimatePresence mode="wait">
+          {habit.is_completed && (
+            <motion.div
+              key="check"
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 15 }}
+            >
+              <Check size={12} className="text-white" strokeWidth={3} />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
+
       {/* Color bar + icon */}
       <div className="flex items-center gap-1.5 shrink-0">
         <div
@@ -817,7 +869,23 @@ function HabitMatrixCard({ habit, onCheckIn }: {
         </div>
       </div>
 
-      {/* Right side: donut + streak + check */}
+      {/* Edit/Delete (hover) */}
+      <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button
+          onClick={(e) => { e.stopPropagation(); onEdit(); }}
+          className="p-1 text-slate-500 hover:text-white rounded transition-colors"
+        >
+          <Pencil size={11} />
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); onDelete(); }}
+          className="p-1 text-slate-500 hover:text-red-400 rounded transition-colors"
+        >
+          <Trash2 size={11} />
+        </button>
+      </div>
+
+      {/* Right side: donut + streak */}
       <div className="flex items-center gap-2 shrink-0">
         {habit.weekly_target > 0 && (
           <TaskBoardWeeklyDonut
@@ -832,30 +900,6 @@ function HabitMatrixCard({ habit, onCheckIn }: {
             {habit.current_streak}
           </div>
         )}
-        <motion.div
-          className={`w-4 h-4 rounded-full border-[1.5px] flex items-center justify-center transition-colors ${
-            habit.is_completed
-              ? 'bg-purple-500 border-purple-500'
-              : 'border-purple-400/40 hover:border-purple-400'
-          }`}
-          initial={false}
-          animate={habit.is_completed ? { scale: [1, 1.3, 0.9, 1.1, 1] } : { scale: 1 }}
-          transition={{ duration: 0.4, ease: 'easeOut' }}
-        >
-          <AnimatePresence mode="wait">
-            {habit.is_completed && (
-              <motion.div
-                key="check"
-                initial={{ scale: 0, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0, opacity: 0 }}
-                transition={{ type: 'spring', stiffness: 500, damping: 15 }}
-              >
-                <Check size={10} className="text-white" />
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
       </div>
     </div>
   );

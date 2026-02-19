@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { CalendarDays, BookHeart, ArrowLeft, LayoutGrid, Calendar, Plus, Command, Home, Loader2, Flag } from 'lucide-react';
+import { CalendarDays, BookHeart, ArrowLeft, LayoutGrid, Calendar, Plus, Command, Home, Loader2, Flag, Repeat } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { PersonalSchedule } from '../components/personal/PersonalSchedule';
 import { PersonalDiary } from '../components/personal/PersonalDiary';
@@ -10,8 +10,8 @@ import { TodaySidebar } from '../components/personal/TodaySidebar';
 import { PersonalOverview } from '../components/personal/PersonalOverview';
 import { PersonalCalendar } from '../components/personal/PersonalCalendar';
 
-import { personalTaskAPI } from '../utils/api';
-import { PersonalTask, PersonalTaskPriority } from '../types';
+import { personalTaskAPI, personalHabitAPI } from '../utils/api';
+import { PersonalTask, PersonalTaskPriority, HabitFrequency, HabitImportance } from '../types';
 import { getTodayDateString } from '../utils/dateUtils';
 
 type TabType = 'overview' | 'tasks' | 'schedule' | 'calendar' | 'diary';
@@ -71,7 +71,32 @@ export function PersonalBoardPage() {
     }
   }, []);
 
+  // Quick Capture: PersonalHabit 생성
+  const handleQuickHabit = useCallback(async (
+    title: string,
+    frequencyType: HabitFrequency,
+    importance: HabitImportance,
+    frequencyDays?: string,
+  ) => {
+    try {
+      await personalHabitAPI.create({
+        title,
+        frequency_type: frequencyType,
+        frequency_days: frequencyDays,
+        importance,
+      });
+      setRefreshKey(k => k + 1);
+    } catch (error) {
+      console.error('Failed to create habit:', error);
+    }
+  }, []);
+
   const refresh = useCallback(() => setRefreshKey(k => k + 1), []);
+
+  // Optimistic update: 로컬 state만 즉시 변경 (API는 호출자가 별도 처리)
+  const optimisticUpdate = useCallback((taskId: string, updates: Partial<PersonalTask>) => {
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, ...updates } : t));
+  }, []);
 
   if (isLoading) {
     return (
@@ -137,9 +162,9 @@ export function PersonalBoardPage() {
           )}
           {activeTab === 'tasks' && (
             <PersonalTaskBoard
-              key={refreshKey}
               tasks={tasks}
               onRefresh={refresh}
+              onOptimisticUpdate={optimisticUpdate}
             />
           )}
           {activeTab === 'schedule' && <PersonalSchedule />}
@@ -179,7 +204,7 @@ export function PersonalBoardPage() {
       </nav>
 
       {/* Floating Quick Capture Button */}
-      {activeTab === 'tasks' && (
+      {(activeTab === 'tasks' || activeTab === 'overview') && (
         <button
           onClick={() => setQuickCaptureOpen(true)}
           className="fixed bottom-20 md:bottom-6 right-6 w-12 h-12 md:w-14 md:h-14 rounded-full bg-bridge-accent shadow-lg shadow-bridge-accent/30 flex items-center justify-center text-white hover:bg-bridge-accent/90 hover:scale-105 active:scale-95 transition-all z-50"
@@ -192,44 +217,119 @@ export function PersonalBoardPage() {
       {quickCaptureOpen && (
         <QuickCaptureModal
           onClose={() => setQuickCaptureOpen(false)}
-          onSubmit={handleQuickCapture}
+          onSubmitTask={handleQuickCapture}
+          onSubmitHabit={handleQuickHabit}
         />
       )}
     </div>
   );
 }
 
-// 간소화된 Quick Capture 모달 (마감일 + 우선순위 지원)
+// 간소화된 Quick Capture 모달 (할 일 + 습관 토글)
+type CaptureType = 'task' | 'habit';
+
 const PRIORITY_OPTIONS: { value: PersonalTaskPriority; label: string; dot: string; color: string }[] = [
   { value: 'MEDIUM', label: '보통', dot: 'bg-amber-400', color: 'text-amber-400' },
   { value: 'HIGH',   label: '높음', dot: 'bg-orange-500', color: 'text-orange-500' },
   { value: 'URGENT', label: '긴급', dot: 'bg-red-500', color: 'text-red-500' },
 ];
 
-function QuickCaptureModal({ onClose, onSubmit }: {
+// 0=Sun … 6=Sat — display order: Mon→Sun
+const DAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
+const DAY_ORDER  = [1, 2, 3, 4, 5, 6, 0]; // Mon first, Sun last
+
+const IMPORTANCE_OPTIONS: { value: HabitImportance; label: string; dot: string; color: string }[] = [
+  { value: 'MEDIUM', label: '보통', dot: 'bg-slate-400', color: 'text-slate-400' },
+  { value: 'HIGH',   label: '중요', dot: 'bg-orange-500', color: 'text-orange-500' },
+];
+
+/** Derive frequency_type + frequency_days from a set of selected day indices */
+function deriveFrequency(days: Set<number>): { type: HabitFrequency; days?: string } {
+  if (days.size === 7) return { type: 'DAILY' };
+  const sorted = [...days].sort((a, b) => a - b);
+  const weekdays = [1, 2, 3, 4, 5];
+  const weekend  = [0, 6];
+  if (sorted.length === 5 && weekdays.every(d => days.has(d))) return { type: 'WEEKDAY' };
+  if (sorted.length === 2 && weekend.every(d => days.has(d))) return { type: 'WEEKEND' };
+  return { type: 'CUSTOM', days: sorted.join(',') };
+}
+
+function QuickCaptureModal({ onClose, onSubmitTask, onSubmitHabit }: {
   onClose: () => void;
-  onSubmit: (title: string, dueDate?: string, priority?: PersonalTaskPriority) => void;
+  onSubmitTask: (title: string, dueDate?: string, priority?: PersonalTaskPriority) => void;
+  onSubmitHabit: (title: string, frequencyType: HabitFrequency, importance: HabitImportance, frequencyDays?: string) => void;
 }) {
+  const [captureType, setCaptureType] = useState<CaptureType>('task');
   const [title, setTitle] = useState('');
+  // Task fields
   const [dueDate, setDueDate] = useState(getTodayDateString());
   const [priority, setPriority] = useState<PersonalTaskPriority>('MEDIUM');
   const [showPriority, setShowPriority] = useState(false);
+  // Habit fields — default all days selected
+  const [selectedDays, setSelectedDays] = useState<Set<number>>(new Set([0, 1, 2, 3, 4, 5, 6]));
+  const [importance, setImportance] = useState<HabitImportance>('MEDIUM');
+  const [showImportance, setShowImportance] = useState(false);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const toggleDay = (day: number) => {
+    setSelectedDays(prev => {
+      const next = new Set(prev);
+      if (next.has(day)) {
+        next.delete(day);
+      } else {
+        next.add(day);
+      }
+      return next;
+    });
+  };
 
   const handleSubmit = async () => {
     if (!title.trim()) return;
     setIsSubmitting(true);
-    await onSubmit(title.trim(), dueDate || undefined, priority);
+    if (captureType === 'task') {
+      await onSubmitTask(title.trim(), dueDate || undefined, priority);
+    } else {
+      const freq = deriveFrequency(selectedDays);
+      await onSubmitHabit(title.trim(), freq.type, importance, freq.days);
+    }
     setIsSubmitting(false);
     onClose();
   };
 
   const currentPriority = PRIORITY_OPTIONS.find(p => p.value === priority)!;
+  const currentImportance = IMPORTANCE_OPTIONS.find(i => i.value === importance)!;
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-start justify-center sm:pt-[20vh]"
       onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="w-full sm:max-w-lg bg-bridge-obsidian rounded-t-2xl sm:rounded-2xl border border-white/10 shadow-2xl p-4">
+        {/* Type Toggle */}
+        <div className="flex items-center gap-1 mb-3 bg-white/5 rounded-lg p-0.5 w-fit">
+          <button
+            onClick={() => setCaptureType('task')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+              captureType === 'task'
+                ? 'bg-bridge-accent text-white shadow-sm'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Flag size={12} />
+            할 일
+          </button>
+          <button
+            onClick={() => setCaptureType('habit')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+              captureType === 'habit'
+                ? 'bg-purple-500 text-white shadow-sm'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Repeat size={12} />
+            습관
+          </button>
+        </div>
+
         <input
           autoFocus
           value={title}
@@ -238,53 +338,109 @@ function QuickCaptureModal({ onClose, onSubmit }: {
             if (e.key === 'Enter' && !e.nativeEvent.isComposing) handleSubmit();
             if (e.key === 'Escape') onClose();
           }}
-          placeholder="할 일을 입력하세요..."
+          placeholder={captureType === 'task' ? '할 일을 입력하세요...' : '습관을 입력하세요...'}
           className="w-full bg-transparent text-white text-lg placeholder-slate-600 outline-none py-2"
         />
         <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/5">
           <div className="flex items-center gap-2">
-            <input
-              type="date"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-              className="bg-transparent text-xs text-slate-400 border border-white/10 rounded-lg px-2 py-1 outline-none focus:border-bridge-accent/50 [color-scheme:dark]"
-              placeholder="마감일"
-            />
-            {/* Priority selector */}
-            <div className="relative">
-              <button
-                onClick={() => setShowPriority(!showPriority)}
-                className="flex items-center gap-1.5 px-2 py-1 border border-white/10 rounded-lg hover:bg-white/5 transition-colors"
-              >
-                <div className={`w-2 h-2 rounded-full ${currentPriority.dot}`} />
-                <span className={`text-xs ${currentPriority.color}`}>{currentPriority.label}</span>
-              </button>
-              {showPriority && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setShowPriority(false)} />
-                  <div className="absolute left-0 bottom-full mb-1 bg-bridge-obsidian border border-white/10 rounded-lg shadow-xl z-50 py-1 min-w-[100px]">
-                    {PRIORITY_OPTIONS.map(p => (
-                      <button
-                        key={p.value}
-                        onClick={() => { setPriority(p.value); setShowPriority(false); }}
-                        className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-white/5 transition-colors ${
-                          priority === p.value ? 'text-white' : 'text-slate-400'
-                        }`}
-                      >
-                        <div className={`w-2 h-2 rounded-full ${p.dot}`} />
-                        {p.label}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
+            {captureType === 'task' ? (
+              <>
+                <input
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                  className="bg-transparent text-xs text-slate-400 border border-white/10 rounded-lg px-2 py-1 outline-none focus:border-bridge-accent/50 [color-scheme:dark]"
+                  placeholder="마감일"
+                />
+                {/* Priority selector */}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowPriority(!showPriority)}
+                    className="flex items-center gap-1.5 px-2 py-1 border border-white/10 rounded-lg hover:bg-white/5 transition-colors"
+                  >
+                    <div className={`w-2 h-2 rounded-full ${currentPriority.dot}`} />
+                    <span className={`text-xs ${currentPriority.color}`}>{currentPriority.label}</span>
+                  </button>
+                  {showPriority && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setShowPriority(false)} />
+                      <div className="absolute left-0 bottom-full mb-1 bg-bridge-obsidian border border-white/10 rounded-lg shadow-xl z-50 py-1 min-w-[100px]">
+                        {PRIORITY_OPTIONS.map(p => (
+                          <button
+                            key={p.value}
+                            onClick={() => { setPriority(p.value); setShowPriority(false); }}
+                            className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-white/5 transition-colors ${
+                              priority === p.value ? 'text-white' : 'text-slate-400'
+                            }`}
+                          >
+                            <div className={`w-2 h-2 rounded-full ${p.dot}`} />
+                            {p.label}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Day chips — inline togglable */}
+                <div className="flex items-center gap-0.5">
+                  {DAY_ORDER.map(day => (
+                    <button
+                      key={day}
+                      onClick={() => toggleDay(day)}
+                      className={`w-7 h-7 rounded-full text-[11px] font-bold transition-all ${
+                        selectedDays.has(day)
+                          ? 'bg-purple-500 text-white shadow-sm shadow-purple-500/30'
+                          : 'bg-white/5 text-slate-500 hover:bg-white/10 hover:text-slate-300'
+                      }`}
+                    >
+                      {DAY_LABELS[day]}
+                    </button>
+                  ))}
+                </div>
+                {/* Importance selector */}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowImportance(!showImportance)}
+                    className="flex items-center gap-1.5 px-2 py-1 border border-white/10 rounded-lg hover:bg-white/5 transition-colors"
+                  >
+                    <div className={`w-2 h-2 rounded-full ${currentImportance.dot}`} />
+                    <span className={`text-xs ${currentImportance.color}`}>{currentImportance.label}</span>
+                  </button>
+                  {showImportance && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setShowImportance(false)} />
+                      <div className="absolute left-0 bottom-full mb-1 bg-bridge-obsidian border border-white/10 rounded-lg shadow-xl z-50 py-1 min-w-[100px]">
+                        {IMPORTANCE_OPTIONS.map(i => (
+                          <button
+                            key={i.value}
+                            onClick={() => { setImportance(i.value); setShowImportance(false); }}
+                            className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-white/5 transition-colors ${
+                              importance === i.value ? 'text-white' : 'text-slate-400'
+                            }`}
+                          >
+                            <div className={`w-2 h-2 rounded-full ${i.dot}`} />
+                            {i.label}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </>
+            )}
             <span className="text-xs text-slate-500 hidden sm:inline">Enter로 추가</span>
           </div>
           <button
             onClick={handleSubmit}
             disabled={!title.trim() || isSubmitting}
-            className="px-4 py-1.5 bg-bridge-accent text-white text-sm rounded-lg font-medium disabled:opacity-50 hover:bg-bridge-accent/90 transition-colors"
+            className={`px-4 py-1.5 text-white text-sm rounded-lg font-medium disabled:opacity-50 transition-colors ${
+              captureType === 'task'
+                ? 'bg-bridge-accent hover:bg-bridge-accent/90'
+                : 'bg-purple-500 hover:bg-purple-500/90'
+            }`}
           >
             추가
           </button>

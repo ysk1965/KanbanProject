@@ -85,10 +85,18 @@ export function PersonalHabits() {
   }, [habits, todayItems]);
 
   const handleCheckIn = async (habitId: string) => {
+    // Optimistic update — immediately show checked
+    setTodayItems(prev => prev.map(h =>
+      h.habit_id === habitId ? { ...h, is_completed: true } : h
+    ));
     try {
       const updated = await personalHabitAPI.checkIn(habitId);
       setTodayItems(prev => prev.map(h => h.habit_id === habitId ? updated : h));
     } catch {
+      // Revert on failure
+      setTodayItems(prev => prev.map(h =>
+        h.habit_id === habitId ? { ...h, is_completed: false } : h
+      ));
       console.error('Failed to check in');
     }
   };

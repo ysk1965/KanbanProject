@@ -489,7 +489,7 @@ export function AddDailyChecklistModal({
 
   return (
     <Dialog open onOpenChange={() => handleClose()}>
-      <DialogContent className="bg-bridge-dark text-foreground border-white/10 max-w-6xl w-[90vw] max-h-[85vh] flex flex-col p-0 gap-0 [&>button:last-child]:hidden overflow-hidden rounded-2xl">
+      <DialogContent className="bg-bridge-dark text-foreground border-white/10 max-w-7xl w-[92vw] max-h-[85vh] flex flex-col p-0 gap-0 [&>button:last-child]:hidden overflow-hidden rounded-2xl">
         <DialogTitle className="sr-only">{t('dailyChecklist.addTitle')}</DialogTitle>
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
@@ -664,7 +664,7 @@ export function AddDailyChecklistModal({
                       );
                     })()}
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {myTasksFeaturesData.map((featureData) => (
                       <div
                         key={featureData.feature.id}
@@ -949,7 +949,7 @@ export function AddDailyChecklistModal({
                       );
                     })()}
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {othersTasksFeaturesData.map((featureData) => (
                       <div
                         key={featureData.feature.id}
