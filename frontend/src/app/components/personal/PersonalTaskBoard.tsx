@@ -4,7 +4,7 @@ import {
   Plus, Check, Trash2, Flag, Calendar, ChevronDown,
   Flame, CalendarClock, Zap, Archive, X, Pencil,
 } from 'lucide-react';
-import { AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import { personalTaskAPI, personalHabitAPI } from '../../utils/api';
 import { PersonalTask, PersonalTaskPriority, HabitTodayItem, PersonalHabit } from '../../types';
 import { getDDay, getTodayDateString, type DdayUrgency } from '../../utils/dateUtils';
@@ -507,27 +507,29 @@ export function PersonalTaskBoard({ tasks, onRefresh }: PersonalTaskBoardProps) 
           </div>
 
           {/* Matrix 2x2 Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-            {(['q1', 'q2', 'q3', 'q4'] as Quadrant[]).map(q => (
-              <QuadrantCell
-                key={q}
-                quadrant={q}
-                tasks={taskQuadrants[q]}
-                habits={habitQuadrants[q]}
-                isDragOver={dragOverQuadrant === q}
-                draggedTaskId={draggedTaskId}
-                onDragStart={handleDragStart}
-                onDragEnd={handleDragEnd}
-                onDragOver={() => setDragOverQuadrant(q)}
-                onDragLeave={() => setDragOverQuadrant(null)}
-                onDrop={() => handleQuadrantDrop(q)}
-                onToggleComplete={handleToggleComplete}
-                onOpenModal={(id) => setModalTaskId(id)}
-                onUpdate={handleUpdate}
-                onHabitCheckIn={handleHabitCheckIn}
-              />
-            ))}
-          </div>
+          <LayoutGroup>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+              {(['q1', 'q2', 'q3', 'q4'] as Quadrant[]).map(q => (
+                <QuadrantCell
+                  key={q}
+                  quadrant={q}
+                  tasks={taskQuadrants[q]}
+                  habits={habitQuadrants[q]}
+                  isDragOver={dragOverQuadrant === q}
+                  draggedTaskId={draggedTaskId}
+                  onDragStart={handleDragStart}
+                  onDragEnd={handleDragEnd}
+                  onDragOver={() => setDragOverQuadrant(q)}
+                  onDragLeave={() => setDragOverQuadrant(null)}
+                  onDrop={() => handleQuadrantDrop(q)}
+                  onToggleComplete={handleToggleComplete}
+                  onOpenModal={(id) => setModalTaskId(id)}
+                  onUpdate={handleUpdate}
+                  onHabitCheckIn={handleHabitCheckIn}
+                />
+              ))}
+            </div>
+          </LayoutGroup>
 
           {/* Row axis labels */}
           <div className="flex items-center gap-2 sm:gap-3 mt-2 flex-wrap">
@@ -572,14 +574,25 @@ export function PersonalTaskBoard({ tasks, onRefresh }: PersonalTaskBoardProps) 
 
             {showCompleted && (
               <div className="space-y-1 pt-2">
-                {completedTasks.map(task => (
-                  <CompletedTaskRow
-                    key={task.id}
-                    task={task}
-                    onToggleComplete={() => handleToggleComplete(task)}
-                    onDelete={() => handleDelete(task.id)}
-                  />
-                ))}
+                <AnimatePresence mode="popLayout">
+                  {completedTasks.map(task => (
+                    <motion.div
+                      key={task.id}
+                      layoutId={`task-${task.id}`}
+                      layout
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 10 }}
+                      transition={{ type: 'spring', stiffness: 500, damping: 35, mass: 0.8 }}
+                    >
+                      <CompletedTaskRow
+                        task={task}
+                        onToggleComplete={() => handleToggleComplete(task)}
+                        onDelete={() => handleDelete(task.id)}
+                      />
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
               </div>
             )}
           </div>
@@ -706,28 +719,48 @@ function QuadrantCell({
           </div>
         )}
 
-        {/* Habits first */}
-        {habits.map(habit => (
-          <HabitMatrixCard
-            key={`habit-${habit.habit_id}`}
-            habit={habit}
-            onCheckIn={() => onHabitCheckIn(habit.habit_id)}
-          />
-        ))}
+        <AnimatePresence mode="popLayout">
+          {/* Habits first */}
+          {habits.map(habit => (
+            <motion.div
+              key={`habit-${habit.habit_id}`}
+              layoutId={`habit-${habit.habit_id}`}
+              layout
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 35, mass: 0.8 }}
+            >
+              <HabitMatrixCard
+                habit={habit}
+                onCheckIn={() => onHabitCheckIn(habit.habit_id)}
+              />
+            </motion.div>
+          ))}
 
-        {/* Then tasks */}
-        {tasks.map(task => (
-          <MatrixTaskCard
-            key={task.id}
-            task={task}
-            isDragging={draggedTaskId === task.id}
-            onDragStart={() => onDragStart(task.id)}
-            onDragEnd={onDragEnd}
-            onToggleComplete={() => onToggleComplete(task)}
-            onOpenModal={() => onOpenModal(task.id)}
-            onUpdate={(data) => onUpdate(task.id, data)}
-          />
-        ))}
+          {/* Then tasks */}
+          {tasks.map(task => (
+            <motion.div
+              key={task.id}
+              layoutId={`task-${task.id}`}
+              layout
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 35, mass: 0.8 }}
+            >
+              <MatrixTaskCard
+                task={task}
+                isDragging={draggedTaskId === task.id}
+                onDragStart={() => onDragStart(task.id)}
+                onDragEnd={onDragEnd}
+                onToggleComplete={() => onToggleComplete(task)}
+                onOpenModal={() => onOpenModal(task.id)}
+                onUpdate={(data) => onUpdate(task.id, data)}
+              />
+            </motion.div>
+          ))}
+        </AnimatePresence>
       </div>
     </div>
   );
