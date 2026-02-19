@@ -115,7 +115,12 @@ public class BoardFacadeService {
         TagResponse.ListResponse tagsResponse = tagService.getTags(boardId, userId);
         MemberResponse.ListResponse membersResponse = memberService.getMembers(boardId, userId);
         ActivityResponse.ListResponse activitiesResponse = activityService.getActivities(boardId, userId, null, DEFAULT_ACTIVITY_LIMIT);
-        MilestoneResponse.ListResponse milestonesResponse = milestoneService.getMilestones(boardId, userId);
+        MilestoneResponse.ListResponse milestonesResponse;
+        if (board.canAccessMilestone()) {
+            milestonesResponse = milestoneService.getMilestones(boardId, userId);
+        } else {
+            milestonesResponse = new MilestoneResponse.ListResponse(List.of());
+        }
 
         // 4. 초대 링크 (실제 보드 Admin+ 멤버만, 시스템 Admin 스텔스 뷰에서는 제외)
         List<InviteResponse.Detail> inviteLinks;

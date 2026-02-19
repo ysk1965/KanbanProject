@@ -68,7 +68,7 @@ interface InviteInfo {
 
 // 로그인 페이지 래퍼 (이미 로그인되어 있으면 보드 목록으로)
 function LoginRoute() {
-  const { isAuthenticated, isLoading, login: authLogin, signup: authSignup, googleLogin: authGoogleLogin, hideBilling } = useAuth();
+  const { isAuthenticated, isLoading, login: authLogin, signup: authSignup, googleLogin: authGoogleLogin, isTester } = useAuth();
   const navigate = useNavigate();
   const { t } = useTranslation();
   const [isProcessingInvite, setIsProcessingInvite] = useState(false);
@@ -139,7 +139,7 @@ function LoginRoute() {
           }
         } else if (isAuthenticated && !isLoading) {
           // TESTER인 경우 참여 중인 보드가 있으면 바로 이동
-          if (hideBilling) {
+          if (isTester) {
             try {
               const boards = await boardService.getBoards();
               if (boards.length > 0) {
@@ -187,7 +187,7 @@ function LoginRoute() {
 // 보드 목록 페이지 래퍼
 function BoardsRoute() {
   const navigate = useNavigate();
-  const { logout, hideBilling } = useAuth();
+  const { logout, isTester } = useAuth();
   const { t } = useTranslation();
   const [boards, setBoards] = useState<Board[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -195,9 +195,8 @@ function BoardsRoute() {
   const loadBoards = async () => {
     try {
       const boardsData = await boardService.getBoards();
-      // TESTER이거나 milkyway.pe.kr 도메인인 경우 참여 중인 보드가 있으면 바로 이동
-      const isMilkyway = window.location.hostname === 'milkyway.pe.kr';
-      if ((hideBilling || isMilkyway) && boardsData.length > 0) {
+      // TESTER인 경우 참여 중인 보드가 있으면 바로 이동 (milkyway.pe.kr 도메인도 isTester에 포함)
+      if (isTester && boardsData.length > 0) {
         navigate(`/boards/${boardsData[0].id}`, { replace: true });
         return;
       }

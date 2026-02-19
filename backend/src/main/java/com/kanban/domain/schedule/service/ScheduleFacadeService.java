@@ -57,7 +57,15 @@ public class ScheduleFacadeService {
 
         Board board = boardRepository.findById(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
-        validateScheduleAccess(board);
+        if (!board.canAccessSchedule()) {
+            return ScheduleResponse.DailyFull.builder()
+                    .date(date)
+                    .settings(ScheduleResponse.SettingsInfo.of(board))
+                    .columns(List.of())
+                    .dailyChecklists(List.of())
+                    .meetings(List.of())
+                    .build();
+        }
 
         // 대상 담당자 목록
         Map<String, User> userCache = new java.util.HashMap<>();
@@ -151,9 +159,4 @@ public class ScheduleFacadeService {
                 .build();
     }
 
-    private void validateScheduleAccess(Board board) {
-        if (!board.canAccessSchedule()) {
-            throw new BusinessException(ErrorCode.PREMIUM_FEATURE_REQUIRED);
-        }
-    }
 }
