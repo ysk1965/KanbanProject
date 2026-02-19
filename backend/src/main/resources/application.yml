@@ -219,6 +219,13 @@ spring:
     activate:
       on-profile: dev
 
+  sql:
+    init:
+      mode: never
+
+  jpa:
+    defer-datasource-initialization: false
+
   datasource:
     url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/kanban_dev}
     username: ${DB_USERNAME:kanban}
@@ -248,6 +255,13 @@ spring:
   config:
     activate:
       on-profile: prod
+
+  sql:
+    init:
+      mode: never
+
+  jpa:
+    defer-datasource-initialization: false
 
   datasource:
     url: ${DATABASE_URL}
