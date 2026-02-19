@@ -404,7 +404,7 @@ export function PersonalCalendar() {
           setCreateDate(todayKey);
           setIsCreateOpen(true);
         }}
-        className="fixed bottom-20 md:bottom-6 right-6 w-12 h-12 md:w-14 md:h-14 rounded-full bg-bridge-accent text-white shadow-lg shadow-bridge-accent/30 flex items-center justify-center hover:bg-bridge-accent/90 hover:scale-105 active:scale-95 transition-all z-50"
+        className="fixed fab-bottom-safe right-6 w-12 h-12 md:w-14 md:h-14 rounded-full bg-bridge-accent text-white shadow-lg shadow-bridge-accent/30 flex items-center justify-center hover:bg-bridge-accent/90 hover:scale-105 active:scale-95 transition-all z-50"
       >
         <Plus size={20} className="md:w-6 md:h-6" />
       </button>

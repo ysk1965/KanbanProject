@@ -707,7 +707,7 @@ export function ShareBoardModal({
 
         {/* 복사 알림 토스트 */}
         {copyMessage && (
-          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-bridge-obsidian text-white px-5 py-2.5 rounded-xl shadow-2xl border border-white/10 flex items-center gap-2.5 animate-in fade-in slide-in-from-bottom-2 z-50">
+          <div className="fixed toast-bottom-safe left-1/2 -translate-x-1/2 bg-bridge-obsidian text-white px-5 py-2.5 rounded-xl shadow-2xl border border-white/10 flex items-center gap-2.5 animate-in fade-in slide-in-from-bottom-2 z-50">
             {linkCopied ? (
               <Check className="h-4 w-4 text-bridge-secondary" />
             ) : (

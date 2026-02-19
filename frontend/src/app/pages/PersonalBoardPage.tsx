@@ -109,7 +109,7 @@ export function PersonalBoardPage() {
   return (
     <div className="flex flex-col h-screen bg-bridge-dark text-white selection:bg-bridge-secondary/30">
       {/* Header */}
-      <header className="min-h-[3.5rem] md:h-16 border-b border-bridge-border flex items-center justify-between px-3 md:px-6 bg-bridge-dark shrink-0 z-30 gap-2">
+      <header className="min-h-[3.5rem] md:h-16 border-b border-bridge-border flex items-center justify-between px-3 md:px-6 bg-bridge-dark shrink-0 z-30 gap-2 safe-top">
         {/* 좌측 영역 */}
         <div className="flex items-center gap-2 md:gap-4 min-w-0">
           <button
@@ -207,7 +207,7 @@ export function PersonalBoardPage() {
       {(activeTab === 'tasks' || activeTab === 'overview') && (
         <button
           onClick={() => setQuickCaptureOpen(true)}
-          className="fixed bottom-20 md:bottom-6 right-6 w-12 h-12 md:w-14 md:h-14 rounded-full bg-bridge-accent shadow-lg shadow-bridge-accent/30 flex items-center justify-center text-white hover:bg-bridge-accent/90 hover:scale-105 active:scale-95 transition-all z-50"
+          className="fixed fab-bottom-safe right-6 w-12 h-12 md:w-14 md:h-14 rounded-full bg-bridge-accent shadow-lg shadow-bridge-accent/30 flex items-center justify-center text-white hover:bg-bridge-accent/90 hover:scale-105 active:scale-95 transition-all z-50"
         >
           <Plus size={20} className="md:w-6 md:h-6" />
         </button>

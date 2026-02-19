@@ -18,7 +18,7 @@ export function PWAUpdatePrompt() {
   if (!needRefresh) return null;
 
   return (
-    <div className="fixed bottom-6 right-6 z-[9999] animate-in slide-in-from-bottom-4 fade-in duration-300">
+    <div className="fixed toast-bottom-safe right-6 z-[9999] animate-in slide-in-from-bottom-4 fade-in duration-300">
       <div className="bg-bridge-obsidian border border-white/10 rounded-2xl p-4 shadow-2xl max-w-sm">
         <p className="text-white text-sm font-medium mb-3">
           {t('pwa.updateAvailable', '새 버전이 있습니다. 업데이트하시겠습니까?')}
