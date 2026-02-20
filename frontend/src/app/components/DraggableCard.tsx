@@ -421,7 +421,7 @@ export function DraggableCard({
                     }}
                   />
                 </div>
-                <span className="text-[10px] font-semibold text-zinc-300">
+                <span className="text-[10px] font-semibold text-foreground/80">
                   {hasLoaded ? `${completedCount}/${checklistItems.length}` : `${task.checklist_completed ?? 0}/${task.checklist_total ?? 0}`}
                 </span>
               </div>
@@ -479,7 +479,7 @@ export function DraggableCard({
               .map((item) => (
                 <div
                   key={item.id}
-                  className="flex items-center gap-2 p-2 rounded-lg bg-bridge-surface-hover hover:bg-white/5 transition-colors"
+                  className="flex items-center gap-2 p-2 rounded-lg bg-bridge-surface-hover hover:bg-foreground/5 transition-colors"
                   onClick={(e) => handleToggleItem(e, item.id)}
                 >
                   <div
@@ -505,14 +505,14 @@ export function DraggableCard({
                   </div>
                   <span
                     className={`text-xs flex-1 ${
-                      item.completed ? 'text-zinc-400 line-through' : 'text-zinc-300'
+                      item.completed ? 'text-zinc-400 line-through' : 'text-foreground/80'
                     }`}
                   >
                     {item.title}
                   </span>
                   {item.assignee && (
                     <div
-                      className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0 border border-white/20 whitespace-nowrap overflow-hidden"
+                      className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0 border border-bridge-border whitespace-nowrap overflow-hidden"
                       style={{ backgroundColor: getAssigneeHex(item.assignee.name, item.assignee?.id ? memberColorMap?.[item.assignee.id] : undefined) }}
                       title={item.assignee.name}
                     >

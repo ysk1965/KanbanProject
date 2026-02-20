@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useLayoutEffect } from 'react';
 import { Plus, ChevronDown, ChevronUp } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { DailyChecklistItem as DailyChecklistItemType } from '../types';
@@ -44,6 +44,22 @@ export function EmbeddedDailyChecklist({
 }: EmbeddedDailyChecklistProps) {
   const { t } = useTranslation();
   const [localItems, setLocalItems] = useState<DailyChecklistItemType[]>(items);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollTopRef = useRef<number>(0);
+
+  // Track scroll position continuously
+  const handleScroll = useCallback(() => {
+    if (scrollRef.current) {
+      scrollTopRef.current = scrollRef.current.scrollTop;
+    }
+  }, []);
+
+  // Restore scroll position after re-render
+  useLayoutEffect(() => {
+    if (scrollRef.current && scrollTopRef.current > 0) {
+      scrollRef.current.scrollTop = scrollTopRef.current;
+    }
+  });
 
   // Sync with parent prop
   if (JSON.stringify(items) !== JSON.stringify(localItems)) {
@@ -122,7 +138,7 @@ export function EmbeddedDailyChecklist({
     <div className="flex items-center justify-between text-[11px]">
       <button
         onClick={onToggleExpand}
-        className="flex items-center gap-1 text-slate-400 hover:text-white transition-colors min-w-0"
+        className="flex items-center gap-1 text-slate-400 hover:text-foreground transition-colors min-w-0"
       >
         {isExpanded ? (
           <ChevronUp className="h-3 w-3 flex-shrink-0" />
@@ -144,7 +160,7 @@ export function EmbeddedDailyChecklist({
         {!isViewer && (
           <button
             onClick={onAddClick}
-            className="w-4 h-4 flex items-center justify-center rounded hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+            className="w-4 h-4 flex items-center justify-center rounded hover:bg-foreground/10 text-slate-400 hover:text-foreground transition-colors"
           >
             <Plus className="h-3 w-3" />
           </button>
@@ -181,7 +197,7 @@ export function EmbeddedDailyChecklist({
           {localItems.length > 4 && (
             <button
               onClick={onToggleExpand}
-              className="text-[10px] text-slate-400 hover:text-white pl-2 transition-colors"
+              className="text-[10px] text-slate-400 hover:text-foreground pl-2 transition-colors"
             >
               {t('dailySchedule.moreItems', { count: localItems.length - 4 })}
             </button>
@@ -195,7 +211,7 @@ export function EmbeddedDailyChecklist({
   return (
     <div className="space-y-1">
       {header}
-      <div className="space-y-1 mt-1 max-h-[300px] overflow-y-auto">
+      <div ref={scrollRef} onScroll={handleScroll} className="space-y-1 mt-1 max-h-[300px] overflow-y-auto">
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}

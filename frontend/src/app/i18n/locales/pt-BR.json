@@ -1650,6 +1650,9 @@
     "language": "Idioma",
     "languageDesc": "Alterar o idioma de exibição",
     "selectLanguage": "Selecionar Idioma",
+    "holidayCountry": "País dos feriados",
+    "holidayCountryDesc": "Selecione um país para exibir feriados no calendário",
+    "holidayOff": "Desligado",
     "changePassword": "Alterar Senha",
     "changePasswordDesc": "Altere sua senha para segurança da conta",
     "currentPasswordLabel": "Senha Atual",
@@ -2521,7 +2524,9 @@
       "start": "Início",
       "end": "Fim",
       "color": "Cor",
-      "thisWeek": "Esta semana"
+      "thisWeek": "Esta semana",
+      "holidayCountry": "País de feriados",
+      "holidayOff": "Desligado"
     },
     "habit": {
       "habits": "Hábitos",

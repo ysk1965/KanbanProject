@@ -5,7 +5,7 @@ import { inquiryService } from '../utils/services';
 import { fileAPI } from '../utils/api';
 import type { InquirySummary, InquiryDetail, InquiryStatus } from '../types';
 import { formatDate } from '../utils/dateUtils';
-import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
+import { MotionModal } from './ui/MotionModal';
 
 interface InquiryModalProps {
   isOpen: boolean;
@@ -122,39 +122,37 @@ export function InquiryModal({ isOpen, onClose }: InquiryModalProps) {
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={() => onClose()}>
-      <DialogContent className="bg-bridge-obsidian text-foreground border-white/10 max-w-lg max-h-[80vh] flex flex-col p-0 gap-0 [&>button:last-child]:hidden overflow-hidden rounded-2xl">
-        <DialogTitle className="sr-only">{t('inquiry.title')}</DialogTitle>
+    <MotionModal open={isOpen} onClose={onClose} className="sm:max-w-lg max-h-[80vh] flex flex-col p-0 overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-foreground/10">
           <div className="flex items-center gap-3">
             {selectedInquiry && (
               <button
                 onClick={() => setSelectedInquiry(null)}
-                className="text-slate-400 hover:text-white transition-colors"
+                className="text-slate-400 hover:text-foreground transition-colors"
               >
                 <ChevronLeft size={20} />
               </button>
             )}
             <MessageSquare size={20} className="text-bridge-accent" />
-            <h2 className="text-lg font-bold text-white">
+            <h2 className="text-lg font-bold text-foreground">
               {selectedInquiry ? t('inquiry.detailTitle') : t('inquiry.title')}
             </h2>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
+          <button onClick={onClose} className="text-slate-400 hover:text-foreground transition-colors">
             <X size={20} />
           </button>
         </div>
 
         {/* Tabs */}
         {!selectedInquiry && (
-          <div className="flex border-b border-white/10">
+          <div className="flex border-b border-foreground/10">
             <button
               onClick={() => setActiveTab('new')}
               className={`flex-1 py-3 text-sm font-semibold transition-colors ${
                 activeTab === 'new'
                   ? 'text-bridge-accent border-b-2 border-bridge-accent'
-                  : 'text-slate-400 hover:text-white'
+                  : 'text-slate-400 hover:text-foreground'
               }`}
             >
               {t('inquiry.newInquiry')}
@@ -164,7 +162,7 @@ export function InquiryModal({ isOpen, onClose }: InquiryModalProps) {
               className={`flex-1 py-3 text-sm font-semibold transition-colors ${
                 activeTab === 'history'
                   ? 'text-bridge-accent border-b-2 border-bridge-accent'
-                  : 'text-slate-400 hover:text-white'
+                  : 'text-slate-400 hover:text-foreground'
               }`}
             >
               {t('inquiry.myHistory')}
@@ -180,7 +178,7 @@ export function InquiryModal({ isOpen, onClose }: InquiryModalProps) {
             submitSuccess ? (
               <div className="flex flex-col items-center justify-center py-12 gap-3">
                 <CheckCircle2 size={48} className="text-green-400" />
-                <p className="text-white font-semibold">{t('inquiry.submitted')}</p>
+                <p className="text-foreground font-semibold">{t('inquiry.submitted')}</p>
                 <p className="text-slate-400 text-sm">{t('inquiry.submittedDesc')}</p>
               </div>
             ) : (
@@ -194,7 +192,7 @@ export function InquiryModal({ isOpen, onClose }: InquiryModalProps) {
                     value={title}
                     onChange={e => setTitle(e.target.value)}
                     placeholder={t('inquiry.titlePlaceholder')}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+                    className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-foreground placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
                     maxLength={200}
                   />
                 </div>
@@ -207,7 +205,7 @@ export function InquiryModal({ isOpen, onClose }: InquiryModalProps) {
                     onChange={e => setContent(e.target.value)}
                     placeholder={t('inquiry.contentPlaceholder')}
                     rows={6}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all resize-none"
+                    className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-foreground placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all resize-none"
                     maxLength={5000}
                   />
                 </div>
@@ -228,7 +226,7 @@ export function InquiryModal({ isOpen, onClose }: InquiryModalProps) {
                   <button
                     onClick={() => fileInputRef.current?.click()}
                     disabled={files.length >= 5}
-                    className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-center gap-2 px-4 py-2 bg-foreground/5 border border-foreground/10 rounded-xl text-slate-400 hover:text-foreground hover:bg-foreground/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Paperclip size={16} />
                     <span className="text-sm">{t('inquiry.attachFile')}</span>
@@ -236,8 +234,8 @@ export function InquiryModal({ isOpen, onClose }: InquiryModalProps) {
                   {files.length > 0 && (
                     <div className="mt-2 space-y-1">
                       {files.map((f, i) => (
-                        <div key={i} className="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2">
-                          <span className="text-sm text-slate-300 truncate">{f.file.name}</span>
+                        <div key={i} className="flex items-center justify-between bg-foreground/5 rounded-lg px-3 py-2">
+                          <span className="text-sm text-muted-foreground truncate">{f.file.name}</span>
                           <button onClick={() => removeFile(i)} className="text-slate-400 hover:text-red-400 ml-2">
                             <X size={14} />
                           </button>
@@ -259,7 +257,7 @@ export function InquiryModal({ isOpen, onClose }: InquiryModalProps) {
 
         {/* Footer */}
         {activeTab === 'new' && !submitSuccess && !selectedInquiry && (
-          <div className="px-6 py-4 border-t border-white/10">
+          <div className="px-6 py-4 border-t border-foreground/10">
             <button
               onClick={handleSubmit}
               disabled={isSubmitting || !title.trim() || !content.trim()}
@@ -274,8 +272,7 @@ export function InquiryModal({ isOpen, onClose }: InquiryModalProps) {
             </button>
           </div>
         )}
-      </DialogContent>
-    </Dialog>
+    </MotionModal>
   );
 }
 
@@ -314,11 +311,11 @@ function InquiryHistoryView({
           <button
             key={inquiry.id}
             onClick={() => onSelect(inquiry.id)}
-            className="w-full text-left bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl p-4 transition-all"
+            className="w-full text-left bg-foreground/5 hover:bg-foreground/10 border border-foreground/5 rounded-xl p-4 transition-all"
           >
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
-                <h4 className="text-white font-medium truncate">{inquiry.title}</h4>
+                <h4 className="text-foreground font-medium truncate">{inquiry.title}</h4>
                 <p className="text-slate-500 text-xs mt-1">
                   {formatDate(inquiry.created_at, 'yyyy-MM-dd')}
                   {inquiry.reply_count > 0 && (
@@ -388,11 +385,11 @@ function InquiryDetailView({
             {formatDate(inquiry.created_at, 'yyyy-MM-dd')}
           </span>
         </div>
-        <h3 className="text-white font-bold text-lg">{inquiry.title}</h3>
+        <h3 className="text-foreground font-bold text-lg">{inquiry.title}</h3>
       </div>
 
-      <div className="bg-white/5 rounded-xl p-4">
-        <p className="text-slate-300 text-sm whitespace-pre-wrap leading-relaxed">{inquiry.content}</p>
+      <div className="bg-foreground/5 rounded-xl p-4">
+        <p className="text-muted-foreground text-sm whitespace-pre-wrap leading-relaxed">{inquiry.content}</p>
       </div>
 
       {inquiry.attachments.length > 0 && (
@@ -404,7 +401,7 @@ function InquiryDetailView({
               href={att.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 bg-white/5 rounded-lg px-3 py-2 text-sm text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
+              className="flex items-center gap-2 bg-foreground/5 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-foreground/10 transition-colors"
             >
               <Paperclip size={14} />
               <span className="truncate">{att.original_file_name}</span>
@@ -428,7 +425,7 @@ function InquiryDetailView({
                 className={`rounded-xl p-4 ${
                   isAdmin
                     ? 'bg-bridge-accent/10 border border-bridge-accent/20'
-                    : 'bg-white/5 border border-white/10'
+                    : 'bg-foreground/5 border border-foreground/10'
                 }`}
               >
                 <div className="flex items-center gap-2 mb-2">
@@ -437,7 +434,7 @@ function InquiryDetailView({
                   }`}>
                     <span className="text-xs text-white font-bold">{initial}</span>
                   </div>
-                  <span className="text-white text-sm font-medium">{name}</span>
+                  <span className="text-foreground text-sm font-medium">{name}</span>
                   {isAdmin && (
                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-bridge-accent/20 text-bridge-accent font-medium">Admin</span>
                   )}
@@ -445,7 +442,7 @@ function InquiryDetailView({
                     {formatDate(reply.created_at, 'yyyy-MM-dd')}
                   </span>
                 </div>
-                <p className="text-slate-300 text-sm whitespace-pre-wrap leading-relaxed">{reply.content}</p>
+                <p className="text-muted-foreground text-sm whitespace-pre-wrap leading-relaxed">{reply.content}</p>
               </div>
             );
           })}
@@ -461,7 +458,7 @@ function InquiryDetailView({
             onChange={e => setReplyContent(e.target.value)}
             placeholder={t('inquiry.additionalPlaceholder')}
             rows={3}
-            className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all resize-none"
+            className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-foreground placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all resize-none"
             maxLength={5000}
           />
           <button

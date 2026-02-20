@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, CheckCircle2, Layers, ListChecks, X, Calendar } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Feature, Task, ChecklistItem } from '../types';
+import { useHolidays } from '../hooks/useHolidays';
 
 interface CalendarViewProps {
   boardId: string;
@@ -89,12 +90,15 @@ const LANE_HEIGHT = 22;
 // ── component ──
 
 export function CalendarView({ features, tasks, checklistDataMap, onViewFeature, onViewTask }: CalendarViewProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const today = useMemo(() => new Date(), []);
 
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [modalDate, setModalDate] = useState<{ dateKey: string; date: Date } | null>(null);
+
+  // Holidays
+  const { holidayMap } = useHolidays(i18n.language, currentYear);
 
   const dayLabels = [
     t('calendar.sun', '일'),
@@ -349,13 +353,13 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
   return (
     <div className="h-full flex flex-col bg-bridge-dark overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-3 md:px-6 py-2 md:py-3 border-b border-white/5">
+      <div className="flex items-center justify-between px-3 md:px-6 py-2 md:py-3 border-b border-foreground/5">
         <div className="flex items-center gap-2 md:gap-3">
-          <button onClick={goToPrevMonth} className="p-1 md:p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/5 transition-colors">
+          <button onClick={goToPrevMonth} className="p-1 md:p-1.5 rounded-lg text-zinc-400 hover:text-foreground hover:bg-foreground/5 transition-colors">
             <ChevronLeft size={16} className="md:w-[18px] md:h-[18px]" />
           </button>
-          <h2 className="text-sm md:text-base font-bold text-white min-w-[80px] md:min-w-[120px] text-center">{monthLabel}</h2>
-          <button onClick={goToNextMonth} className="p-1 md:p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/5 transition-colors">
+          <h2 className="text-sm md:text-base font-bold text-foreground min-w-[80px] md:min-w-[120px] text-center">{monthLabel}</h2>
+          <button onClick={goToNextMonth} className="p-1 md:p-1.5 rounded-lg text-zinc-400 hover:text-foreground hover:bg-foreground/5 transition-colors">
             <ChevronRight size={16} className="md:w-[18px] md:h-[18px]" />
           </button>
         </div>
@@ -366,14 +370,14 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
             <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-red-500" />{t('weeklySchedule.overdue', '마감 초과')}</span>
             <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />{t('weeklySchedule.completed', '완료')}</span>
           </div>
-          <button onClick={goToToday} className="px-2 md:px-3 py-1 text-[10px] md:text-xs font-medium rounded-lg bg-white/5 text-zinc-300 hover:bg-white/10 hover:text-white transition-colors">
+          <button onClick={goToToday} className="px-2 md:px-3 py-1 text-[10px] md:text-xs font-medium rounded-lg bg-foreground/5 text-foreground/80 hover:bg-foreground/10 hover:text-foreground transition-colors">
             {t('calendar.today', '오늘')}
           </button>
         </div>
       </div>
 
       {/* Day-of-week header */}
-      <div className="grid grid-cols-7 border-b border-white/5">
+      <div className="grid grid-cols-7 border-b border-foreground/5">
         {dayLabels.map((label, i) => (
           <div
             key={label}
@@ -399,8 +403,10 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
                 {week.map(({ date, isCurrentMonth }, colIdx) => {
                   const dateKey = toDateKey(date);
                   const dayData = dayDataMap.get(dateKey);
+                  const holidays = holidayMap.get(dateKey) || [];
                   const isTodayCell = isToday(date);
                   const weekend = isWeekend(date);
+                  const isHoliday = holidays.length > 0 && isCurrentMonth;
 
                   const allGroups = dayData?.featureGroups || [];
                   const orphans = dayData?.orphanTasks || [];
@@ -429,23 +435,23 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
                   return (
                     <div
                       key={colIdx}
-                      className={`border-b border-r border-white/5 flex flex-col overflow-hidden transition-colors ${
-                        !isCurrentMonth ? 'bg-white/[0.01]' : weekend ? 'bg-white/[0.015]' : ''
+                      className={`border-b border-r border-foreground/5 flex flex-col overflow-hidden transition-colors ${
+                        !isCurrentMonth ? 'bg-white/[0.01]' : isHoliday ? 'bg-red-500/[0.03]' : weekend ? 'bg-white/[0.015]' : ''
                       } ${isTodayCell ? 'ring-1 ring-inset ring-bridge-accent/30 bg-bridge-accent/[0.04]' : ''}`}
                     >
-                      {/* Date number */}
-                      <div className="px-1 md:px-1.5 pt-0.5 md:pt-1 flex items-center justify-between shrink-0">
+                      {/* Date number + holiday name */}
+                      <div className="px-1 md:px-1.5 pt-0.5 md:pt-1 flex items-center gap-1 shrink-0 min-w-0">
                         <button
                           onClick={() => openDayModal(dateKey, date)}
-                          className={`text-[10px] md:text-[11px] font-semibold w-5 h-5 md:w-6 md:h-6 flex items-center justify-center rounded-full transition-colors ${
-                            totalItems > 0 ? 'cursor-pointer hover:bg-white/10' : 'cursor-default'
+                          className={`text-[10px] md:text-[11px] font-semibold w-5 h-5 md:w-6 md:h-6 flex items-center justify-center rounded-full transition-colors shrink-0 ${
+                            totalItems > 0 ? 'cursor-pointer hover:bg-foreground/10' : 'cursor-default'
                           } ${
                             isTodayCell
                               ? 'bg-bridge-accent text-white'
                               : !isCurrentMonth
                                 ? 'text-zinc-700'
-                                : date.getDay() === 0
-                                  ? 'text-red-400/70'
+                                : isHoliday || date.getDay() === 0
+                                  ? 'text-red-400'
                                   : date.getDay() === 6
                                     ? 'text-blue-400/70'
                                     : 'text-zinc-400'
@@ -453,8 +459,13 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
                         >
                           {date.getDate()}
                         </button>
+                        {isHoliday && (
+                          <span className="text-[9px] text-red-300/80 truncate font-medium leading-none hidden sm:inline">
+                            {holidays[0].name}
+                          </span>
+                        )}
                         {totalItems > 0 && (
-                          <span className="text-[9px] text-zinc-600 tabular-nums">{totalItems}</span>
+                          <span className="text-[9px] text-zinc-600 tabular-nums ml-auto shrink-0">{totalItems}</span>
                         )}
                       </div>
 
@@ -493,10 +504,10 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
                               >
                                 {isStart && <Layers size={10} className="shrink-0 opacity-60" style={{ color: span.feature.color }} />}
                                 {isStart && (
-                                  <span className="truncate text-[10px] font-semibold text-zinc-200">{span.feature.title}</span>
+                                  <span className="truncate text-[10px] font-semibold text-foreground">{span.feature.title}</span>
                                 )}
                                 {isFeatureDueDay && (
-                                  <span className="ml-auto text-[8px] px-1 py-px rounded bg-white/10 text-zinc-400 shrink-0">D-Day</span>
+                                  <span className="ml-auto text-[8px] px-1 py-px rounded bg-foreground/10 text-zinc-400 shrink-0">D-Day</span>
                                 )}
                                 {isEnd && span.feature.status === 'DONE' && (
                                   <CheckCircle2 size={10} className="ml-auto shrink-0 text-emerald-400" />
@@ -530,7 +541,7 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
                           <button
                             key={task.id}
                             onClick={(e) => { e.stopPropagation(); onViewTask(task.id); }}
-                            className="w-full flex items-center gap-1.5 pl-2 pr-2 py-0.5 rounded group/t transition-all hover:bg-white/5"
+                            className="w-full flex items-center gap-1.5 pl-2 pr-2 py-0.5 rounded group/t transition-all hover:bg-foreground/5"
                             style={{ borderLeft: `2px solid ${getTaskStatusBorder(task, today)}` }}
                           >
                             {task.completed ? (
@@ -538,7 +549,7 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
                             ) : (
                               <span className="w-[11px] h-[11px] rounded-full border shrink-0" style={{ borderColor: getTaskStatusBorder(task, today) }} />
                             )}
-                            <span className={`truncate text-[11px] group-hover/t:text-white ${task.completed ? 'text-zinc-500 line-through' : 'text-zinc-300'}`}>
+                            <span className={`truncate text-[11px] group-hover/t:text-foreground ${task.completed ? 'text-zinc-500 line-through' : 'text-foreground/80'}`}>
                               {task.title}
                             </span>
                             {renderChecklistBadge(task)}
@@ -560,11 +571,11 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
                                 style={{ backgroundColor: `${f.color}18`, borderLeft: `3px solid ${f.color}` }}
                               >
                                 <Layers size={11} className="shrink-0 opacity-60" style={{ color: f.color }} />
-                                <span className="truncate text-[11px] font-semibold text-zinc-200 group-hover/fh:text-white">
+                                <span className="truncate text-[11px] font-semibold text-foreground group-hover/fh:text-foreground">
                                   {f.title}
                                 </span>
                                 {isFeatureDueDay && (
-                                  <span className="ml-auto text-[9px] px-1 py-px rounded bg-white/10 text-zinc-400 shrink-0">D-Day</span>
+                                  <span className="ml-auto text-[9px] px-1 py-px rounded bg-foreground/10 text-zinc-400 shrink-0">D-Day</span>
                                 )}
                                 {f.status === 'DONE' && (
                                   <CheckCircle2 size={11} className="ml-auto shrink-0 text-emerald-400" />
@@ -575,7 +586,7 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
                                 <button
                                   key={task.id}
                                   onClick={(e) => { e.stopPropagation(); onViewTask(task.id); }}
-                                  className="w-full flex items-center gap-1.5 pl-3.5 pr-2 py-0.5 rounded group/t transition-all hover:bg-white/5"
+                                  className="w-full flex items-center gap-1.5 pl-3.5 pr-2 py-0.5 rounded group/t transition-all hover:bg-foreground/5"
                                   style={{ borderLeft: `2px solid ${getTaskStatusBorder(task, today)}` }}
                                 >
                                   {task.completed ? (
@@ -583,7 +594,7 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
                                   ) : (
                                     <span className="w-[11px] h-[11px] rounded-full border shrink-0" style={{ borderColor: getTaskStatusBorder(task, today) }} />
                                   )}
-                                  <span className={`truncate text-[11px] group-hover/t:text-white ${task.completed ? 'text-zinc-500 line-through' : 'text-zinc-300'}`}>
+                                  <span className={`truncate text-[11px] group-hover/t:text-foreground ${task.completed ? 'text-zinc-500 line-through' : 'text-foreground/80'}`}>
                                     {task.title}
                                   </span>
                                   {renderChecklistBadge(task)}
@@ -623,17 +634,17 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
           onClick={() => setModalDate(null)}
         >
           <div
-            className="bg-bridge-obsidian rounded-t-2xl sm:rounded-2xl border border-white/10 shadow-2xl w-full sm:max-w-lg max-h-[85vh] sm:max-h-[80vh] flex flex-col animate-in fade-in zoom-in-95 duration-200"
+            className="bg-bridge-obsidian rounded-t-2xl sm:rounded-2xl border border-foreground/10 shadow-2xl w-full sm:max-w-lg max-h-[85vh] sm:max-h-[80vh] flex flex-col animate-in fade-in zoom-in-95 duration-200"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal header */}
-            <div className="flex items-center justify-between px-4 md:px-6 py-3 md:py-4 border-b border-white/5 shrink-0">
+            <div className="flex items-center justify-between px-4 md:px-6 py-3 md:py-4 border-b border-foreground/5 shrink-0">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-bridge-accent/10 flex items-center justify-center">
                   <Calendar size={18} className="text-bridge-accent" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-white">
+                  <h3 className="text-lg font-bold text-foreground">
                     {modalDate.date.getMonth() + 1}{t('calendar.monthSuffix', '월')} {modalDate.date.getDate()}{t('calendar.daySuffix', '일')} ({dayLabels[modalDate.date.getDay()]})
                   </h3>
                   <p className="text-xs text-zinc-500 mt-0.5">
@@ -643,7 +654,7 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
               </div>
               <button
                 onClick={() => setModalDate(null)}
-                className="p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 transition-colors"
+                className="p-2 rounded-xl text-zinc-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
               >
                 <X size={18} />
               </button>
@@ -664,11 +675,11 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
                       style={{ backgroundColor: `${f.color}12`, borderLeft: `3px solid ${f.color}` }}
                     >
                       <Layers size={14} className="shrink-0 opacity-70" style={{ color: f.color }} />
-                      <span className="truncate text-sm font-semibold text-zinc-200 group-hover/fh:text-white">
+                      <span className="truncate text-sm font-semibold text-foreground group-hover/fh:text-foreground">
                         {f.title}
                       </span>
                       {isFeatureDueDay && (
-                        <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-zinc-400 shrink-0 font-medium">D-Day</span>
+                        <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded bg-foreground/10 text-zinc-400 shrink-0 font-medium">D-Day</span>
                       )}
                       {f.status === 'DONE' && (
                         <CheckCircle2 size={14} className="ml-auto shrink-0 text-emerald-400" />
@@ -684,7 +695,7 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
                             <button
                               key={task.id}
                               onClick={() => { onViewTask(task.id); setModalDate(null); }}
-                              className="w-full flex items-center gap-2.5 pl-5 pr-3 py-2 rounded-lg group/t transition-all hover:bg-white/5"
+                              className="w-full flex items-center gap-2.5 pl-5 pr-3 py-2 rounded-lg group/t transition-all hover:bg-foreground/5"
                               style={{ borderLeft: `2px solid ${statusColor}` }}
                             >
                               {task.completed ? (
@@ -693,7 +704,7 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
                                 <span className="w-3 h-3 rounded-full border-[1.5px] shrink-0" style={{ borderColor: statusColor }} />
                               )}
                               <div className="flex-1 min-w-0 text-left">
-                                <span className={`block truncate text-sm group-hover/t:text-white ${task.completed ? 'text-zinc-500 line-through' : 'text-zinc-300'}`}>
+                                <span className={`block truncate text-sm group-hover/t:text-foreground ${task.completed ? 'text-zinc-500 line-through' : 'text-foreground/80'}`}>
                                   {task.title}
                                 </span>
                                 {(task.due_date || task.start_date) && (
@@ -733,7 +744,7 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
                       <button
                         key={task.id}
                         onClick={() => { onViewTask(task.id); setModalDate(null); }}
-                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg group/t transition-all hover:bg-white/5"
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg group/t transition-all hover:bg-foreground/5"
                         style={{ borderLeft: `2px solid ${statusColor}` }}
                       >
                         {task.completed ? (
@@ -741,7 +752,7 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
                         ) : (
                           <span className="w-3 h-3 rounded-full border-[1.5px] shrink-0" style={{ borderColor: statusColor }} />
                         )}
-                        <span className={`flex-1 truncate text-sm text-left group-hover/t:text-white ${task.completed ? 'text-zinc-500 line-through' : 'text-zinc-300'}`}>
+                        <span className={`flex-1 truncate text-sm text-left group-hover/t:text-foreground ${task.completed ? 'text-zinc-500 line-through' : 'text-foreground/80'}`}>
                           {task.title}
                         </span>
                         <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium shrink-0" style={{ color: statusColor, backgroundColor: `${statusColor}15` }}>
@@ -756,7 +767,7 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
             </div>
 
             {/* Modal footer - legend */}
-            <div className="flex items-center gap-3 md:gap-4 px-4 md:px-6 py-2 md:py-3 border-t border-white/5 shrink-0 flex-wrap">
+            <div className="flex items-center gap-3 md:gap-4 px-4 md:px-6 py-2 md:py-3 border-t border-foreground/5 shrink-0 flex-wrap">
               <span className="flex items-center gap-1.5 text-[10px] text-zinc-500"><span className="w-2 h-2 rounded-full bg-bridge-secondary" />{t('weeklySchedule.inProgress', '진행 중')}</span>
               <span className="flex items-center gap-1.5 text-[10px] text-zinc-500"><span className="w-2 h-2 rounded-full bg-orange-500" />{t('weeklySchedule.dueSoon', '마감 임박')}</span>
               <span className="flex items-center gap-1.5 text-[10px] text-zinc-500"><span className="w-2 h-2 rounded-full bg-red-500" />{t('weeklySchedule.overdue', '마감 초과')}</span>

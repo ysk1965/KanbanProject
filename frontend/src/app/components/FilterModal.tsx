@@ -1,12 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from './ui/dialog';
+import { MotionModal } from './ui/MotionModal';
 import { Input } from './ui/input';
 import { Checkbox } from './ui/checkbox';
 import { Badge } from './ui/badge';
@@ -225,21 +219,17 @@ export function FilterModal({
   ];
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg bg-bridge-dark text-foreground border-bridge-border p-0 gap-0">
-        <DialogHeader className="px-4 py-3 border-b border-bridge-border">
+    <MotionModal open={open} onClose={onClose} className="sm:max-w-lg bg-bridge-dark p-0 gap-0">
+        <div className="px-4 py-3 border-b border-bridge-border">
           <div className="flex items-center justify-between">
-            <DialogTitle className="text-foreground text-lg font-semibold">{t('filter.title')}</DialogTitle>
+            <h2 className="text-foreground text-lg font-semibold">{t('filter.title')}</h2>
             {isFilterActive && (
               <Badge className="bg-indigo-500/20 text-indigo-400 border-indigo-500/30">
                 {t('filter.activeCount', { count: getActiveFilterCount() })}
               </Badge>
             )}
           </div>
-          <DialogDescription className="sr-only">
-            {t('filter.description')}
-          </DialogDescription>
-        </DialogHeader>
+        </div>
 
         {/* 검색바 */}
         <div className="px-4 py-3 border-b border-bridge-border">
@@ -271,7 +261,7 @@ export function FilterModal({
               className={`flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
                 activeTab === tab.id
                   ? 'border-indigo-500 text-indigo-400'
-                  : 'border-transparent text-zinc-400 hover:text-zinc-200'
+                  : 'border-transparent text-zinc-400 hover:text-foreground'
               }`}
             >
               {tab.icon}
@@ -315,7 +305,7 @@ export function FilterModal({
                     className={`px-3 py-1.5 rounded-md text-sm border transition-all ${
                       filters.dueDate.includes('no-date')
                         ? 'bg-gray-500 text-white border-gray-500'
-                        : 'bg-bridge-surface-hover text-zinc-300 border-bridge-border hover:bg-white/5'
+                        : 'bg-bridge-surface-hover text-muted-foreground border-bridge-border hover:bg-foreground/5'
                     }`}
                   >
                     {t('filter.noDate')}
@@ -325,7 +315,7 @@ export function FilterModal({
                     className={`px-3 py-1.5 rounded-md text-sm border transition-all ${
                       filters.dueDate.includes('next-week')
                         ? 'bg-indigo-500 text-white border-indigo-500'
-                        : 'bg-bridge-surface-hover text-zinc-300 border-bridge-border hover:bg-white/5'
+                        : 'bg-bridge-surface-hover text-muted-foreground border-bridge-border hover:bg-foreground/5'
                     }`}
                   >
                     {t('filter.thisWeek')}
@@ -335,7 +325,7 @@ export function FilterModal({
                     className={`px-3 py-1.5 rounded-md text-sm border transition-all ${
                       filters.dueDate.includes('next-month')
                         ? 'bg-indigo-500 text-white border-indigo-500'
-                        : 'bg-bridge-surface-hover text-zinc-300 border-bridge-border hover:bg-white/5'
+                        : 'bg-bridge-surface-hover text-muted-foreground border-bridge-border hover:bg-foreground/5'
                     }`}
                   >
                     {t('filter.thisMonth')}
@@ -355,7 +345,7 @@ export function FilterModal({
                   className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-all ${
                     filters.members.includes('__no_members__')
                       ? 'bg-gray-500 text-white border-gray-500'
-                      : 'bg-bridge-surface-hover text-zinc-300 border-bridge-border hover:bg-white/5'
+                      : 'bg-bridge-surface-hover text-muted-foreground border-bridge-border hover:bg-foreground/5'
                   }`}
                 >
                   <User className="h-4 w-4 text-zinc-400" />
@@ -387,8 +377,8 @@ export function FilterModal({
                         onClick={() => handleToggleMember(member)}
                         className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm text-left transition-all ${
                           filters.members.includes(member)
-                            ? 'bg-white/10 text-white border-white/20'
-                            : 'bg-bridge-surface-hover text-zinc-300 border-bridge-border hover:bg-white/5'
+                            ? 'bg-foreground/10 text-foreground border-bridge-border'
+                            : 'bg-bridge-surface-hover text-muted-foreground border-bridge-border hover:bg-foreground/5'
                         }`}
                       >
                         <div
@@ -420,7 +410,7 @@ export function FilterModal({
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-all ${
                   filters.features.includes('__no_feature__')
                     ? 'bg-gray-500 text-white border-gray-500'
-                    : 'bg-bridge-surface-hover text-zinc-300 border-bridge-border hover:bg-white/5'
+                    : 'bg-bridge-surface-hover text-muted-foreground border-bridge-border hover:bg-foreground/5'
                 }`}
               >
                 <Circle className="h-4 w-4 text-zinc-400" />
@@ -438,7 +428,7 @@ export function FilterModal({
                         className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-lg border text-sm text-left transition-all ${
                           filters.features.includes(feature.id)
                             ? 'bg-purple-500/20 border-purple-500 text-white'
-                            : 'bg-bridge-surface-hover text-zinc-300 border-bridge-border hover:bg-white/5'
+                            : 'bg-bridge-surface-hover text-muted-foreground border-bridge-border hover:bg-foreground/5'
                         }`}
                       >
                         <div
@@ -475,7 +465,7 @@ export function FilterModal({
                     className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border text-sm flex-1 justify-center transition-all ${
                       filters.cardStatus.includes('completed')
                         ? 'bg-green-500 text-white border-green-500'
-                        : 'bg-bridge-surface-hover text-zinc-300 border-bridge-border hover:bg-white/5'
+                        : 'bg-bridge-surface-hover text-muted-foreground border-bridge-border hover:bg-foreground/5'
                     }`}
                   >
                     <CheckCircle2 className="h-4 w-4" />
@@ -486,7 +476,7 @@ export function FilterModal({
                     className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border text-sm flex-1 justify-center transition-all ${
                       filters.cardStatus.includes('incomplete')
                         ? 'bg-yellow-500 text-white border-yellow-500'
-                        : 'bg-bridge-surface-hover text-zinc-300 border-bridge-border hover:bg-white/5'
+                        : 'bg-bridge-surface-hover text-muted-foreground border-bridge-border hover:bg-foreground/5'
                     }`}
                   >
                     <Circle className="h-4 w-4" />
@@ -504,7 +494,7 @@ export function FilterModal({
                     className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-all ${
                       filters.dueDate.includes('no-date')
                         ? 'bg-gray-500 text-white border-gray-500'
-                        : 'bg-bridge-surface-hover text-zinc-300 border-bridge-border hover:bg-white/5'
+                        : 'bg-bridge-surface-hover text-muted-foreground border-bridge-border hover:bg-foreground/5'
                     }`}
                   >
                     <Calendar className="h-4 w-4 text-zinc-400" />
@@ -537,7 +527,7 @@ export function FilterModal({
                     className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-all ${
                       filters.dueDate.includes('next-week')
                         ? 'bg-indigo-500 text-white border-indigo-500'
-                        : 'bg-bridge-surface-hover text-zinc-300 border-bridge-border hover:bg-white/5'
+                        : 'bg-bridge-surface-hover text-muted-foreground border-bridge-border hover:bg-foreground/5'
                     }`}
                   >
                     <Clock className="h-4 w-4" />
@@ -548,7 +538,7 @@ export function FilterModal({
                     className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm col-span-2 transition-all ${
                       filters.dueDate.includes('next-month')
                         ? 'bg-indigo-500 text-white border-indigo-500'
-                        : 'bg-bridge-surface-hover text-zinc-300 border-bridge-border hover:bg-white/5'
+                        : 'bg-bridge-surface-hover text-muted-foreground border-bridge-border hover:bg-foreground/5'
                     }`}
                   >
                     <Clock className="h-4 w-4" />
@@ -567,7 +557,7 @@ export function FilterModal({
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-all ${
                   filters.tags.includes('__no_labels__')
                     ? 'bg-gray-500 text-white border-gray-500'
-                    : 'bg-bridge-surface-hover text-zinc-300 border-bridge-border hover:bg-white/5'
+                    : 'bg-bridge-surface-hover text-muted-foreground border-bridge-border hover:bg-foreground/5'
                 }`}
               >
                 <TagIcon className="h-4 w-4 text-zinc-400" />
@@ -697,7 +687,7 @@ export function FilterModal({
               variant="outline"
               onClick={handleClear}
               disabled={!isFilterActive}
-              className="flex-1 border-bridge-border text-zinc-300 hover:bg-white/5 disabled:opacity-50"
+              className="flex-1 border-bridge-border text-muted-foreground hover:bg-foreground/5 disabled:opacity-50"
             >
               {t('filter.reset')}
             </Button>
@@ -706,7 +696,6 @@ export function FilterModal({
             </Button>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+    </MotionModal>
   );
 }

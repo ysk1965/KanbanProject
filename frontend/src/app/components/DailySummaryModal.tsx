@@ -7,7 +7,7 @@ import { ScheduleBlockInfo, CommentSummaryItem, MentionSummaryItem, commentAPI }
 import { getInitials, getAssigneeHex } from '../utils/assigneeColor';
 import { BoardMember } from './ShareBoardModal';
 import { formatDateTime } from '../utils/dateUtils';
-import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
+import { MotionModal } from './ui/MotionModal';
 
 interface DailySummaryModalProps {
   boardId: string;
@@ -109,14 +109,12 @@ export function DailySummaryModal({ boardId, member, selectedDate, blocks, onClo
   }, [blocks]);
 
   return (
-    <Dialog open onOpenChange={() => onClose()}>
-      <DialogContent className="bg-bridge-obsidian text-foreground border-white/10 w-[520px] max-w-[calc(100%-2rem)] max-h-[80vh] flex flex-col p-0 gap-0 [&>button:last-child]:hidden overflow-hidden rounded-xl">
-        <DialogTitle className="sr-only">{member.name} {dateLabel} {t('dailySummary.title')}</DialogTitle>
+    <MotionModal open onClose={onClose} className="sm:w-[520px] sm:max-w-[calc(100%-2rem)] max-h-[80vh] flex flex-col p-0 overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-foreground/10">
           <div className="flex items-center gap-3">
             <div
-              className="w-10 h-10 rounded-full flex items-center justify-center text-sm text-white font-medium"
+              className="w-10 h-10 rounded-full flex items-center justify-center text-sm text-foreground font-medium"
               style={{ backgroundColor: getAssigneeHex(member.name, member.assigneeColor) }}
             >
               {getInitials(member.name)}
@@ -138,7 +136,7 @@ export function DailySummaryModal({ boardId, member, selectedDate, blocks, onClo
             className={`px-4 py-2 text-sm rounded-lg transition-all flex items-center gap-1.5 ${
               activeTab === 'schedule'
                 ? 'bg-bridge-accent text-white font-medium'
-                : 'text-slate-400 hover:text-white hover:bg-white/5'
+                : 'text-slate-400 hover:text-foreground hover:bg-foreground/5'
             }`}
           >
             <Clock className="h-3.5 w-3.5" />
@@ -149,13 +147,13 @@ export function DailySummaryModal({ boardId, member, selectedDate, blocks, onClo
             className={`px-4 py-2 text-sm rounded-lg transition-all flex items-center gap-1.5 ${
               activeTab === 'comments'
                 ? 'bg-bridge-accent text-white font-medium'
-                : 'text-slate-400 hover:text-white hover:bg-white/5'
+                : 'text-slate-400 hover:text-foreground hover:bg-foreground/5'
             }`}
           >
             <MessageSquare className="h-3.5 w-3.5" />
             {t('dailySummary.commentsTab')}
             {commentsFetched && comments.length > 0 && (
-              <span className="text-[10px] bg-white/10 px-1.5 rounded-full">{comments.length}</span>
+              <span className="text-[10px] bg-foreground/10 px-1.5 rounded-full">{comments.length}</span>
             )}
           </button>
           <button
@@ -163,13 +161,13 @@ export function DailySummaryModal({ boardId, member, selectedDate, blocks, onClo
             className={`px-4 py-2 text-sm rounded-lg transition-all flex items-center gap-1.5 ${
               activeTab === 'mentions'
                 ? 'bg-bridge-accent text-white font-medium'
-                : 'text-slate-400 hover:text-white hover:bg-white/5'
+                : 'text-slate-400 hover:text-foreground hover:bg-foreground/5'
             }`}
           >
             <AtSign className="h-3.5 w-3.5" />
             {t('dailySummary.mentionsTab')}
             {mentionsFetched && mentions.length > 0 && (
-              <span className="text-[10px] bg-white/10 px-1.5 rounded-full">{mentions.length}</span>
+              <span className="text-[10px] bg-foreground/10 px-1.5 rounded-full">{mentions.length}</span>
             )}
           </button>
         </div>
@@ -276,7 +274,7 @@ export function DailySummaryModal({ boardId, member, selectedDate, blocks, onClo
                       <span className="text-xs font-medium text-bridge-accent truncate">{comment.task_title}</span>
                       <span className="text-[10px] text-slate-500 flex-shrink-0">{formatDateTime(comment.created_at)}</span>
                     </div>
-                    <p className="text-sm text-slate-300 whitespace-pre-wrap break-words line-clamp-4">{comment.content}</p>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words line-clamp-4">{comment.content}</p>
                   </div>
                 ))}
               </div>
@@ -303,17 +301,16 @@ export function DailySummaryModal({ boardId, member, selectedDate, blocks, onClo
                     </div>
                     {mention.author_name && (
                       <div className="text-[11px] text-slate-400 mb-1.5">
-                        {t('dailySummary.authorLabel')}: <span className="text-slate-300">{mention.author_name}</span>
+                        {t('dailySummary.authorLabel')}: <span className="text-muted-foreground">{mention.author_name}</span>
                       </div>
                     )}
-                    <p className="text-sm text-slate-300 whitespace-pre-wrap break-words line-clamp-4">{mention.content}</p>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words line-clamp-4">{mention.content}</p>
                   </div>
                 ))}
               </div>
             )
           )}
         </div>
-      </DialogContent>
-    </Dialog>
+    </MotionModal>
   );
 }

@@ -2,7 +2,7 @@ import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Clock, Layers, ChevronDown, Info, Coffee } from 'lucide-react';
 import { Button } from './ui/button';
-import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
+import { MotionModal } from './ui/MotionModal';
 
 export type ScheduleDisplayMode = 'time' | 'block';
 
@@ -193,11 +193,9 @@ export function ScheduleSettingsModal({
   };
 
   return (
-    <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="bg-bridge-obsidian text-foreground border-white/10 max-w-[480px] p-0 gap-0 [&>button:last-child]:hidden overflow-hidden rounded-xl max-h-[90vh] flex flex-col">
-        <DialogTitle className="sr-only">{t('schedule.settingsTitle')}</DialogTitle>
+    <MotionModal open={true} onClose={onClose} className="sm:max-w-[480px] p-0 overflow-hidden max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-foreground/10">
           <h2 className="text-lg font-semibold text-foreground">{t('schedule.settingsTitle')}</h2>
           <button
             onClick={onClose}
@@ -211,7 +209,7 @@ export function ScheduleSettingsModal({
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {/* 모드 선택 */}
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-3">
+            <label className="block text-sm font-medium text-muted-foreground mb-3">
               {t('schedule.managementMethod')}
             </label>
             <div className="grid grid-cols-2 gap-3">
@@ -220,7 +218,7 @@ export function ScheduleSettingsModal({
                 className={`flex items-center gap-3 p-4 rounded-lg border transition-colors ${
                   mode === 'time'
                     ? 'border-bridge-accent bg-bridge-accent/10 text-foreground'
-                    : 'border-white/10 bg-bridge-dark text-slate-400 hover:border-white/10'
+                    : 'border-foreground/10 bg-bridge-dark text-slate-400 hover:border-foreground/10'
                 }`}
               >
                 <Clock className={`h-5 w-5 ${mode === 'time' ? 'text-bridge-accent' : ''}`} />
@@ -234,7 +232,7 @@ export function ScheduleSettingsModal({
                 className={`flex items-center gap-3 p-4 rounded-lg border transition-colors ${
                   mode === 'block'
                     ? 'border-bridge-accent bg-bridge-accent/10 text-foreground'
-                    : 'border-white/10 bg-bridge-dark text-slate-400 hover:border-white/10'
+                    : 'border-foreground/10 bg-bridge-dark text-slate-400 hover:border-foreground/10'
                 }`}
               >
                 <Layers className={`h-5 w-5 ${mode === 'block' ? 'text-bridge-accent' : ''}`} />
@@ -251,7 +249,7 @@ export function ScheduleSettingsModal({
             <div className="space-y-4">
               {/* 시작 시간 */}
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label className="block text-sm font-medium text-muted-foreground mb-2">
                   {t('schedule.startTime')}
                 </label>
                 <div className="relative">
@@ -261,13 +259,13 @@ export function ScheduleSettingsModal({
                       closeAllDropdowns();
                       setIsStartTimeOpen(!isStartTimeOpen);
                     }}
-                    className="w-full flex items-center justify-between px-4 py-3 bg-bridge-dark border border-white/10 rounded-lg text-left hover:border-white/10 transition-colors"
+                    className="w-full flex items-center justify-between px-4 py-3 bg-bridge-dark border border-foreground/10 rounded-lg text-left hover:border-foreground/10 transition-colors"
                   >
                     <span className="text-foreground font-medium">{startTime}</span>
                     <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${isStartTimeOpen ? 'rotate-180' : ''}`} />
                   </button>
                   {isStartTimeOpen && (
-                    <div ref={startTimeListRef} className="absolute top-full left-0 right-0 mt-1 bg-bridge-dark border border-white/10 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
+                    <div ref={startTimeListRef} className="absolute top-full left-0 right-0 mt-1 bg-bridge-dark border border-foreground/10 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
                       {TIME_OPTIONS.map((time) => (
                         <button
                           key={time}
@@ -276,8 +274,8 @@ export function ScheduleSettingsModal({
                             setStartTime(time);
                             setIsStartTimeOpen(false);
                           }}
-                          className={`w-full px-4 py-2 text-left hover:bg-white/5 text-sm ${
-                            time === startTime ? 'bg-bridge-accent/20 text-bridge-accent' : 'text-slate-300'
+                          className={`w-full px-4 py-2 text-left hover:bg-foreground/5 text-sm ${
+                            time === startTime ? 'bg-bridge-accent/20 text-bridge-accent' : 'text-muted-foreground'
                           }`}
                         >
                           {time}
@@ -290,7 +288,7 @@ export function ScheduleSettingsModal({
 
               {/* 종료 시간 */}
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label className="block text-sm font-medium text-muted-foreground mb-2">
                   {t('schedule.endTime')}
                 </label>
                 <div className="relative">
@@ -300,13 +298,13 @@ export function ScheduleSettingsModal({
                       closeAllDropdowns();
                       setIsEndTimeOpen(!isEndTimeOpen);
                     }}
-                    className="w-full flex items-center justify-between px-4 py-3 bg-bridge-dark border border-white/10 rounded-lg text-left hover:border-white/10 transition-colors"
+                    className="w-full flex items-center justify-between px-4 py-3 bg-bridge-dark border border-foreground/10 rounded-lg text-left hover:border-foreground/10 transition-colors"
                   >
                     <span className="text-foreground font-medium">{endTime}</span>
                     <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${isEndTimeOpen ? 'rotate-180' : ''}`} />
                   </button>
                   {isEndTimeOpen && (
-                    <div ref={endTimeListRef} className="absolute top-full left-0 right-0 mt-1 bg-bridge-dark border border-white/10 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
+                    <div ref={endTimeListRef} className="absolute top-full left-0 right-0 mt-1 bg-bridge-dark border border-foreground/10 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
                       {TIME_OPTIONS.map((time) => (
                         <button
                           key={time}
@@ -315,8 +313,8 @@ export function ScheduleSettingsModal({
                             setEndTime(time);
                             setIsEndTimeOpen(false);
                           }}
-                          className={`w-full px-4 py-2 text-left hover:bg-white/5 text-sm ${
-                            time === endTime ? 'bg-bridge-accent/20 text-bridge-accent' : 'text-slate-300'
+                          className={`w-full px-4 py-2 text-left hover:bg-foreground/5 text-sm ${
+                            time === endTime ? 'bg-bridge-accent/20 text-bridge-accent' : 'text-muted-foreground'
                           }`}
                         >
                           {time}
@@ -328,11 +326,11 @@ export function ScheduleSettingsModal({
               </div>
 
               {/* 점심시간 */}
-              <div className="border border-white/10 rounded-lg p-4 space-y-3">
+              <div className="border border-foreground/10 rounded-lg p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Coffee className="h-4 w-4 text-amber-400" />
-                    <span className="text-sm font-medium text-slate-300">{t('schedule.breakTime')}</span>
+                    <span className="text-sm font-medium text-muted-foreground">{t('schedule.breakTime')}</span>
                   </div>
                   <button
                     type="button"
@@ -363,13 +361,13 @@ export function ScheduleSettingsModal({
                               closeAllDropdowns();
                               setIsBreakStartOpen(!isBreakStartOpen);
                             }}
-                            className="w-full flex items-center justify-between px-3 py-2 bg-bridge-dark border border-white/10 rounded-lg text-left text-sm"
+                            className="w-full flex items-center justify-between px-3 py-2 bg-bridge-dark border border-foreground/10 rounded-lg text-left text-sm"
                           >
                             <span className="text-foreground font-medium">{breakStartTime}</span>
                             <ChevronDown className={`h-3 w-3 text-slate-400 transition-transform ${isBreakStartOpen ? 'rotate-180' : ''}`} />
                           </button>
                           {isBreakStartOpen && (
-                            <div ref={breakStartListRef} className="absolute top-full left-0 right-0 mt-1 bg-bridge-dark border border-white/10 rounded-lg shadow-lg z-20 max-h-40 overflow-y-auto">
+                            <div ref={breakStartListRef} className="absolute top-full left-0 right-0 mt-1 bg-bridge-dark border border-foreground/10 rounded-lg shadow-lg z-20 max-h-40 overflow-y-auto">
                               {TIME_OPTIONS.map((time) => (
                                 <button
                                   key={time}
@@ -378,8 +376,8 @@ export function ScheduleSettingsModal({
                                     setBreakStartTime(time);
                                     setIsBreakStartOpen(false);
                                   }}
-                                  className={`w-full px-3 py-1.5 text-left hover:bg-white/5 text-xs ${
-                                    time === breakStartTime ? 'bg-bridge-accent/20 text-bridge-accent' : 'text-slate-300'
+                                  className={`w-full px-3 py-1.5 text-left hover:bg-foreground/5 text-xs ${
+                                    time === breakStartTime ? 'bg-bridge-accent/20 text-bridge-accent' : 'text-muted-foreground'
                                   }`}
                                 >
                                   {time}
@@ -399,13 +397,13 @@ export function ScheduleSettingsModal({
                               closeAllDropdowns();
                               setIsBreakEndOpen(!isBreakEndOpen);
                             }}
-                            className="w-full flex items-center justify-between px-3 py-2 bg-bridge-dark border border-white/10 rounded-lg text-left text-sm"
+                            className="w-full flex items-center justify-between px-3 py-2 bg-bridge-dark border border-foreground/10 rounded-lg text-left text-sm"
                           >
                             <span className="text-foreground font-medium">{breakEndTime}</span>
                             <ChevronDown className={`h-3 w-3 text-slate-400 transition-transform ${isBreakEndOpen ? 'rotate-180' : ''}`} />
                           </button>
                           {isBreakEndOpen && (
-                            <div ref={breakEndListRef} className="absolute top-full left-0 right-0 mt-1 bg-bridge-dark border border-white/10 rounded-lg shadow-lg z-20 max-h-40 overflow-y-auto">
+                            <div ref={breakEndListRef} className="absolute top-full left-0 right-0 mt-1 bg-bridge-dark border border-foreground/10 rounded-lg shadow-lg z-20 max-h-40 overflow-y-auto">
                               {TIME_OPTIONS.map((time) => (
                                 <button
                                   key={time}
@@ -414,8 +412,8 @@ export function ScheduleSettingsModal({
                                     setBreakEndTime(time);
                                     setIsBreakEndOpen(false);
                                   }}
-                                  className={`w-full px-3 py-1.5 text-left hover:bg-white/5 text-xs ${
-                                    time === breakEndTime ? 'bg-bridge-accent/20 text-bridge-accent' : 'text-slate-300'
+                                  className={`w-full px-3 py-1.5 text-left hover:bg-foreground/5 text-xs ${
+                                    time === breakEndTime ? 'bg-bridge-accent/20 text-bridge-accent' : 'text-muted-foreground'
                                   }`}
                                 >
                                   {time}
@@ -435,7 +433,7 @@ export function ScheduleSettingsModal({
             <div className="space-y-4">
               {/* 블록 개수 */}
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label className="block text-sm font-medium text-muted-foreground mb-2">
                   {t('schedule.blockCount')}
                 </label>
                 <div className="relative">
@@ -445,13 +443,13 @@ export function ScheduleSettingsModal({
                       setIsBlockCountOpen(!isBlockCountOpen);
                       setIsStartTimeOpen(false);
                     }}
-                    className="w-full flex items-center justify-between px-4 py-3 bg-bridge-dark border border-white/10 rounded-lg text-left hover:border-white/10 transition-colors"
+                    className="w-full flex items-center justify-between px-4 py-3 bg-bridge-dark border border-foreground/10 rounded-lg text-left hover:border-foreground/10 transition-colors"
                   >
                     <span className="text-foreground font-medium">{t('schedule.blocksUnit', { count: blockCount })}</span>
                     <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${isBlockCountOpen ? 'rotate-180' : ''}`} />
                   </button>
                   {isBlockCountOpen && (
-                    <div ref={blockCountListRef} className="absolute top-full left-0 right-0 mt-1 bg-bridge-dark border border-white/10 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
+                    <div ref={blockCountListRef} className="absolute top-full left-0 right-0 mt-1 bg-bridge-dark border border-foreground/10 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
                       {BLOCK_OPTIONS.map((count) => (
                         <button
                           key={count}
@@ -460,8 +458,8 @@ export function ScheduleSettingsModal({
                             setBlockCount(count);
                             setIsBlockCountOpen(false);
                           }}
-                          className={`w-full px-4 py-2 text-left hover:bg-white/5 text-sm ${
-                            count === blockCount ? 'bg-bridge-accent/20 text-bridge-accent' : 'text-slate-300'
+                          className={`w-full px-4 py-2 text-left hover:bg-foreground/5 text-sm ${
+                            count === blockCount ? 'bg-bridge-accent/20 text-bridge-accent' : 'text-muted-foreground'
                           }`}
                         >
                           {t('schedule.blocksWithHours', { count, hours: (count * 30 / 60).toFixed(1) })}
@@ -531,11 +529,11 @@ export function ScheduleSettingsModal({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-white/10 flex gap-3">
+        <div className="px-6 py-4 border-t border-foreground/10 flex gap-3">
           <Button
             variant="outline"
             onClick={onClose}
-            className="flex-1 border-white/10 text-slate-300 hover:bg-white/5 hover:text-foreground"
+            className="flex-1 border-foreground/10 text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
           >
             {t('common.cancel')}
           </Button>
@@ -547,7 +545,6 @@ export function ScheduleSettingsModal({
             {t('common.save')}
           </Button>
         </div>
-      </DialogContent>
-    </Dialog>
+    </MotionModal>
   );
 }

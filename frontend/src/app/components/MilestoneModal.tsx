@@ -6,7 +6,7 @@ import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import { Calendar } from './ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
+import { MotionModal } from './ui/MotionModal';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import type { Milestone, Feature } from '../types';
@@ -125,11 +125,7 @@ export function MilestoneModal({
   }, [features, selectedFeatureIds, featureMilestoneCountMap]);
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-bridge-dark text-foreground border-white/10 max-w-lg p-0 gap-0 [&>button:last-child]:hidden overflow-hidden rounded-2xl max-h-[90vh] flex flex-col">
-        <DialogTitle className="sr-only">
-          {isEditMode ? t('milestone.editTitle') : t('milestone.newTitle')}
-        </DialogTitle>
+    <MotionModal open={isOpen} onClose={onClose} className="sm:max-w-lg bg-bridge-dark p-0 overflow-hidden flex flex-col max-h-[90vh]">
         {/* 헤더 */}
         <div className="flex items-center justify-between p-5 border-b border-bridge-border bg-white/[0.02]">
           <div className="flex items-center gap-2">
@@ -155,7 +151,7 @@ export function MilestoneModal({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder={t('milestone.titlePlaceholder')}
-              className="bg-bridge-obsidian border-white/10 text-white placeholder-slate-400 focus:border-indigo-500/50 rounded-xl"
+              className="bg-bridge-obsidian border-foreground/10 text-foreground placeholder-slate-400 focus:border-indigo-500/50 rounded-xl"
             />
           </div>
 
@@ -167,7 +163,7 @@ export function MilestoneModal({
               onChange={(e) => setDescription(e.target.value)}
               placeholder={t('milestone.descriptionPlaceholder')}
               rows={3}
-              className="bg-bridge-obsidian border-white/10 text-white placeholder-slate-400 resize-none focus:border-indigo-500/50 rounded-xl"
+              className="bg-bridge-obsidian border-foreground/10 text-foreground placeholder-slate-400 resize-none focus:border-indigo-500/50 rounded-xl"
             />
           </div>
 
@@ -178,7 +174,7 @@ export function MilestoneModal({
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
-                  className="w-full h-10 justify-start text-left font-normal bg-bridge-surface-hover border-white/10 text-white hover:bg-bridge-surface-hover hover:border-indigo-500/50 rounded-xl"
+                  className="w-full h-10 justify-start text-left font-normal bg-bridge-surface-hover border-foreground/10 text-foreground hover:bg-bridge-surface-hover hover:border-indigo-500/50 rounded-xl"
                 >
                   <CalendarIcon className="mr-2 h-4 w-4 text-slate-400" />
                   {startDate && endDate ? (
@@ -205,7 +201,7 @@ export function MilestoneModal({
                   }}
                   numberOfMonths={2}
                   locale={ko}
-                  className="text-white"
+                  className="text-foreground"
                 />
               </PopoverContent>
             </Popover>
@@ -214,7 +210,7 @@ export function MilestoneModal({
           {/* Feature 연결 */}
           <div className="space-y-2">
             <label className="kanban-label block">{t('milestone.linkedFeatures')}</label>
-            <div className="max-h-48 overflow-y-auto space-y-1 bg-bridge-surface rounded-xl p-2 border border-white/10">
+            <div className="max-h-48 overflow-y-auto space-y-1 bg-bridge-surface rounded-xl p-2 border border-foreground/10">
               {sortedFeatures.length > 0 ? (
                 sortedFeatures.map((feature) => {
                   const milestoneCount = featureMilestoneCountMap[feature.id] || 0;
@@ -227,7 +223,7 @@ export function MilestoneModal({
                         type="checkbox"
                         checked={selectedFeatureIds.has(feature.id)}
                         onChange={() => toggleFeature(feature.id)}
-                        className="w-4 h-4 rounded border-white/10 bg-bridge-obsidian text-indigo-500 focus:ring-indigo-500"
+                        className="w-4 h-4 rounded border-foreground/10 bg-bridge-obsidian text-indigo-500 focus:ring-indigo-500"
                       />
                       <div
                         className="w-3 h-3 rounded-full flex-shrink-0"
@@ -282,7 +278,6 @@ export function MilestoneModal({
             </button>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+    </MotionModal>
   );
 }

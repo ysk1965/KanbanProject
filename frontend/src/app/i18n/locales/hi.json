@@ -1650,6 +1650,9 @@
     "language": "भाषा",
     "languageDesc": "प्रदर्शन भाषा बदलें",
     "selectLanguage": "भाषा चुनें",
+    "holidayCountry": "छुट्टी का देश",
+    "holidayCountryDesc": "कैलेंडर पर छुट्टियाँ दिखाने के लिए देश चुनें",
+    "holidayOff": "बंद",
     "changePassword": "पासवर्ड बदलें",
     "changePasswordDesc": "खाता सुरक्षा के लिए अपना पासवर्ड बदलें",
     "currentPasswordLabel": "वर्तमान पासवर्ड",
@@ -2521,7 +2524,9 @@
       "start": "शुरुआत",
       "end": "अंत",
       "color": "रंग",
-      "thisWeek": "इस सप्ताह"
+      "thisWeek": "इस सप्ताह",
+      "holidayCountry": "छुट्टी का देश",
+      "holidayOff": "बंद"
     },
     "habit": {
       "habits": "आदतें",

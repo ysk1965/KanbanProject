@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -106,6 +107,14 @@ public class PersonalEventService {
             throw new BusinessException(ErrorCode.PERSONAL_ACCESS_DENIED);
         }
 
+        // 반복 설정 변경 처리
+        boolean recurrenceChanged = request.getRecurrenceRule() != null || request.getRecurrenceEndDate() != null
+                || request.getRecurrenceDaysOfWeek() != null;
+
+        if (recurrenceChanged && event.isRecurring() && "THIS_AND_FUTURE".equals(request.getScope())) {
+            return updateRecurrenceThisAndFuture(event, request);
+        }
+
         event.update(
                 request.getTitle(),
                 request.getDescription(),
@@ -130,6 +139,159 @@ public class PersonalEventService {
 
         log.info("Personal event updated: {} by user: {}", eventId, userId);
         return PersonalEventResponse.Detail.of(event);
+    }
+
+    private PersonalEventResponse.Detail updateRecurrenceThisAndFuture(
+            PersonalEvent event, PersonalEventRequest.Update request) {
+
+        User user = event.getUser();
+        String oldGroupId = event.getRecurrenceGroupId();
+        LocalDate fromDate = event.getEventDate();
+
+        // 1) 이 일정 포함 이후 모든 반복 인스턴스 삭제
+        personalEventRepository.deleteByRecurrenceGroupIdFromDate(oldGroupId, fromDate);
+        personalEventRepository.flush();
+
+        // 2) 새 반복 설정 결정
+        String newRule = request.getRecurrenceRule() != null
+                ? request.getRecurrenceRule() : event.getRecurrenceRule();
+        LocalDate newEndDate = request.getRecurrenceEndDate() != null
+                ? request.getRecurrenceEndDate() : event.getRecurrenceEndDate();
+
+        String daysOfWeekStr = null;
+        if ("WEEKLY".equals(newRule)) {
+            if (request.getRecurrenceDaysOfWeek() != null && !request.getRecurrenceDaysOfWeek().isEmpty()) {
+                daysOfWeekStr = request.getRecurrenceDaysOfWeek().stream()
+                        .map(String::valueOf)
+                        .collect(Collectors.joining(","));
+            } else if (event.getRecurrenceDaysOfWeek() != null) {
+                daysOfWeekStr = event.getRecurrenceDaysOfWeek();
+            }
+        }
+
+        // 반복 해제 (빈 문자열)
+        if (newRule != null && newRule.isBlank()) {
+            PersonalEvent singleEvent = PersonalEvent.builder()
+                    .user(user)
+                    .title(request.getTitle() != null ? request.getTitle() : event.getTitle())
+                    .description(request.getDescription() != null ? request.getDescription() : event.getDescription())
+                    .eventDate(fromDate)
+                    .startTime(request.getStartTime() != null ? request.getStartTime() : event.getStartTime())
+                    .endTime(request.getEndTime() != null ? request.getEndTime() : event.getEndTime())
+                    .color(request.getColor() != null ? request.getColor() : event.getColor())
+                    .allDay(request.getAllDay() != null ? request.getAllDay() : event.getAllDay())
+                    .build();
+            personalEventRepository.save(singleEvent);
+            log.info("Recurring event converted to single event: group={} from={}", oldGroupId, fromDate);
+            return PersonalEventResponse.Detail.of(singleEvent);
+        }
+
+        // Validate
+        if (newEndDate == null || !newEndDate.isAfter(fromDate)) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
+        }
+        LocalDate maxEnd = fromDate.plusDays(365);
+        if (newEndDate.isAfter(maxEnd)) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
+        }
+        if ("WEEKLY".equals(newRule) && (daysOfWeekStr == null || daysOfWeekStr.isBlank())) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
+        }
+
+        // 3) 새 그룹 ID로 인스턴스 재생성
+        String newGroupId = UUID.randomUUID().toString();
+        String title = request.getTitle() != null ? request.getTitle() : event.getTitle();
+        String desc = request.getDescription() != null ? request.getDescription() : event.getDescription();
+        LocalTime startTime = request.getStartTime() != null ? request.getStartTime() : event.getStartTime();
+        LocalTime endTime = request.getEndTime() != null ? request.getEndTime() : event.getEndTime();
+        String color = request.getColor() != null ? request.getColor() : event.getColor();
+        Boolean allDay = request.getAllDay() != null ? request.getAllDay() : event.getAllDay();
+
+        PersonalEvent firstEvent = PersonalEvent.builder()
+                .user(user)
+                .title(title)
+                .description(desc)
+                .eventDate(fromDate)
+                .startTime(startTime)
+                .endTime(endTime)
+                .color(color)
+                .allDay(allDay != null ? allDay : false)
+                .recurrenceRule(newRule)
+                .recurrenceGroupId(newGroupId)
+                .recurrenceEndDate(newEndDate)
+                .recurrenceDaysOfWeek(daysOfWeekStr)
+                .build();
+        personalEventRepository.save(firstEvent);
+
+        // Generate remaining instances
+        List<PersonalEvent> instances = generateRecurringInstancesFromParams(
+                user, title, desc, startTime, endTime, color, allDay,
+                newRule, newGroupId, fromDate, newEndDate, daysOfWeekStr);
+        if (!instances.isEmpty()) {
+            personalEventRepository.saveAll(instances);
+        }
+
+        log.info("Recurring event recurrence updated: oldGroup={}, newGroup={}, instances={}",
+                oldGroupId, newGroupId, instances.size() + 1);
+        return PersonalEventResponse.Detail.of(firstEvent);
+    }
+
+    private List<PersonalEvent> generateRecurringInstancesFromParams(
+            User user, String title, String description,
+            LocalTime startTime, LocalTime endTime, String color, Boolean allDay,
+            String recurrenceRule, String recurrenceGroupId,
+            LocalDate firstDate, LocalDate endDate, String daysOfWeekStr) {
+
+        List<PersonalEvent> instances = new ArrayList<>();
+
+        if ("DAILY".equals(recurrenceRule)) {
+            LocalDate current = firstDate.plusDays(1);
+            while (!current.isAfter(endDate)) {
+                instances.add(buildEventFromParams(user, title, description, current,
+                        startTime, endTime, color, allDay,
+                        recurrenceRule, recurrenceGroupId, endDate, daysOfWeekStr));
+                current = current.plusDays(1);
+            }
+        } else if ("WEEKLY".equals(recurrenceRule)) {
+            List<DayOfWeek> targetDays = parseDaysOfWeek(daysOfWeekStr);
+            LocalDate weekStart = firstDate.with(DayOfWeek.MONDAY);
+
+            while (!weekStart.isAfter(endDate)) {
+                for (DayOfWeek dow : targetDays) {
+                    LocalDate instanceDate = weekStart.with(dow);
+                    if (!instanceDate.isAfter(firstDate)) continue;
+                    if (instanceDate.isAfter(endDate)) continue;
+
+                    instances.add(buildEventFromParams(user, title, description, instanceDate,
+                            startTime, endTime, color, allDay,
+                            recurrenceRule, recurrenceGroupId, endDate, daysOfWeekStr));
+                }
+                weekStart = weekStart.plusWeeks(1);
+            }
+        }
+
+        return instances;
+    }
+
+    private PersonalEvent buildEventFromParams(User user, String title, String description,
+                                                LocalDate eventDate, LocalTime startTime, LocalTime endTime,
+                                                String color, Boolean allDay, String recurrenceRule,
+                                                String recurrenceGroupId, LocalDate recurrenceEndDate,
+                                                String daysOfWeekStr) {
+        return PersonalEvent.builder()
+                .user(user)
+                .title(title)
+                .description(description)
+                .eventDate(eventDate)
+                .startTime(startTime)
+                .endTime(endTime)
+                .color(color != null ? color : "#6366F1")
+                .allDay(allDay != null ? allDay : false)
+                .recurrenceRule(recurrenceRule)
+                .recurrenceGroupId(recurrenceGroupId)
+                .recurrenceEndDate(recurrenceEndDate)
+                .recurrenceDaysOfWeek(daysOfWeekStr)
+                .build();
     }
 
     @Transactional

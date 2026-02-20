@@ -6,16 +6,7 @@ import { commentAPI, checklistAPI, fileAPI, customEmojiAPI, resolveFileUrl, Comm
 import { BoardMember } from './ShareBoardModal';
 import { getAssigneeClasses, getInitials } from '../utils/assigneeColor';
 import { formatDate } from '../utils/dateUtils';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from './ui/alert-dialog';
+import { MotionModal } from './ui/MotionModal';
 import { MessageSquare, Send, RefreshCw, Pencil, Trash2, X, Check, Loader2, Paperclip, Play, ChevronLeft, ChevronRight, SmilePlus, Plus, ImageIcon, Sparkles, CheckCircle2, HelpCircle, ListChecks } from 'lucide-react';
 import { VideoThumbnail } from './VideoThumbnail';
 
@@ -667,14 +658,14 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
   const InlineMentionDropdown = ({ isEdit }: { isEdit: boolean }) => {
     if (!showInlineMention || inlineMentionForEdit !== isEdit || filteredMembers.length === 0) return null;
     return (
-      <div className="absolute bottom-full left-0 mb-1 w-full bg-bridge-obsidian border border-white/20 rounded-lg shadow-lg z-50 py-1 max-h-40 overflow-y-auto kanban-scrollbar">
+      <div className="absolute bottom-full left-0 mb-1 w-full bg-bridge-obsidian border border-bridge-border rounded-lg shadow-lg z-50 py-1 max-h-40 overflow-y-auto kanban-scrollbar">
         {filteredMembers.map((member, idx) => {
           const color = getAssigneeClasses(member.name, member.assigneeColor);
           return (
             <button key={member.userId}
               onMouseDown={e => { e.preventDefault(); insertMention(member, isEdit); }}
               onMouseEnter={() => setMentionIndex(idx)}
-              className={`flex items-center gap-2 w-full px-3 py-1.5 text-xs transition-colors text-slate-300 ${idx === mentionIndex ? 'bg-white/10' : 'hover:bg-white/5'}`}
+              className={`flex items-center gap-2 w-full px-3 py-1.5 text-xs transition-colors text-muted-foreground ${idx === mentionIndex ? 'bg-foreground/10' : 'hover:bg-foreground/5'}`}
             >
               <div className={`w-5 h-5 rounded-full ${color.bg} flex items-center justify-center text-[10px] font-bold text-white whitespace-nowrap overflow-hidden`}>
                 {getInitials(member.name)}
@@ -702,7 +693,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
           return (
             <button key={att.id}
               onClick={() => setLightboxMedia({ items: mediaItems, index: idx })}
-              className="relative group/img rounded-md overflow-hidden border border-white/20 hover:border-white/20 transition-colors">
+              className="relative group/img rounded-md overflow-hidden border border-bridge-border hover:border-bridge-border transition-colors">
               {isVideo ? (
                 <VideoThumbnail
                   videoUrl={resolveFileUrl(att.url)}
@@ -754,14 +745,14 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
                 <VideoThumbnail
                   videoUrl={resolveFileUrl(att.url)}
                   serverThumbnailUrl={att.thumbnail_url ? resolveFileUrl(att.thumbnail_url) : null}
-                  className="h-16 w-[90px] object-cover rounded-md border border-white/20"
+                  className="h-16 w-[90px] object-cover rounded-md border border-bridge-border"
                   alt={att.file_name}
                 />
                 <Play className="absolute bottom-1 left-1 h-3 w-3 text-white drop-shadow" />
               </div>
             ) : (
               <img src={resolveFileUrl(att.thumbnail_url || att.url)} alt={att.file_name}
-                className="h-16 w-auto max-w-[120px] object-cover rounded-md border border-white/20" />
+                className="h-16 w-auto max-w-[120px] object-cover rounded-md border border-bridge-border" />
             )}
             {onRemoveExisting && (
               <button onClick={() => onRemoveExisting(att.id)}
@@ -776,10 +767,10 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
           <div key={pf.id} className="relative group/preview">
             {isVideoType(pf.file.type) ? (
               <video src={pf.previewUrl} muted preload="metadata"
-                className={`h-16 w-[90px] object-cover rounded-md border ${pf.error ? 'border-red-500/50' : 'border-white/20'}`} />
+                className={`h-16 w-[90px] object-cover rounded-md border ${pf.error ? 'border-red-500/50' : 'border-bridge-border'}`} />
             ) : (
               <img src={pf.previewUrl} alt={pf.file.name}
-                className={`h-16 w-auto max-w-[120px] object-cover rounded-md border ${pf.error ? 'border-red-500/50' : 'border-white/20'}`} />
+                className={`h-16 w-auto max-w-[120px] object-cover rounded-md border ${pf.error ? 'border-red-500/50' : 'border-bridge-border'}`} />
             )}
             {pf.uploading && (
               <div className="absolute inset-0 bg-black/40 rounded-md flex items-center justify-center">
@@ -814,7 +805,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
       <div ref={emojiPickerRef}
         data-emoji-picker
         style={{ position: 'fixed', top: emojiPickerPos.top, left: emojiPickerPos.left, zIndex: 9999 }}
-        className="bg-bridge-obsidian border border-white/20 rounded-xl shadow-xl p-2 min-w-[200px] pointer-events-auto"
+        className="bg-bridge-obsidian border border-bridge-border rounded-xl shadow-xl p-2 min-w-[200px] pointer-events-auto"
         onPointerDown={e => e.stopPropagation()}
         onMouseDown={e => e.stopPropagation()}>
         {/* 기본 이모지 */}
@@ -823,7 +814,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
           {REACTION_EMOJIS.map(emoji => (
             <button key={emoji}
               onClick={() => handleToggleReaction(commentId, emoji)}
-              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 transition-all hover:scale-110 text-base">
+              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-foreground/10 transition-all hover:scale-110 text-base">
               {emoji}
             </button>
           ))}
@@ -832,14 +823,14 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
         {/* 커스텀 이모지 */}
         {(customEmojis.length > 0 || isAdminOrOwner) && (
           <>
-            <div className="border-t border-white/10 my-1.5" />
+            <div className="border-t border-foreground/10 my-1.5" />
             <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1 mb-1">{t('comment.customEmoji.title', '커스텀')}</div>
             <div className="grid grid-cols-4 gap-1">
               {customEmojis.map(ce => (
                 <div key={ce.id} className="relative group/ce">
                   <button
                     onClick={() => handleToggleReaction(commentId, `custom:${ce.id}`)}
-                    className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 transition-all hover:scale-110"
+                    className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-foreground/10 transition-all hover:scale-110"
                     title={ce.name}>
                     <img src={resolveFileUrl(ce.image_url)} alt={ce.name} className="w-5 h-5 object-contain" />
                   </button>
@@ -856,7 +847,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
               {isAdminOrOwner && (
                 <button
                   onClick={() => setShowEmojiUpload(prev => !prev)}
-                  className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 transition-all text-slate-400 hover:text-slate-300 border border-dashed border-white/10"
+                  className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-foreground/10 transition-all text-slate-400 hover:text-muted-foreground border border-dashed border-foreground/10"
                   title={t('comment.customEmoji.add', '이모지 추가')}>
                   <Plus className="w-3.5 h-3.5" />
                 </button>
@@ -865,7 +856,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
 
             {/* 업로드 UI */}
             {showEmojiUpload && isAdminOrOwner && (
-              <div className="mt-2 p-2 bg-white/5 rounded-lg space-y-2">
+              <div className="mt-2 p-2 bg-foreground/5 rounded-lg space-y-2">
                 <div className="flex items-center gap-1.5">
                   <button
                     onClick={() => emojiFileInputRef.current?.click()}
@@ -884,7 +875,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
                   </button>
                   <button
                     onClick={() => { setShowEmojiUpload(false); setEmojiUploadName(''); setSelectedEmojiFile(null); }}
-                    className="px-2 py-1.5 text-[10px] font-medium rounded-lg text-slate-400 hover:text-slate-300 hover:bg-white/5 transition-all">
+                    className="px-2 py-1.5 text-[10px] font-medium rounded-lg text-slate-400 hover:text-muted-foreground hover:bg-foreground/5 transition-all">
                     {t('common.cancel', '취소')}
                   </button>
                 </div>
@@ -897,7 +888,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
                       onChange={e => setEmojiUploadName(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter' && emojiUploadName.trim()) handleUploadCustomEmoji(); }}
                       placeholder={t('comment.customEmoji.namePlaceholder', '이모지 이름')}
-                      className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
+                      className="w-full bg-foreground/5 border border-foreground/10 rounded-lg px-2 py-1 text-xs text-foreground placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
                       maxLength={50}
                       autoFocus
                     />
@@ -955,7 +946,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
               className={`group/reaction relative inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-all
                 ${isMyReaction
                   ? 'bg-bridge-accent/20 border border-bridge-accent/50 text-bridge-accent hover:bg-bridge-accent/30'
-                  : 'bg-white/5 border border-white/10 text-slate-400 hover:bg-white/10 hover:text-slate-300'
+                  : 'bg-foreground/5 border border-foreground/10 text-slate-400 hover:bg-foreground/10 hover:text-muted-foreground'
                 }
                 ${!canEdit ? 'cursor-default' : 'cursor-pointer'}
               `}
@@ -990,7 +981,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
       )}
 
       {/* 헤더 */}
-      <div className="flex items-center px-4 py-3 border-b border-white/20">
+      <div className="flex items-center px-4 py-3 border-b border-bridge-border">
         <div className="flex items-center gap-2 flex-1">
           <MessageSquare className="h-4 w-4 text-slate-400" />
           <span className="text-sm font-medium text-foreground">{t('comment.title')}</span>
@@ -1031,19 +1022,19 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
                   {t('comment.aiSummaryTitle')}
                 </span>
               </div>
-              <button onClick={() => setAiSummary(null)} className="text-slate-400 hover:text-white p-0.5">
+              <button onClick={() => setAiSummary(null)} className="text-slate-400 hover:text-foreground p-0.5">
                 <X className="h-3 w-3" />
               </button>
             </div>
 
-            <p className="text-xs text-slate-300">{aiSummary.summary}</p>
+            <p className="text-xs text-muted-foreground">{aiSummary.summary}</p>
 
             {aiSummary.decisions.length > 0 && (
               <div>
                 <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">{t('comment.aiDecisions')}</span>
                 <ul className="mt-1 space-y-0.5">
                   {aiSummary.decisions.map((d, i) => (
-                    <li key={i} className="text-xs text-slate-300 flex items-start gap-1.5">
+                    <li key={i} className="text-xs text-muted-foreground flex items-start gap-1.5">
                       <CheckCircle2 className="h-3 w-3 text-emerald-400 mt-0.5 flex-shrink-0" />
                       {d}
                     </li>
@@ -1057,7 +1048,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
                 <span className="text-[10px] font-bold text-amber-400 uppercase tracking-widest">{t('comment.aiOpenQuestions')}</span>
                 <ul className="mt-1 space-y-0.5">
                   {aiSummary.open_questions.map((q, i) => (
-                    <li key={i} className="text-xs text-slate-300 flex items-start gap-1.5">
+                    <li key={i} className="text-xs text-muted-foreground flex items-start gap-1.5">
                       <HelpCircle className="h-3 w-3 text-amber-400 mt-0.5 flex-shrink-0" />
                       {q}
                     </li>
@@ -1071,7 +1062,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
                 <span className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">{t('comment.aiActionItems')}</span>
                 <ul className="mt-1 space-y-1">
                   {aiSummary.action_items.map((item, i) => (
-                    <li key={i} className="text-xs text-slate-300 flex items-center justify-between">
+                    <li key={i} className="text-xs text-muted-foreground flex items-center justify-between">
                       <span className="flex items-center gap-1.5">
                         <ListChecks className="h-3 w-3 text-blue-400 flex-shrink-0" />
                         {item.title}
@@ -1130,14 +1121,14 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
                         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity ml-auto">
                           <button
                             onClick={(e) => openEmojiPicker(comment.id, e.currentTarget)}
-                            className="p-1 rounded hover:bg-white/10 text-slate-400 hover:text-slate-300"
+                            className="p-1 rounded hover:bg-foreground/10 text-slate-400 hover:text-muted-foreground"
                             title={t('comment.reaction.addReaction')}>
                             <SmilePlus className="h-3 w-3" />
                           </button>
                           <EmojiPicker commentId={comment.id} />
                           {isAuthor && (
                             <button onClick={() => startEditing(comment)}
-                              className="p-1 rounded hover:bg-white/10 text-slate-400 hover:text-slate-300">
+                              className="p-1 rounded hover:bg-foreground/10 text-slate-400 hover:text-muted-foreground">
                               <Pencil className="h-3 w-3" />
                             </button>
                           )}
@@ -1170,7 +1161,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
                             onKeyDown={e => handleEditKeyDown(e, comment.id)}
                             onPaste={e => handlePaste(e, true)}
                             onBlur={() => setTimeout(() => setShowInlineMention(false), 150)}
-                            className="w-full text-xs bg-white/5 border border-white/20 rounded-lg px-3 py-2 text-foreground placeholder:text-slate-400 resize-none focus:outline-none focus:ring-1 focus:ring-bridge-accent"
+                            className="w-full text-xs bg-foreground/5 border border-bridge-border rounded-lg px-3 py-2 text-foreground placeholder:text-slate-400 resize-none focus:outline-none focus:ring-1 focus:ring-bridge-accent"
                             rows={3} autoFocus />
                         </div>
                         <div className="flex items-center gap-1">
@@ -1178,12 +1169,12 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
                             multiple className="hidden" onChange={e => handleFileSelect(e, true)} />
                           <button onClick={() => editFileInputRef.current?.click()}
                             disabled={editKeepAttachmentIds.length + editNewFiles.length >= MAX_FILES}
-                            className="p-1 rounded text-slate-400 hover:text-slate-200 hover:bg-white/10 disabled:opacity-30 transition-colors" title={t('comment.addFile')}>
+                            className="p-1 rounded text-slate-400 hover:text-slate-200 hover:bg-foreground/10 disabled:opacity-30 transition-colors" title={t('comment.addFile')}>
                             <Paperclip className="h-3.5 w-3.5" />
                           </button>
                           <div className="flex-1" />
                           <button onClick={cancelEditing}
-                            className="p-1 rounded hover:bg-white/10 text-slate-400 hover:text-slate-300">
+                            className="p-1 rounded hover:bg-foreground/10 text-slate-400 hover:text-muted-foreground">
                             <X className="h-3.5 w-3.5" />
                           </button>
                           <button onClick={() => handleUpdate(comment.id)} disabled={isEditSubmitting}
@@ -1195,7 +1186,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
                     ) : (
                       <>
                         {comment.content && comment.content.trim() && (
-                          <p className="text-xs text-slate-300 whitespace-pre-wrap break-words leading-relaxed">
+                          <p className="text-xs text-muted-foreground whitespace-pre-wrap break-words leading-relaxed">
                             {renderContent(comment.content, boardMembers)}
                           </p>
                         )}
@@ -1213,7 +1204,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
 
       {/* 입력 영역 - Viewer는 댓글 작성 불가 */}
       {canEdit ? (
-        <div className="px-4 py-3 border-t border-white/20">
+        <div className="px-4 py-3 border-t border-bridge-border">
           <FilePreviewList files={pendingFiles}
             onRemoveFile={(id) => removePendingFile(id, setPendingFiles)} />
 
@@ -1227,13 +1218,13 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
               onPaste={e => handlePaste(e, false)}
               onBlur={() => setTimeout(() => setShowInlineMention(false), 150)}
               placeholder={t('comment.inputPlaceholder')}
-              className="w-full text-xs bg-white/5 border border-white/20 rounded-lg pl-3 pr-20 py-2.5 text-foreground placeholder:text-slate-400 resize-none focus:outline-none focus:ring-1 focus:ring-bridge-accent"
+              className="w-full text-xs bg-foreground/5 border border-bridge-border rounded-lg pl-3 pr-20 py-2.5 text-foreground placeholder:text-slate-400 resize-none focus:outline-none focus:ring-1 focus:ring-bridge-accent"
               rows={2} />
             <div className="absolute right-2 bottom-2 flex items-center gap-1">
               <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,video/quicktime"
                 multiple className="hidden" onChange={e => handleFileSelect(e, false)} />
               <button onClick={() => fileInputRef.current?.click()} disabled={pendingFiles.length >= MAX_FILES}
-                className="p-1.5 rounded text-slate-400 hover:text-slate-200 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                className="p-1.5 rounded text-slate-400 hover:text-slate-200 hover:bg-foreground/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 title={t('comment.attachFile')}>
                 <Paperclip className="h-3.5 w-3.5" />
               </button>
@@ -1247,7 +1238,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
           <p className="text-[9px] text-slate-400 mt-1">{t('comment.fileHelp')}</p>
         </div>
       ) : (
-        <div className="px-4 py-3 border-t border-white/20">
+        <div className="px-4 py-3 border-t border-bridge-border">
           <p className="text-xs text-slate-400 text-center">{t('comment.viewerReadOnly')}</p>
         </div>
       )}
@@ -1312,18 +1303,14 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
       )}
 
       {/* 삭제 확인 */}
-      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <AlertDialogContent className="bg-bridge-obsidian border-white/20">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-foreground">{t('comment.deleteTitle')}</AlertDialogTitle>
-            <AlertDialogDescription className="text-slate-400">{t('comment.deleteDesc')}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setDeleteTarget(null)} className="bg-white/5 border-white/20 text-foreground hover:bg-white/10">{t('common.cancel')}</AlertDialogCancel>
-            <AlertDialogAction onClick={() => deleteTarget && handleDelete(deleteTarget)} className="bg-red-500 hover:bg-red-600 text-white">{t('common.delete')}</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <MotionModal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} className="sm:max-w-sm p-6">
+        <h3 className="text-lg font-semibold text-foreground">{t('comment.deleteTitle')}</h3>
+        <p className="text-sm text-slate-400 mt-1">{t('comment.deleteDesc')}</p>
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end mt-4">
+          <button onClick={() => setDeleteTarget(null)} className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-foreground/5 border border-bridge-border text-foreground hover:bg-foreground/10">{t('common.cancel')}</button>
+          <button onClick={() => deleteTarget && handleDelete(deleteTarget)} className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-red-500 hover:bg-red-600 text-white">{t('common.delete')}</button>
+        </div>
+      </MotionModal>
     </div>
   );
 }

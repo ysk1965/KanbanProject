@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, ArrowRight, Copy, Loader2 } from 'lucide-react';
-import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
+import { MotionModal } from './ui/MotionModal';
 import { boardService, boardAPI } from '../utils/api';
 import type { Block } from '../types';
 
@@ -110,14 +110,9 @@ export function TaskMoveModal({
   const Icon = isMove ? ArrowRight : Copy;
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="bg-bridge-dark text-foreground border-white/10 max-w-md p-0 gap-0 [&>button:last-child]:hidden overflow-hidden rounded-2xl">
-        <DialogTitle className="sr-only">
-          {isMove ? t('task.moveToBoard', '보드로 이동') : t('task.copyToBoard', '보드로 복사')}
-        </DialogTitle>
-
+    <MotionModal open={open} onClose={onClose} className="sm:max-w-md bg-bridge-dark p-0 overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-white/[0.03]">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-foreground/10 bg-white/[0.03]">
           <div className="flex items-center gap-3">
             <div className={`w-8 h-8 rounded-lg ${isMove ? 'bg-orange-500/10' : 'bg-bridge-secondary/10'} flex items-center justify-center`}>
               <Icon size={16} className={isMove ? 'text-orange-400' : 'text-bridge-secondary'} />
@@ -154,7 +149,7 @@ export function TaskMoveModal({
                 <select
                   value={selectedBoardId}
                   onChange={(e) => setSelectedBoardId(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-foreground text-sm focus:outline-none focus:border-bridge-accent/50"
+                  className="w-full bg-foreground/5 border border-foreground/10 rounded-xl px-4 py-2.5 text-foreground text-sm focus:outline-none focus:border-bridge-accent/50"
                 >
                   {boards.map((board) => (
                     <option key={board.id} value={board.id}>
@@ -178,7 +173,7 @@ export function TaskMoveModal({
                   <select
                     value={selectedBlockId}
                     onChange={(e) => setSelectedBlockId(e.target.value)}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-foreground text-sm focus:outline-none focus:border-bridge-accent/50"
+                    className="w-full bg-foreground/5 border border-foreground/10 rounded-xl px-4 py-2.5 text-foreground text-sm focus:outline-none focus:border-bridge-accent/50"
                   >
                     {blocks.map((block) => (
                       <option key={block.id} value={block.id}>
@@ -194,7 +189,7 @@ export function TaskMoveModal({
 
         {/* Footer */}
         {boards.length > 0 && (
-          <div className="px-6 py-4 border-t border-white/10 bg-white/[0.03] flex justify-end items-center gap-3">
+          <div className="px-6 py-4 border-t border-foreground/10 bg-white/[0.03] flex justify-end items-center gap-3">
             <button
               onClick={onClose}
               className="text-[11px] font-bold text-slate-400 hover:text-foreground transition-all tracking-wider"
@@ -216,7 +211,6 @@ export function TaskMoveModal({
             </button>
           </div>
         )}
-      </DialogContent>
-    </Dialog>
+    </MotionModal>
   );
 }

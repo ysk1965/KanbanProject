@@ -1650,6 +1650,9 @@
     "language": "言語",
     "languageDesc": "表示言語を変更",
     "selectLanguage": "言語を選択",
+    "holidayCountry": "祝日の国",
+    "holidayCountryDesc": "カレンダーに表示する祝日の国を選択します",
+    "holidayOff": "オフ",
     "changePassword": "パスワードを変更",
     "changePasswordDesc": "アカウントセキュリティのためにパスワードを変更",
     "currentPasswordLabel": "現在のパスワード",
@@ -2521,7 +2524,9 @@
       "start": "開始",
       "end": "終了",
       "color": "色",
-      "thisWeek": "今週"
+      "thisWeek": "今週",
+      "holidayCountry": "祝日の国",
+      "holidayOff": "オフ"
     },
     "habit": {
       "habits": "習慣",

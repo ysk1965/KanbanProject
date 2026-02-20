@@ -5,7 +5,7 @@ import { adminService } from '../../utils/services';
 import { AdminUserDetail, AdminBoardSummary } from '../../utils/api';
 import { formatDateTime } from '../../utils/dateUtils';
 import { ConfirmModal, PromptModal, Toast } from './AdminConfirmModal';
-import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
+import { MotionModal } from '../ui/MotionModal';
 
 interface AdminUserDetailModalProps {
   userId: string;
@@ -223,15 +223,13 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
 
   return (
     <>
-      <Dialog open={true} onOpenChange={(open) => { if (!open) onClose(); }}>
-        <DialogContent className="bg-bridge-obsidian text-foreground border-white/20 max-w-2xl p-0 gap-0 [&>button:last-child]:hidden overflow-hidden rounded-2xl max-h-[90vh] flex flex-col">
-          <DialogTitle className="sr-only">{t('admin.userDetail.title')}</DialogTitle>
+      <MotionModal open={true} onClose={onClose} className="sm:max-w-2xl p-0 overflow-hidden max-h-[90vh] flex flex-col">
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-white/15">
-            <h2 className="text-xl font-bold text-white">{t('admin.userDetail.title')}</h2>
+          <div className="flex items-center justify-between px-6 py-4 border-b border-bridge-border">
+            <h2 className="text-xl font-bold text-foreground">{t('admin.userDetail.title')}</h2>
             <button
               onClick={onClose}
-              className="p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+              className="p-2 text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
             >
               <X className="h-5 w-5" />
             </button>
@@ -268,7 +266,7 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
                   )}
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <h3 className="text-xl font-bold text-white">{user.name}</h3>
+                      <h3 className="text-xl font-bold text-foreground">{user.name}</h3>
                       {user.is_active === false && (
                         <span className="px-2 py-0.5 bg-red-500/20 text-red-400 text-xs font-medium rounded-full flex items-center gap-1">
                           <Ban className="h-3 w-3" />
@@ -295,7 +293,7 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
 
                 {/* Info Grid */}
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-white/5 rounded-xl p-4">
+                  <div className="bg-foreground/5 rounded-xl p-4">
                     <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
                       {t('admin.userDetail.role')}
                     </p>
@@ -305,7 +303,7 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
                         value={user.system_role}
                         onChange={(e) => handleRoleChange(e.target.value as 'USER' | 'TESTER' | 'ADMIN')}
                         disabled={isUpdating}
-                        className="bg-transparent text-white font-medium focus:outline-none cursor-pointer disabled:opacity-50"
+                        className="bg-transparent text-foreground font-medium focus:outline-none cursor-pointer disabled:opacity-50"
                       >
                         <option value="USER" className="bg-bridge-dark">USER</option>
                         <option value="TESTER" className="bg-bridge-dark">TESTER</option>
@@ -314,7 +312,7 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
                     </div>
                   </div>
 
-                  <div className="bg-white/5 rounded-xl p-4">
+                  <div className="bg-foreground/5 rounded-xl p-4">
                     <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
                       {t('admin.userDetail.provider')}
                     </p>
@@ -329,41 +327,41 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
                     </span>
                   </div>
 
-                  <div className="bg-white/5 rounded-xl p-4">
+                  <div className="bg-foreground/5 rounded-xl p-4">
                     <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
                       {t('admin.userDetail.joinedAt')}
                     </p>
-                    <p className="text-white flex items-center gap-2">
+                    <p className="text-foreground flex items-center gap-2">
                       <Calendar className="h-4 w-4 text-slate-400" />
                       {formatDateLocal(user.created_at)}
                     </p>
                   </div>
 
-                  <div className="bg-white/5 rounded-xl p-4">
+                  <div className="bg-foreground/5 rounded-xl p-4">
                     <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
                       {t('admin.userDetail.lastLogin')}
                     </p>
-                    <p className="text-white flex items-center gap-2">
+                    <p className="text-foreground flex items-center gap-2">
                       <Calendar className="h-4 w-4 text-slate-400" />
                       {formatDateLocal(user.last_login_at)}
                     </p>
                   </div>
 
-                  <div className="bg-white/5 rounded-xl p-4">
+                  <div className="bg-foreground/5 rounded-xl p-4">
                     <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
                       {t('admin.userDetail.ownedBoards')}
                     </p>
-                    <p className="text-white flex items-center gap-2">
+                    <p className="text-foreground flex items-center gap-2">
                       <Folder className="h-4 w-4 text-bridge-accent" />
                       {t('admin.common.countItems', { count: user.owned_board_count })}
                     </p>
                   </div>
 
-                  <div className="bg-white/5 rounded-xl p-4">
+                  <div className="bg-foreground/5 rounded-xl p-4">
                     <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
                       {t('admin.userDetail.memberBoards')}
                     </p>
-                    <p className="text-white flex items-center gap-2">
+                    <p className="text-foreground flex items-center gap-2">
                       <Folder className="h-4 w-4 text-bridge-secondary" />
                       {t('admin.common.countItems', { count: user.member_board_count })}
                     </p>
@@ -378,38 +376,38 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
                   </h4>
                   {user.has_personal_board ? (
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      <div className="bg-white/5 rounded-lg p-3">
+                      <div className="bg-foreground/5 rounded-lg p-3">
                         <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">
                           {t('admin.userDetail.pbTasks', 'Tasks')}
                         </p>
-                        <p className="text-white text-sm flex items-center gap-2">
+                        <p className="text-foreground text-sm flex items-center gap-2">
                           <ListTodo className="h-3.5 w-3.5 text-purple-400" />
                           {user.personal_board_task_count ?? 0}
                         </p>
                       </div>
-                      <div className="bg-white/5 rounded-lg p-3">
+                      <div className="bg-foreground/5 rounded-lg p-3">
                         <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">
                           {t('admin.userDetail.pbDiary', 'Diary')}
                         </p>
-                        <p className="text-white text-sm flex items-center gap-2">
+                        <p className="text-foreground text-sm flex items-center gap-2">
                           <BookOpen className="h-3.5 w-3.5 text-purple-400" />
                           {user.personal_board_diary_count ?? 0}
                         </p>
                       </div>
-                      <div className="bg-white/5 rounded-lg p-3">
+                      <div className="bg-foreground/5 rounded-lg p-3">
                         <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">
                           {t('admin.userDetail.pbEvents', 'Events')}
                         </p>
-                        <p className="text-white text-sm flex items-center gap-2">
+                        <p className="text-foreground text-sm flex items-center gap-2">
                           <CalendarDays className="h-3.5 w-3.5 text-purple-400" />
                           {user.personal_board_event_count ?? 0}
                         </p>
                       </div>
-                      <div className="bg-white/5 rounded-lg p-3">
+                      <div className="bg-foreground/5 rounded-lg p-3">
                         <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">
                           {t('admin.userDetail.pbCreatedAt', 'Created')}
                         </p>
-                        <p className="text-white text-sm flex items-center gap-2">
+                        <p className="text-foreground text-sm flex items-center gap-2">
                           <Calendar className="h-3.5 w-3.5 text-purple-400" />
                           {user.personal_board_created_at ? formatDateLocal(user.personal_board_created_at) : '-'}
                         </p>
@@ -451,29 +449,29 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
                       {t('admin.userDetail.googleAccountInfo')}
                     </h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div className="bg-white/5 rounded-lg p-3">
+                      <div className="bg-foreground/5 rounded-lg p-3">
                         <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">
                           Google ID
                         </p>
-                        <p className="text-white text-sm font-mono flex items-center gap-2">
+                        <p className="text-foreground text-sm font-mono flex items-center gap-2">
                           <Key className="h-3.5 w-3.5 text-blue-400" />
                           {user.auth_provider_id || '-'}
                         </p>
                       </div>
-                      <div className="bg-white/5 rounded-lg p-3">
+                      <div className="bg-foreground/5 rounded-lg p-3">
                         <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">
                           {t('admin.userDetail.profileImageUrl')}
                         </p>
-                        <p className="text-white text-sm flex items-center gap-2 truncate" title={user.profile_image || '-'}>
+                        <p className="text-foreground text-sm flex items-center gap-2 truncate" title={user.profile_image || '-'}>
                           <Image className="h-3.5 w-3.5 text-blue-400 flex-shrink-0" />
                           <span className="truncate">{user.profile_image ? t('admin.userDetail.googleProfileUsed') : '-'}</span>
                         </p>
                       </div>
-                      <div className="bg-white/5 rounded-lg p-3">
+                      <div className="bg-foreground/5 rounded-lg p-3">
                         <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">
                           {t('admin.userDetail.emailVerifiedAt')}
                         </p>
-                        <p className="text-white text-sm flex items-center gap-2">
+                        <p className="text-foreground text-sm flex items-center gap-2">
                           <Clock className="h-3.5 w-3.5 text-blue-400" />
                           {user.email_verified_at ? formatDateLocal(user.email_verified_at) : '-'}
                         </p>
@@ -485,17 +483,17 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
                 {/* Boards List */}
                 {boards.length > 0 && (
                   <div>
-                    <h4 className="text-lg font-bold text-white mb-4">{t('admin.userDetail.boardList')}</h4>
+                    <h4 className="text-lg font-bold text-foreground mb-4">{t('admin.userDetail.boardList')}</h4>
                     <div className="space-y-2">
                       {boards.map((board) => {
                         const isOwner = board.owner_id === user.id;
                         return (
                           <div
                             key={board.id}
-                            className="bg-white/5 rounded-xl p-4 flex items-center justify-between gap-3"
+                            className="bg-foreground/5 rounded-xl p-4 flex items-center justify-between gap-3"
                           >
                             <div className="flex-1 min-w-0">
-                              <p className="text-white font-medium">{board.name}</p>
+                              <p className="text-foreground font-medium">{board.name}</p>
                               <p className="text-slate-400 text-sm">
                                 {t('admin.userDetail.boardMemberTaskInfo', { members: board.member_count, tasks: board.task_count })}
                               </p>
@@ -531,8 +529,8 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
                 )}
 
                 {/* Admin Actions */}
-                <div className="border-t border-white/10 pt-6 space-y-4">
-                  <h4 className="text-lg font-bold text-white flex items-center gap-2">
+                <div className="border-t border-foreground/10 pt-6 space-y-4">
+                  <h4 className="text-lg font-bold text-foreground flex items-center gap-2">
                     <AlertTriangle className="h-5 w-5 text-amber-400" />
                     {t('admin.common.adminActions')}
                   </h4>
@@ -599,8 +597,7 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
               </div>
             )}
           </div>
-        </DialogContent>
-      </Dialog>
+      </MotionModal>
 
       {confirmAction && (
         <ConfirmModal

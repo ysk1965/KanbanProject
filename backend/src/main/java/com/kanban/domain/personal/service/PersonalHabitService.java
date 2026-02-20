@@ -18,6 +18,7 @@ import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -208,20 +209,51 @@ public class PersonalHabitService {
     // ─── Helpers ───
 
     private void updateStreak(PersonalHabit habit, LocalDate today) {
-        int streak = 0;
-        LocalDate checkDate = today;
+        LocalDate currentWeekStart = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        LocalDate currentWeekEnd = today.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY));
 
-        while (true) {
-            var log = habitLogRepository.findByHabitIdAndLogDate(habit.getId(), checkDate);
-            if (log.isPresent() && log.get().getIsCompleted()) {
+        // Fetch all logs for up to 53 weeks in one query
+        LocalDate fetchStart = currentWeekStart.minusWeeks(53);
+        List<PersonalHabitLog> allLogs = habitLogRepository
+                .findByHabitIdAndDateRange(habit.getId(), fetchStart, currentWeekEnd);
+
+        Set<LocalDate> completedDates = allLogs.stream()
+                .filter(PersonalHabitLog::getIsCompleted)
+                .map(PersonalHabitLog::getLogDate)
+                .collect(Collectors.toSet());
+
+        int streak = 0;
+
+        // Check current week first
+        int currentTarget = getWeeklyTarget(habit, currentWeekStart, currentWeekEnd);
+        if (currentTarget > 0 && countCompletedInRange(completedDates, currentWeekStart, currentWeekEnd) >= currentTarget) {
+            streak++;
+        }
+
+        // Check previous weeks going backward
+        LocalDate weekStart = currentWeekStart.minusWeeks(1);
+        while (!weekStart.isBefore(fetchStart)) {
+            LocalDate weekEnd = weekStart.plusDays(6);
+            int target = getWeeklyTarget(habit, weekStart, weekEnd);
+            if (target == 0) break;
+
+            if (countCompletedInRange(completedDates, weekStart, weekEnd) >= target) {
                 streak++;
-                checkDate = checkDate.minusDays(1);
             } else {
                 break;
             }
+            weekStart = weekStart.minusWeeks(1);
         }
 
         habit.updateStreak(streak);
+    }
+
+    private int countCompletedInRange(Set<LocalDate> completedDates, LocalDate start, LocalDate end) {
+        int count = 0;
+        for (LocalDate d = start; !d.isAfter(end); d = d.plusDays(1)) {
+            if (completedDates.contains(d)) count++;
+        }
+        return count;
     }
 
     private int getWeeklyTarget(PersonalHabit habit, LocalDate weekStart, LocalDate weekEnd) {
@@ -232,15 +264,17 @@ public class PersonalHabitService {
         return count;
     }
 
-    private boolean isScheduledForDate(PersonalHabit habit, LocalDate date) {
+    boolean isScheduledForDate(PersonalHabit habit, LocalDate date) {
         return switch (habit.getFrequencyType()) {
             case DAILY -> true;
             case WEEKDAY -> date.getDayOfWeek().getValue() <= 5;
             case WEEKEND -> date.getDayOfWeek().getValue() >= 6;
             case CUSTOM -> {
                 if (habit.getFrequencyDays() == null) yield true;
-                String dayOfWeek = String.valueOf(date.getDayOfWeek().getValue());
-                yield habit.getFrequencyDays().contains(dayOfWeek);
+                // Frontend uses JS convention: 0=Sunday, 1=Monday, ..., 6=Saturday
+                int iso = date.getDayOfWeek().getValue(); // 1(Mon)~7(Sun)
+                String dayOfWeek = String.valueOf(iso == 7 ? 0 : iso);
+                yield java.util.Arrays.asList(habit.getFrequencyDays().split(",")).contains(dayOfWeek);
             }
         };
     }

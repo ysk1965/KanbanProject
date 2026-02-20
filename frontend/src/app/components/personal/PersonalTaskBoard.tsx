@@ -5,12 +5,12 @@ import {
   Flame, CalendarClock, Zap, Archive, X, Pencil,
 } from 'lucide-react';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
+import { MotionModal } from '../ui/MotionModal';
 import { personalTaskAPI, personalHabitAPI } from '../../utils/api';
-import { PersonalTask, PersonalTaskPriority, HabitTodayItem, PersonalHabit } from '../../types';
+import { PersonalTask, PersonalTaskPriority, PersonalHabit, HabitTodayItem, HabitFrequency, HabitWeeklyMatrix } from '../../types';
 import { getDDay, getTodayDateString, type DdayUrgency } from '../../utils/dateUtils';
 import { startOfDay, parseISO, addDays, format } from 'date-fns';
-import { HabitFormModal, DeleteConfirmModal, CheckInConfirmModal, TaskCompleteConfirmModal } from './PersonalHabits';
-import type { HabitFormData } from './PersonalHabits';
+import { CheckInConfirmModal, TaskCompleteConfirmModal, HabitFormModal, type HabitFormData } from './PersonalHabits';
 
 // ── Types ─────────────────────────────────────────────────────
 
@@ -58,8 +58,8 @@ const QUADRANT_CONFIG: Record<Quadrant, {
   },
   q4: {
     icon: Archive,
-    color: 'text-slate-400', border: 'border-white/10', bg: 'bg-white/[0.02]',
-    headerBg: 'bg-white/5', dropBorder: 'border-slate-400/50',
+    color: 'text-slate-400', border: 'border-foreground/10', bg: 'bg-white/[0.02]',
+    headerBg: 'bg-foreground/5', dropBorder: 'border-slate-400/50',
   },
 };
 
@@ -74,7 +74,7 @@ const DDAY_STYLES: Record<DdayUrgency, string> = {
   overdue: 'bg-red-500/15 text-red-400',
   today:   'bg-orange-500/15 text-orange-400',
   soon:    'bg-amber-500/15 text-amber-400',
-  normal:  'bg-white/5 text-slate-400',
+  normal:  'bg-foreground/5 text-slate-400',
   none:    '',
 };
 
@@ -107,22 +107,351 @@ function getQuadrant(task: PersonalTask): Quadrant {
   return 'q4';
 }
 
-function getHabitUrgencyRatio(habit: HabitTodayItem): number {
-  const remaining = habit.weekly_target - habit.weekly_completed;
-  if (remaining <= 0) return 0;
-  const today = new Date();
-  const dayOfWeek = today.getDay(); // 0=Sun, 1=Mon, ...
-  const daysRemaining = dayOfWeek === 0 ? 1 : (7 - dayOfWeek + 1);
-  return remaining / daysRemaining;
+// ── Habits Horizontal Bar (all active habits) ────────────────
+
+const DAY_LABELS_SHORT = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+const DAY_LABELS_TWO = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+const DAY_DISPLAY_ORDER = [1, 2, 3, 4, 5, 6, 0]; // Mon → Sun
+
+function getScheduledDays(frequencyType: HabitFrequency, frequencyDays?: string): Set<number> {
+  switch (frequencyType) {
+    case 'DAILY': return new Set([0, 1, 2, 3, 4, 5, 6]);
+    case 'WEEKDAY': return new Set([1, 2, 3, 4, 5]);
+    case 'WEEKEND': return new Set([0, 6]);
+    case 'CUSTOM': return new Set(frequencyDays ? frequencyDays.split(',').map(Number) : []);
+    default: return new Set([0, 1, 2, 3, 4, 5, 6]);
+  }
 }
 
-function getHabitQuadrant(habit: HabitTodayItem): Quadrant {
-  const isImportant = habit.importance === 'HIGH';
-  const isUrgent = getHabitUrgencyRatio(habit) >= 0.7;
-  if (isImportant && isUrgent) return 'q1';
-  if (isImportant) return 'q2';
-  if (isUrgent) return 'q3';
-  return 'q4';
+function AllHabitsBar({ onNavigateHabits }: { onNavigateHabits?: () => void }) {
+  const { t } = useTranslation();
+  const [allHabits, setAllHabits] = useState<PersonalHabit[]>([]);
+  const [todayHabits, setTodayHabits] = useState<HabitTodayItem[]>([]);
+  const [weeklyMatrix, setWeeklyMatrix] = useState<HabitWeeklyMatrix | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [checkInConfirm, setCheckInConfirm] = useState<{ id: string; isUndo: boolean; isNonToday?: boolean } | null>(null);
+  const [editHabit, setEditHabit] = useState<PersonalHabit | null>(null);
+
+  const todayDow = new Date().getDay();
+
+  // Build a map: habitId → Set of completed day-of-week indices (0=Sun ... 6=Sat)
+  const weeklyCompletionMap = useMemo(() => {
+    const map = new Map<string, Set<number>>();
+    if (!weeklyMatrix) return map;
+    weeklyMatrix.habits.forEach(row => {
+      const completedDays = new Set<number>();
+      row.days.forEach(day => {
+        if (day.is_completed) {
+          completedDays.add(new Date(day.date + 'T00:00:00').getDay());
+        }
+      });
+      map.set(row.habit_id, completedDays);
+    });
+    return map;
+  }, [weeklyMatrix]);
+
+  const loadData = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const now = new Date();
+      const dayOfWeek = now.getDay();
+      const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+      const monday = new Date(now);
+      monday.setDate(now.getDate() + mondayOffset);
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6);
+      const fmt = (d: Date) => d.toISOString().split('T')[0];
+
+      const [all, today, weekly] = await Promise.all([
+        personalHabitAPI.getAll(),
+        personalHabitAPI.getToday(),
+        personalHabitAPI.getWeekly(fmt(monday), fmt(sunday)),
+      ]);
+      setAllHabits(all.filter(h => h.is_active));
+      setTodayHabits(today);
+      setWeeklyMatrix(weekly);
+    } catch {
+      console.error('Failed to load habits');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  // Map today's completion status by habit_id
+  const todayStatusMap = useMemo(() => {
+    const map = new Map<string, HabitTodayItem>();
+    todayHabits.forEach(h => map.set(h.habit_id, h));
+    return map;
+  }, [todayHabits]);
+
+  const completedCount = todayHabits.filter(h => h.is_completed).length;
+
+  const handleCheckIn = async (habitId: string, isUndo?: boolean) => {
+    const revertTo = !!isUndo;
+    const todayDate = getTodayDateString();
+    const isInTodayHabits = todayHabits.some(h => h.habit_id === habitId);
+
+    // Optimistic update for todayHabits (only if habit is scheduled today)
+    if (isInTodayHabits) {
+      setTodayHabits(prev => prev.map(h =>
+        h.habit_id === habitId ? { ...h, is_completed: !isUndo } : h
+      ));
+    }
+    // Optimistic update for weekly matrix (works for all habits)
+    setWeeklyMatrix(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        habits: prev.habits.map(row => {
+          if (row.habit_id !== habitId) return row;
+          return {
+            ...row,
+            days: row.days.map(day =>
+              day.date === todayDate ? { ...day, is_completed: !isUndo } : day
+            ),
+          };
+        }),
+      };
+    });
+    try {
+      const updated = await personalHabitAPI.checkIn(habitId);
+      if (isInTodayHabits) {
+        setTodayHabits(prev => prev.map(h => h.habit_id === habitId ? updated : h));
+      }
+    } catch {
+      if (isInTodayHabits) {
+        setTodayHabits(prev => prev.map(h =>
+          h.habit_id === habitId ? { ...h, is_completed: revertTo } : h
+        ));
+      }
+      setWeeklyMatrix(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          habits: prev.habits.map(row => {
+            if (row.habit_id !== habitId) return row;
+            return {
+              ...row,
+              days: row.days.map(day =>
+                day.date === todayDate ? { ...day, is_completed: revertTo } : day
+              ),
+            };
+          }),
+        };
+      });
+    }
+  };
+
+  const handleUpdateHabit = async (habitId: string, data: HabitFormData) => {
+    try {
+      await personalHabitAPI.update(habitId, data);
+      setEditHabit(null);
+      await loadData();
+    } catch (err) {
+      console.error('Failed to update habit:', err);
+    }
+  };
+
+  if (isLoading || allHabits.length === 0) return null;
+
+  return (
+    <>
+      <div className="rounded-xl border border-foreground/[0.08] overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center gap-2 px-3 py-2 bg-foreground/[0.04] border-b border-foreground/[0.06]">
+          <Flame size={13} className="text-purple-400" />
+          <span className="text-xs font-bold text-foreground">
+            {t('personal.habit.habits', '습관 관리')}
+          </span>
+          <span className="text-[10px] font-bold text-purple-400 bg-purple-400/10 px-1.5 py-0.5 rounded-full">
+            {completedCount}/{todayHabits.length}
+          </span>
+          <div className="flex-1" />
+          {onNavigateHabits && (
+            <button
+              onClick={onNavigateHabits}
+              className="text-[11px] text-slate-500 hover:text-bridge-secondary transition-colors"
+            >
+              {t('personal.overview.viewAll', 'View all')} →
+            </button>
+          )}
+        </div>
+
+        {/* Horizontal scroll cards */}
+        <div className="flex gap-2.5 p-3 overflow-x-auto custom-scrollbar">
+          {[...allHabits].sort((a, b) => {
+            const aScheduled = getScheduledDays(a.frequency_type, a.frequency_days).has(todayDow);
+            const bScheduled = getScheduledDays(b.frequency_type, b.frequency_days).has(todayDow);
+            if (aScheduled === bScheduled) return 0;
+            return aScheduled ? -1 : 1;
+          }).map((habit, idx) => {
+            const todayStatus = todayStatusMap.get(habit.id);
+            const scheduledDays = getScheduledDays(habit.frequency_type, habit.frequency_days);
+            const isScheduledToday = scheduledDays.has(todayDow);
+            const isCompleted = todayStatus?.is_completed ?? weeklyCompletionMap.get(habit.id)?.has(todayDow) ?? false;
+            const color = habit.color || '#8B5CF6';
+            const streak = todayStatus?.current_streak ?? habit.best_streak;
+            const weeklyCompleted = todayStatus?.weekly_completed ?? 0;
+            const weeklyTarget = todayStatus?.weekly_target ?? 0;
+
+            return (
+              <motion.div
+                key={habit.id}
+                initial={{ opacity: 0, x: 16 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: idx * 0.03 }}
+                className={`flex-shrink-0 w-[164px] md:w-[188px] rounded-xl border p-3.5 text-left relative group transition-colors cursor-pointer ${
+                  isScheduledToday
+                    ? 'bg-foreground/[0.03] hover:bg-foreground/[0.06]'
+                    : 'border-dashed border-foreground/[0.06] bg-foreground/[0.02] hover:bg-foreground/[0.04] opacity-60 hover:opacity-80'
+                }`}
+                style={isScheduledToday ? { borderColor: `${color}40` } : undefined}
+                onClick={() => setEditHabit(habit)}
+              >
+                {/* Top accent bar */}
+                <div
+                  className="absolute top-0 left-3 right-3 h-[2.5px] rounded-b-full"
+                  style={{ backgroundColor: isCompleted ? '#2DD4BF' : color, opacity: isScheduledToday ? 1 : 0.4 }}
+                />
+
+                  {/* Icon + title + check */}
+                  <div className="flex items-center gap-2 mb-3">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCheckInConfirm({
+                          id: habit.id,
+                          isUndo: isCompleted,
+                          isNonToday: !isScheduledToday && !isCompleted,
+                        });
+                      }}
+                      className="flex-shrink-0"
+                    >
+                      <motion.div
+                        className={`w-5 h-5 rounded-full border-[1.5px] flex items-center justify-center transition-colors ${
+                          isCompleted
+                            ? 'bg-bridge-secondary border-bridge-secondary'
+                            : isScheduledToday
+                            ? 'border-foreground/20 group-hover:border-purple-400/50'
+                            : 'border-dashed border-foreground/15 group-hover:border-blue-400/50'
+                        }`}
+                        animate={isCompleted ? { scale: [1, 1.2, 1] } : {}}
+                        transition={{ duration: 0.3 }}
+                      >
+                        {isCompleted && <Check size={10} className="text-white" />}
+                      </motion.div>
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <div className={`text-[13px] font-bold truncate leading-tight ${
+                        isCompleted ? 'text-slate-500 line-through'
+                          : !isScheduledToday ? 'text-slate-500'
+                          : 'text-foreground'
+                      }`}>
+                        {habit.icon && <span className="mr-1">{habit.icon}</span>}
+                        {habit.title}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Day chips */}
+                  <div className="flex gap-[3px] mb-2.5">
+                    {DAY_DISPLAY_ORDER.map(dayIdx => {
+                      const isScheduled = scheduledDays.has(dayIdx);
+                      const isTodayDay = dayIdx === todayDow;
+                      const isDayCompleted = weeklyCompletionMap.get(habit.id)?.has(dayIdx) ?? false;
+                      return (
+                        <div key={dayIdx} className="flex flex-col items-center gap-1 flex-1">
+                          <span className={`text-[9px] leading-none ${
+                            isTodayDay && isScheduled
+                              ? 'font-extrabold text-purple-300'
+                              : isTodayDay
+                              ? 'font-bold text-slate-400'
+                              : isScheduled
+                              ? 'font-medium text-slate-400'
+                              : 'text-slate-600/30'
+                          }`}>
+                            {DAY_LABELS_SHORT[dayIdx]}
+                          </span>
+                          {isDayCompleted ? (
+                            <div
+                              className={`rounded-full flex items-center justify-center transition-all ${
+                                isTodayDay
+                                  ? 'w-3 h-3 ring-[1.5px] ring-purple-400/60'
+                                  : 'w-2.5 h-2.5'
+                              }`}
+                              style={{ backgroundColor: color }}
+                            >
+                              <Check size={isTodayDay ? 8 : 7} className="text-white" strokeWidth={3} />
+                            </div>
+                          ) : (
+                            <div
+                              className={`rounded-full transition-all ${
+                                isTodayDay && isScheduled
+                                  ? 'w-3 h-3 ring-[1.5px] ring-purple-400/60'
+                                  : isScheduled
+                                  ? 'w-2 h-2'
+                                  : 'w-1.5 h-1.5'
+                              }`}
+                              style={{
+                                backgroundColor: isScheduled
+                                  ? isTodayDay ? color : `${color}55`
+                                  : 'rgba(255,255,255,0.04)',
+                              }}
+                            />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Streak + weekly */}
+                  <div className="flex items-center justify-between">
+                    {streak > 0 ? (
+                      <div className="flex items-center gap-0.5 text-[10px] text-orange-400 font-bold">
+                        <Flame size={11} />
+                        {streak}
+                      </div>
+                    ) : <div />}
+                    {weeklyTarget > 0 && (
+                      <span className="text-[10px] text-slate-500 font-medium">
+                        {weeklyCompleted}/{weeklyTarget}
+                      </span>
+                    )}
+                  </div>
+              </motion.div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Check-in Confirm Modal */}
+      <CheckInConfirmModal
+        open={!!checkInConfirm}
+        habitName={checkInConfirm ? (allHabits.find(h => h.id === checkInConfirm.id)?.title || '') : ''}
+        habitIcon={checkInConfirm ? allHabits.find(h => h.id === checkInConfirm.id)?.icon : undefined}
+        streakCount={checkInConfirm ? todayStatusMap.get(checkInConfirm.id)?.current_streak : undefined}
+        isUndo={checkInConfirm?.isUndo}
+        isNonToday={checkInConfirm?.isNonToday}
+        onConfirm={() => {
+          if (checkInConfirm) {
+            handleCheckIn(checkInConfirm.id, checkInConfirm.isUndo);
+            setCheckInConfirm(null);
+          }
+        }}
+        onCancel={() => setCheckInConfirm(null)}
+      />
+
+      {/* Edit Habit Modal */}
+      <HabitFormModal
+        open={!!editHabit}
+        habit={editHabit ?? undefined}
+        onClose={() => setEditHabit(null)}
+        onSubmit={(data) => editHabit && handleUpdateHabit(editHabit.id, data)}
+      />
+    </>
+  );
 }
 
 // ── Main Component ────────────────────────────────────────────
@@ -130,7 +459,7 @@ function getHabitQuadrant(habit: HabitTodayItem): Quadrant {
 export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: PersonalTaskBoardProps) {
   const { t } = useTranslation();
   const [modalTaskId, setModalTaskId] = useState<string | null>(null);
-  const [showCompleted, setShowCompleted] = useState(true);
+  const [showCompleted, setShowCompleted] = useState(false);
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [dragOverQuadrant, setDragOverQuadrant] = useState<Quadrant | null>(null);
 
@@ -139,36 +468,9 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
   const [newDueDate, setNewDueDate] = useState(getTodayDateString());
   const [newPriority, setNewPriority] = useState<PersonalTaskPriority>('MEDIUM');
   const [isAddFocused, setIsAddFocused] = useState(false);
-  const [addMode, setAddMode] = useState<'task' | 'habit'>('task');
   const addInputRef = useRef<HTMLInputElement>(null);
 
-  // ── Habits state ──
-  const [todayHabits, setTodayHabits] = useState<HabitTodayItem[]>([]);
-  const [allHabits, setAllHabits] = useState<PersonalHabit[]>([]);
-  const [isHabitCreateOpen, setIsHabitCreateOpen] = useState(false);
-  const [editHabitData, setEditHabitData] = useState<PersonalHabit | null>(null);
-  const [deleteHabitId, setDeleteHabitId] = useState<string | null>(null);
-  const [showHabitMenu, setShowHabitMenu] = useState(false);
-  const [habitConfirm, setHabitConfirm] = useState<{ id: string; isUndo: boolean } | null>(null);
   const [taskConfirm, setTaskConfirm] = useState<{ id: string; title: string; isDone: boolean } | null>(null);
-
-  // Load habits
-  const loadHabits = useCallback(async () => {
-    try {
-      const [today, all] = await Promise.all([
-        personalHabitAPI.getToday(),
-        personalHabitAPI.getAll(),
-      ]);
-      setTodayHabits(today);
-      setAllHabits(all.filter(h => h.is_active));
-    } catch (err) {
-      console.error('Failed to load habits:', err);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadHabits();
-  }, [loadHabits]);
 
   // ── Filtered lists ──
   const activeTasks = useMemo(
@@ -181,9 +483,6 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
       .sort((a, b) => (b.completed_at ?? '').localeCompare(a.completed_at ?? '')),
     [tasks],
   );
-
-  // All today's habits (completed ones show with check marks)
-  const activeHabits = useMemo(() => todayHabits, [todayHabits]);
 
   // ── Group by quadrant ──
   const taskQuadrants = useMemo(() => {
@@ -205,32 +504,9 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
     return result;
   }, [activeTasks]);
 
-  const habitQuadrants = useMemo(() => {
-    const result: Record<Quadrant, HabitTodayItem[]> = { q1: [], q2: [], q3: [], q4: [] };
-    for (const habit of activeHabits) {
-      result[getHabitQuadrant(habit)].push(habit);
-    }
-    // Sort: uncompleted first, completed last
-    for (const list of Object.values(result)) {
-      list.sort((a, b) => (a.is_completed ? 1 : 0) - (b.is_completed ? 1 : 0));
-    }
-    return result;
-  }, [activeHabits]);
-
   // ── Task Handlers ──
   const handleQuickAdd = async () => {
     if (!newTitle.trim()) return;
-    if (addMode === 'habit') {
-      try {
-        await personalHabitAPI.create({ title: newTitle.trim() });
-        setNewTitle('');
-        setIsAddFocused(false);
-        await loadHabits();
-      } catch (err) {
-        console.error('Failed to create habit:', err);
-      }
-      return;
-    }
     try {
       await personalTaskAPI.create({
         title: newTitle.trim(),
@@ -257,10 +533,6 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
 
   const requestTaskToggle = (task: PersonalTask) => {
     setTaskConfirm({ id: task.id, title: task.title, isDone: task.status === 'DONE' });
-  };
-
-  const requestHabitToggle = (habitId: string, isCompleted: boolean) => {
-    setHabitConfirm({ id: habitId, isUndo: isCompleted });
   };
 
   const handleDelete = async (taskId: string) => {
@@ -336,75 +608,21 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
     setDragOverQuadrant(null);
   }, [draggedTaskId, activeTasks, onOptimisticUpdate, onRefresh]);
 
-  // ── Habit handlers ──
-  const handleHabitCheckIn = useCallback(async (habitId: string) => {
-    // Optimistic toggle — immediately flip is_completed
-    const prev_completed = todayHabits.find(h => h.habit_id === habitId)?.is_completed ?? false;
-    setTodayHabits(prev => prev.map(h =>
-      h.habit_id === habitId ? { ...h, is_completed: !h.is_completed } : h
-    ));
-    try {
-      const updated = await personalHabitAPI.checkIn(habitId);
-      setTodayHabits(prev => prev.map(h => h.habit_id === habitId ? updated : h));
-    } catch {
-      // Revert on failure
-      setTodayHabits(prev => prev.map(h =>
-        h.habit_id === habitId ? { ...h, is_completed: prev_completed } : h
-      ));
-      console.error('Failed to check in habit');
-    }
-  }, [todayHabits]);
-
-  const handleHabitCreate = useCallback(async (data: HabitFormData) => {
-    try {
-      await personalHabitAPI.create(data);
-      setIsHabitCreateOpen(false);
-      await loadHabits();
-    } catch (err) {
-      console.error('Failed to create habit:', err);
-    }
-  }, [loadHabits]);
-
-  const handleHabitUpdate = useCallback(async (habitId: string, data: HabitFormData) => {
-    try {
-      await personalHabitAPI.update(habitId, data);
-      setEditHabitData(null);
-      await loadHabits();
-    } catch (err) {
-      console.error('Failed to update habit:', err);
-    }
-  }, [loadHabits]);
-
-  const handleHabitDelete = useCallback(async (habitId: string) => {
-    try {
-      await personalHabitAPI.delete(habitId);
-      setDeleteHabitId(null);
-      await loadHabits();
-    } catch (err) {
-      console.error('Failed to delete habit:', err);
-    }
-  }, [loadHabits]);
-
   const saturdayLabel = format(getThisSaturday(), 'M/d');
-  const completedHabitsToday = todayHabits.filter(h => h.is_completed).length;
 
   return (
-    <div className="h-full overflow-y-auto custom-scrollbar">
-      <div className="max-w-5xl mx-auto p-4 md:p-6 space-y-4">
+    <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+      <div className="max-w-5xl mx-auto p-4 md:p-6 pb-20 md:pb-6 space-y-4">
 
-        {/* ── Quick Add Bar ── */}
-        <div className={`bg-bridge-obsidian rounded-xl border transition-all ${
+        {/* ── Quick Add Bar (hidden on mobile – use FAB instead) ── */}
+        <div className={`hidden md:block bg-bridge-obsidian rounded-xl border transition-all ${
           isAddFocused
-            ? addMode === 'habit'
-              ? 'border-purple-500/50 shadow-lg shadow-purple-500/5'
-              : 'border-bridge-accent/50 shadow-lg shadow-bridge-accent/5'
-            : 'border-white/10'
+            ? 'border-bridge-accent/50 shadow-lg shadow-bridge-accent/5'
+            : 'border-foreground/10'
         }`}>
           <div className="flex items-center gap-2 px-3 md:px-4 py-3">
             <Plus size={18} className={`shrink-0 ${
-              isAddFocused
-                ? addMode === 'habit' ? 'text-purple-400' : 'text-bridge-accent'
-                : 'text-slate-500'
+              isAddFocused ? 'text-bridge-accent' : 'text-slate-500'
             }`} />
             <input
               ref={addInputRef}
@@ -420,57 +638,34 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
                   addInputRef.current?.blur();
                 }
               }}
-              placeholder={addMode === 'habit'
-                ? t('personal.habit.habitPlaceholder', '예: 아침 달리기, 10페이지 읽기')
-                : t('personal.tasks.addPlaceholder', '할 일 추가...')}
-              className="flex-1 min-w-0 bg-transparent text-sm text-white placeholder-slate-600 outline-none"
+              placeholder={t('personal.tasks.addPlaceholder', '할 일 추가...')}
+              className="flex-1 min-w-0 bg-transparent text-sm text-foreground placeholder-slate-600 outline-none"
             />
-            {/* Mode toggle pill */}
-            <button
-              type="button"
-              onClick={() => setAddMode(addMode === 'task' ? 'habit' : 'task')}
-              className={`shrink-0 flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-bold transition-all ${
-                addMode === 'habit'
-                  ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
-                  : 'bg-white/5 text-slate-500 border border-white/10 hover:text-slate-300 hover:bg-white/10'
-              }`}
-            >
-              <Flame size={11} />
-              <span className="hidden sm:inline">{t('personal.habit.habits', '습관')}</span>
-            </button>
-            {addMode === 'task' && (
-              <>
-                <input
-                  type="date"
-                  value={newDueDate}
-                  onChange={(e) => setNewDueDate(e.target.value)}
-                  className="hidden sm:block bg-transparent text-xs text-slate-400 border border-white/10 rounded-lg px-2 py-1 outline-none focus:border-bridge-accent/50 [color-scheme:dark] w-[130px]"
-                />
-                <PriorityDropdown value={newPriority} onChange={setNewPriority} />
-              </>
-            )}
+            <input
+              type="date"
+              value={newDueDate}
+              onChange={(e) => setNewDueDate(e.target.value)}
+              className="hidden sm:block bg-transparent text-xs text-slate-400 border border-foreground/10 rounded-lg px-2 py-1 outline-none focus:border-bridge-accent/50 [color-scheme:dark] w-[130px]"
+            />
+            <PriorityDropdown value={newPriority} onChange={setNewPriority} />
           </div>
-          {addMode === 'task' && isAddFocused && (
+          {isAddFocused && (
             <div className="sm:hidden px-3 pb-2">
               <input
                 type="date"
                 value={newDueDate}
                 onChange={(e) => setNewDueDate(e.target.value)}
-                className="w-full bg-transparent text-xs text-slate-400 border border-white/10 rounded-lg px-3 py-1.5 outline-none focus:border-bridge-accent/50 [color-scheme:dark]"
+                className="w-full bg-transparent text-xs text-slate-400 border border-foreground/10 rounded-lg px-3 py-1.5 outline-none focus:border-bridge-accent/50 [color-scheme:dark]"
               />
             </div>
           )}
           {isAddFocused && newTitle.trim() && (
             <div className="px-4 pb-3">
-              <div className="flex items-center justify-between pt-2 border-t border-white/5">
+              <div className="flex items-center justify-between pt-2 border-t border-foreground/5">
                 <span className="text-[10px] text-slate-500">Enter {t('personal.tasks.toAdd', '추가')} · Esc {t('common.cancel', '취소')}</span>
                 <button
                   onClick={handleQuickAdd}
-                  className={`px-3 py-1 text-white text-xs rounded-lg font-medium transition-colors ${
-                    addMode === 'habit'
-                      ? 'bg-purple-500 hover:bg-purple-500/90'
-                      : 'bg-bridge-accent hover:bg-bridge-accent/90'
-                  }`}
+                  className="px-3 py-1 text-white text-xs rounded-lg font-medium transition-colors bg-bridge-accent hover:bg-bridge-accent/90"
                 >
                   {t('personal.tasks.add', '추가')}
                 </button>
@@ -479,283 +674,167 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
           )}
         </div>
 
-        {/* ── Stats Bar ── */}
-        <div className="flex items-center gap-2 md:gap-3 flex-wrap">
-          <span className="text-xs text-slate-400">
-            {t('personal.tasks.active', '활성')}
-            <span className="ml-1 text-bridge-secondary font-bold">{activeTasks.length}</span>
-          </span>
-          <span className="text-white/10">·</span>
-          <span className="text-xs text-slate-400">
-            {t('personal.tasks.completed', '완료됨')}
-            <span className="ml-1 text-emerald-400 font-bold">{completedTasks.length}</span>
-          </span>
-          {todayHabits.length > 0 && (
-            <>
-              <span className="text-white/10">·</span>
-              <span className="text-xs text-slate-400">
-                <Flame size={11} className="inline text-purple-400 mr-0.5 -mt-0.5" />
-                {t('personal.habit.habits', '습관')}
-                <span className="ml-1 text-purple-400 font-bold">
-                  {completedHabitsToday}/{todayHabits.length}
-                </span>
-              </span>
-            </>
-          )}
-          <div className="flex-1" />
-          {/* Habit management button */}
-          <div className="relative">
-            <button
-              onClick={() => setShowHabitMenu(!showHabitMenu)}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold text-purple-400 bg-purple-400/10 hover:bg-purple-400/20 transition-colors"
-            >
-              <Flame size={12} />
-              {t('personal.habit.manage', '습관 관리')}
-            </button>
-            {showHabitMenu && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setShowHabitMenu(false)} />
-                <div className="absolute right-0 top-full mt-1 bg-bridge-obsidian border border-white/10 rounded-xl shadow-2xl z-50 py-1 min-w-[180px]">
-                  <button
-                    onClick={() => { setShowHabitMenu(false); setIsHabitCreateOpen(true); }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-white hover:bg-white/5 transition-colors"
-                  >
-                    <Plus size={14} className="text-purple-400" />
-                    {t('personal.habit.newHabit', '새 습관 추가')}
-                  </button>
-                  <div className="h-px bg-white/5 mx-2 my-1" />
-                  {allHabits.length === 0 ? (
-                    <div className="px-3 py-2 text-[11px] text-slate-500">{t('personal.habit.noHabits', '등록된 습관이 없습니다')}</div>
-                  ) : (
-                    allHabits.map(habit => (
-                      <div key={habit.id} className="flex items-center gap-2 px-3 py-1.5 hover:bg-white/5 transition-colors group">
-                        <span className="text-sm">{habit.icon || '🔥'}</span>
-                        <span className="flex-1 text-xs text-slate-300 truncate">{habit.title}</span>
-                        <button
-                          onClick={() => { setShowHabitMenu(false); setEditHabitData(habit); }}
-                          className="p-0.5 text-slate-500 hover:text-white opacity-0 group-hover:opacity-100 transition-all"
-                        >
-                          <Pencil size={11} />
-                        </button>
-                        <button
-                          onClick={() => { setShowHabitMenu(false); setDeleteHabitId(habit.id); }}
-                          className="p-0.5 text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
-                        >
-                          <Trash2 size={11} />
-                        </button>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </>
-            )}
-          </div>
-          <span className="text-[10px] text-slate-500 hidden sm:inline">
-            {t('personal.tasks.thisWeek', { date: saturdayLabel })}
-          </span>
-        </div>
+        {/* ── All Habits Bar ── */}
+        <AllHabitsBar />
 
-        {/* ── Eisenhower Matrix ── */}
-        <div className="space-y-0">
-          {/* Column axis labels */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 mb-1.5">
-            <div className="text-center hidden sm:block">
-              <span className="text-[10px] tracking-[0.15em] uppercase font-bold text-red-400/80">
-                {t('personal.tasks.urgentColumn')}
-              </span>
-              <span className="text-[10px] text-slate-500 ml-1.5">~{saturdayLabel}</span>
-            </div>
-            <div className="text-center hidden sm:block">
-              <span className="text-[10px] tracking-[0.15em] uppercase font-bold text-slate-400/80">
-                {t('personal.tasks.notUrgentColumn')}
-              </span>
-              <span className="text-[10px] text-slate-500 ml-1.5">{t('personal.tasks.nextWeekPlus')}</span>
-            </div>
-          </div>
-
-          {/* Matrix 2x2 Grid */}
-          <LayoutGroup>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-              {(['q1', 'q2', 'q3', 'q4'] as Quadrant[]).map(q => (
-                <QuadrantCell
-                  key={q}
-                  quadrant={q}
-                  tasks={taskQuadrants[q]}
-                  habits={habitQuadrants[q]}
-                  isDragOver={dragOverQuadrant === q}
-                  draggedTaskId={draggedTaskId}
-                  onDragStart={handleDragStart}
-                  onDragEnd={handleDragEnd}
-                  onDragOver={() => setDragOverQuadrant(q)}
-                  onDragLeave={() => setDragOverQuadrant(null)}
-                  onDrop={() => handleQuadrantDrop(q)}
-                  onToggleComplete={requestTaskToggle}
-                  onOpenModal={(id) => setModalTaskId(id)}
-                  onUpdate={handleUpdate}
-                  onHabitCheckIn={(habitId) => {
-                    const habit = todayHabits.find(h => h.habit_id === habitId);
-                    requestHabitToggle(habitId, habit?.is_completed ?? false);
-                  }}
-                  onHabitEdit={(habitId) => {
-                    const habit = allHabits.find(h => h.id === habitId);
-                    if (habit) setEditHabitData(habit);
-                  }}
-                  onHabitDelete={(habitId) => setDeleteHabitId(habitId)}
-                />
-              ))}
-            </div>
-          </LayoutGroup>
-
-          {/* Row axis labels */}
-          <div className="flex items-center gap-2 sm:gap-3 mt-2 flex-wrap">
-            <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-orange-500" />
-              <span className="text-[10px] text-slate-500">{t('personal.tasks.importantLegend')}</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-amber-400" />
-              <span className="text-[10px] text-slate-500">{t('personal.tasks.normalLegend')}</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-1.5 h-4 rounded-full bg-purple-500" />
-              <span className="text-[10px] text-slate-500">{t('personal.habit.habits', '습관')}</span>
-            </div>
+        {/* ── Eisenhower Matrix Container ── */}
+        <div className="rounded-xl border border-foreground/[0.08] overflow-hidden">
+          {/* Header bar (same pattern as AllHabitsBar) */}
+          <div className="flex items-center gap-2 px-3 py-2 bg-foreground/[0.04] border-b border-foreground/[0.06]">
+            <CalendarClock size={13} className="text-bridge-accent" />
+            <span className="text-xs font-bold text-foreground">
+              {t('personal.tasks.matrixTitle', '아이젠하워 매트릭스')}
+            </span>
+            <span className="text-[10px] font-bold text-bridge-secondary bg-bridge-secondary/10 px-1.5 py-0.5 rounded-full">
+              {activeTasks.length}
+            </span>
             <div className="flex-1" />
-            <span className="text-[10px] text-slate-500 italic hidden sm:inline">{t('personal.tasks.dragToMove')}</span>
+            <span className="text-[10px] text-slate-500 hidden sm:inline mr-1">
+              {t('personal.tasks.thisWeek', { date: saturdayLabel })}
+            </span>
+            {completedTasks.length > 0 && (
+              <button
+                onClick={() => setShowCompleted(true)}
+                className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 hover:border-emerald-500/30 transition-all"
+              >
+                <Check size={11} />
+                {t('personal.tasks.completed', '완료됨')}
+                <span className="font-bold">{completedTasks.length}</span>
+              </button>
+            )}
+          </div>
+
+          {/* Matrix content */}
+          <div className="p-2.5 space-y-0">
+            {/* Column axis labels */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 mb-1.5">
+              <div className="text-center hidden sm:block">
+                <span className="text-[10px] tracking-[0.15em] uppercase font-bold text-red-400/80">
+                  {t('personal.tasks.urgentColumn')}
+                </span>
+                <span className="text-[10px] text-slate-500 ml-1.5">~{saturdayLabel}</span>
+              </div>
+              <div className="text-center hidden sm:block">
+                <span className="text-[10px] tracking-[0.15em] uppercase font-bold text-slate-400/80">
+                  {t('personal.tasks.notUrgentColumn')}
+                </span>
+                <span className="text-[10px] text-slate-500 ml-1.5">{t('personal.tasks.nextWeekPlus')}</span>
+              </div>
+            </div>
+
+            {/* Matrix 2x2 Grid */}
+            <LayoutGroup>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                {(['q1', 'q2', 'q3', 'q4'] as Quadrant[]).map(q => (
+                  <div key={q} className={
+                    q === 'q1' ? 'order-1 sm:order-none' :
+                    q === 'q2' ? 'order-3 sm:order-none' :
+                    q === 'q3' ? 'order-2 sm:order-none' :
+                                'order-4 sm:order-none'
+                  }>
+                  <QuadrantCell
+                    quadrant={q}
+                    tasks={taskQuadrants[q]}
+                    isDragOver={dragOverQuadrant === q}
+                    draggedTaskId={draggedTaskId}
+                    onDragStart={handleDragStart}
+                    onDragEnd={handleDragEnd}
+                    onDragOver={() => setDragOverQuadrant(q)}
+                    onDragLeave={() => setDragOverQuadrant(null)}
+                    onDrop={() => handleQuadrantDrop(q)}
+                    onToggleComplete={requestTaskToggle}
+                    onOpenModal={(id) => setModalTaskId(id)}
+                    onUpdate={handleUpdate}
+                  />
+                  </div>
+                ))}
+              </div>
+            </LayoutGroup>
+
+            {/* Row axis labels */}
+            <div className="flex items-center gap-2 sm:gap-3 mt-2 flex-wrap">
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-orange-500" />
+                <span className="text-[10px] text-slate-500">{t('personal.tasks.importantLegend')}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-amber-400" />
+                <span className="text-[10px] text-slate-500">{t('personal.tasks.normalLegend')}</span>
+              </div>
+              <div className="flex-1" />
+              <span className="text-[10px] text-slate-500 italic hidden sm:inline">{t('personal.tasks.dragToMove')}</span>
+            </div>
           </div>
         </div>
 
-        {/* ── Completed Section ── */}
-        {completedTasks.length > 0 && (
-          <div>
-            <button
-              onClick={() => setShowCompleted(!showCompleted)}
-              className="flex items-center gap-2 w-full py-2"
-            >
-              <div className="h-px flex-1 bg-white/5" />
-              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 hover:bg-white/[0.08] transition-colors">
-                <Check size={12} className="text-emerald-400" />
-                <span className="text-xs text-slate-400 font-medium">
-                  {t('personal.tasks.completed', '완료됨')}
-                  <span className="ml-1 text-emerald-400 font-bold">{completedTasks.length}</span>
-                </span>
-                <ChevronDown
-                  size={12}
-                  className={`text-slate-500 transition-transform ${showCompleted ? 'rotate-180' : ''}`}
-                />
-              </div>
-              <div className="h-px flex-1 bg-white/5" />
-            </button>
-
-            {showCompleted && (
-              <div className="space-y-1 pt-2">
-                <AnimatePresence mode="popLayout">
-                  {completedTasks.map(task => (
-                    <motion.div
-                      key={task.id}
-                      layoutId={`task-${task.id}`}
-                      layout
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: 10 }}
-                      transition={{ type: 'spring', stiffness: 500, damping: 35, mass: 0.8 }}
-                    >
-                      <CompletedTaskRow
-                        task={task}
-                        onToggleComplete={() => requestTaskToggle(task)}
-                        onDelete={() => handleDelete(task.id)}
-                      />
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
       {/* ── Task Detail Modal ── */}
-      <AnimatePresence>
-        {modalTaskId && (() => {
-          const modalTask = tasks.find(t => t.id === modalTaskId);
-          if (!modalTask) return null;
-          return (
-            <TaskDetailModal
-              task={modalTask}
-              onClose={() => setModalTaskId(null)}
-              onUpdate={(data) => handleUpdate(modalTaskId, data)}
-              onDelete={() => { handleDelete(modalTaskId); setModalTaskId(null); }}
-              onToggleComplete={() => { requestTaskToggle(modalTask); }}
-            />
-          );
-        })()}
-      </AnimatePresence>
-
-      {/* ── Habit Modals ── */}
-      <AnimatePresence>
-        {isHabitCreateOpen && (
-          <HabitFormModal
-            onClose={() => setIsHabitCreateOpen(false)}
-            onSubmit={handleHabitCreate}
-          />
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {editHabitData && (
-          <HabitFormModal
-            habit={editHabitData}
-            onClose={() => setEditHabitData(null)}
-            onSubmit={(data) => handleHabitUpdate(editHabitData.id, data)}
-          />
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {deleteHabitId && (
-          <DeleteConfirmModal
-            habitName={allHabits.find(h => h.id === deleteHabitId)?.title || ''}
-            onConfirm={() => handleHabitDelete(deleteHabitId)}
-            onCancel={() => setDeleteHabitId(null)}
-          />
-        )}
-      </AnimatePresence>
-
-      {/* Habit Check-in Confirm Modal */}
-      <AnimatePresence>
-        {habitConfirm && (() => {
-          const habit = todayHabits.find(h => h.habit_id === habitConfirm.id);
-          return (
-            <CheckInConfirmModal
-              habitName={habit?.title || ''}
-              habitIcon={habit?.icon}
-              streakCount={habit?.current_streak}
-              isUndo={habitConfirm.isUndo}
-              onConfirm={() => {
-                handleHabitCheckIn(habitConfirm.id);
-                setHabitConfirm(null);
-              }}
-              onCancel={() => setHabitConfirm(null)}
-            />
-          );
-        })()}
-      </AnimatePresence>
+      <TaskDetailModal
+        open={!!modalTaskId}
+        task={modalTaskId ? tasks.find(t => t.id === modalTaskId) ?? null : null}
+        onClose={() => setModalTaskId(null)}
+        onUpdate={(data) => modalTaskId && handleUpdate(modalTaskId, data)}
+        onDelete={() => { if (modalTaskId) { handleDelete(modalTaskId); setModalTaskId(null); } }}
+        onToggleComplete={() => { const t = modalTaskId ? tasks.find(t => t.id === modalTaskId) : null; if (t) requestTaskToggle(t); }}
+      />
 
       {/* Task Complete Confirm Modal */}
-      <AnimatePresence>
-        {taskConfirm && (
-          <TaskCompleteConfirmModal
-            taskName={taskConfirm.title}
-            isUndo={taskConfirm.isDone}
-            onConfirm={() => {
-              const task = tasks.find(t => t.id === taskConfirm.id);
-              if (task) handleToggleComplete(task);
-              setTaskConfirm(null);
-            }}
-            onCancel={() => setTaskConfirm(null)}
-          />
-        )}
-      </AnimatePresence>
+      <TaskCompleteConfirmModal
+        open={!!taskConfirm}
+        taskName={taskConfirm?.title || ''}
+        isUndo={taskConfirm?.isDone}
+        onConfirm={() => {
+          if (taskConfirm) {
+            const task = tasks.find(t => t.id === taskConfirm.id);
+            if (task) handleToggleComplete(task);
+            setTaskConfirm(null);
+          }
+        }}
+        onCancel={() => setTaskConfirm(null)}
+      />
+
+      {/* Completed Tasks Modal */}
+      <MotionModal open={showCompleted} onClose={() => setShowCompleted(false)} className="sm:max-w-md p-0 overflow-hidden">
+        <div>
+          <div className="flex items-center gap-3 px-5 pt-5 pb-3 border-b border-foreground/5">
+            <div className="w-7 h-7 rounded-full bg-emerald-500/15 flex items-center justify-center">
+              <Check size={14} className="text-emerald-400" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-sm font-bold text-foreground">
+                {t('personal.tasks.completed', '완료됨')}
+              </h3>
+              <span className="text-[10px] text-slate-500">
+                {completedTasks.length}{t('personal.tasks.completedCount', '개 완료')}
+              </span>
+            </div>
+            <button
+              onClick={() => setShowCompleted(false)}
+              className="p-1.5 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5 transition-colors"
+            >
+              <X size={16} />
+            </button>
+          </div>
+
+          {completedTasks.length === 0 ? (
+            <div className="flex items-center justify-center py-12 text-sm text-slate-500">
+              {t('personal.tasks.noCompleted', '완료된 할 일이 없습니다')}
+            </div>
+          ) : (
+            <div className="max-h-[60vh] overflow-y-auto custom-scrollbar p-2 space-y-1">
+              {completedTasks.map(task => (
+                <CompletedTaskRow
+                  key={task.id}
+                  task={task}
+                  onToggleComplete={() => requestTaskToggle(task)}
+                  onDelete={() => handleDelete(task.id)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </MotionModal>
     </div>
   );
 }
@@ -763,14 +842,12 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
 // ── QuadrantCell ──────────────────────────────────────────────
 
 function QuadrantCell({
-  quadrant, tasks, habits, isDragOver, draggedTaskId,
+  quadrant, tasks, isDragOver, draggedTaskId,
   onDragStart, onDragEnd, onDragOver, onDragLeave, onDrop,
-  onToggleComplete, onOpenModal, onUpdate, onHabitCheckIn,
-  onHabitEdit, onHabitDelete,
+  onToggleComplete, onOpenModal, onUpdate,
 }: {
   quadrant: Quadrant;
   tasks: PersonalTask[];
-  habits: HabitTodayItem[];
   isDragOver: boolean;
   draggedTaskId: string | null;
   onDragStart: (id: string) => void;
@@ -781,15 +858,12 @@ function QuadrantCell({
   onToggleComplete: (task: PersonalTask) => void;
   onOpenModal: (id: string) => void;
   onUpdate: (id: string, data: { title?: string; due_date?: string | null; priority?: PersonalTaskPriority; description?: string }) => void;
-  onHabitCheckIn: (habitId: string) => void;
-  onHabitEdit: (habitId: string) => void;
-  onHabitDelete: (habitId: string) => void;
 }) {
   const { t } = useTranslation();
   const cfg = QUADRANT_CONFIG[quadrant];
   const Icon = cfg.icon;
   const labelKeys = QUADRANT_LABEL_KEYS[quadrant];
-  const totalCount = tasks.length + habits.length;
+  const totalCount = tasks.length;
 
   return (
     <div
@@ -836,7 +910,6 @@ function QuadrantCell({
         )}
 
         <AnimatePresence mode="popLayout">
-          {/* Tasks first */}
           {tasks.map(task => (
             <motion.div
               key={task.id}
@@ -855,26 +928,6 @@ function QuadrantCell({
                 onToggleComplete={() => onToggleComplete(task)}
                 onOpenModal={() => onOpenModal(task.id)}
                 onUpdate={(data) => onUpdate(task.id, data)}
-              />
-            </motion.div>
-          ))}
-
-          {/* Habits below */}
-          {habits.map(habit => (
-            <motion.div
-              key={`habit-${habit.habit_id}`}
-              layoutId={`habit-${habit.habit_id}`}
-              layout
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              transition={{ type: 'spring', stiffness: 500, damping: 35, mass: 0.8 }}
-            >
-              <HabitMatrixCard
-                habit={habit}
-                onCheckIn={() => onHabitCheckIn(habit.habit_id)}
-                onEdit={() => onHabitEdit(habit.habit_id)}
-                onDelete={() => onHabitDelete(habit.habit_id)}
               />
             </motion.div>
           ))}
@@ -903,7 +956,7 @@ function HabitMatrixCard({ habit, onCheckIn, onEdit, onDelete }: {
         border transition-all
         ${habit.is_completed
           ? 'bg-bridge-secondary/5 border-bridge-secondary/20'
-          : 'bg-bridge-obsidian border-white/5 hover:border-purple-400/30 hover:bg-purple-500/5'
+          : 'bg-bridge-obsidian border-foreground/5 hover:border-purple-400/30 hover:bg-purple-500/5'
         }
       `}
     >
@@ -912,7 +965,7 @@ function HabitMatrixCard({ habit, onCheckIn, onEdit, onDelete }: {
         className={`w-4 h-4 rounded-full border-[1.5px] flex items-center justify-center shrink-0 transition-colors ${
           habit.is_completed
             ? 'bg-bridge-secondary border-bridge-secondary shadow-[0_0_8px_rgba(45,212,191,0.4)]'
-            : 'border-white/20 hover:border-bridge-secondary/50'
+            : 'border-bridge-border hover:border-bridge-secondary/50'
         }`}
         initial={false}
         animate={habit.is_completed ? { scale: [1, 1.3, 0.9, 1.1, 1] } : { scale: 1 }}
@@ -945,7 +998,7 @@ function HabitMatrixCard({ habit, onCheckIn, onEdit, onDelete }: {
       {/* Title + meta */}
       <div className="flex-1 min-w-0">
         <span className={`text-[12px] leading-tight line-clamp-1 ${
-          habit.is_completed ? 'line-through text-slate-500' : 'text-white'
+          habit.is_completed ? 'line-through text-slate-500' : 'text-foreground'
         }`}>
           {habit.title}
         </span>
@@ -967,7 +1020,7 @@ function HabitMatrixCard({ habit, onCheckIn, onEdit, onDelete }: {
       <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
         <button
           onClick={(e) => { e.stopPropagation(); onEdit(); }}
-          className="p-1 text-slate-500 hover:text-white rounded transition-colors"
+          className="p-1 text-slate-500 hover:text-foreground rounded transition-colors"
         >
           <Pencil size={11} />
         </button>
@@ -1021,7 +1074,7 @@ function TaskBoardWeeklyDonut({ completed, target, color }: {
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke="rgba(255,255,255,0.06)"
+          className="stroke-foreground/10"
           strokeWidth={strokeWidth}
         />
         <motion.circle
@@ -1040,10 +1093,10 @@ function TaskBoardWeeklyDonut({ completed, target, color }: {
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
         <span
-          className="font-bold leading-none"
+          className="font-bold leading-none text-muted-foreground"
           style={{
             fontSize: 5.5,
-            color: isComplete ? '#2DD4BF' : 'rgba(255,255,255,0.5)',
+            ...(isComplete ? { color: '#2DD4BF' } : {}),
           }}
         >
           {completed}/{target}
@@ -1085,8 +1138,8 @@ function MatrixTaskCard({
         onClick={onOpenModal}
         className={`
           flex items-center gap-2 px-2.5 py-2 rounded-lg cursor-grab active:cursor-grabbing
-          bg-bridge-obsidian border border-white/5 hover:border-white/10
-          transition-all hover:bg-white/[0.04]
+          bg-white/[0.03] border border-foreground/5 hover:border-foreground/10
+          transition-all hover:bg-white/[0.06]
           ${isDragging ? 'opacity-40 rotate-1' : ''}
         `}
       >
@@ -1097,25 +1150,7 @@ function MatrixTaskCard({
         </button>
 
         <div className="flex-1 min-w-0">
-          <span className="text-[12px] text-white leading-tight line-clamp-2">{task.title}</span>
-          {(task.checklists?.length > 0 || task.tags?.length > 0) && (
-            <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-              {task.tags?.map(tag => (
-                <span
-                  key={tag.id}
-                  className="text-[9px] px-1 py-0 rounded bg-white/5 text-slate-400"
-                  style={tag.color ? { backgroundColor: `${tag.color}20`, color: tag.color } : {}}
-                >
-                  {tag.name}
-                </span>
-              ))}
-              {task.checklists?.length > 0 && (
-                <span className="text-[9px] text-slate-500">
-                  ✓{task.checklists.filter(c => c.is_completed).length}/{task.checklists.length}
-                </span>
-              )}
-            </div>
-          )}
+          <span className="text-[12px] text-foreground leading-tight line-clamp-2">{task.title}</span>
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
@@ -1176,34 +1211,28 @@ function CompletedTaskRow({ task, onToggleComplete, onDelete }: {
 
 // ── TaskDetailModal ───────────────────────────────────────────
 
-function TaskDetailModal({ task, onClose, onUpdate, onDelete, onToggleComplete }: {
-  task: PersonalTask;
+function TaskDetailModal({ open, task, onClose, onUpdate, onDelete, onToggleComplete }: {
+  open: boolean;
+  task: PersonalTask | null;
   onClose: () => void;
   onUpdate: (data: { title?: string; due_date?: string | null; priority?: PersonalTaskPriority; description?: string }) => void;
   onDelete: () => void;
   onToggleComplete: () => void;
 }) {
   const { t } = useTranslation();
-  const [title, setTitle] = useState(task.title);
-  const [dueDate, setDueDate] = useState(task.due_date ?? '');
-  const [priority, setPriority] = useState(task.priority);
-  const [description, setDescription] = useState(task.description ?? '');
-  const backdropRef = useRef<HTMLDivElement>(null);
+  const [title, setTitle] = useState(task?.title ?? '');
+  const [dueDate, setDueDate] = useState(task?.due_date ?? '');
+  const [priority, setPriority] = useState<PersonalTaskPriority>(task?.priority ?? 'MEDIUM');
+  const [description, setDescription] = useState(task?.description ?? '');
 
   useEffect(() => {
-    setTitle(task.title);
-    setDueDate(task.due_date ?? '');
-    setPriority(task.priority);
-    setDescription(task.description ?? '');
+    if (task) {
+      setTitle(task.title);
+      setDueDate(task.due_date ?? '');
+      setPriority(task.priority);
+      setDescription(task.description ?? '');
+    }
   }, [task]);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
 
   const save = (patch: Parameters<typeof onUpdate>[0]) => {
     const filtered: typeof patch = {};
@@ -1214,23 +1243,14 @@ function TaskDetailModal({ task, onClose, onUpdate, onDelete, onToggleComplete }
     if (Object.keys(filtered).length > 0) onUpdate(filtered);
   };
 
+  if (!task) return null;
+
   const isDone = task.status === 'DONE';
   const dday = getDDay(task.due_date);
 
   return (
-    <motion.div
-      ref={backdropRef}
-      onClick={(e) => { if (e.target === backdropRef.current) onClose(); }}
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4"
-      initial={{ backgroundColor: 'rgba(0,0,0,0)', backdropFilter: 'blur(0px)' }}
-      animate={{ backgroundColor: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(2px)' }}
-      exit={{ backgroundColor: 'rgba(0,0,0,0)', backdropFilter: 'blur(0px)' }}
-      transition={{ duration: 0.3 }}
-    >
-      <div
-        className="bg-bridge-obsidian rounded-t-2xl sm:rounded-2xl border border-white/10 shadow-2xl w-full sm:max-w-md overflow-hidden max-h-[90vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <MotionModal open={open} onClose={onClose} className="sm:max-w-md p-0 overflow-hidden">
+      <div>
         <div className="flex items-center gap-3 px-5 pt-5 pb-3">
           <button
             onClick={onToggleComplete}
@@ -1245,7 +1265,7 @@ function TaskDetailModal({ task, onClose, onUpdate, onDelete, onToggleComplete }
           <div className="flex-1" />
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-white/5 transition-colors"
+            className="p-1.5 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5 transition-colors"
           >
             <X size={16} />
           </button>
@@ -1257,18 +1277,18 @@ function TaskDetailModal({ task, onClose, onUpdate, onDelete, onToggleComplete }
             onChange={(e) => setTitle(e.target.value)}
             onBlur={() => save({ title })}
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) { save({ title }); (e.target as HTMLInputElement).blur(); } }}
-            className="w-full bg-transparent text-base font-bold text-white outline-none placeholder-slate-600"
+            className="w-full bg-transparent text-base font-bold text-foreground outline-none placeholder-slate-600"
             placeholder={t('personal.tasks.titlePlaceholder', '할 일 제목')}
           />
 
           <div className="flex items-center gap-3 flex-wrap">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/5 hover:border-white/10 transition-colors">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-foreground/5 border border-foreground/5 hover:border-foreground/10 transition-colors">
               <Calendar size={13} className="text-slate-400" />
               <input
                 type="date"
                 value={dueDate}
                 onChange={(e) => { setDueDate(e.target.value); save({ due_date: e.target.value || getTodayDateString() }); }}
-                className="bg-transparent text-xs text-slate-300 outline-none [color-scheme:dark]"
+                className="bg-transparent text-xs text-muted-foreground outline-none [color-scheme:dark]"
               />
               {dday.urgency !== 'none' && (
                 <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${DDAY_STYLES[dday.urgency]}`}>
@@ -1277,7 +1297,7 @@ function TaskDetailModal({ task, onClose, onUpdate, onDelete, onToggleComplete }
               )}
             </div>
 
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/5">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-foreground/5 border border-foreground/5">
               <Flag size={13} className="text-slate-400" />
               <PriorityInline
                 value={priority}
@@ -1286,43 +1306,6 @@ function TaskDetailModal({ task, onClose, onUpdate, onDelete, onToggleComplete }
             </div>
           </div>
 
-          {task.tags?.length > 0 && (
-            <div className="flex items-center gap-1.5 flex-wrap">
-              {task.tags.map(tag => (
-                <span
-                  key={tag.id}
-                  className="text-[10px] px-2 py-0.5 rounded-full bg-white/5 text-slate-400"
-                  style={tag.color ? { backgroundColor: `${tag.color}20`, color: tag.color } : {}}
-                >
-                  {tag.name}
-                </span>
-              ))}
-            </div>
-          )}
-
-          {task.checklists?.length > 0 && (
-            <div className="space-y-1.5">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
-                {t('personal.tasks.checklist')} {task.checklists.filter(c => c.is_completed).length}/{task.checklists.length}
-              </span>
-              <div className="space-y-1">
-                {task.checklists.map(item => (
-                  <div key={item.id} className="flex items-center gap-2 px-2 py-1 rounded-lg bg-white/[0.03]">
-                    <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center ${
-                      item.is_completed
-                        ? 'bg-emerald-500/20 border-emerald-500/50'
-                        : 'border-slate-600'
-                    }`}>
-                      {item.is_completed && <Check size={9} className="text-emerald-400" />}
-                    </div>
-                    <span className={`text-xs ${item.is_completed ? 'text-slate-500 line-through' : 'text-slate-300'}`}>
-                      {item.content}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
           <textarea
             value={description}
@@ -1330,10 +1313,10 @@ function TaskDetailModal({ task, onClose, onUpdate, onDelete, onToggleComplete }
             onBlur={() => save({ description })}
             placeholder={t('personal.tasks.descPlaceholder', '메모 추가...')}
             rows={3}
-            className="w-full bg-white/[0.03] border border-white/5 rounded-xl p-3 text-sm text-slate-300 placeholder-slate-600 outline-none resize-none focus:border-bridge-accent/30 transition-colors"
+            className="w-full bg-white/[0.03] border border-foreground/5 rounded-xl p-3 text-sm text-muted-foreground placeholder-slate-600 outline-none resize-none focus:border-bridge-accent/30 transition-colors"
           />
 
-          <div className="flex items-center justify-between pt-2 border-t border-white/5">
+          <div className="flex items-center justify-between pt-2 border-t border-foreground/5">
             <span className="text-[10px] text-slate-600">
               Esc {t('common.close', '닫기')}
             </span>
@@ -1347,7 +1330,7 @@ function TaskDetailModal({ task, onClose, onUpdate, onDelete, onToggleComplete }
           </div>
         </div>
       </div>
-    </motion.div>
+    </MotionModal>
   );
 }
 
@@ -1365,7 +1348,7 @@ function PriorityDropdown({ value, onChange }: {
     <div className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className="p-1.5 rounded-lg border border-white/10 hover:bg-white/5 transition-colors"
+        className="p-1.5 rounded-lg border border-foreground/10 hover:bg-foreground/5 transition-colors"
         title={t('personal.tasks.priority')}
       >
         <div className={`w-3 h-3 rounded-full ${PRIORITY_CONFIG[value].dot}`} />
@@ -1373,13 +1356,13 @@ function PriorityDropdown({ value, onChange }: {
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-full mt-1 bg-bridge-obsidian border border-white/10 rounded-lg shadow-xl z-50 py-1 min-w-[100px]">
+          <div className="absolute right-0 top-full mt-1 bg-bridge-obsidian border border-foreground/10 rounded-lg shadow-xl z-50 py-1 min-w-[100px]">
             {ALL.map(p => (
               <button
                 key={p}
                 onClick={() => { onChange(p); setOpen(false); }}
-                className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-white/5 transition-colors ${
-                  value === p ? 'text-white' : 'text-slate-400'
+                className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-foreground/5 transition-colors ${
+                  value === p ? 'text-foreground' : 'text-slate-400'
                 }`}
               >
                 <div className={`w-2 h-2 rounded-full ${PRIORITY_CONFIG[p].dot}`} />
@@ -1411,7 +1394,7 @@ function PriorityInline({ value, onChange }: {
           className={`text-[10px] px-1.5 py-0.5 rounded-md transition-all ${
             value === p
               ? `${PRIORITY_CONFIG[p].color} font-bold`
-              : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
+              : 'text-slate-500 hover:text-muted-foreground hover:bg-foreground/5'
           }`}
           style={value === p ? {
             backgroundColor: `color-mix(in srgb, currentColor 15%, transparent)`,

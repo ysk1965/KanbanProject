@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Check, Rocket, Calendar, BarChart3, Target, MessageSquare, Minus, Plus, Users } from 'lucide-react';
-import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
+import { MotionModal } from './ui/MotionModal';
 
 export type UpgradeTrigger =
   | 'weekly_schedule'
@@ -66,9 +66,7 @@ export function UpgradeModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="bg-bridge-obsidian text-foreground border-white/10 max-w-lg p-0 gap-0 [&>button:last-child]:hidden overflow-hidden rounded-2xl">
-        <DialogTitle className="sr-only">{t('upgrade.title')}</DialogTitle>
+    <MotionModal open={open} onClose={onClose} className="sm:max-w-lg p-0 overflow-hidden">
         {/* Header */}
         <div className="relative px-6 pt-6 pb-4">
           <button
@@ -86,7 +84,7 @@ export function UpgradeModal({
           </div>
 
           {/* Trigger message */}
-          <div className="bg-bridge-dark/50 rounded-xl p-4 border border-white/10">
+          <div className="bg-bridge-dark/50 rounded-xl p-4 border border-foreground/10">
             <p className="text-foreground font-medium mb-1">{triggerTitle}</p>
             <p className="text-slate-400 text-sm">{triggerDescription}</p>
           </div>
@@ -103,7 +101,7 @@ export function UpgradeModal({
                 <div className="p-1.5 bg-bridge-accent/10 rounded-lg">
                   <feature.icon className="h-4 w-4 text-bridge-accent" />
                 </div>
-                <span className="text-slate-300 text-sm">{t(`upgrade.features.${feature.key}`)}</span>
+                <span className="text-muted-foreground text-sm">{t(`upgrade.features.${feature.key}`)}</span>
               </div>
             ))}
           </div>
@@ -115,14 +113,14 @@ export function UpgradeModal({
             {t('upgrade.seatSelection')}
           </p>
 
-          <div className="bg-bridge-dark/50 rounded-xl border border-white/10 p-4">
+          <div className="bg-bridge-dark/50 rounded-xl border border-foreground/10 p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-bridge-accent/10 rounded-lg">
                   <Users className="h-4 w-4 text-bridge-accent" />
                 </div>
                 <div>
-                  <p className="text-white text-sm font-medium">{t('upgrade.seats')}</p>
+                  <p className="text-foreground text-sm font-medium">{t('upgrade.seats')}</p>
                   <p className="text-slate-500 text-xs">
                     {t('upgrade.currentMembers', { count: currentBillableMembers })}
                   </p>
@@ -133,14 +131,14 @@ export function UpgradeModal({
                 <button
                   onClick={() => setSeatCount(Math.max(minSeats, seatCount - 1))}
                   disabled={seatCount <= minSeats}
-                  className="p-1.5 rounded-lg border border-white/10 text-slate-400 hover:text-white hover:bg-white/5 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="p-1.5 rounded-lg border border-foreground/10 text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                 >
                   <Minus className="h-4 w-4" />
                 </button>
-                <span className="text-white text-xl font-bold w-10 text-center">{seatCount}</span>
+                <span className="text-foreground text-xl font-bold w-10 text-center">{seatCount}</span>
                 <button
                   onClick={() => setSeatCount(seatCount + 1)}
-                  className="p-1.5 rounded-lg border border-white/10 text-slate-400 hover:text-white hover:bg-white/5 transition-all"
+                  className="p-1.5 rounded-lg border border-foreground/10 text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-all"
                 >
                   <Plus className="h-4 w-4" />
                 </button>
@@ -161,7 +159,7 @@ export function UpgradeModal({
               className={`relative p-4 rounded-xl border transition-all ${
                 billingCycle === 'MONTHLY'
                   ? 'border-bridge-accent bg-bridge-accent/10'
-                  : 'border-white/10 hover:border-white/10 hover:bg-white/5'
+                  : 'border-foreground/10 hover:border-foreground/10 hover:bg-foreground/5'
               }`}
             >
               <div className="text-left">
@@ -182,7 +180,7 @@ export function UpgradeModal({
               className={`relative p-4 rounded-xl border transition-all ${
                 billingCycle === 'YEARLY'
                   ? 'border-bridge-accent bg-bridge-accent/10'
-                  : 'border-white/10 hover:border-white/10 hover:bg-white/5'
+                  : 'border-foreground/10 hover:border-foreground/10 hover:bg-foreground/5'
               }`}
             >
               <div className="absolute -top-2 -right-2">
@@ -217,7 +215,7 @@ export function UpgradeModal({
         <div className="px-6 pb-6 flex gap-3">
           <button
             onClick={onClose}
-            className="flex-1 px-4 py-3 bg-white/5 border border-white/10 text-foreground rounded-xl font-medium hover:bg-white/10 transition-all"
+            className="flex-1 px-4 py-3 bg-foreground/5 border border-foreground/10 text-foreground rounded-xl font-medium hover:bg-foreground/10 transition-all"
           >
             {t('common.later')}
           </button>
@@ -229,7 +227,6 @@ export function UpgradeModal({
             {isProcessing ? t('common.processing') : t('upgrade.startPremium')}
           </button>
         </div>
-      </DialogContent>
-    </Dialog>
+    </MotionModal>
   );
 }

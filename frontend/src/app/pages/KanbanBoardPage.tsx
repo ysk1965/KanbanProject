@@ -1628,14 +1628,14 @@ export function KanbanBoardPage() {
 
         {/* 병합 탭 서브토글 바 */}
         {(viewMode === 'schedule' || viewMode === 'weekly' || viewMode === 'calendar') && (
-          <div className="flex items-center justify-center py-1.5 bg-kanban-header/50 border-b border-white/5">
-            <div className="flex items-center gap-1 bg-white/5 rounded-lg p-0.5">
+          <div className="flex items-center justify-center py-1.5 bg-kanban-header/50 border-b border-foreground/5">
+            <div className="flex items-center gap-1 bg-foreground/5 rounded-lg p-0.5">
               <button
                 onClick={() => handleViewModeChange('schedule')}
                 className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
                   viewMode === 'schedule'
-                    ? 'bg-white/10 text-white'
-                    : 'text-zinc-400 hover:text-zinc-200'
+                    ? 'bg-foreground/10 text-foreground'
+                    : 'text-zinc-400 hover:text-foreground'
                 }`}
               >
                 {t('kanban.viewSchedule')}
@@ -1644,10 +1644,10 @@ export function KanbanBoardPage() {
                 onClick={() => handleViewModeChange('weekly')}
                 className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
                   viewMode === 'weekly'
-                    ? 'bg-white/10 text-white'
+                    ? 'bg-foreground/10 text-foreground'
                     : !canAccessSchedule
                       ? 'text-zinc-600 cursor-not-allowed'
-                      : 'text-zinc-400 hover:text-zinc-200'
+                      : 'text-zinc-400 hover:text-foreground'
                 }`}
               >
                 {t('kanban.viewGantt')}
@@ -1657,8 +1657,8 @@ export function KanbanBoardPage() {
                 onClick={() => handleViewModeChange('calendar')}
                 className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
                   viewMode === 'calendar'
-                    ? 'bg-white/10 text-white'
-                    : 'text-zinc-400 hover:text-zinc-200'
+                    ? 'bg-foreground/10 text-foreground'
+                    : 'text-zinc-400 hover:text-foreground'
                 }`}
               >
                 {t('kanban.viewCalendar', '캘린더')}
@@ -1667,14 +1667,14 @@ export function KanbanBoardPage() {
           </div>
         )}
         {(viewMode === 'statistics' || viewMode === 'ai_report') && isAdminOrOwner && !isViewer && !isTester && (
-          <div className="flex items-center justify-center py-1.5 bg-kanban-header/50 border-b border-white/5">
-            <div className="flex items-center gap-1 bg-white/5 rounded-lg p-0.5">
+          <div className="flex items-center justify-center py-1.5 bg-kanban-header/50 border-b border-foreground/5">
+            <div className="flex items-center gap-1 bg-foreground/5 rounded-lg p-0.5">
               <button
                 onClick={() => handleViewModeChange('statistics')}
                 className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
                   viewMode === 'statistics'
-                    ? 'bg-white/10 text-white'
-                    : 'text-zinc-400 hover:text-zinc-200'
+                    ? 'bg-foreground/10 text-foreground'
+                    : 'text-zinc-400 hover:text-foreground'
                 }`}
               >
                 {t('kanban.viewStatistics')}
@@ -1683,8 +1683,8 @@ export function KanbanBoardPage() {
                 onClick={() => handleViewModeChange('ai_report')}
                 className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
                   viewMode === 'ai_report'
-                    ? 'bg-white/10 text-white'
-                    : 'text-zinc-400 hover:text-zinc-200'
+                    ? 'bg-foreground/10 text-foreground'
+                    : 'text-zinc-400 hover:text-foreground'
                 }`}
               >
                 {t('kanban.viewAIReport')}
@@ -1839,7 +1839,7 @@ export function KanbanBoardPage() {
                   {block.fixed_type === 'TASK' && (
                     <button
                       onClick={() => setIsAddBlockModalOpen(true)}
-                      className="h-10 w-10 mt-4 self-start flex items-center justify-center rounded-xl border border-dashed border-bridge-border text-zinc-500 hover:text-white hover:border-indigo-500/50 hover:bg-indigo-500/10 transition-all"
+                      className="h-10 w-10 mt-4 self-start flex items-center justify-center rounded-xl border border-dashed border-bridge-border text-zinc-500 hover:text-foreground hover:border-indigo-500/50 hover:bg-indigo-500/10 transition-all"
                     >
                       <Plus className="h-5 w-5" />
                     </button>
@@ -1970,7 +1970,7 @@ export function KanbanBoardPage() {
         <div className="shrink-0 md:hidden" style={{ height: 'calc(3.5rem + env(safe-area-inset-bottom, 0px))' }} />
 
         {/* 모바일 하단 탭바 - inline으로 유지 (뷰모드 의존성이 깊어서) */}
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-bridge-obsidian/95 backdrop-blur-xl border-t border-white/10" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-bridge-obsidian/95 backdrop-blur-xl border-t border-foreground/10" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
           <div className="flex items-center justify-around px-1 pt-2 pb-1.5">
             <MobileTabButton active={viewMode === 'kanban'} onClick={() => handleViewModeChange('kanban')} label={t('kanban.viewKanban')} icon="kanban" />
             <MobileTabButton

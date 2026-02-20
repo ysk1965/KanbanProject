@@ -4012,6 +4012,10 @@ export const personalEventAPI = {
     end_time?: string | null;
     color?: string;
     all_day?: boolean;
+    recurrence_rule?: string;
+    recurrence_end_date?: string;
+    recurrence_days_of_week?: number[];
+    scope?: string;
   }): Promise<PersonalEvent> => {
     return apiClient.put(`/personal/events/${eventId}`, data);
   },
@@ -4188,51 +4192,6 @@ export const personalTaskAPI = {
     return apiClient.get('/personal/tasks/categories');
   },
 
-  // Checklists
-  addChecklist: async (taskId: string, title: string): Promise<import('../types').PersonalTaskChecklistItem> => {
-    return apiClient.post(`/personal/tasks/${taskId}/checklists`, { title });
-  },
-
-  updateChecklist: async (taskId: string, checklistId: string, title: string): Promise<import('../types').PersonalTaskChecklistItem> => {
-    return apiClient.put(`/personal/tasks/${taskId}/checklists/${checklistId}`, { title });
-  },
-
-  toggleChecklist: async (taskId: string, checklistId: string): Promise<import('../types').PersonalTaskChecklistItem> => {
-    return apiClient.patch(`/personal/tasks/${taskId}/checklists/${checklistId}/toggle`, {});
-  },
-
-  deleteChecklist: async (taskId: string, checklistId: string): Promise<void> => {
-    return apiClient.delete(`/personal/tasks/${taskId}/checklists/${checklistId}`);
-  },
-
-  // Tags assignment
-  assignTag: async (taskId: string, tagId: string): Promise<void> => {
-    return apiClient.post(`/personal/tasks/${taskId}/tags/${tagId}`, {});
-  },
-
-  unassignTag: async (taskId: string, tagId: string): Promise<void> => {
-    return apiClient.delete(`/personal/tasks/${taskId}/tags/${tagId}`);
-  },
-};
-
-// ─── Personal Tag API (v9.0) ───
-
-export const personalTagAPI = {
-  getAll: async (): Promise<import('../types').PersonalTagInfo[]> => {
-    return apiClient.get('/personal/tags');
-  },
-
-  create: async (data: { name: string; color?: string }): Promise<import('../types').PersonalTagInfo> => {
-    return apiClient.post('/personal/tags', data);
-  },
-
-  update: async (tagId: string, data: { name?: string; color?: string }): Promise<import('../types').PersonalTagInfo> => {
-    return apiClient.put(`/personal/tags/${tagId}`, data);
-  },
-
-  delete: async (tagId: string): Promise<void> => {
-    return apiClient.delete(`/personal/tags/${tagId}`);
-  },
 };
 
 // ─── Personal Habit API (v9.0) ───

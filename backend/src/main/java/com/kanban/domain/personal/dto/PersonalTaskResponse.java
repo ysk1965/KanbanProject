@@ -7,7 +7,6 @@ import lombok.Getter;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.List;
 
 public class PersonalTaskResponse {
 
@@ -25,8 +24,6 @@ public class PersonalTaskResponse {
         private String color;
         private int position;
         private LocalDateTime completedAt;
-        private List<ChecklistItem> checklists;
-        private List<TagInfo> tags;
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;
 
@@ -42,12 +39,6 @@ public class PersonalTaskResponse {
                     .color(task.getColor())
                     .position(task.getPosition())
                     .completedAt(task.getCompletedAt())
-                    .checklists(task.getChecklists().stream()
-                            .map(ChecklistItem::of)
-                            .toList())
-                    .tags(task.getTaskTags().stream()
-                            .map(tt -> TagInfo.of(tt.getPersonalTag()))
-                            .toList())
                     .createdAt(task.getCreatedAt())
                     .updatedAt(task.getUpdatedAt())
                     .build();
@@ -77,39 +68,4 @@ public class PersonalTaskResponse {
         }
     }
 
-    @Getter
-    @Builder
-    @AllArgsConstructor
-    public static class ChecklistItem {
-        private String id;
-        private String title;
-        private Boolean isCompleted;
-        private int position;
-
-        public static ChecklistItem of(PersonalTaskChecklist checklist) {
-            return ChecklistItem.builder()
-                    .id(checklist.getId())
-                    .title(checklist.getTitle())
-                    .isCompleted(checklist.getIsCompleted())
-                    .position(checklist.getPosition())
-                    .build();
-        }
-    }
-
-    @Getter
-    @Builder
-    @AllArgsConstructor
-    public static class TagInfo {
-        private String id;
-        private String name;
-        private String color;
-
-        public static TagInfo of(PersonalTag tag) {
-            return TagInfo.builder()
-                    .id(tag.getId())
-                    .name(tag.getName())
-                    .color(tag.getColor())
-                    .build();
-        }
-    }
 }

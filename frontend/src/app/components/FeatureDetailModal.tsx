@@ -4,23 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Feature, Task, Tag } from '../types';
 import { FEATURE_COLORS } from '../constants';
 import { X, Trash2, ClipboardList, Lightbulb, ArrowRight, Pipette, FileText, CalendarIcon, Tags, Sparkles, Pencil } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from './ui/dialog';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from './ui/alert-dialog';
+import { MotionModal } from './ui/MotionModal';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
@@ -228,22 +212,13 @@ export function FeatureDetailModal({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent
-          className="sm:max-w-xl max-h-[85vh] flex flex-col overflow-hidden bg-bridge-surface border border-bridge-border/50 shadow-[0_0_60px_rgba(0,0,0,0.5)] text-foreground p-0 [&>button:last-child]:hidden"
-          onPointerDownOutside={(e) => {
-            if (hasChanges) {
-              e.preventDefault();
-              handleClose();
-            }
-          }}
-        >
+      <MotionModal open={open} onClose={handleClose} overlayClose={!hasChanges} className="sm:max-w-xl max-h-[85vh] flex flex-col overflow-hidden bg-bridge-surface p-0">
           {/* Feature color accent line */}
           <div className="h-[3px] w-full flex-shrink-0 rounded-t-lg" style={{ backgroundColor: selectedColor }} />
 
           {/* Top Control Bar */}
-          <DialogHeader className="px-6 py-4 border-b border-bridge-border/30 flex-shrink-0">
-            <DialogTitle>
+          <div className="px-6 py-4 border-b border-bridge-border/30 flex-shrink-0">
+            <div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3 flex-1 group">
                   {/* Color Picker */}
@@ -259,7 +234,7 @@ export function FeatureDetailModal({
                           }}
                         />
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-3 bg-bridge-obsidian border-white/10" align="start" sideOffset={8}>
+                      <PopoverContent className="w-auto p-3 bg-bridge-obsidian border-foreground/10" align="start" sideOffset={8}>
                         <div className="space-y-3">
                           <div className="grid grid-cols-5 gap-2">
                             {FEATURE_COLORS.map((color) => (
@@ -278,15 +253,15 @@ export function FeatureDetailModal({
                               />
                             ))}
                           </div>
-                          <div className="border-t border-white/10 pt-3">
+                          <div className="border-t border-foreground/10 pt-3">
                             <label className="flex items-center gap-2 cursor-pointer group">
-                              <Pipette size={14} className="text-slate-400 group-hover:text-white transition-colors" />
-                              <span className="text-[11px] text-slate-400 group-hover:text-white transition-colors">{t('featureDetail.customColor')}</span>
+                              <Pipette size={14} className="text-slate-400 group-hover:text-foreground transition-colors" />
+                              <span className="text-[11px] text-slate-400 group-hover:text-foreground transition-colors">{t('featureDetail.customColor')}</span>
                               <input
                                 type="color"
                                 value={selectedColor}
                                 onChange={(e) => updateEditedFeature({ color: e.target.value })}
-                                className="w-6 h-6 rounded cursor-pointer border-none bg-transparent ml-auto [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:rounded [&::-webkit-color-swatch]:border-white/10 [&::-webkit-color-swatch]:border"
+                                className="w-6 h-6 rounded cursor-pointer border-none bg-transparent ml-auto [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:rounded [&::-webkit-color-swatch]:border-foreground/10 [&::-webkit-color-swatch]:border"
                               />
                             </label>
                           </div>
@@ -316,12 +291,12 @@ export function FeatureDetailModal({
                           setIsEditingTitle(false);
                         }
                       }}
-                      className="text-lg font-semibold border border-white/10 px-2 py-1 rounded-lg focus-visible:ring-1 focus-visible:ring-bridge-accent bg-white/5 text-foreground"
+                      className="text-lg font-semibold border border-foreground/10 px-2 py-1 rounded-lg focus-visible:ring-1 focus-visible:ring-bridge-accent bg-foreground/5 text-foreground"
                       autoFocus
                     />
                   ) : (
                     <div
-                      className={`flex items-center gap-2 px-2 py-1 rounded-lg transition-colors ${canEdit ? 'cursor-pointer hover:bg-white/5' : ''}`}
+                      className={`flex items-center gap-2 px-2 py-1 rounded-lg transition-colors ${canEdit ? 'cursor-pointer hover:bg-foreground/5' : ''}`}
                       onClick={() => canEdit && setIsEditingTitle(true)}
                     >
                       <span className="text-lg font-semibold text-foreground">
@@ -352,11 +327,8 @@ export function FeatureDetailModal({
                   </button>
                 </div>
               </div>
-            </DialogTitle>
-            <DialogDescription className="sr-only">
-              {t('featureDetail.description')}
-            </DialogDescription>
-          </DialogHeader>
+            </div>
+          </div>
 
           {/* Scrollable Content */}
           <div className="flex-1 overflow-y-auto p-6 pb-10 kanban-scrollbar">
@@ -406,7 +378,7 @@ export function FeatureDetailModal({
                         )}
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 bg-bridge-obsidian border-white/10" align="start">
+                    <PopoverContent className="w-auto p-0 bg-bridge-obsidian border-foreground/10" align="start">
                       <Calendar
                         mode="range"
                         selected={
@@ -428,7 +400,7 @@ export function FeatureDetailModal({
                         className="bg-bridge-obsidian text-foreground"
                       />
                       {(editedFeature.start_date || editedFeature.due_date) && (
-                        <div className="p-2 border-t border-white/10 flex gap-2">
+                        <div className="p-2 border-t border-foreground/10 flex gap-2">
                           <Button
                             variant="ghost"
                             size="sm"
@@ -513,7 +485,7 @@ export function FeatureDetailModal({
               </div>
 
               {/* Subtask Module */}
-              <div className="mt-6 pt-6 border-t border-white/10">
+              <div className="mt-6 pt-6 border-t border-foreground/10">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
                     <ClipboardList className="h-5 w-5" style={{ color: selectedColor }} />
@@ -529,7 +501,7 @@ export function FeatureDetailModal({
                     )}
                   </div>
                   <div className="flex items-center gap-3">
-                    <div className="w-24 h-2 bg-white/10 rounded-full overflow-hidden">
+                    <div className="w-24 h-2 bg-foreground/10 rounded-full overflow-hidden">
                       <div
                         className="h-full rounded-full transition-all duration-300"
                         style={{ width: `${progressPercent}%`, backgroundColor: selectedColor }}
@@ -563,7 +535,7 @@ export function FeatureDetailModal({
                           </div>
                         </div>
                         {/* Example subtasks (visual guide) */}
-                        <div className="mx-4 mb-4 rounded-lg border border-dashed border-white/10 overflow-hidden opacity-40 pointer-events-none select-none">
+                        <div className="mx-4 mb-4 rounded-lg border border-dashed border-foreground/10 overflow-hidden opacity-40 pointer-events-none select-none">
                           <div className="px-3 py-1.5 bg-white/[0.02]">
                             <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500">예시</span>
                           </div>
@@ -611,11 +583,11 @@ export function FeatureDetailModal({
                                 if (e.key === 'Enter') handleSaveTaskTitle();
                                 if (e.key === 'Escape') setEditingTaskId(null);
                               }}
-                              className="flex-1 text-xs font-semibold bg-white/5 border border-bridge-accent/50 rounded-md px-2 py-1 text-foreground focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
+                              className="flex-1 text-xs font-semibold bg-foreground/5 border border-bridge-accent/50 rounded-md px-2 py-1 text-foreground focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
                             />
                           ) : (
                             <span
-                              className={`text-xs font-semibold text-foreground/80 group-hover:text-foreground transition-colors truncate ${canEdit ? 'cursor-text hover:bg-white/5 rounded px-1 -mx-1' : ''}`}
+                              className={`text-xs font-semibold text-foreground/80 group-hover:text-foreground transition-colors truncate ${canEdit ? 'cursor-text hover:bg-foreground/5 rounded px-1 -mx-1' : ''}`}
                               onDoubleClick={() => handleStartEditTask(task)}
                             >
                               {task.title}
@@ -664,14 +636,14 @@ export function FeatureDetailModal({
 
               {/* Save/Cancel - shown only with changes */}
               {canEdit && hasChanges && (
-                <div className="flex justify-end gap-2 pt-4 border-t border-white/10">
+                <div className="flex justify-end gap-2 pt-4 border-t border-foreground/10">
                   <Button
                     variant="outline"
                     onClick={() => {
                       setEditedFeature(JSON.parse(JSON.stringify(initialFeature)));
                       setHasChanges(false);
                     }}
-                    className="bg-white/5 border-white/10 text-foreground hover:bg-white/10"
+                    className="bg-foreground/5 border-foreground/10 text-foreground hover:bg-foreground/10"
                   >
                     {t('common.cancel')}
                   </Button>
@@ -685,54 +657,41 @@ export function FeatureDetailModal({
               )}
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
+      </MotionModal>
 
       {/* Confirm Dialog */}
-      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-        <AlertDialogContent className="bg-bridge-obsidian border-white/10">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-foreground">{t('featureDetail.saveChangesTitle')}</AlertDialogTitle>
-            <AlertDialogDescription className="text-slate-400">
-              {t('featureDetail.saveChangesDesc')}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={handleDiscardAndClose} className="bg-white/5 border-white/10 text-foreground hover:bg-white/10">
-              {t('featureDetail.discard')}
-            </AlertDialogCancel>
-            <AlertDialogAction onClick={handleSaveAndClose} className="bg-bridge-accent hover:bg-bridge-accent/90">
-              {t('common.save')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <MotionModal open={showConfirmDialog} onClose={() => setShowConfirmDialog(false)} className="sm:max-w-sm p-6">
+        <h3 className="text-lg font-semibold text-foreground">{t('featureDetail.saveChangesTitle')}</h3>
+        <p className="text-sm text-slate-400 mt-1">{t('featureDetail.saveChangesDesc')}</p>
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end mt-4">
+          <button onClick={handleDiscardAndClose} className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-foreground/5 border border-foreground/10 text-foreground hover:bg-foreground/10">
+            {t('featureDetail.discard')}
+          </button>
+          <button onClick={handleSaveAndClose} className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-bridge-accent text-white hover:bg-bridge-accent/90">
+            {t('common.save')}
+          </button>
+        </div>
+      </MotionModal>
 
       {/* Delete Dialog */}
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent className="bg-bridge-obsidian border-white/10">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-foreground">{t('featureDetail.deleteTitle')}</AlertDialogTitle>
-            <AlertDialogDescription className="text-slate-400">
-              {t('featureDetail.deleteDesc')}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setShowDeleteDialog(false)} className="bg-white/5 border-white/10 text-foreground hover:bg-white/10">
-              {t('common.cancel')}
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                onDelete(feature.id);
-                onClose();
-              }}
-              className="bg-red-500 hover:bg-red-600 text-white"
-            >
-              {t('common.delete')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <MotionModal open={showDeleteDialog} onClose={() => setShowDeleteDialog(false)} className="sm:max-w-sm p-6">
+        <h3 className="text-lg font-semibold text-foreground">{t('featureDetail.deleteTitle')}</h3>
+        <p className="text-sm text-slate-400 mt-1">{t('featureDetail.deleteDesc')}</p>
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end mt-4">
+          <button onClick={() => setShowDeleteDialog(false)} className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-foreground/5 border border-foreground/10 text-foreground hover:bg-foreground/10">
+            {t('common.cancel')}
+          </button>
+          <button
+            onClick={() => {
+              onDelete(feature.id);
+              onClose();
+            }}
+            className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-red-500 hover:bg-red-600 text-white"
+          >
+            {t('common.delete')}
+          </button>
+        </div>
+      </MotionModal>
 
       {/* AI Decompose Modal */}
       {showAIDecompose && feature && (

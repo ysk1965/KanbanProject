@@ -80,7 +80,7 @@ export function TrialBanner({ status, onOpenSubscription, onOpenPremiumBenefits,
   // Standard tier: Premium 유도 배너
   if (tier === 'STANDARD') {
     return (
-      <div className="bg-bridge-obsidian border-b border-white/15 px-6 py-2">
+      <div className="bg-bridge-obsidian border-b border-bridge-border px-6 py-2">
         <div className="flex items-center justify-between max-w-7xl mx-auto">
           <div className="flex items-center gap-2">
             <Crown className="h-4 w-4 text-amber-400" />

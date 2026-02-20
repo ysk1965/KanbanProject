@@ -9,6 +9,7 @@ import com.kanban.domain.diary.DiaryMessage;
 import com.kanban.domain.diary.DiaryMessageRepository;
 import com.kanban.domain.meeting.Meeting;
 import com.kanban.domain.meeting.MeetingRepository;
+import com.kanban.domain.personal.*;
 import com.kanban.domain.schedule.ScheduleBlock;
 import com.kanban.domain.schedule.ScheduleBlockRepository;
 import com.kanban.domain.task.Task;
@@ -23,10 +24,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -36,6 +37,12 @@ public class DiaryAIService {
 
     private final AIProvider aiProvider;
     private final DiaryMessageRepository diaryMessageRepository;
+    // Personal domain
+    private final PersonalTaskRepository personalTaskRepository;
+    private final PersonalHabitRepository personalHabitRepository;
+    private final PersonalHabitLogRepository personalHabitLogRepository;
+    private final PersonalEventRepository personalEventRepository;
+    // Board domain
     private final BoardRepository boardRepository;
     private final TaskRepository taskRepository;
     private final MeetingRepository meetingRepository;
@@ -149,109 +156,225 @@ public class DiaryAIService {
     // ============================
 
     /**
-     * 사용자의 해당 날짜 일정/태스크/미팅/체크리스트 정보를 수집하여 문자열로 반환
+     * 사용자의 해당 날짜 개인 활동 + 보드 활동 정보를 수집하여 문자열로 반환
      */
     private String buildUserDayContext(String userId, LocalDate date) {
         try {
-            List<Board> boards = boardRepository.findByMemberId(userId);
-            if (boards.isEmpty()) return "";
-
-            List<String> boardIds = boards.stream().map(Board::getId).toList();
             StringBuilder context = new StringBuilder();
 
-            // 1. 해당 날짜 마감 태스크 (명시적 date 파라미터 사용, CURRENT_DATE 의존 제거)
-            List<Task> dateTasks = taskRepository.findWeekTasksByBoardIds(boardIds, date, date);
-            if (!dateTasks.isEmpty()) {
-                context.append("[오늘 마감 태스크]\n");
-                for (Task t : dateTasks) {
-                    context.append("- ").append(t.getTitle());
-                    if (t.getFeature() != null) {
-                        context.append(" (").append(t.getFeature().getTitle()).append(")");
-                    }
-                    context.append("\n");
-                }
-                context.append("\n");
-            }
+            // ========================================
+            // 1. 개인 데이터 (메인)
+            // ========================================
 
-            // 2. 미팅
-            List<Meeting> allMeetings = new ArrayList<>();
-            for (Board board : boards) {
-                List<Meeting> meetings = meetingRepository.findByBoardIdAndMeetingDateOrderByStartTimeAsc(board.getId(), date);
-                allMeetings.addAll(meetings);
-            }
-            if (!allMeetings.isEmpty()) {
-                context.append("[오늘 미팅]\n");
-                for (Meeting m : allMeetings) {
-                    context.append("- ").append(m.getTitle());
-                    if (m.getStartTime() != null) {
-                        context.append(" (").append(m.getStartTime().format(DateTimeFormatter.ofPattern("HH:mm")));
-                        if (m.getEndTime() != null) {
-                            context.append("~").append(m.getEndTime().format(DateTimeFormatter.ofPattern("HH:mm")));
-                        }
-                        context.append(")");
-                    }
-                    context.append("\n");
-                }
-                context.append("\n");
-            }
+            buildPersonalContext(context, userId, date);
 
-            // 3. 스케줄 블록 (해당 유저의 일정)
-            List<ScheduleBlock> allSchedules = new ArrayList<>();
-            for (Board board : boards) {
-                List<ScheduleBlock> blocks = scheduleBlockRepository
-                        .findByBoardIdAndScheduledDateAndAssigneeIdOrderByStartTimeAsc(board.getId(), date, userId);
-                allSchedules.addAll(blocks);
-            }
-            if (!allSchedules.isEmpty()) {
-                context.append("[오늘 스케줄]\n");
-                for (ScheduleBlock sb : allSchedules) {
-                    context.append("- ");
-                    if (sb.getStartTime() != null) {
-                        context.append(sb.getStartTime().format(DateTimeFormatter.ofPattern("HH:mm")));
-                        if (sb.getEndTime() != null) {
-                            context.append("~").append(sb.getEndTime().format(DateTimeFormatter.ofPattern("HH:mm")));
-                        }
-                        context.append(" ");
-                    }
-                    if (sb.getChecklistItem() != null) {
-                        context.append(sb.getChecklistItem().getTitle());
-                        if (sb.getChecklistItem().getTask() != null) {
-                            context.append(" [").append(sb.getChecklistItem().getTask().getTitle()).append("]");
-                        }
-                    } else if (sb.getMeeting() != null) {
-                        context.append("미팅: ").append(sb.getMeeting().getTitle());
-                    }
-                    context.append("\n");
-                }
-                context.append("\n");
-            }
+            // ========================================
+            // 2. 보드 데이터 (보조 - 연결된 보드가 있을 때)
+            // ========================================
 
-            // 4. 데일리 체크리스트
-            List<DailyChecklist> allChecklists = new ArrayList<>();
-            for (Board board : boards) {
-                List<DailyChecklist> checklists = dailyChecklistRepository
-                        .findByBoardIdAndAssignedDateAndAssigneeIdWithDetailsOrderByPositionAsc(board.getId(), date, userId);
-                allChecklists.addAll(checklists);
-            }
-            if (!allChecklists.isEmpty()) {
-                context.append("[오늘 할 일 체크리스트]\n");
-                for (DailyChecklist dc : allChecklists) {
-                    boolean completed = dc.getChecklistItem() != null && Boolean.TRUE.equals(dc.getChecklistItem().getIsCompleted());
-                    context.append(completed ? "- [완료] " : "- [미완료] ");
-                    context.append(dc.getTitle());
-                    if (dc.getChecklistItem() != null && dc.getChecklistItem().getTask() != null) {
-                        context.append(" (").append(dc.getChecklistItem().getTask().getTitle()).append(")");
-                    }
-                    context.append("\n");
-                }
-                context.append("\n");
-            }
+            buildBoardContext(context, userId, date);
 
             return context.toString().trim();
         } catch (Exception e) {
             log.warn("Failed to build user day context for diary, continuing without context", e);
             return "";
         }
+    }
+
+    private void buildPersonalContext(StringBuilder context, String userId, LocalDate date) {
+        // 1-1. 개인 할 일 (오늘 마감 + 진행중)
+        List<PersonalTask> dueTasks = personalTaskRepository.findByUserIdAndDueDate(userId, date);
+        List<PersonalTask> inProgressTasks = personalTaskRepository.findInProgressByUserId(userId);
+
+        // 진행중 태스크 중 오늘 마감 아닌 것만 추가 (중복 제거)
+        Set<String> dueTaskIds = dueTasks.stream().map(PersonalTask::getId).collect(Collectors.toSet());
+        List<PersonalTask> extraInProgress = inProgressTasks.stream()
+                .filter(t -> !dueTaskIds.contains(t.getId()))
+                .toList();
+
+        if (!dueTasks.isEmpty() || !extraInProgress.isEmpty()) {
+            context.append("[개인 할 일]\n");
+            for (PersonalTask t : dueTasks) {
+                String status = t.getStatus() == PersonalTaskStatus.DONE ? "완료" : "미완료";
+                context.append("- [").append(status).append("] ").append(t.getTitle());
+                if (t.getCategory() != null) {
+                    context.append(" (").append(t.getCategory()).append(")");
+                }
+                context.append("\n");
+            }
+            for (PersonalTask t : extraInProgress) {
+                context.append("- [진행중] ").append(t.getTitle());
+                if (t.getDueDate() != null) {
+                    context.append(" (마감: ").append(t.getDueDate().format(DateTimeFormatter.ofPattern("M/d"))).append(")");
+                }
+                context.append("\n");
+            }
+            context.append("\n");
+        }
+
+        // 1-2. 오늘 습관 (해당 요일 + 체크 여부)
+        List<PersonalHabit> activeHabits = personalHabitRepository.findActiveByUserId(userId);
+        List<PersonalHabit> todayHabits = activeHabits.stream()
+                .filter(h -> isHabitScheduledForDate(h, date))
+                .toList();
+
+        if (!todayHabits.isEmpty()) {
+            List<String> habitIds = todayHabits.stream().map(PersonalHabit::getId).toList();
+            List<PersonalHabitLog> todayLogs = personalHabitLogRepository.findByHabitIdsAndDate(habitIds, date);
+            Map<String, PersonalHabitLog> logMap = todayLogs.stream()
+                    .collect(Collectors.toMap(l -> l.getHabit().getId(), l -> l));
+
+            context.append("[오늘 습관]\n");
+            for (PersonalHabit h : todayHabits) {
+                PersonalHabitLog log = logMap.get(h.getId());
+                boolean completed = log != null && Boolean.TRUE.equals(log.getIsCompleted());
+                context.append(completed ? "- [완료] " : "- [미완료] ");
+                context.append(h.getTitle());
+                if (h.getTargetCount() > 1 && log != null) {
+                    context.append(" (").append(log.getCompletedCount()).append("/").append(h.getTargetCount());
+                    if (h.getUnit() != null) context.append(h.getUnit());
+                    context.append(")");
+                }
+                context.append("\n");
+            }
+            context.append("\n");
+        }
+
+        // 1-3. 오늘 캘린더 일정
+        List<PersonalEvent> events = personalEventRepository.findByUserIdAndDate(userId, date);
+        if (!events.isEmpty()) {
+            context.append("[오늘 일정]\n");
+            for (PersonalEvent e : events) {
+                context.append("- ");
+                if (Boolean.TRUE.equals(e.getAllDay())) {
+                    context.append("[종일] ");
+                } else if (e.getStartTime() != null) {
+                    context.append(e.getStartTime().format(DateTimeFormatter.ofPattern("HH:mm")));
+                    if (e.getEndTime() != null) {
+                        context.append("~").append(e.getEndTime().format(DateTimeFormatter.ofPattern("HH:mm")));
+                    }
+                    context.append(" ");
+                }
+                context.append(e.getTitle()).append("\n");
+            }
+            context.append("\n");
+        }
+    }
+
+    private void buildBoardContext(StringBuilder context, String userId, LocalDate date) {
+        List<Board> boards = boardRepository.findByMemberId(userId);
+        if (boards.isEmpty()) return;
+
+        List<String> boardIds = boards.stream().map(Board::getId).toList();
+
+        // 2-1. 보드 마감 태스크
+        List<Task> dateTasks = taskRepository.findWeekTasksByBoardIds(boardIds, date, date);
+        if (!dateTasks.isEmpty()) {
+            context.append("[협업 보드 - 오늘 마감 태스크]\n");
+            for (Task t : dateTasks) {
+                context.append("- ").append(t.getTitle());
+                if (t.getFeature() != null) {
+                    context.append(" (").append(t.getFeature().getTitle()).append(")");
+                }
+                context.append("\n");
+            }
+            context.append("\n");
+        }
+
+        // 2-2. 보드 미팅
+        List<Meeting> allMeetings = new ArrayList<>();
+        for (Board board : boards) {
+            allMeetings.addAll(meetingRepository.findByBoardIdAndMeetingDateOrderByStartTimeAsc(board.getId(), date));
+        }
+        if (!allMeetings.isEmpty()) {
+            context.append("[협업 보드 - 오늘 미팅]\n");
+            for (Meeting m : allMeetings) {
+                context.append("- ").append(m.getTitle());
+                if (m.getStartTime() != null) {
+                    context.append(" (").append(m.getStartTime().format(DateTimeFormatter.ofPattern("HH:mm")));
+                    if (m.getEndTime() != null) {
+                        context.append("~").append(m.getEndTime().format(DateTimeFormatter.ofPattern("HH:mm")));
+                    }
+                    context.append(")");
+                }
+                context.append("\n");
+            }
+            context.append("\n");
+        }
+
+        // 2-3. 보드 스케줄 블록
+        List<ScheduleBlock> allSchedules = new ArrayList<>();
+        for (Board board : boards) {
+            allSchedules.addAll(scheduleBlockRepository
+                    .findByBoardIdAndScheduledDateAndAssigneeIdOrderByStartTimeAsc(board.getId(), date, userId));
+        }
+        if (!allSchedules.isEmpty()) {
+            context.append("[협업 보드 - 오늘 스케줄]\n");
+            for (ScheduleBlock sb : allSchedules) {
+                context.append("- ");
+                if (sb.getStartTime() != null) {
+                    context.append(sb.getStartTime().format(DateTimeFormatter.ofPattern("HH:mm")));
+                    if (sb.getEndTime() != null) {
+                        context.append("~").append(sb.getEndTime().format(DateTimeFormatter.ofPattern("HH:mm")));
+                    }
+                    context.append(" ");
+                }
+                if (sb.getChecklistItem() != null) {
+                    context.append(sb.getChecklistItem().getTitle());
+                    if (sb.getChecklistItem().getTask() != null) {
+                        context.append(" [").append(sb.getChecklistItem().getTask().getTitle()).append("]");
+                    }
+                } else if (sb.getMeeting() != null) {
+                    context.append("미팅: ").append(sb.getMeeting().getTitle());
+                }
+                context.append("\n");
+            }
+            context.append("\n");
+        }
+
+        // 2-4. 보드 데일리 체크리스트
+        List<DailyChecklist> allChecklists = new ArrayList<>();
+        for (Board board : boards) {
+            allChecklists.addAll(dailyChecklistRepository
+                    .findByBoardIdAndAssignedDateAndAssigneeIdWithDetailsOrderByPositionAsc(board.getId(), date, userId));
+        }
+        if (!allChecklists.isEmpty()) {
+            context.append("[협업 보드 - 오늘 체크리스트]\n");
+            for (DailyChecklist dc : allChecklists) {
+                boolean completed = dc.getChecklistItem() != null && Boolean.TRUE.equals(dc.getChecklistItem().getIsCompleted());
+                context.append(completed ? "- [완료] " : "- [미완료] ");
+                context.append(dc.getTitle());
+                if (dc.getChecklistItem() != null && dc.getChecklistItem().getTask() != null) {
+                    context.append(" (").append(dc.getChecklistItem().getTask().getTitle()).append(")");
+                }
+                context.append("\n");
+            }
+            context.append("\n");
+        }
+    }
+
+    /**
+     * 습관이 해당 날짜에 예정되어 있는지 확인
+     * frequencyDays: "0,1,2,3,4,5,6" (0=일, 1=월, ..., 6=토) - JS convention
+     */
+    private boolean isHabitScheduledForDate(PersonalHabit habit, LocalDate date) {
+        DayOfWeek dow = date.getDayOfWeek();
+        // Java DayOfWeek → JS day number 변환 (MON=1→1, TUE=2→2, ..., SAT=6→6, SUN=7→0)
+        int jsDay = dow == DayOfWeek.SUNDAY ? 0 : dow.getValue();
+
+        return switch (habit.getFrequencyType()) {
+            case DAILY -> true;
+            case WEEKDAY -> jsDay >= 1 && jsDay <= 5;
+            case WEEKEND -> jsDay == 0 || jsDay == 6;
+            case CUSTOM -> {
+                String days = habit.getFrequencyDays();
+                if (days == null || days.isBlank()) yield true;
+                yield Arrays.stream(days.split(","))
+                        .map(String::trim)
+                        .mapToInt(Integer::parseInt)
+                        .anyMatch(d -> d == jsDay);
+            }
+        };
     }
 
     // ============================

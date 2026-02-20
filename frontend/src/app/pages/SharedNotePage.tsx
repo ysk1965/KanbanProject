@@ -105,7 +105,7 @@ export function SharedNotePage() {
           <div className="w-16 h-16 rounded-2xl bg-red-500/10 flex items-center justify-center mx-auto mb-4">
             <AlertCircle size={28} className="text-red-400" />
           </div>
-          <h2 className="text-xl font-bold text-white mb-2">
+          <h2 className="text-xl font-bold text-foreground mb-2">
             {t('notes.shareNotAvailable', '문서를 볼 수 없습니다')}
           </h2>
           <p className="text-slate-400 text-sm mb-6">
@@ -126,14 +126,14 @@ export function SharedNotePage() {
   return (
     <div className="min-h-screen bg-bridge-dark">
       {/* Top bar */}
-      <header className="border-b border-white/5 bg-bridge-obsidian">
+      <header className="border-b border-foreground/5 bg-bridge-obsidian">
         <div className="max-w-4xl mx-auto px-6 py-3 flex items-center justify-between">
           <Link
             to="/"
-            className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors"
+            className="flex items-center gap-2 text-slate-400 hover:text-foreground transition-colors"
           >
             <img src="/BridgeSpotsIcon.png" alt="BRIDGE" className="h-6 w-6" />
-            <span className="text-sm font-semibold text-white">BRIDGE</span>
+            <span className="text-sm font-semibold text-foreground">BRIDGE</span>
           </Link>
           <div className="flex items-center gap-2 text-[10px] tracking-[0.3em] uppercase text-slate-500">
             <FileText size={12} />
@@ -145,7 +145,7 @@ export function SharedNotePage() {
       {/* Note content */}
       <main className="max-w-4xl mx-auto px-6 py-8">
         {/* Title */}
-        <h1 className="text-3xl font-bold text-white mb-3">
+        <h1 className="text-3xl font-bold text-foreground mb-3">
           {note.title}
         </h1>
 
@@ -173,7 +173,7 @@ export function SharedNotePage() {
         </div>
 
         {/* Divider */}
-        <div className="border-t border-white/5 mb-6" />
+        <div className="border-t border-foreground/5 mb-6" />
 
         {/* BlockNote viewer */}
         <div className="shared-note-viewer">
@@ -186,7 +186,7 @@ export function SharedNotePage() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-white/5 mt-16">
+      <footer className="border-t border-foreground/5 mt-16">
         <div className="max-w-4xl mx-auto px-6 py-6 flex items-center justify-between">
           <span className="text-[10px] tracking-[0.3em] uppercase text-slate-600">
             Shared via BRIDGE

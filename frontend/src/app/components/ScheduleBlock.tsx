@@ -445,11 +445,11 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
       />
 
       <div className="flex flex-col h-full overflow-hidden">
-        <span className={`text-xs font-medium truncate ${displayInfo.isCompleted ? 'line-through text-slate-400' : 'text-white'}`}>
+        <span className={`text-xs font-medium truncate ${displayInfo.isCompleted ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
           {displayInfo.title}
         </span>
         {displayHeight > 30 && displayInfo.taskTitle && (
-          <span className="text-[10px] text-slate-400 truncate">
+          <span className="text-[10px] text-muted-foreground truncate">
             {displayInfo.taskTitle}
           </span>
         )}
@@ -459,7 +459,7 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
               className="w-2 h-2 rounded-full flex-shrink-0"
               style={{ backgroundColor: displayInfo.featureColor }}
             />
-            <span className="text-[10px] text-slate-400 truncate">
+            <span className="text-[10px] text-muted-foreground truncate">
               {displayInfo.featureTitle}
             </span>
           </div>

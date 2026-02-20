@@ -145,7 +145,7 @@ export function SlackSettingsPanel({ boardId, onSlackStatusChange, canAccessSlac
   // Editing mode
   if (isEditing) {
     return (
-      <div className="mx-3 mt-3 mb-2 p-3 bg-white/[0.03] rounded-xl border border-white/10">
+      <div className="mx-3 mt-3 mb-2 p-3 bg-white/[0.03] rounded-xl border border-foreground/10">
         <div className="flex items-center justify-between mb-3">
           <span className="text-xs font-medium text-foreground">{t('slackSettings.settingsTitle')}</span>
           <button onClick={handleCancel} className="text-slate-400 hover:text-foreground transition-colors">
@@ -163,7 +163,7 @@ export function SlackSettingsPanel({ boardId, onSlackStatusChange, canAccessSlac
               value={webhookUrl}
               onChange={(e) => setWebhookUrl(e.target.value)}
               placeholder={isExistingConfig ? (config?.webhook_url_masked || 'https://hooks.slack.com/services/...') : 'https://hooks.slack.com/services/T.../B.../...'}
-              className="w-full bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+              className="w-full bg-foreground/5 border border-foreground/10 rounded-lg py-2 px-3 text-xs text-foreground placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
             />
             {isExistingConfig && (
               <p className="text-[10px] text-slate-500 mt-0.5">{t('slackSettings.webhookUrlKeepHint', '변경하지 않으려면 비워두세요')}</p>
@@ -179,7 +179,7 @@ export function SlackSettingsPanel({ boardId, onSlackStatusChange, canAccessSlac
               value={channelName}
               onChange={(e) => setChannelName(e.target.value)}
               placeholder="#my-alerts"
-              className="w-full bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+              className="w-full bg-foreground/5 border border-foreground/10 rounded-lg py-2 px-3 text-xs text-foreground placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
             />
           </div>
 
@@ -188,9 +188,9 @@ export function SlackSettingsPanel({ boardId, onSlackStatusChange, canAccessSlac
               type="checkbox"
               checked={enabled}
               onChange={(e) => setEnabled(e.target.checked)}
-              className="w-3.5 h-3.5 rounded border-white/20 bg-white/5 text-bridge-accent focus:ring-bridge-accent/50"
+              className="w-3.5 h-3.5 rounded border-bridge-border bg-foreground/5 text-bridge-accent focus:ring-bridge-accent/50"
             />
-            <span className="text-xs text-slate-300">{t('slackSettings.enabledLabel')}</span>
+            <span className="text-xs text-muted-foreground">{t('slackSettings.enabledLabel')}</span>
           </label>
         </div>
 
@@ -213,7 +213,7 @@ export function SlackSettingsPanel({ boardId, onSlackStatusChange, canAccessSlac
             <button
               onClick={handleTest}
               disabled={isTesting}
-              className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] text-slate-300 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-all disabled:opacity-50"
+              className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] text-muted-foreground bg-foreground/5 border border-foreground/10 rounded-lg hover:bg-foreground/10 transition-all disabled:opacity-50"
             >
               {isTesting ? <Loader2 size={11} className="animate-spin" /> : <Send size={11} />}
               {t('slackSettings.testButton')}
@@ -257,7 +257,7 @@ export function SlackSettingsPanel({ boardId, onSlackStatusChange, canAccessSlac
     return (
       <div className={`mx-3 mt-3 mb-2 p-3 rounded-xl border ${
         config.enabled
-          ? 'bg-white/[0.03] border-white/10'
+          ? 'bg-white/[0.03] border-foreground/10'
           : 'bg-amber-500/5 border-amber-500/20'
       }`}>
         <div className="flex items-center justify-between mb-2">
@@ -307,7 +307,7 @@ export function SlackSettingsPanel({ boardId, onSlackStatusChange, canAccessSlac
         </div>
         <button
           onClick={handleStartEdit}
-          className="flex items-center gap-1 px-2 py-1 text-[11px] text-bridge-accent hover:text-white bg-bridge-accent/10 hover:bg-bridge-accent/20 rounded-md transition-all"
+          className="flex items-center gap-1 px-2 py-1 text-[11px] text-bridge-accent hover:text-foreground bg-bridge-accent/10 hover:bg-bridge-accent/20 rounded-md transition-all"
         >
           <Link2 size={11} />
           {t('slackSettings.connectButton')}

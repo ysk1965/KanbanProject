@@ -39,7 +39,7 @@ export function NoteCommentThread({
   }, [onUpdate]);
 
   const renderComment = (comment: NoteCommentDetail, isRoot: boolean) => (
-    <div key={comment.id} className={`group ${!isRoot ? 'ml-6 border-l border-white/5 pl-3' : ''}`}>
+    <div key={comment.id} className={`group ${!isRoot ? 'ml-6 border-l border-foreground/5 pl-3' : ''}`}>
       <div className="flex items-start gap-2 py-2">
         {/* Avatar */}
         {comment.author.profile_image ? (
@@ -54,7 +54,7 @@ export function NoteCommentThread({
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-medium text-white">{comment.author.name}</span>
+            <span className="text-xs font-medium text-foreground">{comment.author.name}</span>
             <span className="text-[10px] text-slate-500">{formatRelativeTime(comment.created_at)}</span>
 
             {/* Actions menu */}
@@ -62,17 +62,17 @@ export function NoteCommentThread({
               <div className="relative ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
                 <button
                   onClick={() => setMenuOpen(menuOpen === comment.id ? null : comment.id)}
-                  className="p-0.5 text-slate-500 hover:text-white rounded transition-colors"
+                  className="p-0.5 text-slate-500 hover:text-foreground rounded transition-colors"
                 >
                   <MoreHorizontal className="h-3.5 w-3.5" />
                 </button>
                 {menuOpen === comment.id && (
                   <div className="absolute right-0 top-full mt-1 z-50 w-32
-                    bg-bridge-obsidian border border-white/10 rounded-lg shadow-xl overflow-hidden">
+                    bg-bridge-obsidian border border-foreground/10 rounded-lg shadow-xl overflow-hidden">
                     {comment.author.id === currentUserId && (
                       <button
                         onClick={() => { setEditingId(comment.id); setMenuOpen(null); }}
-                        className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-slate-300 hover:bg-white/5"
+                        className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-muted-foreground hover:bg-foreground/5"
                       >
                         <Pencil className="h-3 w-3" /> {t('common.edit', '수정')}
                       </button>
@@ -80,7 +80,7 @@ export function NoteCommentThread({
                     {(comment.author.id === currentUserId || !isRoot) && (
                       <button
                         onClick={() => { onDelete(comment.id); setMenuOpen(null); }}
-                        className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-red-400 hover:bg-white/5"
+                        className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-red-400 hover:bg-foreground/5"
                       >
                         <Trash2 className="h-3 w-3" /> {t('common.delete', '삭제')}
                       </button>
@@ -104,7 +104,7 @@ export function NoteCommentThread({
               />
             </div>
           ) : (
-            <p className="text-xs text-slate-300 mt-0.5 whitespace-pre-wrap break-words">
+            <p className="text-xs text-muted-foreground mt-0.5 whitespace-pre-wrap break-words">
               {comment.content}
             </p>
           )}
@@ -116,8 +116,8 @@ export function NoteCommentThread({
   return (
     <div className={`rounded-xl border transition-all ${
       thread.is_resolved
-        ? 'border-white/5 bg-white/[0.02] opacity-70'
-        : 'border-white/10 bg-white/[0.03]'
+        ? 'border-foreground/5 bg-white/[0.02] opacity-70'
+        : 'border-foreground/10 bg-white/[0.03]'
     }`}>
       {/* Thread header */}
       <div className="flex items-center gap-2 px-3 pt-2">
@@ -149,7 +149,7 @@ export function NoteCommentThread({
         {thread.replies.length > 0 && (
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="ml-auto p-0.5 text-slate-500 hover:text-white transition-colors"
+            className="ml-auto p-0.5 text-slate-500 hover:text-foreground transition-colors"
           >
             {collapsed ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronUp className="h-3.5 w-3.5" />}
           </button>

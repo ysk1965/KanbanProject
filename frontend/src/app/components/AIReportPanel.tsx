@@ -75,7 +75,7 @@ const markdownComponents = {
   h2: ({ children }: { children?: React.ReactNode }) => (
     <div className="flex items-center gap-3 mt-8 mb-3 first:mt-0">
       <div className="w-1 h-5 bg-bridge-accent rounded-full" />
-      <h2 className="text-lg font-bold text-white tracking-tight">{children}</h2>
+      <h2 className="text-lg font-bold text-foreground tracking-tight">{children}</h2>
     </div>
   ),
   // h3: task title within a feature group
@@ -89,7 +89,7 @@ const markdownComponents = {
   ),
   // p: prose paragraphs with relaxed spacing
   p: ({ children }: { children?: React.ReactNode }) => (
-    <p className="text-slate-300 text-sm leading-[1.8] mb-4">{children}</p>
+    <p className="text-muted-foreground text-sm leading-[1.8] mb-4">{children}</p>
   ),
   // em: feature name subtitle
   em: ({ children }: { children?: React.ReactNode }) => (
@@ -97,7 +97,7 @@ const markdownComponents = {
   ),
   // strong: accent bold
   strong: ({ children }: { children?: React.ReactNode }) => (
-    <strong className="text-white font-semibold">{children}</strong>
+    <strong className="text-foreground font-semibold">{children}</strong>
   ),
   // hr: feature group divider
   hr: () => (
@@ -116,10 +116,10 @@ const markdownComponents = {
   ),
   // ul/li for any lists that sneak through
   ul: ({ children }: { children?: React.ReactNode }) => (
-    <ul className="text-slate-300 text-sm space-y-1 mb-4 pl-4">{children}</ul>
+    <ul className="text-muted-foreground text-sm space-y-1 mb-4 pl-4">{children}</ul>
   ),
   li: ({ children }: { children?: React.ReactNode }) => (
-    <li className="text-slate-300">{children}</li>
+    <li className="text-muted-foreground">{children}</li>
   ),
 };
 
@@ -258,7 +258,7 @@ export function AIReportPanel({ boardId, members, hideBilling }: AIReportPanelPr
           {/* Mobile history toggle button */}
           <button
             onClick={() => setShowHistory(!showHistory)}
-            className="md:hidden fixed left-4 z-20 flex items-center gap-2 px-4 py-2.5 bg-bridge-obsidian border border-white/10 rounded-xl text-xs font-medium text-slate-300 shadow-lg"
+            className="md:hidden fixed left-4 z-20 flex items-center gap-2 px-4 py-2.5 bg-bridge-obsidian border border-foreground/10 rounded-xl text-xs font-medium text-muted-foreground shadow-lg"
             style={{ bottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
           >
             <Clock className="h-3.5 w-3.5" />
@@ -270,14 +270,14 @@ export function AIReportPanel({ boardId, members, hideBilling }: AIReportPanelPr
           {showHistory && (
             <div className="md:hidden fixed inset-0 z-30 bg-black/50" onClick={() => setShowHistory(false)}>
               <div
-                className="absolute left-0 top-0 h-full w-72 bg-bridge-dark border-r border-white/10 flex flex-col"
+                className="absolute left-0 top-0 h-full w-72 bg-bridge-dark border-r border-foreground/10 flex flex-col"
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
+                <div className="px-4 py-3 border-b border-foreground/10 flex items-center justify-between">
                   <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">
                     {t('aiReport.history')}
                   </h4>
-                  <button onClick={() => setShowHistory(false)} className="p-1 text-slate-500 hover:text-white">
+                  <button onClick={() => setShowHistory(false)} className="p-1 text-slate-500 hover:text-foreground">
                     <ChevronLeft className="h-4 w-4" />
                   </button>
                 </div>
@@ -286,13 +286,13 @@ export function AIReportPanel({ boardId, members, hideBilling }: AIReportPanelPr
                     <button
                       key={item.id}
                       onClick={() => { handleLoadHistoryReport(item.id); setShowHistory(false); }}
-                      className={`w-full text-left px-4 py-3 border-b border-white/5 hover:bg-white/5 transition-colors ${
+                      className={`w-full text-left px-4 py-3 border-b border-foreground/5 hover:bg-foreground/5 transition-colors ${
                         report?.id === item.id ? 'bg-bridge-accent/10 border-l-2 border-l-bridge-accent' : ''
                       }`}
                     >
                       <div className="flex items-center gap-2 mb-1">
                         <FileText className="h-3.5 w-3.5 text-slate-500" />
-                        <span className="text-xs font-medium text-white">
+                        <span className="text-xs font-medium text-foreground">
                           {item.period_start} ~ {item.period_end.slice(5)}
                         </span>
                       </div>
@@ -307,8 +307,8 @@ export function AIReportPanel({ boardId, members, hideBilling }: AIReportPanelPr
           )}
 
           {/* Desktop sidebar */}
-          <div className="hidden md:flex w-64 border-r border-white/10 flex-col overflow-hidden">
-            <div className="px-4 py-3 border-b border-white/10">
+          <div className="hidden md:flex w-64 border-r border-foreground/10 flex-col overflow-hidden">
+            <div className="px-4 py-3 border-b border-foreground/10">
               <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">
                 {t('aiReport.history')}
               </h4>
@@ -318,7 +318,7 @@ export function AIReportPanel({ boardId, members, hideBilling }: AIReportPanelPr
                 <button
                   key={item.id}
                   onClick={() => handleLoadHistoryReport(item.id)}
-                  className={`w-full text-left px-4 py-3 border-b border-white/5 hover:bg-white/5 transition-colors ${
+                  className={`w-full text-left px-4 py-3 border-b border-foreground/5 hover:bg-foreground/5 transition-colors ${
                     report?.id === item.id ? 'bg-bridge-accent/10 border-l-2 border-l-bridge-accent' : ''
                   }`}
                 >
@@ -341,17 +341,17 @@ export function AIReportPanel({ boardId, members, hideBilling }: AIReportPanelPr
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* Header */}
-        <div className="flex-none px-4 md:px-6 py-3 md:py-4 border-b border-white/10">
+        <div className="flex-none px-4 md:px-6 py-3 md:py-4 border-b border-foreground/10">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             {/* Week navigation */}
             <div className="flex items-center gap-2 sm:gap-3">
               <button
                 onClick={() => setWeekOffset((p) => p - 1)}
-                className="p-1.5 sm:p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
+                className="p-1.5 sm:p-2 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
               >
                 <ChevronLeft className="h-4 w-4" />
               </button>
-              <div className="text-xs sm:text-sm font-medium text-white min-w-[140px] sm:min-w-[160px] text-center">
+              <div className="text-xs sm:text-sm font-medium text-foreground min-w-[140px] sm:min-w-[160px] text-center">
                 {formatDisplayDate(weekRange.start)} ~ {formatDisplayDate(weekRange.end)}
                 {weekOffset === -1 && (
                   <span className="ml-1.5 sm:ml-2 text-[10px] sm:text-xs text-slate-500">({t('aiReport.lastWeek')})</span>
@@ -363,7 +363,7 @@ export function AIReportPanel({ boardId, members, hideBilling }: AIReportPanelPr
               <button
                 onClick={() => setWeekOffset((p) => Math.min(p + 1, 0))}
                 disabled={weekOffset >= 0}
-                className="p-1.5 sm:p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                className="p-1.5 sm:p-2 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 <ChevronRight className="h-4 w-4" />
               </button>
@@ -376,7 +376,7 @@ export function AIReportPanel({ boardId, members, hideBilling }: AIReportPanelPr
                   <select
                     value={selectedMemberId}
                     onChange={(e) => setSelectedMemberId(e.target.value)}
-                    className="appearance-none w-full bg-white/5 border border-white/10 rounded-xl pl-3 pr-8 py-2 text-xs sm:text-sm text-white
+                    className="appearance-none w-full bg-foreground/5 border border-foreground/10 rounded-xl pl-3 pr-8 py-2 text-xs sm:text-sm text-foreground
                       focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent
                       transition-all cursor-pointer"
                   >
@@ -399,7 +399,7 @@ export function AIReportPanel({ boardId, members, hideBilling }: AIReportPanelPr
                   className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all ${
                     reportType === 'PERSONAL'
                       ? 'bg-bridge-accent text-white shadow-lg'
-                      : 'text-slate-400 hover:text-white hover:bg-white/5'
+                      : 'text-slate-400 hover:text-foreground hover:bg-foreground/5'
                   }`}
                 >
                   <User className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -412,7 +412,7 @@ export function AIReportPanel({ boardId, members, hideBilling }: AIReportPanelPr
                     className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all ${
                       reportType === 'TEAM'
                         ? 'bg-bridge-accent text-white shadow-lg'
-                        : 'text-slate-400 hover:text-white hover:bg-white/5'
+                        : 'text-slate-400 hover:text-foreground hover:bg-foreground/5'
                     }`}
                   >
                     <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -467,14 +467,14 @@ export function AIReportPanel({ boardId, members, hideBilling }: AIReportPanelPr
                 <div className="flex items-center gap-2">
                   <button
                     onClick={handleRegenerate}
-                    className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 text-[10px] sm:text-xs rounded-lg border border-white/10 transition-all text-slate-400 hover:text-white hover:bg-white/5"
+                    className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 text-[10px] sm:text-xs rounded-lg border border-foreground/10 transition-all text-slate-400 hover:text-foreground hover:bg-foreground/5"
                   >
                     <RefreshCw className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                     <span className="hidden sm:inline">{t('aiReport.regenerate')}</span>
                   </button>
                   <button
                     onClick={handleCopy}
-                    className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 text-[10px] sm:text-xs text-slate-400 hover:text-white hover:bg-white/5 rounded-lg border border-white/10 transition-all"
+                    className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 text-[10px] sm:text-xs text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded-lg border border-foreground/10 transition-all"
                   >
                     {copied ? <Check className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-emerald-400" /> : <Copy className="h-3 w-3 sm:h-3.5 sm:w-3.5" />}
                     <span className="hidden sm:inline">{copied ? t('aiReport.copied') : t('aiReport.copy')}</span>
@@ -494,7 +494,7 @@ export function AIReportPanel({ boardId, members, hideBilling }: AIReportPanelPr
               {report.data_snapshot && (
                 <div className="flex items-center gap-3 mt-8 mb-4">
                   <Sparkles className="h-4 w-4 text-bridge-accent" />
-                  <h3 className="text-sm font-bold text-white uppercase tracking-widest">{t('aiReport.aiAnalysis')}</h3>
+                  <h3 className="text-sm font-bold text-foreground uppercase tracking-widest">{t('aiReport.aiAnalysis')}</h3>
                   <div className="flex-1 h-px bg-white/10" />
                 </div>
               )}
@@ -510,7 +510,7 @@ export function AIReportPanel({ boardId, members, hideBilling }: AIReportPanelPr
               <div className="w-16 h-16 rounded-2xl bg-bridge-accent/10 flex items-center justify-center mb-6">
                 <Sparkles className="h-8 w-8 text-bridge-accent" />
               </div>
-              <h3 className="text-lg font-bold text-white mb-2">{t('aiReport.title')}</h3>
+              <h3 className="text-lg font-bold text-foreground mb-2">{t('aiReport.title')}</h3>
               <p className="text-slate-500 text-sm mb-8 text-center max-w-md">
                 {reportType === 'TEAM' ? t('aiReport.teamDescription') : t('aiReport.personalDescription')}
               </p>
@@ -577,7 +577,7 @@ function CircularProgress({ value, max, size = 52, strokeWidth = 4, color }: {
         />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-[10px] font-bold text-white">
+        <span className="text-[10px] font-bold text-foreground">
           {max > 0 ? Math.round((value / max) * 100) : 0}%
         </span>
       </div>
@@ -607,28 +607,28 @@ function PersonalDataSection({ dataSnapshot, t }: { dataSnapshot: string; t: (ke
       {/* Section header */}
       <div className="flex items-center gap-3 mb-4">
         <Layers className="h-4 w-4 text-bridge-secondary" />
-        <h3 className="text-sm font-bold text-white uppercase tracking-widest">{t('aiReport.activityData')}</h3>
+        <h3 className="text-sm font-bold text-foreground uppercase tracking-widest">{t('aiReport.activityData')}</h3>
         <div className="flex-1 h-px bg-white/10" />
       </div>
 
       {/* Summary cards - 2x2 grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
         {/* 총 작업시간 */}
-        <div className="bg-bridge-obsidian rounded-xl border border-white/5 p-5 relative overflow-hidden">
+        <div className="bg-bridge-obsidian rounded-xl border border-foreground/5 p-5 relative overflow-hidden">
           <div className="absolute -top-6 -right-6 w-28 h-28 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none" />
           <div className="relative">
             <div className="flex items-center gap-2 mb-3">
               <Timer className="h-4 w-4 text-bridge-accent" />
               <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{t('aiReport.totalTime')}</span>
             </div>
-            <div className="text-2xl font-bold text-white tracking-tight">
+            <div className="text-2xl font-bold text-foreground tracking-tight">
               {formatMinutesToHours(summary.total_minutes)}
             </div>
           </div>
         </div>
 
         {/* 체크리스트 */}
-        <div className="bg-bridge-obsidian rounded-xl border border-white/5 p-5 relative overflow-hidden">
+        <div className="bg-bridge-obsidian rounded-xl border border-foreground/5 p-5 relative overflow-hidden">
           <div className="absolute -top-6 -right-6 w-28 h-28 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
           <div className="relative">
             <div className="flex items-center gap-2 mb-3">
@@ -642,7 +642,7 @@ function PersonalDataSection({ dataSnapshot, t }: { dataSnapshot: string; t: (ke
                 color="#34d399"
               />
               <div>
-                <div className="text-2xl font-bold text-white tracking-tight">
+                <div className="text-2xl font-bold text-foreground tracking-tight">
                   {summary.completed_checklists}/{summary.total_checklists}
                 </div>
                 {summary.total_checklists > 0 && summary.completed_checklists === summary.total_checklists && (
@@ -654,7 +654,7 @@ function PersonalDataSection({ dataSnapshot, t }: { dataSnapshot: string; t: (ke
         </div>
 
         {/* 참여 피처 */}
-        <div className="bg-bridge-obsidian rounded-xl border border-white/5 p-5 relative overflow-hidden">
+        <div className="bg-bridge-obsidian rounded-xl border border-foreground/5 p-5 relative overflow-hidden">
           <div className="absolute -top-6 -right-6 w-28 h-28 bg-teal-500/10 rounded-full blur-2xl pointer-events-none" />
           <div className="relative">
             <div className="flex items-center gap-2 mb-3">
@@ -662,12 +662,12 @@ function PersonalDataSection({ dataSnapshot, t }: { dataSnapshot: string; t: (ke
               <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{t('aiReport.featuresLabel')}</span>
             </div>
             <div className="flex items-baseline gap-2 mb-2.5">
-              <span className="text-2xl font-bold text-white tracking-tight">{features.length}</span>
+              <span className="text-2xl font-bold text-foreground tracking-tight">{features.length}</span>
               <span className="text-[11px] text-slate-500">{totalTasks} {t('aiReport.taskCount')}</span>
             </div>
             {features.length > 0 && (
               <>
-                <div className="flex rounded-full overflow-hidden h-1.5 bg-white/5 mb-2">
+                <div className="flex rounded-full overflow-hidden h-1.5 bg-foreground/5 mb-2">
                   {doneCount > 0 && (
                     <div className="bg-emerald-400 h-full" style={{ width: `${(doneCount / features.length) * 100}%` }} />
                   )}
@@ -701,14 +701,14 @@ function PersonalDataSection({ dataSnapshot, t }: { dataSnapshot: string; t: (ke
         </div>
 
         {/* 댓글 */}
-        <div className="bg-bridge-obsidian rounded-xl border border-white/5 p-5 relative overflow-hidden">
+        <div className="bg-bridge-obsidian rounded-xl border border-foreground/5 p-5 relative overflow-hidden">
           <div className="absolute -top-6 -right-6 w-28 h-28 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
           <div className="relative">
             <div className="flex items-center gap-2 mb-3">
               <MessageSquare className="h-4 w-4 text-amber-400" />
               <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{t('aiReport.commentsLabel')}</span>
             </div>
-            <div className="text-2xl font-bold text-white tracking-tight">{summary.total_comments}</div>
+            <div className="text-2xl font-bold text-foreground tracking-tight">{summary.total_comments}</div>
           </div>
         </div>
       </div>
@@ -751,21 +751,21 @@ function TeamDataSection({ dataSnapshot, t }: { dataSnapshot: string; t: (key: s
       {/* Section header */}
       <div className="flex items-center gap-3 mb-4">
         <Layers className="h-4 w-4 text-bridge-secondary" />
-        <h3 className="text-sm font-bold text-white uppercase tracking-widest">{t('aiReport.activityData')}</h3>
+        <h3 className="text-sm font-bold text-foreground uppercase tracking-widest">{t('aiReport.activityData')}</h3>
         <div className="flex-1 h-px bg-white/10" />
       </div>
 
       {/* Summary cards - 2x2 grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
         {/* 총 작업시간 */}
-        <div className="bg-bridge-obsidian rounded-xl border border-white/5 p-5 relative overflow-hidden">
+        <div className="bg-bridge-obsidian rounded-xl border border-foreground/5 p-5 relative overflow-hidden">
           <div className="absolute -top-6 -right-6 w-28 h-28 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none" />
           <div className="relative">
             <div className="flex items-center gap-2 mb-3">
               <Timer className="h-4 w-4 text-bridge-accent" />
               <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{t('aiReport.totalTime')}</span>
             </div>
-            <div className="text-2xl font-bold text-white tracking-tight">
+            <div className="text-2xl font-bold text-foreground tracking-tight">
               {formatMinutesToHours(summary.total_work_minutes)}
             </div>
             <div className="text-[10px] text-slate-600 mt-1">
@@ -775,7 +775,7 @@ function TeamDataSection({ dataSnapshot, t }: { dataSnapshot: string; t: (key: s
         </div>
 
         {/* 태스크 완료 */}
-        <div className="bg-bridge-obsidian rounded-xl border border-white/5 p-5 relative overflow-hidden">
+        <div className="bg-bridge-obsidian rounded-xl border border-foreground/5 p-5 relative overflow-hidden">
           <div className="absolute -top-6 -right-6 w-28 h-28 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
           <div className="relative">
             <div className="flex items-center gap-2 mb-3">
@@ -789,7 +789,7 @@ function TeamDataSection({ dataSnapshot, t }: { dataSnapshot: string; t: (key: s
                 color="#34d399"
               />
               <div>
-                <div className="text-2xl font-bold text-white tracking-tight">
+                <div className="text-2xl font-bold text-foreground tracking-tight">
                   {summary.completed_tasks}/{summary.total_tasks}
                 </div>
               </div>
@@ -798,7 +798,7 @@ function TeamDataSection({ dataSnapshot, t }: { dataSnapshot: string; t: (key: s
         </div>
 
         {/* 프로젝트 건강도 */}
-        <div className="bg-bridge-obsidian rounded-xl border border-white/5 p-5 relative overflow-hidden">
+        <div className="bg-bridge-obsidian rounded-xl border border-foreground/5 p-5 relative overflow-hidden">
           <div className={`absolute -top-6 -right-6 w-28 h-28 rounded-full blur-2xl pointer-events-none ${
             healthScore >= 70 ? 'bg-emerald-500/10' : healthScore >= 40 ? 'bg-amber-500/10' : 'bg-red-500/10'
           }`} />
@@ -812,7 +812,7 @@ function TeamDataSection({ dataSnapshot, t }: { dataSnapshot: string; t: (key: s
             }`}>
               {Math.round(healthScore)}
             </div>
-            <div className="w-full h-1.5 rounded-full bg-white/5 mt-2 overflow-hidden">
+            <div className="w-full h-1.5 rounded-full bg-foreground/5 mt-2 overflow-hidden">
               <div
                 className={`h-full rounded-full transition-all duration-500 ${
                   healthScore >= 70 ? 'bg-emerald-400' : healthScore >= 40 ? 'bg-amber-400' : 'bg-red-400'
@@ -824,7 +824,7 @@ function TeamDataSection({ dataSnapshot, t }: { dataSnapshot: string; t: (key: s
         </div>
 
         {/* 주의 필요 항목 */}
-        <div className="bg-bridge-obsidian rounded-xl border border-white/5 p-5 relative overflow-hidden">
+        <div className="bg-bridge-obsidian rounded-xl border border-foreground/5 p-5 relative overflow-hidden">
           <div className={`absolute -top-6 -right-6 w-28 h-28 rounded-full blur-2xl pointer-events-none ${
             totalDelayed > 0 ? 'bg-red-500/10' : 'bg-emerald-500/10'
           }`} />
@@ -852,7 +852,7 @@ function TeamDataSection({ dataSnapshot, t }: { dataSnapshot: string; t: (key: s
 
       {/* Feature progress */}
       {statistics.by_feature && statistics.by_feature.length > 0 && (
-        <div className="bg-bridge-obsidian rounded-xl border border-white/5 p-4 sm:p-5 mb-4">
+        <div className="bg-bridge-obsidian rounded-xl border border-foreground/5 p-4 sm:p-5 mb-4">
           <div className="flex items-center gap-2 mb-4">
             <TrendingUp className="h-4 w-4 text-bridge-accent" />
             <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{t('aiReport.featureProgress')}</span>
@@ -865,7 +865,7 @@ function TeamDataSection({ dataSnapshot, t }: { dataSnapshot: string; t: (key: s
                     {f.feature.color && (
                       <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: f.feature.color }} />
                     )}
-                    <span className="text-[11px] sm:text-xs text-slate-300 truncate">{f.feature.title}</span>
+                    <span className="text-[11px] sm:text-xs text-muted-foreground truncate">{f.feature.title}</span>
                   </div>
                   <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
                     <span className="text-[10px] text-slate-600 hidden sm:inline">
@@ -876,7 +876,7 @@ function TeamDataSection({ dataSnapshot, t }: { dataSnapshot: string; t: (key: s
                     </span>
                   </div>
                 </div>
-                <div className="w-full h-1.5 rounded-full bg-white/5 overflow-hidden">
+                <div className="w-full h-1.5 rounded-full bg-foreground/5 overflow-hidden">
                   <div
                     className="h-full rounded-full bg-bridge-accent transition-all duration-500"
                     style={{ width: `${f.progress_percentage}%` }}
@@ -890,7 +890,7 @@ function TeamDataSection({ dataSnapshot, t }: { dataSnapshot: string; t: (key: s
 
       {/* Member contributions */}
       {statistics.by_member && statistics.by_member.length > 0 && (
-        <div className="bg-bridge-obsidian rounded-xl border border-white/5 p-4 sm:p-5 mb-4">
+        <div className="bg-bridge-obsidian rounded-xl border border-foreground/5 p-4 sm:p-5 mb-4">
           <div className="flex items-center gap-2 mb-4">
             <Users className="h-4 w-4 text-bridge-secondary" />
             <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{t('aiReport.memberContributions')}</span>
@@ -903,9 +903,9 @@ function TeamDataSection({ dataSnapshot, t }: { dataSnapshot: string; t: (key: s
                 const barWidth = (m.total_minutes / maxMinutes) * 100;
                 return (
                   <div key={i} className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
-                    <span className="text-xs text-slate-300 sm:w-20 truncate flex-shrink-0">{m.member.name}</span>
+                    <span className="text-xs text-muted-foreground sm:w-20 truncate flex-shrink-0">{m.member.name}</span>
                     <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
-                      <div className="flex-1 h-2 rounded-full bg-white/5 overflow-hidden">
+                      <div className="flex-1 h-2 rounded-full bg-foreground/5 overflow-hidden">
                         <div
                           className="h-full rounded-full bg-bridge-secondary/60 transition-all duration-500"
                           style={{ width: `${barWidth}%` }}
@@ -927,7 +927,7 @@ function TeamDataSection({ dataSnapshot, t }: { dataSnapshot: string; t: (key: s
 
       {/* Milestone health */}
       {management.milestone_health && management.milestone_health.length > 0 && (
-        <div className="bg-bridge-obsidian rounded-xl border border-white/5 p-4 sm:p-5">
+        <div className="bg-bridge-obsidian rounded-xl border border-foreground/5 p-4 sm:p-5">
           <div className="flex items-center gap-2 mb-4">
             <Target className="h-4 w-4 text-bridge-accent" />
             <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{t('aiReport.milestoneHealth')}</span>
@@ -945,7 +945,7 @@ function TeamDataSection({ dataSnapshot, t }: { dataSnapshot: string; t: (key: s
                 <div key={i} className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1">
                     <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${s.dot}`} />
-                    <span className="text-[11px] sm:text-xs text-slate-300 truncate">{ms.milestone.title}</span>
+                    <span className="text-[11px] sm:text-xs text-muted-foreground truncate">{ms.milestone.title}</span>
                   </div>
                   <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
                     <span className={`text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-md ${s.text} ${s.bg}`}>
@@ -974,7 +974,7 @@ function TeamDataSection({ dataSnapshot, t }: { dataSnapshot: string; t: (key: s
 
 function MeetingsSection({ meetings, t }: { meetings: ReportMeeting[]; t: (key: string) => string }) {
   return (
-    <div className="bg-bridge-obsidian rounded-xl border border-white/5 p-4 sm:p-5 mb-4">
+    <div className="bg-bridge-obsidian rounded-xl border border-foreground/5 p-4 sm:p-5 mb-4">
       <div className="flex items-center gap-2 mb-4">
         <CalendarDays className="h-4 w-4 text-violet-400" />
         <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{t('aiReport.meetingsLabel')}</span>
@@ -1035,7 +1035,7 @@ function FeatureCard({ feature, t }: { feature: PersonalReportFeature; t: (key: 
   const status = statusConfig[feature.status] || statusConfig.NOT_STARTED;
 
   return (
-    <div className={`bg-bridge-obsidian rounded-xl border border-white/5 overflow-hidden border-l-2 ${status.border}`}>
+    <div className={`bg-bridge-obsidian rounded-xl border border-foreground/5 overflow-hidden border-l-2 ${status.border}`}>
       {/* Feature header */}
       <button
         onClick={() => setExpanded(!expanded)}
@@ -1045,11 +1045,11 @@ function FeatureCard({ feature, t }: { feature: PersonalReportFeature; t: (key: 
           <span className={`text-[9px] sm:text-[10px] font-bold uppercase tracking-wider px-1.5 sm:px-2 py-0.5 rounded-md flex-shrink-0 ${status.color} ${status.bg}`}>
             {feature.status.replace('_', ' ')}
           </span>
-          <span className="text-xs sm:text-sm font-medium text-white truncate">{feature.title}</span>
+          <span className="text-xs sm:text-sm font-medium text-foreground truncate">{feature.title}</span>
         </div>
         <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0 ml-2 sm:ml-3">
           <div className="hidden sm:flex items-center gap-2">
-            <div className="w-20 h-1.5 rounded-full bg-white/5 overflow-hidden">
+            <div className="w-20 h-1.5 rounded-full bg-foreground/5 overflow-hidden">
               <div
                 className={`h-full rounded-full transition-all duration-500 ${
                   feature.status === 'DONE' ? 'bg-emerald-400' : 'bg-bridge-accent'
@@ -1069,7 +1069,7 @@ function FeatureCard({ feature, t }: { feature: PersonalReportFeature; t: (key: 
 
       {/* Tasks */}
       {expanded && (
-        <div className="border-t border-white/5">
+        <div className="border-t border-foreground/5">
           {feature.tasks.map((task, ti) => (
             <div
               key={ti}
@@ -1086,7 +1086,7 @@ function FeatureCard({ feature, t }: { feature: PersonalReportFeature; t: (key: 
                   <span className={`text-xs sm:text-sm ${task.completed ? 'text-slate-500 line-through' : 'text-slate-200'}`}>
                     {task.title}
                   </span>
-                  <span className="text-[9px] sm:text-[10px] text-slate-600 bg-white/5 px-1.5 sm:px-2 py-0.5 rounded-full">{task.block}</span>
+                  <span className="text-[9px] sm:text-[10px] text-slate-600 bg-foreground/5 px-1.5 sm:px-2 py-0.5 rounded-full">{task.block}</span>
                 </div>
                 {task.time_minutes != null && task.time_minutes > 0 && (
                   <span className="text-[10px] text-bridge-accent flex-shrink-0">

@@ -50,7 +50,7 @@ export function EmailVerificationPendingPage() {
   };
 
   return (
-    <div className="min-h-screen w-full relative flex items-center justify-center p-4 md:p-8 overflow-hidden bg-bridge-dark text-white">
+    <div className="min-h-screen w-full relative flex items-center justify-center p-4 md:p-8 overflow-hidden bg-bridge-dark text-foreground">
       {/* Background Gradient */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10">
         <div
@@ -62,7 +62,7 @@ export function EmailVerificationPendingPage() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-[500px] bg-bridge-obsidian rounded-[32px] p-8 md:p-12 border border-white/20 shadow-2xl"
+        className="w-full max-w-[500px] bg-bridge-obsidian rounded-[32px] p-8 md:p-12 border border-bridge-border shadow-2xl"
       >
         {/* Icon */}
         <div className="flex justify-center mb-8">
@@ -72,13 +72,13 @@ export function EmailVerificationPendingPage() {
         </div>
 
         {/* Title */}
-        <h1 className="text-2xl md:text-3xl font-bold text-white text-center mb-4">
+        <h1 className="text-2xl md:text-3xl font-bold text-foreground text-center mb-4">
           {t('emailVerification.title')}
         </h1>
 
         {/* Description */}
         <p className="text-slate-400 text-center mb-8 leading-relaxed">
-          <span className="text-white font-medium">{currentUser?.email}</span>
+          <span className="text-foreground font-medium">{currentUser?.email}</span>
           <br />
           {t('emailVerification.sentTo')}
           <br />
@@ -86,13 +86,13 @@ export function EmailVerificationPendingPage() {
         </p>
 
         {/* Info Box */}
-        <div className="bg-white/5 border border-white/20 rounded-2xl p-4 mb-8">
+        <div className="bg-foreground/5 border border-bridge-border rounded-2xl p-4 mb-8">
           <div className="flex items-start gap-3">
             <div className="w-8 h-8 bg-bridge-accent/20 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
               <span className="text-sm">&#x23F0;</span>
             </div>
             <div>
-              <p className="text-sm text-slate-300 font-medium mb-1">{t('emailVerification.linkValidity')}</p>
+              <p className="text-sm text-muted-foreground font-medium mb-1">{t('emailVerification.linkValidity')}</p>
               <p className="text-xs text-slate-400">
                 {t('emailVerification.linkValidityDesc')}
               </p>
@@ -120,7 +120,7 @@ export function EmailVerificationPendingPage() {
           <button
             onClick={handleResend}
             disabled={isResending || cooldown > 0}
-            className="w-full h-14 bg-white/5 border border-white/20 text-white rounded-2xl font-bold transition-all duration-300 flex items-center justify-center gap-2 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full h-14 bg-foreground/5 border border-bridge-border text-foreground rounded-2xl font-bold transition-all duration-300 flex items-center justify-center gap-2 hover:bg-foreground/10 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isResending ? (
               <RefreshCw className="w-5 h-5 animate-spin" />
@@ -132,7 +132,7 @@ export function EmailVerificationPendingPage() {
 
           <button
             onClick={handleLogout}
-            className="w-full h-12 text-slate-400 hover:text-white transition-colors flex items-center justify-center gap-2"
+            className="w-full h-12 text-slate-400 hover:text-foreground transition-colors flex items-center justify-center gap-2"
           >
             <LogOut className="w-4 h-4" />
             {t('emailVerification.loginOtherAccount')}

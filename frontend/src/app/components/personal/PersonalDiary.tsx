@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Send, BookHeart, ChevronLeft, ChevronRight, Check, Sparkles, RotateCcw, BookOpen, Pencil, RefreshCw, AlertTriangle, X, CalendarIcon, Mic, Volume2, Play, Pause, Square } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { MotionModal } from '../ui/MotionModal';
 import { useTranslation } from 'react-i18next';
 import {
   startOfMonth,
@@ -16,6 +17,7 @@ import {
 } from 'date-fns';
 import { diaryService } from '../../utils/services';
 import { formatDate } from '../../utils/dateUtils';
+import { useHolidays } from '../../hooks/useHolidays';
 import type { DiaryDetail, DiaryMessage, DiarySimple } from '../../types';
 import type { TFunction } from 'i18next';
 
@@ -48,7 +50,7 @@ function toDateString(d: Date): string {
 type VoiceState = 'idle' | 'recording' | 'processing' | 'ai-speaking';
 
 export function PersonalDiary() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const MOODS = useMemo(() => getMoods(t), [t]);
   const [currentDate, setCurrentDate] = useState(toDateString(new Date()));
   const [diary, setDiary] = useState<DiaryDetail | null>(null);
@@ -64,6 +66,7 @@ export function PersonalDiary() {
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [hasMicSupport, setHasMicSupport] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -85,6 +88,7 @@ export function PersonalDiary() {
   }, [currentDate]);
 
   const calendarYear = calendarMonth.getFullYear();
+  const { holidayMap } = useHolidays(i18n.language, calendarYear);
   const calendarMonthNum = calendarMonth.getMonth() + 1;
 
   useEffect(() => {
@@ -105,6 +109,11 @@ export function PersonalDiary() {
       if (timerRef.current) clearInterval(timerRef.current);
       if (mediaRecorderRef.current?.state === 'recording') {
         mediaRecorderRef.current.stop();
+      }
+      // Always stop stream tracks to release microphone
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
       }
       if (audioRef.current) {
         audioRef.current.pause();
@@ -190,14 +199,27 @@ export function PersonalDiary() {
   // Voice Recording Handlers
   // ============================
 
+  const stopStreamTracks = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
+  }, []);
+
   const startRecording = useCallback(async () => {
     if (!diary || voiceState !== 'idle') return;
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-        ? 'audio/webm;codecs=opus'
-        : 'audio/webm';
+      streamRef.current = stream;
+
+      const supportedTypes = [
+        'audio/webm;codecs=opus',
+        'audio/webm',
+        'audio/mp4',
+        'audio/ogg;codecs=opus',
+      ];
+      const mimeType = supportedTypes.find((t) => MediaRecorder.isTypeSupported(t)) || 'audio/webm';
       const mediaRecorder = new MediaRecorder(stream, { mimeType });
 
       chunksRef.current = [];
@@ -209,8 +231,8 @@ export function PersonalDiary() {
       };
 
       mediaRecorder.onstop = () => {
-        stream.getTracks().forEach((t) => t.stop());
-        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+        stopStreamTracks();
+        const blob = new Blob(chunksRef.current, { type: mimeType });
         if (blob.size > 0) {
           handleVoiceSubmit(blob);
         } else {
@@ -218,34 +240,49 @@ export function PersonalDiary() {
         }
       };
 
+      mediaRecorder.onerror = () => {
+        stopStreamTracks();
+        setVoiceState('idle');
+      };
+
       mediaRecorder.start(500);
       mediaRecorderRef.current = mediaRecorder;
       setVoiceState('recording');
       setRecordingDuration(0);
 
-      // Vibrate on mobile
       if (navigator.vibrate) navigator.vibrate(50);
 
       timerRef.current = setInterval(() => {
         setRecordingDuration((d) => d + 1);
       }, 1000);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to start recording:', error);
+      stopStreamTracks();
       setVoiceState('idle');
+
+      if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+        alert(t('personal.diary.voiceMicDenied', '마이크 접근이 거부되었습니다. 브라우저 설정에서 마이크 권한을 허용해주세요.'));
+      } else if (error.name === 'NotFoundError') {
+        alert(t('personal.diary.voiceMicNotFound', '마이크를 찾을 수 없습니다. 마이크가 연결되어 있는지 확인해주세요.'));
+      }
     }
-  }, [diary, voiceState]);
+  }, [diary, voiceState, stopStreamTracks, t]);
 
   const stopRecording = useCallback(() => {
-    if (mediaRecorderRef.current?.state === 'recording') {
-      mediaRecorderRef.current.stop();
-    }
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
-    // Vibrate on mobile
+    if (mediaRecorderRef.current?.state === 'recording') {
+      mediaRecorderRef.current.stop();
+      // onstop callback will call stopStreamTracks
+    } else {
+      // MediaRecorder not recording - clean up stream directly
+      stopStreamTracks();
+      setVoiceState('idle');
+    }
     if (navigator.vibrate) navigator.vibrate(30);
-  }, []);
+  }, [stopStreamTracks]);
 
   const handleVoiceSubmit = async (audioBlob: Blob) => {
     if (!diary) return;
@@ -278,6 +315,11 @@ export function PersonalDiary() {
 
       // Auto-play AI voice response
       if (reply.ai_audio_url) {
+        // Stop any existing playback first
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current = null;
+        }
         setVoiceState('ai-speaking');
         const audio = new Audio(reply.ai_audio_url);
         audioRef.current = audio;
@@ -433,7 +475,7 @@ export function PersonalDiary() {
       {/* Sidebar - Calendar & Diary List */}
       <div className={`
         fixed md:relative inset-y-0 left-0 z-50 md:z-auto
-        w-[300px] md:w-[340px] flex-shrink-0 border-r border-white/5 flex flex-col overflow-hidden
+        w-[300px] md:w-[340px] flex-shrink-0 border-r border-foreground/5 flex flex-col overflow-hidden
         bg-bridge-dark md:bg-transparent
         transition-transform duration-300 ease-in-out
         ${showMobileSidebar ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
@@ -442,10 +484,10 @@ export function PersonalDiary() {
           {/* Title */}
           <div className="flex items-center gap-2.5 mb-4">
             <BookOpen size={18} className="text-bridge-accent" />
-            <h2 className="text-base font-bold text-white">{t('personal.diary.title')}</h2>
+            <h2 className="text-base font-bold text-foreground">{t('personal.diary.title')}</h2>
             <button
               onClick={() => setShowMobileSidebar(false)}
-              className="md:hidden ml-auto p-1.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+              className="md:hidden ml-auto p-1.5 text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
             >
               <X size={16} />
             </button>
@@ -453,25 +495,25 @@ export function PersonalDiary() {
 
           {/* Month Navigation */}
           <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-semibold text-white">
+            <span className="text-sm font-semibold text-foreground">
               {format(calendarMonth, t('personal.diary.yearMonthFormat'))}
             </span>
             <div className="flex items-center gap-1">
               <button
                 onClick={handlePrevMonth}
-                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
+                className="p-1 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
               >
                 <ChevronLeft size={16} />
               </button>
               <button
                 onClick={handleCalendarToday}
-                className="px-2 py-0.5 text-[10px] font-semibold rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
+                className="px-2 py-0.5 text-[10px] font-semibold rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
               >
                 {t('personal.diary.today')}
               </button>
               <button
                 onClick={handleNextMonth}
-                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
+                className="p-1 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
               >
                 <ChevronRight size={16} />
               </button>
@@ -481,7 +523,7 @@ export function PersonalDiary() {
 
         {/* Mini Calendar Grid */}
         <div className="px-4 pb-4 flex-shrink-0">
-          <div className="bg-bridge-obsidian rounded-xl border border-white/5 p-3">
+          <div className="bg-bridge-obsidian rounded-xl border border-foreground/5 p-3">
             {/* Weekday header */}
             <div className="grid grid-cols-7 mb-1">
               {weekDays.map((day, i) => (
@@ -505,6 +547,7 @@ export function PersonalDiary() {
                 const isSelected = dateKey === currentDate;
                 const isTodayDate = isTodayFn(day);
                 const dayOfWeek = day.getDay();
+                const isHoliday = isCurrentMonth && holidayMap.has(dateKey);
 
                 return (
                   <button
@@ -514,7 +557,7 @@ export function PersonalDiary() {
                       relative flex flex-col items-center justify-center py-2 rounded-lg transition-all min-h-[44px]
                       ${isSelected
                         ? 'bg-bridge-accent/20 border border-bridge-accent/50'
-                        : 'border border-transparent hover:bg-white/5'
+                        : 'border border-transparent hover:bg-foreground/5'
                       }
                       ${!isCurrentMonth ? 'opacity-30' : ''}
                     `}
@@ -525,12 +568,12 @@ export function PersonalDiary() {
                         ${isTodayDate
                           ? 'bg-bridge-accent text-white rounded-full w-6 h-6 flex items-center justify-center text-[11px]'
                           : isSelected
-                            ? 'text-white'
-                            : dayOfWeek === 0
+                            ? 'text-foreground'
+                            : isHoliday || dayOfWeek === 0
                               ? 'text-red-400/80'
                               : dayOfWeek === 6
                                 ? 'text-blue-400/80'
-                                : 'text-slate-300'
+                                : 'text-muted-foreground'
                         }
                       `}
                     >
@@ -575,7 +618,7 @@ export function PersonalDiary() {
                   className={`w-full text-left p-2.5 rounded-xl transition-all group ${
                     d.diary_date === currentDate
                       ? 'bg-bridge-accent/15 border border-bridge-accent/30'
-                      : 'bg-white/[0.03] border border-white/5 hover:bg-white/[0.06] hover:border-white/10'
+                      : 'bg-white/[0.03] border border-foreground/5 hover:bg-white/[0.06] hover:border-foreground/10'
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
@@ -584,7 +627,7 @@ export function PersonalDiary() {
                     }`} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
-                        <span className="text-[13px] font-medium text-white truncate group-hover:text-bridge-accent transition-colors">
+                        <span className="text-[13px] font-medium text-foreground truncate group-hover:text-bridge-accent transition-colors">
                           {d.title || format(new Date(d.diary_date + 'T00:00:00'), t('personal.diary.monthDayFormat'))}
                         </span>
                         <span className="text-sm flex-shrink-0 ml-2">
@@ -637,7 +680,7 @@ export function PersonalDiary() {
                 transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
                 className="relative"
               >
-                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-bridge-accent/20 via-purple-500/15 to-bridge-secondary/20 border border-white/10 flex items-center justify-center">
+                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-bridge-accent/20 via-purple-500/15 to-bridge-secondary/20 border border-foreground/10 flex items-center justify-center">
                   <Pencil size={32} className="text-bridge-accent" />
                 </div>
                 <div className="absolute -top-1 -right-1 w-7 h-7 rounded-full bg-bridge-secondary/20 border border-bridge-secondary/30 flex items-center justify-center">
@@ -647,7 +690,7 @@ export function PersonalDiary() {
 
               {/* Time-aware greeting */}
               <div>
-                <h3 className="text-xl font-bold text-white mb-2">
+                <h3 className="text-xl font-bold text-foreground mb-2">
                   {isToday ? (
                     <>
                       {new Date().getHours() < 12
@@ -690,7 +733,7 @@ export function PersonalDiary() {
             <div className="max-w-2xl mx-auto">
               <div className="flex items-center justify-between mb-4 md:mb-6 gap-3">
                 <div className="min-w-0">
-                  <h2 className="text-lg md:text-2xl font-bold font-jakarta text-white mb-1 truncate">
+                  <h2 className="text-lg md:text-2xl font-bold font-jakarta text-foreground mb-1 truncate">
                     {diary.title || t('personal.diary.diaryOf', { date: formatDate(diary.diary_date) })}
                   </h2>
                   {diary.mood && (
@@ -702,14 +745,14 @@ export function PersonalDiary() {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={handleReopen}
-                    className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-400 border border-white/10 rounded-xl hover:text-white hover:bg-white/5 transition-all"
+                    className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-400 border border-foreground/10 rounded-xl hover:text-foreground hover:bg-foreground/5 transition-all"
                   >
                     <RotateCcw size={14} />
                     {t('personal.diary.continueWriting')}
                   </button>
                   <button
                     onClick={() => setShowResetConfirm(true)}
-                    className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-400 border border-white/10 rounded-xl hover:text-red-400 hover:border-red-400/30 hover:bg-red-400/5 transition-all"
+                    className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-400 border border-foreground/10 rounded-xl hover:text-red-400 hover:border-red-400/30 hover:bg-red-400/5 transition-all"
                   >
                     <RefreshCw size={14} />
                     {t('personal.diary.restartConversation')}
@@ -717,8 +760,8 @@ export function PersonalDiary() {
                 </div>
               </div>
 
-              <div className="bg-bridge-obsidian/60 rounded-2xl border border-white/5 p-6">
-                <div className="prose prose-invert max-w-none text-slate-300 leading-relaxed whitespace-pre-wrap">
+              <div className="bg-bridge-obsidian/60 rounded-2xl border border-foreground/5 p-6">
+                <div className="prose prose-invert max-w-none text-muted-foreground leading-relaxed whitespace-pre-wrap">
                   {diary.content || t('personal.diary.noContent')}
                 </div>
               </div>
@@ -747,13 +790,13 @@ export function PersonalDiary() {
               className="flex flex-col items-center gap-4"
             >
               <div className="relative">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-bridge-accent/20 via-purple-500/15 to-bridge-secondary/20 border border-white/10 flex items-center justify-center">
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-bridge-accent/20 via-purple-500/15 to-bridge-secondary/20 border border-foreground/10 flex items-center justify-center">
                   <Sparkles size={28} className="text-bridge-accent animate-pulse" />
                 </div>
                 <div className="absolute inset-0 w-16 h-16 rounded-full border-2 border-bridge-accent/30 border-t-bridge-accent animate-spin" />
               </div>
               <div className="text-center">
-                <h3 className="text-lg font-bold text-white mb-1">{t('personal.diary.generating')}</h3>
+                <h3 className="text-lg font-bold text-foreground mb-1">{t('personal.diary.generating')}</h3>
                 <p className="text-slate-400 text-sm">{t('personal.diary.generatingDesc')}</p>
               </div>
             </motion.div>
@@ -776,7 +819,7 @@ export function PersonalDiary() {
                     <div className="w-8 h-8 rounded-full bg-bridge-accent/20 flex items-center justify-center flex-shrink-0">
                       <Sparkles size={14} className="text-bridge-accent" />
                     </div>
-                    <div className="bg-bridge-obsidian/60 border border-white/5 rounded-2xl rounded-tl-sm px-4 py-3">
+                    <div className="bg-bridge-obsidian/60 border border-foreground/5 rounded-2xl rounded-tl-sm px-4 py-3">
                       <div className="flex items-center gap-2">
                         {voiceState === 'processing' && (
                           <span className="text-xs text-slate-400 mr-1">{t('personal.diary.voiceListening')}</span>
@@ -807,11 +850,11 @@ export function PersonalDiary() {
                         key={mood.value}
                         onClick={() => handleCompleteDiary(mood.value)}
                         disabled={isCompleting}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 border border-white/10 rounded-full text-xs hover:bg-white/10 hover:border-white/20 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-foreground/5 border border-foreground/10 rounded-full text-xs hover:bg-foreground/10 hover:border-bridge-border disabled:opacity-30 disabled:cursor-not-allowed transition-all"
                         title={mood.label}
                       >
                         <span>{mood.emoji}</span>
-                        <span className="text-slate-300">{mood.label}</span>
+                        <span className="text-muted-foreground">{mood.label}</span>
                       </button>
                     ))}
                     <button
@@ -858,7 +901,7 @@ export function PersonalDiary() {
                         <span className="text-sm text-bridge-secondary">{t('personal.diary.voiceAiSpeaking')}</span>
                         <button
                           onClick={stopAiSpeaking}
-                          className="ml-2 p-1 bg-white/10 rounded-lg hover:bg-white/20 transition-colors"
+                          className="ml-2 p-1 bg-foreground/10 rounded-lg hover:bg-white/20 transition-colors"
                         >
                           <Square size={12} className="text-white" />
                         </button>
@@ -879,7 +922,7 @@ export function PersonalDiary() {
                       }
                     }}
                     placeholder={t('personal.diary.inputPlaceholder')}
-                    className="flex-1 bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+                    className="flex-1 bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-foreground text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
                     disabled={isSending || voiceState !== 'idle'}
                   />
                   <button
@@ -908,7 +951,7 @@ export function PersonalDiary() {
                             ? 'bg-amber-500/20 text-amber-400 cursor-wait'
                             : voiceState === 'ai-speaking'
                               ? 'bg-bridge-secondary/20 text-bridge-secondary'
-                              : 'bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed'
+                              : 'bg-foreground/5 border border-foreground/10 text-slate-400 hover:text-foreground hover:bg-foreground/10 disabled:opacity-30 disabled:cursor-not-allowed'
                         }
                       `}
                       title={
@@ -948,26 +991,10 @@ export function PersonalDiary() {
       </div>
 
       {/* Reset Confirm Modal */}
-      <AnimatePresence>
-        {showResetConfirm && (
-          <motion.div
-            className="fixed inset-0 z-50 flex items-center justify-center"
-            onClick={() => setShowResetConfirm(false)}
-            initial={{ backgroundColor: 'rgba(0,0,0,0)', backdropFilter: 'blur(0px)' }}
-            animate={{ backgroundColor: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(2px)' }}
-            exit={{ backgroundColor: 'rgba(0,0,0,0)', backdropFilter: 'blur(0px)' }}
-            transition={{ duration: 0.3 }}
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.15 }}
-              className="relative bg-bridge-obsidian rounded-2xl border border-white/10 p-6 shadow-2xl max-w-sm w-full mx-4"
-              onClick={(e) => e.stopPropagation()}
-            >
+      <MotionModal open={showResetConfirm} onClose={() => setShowResetConfirm(false)} className="sm:max-w-sm p-6">
               <button
                 onClick={() => setShowResetConfirm(false)}
-                className="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors"
+                className="absolute top-4 right-4 text-slate-500 hover:text-foreground transition-colors"
               >
                 <X size={18} />
               </button>
@@ -977,7 +1004,7 @@ export function PersonalDiary() {
                   <AlertTriangle size={22} className="text-red-400" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-white mb-1">{t('personal.diary.resetTitle')}</h3>
+                  <h3 className="text-lg font-bold text-foreground mb-1">{t('personal.diary.resetTitle')}</h3>
                   <p className="text-sm text-slate-400 leading-relaxed whitespace-pre-line">
                     {t('personal.diary.resetWarning')}
                   </p>
@@ -985,7 +1012,7 @@ export function PersonalDiary() {
                 <div className="flex items-center gap-3 w-full mt-1">
                   <button
                     onClick={() => setShowResetConfirm(false)}
-                    className="flex-1 px-4 py-2.5 text-sm font-bold text-slate-300 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all"
+                    className="flex-1 px-4 py-2.5 text-sm font-bold text-muted-foreground bg-foreground/5 border border-foreground/10 rounded-xl hover:bg-foreground/10 transition-all"
                   >
                     {t('personal.diary.cancel')}
                   </button>
@@ -997,16 +1024,8 @@ export function PersonalDiary() {
                   </button>
                 </div>
               </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      </MotionModal>
 
-      <style>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.05); border-radius: 10px; }
-      `}</style>
     </div>
   );
 }
@@ -1044,7 +1063,7 @@ function AudioPlayButton({ src }: { src: string }) {
   return (
     <button
       onClick={togglePlay}
-      className="flex items-center gap-1.5 mt-1.5 px-2 py-1 bg-white/5 rounded-lg text-[11px] text-slate-400 hover:text-white hover:bg-white/10 transition-all"
+      className="flex items-center gap-1.5 mt-1.5 px-2 py-1 bg-foreground/5 rounded-lg text-[11px] text-slate-400 hover:text-foreground hover:bg-foreground/10 transition-all"
     >
       {isPlaying ? <Pause size={11} /> : <Play size={11} />}
       <Volume2 size={11} />
@@ -1072,8 +1091,8 @@ function ChatBubble({ message }: { message: DiaryMessage }) {
       <div
         className={`max-w-[90%] md:max-w-[80%] px-3 md:px-4 py-2.5 md:py-3 rounded-2xl text-sm leading-relaxed ${
           isAI
-            ? 'bg-bridge-obsidian/60 border border-white/5 rounded-tl-sm text-slate-300'
-            : 'bg-bridge-accent/15 border border-bridge-accent/20 rounded-tr-sm text-white'
+            ? 'bg-bridge-obsidian/60 border border-foreground/5 rounded-tl-sm text-muted-foreground'
+            : 'bg-bridge-accent/15 border border-bridge-accent/20 rounded-tr-sm text-foreground'
         }`}
       >
         {message.content}

@@ -1650,6 +1650,9 @@
     "language": "ภาษา",
     "languageDesc": "เปลี่ยนภาษาการแสดงผล",
     "selectLanguage": "เลือกภาษา",
+    "holidayCountry": "ประเทศวันหยุด",
+    "holidayCountryDesc": "เลือกประเทศเพื่อแสดงวันหยุดบนปฏิทิน",
+    "holidayOff": "ปิด",
     "changePassword": "เปลี่ยนรหัสผ่าน",
     "changePasswordDesc": "เปลี่ยนรหัสผ่านเพื่อความปลอดภัยของบัญชี",
     "currentPasswordLabel": "รหัสผ่านปัจจุบัน",
@@ -2521,7 +2524,9 @@
       "start": "เริ่มต้น",
       "end": "สิ้นสุด",
       "color": "สี",
-      "thisWeek": "สัปดาห์นี้"
+      "thisWeek": "สัปดาห์นี้",
+      "holidayCountry": "ประเทศวันหยุด",
+      "holidayOff": "ปิด"
     },
     "habit": {
       "habits": "นิสัย",

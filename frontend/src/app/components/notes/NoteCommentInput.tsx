@@ -107,7 +107,7 @@ export function NoteCommentInput({
           placeholder={placeholder || t('notes.comment.placeholder', '댓글을 입력하세요... (@로 멘션)')}
           autoFocus={autoFocus}
           rows={2}
-          className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-3 pr-20 text-sm text-white
+          className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-2.5 px-3 pr-20 text-sm text-foreground
             placeholder-slate-500 resize-none
             focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent
             transition-all"
@@ -116,14 +116,14 @@ export function NoteCommentInput({
           {onCancel && (
             <button
               onClick={onCancel}
-              className="p-1.5 text-slate-500 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+              className="p-1.5 text-slate-500 hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
             >
               <X className="h-3.5 w-3.5" />
             </button>
           )}
           <button
             onClick={() => setShowMentions(!showMentions)}
-            className="p-1.5 text-slate-500 hover:text-bridge-accent hover:bg-white/5 rounded-lg transition-colors"
+            className="p-1.5 text-slate-500 hover:text-bridge-accent hover:bg-foreground/5 rounded-lg transition-colors"
           >
             <AtSign className="h-3.5 w-3.5" />
           </button>
@@ -141,13 +141,13 @@ export function NoteCommentInput({
       {/* Mention dropdown */}
       {showMentions && filteredMembers.length > 0 && (
         <div className="absolute z-50 bottom-full mb-1 left-0 w-full max-h-40 overflow-y-auto
-          bg-bridge-obsidian border border-white/10 rounded-xl shadow-xl">
+          bg-bridge-obsidian border border-foreground/10 rounded-xl shadow-xl">
           {filteredMembers.map(member => (
             <button
               key={member.user.id}
               onClick={() => insertMention(member)}
-              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-300
-                hover:bg-white/5 hover:text-white transition-colors"
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground
+                hover:bg-foreground/5 hover:text-foreground transition-colors"
             >
               {member.user.profile_image ? (
                 <img src={member.user.profile_image} alt="" className="h-5 w-5 rounded-full" />

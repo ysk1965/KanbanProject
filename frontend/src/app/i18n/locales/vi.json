@@ -1650,6 +1650,9 @@
     "language": "Ngon ngu",
     "languageDesc": "Thay doi ngon ngu hien thi",
     "selectLanguage": "Chon ngon ngu",
+    "holidayCountry": "Quốc gia ngày lễ",
+    "holidayCountryDesc": "Chọn quốc gia để hiển thị ngày lễ trên lịch",
+    "holidayOff": "Tắt",
     "changePassword": "Doi mat khau",
     "changePasswordDesc": "Doi mat khau de bao mat tai khoan",
     "currentPasswordLabel": "Mat khau hien tai",
@@ -2521,7 +2524,9 @@
       "start": "Bắt đầu",
       "end": "Kết thúc",
       "color": "Màu",
-      "thisWeek": "Tuần này"
+      "thisWeek": "Tuần này",
+      "holidayCountry": "Quốc gia ngày lễ",
+      "holidayOff": "Tắt"
     },
     "habit": {
       "habits": "Thói quen",

@@ -47,7 +47,7 @@ export function MyTasksWidget() {
   const EmptyIllustration = () => (
     <div className="flex flex-col items-center py-6">
       <div className="relative mb-4">
-        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-bridge-accent/10 to-bridge-secondary/10 border border-white/5 flex items-center justify-center">
+        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-bridge-accent/10 to-bridge-secondary/10 border border-foreground/5 flex items-center justify-center">
           <CheckCircle2 size={28} className="text-bridge-secondary/40" />
         </div>
         <motion.div
@@ -73,7 +73,7 @@ export function MyTasksWidget() {
   );
 
   return (
-    <div className="rounded-2xl border border-white/[0.08] bg-bridge-obsidian/40 backdrop-blur-sm overflow-hidden">
+    <div className="rounded-2xl border border-foreground/[0.08] bg-bridge-obsidian/40 backdrop-blur-sm overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-4">
         <button
@@ -83,7 +83,7 @@ export function MyTasksWidget() {
           <div className="w-7 h-7 rounded-lg bg-bridge-accent/10 flex items-center justify-center">
             <ListTodo size={14} className="text-bridge-accent" />
           </div>
-          <h3 className="text-sm font-bold text-white">{t('myTasks.title', '내 할 일')}</h3>
+          <h3 className="text-sm font-bold text-foreground">{t('myTasks.title', '내 할 일')}</h3>
           {totalCount > 0 && (
             <span className="text-[10px] font-bold bg-bridge-accent/15 text-bridge-accent px-2 py-0.5 rounded-full">
               {totalCount}
@@ -96,15 +96,15 @@ export function MyTasksWidget() {
 
         {/* Filter Tabs */}
         {!isCollapsed && (
-          <div className="flex items-center gap-0.5 bg-white/[0.04] rounded-lg p-0.5">
+          <div className="flex items-center gap-0.5 bg-foreground/[0.04] rounded-lg p-0.5">
             {filters.map((f) => (
               <button
                 key={f.key}
                 onClick={() => setFilter(f.key)}
                 className={`relative px-3 py-1.5 rounded-md text-[10px] font-bold transition-all ${
                   filter === f.key
-                    ? 'text-white bg-white/10 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-300'
+                    ? 'text-foreground bg-foreground/10 shadow-sm'
+                    : 'text-slate-500 hover:text-muted-foreground'
                 }`}
               >
                 {f.label}
@@ -143,11 +143,11 @@ export function MyTasksWidget() {
                         onClick={() => handleTaskClick(group.board_id)}
                         className="flex items-center gap-2 mb-1.5 group/header"
                       >
-                        <span className="text-[10px] uppercase tracking-widest font-bold text-slate-500 group-hover/header:text-white transition-colors">
+                        <span className="text-[10px] uppercase tracking-widest font-bold text-slate-500 group-hover/header:text-foreground transition-colors">
                           {group.board_name}
                           {group.board_type === 'PERSONAL' && ' (My Space)'}
                         </span>
-                        <ChevronRight size={10} className="text-slate-600 group-hover/header:text-white transition-colors" />
+                        <ChevronRight size={10} className="text-slate-600 group-hover/header:text-foreground transition-colors" />
                       </button>
 
                       {/* Tasks */}
@@ -156,14 +156,14 @@ export function MyTasksWidget() {
                           <button
                             key={task.id}
                             onClick={() => handleTaskClick(group.board_id)}
-                            className="w-full text-left flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/[0.04] transition-colors group/task"
+                            className="w-full text-left flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-foreground/[0.04] transition-colors group/task"
                           >
                             <div
-                              className="w-2 h-2 rounded-full flex-shrink-0 ring-2 ring-white/5"
+                              className="w-2 h-2 rounded-full flex-shrink-0 ring-2 ring-foreground/5"
                               style={{ backgroundColor: task.feature_color }}
                             />
                             <div className="flex-1 min-w-0">
-                              <div className="text-xs text-foreground truncate group-hover/task:text-white transition-colors">
+                              <div className="text-xs text-foreground truncate group-hover/task:text-foreground transition-colors">
                                 {task.title}
                               </div>
                               <div className="text-[10px] text-slate-600">{task.block_name}</div>

@@ -8,9 +8,7 @@ import lombok.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -67,11 +65,8 @@ public class PersonalTask extends BaseTimeEntity {
 
     @OneToMany(mappedBy = "personalTask", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
-    private List<PersonalTaskChecklist> checklists = new ArrayList<>();
-
-    @OneToMany(mappedBy = "personalTask", cascade = CascadeType.ALL, orphanRemoval = true)
-    @Builder.Default
     private Set<PersonalTaskTag> taskTags = new HashSet<>();
+
 
     @PrePersist
     public void prePersist() {

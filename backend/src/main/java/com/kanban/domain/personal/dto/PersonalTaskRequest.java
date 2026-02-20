@@ -45,17 +45,4 @@ public class PersonalTaskRequest {
         private PersonalTaskStatus status;
         private Integer position;
     }
-
-    @Getter
-    public static class ChecklistCreate {
-        @NotBlank
-        @Size(max = 200)
-        private String title;
-    }
-
-    @Getter
-    public static class ChecklistUpdate {
-        @Size(max = 200)
-        private String title;
-    }
 }

@@ -1,5 +1,5 @@
 import { X, CheckCircle2, Rocket, Star } from 'lucide-react';
-import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
+import { MotionModal } from '../ui/MotionModal';
 
 interface UpgradeModalProps {
   isOpen: boolean;
@@ -23,14 +23,12 @@ export function UpgradeModal({ isOpen, onClose, memberCount = 1 }: UpgradeModalP
   const discountPercent = Math.round((1 - yearlyMonthlyPrice / monthlyPrice) * 100);
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent className="bg-bridge-obsidian text-foreground border-white/20 max-w-2xl p-0 gap-0 [&>button:last-child]:hidden overflow-hidden rounded-2xl">
-        <DialogTitle className="sr-only">Premium으로 업그레이드</DialogTitle>
+    <MotionModal open={isOpen} onClose={onClose} className="sm:max-w-2xl p-0 overflow-hidden">
         {/* Header */}
         <div className="p-8 text-center bg-gradient-to-b from-bridge-accent/10 to-transparent">
           <button
             onClick={onClose}
-            className="absolute p-2 transition-colors right-4 top-4 text-white/40 hover:text-white"
+            className="absolute p-2 transition-colors right-4 top-4 text-white/40 hover:text-foreground"
           >
             <X size={20} />
           </button>
@@ -39,7 +37,7 @@ export function UpgradeModal({ isOpen, onClose, memberCount = 1 }: UpgradeModalP
               <Rocket className="text-bridge-accent" size={32} />
             </div>
           </div>
-          <h2 className="mb-2 text-3xl font-bold tracking-tight font-jakarta text-white">
+          <h2 className="mb-2 text-3xl font-bold tracking-tight font-jakarta text-foreground">
             Premium으로 업그레이드
           </h2>
           <p className="text-slate-400">더 많은 기능으로 팀의 생산성을 높이세요</p>
@@ -49,7 +47,7 @@ export function UpgradeModal({ isOpen, onClose, memberCount = 1 }: UpgradeModalP
           {/* Features list */}
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {FEATURES.map((feature, idx) => (
-              <div key={idx} className="flex items-center gap-3 text-slate-300">
+              <div key={idx} className="flex items-center gap-3 text-muted-foreground">
                 <CheckCircle2 size={18} className="text-bridge-secondary shrink-0" />
                 <span className="text-sm">{feature}</span>
               </div>
@@ -59,15 +57,15 @@ export function UpgradeModal({ isOpen, onClose, memberCount = 1 }: UpgradeModalP
           {/* Pricing Options */}
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {/* Monthly */}
-            <button className="flex flex-col items-center p-6 transition-all border group rounded-xl border-white/20 hover:border-bridge-accent/50 bg-white/5">
+            <button className="flex flex-col items-center p-6 transition-all border group rounded-xl border-bridge-border hover:border-bridge-accent/50 bg-foreground/5">
               <span className="mb-1 text-xs font-semibold tracking-widest text-slate-400 uppercase">
                 Monthly
               </span>
-              <span className="text-2xl font-bold text-white">
+              <span className="text-2xl font-bold text-foreground">
                 ${monthlyPrice}
                 <span className="text-sm font-normal text-slate-400">/user/month</span>
               </span>
-              <div className="px-4 py-2 mt-4 text-sm font-medium transition-colors border border-white/20 rounded-lg text-white group-hover:bg-white group-hover:text-bridge-dark">
+              <div className="px-4 py-2 mt-4 text-sm font-medium transition-colors border border-bridge-border rounded-lg text-foreground group-hover:bg-foreground group-hover:text-bridge-dark">
                 선택
               </div>
             </button>
@@ -80,7 +78,7 @@ export function UpgradeModal({ isOpen, onClose, memberCount = 1 }: UpgradeModalP
               <span className="mb-1 text-xs font-semibold tracking-widest text-bridge-accent uppercase">
                 Yearly
               </span>
-              <span className="text-2xl font-bold text-white">
+              <span className="text-2xl font-bold text-foreground">
                 ${yearlyPrice}
                 <span className="text-sm font-normal text-slate-400">/user/year</span>
               </span>
@@ -96,7 +94,7 @@ export function UpgradeModal({ isOpen, onClose, memberCount = 1 }: UpgradeModalP
           {/* Summary */}
           <div className="p-4 text-center rounded-xl bg-black/40">
             <p className="text-sm text-slate-400">
-              현재 유료 멤버: <span className="font-bold text-white">{memberCount}명</span>
+              현재 유료 멤버: <span className="font-bold text-foreground">{memberCount}명</span>
             </p>
             <p className="text-xs text-slate-400 mt-1">
               예상 비용: ${memberCount * monthlyPrice}/month 또는 $
@@ -106,10 +104,10 @@ export function UpgradeModal({ isOpen, onClose, memberCount = 1 }: UpgradeModalP
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between p-8 border-t border-white/15 bg-white/[0.02]">
+        <div className="flex items-center justify-between p-8 border-t border-bridge-border bg-white/[0.02]">
           <button
             onClick={onClose}
-            className="text-sm font-medium text-slate-400 hover:text-white transition-colors"
+            className="text-sm font-medium text-slate-400 hover:text-foreground transition-colors"
           >
             나중에 하기
           </button>
@@ -117,7 +115,6 @@ export function UpgradeModal({ isOpen, onClose, memberCount = 1 }: UpgradeModalP
             Premium 시작하기
           </button>
         </div>
-      </DialogContent>
-    </Dialog>
+    </MotionModal>
   );
 }

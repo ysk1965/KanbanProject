@@ -20,6 +20,7 @@ import { Embed } from './blocks/Embed';
 import { ColumnLayout, Column } from './blocks/ColumnLayout';
 import { Mention } from './blocks/Mention';
 import { formatDateTime } from '../../utils/dateUtils';
+import { useTheme } from '../../contexts/ThemeContext';
 import { fileAPI, noteAPI, memberAPI } from '../../utils/api';
 import type { NoteDetail, NoteTagInfo, NoteAISuggestionResponse, MemberResponse } from '../../utils/api';
 import { NoteShareButton } from './NoteShareButton';
@@ -136,6 +137,7 @@ function CollabNoteEditor({
 }: CollabEditorProps) {
   const { t } = useTranslation();
   const { currentUser } = useAuth();
+  const { isDark } = useTheme();
   const [title, setTitle] = useState(note.title);
   const [hasChanges, setHasChanges] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -430,12 +432,12 @@ function CollabNoteEditor({
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Editor Header */}
-      <div className="px-4 sm:px-6 py-3 border-b border-white/5 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0 sm:justify-between">
+      <div className="px-4 sm:px-6 py-3 border-b border-foreground/5 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0 sm:justify-between">
         <div className="flex-1 min-w-0">
           <input
             value={title}
             onChange={(e) => handleTitleChange(e.target.value)}
-            className="w-full bg-transparent text-lg font-bold text-white focus:outline-none placeholder-slate-600"
+            className="w-full bg-transparent text-lg font-bold text-foreground focus:outline-none placeholder-slate-600"
             placeholder={t('notes.titlePlaceholder', '제목을 입력하세요')}
             readOnly={!canEdit}
           />
@@ -481,7 +483,7 @@ function CollabNoteEditor({
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
               showComments
                 ? 'text-bridge-accent bg-bridge-accent/10'
-                : 'text-slate-400 hover:text-white hover:bg-white/5'
+                : 'text-slate-400 hover:text-foreground hover:bg-foreground/5'
             }`}
             title={t('notes.comment.title', '댓글')}
           >
@@ -520,7 +522,7 @@ function CollabNoteEditor({
                 disabled={aiLoading}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 ${
                   isAIDimmed()
-                  ? 'text-slate-500 bg-white/5 cursor-default'
+                  ? 'text-slate-500 bg-foreground/5 cursor-default'
                   : 'text-bridge-secondary bg-bridge-secondary/10 hover:bg-bridge-secondary/20'
               }`}
               >
@@ -540,7 +542,7 @@ function CollabNoteEditor({
               className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ml-1 ${
                 hasChanges
                   ? 'bg-bridge-accent text-white hover:bg-bridge-accent/90 shadow-lg shadow-bridge-accent/20'
-                  : 'bg-white/5 text-slate-500 cursor-not-allowed'
+                  : 'bg-foreground/5 text-slate-500 cursor-not-allowed'
               }`}
             >
               {saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
@@ -559,7 +561,7 @@ function CollabNoteEditor({
         {/* Editor with block hover overlay */}
         <div
           ref={editorContainerRef}
-          className="relative min-h-[60vh] bg-bridge-obsidian rounded-2xl border border-white/5"
+          className="relative min-h-[60vh] bg-bridge-obsidian rounded-2xl border border-foreground/5"
           onMouseMove={handleEditorMouseMove}
           onMouseLeave={() => {
             hoveredBlockIdRef.current = null;
@@ -568,7 +570,7 @@ function CollabNoteEditor({
         >
           <BlockNoteView
             editor={editor}
-            theme="dark"
+            theme={isDark ? "dark" : "light"}
             editable={canEdit}
             onChange={handleEditorChange}
           >
@@ -586,7 +588,7 @@ function CollabNoteEditor({
           {/* Floating block comment button */}
           {hoveredBlock && (
             <button
-              className="absolute right-2 z-10 p-1.5 rounded-lg bg-bridge-dark border border-white/10 text-slate-500 hover:text-bridge-accent hover:border-bridge-accent/30 transition-all shadow-lg"
+              className="absolute right-2 z-10 p-1.5 rounded-lg bg-bridge-dark border border-foreground/10 text-slate-500 hover:text-bridge-accent hover:border-bridge-accent/30 transition-all shadow-lg"
               style={{ top: hoveredBlock.top + 2 }}
               onClick={() => handleAddBlockComment(hoveredBlock.id)}
               onMouseDown={(e) => e.preventDefault()}
@@ -604,7 +606,7 @@ function CollabNoteEditor({
         {aiVisible && (
           <div className="px-6 pb-6">
             {aiCollapsed && !aiLoading ? (
-              <div className="mt-4 flex items-center justify-between bg-white/[0.02] rounded-xl border border-white/5 px-4 py-3">
+              <div className="mt-4 flex items-center justify-between bg-white/[0.02] rounded-xl border border-foreground/5 px-4 py-3">
                 <div className="flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-bridge-accent" />
                   <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
@@ -680,6 +682,7 @@ const AUTO_SAVE_DELAY = 30_000;
 function FallbackNoteEditor({ boardId, note, tags, canEdit, onSave, onTagsChange, onDirtyChange }: FallbackEditorProps) {
   const { t } = useTranslation();
   const { currentUser: fallbackCurrentUser } = useAuth();
+  const { isDark } = useTheme();
   const [title, setTitle] = useState(note.title);
   const [hasChanges, setHasChanges] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -845,12 +848,12 @@ function FallbackNoteEditor({ boardId, note, tags, canEdit, onSave, onTagsChange
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <div className="px-4 sm:px-6 py-3 border-b border-white/5 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0 sm:justify-between">
+      <div className="px-4 sm:px-6 py-3 border-b border-foreground/5 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0 sm:justify-between">
         <div className="flex-1 min-w-0">
           <input
             value={title}
             onChange={(e) => { setTitle(e.target.value); setHasChanges(true); setAutoSaved(false); }}
-            className="w-full bg-transparent text-lg font-bold text-white focus:outline-none placeholder-slate-600"
+            className="w-full bg-transparent text-lg font-bold text-foreground focus:outline-none placeholder-slate-600"
             placeholder={t('notes.titlePlaceholder', '제목을 입력하세요')}
             readOnly={!canEdit}
           />
@@ -889,7 +892,7 @@ function FallbackNoteEditor({ boardId, note, tags, canEdit, onSave, onTagsChange
               className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ml-1 ${
                 hasChanges
                   ? 'bg-bridge-accent text-white hover:bg-bridge-accent/90 shadow-lg shadow-bridge-accent/20'
-                  : 'bg-white/5 text-slate-500 cursor-not-allowed'
+                  : 'bg-foreground/5 text-slate-500 cursor-not-allowed'
               }`}
             >
               {saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
@@ -899,8 +902,8 @@ function FallbackNoteEditor({ boardId, note, tags, canEdit, onSave, onTagsChange
         </div>
       </div>
       <div className="flex-1 overflow-y-auto p-4">
-        <div className="min-h-[60vh] bg-bridge-obsidian rounded-2xl border border-white/5">
-          <BlockNoteView editor={editor} theme="dark" editable={canEdit} onChange={() => { setHasChanges(true); setAutoSaved(false); }}>
+        <div className="min-h-[60vh] bg-bridge-obsidian rounded-2xl border border-foreground/5">
+          <BlockNoteView editor={editor} theme={isDark ? "dark" : "light"} editable={canEdit} onChange={() => { setHasChanges(true); setAutoSaved(false); }}>
             <SuggestionMenuController triggerCharacter="/" getItems={async (query) => filterSuggestionItems(slashMenuItems, query)} />
             <SuggestionMenuController triggerCharacter="@" getItems={getMentionItems} />
             <TableHandlesController />

@@ -1873,24 +1873,10 @@ export interface PersonalTask {
   color: string | null;
   position: number;
   completed_at: string | null;
-  checklists: PersonalTaskChecklistItem[];
-  tags: PersonalTagInfo[];
   created_at: string;
   updated_at: string | null;
 }
 
-export interface PersonalTaskChecklistItem {
-  id: string;
-  title: string;
-  is_completed: boolean;
-  position: number;
-}
-
-export interface PersonalTagInfo {
-  id: string;
-  name: string;
-  color: string | null;
-}
 
 export interface PersonalHabit {
   id: string;

@@ -146,7 +146,7 @@ export function KanbanBoardHeader({
                   if (e.key === 'Enter') handleSaveBoardName();
                   if (e.key === 'Escape') setIsEditingBoardName(false);
                 }}
-                className="text-sm md:text-lg font-bold tracking-tight text-foreground bg-white/5 border border-white/10 rounded-lg px-2 py-0.5 outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent max-w-[160px] sm:max-w-[200px] md:max-w-[300px]"
+                className="text-sm md:text-lg font-bold tracking-tight text-foreground bg-foreground/5 border border-foreground/10 rounded-lg px-2 py-0.5 outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent max-w-[160px] sm:max-w-[200px] md:max-w-[300px]"
                 autoFocus
               />
             ) : (
@@ -168,7 +168,7 @@ export function KanbanBoardHeader({
                     <SelectValue placeholder={t('kanban.selectMilestone')} />
                   </SelectTrigger>
                   <SelectContent className="bg-bridge-surface border-bridge-border">
-                    <SelectItem value="all" className="text-zinc-300 hover:bg-white/10 focus:bg-white/10 focus:text-foreground text-xs">
+                    <SelectItem value="all" className="text-muted-foreground hover:bg-foreground/10 focus:bg-foreground/10 focus:text-foreground text-xs">
                       {t('common.all')}
                     </SelectItem>
                     {milestones.map((milestone) => {
@@ -178,7 +178,7 @@ export function KanbanBoardHeader({
                         <SelectItem
                           key={milestone.id}
                           value={milestone.id}
-                          className="text-zinc-300 hover:bg-white/10 focus:bg-white/10 focus:text-foreground text-xs"
+                          className="text-muted-foreground hover:bg-foreground/10 focus:bg-foreground/10 focus:text-foreground text-xs"
                         >
                           <div className="flex flex-col">
                             <span>{milestone.title}</span>
@@ -237,7 +237,7 @@ export function KanbanBoardHeader({
             className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
               viewMode === 'kanban'
                 ? 'bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20'
-                : 'text-zinc-400 hover:text-zinc-200 hover:bg-bridge-surface-hover'
+                : 'text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover'
             }`}
           >
             <LayoutGrid size={14} />
@@ -256,7 +256,7 @@ export function KanbanBoardHeader({
             className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
               viewMode === 'schedule' || viewMode === 'weekly' || viewMode === 'calendar'
                 ? 'bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20'
-                : 'text-zinc-400 hover:text-zinc-200 hover:bg-bridge-surface-hover'
+                : 'text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover'
             }`}
           >
             <Calendar size={14} />
@@ -269,7 +269,7 @@ export function KanbanBoardHeader({
               className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
                 viewMode === 'meeting'
                   ? 'bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20'
-                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-bridge-surface-hover'
+                  : 'text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover'
               }`}
             >
               <Users size={14} />
@@ -283,7 +283,7 @@ export function KanbanBoardHeader({
               className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
                 viewMode === 'notes'
                   ? 'bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20'
-                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-bridge-surface-hover'
+                  : 'text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover'
               }`}
             >
               <FileText size={14} />
@@ -312,7 +312,7 @@ export function KanbanBoardHeader({
                   ? 'bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20'
                   : !canAccessStatistics
                     ? 'text-zinc-600 cursor-not-allowed opacity-50'
-                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-bridge-surface-hover'
+                    : 'text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover'
               }`}
             >
               <BarChart3 size={14} />

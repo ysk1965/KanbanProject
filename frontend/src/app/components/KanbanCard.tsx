@@ -222,7 +222,7 @@ export function KanbanCard({
           {hasChecklist && (
             <button
               onClick={handleExpandClick}
-              className="flex items-center gap-1.5 text-zinc-300 hover:text-white transition-colors"
+              className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
             >
               <CheckSquare size={12} />
               <span className="text-[10px] font-semibold">
@@ -244,7 +244,7 @@ export function KanbanCard({
               {checklistAssignees.slice(0, 3).map((assignee) => (
                 <div
                   key={assignee.id}
-                  className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white border border-white/20 whitespace-nowrap overflow-hidden"
+                  className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white border border-bridge-border whitespace-nowrap overflow-hidden"
                   style={{ backgroundColor: cardColor }}
                   title={assignee.name}
                 >
@@ -252,7 +252,7 @@ export function KanbanCard({
                 </div>
               ))}
               {checklistAssignees.length > 3 && (
-                <div className="w-6 h-6 rounded-full bg-zinc-700 flex items-center justify-center text-[10px] font-bold text-zinc-300 border border-white/20">
+                <div className="w-6 h-6 rounded-full bg-zinc-700 flex items-center justify-center text-[10px] font-bold text-foreground/80 border border-bridge-border">
                   +{checklistAssignees.length - 3}
                 </div>
               )}
@@ -272,7 +272,7 @@ export function KanbanCard({
               .map((item) => (
                 <div
                   key={item.id}
-                  className="flex items-center gap-2 p-2 rounded-lg bg-bridge-surface-hover hover:bg-white/5 transition-colors"
+                  className="flex items-center gap-2 p-2 rounded-lg bg-bridge-surface-hover hover:bg-foreground/5 transition-colors"
                   onClick={(e) => handleToggleItem(e, item.id)}
                 >
                   <div
@@ -298,14 +298,14 @@ export function KanbanCard({
                   </div>
                   <span
                     className={`text-xs flex-1 ${
-                      item.completed ? 'text-zinc-400 line-through' : 'text-zinc-200'
+                      item.completed ? 'text-muted-foreground line-through' : 'text-foreground'
                     }`}
                   >
                     {item.title}
                   </span>
                   {item.assignee && (
                     <div
-                      className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0 border border-white/20 whitespace-nowrap overflow-hidden"
+                      className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0 border border-bridge-border whitespace-nowrap overflow-hidden"
                       style={{ backgroundColor: cardColor }}
                       title={item.assignee.name}
                     >

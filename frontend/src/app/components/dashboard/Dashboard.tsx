@@ -47,17 +47,17 @@ function DeleteConfirmModal({
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.95 }}
-          className="w-full max-w-md bg-bridge-obsidian rounded-2xl overflow-hidden shadow-2xl border border-white/20 p-6"
+          className="w-full max-w-md bg-bridge-obsidian rounded-2xl overflow-hidden shadow-2xl border border-bridge-border p-6"
         >
           <div className="flex items-center gap-3 mb-4">
             <div className="p-2 bg-rose-500/20 rounded-full">
               <AlertTriangle size={24} className="text-rose-500" />
             </div>
-            <h2 className="text-lg font-bold text-white">{t('board.deleteBoard')}</h2>
+            <h2 className="text-lg font-bold text-foreground">{t('board.deleteBoard')}</h2>
           </div>
 
           <p className="text-slate-400 mb-6">
-            <span className="font-bold text-white">"{boardName}"</span> {t('board.deleteConfirm')}
+            <span className="font-bold text-foreground">"{boardName}"</span> {t('board.deleteConfirm')}
             <br />
             <span className="text-rose-400 text-sm">{t('board.deleteIrreversible')}</span>
           </p>
@@ -65,7 +65,7 @@ function DeleteConfirmModal({
           <div className="flex gap-3">
             <button
               onClick={onClose}
-              className="flex-1 py-3 text-sm font-bold text-slate-400 hover:text-white transition-colors border border-white/20 rounded-xl hover:bg-white/5"
+              className="flex-1 py-3 text-sm font-bold text-muted-foreground hover:text-foreground transition-colors border border-bridge-border rounded-xl hover:bg-foreground/5"
             >
               {t('common.cancel')}
             </button>
@@ -222,9 +222,9 @@ export function Dashboard({
   };
 
   return (
-    <div className="fixed inset-0 flex text-white overflow-hidden selection:bg-bridge-secondary/30" style={{ background: 'radial-gradient(ellipse at 20% 0%, var(--bridge-dark) 0%, var(--bridge-dark) 50%, #030508 100%)' }}>
-      {/* Cosmic Background */}
-      <div className="absolute inset-0 pointer-events-none">
+    <div className="fixed inset-0 flex text-foreground overflow-hidden selection:bg-bridge-secondary/30 bg-bridge-dark" style={{ background: 'radial-gradient(ellipse at 20% 0%, var(--bridge-dark) 0%, var(--bridge-dark) 50%, var(--bridge-dark) 100%)' }}>
+      {/* Cosmic Background — dark mode only */}
+      <div className="absolute inset-0 pointer-events-none hidden dark:block">
         <div className="absolute w-[600px] h-[600px] rounded-full blur-[200px]" style={{ top: '-10%', right: '-5%', background: 'radial-gradient(circle, rgba(45,212,191,0.06) 0%, transparent 70%)' }} />
         <div className="absolute w-[500px] h-[500px] rounded-full blur-[180px]" style={{ bottom: '-5%', left: '-5%', background: 'radial-gradient(circle, rgba(99,102,241,0.05) 0%, transparent 70%)' }} />
         <div className="star-bg opacity-30" style={{ position: 'absolute', inset: 0 }} />
@@ -244,12 +244,12 @@ export function Dashboard({
       {/* Main Content */}
       <div className="flex-1 flex flex-col relative z-10 min-w-0 min-h-0">
         {/* Header */}
-        <header className="h-14 border-b border-white/[0.06] bg-bridge-dark/60 backdrop-blur-sm px-4 md:px-6 flex items-center justify-between shrink-0 safe-top">
+        <header className="h-14 border-b border-bridge-border bg-bridge-dark/60 backdrop-blur-sm px-4 md:px-6 flex items-center justify-between shrink-0 safe-top">
           <div className="flex items-center gap-3 flex-1 min-w-0">
             {/* Mobile hamburger */}
             <button
               onClick={() => setIsSidebarOpen(true)}
-              className="lg:hidden p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors shrink-0"
+              className="lg:hidden p-2 text-muted-foreground hover:text-foreground hover:bg-foreground/5 rounded-xl transition-colors shrink-0"
             >
               <Menu size={18} />
             </button>
@@ -260,14 +260,14 @@ export function Dashboard({
               <input
                 type="text"
                 placeholder={t('dashboard.searchPlaceholder')}
-                className="w-full bg-white/[0.04] border border-white/[0.06] rounded-xl py-1.5 pl-9 pr-4 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-bridge-secondary/30 focus:bg-white/[0.06] transition-all"
+                className="w-full bg-foreground/[0.04] border border-bridge-border rounded-xl py-1.5 pl-9 pr-4 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-bridge-secondary/30 focus:bg-foreground/[0.06] transition-all"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 >
                   <X size={14} />
                 </button>
@@ -277,7 +277,7 @@ export function Dashboard({
             {/* Mobile Search Toggle */}
             <button
               onClick={() => setMobileSearchOpen(!mobileSearchOpen)}
-              className="md:hidden p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors shrink-0"
+              className="md:hidden p-2 text-muted-foreground hover:text-foreground hover:bg-foreground/5 rounded-xl transition-colors shrink-0"
             >
               <Search size={18} />
             </button>
@@ -287,7 +287,7 @@ export function Dashboard({
             {/* Logout */}
             <button
               onClick={logout}
-              className="flex items-center gap-2 text-slate-500 hover:text-white transition-colors text-sm"
+              className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors text-sm"
             >
               <LogOut size={15} />
               <span className="hidden sm:inline text-xs font-medium">{t('dashboard.logout')}</span>
@@ -296,9 +296,9 @@ export function Dashboard({
             {/* Profile Avatar + Name */}
             <button
               onClick={() => navigate('/settings')}
-              className="flex items-center gap-2 hover:bg-white/5 rounded-xl px-2 py-1.5 transition-colors"
+              className="flex items-center gap-2 hover:bg-foreground/5 rounded-xl px-2 py-1.5 transition-colors"
             >
-              <div className="w-9 h-9 rounded-xl overflow-hidden border border-white/10 bg-slate-700 shrink-0">
+              <div className="w-9 h-9 rounded-xl overflow-hidden border border-bridge-border bg-slate-700 shrink-0">
                 {currentUser?.profile_image ? (
                   <img src={resolveFileUrl(currentUser.profile_image)} alt={currentUser.name} className="w-full h-full object-cover" />
                 ) : (
@@ -307,7 +307,7 @@ export function Dashboard({
                   </div>
                 )}
               </div>
-              <span className="hidden sm:inline text-xs font-medium text-slate-300">{currentUser?.name}</span>
+              <span className="hidden sm:inline text-xs font-medium text-muted-foreground">{currentUser?.name}</span>
             </button>
           </div>
         </header>
@@ -319,7 +319,7 @@ export function Dashboard({
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              className="md:hidden border-b border-white/[0.06] bg-bridge-dark/60 backdrop-blur-sm overflow-hidden"
+              className="md:hidden border-b border-bridge-border bg-bridge-dark/60 backdrop-blur-sm overflow-hidden"
             >
               <div className="px-4 py-3">
                 <div className="relative">
@@ -328,13 +328,13 @@ export function Dashboard({
                     autoFocus
                     type="text"
                     placeholder={t('dashboard.searchPlaceholder')}
-                    className="w-full bg-white/[0.04] border border-white/[0.06] rounded-xl py-2 pl-9 pr-10 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-bridge-secondary/30 transition-all"
+                    className="w-full bg-foreground/[0.04] border border-bridge-border rounded-xl py-2 pl-9 pr-10 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-bridge-secondary/30 transition-all"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                   />
                   <button
                     onClick={() => { setMobileSearchOpen(false); setSearchQuery(''); }}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-foreground"
                   >
                     <X size={14} />
                   </button>
@@ -358,7 +358,7 @@ export function Dashboard({
               >
                 <button
                   onClick={() => navigate('/my-board')}
-                  className="w-full group relative overflow-hidden rounded-2xl border border-white/[0.06] hover:border-bridge-secondary/25 transition-all duration-500 text-left"
+                  className="w-full group relative overflow-hidden rounded-2xl border border-bridge-border hover:border-bridge-secondary/25 transition-all duration-500 text-left"
                 >
                   {/* Ambient Background */}
                   <div className="absolute inset-0">
@@ -371,11 +371,11 @@ export function Dashboard({
                     {/* Header Row */}
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-4">
-                        <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-bridge-secondary/20 to-bridge-accent/20 border border-white/10 flex items-center justify-center group-hover:border-bridge-secondary/30 transition-all duration-300">
+                        <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-bridge-secondary/20 to-bridge-accent/20 border border-bridge-border flex items-center justify-center group-hover:border-bridge-secondary/30 transition-all duration-300">
                           <Sparkles size={20} className="text-bridge-secondary" />
                         </div>
                         <div>
-                          <h3 className="text-sm font-bold text-white font-jakarta tracking-tight">{t('dashboard.mySpace')}</h3>
+                          <h3 className="text-sm font-bold text-foreground font-jakarta tracking-tight">{t('dashboard.mySpace')}</h3>
                           <p className="text-[11px] text-slate-500">{t('dashboard.mySpaceDesc')}</p>
                         </div>
                       </div>
@@ -388,40 +388,40 @@ export function Dashboard({
                     {/* Stats Row */}
                     {todayData && (
                       <div className="grid grid-cols-4 gap-3 mb-4">
-                        <div className="flex items-center gap-2.5 px-3 py-2.5 bg-white/[0.03] rounded-xl border border-white/[0.05] group-hover:bg-white/[0.05] group-hover:border-white/[0.08] transition-all">
+                        <div className="flex items-center gap-2.5 px-3 py-2.5 bg-foreground/[0.03] rounded-xl border border-foreground/[0.05] group-hover:bg-foreground/[0.05] group-hover:border-foreground/[0.08] transition-all">
                           <div className="w-8 h-8 rounded-lg bg-bridge-accent/15 flex items-center justify-center shrink-0">
                             <ListTodo size={14} className="text-bridge-accent" />
                           </div>
                           <div>
-                            <div className="text-sm font-bold text-white leading-none">{todayTaskCount}</div>
+                            <div className="text-sm font-bold text-foreground leading-none">{todayTaskCount}</div>
                             <div className="text-[9px] text-slate-500 uppercase tracking-wider mt-0.5">Tasks</div>
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2.5 px-3 py-2.5 bg-white/[0.03] rounded-xl border border-white/[0.05] group-hover:bg-white/[0.05] group-hover:border-white/[0.08] transition-all">
+                        <div className="flex items-center gap-2.5 px-3 py-2.5 bg-foreground/[0.03] rounded-xl border border-foreground/[0.05] group-hover:bg-foreground/[0.05] group-hover:border-foreground/[0.08] transition-all">
                           <div className="w-8 h-8 rounded-lg bg-orange-400/15 flex items-center justify-center shrink-0">
                             <Flame size={14} className="text-orange-400" />
                           </div>
                           <div>
-                            <div className="text-sm font-bold text-white leading-none">
+                            <div className="text-sm font-bold text-foreground leading-none">
                               {todayData.habits_today?.filter(h => h.is_completed).length || 0}
-                              <span className="text-slate-500 font-normal text-xs">/{todayData.habits_today?.length || 0}</span>
+                              <span className="text-muted-foreground font-normal text-xs">/{todayData.habits_today?.length || 0}</span>
                             </div>
                             <div className="text-[9px] text-slate-500 uppercase tracking-wider mt-0.5">Habits</div>
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2.5 px-3 py-2.5 bg-white/[0.03] rounded-xl border border-white/[0.05] group-hover:bg-white/[0.05] group-hover:border-white/[0.08] transition-all">
+                        <div className="flex items-center gap-2.5 px-3 py-2.5 bg-foreground/[0.03] rounded-xl border border-foreground/[0.05] group-hover:bg-foreground/[0.05] group-hover:border-foreground/[0.08] transition-all">
                           <div className="w-8 h-8 rounded-lg bg-purple-400/15 flex items-center justify-center shrink-0">
                             <Clock size={14} className="text-purple-400" />
                           </div>
                           <div>
-                            <div className="text-sm font-bold text-white leading-none">{todayData.personal_events?.length || 0}</div>
+                            <div className="text-sm font-bold text-foreground leading-none">{todayData.personal_events?.length || 0}</div>
                             <div className="text-[9px] text-slate-500 uppercase tracking-wider mt-0.5">Events</div>
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2.5 px-3 py-2.5 bg-white/[0.03] rounded-xl border border-white/[0.05] group-hover:bg-white/[0.05] group-hover:border-white/[0.08] transition-all">
+                        <div className="flex items-center gap-2.5 px-3 py-2.5 bg-foreground/[0.03] rounded-xl border border-foreground/[0.05] group-hover:bg-foreground/[0.05] group-hover:border-foreground/[0.08] transition-all">
                           <div className="w-8 h-8 rounded-lg bg-bridge-secondary/15 flex items-center justify-center shrink-0">
                             <CheckCircle2 size={14} className="text-bridge-secondary" />
                           </div>
@@ -438,7 +438,7 @@ export function Dashboard({
                       <div className="flex items-center gap-4">
                         <div className="flex-1 flex items-center gap-2">
                           <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider w-8">Task</span>
-                          <div className="flex-1 h-1.5 bg-white/[0.04] rounded-full overflow-hidden">
+                          <div className="flex-1 h-1.5 bg-foreground/[0.06] rounded-full overflow-hidden">
                             <motion.div
                               className="h-full bg-gradient-to-r from-bridge-accent to-bridge-secondary rounded-full"
                               initial={{ width: 0 }}
@@ -449,7 +449,7 @@ export function Dashboard({
                         </div>
                         <div className="flex-1 flex items-center gap-2">
                           <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider w-8">Habit</span>
-                          <div className="flex-1 h-1.5 bg-white/[0.04] rounded-full overflow-hidden">
+                          <div className="flex-1 h-1.5 bg-foreground/[0.06] rounded-full overflow-hidden">
                             <motion.div
                               className="h-full bg-gradient-to-r from-orange-400 to-amber-400 rounded-full"
                               initial={{ width: 0 }}
@@ -476,15 +476,15 @@ export function Dashboard({
 
               <div className="flex items-center gap-2">
                 {/* Board Filter */}
-                <div className="flex items-center gap-0.5 bg-white/[0.03] rounded-lg p-0.5">
+                <div className="flex items-center gap-0.5 bg-foreground/[0.04] rounded-lg p-0.5">
                   {(['all', 'owned', 'joined'] as BoardFilter[]).map((f) => (
                     <button
                       key={f}
                       onClick={() => setBoardFilter(f)}
                       className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${
                         boardFilter === f
-                          ? 'text-white bg-white/10'
-                          : 'text-slate-500 hover:text-slate-300'
+                          ? 'text-foreground bg-foreground/10'
+                          : 'text-muted-foreground hover:text-foreground'
                       }`}
                     >
                       {f === 'all' && t('dashboard.filterAll', 'All')}
@@ -495,34 +495,27 @@ export function Dashboard({
                 </div>
 
                 {/* View Toggle */}
-                <div className="flex items-center gap-0.5 bg-white/[0.03] rounded-lg p-0.5">
+                <div className="flex items-center gap-0.5 bg-foreground/[0.04] rounded-lg p-0.5">
                   <button
                     onClick={() => setViewMode('grid')}
-                    className={`p-1.5 rounded-md transition-all ${viewMode === 'grid' ? 'text-white bg-white/10' : 'text-slate-500 hover:text-white'}`}
+                    className={`p-1.5 rounded-md transition-all ${viewMode === 'grid' ? 'text-foreground bg-foreground/10' : 'text-muted-foreground hover:text-foreground'}`}
                   >
                     <Grid3X3 size={14} />
                   </button>
                   <button
                     onClick={() => setViewMode('list')}
-                    className={`p-1.5 rounded-md transition-all ${viewMode === 'list' ? 'text-white bg-white/10' : 'text-slate-500 hover:text-white'}`}
+                    className={`p-1.5 rounded-md transition-all ${viewMode === 'list' ? 'text-foreground bg-foreground/10' : 'text-muted-foreground hover:text-foreground'}`}
                   >
                     <List size={14} />
                   </button>
                 </div>
 
-                {/* Create Button */}
-                <button
-                  onClick={() => setIsCreateModalOpen(true)}
-                  className="flex items-center gap-1.5 px-4 py-1.5 bg-gradient-to-r from-bridge-secondary to-bridge-accent rounded-xl font-bold text-xs shadow-lg shadow-bridge-secondary/10 hover:shadow-bridge-secondary/20 hover:scale-105 active:scale-95 transition-all"
-                >
-                  <Plus size={15} /> {t('dashboard.createNewBoard')}
-                </button>
               </div>
             </div>
 
             {/* Empty States */}
             {filteredBoards.length === 0 && searchQuery && (
-              <div className="h-48 flex flex-col items-center justify-center bg-white/[0.02] border border-dashed rounded-2xl border-white/10">
+              <div className="h-48 flex flex-col items-center justify-center bg-foreground/[0.02] border border-dashed rounded-2xl border-bridge-border">
                 <Package2 size={36} className="text-slate-600 mb-3" />
                 <p className="text-slate-500 font-medium text-sm">
                   {t('dashboard.noSearchResult', { query: searchQuery })}
@@ -537,7 +530,7 @@ export function Dashboard({
             )}
 
             {boards.length === 0 && !searchQuery && (
-              <div className="h-48 flex flex-col items-center justify-center bg-white/[0.02] border border-dashed rounded-2xl border-white/10">
+              <div className="h-48 flex flex-col items-center justify-center bg-foreground/[0.02] border border-dashed rounded-2xl border-bridge-border">
                 <Package2 size={36} className="text-slate-600 mb-3" />
                 <p className="text-slate-500 font-medium text-sm">{t('board.noBoards')}</p>
                 <button
@@ -627,12 +620,12 @@ export function Dashboard({
                     {/* Create button in list mode */}
                     <button
                       onClick={() => setIsCreateModalOpen(true)}
-                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-dashed border-white/10 hover:border-bridge-secondary/30 hover:bg-white/[0.02] transition-all group"
+                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-dashed border-bridge-border hover:border-bridge-secondary/30 hover:bg-foreground/[0.02] transition-all group"
                     >
-                      <div className="w-8 h-8 rounded-lg bg-white/5 group-hover:bg-bridge-secondary/15 flex items-center justify-center transition-colors">
-                        <Plus size={16} className="text-slate-500 group-hover:text-bridge-secondary transition-colors" />
+                      <div className="w-8 h-8 rounded-lg bg-foreground/5 group-hover:bg-bridge-secondary/15 flex items-center justify-center transition-colors">
+                        <Plus size={16} className="text-muted-foreground group-hover:text-bridge-secondary transition-colors" />
                       </div>
-                      <span className="text-xs font-bold text-slate-500 group-hover:text-slate-300 uppercase tracking-wider transition-colors">
+                      <span className="text-xs font-bold text-muted-foreground group-hover:text-foreground uppercase tracking-wider transition-colors">
                         {t('dashboard.newBoard')}
                       </span>
                     </button>
@@ -673,17 +666,17 @@ export function Dashboard({
 
       {/* Mobile Bottom Bar - My Space Quick Access */}
       {hasPersonalSpace && !window.location.hostname.includes('milkyway.pe.kr') && (
-        <div className="fixed bottom-0 inset-x-0 z-40 lg:hidden safe-bottom">
-          <div className="bg-bridge-obsidian/95 backdrop-blur-xl border-t border-white/[0.08]">
+        <div className="fixed bottom-0 inset-x-0 z-40 lg:hidden safe-bottom bg-bridge-obsidian/95 backdrop-blur-xl">
+          <div className="border-t border-bridge-border">
             <button
               onClick={() => navigate('/my-board')}
-              className="w-full flex items-center justify-between px-5 py-3 active:bg-white/5 transition-colors"
+              className="w-full flex items-center justify-between px-5 py-3 active:bg-foreground/5 transition-colors"
             >
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-bridge-secondary/20 to-bridge-accent/20 border border-white/10 flex items-center justify-center">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-bridge-secondary/20 to-bridge-accent/20 border border-bridge-border flex items-center justify-center">
                   <Sparkles size={16} className="text-bridge-secondary" />
                 </div>
-                <span className="text-sm font-bold text-white">{t('dashboard.mySpace')}</span>
+                <span className="text-sm font-bold text-foreground">{t('dashboard.mySpace')}</span>
               </div>
               <div className="flex items-center gap-2">
                 {todayData && (
@@ -726,12 +719,8 @@ export function Dashboard({
         onClose={() => setShowOnboarding(false)}
       />
 
-      {/* Custom Scrollbar Styles */}
+      {/* Custom Styles */}
       <style>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.04); border-radius: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.08); }
         .star-bg {
           background-image:
             radial-gradient(1px 1px at 20px 30px, rgba(255,255,255,0.3), transparent),
@@ -767,7 +756,7 @@ function BoardListItem({ board, onToggleStar, onClick, onEdit }: {
     <motion.div
       whileHover={{ x: 2 }}
       onClick={() => onClick(board)}
-      className="flex items-center gap-4 px-4 py-3 rounded-xl bg-white/[0.02] border border-white/[0.06] hover:border-white/[0.12] hover:bg-white/[0.03] cursor-pointer transition-all group"
+      className="flex items-center gap-4 px-4 py-3 rounded-xl bg-foreground/[0.02] border border-bridge-border hover:border-foreground/[0.12] hover:bg-foreground/[0.03] cursor-pointer transition-all group"
     >
       {/* Color indicator */}
       <div className="w-10 h-10 rounded-lg shrink-0 overflow-hidden"
@@ -777,7 +766,7 @@ function BoardListItem({ board, onToggleStar, onClick, onEdit }: {
       {/* Board info */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <h3 className="text-sm font-bold text-white truncate group-hover:text-bridge-secondary transition-colors">
+          <h3 className="text-sm font-bold text-foreground truncate group-hover:text-bridge-secondary transition-colors">
             {board.name}
           </h3>
           {isTrial && (
@@ -791,10 +780,10 @@ function BoardListItem({ board, onToggleStar, onClick, onEdit }: {
 
       {/* Progress */}
       <div className="hidden md:flex items-center gap-2 shrink-0 w-28">
-        <div className="flex-1 h-1 bg-white/5 rounded-full overflow-hidden">
+        <div className="flex-1 h-1 bg-foreground/[0.06] rounded-full overflow-hidden">
           <div className="h-full bg-gradient-to-r from-bridge-secondary to-bridge-accent rounded-full" style={{ width: `${progress}%` }} />
         </div>
-        <span className="text-[10px] font-bold text-slate-500 w-8 text-right">{progress}%</span>
+        <span className="text-[10px] font-bold text-muted-foreground w-8 text-right">{progress}%</span>
       </div>
 
       {/* Members */}
@@ -806,7 +795,7 @@ function BoardListItem({ board, onToggleStar, onClick, onEdit }: {
       {/* Star */}
       <button
         onClick={(e) => { e.stopPropagation(); onToggleStar(board.id); }}
-        className="p-1.5 hover:bg-white/5 rounded-lg transition-colors shrink-0"
+        className="p-1.5 hover:bg-foreground/5 rounded-lg transition-colors shrink-0"
       >
         <Star
           size={14}

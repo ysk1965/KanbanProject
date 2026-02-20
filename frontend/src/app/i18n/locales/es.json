@@ -1650,6 +1650,9 @@
     "language": "Idioma",
     "languageDesc": "Cambiar el idioma de visualización",
     "selectLanguage": "Seleccionar idioma",
+    "holidayCountry": "País de festivos",
+    "holidayCountryDesc": "Selecciona un país para mostrar festivos en el calendario",
+    "holidayOff": "Desactivado",
     "changePassword": "Cambiar contraseña",
     "changePasswordDesc": "Cambia tu contraseña para la seguridad de la cuenta",
     "currentPasswordLabel": "Contraseña actual",
@@ -2521,7 +2524,9 @@
       "start": "Inicio",
       "end": "Fin",
       "color": "Color",
-      "thisWeek": "Esta semana"
+      "thisWeek": "Esta semana",
+      "holidayCountry": "País de festivos",
+      "holidayOff": "Desactivado"
     },
     "habit": {
       "habits": "Hábitos",

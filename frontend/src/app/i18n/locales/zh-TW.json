@@ -1608,6 +1608,9 @@
     "language": "語言",
     "languageDesc": "變更顯示語言",
     "selectLanguage": "選擇語言",
+    "holidayCountry": "國定假日國家",
+    "holidayCountryDesc": "選擇在日曆上顯示的國定假日國家",
+    "holidayOff": "關閉",
     "changePassword": "變更密碼",
     "changePasswordDesc": "為帳號安全變更密碼",
     "currentPasswordLabel": "目前密碼",
@@ -2387,7 +2390,9 @@
       "start": "開始",
       "end": "結束",
       "color": "顏色",
-      "thisWeek": "本週"
+      "thisWeek": "本週",
+      "holidayCountry": "假日國家",
+      "holidayOff": "關閉"
     },
     "habit": {
       "habits": "習慣",

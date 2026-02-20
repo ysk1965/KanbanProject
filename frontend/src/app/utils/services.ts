@@ -19,7 +19,6 @@ import {
   noteAPI,
   apiClient,
   personalTaskAPI,
-  personalTagAPI,
   personalHabitAPI,
   personalDashboardAPI,
 } from './api';
@@ -2545,6 +2544,10 @@ export const personalEventService = {
     end_time?: string | null;
     color?: string;
     all_day?: boolean;
+    recurrence_rule?: string;
+    recurrence_end_date?: string;
+    recurrence_days_of_week?: number[];
+    scope?: string;
   }): Promise<PersonalEvent> => {
     return personalEventAPI.update(eventId, data);
   },
@@ -2631,19 +2634,6 @@ export const personalTaskService = {
   updatePosition: personalTaskAPI.updatePosition,
   deleteTask: personalTaskAPI.delete,
   getCategories: personalTaskAPI.getCategories,
-  addChecklist: personalTaskAPI.addChecklist,
-  updateChecklist: personalTaskAPI.updateChecklist,
-  toggleChecklist: personalTaskAPI.toggleChecklist,
-  deleteChecklist: personalTaskAPI.deleteChecklist,
-  assignTag: personalTaskAPI.assignTag,
-  unassignTag: personalTaskAPI.unassignTag,
-};
-
-export const personalTagService = {
-  getTags: personalTagAPI.getAll,
-  createTag: personalTagAPI.create,
-  updateTag: personalTagAPI.update,
-  deleteTag: personalTagAPI.delete,
 };
 
 export const personalHabitService = {

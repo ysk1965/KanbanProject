@@ -1,14 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { CalendarDays, BookHeart, ArrowLeft, LayoutGrid, Calendar, Plus, Command, Home, Loader2, Flag, Repeat } from 'lucide-react';
+import { CalendarDays, BookHeart, ArrowLeft, LayoutGrid, Calendar, Plus, Command, Home, Loader2, Flag, Repeat, Flame, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PersonalSchedule } from '../components/personal/PersonalSchedule';
 import { PersonalDiary } from '../components/personal/PersonalDiary';
 import { PersonalTaskBoard } from '../components/personal/PersonalTaskBoard';
-import { TodaySidebar } from '../components/personal/TodaySidebar';
+
 import { PersonalOverview } from '../components/personal/PersonalOverview';
 import { PersonalCalendar } from '../components/personal/PersonalCalendar';
+import { UserMenu } from '../components/UserMenu';
+import { useAuth } from '../contexts/AuthContext';
 
 import { personalTaskAPI, personalHabitAPI } from '../utils/api';
 import { PersonalTask, PersonalTaskPriority, HabitFrequency, HabitImportance } from '../types';
@@ -19,6 +21,7 @@ type TabType = 'overview' | 'tasks' | 'schedule' | 'calendar' | 'diary';
 export function PersonalBoardPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { currentUser, logout, hideBilling } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [tasks, setTasks] = useState<PersonalTask[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -72,19 +75,17 @@ export function PersonalBoardPage() {
   }, []);
 
   // Quick Capture: PersonalHabit 생성
-  const handleQuickHabit = useCallback(async (
-    title: string,
-    frequencyType: HabitFrequency,
-    importance: HabitImportance,
-    frequencyDays?: string,
-  ) => {
+  const handleQuickHabit = useCallback(async (data: {
+    title: string;
+    frequency_type?: HabitFrequency;
+    frequency_days?: string;
+    importance?: HabitImportance;
+    icon?: string;
+    color?: string;
+    description?: string;
+  }) => {
     try {
-      await personalHabitAPI.create({
-        title,
-        frequency_type: frequencyType,
-        frequency_days: frequencyDays,
-        importance,
-      });
+      await personalHabitAPI.create(data);
       setRefreshKey(k => k + 1);
     } catch (error) {
       console.error('Failed to create habit:', error);
@@ -107,7 +108,7 @@ export function PersonalBoardPage() {
   }
 
   return (
-    <div className="flex flex-col h-dvh bg-bridge-dark text-white selection:bg-bridge-secondary/30">
+    <div className="flex flex-col h-dvh overflow-hidden bg-bridge-dark text-foreground selection:bg-bridge-secondary/30">
       {/* Header */}
       <header className="min-h-[3.5rem] md:h-16 border-b border-bridge-border flex items-center justify-between px-3 md:px-6 bg-bridge-dark shrink-0 z-30 gap-2 safe-top">
         {/* 좌측 영역 */}
@@ -132,7 +133,7 @@ export function PersonalBoardPage() {
                 className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
                   activeTab === tab.key
                     ? 'bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20'
-                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-bridge-surface-hover'
+                    : 'text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover'
                 }`}
               >
                 <tab.icon size={14} />
@@ -148,15 +149,23 @@ export function PersonalBoardPage() {
             <Command size={12} />
             <span>K</span>
           </div>
+          {currentUser && (
+            <UserMenu
+              user={{
+                ...currentUser,
+                avatar: currentUser.profile_image || undefined,
+              }}
+              onOpenSubscription={() => {}}
+              onLogout={logout}
+              hideBilling={hideBilling}
+              hideMySpace
+            />
+          )}
         </div>
       </header>
 
       {/* Content */}
-      <main className="flex-1 overflow-hidden flex">
-        {/* Today Sidebar — tasks 탭일 때만 */}
-        {activeTab === 'tasks' && <TodaySidebar tasks={tasks} />}
-
-        <div className="flex-1 overflow-hidden">
+      <main className="flex-1 overflow-hidden flex flex-col">
           {activeTab === 'overview' && (
             <PersonalOverview onNavigateTab={setActiveTab} />
           )}
@@ -170,14 +179,13 @@ export function PersonalBoardPage() {
           {activeTab === 'schedule' && <PersonalSchedule />}
           {activeTab === 'calendar' && <PersonalCalendar />}
           {activeTab === 'diary' && <PersonalDiary />}
-        </div>
       </main>
 
       {/* 모바일 하단 여백 (탭바 + safe area 공간 확보) */}
       <div className="shrink-0 md:hidden" style={{ height: 'calc(3.5rem + env(safe-area-inset-bottom, 0px))' }} />
 
       {/* 모바일 하단 탭바 */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-bridge-obsidian/95 backdrop-blur-xl border-t border-white/10" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-bridge-obsidian/95 backdrop-blur-xl border-t border-foreground/10" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         <div className="flex items-center justify-around px-1 pt-2 pb-1.5">
           {tabs.map((tab) => (
             <button
@@ -236,31 +244,41 @@ const PRIORITY_OPTIONS: { value: PersonalTaskPriority; label: string; dot: strin
   { value: 'URGENT', label: '긴급', dot: 'bg-red-500', color: 'text-red-500' },
 ];
 
-// 0=Sun … 6=Sat — display order: Mon→Sun
-const DAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
-const DAY_ORDER  = [1, 2, 3, 4, 5, 6, 0]; // Mon first, Sun last
-
-const IMPORTANCE_OPTIONS: { value: HabitImportance; label: string; dot: string; color: string }[] = [
-  { value: 'MEDIUM', label: '보통', dot: 'bg-slate-400', color: 'text-slate-400' },
-  { value: 'HIGH',   label: '중요', dot: 'bg-orange-500', color: 'text-orange-500' },
+// Habit: day chips (Mon → Sun, Java DayOfWeek)
+const HABIT_DAY_CHIPS = [
+  { value: 1, label: '월' },
+  { value: 2, label: '화' },
+  { value: 3, label: '수' },
+  { value: 4, label: '목' },
+  { value: 5, label: '금' },
+  { value: 6, label: '토' },
+  { value: 0, label: '일' },
 ];
 
-/** Derive frequency_type + frequency_days from a set of selected day indices */
-function deriveFrequency(days: Set<number>): { type: HabitFrequency; days?: string } {
-  if (days.size === 7) return { type: 'DAILY' };
-  const sorted = [...days].sort((a, b) => a - b);
-  const weekdays = [1, 2, 3, 4, 5];
-  const weekend  = [0, 6];
-  if (sorted.length === 5 && weekdays.every(d => days.has(d))) return { type: 'WEEKDAY' };
-  if (sorted.length === 2 && weekend.every(d => days.has(d))) return { type: 'WEEKEND' };
-  return { type: 'CUSTOM', days: sorted.join(',') };
-}
+const HABIT_COLORS = [
+  '#8B5CF6', '#6366F1', '#EC4899', '#F43F5E',
+  '#F59E0B', '#10B981', '#06B6D4', '#3B82F6',
+];
+
+const HABIT_ICONS = [
+  '🏃', '📚', '💧', '🧘', '💪', '🎯', '✍️', '🎵',
+  '🧠', '🌿', '💊', '🍎', '😴', '🚶', '🧹', '📵',
+];
 
 function QuickCaptureModal({ onClose, onSubmitTask, onSubmitHabit }: {
   onClose: () => void;
   onSubmitTask: (title: string, dueDate?: string, priority?: PersonalTaskPriority) => void;
-  onSubmitHabit: (title: string, frequencyType: HabitFrequency, importance: HabitImportance, frequencyDays?: string) => void;
+  onSubmitHabit: (data: {
+    title: string;
+    frequency_type?: HabitFrequency;
+    frequency_days?: string;
+    importance?: HabitImportance;
+    icon?: string;
+    color?: string;
+    description?: string;
+  }) => void;
 }) {
+  const { t } = useTranslation();
   const [captureType, setCaptureType] = useState<CaptureType>('task');
   const [title, setTitle] = useState('');
   // Task fields
@@ -268,40 +286,56 @@ function QuickCaptureModal({ onClose, onSubmitTask, onSubmitHabit }: {
   const [priority, setPriority] = useState<PersonalTaskPriority>('MEDIUM');
   const [showPriority, setShowPriority] = useState(false);
   // Habit fields — default all days selected
-  const [selectedDays, setSelectedDays] = useState<Set<number>>(new Set([0, 1, 2, 3, 4, 5, 6]));
-  const [importance, setImportance] = useState<HabitImportance>('MEDIUM');
-  const [showImportance, setShowImportance] = useState(false);
+  const [selectedDays, setSelectedDays] = useState<number[]>([0, 1, 2, 3, 4, 5, 6]);
+  const [showMore, setShowMore] = useState(false);
+  const [icon, setIcon] = useState('');
+  const [color, setColor] = useState(HABIT_COLORS[0]);
+  const [description, setDescription] = useState('');
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const toggleDay = (day: number) => {
-    setSelectedDays(prev => {
-      const next = new Set(prev);
-      if (next.has(day)) {
-        next.delete(day);
-      } else {
-        next.add(day);
-      }
-      return next;
-    });
+    setSelectedDays(prev => prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]);
   };
 
+  /** Derive frequency_type from selected days */
+  const deriveFrequency = (days: number[]): { type: HabitFrequency; days?: string } => {
+    const sorted = [...days].sort((a, b) => a - b);
+    if (sorted.length === 7) return { type: 'DAILY' };
+    const weekdays = [1, 2, 3, 4, 5];
+    const weekend = [0, 6];
+    if (sorted.length === 5 && weekdays.every(d => sorted.includes(d))) return { type: 'WEEKDAY' };
+    if (sorted.length === 2 && weekend.every(d => sorted.includes(d))) return { type: 'WEEKEND' };
+    return { type: 'CUSTOM', days: sorted.join(',') };
+  };
+
+  const isHabitValid = title.trim().length > 0 && selectedDays.length > 0;
+
   const handleSubmit = async () => {
-    if (!title.trim()) return;
-    setIsSubmitting(true);
     if (captureType === 'task') {
+      if (!title.trim()) return;
+      setIsSubmitting(true);
       await onSubmitTask(title.trim(), dueDate || undefined, priority);
     } else {
+      if (!isHabitValid) return;
+      setIsSubmitting(true);
       const freq = deriveFrequency(selectedDays);
-      await onSubmitHabit(title.trim(), freq.type, importance, freq.days);
+      await onSubmitHabit({
+        title: title.trim(),
+        frequency_type: freq.type,
+        frequency_days: freq.days,
+        icon: icon || undefined,
+        color,
+        description: description.trim() || undefined,
+      });
     }
     setIsSubmitting(false);
     onClose();
   };
 
   const currentPriority = PRIORITY_OPTIONS.find(p => p.value === priority)!;
-  const currentImportance = IMPORTANCE_OPTIONS.find(i => i.value === importance)!;
 
+  // Unified inline capture — task & habit share the same bottom sheet
   return (
     <motion.div
       className="fixed inset-0 z-50 flex items-end sm:items-start justify-center sm:pt-[20vh]"
@@ -311,30 +345,34 @@ function QuickCaptureModal({ onClose, onSubmitTask, onSubmitHabit }: {
       exit={{ backgroundColor: 'rgba(0,0,0,0)', backdropFilter: 'blur(0px)' }}
       transition={{ duration: 0.3 }}
     >
-      <div className="w-full sm:max-w-lg bg-bridge-obsidian rounded-t-2xl sm:rounded-2xl border border-white/10 shadow-2xl p-4">
+      <motion.div
+        className="w-full sm:max-w-lg bg-bridge-obsidian rounded-t-2xl sm:rounded-2xl border border-foreground/10 shadow-2xl p-4"
+        layout
+        transition={{ layout: { type: 'spring', stiffness: 500, damping: 35 } }}
+      >
         {/* Type Toggle */}
-        <div className="flex items-center gap-1 mb-3 bg-white/5 rounded-lg p-0.5 w-fit">
+        <div className="flex items-center gap-1 mb-3 bg-foreground/5 rounded-lg p-0.5 w-fit">
           <button
             onClick={() => setCaptureType('task')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
               captureType === 'task'
                 ? 'bg-bridge-accent text-white shadow-sm'
-                : 'text-slate-400 hover:text-white'
+                : 'text-slate-400 hover:text-foreground'
             }`}
           >
             <Flag size={12} />
-            할 일
+            {t('personal.quickCapture.task', '할 일')}
           </button>
           <button
             onClick={() => setCaptureType('habit')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
               captureType === 'habit'
                 ? 'bg-purple-500 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white'
+                : 'text-slate-400 hover:text-foreground'
             }`}
           >
             <Repeat size={12} />
-            습관
+            {t('personal.quickCapture.habit', '습관')}
           </button>
         </div>
 
@@ -346,25 +384,36 @@ function QuickCaptureModal({ onClose, onSubmitTask, onSubmitHabit }: {
             if (e.key === 'Enter' && !e.nativeEvent.isComposing) handleSubmit();
             if (e.key === 'Escape') onClose();
           }}
-          placeholder={captureType === 'task' ? '할 일을 입력하세요...' : '습관을 입력하세요...'}
-          className="w-full bg-transparent text-white text-lg placeholder-slate-600 outline-none py-2"
+          placeholder={captureType === 'task'
+            ? t('personal.quickCapture.taskPlaceholder', '할 일을 입력하세요...')
+            : t('personal.quickCapture.habitPlaceholder', '습관 이름을 입력하세요...')
+          }
+          className="w-full bg-transparent text-foreground text-lg placeholder-slate-600 outline-none py-2"
         />
-        <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/5">
-          <div className="flex items-center gap-2">
-            {captureType === 'task' ? (
-              <>
+
+        <AnimatePresence mode="wait">
+          {captureType === 'task' ? (
+            <motion.div
+              key="task-fields"
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.15 }}
+              className="flex items-center justify-between mt-3 pt-3 border-t border-foreground/5"
+            >
+              <div className="flex items-center gap-2">
                 <input
                   type="date"
                   value={dueDate}
                   onChange={(e) => setDueDate(e.target.value)}
-                  className="bg-transparent text-xs text-slate-400 border border-white/10 rounded-lg px-2 py-1 outline-none focus:border-bridge-accent/50 [color-scheme:dark]"
+                  className="bg-transparent text-xs text-slate-400 border border-foreground/10 rounded-lg px-2 py-1 outline-none focus:border-bridge-accent/50 dark:[color-scheme:dark]"
                   placeholder="마감일"
                 />
                 {/* Priority selector */}
                 <div className="relative">
                   <button
                     onClick={() => setShowPriority(!showPriority)}
-                    className="flex items-center gap-1.5 px-2 py-1 border border-white/10 rounded-lg hover:bg-white/5 transition-colors"
+                    className="flex items-center gap-1.5 px-2 py-1 border border-foreground/10 rounded-lg hover:bg-foreground/5 transition-colors"
                   >
                     <div className={`w-2 h-2 rounded-full ${currentPriority.dot}`} />
                     <span className={`text-xs ${currentPriority.color}`}>{currentPriority.label}</span>
@@ -372,13 +421,13 @@ function QuickCaptureModal({ onClose, onSubmitTask, onSubmitHabit }: {
                   {showPriority && (
                     <>
                       <div className="fixed inset-0 z-40" onClick={() => setShowPriority(false)} />
-                      <div className="absolute left-0 bottom-full mb-1 bg-bridge-obsidian border border-white/10 rounded-lg shadow-xl z-50 py-1 min-w-[100px]">
+                      <div className="absolute left-0 bottom-full mb-1 bg-bridge-obsidian border border-foreground/10 rounded-lg shadow-xl z-50 py-1 min-w-[100px]">
                         {PRIORITY_OPTIONS.map(p => (
                           <button
                             key={p.value}
                             onClick={() => { setPriority(p.value); setShowPriority(false); }}
-                            className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-white/5 transition-colors ${
-                              priority === p.value ? 'text-white' : 'text-slate-400'
+                            className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-foreground/5 transition-colors ${
+                              priority === p.value ? 'text-foreground' : 'text-slate-400'
                             }`}
                           >
                             <div className={`w-2 h-2 rounded-full ${p.dot}`} />
@@ -389,71 +438,114 @@ function QuickCaptureModal({ onClose, onSubmitTask, onSubmitHabit }: {
                     </>
                   )}
                 </div>
-              </>
-            ) : (
-              <>
-                {/* Day chips — inline togglable */}
-                <div className="flex items-center gap-0.5">
-                  {DAY_ORDER.map(day => (
+                <span className="text-xs text-slate-500 hidden sm:inline">Enter</span>
+              </div>
+              <button
+                onClick={handleSubmit}
+                disabled={!title.trim() || isSubmitting}
+                className="px-4 py-1.5 text-white text-sm rounded-lg font-medium disabled:opacity-50 transition-colors bg-bridge-accent hover:bg-bridge-accent/90"
+              >
+                {t('personal.quickCapture.add', '추가')}
+              </button>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="habit-fields"
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.15 }}
+              className="mt-3 pt-3 border-t border-foreground/5 space-y-3"
+            >
+              {/* Repeat Days - compact inline */}
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-slate-500 flex-shrink-0">{t('personal.habit.repeatOn', '반복')}</span>
+                <div className="flex gap-1 flex-1">
+                  {HABIT_DAY_CHIPS.map(({ value, label }) => (
                     <button
-                      key={day}
-                      onClick={() => toggleDay(day)}
-                      className={`w-7 h-7 rounded-full text-[11px] font-bold transition-all ${
-                        selectedDays.has(day)
-                          ? 'bg-purple-500 text-white shadow-sm shadow-purple-500/30'
-                          : 'bg-white/5 text-slate-500 hover:bg-white/10 hover:text-slate-300'
+                      key={value}
+                      onClick={() => toggleDay(value)}
+                      className={`flex-1 py-1 text-[10px] font-bold rounded-md transition-all ${
+                        selectedDays.includes(value)
+                          ? 'bg-purple-500 text-white'
+                          : 'bg-foreground/5 text-slate-500 hover:bg-foreground/10'
                       }`}
                     >
-                      {DAY_LABELS[day]}
+                      {label}
                     </button>
                   ))}
                 </div>
-                {/* Importance selector */}
-                <div className="relative">
-                  <button
-                    onClick={() => setShowImportance(!showImportance)}
-                    className="flex items-center gap-1.5 px-2 py-1 border border-white/10 rounded-lg hover:bg-white/5 transition-colors"
+              </div>
+
+              {/* More options toggle */}
+              <AnimatePresence>
+                {showMore && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="space-y-3 overflow-hidden"
                   >
-                    <div className={`w-2 h-2 rounded-full ${currentImportance.dot}`} />
-                    <span className={`text-xs ${currentImportance.color}`}>{currentImportance.label}</span>
+                    {/* Icon Picker */}
+                    <div className="flex flex-wrap gap-1">
+                      {HABIT_ICONS.map((emoji) => (
+                        <button
+                          key={emoji}
+                          onClick={() => setIcon(icon === emoji ? '' : emoji)}
+                          className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm transition-all ${
+                            icon === emoji
+                              ? 'bg-purple-500/20 ring-2 ring-purple-500 scale-110'
+                              : 'bg-foreground/5 hover:bg-foreground/10'
+                          }`}
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Color Picker */}
+                    <div className="flex gap-2">
+                      {HABIT_COLORS.map((c) => (
+                        <button
+                          key={c}
+                          onClick={() => setColor(c)}
+                          className={`w-6 h-6 rounded-full transition-all ${
+                            color === c
+                              ? 'ring-2 ring-white ring-offset-2 ring-offset-bridge-obsidian scale-110'
+                              : 'hover:scale-110'
+                          }`}
+                          style={{ backgroundColor: c }}
+                        />
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Bottom row: more options + submit */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setShowMore(!showMore)}
+                    className="flex items-center gap-1 text-[11px] text-slate-400 hover:text-muted-foreground transition-colors"
+                  >
+                    {showMore ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                    {showMore ? t('personal.habit.lessOptions', '접기') : t('personal.habit.moreOptions', '더 보기')}
                   </button>
-                  {showImportance && (
-                    <>
-                      <div className="fixed inset-0 z-40" onClick={() => setShowImportance(false)} />
-                      <div className="absolute left-0 bottom-full mb-1 bg-bridge-obsidian border border-white/10 rounded-lg shadow-xl z-50 py-1 min-w-[100px]">
-                        {IMPORTANCE_OPTIONS.map(i => (
-                          <button
-                            key={i.value}
-                            onClick={() => { setImportance(i.value); setShowImportance(false); }}
-                            className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-white/5 transition-colors ${
-                              importance === i.value ? 'text-white' : 'text-slate-400'
-                            }`}
-                          >
-                            <div className={`w-2 h-2 rounded-full ${i.dot}`} />
-                            {i.label}
-                          </button>
-                        ))}
-                      </div>
-                    </>
-                  )}
+                  <span className="text-xs text-slate-500 hidden sm:inline">Enter</span>
                 </div>
-              </>
-            )}
-            <span className="text-xs text-slate-500 hidden sm:inline">Enter로 추가</span>
-          </div>
-          <button
-            onClick={handleSubmit}
-            disabled={!title.trim() || isSubmitting}
-            className={`px-4 py-1.5 text-white text-sm rounded-lg font-medium disabled:opacity-50 transition-colors ${
-              captureType === 'task'
-                ? 'bg-bridge-accent hover:bg-bridge-accent/90'
-                : 'bg-purple-500 hover:bg-purple-500/90'
-            }`}
-          >
-            추가
-          </button>
-        </div>
-      </div>
+                <button
+                  onClick={handleSubmit}
+                  disabled={!isHabitValid || isSubmitting}
+                  className="px-4 py-1.5 text-white text-sm rounded-lg font-medium disabled:opacity-50 transition-colors bg-purple-500 hover:bg-purple-500/90"
+                >
+                  {t('personal.quickCapture.add', '추가')}
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
     </motion.div>
   );
 }

@@ -152,14 +152,14 @@ export function StandupConfigPanel({ boardId, isAdmin, canAccessSlack, hasSlack 
   if (isLoading) return null;
 
   return (
-    <div className="mx-3 mb-2 bg-white/[0.03] rounded-xl border border-white/10 overflow-hidden">
+    <div className="mx-3 mb-2 bg-white/[0.03] rounded-xl border border-foreground/10 overflow-hidden">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-white/5 transition-colors"
+        className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-foreground/5 transition-colors"
       >
         <div className="flex items-center gap-1.5">
           <Clock size={12} className="text-bridge-secondary" />
-          <span className="text-[11px] font-medium text-slate-300">{t('standupConfig.title')}</span>
+          <span className="text-[11px] font-medium text-muted-foreground">{t('standupConfig.title')}</span>
           {enabled && (
             <span className="ml-1 px-1.5 py-0.5 rounded-full bg-bridge-secondary/20 text-bridge-secondary text-[8px] font-bold uppercase">
               ON
@@ -178,23 +178,23 @@ export function StandupConfigPanel({ boardId, isAdmin, canAccessSlack, hasSlack 
       </button>
 
       {isOpen && (
-        <div className="px-3 pb-3 border-t border-white/5 space-y-3">
+        <div className="px-3 pb-3 border-t border-foreground/5 space-y-3">
           <p className="text-[9px] text-slate-500 pt-2 leading-tight">
             {t('standupConfig.description')}
           </p>
 
           {/* Enable toggle */}
           <div className="flex items-center justify-between">
-            <span className="text-[11px] text-slate-300">{t('standupConfig.enabled')}</span>
+            <span className="text-[11px] text-muted-foreground">{t('standupConfig.enabled')}</span>
             <button
               onClick={handleEnabledToggle}
               disabled={!hasSlack}
               className={`w-8 h-4.5 rounded-full transition-colors relative ${
                 !hasSlack
-                  ? 'bg-white/5 cursor-not-allowed opacity-40'
+                  ? 'bg-foreground/5 cursor-not-allowed opacity-40'
                   : enabled
                     ? 'bg-bridge-secondary'
-                    : 'bg-white/10'
+                    : 'bg-foreground/10'
               }`}
             >
               <div
@@ -223,7 +223,7 @@ export function StandupConfigPanel({ boardId, isAdmin, canAccessSlack, hasSlack 
                   <select
                     value={hour}
                     onChange={(e) => handleHourChange(Number(e.target.value))}
-                    className="bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-[11px] text-white
+                    className="bg-foreground/5 border border-foreground/10 rounded-lg px-2 py-1.5 text-[11px] text-foreground
                       focus:outline-none focus:ring-1 focus:ring-bridge-secondary/50 appearance-none cursor-pointer"
                   >
                     {HOURS.map((h) => (
@@ -236,7 +236,7 @@ export function StandupConfigPanel({ boardId, isAdmin, canAccessSlack, hasSlack 
                   <select
                     value={minute}
                     onChange={(e) => handleMinuteChange(Number(e.target.value))}
-                    className="bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-[11px] text-white
+                    className="bg-foreground/5 border border-foreground/10 rounded-lg px-2 py-1.5 text-[11px] text-foreground
                       focus:outline-none focus:ring-1 focus:ring-bridge-secondary/50 appearance-none cursor-pointer"
                   >
                     {MINUTES.map((m) => (
@@ -256,7 +256,7 @@ export function StandupConfigPanel({ boardId, isAdmin, canAccessSlack, hasSlack 
                 <select
                   value={timezone}
                   onChange={(e) => handleTimezoneChange(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-[11px] text-white
+                  className="w-full bg-foreground/5 border border-foreground/10 rounded-lg px-2 py-1.5 text-[11px] text-foreground
                     focus:outline-none focus:ring-1 focus:ring-bridge-secondary/50 appearance-none cursor-pointer"
                 >
                   {TIMEZONES.map((tz) => (
@@ -278,7 +278,7 @@ export function StandupConfigPanel({ boardId, isAdmin, canAccessSlack, hasSlack 
                     className={`px-3 py-1 rounded-lg text-[11px] transition-colors ${
                       language === 'ko'
                         ? 'bg-bridge-secondary/20 text-bridge-secondary border border-bridge-secondary/30'
-                        : 'bg-white/5 text-slate-400 border border-white/10 hover:bg-white/10'
+                        : 'bg-foreground/5 text-slate-400 border border-foreground/10 hover:bg-foreground/10'
                     }`}
                   >
                     {t('standupConfig.korean')}
@@ -288,7 +288,7 @@ export function StandupConfigPanel({ boardId, isAdmin, canAccessSlack, hasSlack 
                     className={`px-3 py-1 rounded-lg text-[11px] transition-colors ${
                       language === 'en'
                         ? 'bg-bridge-secondary/20 text-bridge-secondary border border-bridge-secondary/30'
-                        : 'bg-white/5 text-slate-400 border border-white/10 hover:bg-white/10'
+                        : 'bg-foreground/5 text-slate-400 border border-foreground/10 hover:bg-foreground/10'
                     }`}
                   >
                     {t('standupConfig.english')}

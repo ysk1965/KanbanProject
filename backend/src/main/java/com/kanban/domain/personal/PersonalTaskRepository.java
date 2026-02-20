@@ -9,7 +9,7 @@ import java.util.List;
 
 public interface PersonalTaskRepository extends JpaRepository<PersonalTask, String> {
 
-    @Query("SELECT t FROM PersonalTask t LEFT JOIN FETCH t.checklists LEFT JOIN FETCH t.taskTags tt LEFT JOIN FETCH tt.personalTag " +
+    @Query("SELECT t FROM PersonalTask t LEFT JOIN FETCH t.taskTags tt LEFT JOIN FETCH tt.personalTag " +
             "WHERE t.user.id = :userId AND t.status != 'ARCHIVED' ORDER BY t.status, t.position")
     List<PersonalTask> findByUserIdWithDetails(@Param("userId") String userId);
 

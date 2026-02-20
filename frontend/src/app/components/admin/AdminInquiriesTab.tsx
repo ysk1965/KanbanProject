@@ -120,7 +120,7 @@ export function AdminInquiriesTab() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h2 className="text-2xl font-bold text-white mb-2">{t('admin.inquiries.title')}</h2>
+        <h2 className="text-2xl font-bold text-foreground mb-2">{t('admin.inquiries.title')}</h2>
         <p className="text-slate-400">{t('admin.inquiries.subtitle')}</p>
       </div>
 
@@ -133,7 +133,7 @@ export function AdminInquiriesTab() {
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               statusFilter === option.value
                 ? 'bg-bridge-accent text-white'
-                : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'
+                : 'bg-foreground/5 text-slate-400 hover:text-foreground hover:bg-foreground/10'
             }`}
           >
             {option.label}
@@ -165,10 +165,10 @@ export function AdminInquiriesTab() {
       ) : (
         <>
           {/* Table */}
-          <div className="bg-bridge-obsidian rounded-xl border border-white/5 overflow-x-auto">
+          <div className="bg-bridge-obsidian rounded-xl border border-foreground/5 overflow-x-auto">
             <table className="w-full min-w-[640px]">
               <thead>
-                <tr className="border-b border-white/5">
+                <tr className="border-b border-foreground/5">
                   <th className="text-left px-3 py-3 md:px-6 md:py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('admin.inquiries.subject')}</th>
                   <th className="text-left px-3 py-3 md:px-6 md:py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('admin.inquiries.author')}</th>
                   <th className="text-left px-3 py-3 md:px-6 md:py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('admin.inquiries.status')}</th>
@@ -183,10 +183,10 @@ export function AdminInquiriesTab() {
                     <tr
                       key={inquiry.id}
                       onClick={() => loadDetail(inquiry.id)}
-                      className="border-b border-white/5 last:border-0 hover:bg-white/5 cursor-pointer transition-colors"
+                      className="border-b border-foreground/5 last:border-0 hover:bg-foreground/5 cursor-pointer transition-colors"
                     >
                       <td className="px-3 py-3 md:px-6 md:py-4">
-                        <span className="text-white font-medium">{inquiry.title}</span>
+                        <span className="text-foreground font-medium">{inquiry.title}</span>
                         {inquiry.attachment_count > 0 && (
                           <Paperclip size={12} className="inline ml-2 text-slate-500" />
                         )}
@@ -198,7 +198,7 @@ export function AdminInquiriesTab() {
                               {inquiry.user?.name?.charAt(0) || '?'}
                             </span>
                           </div>
-                          <span className="text-slate-300 text-sm">{inquiry.user?.name || '-'}</span>
+                          <span className="text-muted-foreground text-sm">{inquiry.user?.name || '-'}</span>
                         </div>
                       </td>
                       <td className="px-3 py-3 md:px-6 md:py-4">
@@ -227,7 +227,7 @@ export function AdminInquiriesTab() {
               <button
                 onClick={() => setPage(p => Math.max(0, p - 1))}
                 disabled={page === 0}
-                className="px-3 py-1.5 bg-white/5 text-slate-400 rounded-lg text-sm hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="px-3 py-1.5 bg-foreground/5 text-slate-400 rounded-lg text-sm hover:bg-foreground/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {t('common.previous')}
               </button>
@@ -237,7 +237,7 @@ export function AdminInquiriesTab() {
               <button
                 onClick={() => setPage(p => p + 1)}
                 disabled={(page + 1) * 20 >= total}
-                className="px-3 py-1.5 bg-white/5 text-slate-400 rounded-lg text-sm hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="px-3 py-1.5 bg-foreground/5 text-slate-400 rounded-lg text-sm hover:bg-foreground/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {t('common.next')}
               </button>
@@ -287,18 +287,18 @@ function InquiryDetailPanel({
       <div className="flex items-center gap-3">
         <button
           onClick={onBack}
-          className="text-slate-400 hover:text-white transition-colors"
+          className="text-slate-400 hover:text-foreground transition-colors"
         >
           <ChevronLeft size={20} />
         </button>
-        <h2 className="text-2xl font-bold text-white">{t('admin.inquiries.detail')}</h2>
+        <h2 className="text-2xl font-bold text-foreground">{t('admin.inquiries.detail')}</h2>
       </div>
 
       {/* Inquiry Info Card */}
-      <div className="bg-bridge-obsidian rounded-xl border border-white/5 p-4 md:p-6 space-y-4">
+      <div className="bg-bridge-obsidian rounded-xl border border-foreground/5 p-4 md:p-6 space-y-4">
         <div className="flex items-start justify-between">
           <div>
-            <h3 className="text-white font-bold text-lg">{inquiry.title}</h3>
+            <h3 className="text-foreground font-bold text-lg">{inquiry.title}</h3>
             <div className="flex items-center gap-3 mt-2">
               <div className="flex items-center gap-2">
                 <div className="w-6 h-6 rounded-full bg-bridge-accent/20 flex items-center justify-center">
@@ -306,7 +306,7 @@ function InquiryDetailPanel({
                     {inquiry.user?.name?.charAt(0) || '?'}
                   </span>
                 </div>
-                <span className="text-slate-300 text-sm">{inquiry.user?.name}</span>
+                <span className="text-muted-foreground text-sm">{inquiry.user?.name}</span>
                 <span className="text-slate-600 text-sm">({inquiry.user?.email})</span>
               </div>
               <span className="text-slate-500 text-sm">
@@ -328,8 +328,8 @@ function InquiryDetailPanel({
           </select>
         </div>
 
-        <div className="bg-white/5 rounded-xl p-4">
-          <p className="text-slate-300 text-sm whitespace-pre-wrap leading-relaxed">{inquiry.content}</p>
+        <div className="bg-foreground/5 rounded-xl p-4">
+          <p className="text-muted-foreground text-sm whitespace-pre-wrap leading-relaxed">{inquiry.content}</p>
         </div>
 
         {inquiry.attachments.length > 0 && (
@@ -342,7 +342,7 @@ function InquiryDetailPanel({
                   href={att.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-2 bg-white/5 rounded-lg px-3 py-2 text-sm text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
+                  className="flex items-center gap-2 bg-foreground/5 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-foreground/10 transition-colors"
                 >
                   <Paperclip size={14} />
                   <span className="truncate max-w-[200px]">{att.original_file_name}</span>
@@ -365,26 +365,26 @@ function InquiryDetailPanel({
                     {reply.admin?.name?.charAt(0) || 'A'}
                   </span>
                 </div>
-                <span className="text-white text-sm font-medium">{reply.admin?.name}</span>
+                <span className="text-foreground text-sm font-medium">{reply.admin?.name}</span>
                 <span className="text-slate-500 text-xs">
                   {formatDate(reply.created_at, t('admin.common.dateTimeFormat'))}
                 </span>
               </div>
-              <p className="text-slate-300 text-sm whitespace-pre-wrap leading-relaxed">{reply.content}</p>
+              <p className="text-muted-foreground text-sm whitespace-pre-wrap leading-relaxed">{reply.content}</p>
             </div>
           ))}
         </div>
       )}
 
       {/* Reply Form */}
-      <div className="bg-bridge-obsidian rounded-xl border border-white/5 p-3 md:p-4 space-y-3">
+      <div className="bg-bridge-obsidian rounded-xl border border-foreground/5 p-3 md:p-4 space-y-3">
         <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('admin.inquiries.writeReply')}</h4>
         <textarea
           value={replyContent}
           onChange={e => onReplyContentChange(e.target.value)}
           placeholder={t('admin.inquiries.replyPlaceholder')}
           rows={4}
-          className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all resize-none"
+          className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-foreground placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all resize-none"
           maxLength={5000}
         />
         <div className="flex justify-end">

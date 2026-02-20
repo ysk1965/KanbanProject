@@ -1,12 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from './ui/dialog';
+import { MotionModal } from './ui/MotionModal';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import { Button } from './ui/button';
@@ -73,22 +67,19 @@ export function CreateBoardModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="bg-bridge-obsidian text-foreground border-white/10 max-w-lg">
+    <MotionModal open={open} onClose={handleClose} className="sm:max-w-lg">
         {step === 'select' ? (
-          <>
-            <DialogHeader>
-              <DialogTitle className="text-foreground">{t('createBoard.selectType', '어떤 보드를 만들까요?')}</DialogTitle>
-              <DialogDescription className="text-slate-400">
-                {t('createBoard.selectTypeDesc', '보드 유형을 선택하세요')}
-              </DialogDescription>
-            </DialogHeader>
+          <div className="p-6">
+            <div className="mb-4">
+              <h2 className="text-foreground font-semibold text-lg">{t('createBoard.selectType', '어떤 보드를 만들까요?')}</h2>
+              <p className="text-slate-400 text-sm">{t('createBoard.selectTypeDesc', '보드 유형을 선택하세요')}</p>
+            </div>
 
             <div className="grid grid-cols-2 gap-3 py-4">
               {/* 나만을 위한 보드 */}
               <button
                 onClick={handleActivatePersonalSpace}
-                className="w-full group relative overflow-hidden rounded-2xl border border-white/10 hover:border-bridge-secondary/50 transition-all text-left"
+                className="w-full group relative overflow-hidden rounded-2xl border border-foreground/10 hover:border-bridge-secondary/50 transition-all text-left"
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-bridge-secondary/10 via-purple-500/5 to-bridge-accent/10 opacity-50 group-hover:opacity-100 transition-opacity" />
                 <div className="relative p-5 flex flex-col items-center text-center gap-3">
@@ -96,7 +87,7 @@ export function CreateBoardModal({
                     <User size={20} className="text-bridge-secondary" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-white mb-1 group-hover:text-bridge-secondary transition-colors">
+                    <h3 className="text-sm font-bold text-foreground mb-1 group-hover:text-bridge-secondary transition-colors">
                       {t('createBoard.personalTitle', '나만을 위한 보드')}
                     </h3>
                     <p className="text-[11px] text-slate-400 leading-relaxed">
@@ -120,7 +111,7 @@ export function CreateBoardModal({
               {/* 팀과 협업하는 보드 */}
               <button
                 onClick={() => setStep('form')}
-                className="w-full group relative overflow-hidden rounded-2xl border border-white/10 hover:border-bridge-accent/50 transition-all text-left"
+                className="w-full group relative overflow-hidden rounded-2xl border border-foreground/10 hover:border-bridge-accent/50 transition-all text-left"
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-bridge-accent/10 via-indigo-500/5 to-purple-500/10 opacity-50 group-hover:opacity-100 transition-opacity" />
                 <div className="relative p-5 flex flex-col items-center text-center gap-3">
@@ -128,7 +119,7 @@ export function CreateBoardModal({
                     <Users size={20} className="text-bridge-accent" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-white mb-1 group-hover:text-bridge-accent transition-colors">
+                    <h3 className="text-sm font-bold text-foreground mb-1 group-hover:text-bridge-accent transition-colors">
                       {t('createBoard.teamTitle', '팀과 협업하는 보드')}
                     </h3>
                     <p className="text-[11px] text-slate-400 leading-relaxed">
@@ -138,30 +129,28 @@ export function CreateBoardModal({
                 </div>
               </button>
             </div>
-          </>
+          </div>
         ) : (
-          <>
-            <DialogHeader>
+          <div className="p-6">
+            <div className="mb-4">
               <div className="flex items-center gap-2">
                 {!hasPersonalSpace && (
                   <button
                     onClick={() => setStep('select')}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
                   >
                     <ArrowLeft size={18} />
                   </button>
                 )}
-                <DialogTitle className="text-foreground">{t('createBoard.title')}</DialogTitle>
+                <h2 className="text-foreground font-semibold text-lg">{t('createBoard.title')}</h2>
               </div>
-              <DialogDescription className="text-slate-400">
-                {t('createBoard.description')}
-              </DialogDescription>
-            </DialogHeader>
+              <p className="text-slate-400 text-sm">{t('createBoard.description')}</p>
+            </div>
 
             <div className="space-y-6 py-4">
               {/* 보드 미리보기 */}
               <div className="space-y-2">
-                <Label className="text-slate-300">{t('createBoard.preview')}</Label>
+                <Label className="text-muted-foreground">{t('createBoard.preview')}</Label>
                 <div
                   className="h-28 rounded-lg flex items-center justify-center"
                   style={{ background: selectedGradient }}
@@ -174,7 +163,7 @@ export function CreateBoardModal({
 
               {/* 보드 이름 */}
               <div className="space-y-2">
-                <Label htmlFor="board-name" className="text-slate-300">
+                <Label htmlFor="board-name" className="text-muted-foreground">
                   {t('createBoard.nameLabel')} <span className="text-red-400">*</span>
                 </Label>
                 <Input
@@ -182,7 +171,7 @@ export function CreateBoardModal({
                   value={boardName}
                   onChange={(e) => setBoardName(e.target.value)}
                   placeholder={t('createBoard.namePlaceholder')}
-                  className="bg-bridge-dark border-white/10 text-foreground placeholder:text-slate-400 focus:border-bridge-accent"
+                  className="bg-bridge-dark border-foreground/10 text-foreground placeholder:text-slate-400 focus:border-bridge-accent"
                   onKeyDown={(e) => {
                     if (e.nativeEvent.isComposing) return;
                     if (e.key === 'Enter' && !e.shiftKey) {
@@ -194,7 +183,7 @@ export function CreateBoardModal({
 
               {/* 설명 */}
               <div className="space-y-2">
-                <Label htmlFor="board-description" className="text-slate-300">
+                <Label htmlFor="board-description" className="text-muted-foreground">
                   {t('createBoard.descriptionLabel')}
                 </Label>
                 <Textarea
@@ -202,14 +191,14 @@ export function CreateBoardModal({
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder={t('createBoard.descriptionPlaceholder')}
-                  className="bg-bridge-dark border-white/10 text-foreground placeholder:text-slate-400 focus:border-bridge-accent resize-none"
+                  className="bg-bridge-dark border-foreground/10 text-foreground placeholder:text-slate-400 focus:border-bridge-accent resize-none"
                   rows={3}
                 />
               </div>
 
               {/* 색상 선택 (미리보기용) */}
               <div className="space-y-2">
-                <Label className="text-slate-300">{t('createBoard.bgColor')}</Label>
+                <Label className="text-muted-foreground">{t('createBoard.bgColor')}</Label>
                 <div className="grid grid-cols-3 gap-2">
                   {BOARD_GRADIENTS.map((gradient) => (
                     <button
@@ -230,11 +219,11 @@ export function CreateBoardModal({
             </div>
 
             {/* 액션 버튼 */}
-            <div className="flex justify-end gap-2 pt-4 border-t border-white/10">
+            <div className="flex justify-end gap-2 pt-4 border-t border-foreground/10">
               <Button
                 variant="outline"
                 onClick={handleClose}
-                className="border-white/10 text-slate-300 hover:bg-white/5 hover:text-foreground"
+                className="border-foreground/10 text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
               >
                 {t('common.cancel')}
               </Button>
@@ -246,9 +235,8 @@ export function CreateBoardModal({
                 {t('common.create')}
               </Button>
             </div>
-          </>
+          </div>
         )}
-      </DialogContent>
-    </Dialog>
+    </MotionModal>
   );
 }

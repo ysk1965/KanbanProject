@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { Lock, AlertCircle, X } from 'lucide-react';
-import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
+import { MotionModal } from './ui/MotionModal';
 
 interface AlertModalProps {
   open: boolean;
@@ -34,9 +34,7 @@ export function AlertModal({ open, onClose, type, title, message }: AlertModalPr
   const Icon = content.icon;
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="bg-bridge-obsidian text-foreground border-white/10 max-w-sm p-0 gap-0 [&>button:last-child]:hidden overflow-hidden rounded-2xl">
-        <DialogTitle className="sr-only">{type === 'premium' ? 'Premium Alert' : 'Permission Alert'}</DialogTitle>
+    <MotionModal open={open} onClose={onClose} className="sm:max-w-sm p-0 overflow-hidden">
         {/* Close button */}
         <button
           onClick={onClose}
@@ -67,12 +65,11 @@ export function AlertModal({ open, onClose, type, title, message }: AlertModalPr
         <div className="px-6 pb-6">
           <button
             onClick={onClose}
-            className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-sm font-semibold text-foreground transition-all"
+            className="w-full py-3 bg-foreground/5 hover:bg-foreground/10 border border-foreground/10 rounded-xl text-sm font-semibold text-foreground transition-all"
           >
             {t('common.confirm')}
           </button>
         </div>
-      </DialogContent>
-    </Dialog>
+    </MotionModal>
   );
 }

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { X, AlertTriangle, Trash2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Board } from '../../types';
-import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
+import { MotionModal } from '../ui/MotionModal';
 
 const GRADIENTS = [
   'linear-gradient(135deg, #6366F1 0%, #a855f7 100%)',
@@ -77,9 +77,7 @@ export function EditBoardModal({ isOpen, board, onClose, onUpdate, onDelete }: E
   const gradient = getGradient(board.id);
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) handleClose(); }}>
-      <DialogContent className="bg-bridge-obsidian text-foreground border-white/20 max-w-lg p-0 gap-0 [&>button:last-child]:hidden overflow-hidden rounded-2xl">
-        <DialogTitle className="sr-only">{t('board.editBoard')}</DialogTitle>
+    <MotionModal open={isOpen} onClose={handleClose} className="sm:max-w-lg p-0 overflow-hidden">
         {/* Preview Section */}
         <div
           className="h-32 w-full flex items-end p-6 relative overflow-hidden"
@@ -93,10 +91,10 @@ export function EditBoardModal({ isOpen, board, onClose, onUpdate, onDelete }: E
 
         <div className="p-6 space-y-6">
           <div className="flex justify-between items-center">
-            <h2 className="text-lg font-bold text-white">{t('board.editBoard')}</h2>
+            <h2 className="text-lg font-bold text-foreground">{t('board.editBoard')}</h2>
             <button
               onClick={handleClose}
-              className="text-slate-400 hover:text-white transition-colors"
+              className="text-muted-foreground hover:text-foreground transition-colors"
             >
               <X size={20} />
             </button>
@@ -114,7 +112,7 @@ export function EditBoardModal({ isOpen, board, onClose, onUpdate, onDelete }: E
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder={t('board.boardNamePlaceholder')}
-                className="w-full bg-white/5 border border-white/20 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-bridge-accent focus:ring-2 focus:ring-bridge-accent/20 transition-all"
+                className="w-full bg-foreground/5 border border-bridge-border rounded-xl px-4 py-3 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-bridge-accent focus:ring-2 focus:ring-bridge-accent/20 transition-all"
                 onKeyDown={(e) => {
                   if (e.nativeEvent.isComposing) return;
                   if (e.key === 'Enter' && !e.shiftKey) {
@@ -134,7 +132,7 @@ export function EditBoardModal({ isOpen, board, onClose, onUpdate, onDelete }: E
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder={t('board.boardDescPlaceholder')}
-                className="w-full bg-white/5 border border-white/20 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-bridge-accent focus:ring-2 focus:ring-bridge-accent/20 transition-all resize-none"
+                className="w-full bg-foreground/5 border border-bridge-border rounded-xl px-4 py-3 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-bridge-accent focus:ring-2 focus:ring-bridge-accent/20 transition-all resize-none"
               />
             </div>
           </div>
@@ -143,7 +141,7 @@ export function EditBoardModal({ isOpen, board, onClose, onUpdate, onDelete }: E
           <div className="flex gap-3 pt-4">
             <button
               onClick={handleClose}
-              className="flex-1 py-3 text-sm font-bold text-slate-400 hover:text-white transition-colors border border-white/20 rounded-xl hover:bg-white/5"
+              className="flex-1 py-3 text-sm font-bold text-muted-foreground hover:text-foreground transition-colors border border-bridge-border rounded-xl hover:bg-foreground/5"
             >
               {t('common.cancel')}
             </button>
@@ -158,7 +156,7 @@ export function EditBoardModal({ isOpen, board, onClose, onUpdate, onDelete }: E
 
           {/* Delete Section - Owner Only */}
           {canDelete && (
-            <div className="mt-6 pt-6 border-t border-white/15">
+            <div className="mt-6 pt-6 border-t border-bridge-border">
               {!showDeleteConfirm ? (
                 <button
                   onClick={() => setShowDeleteConfirm(true)}
@@ -206,7 +204,7 @@ export function EditBoardModal({ isOpen, board, onClose, onUpdate, onDelete }: E
                       value={deleteConfirmText}
                       onChange={(e) => setDeleteConfirmText(e.target.value)}
                       placeholder={board.name}
-                      className="w-full bg-white/5 border border-rose-500/30 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 transition-all"
+                      className="w-full bg-foreground/5 border border-rose-500/30 rounded-xl px-4 py-3 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 transition-all"
                     />
                   </div>
 
@@ -217,7 +215,7 @@ export function EditBoardModal({ isOpen, board, onClose, onUpdate, onDelete }: E
                         setShowDeleteConfirm(false);
                         setDeleteConfirmText('');
                       }}
-                      className="flex-1 py-3 text-sm font-bold text-slate-400 hover:text-white transition-colors border border-white/20 rounded-xl hover:bg-white/5"
+                      className="flex-1 py-3 text-sm font-bold text-muted-foreground hover:text-foreground transition-colors border border-bridge-border rounded-xl hover:bg-foreground/5"
                     >
                       {t('common.cancel')}
                     </button>
@@ -235,7 +233,6 @@ export function EditBoardModal({ isOpen, board, onClose, onUpdate, onDelete }: E
             </div>
           )}
         </div>
-      </DialogContent>
-    </Dialog>
+    </MotionModal>
   );
 }

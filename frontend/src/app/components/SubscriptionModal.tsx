@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { X, CreditCard, Users, Check, Minus, Plus, Crown, AlertTriangle, Sparkles, ArrowRight } from 'lucide-react';
 import { Subscription } from '../types';
 import { formatDate as dateUtilsFormatDate } from '../utils/dateUtils';
-import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
+import { MotionModal } from './ui/MotionModal';
 
 interface SubscriptionModalProps {
   open: boolean;
@@ -103,18 +103,15 @@ export function SubscriptionModal({
   const seatUsagePercent = seatCount > 0 ? Math.min((currentBillableMembers / seatCount) * 100, 100) : 0;
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="bg-bridge-obsidian text-foreground border-white/10 max-w-xl p-0 gap-0 [&>button:last-child]:hidden overflow-hidden rounded-2xl max-h-[90vh] overflow-y-auto">
-        <DialogTitle className="sr-only">{t('subscription.title')}</DialogTitle>
-
+    <MotionModal open={open} onClose={onClose} className="sm:max-w-xl p-0 overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-white/10">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-foreground/10">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-bridge-accent/10 rounded-xl">
               <CreditCard className="h-5 w-5 text-bridge-accent" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-white">{t('subscription.title')}</h2>
+              <h2 className="text-lg font-bold text-foreground">{t('subscription.title')}</h2>
               {subscription && (
                 <div className="mt-1">{getStatusBadge(subscription.status)}</div>
               )}
@@ -122,7 +119,7 @@ export function SubscriptionModal({
           </div>
           <button
             onClick={onClose}
-            className="p-1 text-slate-400 hover:text-white transition-colors"
+            className="p-1 text-slate-400 hover:text-foreground transition-colors"
           >
             <X className="h-5 w-5" />
           </button>
@@ -130,7 +127,7 @@ export function SubscriptionModal({
 
         {/* Tab Navigation (only for ACTIVE subscriptions) */}
         {isActive && (
-          <div className="flex border-b border-white/10">
+          <div className="flex border-b border-foreground/10">
             {(['overview', 'seats', 'billing'] as const).map((tab) => (
               <button
                 key={tab}
@@ -138,7 +135,7 @@ export function SubscriptionModal({
                 className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
                   activeTab === tab
                     ? 'text-bridge-accent border-b-2 border-bridge-accent'
-                    : 'text-slate-400 hover:text-white'
+                    : 'text-slate-400 hover:text-foreground'
                 }`}
               >
                 {t(`subscription.tab${tab.charAt(0).toUpperCase() + tab.slice(1)}`)}
@@ -165,15 +162,15 @@ export function SubscriptionModal({
               </div>
 
               <div className="grid grid-cols-2 gap-4 text-sm">
-                <div className="bg-bridge-dark/50 rounded-xl p-4 border border-white/5">
+                <div className="bg-bridge-dark/50 rounded-xl p-4 border border-foreground/5">
                   <p className="text-slate-400 text-xs mb-1">{t('subscription.memberCount')}</p>
-                  <p className="text-white font-bold text-lg">
+                  <p className="text-foreground font-bold text-lg">
                     {currentBillableMembers} / {subscription.member_limit || 5}
                   </p>
                 </div>
-                <div className="bg-bridge-dark/50 rounded-xl p-4 border border-white/5">
+                <div className="bg-bridge-dark/50 rounded-xl p-4 border border-foreground/5">
                   <p className="text-slate-400 text-xs mb-1">{t('subscription.trialEndDate')}</p>
-                  <p className="text-white font-bold text-lg">
+                  <p className="text-foreground font-bold text-lg">
                     {formatDate(subscription.trial_ends_at)}
                   </p>
                 </div>
@@ -185,17 +182,17 @@ export function SubscriptionModal({
           {isActive && activeTab === 'overview' && (
             <div className="space-y-4">
               {/* Seat Usage */}
-              <div className="bg-bridge-dark/50 rounded-xl border border-white/10 p-4">
+              <div className="bg-bridge-dark/50 rounded-xl border border-foreground/10 p-4">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <Users className="h-4 w-4 text-bridge-accent" />
-                    <p className="text-white text-sm font-medium">{t('subscription.seatUsage')}</p>
+                    <p className="text-foreground text-sm font-medium">{t('subscription.seatUsage')}</p>
                   </div>
                   <p className="text-slate-400 text-sm">
                     {currentBillableMembers} / {seatCount} {t('seatPurchase.seats')}
                   </p>
                 </div>
-                <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+                <div className="h-2 bg-foreground/5 rounded-full overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all ${
                       seatUsagePercent >= 90 ? 'bg-red-500' : seatUsagePercent >= 70 ? 'bg-yellow-500' : 'bg-bridge-accent'
@@ -207,15 +204,15 @@ export function SubscriptionModal({
 
               {/* Pricing Summary */}
               <div className="grid grid-cols-2 gap-4">
-                <div className="bg-bridge-dark/50 rounded-xl p-4 border border-white/5">
+                <div className="bg-bridge-dark/50 rounded-xl p-4 border border-foreground/5">
                   <p className="text-slate-400 text-xs mb-1">{t('subscription.billingCycle')}</p>
-                  <p className="text-white font-bold">
+                  <p className="text-foreground font-bold">
                     {billingCycle === 'MONTHLY' ? t('subscription.billingMonthly') : t('subscription.billingYearly')}
                   </p>
                 </div>
-                <div className="bg-bridge-dark/50 rounded-xl p-4 border border-white/5">
+                <div className="bg-bridge-dark/50 rounded-xl p-4 border border-foreground/5">
                   <p className="text-slate-400 text-xs mb-1">{t('subscription.price')}</p>
-                  <p className="text-white font-bold">
+                  <p className="text-foreground font-bold">
                     ${totalPrice}
                     <span className="text-slate-400 text-xs font-normal">
                       {billingCycle === 'MONTHLY' ? t('subscription.perMonth') : t('subscription.perYear')}
@@ -227,17 +224,17 @@ export function SubscriptionModal({
               {/* Date Info */}
               <div className="grid grid-cols-2 gap-4">
                 {subscription?.created_at && (
-                  <div className="bg-bridge-dark/50 rounded-xl p-4 border border-white/5">
+                  <div className="bg-bridge-dark/50 rounded-xl p-4 border border-foreground/5">
                     <p className="text-slate-400 text-xs mb-1">{t('subscription.startDate')}</p>
-                    <p className="text-white text-sm font-medium">
+                    <p className="text-foreground text-sm font-medium">
                       {formatDate(subscription.created_at)}
                     </p>
                   </div>
                 )}
                 {subscription?.next_payment_at && (
-                  <div className="bg-bridge-dark/50 rounded-xl p-4 border border-white/5">
+                  <div className="bg-bridge-dark/50 rounded-xl p-4 border border-foreground/5">
                     <p className="text-slate-400 text-xs mb-1">{t('subscription.nextPaymentDate')}</p>
-                    <p className="text-white text-sm font-medium">
+                    <p className="text-foreground text-sm font-medium">
                       {formatDate(subscription.next_payment_at)}
                     </p>
                   </div>
@@ -246,9 +243,9 @@ export function SubscriptionModal({
 
               {/* Period Info */}
               {subscription?.current_period_start && subscription?.current_period_end && (
-                <div className="bg-bridge-dark/50 rounded-xl p-4 border border-white/5">
+                <div className="bg-bridge-dark/50 rounded-xl p-4 border border-foreground/5">
                   <p className="text-slate-400 text-xs mb-1">{t('subscription.currentPeriod')}</p>
-                  <p className="text-white text-sm">
+                  <p className="text-foreground text-sm">
                     {formatDate(subscription.current_period_start)} — {formatDate(subscription.current_period_end)}
                   </p>
                 </div>
@@ -260,14 +257,14 @@ export function SubscriptionModal({
           {isActive && activeTab === 'seats' && (
             <div className="space-y-4">
               {/* Current Seats */}
-              <div className="bg-bridge-dark/50 rounded-xl border border-white/10 p-4">
+              <div className="bg-bridge-dark/50 rounded-xl border border-foreground/10 p-4">
                 <div className="flex items-center justify-between mb-3">
-                  <p className="text-white text-sm font-medium">{t('subscription.currentSeats')}</p>
+                  <p className="text-foreground text-sm font-medium">{t('subscription.currentSeats')}</p>
                   <p className="text-bridge-accent text-lg font-bold">{seatCount}</p>
                 </div>
                 <div className="flex items-center justify-between">
                   <p className="text-slate-400 text-xs">{t('subscription.usedSeats')}</p>
-                  <p className="text-slate-300 text-sm">{currentBillableMembers}</p>
+                  <p className="text-muted-foreground text-sm">{currentBillableMembers}</p>
                 </div>
                 <div className="flex items-center justify-between mt-1">
                   <p className="text-slate-400 text-xs">{t('subscription.availableSeats')}</p>
@@ -278,28 +275,28 @@ export function SubscriptionModal({
               </div>
 
               {/* Purchase Additional Seats */}
-              <div className="bg-bridge-dark/50 rounded-xl border border-white/10 p-4">
-                <p className="text-white text-sm font-medium mb-4">{t('subscription.addSeats')}</p>
+              <div className="bg-bridge-dark/50 rounded-xl border border-foreground/10 p-4">
+                <p className="text-foreground text-sm font-medium mb-4">{t('subscription.addSeats')}</p>
 
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
                     <button
                       onClick={() => setAdditionalSeats(Math.max(1, additionalSeats - 1))}
                       disabled={additionalSeats <= 1}
-                      className="p-1.5 rounded-lg border border-white/10 text-slate-400 hover:text-white hover:bg-white/5 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                      className="p-1.5 rounded-lg border border-foreground/10 text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                     >
                       <Minus className="h-4 w-4" />
                     </button>
-                    <span className="text-white text-xl font-bold w-10 text-center">{additionalSeats}</span>
+                    <span className="text-foreground text-xl font-bold w-10 text-center">{additionalSeats}</span>
                     <button
                       onClick={() => setAdditionalSeats(additionalSeats + 1)}
-                      className="p-1.5 rounded-lg border border-white/10 text-slate-400 hover:text-white hover:bg-white/5 transition-all"
+                      className="p-1.5 rounded-lg border border-foreground/10 text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-all"
                     >
                       <Plus className="h-4 w-4" />
                     </button>
                   </div>
                   <div className="text-right">
-                    <p className="text-white font-bold">
+                    <p className="text-foreground font-bold">
                       +${pricePerSeat * additionalSeats}
                     </p>
                     <p className="text-slate-500 text-xs">
@@ -320,7 +317,7 @@ export function SubscriptionModal({
                   <div className="flex items-center justify-between">
                     <div className="text-center">
                       <p className="text-slate-400 text-[10px] mb-0.5">{t('subscription.creditCurrentMonthly')}</p>
-                      <p className="text-white text-sm font-bold">
+                      <p className="text-foreground text-sm font-bold">
                         {CREDITS_BASE + seatCount * CREDITS_PER_SEAT}
                       </p>
                     </div>
@@ -363,12 +360,12 @@ export function SubscriptionModal({
                     className={`relative p-4 rounded-xl border transition-all ${
                       billingCycle === 'MONTHLY'
                         ? 'border-bridge-accent bg-bridge-accent/10'
-                        : 'border-white/10 hover:border-white/20 hover:bg-white/5'
+                        : 'border-foreground/10 hover:border-bridge-border hover:bg-foreground/5'
                     }`}
                   >
                     <div className="text-left">
                       <p className="text-slate-400 text-xs mb-1">{t('upgrade.monthly')}</p>
-                      <p className="text-white text-lg font-bold">${PRICE_PER_SEAT.monthly * seatCount}</p>
+                      <p className="text-foreground text-lg font-bold">${PRICE_PER_SEAT.monthly * seatCount}</p>
                       <p className="text-slate-500 text-xs">{t('upgrade.perMonth')}</p>
                     </div>
                     {billingCycle === 'MONTHLY' && (
@@ -384,7 +381,7 @@ export function SubscriptionModal({
                     className={`relative p-4 rounded-xl border transition-all ${
                       billingCycle === 'YEARLY'
                         ? 'border-bridge-accent bg-bridge-accent/10'
-                        : 'border-white/10 hover:border-white/20 hover:bg-white/5'
+                        : 'border-foreground/10 hover:border-bridge-border hover:bg-foreground/5'
                     }`}
                   >
                     <div className="absolute -top-2 -right-2">
@@ -394,7 +391,7 @@ export function SubscriptionModal({
                     </div>
                     <div className="text-left">
                       <p className="text-slate-400 text-xs mb-1">{t('upgrade.yearly')}</p>
-                      <p className="text-white text-lg font-bold">${PRICE_PER_SEAT.yearly * seatCount}</p>
+                      <p className="text-foreground text-lg font-bold">${PRICE_PER_SEAT.yearly * seatCount}</p>
                       <p className="text-slate-500 text-xs">
                         {t('upgrade.perYear')} (${((PRICE_PER_SEAT.yearly * seatCount) / 12).toFixed(2)}/mo)
                       </p>
@@ -409,7 +406,7 @@ export function SubscriptionModal({
               </div>
 
               {/* Cancel Subscription */}
-              <div className="pt-4 border-t border-white/10">
+              <div className="pt-4 border-t border-foreground/10">
                 {!showCancelConfirm ? (
                   <button
                     onClick={() => setShowCancelConfirm(true)}
@@ -427,7 +424,7 @@ export function SubscriptionModal({
                     <div className="flex gap-2">
                       <button
                         onClick={() => setShowCancelConfirm(false)}
-                        className="flex-1 px-3 py-2 bg-white/5 border border-white/10 text-slate-300 rounded-lg text-sm hover:bg-white/10 transition-all"
+                        className="flex-1 px-3 py-2 bg-foreground/5 border border-foreground/10 text-muted-foreground rounded-lg text-sm hover:bg-foreground/10 transition-all"
                       >
                         {t('common.cancel')}
                       </button>
@@ -461,12 +458,11 @@ export function SubscriptionModal({
         <div className="px-6 pb-6">
           <button
             onClick={onClose}
-            className="w-full px-4 py-3 bg-white/5 border border-white/10 text-slate-300 rounded-xl font-medium hover:bg-white/10 transition-all"
+            className="w-full px-4 py-3 bg-foreground/5 border border-foreground/10 text-muted-foreground rounded-xl font-medium hover:bg-foreground/10 transition-all"
           >
             {t('common.close')}
           </button>
         </div>
-      </DialogContent>
-    </Dialog>
+    </MotionModal>
   );
 }

@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, Settings, Plus, Loader2, Clock, CheckSquare 
 import { Button } from './ui/button';
 import { format, addDays, subDays, startOfDay, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval } from 'date-fns';
 import { formatDate } from '../utils/dateUtils';
+import { useHolidays } from '../hooks/useHolidays';
 import { BoardMember } from './ShareBoardModal';
 import { ScheduleBlock } from './ScheduleBlock';
 import { ScheduleDetailPanel } from './ScheduleDetailPanel';
@@ -59,8 +60,9 @@ const parseHour = (time: string): number => {
 type ScheduleViewMode = 'day' | 'week';
 
 export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onViewFeature, onViewTask, refreshTrigger, wsChecklistEvent, currentUserRole, initialSubTab }: DailyScheduleViewProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const { holidayMap } = useHolidays(i18n.language, new Date().getFullYear());
   // viewer 역할 제외한 멤버 목록
   const activeMembers = useMemo(() => boardMembers.filter((m) => m.role !== 'viewer'), [boardMembers]);
   // 회의 오버레이 데이터
@@ -652,7 +654,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
               <span
                 className={`px-3 py-1 text-sm rounded-md transition-colors ${
                   viewMode === 'day'
-                    ? 'bg-bridge-surface-hover text-white'
+                    ? 'bg-bridge-surface-hover text-foreground'
                     : 'text-zinc-400'
                 }`}
               >
@@ -661,7 +663,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
               <span
                 className={`px-3 py-1 text-sm rounded-md transition-colors ${
                   viewMode === 'week'
-                    ? 'bg-bridge-surface-hover text-white'
+                    ? 'bg-bridge-surface-hover text-foreground'
                     : 'text-zinc-400'
                 }`}
               >
@@ -674,7 +676,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
               variant="ghost"
               size="sm"
               onClick={handlePrev}
-              className="text-zinc-400 hover:text-foreground hover:bg-white/5 h-8 w-8 p-0"
+              className="text-zinc-400 hover:text-foreground hover:bg-foreground/5 h-8 w-8 p-0"
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
@@ -688,7 +690,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
               variant="ghost"
               size="sm"
               onClick={handleNext}
-              className="text-zinc-400 hover:text-foreground hover:bg-white/5 h-8 w-8 p-0"
+              className="text-zinc-400 hover:text-foreground hover:bg-foreground/5 h-8 w-8 p-0"
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
@@ -700,7 +702,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
             className={
               (viewMode === 'day' ? isToday : isTodayInWeek)
                 ? 'bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white'
-                : 'border-bridge-border text-zinc-300 hover:bg-white/5 hover:text-foreground'
+                : 'border-bridge-border text-muted-foreground hover:bg-foreground/5 hover:text-foreground'
             }
           >
             {t('dailySchedule.today')}
@@ -712,7 +714,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
             variant="outline"
             size="sm"
             onClick={() => setShowSettingsModal(true)}
-            className="border-bridge-border text-zinc-300 hover:bg-white/5 hover:text-foreground"
+            className="border-bridge-border text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
           >
             <Settings className="h-4 w-4 md:mr-2" />
             <span className="hidden md:inline">{t('dailySchedule.settings')}</span>
@@ -869,7 +871,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
                         } ${
                           isBreak
                             ? (isSelected ? 'bg-bridge-secondary/5' : '')
-                            : isSelected ? 'bg-bridge-secondary/20' : isViewer ? '' : 'hover:bg-white/5'
+                            : isSelected ? 'bg-bridge-secondary/20' : isViewer ? '' : 'hover:bg-foreground/5'
                         }`}
                         onMouseDown={isBreak ? undefined : (e) => handleMouseDown(e, member.userId, slotIndex)}
                         onMouseEnter={(isBreak && !isDragging) ? undefined : () => handleMouseEnter(member.userId, slotIndex)}
@@ -1006,6 +1008,8 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
               {weekDays.map((day) => {
                 const dateStr = format(day, 'yyyy-MM-dd');
                 const isCurrentDay = dateStr === format(new Date(), 'yyyy-MM-dd');
+                const isHoliday = holidayMap.has(dateStr);
+                const dayOfWeek = day.getDay();
                 return (
                   <div
                     key={dateStr}
@@ -1013,10 +1017,10 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
                       isCurrentDay ? 'bg-bridge-secondary/10' : ''
                     }`}
                   >
-                    <div className={`text-sm font-medium ${isCurrentDay ? 'text-bridge-secondary' : 'text-foreground'}`}>
+                    <div className={`text-sm font-medium ${isCurrentDay ? 'text-bridge-secondary' : isHoliday || dayOfWeek === 0 ? 'text-red-400' : 'text-foreground'}`}>
                       {formatDate(day, 'E')}
                     </div>
-                    <div className={`text-xs ${isCurrentDay ? 'text-bridge-secondary' : 'text-zinc-400'}`}>
+                    <div className={`text-xs ${isCurrentDay ? 'text-bridge-secondary' : isHoliday || dayOfWeek === 0 ? 'text-red-400' : 'text-zinc-400'}`}>
                       {formatDate(day, 'M/d')}
                     </div>
                   </div>
@@ -1072,16 +1076,16 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
                           threeDaysLater.setDate(today.getDate() + 3);
 
                           let blockBg = 'bg-blue-500/30 hover:bg-blue-500/50';
-                          let timeColor = 'text-blue-200';
+                          let timeColor = 'text-blue-700 dark:text-blue-200';
                           if (isCompleted) {
                             blockBg = 'bg-green-500/30 hover:bg-green-500/50';
-                            timeColor = 'text-green-200';
+                            timeColor = 'text-green-700 dark:text-green-200';
                           } else if (dueDate && dueDate < today) {
                             blockBg = 'bg-red-500/30 hover:bg-red-500/50';
-                            timeColor = 'text-red-200';
+                            timeColor = 'text-red-700 dark:text-red-200';
                           } else if (dueDate && dueDate <= threeDaysLater) {
                             blockBg = 'bg-yellow-500/30 hover:bg-yellow-500/50';
-                            timeColor = 'text-yellow-200';
+                            timeColor = 'text-yellow-700 dark:text-yellow-200';
                           }
 
                           return (
@@ -1090,7 +1094,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
                             onClick={() => handleBlockClick(block)}
                             className={`p-2 rounded ${blockBg} cursor-pointer transition-colors`}
                           >
-                            <div className={`text-xs text-white font-medium truncate ${isCompleted ? 'line-through opacity-70' : ''}`}>
+                            <div className={`text-xs text-foreground font-medium truncate ${isCompleted ? 'line-through opacity-70' : ''}`}>
                               {block.checklist_item?.title || '(제목 없음)'}
                             </div>
                             <div className={`text-xs ${timeColor}`}>

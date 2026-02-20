@@ -1,6 +1,6 @@
 import { X, Plus, Layers } from 'lucide-react';
 import { Clock } from 'lucide-react';
-import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
+import { MotionModal } from './ui/MotionModal';
 
 interface ActionChoiceModalProps {
   startTime: string;
@@ -18,9 +18,7 @@ export function ActionChoiceModal({
   onClose,
 }: ActionChoiceModalProps) {
   return (
-    <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="bg-bridge-obsidian text-foreground border-white/10 max-w-[400px] p-0 gap-0 [&>button:last-child]:hidden overflow-hidden rounded-2xl">
-        <DialogTitle className="sr-only">Action Choice</DialogTitle>
+    <MotionModal open={true} onClose={onClose} className="sm:max-w-[400px] p-0 overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4">
           <h2 className="text-xl font-semibold text-foreground">Action Choice</h2>
@@ -47,7 +45,7 @@ export function ActionChoiceModal({
           {/* Create New */}
           <button
             onClick={onCreateNew}
-            className="w-full flex items-center gap-4 p-4 border border-white/10 rounded-xl hover:border-bridge-accent/50 hover:bg-bridge-accent/10 transition-all group"
+            className="w-full flex items-center gap-4 p-4 border border-foreground/10 rounded-xl hover:border-bridge-accent/50 hover:bg-bridge-accent/10 transition-all group"
           >
             <div className="w-12 h-12 rounded-xl bg-bridge-accent/20 flex items-center justify-center group-hover:bg-bridge-accent/30 transition-colors">
               <Plus className="h-6 w-6 text-bridge-accent" />
@@ -61,9 +59,9 @@ export function ActionChoiceModal({
           {/* Connect Existing */}
           <button
             onClick={onConnectExisting}
-            className="w-full flex items-center gap-4 p-4 border border-white/10 rounded-xl hover:border-bridge-accent/50 hover:bg-bridge-accent/10 transition-all group"
+            className="w-full flex items-center gap-4 p-4 border border-foreground/10 rounded-xl hover:border-bridge-accent/50 hover:bg-bridge-accent/10 transition-all group"
           >
-            <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center group-hover:bg-bridge-accent/20 transition-colors">
+            <div className="w-12 h-12 rounded-xl bg-foreground/10 flex items-center justify-center group-hover:bg-bridge-accent/20 transition-colors">
               <Layers className="h-6 w-6 text-slate-400 group-hover:text-bridge-accent" />
             </div>
             <div className="text-left">
@@ -72,7 +70,6 @@ export function ActionChoiceModal({
             </div>
           </button>
         </div>
-      </DialogContent>
-    </Dialog>
+    </MotionModal>
   );
 }

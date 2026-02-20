@@ -6,7 +6,7 @@ import { ko } from 'date-fns/locale';
 import { ScheduleBlockInfo, ScheduleColumnInfo, CommentSummaryItem, commentAPI } from '../utils/api';
 import { getInitials } from '../utils/assigneeColor';
 import { BoardMember } from './ShareBoardModal';
-import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
+import { MotionModal } from './ui/MotionModal';
 
 interface WeeklySummaryModalProps {
   boardId: string;
@@ -274,11 +274,9 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
   }, [weeklyRecords]);
 
   return (
-    <Dialog open onOpenChange={() => onClose()}>
-      <DialogContent className="bg-bridge-obsidian text-foreground border-white/10 w-[560px] max-w-[calc(100%-2rem)] max-h-[85vh] flex flex-col p-0 gap-0 [&>button:last-child]:hidden overflow-hidden rounded-xl">
-        <DialogTitle className="sr-only">{member.name} {weekRangeLabel} {t('weeklySummary.weekSummary')}</DialogTitle>
+    <MotionModal open onClose={onClose} className="sm:w-[560px] sm:max-w-[calc(100%-2rem)] max-h-[85vh] flex flex-col p-0 overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-foreground/10">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-sm text-white font-medium">
               {getInitials(member.name)}
@@ -303,7 +301,7 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
             className={`px-4 py-2 text-sm rounded-lg transition-all flex items-center gap-1.5 ${
               activeTab === 'stats'
                 ? 'bg-bridge-accent text-white font-medium'
-                : 'text-slate-400 hover:text-white hover:bg-white/5'
+                : 'text-slate-400 hover:text-foreground hover:bg-foreground/5'
             }`}
           >
             <BarChart3 className="h-3.5 w-3.5" />
@@ -314,7 +312,7 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
             className={`px-4 py-2 text-sm rounded-lg transition-all flex items-center gap-1.5 ${
               activeTab === 'narrative'
                 ? 'bg-bridge-accent text-white font-medium'
-                : 'text-slate-400 hover:text-white hover:bg-white/5'
+                : 'text-slate-400 hover:text-foreground hover:bg-foreground/5'
             }`}
           >
             <FileText className="h-3.5 w-3.5" />
@@ -382,13 +380,13 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
                           day.isToday ? 'bg-indigo-900/20' : ''
                         }`}
                       >
-                        <span className={`w-8 text-xs font-medium ${day.isToday ? 'text-indigo-400' : 'text-slate-300'}`}>
+                        <span className={`w-8 text-xs font-medium ${day.isToday ? 'text-indigo-400' : 'text-muted-foreground'}`}>
                           {day.dayLabel}
                         </span>
                         <span className="w-10 text-[10px] text-slate-400">{day.dateLabel}</span>
                         <span className="w-14 text-xs text-slate-400 text-right">{day.blockCount}</span>
                         <span className="w-14 text-xs text-foreground font-medium text-right">{day.hours.toFixed(1)}h</span>
-                        <div className="flex-1 h-3 bg-white/5 rounded overflow-hidden">
+                        <div className="flex-1 h-3 bg-foreground/5 rounded overflow-hidden">
                           <div
                             className="h-full bg-bridge-accent rounded transition-all"
                             style={{ width: `${(day.hours / summaryData.maxDayHours) * 100}%` }}
@@ -418,7 +416,7 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
                               {(feature.minutes / 60).toFixed(1)}h ({feature.blockCount})
                             </span>
                           </div>
-                          <div className="h-1.5 bg-white/5 rounded overflow-hidden ml-4">
+                          <div className="h-1.5 bg-foreground/5 rounded overflow-hidden ml-4">
                             <div
                               className="h-full rounded transition-all"
                               style={{
@@ -450,7 +448,7 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
               <div>
                 <button
                   onClick={() => setCommentDetailRow(null)}
-                  className="flex items-center gap-1 text-slate-400 hover:text-white text-sm mb-4 transition-colors"
+                  className="flex items-center gap-1 text-slate-400 hover:text-foreground text-sm mb-4 transition-colors"
                 >
                   <ChevronLeft className="h-4 w-4" />
                   {t('weeklySummary.goBack')}
@@ -500,7 +498,7 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
                     <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
                       {t('weeklySummary.weeklyOverview')}
                     </label>
-                    <p className="text-slate-300 font-light leading-relaxed text-sm">
+                    <p className="text-muted-foreground font-light leading-relaxed text-sm">
                       {overviewText}
                     </p>
                   </div>
@@ -512,7 +510,7 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
                     {t('weeklySummary.weeklyRecord')}
                   </label>
                   {/* 테이블 헤더 */}
-                  <div className="flex items-center gap-2 px-3 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-white/10">
+                  <div className="flex items-center gap-2 px-3 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-foreground/10">
                     <div className="flex-1">{t('weeklySummary.timeBlockCol')}</div>
                     <div className="w-20 text-right">{t('weeklySummary.hoursSpent')}</div>
                     <div className="w-14 text-center">{t('weeklySummary.commentsCol')}</div>
@@ -540,7 +538,7 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
                             <div className="flex items-center gap-2 mt-1 ml-4">
                               <span className="text-[10px] text-slate-500">{row.featureTitle}</span>
                               {/* 미니 바 */}
-                              <div className="flex-1 h-1 bg-white/5 rounded overflow-hidden max-w-[120px]">
+                              <div className="flex-1 h-1 bg-foreground/5 rounded overflow-hidden max-w-[120px]">
                                 <div
                                   className="h-full rounded"
                                   style={{ width: `${barWidth}%`, backgroundColor: row.featureColor, opacity: 0.6 }}
@@ -580,15 +578,14 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-white/10 flex justify-center">
+        <div className="px-6 py-4 border-t border-foreground/10 flex justify-center">
           <button
             onClick={onClose}
-            className="px-8 py-2.5 bg-white/5 border border-white/10 text-white rounded-xl hover:bg-white/10 transition-all text-sm"
+            className="px-8 py-2.5 bg-foreground/5 border border-foreground/10 text-foreground rounded-xl hover:bg-foreground/10 transition-all text-sm"
           >
             {t('common.close')}
           </button>
         </div>
-      </DialogContent>
-    </Dialog>
+    </MotionModal>
   );
 }

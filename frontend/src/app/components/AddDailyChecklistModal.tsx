@@ -23,7 +23,7 @@ import {
   MilestoneSimpleResponse,
 } from '../utils/api';
 import { FEATURE_COLORS, getRandomFeatureColor } from '../constants';
-import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
+import { MotionModal } from './ui/MotionModal';
 
 interface AddDailyChecklistModalProps {
   boardId: string;
@@ -488,13 +488,11 @@ export function AddDailyChecklistModal({
 
 
   return (
-    <Dialog open onOpenChange={() => handleClose()}>
-      <DialogContent className="bg-bridge-dark text-foreground border-white/10 max-w-[1800px] w-[96vw] max-h-[85vh] flex flex-col p-0 gap-0 [&>button:last-child]:hidden overflow-hidden rounded-2xl">
-        <DialogTitle className="sr-only">{t('dailyChecklist.addTitle')}</DialogTitle>
+    <MotionModal open onClose={handleClose} className="sm:max-w-[1800px] sm:w-[96vw] max-h-[85vh] flex flex-col p-0 overflow-hidden bg-bridge-dark">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-foreground/10">
           <div>
-            <h2 className="text-lg font-bold text-white">
+            <h2 className="text-lg font-bold text-foreground">
               {t('dailyChecklist.addTitle')}
             </h2>
             <p className="text-sm text-slate-400 mt-0.5">
@@ -503,14 +501,14 @@ export function AddDailyChecklistModal({
           </div>
           <button
             onClick={handleClose}
-            className="text-slate-400 hover:text-white transition-colors p-2 hover:bg-white/5 rounded-lg"
+            className="text-slate-400 hover:text-foreground transition-colors p-2 hover:bg-foreground/5 rounded-lg"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
         {/* Milestone Filter & Search */}
-        <div className="px-6 py-3 border-b border-white/10 flex flex-col gap-3">
+        <div className="px-6 py-3 border-b border-foreground/10 flex flex-col gap-3">
           <div className="flex gap-3">
             {/* 마일스톤 필터 */}
             <div className="w-48">
@@ -518,7 +516,7 @@ export function AddDailyChecklistModal({
                 value={selectedMilestoneId ?? ''}
                 onChange={(e) => setSelectedMilestoneId(e.target.value || null)}
                 disabled={isLoading}
-                className="w-full px-3 py-2.5 bg-bridge-surface border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all disabled:opacity-50"
+                className="w-full px-3 py-2.5 bg-bridge-surface border border-foreground/10 rounded-xl text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all disabled:opacity-50"
               >
                 <option value="">{t('dailyChecklist.allMilestones')}</option>
                 {milestones.map((milestone) => (
@@ -535,7 +533,7 @@ export function AddDailyChecklistModal({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={t('dailyChecklist.searchPlaceholder')}
-                className="w-full pl-10 pr-4 py-2.5 bg-bridge-surface border border-white/10 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all text-sm"
+                className="w-full pl-10 pr-4 py-2.5 bg-bridge-surface border border-foreground/10 rounded-xl text-foreground placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all text-sm"
               />
             </div>
             {/* 새 Feature 생성 버튼 */}
@@ -548,7 +546,7 @@ export function AddDailyChecklistModal({
               className={`px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 transition-all whitespace-nowrap ${
                 isCreatingFeature
                   ? 'bg-bridge-accent text-white border border-bridge-accent'
-                  : 'bg-bridge-surface border border-white/10 text-slate-300 hover:text-white hover:bg-bridge-surface-hover hover:border-white/20'
+                  : 'bg-bridge-surface border border-foreground/10 text-muted-foreground hover:text-foreground hover:bg-bridge-surface-hover hover:border-bridge-border'
               }`}
             >
               <Plus className="h-4 w-4" />
@@ -558,7 +556,7 @@ export function AddDailyChecklistModal({
 
           {/* 새 Feature 인라인 생성 폼 */}
           {isCreatingFeature && (
-            <div className="flex items-center gap-3 bg-bridge-surface/50 rounded-xl p-3 border border-white/10">
+            <div className="flex items-center gap-3 bg-bridge-surface/50 rounded-xl p-3 border border-foreground/10">
               {/* 색상 선택 */}
               <div className="flex items-center gap-1.5 flex-shrink-0">
                 {FEATURE_COLORS.map((color) => (
@@ -590,7 +588,7 @@ export function AddDailyChecklistModal({
                 }}
                 placeholder={t('dailyChecklist.newFeaturePlaceholder')}
                 autoFocus
-                className="flex-1 px-3 py-2 bg-bridge-surface border border-white/10 rounded-lg text-white placeholder-slate-400 text-sm focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
+                className="flex-1 px-3 py-2 bg-bridge-surface border border-foreground/10 rounded-lg text-foreground placeholder-slate-400 text-sm focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
               />
               {/* 생성 버튼 */}
               <button
@@ -646,7 +644,7 @@ export function AddDailyChecklistModal({
                 <div>
                   <div className="flex items-center gap-2 mb-3">
                     <div className="w-2 h-2 rounded-full bg-bridge-accent" />
-                    <h3 className="text-sm font-bold text-white">{t('dailyChecklist.myTasks')}</h3>
+                    <h3 className="text-sm font-bold text-foreground">{t('dailyChecklist.myTasks')}</h3>
                     <span className="text-xs text-slate-400">
                       ({myTasksFeaturesData.reduce((acc, f) => acc + f.tasks.length, 0)}개)
                     </span>
@@ -656,7 +654,7 @@ export function AddDailyChecklistModal({
                       return (
                         <button
                           onClick={() => toggleAllTasks(allTaskIds, !allCollapsed)}
-                          className="ml-auto flex items-center gap-1 text-[11px] text-slate-400 hover:text-white transition-colors px-2 py-1 rounded-md hover:bg-white/5"
+                          className="ml-auto flex items-center gap-1 text-[11px] text-slate-400 hover:text-foreground transition-colors px-2 py-1 rounded-md hover:bg-foreground/5"
                         >
                           <ChevronsUpDown className="h-3 w-3" />
                           {allCollapsed ? t('dailyChecklist.expandAll') : t('dailyChecklist.collapseAll')}
@@ -668,7 +666,7 @@ export function AddDailyChecklistModal({
                     {myTasksFeaturesData.map((featureData) => (
                       <div
                         key={featureData.feature.id}
-                        className="bg-bridge-surface border border-white/10 rounded-xl overflow-hidden"
+                        className="bg-bridge-surface border border-foreground/10 rounded-xl overflow-hidden"
                       >
                         {/* Feature Header */}
                         <div className="flex items-center gap-2 px-4 py-3">
@@ -676,7 +674,7 @@ export function AddDailyChecklistModal({
                             className="w-3 h-3 rounded-full flex-shrink-0"
                             style={{ backgroundColor: featureData.feature.color }}
                           />
-                          <span className="font-medium text-white text-sm flex-1 truncate">
+                          <span className="font-medium text-foreground text-sm flex-1 truncate">
                             {featureData.feature.title}
                           </span>
                           {/* Feature에 Task 추가 버튼 */}
@@ -690,7 +688,7 @@ export function AddDailyChecklistModal({
                             className={`p-1 rounded-md border transition-colors ${
                               addingTaskToFeatureId === featureData.feature.id
                                 ? 'bg-bridge-accent text-white border-bridge-accent'
-                                : 'text-slate-300 border-white/10 bg-bridge-surface hover:text-white hover:bg-bridge-surface-hover hover:border-white/20'
+                                : 'text-muted-foreground border-foreground/10 bg-bridge-surface hover:text-foreground hover:bg-bridge-surface-hover hover:border-bridge-border'
                             }`}
                             title={t('dailyChecklist.newTask')}
                           >
@@ -700,7 +698,7 @@ export function AddDailyChecklistModal({
 
                         {/* Feature에 Task 인라인 생성 폼 */}
                         {addingTaskToFeatureId === featureData.feature.id && (
-                          <div className="px-4 py-2 border-t border-white/10 bg-bridge-dark/30">
+                          <div className="px-4 py-2 border-t border-foreground/10 bg-bridge-dark/30">
                             <div className="flex gap-2">
                               <input
                                 type="text"
@@ -717,7 +715,7 @@ export function AddDailyChecklistModal({
                                 }}
                                 placeholder={t('dailyChecklist.newTaskPlaceholder')}
                                 autoFocus
-                                className="flex-1 px-3 py-1.5 bg-bridge-surface border border-white/10 rounded-lg text-white placeholder-slate-400 text-sm focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
+                                className="flex-1 px-3 py-1.5 bg-bridge-surface border border-foreground/10 rounded-lg text-foreground placeholder-slate-400 text-sm focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
                               />
                               <button
                                 onClick={() => handleCreateTask(featureData.feature.id)}
@@ -735,17 +733,17 @@ export function AddDailyChecklistModal({
                         )}
 
                         {/* Feature Content */}
-                        <div className="border-t border-white/10">
+                        <div className="border-t border-foreground/10">
                           {featureData.tasks.map((taskData) => {
                             const isCollapsed = collapsedTasks.has(taskData.task.id);
                             return (
                             <div
                               key={taskData.task.id}
-                              className="border-b border-white/10 last:border-b-0"
+                              className="border-b border-foreground/10 last:border-b-0"
                             >
                               {/* Task Header */}
                               <div
-                                className="flex items-center gap-2 px-4 py-2.5 cursor-pointer hover:bg-white/5 transition-colors"
+                                className="flex items-center gap-2 px-4 py-2.5 cursor-pointer hover:bg-foreground/5 transition-colors"
                                 onClick={() => toggleTaskCollapse(taskData.task.id)}
                               >
                                 {isCollapsed ? (
@@ -753,7 +751,7 @@ export function AddDailyChecklistModal({
                                 ) : (
                                   <ChevronDown className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
                                 )}
-                                <span className="text-sm text-slate-300 flex-1 truncate">
+                                <span className="text-sm text-muted-foreground flex-1 truncate">
                                   {taskData.task.title}
                                 </span>
                                 <span className="text-xs text-bridge-accent font-medium">
@@ -769,7 +767,7 @@ export function AddDailyChecklistModal({
                                   className={`p-1 rounded-md border transition-colors ${
                                     addingTaskId === taskData.task.id
                                       ? 'bg-bridge-accent text-white border-bridge-accent'
-                                      : 'text-slate-300 border-white/10 bg-bridge-surface hover:text-white hover:bg-bridge-surface-hover hover:border-white/20'
+                                      : 'text-muted-foreground border-foreground/10 bg-bridge-surface hover:text-foreground hover:bg-bridge-surface-hover hover:border-bridge-border'
                                   }`}
                                 >
                                   <Plus className="h-3.5 w-3.5" />
@@ -795,7 +793,7 @@ export function AddDailyChecklistModal({
                                       }}
                                       placeholder={t('dailyChecklist.newChecklistPlaceholder')}
                                       autoFocus
-                                      className="flex-1 px-3 py-1.5 bg-bridge-surface border border-white/10 rounded-lg text-white placeholder-slate-400 text-sm focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
+                                      className="flex-1 px-3 py-1.5 bg-bridge-surface border border-foreground/10 rounded-lg text-foreground placeholder-slate-400 text-sm focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
                                     />
                                     <button
                                       onClick={() => handleAddPendingItem(taskData.task.id)}
@@ -821,19 +819,19 @@ export function AddDailyChecklistModal({
                                       className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-all text-left cursor-pointer ${
                                         isSelected
                                           ? 'bg-bridge-accent/20 ring-1 ring-bridge-accent/50'
-                                          : 'hover:bg-white/5'
+                                          : 'hover:bg-foreground/5'
                                       }`}
                                     >
                                       <div
                                         className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center ${
                                           isSelected
                                             ? 'bg-bridge-accent border-bridge-accent'
-                                            : 'border-white/20 bg-white/5'
+                                            : 'border-bridge-border bg-foreground/5'
                                         }`}
                                       >
                                         {isSelected && <Check className="h-3 w-3 text-white" />}
                                       </div>
-                                      <span className={`text-sm flex-1 truncate ${isSelected ? 'text-white font-medium' : 'text-slate-300'}`}>
+                                      <span className={`text-sm flex-1 truncate ${isSelected ? 'text-white font-medium' : 'text-muted-foreground'}`}>
                                         {pendingItem.title}
                                       </span>
                                       <span className="text-[10px] px-1.5 py-0.5 rounded bg-bridge-secondary/20 text-bridge-secondary">
@@ -860,7 +858,7 @@ export function AddDailyChecklistModal({
                                           ? 'opacity-60 cursor-not-allowed'
                                           : isSelected
                                           ? 'bg-bridge-accent/20 ring-1 ring-bridge-accent/50 cursor-pointer'
-                                          : 'hover:bg-white/5 cursor-pointer'
+                                          : 'hover:bg-foreground/5 cursor-pointer'
                                       }`}
                                     >
                                       {/* 체크박스 */}
@@ -869,10 +867,10 @@ export function AddDailyChecklistModal({
                                           isAlreadyAdded
                                             ? 'bg-slate-600 border-slate-600'
                                             : !isMyItem
-                                            ? 'border-white/20 bg-white/5'
+                                            ? 'border-bridge-border bg-foreground/5'
                                             : isSelected
                                             ? 'bg-bridge-accent border-bridge-accent'
-                                            : 'border-white/20 bg-white/5'
+                                            : 'border-bridge-border bg-foreground/5'
                                         }`}
                                       >
                                         {(isSelected || isAlreadyAdded) && (
@@ -888,7 +886,7 @@ export function AddDailyChecklistModal({
                                             ? 'text-slate-400'
                                             : isSelected
                                             ? 'text-white font-medium'
-                                            : 'text-slate-300'
+                                            : 'text-muted-foreground'
                                         }`}
                                       >
                                         {item.title}
@@ -899,7 +897,7 @@ export function AddDailyChecklistModal({
                                           className={`text-[10px] px-1.5 py-0.5 rounded ${
                                             isMyItem
                                               ? 'bg-bridge-accent/20 text-bridge-accent'
-                                              : 'bg-white/5 text-slate-400'
+                                              : 'bg-foreground/5 text-slate-400'
                                           }`}
                                         >
                                           {item.assignee.name}
@@ -941,7 +939,7 @@ export function AddDailyChecklistModal({
                       return (
                         <button
                           onClick={() => toggleAllTasks(allTaskIds, !allCollapsed)}
-                          className="ml-auto flex items-center gap-1 text-[11px] text-slate-400 hover:text-white transition-colors px-2 py-1 rounded-md hover:bg-white/5"
+                          className="ml-auto flex items-center gap-1 text-[11px] text-slate-400 hover:text-foreground transition-colors px-2 py-1 rounded-md hover:bg-foreground/5"
                         >
                           <ChevronsUpDown className="h-3 w-3" />
                           {allCollapsed ? t('dailyChecklist.expandAll') : t('dailyChecklist.collapseAll')}
@@ -953,7 +951,7 @@ export function AddDailyChecklistModal({
                     {othersTasksFeaturesData.map((featureData) => (
                       <div
                         key={featureData.feature.id}
-                        className="bg-bridge-surface border border-white/10 rounded-xl overflow-hidden"
+                        className="bg-bridge-surface border border-foreground/10 rounded-xl overflow-hidden"
                       >
                         {/* Feature Header */}
                         <div className="flex items-center gap-2 px-4 py-3">
@@ -975,7 +973,7 @@ export function AddDailyChecklistModal({
                             className={`p-1 rounded-md border transition-colors ${
                               addingTaskToFeatureId === featureData.feature.id
                                 ? 'bg-bridge-accent text-white border-bridge-accent'
-                                : 'text-slate-300 border-white/10 bg-bridge-surface hover:text-white hover:bg-bridge-surface-hover hover:border-white/20'
+                                : 'text-muted-foreground border-foreground/10 bg-bridge-surface hover:text-foreground hover:bg-bridge-surface-hover hover:border-bridge-border'
                             }`}
                             title={t('dailyChecklist.newTask')}
                           >
@@ -985,7 +983,7 @@ export function AddDailyChecklistModal({
 
                         {/* Feature에 Task 인라인 생성 폼 */}
                         {addingTaskToFeatureId === featureData.feature.id && (
-                          <div className="px-4 py-2 border-t border-white/10 bg-bridge-dark/30">
+                          <div className="px-4 py-2 border-t border-foreground/10 bg-bridge-dark/30">
                             <div className="flex gap-2">
                               <input
                                 type="text"
@@ -1002,7 +1000,7 @@ export function AddDailyChecklistModal({
                                 }}
                                 placeholder={t('dailyChecklist.newTaskPlaceholder')}
                                 autoFocus
-                                className="flex-1 px-3 py-1.5 bg-bridge-surface border border-white/10 rounded-lg text-white placeholder-slate-400 text-sm focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
+                                className="flex-1 px-3 py-1.5 bg-bridge-surface border border-foreground/10 rounded-lg text-foreground placeholder-slate-400 text-sm focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
                               />
                               <button
                                 onClick={() => handleCreateTask(featureData.feature.id)}
@@ -1020,17 +1018,17 @@ export function AddDailyChecklistModal({
                         )}
 
                         {/* Feature Content */}
-                        <div className="border-t border-white/10">
+                        <div className="border-t border-foreground/10">
                           {featureData.tasks.map((taskData) => {
                             const isCollapsed = collapsedTasks.has(taskData.task.id);
                             return (
                             <div
                               key={taskData.task.id}
-                              className="border-b border-white/10 last:border-b-0"
+                              className="border-b border-foreground/10 last:border-b-0"
                             >
                               {/* Task Header */}
                               <div
-                                className="flex items-center gap-2 px-4 py-2.5 cursor-pointer hover:bg-white/5 transition-colors"
+                                className="flex items-center gap-2 px-4 py-2.5 cursor-pointer hover:bg-foreground/5 transition-colors"
                                 onClick={() => toggleTaskCollapse(taskData.task.id)}
                               >
                                 {isCollapsed ? (
@@ -1054,7 +1052,7 @@ export function AddDailyChecklistModal({
                                   className={`p-1 rounded-md border transition-colors ${
                                     addingTaskId === taskData.task.id
                                       ? 'bg-bridge-accent text-white border-bridge-accent'
-                                      : 'text-slate-300 border-white/10 bg-bridge-surface hover:text-white hover:bg-bridge-surface-hover hover:border-white/20'
+                                      : 'text-muted-foreground border-foreground/10 bg-bridge-surface hover:text-foreground hover:bg-bridge-surface-hover hover:border-bridge-border'
                                   }`}
                                 >
                                   <Plus className="h-3.5 w-3.5" />
@@ -1080,7 +1078,7 @@ export function AddDailyChecklistModal({
                                       }}
                                       placeholder={t('dailyChecklist.newChecklistPlaceholder')}
                                       autoFocus
-                                      className="flex-1 px-3 py-1.5 bg-bridge-surface border border-white/10 rounded-lg text-white placeholder-slate-400 text-sm focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
+                                      className="flex-1 px-3 py-1.5 bg-bridge-surface border border-foreground/10 rounded-lg text-foreground placeholder-slate-400 text-sm focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
                                     />
                                     <button
                                       onClick={() => handleAddPendingItem(taskData.task.id)}
@@ -1106,19 +1104,19 @@ export function AddDailyChecklistModal({
                                       className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-all text-left cursor-pointer ${
                                         isSelected
                                           ? 'bg-bridge-accent/20 ring-1 ring-bridge-accent/50'
-                                          : 'hover:bg-white/5'
+                                          : 'hover:bg-foreground/5'
                                       }`}
                                     >
                                       <div
                                         className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center ${
                                           isSelected
                                             ? 'bg-bridge-accent border-bridge-accent'
-                                            : 'border-white/20 bg-white/5'
+                                            : 'border-bridge-border bg-foreground/5'
                                         }`}
                                       >
                                         {isSelected && <Check className="h-3 w-3 text-white" />}
                                       </div>
-                                      <span className={`text-sm flex-1 truncate ${isSelected ? 'text-white font-medium' : 'text-slate-300'}`}>
+                                      <span className={`text-sm flex-1 truncate ${isSelected ? 'text-white font-medium' : 'text-muted-foreground'}`}>
                                         {pendingItem.title}
                                       </span>
                                       <span className="text-[10px] px-1.5 py-0.5 rounded bg-bridge-secondary/20 text-bridge-secondary">
@@ -1138,7 +1136,7 @@ export function AddDailyChecklistModal({
                                       }`}
                                     >
                                       {/* 체크박스 (비활성) */}
-                                      <div className="w-4 h-4 rounded border border-white/20 bg-white/5 flex-shrink-0 flex items-center justify-center">
+                                      <div className="w-4 h-4 rounded border border-bridge-border bg-foreground/5 flex-shrink-0 flex items-center justify-center">
                                         {isAlreadyAdded && (
                                           <Check className="h-3 w-3 text-slate-400" />
                                         )}
@@ -1155,7 +1153,7 @@ export function AddDailyChecklistModal({
                                       </span>
                                       {/* 담당자 표시 */}
                                       {item.assignee && (
-                                        <span className="text-[10px] px-1.5 py-0.5 bg-white/5 text-slate-400 rounded">
+                                        <span className="text-[10px] px-1.5 py-0.5 bg-foreground/5 text-slate-400 rounded">
                                           {item.assignee.name}
                                         </span>
                                       )}
@@ -1184,7 +1182,7 @@ export function AddDailyChecklistModal({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-white/10 flex items-center justify-between">
+        <div className="px-6 py-4 border-t border-foreground/10 flex items-center justify-between">
           <div className="text-sm text-slate-400">
             {selectedItems.size > 0 ? (
               <span>
@@ -1200,7 +1198,7 @@ export function AddDailyChecklistModal({
           <div className="flex gap-3">
             <button
               onClick={handleClose}
-              className="px-5 py-2.5 text-sm font-medium text-slate-400 hover:text-white transition-colors border border-white/10 rounded-xl hover:bg-white/5"
+              className="px-5 py-2.5 text-sm font-medium text-slate-400 hover:text-foreground transition-colors border border-foreground/10 rounded-xl hover:bg-foreground/5"
             >
               {t('common.close')}
             </button>
@@ -1223,7 +1221,6 @@ export function AddDailyChecklistModal({
             </button>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+    </MotionModal>
   );
 }

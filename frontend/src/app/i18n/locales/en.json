@@ -1301,6 +1301,9 @@
     "language": "Language",
     "languageDesc": "Change the display language",
     "selectLanguage": "Select Language",
+    "holidayCountry": "Holiday Country",
+    "holidayCountryDesc": "Select a country to display holidays on calendars",
+    "holidayOff": "Off",
     "changePassword": "Change Password",
     "changePasswordDesc": "Change your password for account security",
     "currentPasswordLabel": "Current Password",
@@ -2653,6 +2656,7 @@
       "combinedDays": "combined days",
       "bestStreak": "Best Streak",
       "days": "days",
+      "weeks": "weeks in a row",
       "totalHabits": "Total Habits",
       "tracking": "tracking",
       "todaysProgress": "Today's Progress",
@@ -2660,7 +2664,7 @@
       "startBuilding": "Start building habits",
       "startBuildingDesc": "Track daily routines, build streaks, and stay consistent with your goals.",
       "addFirstHabit": "Add Your First Habit",
-      "bestLabel": "Best: {{days}}d",
+      "bestLabel": "Best: {{count}}w",
       "edit": "Edit",
       "delete": "Delete",
       "habitName": "Habit Name",
@@ -2696,8 +2700,13 @@
       "checkInTitle": "Complete Habit",
       "checkInSubtitle": "Mark this habit as done for today?",
       "checkInConfirm": "Complete \"{{name}}\" for today?",
-      "checkInStreak": "This will be a {{count}}-day streak!",
-      "checkInComplete": "Complete"
+      "checkInStreak": "{{count}} weeks in a row!",
+      "checkInComplete": "Complete",
+      "otherHabits": "Other habits",
+      "nonTodayCheckInTitle": "Not scheduled today",
+      "nonTodayCheckInSubtitle": "This habit isn't scheduled for today",
+      "nonTodayCheckInConfirm": "\"{{name}}\" isn't scheduled for today. Did you still complete it?",
+      "nonTodayCheckInComplete": "Complete anyway"
     },
     "calendar": {
       "task": "Task",
@@ -2720,7 +2729,9 @@
       "start": "Start",
       "end": "End",
       "color": "Color",
-      "thisWeek": "This Week"
+      "thisWeek": "This Week",
+      "holidayCountry": "Holiday country",
+      "holidayOff": "Off"
     },
     "diary": {
       "title": "AI Diary",
@@ -2779,7 +2790,9 @@
       "voiceProcessing": "Recognizing voice...",
       "voiceListening": "Listening...",
       "voiceAiSpeaking": "AI is speaking",
-      "voiceHint": "Hold the mic button to talk with your voice"
+      "voiceHint": "Hold the mic button to talk with your voice",
+      "voiceMicDenied": "Microphone access denied. Please allow microphone permission in your browser settings.",
+      "voiceMicNotFound": "Microphone not found. Please check if a microphone is connected."
     },
     "schedule": {
       "title": "Schedule",
@@ -2798,10 +2811,11 @@
       "tapToCreate": "Tap to create or edit events",
       "newEvent": "New Event",
       "fromTask": "To Do",
-      "searchTasks": "Search tasks & habits...",
-      "noActiveTasks": "No active tasks or habits",
+      "searchTasks": "Search tasks, habits & events...",
+      "noActiveTasks": "No active tasks, habits, or events",
       "tasksSection": "Tasks",
       "habitsSection": "Habits",
+      "eventsSection": "Calendar Events",
       "noActiveHabits": "No habits registered",
       "streakDays": "{{count}} day streak",
       "createNewInstead": "Create a new event instead",
@@ -2827,6 +2841,8 @@
       "deleteThisAndFuture": "Delete this and all future events",
       "repeatsDaily": "Repeats daily",
       "repeatsWeekly": "Repeats weekly",
+      "recurringUpdateScope": "Recurrence settings changed",
+      "updateThisAndFuture": "Update this and all future events",
       "all": "ALL",
       "monthYear": "{{month}} {{year}}",
       "settingsTitle": "Schedule Settings",
@@ -2887,7 +2903,10 @@
       "emptyActiveHint": "Add a new task in the input above",
       "titlePlaceholder": "Task title",
       "descPlaceholder": "Add a note...",
-      "checklist": "Checklist"
+      "checklist": "Checklist",
+      "matrixTitle": "Eisenhower Matrix",
+      "completedCount": " completed",
+      "noCompleted": "No completed tasks"
     },
     "today": "Today",
     "progress": "Progress",

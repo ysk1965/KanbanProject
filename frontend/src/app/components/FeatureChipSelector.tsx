@@ -98,7 +98,7 @@ function FeatureChip({
 
         {/* 진행률 바 + 텍스트 */}
         <div className="flex items-center gap-2 pl-3.5">
-          <div className="relative w-14 h-1.5 bg-white/5 rounded-full overflow-visible">
+          <div className="relative w-14 h-1.5 bg-foreground/5 rounded-full overflow-visible">
             <div
               className={`h-full rounded-full transition-all duration-500 ${justCompleted ? 'progress-bar-inner' : ''}`}
               style={{
@@ -109,7 +109,7 @@ function FeatureChip({
             <CompletionParticles active={justCompleted} count={8} variant="chip" />
           </div>
           <span className={`text-[10px] font-semibold flex items-center gap-0.5 ${
-            isCompleted ? 'text-green-400' : isSelected ? 'text-zinc-300' : 'text-zinc-500'
+            isCompleted ? 'text-green-400' : isSelected ? 'text-foreground/80' : 'text-zinc-500'
           } ${justCompleted ? 'progress-text-bounce' : ''}`}>
             {feature.completed_tasks}/{feature.total_tasks}
             {isCompleted && (
@@ -127,8 +127,8 @@ function FeatureChip({
         }}
         className={`flex items-center justify-center w-8 flex-shrink-0 transition-all border-l ${
           isSelected
-            ? 'text-zinc-300 hover:text-white hover:bg-white/10 border-white/10'
-            : 'text-zinc-600 hover:text-zinc-300 hover:bg-white/5 border-white/5'
+            ? 'text-muted-foreground hover:text-foreground hover:bg-white/10 border-foreground/10'
+            : 'text-zinc-600 hover:text-foreground hover:bg-foreground/5 border-foreground/5'
         }`}
         title={isSelected ? t('featureChip.hideFilter') : t('featureChip.showFilter')}
       >
@@ -158,7 +158,7 @@ export function FeatureChipSelector({
           className={`flex flex-col items-center justify-center px-3 md:px-5 py-2 md:py-2.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex-shrink-0 min-w-[52px] md:min-w-[64px] ${
             isAllSelected
               ? 'bg-indigo-500/20 text-indigo-300 border-2 border-indigo-500/60 shadow-[0_0_12px_rgba(99,102,241,0.15)]'
-              : 'bg-bridge-surface-hover border border-bridge-border text-zinc-500 hover:text-zinc-300 hover:border-zinc-600'
+              : 'bg-bridge-surface-hover border border-bridge-border text-zinc-500 hover:text-foreground hover:border-zinc-600'
           }`}
         >
           <span className="text-sm font-bold">{t('common.all')}</span>
@@ -184,7 +184,7 @@ export function FeatureChipSelector({
         {/* Feature 추가 버튼 */}
         <button
           onClick={onAddFeature}
-          className="flex items-center justify-center px-4 rounded-xl text-zinc-500 hover:text-white hover:bg-bridge-surface-hover border border-dashed border-bridge-border hover:border-indigo-500/50 transition-all flex-shrink-0"
+          className="flex items-center justify-center px-4 rounded-xl text-zinc-500 hover:text-foreground hover:bg-bridge-surface-hover border border-dashed border-bridge-border hover:border-indigo-500/50 transition-all flex-shrink-0"
         >
           <Plus size={16} />
         </button>

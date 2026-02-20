@@ -93,7 +93,7 @@ export function InviteLandingPage({
           <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
             <Shield className="h-8 w-8 text-red-500" />
           </div>
-          <h1 className="text-xl font-bold text-white mb-2">{t('invite.invalidLink')}</h1>
+          <h1 className="text-xl font-bold text-foreground mb-2">{t('invite.invalidLink')}</h1>
           <p className="text-slate-400 mb-6">
             {error || inviteInfo?.message || t('invite.defaultInvalidMessage')}
           </p>
@@ -118,13 +118,13 @@ export function InviteLandingPage({
           <div className="w-16 h-16 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
             <Users className="h-8 w-8 text-blue-500" />
           </div>
-          <h1 className="text-2xl font-bold text-white mb-2">{t('invite.title')}</h1>
+          <h1 className="text-2xl font-bold text-foreground mb-2">{t('invite.title')}</h1>
           <p className="text-slate-400">{t('invite.subtitle')}</p>
         </div>
 
         {/* 보드 정보 */}
         <div className="bg-bridge-dark rounded-lg p-4 mb-6">
-          <h2 className="text-lg font-semibold text-white mb-3">{inviteInfo.board_name}</h2>
+          <h2 className="text-lg font-semibold text-foreground mb-3">{inviteInfo.board_name}</h2>
 
           <div className="flex items-center gap-2 text-sm">
             <span className="text-slate-400">{t('invite.role')}</span>
@@ -174,7 +174,7 @@ export function InviteLandingPage({
         )}
 
         {/* 푸터 */}
-        <div className="mt-6 pt-4 border-t border-white/20 text-center">
+        <div className="mt-6 pt-4 border-t border-bridge-border text-center">
           <p className="text-xs text-slate-400">
             {t('invite.footer')}
           </p>

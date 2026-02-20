@@ -83,7 +83,7 @@ export function NoteShareButton({ boardId, note, canEdit, onNoteUpdate }: NoteSh
         className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
           isShared
             ? 'text-bridge-secondary bg-bridge-secondary/10 hover:bg-bridge-secondary/20'
-            : 'text-slate-400 hover:text-white hover:bg-white/5'
+            : 'text-slate-400 hover:text-foreground hover:bg-foreground/5'
         }`}
         title={t('notes.share', '공유')}
       >
@@ -92,18 +92,18 @@ export function NoteShareButton({ boardId, note, canEdit, onNoteUpdate }: NoteSh
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-80 bg-bridge-obsidian rounded-xl border border-white/10 shadow-2xl z-50 overflow-hidden">
+        <div className="absolute right-0 top-full mt-2 w-80 bg-bridge-obsidian rounded-xl border border-foreground/10 shadow-2xl z-50 overflow-hidden">
           {/* Header */}
-          <div className="px-4 py-3 border-b border-white/5 flex items-center justify-between">
+          <div className="px-4 py-3 border-b border-foreground/5 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Share2 size={14} className="text-bridge-accent" />
-              <span className="text-sm font-semibold text-white">
+              <span className="text-sm font-semibold text-foreground">
                 {t('notes.shareTitle', '문서 공유')}
               </span>
             </div>
             <button
               onClick={() => setOpen(false)}
-              className="text-slate-500 hover:text-white transition-colors"
+              className="text-slate-500 hover:text-foreground transition-colors"
             >
               <X size={14} />
             </button>
@@ -114,7 +114,7 @@ export function NoteShareButton({ boardId, note, canEdit, onNoteUpdate }: NoteSh
             {/* Toggle */}
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-white font-medium">
+                <p className="text-sm text-foreground font-medium">
                   {t('notes.sharePublicLink', '공개 링크 공유')}
                 </p>
                 <p className="text-[11px] text-slate-500 mt-0.5">
@@ -140,12 +140,12 @@ export function NoteShareButton({ boardId, note, canEdit, onNoteUpdate }: NoteSh
             {isShared && (
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <div className="flex-1 flex items-center gap-2 bg-white/5 border border-white/10 rounded-lg px-3 py-2">
+                  <div className="flex-1 flex items-center gap-2 bg-foreground/5 border border-foreground/10 rounded-lg px-3 py-2">
                     <Link2 size={12} className="text-slate-500 flex-shrink-0" />
                     <input
                       value={shareUrl}
                       readOnly
-                      className="flex-1 bg-transparent text-xs text-slate-300 outline-none select-all truncate"
+                      className="flex-1 bg-transparent text-xs text-muted-foreground outline-none select-all truncate"
                       onClick={(e) => (e.target as HTMLInputElement).select()}
                     />
                   </div>

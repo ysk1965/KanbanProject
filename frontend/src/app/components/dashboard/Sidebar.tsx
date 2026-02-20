@@ -61,14 +61,14 @@ export function Sidebar({ isOpen = true, onClose, boards = [], onSelectBoard, is
   const BoardPill = ({ board }: { board: Board }) => (
     <button
       onClick={() => handleBoardClick(board.id)}
-      className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-left hover:bg-white/5 transition-colors group/pill"
+      className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-left hover:bg-foreground/5 transition-colors group/pill"
     >
       <div
         className="w-5 h-5 rounded-md shrink-0"
         style={{ background: getGradient(board.id) }}
       />
       {!isCollapsed && (
-        <span className="text-[12px] text-slate-400 group-hover/pill:text-white truncate transition-colors">
+        <span className="text-[12px] text-muted-foreground group-hover/pill:text-foreground truncate transition-colors">
           {board.name}
         </span>
       )}
@@ -103,7 +103,7 @@ export function Sidebar({ isOpen = true, onClose, boards = [], onSelectBoard, is
             )}
           </div>
           {onClose && (
-            <button onClick={onClose} className="lg:hidden p-2 text-slate-400 hover:text-white transition-colors">
+            <button onClick={onClose} className="lg:hidden p-2 text-muted-foreground hover:text-foreground transition-colors">
               <X size={20} />
             </button>
           )}
@@ -120,7 +120,7 @@ export function Sidebar({ isOpen = true, onClose, boards = [], onSelectBoard, is
               } ${
                 activeItem === item.key
                   ? 'bg-bridge-secondary/10 text-bridge-secondary'
-                  : 'text-slate-400 hover:bg-white/5 hover:text-white'
+                  : 'text-muted-foreground hover:bg-foreground/5 hover:text-foreground'
               }`}
               title={isCollapsed ? item.label : undefined}
             >
@@ -153,7 +153,7 @@ export function Sidebar({ isOpen = true, onClose, boards = [], onSelectBoard, is
         <div className="mt-auto p-4">
           <button
             onClick={onToggleCollapse}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-slate-500 hover:bg-white/5 hover:text-slate-300 transition-colors text-xs"
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-muted-foreground hover:bg-foreground/5 hover:text-foreground transition-colors text-xs"
           >
             {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
             {!isCollapsed && <span className="font-medium">{t('dashboard.sidebar.collapse', 'Collapse')}</span>}
@@ -166,7 +166,7 @@ export function Sidebar({ isOpen = true, onClose, boards = [], onSelectBoard, is
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className={`${isCollapsed ? 'w-16' : 'w-60'} h-full hidden lg:flex flex-col border-r border-white/[0.06] bg-bridge-dark/50 backdrop-blur-sm transition-all duration-300`}>
+      <aside className={`${isCollapsed ? 'w-16' : 'w-60'} h-full hidden lg:flex flex-col border-r border-bridge-border bg-bridge-dark/50 backdrop-blur-sm transition-all duration-300`}>
         {sidebarContent}
       </aside>
 
@@ -186,7 +186,7 @@ export function Sidebar({ isOpen = true, onClose, boards = [], onSelectBoard, is
               animate={{ x: 0 }}
               exit={{ x: -280 }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed left-0 top-0 w-60 h-full bg-bridge-dark border-r border-white/[0.06] z-50 lg:hidden"
+              className="fixed left-0 top-0 w-60 h-full bg-bridge-dark border-r border-bridge-border z-50 lg:hidden"
             >
               {sidebarContent}
             </motion.aside>

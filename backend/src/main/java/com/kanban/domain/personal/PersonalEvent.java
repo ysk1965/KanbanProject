@@ -84,4 +84,12 @@ public class PersonalEvent extends BaseTimeEntity {
         if (color != null) this.color = color;
         if (allDay != null) this.allDay = allDay;
     }
+
+    public void updateRecurrence(String recurrenceRule, String recurrenceGroupId,
+                                  LocalDate recurrenceEndDate, String recurrenceDaysOfWeek) {
+        this.recurrenceRule = recurrenceRule;
+        this.recurrenceGroupId = recurrenceGroupId;
+        this.recurrenceEndDate = recurrenceEndDate;
+        this.recurrenceDaysOfWeek = recurrenceDaysOfWeek;
+    }
 }

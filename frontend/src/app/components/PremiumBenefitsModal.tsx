@@ -15,7 +15,7 @@ import {
   Sparkles,
   Users,
 } from 'lucide-react';
-import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
+import { MotionModal } from './ui/MotionModal';
 
 interface PremiumBenefitsModalProps {
   open: boolean;
@@ -72,14 +72,11 @@ export function PremiumBenefitsModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="bg-bridge-obsidian text-foreground border-white/10 max-w-2xl p-0 gap-0 [&>button:last-child]:hidden overflow-hidden rounded-2xl max-h-[90vh] overflow-y-auto">
-        <DialogTitle className="sr-only">{t('premiumBenefits.heroTitle')}</DialogTitle>
-
+    <MotionModal open={open} onClose={onClose} className="sm:max-w-2xl p-0 overflow-hidden max-h-[90vh]">
         {/* Close */}
         <button
           onClick={onClose}
-          className="absolute right-4 top-4 z-10 p-1 text-white/60 hover:text-white transition-colors"
+          className="absolute right-4 top-4 z-10 p-1 text-white/60 hover:text-foreground transition-colors"
         >
           <X className="h-5 w-5" />
         </button>
@@ -97,7 +94,7 @@ export function PremiumBenefitsModal({
                 <Crown className="h-7 w-7 text-white" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-white tracking-tight">
+                <h2 className="text-2xl font-bold text-foreground tracking-tight">
                   {t('premiumBenefits.heroTitle')}
                 </h2>
                 <p className="text-slate-400 text-sm mt-0.5">
@@ -115,7 +112,7 @@ export function PremiumBenefitsModal({
               ].map((stat, i) => (
                 <div
                   key={i}
-                  className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-center"
+                  className="flex-1 bg-foreground/5 border border-foreground/10 rounded-xl px-4 py-3 text-center"
                 >
                   <p className="text-lg font-bold text-bridge-secondary">{stat.value}</p>
                   <p className="text-[11px] text-slate-400 mt-0.5">{t(stat.labelKey)}</p>
@@ -131,9 +128,9 @@ export function PremiumBenefitsModal({
             {t('premiumBenefits.comparisonTitle')}
           </p>
 
-          <div className="rounded-xl border border-white/10 overflow-hidden">
+          <div className="rounded-xl border border-foreground/10 overflow-hidden">
             {/* Table Header */}
-            <div className="grid grid-cols-[1fr_100px_100px] bg-white/5 border-b border-white/10">
+            <div className="grid grid-cols-[1fr_100px_100px] bg-foreground/5 border-b border-foreground/10">
               <div className="px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
                 {t('premiumBenefits.feature')}
               </div>
@@ -150,14 +147,14 @@ export function PremiumBenefitsModal({
               <div
                 key={feature.key}
                 className={`grid grid-cols-[1fr_100px_100px] ${
-                  index < COMPARISON_FEATURES.length - 1 ? 'border-b border-white/5' : ''
+                  index < COMPARISON_FEATURES.length - 1 ? 'border-b border-foreground/5' : ''
                 } hover:bg-white/[0.02] transition-colors`}
               >
                 <div className="px-4 py-3 flex items-center gap-3">
                   {feature.icon && (
                     <feature.icon className="h-4 w-4 text-slate-500 shrink-0" />
                   )}
-                  <span className="text-sm text-slate-300">
+                  <span className="text-sm text-muted-foreground">
                     {t(`premiumBenefits.features.${feature.key}`)}
                   </span>
                 </div>
@@ -182,14 +179,14 @@ export function PremiumBenefitsModal({
             {t('upgrade.seatSelection')}
           </p>
 
-          <div className="bg-bridge-dark/50 rounded-xl border border-white/10 p-4">
+          <div className="bg-bridge-dark/50 rounded-xl border border-foreground/10 p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-bridge-accent/10 rounded-lg">
                   <Users className="h-4 w-4 text-bridge-accent" />
                 </div>
                 <div>
-                  <p className="text-white text-sm font-medium">{t('upgrade.seats')}</p>
+                  <p className="text-foreground text-sm font-medium">{t('upgrade.seats')}</p>
                   <p className="text-slate-500 text-xs">
                     {t('upgrade.currentMembers', { count: currentBillableMembers })}
                   </p>
@@ -200,14 +197,14 @@ export function PremiumBenefitsModal({
                 <button
                   onClick={() => setSeatCount(Math.max(minSeats, seatCount - 1))}
                   disabled={seatCount <= minSeats}
-                  className="p-1.5 rounded-lg border border-white/10 text-slate-400 hover:text-white hover:bg-white/5 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="p-1.5 rounded-lg border border-foreground/10 text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                 >
                   <Minus className="h-4 w-4" />
                 </button>
-                <span className="text-white text-xl font-bold w-10 text-center">{seatCount}</span>
+                <span className="text-foreground text-xl font-bold w-10 text-center">{seatCount}</span>
                 <button
                   onClick={() => setSeatCount(seatCount + 1)}
-                  className="p-1.5 rounded-lg border border-white/10 text-slate-400 hover:text-white hover:bg-white/5 transition-all"
+                  className="p-1.5 rounded-lg border border-foreground/10 text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-all"
                 >
                   <Plus className="h-4 w-4" />
                 </button>
@@ -229,12 +226,12 @@ export function PremiumBenefitsModal({
               className={`relative p-4 rounded-xl border transition-all ${
                 billingCycle === 'MONTHLY'
                   ? 'border-bridge-accent bg-bridge-accent/10'
-                  : 'border-white/10 hover:border-white/20 hover:bg-white/5'
+                  : 'border-foreground/10 hover:border-bridge-border hover:bg-foreground/5'
               }`}
             >
               <div className="text-left">
                 <p className="text-slate-400 text-xs mb-1">{t('upgrade.monthly')}</p>
-                <p className="text-white text-xl font-bold">${PRICE_PER_SEAT.monthly * seatCount}</p>
+                <p className="text-foreground text-xl font-bold">${PRICE_PER_SEAT.monthly * seatCount}</p>
                 <p className="text-slate-500 text-xs">{t('upgrade.perMonth')}</p>
               </div>
               {billingCycle === 'MONTHLY' && (
@@ -250,7 +247,7 @@ export function PremiumBenefitsModal({
               className={`relative p-4 rounded-xl border transition-all ${
                 billingCycle === 'YEARLY'
                   ? 'border-bridge-accent bg-bridge-accent/10'
-                  : 'border-white/10 hover:border-white/20 hover:bg-white/5'
+                  : 'border-foreground/10 hover:border-bridge-border hover:bg-foreground/5'
               }`}
             >
               <div className="absolute -top-2 -right-2">
@@ -260,7 +257,7 @@ export function PremiumBenefitsModal({
               </div>
               <div className="text-left">
                 <p className="text-slate-400 text-xs mb-1">{t('upgrade.yearly')}</p>
-                <p className="text-white text-xl font-bold">${PRICE_PER_SEAT.yearly * seatCount}</p>
+                <p className="text-foreground text-xl font-bold">${PRICE_PER_SEAT.yearly * seatCount}</p>
                 <p className="text-slate-500 text-xs">
                   {t('upgrade.perYear')} (${((PRICE_PER_SEAT.yearly * seatCount) / 12).toFixed(2)}/mo)
                 </p>
@@ -286,7 +283,7 @@ export function PremiumBenefitsModal({
         <div className="px-8 pb-8 flex gap-3">
           <button
             onClick={onClose}
-            className="flex-1 px-4 py-3 bg-white/5 border border-white/10 text-slate-300 rounded-xl font-medium hover:bg-white/10 transition-all"
+            className="flex-1 px-4 py-3 bg-foreground/5 border border-foreground/10 text-muted-foreground rounded-xl font-medium hover:bg-foreground/10 transition-all"
           >
             {t('common.later')}
           </button>
@@ -299,7 +296,6 @@ export function PremiumBenefitsModal({
             {isProcessing ? t('common.processing') : t('premiumBenefits.upgradeCta')}
           </button>
         </div>
-      </DialogContent>
-    </Dialog>
+    </MotionModal>
   );
 }

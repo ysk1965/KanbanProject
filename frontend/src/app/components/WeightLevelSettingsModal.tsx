@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Plus, Trash2, GripVertical, Check } from 'lucide-react';
 import { statisticsService } from '../utils/services';
-import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
+import { MotionModal } from './ui/MotionModal';
 
 interface WeightLevel {
   id: string;
@@ -129,15 +129,13 @@ export function WeightLevelSettingsModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="bg-bridge-obsidian text-foreground border-white/10 max-w-2xl p-0 gap-0 [&>button:last-child]:hidden overflow-hidden rounded-2xl">
-        <DialogTitle className="sr-only">{t('weightLevel.title')}</DialogTitle>
+    <MotionModal open={open} onClose={onClose} className="sm:max-w-2xl p-0 overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
-          <h2 className="text-lg font-bold text-white">{t('weightLevel.title')}</h2>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-foreground/10">
+          <h2 className="text-lg font-bold text-foreground">{t('weightLevel.title')}</h2>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-white transition-colors"
+            className="text-slate-400 hover:text-foreground transition-colors"
           >
             <X className="h-5 w-5" />
           </button>
@@ -158,7 +156,7 @@ export function WeightLevelSettingsModal({
                 {levels.map((level, index) => (
                   <div
                     key={level.id}
-                    className="flex items-center gap-3 p-4 bg-bridge-dark rounded-xl border border-white/10"
+                    className="flex items-center gap-3 p-4 bg-bridge-dark rounded-xl border border-foreground/10"
                   >
                     <GripVertical className="h-4 w-4 text-slate-400 cursor-grab" />
 
@@ -178,7 +176,7 @@ export function WeightLevelSettingsModal({
                       type="text"
                       value={level.name}
                       onChange={(e) => handleUpdateLevel(level.id, { name: e.target.value })}
-                      className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent"
+                      className="flex-1 bg-foreground/5 border border-foreground/10 rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent"
                       placeholder={t('weightLevel.levelNamePlaceholder')}
                     />
 
@@ -192,7 +190,7 @@ export function WeightLevelSettingsModal({
                         step="0.1"
                         min="0.1"
                         max="10"
-                        className="w-20 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm text-center focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent"
+                        className="w-20 bg-foreground/5 border border-foreground/10 rounded-lg px-3 py-2 text-foreground text-sm text-center focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent"
                       />
                     </div>
 
@@ -202,7 +200,7 @@ export function WeightLevelSettingsModal({
                       className={`p-2 rounded-lg transition-all ${
                         defaultLevelId === level.id
                           ? 'bg-bridge-accent text-white'
-                          : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'
+                          : 'bg-foreground/5 text-slate-400 hover:text-foreground hover:bg-foreground/10'
                       }`}
                       title={defaultLevelId === level.id ? t('weightLevel.defaultLevel') : t('weightLevel.setAsDefault')}
                     >
@@ -224,7 +222,7 @@ export function WeightLevelSettingsModal({
               {/* Add Button */}
               <button
                 onClick={handleAddLevel}
-                className="w-full py-3 border border-dashed border-white/10 rounded-xl text-slate-400 hover:text-white hover:border-white/40 transition-all flex items-center justify-center gap-2"
+                className="w-full py-3 border border-dashed border-foreground/10 rounded-xl text-slate-400 hover:text-foreground hover:border-white/40 transition-all flex items-center justify-center gap-2"
               >
                 <Plus className="h-4 w-4" />
                 {t('weightLevel.addLevel')}
@@ -244,7 +242,7 @@ export function WeightLevelSettingsModal({
                       ]);
                       setDefaultLevelId('p2');
                     }}
-                    className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-slate-400 hover:text-white hover:bg-white/10 transition-all"
+                    className="px-3 py-1.5 bg-foreground/5 border border-foreground/10 rounded-lg text-xs text-slate-400 hover:text-foreground hover:bg-foreground/10 transition-all"
                   >
                     {t('weightLevel.preset4Levels')}
                   </button>
@@ -257,7 +255,7 @@ export function WeightLevelSettingsModal({
                       ]);
                       setDefaultLevelId('p1');
                     }}
-                    className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-slate-400 hover:text-white hover:bg-white/10 transition-all"
+                    className="px-3 py-1.5 bg-foreground/5 border border-foreground/10 rounded-lg text-xs text-slate-400 hover:text-foreground hover:bg-foreground/10 transition-all"
                   >
                     {t('weightLevel.preset3Levels')}
                   </button>
@@ -272,7 +270,7 @@ export function WeightLevelSettingsModal({
                       ]);
                       setDefaultLevelId('p3');
                     }}
-                    className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-slate-400 hover:text-white hover:bg-white/10 transition-all"
+                    className="px-3 py-1.5 bg-foreground/5 border border-foreground/10 rounded-lg text-xs text-slate-400 hover:text-foreground hover:bg-foreground/10 transition-all"
                   >
                     {t('weightLevel.preset5Levels')}
                   </button>
@@ -283,10 +281,10 @@ export function WeightLevelSettingsModal({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-white/10 flex justify-end gap-3">
+        <div className="px-6 py-4 border-t border-foreground/10 flex justify-end gap-3">
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-white/5 border border-white/10 text-white rounded-xl font-medium hover:bg-white/10 transition-all"
+            className="px-4 py-2 bg-foreground/5 border border-foreground/10 text-foreground rounded-xl font-medium hover:bg-foreground/10 transition-all"
           >
             {t('common.cancel')}
           </button>
@@ -298,7 +296,6 @@ export function WeightLevelSettingsModal({
             {isSaving ? t('weightLevel.saving') : t('common.save')}
           </button>
         </div>
-      </DialogContent>
-    </Dialog>
+    </MotionModal>
   );
 }

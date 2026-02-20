@@ -16,9 +16,10 @@ interface UserMenuProps {
   onOpenSubscription: () => void;
   onLogout: () => void;
   hideBilling?: boolean;
+  hideMySpace?: boolean;
 }
 
-export function UserMenu({ user, assigneeColor, onOpenSubscription, onLogout, hideBilling }: UserMenuProps) {
+export function UserMenu({ user, assigneeColor, onOpenSubscription, onLogout, hideBilling, hideMySpace }: UserMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -45,7 +46,7 @@ export function UserMenu({ user, assigneeColor, onOpenSubscription, onLogout, hi
       {/* 프로필 버튼 */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-white/5 transition-colors"
+        className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-foreground/5 transition-colors"
       >
         {user.avatar ? (
           <img
@@ -61,28 +62,28 @@ export function UserMenu({ user, assigneeColor, onOpenSubscription, onLogout, hi
             {getInitials(user.name)}
           </div>
         )}
-        <span className="text-sm text-slate-200 hidden md:block">{user.name}</span>
-        <ChevronDown className={`h-4 w-4 text-slate-300 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <span className="text-sm text-foreground/80 hidden md:block">{user.name}</span>
+        <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {/* 드롭다운 메뉴 */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-64 bg-bridge-obsidian rounded-lg shadow-xl border border-white/20 py-2 z-50">
+        <div className="absolute right-0 mt-2 w-64 bg-bridge-obsidian rounded-lg shadow-xl border border-bridge-border py-2 z-50">
           {/* 사용자 정보 */}
-          <div className="px-4 py-3 border-b border-white/15">
+          <div className="px-4 py-3 border-b border-bridge-border">
             <div className="font-medium text-foreground">{user.name}</div>
-            <div className="text-sm text-slate-300">{user.email}</div>
+            <div className="text-sm text-muted-foreground">{user.email}</div>
           </div>
 
           {/* 메뉴 아이템 */}
           <div className="py-2">
-            {!window.location.hostname.includes('milkyway.pe.kr') && (
+            {!hideMySpace && !window.location.hostname.includes('milkyway.pe.kr') && (
               <button
                 onClick={() => {
                   navigate('/my-board');
                   setIsOpen(false);
                 }}
-                className="w-full px-4 py-2 flex items-center gap-3 hover:bg-white/5 transition-colors text-muted-foreground hover:text-foreground"
+                className="w-full px-4 py-2 flex items-center gap-3 hover:bg-foreground/5 transition-colors text-muted-foreground hover:text-foreground"
               >
                 <User className="h-4 w-4" />
                 <span>{t('dashboard.sidebar.myBoard', 'My Space')}</span>
@@ -94,7 +95,7 @@ export function UserMenu({ user, assigneeColor, onOpenSubscription, onLogout, hi
                 navigate('/settings');
                 setIsOpen(false);
               }}
-              className="w-full px-4 py-2 flex items-center gap-3 hover:bg-white/5 transition-colors text-muted-foreground hover:text-foreground"
+              className="w-full px-4 py-2 flex items-center gap-3 hover:bg-foreground/5 transition-colors text-muted-foreground hover:text-foreground"
             >
               <SettingsIcon className="h-4 w-4" />
               <span>{t('user.settings')}</span>
@@ -106,7 +107,7 @@ export function UserMenu({ user, assigneeColor, onOpenSubscription, onLogout, hi
                   onOpenSubscription();
                   setIsOpen(false);
                 }}
-                className="w-full px-4 py-2 flex items-center gap-3 hover:bg-white/5 transition-colors text-muted-foreground hover:text-foreground"
+                className="w-full px-4 py-2 flex items-center gap-3 hover:bg-foreground/5 transition-colors text-muted-foreground hover:text-foreground"
               >
                 <CreditCard className="h-4 w-4" />
                 <span>{t('user.subscription')}</span>
@@ -115,7 +116,7 @@ export function UserMenu({ user, assigneeColor, onOpenSubscription, onLogout, hi
           </div>
 
           {/* 로그아웃 */}
-          <div className="border-t border-white/15 pt-2">
+          <div className="border-t border-bridge-border pt-2">
             <button
               onClick={() => {
                 onLogout();

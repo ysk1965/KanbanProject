@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Users, Plus, Minus } from 'lucide-react';
-import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
+import { MotionModal } from './ui/MotionModal';
 
 interface SeatPurchaseModalProps {
   open: boolean;
@@ -56,15 +56,12 @@ export function SeatPurchaseModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="bg-bridge-obsidian text-foreground border-white/10 max-w-md p-0 gap-0 [&>button:last-child]:hidden overflow-hidden rounded-2xl">
-        <DialogTitle className="sr-only">{t('seatPurchase.title')}</DialogTitle>
-
+    <MotionModal open={open} onClose={onClose} className="p-0 overflow-hidden">
         <div className="p-6">
           {/* Close */}
           <button
             onClick={onClose}
-            className="absolute right-4 top-4 p-1 text-white/60 hover:text-white transition-colors"
+            className="absolute right-4 top-4 p-1 text-white/60 hover:text-foreground transition-colors"
           >
             <X className="h-5 w-5" />
           </button>
@@ -75,20 +72,20 @@ export function SeatPurchaseModal({
               <Users className="h-5 w-5 text-bridge-accent" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-white">{t('seatPurchase.title')}</h2>
+              <h2 className="text-lg font-bold text-foreground">{t('seatPurchase.title')}</h2>
               <p className="text-sm text-slate-400">{t('seatPurchase.subtitle')}</p>
             </div>
           </div>
 
           {/* Current seat usage */}
-          <div className="bg-white/5 rounded-xl p-4 mb-4 border border-white/10">
+          <div className="bg-foreground/5 rounded-xl p-4 mb-4 border border-foreground/10">
             <div className="flex justify-between items-center">
               <span className="text-sm text-slate-400">{t('seatPurchase.currentSeats')}</span>
-              <span className="text-lg font-bold text-white">
+              <span className="text-lg font-bold text-foreground">
                 {billableMemberCount} / {seatCount}
               </span>
             </div>
-            <div className="mt-2 h-1.5 bg-white/10 rounded-full overflow-hidden">
+            <div className="mt-2 h-1.5 bg-foreground/10 rounded-full overflow-hidden">
               <div
                 className="h-full bg-bridge-accent rounded-full"
                 style={{ width: `${Math.min((billableMemberCount / seatCount) * 100, 100)}%` }}
@@ -99,7 +96,7 @@ export function SeatPurchaseModal({
           {/* Pending action notice */}
           {(pendingInviteEmail || isRoleChange) && (
             <div className="bg-bridge-accent/5 border border-bridge-accent/20 rounded-xl p-3 mb-4">
-              <p className="text-sm text-slate-300">
+              <p className="text-sm text-muted-foreground">
                 {isRoleChange
                   ? t('seatPurchase.pendingRoleChange')
                   : t('seatPurchase.pendingInvite', { email: pendingInviteEmail })}
@@ -116,29 +113,29 @@ export function SeatPurchaseModal({
               <button
                 onClick={() => setAdditionalSeats(Math.max(1, additionalSeats - 1))}
                 disabled={additionalSeats <= 1}
-                className="p-2 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                className="p-2 bg-foreground/5 border border-foreground/10 rounded-xl hover:bg-foreground/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
               >
-                <Minus className="h-4 w-4 text-white" />
+                <Minus className="h-4 w-4 text-foreground" />
               </button>
-              <span className="text-3xl font-bold text-white w-16 text-center">{additionalSeats}</span>
+              <span className="text-3xl font-bold text-foreground w-16 text-center">{additionalSeats}</span>
               <button
                 onClick={() => setAdditionalSeats(additionalSeats + 1)}
-                className="p-2 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors"
+                className="p-2 bg-foreground/5 border border-foreground/10 rounded-xl hover:bg-foreground/10 transition-colors"
               >
-                <Plus className="h-4 w-4 text-white" />
+                <Plus className="h-4 w-4 text-foreground" />
               </button>
             </div>
           </div>
 
           {/* Price breakdown */}
-          <div className="bg-white/5 rounded-xl p-4 mb-6 border border-white/10">
+          <div className="bg-foreground/5 rounded-xl p-4 mb-6 border border-foreground/10">
             <div className="flex justify-between text-sm mb-2">
               <span className="text-slate-400">
                 {additionalSeats} {t('seatPurchase.seats')} × ${pricePerSeat}/{period}
               </span>
-              <span className="text-white font-bold">${additionalCost}</span>
+              <span className="text-foreground font-bold">${additionalCost}</span>
             </div>
-            <div className="border-t border-white/10 mt-2 pt-2 flex justify-between text-sm">
+            <div className="border-t border-foreground/10 mt-2 pt-2 flex justify-between text-sm">
               <span className="text-slate-400">{t('seatPurchase.newTotal')}</span>
               <span className="text-bridge-secondary font-bold">
                 {newSeatCount} {t('seatPurchase.seats')}, ${newTotalPrice}/{period}
@@ -150,7 +147,7 @@ export function SeatPurchaseModal({
           <div className="flex gap-3">
             <button
               onClick={onClose}
-              className="flex-1 px-4 py-3 bg-white/5 border border-white/10 text-slate-300 rounded-xl font-medium hover:bg-white/10 transition-all"
+              className="flex-1 px-4 py-3 bg-foreground/5 border border-foreground/10 text-muted-foreground rounded-xl font-medium hover:bg-foreground/10 transition-all"
             >
               {t('common.cancel')}
             </button>
@@ -167,7 +164,6 @@ export function SeatPurchaseModal({
             </button>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+    </MotionModal>
   );
 }

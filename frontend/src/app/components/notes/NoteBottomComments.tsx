@@ -389,14 +389,14 @@ export function NoteBottomComments({
     if (!isActive || filteredMembers.length === 0) return null;
     const idx = isEdit ? editMentionIndex : mentionIndex;
     return (
-      <div className="absolute bottom-full left-0 mb-1 w-full bg-bridge-obsidian border border-white/10 rounded-xl shadow-xl z-50 py-1 max-h-40 overflow-y-auto">
+      <div className="absolute bottom-full left-0 mb-1 w-full bg-bridge-obsidian border border-foreground/10 rounded-xl shadow-xl z-50 py-1 max-h-40 overflow-y-auto">
         {filteredMembers.map((member, i) => (
           <button
             key={member.user.id}
             onMouseDown={e => { e.preventDefault(); insertMention(member, isEdit); }}
             onMouseEnter={() => isEdit ? setEditMentionIndex(i) : setMentionIndex(i)}
-            className={`flex items-center gap-2 w-full px-3 py-1.5 text-xs transition-colors text-slate-300 ${
-              i === idx ? 'bg-white/10' : 'hover:bg-white/5'
+            className={`flex items-center gap-2 w-full px-3 py-1.5 text-xs transition-colors text-muted-foreground ${
+              i === idx ? 'bg-foreground/10' : 'hover:bg-foreground/5'
             }`}
           >
             {member.user.profile_image ? (
@@ -422,7 +422,7 @@ export function NoteBottomComments({
       <div
         ref={emojiPickerRef}
         style={{ position: 'fixed', top: emojiPickerPos.top, left: emojiPickerPos.left, zIndex: 9999 }}
-        className="bg-bridge-obsidian border border-white/10 rounded-xl shadow-xl p-2 min-w-[200px] pointer-events-auto"
+        className="bg-bridge-obsidian border border-foreground/10 rounded-xl shadow-xl p-2 min-w-[200px] pointer-events-auto"
         onPointerDown={e => e.stopPropagation()}
         onMouseDown={e => e.stopPropagation()}
       >
@@ -431,7 +431,7 @@ export function NoteBottomComments({
             <button
               key={emoji}
               onClick={() => handleToggleReaction(commentId, emoji)}
-              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 transition-all hover:scale-110 text-base"
+              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-foreground/10 transition-all hover:scale-110 text-base"
             >
               {emoji}
             </button>
@@ -462,7 +462,7 @@ export function NoteBottomComments({
               className={`group/reaction relative inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-all
                 ${isMyReaction
                   ? 'bg-bridge-accent/20 border border-bridge-accent/50 text-bridge-accent hover:bg-bridge-accent/30'
-                  : 'bg-white/5 border border-white/10 text-slate-400 hover:bg-white/10 hover:text-slate-300'
+                  : 'bg-foreground/5 border border-foreground/10 text-slate-400 hover:bg-foreground/10 hover:text-muted-foreground'
                 }
                 ${!canEdit ? 'cursor-default' : 'cursor-pointer'}
               `}
@@ -484,11 +484,11 @@ export function NoteBottomComments({
   // ========== Main Render ==========
 
   return (
-    <div className="border-t border-white/10 bg-bridge-dark/50">
+    <div className="border-t border-foreground/10 bg-bridge-dark/50">
       {/* Header */}
       <div className="flex items-center gap-2 px-6 py-3">
         <MessageSquare className="h-4 w-4 text-slate-400" />
-        <span className="text-sm font-bold text-white">댓글</span>
+        <span className="text-sm font-bold text-foreground">댓글</span>
         {comments.length > 0 && (
           <span className="text-[10px] bg-bridge-accent/20 text-bridge-accent px-1.5 py-0.5 rounded-full font-bold">
             {comments.length}
@@ -522,7 +522,7 @@ export function NoteBottomComments({
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -8 }}
                   transition={{ duration: 0.2 }}
-                  className="group py-3 border-b border-white/5 last:border-b-0"
+                  className="group py-3 border-b border-foreground/5 last:border-b-0"
                 >
                   <div className="flex gap-2.5">
                     {/* Avatar */}
@@ -543,7 +543,7 @@ export function NoteBottomComments({
                     <div className="flex-1 min-w-0">
                       {/* Author line */}
                       <div className="flex items-center gap-2 mb-0.5">
-                        <span className="text-xs font-medium text-white">{comment.author.name}</span>
+                        <span className="text-xs font-medium text-foreground">{comment.author.name}</span>
                         <span className="text-[10px] text-slate-500">
                           {formatRelativeTime(comment.created_at)}
                           {isEdited && ' (수정됨)'}
@@ -554,7 +554,7 @@ export function NoteBottomComments({
                           <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity ml-auto">
                             <button
                               onClick={(e) => openEmojiPicker(comment.id, e.currentTarget)}
-                              className="p-1 rounded hover:bg-white/10 text-slate-500 hover:text-slate-300 transition-colors"
+                              className="p-1 rounded hover:bg-foreground/10 text-slate-500 hover:text-muted-foreground transition-colors"
                             >
                               <SmilePlus className="h-3 w-3" />
                             </button>
@@ -563,7 +563,7 @@ export function NoteBottomComments({
                             {isAuthor && (
                               <button
                                 onClick={() => startEditing(comment)}
-                                className="p-1 rounded hover:bg-white/10 text-slate-500 hover:text-slate-300 transition-colors"
+                                className="p-1 rounded hover:bg-foreground/10 text-slate-500 hover:text-muted-foreground transition-colors"
                               >
                                 <Pencil className="h-3 w-3" />
                               </button>
@@ -591,7 +591,7 @@ export function NoteBottomComments({
                               onChange={handleEditContentChange}
                               onKeyDown={e => handleEditKeyDown(e, comment.id)}
                               onBlur={() => setTimeout(() => setEditShowMentions(false), 150)}
-                              className="w-full text-xs bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white placeholder-slate-600 resize-none focus:outline-none focus:ring-1 focus:ring-bridge-accent/50 transition-all"
+                              className="w-full text-xs bg-foreground/5 border border-foreground/10 rounded-xl px-3 py-2 text-foreground placeholder-slate-600 resize-none focus:outline-none focus:ring-1 focus:ring-bridge-accent/50 transition-all"
                               rows={3}
                               autoFocus
                             />
@@ -599,7 +599,7 @@ export function NoteBottomComments({
                           <div className="flex items-center gap-1 justify-end">
                             <button
                               onClick={cancelEditing}
-                              className="p-1 rounded hover:bg-white/10 text-slate-400 hover:text-slate-300 transition-colors"
+                              className="p-1 rounded hover:bg-foreground/10 text-slate-400 hover:text-muted-foreground transition-colors"
                             >
                               <X className="h-3.5 w-3.5" />
                             </button>
@@ -618,7 +618,7 @@ export function NoteBottomComments({
                         </div>
                       ) : (
                         <>
-                          <p className="text-xs text-slate-300 whitespace-pre-wrap break-words leading-relaxed">
+                          <p className="text-xs text-muted-foreground whitespace-pre-wrap break-words leading-relaxed">
                             {renderContentWithMentions(comment.content, members)}
                           </p>
                           <ReactionBar comment={comment} />
@@ -645,7 +645,7 @@ export function NoteBottomComments({
               onKeyDown={handleNewKeyDown}
               onBlur={() => setTimeout(() => setShowMentions(false), 150)}
               placeholder="댓글을 입력하세요... (@로 멘션, Cmd+Enter로 전송)"
-              className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-3 pr-12 text-sm text-white
+              className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-2.5 px-3 pr-12 text-sm text-foreground
                 placeholder-slate-600 resize-none
                 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent
                 transition-all"
@@ -675,15 +675,15 @@ export function NoteBottomComments({
           onClick={() => setDeleteTarget(null)}
         >
           <div
-            className="bg-bridge-obsidian rounded-2xl border border-white/10 p-6 shadow-2xl max-w-sm mx-4"
+            className="bg-bridge-obsidian rounded-2xl border border-foreground/10 p-6 shadow-2xl max-w-sm mx-4"
             onClick={e => e.stopPropagation()}
           >
-            <h3 className="text-sm font-bold text-white mb-2">댓글 삭제</h3>
+            <h3 className="text-sm font-bold text-foreground mb-2">댓글 삭제</h3>
             <p className="text-xs text-slate-400 mb-4">이 댓글을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.</p>
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setDeleteTarget(null)}
-                className="px-4 py-1.5 text-xs font-medium text-slate-400 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all"
+                className="px-4 py-1.5 text-xs font-medium text-slate-400 bg-foreground/5 border border-foreground/10 rounded-xl hover:bg-foreground/10 transition-all"
               >
                 취소
               </button>

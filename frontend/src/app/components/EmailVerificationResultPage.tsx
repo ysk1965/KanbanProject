@@ -58,7 +58,7 @@ export function EmailVerificationResultPage() {
   };
 
   return (
-    <div className="min-h-screen w-full relative flex items-center justify-center p-4 md:p-8 overflow-hidden bg-bridge-dark text-white">
+    <div className="min-h-screen w-full relative flex items-center justify-center p-4 md:p-8 overflow-hidden bg-bridge-dark text-foreground">
       {/* Background Gradient */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10">
         <div
@@ -70,17 +70,17 @@ export function EmailVerificationResultPage() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-[500px] bg-bridge-obsidian rounded-[32px] p-8 md:p-12 border border-white/20 shadow-2xl text-center"
+        className="w-full max-w-[500px] bg-bridge-obsidian rounded-[32px] p-8 md:p-12 border border-bridge-border shadow-2xl text-center"
       >
         {/* Loading State */}
         {status === 'loading' && (
           <>
             <div className="flex justify-center mb-8">
-              <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center">
+              <div className="w-20 h-20 bg-foreground/5 rounded-full flex items-center justify-center">
                 <Loader2 className="w-10 h-10 text-bridge-accent animate-spin" />
               </div>
             </div>
-            <h1 className="text-2xl font-bold text-white mb-4">
+            <h1 className="text-2xl font-bold text-foreground mb-4">
               {t('emailVerificationResult.verifying')}
             </h1>
             <p className="text-slate-400">{t('common.pleaseWait')}</p>
@@ -95,7 +95,7 @@ export function EmailVerificationResultPage() {
                 <CheckCircle className="w-10 h-10 text-white" />
               </div>
             </div>
-            <h1 className="text-2xl md:text-3xl font-bold text-white mb-4">
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-4">
               {t('emailVerificationResult.successTitle')}
             </h1>
             <p className="text-slate-400 mb-8">
@@ -119,7 +119,7 @@ export function EmailVerificationResultPage() {
                 <XCircle className="w-10 h-10 text-white" />
               </div>
             </div>
-            <h1 className="text-2xl md:text-3xl font-bold text-white mb-4">
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-4">
               {t('emailVerificationResult.errorTitle')}
             </h1>
             <p className="text-slate-400 mb-8">
@@ -127,7 +127,7 @@ export function EmailVerificationResultPage() {
             </p>
             <button
               onClick={handleNavigate}
-              className="w-full h-14 bg-white/5 border border-white/20 text-white rounded-2xl font-bold transition-all duration-300 flex items-center justify-center gap-2 hover:bg-white/10"
+              className="w-full h-14 bg-foreground/5 border border-bridge-border text-foreground rounded-2xl font-bold transition-all duration-300 flex items-center justify-center gap-2 hover:bg-foreground/10"
             >
               {t('emailVerificationResult.goToLoginPage')}
               <ArrowRight className="w-5 h-5" />
@@ -136,8 +136,8 @@ export function EmailVerificationResultPage() {
         )}
 
         {/* Footer */}
-        <div className="mt-8 pt-6 border-t border-white/15">
-          <Link to="/" className="text-sm text-slate-400 hover:text-white transition-colors">
+        <div className="mt-8 pt-6 border-t border-bridge-border">
+          <Link to="/" className="text-sm text-slate-400 hover:text-foreground transition-colors">
             {t('emailVerificationResult.backToHome')}
           </Link>
         </div>

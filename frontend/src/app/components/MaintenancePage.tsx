@@ -120,7 +120,7 @@ export function MaintenancePage({ status, onRetry }: MaintenancePageProps) {
 
           {/* Inner Icon */}
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-bridge-accent/20 to-purple-500/20 backdrop-blur-sm border border-white/10 flex items-center justify-center">
+            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-bridge-accent/20 to-purple-500/20 backdrop-blur-sm border border-foreground/10 flex items-center justify-center">
               <Settings className="h-9 w-9 text-bridge-accent animate-spin" style={{ animationDuration: '8s' }} />
             </div>
           </div>
@@ -135,7 +135,7 @@ export function MaintenancePage({ status, onRetry }: MaintenancePageProps) {
         </div>
 
         {/* Title */}
-        <h1 className="font-jakarta text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">
+        <h1 className="font-jakarta text-4xl md:text-5xl font-bold text-foreground mb-4 tracking-tight">
           {t('maintenance.title')}
         </h1>
 
@@ -146,14 +146,14 @@ export function MaintenancePage({ status, onRetry }: MaintenancePageProps) {
 
         {/* Countdown Timer */}
         {status.estimated_end_at && (
-          <div className="bg-bridge-obsidian/80 backdrop-blur-xl rounded-3xl border border-white/10 p-8 mb-8 shadow-2xl shadow-black/20">
+          <div className="bg-bridge-obsidian/80 backdrop-blur-xl rounded-3xl border border-foreground/10 p-8 mb-8 shadow-2xl shadow-black/20">
             {/* Timer Display */}
             <div className="flex items-center justify-center gap-3 mb-6">
               {countdown.hours > 0 && (
                 <>
                   <div className="flex flex-col items-center">
-                    <div className="bg-gradient-to-b from-white/10 to-white/5 rounded-xl px-4 py-3 min-w-[72px] border border-white/10">
-                      <span className="text-3xl font-bold text-white font-mono">
+                    <div className="bg-gradient-to-b from-white/10 to-white/5 rounded-xl px-4 py-3 min-w-[72px] border border-foreground/10">
+                      <span className="text-3xl font-bold text-foreground font-mono">
                         {formatNumber(countdown.hours)}
                       </span>
                     </div>
@@ -163,7 +163,7 @@ export function MaintenancePage({ status, onRetry }: MaintenancePageProps) {
                 </>
               )}
               <div className="flex flex-col items-center">
-                <div className="bg-gradient-to-b from-white/10 to-white/5 rounded-xl px-4 py-3 min-w-[72px] border border-white/10">
+                <div className="bg-gradient-to-b from-white/10 to-white/5 rounded-xl px-4 py-3 min-w-[72px] border border-foreground/10">
                   <span className="text-3xl font-bold text-white font-mono">
                     {formatNumber(countdown.minutes)}
                   </span>
@@ -172,7 +172,7 @@ export function MaintenancePage({ status, onRetry }: MaintenancePageProps) {
               </div>
               <span className="text-2xl text-slate-600 font-light mb-5">:</span>
               <div className="flex flex-col items-center">
-                <div className="bg-gradient-to-b from-white/10 to-white/5 rounded-xl px-4 py-3 min-w-[72px] border border-white/10">
+                <div className="bg-gradient-to-b from-white/10 to-white/5 rounded-xl px-4 py-3 min-w-[72px] border border-foreground/10">
                   <span className="text-3xl font-bold text-bridge-accent font-mono">
                     {formatNumber(countdown.seconds)}
                   </span>
@@ -186,7 +186,7 @@ export function MaintenancePage({ status, onRetry }: MaintenancePageProps) {
               <Clock className="h-4 w-4 text-slate-500" />
               <span className="text-slate-400">
                 {t('maintenance.estimatedEnd')}{' '}
-                <span className="text-white font-medium">
+                <span className="text-foreground font-medium">
                   {formatDate(status.estimated_end_at, t('maintenance.dateFormat'))}
                 </span>
               </span>
@@ -213,7 +213,7 @@ export function MaintenancePage({ status, onRetry }: MaintenancePageProps) {
 
         {/* Progress Bar at Bottom */}
         <div className="mt-10 w-full max-w-xs mx-auto">
-          <div className="h-1 bg-white/5 rounded-full overflow-hidden">
+          <div className="h-1 bg-foreground/5 rounded-full overflow-hidden">
             <div
               className="h-full bg-gradient-to-r from-bridge-accent to-purple-500 rounded-full transition-all duration-1000"
               style={{ width: `${progress}%` }}

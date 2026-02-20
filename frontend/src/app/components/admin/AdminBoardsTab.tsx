@@ -90,7 +90,7 @@ export function AdminBoardsTab() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white mb-2">{t('admin.boards.title')}</h2>
+          <h2 className="text-2xl font-bold text-foreground mb-2">{t('admin.boards.title')}</h2>
           <p className="text-slate-400">{t('admin.boards.subtitle')}</p>
         </div>
       </div>
@@ -105,8 +105,8 @@ export function AdminBoardsTab() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={t('admin.boards.searchPlaceholder')}
-              className="w-full bg-bridge-obsidian border border-white/20 rounded-xl py-3 pl-12 pr-4
-                text-white placeholder-slate-400
+              className="w-full bg-bridge-obsidian border border-bridge-border rounded-xl py-3 pl-12 pr-4
+                text-foreground placeholder-slate-400
                 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent
                 transition-all"
             />
@@ -127,8 +127,8 @@ export function AdminBoardsTab() {
               setTierFilter(e.target.value);
               setPage(0);
             }}
-            className="bg-bridge-obsidian border border-white/20 rounded-xl py-3 pl-12 pr-8
-              text-white appearance-none cursor-pointer
+            className="bg-bridge-obsidian border border-bridge-border rounded-xl py-3 pl-12 pr-8
+              text-foreground appearance-none cursor-pointer
               focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent
               transition-all"
           >
@@ -146,8 +146,8 @@ export function AdminBoardsTab() {
               setTypeFilter(e.target.value);
               setPage(0);
             }}
-            className="bg-bridge-obsidian border border-white/20 rounded-xl py-3 pl-4 pr-8
-              text-white appearance-none cursor-pointer
+            className="bg-bridge-obsidian border border-bridge-border rounded-xl py-3 pl-4 pr-8
+              text-foreground appearance-none cursor-pointer
               focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent
               transition-all"
           >
@@ -183,10 +183,10 @@ export function AdminBoardsTab() {
       {/* Boards Table */}
       {!isLoading && !error && boards && (
         <>
-          <div className="bg-bridge-obsidian rounded-xl border border-white/15 overflow-x-auto">
+          <div className="bg-bridge-obsidian rounded-xl border border-bridge-border overflow-x-auto">
             <table className="w-full min-w-[720px]">
               <thead>
-                <tr className="border-b border-white/15">
+                <tr className="border-b border-bridge-border">
                   <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
                     {t('admin.boards.board')}
                   </th>
@@ -217,7 +217,7 @@ export function AdminBoardsTab() {
                   <tr
                     key={board.id}
                     onClick={() => setSelectedBoardId(board.id)}
-                    className="border-b border-white/15 last:border-0 hover:bg-white/5 cursor-pointer transition-colors"
+                    className="border-b border-bridge-border last:border-0 hover:bg-foreground/5 cursor-pointer transition-colors"
                   >
                     <td className="px-3 py-3 md:px-6 md:py-4">
                       <div className="flex items-center gap-3">
@@ -225,7 +225,7 @@ export function AdminBoardsTab() {
                           <Folder className="h-5 w-5 text-bridge-accent" />
                         </div>
                         <div>
-                          <p className="text-white font-medium">{board.name}</p>
+                          <p className="text-foreground font-medium">{board.name}</p>
                           {board.description && (
                             <p className="text-slate-400 text-sm truncate max-w-[200px]">
                               {board.description}
@@ -252,7 +252,7 @@ export function AdminBoardsTab() {
                     </td>
                     <td className="px-3 py-3 md:px-6 md:py-4">
                       <div>
-                        <p className="text-white">{board.owner_name}</p>
+                        <p className="text-foreground">{board.owner_name}</p>
                         <p className="text-slate-400 text-sm">{board.owner_email}</p>
                       </div>
                     </td>
@@ -266,13 +266,13 @@ export function AdminBoardsTab() {
                       </span>
                     </td>
                     <td className="px-3 py-3 md:px-6 md:py-4">
-                      <span className="text-white flex items-center gap-1">
+                      <span className="text-foreground flex items-center gap-1">
                         <Users className="h-4 w-4 text-slate-400" />
                         {board.member_count}
                       </span>
                     </td>
                     <td className="px-3 py-3 md:px-6 md:py-4">
-                      <span className="text-white flex items-center gap-1">
+                      <span className="text-foreground flex items-center gap-1">
                         <ListTodo className="h-4 w-4 text-slate-400" />
                         {board.task_count}
                       </span>
@@ -290,8 +290,8 @@ export function AdminBoardsTab() {
                           navigate(`/boards/${board.id}`);
                         }}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium
-                          text-slate-400 bg-white/5 border border-white/10 rounded-lg
-                          hover:text-white hover:bg-bridge-accent/20 hover:border-bridge-accent/30
+                          text-slate-400 bg-foreground/5 border border-foreground/10 rounded-lg
+                          hover:text-foreground hover:bg-bridge-accent/20 hover:border-bridge-accent/30
                           transition-all"
                         title={t('admin.boards.viewBoard')}
                       >
@@ -314,8 +314,8 @@ export function AdminBoardsTab() {
               <button
                 onClick={() => setPage(Math.max(0, page - 1))}
                 disabled={page === 0}
-                className="p-2 bg-bridge-obsidian border border-white/20 rounded-lg
-                  text-slate-400 hover:text-white hover:bg-white/5
+                className="p-2 bg-bridge-obsidian border border-bridge-border rounded-lg
+                  text-slate-400 hover:text-foreground hover:bg-foreground/5
                   disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <ChevronLeft className="h-5 w-5" />
@@ -326,8 +326,8 @@ export function AdminBoardsTab() {
               <button
                 onClick={() => setPage(Math.min(Math.ceil(boards.total / boards.size) - 1, page + 1))}
                 disabled={page >= Math.ceil(boards.total / boards.size) - 1}
-                className="p-2 bg-bridge-obsidian border border-white/20 rounded-lg
-                  text-slate-400 hover:text-white hover:bg-white/5
+                className="p-2 bg-bridge-obsidian border border-bridge-border rounded-lg
+                  text-slate-400 hover:text-foreground hover:bg-foreground/5
                   disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <ChevronRight className="h-5 w-5" />

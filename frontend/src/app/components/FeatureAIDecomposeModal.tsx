@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { Sparkles, Loader2, Check, X, ChevronRight, RefreshCw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { featureAPI, FeatureAIDecompositionResponse, FeatureAITaskSuggestion } from '../utils/api';
-import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
+import { MotionModal } from './ui/MotionModal';
 
 interface FeatureAIDecomposeModalProps {
   boardId: string;
@@ -179,30 +179,28 @@ export function FeatureAIDecomposeModal({
   const renderCheckbox = (checked: boolean, disabled = false) => (
     <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${
       disabled ? 'border-slate-600 bg-slate-700/50 cursor-not-allowed' :
-      checked ? 'border-bridge-accent bg-bridge-accent' : 'border-white/20 bg-transparent hover:border-white/40'
+      checked ? 'border-bridge-accent bg-bridge-accent' : 'border-bridge-border bg-transparent hover:border-foreground/40'
     }`}>
       {checked && <Check className="h-2.5 w-2.5 text-white" />}
     </div>
   );
 
   return (
-    <Dialog open={true} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="bg-bridge-obsidian text-foreground border-white/10 max-w-lg p-0 gap-0 [&>button:last-child]:hidden overflow-hidden rounded-2xl max-h-[80vh] flex flex-col">
-        <DialogTitle className="sr-only">{t('featureDetail.aiDecomposeTitle')}</DialogTitle>
+    <MotionModal open={true} onClose={onClose} className="sm:max-w-lg p-0 overflow-hidden max-h-[80vh] flex flex-col">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-white/5">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-foreground/5">
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-bridge-accent" />
-            <h3 className="text-sm font-bold text-white">{t('featureDetail.aiDecomposeTitle')}</h3>
+            <h3 className="text-sm font-bold text-foreground">{t('featureDetail.aiDecomposeTitle')}</h3>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
+          <button onClick={onClose} className="text-slate-400 hover:text-foreground transition-colors">
             <X className="h-4 w-4" />
           </button>
         </div>
 
         {/* Feature context */}
-        <div className="px-5 py-3 border-b border-white/5">
+        <div className="px-5 py-3 border-b border-foreground/5">
           <p className="text-xs text-slate-400 truncate">{featureTitle}</p>
         </div>
 
@@ -239,7 +237,7 @@ export function FeatureAIDecomposeModal({
               <div className="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center">
                 <Check className="h-6 w-6 text-green-400" />
               </div>
-              <p className="text-sm text-slate-300">
+              <p className="text-sm text-muted-foreground">
                 {t('featureDetail.aiApplySuccess', {
                   tasks: result.tasks_created,
                   checklists: result.checklists_created,
@@ -273,26 +271,26 @@ export function FeatureAIDecomposeModal({
                       </button>
                       <span className="text-slate-600">|</span>
                       <button onClick={deselectAll}
-                        className="text-[10px] text-slate-400 hover:text-white transition-colors">
+                        className="text-[10px] text-slate-400 hover:text-foreground transition-colors">
                         {t('featureDetail.aiDeselectAll')}
                       </button>
                     </div>
                   </div>
 
                   {suggestions.tasks.map((task, ti) => (
-                    <div key={ti} className="bg-white/[0.03] rounded-xl border border-white/5 overflow-hidden">
+                    <div key={ti} className="bg-white/[0.03] rounded-xl border border-foreground/5 overflow-hidden">
                       {/* Task row */}
                       <div className={`flex items-center gap-2 px-4 py-3 ${lockedTasks[ti] ? 'opacity-60' : ''}`}>
                         <button onClick={() => toggleTask(ti)} disabled={lockedTasks[ti]}>
                           {renderCheckbox(!!selection.tasks[ti], lockedTasks[ti])}
                         </button>
                         {task.checklists.length > 0 && (
-                          <button onClick={() => toggleTaskExpand(ti)} className="text-slate-400 hover:text-white transition-colors">
+                          <button onClick={() => toggleTaskExpand(ti)} className="text-slate-400 hover:text-foreground transition-colors">
                             <ChevronRight className={`h-3.5 w-3.5 transition-transform ${expandedTasks[ti] ? 'rotate-90' : ''}`} />
                           </button>
                         )}
                         <div className="flex-1 min-w-0">
-                          <span className="text-sm font-medium text-white">{task.title}</span>
+                          <span className="text-sm font-medium text-foreground">{task.title}</span>
                           {task.description && (
                             <p className="text-[11px] text-slate-400 mt-0.5 line-clamp-1">{task.description}</p>
                           )}
@@ -304,7 +302,7 @@ export function FeatureAIDecomposeModal({
 
                       {/* Checklists */}
                       {expandedTasks[ti] && task.checklists.length > 0 && (
-                        <div className="border-t border-white/5">
+                        <div className="border-t border-foreground/5">
                           {task.checklists.map((cl, ci) => (
                             <div key={ci} className={`flex items-center gap-2 px-4 py-2 pl-10 ${lockedTasks[ti] ? 'opacity-60' : ''}`}>
                               <button onClick={() => toggleChecklist(ti, ci)} disabled={lockedTasks[ti]}>
@@ -325,9 +323,9 @@ export function FeatureAIDecomposeModal({
 
         {/* Footer */}
         {suggestions && !result && !loading && suggestions.tasks.length > 0 && (
-          <div className="px-5 py-4 border-t border-white/5 flex justify-end gap-2">
+          <div className="px-5 py-4 border-t border-foreground/5 flex justify-end gap-2">
             <button onClick={onClose}
-              className="px-4 py-2 text-sm text-slate-400 hover:text-white transition-colors">
+              className="px-4 py-2 text-sm text-slate-400 hover:text-foreground transition-colors">
               {t('common.cancel')}
             </button>
             <button
@@ -349,7 +347,6 @@ export function FeatureAIDecomposeModal({
             </button>
           </div>
         )}
-      </DialogContent>
-    </Dialog>
+    </MotionModal>
   );
 }

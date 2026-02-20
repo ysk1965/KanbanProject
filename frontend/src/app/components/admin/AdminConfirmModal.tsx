@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, X } from 'lucide-react';
-import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
+import { MotionModal } from '../ui/MotionModal';
 
 // ==================== Confirm Modal ====================
 
@@ -38,9 +38,7 @@ export function ConfirmModal({
     : 'bg-bridge-accent hover:bg-bridge-accent/90';
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onCancel(); }}>
-      <DialogContent className="bg-bridge-obsidian text-foreground border-white/10 max-w-sm p-0 gap-0 [&>button:last-child]:hidden overflow-hidden rounded-2xl">
-        <DialogTitle className="sr-only">{title}</DialogTitle>
+    <MotionModal open={isOpen} onClose={onCancel} className="sm:max-w-sm p-0 overflow-hidden">
         <div className="p-6">
           <div className="flex items-start gap-3 mb-4">
             {variant === 'danger' && (
@@ -49,14 +47,14 @@ export function ConfirmModal({
               </div>
             )}
             <div>
-              <h3 className="text-lg font-bold text-white">{title}</h3>
+              <h3 className="text-lg font-bold text-foreground">{title}</h3>
               <p className="text-slate-400 text-sm mt-1 whitespace-pre-line">{message}</p>
             </div>
           </div>
           <div className="flex gap-3">
             <button
               onClick={onCancel}
-              className="flex-1 px-4 py-2.5 bg-white/5 border border-white/10 text-white rounded-xl hover:bg-white/10 transition-all text-sm font-medium"
+              className="flex-1 px-4 py-2.5 bg-foreground/5 border border-foreground/10 text-foreground rounded-xl hover:bg-foreground/10 transition-all text-sm font-medium"
             >
               {cancelLabel || t('common.cancel')}
             </button>
@@ -69,8 +67,7 @@ export function ConfirmModal({
             </button>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+    </MotionModal>
   );
 }
 
@@ -120,11 +117,9 @@ export function PromptModal({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onCancel(); }}>
-      <DialogContent className="bg-bridge-obsidian text-foreground border-white/10 max-w-sm p-0 gap-0 [&>button:last-child]:hidden overflow-hidden rounded-2xl">
-        <DialogTitle className="sr-only">{title}</DialogTitle>
+    <MotionModal open={isOpen} onClose={onCancel} className="sm:max-w-sm p-0 overflow-hidden">
         <div className="p-6">
-          <h3 className="text-lg font-bold text-white mb-1">{title}</h3>
+          <h3 className="text-lg font-bold text-foreground mb-1">{title}</h3>
           <p className="text-slate-400 text-sm mb-4 whitespace-pre-line">{message}</p>
           <input
             ref={inputRef}
@@ -133,12 +128,12 @@ export function PromptModal({
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
             placeholder={placeholder}
-            className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all mb-4"
+            className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-foreground placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all mb-4"
           />
           <div className="flex gap-3">
             <button
               onClick={onCancel}
-              className="flex-1 px-4 py-2.5 bg-white/5 border border-white/10 text-white rounded-xl hover:bg-white/10 transition-all text-sm font-medium"
+              className="flex-1 px-4 py-2.5 bg-foreground/5 border border-foreground/10 text-foreground rounded-xl hover:bg-foreground/10 transition-all text-sm font-medium"
             >
               {cancelLabel || t('common.cancel')}
             </button>
@@ -151,8 +146,7 @@ export function PromptModal({
             </button>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+    </MotionModal>
   );
 }
 
@@ -187,11 +181,9 @@ export function SelectModal({
   }, [isOpen]);
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onCancel(); }}>
-      <DialogContent className="bg-bridge-obsidian text-foreground border-white/10 max-w-md p-0 gap-0 [&>button:last-child]:hidden overflow-hidden rounded-2xl max-h-[80vh] flex flex-col">
-        <DialogTitle className="sr-only">{title}</DialogTitle>
+    <MotionModal open={isOpen} onClose={onCancel} className="p-0 overflow-hidden max-h-[80vh] flex flex-col">
         <div className="p-6 flex flex-col flex-1 min-h-0">
-          <h3 className="text-lg font-bold text-white mb-1">{title}</h3>
+          <h3 className="text-lg font-bold text-foreground mb-1">{title}</h3>
           <p className="text-slate-400 text-sm mb-4">{message}</p>
           <div className="space-y-2 overflow-y-auto flex-1 mb-4">
             {options.map((opt) => (
@@ -201,10 +193,10 @@ export function SelectModal({
                 className={`w-full text-left p-3 rounded-xl border transition-all ${
                   selectedId === opt.id
                     ? 'border-bridge-accent bg-bridge-accent/10'
-                    : 'border-white/5 bg-white/5 hover:bg-white/10'
+                    : 'border-foreground/5 bg-foreground/5 hover:bg-foreground/10'
                 }`}
               >
-                <p className="text-white text-sm font-medium">{opt.label}</p>
+                <p className="text-foreground text-sm font-medium">{opt.label}</p>
                 {opt.description && (
                   <p className="text-slate-400 text-xs mt-0.5">{opt.description}</p>
                 )}
@@ -214,7 +206,7 @@ export function SelectModal({
           <div className="flex gap-3">
             <button
               onClick={onCancel}
-              className="flex-1 px-4 py-2.5 bg-white/5 border border-white/10 text-white rounded-xl hover:bg-white/10 transition-all text-sm font-medium"
+              className="flex-1 px-4 py-2.5 bg-foreground/5 border border-foreground/10 text-foreground rounded-xl hover:bg-foreground/10 transition-all text-sm font-medium"
             >
               {cancelLabel || t('common.cancel')}
             </button>
@@ -227,8 +219,7 @@ export function SelectModal({
             </button>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+    </MotionModal>
   );
 }
 

@@ -63,12 +63,12 @@ export function MeetingView({ boardId, selectedDate, boardMembers, onRefreshSche
           {onOpenCalendar && (
             <button
               onClick={onOpenCalendar}
-              className="md:hidden p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
+              className="md:hidden p-1.5 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
             >
               <Calendar size={18} />
             </button>
           )}
-          <h3 className="text-base font-semibold text-white">
+          <h3 className="text-base font-semibold text-foreground">
             {format(selectedDate, 'M월 d일 (E)', { locale: ko })}
           </h3>
         </div>
@@ -90,7 +90,7 @@ export function MeetingView({ boardId, selectedDate, boardMembers, onRefreshSche
         </div>
       ) : meetings.length === 0 ? (
         <div className="text-center py-16">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-white/5 flex items-center justify-center">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-foreground/5 flex items-center justify-center">
             <Users className="h-8 w-8 text-slate-400" />
           </div>
           <p className="text-slate-400 text-sm">{t('meeting.noMeetings')}</p>
@@ -103,7 +103,7 @@ export function MeetingView({ boardId, selectedDate, boardMembers, onRefreshSche
               <div
                 key={meeting.id}
                 className={`bg-bridge-obsidian rounded-xl border transition-all ${
-                  isExpanded ? 'border-white/10' : 'border-white/5 hover:bg-white/[0.03] hover:border-white/10'
+                  isExpanded ? 'border-foreground/10' : 'border-foreground/5 hover:bg-white/[0.03] hover:border-foreground/10'
                 }`}
               >
                 <button
@@ -113,7 +113,7 @@ export function MeetingView({ boardId, selectedDate, boardMembers, onRefreshSche
                   <div className="flex items-center gap-3">
                     <div className="flex-1 min-w-0">
                       <div className={`text-sm font-medium truncate transition-colors ${
-                        isExpanded ? 'text-bridge-accent' : 'text-white group-hover:text-bridge-accent'
+                        isExpanded ? 'text-bridge-accent' : 'text-foreground group-hover:text-bridge-accent'
                       }`}>
                         {meeting.title}
                       </div>
@@ -246,13 +246,13 @@ function MeetingCreateModal({ boardId, selectedDate, onClose, onCreated }: Meeti
 
   return (
     <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-bridge-obsidian rounded-2xl shadow-2xl w-[480px] max-w-[calc(100vw-2rem)] max-h-[90vh] flex flex-col overflow-hidden border border-white/10">
+      <div className="bg-bridge-obsidian rounded-2xl shadow-2xl w-[480px] max-w-[calc(100vw-2rem)] max-h-[90vh] flex flex-col overflow-hidden border border-foreground/10">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
-          <h2 className="text-lg font-bold text-white">{t('meeting.addMeeting')}</h2>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-foreground/10">
+          <h2 className="text-lg font-bold text-foreground">{t('meeting.addMeeting')}</h2>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-white transition-colors"
+            className="text-slate-400 hover:text-foreground transition-colors"
           >
             <X className="h-5 w-5" />
           </button>
@@ -271,7 +271,7 @@ function MeetingCreateModal({ boardId, selectedDate, onClose, onCreated }: Meeti
               value={title}
               onChange={e => setTitle(e.target.value)}
               placeholder={t('meeting.titlePlaceholder')}
-              className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+              className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-foreground placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
             />
           </div>
 
@@ -285,7 +285,7 @@ function MeetingCreateModal({ boardId, selectedDate, onClose, onCreated }: Meeti
               onChange={e => setMemo(e.target.value)}
               placeholder={t('meeting.memoPlaceholder')}
               rows={3}
-              className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all resize-none"
+              className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-sm text-foreground placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all resize-none"
             />
           </div>
 
@@ -297,7 +297,7 @@ function MeetingCreateModal({ boardId, selectedDate, onClose, onCreated }: Meeti
             <select
               value={recurrenceRule}
               onChange={e => setRecurrenceRule(e.target.value)}
-              className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+              className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
             >
               <option value="">{t('meeting.noRecurrence', '반복 안 함')}</option>
               <option value="WEEKLY">{t('meeting.recurrenceWeekly', '매주')}</option>
@@ -330,7 +330,7 @@ function MeetingCreateModal({ boardId, selectedDate, onClose, onCreated }: Meeti
                       className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
                         isSelected
                           ? 'bg-bridge-accent text-white shadow-lg shadow-bridge-accent/20'
-                          : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
+                          : 'bg-foreground/5 text-slate-400 hover:bg-foreground/10 hover:text-foreground'
                       }`}
                     >
                       {label}
@@ -349,7 +349,7 @@ function MeetingCreateModal({ boardId, selectedDate, onClose, onCreated }: Meeti
                   className={`flex-1 py-2.5 px-3 text-xs font-bold rounded-lg transition-all text-left ${
                     monthlyMode === 'DATE'
                       ? 'bg-bridge-accent text-white shadow-lg shadow-bridge-accent/20'
-                      : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
+                      : 'bg-foreground/5 text-slate-400 hover:bg-foreground/10 hover:text-foreground'
                   }`}
                 >
                   {t('meeting.monthlyByDate', '매월 {{date}}일', { date: getDate(selectedDate) })}
@@ -360,7 +360,7 @@ function MeetingCreateModal({ boardId, selectedDate, onClose, onCreated }: Meeti
                   className={`flex-1 py-2.5 px-3 text-xs font-bold rounded-lg transition-all text-left ${
                     monthlyMode === 'NTH_WEEKDAY'
                       ? 'bg-bridge-accent text-white shadow-lg shadow-bridge-accent/20'
-                      : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
+                      : 'bg-foreground/5 text-slate-400 hover:bg-foreground/10 hover:text-foreground'
                   }`}
                 >
                   {t('meeting.monthlyByWeekday', '매월 {{nth}} {{day}}', {
@@ -410,7 +410,7 @@ function MeetingCreateModal({ boardId, selectedDate, onClose, onCreated }: Meeti
                 type="date"
                 value={recurrenceEndDate}
                 onChange={e => setRecurrenceEndDate(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+                className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
               />
               <p className="mt-1 text-xs text-slate-500">
                 {t('meeting.recurrenceEndDateHint', '비워두면 계속 반복됩니다')}
@@ -420,10 +420,10 @@ function MeetingCreateModal({ boardId, selectedDate, onClose, onCreated }: Meeti
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-white/10 flex gap-3">
+        <div className="px-6 py-4 border-t border-foreground/10 flex gap-3">
           <button
             onClick={onClose}
-            className="flex-1 py-3 text-sm font-bold text-slate-400 hover:text-white transition-colors border border-white/10 rounded-xl hover:bg-white/5"
+            className="flex-1 py-3 text-sm font-bold text-slate-400 hover:text-foreground transition-colors border border-foreground/10 rounded-xl hover:bg-foreground/5"
           >
             {t('common.cancel')}
           </button>

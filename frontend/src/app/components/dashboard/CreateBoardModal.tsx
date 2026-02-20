@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Check, User, Users, ArrowLeft, CalendarDays, BookHeart, Sparkles, Columns3, MessageSquare, BarChart3 } from 'lucide-react';
-import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
+import { MotionModal } from '../ui/MotionModal';
 
 const GRADIENTS = [
   'linear-gradient(135deg, #6366F1 0%, #a855f7 100%)',
@@ -55,18 +55,16 @@ export function CreateBoardModal({ isOpen, onClose, onCreate, hasPersonalSpace, 
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) handleClose(); }}>
-      <DialogContent className="bg-bridge-obsidian text-foreground border-white/20 p-0 gap-0 [&>button:last-child]:hidden overflow-hidden rounded-2xl" style={{ maxWidth: 'min(calc(100vw - 2rem), 32rem)' }}>
-        <DialogTitle className="sr-only">{t('dashboard.createNewBoard')}</DialogTitle>
+    <MotionModal open={isOpen} onClose={handleClose} className="sm:max-w-lg p-0 overflow-hidden">
 
         {step === 'select' ? (
           /* Step 1: 개인/팀 선택 */
           <div className="p-6 sm:p-10 space-y-6 sm:space-y-8">
             <div className="flex justify-between items-center">
-              <h2 className="text-xl sm:text-2xl font-bold text-white">{t('createBoard.selectType', '어떤 보드를 만들까요?')}</h2>
+              <h2 className="text-xl sm:text-2xl font-bold text-foreground">{t('createBoard.selectType', '어떤 보드를 만들까요?')}</h2>
               <button
                 onClick={handleClose}
-                className="text-slate-400 hover:text-white transition-colors shrink-0"
+                className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
               >
                 <X size={20} />
               </button>
@@ -76,7 +74,7 @@ export function CreateBoardModal({ isOpen, onClose, onCreate, hasPersonalSpace, 
               {/* 나만을 위한 보드 (My Space) */}
               <button
                 onClick={handleActivatePersonalSpace}
-                className="group relative overflow-hidden rounded-2xl border border-white/10 hover:border-bridge-secondary/50 transition-all text-left"
+                className="group relative overflow-hidden rounded-2xl border border-bridge-border hover:border-bridge-secondary/50 transition-all text-left"
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-bridge-secondary/10 via-purple-500/5 to-bridge-accent/10 opacity-50 group-hover:opacity-100 transition-opacity" />
                 <div className="relative p-6 sm:p-9 flex flex-row sm:flex-col items-center sm:text-center gap-4 sm:gap-5">
@@ -85,7 +83,7 @@ export function CreateBoardModal({ isOpen, onClose, onCreate, hasPersonalSpace, 
                     <User size={36} className="text-bridge-secondary hidden sm:block" />
                   </div>
                   <div className="min-w-0">
-                    <h3 className="text-base sm:text-lg font-bold text-white mb-1 sm:mb-2 group-hover:text-bridge-secondary transition-colors">
+                    <h3 className="text-base sm:text-lg font-bold text-foreground mb-1 sm:mb-2 group-hover:text-bridge-secondary transition-colors">
                       {t('createBoard.personalTitle', '나만을 위한 보드')}
                     </h3>
                     <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
@@ -109,7 +107,7 @@ export function CreateBoardModal({ isOpen, onClose, onCreate, hasPersonalSpace, 
               {/* 팀과 협업하는 보드 */}
               <button
                 onClick={() => setStep('form')}
-                className="group relative overflow-hidden rounded-2xl border border-white/10 hover:border-bridge-accent/50 transition-all text-left"
+                className="group relative overflow-hidden rounded-2xl border border-bridge-border hover:border-bridge-accent/50 transition-all text-left"
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-bridge-accent/10 via-indigo-500/5 to-purple-500/10 opacity-50 group-hover:opacity-100 transition-opacity" />
                 <div className="relative p-6 sm:p-9 flex flex-row sm:flex-col items-center sm:text-center gap-4 sm:gap-5">
@@ -118,7 +116,7 @@ export function CreateBoardModal({ isOpen, onClose, onCreate, hasPersonalSpace, 
                     <Users size={36} className="text-bridge-accent hidden sm:block" />
                   </div>
                   <div className="min-w-0">
-                    <h3 className="text-base sm:text-lg font-bold text-white mb-1 sm:mb-2 group-hover:text-bridge-accent transition-colors">
+                    <h3 className="text-base sm:text-lg font-bold text-foreground mb-1 sm:mb-2 group-hover:text-bridge-accent transition-colors">
                       {t('createBoard.teamTitle', '팀과 협업하는 보드')}
                     </h3>
                     <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
@@ -160,16 +158,16 @@ export function CreateBoardModal({ isOpen, onClose, onCreate, hasPersonalSpace, 
                   {!hasPersonalSpace && (
                     <button
                       onClick={() => setStep('select')}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
+                      className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors"
                     >
                       <ArrowLeft size={18} />
                     </button>
                   )}
-                  <h2 className="text-lg font-bold text-white">{t('createBoard.title', '새 보드 만들기')}</h2>
+                  <h2 className="text-lg font-bold text-foreground">{t('createBoard.title', '새 보드 만들기')}</h2>
                 </div>
                 <button
                   onClick={handleClose}
-                  className="text-slate-400 hover:text-white transition-colors"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
                 >
                   <X size={20} />
                 </button>
@@ -187,7 +185,7 @@ export function CreateBoardModal({ isOpen, onClose, onCreate, hasPersonalSpace, 
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="보드 이름을 입력하세요"
-                    className="w-full bg-white/5 border border-white/20 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-bridge-accent focus:ring-2 focus:ring-bridge-accent/20 transition-all"
+                    className="w-full bg-foreground/5 border border-bridge-border rounded-xl px-4 py-3 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-bridge-accent focus:ring-2 focus:ring-bridge-accent/20 transition-all"
                     onKeyDown={(e) => {
                       if (e.nativeEvent.isComposing) return;
                       if (e.key === 'Enter' && !e.shiftKey) {
@@ -207,7 +205,7 @@ export function CreateBoardModal({ isOpen, onClose, onCreate, hasPersonalSpace, 
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder={t('board.boardDescPlaceholder')}
-                    className="w-full bg-white/5 border border-white/20 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-bridge-accent focus:ring-2 focus:ring-bridge-accent/20 transition-all resize-none"
+                    className="w-full bg-foreground/5 border border-bridge-border rounded-xl px-4 py-3 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-bridge-accent focus:ring-2 focus:ring-bridge-accent/20 transition-all resize-none"
                   />
                 </div>
 
@@ -239,7 +237,7 @@ export function CreateBoardModal({ isOpen, onClose, onCreate, hasPersonalSpace, 
               <div className="flex gap-3 pt-4">
                 <button
                   onClick={handleClose}
-                  className="flex-1 py-3 text-sm font-bold text-slate-400 hover:text-white transition-colors"
+                  className="flex-1 py-3 text-sm font-bold text-muted-foreground hover:text-foreground transition-colors"
                 >
                   {t('dashboard.cancel')}
                 </button>
@@ -254,7 +252,6 @@ export function CreateBoardModal({ isOpen, onClose, onCreate, hasPersonalSpace, 
             </div>
           </>
         )}
-      </DialogContent>
-    </Dialog>
+    </MotionModal>
   );
 }

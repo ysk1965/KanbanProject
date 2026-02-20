@@ -75,7 +75,7 @@ export function ResetPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen w-full relative flex items-center justify-center p-4 md:p-8 overflow-hidden bg-bridge-dark text-white">
+    <div className="min-h-screen w-full relative flex items-center justify-center p-4 md:p-8 overflow-hidden bg-bridge-dark text-foreground">
       {/* Background Gradient */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10">
         <div
@@ -87,17 +87,17 @@ export function ResetPasswordPage() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-[500px] bg-bridge-obsidian rounded-[32px] p-8 md:p-12 border border-white/20 shadow-2xl"
+        className="w-full max-w-[500px] bg-bridge-obsidian rounded-[32px] p-8 md:p-12 border border-bridge-border shadow-2xl"
       >
         {/* Loading State */}
         {status === 'loading' && (
           <>
             <div className="flex justify-center mb-8">
-              <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center">
+              <div className="w-20 h-20 bg-foreground/5 rounded-full flex items-center justify-center">
                 <Loader2 className="w-10 h-10 text-bridge-accent animate-spin" />
               </div>
             </div>
-            <h1 className="text-2xl font-bold text-white text-center mb-4">
+            <h1 className="text-2xl font-bold text-foreground text-center mb-4">
               {t('resetPassword.changing')}
             </h1>
             <p className="text-slate-400 text-center">{t('common.pleaseWait')}</p>
@@ -115,7 +115,7 @@ export function ResetPasswordPage() {
             </div>
 
             {/* Title */}
-            <h1 className="text-2xl md:text-3xl font-bold text-white text-center mb-4">
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground text-center mb-4">
               {t('resetPassword.title')}
             </h1>
 
@@ -137,12 +137,12 @@ export function ResetPasswordPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder={t('resetPassword.passwordPlaceholder')}
-                    className="w-full bg-white/5 border border-white/20 rounded-xl py-3 px-4 pr-12 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+                    className="w-full bg-foreground/5 border border-bridge-border rounded-xl py-3 px-4 pr-12 text-foreground placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-foreground transition-colors"
                   >
                     {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
@@ -160,12 +160,12 @@ export function ResetPasswordPage() {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder={t('resetPassword.confirmPlaceholder')}
-                    className="w-full bg-white/5 border border-white/20 rounded-xl py-3 px-4 pr-12 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+                    className="w-full bg-foreground/5 border border-bridge-border rounded-xl py-3 px-4 pr-12 text-foreground placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-foreground transition-colors"
                   >
                     {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
@@ -198,7 +198,7 @@ export function ResetPasswordPage() {
                 <CheckCircle className="w-10 h-10 text-white" />
               </div>
             </div>
-            <h1 className="text-2xl md:text-3xl font-bold text-white text-center mb-4">
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground text-center mb-4">
               {t('resetPassword.successTitle')}
             </h1>
             <p className="text-slate-400 text-center mb-8">
@@ -222,7 +222,7 @@ export function ResetPasswordPage() {
                 <XCircle className="w-10 h-10 text-white" />
               </div>
             </div>
-            <h1 className="text-2xl md:text-3xl font-bold text-white text-center mb-4">
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground text-center mb-4">
               {t('resetPassword.errorTitle')}
             </h1>
             <p className="text-slate-400 text-center mb-8">
@@ -230,7 +230,7 @@ export function ResetPasswordPage() {
             </p>
             <button
               onClick={() => navigate('/forgot-password')}
-              className="w-full h-14 bg-white/5 border border-white/20 text-white rounded-2xl font-bold transition-all duration-300 flex items-center justify-center gap-2 hover:bg-white/10"
+              className="w-full h-14 bg-foreground/5 border border-bridge-border text-foreground rounded-2xl font-bold transition-all duration-300 flex items-center justify-center gap-2 hover:bg-foreground/10"
             >
               {t('resetPassword.requestAgain')}
               <ArrowRight className="w-5 h-5" />
@@ -239,8 +239,8 @@ export function ResetPasswordPage() {
         )}
 
         {/* Footer */}
-        <div className="mt-8 pt-6 border-t border-white/15">
-          <Link to="/" className="block text-center text-sm text-slate-400 hover:text-white transition-colors">
+        <div className="mt-8 pt-6 border-t border-bridge-border">
+          <Link to="/" className="block text-center text-sm text-slate-400 hover:text-foreground transition-colors">
             {t('resetPassword.backToHome')}
           </Link>
         </div>

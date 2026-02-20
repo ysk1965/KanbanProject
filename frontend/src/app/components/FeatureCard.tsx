@@ -146,7 +146,7 @@ export function FeatureCard({ feature, onClick, availableTags = [], tasks = [], 
             onClick={handleExpandClick}
             className="flex items-center gap-1 group/sub"
           >
-            <span className="text-[10px] font-bold text-zinc-300 group-hover/sub:text-foreground transition-colors">
+            <span className="text-[10px] font-bold text-muted-foreground group-hover/sub:text-foreground transition-colors">
               {t('feature.subtasks')}
             </span>
             {isExpanded ? (
@@ -164,7 +164,7 @@ export function FeatureCard({ feature, onClick, availableTags = [], tasks = [], 
           {tasks.map((task) => (
             <div
               key={task.id}
-              className="flex items-center gap-2 p-2 rounded-lg bg-bridge-surface-hover hover:bg-white/5 transition-colors"
+              className="flex items-center gap-2 p-2 rounded-lg bg-bridge-surface-hover hover:bg-foreground/5 transition-colors"
             >
               <div
                 className={`w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 ${
@@ -187,7 +187,7 @@ export function FeatureCard({ feature, onClick, availableTags = [], tasks = [], 
               </div>
               <span
                 className={`text-xs flex-1 ${
-                  task.completed ? 'text-zinc-400 line-through' : 'text-zinc-200'
+                  task.completed ? 'text-muted-foreground line-through' : 'text-foreground'
                 }`}
               >
                 {task.title}

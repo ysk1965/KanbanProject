@@ -90,7 +90,7 @@ export function KanbanFilterToolbar({
               className={`flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm transition-all ${
                 filterOptions.members.includes('__no_members__')
                   ? 'bg-zinc-600 text-foreground'
-                  : 'text-zinc-300 hover:bg-white/5'
+                  : 'text-muted-foreground hover:bg-foreground/5'
               }`}
             >
               <Circle size={14} className="text-zinc-400" />
@@ -110,8 +110,8 @@ export function KanbanFilterToolbar({
                 }}
                 className={`flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm transition-all ${
                   filterOptions.members.includes(member.name)
-                    ? 'bg-white/10 text-white'
-                    : 'text-zinc-300 hover:bg-white/5'
+                    ? 'bg-foreground/10 text-foreground'
+                    : 'text-muted-foreground hover:bg-foreground/5'
                 }`}
               >
                 <div
@@ -167,7 +167,7 @@ export function KanbanFilterToolbar({
                 className={`flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm transition-all ${
                   filterOptions.features.includes(feature.id)
                     ? 'bg-bridge-secondary/15 text-bridge-secondary'
-                    : 'text-zinc-300 hover:bg-white/5'
+                    : 'text-muted-foreground hover:bg-foreground/5'
                 }`}
               >
                 <div
@@ -276,7 +276,7 @@ export function KanbanFilterToolbar({
               className={`flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm transition-all ${
                 filterOptions.cardStatus.includes('completed')
                   ? 'bg-green-500/20 text-green-300'
-                  : 'text-zinc-300 hover:bg-white/5'
+                  : 'text-muted-foreground hover:bg-foreground/5'
               }`}
             >
               <CheckCircle2 size={14} className="text-green-400" />
@@ -298,7 +298,7 @@ export function KanbanFilterToolbar({
               className={`flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm transition-all ${
                 filterOptions.cardStatus.includes('incomplete')
                   ? 'bg-yellow-500/20 text-yellow-300'
-                  : 'text-zinc-300 hover:bg-white/5'
+                  : 'text-muted-foreground hover:bg-foreground/5'
               }`}
             >
               <Circle size={14} className="text-yellow-400" />
@@ -333,7 +333,7 @@ export function KanbanFilterToolbar({
         <div className="flex items-center gap-1 shrink-0">
           <button
             onClick={onExpandAll}
-            className="flex items-center gap-1.5 px-3 py-2 text-xs text-zinc-500 hover:text-white hover:bg-bridge-surface-hover rounded-lg transition-colors"
+            className="flex items-center gap-1.5 px-3 py-2 text-xs text-zinc-500 hover:text-foreground hover:bg-bridge-surface-hover rounded-lg transition-colors"
             title={t('kanban.expandAll')}
           >
             <ChevronsUpDown size={14} />
@@ -341,7 +341,7 @@ export function KanbanFilterToolbar({
           </button>
           <button
             onClick={onCollapseAll}
-            className="flex items-center gap-1.5 px-3 py-2 text-xs text-zinc-500 hover:text-white hover:bg-bridge-surface-hover rounded-lg transition-colors"
+            className="flex items-center gap-1.5 px-3 py-2 text-xs text-zinc-500 hover:text-foreground hover:bg-bridge-surface-hover rounded-lg transition-colors"
             title={t('kanban.collapseAll')}
           >
             <ChevronsDownUp size={14} />

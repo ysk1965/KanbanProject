@@ -95,10 +95,10 @@ function KanbanIllustration() {
         {/* Header */}
         <div className="flex items-center gap-2 mb-4">
           <div className="w-3 h-3 rounded-full bg-bridge-secondary/60" />
-          <div className="h-2.5 w-24 bg-white/10 rounded-full" />
+          <div className="h-2.5 w-24 bg-foreground/10 rounded-full" />
           <div className="ml-auto flex gap-1">
-            <div className="w-2 h-2 rounded-full bg-white/10" />
-            <div className="w-2 h-2 rounded-full bg-white/10" />
+            <div className="w-2 h-2 rounded-full bg-foreground/10" />
+            <div className="w-2 h-2 rounded-full bg-foreground/10" />
           </div>
         </div>
         {/* Columns */}
@@ -152,7 +152,7 @@ function ScheduleIllustration() {
       <div className="bg-white/[0.04] rounded-2xl border border-white/[0.08] p-4 backdrop-blur-sm">
         <div className="flex items-center gap-2 mb-4">
           <CalendarDays size={14} className="text-teal-400/60" />
-          <div className="h-2.5 w-20 bg-white/10 rounded-full" />
+          <div className="h-2.5 w-20 bg-foreground/10 rounded-full" />
         </div>
         {/* Day headers */}
         <div className="flex gap-1 mb-3 pl-8">
@@ -205,7 +205,7 @@ function AIIllustration() {
       <div className="bg-white/[0.04] rounded-2xl border border-white/[0.08] p-4 backdrop-blur-sm">
         <div className="flex items-center gap-2 mb-4">
           <Sparkles size={14} className="text-purple-400/60" />
-          <div className="h-2.5 w-24 bg-white/10 rounded-full" />
+          <div className="h-2.5 w-24 bg-foreground/10 rounded-full" />
         </div>
         {/* Chart area */}
         <div className="flex items-end gap-3 h-28 px-2">
@@ -403,7 +403,7 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
                           </span>
                         </motion.div>
 
-                        <h2 className="text-2xl md:text-3xl font-bold text-white mb-3 tracking-tight">
+                        <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-3 tracking-tight">
                           {t('onboarding.welcome.title')}
                         </h2>
                         <p className="text-slate-400 text-sm leading-relaxed mb-8 max-w-sm">
@@ -426,7 +426,7 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
                               <div className={`w-8 h-8 rounded-lg ${item.bg} flex items-center justify-center ${item.color}`}>
                                 {item.icon}
                               </div>
-                              <span className="text-sm text-slate-300">{item.text}</span>
+                              <span className="text-sm text-muted-foreground">{item.text}</span>
                             </motion.div>
                           ))}
                         </div>
@@ -436,7 +436,7 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
                     {/* Step 1: Features */}
                     {step === 1 && (
                       <div>
-                        <h2 className="text-2xl md:text-3xl font-bold text-white mb-2 tracking-tight">
+                        <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-2 tracking-tight">
                           {t('onboarding.features.title')}
                         </h2>
                         <p className="text-slate-400 text-sm mb-6">
@@ -456,7 +456,7 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
                                 {feature.icon}
                               </div>
                               <div className="min-w-0">
-                                <div className="text-sm font-semibold text-white truncate">
+                                <div className="text-sm font-semibold text-foreground truncate">
                                   {t(feature.labelKey)}
                                 </div>
                                 <div className="text-[11px] text-slate-500 truncate">
@@ -484,7 +484,7 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
                           </span>
                         </motion.div>
 
-                        <h2 className="text-2xl md:text-3xl font-bold text-white mb-3 tracking-tight">
+                        <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-3 tracking-tight">
                           {t('onboarding.quickstart.title')}
                         </h2>
                         <p className="text-slate-400 text-sm leading-relaxed mb-7 max-w-sm">
@@ -507,7 +507,7 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
                               <div className="w-6 h-6 rounded-full bg-bridge-secondary/15 flex items-center justify-center shrink-0 mt-0.5">
                                 <CheckCircle2 size={14} className="text-bridge-secondary" />
                               </div>
-                              <span className="text-sm text-slate-300 leading-relaxed">{tip}</span>
+                              <span className="text-sm text-muted-foreground leading-relaxed">{tip}</span>
                             </motion.div>
                           ))}
                         </div>
@@ -541,7 +541,7 @@ export function OnboardingModal({ isOpen, onClose }: OnboardingModalProps) {
                 <div className="flex items-center gap-3">
                   <button
                     onClick={handleSkip}
-                    className="px-4 py-2 text-sm text-slate-500 hover:text-slate-300 transition-colors"
+                    className="px-4 py-2 text-sm text-slate-500 hover:text-muted-foreground transition-colors"
                   >
                     {t('onboarding.skip')}
                   </button>

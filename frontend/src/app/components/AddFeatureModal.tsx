@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, CheckCircle2, CalendarIcon, ChevronDown } from 'lucide-react';
-import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
+import { MotionModal } from './ui/MotionModal';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { format } from 'date-fns';
@@ -55,11 +55,9 @@ export function AddFeatureModal({ open, onClose, onAdd, milestones = [], default
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="bg-bridge-dark text-foreground border-white/10 max-w-lg p-0 gap-0 [&>button:last-child]:hidden overflow-hidden rounded-2xl">
-        <DialogTitle className="sr-only">{t('feature.addTitle')}</DialogTitle>
+    <MotionModal open={open} onClose={onClose} className="sm:max-w-lg bg-bridge-dark p-0 overflow-hidden">
         {/* 헤더 */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-white/10 bg-white/[0.03]">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-foreground/10 bg-white/[0.03]">
           <h2 className="text-lg font-bold text-foreground">{t('feature.addTitle')}</h2>
           <button
             onClick={onClose}
@@ -78,7 +76,7 @@ export function AddFeatureModal({ open, onClose, onAdd, milestones = [], default
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder={t('feature.titlePlaceholder')}
-              className="w-full bg-bridge-obsidian border border-white/10 rounded-xl p-3 text-foreground placeholder-slate-500 focus:outline-none focus:border-indigo-500/50 transition-all text-sm"
+              className="w-full bg-bridge-obsidian border border-foreground/10 rounded-xl p-3 text-foreground placeholder-slate-500 focus:outline-none focus:border-indigo-500/50 transition-all text-sm"
               autoFocus
             />
           </div>
@@ -90,7 +88,7 @@ export function AddFeatureModal({ open, onClose, onAdd, milestones = [], default
               onChange={(e) => setDescription(e.target.value)}
               placeholder={t('feature.descriptionPlaceholder')}
               rows={3}
-              className="w-full bg-bridge-obsidian border border-white/10 rounded-xl p-3 text-foreground placeholder-slate-500 focus:outline-none focus:border-indigo-500/50 transition-all resize-none text-sm"
+              className="w-full bg-bridge-obsidian border border-foreground/10 rounded-xl p-3 text-foreground placeholder-slate-500 focus:outline-none focus:border-indigo-500/50 transition-all resize-none text-sm"
             />
           </div>
 
@@ -100,7 +98,7 @@ export function AddFeatureModal({ open, onClose, onAdd, milestones = [], default
               <PopoverTrigger asChild>
                 <button
                   type="button"
-                  className="w-full flex items-center bg-bridge-surface-hover border border-white/10 rounded-lg px-4 py-2.5 focus:outline-none focus:border-indigo-500/50 text-xs font-bold text-foreground transition-all text-left"
+                  className="w-full flex items-center bg-bridge-surface-hover border border-foreground/10 rounded-lg px-4 py-2.5 focus:outline-none focus:border-indigo-500/50 text-xs font-bold text-foreground transition-all text-left"
                 >
                   <CalendarIcon className="mr-2 h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
                   {dateRange?.from ? (
@@ -116,7 +114,7 @@ export function AddFeatureModal({ open, onClose, onAdd, milestones = [], default
                   )}
                 </button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0 bg-bridge-obsidian border-white/10" align="start">
+              <PopoverContent className="w-auto p-0 bg-bridge-obsidian border-foreground/10" align="start">
                 <Calendar
                   mode="range"
                   selected={dateRange}
@@ -126,7 +124,7 @@ export function AddFeatureModal({ open, onClose, onAdd, milestones = [], default
                   className="bg-bridge-obsidian text-foreground"
                 />
                 {dateRange && (
-                  <div className="p-2 border-t border-white/10 flex gap-2">
+                  <div className="p-2 border-t border-foreground/10 flex gap-2">
                     <button
                       type="button"
                       onClick={() => setDateRange(undefined)}
@@ -156,7 +154,7 @@ export function AddFeatureModal({ open, onClose, onAdd, milestones = [], default
                 <select
                   value={milestoneId}
                   onChange={(e) => setMilestoneId(e.target.value)}
-                  className="w-full appearance-none bg-bridge-surface-hover border border-white/10 rounded-lg px-4 py-2.5 focus:outline-none focus:border-indigo-500/50 text-xs font-bold text-foreground cursor-pointer"
+                  className="w-full appearance-none bg-bridge-surface-hover border border-foreground/10 rounded-lg px-4 py-2.5 focus:outline-none focus:border-indigo-500/50 text-xs font-bold text-foreground cursor-pointer"
                 >
                   <option value="">{t('kanban.noMilestone', '없음')}</option>
                   {milestones.map((m) => (
@@ -170,7 +168,7 @@ export function AddFeatureModal({ open, onClose, onAdd, milestones = [], default
         </div>
 
         {/* 푸터 */}
-        <div className="px-6 py-5 border-t border-white/10 bg-white/[0.03] flex justify-end items-center gap-4">
+        <div className="px-6 py-5 border-t border-foreground/10 bg-white/[0.03] flex justify-end items-center gap-4">
           <button
             onClick={onClose}
             className="text-[11px] font-bold text-slate-400 hover:text-foreground transition-all tracking-wider"
@@ -186,7 +184,6 @@ export function AddFeatureModal({ open, onClose, onAdd, milestones = [], default
             <CheckCircle2 size={14} className="text-indigo-600" />
           </button>
         </div>
-      </DialogContent>
-    </Dialog>
+    </MotionModal>
   );
 }

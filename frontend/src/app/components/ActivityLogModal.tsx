@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Activity, ChevronDown } from 'lucide-react';
 import { Button } from './ui/button';
-import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
+import { MotionModal } from './ui/MotionModal';
 import { ActivityLog } from '../utils/api';
 import { getInitials } from '../utils/assigneeColor';
 import { formatRelativeTime } from '../utils/dateUtils';
@@ -187,9 +187,7 @@ export function ActivityLogModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="bg-bridge-dark text-foreground border-white/10 max-w-2xl p-0 gap-0 [&>button:last-child]:hidden overflow-hidden rounded-2xl max-h-[90vh] flex flex-col">
-        <DialogTitle className="sr-only">{t('activity.title')}</DialogTitle>
+    <MotionModal open={open} onClose={onClose} className="sm:max-w-2xl p-0 overflow-hidden bg-bridge-dark flex flex-col">
         {/* 헤더 */}
         <div className="flex items-center justify-between p-6 border-b border-bridge-border">
           <div className="flex items-center gap-2">
@@ -216,7 +214,7 @@ export function ActivityLogModal({
               {activities.map((activity) => (
                 <div
                   key={activity.id}
-                  className="flex gap-4 p-4 bg-bridge-surface rounded-lg border border-bridge-border hover:border-white/10 transition-colors"
+                  className="flex gap-4 p-4 bg-bridge-surface rounded-lg border border-bridge-border hover:border-foreground/10 transition-colors"
                 >
                   {/* 아바타 */}
                   <div className="flex-shrink-0">
@@ -249,7 +247,7 @@ export function ActivityLogModal({
                   onClick={handleLoadMore}
                   disabled={isLoading}
                   variant="outline"
-                  className="w-full border-bridge-border text-slate-300 hover:bg-white/5 hover:text-white"
+                  className="w-full border-bridge-border text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
                 >
                   {isLoading ? (
                     t('activity.loading')
@@ -270,12 +268,11 @@ export function ActivityLogModal({
           <Button
             onClick={onClose}
             variant="outline"
-            className="w-full border-bridge-border text-slate-300 hover:bg-white/5 hover:text-white"
+            className="w-full border-bridge-border text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
           >
             {t('common.close')}
           </Button>
         </div>
-      </DialogContent>
-    </Dialog>
+    </MotionModal>
   );
 }

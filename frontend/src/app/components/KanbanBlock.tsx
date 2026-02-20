@@ -347,10 +347,10 @@ export const KanbanBlock = memo(function KanbanBlock({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="bg-bridge-surface border-bridge-border">
-              <DropdownMenuItem onClick={onEditBlock} className="text-zinc-300 hover:bg-bridge-surface-hover hover:text-foreground text-xs">
+              <DropdownMenuItem onClick={onEditBlock} className="text-muted-foreground hover:bg-bridge-surface-hover hover:text-foreground text-xs">
                 {t('kanbanBlock.rename')}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={onEditBlock} className="text-zinc-300 hover:bg-bridge-surface-hover hover:text-foreground text-xs">
+              <DropdownMenuItem onClick={onEditBlock} className="text-muted-foreground hover:bg-bridge-surface-hover hover:text-foreground text-xs">
                 {t('kanbanBlock.changeColor')}
               </DropdownMenuItem>
               <DropdownMenuSeparator className="bg-bridge-border" />
@@ -435,10 +435,10 @@ export const KanbanBlock = memo(function KanbanBlock({
 
       {/* Quick Add Card Button - always visible at bottom */}
       {onQuickAddTask && (
-        <div className="px-3 py-2.5 border-t border-white/5">
+        <div className="px-3 py-2.5 border-t border-foreground/5">
           <button
             onClick={() => onQuickAddTask(block.id)}
-            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-400 hover:text-foreground hover:bg-white/5 rounded-lg transition-all group"
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded-lg transition-all group"
           >
             <Plus size={16} className="text-slate-500 group-hover:text-bridge-accent transition-colors" />
             <span className="text-xs font-medium">{t('quickAdd.addCard', 'Add a card')}</span>

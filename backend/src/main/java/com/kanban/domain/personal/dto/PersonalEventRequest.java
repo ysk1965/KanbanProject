@@ -46,5 +46,10 @@ public class PersonalEventRequest {
         private LocalTime endTime;
         private String color;
         private Boolean allDay;
+
+        private String recurrenceRule;
+        private LocalDate recurrenceEndDate;
+        private List<Integer> recurrenceDaysOfWeek;
+        private String scope; // THIS_AND_FUTURE for recurring updates
     }
 }

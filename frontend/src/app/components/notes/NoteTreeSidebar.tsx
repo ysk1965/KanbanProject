@@ -252,7 +252,7 @@ export function NoteTreeSidebar({
 
       <DragOverlay dropAnimation={null}>
         {activeItem && (
-          <div className="flex items-center gap-2.5 px-3 py-2 bg-bridge-obsidian border border-bridge-accent/50 rounded-lg shadow-lg text-[15px] text-white opacity-90">
+          <div className="flex items-center gap-2.5 px-3 py-2 bg-bridge-obsidian border border-bridge-accent/50 rounded-lg shadow-lg text-[15px] text-foreground opacity-90">
             {activeItem.type === 'FOLDER' ? (
               <Folder size={18} className="text-bridge-accent" />
             ) : (
@@ -414,10 +414,10 @@ function TreeItemComponent({
         ref={setRef}
         className={`group flex items-center gap-2 px-2.5 py-2 rounded-lg cursor-pointer transition-all duration-150 text-[15px] ${
           isInsideTarget
-            ? 'bg-bridge-accent/20 text-white'
+            ? 'bg-bridge-accent/20 text-foreground'
             : isSelected
-              ? 'bg-bridge-accent/15 text-white'
-              : 'text-slate-300 hover:bg-white/5 hover:text-white'
+              ? 'bg-bridge-accent/15 text-foreground'
+              : 'text-muted-foreground hover:bg-foreground/5 hover:text-foreground'
         }`}
         style={{
           paddingLeft: `${indentPx}px`,
@@ -440,7 +440,7 @@ function TreeItemComponent({
         {(isFolder || hasChildren) ? (
           <button
             onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
-            className="flex-shrink-0 p-0.5 hover:bg-white/10 rounded"
+            className="flex-shrink-0 p-0.5 hover:bg-foreground/10 rounded"
           >
             {expanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
           </button>
@@ -465,7 +465,7 @@ function TreeItemComponent({
               if (e.key === 'Enter') handleRenameSubmit();
               if (e.key === 'Escape') { setRenaming(false); setRenameValue(item.title); }
             }}
-            className="flex-1 min-w-0 bg-white/10 border border-bridge-accent/50 rounded px-2 py-1 text-[15px] text-white focus:outline-none"
+            className="flex-1 min-w-0 bg-foreground/10 border border-bridge-accent/50 rounded px-2 py-1 text-[15px] text-foreground focus:outline-none"
             autoFocus
             onClick={(e) => e.stopPropagation()}
           />
@@ -478,17 +478,17 @@ function TreeItemComponent({
           <div className="relative opacity-0 group-hover:opacity-100 transition-opacity">
             <button
               onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }}
-              className="p-0.5 hover:bg-white/10 rounded"
+              className="p-0.5 hover:bg-foreground/10 rounded"
             >
               <MoreHorizontal size={16} />
             </button>
             {menuOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
-                <div className="absolute right-0 top-full mt-1 z-50 bg-bridge-obsidian border border-white/10 rounded-lg shadow-xl py-1.5 min-w-[160px]">
+                <div className="absolute right-0 top-full mt-1 z-50 bg-bridge-obsidian border border-foreground/10 rounded-lg shadow-xl py-1.5 min-w-[160px]">
                   <button
                     onClick={(e) => { e.stopPropagation(); setRenaming(true); setRenameValue(item.title); setMenuOpen(false); }}
-                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-slate-300 hover:bg-white/5 hover:text-white"
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
                   >
                     <Pencil size={14} /> {t('notes.rename', '이름 변경')}
                   </button>
@@ -496,13 +496,13 @@ function TreeItemComponent({
                     <>
                       <button
                         onClick={(e) => { e.stopPropagation(); onCreateDocument(item.id); setMenuOpen(false); }}
-                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-slate-300 hover:bg-white/5 hover:text-white"
+                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
                       >
                         <FilePlus size={14} /> {t('notes.newDocumentInFolder', '문서 추가')}
                       </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); onCreateFolder(item.id); setMenuOpen(false); }}
-                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-slate-300 hover:bg-white/5 hover:text-white"
+                        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
                       >
                         <FolderPlus size={14} /> {t('notes.newSubfolder', '하위 폴더')}
                       </button>

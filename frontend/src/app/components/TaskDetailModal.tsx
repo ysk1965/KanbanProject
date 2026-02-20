@@ -3,23 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Task, Tag, ChecklistItem, User, Block, Feature, BoardWebSocketEvent } from '../types';
 import { checklistAPI, taskAPI, scheduleAPI, ScheduleBlockDetailResponse } from '../utils/api';
 import { BoardMember } from './ShareBoardModal';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from './ui/dialog';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from './ui/alert-dialog';
+import { MotionModal } from './ui/MotionModal';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
@@ -469,29 +453,7 @@ export function TaskDetailModal({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="sm:max-w-[1100px] max-h-[calc(var(--visual-viewport-height,100vh)*0.85)] flex flex-col overflow-hidden bg-bridge-surface border border-bridge-border/50 shadow-[0_0_60px_rgba(0,0,0,0.5)] text-foreground p-0 [&>button:last-child]:hidden"
-          onPointerDownOutside={(e) => {
-            // Prevent dialog close when lightbox is open
-            if (document.querySelector('[data-lightbox-overlay]')) {
-              e.preventDefault();
-              return;
-            }
-            // Prevent dialog close when emoji picker is open
-            if ((e.target as HTMLElement)?.closest?.('[data-emoji-picker]')) {
-              e.preventDefault();
-              return;
-            }
-            if (hasChanges) {
-              e.preventDefault();
-              handleClose();
-            }
-          }}
-          onEscapeKeyDown={(e) => {
-            if (document.querySelector('[data-lightbox-overlay]')) {
-              e.preventDefault();
-            }
-          }}>
+      <MotionModal open={open} onClose={handleClose} overlayClose={false} className="sm:max-w-[1100px] max-h-[calc(var(--visual-viewport-height,100vh)*0.85)] flex flex-col overflow-hidden bg-bridge-surface p-0">
           {/* Feature color accent line */}
           <div className="h-[3px] w-full flex-shrink-0 rounded-t-lg" style={{ backgroundColor: task.feature_color }} />
           <div className="flex flex-col md:flex-row flex-1 min-h-0">
@@ -504,7 +466,7 @@ export function TaskDetailModal({
           >
             <X className="h-4 w-4" />
           </button>
-          <DialogHeader>
+          <div>
             {/* 피처 & 블록 상태 표시 */}
             <div className="flex items-center gap-2 mb-3 flex-wrap">
               {/* 피처 뱃지 */}
@@ -519,7 +481,7 @@ export function TaskDetailModal({
                 {canEdit && onMoveToFeature && features.length > 1 && (
                   <button
                     onClick={() => setShowMoveFeatureDialog(true)}
-                    className="p-1 rounded-full text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                    className="p-1 rounded-full text-slate-400 hover:text-foreground hover:bg-foreground/10 transition-colors"
                     title={t('task.moveFeature')}
                   >
                     <ArrowRightLeft className="h-3 w-3" />
@@ -528,13 +490,13 @@ export function TaskDetailModal({
               </div>
               {/* 현재 블록 상태 */}
               {task.block_name && (
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-white/10 text-slate-300 border border-white/10">
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-foreground/10 text-muted-foreground border border-foreground/10">
                   <Layers className="h-3 w-3" />
                   {task.block_name}
                 </div>
               )}
             </div>
-            <DialogTitle>
+            <div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 flex-1 group">
                   {canEdit && isEditingTitle ? (
@@ -548,12 +510,12 @@ export function TaskDetailModal({
                           setIsEditingTitle(false);
                         }
                       }}
-                      className="text-lg font-semibold border border-white/10 px-2 py-1 rounded-lg focus-visible:ring-1 focus-visible:ring-bridge-accent bg-white/5 text-foreground"
+                      className="text-lg font-semibold border border-foreground/10 px-2 py-1 rounded-lg focus-visible:ring-1 focus-visible:ring-bridge-accent bg-foreground/5 text-foreground"
                       autoFocus
                     />
                   ) : (
                     <div
-                      className={`flex items-center gap-2 px-2 py-1 rounded-lg transition-colors ${canEdit ? 'cursor-pointer hover:bg-white/5' : ''}`}
+                      className={`flex items-center gap-2 px-2 py-1 rounded-lg transition-colors ${canEdit ? 'cursor-pointer hover:bg-foreground/5' : ''}`}
                       onClick={() => canEdit && setIsEditingTitle(true)}
                     >
                       <span className="text-lg font-semibold text-foreground">
@@ -591,7 +553,7 @@ export function TaskDetailModal({
                       variant="ghost"
                       size="sm"
                       onClick={() => setMoveCopyMode('move')}
-                      className="text-slate-400 hover:text-white hover:bg-white/10"
+                      className="text-slate-400 hover:text-foreground hover:bg-foreground/10"
                       title={t('task.moveToBoard', '다른 보드로 이동')}
                     >
                       <ArrowRight className="h-4 w-4" />
@@ -600,7 +562,7 @@ export function TaskDetailModal({
                       variant="ghost"
                       size="sm"
                       onClick={() => setMoveCopyMode('copy')}
-                      className="text-slate-400 hover:text-white hover:bg-white/10"
+                      className="text-slate-400 hover:text-foreground hover:bg-foreground/10"
                       title={t('task.copyToBoard', '다른 보드로 복사')}
                     >
                       <Copy className="h-4 w-4" />
@@ -616,11 +578,8 @@ export function TaskDetailModal({
                   </div>
                 )}
               </div>
-            </DialogTitle>
-            <DialogDescription className="sr-only">
-              {t('task.editDescription')}
-            </DialogDescription>
-          </DialogHeader>
+            </div>
+          </div>
 
           <div className="space-y-5">
             {/* 설명 섹션 */}
@@ -664,7 +623,7 @@ export function TaskDetailModal({
                       )}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 bg-bridge-obsidian border-white/10" align="start">
+                  <PopoverContent className="w-auto p-0 bg-bridge-obsidian border-foreground/10" align="start">
                     <Calendar
                       mode="range"
                       selected={{
@@ -682,7 +641,7 @@ export function TaskDetailModal({
                       className="bg-bridge-obsidian text-foreground"
                     />
                     {(editedTask.start_date || editedTask.due_date) && (
-                      <div className="p-2 border-t border-white/10">
+                      <div className="p-2 border-t border-foreground/10">
                         <Button
                           variant="ghost"
                           size="sm"
@@ -738,7 +697,7 @@ export function TaskDetailModal({
                     const memberData = boardMembers.find((m) => m.userId === assignee.id);
                     const color = getAssigneeClasses(assignee.name, memberData?.assigneeColor);
                     return (
-                      <div key={assignee.id} className={`flex items-center gap-2 px-3 py-2 ${color.bgLight} border border-white/10 rounded-lg`}
+                      <div key={assignee.id} className={`flex items-center gap-2 px-3 py-2 ${color.bgLight} border border-foreground/10 rounded-lg`}
                         style={!color.bgLight ? { backgroundColor: color.hex + '20' } : undefined}
                       >
                         <div className={`w-6 h-6 rounded-full ${color.bg} flex items-center justify-center text-xs text-white whitespace-nowrap overflow-hidden`}
@@ -798,14 +757,14 @@ export function TaskDetailModal({
           </div>
 
           {/* 체크리스트 섹션 */}
-          <div className="mt-6 pt-6 border-t border-white/10">
+          <div className="mt-6 pt-6 border-t border-foreground/10">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <CheckSquare className="h-5 w-5" style={{ color: task.feature_color || '#6366F1' }} />
                 <Label className="text-base font-semibold text-foreground">CheckList</Label>
               </div>
               <div className="flex items-center gap-3">
-                <div className="w-24 h-2 bg-white/10 rounded-full overflow-hidden">
+                <div className="w-24 h-2 bg-foreground/10 rounded-full overflow-hidden">
                   <div
                     className="h-full rounded-full transition-all duration-300"
                     style={{ width: `${checklistProgress}%`, backgroundColor: task.feature_color || '#6366F1' }}
@@ -825,7 +784,7 @@ export function TaskDetailModal({
                     <Lightbulb size={14} style={{ color: task.feature_color || '#6366F1' }} />
                   </div>
                   <div>
-                    <p className="text-xs font-semibold text-zinc-300 mb-1">
+                    <p className="text-xs font-semibold text-foreground/80 mb-1">
                       {t('task.addChecklistHint')}
                     </p>
                     <p className="text-[11px] text-zinc-500 leading-relaxed">
@@ -871,8 +830,8 @@ export function TaskDetailModal({
 
           {/* 저장 버튼 - 변경사항이 있을 때만 표시 (Viewer는 저장 불가) */}
           {canEdit && hasChanges && (
-            <div className="flex justify-end gap-2 pt-4 border-t border-white/10">
-              <Button variant="outline" onClick={handleClose} className="bg-white/5 border-white/10 text-foreground hover:bg-white/10">
+            <div className="flex justify-end gap-2 pt-4 border-t border-foreground/10">
+              <Button variant="outline" onClick={handleClose} className="bg-foreground/5 border-foreground/10 text-foreground hover:bg-foreground/10">
                 {t('common.cancel')}
               </Button>
               <Button onClick={handleSave} className="bg-bridge-accent hover:bg-bridge-accent/90">
@@ -904,311 +863,266 @@ export function TaskDetailModal({
             </div>
           )}
           </div>
-        </DialogContent>
-      </Dialog>
+      </MotionModal>
 
       {/* 확인 다이얼로그 */}
-      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-        <AlertDialogContent className="bg-bridge-obsidian border-white/10">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-foreground">{t('task.saveChangesTitle')}</AlertDialogTitle>
-            <AlertDialogDescription className="text-slate-400">
-              {t('task.saveChangesDesc')}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={handleDiscardAndClose} className="bg-white/5 border-white/10 text-foreground hover:bg-white/10">
-              {t('task.discard')}
-            </AlertDialogCancel>
-            <AlertDialogAction onClick={handleSaveAndClose} className="bg-bridge-accent hover:bg-bridge-accent/90">
-              {t('common.save')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <MotionModal open={showConfirmDialog} onClose={() => setShowConfirmDialog(false)} className="sm:max-w-sm p-6">
+        <h3 className="text-lg font-semibold text-foreground">{t('task.saveChangesTitle')}</h3>
+        <p className="text-sm text-slate-400 mt-1">{t('task.saveChangesDesc')}</p>
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end mt-4">
+          <button onClick={handleDiscardAndClose} className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-foreground/5 border border-foreground/10 text-foreground hover:bg-foreground/10">
+            {t('task.discard')}
+          </button>
+          <button onClick={handleSaveAndClose} className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-bridge-accent text-white hover:bg-bridge-accent/90">
+            {t('common.save')}
+          </button>
+        </div>
+      </MotionModal>
 
       {/* 삭제 다이얼로그 */}
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent className="bg-bridge-obsidian border-white/10">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-foreground">{t('task.deleteTitle')}</AlertDialogTitle>
-            <AlertDialogDescription className="text-slate-400">
-              {t('task.deleteDesc')}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setShowDeleteDialog(false)} className="bg-white/5 border-white/10 text-foreground hover:bg-white/10">
-              {t('common.cancel')}
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (task) {
-                  onDelete(task.id);
-                }
-                setShowDeleteDialog(false);
-                onClose();
-              }}
-              className="bg-red-500 hover:bg-red-600 text-white"
-            >
-              {t('common.delete')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <MotionModal open={showDeleteDialog} onClose={() => setShowDeleteDialog(false)} className="sm:max-w-sm p-6">
+        <h3 className="text-lg font-semibold text-foreground">{t('task.deleteTitle')}</h3>
+        <p className="text-sm text-slate-400 mt-1">{t('task.deleteDesc')}</p>
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end mt-4">
+          <button onClick={() => setShowDeleteDialog(false)} className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-foreground/5 border border-foreground/10 text-foreground hover:bg-foreground/10">
+            {t('common.cancel')}
+          </button>
+          <button
+            onClick={() => {
+              if (task) {
+                onDelete(task.id);
+              }
+              setShowDeleteDialog(false);
+              onClose();
+            }}
+            className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-red-500 hover:bg-red-600 text-white"
+          >
+            {t('common.delete')}
+          </button>
+        </div>
+      </MotionModal>
 
       {/* 완료 처리 다이얼로그 */}
-      <AlertDialog open={showDoneDialog} onOpenChange={setShowDoneDialog}>
-        <AlertDialogContent className="bg-bridge-obsidian border-white/10">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-foreground">{t('task.completeTitle')}</AlertDialogTitle>
-            <AlertDialogDescription className="text-slate-400">
-              {t('task.completeDesc')}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setShowDoneDialog(false)} className="bg-white/5 border-white/10 text-foreground hover:bg-white/10">
-              {t('common.cancel')}
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (task && onMoveToDone) {
-                  onMoveToDone(task.id);
-                }
-                setShowDoneDialog(false);
-                onClose();
-              }}
-              className="bg-emerald-500 hover:bg-emerald-600 text-white"
-            >
-              {t('task.markComplete')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <MotionModal open={showDoneDialog} onClose={() => setShowDoneDialog(false)} className="sm:max-w-sm p-6">
+        <h3 className="text-lg font-semibold text-foreground">{t('task.completeTitle')}</h3>
+        <p className="text-sm text-slate-400 mt-1">{t('task.completeDesc')}</p>
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end mt-4">
+          <button onClick={() => setShowDoneDialog(false)} className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-foreground/5 border border-foreground/10 text-foreground hover:bg-foreground/10">
+            {t('common.cancel')}
+          </button>
+          <button
+            onClick={() => {
+              if (task && onMoveToDone) {
+                onMoveToDone(task.id);
+              }
+              setShowDoneDialog(false);
+              onClose();
+            }}
+            className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white"
+          >
+            {t('task.markComplete')}
+          </button>
+        </div>
+      </MotionModal>
 
       {/* 블록 이동 다이얼로그 */}
-      <Dialog open={showMoveDialog} onOpenChange={setShowMoveDialog}>
-        <DialogContent className="max-w-sm bg-bridge-obsidian border-white/10 text-foreground">
-          <DialogHeader>
-            <DialogTitle className="text-foreground">{t('task.moveBlockTitle')}</DialogTitle>
-            <DialogDescription className="text-slate-400">
-              {t('task.moveBlockDesc')}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2 py-4">
-            {blocks
-              .filter((b) => b.fixed_type !== 'FEATURE' && b.fixed_type !== 'DONE')
-              .map((block) => (
-                <button
-                  key={block.id}
-                  onClick={() => setSelectedBlockId(block.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg border transition-all ${
-                    selectedBlockId === block.id
-                      ? 'border-bridge-accent bg-bridge-accent/10'
-                      : 'border-white/10 hover:border-white/10 hover:bg-white/5'
-                  }`}
-                >
-                  <Layers className="h-4 w-4 text-slate-400" />
-                  <span className="text-foreground">{block.name}</span>
-                </button>
-              ))}
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowMoveDialog(false);
-                setSelectedBlockId(null);
-              }}
-              className="bg-white/5 border-white/10 text-foreground hover:bg-white/10"
-            >
-              {t('common.cancel')}
-            </Button>
-            <Button
-              onClick={() => {
-                if (task && onMoveToBlock && selectedBlockId) {
-                  onMoveToBlock(task.id, selectedBlockId);
-                }
-                setShowMoveDialog(false);
-                setSelectedBlockId(null);
-                onClose();
-              }}
-              disabled={!selectedBlockId}
-              className="bg-bridge-accent hover:bg-bridge-accent/90 disabled:opacity-50"
-            >
-              {t('task.move')}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <MotionModal open={showMoveDialog} onClose={() => { setShowMoveDialog(false); setSelectedBlockId(null); }} className="sm:max-w-sm p-6">
+        <h3 className="text-lg font-semibold text-foreground">{t('task.moveBlockTitle')}</h3>
+        <p className="text-sm text-slate-400 mt-1">{t('task.moveBlockDesc')}</p>
+        <div className="space-y-2 py-4">
+          {blocks
+            .filter((b) => b.fixed_type !== 'FEATURE' && b.fixed_type !== 'DONE')
+            .map((block) => (
+              <button
+                key={block.id}
+                onClick={() => setSelectedBlockId(block.id)}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg border transition-all ${
+                  selectedBlockId === block.id
+                    ? 'border-bridge-accent bg-bridge-accent/10'
+                    : 'border-foreground/10 hover:border-foreground/10 hover:bg-foreground/5'
+                }`}
+              >
+                <Layers className="h-4 w-4 text-slate-400" />
+                <span className="text-foreground">{block.name}</span>
+              </button>
+            ))}
+        </div>
+        <div className="flex justify-end gap-2">
+          <Button
+            variant="outline"
+            onClick={() => {
+              setShowMoveDialog(false);
+              setSelectedBlockId(null);
+            }}
+            className="bg-foreground/5 border-foreground/10 text-foreground hover:bg-foreground/10"
+          >
+            {t('common.cancel')}
+          </Button>
+          <Button
+            onClick={() => {
+              if (task && onMoveToBlock && selectedBlockId) {
+                onMoveToBlock(task.id, selectedBlockId);
+              }
+              setShowMoveDialog(false);
+              setSelectedBlockId(null);
+              onClose();
+            }}
+            disabled={!selectedBlockId}
+            className="bg-bridge-accent hover:bg-bridge-accent/90 disabled:opacity-50"
+          >
+            {t('task.move')}
+          </Button>
+        </div>
+      </MotionModal>
 
       {/* Feature 이동 다이얼로그 */}
-      <Dialog open={showMoveFeatureDialog} onOpenChange={setShowMoveFeatureDialog}>
-        <DialogContent className="max-w-sm bg-bridge-obsidian border-white/10 text-foreground">
-          <DialogHeader>
-            <DialogTitle className="text-foreground">{t('task.moveFeatureTitle')}</DialogTitle>
-            <DialogDescription className="text-slate-400">
-              {t('task.moveFeatureDesc')}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2 py-4 max-h-[300px] overflow-y-auto kanban-scrollbar">
-            {features
-              .filter((f) => f.id !== task?.feature_id)
-              .map((feature) => (
-                <button
-                  key={feature.id}
-                  onClick={() => setSelectedFeatureId(feature.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg border transition-all ${
-                    selectedFeatureId === feature.id
-                      ? 'border-bridge-accent bg-bridge-accent/10'
-                      : 'border-white/10 hover:border-white/10 hover:bg-white/5'
-                  }`}
-                >
-                  <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: feature.color }} />
-                  <span className="text-foreground text-sm truncate">{feature.title}</span>
-                </button>
-              ))}
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowMoveFeatureDialog(false);
-                setSelectedFeatureId(null);
-              }}
-              className="bg-white/5 border-white/10 text-foreground hover:bg-white/10"
-            >
-              {t('common.cancel')}
-            </Button>
-            <Button
-              onClick={() => {
-                if (task && onMoveToFeature && selectedFeatureId) {
-                  onMoveToFeature(task.id, selectedFeatureId);
-                }
-                setShowMoveFeatureDialog(false);
-                setSelectedFeatureId(null);
-                onClose();
-              }}
-              disabled={!selectedFeatureId}
-              className="bg-bridge-accent hover:bg-bridge-accent/90 disabled:opacity-50"
-            >
-              {t('task.move')}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <MotionModal open={showMoveFeatureDialog} onClose={() => { setShowMoveFeatureDialog(false); setSelectedFeatureId(null); }} className="sm:max-w-sm p-6">
+        <h3 className="text-lg font-semibold text-foreground">{t('task.moveFeatureTitle')}</h3>
+        <p className="text-sm text-slate-400 mt-1">{t('task.moveFeatureDesc')}</p>
+        <div className="space-y-2 py-4 max-h-[300px] overflow-y-auto kanban-scrollbar">
+          {features
+            .filter((f) => f.id !== task?.feature_id)
+            .map((feature) => (
+              <button
+                key={feature.id}
+                onClick={() => setSelectedFeatureId(feature.id)}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg border transition-all ${
+                  selectedFeatureId === feature.id
+                    ? 'border-bridge-accent bg-bridge-accent/10'
+                    : 'border-foreground/10 hover:border-foreground/10 hover:bg-foreground/5'
+                }`}
+              >
+                <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: feature.color }} />
+                <span className="text-foreground text-sm truncate">{feature.title}</span>
+              </button>
+            ))}
+        </div>
+        <div className="flex justify-end gap-2">
+          <Button
+            variant="outline"
+            onClick={() => {
+              setShowMoveFeatureDialog(false);
+              setSelectedFeatureId(null);
+            }}
+            className="bg-foreground/5 border-foreground/10 text-foreground hover:bg-foreground/10"
+          >
+            {t('common.cancel')}
+          </Button>
+          <Button
+            onClick={() => {
+              if (task && onMoveToFeature && selectedFeatureId) {
+                onMoveToFeature(task.id, selectedFeatureId);
+              }
+              setShowMoveFeatureDialog(false);
+              setSelectedFeatureId(null);
+              onClose();
+            }}
+            disabled={!selectedFeatureId}
+            className="bg-bridge-accent hover:bg-bridge-accent/90 disabled:opacity-50"
+          >
+            {t('task.move')}
+          </Button>
+        </div>
+      </MotionModal>
 
       {/* 체크리스트 항목 Task 이동 다이얼로그 */}
-      <Dialog open={showMoveChecklistDialog} onOpenChange={(open) => {
-        if (!open) {
-          setShowMoveChecklistDialog(false);
-          setMoveChecklistItemId(null);
-          setSelectedTargetTaskId(null);
-          setChecklistMoveSearch('');
-        }
-      }}>
-        <DialogContent className="max-w-sm bg-bridge-obsidian border-white/10 text-foreground">
-          <DialogHeader>
-            <DialogTitle className="text-foreground">{t('task.moveChecklistToTaskTitle')}</DialogTitle>
-            <DialogDescription className="text-slate-400">
-              {t('task.moveChecklistToTaskDesc')}
-            </DialogDescription>
-          </DialogHeader>
-          <Input
-            value={checklistMoveSearch}
-            onChange={(e) => setChecklistMoveSearch(e.target.value)}
-            placeholder={t('common.search')}
-            className="bg-white/5 border-white/10 text-foreground placeholder:text-slate-500 text-sm"
-          />
-          <div className="space-y-1 py-2 max-h-[250px] overflow-y-auto kanban-scrollbar">
-            {allTasks
-              .filter((t) => t.id !== task?.id)
-              .filter((t) => !checklistMoveSearch || t.title.toLowerCase().includes(checklistMoveSearch.toLowerCase()) || t.feature_title.toLowerCase().includes(checklistMoveSearch.toLowerCase()))
-              .map((t) => (
-                <button
-                  key={t.id}
-                  onClick={() => setSelectedTargetTaskId(t.id)}
-                  className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-lg border transition-all text-left ${
-                    selectedTargetTaskId === t.id
-                      ? 'border-bridge-accent bg-bridge-accent/10'
-                      : 'border-white/10 hover:bg-white/5'
-                  }`}
-                >
-                  <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: t.feature_color }} />
-                  <div className="min-w-0 flex-1">
-                    <div className="text-sm text-foreground truncate">{t.title}</div>
-                    <div className="text-[11px] text-slate-400 truncate">{t.feature_title}</div>
-                  </div>
-                </button>
-              ))}
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowMoveChecklistDialog(false);
-                setMoveChecklistItemId(null);
-                setSelectedTargetTaskId(null);
-                setChecklistMoveSearch('');
-              }}
-              className="bg-white/5 border-white/10 text-foreground hover:bg-white/10"
-            >
-              {t('common.cancel')}
-            </Button>
-            <Button
-              onClick={() => {
-                if (task && onMoveChecklistToTask && moveChecklistItemId && selectedTargetTaskId) {
-                  onMoveChecklistToTask(moveChecklistItemId, task.id, selectedTargetTaskId);
-                  // UI에서 항목 제거
-                  setChecklistItems((prev) => prev.filter((ci) => ci.id !== moveChecklistItemId));
-                  const remaining = checklistItems.filter((ci) => ci.id !== moveChecklistItemId);
-                  const completedCount = remaining.filter((ci) => ci.completed).length;
-                  onUpdate({
-                    checklist_total: remaining.length,
-                    checklist_completed: completedCount,
-                    checklist_version: (task.checklist_version || 0) + 1,
-                  });
-                }
-                setShowMoveChecklistDialog(false);
-                setMoveChecklistItemId(null);
-                setSelectedTargetTaskId(null);
-                setChecklistMoveSearch('');
-              }}
-              disabled={!selectedTargetTaskId}
-              className="bg-bridge-accent hover:bg-bridge-accent/90 disabled:opacity-50"
-            >
-              {t('task.move')}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <MotionModal open={showMoveChecklistDialog} onClose={() => {
+        setShowMoveChecklistDialog(false);
+        setMoveChecklistItemId(null);
+        setSelectedTargetTaskId(null);
+        setChecklistMoveSearch('');
+      }} className="sm:max-w-sm p-6">
+        <h3 className="text-lg font-semibold text-foreground">{t('task.moveChecklistToTaskTitle')}</h3>
+        <p className="text-sm text-slate-400 mt-1">{t('task.moveChecklistToTaskDesc')}</p>
+        <Input
+          value={checklistMoveSearch}
+          onChange={(e) => setChecklistMoveSearch(e.target.value)}
+          placeholder={t('common.search')}
+          className="bg-foreground/5 border-foreground/10 text-foreground placeholder:text-slate-500 text-sm mt-3"
+        />
+        <div className="space-y-1 py-2 max-h-[250px] overflow-y-auto kanban-scrollbar">
+          {allTasks
+            .filter((t) => t.id !== task?.id)
+            .filter((t) => !checklistMoveSearch || t.title.toLowerCase().includes(checklistMoveSearch.toLowerCase()) || t.feature_title.toLowerCase().includes(checklistMoveSearch.toLowerCase()))
+            .map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setSelectedTargetTaskId(t.id)}
+                className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-lg border transition-all text-left ${
+                  selectedTargetTaskId === t.id
+                    ? 'border-bridge-accent bg-bridge-accent/10'
+                    : 'border-foreground/10 hover:bg-foreground/5'
+                }`}
+              >
+                <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: t.feature_color }} />
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm text-foreground truncate">{t.title}</div>
+                  <div className="text-[11px] text-slate-400 truncate">{t.feature_title}</div>
+                </div>
+              </button>
+            ))}
+        </div>
+        <div className="flex justify-end gap-2">
+          <Button
+            variant="outline"
+            onClick={() => {
+              setShowMoveChecklistDialog(false);
+              setMoveChecklistItemId(null);
+              setSelectedTargetTaskId(null);
+              setChecklistMoveSearch('');
+            }}
+            className="bg-foreground/5 border-foreground/10 text-foreground hover:bg-foreground/10"
+          >
+            {t('common.cancel')}
+          </Button>
+          <Button
+            onClick={() => {
+              if (task && onMoveChecklistToTask && moveChecklistItemId && selectedTargetTaskId) {
+                onMoveChecklistToTask(moveChecklistItemId, task.id, selectedTargetTaskId);
+                // UI에서 항목 제거
+                setChecklistItems((prev) => prev.filter((ci) => ci.id !== moveChecklistItemId));
+                const remaining = checklistItems.filter((ci) => ci.id !== moveChecklistItemId);
+                const completedCount = remaining.filter((ci) => ci.completed).length;
+                onUpdate({
+                  checklist_total: remaining.length,
+                  checklist_completed: completedCount,
+                  checklist_version: (task.checklist_version || 0) + 1,
+                });
+              }
+              setShowMoveChecklistDialog(false);
+              setMoveChecklistItemId(null);
+              setSelectedTargetTaskId(null);
+              setChecklistMoveSearch('');
+            }}
+            disabled={!selectedTargetTaskId}
+            className="bg-bridge-accent hover:bg-bridge-accent/90 disabled:opacity-50"
+          >
+            {t('task.move')}
+          </Button>
+        </div>
+      </MotionModal>
 
       {/* 체크리스트 아이템 삭제 확인 다이얼로그 */}
-      <AlertDialog open={!!checklistItemToDelete} onOpenChange={(open) => !open && setChecklistItemToDelete(null)}>
-        <AlertDialogContent className="bg-bridge-obsidian border-white/10">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-foreground">{t('task.deleteChecklistTitle')}</AlertDialogTitle>
-            <AlertDialogDescription className="text-slate-400">
-              {t('task.deleteChecklistDesc')}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setChecklistItemToDelete(null)} className="bg-white/5 border-white/10 text-foreground hover:bg-white/10">
-              {t('common.cancel')}
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (checklistItemToDelete) {
-                  handleDeleteChecklistItem(checklistItemToDelete);
-                }
-                setChecklistItemToDelete(null);
-              }}
-              className="bg-red-500 hover:bg-red-600 text-white"
-            >
-              {t('common.delete')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <MotionModal open={!!checklistItemToDelete} onClose={() => setChecklistItemToDelete(null)} className="sm:max-w-sm p-6">
+        <h3 className="text-lg font-semibold text-foreground">{t('task.deleteChecklistTitle')}</h3>
+        <p className="text-sm text-slate-400 mt-1">{t('task.deleteChecklistDesc')}</p>
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end mt-4">
+          <button onClick={() => setChecklistItemToDelete(null)} className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-foreground/5 border border-foreground/10 text-foreground hover:bg-foreground/10">
+            {t('common.cancel')}
+          </button>
+          <button
+            onClick={() => {
+              if (checklistItemToDelete) {
+                handleDeleteChecklistItem(checklistItemToDelete);
+              }
+              setChecklistItemToDelete(null);
+            }}
+            className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-red-500 hover:bg-red-600 text-white"
+          >
+            {t('common.delete')}
+          </button>
+        </div>
+      </MotionModal>
 
       {/* Task 이동/복사 모달 */}
       {task && moveCopyMode && boardId && (
@@ -1356,7 +1270,7 @@ function ChecklistItemRow({
 
   return (
     <>
-    <div className="group flex items-center gap-2 p-2 rounded hover:bg-white/5 border border-transparent hover:border-white/10">
+    <div className="group flex items-center gap-2 p-2 rounded hover:bg-foreground/5 border border-transparent hover:border-foreground/10">
       {/* 드래그 핸들 */}
       {dragHandleProps && (
         <span
@@ -1399,7 +1313,7 @@ function ChecklistItemRow({
             onChange={(e) => setEditedTitle(e.target.value)}
             onBlur={handleSaveTitle}
             onKeyDown={handleKeyDown}
-            className="text-xs h-6 bg-white/5 border-white/10 text-foreground"
+            className="text-xs h-6 bg-foreground/5 border-foreground/10 text-foreground"
             autoFocus
           />
         ) : (
@@ -1421,7 +1335,7 @@ function ChecklistItemRow({
           <Popover>
             <PopoverTrigger asChild>
               <button
-                className={`flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded hover:bg-white/10 transition-colors ${
+                className={`flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded hover:bg-foreground/10 transition-colors ${
                   isOverdue
                     ? 'text-red-400'
                     : isDueSoon
@@ -1445,7 +1359,7 @@ function ChecklistItemRow({
                 })()}
               </button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0 bg-bridge-obsidian border-white/10" align="end">
+            <PopoverContent className="w-auto p-0 bg-bridge-obsidian border-foreground/10" align="end">
               <Calendar
                 mode="range"
                 selected={{
@@ -1463,7 +1377,7 @@ function ChecklistItemRow({
                 className="bg-bridge-obsidian text-foreground"
               />
               {(item.start_date || item.due_date) && (
-                <div className="p-2 border-t border-white/10">
+                <div className="p-2 border-t border-foreground/10">
                   <Button
                     variant="ghost"
                     size="sm"
@@ -1522,19 +1436,19 @@ function ChecklistItemRow({
                   </span>
                 </button>
               ) : (
-                <button className="flex items-center gap-1 text-[11px] text-slate-400 px-1.5 py-0.5 rounded hover:bg-white/10 transition-colors">
+                <button className="flex items-center gap-1 text-[11px] text-slate-400 px-1.5 py-0.5 rounded hover:bg-foreground/10 transition-colors">
                   <div className="w-4 h-4 rounded-full bg-slate-600 flex items-center justify-center text-[9px] text-slate-400">
                     ?
                   </div>
                 </button>
               )}
             </PopoverTrigger>
-            <PopoverContent className="w-40 p-1 bg-bridge-obsidian border-white/10" align="end">
+            <PopoverContent className="w-40 p-1 bg-bridge-obsidian border-foreground/10" align="end">
               <div className="space-y-0.5">
                 <button
                   onClick={() => onUpdate({ assignee: null })}
-                  className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs hover:bg-white/10 transition-colors ${
-                    !item.assignee ? 'bg-white/10 text-foreground' : 'text-slate-300'
+                  className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs hover:bg-foreground/10 transition-colors ${
+                    !item.assignee ? 'bg-foreground/10 text-foreground' : 'text-muted-foreground'
                   }`}
                 >
                   {t('common.none')}
@@ -1545,8 +1459,8 @@ function ChecklistItemRow({
                     <button
                       key={member.userId}
                       onClick={() => onUpdate({ assignee: { id: member.userId, name: member.name, profile_image: member.avatar || null } })}
-                      className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs hover:bg-white/10 transition-colors ${
-                        item.assignee?.id === member.userId ? 'bg-white/10 text-foreground' : 'text-slate-300'
+                      className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs hover:bg-foreground/10 transition-colors ${
+                        item.assignee?.id === member.userId ? 'bg-foreground/10 text-foreground' : 'text-muted-foreground'
                       }`}
                     >
                       <div className={`w-4 h-4 rounded-full ${memberColor.bg} flex items-center justify-center text-[9px] font-bold text-white whitespace-nowrap overflow-hidden`}
@@ -1606,7 +1520,7 @@ function ChecklistItemRow({
         className={`flex items-center justify-center w-6 h-6 rounded transition-colors ${
           showTimeBlocks || timeBlocks.length > 0
             ? 'text-bridge-accent bg-bridge-accent/10'
-            : 'text-slate-400 hover:text-slate-400 hover:bg-white/5'
+            : 'text-slate-400 hover:text-slate-400 hover:bg-foreground/5'
         }`}
         title={t('task.viewTimeBlocks')}
       >
@@ -1626,7 +1540,7 @@ function ChecklistItemRow({
             <Button
               variant="ghost"
               size="sm"
-              className="h-6 w-6 p-0 text-slate-400 hover:text-white hover:bg-white/10"
+              className="h-6 w-6 p-0 text-slate-400 hover:text-foreground hover:bg-foreground/10"
               onClick={onMoveToTask}
               title={t('task.moveChecklistToTask')}
             >
@@ -1657,7 +1571,7 @@ function ChecklistItemRow({
             {timeBlocks.map((block) => (
               <div
                 key={block.id}
-                className="flex items-center gap-2 text-xs py-1 px-2 rounded bg-white/[0.02] border border-white/15"
+                className="flex items-center gap-2 text-xs py-1 px-2 rounded bg-white/[0.02] border border-bridge-border"
               >
                 <CalendarIcon className="h-3 w-3 text-slate-400" />
                 <span className="text-slate-400">
@@ -1754,7 +1668,7 @@ function AddChecklistItemInput({
       <Button
         variant="ghost"
         size="sm"
-        className="w-full justify-start text-slate-400 hover:text-foreground hover:bg-white/5"
+        className="w-full justify-start text-slate-400 hover:text-foreground hover:bg-foreground/5"
         onClick={handleStartAdding}
       >
         <Plus className="h-4 w-4 mr-2" />
@@ -1764,7 +1678,7 @@ function AddChecklistItemInput({
   }
 
   return (
-    <div className="p-3 border border-white/10 rounded-lg bg-white/5">
+    <div className="p-3 border border-foreground/10 rounded-lg bg-foreground/5">
       <div className="flex gap-2 items-start">
         <div className="w-4 h-4 rounded bg-slate-600 flex-shrink-0 mt-1.5" />
         <div className="flex-1 space-y-2">
@@ -1773,12 +1687,12 @@ function AddChecklistItemInput({
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={t('task.checklistItemPlaceholder')}
-            className="text-xs h-7 bg-white/5 border-white/10 text-foreground placeholder:text-slate-400"
+            className="text-xs h-7 bg-foreground/5 border-foreground/10 text-foreground placeholder:text-slate-400"
             autoFocus
           />
 
           {/* 옵션 필드들 */}
-          <div className="flex gap-2 pt-2 border-t border-white/10">
+          <div className="flex gap-2 pt-2 border-t border-foreground/10">
               {/* 날짜 범위 선택 */}
               <div className="flex-1">
                 <label className="text-xs text-slate-400 block mb-1">{t('task.period')}</label>
@@ -1786,7 +1700,7 @@ function AddChecklistItemInput({
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
-                      className="w-full h-7 text-xs justify-start text-left font-normal bg-white/5 border-white/10 text-foreground hover:bg-white/10"
+                      className="w-full h-7 text-xs justify-start text-left font-normal bg-foreground/5 border-foreground/10 text-foreground hover:bg-foreground/10"
                     >
                       <CalendarIcon className="mr-2 h-3 w-3" />
                       {dateRange?.from ? (
@@ -1803,7 +1717,7 @@ function AddChecklistItemInput({
                       )}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 bg-bridge-obsidian border-white/10" align="start">
+                  <PopoverContent className="w-auto p-0 bg-bridge-obsidian border-foreground/10" align="start">
                     <Calendar
                       mode="range"
                       selected={dateRange}
@@ -1824,7 +1738,7 @@ function AddChecklistItemInput({
                   value={assigneeId || 'none'}
                   onValueChange={(val) => setAssigneeId(val === 'none' ? '' : val)}
                 >
-                  <SelectTrigger className="h-7 text-xs bg-white/5 border-white/10 text-foreground">
+                  <SelectTrigger className="h-7 text-xs bg-foreground/5 border-foreground/10 text-foreground">
                     {selectedMember ? (() => {
                       const selColor = getAssigneeClasses(selectedMember.name, selectedMember.assigneeColor);
                       return (
@@ -1842,14 +1756,14 @@ function AddChecklistItemInput({
                       <SelectValue placeholder={t('common.none')} />
                     )}
                   </SelectTrigger>
-                  <SelectContent className="bg-bridge-obsidian border-white/10">
-                    <SelectItem value="none" className="text-foreground hover:bg-white/10">
+                  <SelectContent className="bg-bridge-obsidian border-foreground/10">
+                    <SelectItem value="none" className="text-foreground hover:bg-foreground/10">
                       <span className="text-xs">{t('common.none')}</span>
                     </SelectItem>
                     {boardMembers.map((member) => {
                       const memberColor = getAssigneeClasses(member.name, member.assigneeColor);
                       return (
-                        <SelectItem key={member.userId} value={member.userId} className="text-foreground hover:bg-white/10">
+                        <SelectItem key={member.userId} value={member.userId} className="text-foreground hover:bg-foreground/10">
                           <div className="flex items-center gap-2">
                             <div
                               className={`w-4 h-4 rounded-full ${memberColor.bg} flex items-center justify-center text-[10px] text-white flex-shrink-0 whitespace-nowrap overflow-hidden`}
@@ -1882,7 +1796,7 @@ function AddChecklistItemInput({
           size="sm"
           variant="ghost"
           onClick={handleCancel}
-          className="h-7 text-slate-400 hover:text-foreground hover:bg-white/10"
+          className="h-7 text-slate-400 hover:text-foreground hover:bg-foreground/10"
         >
           {t('common.cancel')}
         </Button>

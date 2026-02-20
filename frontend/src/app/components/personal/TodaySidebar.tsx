@@ -123,7 +123,7 @@ export function TodaySidebar({ tasks, onTaskClick }: TodaySidebarProps) {
           <div className="hidden md:flex flex-col items-center py-4">
             <button
               onClick={() => setIsCollapsed(false)}
-              className="p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+              className="p-2 text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
             >
               <ChevronRight size={16} />
             </button>
@@ -132,17 +132,17 @@ export function TodaySidebar({ tasks, onTaskClick }: TodaySidebarProps) {
           <div className="flex flex-col h-full">
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06]">
-              <h3 className="text-base font-bold text-white">{t('personal.today', 'Today')}</h3>
+              <h3 className="text-base font-bold text-foreground">{t('personal.today', 'Today')}</h3>
               <div className="flex items-center gap-1">
                 <button
                   onClick={() => setShowMobileSidebar(false)}
-                  className="md:hidden p-1.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+                  className="md:hidden p-1.5 text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
                 >
                   <X size={14} />
                 </button>
                 <button
                   onClick={() => setIsCollapsed(true)}
-                  className="hidden md:block p-1.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+                  className="hidden md:block p-1.5 text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
                 >
                   <ChevronLeft size={14} />
                 </button>
@@ -167,7 +167,7 @@ export function TodaySidebar({ tasks, onTaskClick }: TodaySidebarProps) {
                         {completionRate}%
                       </span>
                     </div>
-                    <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+                    <div className="h-1.5 bg-foreground/5 rounded-full overflow-hidden">
                       <div
                         style={{ width: `${completionRate}%` }}
                         className="h-full bg-gradient-to-r from-bridge-secondary to-bridge-accent rounded-full transition-[width] duration-300"
@@ -187,7 +187,7 @@ export function TodaySidebar({ tasks, onTaskClick }: TodaySidebarProps) {
                         <button
                           key={task.id}
                           onClick={() => onTaskClick?.(task.id)}
-                          className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-white/5 transition-colors flex items-center justify-between gap-2"
+                          className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-foreground/5 transition-colors flex items-center justify-between gap-2"
                         >
                           <span className="text-[13px] text-foreground truncate">{task.title}</span>
                           <span className="text-[11px] shrink-0 text-orange-400 font-bold">{task.dday.text}</span>
@@ -203,7 +203,7 @@ export function TodaySidebar({ tasks, onTaskClick }: TodaySidebarProps) {
                             <button
                               key={task.id}
                               onClick={() => onTaskClick?.(task.id)}
-                              className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-white/5 transition-colors flex items-center justify-between gap-2"
+                              className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-foreground/5 transition-colors flex items-center justify-between gap-2"
                             >
                               <span className="text-[13px] text-slate-500 line-through truncate">{task.title}</span>
                               <span className="text-[11px] shrink-0 text-bridge-secondary font-bold">{task.dday.text}</span>
@@ -262,7 +262,7 @@ export function TodaySidebar({ tasks, onTaskClick }: TodaySidebarProps) {
                       color="text-bridge-secondary"
                     >
                       {todayData.personal_events.map((event) => (
-                        <div key={event.id} className="px-2 py-1.5 rounded-lg hover:bg-white/5 transition-colors">
+                        <div key={event.id} className="px-2 py-1.5 rounded-lg hover:bg-foreground/5 transition-colors">
                           <div className="text-[13px] text-foreground truncate">{event.title}</div>
                           {event.start_time && (
                             <div className="text-[11px] text-slate-500 mt-0.5">
@@ -289,7 +289,7 @@ export function TodaySidebar({ tasks, onTaskClick }: TodaySidebarProps) {
                           key={item.habit_id}
                           layout
                           transition={{ type: 'spring', stiffness: 500, damping: 35, mass: 0.8 }}
-                          className="group w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/5 transition-colors"
+                          className="group w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-foreground/5 transition-colors"
                         >
                           <div
                             className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer"
@@ -301,7 +301,7 @@ export function TodaySidebar({ tasks, onTaskClick }: TodaySidebarProps) {
                               className={`w-3.5 h-3.5 rounded-full border-[1.5px] flex items-center justify-center shrink-0 transition-colors ${
                                 item.is_completed
                                   ? 'bg-bridge-secondary border-bridge-secondary'
-                                  : 'border-white/20 hover:border-bridge-secondary/50'
+                                  : 'border-bridge-border hover:border-bridge-secondary/50'
                               }`}
                               initial={false}
                               animate={item.is_completed ? { scale: [1, 1.3, 0.9, 1.1, 1] } : { scale: 1 }}
@@ -334,7 +334,7 @@ export function TodaySidebar({ tasks, onTaskClick }: TodaySidebarProps) {
                                 <div
                                   key={i}
                                   className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
-                                    i >= item.completed_count ? 'bg-white/[0.08] border border-white/10' : ''
+                                    i >= item.completed_count ? 'bg-white/[0.08] border border-foreground/10' : ''
                                   }`}
                                   style={i < item.completed_count ? {
                                     backgroundColor: item.color || '#8B5CF6',
@@ -347,21 +347,21 @@ export function TodaySidebar({ tasks, onTaskClick }: TodaySidebarProps) {
                             </div>
                           )}
                           {item.current_streak > 0 && (
-                            <span className="text-[11px] text-orange-400 font-bold shrink-0">{item.current_streak}d</span>
+                            <span className="text-[11px] text-orange-400 font-bold shrink-0">{item.current_streak}w</span>
                           )}
-                          {/* Edit/Delete on hover */}
-                          <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {/* Edit/Delete - always visible on mobile, hover on desktop */}
+                          <div className="flex items-center gap-0.5 shrink-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                             <button
                               onClick={() => handleHabitEdit(item.habit_id)}
-                              className="p-0.5 text-slate-500 hover:text-white rounded transition-colors"
+                              className="p-1 text-slate-500 hover:text-foreground rounded transition-colors"
                             >
-                              <Pencil size={10} />
+                              <Pencil size={12} />
                             </button>
                             <button
                               onClick={() => setDeleteHabitTarget({ id: item.habit_id, title: item.title })}
-                              className="p-0.5 text-slate-500 hover:text-red-400 rounded transition-colors"
+                              className="p-1 text-slate-500 hover:text-red-400 rounded transition-colors"
                             >
-                              <Trash2 size={10} />
+                              <Trash2 size={12} />
                             </button>
                           </div>
                         </motion.div>
@@ -386,71 +386,60 @@ export function TodaySidebar({ tasks, onTaskClick }: TodaySidebarProps) {
       </div>
 
       {/* Habit Edit Modal */}
-      <AnimatePresence>
-        {editHabitData && (
-          <HabitFormModal
-            habit={editHabitData}
-            onClose={() => setEditHabitData(null)}
-            onSubmit={(data) => handleHabitUpdate(editHabitData.id, data)}
-          />
-        )}
-      </AnimatePresence>
+      <HabitFormModal
+        open={!!editHabitData}
+        habit={editHabitData ?? undefined}
+        onClose={() => setEditHabitData(null)}
+        onSubmit={(data) => editHabitData && handleHabitUpdate(editHabitData.id, data)}
+      />
 
       {/* Habit Delete Confirm Modal */}
-      <AnimatePresence>
-        {deleteHabitTarget && (
-          <DeleteConfirmModal
-            habitName={deleteHabitTarget.title}
-            onConfirm={() => handleHabitDelete(deleteHabitTarget.id)}
-            onCancel={() => setDeleteHabitTarget(null)}
-          />
-        )}
-      </AnimatePresence>
+      <DeleteConfirmModal
+        open={!!deleteHabitTarget}
+        habitName={deleteHabitTarget?.title || ''}
+        onConfirm={() => deleteHabitTarget && handleHabitDelete(deleteHabitTarget.id)}
+        onCancel={() => setDeleteHabitTarget(null)}
+      />
 
       {/* Habit Check-in Confirm Modal */}
-      <AnimatePresence>
-        {checkInConfirm && todayData && (() => {
-          const item = todayData.habits_today.find(h => h.habit_id === checkInConfirm.id);
-          return (
-            <CheckInConfirmModal
-              habitName={item?.title || ''}
-              habitIcon={item?.icon}
-              streakCount={item?.current_streak}
-              isUndo={checkInConfirm.isUndo}
-              onConfirm={async () => {
-                const habitId = checkInConfirm.id;
-                const isUndo = checkInConfirm.isUndo;
-                setCheckInConfirm(null);
-                const revertTo = !!isUndo;
-                // Optimistic update
-                setTodayData(prev => prev ? {
-                  ...prev,
-                  habits_today: prev.habits_today.map(h =>
-                    h.habit_id === habitId ? { ...h, is_completed: !isUndo } : h
-                  ),
-                } : prev);
-                try {
-                  const updated = await personalHabitAPI.checkIn(habitId);
-                  setTodayData(prev => prev ? {
-                    ...prev,
-                    habits_today: prev.habits_today.map(h =>
-                      h.habit_id === habitId ? { ...h, ...updated } : h
-                    ),
-                  } : prev);
-                } catch {
-                  setTodayData(prev => prev ? {
-                    ...prev,
-                    habits_today: prev.habits_today.map(h =>
-                      h.habit_id === habitId ? { ...h, is_completed: revertTo } : h
-                    ),
-                  } : prev);
-                }
-              }}
-              onCancel={() => setCheckInConfirm(null)}
-            />
-          );
-        })()}
-      </AnimatePresence>
+      <CheckInConfirmModal
+        open={!!(checkInConfirm && todayData)}
+        habitName={checkInConfirm && todayData ? (todayData.habits_today.find(h => h.habit_id === checkInConfirm.id)?.title || '') : ''}
+        habitIcon={checkInConfirm && todayData ? todayData.habits_today.find(h => h.habit_id === checkInConfirm.id)?.icon : undefined}
+        streakCount={checkInConfirm && todayData ? todayData.habits_today.find(h => h.habit_id === checkInConfirm.id)?.current_streak : undefined}
+        isUndo={checkInConfirm?.isUndo}
+        onConfirm={async () => {
+          if (!checkInConfirm) return;
+          const habitId = checkInConfirm.id;
+          const isUndo = checkInConfirm.isUndo;
+          setCheckInConfirm(null);
+          const revertTo = !!isUndo;
+          // Optimistic update
+          setTodayData(prev => prev ? {
+            ...prev,
+            habits_today: prev.habits_today.map(h =>
+              h.habit_id === habitId ? { ...h, is_completed: !isUndo } : h
+            ),
+          } : prev);
+          try {
+            const updated = await personalHabitAPI.checkIn(habitId);
+            setTodayData(prev => prev ? {
+              ...prev,
+              habits_today: prev.habits_today.map(h =>
+                h.habit_id === habitId ? { ...h, ...updated } : h
+              ),
+            } : prev);
+          } catch {
+            setTodayData(prev => prev ? {
+              ...prev,
+              habits_today: prev.habits_today.map(h =>
+                h.habit_id === habitId ? { ...h, is_completed: revertTo } : h
+              ),
+            } : prev);
+          }
+        }}
+        onCancel={() => setCheckInConfirm(null)}
+      />
     </>
   );
 }
@@ -494,7 +483,7 @@ function TaskItem({
   return (
     <button
       onClick={onClick}
-      className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-white/5 transition-colors group"
+      className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-foreground/5 transition-colors group"
     >
       <div className={`text-[13px] truncate ${completed ? 'line-through text-slate-500' : 'text-foreground'}`}>
         {title}

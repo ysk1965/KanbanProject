@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, CheckCircle2 } from 'lucide-react';
-import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
+import { MotionModal } from './ui/MotionModal';
 
 interface AddBlockModalProps {
   open: boolean;
@@ -45,11 +45,9 @@ export function AddBlockModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="bg-bridge-dark text-foreground border-white/10 max-w-md p-0 gap-0 [&>button:last-child]:hidden overflow-hidden rounded-2xl">
-        <DialogTitle className="sr-only">{isEdit ? t('block.editTitle') : t('block.addTitle')}</DialogTitle>
+    <MotionModal open={open} onClose={onClose} className="sm:max-w-md bg-bridge-dark p-0 overflow-hidden">
         {/* 헤더 */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-white/10 bg-white/[0.02]">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-foreground/10 bg-white/[0.02]">
           <h2 className="text-lg font-bold text-foreground">
             {isEdit ? t('block.editTitle') : t('block.addTitle')}
           </h2>
@@ -70,7 +68,7 @@ export function AddBlockModal({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="예: In Progress"
-              className="w-full bg-bridge-obsidian border border-white/10 rounded-xl p-3 text-foreground placeholder-slate-400 focus:outline-none focus:border-indigo-500/50 transition-all text-sm"
+              className="w-full bg-bridge-obsidian border border-foreground/10 rounded-xl p-3 text-foreground placeholder-slate-400 focus:outline-none focus:border-indigo-500/50 transition-all text-sm"
               onKeyDown={(e) => {
                 if (e.nativeEvent.isComposing) return;
                 if (e.key === 'Enter') {
@@ -106,7 +104,7 @@ export function AddBlockModal({
         </div>
 
         {/* 푸터 */}
-        <div className="px-6 py-5 border-t border-white/10 bg-white/[0.02] flex justify-end items-center gap-4">
+        <div className="px-6 py-5 border-t border-foreground/10 bg-white/[0.02] flex justify-end items-center gap-4">
           <button
             onClick={onClose}
             className="text-[11px] font-bold text-slate-400 hover:text-foreground transition-all tracking-wider"
@@ -122,7 +120,6 @@ export function AddBlockModal({
             <CheckCircle2 size={14} className="text-indigo-600" />
           </button>
         </div>
-      </DialogContent>
-    </Dialog>
+    </MotionModal>
   );
 }

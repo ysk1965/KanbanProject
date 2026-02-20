@@ -144,7 +144,7 @@ export function AdminMonitoringTab() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white mb-2">{t('admin.monitoring.title')}</h2>
+          <h2 className="text-2xl font-bold text-foreground mb-2">{t('admin.monitoring.title')}</h2>
           <p className="text-slate-400">{t('admin.monitoring.subtitle')}</p>
         </div>
         <div className="flex items-center gap-3">
@@ -153,13 +153,13 @@ export function AdminMonitoringTab() {
               type="checkbox"
               checked={autoRefresh}
               onChange={(e) => setAutoRefresh(e.target.checked)}
-              className="rounded border-white/10 bg-white/5 text-bridge-accent focus:ring-bridge-accent"
+              className="rounded border-foreground/10 bg-foreground/5 text-bridge-accent focus:ring-bridge-accent"
             />
             {t('admin.monitoring.autoRefresh')}
           </label>
           <button
             onClick={loadData}
-            className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 text-slate-300 rounded-xl hover:bg-white/10 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-foreground/5 border border-foreground/10 text-muted-foreground rounded-xl hover:bg-foreground/10 transition-colors"
           >
             <RefreshCw className="h-4 w-4" />
             {t('admin.monitoring.refresh')}
@@ -170,15 +170,15 @@ export function AdminMonitoringTab() {
       {/* Status Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* JVM Heap */}
-        <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-6">
+        <div className="bg-bridge-obsidian rounded-2xl border border-foreground/5 p-6">
           <div className="flex items-center gap-2 mb-2">
             <Cpu className="h-4 w-4 text-bridge-accent" />
             <p className="text-slate-400 text-sm">{t('admin.monitoring.jvmHeap')}</p>
           </div>
-          <p className="text-2xl font-bold text-white mt-1">
+          <p className="text-2xl font-bold text-foreground mt-1">
             {dashboard.jvm.heap_usage_percent.toFixed(1)}%
           </p>
-          <div className="mt-3 h-2 bg-white/5 rounded-full overflow-hidden">
+          <div className="mt-3 h-2 bg-foreground/5 rounded-full overflow-hidden">
             <div
               className="h-full bg-bridge-accent rounded-full transition-all duration-500"
               style={{ width: `${dashboard.jvm.heap_usage_percent}%` }}
@@ -190,15 +190,15 @@ export function AdminMonitoringTab() {
         </div>
 
         {/* HikariCP Connections */}
-        <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-6">
+        <div className="bg-bridge-obsidian rounded-2xl border border-foreground/5 p-6">
           <div className="flex items-center gap-2 mb-2">
             <Database className="h-4 w-4 text-bridge-secondary" />
             <p className="text-slate-400 text-sm">{t('admin.monitoring.hikariConnections')}</p>
           </div>
-          <p className="text-2xl font-bold text-white mt-1">
+          <p className="text-2xl font-bold text-foreground mt-1">
             {dashboard.hikari.active_connections} / {dashboard.hikari.max_connections}
           </p>
-          <div className="mt-3 h-2 bg-white/5 rounded-full overflow-hidden">
+          <div className="mt-3 h-2 bg-foreground/5 rounded-full overflow-hidden">
             <div
               className="h-full bg-bridge-secondary rounded-full transition-all duration-500"
               style={{ width: `${dashboard.hikari.usage_percent}%` }}
@@ -212,7 +212,7 @@ export function AdminMonitoringTab() {
         {/* API Error Rate (Clickable) */}
         <button
           onClick={() => setShowErrorDetail(true)}
-          className="bg-bridge-obsidian rounded-2xl border border-white/5 p-6 text-left hover:border-amber-400/30 hover:bg-white/[0.02] transition-all group"
+          className="bg-bridge-obsidian rounded-2xl border border-foreground/5 p-6 text-left hover:border-amber-400/30 hover:bg-white/[0.02] transition-all group"
         >
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
@@ -221,7 +221,7 @@ export function AdminMonitoringTab() {
             </div>
             <ChevronRight className="h-4 w-4 text-slate-600 group-hover:text-amber-400 transition-colors" />
           </div>
-          <p className="text-2xl font-bold text-white mt-1">
+          <p className="text-2xl font-bold text-foreground mt-1">
             {dashboard.api.error_rate.toFixed(2)}%
           </p>
           <p className="text-xs text-slate-500 mt-3">
@@ -230,12 +230,12 @@ export function AdminMonitoringTab() {
         </button>
 
         {/* Total Requests */}
-        <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-6">
+        <div className="bg-bridge-obsidian rounded-2xl border border-foreground/5 p-6">
           <div className="flex items-center gap-2 mb-2">
             <Server className="h-4 w-4 text-emerald-400" />
             <p className="text-slate-400 text-sm">{t('admin.monitoring.totalRequests')}</p>
           </div>
-          <p className="text-2xl font-bold text-white mt-1">
+          <p className="text-2xl font-bold text-foreground mt-1">
             {dashboard.api.total_requests.toLocaleString()}
           </p>
           <p className="text-xs text-slate-500 mt-3">
@@ -249,41 +249,41 @@ export function AdminMonitoringTab() {
 
       {/* OpenAI Account Billing */}
       {openAIBilling && (
-        <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-6">
+        <div className="bg-bridge-obsidian rounded-2xl border border-foreground/5 p-6">
           <div className="flex items-center gap-2 mb-4">
             <CreditCard className="h-5 w-5 text-emerald-400" />
-            <h3 className="text-lg font-bold text-white">{t('admin.monitoring.openAIBilling')}</h3>
+            <h3 className="text-lg font-bold text-foreground">{t('admin.monitoring.openAIBilling')}</h3>
           </div>
           {openAIBilling.connected ? (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-white/5 rounded-xl p-4">
+              <div className="bg-foreground/5 rounded-xl p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <DollarSign className="h-4 w-4 text-emerald-400" />
                   <p className="text-slate-400 text-sm">{t('admin.monitoring.openAITotalCost')}</p>
                 </div>
-                <p className="text-2xl font-bold text-white">
+                <p className="text-2xl font-bold text-foreground">
                   {openAIBilling.total_cost_usd != null
                     ? `$${openAIBilling.total_cost_usd.toFixed(2)}`
                     : '-'}
                 </p>
                 <p className="text-xs text-slate-500 mt-1">{t('admin.monitoring.last30Days')}</p>
               </div>
-              <div className="bg-white/5 rounded-xl p-4">
+              <div className="bg-foreground/5 rounded-xl p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Zap className="h-4 w-4 text-amber-400" />
                   <p className="text-slate-400 text-sm">{t('admin.monitoring.openAITotalRequests')}</p>
                 </div>
-                <p className="text-2xl font-bold text-white">
+                <p className="text-2xl font-bold text-foreground">
                   {openAIBilling.model_usage.reduce((sum, m) => sum + m.requests, 0).toLocaleString()}
                 </p>
                 <p className="text-xs text-slate-500 mt-1">{t('admin.monitoring.last30Days')}</p>
               </div>
-              <div className="bg-white/5 rounded-xl p-4">
+              <div className="bg-foreground/5 rounded-xl p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Activity className="h-4 w-4 text-cyan-400" />
                   <p className="text-slate-400 text-sm">{t('admin.monitoring.openAITotalTokens')}</p>
                 </div>
-                <p className="text-2xl font-bold text-white">
+                <p className="text-2xl font-bold text-foreground">
                   {((openAIBilling.model_usage.reduce((sum, m) => sum + m.input_tokens + m.output_tokens, 0)) / 1000).toFixed(1)}K
                 </p>
                 <p className="text-xs text-slate-500 mt-1">
@@ -304,12 +304,12 @@ export function AdminMonitoringTab() {
       {/* AI Usage Cards */}
       {aiUsage && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-6">
+          <div className="bg-bridge-obsidian rounded-2xl border border-foreground/5 p-6">
             <div className="flex items-center gap-2 mb-2">
               <Bot className="h-4 w-4 text-purple-400" />
               <p className="text-slate-400 text-sm">{t('admin.monitoring.aiTotalCalls')}</p>
             </div>
-            <p className="text-2xl font-bold text-white mt-1">
+            <p className="text-2xl font-bold text-foreground mt-1">
               {aiUsage.total_calls.toLocaleString()}
             </p>
             <p className="text-xs text-slate-500 mt-3">
@@ -317,12 +317,12 @@ export function AdminMonitoringTab() {
             </p>
           </div>
 
-          <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-6">
+          <div className="bg-bridge-obsidian rounded-2xl border border-foreground/5 p-6">
             <div className="flex items-center gap-2 mb-2">
               <Activity className="h-4 w-4 text-cyan-400" />
               <p className="text-slate-400 text-sm">{t('admin.monitoring.aiTotalTokens')}</p>
             </div>
-            <p className="text-2xl font-bold text-white mt-1">
+            <p className="text-2xl font-bold text-foreground mt-1">
               {((aiUsage.total_input_tokens + aiUsage.total_output_tokens) / 1000).toFixed(1)}K
             </p>
             <p className="text-xs text-slate-500 mt-3">
@@ -330,12 +330,12 @@ export function AdminMonitoringTab() {
             </p>
           </div>
 
-          <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-6">
+          <div className="bg-bridge-obsidian rounded-2xl border border-foreground/5 p-6">
             <div className="flex items-center gap-2 mb-2">
               <DollarSign className="h-4 w-4 text-emerald-400" />
               <p className="text-slate-400 text-sm">{t('admin.monitoring.aiEstimatedCost')}</p>
             </div>
-            <p className="text-2xl font-bold text-white mt-1">
+            <p className="text-2xl font-bold text-foreground mt-1">
               ${aiUsage.total_estimated_cost_usd.toFixed(4)}
             </p>
             <p className="text-xs text-slate-500 mt-3">
@@ -343,12 +343,12 @@ export function AdminMonitoringTab() {
             </p>
           </div>
 
-          <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-6">
+          <div className="bg-bridge-obsidian rounded-2xl border border-foreground/5 p-6">
             <div className="flex items-center gap-2 mb-2">
               <Activity className="h-4 w-4 text-amber-400" />
               <p className="text-slate-400 text-sm">{t('admin.monitoring.aiAvgTokensPerCall')}</p>
             </div>
-            <p className="text-2xl font-bold text-white mt-1">
+            <p className="text-2xl font-bold text-foreground mt-1">
               {aiUsage.total_calls > 0
                 ? Math.round((aiUsage.total_input_tokens + aiUsage.total_output_tokens) / aiUsage.total_calls).toLocaleString()
                 : 0}
@@ -361,10 +361,10 @@ export function AdminMonitoringTab() {
       )}
 
       {/* Slack Alert Configuration */}
-      <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-6">
+      <div className="bg-bridge-obsidian rounded-2xl border border-foreground/5 p-6">
         <div className="flex items-center gap-2 mb-6">
           <Bell className="h-5 w-5 text-bridge-accent" />
-          <h3 className="text-lg font-bold text-white">{t('admin.monitoring.slackAlerts')}</h3>
+          <h3 className="text-lg font-bold text-foreground">{t('admin.monitoring.slackAlerts')}</h3>
         </div>
 
         <div className="space-y-4">
@@ -377,7 +377,7 @@ export function AdminMonitoringTab() {
               value={webhookUrl}
               onChange={(e) => setWebhookUrl(e.target.value)}
               placeholder={t('admin.monitoring.webhookUrlPlaceholder')}
-              className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+              className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-foreground placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
             />
           </div>
 
@@ -387,7 +387,7 @@ export function AdminMonitoringTab() {
                 type="checkbox"
                 checked={alertEnabled}
                 onChange={(e) => setAlertEnabled(e.target.checked)}
-                className="rounded border-white/10 bg-white/5 text-bridge-accent focus:ring-bridge-accent"
+                className="rounded border-foreground/10 bg-foreground/5 text-bridge-accent focus:ring-bridge-accent"
               />
               {t('admin.monitoring.alertEnabled')}
             </label>
@@ -396,7 +396,7 @@ export function AdminMonitoringTab() {
               <button
                 onClick={handleTestAlert}
                 disabled={isSendingTest || !webhookUrl}
-                className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 text-slate-300 rounded-xl hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 px-4 py-2 bg-foreground/5 border border-foreground/10 text-muted-foreground rounded-xl hover:bg-foreground/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Send className="h-4 w-4" />
                 {t('admin.monitoring.testAlert')}
@@ -422,15 +422,15 @@ export function AdminMonitoringTab() {
       {showErrorDetail && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowErrorDetail(false)}>
           <div
-            className="bg-bridge-obsidian rounded-2xl border border-white/10 shadow-2xl w-full max-w-3xl max-h-[80vh] overflow-hidden"
+            className="bg-bridge-obsidian rounded-2xl border border-foreground/10 shadow-2xl w-full max-w-3xl max-h-[80vh] overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="flex items-center justify-between p-6 border-b border-white/5">
+            <div className="flex items-center justify-between p-6 border-b border-foreground/5">
               <div className="flex items-center gap-3">
                 <AlertTriangle className="h-5 w-5 text-amber-400" />
                 <div>
-                  <h3 className="text-lg font-bold text-white">{t('admin.monitoring.errorDetail', 'API 에러 상세')}</h3>
+                  <h3 className="text-lg font-bold text-foreground">{t('admin.monitoring.errorDetail', 'API 에러 상세')}</h3>
                   <p className="text-sm text-slate-400 mt-0.5">
                     {t('admin.monitoring.errorSummary', '총 {{errors}}건 / {{requests}}건 ({{rate}}%)', {
                       errors: dashboard.api.total_errors.toLocaleString(),
@@ -442,7 +442,7 @@ export function AdminMonitoringTab() {
               </div>
               <button
                 onClick={() => setShowErrorDetail(false)}
-                className="p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+                className="p-2 text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -453,7 +453,7 @@ export function AdminMonitoringTab() {
               {dashboard.api.top_error_endpoints && dashboard.api.top_error_endpoints.length > 0 ? (
                 <div className="space-y-3">
                   {dashboard.api.top_error_endpoints.map((ep, idx) => (
-                    <div key={idx} className="bg-white/5 rounded-xl p-4 hover:bg-white/[0.07] transition-colors">
+                    <div key={idx} className="bg-foreground/5 rounded-xl p-4 hover:bg-white/[0.07] transition-colors">
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2 min-w-0 flex-1">
                           <span className={`px-2 py-0.5 rounded text-xs font-bold shrink-0 ${
@@ -465,7 +465,7 @@ export function AdminMonitoringTab() {
                           }`}>
                             {ep.http_method}
                           </span>
-                          <span className="text-sm text-white font-mono truncate">{ep.endpoint}</span>
+                          <span className="text-sm text-foreground font-mono truncate">{ep.endpoint}</span>
                         </div>
                         <div className="flex items-center gap-3 shrink-0 ml-3">
                           <span className="text-sm text-red-400 font-bold">{ep.error_count}</span>

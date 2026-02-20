@@ -148,12 +148,12 @@ export function NoteCommentSidebar({
   const resolvedCount = threads.filter(t => t.is_resolved).length;
 
   return (
-    <div className="border-t border-white/10 bg-bridge-dark/80 backdrop-blur-sm">
+    <div className="border-t border-foreground/10 bg-bridge-dark/80 backdrop-blur-sm">
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-2.5">
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="flex items-center gap-2 text-sm font-bold text-white hover:text-bridge-accent transition-colors"
+          className="flex items-center gap-2 text-sm font-bold text-foreground hover:text-bridge-accent transition-colors"
         >
           {collapsed ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           {t('notes.comment.title', '댓글')}
@@ -178,7 +178,7 @@ export function NoteCommentSidebar({
                   className={`text-[10px] px-2 py-0.5 rounded-full transition-colors ${
                     filter === f.key
                       ? 'bg-bridge-accent/20 text-bridge-accent font-bold'
-                      : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
+                      : 'text-slate-500 hover:text-slate-300 hover:bg-foreground/5'
                   }`}
                 >
                   {f.label} ({f.count})
@@ -189,7 +189,7 @@ export function NoteCommentSidebar({
 
           <button
             onClick={onClose}
-            className="p-1 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+            className="p-1 text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
           >
             <X className="h-4 w-4" />
           </button>
@@ -201,7 +201,7 @@ export function NoteCommentSidebar({
         <>
           {/* New comment input */}
           {canEdit && (
-            <div className="px-6 py-2 border-t border-white/5" ref={newCommentRef}>
+            <div className="px-6 py-2 border-t border-foreground/5" ref={newCommentRef}>
               {showNewComment ? (
                 <div>
                   {activeBlockId && (
@@ -222,8 +222,8 @@ export function NoteCommentSidebar({
                 <button
                   onClick={() => setShowNewComment(true)}
                   className="flex items-center gap-2 w-full px-3 py-2 text-xs text-slate-400
-                    bg-white/[0.03] border border-white/5 rounded-xl
-                    hover:text-white hover:bg-white/5 hover:border-white/10 transition-all"
+                    bg-white/[0.03] border border-foreground/5 rounded-xl
+                    hover:text-foreground hover:bg-foreground/5 hover:border-foreground/10 transition-all"
                 >
                   <MessageSquarePlus className="h-3.5 w-3.5" />
                   {t('notes.comment.new', '새 댓글 작성')}

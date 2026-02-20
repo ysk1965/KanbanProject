@@ -5,7 +5,7 @@ import { AiCredits, AiCreditUsageHistory } from '../types';
 import { aiCreditService } from '../utils/services';
 import { formatRelativeTime } from '../utils/dateUtils';
 import { Button } from './ui/button';
-import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
+import { MotionModal } from './ui/MotionModal';
 
 interface AiCreditPurchaseModalProps {
   isOpen: boolean;
@@ -25,7 +25,7 @@ function featureTypeStyle(type: string): string {
     case 'NOTE':            return 'bg-teal-500/15 text-teal-400';
     case 'REPORT_TEAM':     return 'bg-blue-500/15 text-blue-400';
     case 'REPORT_PERSONAL': return 'bg-amber-500/15 text-amber-400';
-    default:                return 'bg-white/10 text-slate-400';
+    default:                return 'bg-foreground/10 text-slate-400';
   }
 }
 
@@ -90,14 +90,7 @@ export function AiCreditPurchaseModal({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="bg-bridge-obsidian text-foreground border-white/10 max-w-md p-0 gap-0 [&>button:last-child]:hidden overflow-hidden rounded-2xl">
-        <DialogTitle className="sr-only">
-          {internalMode === 'exhausted'
-            ? t('ai_credits.exhausted_modal.title')
-            : t('ai_credits.title')}
-        </DialogTitle>
-
+    <MotionModal open={isOpen} onClose={onClose} className="sm:max-w-md p-0 overflow-hidden">
         <div className="p-6">
           {/* Header */}
           <div className="flex items-start justify-between mb-6">
@@ -112,7 +105,7 @@ export function AiCreditPurchaseModal({
                 </div>
               )}
               <div>
-                <h2 className="text-xl font-bold text-white">
+                <h2 className="text-xl font-bold text-foreground">
                   {internalMode === 'exhausted'
                     ? t('ai_credits.exhausted_modal.title')
                     : t('ai_credits.title')}
@@ -121,7 +114,7 @@ export function AiCreditPurchaseModal({
             </div>
             <button
               onClick={onClose}
-              className="text-slate-400 hover:text-white transition-colors p-1"
+              className="text-slate-400 hover:text-foreground transition-colors p-1"
             >
               <X className="w-5 h-5" />
             </button>
@@ -130,7 +123,7 @@ export function AiCreditPurchaseModal({
           {/* Exhausted Mode Warning */}
           {internalMode === 'exhausted' && (
             <div className="mb-6 p-4 bg-amber-500/5 border border-amber-500/20 rounded-xl">
-              <p className="text-sm text-slate-300 whitespace-pre-line">
+              <p className="text-sm text-muted-foreground whitespace-pre-line">
                 {t('ai_credits.exhausted_modal.description')}
               </p>
             </div>
@@ -140,13 +133,13 @@ export function AiCreditPurchaseModal({
           {internalMode === 'purchase' && (
             <>
               {/* Tab Bar */}
-              <div className="flex gap-1 mb-5 p-1 bg-white/5 rounded-xl">
+              <div className="flex gap-1 mb-5 p-1 bg-foreground/5 rounded-xl">
                 <button
                   onClick={() => setActiveTab('purchase')}
                   className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
                     activeTab === 'purchase'
                       ? 'bg-bridge-accent text-white'
-                      : 'text-slate-400 hover:text-white'
+                      : 'text-slate-400 hover:text-foreground'
                   }`}
                 >
                   <Sparkles className="w-3.5 h-3.5" />
@@ -160,7 +153,7 @@ export function AiCreditPurchaseModal({
                   className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
                     activeTab === 'usage'
                       ? 'bg-bridge-accent text-white'
-                      : 'text-slate-400 hover:text-white'
+                      : 'text-slate-400 hover:text-foreground'
                   }`}
                 >
                   <History className="w-3.5 h-3.5" />
@@ -173,18 +166,18 @@ export function AiCreditPurchaseModal({
                 <>
                   {/* Current Status */}
                   {currentCredits && (
-                    <div className="mb-6 p-4 bg-white/5 border border-white/10 rounded-xl">
+                    <div className="mb-6 p-4 bg-foreground/5 border border-foreground/10 rounded-xl">
                       <div className="grid grid-cols-2 gap-4 text-sm">
                         <div>
                           <p className="text-slate-400">{t('ai_credits.remaining')}</p>
-                          <p className="text-xl font-bold text-white mt-1">
+                          <p className="text-xl font-bold text-foreground mt-1">
                             {currentCredits.total_available}
                           </p>
                         </div>
                         {currentCredits.reset_date && (
                           <div>
                             <p className="text-slate-400">{t('ai_credits.reset_date')}</p>
-                            <p className="text-sm text-slate-300 mt-1">
+                            <p className="text-sm text-muted-foreground mt-1">
                               {new Date(currentCredits.reset_date).toLocaleDateString('ko-KR')}
                             </p>
                           </div>
@@ -195,7 +188,7 @@ export function AiCreditPurchaseModal({
 
                   {/* Package Selection */}
                   <div className="mb-6">
-                    <label className="block text-sm font-medium text-slate-300 mb-3">
+                    <label className="block text-sm font-medium text-muted-foreground mb-3">
                       {t('ai_credits.purchase.quantity')}
                     </label>
                     <div className="grid grid-cols-3 gap-2">
@@ -206,7 +199,7 @@ export function AiCreditPurchaseModal({
                           className={`px-4 py-3 rounded-xl font-bold transition-all ${
                             selectedAmount === amount
                               ? 'bg-bridge-accent text-white shadow-lg shadow-bridge-accent/30'
-                              : 'bg-white/5 text-slate-300 hover:bg-white/10 border border-white/10'
+                              : 'bg-foreground/5 text-muted-foreground hover:bg-foreground/10 border border-foreground/10'
                           }`}
                         >
                           {amount}
@@ -216,18 +209,18 @@ export function AiCreditPurchaseModal({
                   </div>
 
                   {/* Price Summary */}
-                  <div className="mb-6 p-4 bg-white/5 border border-white/10 rounded-xl">
+                  <div className="mb-6 p-4 bg-foreground/5 border border-foreground/10 rounded-xl">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm text-slate-400">{t('ai_credits.purchase.unit_price')}</span>
-                      <span className="text-sm text-slate-300">₩{PRICE_PER_CREDIT.toLocaleString()}</span>
+                      <span className="text-sm text-muted-foreground">₩{PRICE_PER_CREDIT.toLocaleString()}</span>
                     </div>
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm text-slate-400">{t('ai_credits.purchase.quantity')}</span>
-                      <span className="text-sm text-slate-300">{selectedAmount} {t('ai_credits.purchase.quantity_unit')}</span>
+                      <span className="text-sm text-muted-foreground">{selectedAmount} {t('ai_credits.purchase.quantity_unit')}</span>
                     </div>
-                    <div className="h-px bg-white/10 my-3" />
+                    <div className="h-px bg-foreground/10 my-3" />
                     <div className="flex items-center justify-between">
-                      <span className="font-bold text-white">{t('ai_credits.purchase.total_price')}</span>
+                      <span className="font-bold text-foreground">{t('ai_credits.purchase.total_price')}</span>
                       <span className="text-2xl font-bold text-bridge-accent">
                         ₩{totalPrice.toLocaleString()}
                       </span>
@@ -246,7 +239,7 @@ export function AiCreditPurchaseModal({
                     <Button
                       onClick={onClose}
                       variant="ghost"
-                      className="flex-1 bg-white/5 hover:bg-white/10 text-white"
+                      className="flex-1 bg-foreground/5 hover:bg-foreground/10 text-foreground"
                     >
                       {t('common.cancel')}
                     </Button>
@@ -286,10 +279,10 @@ export function AiCreditPurchaseModal({
                     </div>
                   ) : (
                     usageHistory.map((item) => (
-                      <div key={item.id} className="p-3 bg-white/[0.04] border border-white/5 rounded-xl">
+                      <div key={item.id} className="p-3 bg-white/[0.04] border border-foreground/5 rounded-xl">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2 min-w-0">
-                            <span className="text-sm font-medium text-white truncate">
+                            <span className="text-sm font-medium text-foreground truncate">
                               {item.user_name}
                             </span>
                             <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0 ${
@@ -325,14 +318,13 @@ export function AiCreditPurchaseModal({
               <Button
                 onClick={onClose}
                 variant="ghost"
-                className="w-full bg-white/5 hover:bg-white/10 text-white"
+                className="w-full bg-foreground/5 hover:bg-foreground/10 text-foreground"
               >
                 {t('ai_credits.exhausted_modal.later_button')}
               </Button>
             </div>
           )}
         </div>
-      </DialogContent>
-    </Dialog>
+    </MotionModal>
   );
 }

@@ -18,10 +18,11 @@ import {
 } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { meetingAPI, MeetingSummary } from '../utils/api';
+import { useHolidays } from '../hooks/useHolidays';
 import { BoardMember } from './ShareBoardModal';
 import { MeetingView } from './MeetingView';
 import { Sheet, SheetContent, SheetTitle } from './ui/sheet';
-import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
+import { MotionModal } from './ui/MotionModal';
 
 interface MeetingCalendarViewProps {
   boardId: string;
@@ -31,7 +32,7 @@ interface MeetingCalendarViewProps {
 }
 
 export function MeetingCalendarView({ boardId, boardMembers, onRefreshSchedule, refreshTrigger }: MeetingCalendarViewProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [searchParams] = useSearchParams();
 
   const initialDate = useMemo(() => {
@@ -51,6 +52,8 @@ export function MeetingCalendarView({ boardId, boardMembers, onRefreshSchedule, 
   const [monthMeetings, setMonthMeetings] = useState<MeetingSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
+  const { holidayMap } = useHolidays(i18n.language, currentMonth.getFullYear());
 
   const activeMembers = useMemo(
     () => boardMembers.filter((m) => m.role !== 'viewer'),
@@ -140,32 +143,32 @@ export function MeetingCalendarView({ boardId, boardMembers, onRefreshSchedule, 
         {/* Title */}
         <div className="flex items-center gap-2.5 mb-4">
           <Calendar size={18} className="text-bridge-accent" />
-          <h2 className="text-base font-bold text-white">
+          <h2 className="text-base font-bold text-foreground">
             {t('meeting.tab', '회의')}
           </h2>
         </div>
 
         {/* Month Navigation */}
         <div className="flex items-center justify-between mb-3">
-          <span className="text-sm font-semibold text-white">
+          <span className="text-sm font-semibold text-foreground">
             {format(currentMonth, 'yyyy년 M월', { locale: ko })}
           </span>
           <div className="flex items-center gap-1">
             <button
               onClick={handlePrevMonth}
-              className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
+              className="p-1 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
             >
               <ChevronLeft size={16} />
             </button>
             <button
               onClick={handleToday}
-              className="px-2 py-0.5 text-[10px] font-semibold rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
+              className="px-2 py-0.5 text-[10px] font-semibold rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
             >
               {t('dailySchedule.today', '오늘')}
             </button>
             <button
               onClick={handleNextMonth}
-              className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
+              className="p-1 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
             >
               <ChevronRight size={16} />
             </button>
@@ -175,7 +178,7 @@ export function MeetingCalendarView({ boardId, boardMembers, onRefreshSchedule, 
 
       {/* Mini Calendar Grid */}
       <div className="px-4 pb-4 flex-shrink-0">
-        <div className="bg-bridge-obsidian rounded-xl border border-white/5 p-3">
+        <div className="bg-bridge-obsidian rounded-xl border border-foreground/5 p-3">
           {/* Weekday header */}
           <div className="grid grid-cols-7 mb-1">
             {weekDays.map((day, i) => (
@@ -199,6 +202,7 @@ export function MeetingCalendarView({ boardId, boardMembers, onRefreshSchedule, 
               const isSelected = isSameDay(day, selectedDate);
               const isTodayDate = isToday(day);
               const dayOfWeek = day.getDay();
+              const isHoliday = isCurrentMonth && holidayMap.has(dateKey);
 
               return (
                 <button
@@ -208,7 +212,7 @@ export function MeetingCalendarView({ boardId, boardMembers, onRefreshSchedule, 
                     relative flex flex-col items-center justify-center py-2 rounded-lg transition-all min-h-[44px]
                     ${isSelected
                       ? 'bg-bridge-accent/20 border border-bridge-accent/50'
-                      : 'border border-transparent hover:bg-white/5'
+                      : 'border border-transparent hover:bg-foreground/5'
                     }
                     ${!isCurrentMonth ? 'opacity-30' : ''}
                   `}
@@ -219,12 +223,12 @@ export function MeetingCalendarView({ boardId, boardMembers, onRefreshSchedule, 
                       ${isTodayDate
                         ? 'bg-bridge-accent text-white rounded-full w-6 h-6 flex items-center justify-center text-[11px]'
                         : isSelected
-                          ? 'text-white'
-                          : dayOfWeek === 0
+                          ? 'text-foreground'
+                          : isHoliday || dayOfWeek === 0
                             ? 'text-red-400/80'
                             : dayOfWeek === 6
                               ? 'text-blue-400/80'
-                              : 'text-slate-300'
+                              : 'text-muted-foreground'
                       }
                     `}
                   >
@@ -274,13 +278,13 @@ export function MeetingCalendarView({ boardId, boardMembers, onRefreshSchedule, 
   return (
     <div className="flex h-full overflow-hidden">
       {/* Desktop - Left Panel - Mini Calendar */}
-      <div className="hidden md:flex w-[340px] flex-shrink-0 border-r border-white/5 flex-col overflow-hidden">
+      <div className="hidden md:flex w-[340px] flex-shrink-0 border-r border-foreground/5 flex-col overflow-hidden">
         {calendarContent}
       </div>
 
       {/* Mobile - Mini Calendar Sheet */}
       <Sheet open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
-        <SheetContent side="left" className="w-72 p-0 bg-bridge-dark border-white/10 flex flex-col">
+        <SheetContent side="left" className="w-72 p-0 bg-bridge-dark border-foreground/10 flex flex-col">
           <SheetTitle className="sr-only">{t('meeting.tab', '회의')}</SheetTitle>
           {calendarContent}
         </SheetContent>
@@ -369,7 +373,7 @@ function RecurringMeetingCard({ meeting, monthMeetings, boardId, onNavigate, onR
   return (
     <>
       <div
-        className="relative w-full text-left p-2.5 rounded-xl bg-white/[0.03] border border-white/5 hover:bg-white/[0.06] hover:border-white/10 transition-all group cursor-pointer"
+        className="relative w-full text-left p-2.5 rounded-xl bg-white/[0.03] border border-foreground/5 hover:bg-white/[0.06] hover:border-foreground/10 transition-all group cursor-pointer"
         onClick={handleCardClick}
       >
         <div className="flex items-start gap-2.5">
@@ -378,7 +382,7 @@ function RecurringMeetingCard({ meeting, monthMeetings, boardId, onNavigate, onR
             style={{ backgroundColor: meeting.color || '#8B5CF6' }}
           />
           <div className="flex-1 min-w-0">
-            <div className="text-[13px] font-medium text-white truncate group-hover:text-bridge-secondary transition-colors">
+            <div className="text-[13px] font-medium text-foreground truncate group-hover:text-bridge-secondary transition-colors">
               {meeting.title}
             </div>
             <div className="flex items-center gap-1.5 mt-1">
@@ -406,20 +410,20 @@ function RecurringMeetingCard({ meeting, monthMeetings, boardId, onNavigate, onR
                 e.stopPropagation();
                 setMenuOpen(!menuOpen);
               }}
-              className="p-1 rounded-lg text-slate-500 opacity-0 group-hover:opacity-100 hover:text-white hover:bg-white/10 transition-all"
+              className="p-1 rounded-lg text-slate-500 opacity-0 group-hover:opacity-100 hover:text-foreground hover:bg-foreground/10 transition-all"
             >
               <MoreVertical size={14} />
             </button>
 
             {menuOpen && (
-              <div className="absolute right-0 top-full mt-1 w-32 bg-bridge-obsidian border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden">
+              <div className="absolute right-0 top-full mt-1 w-32 bg-bridge-obsidian border border-foreground/10 rounded-xl shadow-2xl z-50 overflow-hidden">
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     setMenuOpen(false);
                     setEditOpen(true);
                   }}
-                  className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-slate-300 hover:bg-white/5 hover:text-white transition-colors"
+                  className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-muted-foreground hover:bg-foreground/5 hover:text-foreground transition-colors"
                 >
                   <Pencil size={12} />
                   {t('common.edit', '수정')}
@@ -455,11 +459,9 @@ function RecurringMeetingCard({ meeting, monthMeetings, boardId, onNavigate, onR
       )}
 
       {/* Delete Scope Modal */}
-      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent className="bg-bridge-obsidian text-foreground border-white/10 w-[400px] max-w-[calc(100%-2rem)] p-0 gap-0 [&>button:last-child]:hidden overflow-hidden rounded-2xl">
-          <DialogTitle className="sr-only">{t('meeting.deleteRecurringTitle', '반복 회의 삭제')}</DialogTitle>
+      <MotionModal open={deleteOpen} onClose={() => setDeleteOpen(false)} className="sm:w-[400px] sm:max-w-[calc(100%-2rem)] p-0 overflow-hidden">
           <div className="p-6">
-            <h3 className="text-lg font-bold text-white mb-2">
+            <h3 className="text-lg font-bold text-foreground mb-2">
               {t('meeting.deleteRecurringTitle', '반복 회의 삭제')}
             </h3>
             <p className="text-sm text-slate-400 mb-6">
@@ -482,14 +484,13 @@ function RecurringMeetingCard({ meeting, monthMeetings, boardId, onNavigate, onR
               </button>
               <button
                 onClick={() => setDeleteOpen(false)}
-                className="w-full px-4 py-2 text-sm text-slate-400 hover:text-white transition-colors"
+                className="w-full px-4 py-2 text-sm text-slate-400 hover:text-foreground transition-colors"
               >
                 {t('common.cancel')}
               </button>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
+      </MotionModal>
     </>
   );
 }
@@ -542,15 +543,15 @@ function RecurringEditModal({ boardId, meeting, onClose, onUpdated }: RecurringE
   return (
     <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50" onClick={onClose}>
       <div
-        className="bg-bridge-obsidian rounded-2xl shadow-2xl w-[420px] max-w-[calc(100vw-2rem)] flex flex-col overflow-hidden border border-white/10"
+        className="bg-bridge-obsidian rounded-2xl shadow-2xl w-[420px] max-w-[calc(100vw-2rem)] flex flex-col overflow-hidden border border-foreground/10"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
-          <h2 className="text-base font-bold text-white">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-foreground/10">
+          <h2 className="text-base font-bold text-foreground">
             {t('meeting.editRecurring', '반복 회의 수정')}
           </h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
+          <button onClick={onClose} className="text-slate-400 hover:text-foreground transition-colors">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -567,7 +568,7 @@ function RecurringEditModal({ boardId, meeting, onClose, onUpdated }: RecurringE
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               autoFocus
-              className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+              className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-foreground placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
             />
           </div>
 
@@ -581,7 +582,7 @@ function RecurringEditModal({ boardId, meeting, onClose, onUpdated }: RecurringE
                 type="time"
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+                className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
               />
             </div>
             <div>
@@ -592,7 +593,7 @@ function RecurringEditModal({ boardId, meeting, onClose, onUpdated }: RecurringE
                 type="time"
                 value={endTime}
                 onChange={(e) => setEndTime(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+                className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
               />
             </div>
           </div>
@@ -618,10 +619,10 @@ function RecurringEditModal({ boardId, meeting, onClose, onUpdated }: RecurringE
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-white/10 flex gap-3">
+        <div className="px-6 py-4 border-t border-foreground/10 flex gap-3">
           <button
             onClick={onClose}
-            className="flex-1 py-3 text-sm font-bold text-slate-400 hover:text-white transition-colors border border-white/10 rounded-xl hover:bg-white/5"
+            className="flex-1 py-3 text-sm font-bold text-slate-400 hover:text-foreground transition-colors border border-foreground/10 rounded-xl hover:bg-foreground/5"
           >
             {t('common.cancel')}
           </button>

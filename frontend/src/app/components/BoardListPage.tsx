@@ -6,16 +6,7 @@ import { CreateBoardModal } from './CreateBoardModal';
 import { EditBoardModal } from './EditBoardModal';
 import { UserMenu } from './UserMenu';
 import { Button } from './ui/button';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from './ui/alert-dialog';
+import { MotionModal } from './ui/MotionModal';
 import type { Board } from '../types';
 import { testDataAPI, personalSpaceAPI } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -115,9 +106,9 @@ export function BoardListPage({
   };
 
   return (
-    <div className="min-h-screen bg-bridge-dark text-white">
+    <div className="min-h-screen bg-bridge-dark text-foreground">
       {/* 헤더 */}
-      <header className="border-b border-white/15 glass safe-top">
+      <header className="border-b border-bridge-border glass safe-top">
         <div className="max-w-7xl mx-auto px-8 py-6">
           <div className="flex items-center justify-between">
             <div
@@ -207,9 +198,9 @@ export function BoardListPage({
             {/* 새 보드 생성 카드 */}
             <button
               onClick={() => setIsCreateModalOpen(true)}
-              className="h-28 bg-white/5 hover:bg-white/10 border border-white/20 hover:border-bridge-accent/50 rounded-2xl flex flex-col items-center justify-center text-slate-400 hover:text-white transition-all duration-300 group"
+              className="h-28 bg-foreground/5 hover:bg-foreground/10 border border-bridge-border hover:border-bridge-accent/50 rounded-2xl flex flex-col items-center justify-center text-muted-foreground hover:text-foreground transition-all duration-300 group"
             >
-              <div className="p-3 bg-white/5 rounded-xl group-hover:bg-bridge-accent/20 transition-colors mb-2">
+              <div className="p-3 bg-foreground/5 rounded-xl group-hover:bg-bridge-accent/20 transition-colors mb-2">
                 <Plus className="h-6 w-6 group-hover:text-bridge-accent" />
               </div>
               <span className="text-sm font-medium">Create new board</span>
@@ -263,27 +254,20 @@ export function BoardListPage({
       />
 
       {/* 보드 삭제 확인 다이얼로그 */}
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent className="bg-bridge-obsidian border-white/20">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-foreground font-jakarta">Delete Board</AlertDialogTitle>
-            <AlertDialogDescription className="text-slate-400">
-              Are you sure you want to delete "{selectedBoard?.name}"? This action cannot be undone and all data including tasks, features, and members will be permanently removed.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="border-white/20 text-slate-300 hover:bg-white/5 hover:text-white">
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDeleteBoard}
-              className="bg-red-600 hover:bg-red-700 text-white"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <MotionModal open={isDeleteDialogOpen} onClose={() => setIsDeleteDialogOpen(false)} className="sm:max-w-sm p-6">
+        <h3 className="text-lg font-semibold text-foreground font-jakarta">Delete Board</h3>
+        <p className="text-sm text-slate-400 mt-1">
+          Are you sure you want to delete "{selectedBoard?.name}"? This action cannot be undone and all data including tasks, features, and members will be permanently removed.
+        </p>
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end mt-4">
+          <button onClick={() => setIsDeleteDialogOpen(false)} className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 border border-bridge-border text-muted-foreground hover:bg-foreground/5 hover:text-foreground">
+            Cancel
+          </button>
+          <button onClick={confirmDeleteBoard} className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-red-600 hover:bg-red-700 text-white">
+            Delete
+          </button>
+        </div>
+      </MotionModal>
     </div>
   );
 }
@@ -366,14 +350,14 @@ function BoardCard({ board, onClick, onToggleStar, onEdit, onDelete }: BoardCard
 
           {/* 드롭다운 메뉴 */}
           {isMenuOpen && (
-            <div className="absolute top-full right-0 mt-1 w-36 bg-bridge-obsidian border border-white/20 rounded-xl shadow-xl overflow-hidden z-20">
+            <div className="absolute top-full right-0 mt-1 w-36 bg-bridge-obsidian border border-bridge-border rounded-xl shadow-xl overflow-hidden z-20">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   setIsMenuOpen(false);
                   onEdit();
                 }}
-                className="w-full px-3 py-2 text-left text-sm text-slate-300 hover:bg-white/5 hover:text-white flex items-center gap-2 transition-colors"
+                className="w-full px-3 py-2 text-left text-sm text-muted-foreground hover:bg-foreground/5 hover:text-foreground flex items-center gap-2 transition-colors"
               >
                 <Pencil className="h-3.5 w-3.5" />
                 Edit Board

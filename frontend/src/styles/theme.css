@@ -92,38 +92,38 @@
 /* Light Mode Theme */
 .light {
   /* Bridge Light Theme Colors */
-  --bridge-dark: #F8FAFC;
-  --bridge-obsidian: #FFFFFF;
+  --bridge-dark:  #fffcf8;
+  --bridge-obsidian: #efe6d8;
   --bridge-accent: #6366F1;
   --bridge-secondary: #14B8A6;
 
   /* Bridge Surface Scale */
-  --bridge-surface: #FFFFFF;
-  --bridge-surface-hover: #F8FAFC;
-  --bridge-border: #E2E8F0;
+  --bridge-surface: #f1e3cf;
+  --bridge-surface-hover: #ffffff;
+  --bridge-border: #E4DFDA;
 
   /* shadcn/ui Light Colors */
-  --background: #FFFFFF;
-  --foreground: #0F172A;
-  --card: #FFFFFF;
-  --card-foreground: #0F172A;
-  --popover: #FFFFFF;
-  --popover-foreground: #0F172A;
+  --background: #FFFDF9;
+  --foreground: #3D2E1F;
+  --card: #FFFDF9;
+  --card-foreground: #3D2E1F;
+  --popover: #FFFDF9;
+  --popover-foreground: #3D2E1F;
   --primary: #6366F1;
   --primary-foreground: #FFFFFF;
-  --secondary: #F1F5F9;
-  --secondary-foreground: #0F172A;
-  --muted: #F1F5F9;
-  --muted-foreground: #64748B;
-  --accent: #F1F5F9;
-  --accent-foreground: #0F172A;
+  --secondary: #EDE8E2;
+  --secondary-foreground: #3D2E1F;
+  --muted: #EDE8E2;
+  --muted-foreground: #8C7B6B;
+  --accent: #EDE8E2;
+  --accent-foreground: #3D2E1F;
   --destructive: #EF4444;
   --destructive-foreground: #FFFFFF;
-  --border: #E2E8F0;
-  --input: #E2E8F0;
-  --ring: #6366F1;
-  --input-background: #F8FAFC;
-  --switch-background: #CBD5E1;
+  --border: #E4DFDA;
+  --input: #E4DFDA;
+  --ring: #D4B483;
+  --input-background: #F5F1ED;
+  --switch-background: #D4CCC4;
 }
 
 @theme inline {
@@ -347,6 +347,28 @@ html {
   display: none;
 }
 
+/* Custom Scrollbar (theme-aware) */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+.light .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1);
+}
+.light .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.18);
+}
+
 /* Kanban Board Styles */
 .kanban-scrollbar::-webkit-scrollbar {
   width: 6px;
@@ -364,6 +386,14 @@ html {
 
 .kanban-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.2);
+}
+
+.light .kanban-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.light .kanban-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.18);
 }
 
 /* Kanban Card Glow Effect */

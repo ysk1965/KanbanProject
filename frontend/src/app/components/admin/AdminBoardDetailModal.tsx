@@ -5,7 +5,7 @@ import { adminService, inviteLinkService } from '../../utils/services';
 import { AdminBoardDetail } from '../../utils/api';
 import { formatDateTime, formatDate } from '../../utils/dateUtils';
 import { ConfirmModal, PromptModal, SelectModal, Toast } from './AdminConfirmModal';
-import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
+import { MotionModal } from '../ui/MotionModal';
 
 interface AdminBoardDetailModalProps {
   boardId: string;
@@ -429,15 +429,13 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
 
   return (
     <>
-      <Dialog open={true} onOpenChange={(open) => { if (!open) onClose(); }}>
-        <DialogContent className="bg-bridge-obsidian text-foreground border-white/20 max-w-2xl p-0 gap-0 [&>button:last-child]:hidden overflow-hidden rounded-2xl max-h-[90vh] flex flex-col">
-          <DialogTitle className="sr-only">{t('admin.boardDetail.title')}</DialogTitle>
+      <MotionModal open={true} onClose={onClose} className="sm:max-w-2xl p-0 overflow-hidden max-h-[90vh] flex flex-col">
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-white/15">
-            <h2 className="text-xl font-bold text-white">{t('admin.boardDetail.title')}</h2>
+          <div className="flex items-center justify-between px-6 py-4 border-b border-bridge-border">
+            <h2 className="text-xl font-bold text-foreground">{t('admin.boardDetail.title')}</h2>
             <button
               onClick={onClose}
-              className="p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+              className="p-2 text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
             >
               <X className="h-5 w-5" />
             </button>
@@ -478,8 +476,8 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                             if (e.key === 'Escape') setIsEditingName(false);
                           }}
                           autoFocus
-                          className="flex-1 bg-white/5 border border-white/10 rounded-xl py-2 px-3
-                            text-xl font-bold text-white placeholder-slate-600
+                          className="flex-1 bg-foreground/5 border border-foreground/10 rounded-xl py-2 px-3
+                            text-xl font-bold text-foreground placeholder-slate-600
                             focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent
                             transition-all"
                         />
@@ -493,15 +491,15 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                         </button>
                         <button
                           onClick={() => setIsEditingName(false)}
-                          className="px-3 py-2 bg-white/5 text-slate-400 rounded-lg text-sm
-                            hover:bg-white/10 transition-colors"
+                          className="px-3 py-2 bg-foreground/5 text-slate-400 rounded-lg text-sm
+                            hover:bg-foreground/10 transition-colors"
                         >
                           {t('common.cancel')}
                         </button>
                       </div>
                     ) : (
                       <div className="flex items-center gap-2 group">
-                        <h3 className="text-xl font-bold text-white">{board.name}</h3>
+                        <h3 className="text-xl font-bold text-foreground">{board.name}</h3>
                         {isPersonal && (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-500/20 text-purple-400">
                             <UserIcon className="h-3 w-3" />
@@ -525,7 +523,7 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
 
                 {/* Info Grid */}
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-white/5 rounded-xl p-4">
+                  <div className="bg-foreground/5 rounded-xl p-4">
                     <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
                       {t('admin.boardDetail.tier')}
                     </p>
@@ -544,43 +542,43 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                     </select>
                   </div>
 
-                  <div className="bg-white/5 rounded-xl p-4">
+                  <div className="bg-foreground/5 rounded-xl p-4">
                     <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
                       {t('admin.boardDetail.owner')}
                     </p>
                     <div>
-                      <p className="text-white font-medium">{board.owner_name}</p>
+                      <p className="text-foreground font-medium">{board.owner_name}</p>
                       <p className="text-slate-400 text-sm">{board.owner_email}</p>
                     </div>
                   </div>
 
-                  <div className="bg-white/5 rounded-xl p-4">
+                  <div className="bg-foreground/5 rounded-xl p-4">
                     <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
                       {t('admin.boardDetail.memberCount')}
                     </p>
-                    <p className="text-white flex items-center gap-2">
+                    <p className="text-foreground flex items-center gap-2">
                       <Users className="h-5 w-5 text-bridge-accent" />
                       {t('admin.common.countPeople', { count: board.member_count })}
                     </p>
                   </div>
 
-                  <div className="bg-white/5 rounded-xl p-4">
+                  <div className="bg-foreground/5 rounded-xl p-4">
                     <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
                       {t('admin.boardDetail.taskCount')}
                     </p>
-                    <p className="text-white flex items-center gap-2">
+                    <p className="text-foreground flex items-center gap-2">
                       <ListTodo className="h-5 w-5 text-bridge-secondary" />
                       {t('admin.common.countItems', { count: board.task_count })}
                     </p>
                   </div>
 
                   {!isPersonal && (
-                  <div className="bg-white/5 rounded-xl p-4">
+                  <div className="bg-foreground/5 rounded-xl p-4">
                     <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
                       {t('admin.boardDetail.seatCount')}
                     </p>
                     <div className="flex items-center justify-between">
-                      <p className="text-white flex items-center gap-2">
+                      <p className="text-foreground flex items-center gap-2">
                         <Armchair className="h-5 w-5 text-amber-400" />
                         {board.seat_count != null ? board.seat_count : t('admin.boardDetail.noSeatInfo')}
                       </p>
@@ -595,17 +593,17 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                   </div>
                   )}
 
-                  <div className="bg-white/5 rounded-xl p-4">
+                  <div className="bg-foreground/5 rounded-xl p-4">
                     <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
                       {t('admin.boardDetail.createdAt')}
                     </p>
-                    <p className="text-white flex items-center gap-2">
+                    <p className="text-foreground flex items-center gap-2">
                       <Calendar className="h-4 w-4 text-slate-400" />
                       {formatDateLocal(board.created_at)}
                     </p>
                   </div>
 
-                  <div className="bg-white/5 rounded-xl p-4">
+                  <div className="bg-foreground/5 rounded-xl p-4">
                     <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
                       {t('admin.boardDetail.subscriptionStatus')}
                     </p>
@@ -629,26 +627,26 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
 
                 {/* Personal Board Activity */}
                 {isPersonal && (
-                  <div className="border-t border-white/10 pt-6 space-y-4">
-                    <h4 className="text-lg font-bold text-white flex items-center gap-2">
+                  <div className="border-t border-foreground/10 pt-6 space-y-4">
+                    <h4 className="text-lg font-bold text-foreground flex items-center gap-2">
                       <UserIcon className="h-5 w-5 text-purple-400" />
                       {t('admin.boardDetail.personalActivity', 'Personal Activity')}
                     </h4>
                     <div className="grid grid-cols-2 gap-4">
-                      <div className="bg-white/5 rounded-xl p-4">
+                      <div className="bg-foreground/5 rounded-xl p-4">
                         <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
                           {t('admin.boardDetail.taskCount')}
                         </p>
-                        <p className="text-white text-xl font-bold flex items-center gap-2">
+                        <p className="text-foreground text-xl font-bold flex items-center gap-2">
                           <ListTodo className="h-5 w-5 text-bridge-secondary" />
                           {board.task_count}
                         </p>
                       </div>
-                      <div className="bg-white/5 rounded-xl p-4">
+                      <div className="bg-foreground/5 rounded-xl p-4">
                         <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
                           {t('admin.boardDetail.diaryEntries', 'Diary Entries')}
                         </p>
-                        <p className="text-white text-xl font-bold flex items-center gap-2">
+                        <p className="text-foreground text-xl font-bold flex items-center gap-2">
                           <BookOpen className="h-5 w-5 text-bridge-accent" />
                           {board.diary_count ?? 0}
                         </p>
@@ -658,20 +656,20 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                           </p>
                         )}
                       </div>
-                      <div className="bg-white/5 rounded-xl p-4">
+                      <div className="bg-foreground/5 rounded-xl p-4">
                         <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
                           {t('admin.boardDetail.events', 'Events')}
                         </p>
-                        <p className="text-white text-xl font-bold flex items-center gap-2">
+                        <p className="text-foreground text-xl font-bold flex items-center gap-2">
                           <CalendarDays className="h-5 w-5 text-amber-400" />
                           {board.personal_event_count ?? 0}
                         </p>
                       </div>
-                      <div className="bg-white/5 rounded-xl p-4">
+                      <div className="bg-foreground/5 rounded-xl p-4">
                         <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
                           {t('admin.boardDetail.lastActivity', 'Last Activity')}
                         </p>
-                        <p className="text-white text-sm flex items-center gap-2">
+                        <p className="text-foreground text-sm flex items-center gap-2">
                           <Clock className="h-4 w-4 text-slate-400" />
                           {board.last_activity_at ? formatDateLocal(board.last_activity_at) : '-'}
                         </p>
@@ -683,17 +681,17 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                 {/* Members List */}
                 {!isPersonal && board.members && board.members.length > 0 && (
                   <div>
-                    <h4 className="text-lg font-bold text-white mb-4">{t('admin.boardDetail.memberList')}</h4>
+                    <h4 className="text-lg font-bold text-foreground mb-4">{t('admin.boardDetail.memberList')}</h4>
                     <div className="space-y-2 max-h-60 overflow-y-auto">
                       {board.members.map((member) => (
                         <div
                           key={member.id}
-                          className="bg-white/5 rounded-xl p-4 flex items-center justify-between"
+                          className="bg-foreground/5 rounded-xl p-4 flex items-center justify-between"
                         >
                           <div className="flex items-center gap-3">
                             {getRoleIcon(member.role)}
                             <div>
-                              <p className="text-white font-medium">{member.name}</p>
+                              <p className="text-foreground font-medium">{member.name}</p>
                               <p className="text-slate-400 text-sm">{member.email}</p>
                             </div>
                           </div>
@@ -738,20 +736,20 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                 )}
 
                 {/* AI Credits */}
-                <div className="border-t border-white/10 pt-6 space-y-4">
-                  <h4 className="text-lg font-bold text-white flex items-center gap-2">
+                <div className="border-t border-foreground/10 pt-6 space-y-4">
+                  <h4 className="text-lg font-bold text-foreground flex items-center gap-2">
                     <Sparkles className="h-5 w-5 text-bridge-accent" />
                     AI Credits
                   </h4>
                   <div className="grid grid-cols-2 gap-4">
                     {/* Monthly Credits */}
-                    <div className="bg-white/5 rounded-xl p-4">
+                    <div className="bg-foreground/5 rounded-xl p-4">
                       <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
                         월간 크레딧
                       </p>
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="text-white font-medium">
+                          <span className="text-foreground font-medium">
                             {board.monthly_credits_used ?? 0} / {board.monthly_ai_credits ?? 0}
                           </span>
                           <button
@@ -762,7 +760,7 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                             설정
                           </button>
                         </div>
-                        <div className="w-full bg-white/10 rounded-full h-2">
+                        <div className="w-full bg-foreground/10 rounded-full h-2">
                           <div
                             className="bg-bridge-accent rounded-full h-2 transition-all"
                             style={{
@@ -774,12 +772,12 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                     </div>
 
                     {/* Purchased Credits */}
-                    <div className="bg-white/5 rounded-xl p-4">
+                    <div className="bg-foreground/5 rounded-xl p-4">
                       <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
                         구매 크레딧
                       </p>
                       <div className="flex items-center justify-between">
-                        <span className="text-white font-medium">
+                        <span className="text-foreground font-medium">
                           {board.purchased_credits ?? 0}
                         </span>
                         <button
@@ -803,8 +801,8 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                 </div>
 
                 {/* Admin Actions */}
-                <div className="border-t border-white/10 pt-6 space-y-4">
-                  <h4 className="text-lg font-bold text-white flex items-center gap-2">
+                <div className="border-t border-foreground/10 pt-6 space-y-4">
+                  <h4 className="text-lg font-bold text-foreground flex items-center gap-2">
                     <AlertTriangle className="h-5 w-5 text-amber-400" />
                     {t('admin.common.adminActions')}
                   </h4>
@@ -841,8 +839,8 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
 
                 {/* Invite Link Generator (Personal Board에서는 숨김) */}
                 {!isPersonal && (
-                <div className="border-t border-white/10 pt-6 space-y-4">
-                  <h4 className="text-lg font-bold text-white flex items-center gap-2">
+                <div className="border-t border-foreground/10 pt-6 space-y-4">
+                  <h4 className="text-lg font-bold text-foreground flex items-center gap-2">
                     <Link2 className="h-5 w-5 text-bridge-accent" />
                     초대 URL 생성
                   </h4>
@@ -851,7 +849,7 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                       <select
                         id="invite-role-select"
                         defaultValue="MEMBER"
-                        className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
+                        className="bg-foreground/5 border border-foreground/10 rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
                       >
                         <option value="VIEWER" className="bg-bridge-dark text-white">VIEWER</option>
                         <option value="MEMBER" className="bg-bridge-dark text-white">MEMBER</option>
@@ -878,7 +876,7 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                         ].map(({ domain, label }) => (
                           <div
                             key={domain}
-                            className="flex items-center gap-2 bg-white/5 rounded-lg p-3"
+                            className="flex items-center gap-2 bg-foreground/5 rounded-lg p-3"
                           >
                             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest shrink-0 w-28">
                               {label}
@@ -888,7 +886,7 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                             </code>
                             <button
                               onClick={() => handleCopyInviteUrl(domain)}
-                              className="shrink-0 p-1.5 rounded-md hover:bg-white/10 transition-colors"
+                              className="shrink-0 p-1.5 rounded-md hover:bg-foreground/10 transition-colors"
                               title="복사"
                             >
                               {copiedDomain === domain ? (
@@ -906,12 +904,12 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                 )}
 
                 {/* Danger Zone */}
-                <div className="border-t border-white/15 pt-6">
+                <div className="border-t border-bridge-border pt-6">
                   <h4 className="text-lg font-bold text-red-400 mb-4">{t('admin.boardDetail.dangerZone')}</h4>
                   <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-white font-medium">{t('admin.boardDetail.deleteBoard')}</p>
+                        <p className="text-foreground font-medium">{t('admin.boardDetail.deleteBoard')}</p>
                         <p className="text-slate-400 text-sm">
                           {t('admin.boardDetail.deleteWarning')}
                         </p>
@@ -933,8 +931,7 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
               );
             })()}
           </div>
-        </DialogContent>
-      </Dialog>
+      </MotionModal>
 
       {confirmAction && (
         <ConfirmModal

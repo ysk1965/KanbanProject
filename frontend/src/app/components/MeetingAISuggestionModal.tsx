@@ -11,7 +11,7 @@ import {
   AIApplyRequest,
   AIApplyResult,
 } from '../utils/api';
-import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
+import { MotionModal } from './ui/MotionModal';
 
 interface MeetingAISuggestionModalProps {
   boardId: string;
@@ -317,7 +317,7 @@ export default function MeetingAISuggestionModal({
   const renderFeatureLabel = (feature: AIFeatureSuggestion) => {
     if (feature.type === 'EXISTING') {
       return (
-        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 bg-white/5 px-1.5 py-0.5 rounded">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 bg-foreground/5 px-1.5 py-0.5 rounded">
           {t('meeting.aiExistingFeature')}
         </span>
       );
@@ -331,18 +331,16 @@ export default function MeetingAISuggestionModal({
   };
 
   return (
-    <Dialog open onOpenChange={() => onClose()}>
-      <DialogContent className="bg-bridge-obsidian text-foreground border-white/10 w-[600px] max-w-[calc(100vw-2rem)] max-h-[80vh] flex flex-col p-0 gap-0 [&>button:last-child]:hidden overflow-hidden rounded-2xl">
-        <DialogTitle className="sr-only">{t('meeting.aiOrganizeTitle')}</DialogTitle>
+    <MotionModal open onClose={onClose} className="sm:w-[600px] sm:max-w-[calc(100vw-2rem)] max-h-[80vh] flex flex-col p-0 overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-foreground/10">
           <div className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-bridge-accent" />
-            <h2 className="text-base font-bold text-white">{t('meeting.aiOrganizeTitle')}</h2>
+            <h2 className="text-base font-bold text-foreground">{t('meeting.aiOrganizeTitle')}</h2>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-white hover:bg-white/5 rounded-lg p-1.5 transition-colors"
+            className="text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded-lg p-1.5 transition-colors"
           >
             <X className="h-4 w-4" />
           </button>
@@ -363,7 +361,7 @@ export default function MeetingAISuggestionModal({
               <p className="text-sm text-red-400">{error}</p>
               <button
                 onClick={fetchSuggestions}
-                className="px-4 py-2 text-sm font-medium text-white bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all"
+                className="px-4 py-2 text-sm font-medium text-foreground bg-foreground/5 border border-foreground/10 rounded-xl hover:bg-foreground/10 transition-all"
               >
                 {t('meeting.aiRetry')}
               </button>
@@ -373,7 +371,7 @@ export default function MeetingAISuggestionModal({
               <div className="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center">
                 <Check className="h-6 w-6 text-green-400" />
               </div>
-              <p className="text-sm text-slate-300 text-center">
+              <p className="text-sm text-muted-foreground text-center">
                 {t('meeting.aiApplySuccess', {
                   features: result.features_created,
                   tasks: result.tasks_created,
@@ -410,7 +408,7 @@ export default function MeetingAISuggestionModal({
               {suggestions.features.map((feature, fi) => (
                 <div
                   key={fi}
-                  className="bg-white/[0.03] rounded-xl border border-white/5 overflow-hidden"
+                  className="bg-white/[0.03] rounded-xl border border-foreground/5 overflow-hidden"
                 >
                   {/* Feature row */}
                   <div className="flex items-center gap-2 px-4 py-3">
@@ -425,7 +423,7 @@ export default function MeetingAISuggestionModal({
                     )}
                     <button
                       onClick={() => toggleFeatureExpand(fi)}
-                      className="flex-shrink-0 text-slate-400 hover:text-white transition-colors"
+                      className="flex-shrink-0 text-slate-400 hover:text-foreground transition-colors"
                     >
                       <ChevronRight
                         className={`h-4 w-4 transition-transform ${
@@ -439,7 +437,7 @@ export default function MeetingAISuggestionModal({
                         style={{ backgroundColor: feature.color }}
                       />
                     )}
-                    <span className="text-sm font-medium text-white truncate flex-1">
+                    <span className="text-sm font-medium text-foreground truncate flex-1">
                       {feature.title}
                     </span>
                     {renderFeatureLabel(feature)}
@@ -447,7 +445,7 @@ export default function MeetingAISuggestionModal({
 
                   {/* Tasks */}
                   {expandedFeatures[fi] && (
-                    <div className="border-t border-white/5">
+                    <div className="border-t border-foreground/5">
                       {feature.tasks.map((task, ti) => (
                         <div key={ti}>
                           {/* Task row */}
@@ -463,7 +461,7 @@ export default function MeetingAISuggestionModal({
                             )}
                             <ArrowRight className="h-3 w-3 text-slate-500 flex-shrink-0" />
                             <div className="flex-1 min-w-0">
-                              <span className="text-sm text-slate-300 truncate block">
+                              <span className="text-sm text-muted-foreground truncate block">
                                 {task.title}
                               </span>
                               {task.description && (
@@ -514,14 +512,14 @@ export default function MeetingAISuggestionModal({
 
         {/* Footer */}
         {suggestions && suggestions.features.length > 0 && !result && (
-          <div className="flex items-center justify-between px-6 py-4 border-t border-white/10">
+          <div className="flex items-center justify-between px-6 py-4 border-t border-foreground/10">
             <span className="text-xs text-slate-400">
               {t('meeting.aiSelectedCount', { count: selectedCount })}
             </span>
             <div className="flex items-center gap-2">
               <button
                 onClick={onClose}
-                className="px-4 py-2 text-sm font-medium text-slate-300 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all"
+                className="px-4 py-2 text-sm font-medium text-muted-foreground bg-foreground/5 border border-foreground/10 rounded-xl hover:bg-foreground/10 transition-all"
               >
                 {t('common.cancel')}
               </button>
@@ -549,7 +547,6 @@ export default function MeetingAISuggestionModal({
             <p className="text-xs text-red-400 text-center">{error}</p>
           </div>
         )}
-      </DialogContent>
-    </Dialog>
+    </MotionModal>
   );
 }
