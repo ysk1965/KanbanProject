@@ -751,15 +751,23 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
               </div>
             </LayoutGroup>
 
-            {/* Row axis labels */}
-            <div className="flex items-center gap-2 sm:gap-3 mt-2 flex-wrap">
+            {/* Quadrant legend */}
+            <div className="flex items-center gap-3 sm:gap-4 mt-2 flex-wrap">
               <div className="flex items-center gap-1.5">
-                <div className="w-2 h-2 rounded-full bg-orange-500" />
-                <span className="text-[10px] text-slate-500">{t('personal.tasks.importantLegend')}</span>
+                <div className="w-2 h-2 rounded-full bg-red-400" />
+                <span className="text-[10px] text-red-400/80">{t('personal.tasks.q1Desc')}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-bridge-accent" />
+                <span className="text-[10px] text-bridge-accent/80">{t('personal.tasks.q2Desc')}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <div className="w-2 h-2 rounded-full bg-amber-400" />
-                <span className="text-[10px] text-slate-500">{t('personal.tasks.normalLegend')}</span>
+                <span className="text-[10px] text-amber-400/80">{t('personal.tasks.q3Desc')}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-slate-400" />
+                <span className="text-[10px] text-slate-400/80">{t('personal.tasks.q4Desc')}</span>
               </div>
               <div className="flex-1" />
               <span className="text-[10px] text-slate-500 italic hidden sm:inline">{t('personal.tasks.dragToMove')}</span>

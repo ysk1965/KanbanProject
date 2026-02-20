@@ -21,7 +21,7 @@ interface DashboardProps {
   onCreateBoard: (name: string, description?: string, backgroundGradient?: string) => void;
   onToggleStar: (boardId: string) => void;
   onDeleteBoard?: (boardId: string) => void;
-  onUpdateBoard?: (boardId: string, name: string, description?: string) => void;
+  onUpdateBoard?: (boardId: string, name: string, description?: string, backgroundGradient?: string) => void;
   onRefreshBoards: () => void;
 }
 
@@ -198,9 +198,9 @@ export function Dashboard({
     setEditTarget(board);
   };
 
-  const handleUpdateBoard = (boardId: string, name: string, description?: string) => {
+  const handleUpdateBoard = (boardId: string, name: string, description?: string, backgroundGradient?: string) => {
     if (onUpdateBoard) {
-      onUpdateBoard(boardId, name, description);
+      onUpdateBoard(boardId, name, description, backgroundGradient);
     }
     setEditTarget(null);
   };

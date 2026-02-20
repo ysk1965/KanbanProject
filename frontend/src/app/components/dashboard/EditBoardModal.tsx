@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, AlertTriangle, Trash2 } from 'lucide-react';
+import { X, AlertTriangle, Trash2, Check } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Board } from '../../types';
 import { MotionModal } from '../ui/MotionModal';
@@ -27,7 +27,7 @@ interface EditBoardModalProps {
   isOpen: boolean;
   board: Board | null;
   onClose: () => void;
-  onUpdate: (boardId: string, name: string, description?: string) => void;
+  onUpdate: (boardId: string, name: string, description?: string, backgroundGradient?: string) => void;
   onDelete?: (boardId: string) => void;
 }
 
@@ -35,6 +35,7 @@ export function EditBoardModal({ isOpen, board, onClose, onUpdate, onDelete }: E
   const { t } = useTranslation();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [selectedColor, setSelectedColor] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
@@ -43,12 +44,14 @@ export function EditBoardModal({ isOpen, board, onClose, onUpdate, onDelete }: E
     if (board) {
       setName(board.name);
       setDescription(board.description || '');
+      setSelectedColor(board.background_gradient || getGradient(board.id));
     }
   }, [board]);
 
   const handleClose = () => {
     setName('');
     setDescription('');
+    setSelectedColor('');
     setShowDeleteConfirm(false);
     setDeleteConfirmText('');
     onClose();
@@ -56,7 +59,7 @@ export function EditBoardModal({ isOpen, board, onClose, onUpdate, onDelete }: E
 
   const handleUpdate = () => {
     if (name.trim() && board) {
-      onUpdate(board.id, name.trim(), description.trim() || undefined);
+      onUpdate(board.id, name.trim(), description.trim() || undefined, selectedColor || undefined);
       handleClose();
     }
   };
@@ -74,14 +77,14 @@ export function EditBoardModal({ isOpen, board, onClose, onUpdate, onDelete }: E
   const isPremium = board.subscription?.status === 'ACTIVE';
   const canDelete = isOwner && onDelete;
 
-  const gradient = getGradient(board.id);
+  const currentGradient = selectedColor || getGradient(board.id);
 
   return (
     <MotionModal open={isOpen} onClose={handleClose} className="sm:max-w-lg p-0 overflow-hidden">
         {/* Preview Section */}
         <div
           className="h-32 w-full flex items-end p-6 relative overflow-hidden"
-          style={{ background: gradient }}
+          style={{ background: currentGradient }}
         >
           <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]" />
           <h3 className="text-xl font-bold text-white drop-shadow-md truncate relative z-10">
@@ -134,6 +137,30 @@ export function EditBoardModal({ isOpen, board, onClose, onUpdate, onDelete }: E
                 placeholder={t('board.boardDescPlaceholder')}
                 className="w-full bg-foreground/5 border border-bridge-border rounded-xl px-4 py-3 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-bridge-accent focus:ring-2 focus:ring-bridge-accent/20 transition-all resize-none"
               />
+            </div>
+
+            {/* Background Color */}
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                {t('dashboard.backgroundColor')}
+              </label>
+              <div className="grid grid-cols-6 gap-3">
+                {GRADIENTS.map((color, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setSelectedColor(color)}
+                    className="h-10 rounded-lg relative overflow-hidden transition-transform active:scale-90 hover:scale-105"
+                    style={{ background: color }}
+                  >
+                    {selectedColor === color && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                        <Check size={16} className="text-white" />
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 

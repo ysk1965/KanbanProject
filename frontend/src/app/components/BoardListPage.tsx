@@ -15,7 +15,7 @@ interface BoardListPageProps {
   boards: Board[];
   onSelectBoard: (boardId: string) => void;
   onCreateBoard: (name: string, description?: string, backgroundGradient?: string) => void;
-  onUpdateBoard: (boardId: string, name: string, description?: string) => void;
+  onUpdateBoard: (boardId: string, name: string, description?: string, backgroundGradient?: string) => void;
   onDeleteBoard: (boardId: string) => void;
   onToggleStar: (boardId: string) => void;
   onLogout: () => void;

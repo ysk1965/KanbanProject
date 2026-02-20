@@ -126,16 +126,16 @@ export const boardService = {
     }
   },
 
-  updateBoard: async (boardId: string, name: string, description?: string): Promise<Board> => {
+  updateBoard: async (boardId: string, name: string, description?: string, backgroundGradient?: string): Promise<Board> => {
     try {
-      const board = await boardAPI.updateBoard(boardId, { name, description });
+      const board = await boardAPI.updateBoard(boardId, { name, description, background_gradient: backgroundGradient });
       return board;
     } catch (error) {
       console.warn('API failed for update board', error);
       if (USE_MOCK_ON_ERROR) {
         const boards = loadFromLocalStorage('kanban_boards', mockBoards);
         const updatedBoards = boards.map((b: Board) =>
-          b.id === boardId ? { ...b, name, description } : b
+          b.id === boardId ? { ...b, name, description, background_gradient: backgroundGradient } : b
         );
         saveToLocalStorage('kanban_boards', updatedBoards);
         return updatedBoards.find((b: Board) => b.id === boardId)!;

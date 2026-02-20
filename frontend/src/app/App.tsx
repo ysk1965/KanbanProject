@@ -259,9 +259,9 @@ function BoardsRoute() {
     }
   };
 
-  const handleUpdateBoard = async (boardId: string, name: string, description?: string) => {
+  const handleUpdateBoard = async (boardId: string, name: string, description?: string, backgroundGradient?: string) => {
     try {
-      const updatedBoard = await boardService.updateBoard(boardId, name, description);
+      const updatedBoard = await boardService.updateBoard(boardId, name, description, backgroundGradient);
       setBoards(boards.map((b) => (b.id === boardId ? { ...b, ...updatedBoard } : b)));
     } catch (error) {
       console.error('Failed to update board:', error);

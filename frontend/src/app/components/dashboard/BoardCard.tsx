@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Star, Users, MoreHorizontal, ShieldCheck, Pencil, Trash2, Copy, ExternalLink } from 'lucide-react';
+import { Star, Users, MoreHorizontal, ShieldCheck, Pencil, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { Board } from '../../types';
@@ -68,7 +68,7 @@ export function BoardCard({ board, onToggleStar, onClick, onDelete, onEdit }: Bo
   return (
     <motion.div
       whileHover={{ y: -4, transition: { duration: 0.2 } }}
-      className="relative flex flex-col h-[13rem] w-full bg-bridge-obsidian/60 backdrop-blur-sm rounded-2xl group border border-bridge-border hover:border-foreground/[0.15] transition-all shadow-lg hover:shadow-xl hover:shadow-bridge-accent/5 cursor-pointer"
+      className={`relative flex flex-col h-[13rem] w-full bg-bridge-obsidian/60 backdrop-blur-sm rounded-2xl group border border-bridge-border hover:border-foreground/[0.15] transition-all shadow-lg hover:shadow-xl hover:shadow-bridge-accent/5 cursor-pointer ${isMenuOpen ? 'z-50' : ''}`}
       onClick={() => onClick(board)}
     >
       {/* Dynamic Background Header - Compact */}
@@ -81,9 +81,10 @@ export function BoardCard({ board, onToggleStar, onClick, onDelete, onEdit }: Bo
           style={{ background: 'linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.12) 45%, rgba(255,255,255,0.12) 55%, transparent 60%)', backgroundSize: '200% 100%', animation: 'shimmer 1.5s ease-in-out infinite' }}
         />
         <div className="absolute inset-0 opacity-[0.08] bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]" />
+      </div>
 
-        {/* Top right controls */}
-        <div className="absolute top-2.5 right-2.5 flex gap-1.5 z-10">
+      {/* Top right controls - outside header to avoid overflow-hidden clipping */}
+      <div className="absolute top-2.5 right-2.5 flex gap-1.5 z-10">
           {/* Star Button */}
           <motion.button
             onClick={handleStarClick}
@@ -131,20 +132,6 @@ export function BoardCard({ board, onToggleStar, onClick, onDelete, onEdit }: Bo
                         {t('board.editBoard')}
                       </button>
                     )}
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); }}
-                      className="w-full px-3.5 py-2.5 text-left text-[13px] text-muted-foreground hover:bg-foreground/5 hover:text-foreground flex items-center gap-2.5 transition-colors"
-                    >
-                      <Copy size={14} className="text-slate-400" />
-                      {t('board.duplicateBoard', 'Duplicate')}
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); window.open(`/boards/${board.id}`, '_blank'); }}
-                      className="w-full px-3.5 py-2.5 text-left text-[13px] text-muted-foreground hover:bg-foreground/5 hover:text-foreground flex items-center gap-2.5 transition-colors"
-                    >
-                      <ExternalLink size={14} className="text-slate-400" />
-                      {t('board.openNewTab', 'Open in new tab')}
-                    </button>
                     {onDelete && isOwner && (
                       <>
                         <div className="border-t border-bridge-border my-1" />
@@ -162,7 +149,6 @@ export function BoardCard({ board, onToggleStar, onClick, onDelete, onEdit }: Bo
               </AnimatePresence>
             </div>
           )}
-        </div>
       </div>
 
       {/* Card Body */}

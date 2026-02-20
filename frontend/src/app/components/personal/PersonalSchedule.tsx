@@ -1,8 +1,10 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { ChevronLeft, ChevronRight, Plus, Trash2, X, Loader2, Settings, RotateCw, CalendarDays, Clock, CheckCircle2, ListTodo, AlertCircle, Search, Flame, ChevronDown, ChevronUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MotionModal } from '../ui/MotionModal';
+import { TimePicker } from '../ui/TimePicker';
 import { personalEventService, personalTaskService } from '../../utils/services';
 import { personalHabitAPI } from '../../utils/api';
 import { CheckInConfirmModal } from './PersonalHabits';
@@ -38,20 +40,32 @@ const PRIORITY_DOT: Record<string, string> = {
 
 function ColorDropdown({ color, onChange, colors = EVENT_COLORS }: { color: string; onChange: (c: string) => void; colors?: string[] }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
 
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      if (btnRef.current?.contains(target) || dropdownRef.current?.contains(target)) return;
+      setOpen(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
+  useLayoutEffect(() => {
+    if (open && btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect();
+      setPos({ top: rect.bottom + 4, left: rect.left });
+    }
+  }, [open]);
+
   return (
-    <div className="relative" ref={ref}>
+    <div>
       <button
+        ref={btnRef}
         type="button"
         onClick={() => setOpen(!open)}
         className="flex items-center gap-2 px-3 py-2 bg-foreground/5 border border-foreground/10 rounded-xl hover:bg-foreground/10 transition-all"
@@ -59,8 +73,13 @@ function ColorDropdown({ color, onChange, colors = EVENT_COLORS }: { color: stri
         <span className="w-5 h-5 rounded-full shrink-0" style={{ backgroundColor: color }} />
         <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
-      {open && (
-        <div className="absolute left-0 bottom-full mb-1 z-50 bg-bridge-obsidian border border-foreground/10 rounded-xl p-2 shadow-2xl">
+      {open && createPortal(
+        <div
+          ref={dropdownRef}
+          className="fixed z-[100] bg-bridge-obsidian border border-foreground/10 rounded-xl p-2 shadow-2xl"
+          style={{ top: pos.top, left: pos.left }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
           <div className="grid grid-cols-4 gap-1.5">
             {colors.map((c) => (
               <button
@@ -75,7 +94,8 @@ function ColorDropdown({ color, onChange, colors = EVENT_COLORS }: { color: stri
               />
             ))}
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );
@@ -1474,6 +1494,7 @@ export function PersonalSchedule() {
         existingEvents={events}
         onClose={() => setIsCreateOpen(false)}
         onCreate={handleCreateEvent}
+        onUpdate={handleUpdateEvent}
       />
 
       <ScheduleSettingsModal
@@ -1564,6 +1585,7 @@ function CreateEventModal({
   existingEvents,
   onClose,
   onCreate,
+  onUpdate,
 }: {
   open: boolean;
   date: string;
@@ -1583,6 +1605,15 @@ function CreateEventModal({
     recurrence_end_date?: string;
     recurrence_days_of_week?: number[];
   }) => void;
+  onUpdate?: (eventId: string, data: {
+    title?: string;
+    description?: string;
+    event_date?: string;
+    start_time?: string | null;
+    end_time?: string | null;
+    color?: string;
+    all_day?: boolean;
+  }) => void;
 }) {
   const { t } = useTranslation();
   const [title, setTitle] = useState('');
@@ -1591,6 +1622,14 @@ function CreateEventModal({
   const [endTime, setEndTime] = useState(initialEndTime || '');
   const [color, setColor] = useState(EVENT_COLORS[0]);
   const [recurrenceRule, setRecurrenceRule] = useState(initialRecurrenceRule || '');
+
+  useEffect(() => {
+    if (open) {
+      setStartTime(initialStartTime || '');
+      setEndTime(initialEndTime || '');
+      setRecurrenceRule(initialRecurrenceRule || '');
+    }
+  }, [open, initialStartTime, initialEndTime, initialRecurrenceRule]);
   const [recurrenceEndDate, setRecurrenceEndDate] = useState('');
   const [recurrenceDaysOfWeek, setRecurrenceDaysOfWeek] = useState<number[]>([]);
 
@@ -1690,6 +1729,18 @@ function CreateEventModal({
     if (!title.trim()) return;
     if (recurrenceRule && !recurrenceEndDate) return;
     if (recurrenceRule === 'WEEKLY' && recurrenceDaysOfWeek.length === 0) return;
+    // If an existing event is selected, update it instead of creating a duplicate
+    if (selectedEvent && onUpdate) {
+      onUpdate(selectedEvent.id, {
+        title: title.trim(),
+        description: description.trim() || undefined,
+        start_time: startTime || null,
+        end_time: endTime || null,
+        color,
+        all_day: false,
+      });
+      return;
+    }
     onCreate({
       title: title.trim(),
       description: description.trim() || undefined,
@@ -1910,7 +1961,7 @@ function CreateEventModal({
                 {t('personal.schedule.date')}
               </label>
               <div className="text-sm text-foreground/80 bg-foreground/5 border border-foreground/10 rounded-xl px-4 py-2.5">
-                {formatDate(date)}
+                {formatDate(date, "PPP '('EEE')'")}
               </div>
             </div>
 
@@ -1950,22 +2001,25 @@ function CreateEventModal({
                 <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
                   {t('personal.schedule.start')}
                 </label>
-                <input
-                  type="time"
+                <TimePicker
                   value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
-                  className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-2.5 px-4 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+                  onChange={(val) => {
+                    setStartTime(val);
+                    if (val && !endTime) {
+                      const [h, m] = val.split(':').map(Number);
+                      const endH = (h + 1) % 24;
+                      setEndTime(`${String(endH).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+                    }
+                  }}
                 />
               </div>
               <div className="flex-1">
                 <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
                   {t('personal.schedule.end')}
                 </label>
-                <input
-                  type="time"
+                <TimePicker
                   value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
-                  className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-2.5 px-4 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+                  onChange={setEndTime}
                 />
               </div>
             </div>
@@ -2283,7 +2337,7 @@ function EventDetailModal({
               {t('personal.schedule.date')}
             </label>
             <div className="text-sm text-foreground/80 bg-foreground/5 border border-foreground/10 rounded-xl px-4 py-2.5">
-              {formatDate(event.event_date)}
+              {formatDate(event.event_date, "PPP '('EEE')'")}
             </div>
           </div>
 
@@ -2409,22 +2463,25 @@ function EventDetailModal({
               <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
                 {t('personal.schedule.start')}
               </label>
-              <input
-                type="time"
+              <TimePicker
                 value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-                className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-2.5 px-4 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+                onChange={(val) => {
+                  setStartTime(val);
+                  if (val && !endTime) {
+                    const [h, m] = val.split(':').map(Number);
+                    const endH = (h + 1) % 24;
+                    setEndTime(`${String(endH).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+                  }
+                }}
               />
             </div>
             <div className="flex-1">
               <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
                 {t('personal.schedule.end')}
               </label>
-              <input
-                type="time"
+              <TimePicker
                 value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
-                className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-2.5 px-4 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+                onChange={setEndTime}
               />
             </div>
           </div>

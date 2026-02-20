@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, Plus, X, Calendar, ListTodo, CalendarDays, C
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MotionModal } from '../ui/MotionModal';
+import { TimePicker } from '../ui/TimePicker';
 import { personalTaskAPI } from '../../utils/api';
 import { personalEventService } from '../../utils/services';
 import { formatDate } from '../../utils/dateUtils';
@@ -910,20 +911,23 @@ function CreateEventModal({
             <div className="flex gap-3">
               <div className="flex-1">
                 <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">{t('personal.calendar.start')}</label>
-                <input
-                  type="time"
+                <TimePicker
                   value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
-                  className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-2.5 px-4 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all dark:[color-scheme:dark]"
+                  onChange={(val) => {
+                    setStartTime(val);
+                    if (val && !endTime) {
+                      const [h, m] = val.split(':').map(Number);
+                      const endH = (h + 1) % 24;
+                      setEndTime(`${String(endH).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+                    }
+                  }}
                 />
               </div>
               <div className="flex-1">
                 <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">{t('personal.calendar.end')}</label>
-                <input
-                  type="time"
+                <TimePicker
                   value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
-                  className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-2.5 px-4 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all dark:[color-scheme:dark]"
+                  onChange={setEndTime}
                 />
               </div>
             </div>
@@ -1116,20 +1120,23 @@ function EditEventModal({
             <div className="flex gap-3">
               <div className="flex-1">
                 <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">{t('personal.calendar.start')}</label>
-                <input
-                  type="time"
+                <TimePicker
                   value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
-                  className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-2.5 px-4 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all dark:[color-scheme:dark]"
+                  onChange={(val) => {
+                    setStartTime(val);
+                    if (val && !endTime) {
+                      const [h, m] = val.split(':').map(Number);
+                      const endH = (h + 1) % 24;
+                      setEndTime(`${String(endH).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+                    }
+                  }}
                 />
               </div>
               <div className="flex-1">
                 <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">{t('personal.calendar.end')}</label>
-                <input
-                  type="time"
+                <TimePicker
                   value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
-                  className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-2.5 px-4 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all dark:[color-scheme:dark]"
+                  onChange={setEndTime}
                 />
               </div>
             </div>

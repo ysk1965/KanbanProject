@@ -23,6 +23,7 @@ import { BoardMember } from './ShareBoardModal';
 import { MeetingView } from './MeetingView';
 import { Sheet, SheetContent, SheetTitle } from './ui/sheet';
 import { MotionModal } from './ui/MotionModal';
+import { TimePicker } from './ui/TimePicker';
 
 interface MeetingCalendarViewProps {
   boardId: string;
@@ -578,22 +579,25 @@ function RecurringEditModal({ boardId, meeting, onClose, onUpdated }: RecurringE
               <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
                 {t('meeting.startTime', '시작 시간')}
               </label>
-              <input
-                type="time"
+              <TimePicker
                 value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-                className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+                onChange={(val) => {
+                  setStartTime(val);
+                  if (val && !endTime) {
+                    const [h, m] = val.split(':').map(Number);
+                    const endH = (h + 1) % 24;
+                    setEndTime(`${String(endH).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+                  }
+                }}
               />
             </div>
             <div>
               <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
                 {t('meeting.endTime', '종료 시간')}
               </label>
-              <input
-                type="time"
+              <TimePicker
                 value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
-                className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+                onChange={setEndTime}
               />
             </div>
           </div>
