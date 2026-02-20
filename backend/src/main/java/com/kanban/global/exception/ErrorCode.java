@@ -58,6 +58,8 @@ public enum ErrorCode {
     PREMIUM_FEATURE_REQUIRED(HttpStatus.FORBIDDEN, "B004", "이 기능은 Premium에서만 사용 가능합니다"),
     PERSONAL_BOARD_NO_INVITE(HttpStatus.FORBIDDEN, "B006", "개인 보드에는 멤버를 초대할 수 없습니다"),
     PERSONAL_SPACE_ALREADY_ENABLED(HttpStatus.CONFLICT, "B007", "이미 개인 공간이 활성화되어 있습니다"),
+    BOARD_ALREADY_DELETED(HttpStatus.CONFLICT, "B008", "이미 삭제된 보드입니다"),
+    BOARD_NOT_DELETED(HttpStatus.CONFLICT, "B009", "삭제되지 않은 보드입니다"),
 
     // Block
     BLOCK_NOT_FOUND(HttpStatus.NOT_FOUND, "BL001", "블록을 찾을 수 없습니다"),

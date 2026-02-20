@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Feature, Task, Tag } from '../types';
 import { FEATURE_COLORS } from '../constants';
-import { X, Trash2, ClipboardList, Lightbulb, ArrowRight, Pipette, FileText, CalendarIcon, Tags, Sparkles, Pencil } from 'lucide-react';
+import { X, Trash2, ClipboardList, Lightbulb, ArrowRight, Pipette, FileText, CalendarIcon, Tags, Sparkles, Pencil, AlertCircle } from 'lucide-react';
 import { MotionModal } from './ui/MotionModal';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -35,6 +35,7 @@ interface FeatureDetailModalProps {
   onDeleteTag: (tagId: string) => Promise<void>;
   boardId: string;
   canEdit?: boolean;
+  isOnboarding?: boolean;
 }
 
 export function FeatureDetailModal({
@@ -53,6 +54,7 @@ export function FeatureDetailModal({
   onDeleteTag,
   boardId,
   canEdit = true,
+  isOnboarding = false,
 }: FeatureDetailModalProps) {
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
   const [initialFeature, setInitialFeature] = useState<Feature | null>(null);
@@ -62,6 +64,7 @@ export function FeatureDetailModal({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [flyingTask, setFlyingTask] = useState<{ title: string; x: number; y: number } | null>(null);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [showAIConfirm, setShowAIConfirm] = useState(false);
   const [showAIDecompose, setShowAIDecompose] = useState(false);
   const [dateCalendarOpen, setDateCalendarOpen] = useState(false);
   const [editingTaskTitle, setEditingTaskTitle] = useState('');
@@ -485,14 +488,14 @@ export function FeatureDetailModal({
               </div>
 
               {/* Subtask Module */}
-              <div className="mt-6 pt-6 border-t border-foreground/10">
-                <div className="flex items-center justify-between mb-4">
+              <div className={`mt-6 pt-6 border-t border-foreground/10 relative ${isOnboarding && tasks.length === 0 ? 'z-10' : ''}`}>
+                <div className="flex items-center justify-between mb-4 relative">
                   <div className="flex items-center gap-2">
                     <ClipboardList className="h-5 w-5" style={{ color: selectedColor }} />
                     <Label className="text-base font-semibold text-foreground">{t('featureDetail.subtaskList')}</Label>
                     {canEdit && (
                       <button
-                        onClick={() => setShowAIDecompose(true)}
+                        onClick={() => setShowAIConfirm(true)}
                         className="ml-1 flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold text-bridge-accent bg-bridge-accent/10 rounded-lg hover:bg-bridge-accent/20 transition-all"
                       >
                         <Sparkles className="h-3 w-3" />
@@ -513,27 +516,82 @@ export function FeatureDetailModal({
                   </div>
                 </div>
 
-                <div className="bg-bridge-dark/40 border border-bridge-border/30 rounded-xl overflow-hidden">
+                <div className={`relative bg-bridge-dark/40 rounded-xl overflow-hidden transition-all duration-500 ${isOnboarding && tasks.length === 0 ? 'border-2 border-bridge-accent/50' : 'border border-bridge-border/30'}`}>
+                  {/* 온보딩 펄스 글로우 */}
+                  {isOnboarding && tasks.length === 0 && (
+                    <motion.div
+                      className="absolute inset-0 rounded-xl pointer-events-none z-0"
+                      animate={{ boxShadow: [
+                        '0 0 0 2px rgba(99,102,241,0.2), 0 0 15px rgba(99,102,241,0.08)',
+                        '0 0 0 3px rgba(99,102,241,0.5), 0 0 40px rgba(99,102,241,0.2), 0 0 80px rgba(99,102,241,0.08)',
+                        '0 0 0 2px rgba(99,102,241,0.2), 0 0 15px rgba(99,102,241,0.08)',
+                      ] }}
+                      transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+                    />
+                  )}
                   {/* Task Entries */}
-                  <div className="divide-y divide-white/5">
+                  <div className="divide-y divide-white/5 relative z-[1]">
                     {tasks.length === 0 && (
                       <div className="relative">
-                        <div className="px-5 pt-5 pb-3 flex items-start gap-3">
-                          <div
-                            className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
-                            style={{ backgroundColor: `${selectedColor}15` }}
+                        {isOnboarding ? (
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.92, y: -10 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            transition={{ delay: 0.3, type: 'spring', stiffness: 260, damping: 22 }}
+                            className="m-4 p-4 rounded-xl bg-gradient-to-r from-bridge-accent/15 via-purple-500/10 to-bridge-accent/15 border border-bridge-accent/30"
                           >
-                            <Lightbulb size={14} style={{ color: selectedColor }} />
-                          </div>
-                          <div>
-                            <p className="text-xs font-semibold text-foreground mb-1">
-                              {t('featureDetail.addSubtaskGuide')}
-                            </p>
-                            <p className="text-[11px] text-slate-500 leading-relaxed">
-                              {t('featureDetail.subtaskDescription')}
-                            </p>
-                          </div>
-                        </div>
+                            <div className="flex items-center gap-3 mb-3">
+                              <motion.div
+                                animate={{ scale: [1, 1.2, 1], boxShadow: [
+                                  '0 0 0 0 rgba(99,102,241,0)',
+                                  '0 0 0 8px rgba(99,102,241,0.2)',
+                                  '0 0 0 0 rgba(99,102,241,0)',
+                                ] }}
+                                transition={{ duration: 2, repeat: Infinity }}
+                                className="px-2.5 h-8 rounded-lg bg-gradient-to-br from-bridge-accent to-purple-500 flex items-center justify-center flex-shrink-0"
+                              >
+                                <span className="text-[10px] font-black text-white tracking-widest uppercase">Step 2</span>
+                              </motion.div>
+                              <div className="flex-1">
+                                <p className="text-sm font-bold text-white">
+                                  {t('featureDetail.onboardingStep2')}
+                                </p>
+                                <p className="text-[11px] text-slate-400 mt-0.5">
+                                  {t('featureDetail.subtaskDescription')}
+                                </p>
+                              </div>
+                            </div>
+                            {/* 포인팅 화살표 */}
+                            <motion.div
+                              animate={{ y: [0, 4, 0] }}
+                              transition={{ duration: 1, repeat: Infinity, ease: 'easeInOut' }}
+                              className="flex items-center justify-center gap-1.5 text-bridge-accent/70"
+                            >
+                              <ArrowRight className="h-3.5 w-3.5 rotate-90" />
+                              <span className="text-[10px] font-bold tracking-wider uppercase">{t('featureDetail.addSubtaskGuide')}</span>
+                              <ArrowRight className="h-3.5 w-3.5 rotate-90" />
+                            </motion.div>
+                          </motion.div>
+                        ) : (
+                          <>
+                            <div className="px-5 pt-5 pb-3 flex items-start gap-3">
+                              <div
+                                className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
+                                style={{ backgroundColor: `${selectedColor}15` }}
+                              >
+                                <Lightbulb size={14} style={{ color: selectedColor }} />
+                              </div>
+                              <div>
+                                <p className="text-xs font-semibold text-foreground mb-1">
+                                  {t('featureDetail.addSubtaskGuide')}
+                                </p>
+                                <p className="text-[11px] text-slate-500 leading-relaxed">
+                                  {t('featureDetail.subtaskDescription')}
+                                </p>
+                              </div>
+                            </div>
+                          </>
+                        )}
                         {/* Example subtasks (visual guide) */}
                         <div className="mx-4 mb-4 rounded-lg border border-dashed border-foreground/10 overflow-hidden opacity-40 pointer-events-none select-none">
                           <div className="px-3 py-1.5 bg-white/[0.02]">
@@ -605,7 +663,11 @@ export function FeatureDetailModal({
 
                   {/* Quick Add Dock */}
                   {canEdit && (
-                    <div className="bg-bridge-dark/30 p-2 flex gap-2 border-t border-bridge-border/20">
+                    <motion.div
+                      className={`relative z-[1] p-2 flex gap-2 border-t transition-all ${isOnboarding && tasks.length === 0 ? 'bg-bridge-accent/5 border-bridge-accent/20' : 'bg-bridge-dark/30 border-bridge-border/20'}`}
+                      animate={isOnboarding && tasks.length === 0 ? { backgroundColor: ['rgba(99,102,241,0.03)', 'rgba(99,102,241,0.08)', 'rgba(99,102,241,0.03)'] } : {}}
+                      transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                    >
                       <input
                         type="text"
                         placeholder={t('featureDetail.newSubtaskPlaceholder')}
@@ -615,21 +677,24 @@ export function FeatureDetailModal({
                           if (e.nativeEvent.isComposing) return;
                           if (e.key === 'Enter') handleAddSubtask();
                         }}
-                        className="flex-1 bg-bridge-dark/50 border border-bridge-border/30 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-bridge-accent/50 focus:border-bridge-accent text-foreground placeholder-slate-500 transition-all"
+                        className={`flex-1 rounded-lg px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent text-foreground transition-all ${isOnboarding && tasks.length === 0 ? 'bg-bridge-dark/70 border-2 border-bridge-accent/40 placeholder-slate-400 shadow-[0_0_12px_rgba(99,102,241,0.15)]' : 'bg-bridge-dark/50 border border-bridge-border/30 placeholder-slate-500'}`}
+                        autoFocus={isOnboarding && tasks.length === 0}
                       />
-                      <button
+                      <motion.button
                         ref={addBtnRef}
                         onClick={handleAddSubtask}
                         className="px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg border transition-all active:scale-95"
                         style={{
-                          backgroundColor: `${selectedColor}15`,
+                          backgroundColor: isOnboarding && tasks.length === 0 ? `${selectedColor}25` : `${selectedColor}15`,
                           color: selectedColor,
                           borderColor: `${selectedColor}33`,
                         }}
+                        animate={isOnboarding && tasks.length === 0 ? { scale: [1, 1.05, 1] } : {}}
+                        transition={{ duration: 1.5, repeat: Infinity }}
                       >
                         ADD
-                      </button>
-                    </div>
+                      </motion.button>
+                    </motion.div>
                   )}
                 </div>
               </div>
@@ -692,6 +757,76 @@ export function FeatureDetailModal({
           </button>
         </div>
       </MotionModal>
+
+      {/* AI Confirm Modal */}
+      {showAIConfirm && feature && (
+        <MotionModal open={true} onClose={() => setShowAIConfirm(false)} className="sm:max-w-md p-0 overflow-hidden">
+          {/* Header */}
+          <div className="flex items-center justify-between px-5 py-4 border-b border-foreground/5">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-bridge-accent to-purple-500 flex items-center justify-center">
+                <Sparkles className="h-3.5 w-3.5 text-white" />
+              </div>
+              <h3 className="text-sm font-bold text-foreground">{t('featureDetail.aiConfirmTitle')}</h3>
+            </div>
+            <button onClick={() => setShowAIConfirm(false)} className="text-slate-400 hover:text-foreground transition-colors">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          {/* Content */}
+          <div className="px-5 py-4 space-y-4">
+            <p className="text-xs text-slate-400">{t('featureDetail.aiConfirmDesc')}</p>
+
+            {/* Feature title */}
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                {t('featureDetail.aiConfirmFeatureTitle')}
+              </label>
+              <div className="px-3 py-2.5 bg-white/5 rounded-lg border border-foreground/5">
+                <p className="text-sm font-medium text-foreground">{feature.title}</p>
+              </div>
+            </div>
+
+            {/* Feature description */}
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                {t('featureDetail.aiConfirmFeatureDesc')}
+              </label>
+              {editedFeature?.description ? (
+                <div className="px-3 py-2.5 bg-white/5 rounded-lg border border-foreground/5">
+                  <p className="text-sm text-slate-300 whitespace-pre-wrap line-clamp-4">{editedFeature.description}</p>
+                </div>
+              ) : (
+                <div className="px-3 py-2.5 bg-amber-500/5 rounded-lg border border-amber-500/20 flex items-start gap-2">
+                  <AlertCircle className="h-3.5 w-3.5 text-amber-400 mt-0.5 flex-shrink-0" />
+                  <p className="text-xs text-amber-400/80">{t('featureDetail.aiConfirmNoDesc')}</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="px-5 py-4 border-t border-foreground/5 flex justify-end gap-2">
+            <button
+              onClick={() => setShowAIConfirm(false)}
+              className="px-4 py-2 text-sm text-slate-400 hover:text-foreground transition-colors"
+            >
+              {t('common.cancel')}
+            </button>
+            <button
+              onClick={() => {
+                setShowAIConfirm(false);
+                setShowAIDecompose(true);
+              }}
+              className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-bridge-accent to-purple-500 rounded-lg hover:opacity-90 transition-all flex items-center gap-1.5"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              {t('featureDetail.aiConfirmStart')}
+            </button>
+          </div>
+        </MotionModal>
+      )}
 
       {/* AI Decompose Modal */}
       {showAIDecompose && feature && (

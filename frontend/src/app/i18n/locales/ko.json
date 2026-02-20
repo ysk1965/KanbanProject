@@ -1017,7 +1017,8 @@
     "noBoards": "아직 보드가 없습니다",
     "createFirst": "첫 번째 보드 만들기",
     "deleteBoard": "보드 삭제",
-    "deleteConfirm": "보드를 삭제하시겠습니까?",
+    "deleteConfirm": "\"{{name}}\" 보드를 삭제하시겠습니까?",
+    "softDeleteNotice": "7일 이내에 관리자에게 복구를 요청할 수 있습니다.",
     "deleteIrreversible": "이 작업은 되돌릴 수 없습니다.",
     "editBoard": "보드 수정",
     "boardNamePlaceholder": "보드 이름을 입력하세요",
@@ -1510,7 +1511,7 @@
   },
   "emptyBoard": {
     "heading": "보드를 시작해보세요",
-    "subheading": "3단계로 프로젝트를 체계적으로 관리하세요",
+    "subheading": "3단계로 프로젝트를 체계적으로 관리하고 진행률을 추적하세요",
     "createFirstFeature": "첫 번째 Feature 만들기",
     "step1Title": "Feature 생성",
     "step1Desc": "Feature는 하나의 기능 단위예요. 아래 버튼을 눌러 첫 Feature를 만들어보세요.",
@@ -1535,6 +1536,7 @@
     "addTag": "태그 추가",
     "newTag": "새 태그",
     "subtaskList": "서브태스크 리스트",
+    "onboardingStep2": "이제 서브태스크를 추가해보세요!",
     "addSubtaskGuide": "아래에서 서브태스크를 추가해보세요",
     "subtaskDescription": "서브태스크는 칸반보드의 Task 블록에 카드로 나타나며, 블록 간 드래그로 진행 상태를 관리할 수 있어요.",
     "newSubtaskPlaceholder": "새 서브태스크 추가...",
@@ -1556,7 +1558,13 @@
     "aiApply": "적용",
     "aiApplying": "적용 중...",
     "aiApplySuccess": "{{tasks}}개 태스크, {{checklists}}개 체크리스트가 생성되었습니다.",
-    "aiApplyDone": "완료"
+    "aiApplyDone": "완료",
+    "aiConfirmTitle": "AI 태스크 추천",
+    "aiConfirmDesc": "아래 피처 정보를 바탕으로 AI가 서브태스크를 추천합니다.",
+    "aiConfirmFeatureTitle": "제목",
+    "aiConfirmFeatureDesc": "설명",
+    "aiConfirmNoDesc": "설명이 없습니다. 설명을 추가하면 더 정확한 추천을 받을 수 있습니다.",
+    "aiConfirmStart": "추천 받기"
   },
   "weeklySchedule": {
     "day": "일",
@@ -1990,7 +1998,16 @@
       "type": "유형",
       "allTypes": "전체 유형",
       "typeTeam": "팀",
-      "typePersonal": "개인"
+      "typePersonal": "개인",
+      "activeBoards": "활성 보드",
+      "deletedBoards": "삭제된 보드",
+      "noDeletedBoards": "삭제된 보드가 없습니다",
+      "noDeletedBoardsDesc": "삭제된 보드는 영구 삭제 전 7일간 여기에 표시됩니다.",
+      "deletedAt": "삭제일",
+      "daysLeft": "영구 삭제까지 {{days}}일",
+      "restore": "복구",
+      "restoreSuccess": "보드가 복구되었습니다",
+      "restoreFailed": "보드 복구에 실패했습니다"
     },
     "boardDetail": {
       "title": "보드 상세",
@@ -2040,6 +2057,7 @@
       "dangerZone": "위험 영역",
       "deleteBoard": "보드 삭제",
       "deleteWarning": "보드와 관련된 모든 데이터가 삭제됩니다. 이 작업은 되돌릴 수 없습니다.",
+      "softDeleteWarning": "보드가 소프트 삭제됩니다. 7일 이내에 복구할 수 있습니다.",
       "deleting": "삭제 중...",
       "editName": "보드 이름 수정",
       "nameUpdateSuccess": "보드 이름이 변경되었습니다.",
@@ -2833,7 +2851,9 @@
       "voiceAiSpeaking": "AI가 말하고 있어요",
       "voiceHint": "마이크 버튼을 꾹 눌러서 음성으로 대화할 수 있어요",
       "voiceMicDenied": "마이크 접근이 거부되었습니다. 브라우저 설정에서 마이크 권한을 허용해주세요.",
-      "voiceMicNotFound": "마이크를 찾을 수 없습니다. 마이크가 연결되어 있는지 확인해주세요."
+      "voiceMicNotFound": "마이크를 찾을 수 없습니다. 마이크가 연결되어 있는지 확인해주세요.",
+      "completionSuggestion": "오늘 이야기를 충분히 나눈 것 같아요. 일기로 정리해볼까요? ✨",
+      "continueChat": "좀 더 이야기하기"
     },
     "schedule": {
       "title": "일정",

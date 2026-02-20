@@ -1001,7 +1001,8 @@
     "noBoards": "ยังไม่มีบอร์ด",
     "createFirst": "สร้างบอร์ดแรกของคุณ",
     "deleteBoard": "ลบบอร์ด",
-    "deleteConfirm": "ลบบอร์ดนี้?",
+    "deleteConfirm": "ลบบอร์ด \"{{name}}\"?",
+    "softDeleteNotice": "บอร์ดนี้สามารถกู้คืนได้โดยผู้ดูแลระบบภายใน 7 วัน",
     "deleteIrreversible": "การดำเนินการนี้ไม่สามารถย้อนกลับได้",
     "editBoard": "แก้ไขบอร์ด",
     "boardNamePlaceholder": "ป้อนชื่อบอร์ด",
@@ -1429,7 +1430,16 @@
       "type": "ประเภท",
       "allTypes": "ทุกประเภท",
       "typeTeam": "ทีม",
-      "typePersonal": "ส่วนตัว"
+      "typePersonal": "ส่วนตัว",
+      "activeBoards": "บอร์ดที่ใช้งาน",
+      "deletedBoards": "บอร์ดที่ถูกลบ",
+      "noDeletedBoards": "ไม่มีบอร์ดที่ถูกลบ",
+      "noDeletedBoardsDesc": "บอร์ดที่ถูกลบจะแสดงที่นี่เป็นเวลา 7 วันก่อนถูกลบถาวร",
+      "deletedAt": "วันที่ลบ",
+      "daysLeft": "อีก {{days}} วันจะถูกลบถาวร",
+      "restore": "กู้คืน",
+      "restoreSuccess": "กู้คืนบอร์ดแล้ว",
+      "restoreFailed": "กู้คืนบอร์ดไม่สำเร็จ"
     },
     "boardDetail": {
       "title": "รายละเอียดบอร์ด",
@@ -1463,6 +1473,7 @@
       "dangerZone": "โซนอันตราย",
       "deleteBoard": "ลบบอร์ด",
       "deleteWarning": "ข้อมูลทั้งหมดที่เกี่ยวข้องกับบอร์ดนี้จะถูกลบ การดำเนินการนี้ไม่สามารถย้อนกลับได้",
+      "softDeleteWarning": "บอร์ดจะถูกลบแบบซอฟต์ สามารถกู้คืนได้ภายใน 7 วัน",
       "deleting": "กำลังลบ...",
       "editName": "แก้ไขชื่อบอร์ด",
       "nameUpdateSuccess": "อัปเดตชื่อบอร์ดแล้ว",
@@ -1848,7 +1859,7 @@
   },
   "emptyBoard": {
     "heading": "เริ่มต้นกับบอร์ดของคุณ",
-    "subheading": "จัดการโปรเจกต์อย่างเป็นระบบใน 3 ขั้นตอน",
+    "subheading": "จัดการโปรเจกต์อย่างเป็นระบบใน 3 ขั้นตอนและติดตามความคืบหน้า",
     "createFirstFeature": "สร้าง Feature แรกของคุณ",
     "step1Title": "สร้าง Feature",
     "step1Desc": "Feature คือหน่วยฟังก์ชันการทำงาน กดปุ่มด้านล่างเพื่อสร้าง Feature แรกของคุณ",
@@ -1871,6 +1882,7 @@
     "addTag": "เพิ่มแท็ก",
     "newTag": "แท็กใหม่",
     "subtaskList": "รายการงานย่อย",
+    "onboardingStep2": "เพิ่มงานย่อยกันเลย!",
     "addSubtaskGuide": "เพิ่มงานย่อยด้านล่าง",
     "subtaskDescription": "งานย่อยจะแสดงเป็นการ์ดบน Task Block ของบอร์ด Kanban และคุณสามารถจัดการความคืบหน้าได้โดยการลากระหว่าง Block",
     "newSubtaskPlaceholder": "เพิ่มงานย่อยใหม่...",
@@ -1892,7 +1904,13 @@
     "aiApply": "นำไปใช้",
     "aiApplying": "กำลังนำไปใช้...",
     "aiApplySuccess": "สร้าง {{tasks}} งาน และ {{checklists}} เช็คลิสต์แล้ว",
-    "aiApplyDone": "เสร็จ"
+    "aiApplyDone": "เสร็จ",
+    "aiConfirmTitle": "AI แนะนำงาน",
+    "aiConfirmDesc": "AI จะแนะนำงานย่อยตามข้อมูลฟีเจอร์ด้านล่าง",
+    "aiConfirmFeatureTitle": "หัวข้อ",
+    "aiConfirmFeatureDesc": "คำอธิบาย",
+    "aiConfirmNoDesc": "ไม่มีคำอธิบาย การเพิ่มคำอธิบายจะช่วยให้คำแนะนำแม่นยำขึ้น",
+    "aiConfirmStart": "รับคำแนะนำ"
   },
   "weeklySchedule": {
     "day": "วัน",
@@ -2624,6 +2642,10 @@
       "checkInConfirm": "ทำ \"{{name}}\" สำเร็จวันนี้?",
       "checkInStreak": "จะครบ {{count}} วันติดต่อกัน!",
       "checkInComplete": "สำเร็จ"
+    },
+    "diary": {
+      "completionSuggestion": "ดูเหมือนเราคุยกันเยอะแล้ววันนี้ เขียนเป็นไดอารี่กันไหม? ✨",
+      "continueChat": "คุยต่อ"
     },
     "schedule": {
       "overlapWarning": "ซ้อนทับกับ {{count}} กิจกรรม",

@@ -9,15 +9,19 @@ import com.kanban.domain.board.dto.BoardRequest;
 import com.kanban.domain.board.dto.BoardResponse;
 import com.kanban.domain.checklist.ChecklistItemRepository;
 import com.kanban.domain.comment.CommentAttachmentRepository;
+import com.kanban.domain.comment.CommentReactionRepository;
 import com.kanban.domain.comment.CommentRepository;
 import com.kanban.domain.integration.slack.MemberSlackWebhookRepository;
 import com.kanban.domain.standup.DailyStandupConfigRepository;
 import com.kanban.domain.dailychecklist.DailyChecklistRepository;
 import com.kanban.domain.feature.FeatureRepository;
 import com.kanban.domain.meeting.MeetingRepository;
+import com.kanban.domain.note.NoteCommentReactionRepository;
 import com.kanban.domain.note.NoteCommentRepository;
 import com.kanban.domain.note.NoteRepository;
+import com.kanban.domain.note.NoteTagMappingRepository;
 import com.kanban.domain.note.NoteTagRepository;
+import com.kanban.domain.note.NoteVersionRepository;
 import com.kanban.domain.invite.InviteLinkRepository;
 import com.kanban.domain.milestone.MilestoneAllocationRepository;
 import com.kanban.domain.milestone.MilestoneFeatureRepository;
@@ -70,6 +74,7 @@ public class BoardService {
     private final CommentRepository commentRepository;
     private final ChecklistItemRepository checklistItemRepository;
     private final CommentAttachmentRepository commentAttachmentRepository;
+    private final CommentReactionRepository commentReactionRepository;
     private final NotificationRepository notificationRepository;
     private final ActivityLogRepository activityLogRepository;
     private final InviteLinkRepository inviteLinkRepository;
@@ -89,9 +94,12 @@ public class BoardService {
     private final NotificationPreferenceRepository notificationPreferenceRepository;
     private final ReportRepository reportRepository;
     private final MeetingRepository meetingRepository;
+    private final NoteCommentReactionRepository noteCommentReactionRepository;
     private final NoteCommentRepository noteCommentRepository;
     private final NoteRepository noteRepository;
+    private final NoteTagMappingRepository noteTagMappingRepository;
     private final NoteTagRepository noteTagRepository;
+    private final NoteVersionRepository noteVersionRepository;
     private final BoardCustomEmojiRepository boardCustomEmojiRepository;
     private final TaskDependencyRepository taskDependencyRepository;
     private final FileUploadService fileUploadService;
@@ -101,10 +109,9 @@ public class BoardService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        boolean skipBilling = user.getSystemRole() == SystemRole.TESTER
-                || user.getSystemRole() == SystemRole.ADMIN;
+        boolean skipBilling = user.getSystemRole() == SystemRole.TESTER;
 
-        // 보드 생성 (TESTER/ADMIN은 PREMIUM 티어)
+        // 보드 생성 (TESTER는 PREMIUM 티어)
         Board board = Board.builder()
                 .name(request.getName())
                 .description(request.getDescription())
@@ -125,7 +132,7 @@ public class BoardService {
         // 기본 블록 3개 생성 (Feature, Task, Done)
         createDefaultBlocks(board);
 
-        // 구독 생성 (TESTER/ADMIN은 PREMIUM, 일반 사용자는 Trial)
+        // 구독 생성 (TESTER는 PREMIUM, 일반 사용자/ADMIN은 Trial)
         Subscription subscription = skipBilling
                 ? Subscription.createPremium(board)
                 : Subscription.createTrial(board);
@@ -220,6 +227,9 @@ public class BoardService {
         return BoardResponse.Detail.of(board, membership.getRole(), isStarred, memberCount, subscription);
     }
 
+    /**
+     * 소프트 삭제 (Owner용) - deletedAt 마킹, 7일 후 자동 영구삭제
+     */
     @Transactional
     public void deleteBoard(String boardId, String userId) {
         Board board = boardRepository.findById(boardId)
@@ -229,76 +239,51 @@ public class BoardService {
             throw new BusinessException(ErrorCode.BOARD_ACCESS_DENIED);
         }
 
-        // 관련 데이터 삭제 (FK 의존성 순서: leaf → parent)
-        // 1) 마일스톤 하위 (milestone_id FK)
-        milestoneAllocationRepository.deleteAllByBoardId(boardId);
-        milestoneFeatureRepository.deleteAllByBoardId(boardId);
-
-        // 2) 태그 연결 테이블 (feature_id, task_id FK)
-        featureTagRepository.deleteAllByBoardId(boardId);
-        taskTagRepository.deleteAllByBoardId(boardId);
-
-        // 3) Task 가중치 (task_id, weight_level_id FK)
-        taskWeightRepository.deleteAllByBoardId(boardId);
-
-        // 4) 스케줄/데일리 (checklist_item_id FK)
-        dailyChecklistRepository.deleteByBoardId(boardId);
-        scheduleBlockRepository.deleteByBoardId(boardId);
-
-        // 5) 체크리스트 아이템 (task_id FK)
-        checklistItemRepository.deleteAllByBoardId(boardId);
-
-        // 6) 댓글 첨부파일 S3 삭제 → DB 삭제 → 댓글, 알림, 활동로그, 초대링크
-        List<CommentAttachment> attachments = commentAttachmentRepository.findByBoardId(boardId);
-        for (CommentAttachment attachment : attachments) {
-            fileUploadService.delete(attachment.getS3Key());
+        if (board.isDeleted()) {
+            throw new BusinessException(ErrorCode.BOARD_ALREADY_DELETED);
         }
-        commentAttachmentRepository.deleteByBoardId(boardId);
-        commentRepository.deleteByBoardId(boardId);
-        notificationPreferenceRepository.deleteByBoardId(boardId);
-        notificationRepository.deleteByBoardId(boardId);
-        activityLogRepository.deleteByBoardId(boardId);
-        inviteLinkRepository.deleteByBoardId(boardId);
-        reportRepository.deleteByBoardId(boardId);
 
-        // 7) 미팅, 노트 (board_id FK)
-        meetingRepository.deleteByBoardId(boardId);
-        noteCommentRepository.deleteByBoardId(boardId);
-        noteRepository.deleteAllByBoardId(boardId);
-        noteTagRepository.deleteAllByBoardId(boardId);
-
-        // 8) Task 의존성 → Task → Feature → Block 순서
-        taskDependencyRepository.deleteByBoardId(boardId);
-        taskRepository.deleteByBoardId(boardId);
-        featureRepository.deleteByBoardId(boardId);
-        blockRepository.deleteByBoardId(boardId);
-
-        // 9) 태그, 가중치 레벨, 마일스톤, 커스텀 이모지
-        tagRepository.deleteByBoardId(boardId);
-        weightLevelRepository.deleteByBoardId(boardId);
-        milestoneRepository.deleteByBoardId(boardId);
-        boardCustomEmojiRepository.deleteByBoardId(boardId);
-
-        // 10) Slack 웹훅 + 스탠드업 설정
-        dailyStandupConfigRepository.deleteByBoardId(boardId);
-        memberSlackWebhookRepository.deleteByBoardId(boardId);
-
-        // 11) 결제 이력 → 구독 → 보드 멤버십
-        paymentHistoryRepository.deleteByBoardId(boardId);
-        userBoardStarRepository.deleteByBoardId(boardId);
-        boardMemberRepository.deleteByBoardId(boardId);
-        subscriptionRepository.deleteByBoardId(boardId);
-
-        // 12) 보드 삭제
-        boardRepository.delete(board);
-        log.info("Board deleted: {} by user: {}", boardId, userId);
+        board.softDelete();
+        log.info("Board soft-deleted: {} by user: {}", boardId, userId);
     }
 
     /**
-     * Admin 전용 보드 삭제 (Owner 권한 검사 없이 전체 데이터 정리)
+     * Admin 전용 소프트 삭제
      */
     @Transactional
     public void deleteBoardByAdmin(String boardId) {
+        Board board = boardRepository.findById(boardId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+
+        if (board.isDeleted()) {
+            throw new BusinessException(ErrorCode.BOARD_ALREADY_DELETED);
+        }
+
+        board.softDelete();
+        log.info("Board soft-deleted by admin: {}", boardId);
+    }
+
+    /**
+     * 보드 복구 (Admin 전용) - deletedAt을 null로 되돌림
+     */
+    @Transactional
+    public void restoreBoard(String boardId) {
+        Board board = boardRepository.findById(boardId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+
+        if (!board.isDeleted()) {
+            throw new BusinessException(ErrorCode.BOARD_NOT_DELETED);
+        }
+
+        board.restore();
+        log.info("Board restored by admin: {}", boardId);
+    }
+
+    /**
+     * 영구 삭제 - 관련 데이터 전체 정리 (스케줄러/Admin에서 호출)
+     */
+    @Transactional
+    public void permanentlyDeleteBoard(String boardId) {
         Board board = boardRepository.findById(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
 
@@ -317,6 +302,7 @@ public class BoardService {
             fileUploadService.delete(attachment.getS3Key());
         }
         commentAttachmentRepository.deleteByBoardId(boardId);
+        commentReactionRepository.deleteByBoardId(boardId);
         commentRepository.deleteByBoardId(boardId);
         notificationPreferenceRepository.deleteByBoardId(boardId);
         notificationRepository.deleteByBoardId(boardId);
@@ -325,7 +311,10 @@ public class BoardService {
         reportRepository.deleteByBoardId(boardId);
 
         meetingRepository.deleteByBoardId(boardId);
+        noteCommentReactionRepository.deleteByBoardId(boardId);
         noteCommentRepository.deleteByBoardId(boardId);
+        noteTagMappingRepository.deleteByBoardId(boardId);
+        noteVersionRepository.deleteByBoardId(boardId);
         noteRepository.deleteAllByBoardId(boardId);
         noteTagRepository.deleteAllByBoardId(boardId);
 
@@ -348,7 +337,7 @@ public class BoardService {
         subscriptionRepository.deleteByBoardId(boardId);
 
         boardRepository.delete(board);
-        log.info("Board deleted by admin: {}", boardId);
+        log.info("Board permanently deleted: {}", boardId);
     }
 
     @Transactional

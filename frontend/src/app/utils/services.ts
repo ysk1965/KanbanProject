@@ -2092,9 +2092,28 @@ export const adminService = {
     return response;
   },
 
-  // 보드 삭제
+  // 보드 삭제 (소프트)
   deleteBoard: async (boardId: string): Promise<void> => {
     await adminAPI.deleteBoard(boardId);
+  },
+
+  // 보드 복구
+  restoreBoard: async (boardId: string): Promise<void> => {
+    await adminAPI.restoreBoard(boardId);
+  },
+
+  // 보드 영구 삭제
+  permanentlyDeleteBoard: async (boardId: string): Promise<void> => {
+    await adminAPI.permanentlyDeleteBoard(boardId);
+  },
+
+  // 삭제된 보드 목록 조회
+  getDeletedBoards: async (params: {
+    page?: number;
+    size?: number;
+    search?: string;
+  }): Promise<BoardListResponse> => {
+    return adminAPI.getDeletedBoards(params);
   },
 
   // 보드 이름 변경

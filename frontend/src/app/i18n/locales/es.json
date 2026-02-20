@@ -1001,7 +1001,8 @@
     "noBoards": "Aún no hay tableros",
     "createFirst": "Crea tu primer tablero",
     "deleteBoard": "Eliminar tablero",
-    "deleteConfirm": "¿Eliminar este tablero?",
+    "deleteConfirm": "¿Eliminar el tablero \"{{name}}\"?",
+    "softDeleteNotice": "Este tablero puede ser recuperado por un administrador dentro de 7 días.",
     "deleteIrreversible": "Esta acción no se puede deshacer.",
     "editBoard": "Editar tablero",
     "boardNamePlaceholder": "Ingresa el nombre del tablero",
@@ -1429,7 +1430,16 @@
       "type": "Tipo",
       "allTypes": "Todos los tipos",
       "typeTeam": "Equipo",
-      "typePersonal": "Personal"
+      "typePersonal": "Personal",
+      "activeBoards": "Tableros activos",
+      "deletedBoards": "Tableros eliminados",
+      "noDeletedBoards": "No hay tableros eliminados",
+      "noDeletedBoardsDesc": "Los tableros eliminados aparecerán aquí durante 7 días antes de la eliminación permanente.",
+      "deletedAt": "Eliminado",
+      "daysLeft": "{{days}} días para la eliminación permanente",
+      "restore": "Restaurar",
+      "restoreSuccess": "El tablero ha sido restaurado",
+      "restoreFailed": "Error al restaurar el tablero"
     },
     "boardDetail": {
       "title": "Detalle del tablero",
@@ -1463,6 +1473,7 @@
       "dangerZone": "Zona de peligro",
       "deleteBoard": "Eliminar tablero",
       "deleteWarning": "Todos los datos relacionados con este tablero serán eliminados. Esta acción no se puede deshacer.",
+      "softDeleteWarning": "El tablero será eliminado temporalmente. Se puede restaurar dentro de 7 días.",
       "deleting": "Eliminando...",
       "editName": "Editar nombre del tablero",
       "nameUpdateSuccess": "El nombre del tablero ha sido actualizado.",
@@ -1848,7 +1859,7 @@
   },
   "emptyBoard": {
     "heading": "Comienza con tu tablero",
-    "subheading": "Gestiona tu proyecto de forma sistemática en 3 pasos",
+    "subheading": "Gestiona tu proyecto de forma sistemática en 3 pasos y sigue el progreso",
     "createFirstFeature": "Crea tu primer Feature",
     "step1Title": "Crear un Feature",
     "step1Desc": "Un Feature representa una unidad funcional. Presiona el botón de abajo para crear tu primer Feature.",
@@ -1871,6 +1882,7 @@
     "addTag": "Agregar etiqueta",
     "newTag": "Nueva etiqueta",
     "subtaskList": "Lista de subtareas",
+    "onboardingStep2": "¡Ahora añade tus subtareas!",
     "addSubtaskGuide": "Agrega subtareas abajo",
     "subtaskDescription": "Las subtareas aparecen como tarjetas en el bloque de Task del tablero kanban, y puedes gestionar el progreso arrastrándolas entre bloques.",
     "newSubtaskPlaceholder": "Agregar nueva subtarea...",
@@ -1892,7 +1904,13 @@
     "aiApply": "Aplicar",
     "aiApplying": "Aplicando...",
     "aiApplySuccess": "{{tasks}} tareas y {{checklists}} checklists creados.",
-    "aiApplyDone": "Listo"
+    "aiApplyDone": "Listo",
+    "aiConfirmTitle": "Sugerencias de tareas con IA",
+    "aiConfirmDesc": "La IA sugerirá subtareas basándose en la información de la función a continuación.",
+    "aiConfirmFeatureTitle": "Título",
+    "aiConfirmFeatureDesc": "Descripción",
+    "aiConfirmNoDesc": "Sin descripción. Agregar una descripción mejorará las recomendaciones.",
+    "aiConfirmStart": "Obtener sugerencias"
   },
   "weeklySchedule": {
     "day": "Día",
@@ -2624,6 +2642,10 @@
       "checkInConfirm": "¿Completar \"{{name}}\" para hoy?",
       "checkInStreak": "¡Será una racha de {{count}} días!",
       "checkInComplete": "Completar"
+    },
+    "diary": {
+      "completionSuggestion": "Parece que hemos compartido mucho hoy. ¿Lo convertimos en una entrada de diario? ✨",
+      "continueChat": "Seguir hablando"
     },
     "schedule": {
       "overlapWarning": "Se superpone con {{count}} evento(s)",

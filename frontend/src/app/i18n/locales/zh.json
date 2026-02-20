@@ -1001,7 +1001,8 @@
     "noBoards": "暂无看板",
     "createFirst": "创建您的第一个看板",
     "deleteBoard": "删除看板",
-    "deleteConfirm": "确定删除此看板？",
+    "deleteConfirm": "确定删除\"{{name}}\"看板？",
+    "softDeleteNotice": "7天内可以联系管理员恢复此看板。",
     "deleteIrreversible": "此操作无法撤销。",
     "editBoard": "编辑看板",
     "boardNamePlaceholder": "输入看板名称",
@@ -1429,7 +1430,16 @@
       "type": "类型",
       "allTypes": "所有类型",
       "typeTeam": "团队",
-      "typePersonal": "个人"
+      "typePersonal": "个人",
+      "activeBoards": "活跃看板",
+      "deletedBoards": "已删除看板",
+      "noDeletedBoards": "没有已删除的看板",
+      "noDeletedBoardsDesc": "已删除的看板将在永久删除前在此显示7天。",
+      "deletedAt": "删除时间",
+      "daysLeft": "{{days}}天后永久删除",
+      "restore": "恢复",
+      "restoreSuccess": "看板已恢复",
+      "restoreFailed": "看板恢复失败"
     },
     "boardDetail": {
       "title": "看板详情",
@@ -1463,6 +1473,7 @@
       "dangerZone": "危险区域",
       "deleteBoard": "删除看板",
       "deleteWarning": "与此看板相关的所有数据将被删除。此操作无法撤销。",
+      "softDeleteWarning": "看板将被软删除。7天内可以恢复。",
       "deleting": "删除中...",
       "editName": "编辑看板名称",
       "nameUpdateSuccess": "看板名称已更新。",
@@ -1848,7 +1859,7 @@
   },
   "emptyBoard": {
     "heading": "开始使用您的看板",
-    "subheading": "通过 3 个步骤系统化管理项目",
+    "subheading": "通过 3 个步骤系统化管理项目并追踪进度",
     "createFirstFeature": "创建第一个 Feature",
     "step1Title": "创建 Feature",
     "step1Desc": "Feature 代表一个功能单元。按下方按钮创建您的第一个 Feature。",
@@ -1871,6 +1882,7 @@
     "addTag": "添加标签",
     "newTag": "新建标签",
     "subtaskList": "子任务列表",
+    "onboardingStep2": "现在添加子任务吧！",
     "addSubtaskGuide": "在下方添加子任务",
     "subtaskDescription": "子任务会作为卡片显示在看板的 Task Block 上，您可以通过在 Block 之间拖动来管理进度。",
     "newSubtaskPlaceholder": "添加新子任务...",
@@ -1892,7 +1904,13 @@
     "aiApply": "应用",
     "aiApplying": "应用中...",
     "aiApplySuccess": "已创建{{tasks}}个任务和{{checklists}}个检查清单。",
-    "aiApplyDone": "完成"
+    "aiApplyDone": "完成",
+    "aiConfirmTitle": "AI任务推荐",
+    "aiConfirmDesc": "AI将根据以下功能信息推荐子任务。",
+    "aiConfirmFeatureTitle": "标题",
+    "aiConfirmFeatureDesc": "描述",
+    "aiConfirmNoDesc": "暂无描述。添加描述可以获得更准确的推荐。",
+    "aiConfirmStart": "获取推荐"
   },
   "weeklySchedule": {
     "day": "日",
@@ -2624,6 +2642,10 @@
       "checkInConfirm": "确认完成\"{{name}}\"？",
       "checkInStreak": "完成后将达成连续{{count}}天！",
       "checkInComplete": "完成"
+    },
+    "diary": {
+      "completionSuggestion": "今天聊了很多呢。要整理成日记吗？ ✨",
+      "continueChat": "继续聊聊"
     },
     "schedule": {
       "overlapWarning": "与{{count}}个日程时间冲突",

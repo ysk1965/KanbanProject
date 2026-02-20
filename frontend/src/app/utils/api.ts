@@ -3041,6 +3041,7 @@ export interface AdminBoardSummary {
   task_count: number;
   created_at: string;
   trial_ends_at?: string | null;
+  deleted_at?: string | null;
 }
 
 export interface AdminBoardDetail extends AdminBoardSummary {
@@ -3287,9 +3288,30 @@ export const adminAPI = {
     return apiClient.get<AdminBoardDetail>(`/admin/boards/${boardId}`);
   },
 
-  // 보드 삭제
+  // 보드 삭제 (소프트)
   deleteBoard: async (boardId: string) => {
     return apiClient.delete<{ message: string }>(`/admin/boards/${boardId}`);
+  },
+
+  // 보드 복구
+  restoreBoard: async (boardId: string) => {
+    return apiClient.post<{ message: string }>(`/admin/boards/${boardId}/restore`);
+  },
+
+  // 보드 영구 삭제
+  permanentlyDeleteBoard: async (boardId: string) => {
+    return apiClient.delete<{ message: string }>(`/admin/boards/${boardId}/permanent`);
+  },
+
+  // 삭제된 보드 목록 조회
+  getDeletedBoards: async (params: { page?: number; size?: number; search?: string }) => {
+    const searchParams = new URLSearchParams();
+    if (params.page !== undefined) searchParams.append('page', params.page.toString());
+    if (params.size !== undefined) searchParams.append('size', params.size.toString());
+    if (params.search) searchParams.append('search', params.search);
+    return apiClient.get<BoardListResponse>(
+      `/admin/boards/deleted?${searchParams.toString()}`
+    );
   },
 
   // 보드 이름 변경

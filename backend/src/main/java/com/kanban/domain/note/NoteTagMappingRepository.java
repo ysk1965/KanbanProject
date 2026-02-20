@@ -1,6 +1,7 @@
 package com.kanban.domain.note;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -20,4 +21,8 @@ public interface NoteTagMappingRepository extends JpaRepository<NoteTagMapping, 
     void deleteByNoteIdAndTagId(@Param("noteId") String noteId, @Param("tagId") String tagId);
 
     boolean existsByNoteIdAndTagId(String noteId, String tagId);
+
+    @Modifying
+    @Query("DELETE FROM NoteTagMapping m WHERE m.note.board.id = :boardId")
+    void deleteByBoardId(@Param("boardId") String boardId);
 }

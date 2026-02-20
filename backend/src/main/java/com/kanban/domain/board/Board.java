@@ -69,6 +69,9 @@ public class Board extends BaseTimeEntity {
     @Column(name = "trial_ends_at")
     private LocalDateTime trialEndsAt;
 
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
     @PrePersist
     public void prePersist() {
         if (this.id == null) {
@@ -269,5 +272,26 @@ public class Board extends BaseTimeEntity {
         if (tier != BoardTier.TRIAL) {
             this.trialEndsAt = null;
         }
+    }
+
+    /**
+     * 소프트 삭제 (deletedAt 마킹)
+     */
+    public void softDelete() {
+        this.deletedAt = LocalDateTime.now(ZoneOffset.UTC);
+    }
+
+    /**
+     * 소프트 삭제 복구
+     */
+    public void restore() {
+        this.deletedAt = null;
+    }
+
+    /**
+     * 소프트 삭제 여부 확인
+     */
+    public boolean isDeleted() {
+        return this.deletedAt != null;
     }
 }

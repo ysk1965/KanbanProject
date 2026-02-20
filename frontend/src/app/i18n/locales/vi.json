@@ -1001,7 +1001,8 @@
     "noBoards": "Chua co bang nao",
     "createFirst": "Tao bang dau tien cua ban",
     "deleteBoard": "Xoa bang",
-    "deleteConfirm": "Xoa bang nay?",
+    "deleteConfirm": "Xóa bảng \"{{name}}\"?",
+    "softDeleteNotice": "Bảng này có thể được quản trị viên khôi phục trong vòng 7 ngày.",
     "deleteIrreversible": "Hanh dong nay khong the hoan tac.",
     "editBoard": "Chinh sua bang",
     "boardNamePlaceholder": "Nhap ten bang",
@@ -1429,7 +1430,16 @@
       "type": "Loại",
       "allTypes": "Tất cả loại",
       "typeTeam": "Nhóm",
-      "typePersonal": "Cá nhân"
+      "typePersonal": "Cá nhân",
+      "activeBoards": "Bảng hoạt động",
+      "deletedBoards": "Bảng đã xóa",
+      "noDeletedBoards": "Không có bảng đã xóa",
+      "noDeletedBoardsDesc": "Các bảng đã xóa sẽ hiển thị ở đây trong 7 ngày trước khi bị xóa vĩnh viễn.",
+      "deletedAt": "Đã xóa",
+      "daysLeft": "{{days}} ngày trước khi xóa vĩnh viễn",
+      "restore": "Khôi phục",
+      "restoreSuccess": "Bảng đã được khôi phục",
+      "restoreFailed": "Khôi phục bảng thất bại"
     },
     "boardDetail": {
       "title": "Chi tiet bang",
@@ -1463,6 +1473,7 @@
       "dangerZone": "Vung nguy hiem",
       "deleteBoard": "Xoa bang",
       "deleteWarning": "Tat ca du lieu lien quan den bang nay se bi xoa. Hanh dong nay khong the hoan tac.",
+      "softDeleteWarning": "Bảng sẽ được xóa mềm. Có thể khôi phục trong vòng 7 ngày.",
       "deleting": "Dang xoa...",
       "editName": "Sửa tên bảng",
       "nameUpdateSuccess": "Đã cập nhật tên bảng.",
@@ -1848,7 +1859,7 @@
   },
   "emptyBoard": {
     "heading": "Bat dau voi bang cua ban",
-    "subheading": "Quan ly du an he thong trong 3 buoc",
+    "subheading": "Quan ly du an he thong trong 3 buoc va theo doi tien do",
     "createFirstFeature": "Tao Feature dau tien",
     "step1Title": "Tao Feature",
     "step1Desc": "Feature la mot don vi chuc nang. Nhan nut ben duoi de tao Feature dau tien cua ban.",
@@ -1871,6 +1882,7 @@
     "addTag": "Them the",
     "newTag": "The moi",
     "subtaskList": "Danh sach nhiem vu con",
+    "onboardingStep2": "Bây giờ hãy thêm nhiệm vụ con!",
     "addSubtaskGuide": "Them nhiem vu con ben duoi",
     "subtaskDescription": "Nhiem vu con xuat hien duoi dang the tren khoi Task cua bang kanban, va ban co the quan ly tien do bang cach keo chung giua cac khoi.",
     "newSubtaskPlaceholder": "Them nhiem vu con moi...",
@@ -1892,7 +1904,13 @@
     "aiApply": "Áp dụng",
     "aiApplying": "Đang áp dụng...",
     "aiApplySuccess": "Đã tạo {{tasks}} task và {{checklists}} checklist.",
-    "aiApplyDone": "Xong"
+    "aiApplyDone": "Xong",
+    "aiConfirmTitle": "AI gợi ý Task",
+    "aiConfirmDesc": "AI sẽ gợi ý các task con dựa trên thông tin tính năng bên dưới.",
+    "aiConfirmFeatureTitle": "Tiêu đề",
+    "aiConfirmFeatureDesc": "Mô tả",
+    "aiConfirmNoDesc": "Chưa có mô tả. Thêm mô tả sẽ giúp gợi ý chính xác hơn.",
+    "aiConfirmStart": "Nhận gợi ý"
   },
   "weeklySchedule": {
     "day": "Ngay",
@@ -2624,6 +2642,10 @@
       "checkInConfirm": "Hoàn thành \"{{name}}\" hôm nay?",
       "checkInStreak": "Sẽ đạt chuỗi {{count}} ngày liên tiếp!",
       "checkInComplete": "Hoàn thành"
+    },
+    "diary": {
+      "completionSuggestion": "Có vẻ chúng ta đã chia sẻ nhiều hôm nay. Viết thành nhật ký nhé? ✨",
+      "continueChat": "Nói thêm chút nữa"
     },
     "schedule": {
       "overlapWarning": "Trùng lịch với {{count}} sự kiện",

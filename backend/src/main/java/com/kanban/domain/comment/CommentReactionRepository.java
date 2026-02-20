@@ -25,4 +25,8 @@ public interface CommentReactionRepository extends JpaRepository<CommentReaction
     @Modifying
     @Query("DELETE FROM CommentReaction r WHERE r.emoji = :emoji")
     void deleteByEmoji(@Param("emoji") String emoji);
+
+    @Modifying
+    @Query("DELETE FROM CommentReaction r WHERE r.comment.board.id = :boardId")
+    void deleteByBoardId(@Param("boardId") String boardId);
 }

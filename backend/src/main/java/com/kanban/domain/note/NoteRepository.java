@@ -1,6 +1,7 @@
 package com.kanban.domain.note;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -39,5 +40,7 @@ public interface NoteRepository extends JpaRepository<Note, String> {
     @Query("SELECT n FROM Note n LEFT JOIN FETCH n.createdBy LEFT JOIN FETCH n.updatedBy WHERE n.shareToken = :shareToken AND n.isShared = true AND n.isDeleted = false")
     Optional<Note> findByShareTokenAndIsSharedTrueAndIsDeletedFalse(@Param("shareToken") String shareToken);
 
-    void deleteAllByBoardId(String boardId);
+    @Modifying
+    @Query("DELETE FROM Note n WHERE n.board.id = :boardId")
+    void deleteAllByBoardId(@Param("boardId") String boardId);
 }

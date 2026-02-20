@@ -93,6 +93,8 @@ export function PersonalDiary() {
 
   useEffect(() => {
     loadDiary();
+    setSelectedMood(null);
+    setDismissedAtCount(-1);
   }, [currentDate]);
 
   useEffect(() => {
@@ -362,6 +364,20 @@ export function PersonalDiary() {
   };
 
   const [isCompleting, setIsCompleting] = useState(false);
+  const [selectedMood, setSelectedMood] = useState<string | null>(null);
+  const [dismissedAtCount, setDismissedAtCount] = useState(-1);
+
+  const userMessageCount = useMemo(
+    () => diary?.messages?.filter((m) => m.role === 'USER').length || 0,
+    [diary?.messages],
+  );
+  const showSuggestion = !isCompleting && userMessageCount >= 5 &&
+    (dismissedAtCount < 0 || userMessageCount >= dismissedAtCount + 3);
+
+  const handleDismissSuggestion = () => {
+    setDismissedAtCount(userMessageCount);
+    setSelectedMood(null);
+  };
 
   const handleCompleteDiary = async (mood?: string) => {
     if (!diary || isCompleting) return;
@@ -833,42 +849,72 @@ export function PersonalDiary() {
                     </div>
                   </motion.div>
                 )}
+                {/* Completion Suggestion Card - Inline in chat */}
+                <AnimatePresence>
+                  {showSuggestion && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ duration: 0.3, ease: 'easeOut' }}
+                      className="flex gap-3"
+                    >
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-bridge-accent/30 to-bridge-secondary/30 border border-bridge-accent/30 flex items-center justify-center flex-shrink-0">
+                        <Sparkles size={14} className="text-bridge-accent" />
+                      </div>
+                      <div className="max-w-[90%] md:max-w-[80%] bg-gradient-to-br from-bridge-obsidian/80 to-bridge-accent/5 border border-bridge-accent/15 rounded-2xl rounded-tl-sm px-4 py-4">
+                        <p className="text-sm text-muted-foreground mb-3">
+                          {t('personal.diary.completionSuggestion')}
+                        </p>
+
+                        {/* Mood Selection */}
+                        <div className="mb-3">
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 block mb-2">
+                            {t('personal.diary.todaysMood')}
+                          </span>
+                          <div className="flex flex-wrap gap-1.5">
+                            {MOODS.map((mood) => (
+                              <button
+                                key={mood.value}
+                                onClick={() => setSelectedMood(selectedMood === mood.value ? null : mood.value)}
+                                className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs transition-all ${
+                                  selectedMood === mood.value
+                                    ? 'bg-bridge-accent/20 border-2 border-bridge-accent/50 text-foreground shadow-sm shadow-bridge-accent/10'
+                                    : 'bg-foreground/5 border border-foreground/10 text-muted-foreground hover:bg-foreground/10'
+                                }`}
+                              >
+                                <span>{mood.emoji}</span>
+                                <span className="hidden md:inline">{mood.label}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleCompleteDiary(selectedMood || undefined)}
+                            disabled={isCompleting}
+                            className="flex items-center gap-1.5 px-4 py-2 bg-bridge-secondary/20 border border-bridge-secondary/30 text-bridge-secondary rounded-xl text-xs font-bold hover:bg-bridge-secondary/30 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                          >
+                            <Check size={14} />
+                            {t('personal.diary.completeDiary')}
+                          </button>
+                          <button
+                            onClick={handleDismissSuggestion}
+                            className="flex items-center gap-1.5 px-4 py-2 bg-foreground/5 border border-foreground/10 text-muted-foreground rounded-xl text-xs hover:bg-foreground/10 hover:text-foreground transition-all"
+                          >
+                            {t('personal.diary.continueChat')}
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
                 <div ref={chatEndRef} />
               </div>
             </div>
-
-            {/* Complete Button + Mood Selector */}
-            {diary.messages && diary.messages.filter((m) => m.role === 'USER').length >= 5 && (
-              <div className="border-t border-white/[0.06] px-3 md:px-6 py-2 md:py-3">
-                <div className="max-w-2xl mx-auto">
-                  <div className="flex items-center gap-2 md:gap-3 flex-wrap">
-                    <span className="text-[10px] md:text-[11px] font-bold uppercase tracking-widest text-slate-500 w-full md:w-auto">
-                      {t('personal.diary.todaysMood')}
-                    </span>
-                    {MOODS.map((mood) => (
-                      <button
-                        key={mood.value}
-                        onClick={() => handleCompleteDiary(mood.value)}
-                        disabled={isCompleting}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-foreground/5 border border-foreground/10 rounded-full text-xs hover:bg-foreground/10 hover:border-bridge-border disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                        title={mood.label}
-                      >
-                        <span>{mood.emoji}</span>
-                        <span className="text-muted-foreground">{mood.label}</span>
-                      </button>
-                    ))}
-                    <button
-                      onClick={() => handleCompleteDiary()}
-                      disabled={isCompleting}
-                      className="flex items-center gap-1.5 px-4 py-1.5 bg-bridge-secondary/20 border border-bridge-secondary/30 text-bridge-secondary rounded-full text-xs font-bold hover:bg-bridge-secondary/30 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                    >
-                      <Check size={14} />
-                      {t('personal.diary.completeDiary')}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
 
             {/* Input + Voice */}
             <div className="border-t border-white/[0.06] px-3 md:px-6 py-3 md:py-4">

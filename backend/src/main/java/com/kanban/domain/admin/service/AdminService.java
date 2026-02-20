@@ -300,6 +300,31 @@ public class AdminService {
     }
 
     @Transactional
+    public void restoreBoard(String boardId) {
+        boardService.restoreBoard(boardId);
+    }
+
+    @Transactional
+    public void permanentlyDeleteBoard(String boardId) {
+        boardService.permanentlyDeleteBoard(boardId);
+    }
+
+    public AdminResponse.BoardList getDeletedBoards(int page, int size, String search) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("deletedAt").descending());
+
+        Page<Board> boardPage = boardRepository.findDeletedWithFilters(search, pageable);
+
+        List<AdminResponse.BoardSummary> boards = toBoardSummaries(boardPage.getContent());
+
+        return AdminResponse.BoardList.builder()
+                .boards(boards)
+                .total(boardPage.getTotalElements())
+                .page(page)
+                .size(size)
+                .build();
+    }
+
+    @Transactional
     public AdminResponse.BoardSummary updateBoardTier(String boardId, AdminRequest.UpdateBoardTier request) {
         Board board = boardRepository.findById(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));

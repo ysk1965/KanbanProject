@@ -244,7 +244,8 @@ export function Dashboard({
       {/* Main Content */}
       <div className="flex-1 flex flex-col relative z-10 min-w-0 min-h-0">
         {/* Header */}
-        <header className="h-14 border-b border-bridge-border bg-bridge-dark/60 backdrop-blur-sm px-4 md:px-6 flex items-center justify-between shrink-0 safe-top">
+        <header className="border-b border-bridge-border bg-bridge-dark/60 backdrop-blur-sm shrink-0 safe-top">
+          <div className="h-14 px-4 md:px-6 flex items-center justify-between">
           <div className="flex items-center gap-3 flex-1 min-w-0">
             {/* Mobile hamburger */}
             <button
@@ -309,6 +310,7 @@ export function Dashboard({
               </div>
               <span className="hidden sm:inline text-xs font-medium text-muted-foreground">{currentUser?.name}</span>
             </button>
+          </div>
           </div>
         </header>
 

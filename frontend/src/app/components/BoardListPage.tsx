@@ -255,16 +255,21 @@ export function BoardListPage({
 
       {/* 보드 삭제 확인 다이얼로그 */}
       <MotionModal open={isDeleteDialogOpen} onClose={() => setIsDeleteDialogOpen(false)} className="sm:max-w-sm p-6">
-        <h3 className="text-lg font-semibold text-foreground font-jakarta">Delete Board</h3>
+        <h3 className="text-lg font-semibold text-foreground font-jakarta">{t('board.deleteBoard', 'Delete Board')}</h3>
         <p className="text-sm text-slate-400 mt-1">
-          Are you sure you want to delete "{selectedBoard?.name}"? This action cannot be undone and all data including tasks, features, and members will be permanently removed.
+          {t('board.deleteConfirm', { name: selectedBoard?.name })}
         </p>
+        <div className="bg-bridge-accent/10 border border-bridge-accent/20 rounded-lg p-3 mt-3">
+          <p className="text-xs text-bridge-secondary">
+            {t('board.softDeleteNotice', 'This board can be recovered by an administrator within 7 days.')}
+          </p>
+        </div>
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end mt-4">
           <button onClick={() => setIsDeleteDialogOpen(false)} className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 border border-bridge-border text-muted-foreground hover:bg-foreground/5 hover:text-foreground">
-            Cancel
+            {t('common.cancel', 'Cancel')}
           </button>
           <button onClick={confirmDeleteBoard} className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-red-600 hover:bg-red-700 text-white">
-            Delete
+            {t('common.delete', 'Delete')}
           </button>
         </div>
       </MotionModal>

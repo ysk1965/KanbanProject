@@ -1001,7 +1001,8 @@
     "noBoards": "まだボードがありません",
     "createFirst": "最初のボードを作成しましょう",
     "deleteBoard": "ボードを削除",
-    "deleteConfirm": "このボードを削除しますか？",
+    "deleteConfirm": "「{{name}}」ボードを削除しますか？",
+    "softDeleteNotice": "7日以内に管理者に復元を依頼できます。",
     "deleteIrreversible": "この操作は元に戻せません。",
     "editBoard": "ボードを編集",
     "boardNamePlaceholder": "ボード名を入力",
@@ -1429,7 +1430,16 @@
       "type": "タイプ",
       "allTypes": "すべてのタイプ",
       "typeTeam": "チーム",
-      "typePersonal": "個人"
+      "typePersonal": "個人",
+      "activeBoards": "アクティブボード",
+      "deletedBoards": "削除済みボード",
+      "noDeletedBoards": "削除済みのボードはありません",
+      "noDeletedBoardsDesc": "削除されたボードは完全削除まで7日間ここに表示されます。",
+      "deletedAt": "削除日",
+      "daysLeft": "完全削除まで{{days}}日",
+      "restore": "復元",
+      "restoreSuccess": "ボードが復元されました",
+      "restoreFailed": "ボードの復元に失敗しました"
     },
     "boardDetail": {
       "title": "ボード詳細",
@@ -1463,6 +1473,7 @@
       "dangerZone": "危険な操作",
       "deleteBoard": "ボードを削除",
       "deleteWarning": "このボードに関連するすべてのデータが削除されます。この操作は元に戻せません。",
+      "softDeleteWarning": "ボードはソフト削除されます。7日以内に復元できます。",
       "deleting": "削除中...",
       "editName": "ボード名を編集",
       "nameUpdateSuccess": "ボード名が変更されました。",
@@ -1848,7 +1859,7 @@
   },
   "emptyBoard": {
     "heading": "ボードを始めましょう",
-    "subheading": "3ステップでプロジェクトを体系的に管理",
+    "subheading": "3ステップでプロジェクトを体系的に管理し、進捗を追跡",
     "createFirstFeature": "最初の Feature を作成",
     "step1Title": "Feature を作成",
     "step1Desc": "Feature は機能単位を表します。下のボタンを押して最初の Feature を作成しましょう。",
@@ -1871,6 +1882,7 @@
     "addTag": "タグを追加",
     "newTag": "新しいタグ",
     "subtaskList": "サブタスク一覧",
+    "onboardingStep2": "サブタスクを追加してみましょう！",
     "addSubtaskGuide": "下にサブタスクを追加",
     "subtaskDescription": "サブタスクは Kanban ボードの Task Block にカードとして表示され、Block 間でドラッグして進捗を管理できます。",
     "newSubtaskPlaceholder": "新しいサブタスクを追加...",
@@ -1892,7 +1904,13 @@
     "aiApply": "適用",
     "aiApplying": "適用中...",
     "aiApplySuccess": "{{tasks}}件のタスクと{{checklists}}件のチェックリストが作成されました。",
-    "aiApplyDone": "完了"
+    "aiApplyDone": "完了",
+    "aiConfirmTitle": "AIタスク提案",
+    "aiConfirmDesc": "以下のフィーチャー情報をもとに、AIがサブタスクを提案します。",
+    "aiConfirmFeatureTitle": "タイトル",
+    "aiConfirmFeatureDesc": "説明",
+    "aiConfirmNoDesc": "説明がありません。説明を追加すると、より正確な提案を受けられます。",
+    "aiConfirmStart": "提案を取得"
   },
   "weeklySchedule": {
     "day": "日",
@@ -2624,6 +2642,10 @@
       "checkInConfirm": "「{{name}}」を完了にしますか？",
       "checkInStreak": "完了すると{{count}}日連続達成！",
       "checkInComplete": "完了"
+    },
+    "diary": {
+      "completionSuggestion": "今日の話はたくさんできましたね。日記にまとめましょうか？ ✨",
+      "continueChat": "もう少し話す"
     },
     "schedule": {
       "overlapWarning": "{{count}}件のイベントと時間が重複しています",

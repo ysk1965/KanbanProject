@@ -1001,7 +1001,8 @@
     "noBoards": "Nenhum board ainda",
     "createFirst": "Crie seu primeiro board",
     "deleteBoard": "Excluir Board",
-    "deleteConfirm": "Excluir este board?",
+    "deleteConfirm": "Excluir o board \"{{name}}\"?",
+    "softDeleteNotice": "Este board pode ser recuperado por um administrador dentro de 7 dias.",
     "deleteIrreversible": "Esta ação não pode ser desfeita.",
     "editBoard": "Editar Board",
     "boardNamePlaceholder": "Digite o nome do board",
@@ -1429,7 +1430,16 @@
       "type": "Tipo",
       "allTypes": "Todos os Tipos",
       "typeTeam": "Equipe",
-      "typePersonal": "Pessoal"
+      "typePersonal": "Pessoal",
+      "activeBoards": "Boards ativos",
+      "deletedBoards": "Boards excluídos",
+      "noDeletedBoards": "Nenhum board excluído",
+      "noDeletedBoardsDesc": "Boards excluídos aparecerão aqui por 7 dias antes da exclusão permanente.",
+      "deletedAt": "Excluído",
+      "daysLeft": "{{days}} dias para exclusão permanente",
+      "restore": "Restaurar",
+      "restoreSuccess": "Board foi restaurado",
+      "restoreFailed": "Falha ao restaurar o board"
     },
     "boardDetail": {
       "title": "Detalhes do Board",
@@ -1463,6 +1473,7 @@
       "dangerZone": "Zona de Perigo",
       "deleteBoard": "Excluir Board",
       "deleteWarning": "Todos os dados relacionados a este board serão excluídos. Esta ação não pode ser desfeita.",
+      "softDeleteWarning": "O board será excluído temporariamente. Pode ser restaurado dentro de 7 dias.",
       "deleting": "Excluindo...",
       "editName": "Editar nome do quadro",
       "nameUpdateSuccess": "Nome do quadro atualizado.",
@@ -1848,7 +1859,7 @@
   },
   "emptyBoard": {
     "heading": "Comece com seu board",
-    "subheading": "Gerencie seu projeto sistematicamente em 3 passos",
+    "subheading": "Gerencie seu projeto sistematicamente em 3 passos e acompanhe o progresso",
     "createFirstFeature": "Crie sua primeira Feature",
     "step1Title": "Crie uma Feature",
     "step1Desc": "Uma Feature representa uma unidade funcional. Pressione o botão abaixo para criar sua primeira Feature.",
@@ -1871,6 +1882,7 @@
     "addTag": "Adicionar tag",
     "newTag": "Nova tag",
     "subtaskList": "Lista de Subtarefas",
+    "onboardingStep2": "Agora adicione suas subtarefas!",
     "addSubtaskGuide": "Adicione subtarefas abaixo",
     "subtaskDescription": "As subtarefas aparecem como cards no bloco Task do board kanban, e você pode gerenciar o progresso arrastando-as entre os blocos.",
     "newSubtaskPlaceholder": "Adicionar nova subtarefa...",
@@ -1892,7 +1904,13 @@
     "aiApply": "Aplicar",
     "aiApplying": "Aplicando...",
     "aiApplySuccess": "{{tasks}} tarefas e {{checklists}} checklists criados.",
-    "aiApplyDone": "Concluído"
+    "aiApplyDone": "Concluído",
+    "aiConfirmTitle": "Sugestões de tarefas com IA",
+    "aiConfirmDesc": "A IA sugerirá subtarefas com base nas informações da funcionalidade abaixo.",
+    "aiConfirmFeatureTitle": "Título",
+    "aiConfirmFeatureDesc": "Descrição",
+    "aiConfirmNoDesc": "Sem descrição. Adicionar uma descrição melhorará as recomendações.",
+    "aiConfirmStart": "Obter sugestões"
   },
   "weeklySchedule": {
     "day": "Dia",
@@ -2624,6 +2642,10 @@
       "checkInConfirm": "Concluir \"{{name}}\" para hoje?",
       "checkInStreak": "Será uma sequência de {{count}} dias!",
       "checkInComplete": "Concluir"
+    },
+    "diary": {
+      "completionSuggestion": "Parece que compartilhamos bastante hoje. Vamos transformar em um diário? ✨",
+      "continueChat": "Continuar conversando"
     },
     "schedule": {
       "overlapWarning": "Sobrepõe {{count}} evento(s)",

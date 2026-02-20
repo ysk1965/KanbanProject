@@ -134,6 +134,7 @@ public class AdminResponse {
         private SubscriptionStatus subscriptionStatus;
         private LocalDateTime trialEndsAt;
         private LocalDateTime createdAt;
+        private LocalDateTime deletedAt;
 
         public static BoardSummary of(Board board, int memberCount, int taskCount, Subscription subscription) {
             return BoardSummary.builder()
@@ -148,6 +149,7 @@ public class AdminResponse {
                     .subscriptionStatus(subscription != null ? subscription.getStatus() : null)
                     .trialEndsAt(board.getTrialEndsAt())
                     .createdAt(board.getCreatedAt())
+                    .deletedAt(board.getDeletedAt())
                     .build();
         }
     }
@@ -168,6 +170,7 @@ public class AdminResponse {
         private Integer seatCount;
         private LocalDateTime trialEndsAt;
         private LocalDateTime createdAt;
+        private LocalDateTime deletedAt;
         private List<MemberInfo> members;
         // AI Credit fields
         private Integer monthlyAiCredits;
@@ -190,6 +193,7 @@ public class AdminResponse {
                     .seatCount(subscription != null ? subscription.getSeatCount() : null)
                     .trialEndsAt(board.getTrialEndsAt())
                     .createdAt(board.getCreatedAt())
+                    .deletedAt(board.getDeletedAt())
                     .members(members)
                     .monthlyAiCredits(subscription != null ? subscription.getMonthlyAiCredits() : null)
                     .monthlyCreditsUsed(subscription != null ? subscription.getMonthlyCreditsUsed() : null)

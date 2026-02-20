@@ -116,7 +116,7 @@ function SortableMemberRow({
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex items-center justify-between py-1.5 px-2.5 rounded-lg hover:bg-white/[0.05] transition-colors ${isDragging ? 'bg-white/[0.08] shadow-lg' : ''}`}
+      className={`flex items-center justify-between py-2.5 px-3.5 hover:bg-foreground/[0.04] transition-all duration-150 ${isDragging ? 'bg-foreground/[0.08] shadow-lg' : ''}`}
     >
       <div className="flex items-center gap-2.5 min-w-0">
         {/* 드래그 핸들 */}
@@ -289,7 +289,7 @@ function SortableMemberRow({
                 onUpdateMemberRole(member.id, value as MemberRole)
               }
             >
-              <SelectTrigger className="w-[120px] bg-white/[0.08] border-foreground/10 rounded-lg text-foreground text-sm h-8">
+              <SelectTrigger className="w-[120px] bg-foreground/[0.08] border-foreground/10 rounded-lg text-foreground text-sm h-8">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -439,7 +439,7 @@ export function ShareBoardModal({
           <h2 className="text-lg font-semibold text-foreground">{t('share.title')}</h2>
         </div>
 
-        <div className="flex-1 overflow-y-auto space-y-6">
+        <div className="flex-1 overflow-y-auto space-y-5 px-6 pb-2 custom-scrollbar">
           {/* 초대 섹션 - ADMIN+ 전용 */}
           {isCurrentUserAdmin && (
           <div className="space-y-3">
@@ -448,7 +448,7 @@ export function ShareBoardModal({
                 value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
                 placeholder={t('share.emailPlaceholder')}
-                className="flex-1 bg-white/[0.08] border-foreground/10 rounded-xl text-foreground placeholder:text-slate-400 focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+                className="flex-1 bg-foreground/[0.08] border-foreground/10 rounded-xl text-foreground placeholder:text-slate-400 focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
                 onKeyDown={(e) => {
                   if (e.nativeEvent.isComposing) return;
                   if (e.key === 'Enter') {
@@ -460,7 +460,7 @@ export function ShareBoardModal({
                 value={inviteRole}
                 onValueChange={(value) => setInviteRole(value as MemberRole)}
               >
-                <SelectTrigger className="w-[130px] bg-white/[0.08] border-foreground/10 rounded-xl text-foreground">
+                <SelectTrigger className="w-[130px] bg-foreground/[0.08] border-foreground/10 rounded-xl text-foreground">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -479,13 +479,13 @@ export function ShareBoardModal({
             </div>
 
             {/* 링크 공유 */}
-            <div className="flex items-center justify-between p-3.5 bg-white/[0.06] rounded-xl border border-foreground/10">
+            <div className="flex items-center justify-between p-3.5 bg-foreground/[0.06] rounded-xl border border-foreground/10">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-lg bg-bridge-accent/10 flex items-center justify-center shrink-0">
                   <LinkIcon className="h-4 w-4 text-bridge-accent" />
                 </div>
                 <div>
-                  <p className="text-sm text-slate-200">
+                  <p className="text-sm text-muted-foreground">
                     {t('share.linkShareDesc')}
                   </p>
                   <button
@@ -631,7 +631,7 @@ export function ShareBoardModal({
               onDragEnd={handleDragEnd}
             >
               <SortableContext items={members.map((m) => m.id)} strategy={verticalListSortingStrategy}>
-                <div className="space-y-1">
+                <div className="rounded-xl border border-foreground/10 bg-foreground/[0.02] divide-y divide-foreground/[0.06] overflow-hidden">
                   {members.map((member) => {
                     const isCurrentMember = member.userId === currentUserId;
                     const canEdit = isCurrentUserAdmin && !isCurrentMember && member.role !== 'owner';
@@ -666,7 +666,7 @@ export function ShareBoardModal({
           </div>
 
           {/* 권한 설명 */}
-          <div className="p-4 bg-white/[0.04] rounded-xl border border-foreground/10">
+          <div className="p-4 bg-foreground/[0.04] rounded-xl border border-foreground/10">
             <h4 className="text-sm font-semibold text-muted-foreground mb-3">{t('share.rolePermissions')}</h4>
             <div className="space-y-2 text-sm">
               <div className="flex items-start gap-2">
@@ -686,10 +686,10 @@ export function ShareBoardModal({
         </div>
 
         {/* 닫기 버튼 */}
-        <div className="flex justify-end pt-4 border-t border-foreground/10">
+        <div className="flex justify-end px-6 pt-4 pb-2 border-t border-foreground/10">
           <button
             onClick={onClose}
-            className="px-5 py-2 bg-white/[0.08] border border-foreground/10 text-slate-200 rounded-xl text-sm font-medium hover:bg-white/15 hover:text-foreground transition-all"
+            className="px-5 py-2 bg-foreground/[0.08] border border-foreground/10 text-muted-foreground rounded-xl text-sm font-medium hover:bg-foreground/15 hover:text-foreground transition-all"
           >
             {t('common.close')}
           </button>

@@ -82,7 +82,7 @@ export function MotionModal({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.98 }}
             className={cn(
-              'w-full sm:max-w-md bg-bridge-obsidian rounded-t-2xl sm:rounded-2xl border border-foreground/10 shadow-2xl max-h-[90vh] overflow-y-auto',
+              'w-full sm:max-w-md bg-bridge-obsidian rounded-t-2xl sm:rounded-2xl border border-foreground/10 shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar',
               className,
             )}
             onMouseDown={(e) => { e.stopPropagation(); mouseDownInsideRef.current = true; }}

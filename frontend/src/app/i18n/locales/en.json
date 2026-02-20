@@ -1017,7 +1017,8 @@
     "noBoards": "No boards yet",
     "createFirst": "Create your first board",
     "deleteBoard": "Delete Board",
-    "deleteConfirm": "Delete this board?",
+    "deleteConfirm": "Delete \"{{name}}\" board?",
+    "softDeleteNotice": "This board can be recovered by an administrator within 7 days.",
     "deleteIrreversible": "This action cannot be undone.",
     "editBoard": "Edit Board",
     "boardNamePlaceholder": "Enter board name",
@@ -1510,7 +1511,7 @@
   },
   "emptyBoard": {
     "heading": "Get started with your board",
-    "subheading": "Manage your project systematically in 3 steps",
+    "subheading": "Manage your project systematically in 3 steps and track progress",
     "createFirstFeature": "Create your first Feature",
     "step1Title": "Create a Feature",
     "step1Desc": "A Feature represents a functional unit. Press the button below to create your first Feature.",
@@ -1535,6 +1536,7 @@
     "addTag": "Add tag",
     "newTag": "New tag",
     "subtaskList": "Subtask List",
+    "onboardingStep2": "Now add your subtasks!",
     "addSubtaskGuide": "Add subtasks below",
     "subtaskDescription": "Subtasks appear as cards on the kanban board's Task block, and you can manage progress by dragging them between blocks.",
     "newSubtaskPlaceholder": "Add new subtask...",
@@ -1556,7 +1558,13 @@
     "aiApply": "Apply",
     "aiApplying": "Applying...",
     "aiApplySuccess": "{{tasks}} tasks and {{checklists}} checklists created.",
-    "aiApplyDone": "Done"
+    "aiApplyDone": "Done",
+    "aiConfirmTitle": "AI Task Suggestions",
+    "aiConfirmDesc": "AI will suggest subtasks based on the feature information below.",
+    "aiConfirmFeatureTitle": "Title",
+    "aiConfirmFeatureDesc": "Description",
+    "aiConfirmNoDesc": "No description provided. Adding a description will improve recommendations.",
+    "aiConfirmStart": "Get Suggestions"
   },
   "weeklySchedule": {
     "day": "Day",
@@ -1990,7 +1998,16 @@
       "type": "Type",
       "allTypes": "All Types",
       "typeTeam": "Team",
-      "typePersonal": "Personal"
+      "typePersonal": "Personal",
+      "activeBoards": "Active Boards",
+      "deletedBoards": "Deleted Boards",
+      "noDeletedBoards": "No deleted boards",
+      "noDeletedBoardsDesc": "Deleted boards will appear here for 7 days before permanent deletion.",
+      "deletedAt": "Deleted",
+      "daysLeft": "{{days}} days until permanent deletion",
+      "restore": "Restore",
+      "restoreSuccess": "Board has been restored",
+      "restoreFailed": "Failed to restore board"
     },
     "boardDetail": {
       "title": "Board Detail",
@@ -2040,6 +2057,7 @@
       "dangerZone": "Danger Zone",
       "deleteBoard": "Delete Board",
       "deleteWarning": "All data related to this board will be deleted. This action cannot be undone.",
+      "softDeleteWarning": "Board will be soft-deleted. It can be restored within 7 days.",
       "deleting": "Deleting...",
       "editName": "Edit board name",
       "nameUpdateSuccess": "Board name has been updated.",
@@ -2834,7 +2852,9 @@
       "voiceAiSpeaking": "AI is speaking",
       "voiceHint": "Hold the mic button to talk with your voice",
       "voiceMicDenied": "Microphone access denied. Please allow microphone permission in your browser settings.",
-      "voiceMicNotFound": "Microphone not found. Please check if a microphone is connected."
+      "voiceMicNotFound": "Microphone not found. Please check if a microphone is connected.",
+      "completionSuggestion": "It seems like we've shared a lot today. Shall we turn this into a diary entry? ✨",
+      "continueChat": "Keep talking"
     },
     "schedule": {
       "title": "Schedule",

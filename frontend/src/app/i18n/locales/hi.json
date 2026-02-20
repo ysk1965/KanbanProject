@@ -1001,7 +1001,8 @@
     "noBoards": "अभी तक कोई बोर्ड नहीं",
     "createFirst": "अपना पहला बोर्ड बनाएं",
     "deleteBoard": "बोर्ड हटाएं",
-    "deleteConfirm": "इस बोर्ड को हटाएं?",
+    "deleteConfirm": "\"{{name}}\" बोर्ड हटाएं?",
+    "softDeleteNotice": "इस बोर्ड को 7 दिनों के भीतर व्यवस्थापक द्वारा पुनर्स्थापित किया जा सकता है।",
     "deleteIrreversible": "यह कार्रवाई पूर्ववत नहीं की जा सकती।",
     "editBoard": "बोर्ड संपादित करें",
     "boardNamePlaceholder": "बोर्ड का नाम दर्ज करें",
@@ -1429,7 +1430,16 @@
       "type": "प्रकार",
       "allTypes": "सभी प्रकार",
       "typeTeam": "टीम",
-      "typePersonal": "व्यक्तिगत"
+      "typePersonal": "व्यक्तिगत",
+      "activeBoards": "सक्रिय बोर्ड",
+      "deletedBoards": "हटाए गए बोर्ड",
+      "noDeletedBoards": "कोई हटाया गया बोर्ड नहीं",
+      "noDeletedBoardsDesc": "हटाए गए बोर्ड स्थायी रूप से हटाने से पहले 7 दिनों तक यहां दिखाई देंगे।",
+      "deletedAt": "हटाया गया",
+      "daysLeft": "स्थायी रूप से हटाने में {{days}} दिन शेष",
+      "restore": "पुनर्स्थापित करें",
+      "restoreSuccess": "बोर्ड पुनर्स्थापित किया गया",
+      "restoreFailed": "बोर्ड पुनर्स्थापित करने में विफल"
     },
     "boardDetail": {
       "title": "बोर्ड विवरण",
@@ -1463,6 +1473,7 @@
       "dangerZone": "खतरनाक क्षेत्र",
       "deleteBoard": "बोर्ड हटाएं",
       "deleteWarning": "इस बोर्ड से संबंधित सभी डेटा हटा दिया जाएगा। यह कार्रवाई पूर्ववत नहीं की जा सकती।",
+      "softDeleteWarning": "बोर्ड को सॉफ्ट डिलीट किया जाएगा। 7 दिनों के भीतर पुनर्स्थापित किया जा सकता है।",
       "deleting": "हटाया जा रहा है...",
       "editName": "बोर्ड का नाम संपादित करें",
       "nameUpdateSuccess": "बोर्ड का नाम अपडेट किया गया।",
@@ -1848,7 +1859,7 @@
   },
   "emptyBoard": {
     "heading": "अपने बोर्ड के साथ शुरू करें",
-    "subheading": "अपने प्रोजेक्ट को 3 चरणों में व्यवस्थित रूप से प्रबंधित करें",
+    "subheading": "अपने प्रोजेक्ट को 3 चरणों में व्यवस्थित रूप से प्रबंधित करें और प्रगति ट्रैक करें",
     "createFirstFeature": "अपना पहला Feature बनाएं",
     "step1Title": "Feature बनाएं",
     "step1Desc": "Feature एक कार्यात्मक इकाई का प्रतिनिधित्व करता है। अपना पहला Feature बनाने के लिए नीचे बटन दबाएं।",
@@ -1871,6 +1882,7 @@
     "addTag": "टैग जोड़ें",
     "newTag": "नया टैग",
     "subtaskList": "उप-कार्य सूची",
+    "onboardingStep2": "अब सबटास्क जोड़ें!",
     "addSubtaskGuide": "नीचे उप-कार्य जोड़ें",
     "subtaskDescription": "उप-कार्य Kanban बोर्ड के Task Block पर कार्ड के रूप में दिखाई देते हैं, और आप उन्हें Block के बीच खींचकर प्रगति प्रबंधित कर सकते हैं।",
     "newSubtaskPlaceholder": "नया उप-कार्य जोड़ें...",
@@ -1892,7 +1904,13 @@
     "aiApply": "लागू करें",
     "aiApplying": "लागू हो रहा है...",
     "aiApplySuccess": "{{tasks}} टास्क और {{checklists}} चेकलिस्ट बनाए गए।",
-    "aiApplyDone": "पूर्ण"
+    "aiApplyDone": "पूर्ण",
+    "aiConfirmTitle": "AI टास्क सुझाव",
+    "aiConfirmDesc": "AI नीचे दी गई फीचर जानकारी के आधार पर सबटास्क सुझाएगा।",
+    "aiConfirmFeatureTitle": "शीर्षक",
+    "aiConfirmFeatureDesc": "विवरण",
+    "aiConfirmNoDesc": "कोई विवरण नहीं। विवरण जोड़ने से अधिक सटीक सुझाव मिलेंगे।",
+    "aiConfirmStart": "सुझाव प्राप्त करें"
   },
   "weeklySchedule": {
     "day": "दिन",
@@ -2624,6 +2642,10 @@
       "checkInConfirm": "\"{{name}}\" को पूरा करें?",
       "checkInStreak": "{{count}} दिन की लगातार स्ट्रीक होगी!",
       "checkInComplete": "पूरा करें"
+    },
+    "diary": {
+      "completionSuggestion": "लगता है आज हमने काफ़ी बातें की हैं। इसे डायरी में लिखें? ✨",
+      "continueChat": "और बात करें"
     },
     "schedule": {
       "overlapWarning": "{{count}} इवेंट के साथ ओवरलैप",

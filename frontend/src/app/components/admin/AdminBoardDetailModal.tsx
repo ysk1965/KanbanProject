@@ -911,7 +911,7 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                       <div>
                         <p className="text-foreground font-medium">{t('admin.boardDetail.deleteBoard')}</p>
                         <p className="text-slate-400 text-sm">
-                          {t('admin.boardDetail.deleteWarning')}
+                          {t('admin.boardDetail.softDeleteWarning', 'The board will be soft-deleted. It can be restored within 7 days.')}
                         </p>
                       </div>
                       <button

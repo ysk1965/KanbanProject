@@ -1614,7 +1614,7 @@ export function KanbanBoardPage() {
           onLogout={logout}
           getScheduleSubMode={getScheduleSubMode}
           getAISubMode={getAISubMode}
-          openUpgradeModal={openUpgradeModal}
+          onOpenUpgradeModal={openUpgradeModal}
           onSaveBoardName={async (name: string) => {
             if (!board || !boardId || name === board.name) return;
             try {
@@ -2031,6 +2031,7 @@ export function KanbanBoardPage() {
         <BoardModalManager
           boardId={boardId || ''}
           // Feature Modal
+          isOnboarding={features.length <= 1 && tasks.length === 0}
           selectedFeature={selectedFeature}
           isFeatureModalOpen={isFeatureModalOpen}
           onCloseFeature={() => { setIsFeatureModalOpen(false); setSelectedFeature(null); }}

@@ -121,6 +121,8 @@ interface BoardModalManagerProps {
   creditModalMode: 'purchase' | 'exhausted';
   onCreditPurchaseComplete: (credits: AiCredits) => void;
   currentCredits: AiCredits | null;
+  // Onboarding
+  isOnboarding?: boolean;
   // Permissions
   canEdit: boolean;
   isAdminOrOwner: boolean;
@@ -147,6 +149,7 @@ export function BoardModalManager(props: BoardModalManagerProps) {
         onDeleteTag={props.onDeleteTag}
         boardId={props.boardId}
         canEdit={props.canEdit}
+        isOnboarding={props.isOnboarding}
       />
 
       <TaskDetailModal

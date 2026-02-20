@@ -724,7 +724,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
 
       {/* 타임블록 스케줄 그리드 */}
       <>
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-auto custom-scrollbar">
         {viewMode === 'day' ? (
           /* 일 단위 뷰 */
           <div className="min-w-max">
@@ -763,7 +763,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
             </div>
 
             {/* 데일리 체크리스트 영역 */}
-            <div className="flex border-b border-bridge-border bg-white/[0.02]">
+            <div className="flex border-b border-bridge-border bg-foreground/[0.02]">
               <div className="w-14 md:w-20 flex-shrink-0 p-2 text-xs text-zinc-400 border-r border-bridge-border flex items-center justify-center">
                 <CheckSquare className="h-3.5 w-3.5" />
               </div>
