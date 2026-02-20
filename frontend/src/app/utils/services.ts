@@ -2064,6 +2064,11 @@ export const adminService = {
     return adminAPI.createPersonalBoard(userId);
   },
 
+  // 유저 개인 AI 크레딧 조정
+  adjustPersonalAiCredits: async (userId: string, data: { personal_ai_credits?: number; add_bonus_credits?: number }): Promise<AdminUserDetail> => {
+    return adminAPI.adjustPersonalAiCredits(userId, data);
+  },
+
   // 사용자 영구 삭제
   deleteUser: async (userId: string): Promise<void> => {
     await adminAPI.deleteUser(userId);
@@ -2639,6 +2644,15 @@ export const diaryService = {
 
   updateVoiceSettings: async (data: Partial<DiaryVoiceSettings>): Promise<DiaryVoiceSettings> => {
     return diaryAPI.updateVoiceSettings(data);
+  },
+
+  // Personal AI Credits
+  getPersonalCredits: async (): Promise<AiCredits> => {
+    return diaryAPI.getPersonalCredits();
+  },
+
+  purchasePersonalCredits: async (data: AiCreditPurchaseRequest): Promise<AiCreditPurchaseResult> => {
+    return diaryAPI.purchasePersonalCredits(data);
   },
 };
 

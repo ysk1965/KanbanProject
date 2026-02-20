@@ -94,11 +94,68 @@ public class AiCreditService {
         return AiCreditResponse.CreditInfo.builder()
                 .monthlyCredits(user.getPersonalAiCredits())
                 .monthlyUsed(user.getPersonalCreditsUsed())
-                .purchasedCredits(0)
+                .purchasedCredits(user.getPersonalPurchasedCredits() != null ? user.getPersonalPurchasedCredits() : 0)
                 .totalAvailable(available)
                 .resetDate(user.getPersonalCreditsResetDate())
                 .warningLevel(warningLevel)
                 .build();
+    }
+
+    // === User-Level Credit Purchase (Personal) ===
+
+    @Transactional
+    public AiCreditResponse.PurchaseResult purchasePersonalCredits(String userId, AiCreditRequest.Purchase request) {
+        // 1. Validate amount (100 credit units, 10 KRW per credit)
+        int creditAmount = request.getCreditAmount();
+        if (creditAmount < 100 || creditAmount % 100 != 0) {
+            throw new BusinessException(ErrorCode.AI_CREDIT_PURCHASE_AMOUNT_INVALID);
+        }
+
+        int expectedAmount = creditAmount * 10;
+        if (!request.getAmount().equals(expectedAmount)) {
+            throw new BusinessException(ErrorCode.AI_CREDIT_PURCHASE_AMOUNT_INVALID);
+        }
+
+        try {
+            // 2. Confirm Toss Payments (if paymentKey is provided)
+            if (request.getPaymentKey() != null) {
+                tossPaymentsService.confirmPayment(request.getPaymentKey(), request.getOrderId(), request.getAmount());
+            }
+
+            // 3. Add credits with pessimistic lock
+            User user = userRepository.findByIdForUpdate(userId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+            user.addPersonalPurchasedCredits(creditAmount);
+
+            // 4. Save purchase history
+            AiCreditPurchase purchase = AiCreditPurchase.builder()
+                    .boardId(null)  // personal purchase, no board
+                    .userId(userId)
+                    .creditAmount(creditAmount)
+                    .unitPrice(10)
+                    .totalAmount(request.getAmount())
+                    .paymentKey(request.getPaymentKey())
+                    .orderId(request.getOrderId())
+                    .status("COMPLETED")
+                    .build();
+            aiCreditPurchaseRepository.save(purchase);
+
+            log.info("Personal AI credits purchased - user: {}, credits: {}, amount: {}",
+                    userId, creditAmount, request.getAmount());
+
+            // 5. Return result
+            return AiCreditResponse.PurchaseResult.builder()
+                    .purchaseId(purchase.getId())
+                    .creditAmount(creditAmount)
+                    .totalAmount(request.getAmount())
+                    .updatedCredits(getUserCredits(userId))
+                    .build();
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Personal credit purchase failed - user: {}, error: {}", userId, e.getMessage(), e);
+            throw new BusinessException(ErrorCode.AI_CREDIT_PURCHASE_FAILED);
+        }
     }
 
     // === User Credit Monthly Reset ===

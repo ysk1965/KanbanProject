@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, User as UserIcon, Mail, Shield, Calendar, Folder, CheckCircle, XCircle, Key, Image, Clock, Ban, UserCheck, KeyRound, MailCheck, AlertTriangle, Trash2, UserMinus, BookOpen, CalendarDays, ListTodo, Plus } from 'lucide-react';
+import { X, User as UserIcon, Mail, Shield, Calendar, Folder, CheckCircle, XCircle, Key, Image, Clock, Ban, UserCheck, KeyRound, MailCheck, AlertTriangle, Trash2, UserMinus, BookOpen, CalendarDays, ListTodo, Plus, Sparkles } from 'lucide-react';
 import { adminService } from '../../utils/services';
 import { AdminUserDetail, AdminBoardSummary } from '../../utils/api';
 import { formatDateTime } from '../../utils/dateUtils';
@@ -221,6 +221,64 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
     });
   };
 
+  const handleSetPersonalCredits = () => {
+    if (!user) return;
+    setPromptAction({
+      title: '월간 개인 AI 크레딧 설정',
+      message: `현재 월간 한도: ${user.personal_ai_credits ?? 30}. 새 월간 한도를 입력하세요.`,
+      placeholder: String(user.personal_ai_credits ?? 30),
+      onConfirm: async (value: string) => {
+        setPromptAction(null);
+        const credits = parseInt(value, 10);
+        if (isNaN(credits) || credits < 0) {
+          setToast({ message: '유효한 크레딧 수를 입력하세요.', type: 'error' });
+          return;
+        }
+        try {
+          setIsUpdating(true);
+          const updated = await adminService.adjustPersonalAiCredits(userId, { personal_ai_credits: credits });
+          setUser({ ...user, personal_ai_credits: updated.personal_ai_credits, personal_credits_used: updated.personal_credits_used, personal_credits_reset_date: updated.personal_credits_reset_date });
+          onUpdate();
+          setToast({ message: `월간 개인 크레딧이 ${credits}으로 설정되었습니다.`, type: 'success' });
+        } catch (err) {
+          console.error('Failed to set personal credits:', err);
+          setToast({ message: '크레딧 설정에 실패했습니다.', type: 'error' });
+        } finally {
+          setIsUpdating(false);
+        }
+      },
+    });
+  };
+
+  const handleAddPersonalBonusCredits = () => {
+    if (!user) return;
+    setPromptAction({
+      title: '보너스 크레딧 추가',
+      message: `현재 한도: ${user.personal_ai_credits ?? 30}. 추가할 크레딧 수를 입력하세요. (한도가 증가합니다)`,
+      placeholder: '10',
+      onConfirm: async (value: string) => {
+        setPromptAction(null);
+        const credits = parseInt(value, 10);
+        if (isNaN(credits) || credits < 1) {
+          setToast({ message: '1 이상의 크레딧 수를 입력하세요.', type: 'error' });
+          return;
+        }
+        try {
+          setIsUpdating(true);
+          const updated = await adminService.adjustPersonalAiCredits(userId, { add_bonus_credits: credits });
+          setUser({ ...user, personal_ai_credits: updated.personal_ai_credits, personal_credits_used: updated.personal_credits_used, personal_credits_reset_date: updated.personal_credits_reset_date });
+          onUpdate();
+          setToast({ message: `${credits} 보너스 크레딧이 추가되었습니다.`, type: 'success' });
+        } catch (err) {
+          console.error('Failed to add bonus credits:', err);
+          setToast({ message: '보너스 크레딧 추가에 실패했습니다.', type: 'error' });
+        } finally {
+          setIsUpdating(false);
+        }
+      },
+    });
+  };
+
   return (
     <>
       <MotionModal open={true} onClose={onClose} className="sm:max-w-2xl p-0 overflow-hidden max-h-[90vh] flex flex-col">
@@ -433,6 +491,66 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
                         {t('admin.userDetail.createPersonalBoard', 'Create')}
                       </button>
                     </div>
+                  )}
+                </div>
+
+                {/* Personal AI Credits */}
+                <div className="bg-bridge-accent/5 border border-bridge-accent/20 rounded-xl p-4">
+                  <h4 className="text-sm font-bold text-bridge-accent mb-3 flex items-center gap-2">
+                    <Sparkles className="h-4 w-4" />
+                    Personal AI Credits
+                  </h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-foreground/5 rounded-lg p-3">
+                      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">
+                        월간 크레딧
+                      </p>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-foreground text-sm font-medium">
+                            {user.personal_credits_used ?? 0} / {user.personal_ai_credits ?? 30}
+                          </span>
+                          <button
+                            onClick={handleSetPersonalCredits}
+                            disabled={isUpdating}
+                            className="text-xs text-bridge-accent hover:text-bridge-accent/80 disabled:opacity-50 transition-colors"
+                          >
+                            설정
+                          </button>
+                        </div>
+                        <div className="w-full bg-foreground/10 rounded-full h-1.5">
+                          <div
+                            className="bg-bridge-accent rounded-full h-1.5 transition-all"
+                            style={{
+                              width: `${(user.personal_ai_credits ?? 30) > 0 ? Math.min(100, ((user.personal_credits_used ?? 0) / (user.personal_ai_credits ?? 30)) * 100) : 0}%`,
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="bg-foreground/5 rounded-lg p-3">
+                      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">
+                        보너스 크레딧
+                      </p>
+                      <div className="flex items-center justify-between">
+                        <span className="text-foreground text-sm font-medium">
+                          잔여: {Math.max(0, (user.personal_ai_credits ?? 30) - (user.personal_credits_used ?? 0))}
+                        </span>
+                        <button
+                          onClick={handleAddPersonalBonusCredits}
+                          disabled={isUpdating}
+                          className="flex items-center gap-1 text-xs text-bridge-secondary hover:text-bridge-secondary/80 disabled:opacity-50 transition-colors"
+                        >
+                          <Plus className="h-3 w-3" />
+                          추가
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  {user.personal_credits_reset_date && (
+                    <p className="text-xs text-slate-500 mt-2">
+                      다음 리셋: {formatDateLocal(user.personal_credits_reset_date)}
+                    </p>
                   )}
                 </div>
 

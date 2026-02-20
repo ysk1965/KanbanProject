@@ -85,6 +85,10 @@ public class User extends BaseTimeEntity {
     @Builder.Default
     private Integer personalCreditsUsed = 0;
 
+    @Column(name = "personal_purchased_credits")
+    @Builder.Default
+    private Integer personalPurchasedCredits = 0;
+
     @Column(name = "personal_credits_reset_date")
     private LocalDateTime personalCreditsResetDate;
 
@@ -178,10 +182,12 @@ public class User extends BaseTimeEntity {
     private void initPersonalCreditDefaults() {
         if (this.personalAiCredits == null) this.personalAiCredits = 30;
         if (this.personalCreditsUsed == null) this.personalCreditsUsed = 0;
+        if (this.personalPurchasedCredits == null) this.personalPurchasedCredits = 0;
     }
 
     public int getPersonalAvailableCredits() {
-        return Math.max(0, personalAiCredits - personalCreditsUsed);
+        int purchased = personalPurchasedCredits != null ? personalPurchasedCredits : 0;
+        return Math.max(0, personalAiCredits - personalCreditsUsed) + purchased;
     }
 
     public boolean hasEnoughPersonalCredits(int required) {
@@ -189,7 +195,20 @@ public class User extends BaseTimeEntity {
     }
 
     public void consumePersonalCredits(int amount) {
-        this.personalCreditsUsed += amount;
+        // 월간 크레딧 먼저 소진, 부족하면 구매 크레딧 차감
+        int monthlyRemaining = Math.max(0, personalAiCredits - personalCreditsUsed);
+        if (monthlyRemaining >= amount) {
+            this.personalCreditsUsed += amount;
+        } else {
+            // 월간 크레딧 전부 소진 + 나머지는 구매 크레딧에서
+            this.personalCreditsUsed = personalAiCredits;
+            int fromPurchased = amount - monthlyRemaining;
+            this.personalPurchasedCredits = Math.max(0, this.personalPurchasedCredits - fromPurchased);
+        }
+    }
+
+    public void addPersonalPurchasedCredits(int amount) {
+        this.personalPurchasedCredits = (this.personalPurchasedCredits != null ? this.personalPurchasedCredits : 0) + amount;
     }
 
     public void resetPersonalCredits() {
@@ -201,5 +220,13 @@ public class User extends BaseTimeEntity {
         this.personalAiCredits = 30;
         this.personalCreditsUsed = 0;
         this.personalCreditsResetDate = LocalDateTime.now(ZoneOffset.UTC).plusMonths(1);
+    }
+
+    public void setPersonalAiCredits(int credits) {
+        this.personalAiCredits = credits;
+    }
+
+    public void addPersonalBonusCredits(int amount) {
+        this.personalAiCredits += amount;
     }
 }

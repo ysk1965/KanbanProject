@@ -5,6 +5,7 @@ import com.kanban.domain.diary.dto.DiaryRequest;
 import com.kanban.domain.diary.dto.DiaryResponse;
 import com.kanban.domain.diary.service.DiaryService;
 import com.kanban.domain.diary.service.DiaryVoiceService;
+import com.kanban.domain.subscription.dto.AiCreditRequest;
 import com.kanban.domain.subscription.dto.AiCreditResponse;
 import com.kanban.domain.subscription.service.AiCreditService;
 import com.kanban.global.security.UserPrincipal;
@@ -35,6 +36,15 @@ public class DiaryController {
     public ResponseEntity<AiCreditResponse.CreditInfo> getPersonalCredits(
             @AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(aiCreditService.getUserCredits(principal.getUserId()));
+    }
+
+    @PostMapping("/credits/purchase")
+    public ResponseEntity<AiCreditResponse.PurchaseResult> purchasePersonalCredits(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody AiCreditRequest.Purchase request) {
+        AiCreditResponse.PurchaseResult result = aiCreditService.purchasePersonalCredits(
+                principal.getUserId(), request);
+        return ResponseEntity.ok(result);
     }
 
     @GetMapping

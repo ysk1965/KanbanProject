@@ -3026,6 +3026,10 @@ export interface AdminUserDetail extends AdminUserSummary {
   personal_board_task_count?: number | null;
   personal_board_diary_count?: number | null;
   personal_board_event_count?: number | null;
+  // Personal AI Credits
+  personal_ai_credits?: number | null;
+  personal_credits_used?: number | null;
+  personal_credits_reset_date?: string | null;
 }
 
 export interface AdminBoardSummary {
@@ -3258,6 +3262,11 @@ export const adminAPI = {
   // Personal Board 생성
   createPersonalBoard: async (userId: string) => {
     return apiClient.post<{ message: string }>(`/admin/users/${userId}/create-personal-board`, {});
+  },
+
+  // 유저 개인 AI 크레딧 조정
+  adjustPersonalAiCredits: async (userId: string, data: { personal_ai_credits?: number; add_bonus_credits?: number }) => {
+    return apiClient.patch<AdminUserDetail>(`/admin/users/${userId}/personal-ai-credits`, data);
   },
 
   // 사용자 영구 삭제
@@ -3982,7 +3991,7 @@ export const publicNoteAPI = {
 // Task Dependency API
 // ========================================
 
-import type { PersonalEvent, DiaryDetail, DiarySimple, DiaryAiReply, DiaryVoiceReply, DiaryVoiceSettings } from '../types';
+import type { PersonalEvent, DiaryDetail, DiarySimple, DiaryAiReply, DiaryVoiceReply, DiaryVoiceSettings, AiCredits, AiCreditPurchaseRequest, AiCreditPurchaseResult } from '../types';
 
 // ========================================
 // Personal Space API
@@ -4133,6 +4142,15 @@ export const diaryAPI = {
 
   updateVoiceSettings: async (data: Partial<DiaryVoiceSettings>): Promise<DiaryVoiceSettings> => {
     return apiClient.put('/diary/voice-settings', data);
+  },
+
+  // Personal AI Credits
+  getPersonalCredits: async (): Promise<AiCredits> => {
+    return apiClient.get('/diary/credits');
+  },
+
+  purchasePersonalCredits: async (data: AiCreditPurchaseRequest): Promise<AiCreditPurchaseResult> => {
+    return apiClient.post('/diary/credits/purchase', data);
   },
 };
 

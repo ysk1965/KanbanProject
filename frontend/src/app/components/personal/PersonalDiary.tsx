@@ -18,7 +18,8 @@ import {
 import { diaryService } from '../../utils/services';
 import { formatDate } from '../../utils/dateUtils';
 import { useHolidays } from '../../hooks/useHolidays';
-import type { DiaryDetail, DiaryMessage, DiarySimple } from '../../types';
+import { PersonalCreditModal } from './PersonalCreditModal';
+import type { DiaryDetail, DiaryMessage, DiarySimple, AiCredits } from '../../types';
 import type { TFunction } from 'i18next';
 
 const MOOD_ENTRIES = [
@@ -61,6 +62,11 @@ export function PersonalDiary() {
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
+  // Credit state
+  const [credits, setCredits] = useState<AiCredits | null>(null);
+  const [showCreditModal, setShowCreditModal] = useState(false);
+  const [creditModalMode, setCreditModalMode] = useState<'purchase' | 'exhausted'>('purchase');
+
   // Voice state
   const [voiceState, setVoiceState] = useState<VoiceState>('idle');
   const [recordingDuration, setRecordingDuration] = useState(0);
@@ -73,6 +79,31 @@ export function PersonalDiary() {
 
   const currentDateObj = new Date(currentDate + 'T00:00:00');
   const [calendarMonth, setCalendarMonth] = useState(startOfMonth(currentDateObj));
+
+  // Load personal credits
+  useEffect(() => {
+    const loadCredits = async () => {
+      try {
+        const data = await diaryService.getPersonalCredits();
+        setCredits(data);
+      } catch (err) {
+        console.error('Failed to load personal credits:', err);
+      }
+    };
+    loadCredits();
+  }, []);
+
+  // Listen for global 402 credit exhaustion events
+  useEffect(() => {
+    const handler = () => {
+      setCreditModalMode('exhausted');
+      setShowCreditModal(true);
+      // Refresh credit info
+      diaryService.getPersonalCredits().then(setCredits).catch(() => {});
+    };
+    window.addEventListener('ai-credits-exhausted', handler);
+    return () => window.removeEventListener('ai-credits-exhausted', handler);
+  }, []);
 
   // Check mic support
   useEffect(() => {
@@ -187,11 +218,27 @@ export function PersonalDiary() {
           messages: [...msgs, reply.user_message, reply.ai_message],
         };
       });
-    } catch (error) {
+      // Optimistic credit update (-1)
+      setCredits((prev) => prev ? {
+        ...prev,
+        monthly_used: prev.monthly_used + 1,
+        total_available: Math.max(0, prev.total_available - 1),
+        warning_level: prev.total_available - 1 <= 0 ? 'EXHAUSTED'
+          : prev.total_available - 1 <= 3 ? 'CRITICAL'
+          : prev.total_available - 1 <= 10 ? 'LOW' : null,
+      } : prev);
+    } catch (error: any) {
       console.error('Failed to send message:', error);
       // Revert optimistic update
       setDiary((prev) => prev ? { ...prev, messages: prev.messages.filter((m) => m.id !== tempUserMsg.id) } : prev);
       setMessage(content);
+
+      // Handle credit exhaustion (402 or specific error code)
+      if (error?.code === 'AC004' || error?.code === 'PERSONAL_AI_CREDITS_EXHAUSTED') {
+        setCreditModalMode('exhausted');
+        setShowCreditModal(true);
+        diaryService.getPersonalCredits().then(setCredits).catch(() => {});
+      }
     } finally {
       setIsSending(false);
     }
@@ -340,10 +387,17 @@ export function PersonalDiary() {
       } else {
         setVoiceState('idle');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to process voice message:', error);
       setDiary((prev) => prev ? { ...prev, messages: prev.messages.filter((m) => m.id !== tempUserMsg.id) } : prev);
       setVoiceState('idle');
+
+      // Handle credit exhaustion
+      if (error?.code === 'AC004' || error?.code === 'PERSONAL_AI_CREDITS_EXHAUSTED') {
+        setCreditModalMode('exhausted');
+        setShowCreditModal(true);
+        diaryService.getPersonalCredits().then(setCredits).catch(() => {});
+      }
     } finally {
       setIsSending(false);
     }
@@ -673,6 +727,31 @@ export function PersonalDiary() {
 
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col">
+        {/* Credit Badge */}
+        {credits && (
+          <div className="flex items-center justify-end px-4 py-2 border-b border-foreground/5">
+            <button
+              onClick={() => {
+                setCreditModalMode(credits.total_available <= 0 ? 'exhausted' : 'purchase');
+                setShowCreditModal(true);
+              }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:bg-foreground/5 ${
+                credits.warning_level === 'EXHAUSTED'
+                  ? 'text-red-400 bg-red-500/10 border border-red-500/20'
+                  : credits.warning_level === 'CRITICAL'
+                    ? 'text-amber-400 bg-amber-500/10 border border-amber-500/20 animate-pulse'
+                    : credits.warning_level === 'LOW'
+                      ? 'text-amber-400 bg-amber-500/5 border border-foreground/10'
+                      : 'text-slate-400 border border-foreground/10'
+              }`}
+            >
+              <Sparkles size={12} />
+              <span>{credits.total_available}</span>
+              <span className="text-slate-500 font-normal">/ {credits.monthly_credits + credits.purchased_credits}</span>
+            </button>
+          </div>
+        )}
+
         {isLoading ? (
           <div className="flex-1 flex items-center justify-center">
             <div className="flex items-center gap-2 text-slate-400 text-sm">
@@ -1071,6 +1150,18 @@ export function PersonalDiary() {
                 </div>
               </div>
       </MotionModal>
+
+      {/* Personal Credit Modal */}
+      <PersonalCreditModal
+        isOpen={showCreditModal}
+        onClose={() => setShowCreditModal(false)}
+        mode={creditModalMode}
+        currentCredits={credits}
+        onPurchaseComplete={(updatedCredits) => {
+          setCredits(updatedCredits);
+          setShowCreditModal(false);
+        }}
+      />
 
     </div>
   );

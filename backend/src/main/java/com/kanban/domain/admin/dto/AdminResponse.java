@@ -86,6 +86,10 @@ public class AdminResponse {
         private LocalDateTime deactivatedAt;
         private String deactivatedReason;
         private List<BoardSummary> boards;
+        // Personal AI Credit fields
+        private Integer personalAiCredits;
+        private Integer personalCreditsUsed;
+        private LocalDateTime personalCreditsResetDate;
 
         public static UserDetail of(User user, int boardCount, List<BoardSummary> boards) {
             return UserDetail.builder()
@@ -105,6 +109,9 @@ public class AdminResponse {
                     .deactivatedAt(user.getDeactivatedAt())
                     .deactivatedReason(user.getDeactivatedReason())
                     .boards(boards)
+                    .personalAiCredits(user.getPersonalAiCredits())
+                    .personalCreditsUsed(user.getPersonalCreditsUsed())
+                    .personalCreditsResetDate(user.getPersonalCreditsResetDate())
                     .build();
         }
     }

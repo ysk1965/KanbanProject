@@ -131,6 +131,15 @@ public class AdminController {
         return ResponseEntity.ok(Map.of("message", "사용자가 보드에서 제거되었습니다"));
     }
 
+    @PatchMapping("/users/{userId}/personal-ai-credits")
+    public ResponseEntity<AdminResponse.UserDetail> adjustPersonalAiCredits(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable String userId,
+            @Valid @RequestBody AdminRequest.AdjustPersonalAiCredits request) {
+        verifyAdminAccess(principal);
+        return ResponseEntity.ok(adminService.adjustPersonalAiCredits(userId, request));
+    }
+
     // ==================== Boards ====================
 
     @GetMapping("/boards")

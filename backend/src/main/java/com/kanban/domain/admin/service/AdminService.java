@@ -453,6 +453,25 @@ public class AdminService {
     }
 
     @Transactional
+    public AdminResponse.UserDetail adjustPersonalAiCredits(String userId, AdminRequest.AdjustPersonalAiCredits request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        if (request.getPersonalAiCredits() != null) {
+            user.setPersonalAiCredits(request.getPersonalAiCredits());
+        }
+
+        if (request.getAddBonusCredits() != null && request.getAddBonusCredits() > 0) {
+            user.addPersonalBonusCredits(request.getAddBonusCredits());
+        }
+
+        log.info("Personal AI credits adjusted by admin: userId={}, personalAiCredits={}, addBonusCredits={}",
+                userId, request.getPersonalAiCredits(), request.getAddBonusCredits());
+
+        return getUser(userId);
+    }
+
+    @Transactional
     public AdminResponse.BoardDetail adjustAiCredits(String boardId, AdminRequest.AdjustAiCredits request) {
         boardRepository.findById(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
