@@ -2606,6 +2606,10 @@ export const diaryService = {
   delete: async (diaryId: string): Promise<void> => {
     return diaryAPI.delete(diaryId);
   },
+
+  transcribeVoice: async (audioBlob: Blob): Promise<{ text: string }> => {
+    return diaryAPI.transcribeVoice(audioBlob);
+  },
 };
 
 // ─── Personal Task Service (v9.0) ───

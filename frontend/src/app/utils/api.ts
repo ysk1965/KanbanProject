@@ -4062,6 +4062,26 @@ export const diaryAPI = {
   delete: async (diaryId: string): Promise<void> => {
     return apiClient.delete(`/diary/${diaryId}`);
   },
+
+  transcribeVoice: async (audioBlob: Blob): Promise<{ text: string }> => {
+    const formData = new FormData();
+    formData.append('file', audioBlob, 'recording.webm');
+
+    const response = await authenticatedFetch(`${API_BASE_URL}/diary/transcribe`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({
+        code: 'UNKNOWN',
+        message: response.statusText,
+      }));
+      throw errData;
+    }
+
+    return response.json();
+  },
 };
 
 // ========================================

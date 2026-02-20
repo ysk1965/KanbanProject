@@ -3,6 +3,7 @@ package com.kanban.domain.diary.controller;
 import com.kanban.domain.diary.dto.DiaryRequest;
 import com.kanban.domain.diary.dto.DiaryResponse;
 import com.kanban.domain.diary.service.DiaryService;
+import com.kanban.domain.diary.service.DiaryVoiceService;
 import com.kanban.domain.subscription.dto.AiCreditResponse;
 import com.kanban.domain.subscription.service.AiCreditService;
 import com.kanban.global.security.UserPrincipal;
@@ -13,6 +14,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -24,6 +26,7 @@ import java.util.Map;
 public class DiaryController {
 
     private final DiaryService diaryService;
+    private final DiaryVoiceService diaryVoiceService;
     private final AiCreditService aiCreditService;
 
     @GetMapping("/credits")
@@ -106,6 +109,14 @@ public class DiaryController {
             @Valid @RequestBody DiaryRequest.Update request) {
         DiaryResponse.Detail response = diaryService.updateDiary(principal.getUserId(), diaryId, request);
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/transcribe")
+    public ResponseEntity<Map<String, String>> transcribeVoice(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam("file") MultipartFile audioFile) {
+        String text = diaryVoiceService.transcribe(audioFile);
+        return ResponseEntity.ok(Map.of("text", text));
     }
 
     @DeleteMapping("/{diaryId}")

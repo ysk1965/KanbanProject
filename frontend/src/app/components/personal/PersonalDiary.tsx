@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { Send, BookHeart, ChevronLeft, ChevronRight, Check, Sparkles, RotateCcw, BookOpen, Pencil, RefreshCw, AlertTriangle, X, CalendarIcon } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Send, BookHeart, ChevronLeft, ChevronRight, Check, Sparkles, RotateCcw, BookOpen, Pencil, RefreshCw, AlertTriangle, X, CalendarIcon, Mic, Square, Loader2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useAudioRecorder, formatDuration } from '../../hooks/useAudioRecorder';
 import {
   startOfMonth,
   endOfMonth,
@@ -42,6 +43,13 @@ export function PersonalDiary() {
   const [isLoading, setIsLoading] = useState(false);
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  // Voice recording states
+  const { isRecording, recordingDuration, audioBlob, startRecording, stopRecording, clearRecording } = useAudioRecorder();
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [showTranscriptModal, setShowTranscriptModal] = useState(false);
+  const [transcriptText, setTranscriptText] = useState('');
+  const [voiceError, setVoiceError] = useState<string | null>(null);
 
   const currentDateObj = new Date(currentDate + 'T00:00:00');
   const [calendarMonth, setCalendarMonth] = useState(startOfMonth(currentDateObj));
@@ -179,6 +187,56 @@ export function PersonalDiary() {
       loadDiaryList();
     } catch (error) {
       console.error('Failed to reset diary:', error);
+    }
+  };
+
+  // Handle voice recording: when audioBlob is ready after stop, transcribe it
+  useEffect(() => {
+    if (audioBlob && !isTranscribing) {
+      handleTranscribe(audioBlob);
+    }
+  }, [audioBlob]);
+
+  const handleTranscribe = async (blob: Blob) => {
+    setIsTranscribing(true);
+    setVoiceError(null);
+    try {
+      const result = await diaryService.transcribeVoice(blob);
+      setTranscriptText(result.text);
+      setShowTranscriptModal(true);
+    } catch (error) {
+      console.error('Transcription failed:', error);
+      setVoiceError('음성 변환에 실패했습니다. 다시 시도해주세요.');
+      setTimeout(() => setVoiceError(null), 3000);
+    } finally {
+      setIsTranscribing(false);
+      clearRecording();
+    }
+  };
+
+  const handleTranscriptConfirm = () => {
+    if (!transcriptText.trim()) return;
+    setMessage(transcriptText.trim());
+    setShowTranscriptModal(false);
+    setTranscriptText('');
+  };
+
+  const handleTranscriptCancel = () => {
+    setShowTranscriptModal(false);
+    setTranscriptText('');
+  };
+
+  const handleMicClick = async () => {
+    if (isRecording) {
+      stopRecording();
+    } else {
+      setVoiceError(null);
+      try {
+        await startRecording();
+      } catch {
+        setVoiceError('마이크 접근이 거부되었습니다. 브라우저 설정을 확인해주세요.');
+        setTimeout(() => setVoiceError(null), 3000);
+      }
     }
   };
 
@@ -631,6 +689,61 @@ export function PersonalDiary() {
               </div>
             )}
 
+            {/* Voice Error Toast */}
+            <AnimatePresence>
+              {voiceError && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
+                  className="px-3 md:px-6"
+                >
+                  <div className="max-w-2xl mx-auto">
+                    <div className="flex items-center gap-2 px-4 py-2 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-xs">
+                      <AlertTriangle size={14} />
+                      {voiceError}
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Recording Indicator */}
+            <AnimatePresence>
+              {(isRecording || isTranscribing) && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="border-t border-white/[0.06] px-3 md:px-6 py-2"
+                >
+                  <div className="max-w-2xl mx-auto flex items-center gap-3">
+                    {isRecording ? (
+                      <>
+                        <div className="flex items-center gap-2">
+                          <div className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
+                          <span className="text-red-400 text-xs font-bold">녹음 중</span>
+                        </div>
+                        <span className="text-slate-400 text-xs font-mono">{formatDuration(recordingDuration)}</span>
+                        <button
+                          onClick={handleMicClick}
+                          className="ml-auto flex items-center gap-1.5 px-3 py-1.5 bg-red-500/20 border border-red-500/30 text-red-400 rounded-lg text-xs font-bold hover:bg-red-500/30 transition-all"
+                        >
+                          <Square size={12} />
+                          중지
+                        </button>
+                      </>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <Loader2 size={14} className="text-bridge-accent animate-spin" />
+                        <span className="text-bridge-accent text-xs font-bold">음성을 텍스트로 변환 중...</span>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             {/* Input */}
             <div className="border-t border-white/[0.06] px-3 md:px-6 py-3 md:py-4">
               <div className="max-w-2xl mx-auto flex gap-2 md:gap-3">
@@ -646,8 +759,20 @@ export function PersonalDiary() {
                   }}
                   placeholder="오늘 하루를 이야기해주세요..."
                   className="flex-1 bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
-                  disabled={isSending}
+                  disabled={isSending || isRecording || isTranscribing}
                 />
+                <button
+                  onClick={handleMicClick}
+                  disabled={isSending || isTranscribing}
+                  className={`p-3 rounded-xl transition-all ${
+                    isRecording
+                      ? 'bg-red-500/20 border border-red-500/40 text-red-400 hover:bg-red-500/30'
+                      : 'bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10'
+                  } disabled:opacity-30 disabled:cursor-not-allowed`}
+                  title={isRecording ? '녹음 중지' : '음성으로 말하기'}
+                >
+                  {isRecording ? <Square size={18} /> : <Mic size={18} />}
+                </button>
                 <button
                   onClick={handleSendMessage}
                   disabled={!message.trim() || isSending}
@@ -701,6 +826,63 @@ export function PersonalDiary() {
                   className="flex-1 px-4 py-2.5 text-sm font-bold text-white bg-red-500/80 rounded-xl hover:bg-red-500 transition-all"
                 >
                   다시 시작
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Voice Transcription Confirm Modal */}
+      {showTranscriptModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={handleTranscriptCancel} />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.15 }}
+            className="relative bg-bridge-obsidian rounded-2xl border border-white/10 p-6 shadow-2xl max-w-md w-full mx-4"
+          >
+            <button
+              onClick={handleTranscriptCancel}
+              className="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-full bg-bridge-accent/15 border border-bridge-accent/25 flex items-center justify-center">
+                  <Mic size={18} className="text-bridge-accent" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">음성 변환 결과</h3>
+                  <p className="text-[11px] text-slate-500">텍스트를 확인하고 수정한 후 전송하세요</p>
+                </div>
+              </div>
+
+              <textarea
+                value={transcriptText}
+                onChange={(e) => setTranscriptText(e.target.value)}
+                rows={4}
+                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all resize-none"
+                placeholder="변환된 텍스트가 여기에 표시됩니다..."
+                autoFocus
+              />
+
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleTranscriptCancel}
+                  className="flex-1 px-4 py-2.5 text-sm font-bold text-slate-300 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={handleTranscriptConfirm}
+                  disabled={!transcriptText.trim()}
+                  className="flex-1 px-4 py-2.5 text-sm font-bold text-white bg-bridge-accent rounded-xl hover:bg-bridge-accent/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                >
+                  입력란에 넣기
                 </button>
               </div>
             </div>
