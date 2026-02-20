@@ -63,6 +63,7 @@ export function PersonalDiary() {
 
   // Voice state
   const [voiceState, setVoiceState] = useState<VoiceState>('idle');
+  const voiceStateRef = useRef<VoiceState>('idle');
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [hasMicSupport, setHasMicSupport] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -70,6 +71,12 @@ export function PersonalDiary() {
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Sync wrapper: updates both state (for rendering) and ref (for synchronous checks in event handlers)
+  const updateVoiceState = useCallback((newState: VoiceState) => {
+    voiceStateRef.current = newState;
+    setVoiceState(newState);
+  }, []);
 
   const currentDateObj = new Date(currentDate + 'T00:00:00');
   const [calendarMonth, setCalendarMonth] = useState(startOfMonth(currentDateObj));
@@ -207,10 +214,20 @@ export function PersonalDiary() {
   }, []);
 
   const startRecording = useCallback(async () => {
-    if (!diary || voiceState !== 'idle') return;
+    if (!diary || voiceStateRef.current !== 'idle') return;
+
+    // Mark as recording immediately via ref so touchend can detect it synchronously
+    voiceStateRef.current = 'recording';
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+      // If stopRecording was called while awaiting getUserMedia, abort
+      if (voiceStateRef.current !== 'recording') {
+        stream.getTracks().forEach((t) => t.stop());
+        return;
+      }
+
       streamRef.current = stream;
 
       const supportedTypes = [
@@ -236,18 +253,18 @@ export function PersonalDiary() {
         if (blob.size > 0) {
           handleVoiceSubmit(blob);
         } else {
-          setVoiceState('idle');
+          updateVoiceState('idle');
         }
       };
 
       mediaRecorder.onerror = () => {
         stopStreamTracks();
-        setVoiceState('idle');
+        updateVoiceState('idle');
       };
 
       mediaRecorder.start(500);
       mediaRecorderRef.current = mediaRecorder;
-      setVoiceState('recording');
+      updateVoiceState('recording');
       setRecordingDuration(0);
 
       if (navigator.vibrate) navigator.vibrate(50);
@@ -258,7 +275,7 @@ export function PersonalDiary() {
     } catch (error: any) {
       console.error('Failed to start recording:', error);
       stopStreamTracks();
-      setVoiceState('idle');
+      updateVoiceState('idle');
 
       if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
         alert(t('personal.diary.voiceMicDenied', '마이크 접근이 거부되었습니다. 브라우저 설정에서 마이크 권한을 허용해주세요.'));
@@ -266,7 +283,7 @@ export function PersonalDiary() {
         alert(t('personal.diary.voiceMicNotFound', '마이크를 찾을 수 없습니다. 마이크가 연결되어 있는지 확인해주세요.'));
       }
     }
-  }, [diary, voiceState, stopStreamTracks, t]);
+  }, [diary, stopStreamTracks, updateVoiceState, t]);
 
   const stopRecording = useCallback(() => {
     if (timerRef.current) {
@@ -279,15 +296,15 @@ export function PersonalDiary() {
     } else {
       // MediaRecorder not recording - clean up stream directly
       stopStreamTracks();
-      setVoiceState('idle');
+      updateVoiceState('idle');
     }
     if (navigator.vibrate) navigator.vibrate(30);
-  }, [stopStreamTracks]);
+  }, [stopStreamTracks, updateVoiceState]);
 
   const handleVoiceSubmit = async (audioBlob: Blob) => {
     if (!diary) return;
 
-    setVoiceState('processing');
+    updateVoiceState('processing');
     setIsSending(true);
 
     // Optimistic: add placeholder user message
@@ -320,28 +337,28 @@ export function PersonalDiary() {
           audioRef.current.pause();
           audioRef.current = null;
         }
-        setVoiceState('ai-speaking');
+        updateVoiceState('ai-speaking');
         const audio = new Audio(reply.ai_audio_url);
         audioRef.current = audio;
         audio.onended = () => {
-          setVoiceState('idle');
+          updateVoiceState('idle');
           audioRef.current = null;
         };
         audio.onerror = () => {
-          setVoiceState('idle');
+          updateVoiceState('idle');
           audioRef.current = null;
         };
         audio.play().catch(() => {
-          setVoiceState('idle');
+          updateVoiceState('idle');
           audioRef.current = null;
         });
       } else {
-        setVoiceState('idle');
+        updateVoiceState('idle');
       }
     } catch (error) {
       console.error('Failed to process voice message:', error);
       setDiary((prev) => prev ? { ...prev, messages: prev.messages.filter((m) => m.id !== tempUserMsg.id) } : prev);
-      setVoiceState('idle');
+      updateVoiceState('idle');
     } finally {
       setIsSending(false);
     }
@@ -352,7 +369,7 @@ export function PersonalDiary() {
       audioRef.current.pause();
       audioRef.current = null;
     }
-    setVoiceState('idle');
+    updateVoiceState('idle');
   }, []);
 
   const formatRecordTime = (seconds: number) => {
@@ -936,12 +953,13 @@ export function PersonalDiary() {
                   {/* Push-to-Talk Button */}
                   {hasMicSupport && (
                     <button
-                      onMouseDown={voiceState === 'idle' ? startRecording : undefined}
-                      onMouseUp={voiceState === 'recording' ? stopRecording : undefined}
-                      onMouseLeave={voiceState === 'recording' ? stopRecording : undefined}
-                      onTouchStart={voiceState === 'idle' ? (e) => { e.preventDefault(); startRecording(); } : undefined}
-                      onTouchEnd={voiceState === 'recording' ? (e) => { e.preventDefault(); stopRecording(); } : undefined}
-                      onClick={voiceState === 'ai-speaking' ? stopAiSpeaking : undefined}
+                      onMouseDown={() => { if (voiceStateRef.current === 'idle') startRecording(); }}
+                      onMouseUp={() => { if (voiceStateRef.current === 'recording') stopRecording(); }}
+                      onMouseLeave={() => { if (voiceStateRef.current === 'recording') stopRecording(); }}
+                      onTouchStart={(e) => { e.preventDefault(); if (voiceStateRef.current === 'idle') startRecording(); }}
+                      onTouchEnd={(e) => { e.preventDefault(); if (voiceStateRef.current === 'recording') stopRecording(); }}
+                      onTouchCancel={(e) => { e.preventDefault(); if (voiceStateRef.current === 'recording') stopRecording(); }}
+                      onClick={() => { if (voiceStateRef.current === 'ai-speaking') stopAiSpeaking(); }}
                       disabled={isSending && voiceState === 'idle'}
                       className={`
                         relative p-3 rounded-xl transition-all select-none touch-none
