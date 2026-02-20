@@ -126,7 +126,7 @@ export function KanbanBoardHeader({
       <header className="min-h-[3.5rem] md:h-16 border-b border-bridge-border flex items-center justify-between px-3 md:px-6 bg-bridge-dark shrink-0 z-30 gap-2 safe-top">
         {/* 좌측 영역 */}
         <div className="flex items-center gap-2 md:gap-6 min-w-0">
-          {!hideBilling && (
+          {!isWhiteLabelDomain && (
             <button
               onClick={() => navigate('/boards')}
               className="p-2 hover:bg-bridge-surface-hover rounded-lg transition-colors text-zinc-400 hover:text-foreground"
