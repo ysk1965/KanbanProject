@@ -960,8 +960,12 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
                     const startParts = meeting.start_time!.split(':');
                     const endParts = meeting.end_time!.split(':');
                     const startMinutes = parseInt(startParts[0]) * 60 + parseInt(startParts[1]);
-                    const endMinutes = parseInt(endParts[0]) * 60 + parseInt(endParts[1]);
+                    let endMinutes = parseInt(endParts[0]) * 60 + parseInt(endParts[1]);
                     const workStartMinutes = workStartHour * 60;
+                    // Overnight: cap to work end
+                    if (endMinutes < startMinutes) {
+                      endMinutes = workEndHour * 60;
+                    }
                     const top = ((startMinutes - workStartMinutes) / 30) * SLOT_HEIGHT;
                     const height = Math.max(((endMinutes - startMinutes) / 30) * SLOT_HEIGHT, SLOT_HEIGHT);
 
@@ -1099,6 +1103,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
                             </div>
                             <div className={`text-xs ${timeColor}`}>
                               {block.start_time.slice(0, 5)} - {block.end_time.slice(0, 5)}
+                              {block.end_time < block.start_time && <span className="text-bridge-accent ml-0.5">({t('scheduleBlock.nextDay')})</span>}
                             </div>
                           </div>
                           );

@@ -1824,7 +1824,8 @@
     "unlinked": "（未リンク）",
     "cannotMove": "移動不可",
     "cannotChange": "変更不可",
-    "willSplit": "分割作成"
+    "willSplit": "分割作成",
+    "nextDay": "翌日"
   },
   "scheduleDetail": {
     "title": "タイムブロック詳細",
@@ -1842,7 +1843,8 @@
     "taskChecklist": "TASK チェックリスト",
     "completedCount": "{{completed}}/{{total}} 完了",
     "noChecklist": "チェックリストアイテムなし",
-    "current": "現在"
+    "current": "現在",
+    "nextDay": "翌日"
   },
   "emptyBoard": {
     "heading": "ボードを始めましょう",
@@ -2624,7 +2626,9 @@
       "checkInComplete": "完了"
     },
     "schedule": {
-      "overlapWarning": "{{count}}件のイベントと時間が重複しています"
+      "overlapWarning": "{{count}}件のイベントと時間が重複しています",
+      "nextDay": "翌日",
+      "prevDay": "前日から"
     }
   }
 }

@@ -716,6 +716,7 @@ function DayDetailModal({
                       <Clock size={8} />
                       {item.startTime}
                       {item.event?.end_time && ` - ${item.event.end_time.slice(0, 5)}`}
+                      {item.event?.start_time && item.event?.end_time && item.event.end_time < item.event.start_time && <span className="text-bridge-accent ml-0.5">({t('personal.schedule.nextDay')})</span>}
                     </span>
                   )}
                   {item.isOverdue && (
@@ -944,7 +945,7 @@ function CreateEventModal({
                 <div className="mt-1 space-y-0.5">
                   {overlapping.slice(0, 3).map((ev) => (
                     <p key={ev.id} className="text-[11px] text-amber-400/70 truncate">
-                      {ev.start_time?.slice(0, 5)}–{ev.end_time?.slice(0, 5)} {ev.title}
+                      {ev.start_time?.slice(0, 5)}–{ev.end_time?.slice(0, 5)}{ev.start_time && ev.end_time && ev.end_time < ev.start_time ? ` (${t('personal.schedule.nextDay')})` : ''} {ev.title}
                     </p>
                   ))}
                   {overlapping.length > 3 && (
@@ -1153,7 +1154,7 @@ function EditEventModal({
                 <div className="mt-1 space-y-0.5">
                   {overlapping.slice(0, 3).map((ev) => (
                     <p key={ev.id} className="text-[11px] text-amber-400/70 truncate">
-                      {ev.start_time?.slice(0, 5)}–{ev.end_time?.slice(0, 5)} {ev.title}
+                      {ev.start_time?.slice(0, 5)}–{ev.end_time?.slice(0, 5)}{ev.start_time && ev.end_time && ev.end_time < ev.start_time ? ` (${t('personal.schedule.nextDay')})` : ''} {ev.title}
                     </p>
                   ))}
                   {overlapping.length > 3 && (

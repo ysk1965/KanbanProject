@@ -29,9 +29,12 @@ const minutesToTime = (minutes: number): string => {
   return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:00`;
 };
 
-// 두 시간 범위가 겹치는지 체크
+// 두 시간 범위가 겹치는지 체크 (overnight-safe: end < start → 자정 넘김)
 const isOverlapping = (start1: number, end1: number, start2: number, end2: number): boolean => {
-  return start1 < end2 && end1 > start2;
+  // overnight인 경우 end를 24h+ 로 확장해서 비교
+  const e1 = end1 <= start1 ? end1 + 24 * 60 : end1;
+  const e2 = end2 <= start2 ? end2 + 24 * 60 : end2;
+  return start1 < e2 && e1 > start2;
 };
 
 export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, otherBlocks = [], breakStartTime, breakEndTime, onClick, onResize, onMove, onSplitResize }: ScheduleBlockProps) {
@@ -61,11 +64,17 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
   useEffect(() => { onMoveRef.current = onMove; }, [onMove]);
   useEffect(() => { onSplitResizeRef.current = onSplitResize; }, [onSplitResize]);
 
-  const { top, height, displayInfo, startMinutes, endMinutes, workStartMinutes, workEndMinutes } = useMemo(() => {
+  const { top, height, displayInfo, startMinutes, endMinutes, workStartMinutes, workEndMinutes, isOvernight } = useMemo(() => {
     const startMinutes = timeToMinutes(block.start_time);
-    const endMinutes = timeToMinutes(block.end_time);
+    let endMinutes = timeToMinutes(block.end_time);
     const workStartMinutes = workStartHour * 60;
     const workEndMinutes = workEndHour * 60;
+
+    // Overnight: endTime < startTime → cap to work end
+    const isOvernight = endMinutes < startMinutes;
+    if (isOvernight) {
+      endMinutes = workEndMinutes;
+    }
 
     const minutesFromStart = startMinutes - workStartMinutes;
     const durationMinutes = endMinutes - startMinutes;
@@ -90,6 +99,7 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
       endMinutes,
       workStartMinutes,
       workEndMinutes,
+      isOvernight,
     };
   }, [block, slotHeight, workStartHour, workEndHour]);
 
@@ -447,6 +457,7 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
       <div className="flex flex-col h-full overflow-hidden">
         <span className={`text-xs font-medium truncate ${displayInfo.isCompleted ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
           {displayInfo.title}
+          {isOvernight && <span className="text-bridge-accent ml-1 text-[10px]">({t('scheduleBlock.nextDay')})</span>}
         </span>
         {displayHeight > 30 && displayInfo.taskTitle && (
           <span className="text-[10px] text-muted-foreground truncate">

@@ -103,11 +103,12 @@ interface CommentPanelProps {
   canEdit?: boolean;
   isAdminOrOwner?: boolean;
   wsCommentEvent?: BoardWebSocketEvent | null;
+  onClose?: () => void;
 }
 
 // ========== 컴포넌트 ==========
 
-export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEdit = true, isAdminOrOwner = false, wsCommentEvent }: CommentPanelProps) {
+export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEdit = true, isAdminOrOwner = false, wsCommentEvent, onClose }: CommentPanelProps) {
   const { t, i18n } = useTranslation();
   // 댓글 목록
   const [comments, setComments] = useState<TaskComment[]>([]);
@@ -1006,6 +1007,14 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
           >
             {aiSummaryLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
             {t('comment.aiSummarize')}
+          </button>
+        )}
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="hidden md:flex ml-2 p-1 rounded-sm text-slate-400 hover:text-foreground transition-colors"
+          >
+            <X className="h-4 w-4" />
           </button>
         )}
       </div>

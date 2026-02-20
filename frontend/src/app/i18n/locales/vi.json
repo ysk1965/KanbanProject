@@ -1824,7 +1824,8 @@
     "unlinked": "(Chua lien ket)",
     "cannotMove": "Khong the di chuyen",
     "cannotChange": "Khong the thay doi",
-    "willSplit": "Tách phần"
+    "willSplit": "Tách phần",
+    "nextDay": "ngày hôm sau"
   },
   "scheduleDetail": {
     "title": "Chi tiet khoi thoi gian",
@@ -1842,7 +1843,8 @@
     "taskChecklist": "Danh sach kiem tra TASK",
     "completedCount": "{{completed}}/{{total}} hoan thanh",
     "noChecklist": "Khong co muc danh sach kiem tra",
-    "current": "hien tai"
+    "current": "hien tai",
+    "nextDay": "ngày hôm sau"
   },
   "emptyBoard": {
     "heading": "Bat dau voi bang cua ban",
@@ -2624,7 +2626,9 @@
       "checkInComplete": "Hoàn thành"
     },
     "schedule": {
-      "overlapWarning": "Trùng lịch với {{count}} sự kiện"
+      "overlapWarning": "Trùng lịch với {{count}} sự kiện",
+      "nextDay": "ngày hôm sau",
+      "prevDay": "từ hôm trước"
     }
   }
 }

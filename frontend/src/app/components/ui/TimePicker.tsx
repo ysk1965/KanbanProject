@@ -113,7 +113,7 @@ export function TimePicker({
       'h-8 px-3 text-sm shrink-0 transition-colors cursor-pointer text-center',
       isSelected
         ? 'bg-bridge-accent/20 text-bridge-accent font-medium'
-        : 'text-slate-400 hover:bg-white/5 hover:text-foreground',
+        : 'text-muted-foreground hover:bg-foreground/5 hover:text-foreground',
     );
 
   return (
@@ -140,13 +140,13 @@ export function TimePicker({
       <PopoverContent
         align="start"
         sideOffset={4}
-        className="w-auto p-0 bg-bridge-obsidian border border-white/10 rounded-xl shadow-2xl z-[60]"
+        className="w-auto p-0 bg-background border border-foreground/10 rounded-xl shadow-2xl z-[60]"
       >
-        <div className="flex divide-x divide-white/5">
+        <div className="flex divide-x divide-foreground/5">
           {/* Period column */}
           <div
             ref={periodRef}
-            className="flex flex-col py-1 w-[64px] max-h-[160px] overflow-y-auto overscroll-contain"
+            className="flex flex-col py-1 w-[64px] max-h-[200px] overflow-y-auto overscroll-contain custom-scrollbar"
           >
             {PERIODS.map((p) => (
               <button
@@ -164,7 +164,7 @@ export function TimePicker({
           {/* Hour column */}
           <div
             ref={hourRef}
-            className="flex flex-col py-1 w-[56px] max-h-[160px] overflow-y-auto overscroll-contain"
+            className="flex flex-col py-1 w-[56px] max-h-[200px] overflow-y-auto overscroll-contain custom-scrollbar"
           >
             {HOURS.map((h) => (
               <button
@@ -182,7 +182,7 @@ export function TimePicker({
           {/* Minute column */}
           <div
             ref={minuteRef}
-            className="flex flex-col py-1 w-[56px] max-h-[160px] overflow-y-auto overscroll-contain"
+            className="flex flex-col py-1 w-[56px] max-h-[200px] overflow-y-auto overscroll-contain custom-scrollbar"
           >
             {minutes.map((m) => (
               <button

@@ -26,14 +26,16 @@ const formatTime = (time: string): string => {
   return time.substring(0, 5);
 };
 
-// 시간 차이 계산 (분 단위)
+// 시간 차이 계산 (분 단위) - overnight 지원
 const calculateDuration = (startTime: string, endTime: string, t: (key: string, options?: Record<string, unknown>) => string): string => {
   const [startH, startM] = startTime.split(':').map(Number);
   const [endH, endM] = endTime.split(':').map(Number);
 
   const startMinutes = startH * 60 + startM;
   const endMinutes = endH * 60 + endM;
-  const durationMinutes = endMinutes - startMinutes;
+  const durationMinutes = endMinutes >= startMinutes
+    ? endMinutes - startMinutes
+    : (24 * 60 - startMinutes) + endMinutes;
 
   const hours = Math.floor(durationMinutes / 60);
   const minutes = durationMinutes % 60;
@@ -55,13 +57,16 @@ const timeToBlockIndex = (time: string, workStartHour: number): number => {
   return Math.floor((totalMinutes - startMinutes) / 30);
 };
 
-// 블록 개수 계산
+// 블록 개수 계산 - overnight 지원
 const calculateBlockCount = (startTime: string, endTime: string): number => {
   const [startH, startM] = startTime.split(':').map(Number);
   const [endH, endM] = endTime.split(':').map(Number);
   const startMinutes = startH * 60 + startM;
   const endMinutes = endH * 60 + endM;
-  return Math.floor((endMinutes - startMinutes) / 30);
+  const durationMinutes = endMinutes >= startMinutes
+    ? endMinutes - startMinutes
+    : (24 * 60 - startMinutes) + endMinutes;
+  return Math.floor(durationMinutes / 30);
 };
 
 export function ScheduleDetailPanel({
@@ -209,6 +214,7 @@ export function ScheduleDetailPanel({
                 <Clock className="h-5 w-5 text-blue-400" />
                 <span className="text-lg font-medium">
                   {formatTime(block.start_time)} - {formatTime(block.end_time)}
+                  {block.end_time < block.start_time && <span className="text-bridge-accent text-sm ml-1">({t('scheduleDetail.nextDay')})</span>}
                 </span>
                 <span className="text-slate-400 text-sm">
                   ({calculateDuration(block.start_time, block.end_time, t)})

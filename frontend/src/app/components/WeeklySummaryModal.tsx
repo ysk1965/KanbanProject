@@ -22,6 +22,13 @@ const timeToMinutes = (timeStr: string): number => {
   return h * 60 + m;
 };
 
+// Overnight-safe duration: end < start → crosses midnight
+const calcDuration = (startTime: string, endTime: string): number => {
+  const s = timeToMinutes(startTime);
+  const e = timeToMinutes(endTime);
+  return e >= s ? e - s : (24 * 60 - s) + e;
+};
+
 // 주간 기록 테이블 행 타입
 interface WeeklyRecordRow {
   key: string;
@@ -61,7 +68,7 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
 
     let totalMinutes = 0;
     allBlocks.forEach(({ block }) => {
-      totalMinutes += timeToMinutes(block.end_time) - timeToMinutes(block.start_time);
+      totalMinutes += calcDuration(block.start_time, block.end_time);
     });
     const totalHours = totalMinutes / 60;
 
@@ -70,7 +77,7 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
       const dayBlocks = allBlocks.filter((b) => b.date === dateStr);
       let dayMinutes = 0;
       dayBlocks.forEach(({ block }) => {
-        dayMinutes += timeToMinutes(block.end_time) - timeToMinutes(block.start_time);
+        dayMinutes += calcDuration(block.start_time, block.end_time);
       });
       return {
         dateStr,
@@ -89,7 +96,7 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
     let noFeatureBlocks = 0;
 
     allBlocks.forEach(({ block }) => {
-      const duration = timeToMinutes(block.end_time) - timeToMinutes(block.start_time);
+      const duration = calcDuration(block.start_time, block.end_time);
       if (block.feature) {
         const existing = featureMap.get(block.feature.id);
         if (existing) {
@@ -205,7 +212,7 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
     const rowMap = new Map<string, WeeklyRecordRow>();
 
     allBlocks.forEach(({ block }) => {
-      const duration = timeToMinutes(block.end_time) - timeToMinutes(block.start_time);
+      const duration = calcDuration(block.start_time, block.end_time);
       const itemTitle = block.checklist_item?.title || block.task?.title || t('weeklySummary.unassigned');
       const featureTitle = block.feature?.title || t('weeklySummary.unclassified');
       const featureColor = block.feature?.color || '#71717a';

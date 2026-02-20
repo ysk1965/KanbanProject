@@ -331,9 +331,10 @@ export function PersonalSchedule() {
   const isTodayInView = weekDays.some((d) => toDateString(d) === todayStr);
 
   // ---- Events grouped by date ----
-  const { allDayByDate, timedByDate, hasAllDay } = useMemo(() => {
+  const { allDayByDate, timedByDate, hasAllDay, overnightContinuations } = useMemo(() => {
     const allDay: Record<string, PersonalEvent[]> = {};
     const timed: Record<string, PersonalEvent[]> = {};
+    const continuations = new Set<string>(); // "eventId:dateStr" for next-day continuation blocks
     let hasAny = false;
     events.forEach((e) => {
       if (e.all_day || (!e.start_time && !e.end_time)) {
@@ -341,9 +342,15 @@ export function PersonalSchedule() {
         hasAny = true;
       } else if (e.start_time) {
         (timed[e.event_date] ??= []).push(e);
+        // Overnight events (end_time < start_time): also add to next day
+        if (e.end_time && e.end_time < e.start_time) {
+          const nextDateStr = format(addDays(new Date(e.event_date + 'T00:00:00'), 1), 'yyyy-MM-dd');
+          (timed[nextDateStr] ??= []).push(e);
+          continuations.add(`${e.id}:${nextDateStr}`);
+        }
       }
     });
-    return { allDayByDate: allDay, timedByDate: timed, hasAllDay: hasAny };
+    return { allDayByDate: allDay, timedByDate: timed, hasAllDay: hasAny, overnightContinuations: continuations };
   }, [events]);
 
   // ---- Drag handlers ----
@@ -456,12 +463,16 @@ export function PersonalSchedule() {
     const dayEvents = timedByDate[eventDate] || [];
     for (const other of dayEvents) {
       if (other.id === eventId) continue;
+      // Skip continuation entries (same event appearing on next day)
+      if (overnightContinuations.has(`${other.id}:${eventDate}`)) continue;
       if (!other.start_time || !other.end_time) continue;
       const [osh, osm] = other.start_time.split(':').map(Number);
       const [oeh, oem] = other.end_time.split(':').map(Number);
       const otherStart = osh * 60 + osm;
-      const otherEnd = oeh * 60 + oem;
-      if (newStartMin < otherEnd && newEndMin > otherStart) return true;
+      // Overnight: extend end past midnight
+      const otherEnd = oeh * 60 + oem <= otherStart ? (oeh * 60 + oem) + 24 * 60 : oeh * 60 + oem;
+      const effNewEnd = newEndMin <= newStartMin ? newEndMin + 24 * 60 : newEndMin;
+      if (newStartMin < otherEnd && effNewEnd > otherStart) return true;
     }
     return false;
   };
@@ -557,7 +568,9 @@ export function PersonalSchedule() {
     const [eeh, eem] = ev.end_time.split(':').map(Number);
     const origStartMin = esh * 60 + esm;
     const origEndMin = eeh * 60 + eem;
-    const duration = origEndMin - origStartMin;
+    const duration = origEndMin >= origStartMin
+      ? origEndMin - origStartMin
+      : (24 * 60 - origStartMin) + origEndMin;
     const workStartMin = startHour * 60;
     const workEndMin = endHour * 60;
     const origTop = ((origStartMin - workStartMin) / 30) * SLOT_HEIGHT;
@@ -963,7 +976,7 @@ export function PersonalSchedule() {
                           <span className="text-[10px] text-slate-500 flex items-center gap-0.5">
                             <Clock size={8} />
                             {e.start_time.slice(0, 5)}
-                            {e.end_time && ` - ${e.end_time.slice(0, 5)}`}
+                            {e.end_time && <>{` - ${e.end_time.slice(0, 5)}`}{e.end_time < e.start_time && <span className="text-bridge-accent ml-0.5">({t('personal.schedule.nextDay')})</span>}</>}
                           </span>
                         )}
                       </div>
@@ -1359,16 +1372,33 @@ export function PersonalSchedule() {
                     >
                       {dayEvents.map((ev) => {
                         if (!ev.start_time) return null;
-                        const [sh, sm] = ev.start_time.split(':').map(Number);
-                        const startMin = sh * 60 + sm;
+                        const isContinuation = overnightContinuations.has(`${ev.id}:${ds}`);
                         const workStartMin = startHour * 60;
-                        const evTop = ((startMin - workStartMin) / 30) * SLOT_HEIGHT;
 
-                        let endMin = startMin + 30;
-                        if (ev.end_time) {
-                          const [eh, em] = ev.end_time.split(':').map(Number);
+                        let startMin: number;
+                        let endMin: number;
+
+                        if (isContinuation) {
+                          // Continuation block: 00:00 (or grid start) → end_time
+                          startMin = workStartMin;
+                          const [eh, em] = ev.end_time!.split(':').map(Number);
                           endMin = eh * 60 + em;
+                          if (endMin <= workStartMin) return null; // ends before grid starts
+                        } else {
+                          const [sh, sm] = ev.start_time.split(':').map(Number);
+                          startMin = sh * 60 + sm;
+                          endMin = startMin + 30;
+                          if (ev.end_time) {
+                            const [eh, em] = ev.end_time.split(':').map(Number);
+                            endMin = eh * 60 + em;
+                            // Overnight: endTime < startTime → cap to end of grid
+                            if (endMin < startMin) {
+                              endMin = endHour * 60;
+                            }
+                          }
                         }
+
+                        const evTop = ((startMin - workStartMin) / 30) * SLOT_HEIGHT;
                         const evHeight = Math.max(((endMin - startMin) / 30) * SLOT_HEIGHT, SLOT_HEIGHT * 0.6);
 
                         if (evTop < 0) return null;
@@ -1381,7 +1411,7 @@ export function PersonalSchedule() {
 
                         let displayTop = evTop;
                         let displayHeight = evHeight;
-                        let displayStartTime = ev.start_time.slice(0, 5);
+                        let displayStartTime = isContinuation ? '00:00' : ev.start_time.slice(0, 5);
                         let displayEndTime = ev.end_time?.slice(0, 5) || '';
 
                         if (isActive && offset !== 0) {
@@ -1403,24 +1433,26 @@ export function PersonalSchedule() {
 
                         return (
                           <div
-                            key={ev.id}
+                            key={isContinuation ? `${ev.id}-cont` : ev.id}
                             onClick={() => !eventInteraction && setEditEvent(ev)}
-                            onMouseDown={(e) => handleEventDragStart(e, ev)}
-                            onMouseUp={handleEventMouseUp}
-                            onMouseLeave={() => {
+                            onMouseDown={isContinuation ? undefined : (e) => handleEventDragStart(e, ev)}
+                            onMouseUp={isContinuation ? undefined : handleEventMouseUp}
+                            onMouseLeave={isContinuation ? undefined : () => {
                               if (eventLongPressTimer.current && !eventInteraction) {
                                 clearTimeout(eventLongPressTimer.current);
                                 eventLongPressTimer.current = null;
                               }
                             }}
-                            className={`absolute left-1 right-1 rounded-md border-l-4 px-2 py-1 pointer-events-auto overflow-hidden group
-                              ${isActive && hasOverlap
-                                ? 'ring-2 ring-red-500/70 z-20 ' + (interType === 'drag' ? 'cursor-grabbing shadow-2xl' : 'cursor-ns-resize shadow-lg')
-                                : isActive && interType === 'drag'
-                                  ? 'cursor-grabbing shadow-2xl ring-2 ring-white/30 z-20'
-                                  : isActive
-                                    ? 'cursor-ns-resize shadow-lg z-20'
-                                    : 'cursor-pointer hover:shadow-lg transition-shadow'
+                            className={`absolute left-1 right-1 rounded-md px-2 py-1 pointer-events-auto overflow-hidden group
+                              ${isContinuation
+                                ? 'border-l-4 border-dashed cursor-pointer hover:shadow-lg transition-shadow opacity-70'
+                                : isActive && hasOverlap
+                                  ? 'border-l-4 ring-2 ring-red-500/70 z-20 ' + (interType === 'drag' ? 'cursor-grabbing shadow-2xl' : 'cursor-ns-resize shadow-lg')
+                                  : isActive && interType === 'drag'
+                                    ? 'border-l-4 cursor-grabbing shadow-2xl ring-2 ring-white/30 z-20'
+                                    : isActive
+                                      ? 'border-l-4 cursor-ns-resize shadow-lg z-20'
+                                      : 'border-l-4 cursor-pointer hover:shadow-lg transition-shadow'
                               }`}
                             style={{
                               top: `${displayTop}px`,
@@ -1429,22 +1461,27 @@ export function PersonalSchedule() {
                               borderLeftColor: hasOverlap ? '#ef4444' : ev.color,
                             }}
                           >
-                            {/* Top resize handle */}
-                            <div
-                              data-resize-handle="true"
-                              className="absolute top-0 left-0 right-0 h-2 cursor-ns-resize hover:bg-white/20 transition-colors z-10"
-                              onMouseDown={(e) => handleEventResizeStart(e, ev, 'top')}
-                            />
+                            {/* Top resize handle (not for continuations) */}
+                            {!isContinuation && (
+                              <div
+                                data-resize-handle="true"
+                                className="absolute top-0 left-0 right-0 h-2 cursor-ns-resize hover:bg-white/20 transition-colors z-10"
+                                onMouseDown={(e) => handleEventResizeStart(e, ev, 'top')}
+                              />
+                            )}
 
                             <div className="flex flex-col h-full overflow-hidden">
                               <span className="text-xs font-medium text-foreground truncate flex items-center gap-1">
                                 {ev.recurrence_group_id && <RotateCw className="h-2.5 w-2.5 text-purple-400 flex-shrink-0" />}
+                                {isContinuation && <span className="text-bridge-accent">↳</span>}
                                 {ev.title}
                               </span>
                               {displayHeight > 30 && (
                                 <span className="text-[10px] text-slate-400">
-                                  {displayStartTime}
-                                  {displayEndTime && ` - ${displayEndTime}`}
+                                  {isContinuation
+                                    ? <>00:00 - {displayEndTime} <span className="text-bridge-accent ml-0.5">({t('personal.schedule.prevDay')})</span></>
+                                    : <>{displayStartTime}{displayEndTime && ` - ${displayEndTime}`}{ev.start_time && ev.end_time && ev.end_time < ev.start_time && <span className="text-bridge-accent ml-0.5">({t('personal.schedule.nextDay')})</span>}</>
+                                  }
                                 </span>
                               )}
                             </div>
@@ -1458,12 +1495,14 @@ export function PersonalSchedule() {
                               <Trash2 size={10} />
                             </button>
 
-                            {/* Bottom resize handle */}
-                            <div
-                              data-resize-handle="true"
-                              className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize hover:bg-white/20 transition-colors z-10"
-                              onMouseDown={(e) => handleEventResizeStart(e, ev, 'bottom')}
-                            />
+                            {/* Bottom resize handle (not for continuations) */}
+                            {!isContinuation && (
+                              <div
+                                data-resize-handle="true"
+                                className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize hover:bg-white/20 transition-colors z-10"
+                                onMouseDown={(e) => handleEventResizeStart(e, ev, 'bottom')}
+                              />
+                            )}
                           </div>
                         );
                       })}
@@ -1567,13 +1606,20 @@ function getOverlappingEvents(
   excludeId?: string,
 ): PersonalEvent[] {
   if (!startTime || !endTime) return [];
+  const [sh, sm] = startTime.split(':').map(Number);
+  const [eh, em] = endTime.split(':').map(Number);
+  const newStart = sh * 60 + sm;
+  const newEnd = eh * 60 + em <= newStart ? (eh * 60 + em) + 24 * 60 : eh * 60 + em;
+
   return events.filter((ev) => {
     if (ev.id === excludeId) return false;
     if (ev.event_date !== date) return false;
     if (!ev.start_time || !ev.end_time) return false;
-    const evStart = ev.start_time.slice(0, 5);
-    const evEnd = ev.end_time.slice(0, 5);
-    return startTime < evEnd && endTime > evStart;
+    const [esh, esm] = ev.start_time.split(':').map(Number);
+    const [eeh, eem] = ev.end_time.split(':').map(Number);
+    const evStart = esh * 60 + esm;
+    const evEnd = eeh * 60 + eem <= evStart ? (eeh * 60 + eem) + 24 * 60 : eeh * 60 + eem;
+    return newStart < evEnd && newEnd > evStart;
   });
 }
 
@@ -1928,7 +1974,7 @@ function CreateEventModal({
                               <div className="flex items-center gap-1 mt-0.5">
                                 <Clock size={10} className="text-slate-500" />
                                 <span className="text-[10px] text-slate-500">
-                                  {ev.start_time?.slice(0, 5)}{ev.end_time ? `–${ev.end_time.slice(0, 5)}` : ''}
+                                  {ev.start_time?.slice(0, 5)}{ev.end_time ? `–${ev.end_time.slice(0, 5)}` : ''}{ev.start_time && ev.end_time && ev.end_time < ev.start_time && <span className="text-bridge-accent ml-0.5">({t('personal.schedule.nextDay')})</span>}
                                 </span>
                               </div>
                             )}
@@ -2027,6 +2073,9 @@ function CreateEventModal({
               <div className="flex-1">
                 <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
                   {t('personal.schedule.end')}
+                  {startTime && endTime && endTime < startTime && (
+                    <span className="ml-1.5 text-bridge-accent font-semibold normal-case tracking-normal">({t('personal.schedule.nextDay')})</span>
+                  )}
                 </label>
                 <TimePicker
                   value={endTime}
@@ -2489,6 +2538,9 @@ function EventDetailModal({
             <div className="flex-1">
               <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
                 {t('personal.schedule.end')}
+                {startTime && endTime && endTime < startTime && (
+                  <span className="ml-1.5 text-bridge-accent font-semibold normal-case tracking-normal">({t('personal.schedule.nextDay')})</span>
+                )}
               </label>
               <TimePicker
                 value={endTime}

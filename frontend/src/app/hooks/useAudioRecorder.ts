@@ -19,6 +19,7 @@ export function useAudioRecorder() {
   const [recordingSize, setRecordingSize] = useState(0);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const sizeRef = useRef(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -36,6 +37,7 @@ export function useAudioRecorder() {
 
   const startRecording = async () => {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    streamRef.current = stream;
     const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
       ? 'audio/webm;codecs=opus'
       : 'audio/webm';
@@ -58,7 +60,10 @@ export function useAudioRecorder() {
     mediaRecorder.onstop = () => {
       const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
       setAudioBlob(blob);
-      stream.getTracks().forEach((t) => t.stop());
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+      }
     };
 
     mediaRecorder.start(1000);
@@ -85,6 +90,10 @@ export function useAudioRecorder() {
       if (timerRef.current) clearInterval(timerRef.current);
       if (mediaRecorderRef.current?.state === 'recording') {
         mediaRecorderRef.current.stop();
+      }
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
       }
     };
   }, []);

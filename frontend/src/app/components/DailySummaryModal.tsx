@@ -22,6 +22,13 @@ const timeToMinutes = (timeStr: string): number => {
   return h * 60 + m;
 };
 
+// Overnight-safe duration: end < start → crosses midnight
+const calcDuration = (startTime: string, endTime: string): number => {
+  const s = timeToMinutes(startTime);
+  const e = timeToMinutes(endTime);
+  return e >= s ? e - s : (24 * 60 - s) + e;
+};
+
 const formatTime = (timeStr: string): string => {
   const [h, m] = timeStr.split(':');
   return `${h}:${m}`;
@@ -50,7 +57,7 @@ export function DailySummaryModal({ boardId, member, selectedDate, blocks, onClo
     let totalChecklistCount = 0;
 
     blocks.forEach((block) => {
-      totalMinutes += timeToMinutes(block.end_time) - timeToMinutes(block.start_time);
+      totalMinutes += calcDuration(block.start_time, block.end_time);
       if (block.checklist_item) {
         totalChecklistCount += 1;
         if (block.checklist_item.completed) completedCount += 1;
@@ -206,7 +213,7 @@ export function DailySummaryModal({ boardId, member, selectedDate, blocks, onClo
                 {/* 블록 리스트 */}
                 <div className="space-y-2">
                   {sortedBlocks.map((block) => {
-                    const duration = timeToMinutes(block.end_time) - timeToMinutes(block.start_time);
+                    const duration = calcDuration(block.start_time, block.end_time);
                     const title = block.checklist_item?.title || block.meeting?.title || block.task?.title || t('dailySummary.untitled');
                     const featureTitle = block.feature?.title;
                     const featureColor = block.feature?.color || block.meeting?.color;

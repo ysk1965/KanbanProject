@@ -1824,7 +1824,8 @@
     "unlinked": "(ไม่ได้เชื่อมโยง)",
     "cannotMove": "ไม่สามารถย้ายได้",
     "cannotChange": "ไม่สามารถเปลี่ยนได้",
-    "willSplit": "แยกส่วน"
+    "willSplit": "แยกส่วน",
+    "nextDay": "วันถัดไป"
   },
   "scheduleDetail": {
     "title": "รายละเอียด Time Block",
@@ -1842,7 +1843,8 @@
     "taskChecklist": "เช็คลิสต์ TASK",
     "completedCount": "{{completed}}/{{total}} เสร็จ",
     "noChecklist": "ไม่มีรายการเช็คลิสต์",
-    "current": "ปัจจุบัน"
+    "current": "ปัจจุบัน",
+    "nextDay": "วันถัดไป"
   },
   "emptyBoard": {
     "heading": "เริ่มต้นกับบอร์ดของคุณ",
@@ -2624,7 +2626,9 @@
       "checkInComplete": "สำเร็จ"
     },
     "schedule": {
-      "overlapWarning": "ซ้อนทับกับ {{count}} กิจกรรม"
+      "overlapWarning": "ซ้อนทับกับ {{count}} กิจกรรม",
+      "nextDay": "วันถัดไป",
+      "prevDay": "จากวันก่อน"
     }
   }
 }

@@ -1824,7 +1824,8 @@
     "unlinked": "(अनलिंक्ड)",
     "cannotMove": "स्थानांतरित नहीं किया जा सकता",
     "cannotChange": "बदला नहीं जा सकता",
-    "willSplit": "विभाजित"
+    "willSplit": "विभाजित",
+    "nextDay": "अगला दिन"
   },
   "scheduleDetail": {
     "title": "टाइम Block विवरण",
@@ -1842,7 +1843,8 @@
     "taskChecklist": "TASK चेकलिस्ट",
     "completedCount": "{{completed}}/{{total}} पूर्ण",
     "noChecklist": "कोई चेकलिस्ट आइटम नहीं",
-    "current": "वर्तमान"
+    "current": "वर्तमान",
+    "nextDay": "अगला दिन"
   },
   "emptyBoard": {
     "heading": "अपने बोर्ड के साथ शुरू करें",
@@ -2624,7 +2626,9 @@
       "checkInComplete": "पूरा करें"
     },
     "schedule": {
-      "overlapWarning": "{{count}} इवेंट के साथ ओवरलैप"
+      "overlapWarning": "{{count}} इवेंट के साथ ओवरलैप",
+      "nextDay": "अगला दिन",
+      "prevDay": "पिछले दिन से"
     }
   }
 }

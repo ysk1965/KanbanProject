@@ -1824,7 +1824,8 @@
     "unlinked": "（未关联）",
     "cannotMove": "无法移动",
     "cannotChange": "无法更改",
-    "willSplit": "拆分创建"
+    "willSplit": "拆分创建",
+    "nextDay": "次日"
   },
   "scheduleDetail": {
     "title": "时间块详情",
@@ -1842,7 +1843,8 @@
     "taskChecklist": "TASK 清单",
     "completedCount": "{{completed}}/{{total}} 已完成",
     "noChecklist": "无清单项",
-    "current": "当前"
+    "current": "当前",
+    "nextDay": "次日"
   },
   "emptyBoard": {
     "heading": "开始使用您的看板",
@@ -2624,7 +2626,9 @@
       "checkInComplete": "完成"
     },
     "schedule": {
-      "overlapWarning": "与{{count}}个日程时间冲突"
+      "overlapWarning": "与{{count}}个日程时间冲突",
+      "nextDay": "次日",
+      "prevDay": "前一天起"
     }
   }
 }

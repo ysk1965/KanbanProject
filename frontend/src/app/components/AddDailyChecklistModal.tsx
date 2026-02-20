@@ -488,7 +488,7 @@ export function AddDailyChecklistModal({
 
 
   return (
-    <MotionModal open onClose={handleClose} className="sm:max-w-[1800px] sm:w-[96vw] max-h-[85vh] flex flex-col p-0 overflow-hidden bg-bridge-dark">
+    <MotionModal open onClose={handleClose} className="sm:max-w-[1400px] sm:w-[92vw] max-h-[85vh] flex flex-col p-0 overflow-hidden bg-bridge-dark">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-foreground/10">
           <div>
@@ -662,7 +662,7 @@ export function AddDailyChecklistModal({
                       );
                     })()}
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                     {myTasksFeaturesData.map((featureData) => (
                       <div
                         key={featureData.feature.id}
@@ -947,7 +947,7 @@ export function AddDailyChecklistModal({
                       );
                     })()}
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                     {othersTasksFeaturesData.map((featureData) => (
                       <div
                         key={featureData.feature.id}

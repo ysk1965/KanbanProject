@@ -1824,7 +1824,8 @@
     "unlinked": "(Sin vincular)",
     "cannotMove": "No se puede mover",
     "cannotChange": "No se puede cambiar",
-    "willSplit": "Dividir"
+    "willSplit": "Dividir",
+    "nextDay": "día siguiente"
   },
   "scheduleDetail": {
     "title": "Detalles del bloque de tiempo",
@@ -1842,7 +1843,8 @@
     "taskChecklist": "Lista de verificación de TASK",
     "completedCount": "{{completed}}/{{total}} hechos",
     "noChecklist": "Sin elementos de lista de verificación",
-    "current": "actual"
+    "current": "actual",
+    "nextDay": "día siguiente"
   },
   "emptyBoard": {
     "heading": "Comienza con tu tablero",
@@ -2624,7 +2626,9 @@
       "checkInComplete": "Completar"
     },
     "schedule": {
-      "overlapWarning": "Se superpone con {{count}} evento(s)"
+      "overlapWarning": "Se superpone con {{count}} evento(s)",
+      "nextDay": "día siguiente",
+      "prevDay": "del día anterior"
     }
   }
 }

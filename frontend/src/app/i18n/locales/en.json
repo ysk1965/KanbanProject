@@ -1486,7 +1486,8 @@
     "unlinked": "(Unlinked)",
     "cannotMove": "Cannot move",
     "cannotChange": "Cannot change",
-    "willSplit": "Split"
+    "willSplit": "Split",
+    "nextDay": "next day"
   },
   "scheduleDetail": {
     "title": "Time Block Details",
@@ -1504,7 +1505,8 @@
     "taskChecklist": "TASK Checklist",
     "completedCount": "{{completed}}/{{total}} done",
     "noChecklist": "No checklist items",
-    "current": "current"
+    "current": "current",
+    "nextDay": "next day"
   },
   "emptyBoard": {
     "heading": "Get started with your board",
@@ -2890,6 +2892,8 @@
       "settingsEndTime": "End Time",
       "settingsPreview": "Preview",
       "settingsEndAfterStart": "End time must be after start time",
+      "nextDay": "next day",
+      "prevDay": "from prev day",
       "cancel": "Cancel",
       "save": "Save",
       "create": "Create",

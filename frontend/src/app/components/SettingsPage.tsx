@@ -437,7 +437,7 @@ export function SettingsPage() {
               <p className="text-sm text-slate-400">{t('settings.languageDesc')}</p>
             </div>
           </div>
-          <div className="grid grid-cols-5 gap-2.5">
+          <div className="grid grid-cols-3 sm:grid-cols-5 gap-2.5">
             {[
               { code: 'ko', label: '한국어' },
               { code: 'en', label: 'English' },
@@ -453,7 +453,7 @@ export function SettingsPage() {
               <button
                 key={lang.code}
                 onClick={() => i18n.changeLanguage(lang.code)}
-                className={`px-3 py-2.5 rounded-xl text-sm font-medium transition-all whitespace-nowrap text-center ${
+                className={`px-3 py-2.5 rounded-xl text-sm font-medium transition-all truncate text-center min-w-0 ${
                   i18n.language === lang.code
                     ? 'bg-bridge-accent/15 border border-bridge-accent/50 text-bridge-accent'
                     : 'bg-foreground/5 border border-foreground/10 text-muted-foreground hover:bg-foreground/10 hover:text-foreground'
@@ -482,10 +482,10 @@ export function SettingsPage() {
               <p className="text-sm text-slate-400">{t('settings.holidayCountryDesc')}</p>
             </div>
           </div>
-          <div className="grid grid-cols-4 sm:grid-cols-5 gap-2.5">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
             <button
               onClick={() => handleHolidayCountryChange('')}
-              className={`px-3 py-2.5 rounded-xl text-sm font-medium transition-all whitespace-nowrap text-center ${
+              className={`px-3 py-2.5 rounded-xl text-sm font-medium transition-all truncate text-center min-w-0 ${
                 !holidayCountry
                   ? 'bg-bridge-accent/15 border border-bridge-accent/50 text-bridge-accent'
                   : 'bg-foreground/5 border border-foreground/10 text-muted-foreground hover:bg-foreground/10 hover:text-foreground'
@@ -497,7 +497,7 @@ export function SettingsPage() {
               <button
                 key={c.code}
                 onClick={() => handleHolidayCountryChange(c.code)}
-                className={`px-3 py-2.5 rounded-xl text-sm font-medium transition-all whitespace-nowrap text-center ${
+                className={`px-3 py-2.5 rounded-xl text-sm font-medium transition-all truncate text-center min-w-0 ${
                   holidayCountry === c.code
                     ? 'bg-bridge-accent/15 border border-bridge-accent/50 text-bridge-accent'
                     : 'bg-foreground/5 border border-foreground/10 text-muted-foreground hover:bg-foreground/10 hover:text-foreground'

@@ -1824,7 +1824,8 @@
     "unlinked": "(Não vinculado)",
     "cannotMove": "Não é possível mover",
     "cannotChange": "Não é possível alterar",
-    "willSplit": "Dividir"
+    "willSplit": "Dividir",
+    "nextDay": "dia seguinte"
   },
   "scheduleDetail": {
     "title": "Detalhes do Bloco de Tempo",
@@ -1842,7 +1843,8 @@
     "taskChecklist": "Checklist da TASK",
     "completedCount": "{{completed}}/{{total}} concluídos",
     "noChecklist": "Nenhum item de checklist",
-    "current": "atual"
+    "current": "atual",
+    "nextDay": "dia seguinte"
   },
   "emptyBoard": {
     "heading": "Comece com seu board",
@@ -2624,7 +2626,9 @@
       "checkInComplete": "Concluir"
     },
     "schedule": {
-      "overlapWarning": "Sobrepõe {{count}} evento(s)"
+      "overlapWarning": "Sobrepõe {{count}} evento(s)",
+      "nextDay": "dia seguinte",
+      "prevDay": "do dia anterior"
     }
   }
 }

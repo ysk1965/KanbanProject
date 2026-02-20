@@ -844,13 +844,6 @@ export function TaskDetailModal({
           {/* 오른쪽: 댓글 패널 + 닫기 버튼 */}
           {boardId && (
             <div className="w-full md:w-[420px] border-t md:border-t-0 md:border-l border-bridge-border/30 flex-1 md:flex-initial md:flex-shrink-0 relative z-10 bg-bridge-dark/30 min-h-0">
-              {/* 닫기 버튼 (데스크탑 only) */}
-              <button
-                onClick={handleClose}
-                className="hidden md:block absolute top-3 right-3 z-10 p-1 rounded-sm opacity-70 hover:opacity-100 transition-opacity text-foreground"
-              >
-                <X className="h-4 w-4" />
-              </button>
               <CommentPanel
                 taskId={task.id}
                 boardId={boardId}
@@ -859,6 +852,7 @@ export function TaskDetailModal({
                 canEdit={canEdit}
                 isAdminOrOwner={isAdminOrOwner}
                 wsCommentEvent={wsCommentEvent}
+                onClose={handleClose}
               />
             </div>
           )}
