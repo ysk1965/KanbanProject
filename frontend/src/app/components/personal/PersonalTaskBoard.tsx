@@ -2,7 +2,7 @@ import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Plus, Check, Trash2, Flag, Calendar, ChevronDown,
-  Flame, CalendarClock, Zap, Archive, X, Pencil,
+  Flame, CalendarClock, Zap, Archive, X, Pencil, Repeat,
 } from 'lucide-react';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import { MotionModal } from '../ui/MotionModal';
@@ -80,22 +80,20 @@ const DDAY_STYLES: Record<DdayUrgency, string> = {
 
 // ── Helpers ───────────────────────────────────────────────────
 
-function getThisSaturday(): Date {
-  const today = startOfDay(new Date());
-  const day = today.getDay();
-  const daysUntilSat = day === 6 ? 0 : (6 - day);
-  return addDays(today, daysUntilSat);
+const URGENT_DAYS = 3;
+
+function getUrgentDeadline(): Date {
+  return addDays(startOfDay(new Date()), URGENT_DAYS);
 }
 
 function isTaskUrgent(dueDate: string | null): boolean {
   if (!dueDate) return true;
   const due = startOfDay(parseISO(dueDate));
-  return due <= getThisSaturday();
+  return due <= getUrgentDeadline();
 }
 
-function getNextMondayString(): string {
-  const sat = getThisSaturday();
-  return format(addDays(sat, 2), 'yyyy-MM-dd');
+function getNotUrgentDateString(): string {
+  return format(addDays(startOfDay(new Date()), URGENT_DAYS + 1), 'yyyy-MM-dd');
 }
 
 function getQuadrant(task: PersonalTask): Quadrant {
@@ -105,6 +103,33 @@ function getQuadrant(task: PersonalTask): Quadrant {
   if (isImportant) return 'q2';
   if (urgent) return 'q3';
   return 'q4';
+}
+
+// ── Quick Add: Habit day chips & frequency helper ────────────
+
+const HABIT_DAY_CHIPS = [
+  { value: 1, label: '월' },
+  { value: 2, label: '화' },
+  { value: 3, label: '수' },
+  { value: 4, label: '목' },
+  { value: 5, label: '금' },
+  { value: 6, label: '토' },
+  { value: 0, label: '일' },
+];
+
+const HABIT_COLORS_INLINE = [
+  '#8B5CF6', '#6366F1', '#EC4899', '#F43F5E',
+  '#F59E0B', '#10B981', '#06B6D4', '#3B82F6',
+];
+
+function deriveFrequency(days: number[]): { type: HabitFrequency; days?: string } {
+  const sorted = [...days].sort((a, b) => a - b);
+  if (sorted.length === 7) return { type: 'DAILY' };
+  const weekdays = [1, 2, 3, 4, 5];
+  const weekend = [0, 6];
+  if (sorted.length === 5 && weekdays.every(d => sorted.includes(d))) return { type: 'WEEKDAY' };
+  if (sorted.length === 2 && weekend.every(d => sorted.includes(d))) return { type: 'WEEKEND' };
+  return { type: 'CUSTOM', days: sorted.join(',') };
 }
 
 // ── Habits Horizontal Bar (all active habits) ────────────────
@@ -123,7 +148,7 @@ function getScheduledDays(frequencyType: HabitFrequency, frequencyDays?: string)
   }
 }
 
-function AllHabitsBar({ onNavigateHabits }: { onNavigateHabits?: () => void }) {
+function AllHabitsBar({ onNavigateHabits, refreshKey }: { onNavigateHabits?: () => void; refreshKey?: number }) {
   const { t } = useTranslation();
   const [allHabits, setAllHabits] = useState<PersonalHabit[]>([]);
   const [todayHabits, setTodayHabits] = useState<HabitTodayItem[]>([]);
@@ -177,7 +202,7 @@ function AllHabitsBar({ onNavigateHabits }: { onNavigateHabits?: () => void }) {
     }
   }, []);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => { loadData(); }, [loadData, refreshKey]);
 
   // Map today's completion status by habit_id
   const todayStatusMap = useMemo(() => {
@@ -464,11 +489,16 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
   const [dragOverQuadrant, setDragOverQuadrant] = useState<Quadrant | null>(null);
 
   // Quick add
+  const [captureType, setCaptureType] = useState<'task' | 'habit'>('task');
   const [newTitle, setNewTitle] = useState('');
   const [newDueDate, setNewDueDate] = useState(getTodayDateString());
   const [newPriority, setNewPriority] = useState<PersonalTaskPriority>('MEDIUM');
   const [isAddFocused, setIsAddFocused] = useState(false);
   const addInputRef = useRef<HTMLInputElement>(null);
+  // Habit quick add fields
+  const [selectedDays, setSelectedDays] = useState<number[]>([0, 1, 2, 3, 4, 5, 6]);
+  const [habitColor, setHabitColor] = useState(HABIT_COLORS_INLINE[0]);
+  const [habitRefreshKey, setHabitRefreshKey] = useState(0);
 
   const [taskConfirm, setTaskConfirm] = useState<{ id: string; title: string; isDone: boolean } | null>(null);
 
@@ -506,6 +536,7 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
 
   // ── Task Handlers ──
   const handleQuickAdd = async () => {
+    if (captureType === 'habit') return handleQuickAddHabit();
     if (!newTitle.trim()) return;
     try {
       await personalTaskAPI.create({
@@ -519,6 +550,25 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
       onRefresh();
     } catch (error) {
       console.error('Failed to create task:', error);
+    }
+  };
+
+  const handleQuickAddHabit = async () => {
+    if (!newTitle.trim() || selectedDays.length === 0) return;
+    try {
+      const freq = deriveFrequency(selectedDays);
+      await personalHabitAPI.create({
+        title: newTitle.trim(),
+        frequency_type: freq.type,
+        frequency_days: freq.days,
+        color: habitColor,
+      });
+      setNewTitle('');
+      setSelectedDays([0, 1, 2, 3, 4, 5, 6]);
+      setHabitColor(HABIT_COLORS_INLINE[0]);
+      setHabitRefreshKey(k => k + 1);
+    } catch (error) {
+      console.error('Failed to create habit:', error);
     }
   };
 
@@ -595,7 +645,7 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
     if (targetUrgent && !currentUrgent) {
       updates.due_date = getTodayDateString();
     } else if (!targetUrgent && currentUrgent) {
-      updates.due_date = getNextMondayString();
+      updates.due_date = getNotUrgentDateString();
     }
 
     if (Object.keys(updates).length > 0) {
@@ -608,7 +658,7 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
     setDragOverQuadrant(null);
   }, [draggedTaskId, activeTasks, onOptimisticUpdate, onRefresh]);
 
-  const saturdayLabel = format(getThisSaturday(), 'M/d');
+  const urgentDeadlineLabel = format(getUrgentDeadline(), 'M/d');
 
   return (
     <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
@@ -617,13 +667,35 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
         {/* ── Quick Add Bar (hidden on mobile – use FAB instead) ── */}
         <div className={`hidden md:block bg-bridge-obsidian rounded-xl border transition-all ${
           isAddFocused
-            ? 'border-bridge-accent/50 shadow-lg shadow-bridge-accent/5'
+            ? (captureType === 'habit' ? 'border-purple-500/50 shadow-lg shadow-purple-500/5' : 'border-bridge-accent/50 shadow-lg shadow-bridge-accent/5')
             : 'border-foreground/10'
         }`}>
           <div className="flex items-center gap-2 px-3 md:px-4 py-3">
-            <Plus size={18} className={`shrink-0 ${
-              isAddFocused ? 'text-bridge-accent' : 'text-slate-500'
-            }`} />
+            {/* Mode Toggle */}
+            <div className="flex items-center gap-0.5 bg-foreground/5 rounded-lg p-0.5 shrink-0">
+              <button
+                onClick={() => setCaptureType('task')}
+                className={`flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-bold transition-all ${
+                  captureType === 'task'
+                    ? 'bg-bridge-accent text-white shadow-sm'
+                    : 'text-slate-400 hover:text-foreground'
+                }`}
+              >
+                <Flag size={11} />
+                {t('personal.quickCapture.task', '할 일')}
+              </button>
+              <button
+                onClick={() => setCaptureType('habit')}
+                className={`flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-bold transition-all ${
+                  captureType === 'habit'
+                    ? 'bg-purple-500 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-foreground'
+                }`}
+              >
+                <Repeat size={11} />
+                {t('personal.quickCapture.habit', '습관')}
+              </button>
+            </div>
             <input
               ref={addInputRef}
               value={newTitle}
@@ -634,22 +706,47 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
                 if (e.key === 'Enter' && !e.nativeEvent.isComposing) handleQuickAdd();
                 if (e.key === 'Escape') {
                   setNewTitle(''); setNewDueDate(getTodayDateString()); setNewPriority('MEDIUM');
+                  setSelectedDays([0, 1, 2, 3, 4, 5, 6]); setHabitColor(HABIT_COLORS_INLINE[0]);
                   setIsAddFocused(false);
                   addInputRef.current?.blur();
                 }
               }}
-              placeholder={t('personal.tasks.addPlaceholder', '할 일 추가...')}
+              placeholder={captureType === 'task'
+                ? t('personal.tasks.addPlaceholder', '할 일 추가...')
+                : t('personal.quickCapture.habitPlaceholder', '습관 이름을 입력하세요...')
+              }
               className="flex-1 min-w-0 bg-transparent text-sm text-foreground placeholder-slate-600 outline-none"
             />
-            <input
-              type="date"
-              value={newDueDate}
-              onChange={(e) => setNewDueDate(e.target.value)}
-              className="hidden sm:block bg-transparent text-xs text-slate-400 border border-foreground/10 rounded-lg px-2 py-1 outline-none focus:border-bridge-accent/50 [color-scheme:dark] w-[130px]"
-            />
-            <PriorityDropdown value={newPriority} onChange={setNewPriority} />
+            {captureType === 'task' ? (
+              <>
+                <input
+                  type="date"
+                  value={newDueDate}
+                  onChange={(e) => setNewDueDate(e.target.value)}
+                  className="hidden sm:block bg-transparent text-xs text-slate-400 border border-foreground/10 rounded-lg px-2 py-1 outline-none focus:border-bridge-accent/50 [color-scheme:dark] w-[130px]"
+                />
+                <PriorityDropdown value={newPriority} onChange={setNewPriority} />
+              </>
+            ) : (
+              <div className="hidden sm:flex items-center gap-1">
+                {HABIT_DAY_CHIPS.map(({ value, label }) => (
+                  <button
+                    key={value}
+                    onClick={() => setSelectedDays(prev => prev.includes(value) ? prev.filter(d => d !== value) : [...prev, value])}
+                    className={`w-7 h-7 text-[10px] font-bold rounded-md transition-all ${
+                      selectedDays.includes(value)
+                        ? 'bg-purple-500 text-white'
+                        : 'bg-foreground/5 text-slate-500 hover:bg-foreground/10'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
-          {isAddFocused && (
+          {/* Task: mobile date row */}
+          {captureType === 'task' && isAddFocused && (
             <div className="sm:hidden px-3 pb-2">
               <input
                 type="date"
@@ -659,13 +756,59 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
               />
             </div>
           )}
+          {/* Habit: mobile day chips row */}
+          {captureType === 'habit' && isAddFocused && (
+            <div className="sm:hidden px-3 pb-2">
+              <div className="flex gap-1">
+                {HABIT_DAY_CHIPS.map(({ value, label }) => (
+                  <button
+                    key={value}
+                    onClick={() => setSelectedDays(prev => prev.includes(value) ? prev.filter(d => d !== value) : [...prev, value])}
+                    className={`flex-1 py-1.5 text-[10px] font-bold rounded-md transition-all ${
+                      selectedDays.includes(value)
+                        ? 'bg-purple-500 text-white'
+                        : 'bg-foreground/5 text-slate-500 hover:bg-foreground/10'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {/* Habit: color picker row */}
+          {captureType === 'habit' && isAddFocused && (
+            <div className="px-4 pb-2">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-slate-500 shrink-0">{t('personal.habit.color', '색상')}</span>
+                <div className="flex gap-1.5">
+                  {HABIT_COLORS_INLINE.map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => setHabitColor(c)}
+                      className={`w-5 h-5 rounded-full transition-all ${
+                        habitColor === c
+                          ? 'ring-2 ring-white ring-offset-1 ring-offset-bridge-obsidian scale-110'
+                          : 'hover:scale-110'
+                      }`}
+                      style={{ backgroundColor: c }}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
           {isAddFocused && newTitle.trim() && (
             <div className="px-4 pb-3">
               <div className="flex items-center justify-between pt-2 border-t border-foreground/5">
                 <span className="text-[10px] text-slate-500">Enter {t('personal.tasks.toAdd', '추가')} · Esc {t('common.cancel', '취소')}</span>
                 <button
                   onClick={handleQuickAdd}
-                  className="px-3 py-1 text-white text-xs rounded-lg font-medium transition-colors bg-bridge-accent hover:bg-bridge-accent/90"
+                  className={`px-3 py-1 text-white text-xs rounded-lg font-medium transition-colors ${
+                    captureType === 'habit'
+                      ? 'bg-purple-500 hover:bg-purple-500/90'
+                      : 'bg-bridge-accent hover:bg-bridge-accent/90'
+                  }`}
                 >
                   {t('personal.tasks.add', '추가')}
                 </button>
@@ -675,7 +818,7 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
         </div>
 
         {/* ── All Habits Bar ── */}
-        <AllHabitsBar />
+        <AllHabitsBar refreshKey={habitRefreshKey} />
 
         {/* ── Eisenhower Matrix Container ── */}
         <div className="rounded-xl border border-foreground/[0.08] overflow-hidden">
@@ -690,7 +833,7 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
             </span>
             <div className="flex-1" />
             <span className="text-[10px] text-slate-500 hidden sm:inline mr-1">
-              {t('personal.tasks.thisWeek', { date: saturdayLabel })}
+              {t('personal.tasks.thisWeek', { date: urgentDeadlineLabel })}
             </span>
             {completedTasks.length > 0 && (
               <button
@@ -712,13 +855,13 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
                 <span className="text-[10px] tracking-[0.15em] uppercase font-bold text-red-400/80">
                   {t('personal.tasks.urgentColumn')}
                 </span>
-                <span className="text-[10px] text-slate-500 ml-1.5">~{saturdayLabel}</span>
+                <span className="text-[10px] text-slate-500 ml-1.5">~{urgentDeadlineLabel} (D-{URGENT_DAYS})</span>
               </div>
               <div className="text-center hidden sm:block">
                 <span className="text-[10px] tracking-[0.15em] uppercase font-bold text-slate-400/80">
                   {t('personal.tasks.notUrgentColumn')}
                 </span>
-                <span className="text-[10px] text-slate-500 ml-1.5">{t('personal.tasks.nextWeekPlus')}</span>
+                <span className="text-[10px] text-slate-500 ml-1.5">D-{URGENT_DAYS}+</span>
               </div>
             </div>
 

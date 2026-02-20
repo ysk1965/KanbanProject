@@ -46,23 +46,24 @@
       "pricing": "Pricing",
       "ai": "AI",
       "compare": "Compare",
+      "myspace": "My Space",
       "joinNow": "JOIN NOW",
       "startForFree": "Start for Free"
     },
     "hero": {
-      "badge": "The Intelligent PM Orchestration",
+      "badge": "Project + Life Management in One",
       "subtitle": "A clear <1>Flow</1> that cuts through complex workflows.\nExperience the most advanced PM collaboration interface.",
       "subtitleFlow": "Flow",
-      "subtitleText1": "A clear ",
-      "subtitleText2": " that cuts through complex workflows.\nExperience the most advanced PM collaboration interface.",
+      "subtitleText1": "Team collaboration meets personal growth in one clear ",
+      "subtitleText2": ".\nManage projects AND your life — no plugins, no app switching.",
       "tryFree": "Try 3 Days Free Premium",
       "basicFree": "Basic Board Forever Free"
     },
     "core": {
       "label": "Core Architecture",
       "title": "Orchestrate\ncollaboration flow",
-      "titleLine1": "Orchestrate",
-      "titleLine2": "collaboration flow",
+      "titleLine1": "Two pillars,",
+      "titleLine2": "one platform",
       "kanban": {
         "title": "Practice-driven Kanban",
         "desc": "Build your team's unique workflow on top of the 'Feature - Task - Done' structure. The most practical collaboration interface, built with real PM insights."
@@ -78,6 +79,38 @@
       "pricing": {
         "title": "Transparent Unlimited Model",
         "desc": "Core features like kanban boards, task creation, and daily schedules are free forever. Add Slack integration, weekly Gantt, and more for just $5 per user."
+      },
+      "personal": {
+        "title": "Personal Productivity Hub",
+        "desc": "Eisenhower Matrix task board, habit tracker with streaks, and AI diary — your personal growth toolkit lives right next to your team workspace."
+      }
+    },
+    "myspace": {
+      "label": "Personal Productivity",
+      "titleLine1": "Your space,",
+      "titleLine2": "your growth",
+      "subtitle": "Beyond team collaboration — manage personal tasks, build habits, and reflect with AI. Everything in one place, always in sync with your work.",
+      "tabs": {
+        "overview": "Overview",
+        "matrix": "Matrix",
+        "habits": "Habits",
+        "diary": "AI Diary"
+      },
+      "matrix": {
+        "title": "Eisenhower Matrix",
+        "text": "Prioritize with a 2×2 urgency-importance grid. D-day badges, auto-sorting, and drag-to-reprioritize."
+      },
+      "habits": {
+        "title": "Habit Tracker",
+        "text": "Build streaks with daily/weekly patterns. Color-coded habits, weekly matrix view, and streak analytics."
+      },
+      "diary": {
+        "title": "AI Diary",
+        "text": "Journal through conversation with AI. Mood tracking, voice input/output, and reflective prompts."
+      },
+      "calendar": {
+        "title": "Personal Calendar",
+        "text": "Time-block your personal schedule with conflict detection. Synced alongside your team calendar."
       }
     },
     "workflow": {
@@ -141,7 +174,7 @@
       "label": "AI Intelligence",
       "premium": "Premium",
       "titleLine1": "AI reads your",
-      "titleLine2": "team's context",
+      "titleLine2": "full context",
       "subtitle": "Beyond dashboards and charts. AI analyzes your tasks, time blocks, checklists, and comments to generate narrative insights that connect the dots humans might miss.",
       "narrative": {
         "title": "AI Weekly Narrative",
@@ -154,6 +187,10 @@
       "insights": {
         "title": "Personal & Team Insights",
         "text": "Individual performance narratives and team dynamics analysis. Understand workload distribution and collaboration patterns at a glance."
+      },
+      "diary": {
+        "title": "AI Conversational Diary",
+        "text": "Reflect on your day through conversation. AI tracks mood patterns, remembers context, and offers personalized insights."
       }
     },
     "pricing": {
@@ -174,6 +211,8 @@
         "feature2": "Daily schedule & checklists",
         "feature3": "Team sharing & collaboration (manual refresh)",
         "feature4": "Basic notifications",
+        "feature5": "Personal task board & habit tracker",
+        "feature6": "Personal calendar & schedule",
         "cta": "START FREE"
       },
       "premium": {
@@ -186,13 +225,14 @@
         "feature4": "Advanced team permission orchestration",
         "feature5": "AI sprint report & insights",
         "feature6": "Real-time board sync (instant updates without refresh)",
+        "feature7": "AI conversational diary with voice",
         "cta": "START TRIAL"
       }
     },
     "cta": {
       "titleLine1": "Start Your",
       "titleLine2": "Flow",
-      "subtitle": "Go beyond simple task management with BridgeSpots.\nIntelligently orchestrate your team's limitless productivity.",
+      "subtitle": "Go beyond task management. Orchestrate your team's productivity AND your personal growth — all in one platform.",
       "button": "LAUNCH FLOW"
     },
     "footer": {
@@ -2878,8 +2918,8 @@
       "toAdd": "to add",
       "active": "Active",
       "completed": "Completed",
-      "thisWeek": "This week: ~{{date}} (Sat)",
-      "nextWeekPlus": "Next week+",
+      "thisWeek": "~{{date}} (within D-3)",
+      "nextWeekPlus": "D-3+",
       "urgentColumn": "🔥 Urgent",
       "notUrgentColumn": "📅 Not Urgent",
       "q1Label": "Do First",

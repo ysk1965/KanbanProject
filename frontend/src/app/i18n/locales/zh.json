@@ -45,24 +45,25 @@
       "workflow": "Workflow",
       "pricing": "Pricing",
       "compare": "比较",
+      "myspace": "My Space",
       "joinNow": "JOIN NOW",
       "startForFree": "免费开始",
       "ai": "AI"
     },
     "hero": {
-      "badge": "智能项目管理编排",
+      "badge": "Project + Life Management in One",
       "subtitle": "一个清晰的<1>Flow</1>贯穿复杂工作流。\n体验最先进的项目管理协作界面。",
       "subtitleFlow": "Flow",
-      "subtitleText1": "一个清晰的",
-      "subtitleText2": "贯穿复杂工作流。\n体验最先进的项目管理协作界面。",
+      "subtitleText1": "Team collaboration meets personal growth in one clear ",
+      "subtitleText2": ".\nManage projects AND your life — no plugins, no app switching.",
       "tryFree": "免费试用 3 天 Premium",
       "basicFree": "Basic 看板永久免费"
     },
     "core": {
       "label": "核心架构",
       "title": "编排\n协作流程",
-      "titleLine1": "编排",
-      "titleLine2": "协作流程",
+      "titleLine1": "Two pillars,",
+      "titleLine2": "one platform",
       "kanban": {
         "title": "实战驱动的 Kanban",
         "desc": "在“Feature - Task - 完成”的结构之上，构建团队独有的工作流。基于真实项目管理经验打造的最实用协作界面。"
@@ -78,6 +79,38 @@
       "pricing": {
         "title": "透明无限模式",
         "desc": "看板、任务创建和每日日程等核心功能永久免费。只需每位用户 $5 即可添加 Slack 集成、周 Gantt 图等高级功能。"
+      },
+      "personal": {
+        "title": "Personal Productivity Hub",
+        "desc": "Eisenhower Matrix task board, habit tracker with streaks, and AI diary — your personal growth toolkit lives right next to your team workspace."
+      }
+    },
+    "myspace": {
+      "label": "Personal Productivity",
+      "titleLine1": "Your space,",
+      "titleLine2": "your growth",
+      "subtitle": "Beyond team collaboration — manage personal tasks, build habits, and reflect with AI. Everything in one place, always in sync with your work.",
+      "tabs": {
+        "overview": "Overview",
+        "matrix": "Matrix",
+        "habits": "Habits",
+        "diary": "AI Diary"
+      },
+      "matrix": {
+        "title": "Eisenhower Matrix",
+        "text": "Prioritize with a 2×2 urgency-importance grid. D-day badges, auto-sorting, and drag-to-reprioritize."
+      },
+      "habits": {
+        "title": "Habit Tracker",
+        "text": "Build streaks with daily/weekly patterns. Color-coded habits, weekly matrix view, and streak analytics."
+      },
+      "diary": {
+        "title": "AI Diary",
+        "text": "Journal through conversation with AI. Mood tracking, voice input/output, and reflective prompts."
+      },
+      "calendar": {
+        "title": "Personal Calendar",
+        "text": "Time-block your personal schedule with conflict detection. Synced alongside your team calendar."
       }
     },
     "workflow": {
@@ -141,7 +174,7 @@
       "label": "AI Intelligence",
       "premium": "Premium",
       "titleLine1": "AI 解读团队的",
-      "titleLine2": "工作脉络",
+      "titleLine2": "full context",
       "subtitle": "超越仪表盘和图表。AI 分析您的任务、时间块、清单和评论，生成叙事性洞察，发现人类容易忽略的关联。",
       "narrative": {
         "title": "AI Weekly Narrative",
@@ -154,6 +187,10 @@
       "insights": {
         "title": "Personal & Team Insights",
         "text": "个人绩效叙事和团队动态分析。一目了然地了解工作负载分配和协作模式。"
+      },
+      "diary": {
+        "title": "AI Conversational Diary",
+        "text": "Reflect on your day through conversation. AI tracks mood patterns, remembers context, and offers personalized insights."
       }
     },
     "pricing": {
@@ -174,6 +211,8 @@
         "feature2": "每日日程和清单",
         "feature3": "团队共享与协作（手动刷新）",
         "feature4": "基本通知",
+        "feature5": "Personal task board & habit tracker",
+        "feature6": "Personal calendar & schedule",
         "cta": "START FREE"
       },
       "premium": {
@@ -186,13 +225,14 @@
         "feature4": "高级团队权限编排",
         "feature5": "AI 冲刺报告 & 洞察",
         "feature6": "实时看板同步（无需刷新即时更新）",
+        "feature7": "AI conversational diary with voice",
         "cta": "START TRIAL"
       }
     },
     "cta": {
       "titleLine1": "立即",
       "titleLine2": "开始",
-      "subtitle": "用 BridgeSpots 超越简单的任务管理。\n智能编排您团队的无限生产力。",
+      "subtitle": "Go beyond task management. Orchestrate your team's productivity AND your personal growth — all in one platform.",
       "button": "LAUNCH FLOW"
     },
     "footer": {

@@ -45,23 +45,24 @@
       "workflow": "Workflow",
       "pricing": "Pricing",
       "compare": "比較",
+      "myspace": "My Space",
       "joinNow": "JOIN NOW",
       "startForFree": "免費開始"
     },
     "hero": {
-      "badge": "智慧專案管理編排",
+      "badge": "Project + Life Management in One",
       "subtitle": "一個清晰的<1>Flow</1>貫穿複雜工作流程。\n體驗最先進的專案管理協作介面。",
       "subtitleFlow": "Flow",
-      "subtitleText1": "一個清晰的",
-      "subtitleText2": "貫穿複雜工作流程。\n體驗最先進的專案管理協作介面。",
+      "subtitleText1": "Team collaboration meets personal growth in one clear ",
+      "subtitleText2": ".\nManage projects AND your life — no plugins, no app switching.",
       "tryFree": "免費試用 7 天 Premium",
       "basicFree": "Basic 看板永久免費"
     },
     "core": {
       "label": "核心架構",
       "title": "編排\n協作流程",
-      "titleLine1": "編排",
-      "titleLine2": "協作流程",
+      "titleLine1": "Two pillars,",
+      "titleLine2": "one platform",
       "kanban": {
         "title": "實戰驅動的 Kanban",
         "desc": "在「Feature - Task - 完成」的結構之上，建立團隊獨有的工作流程。基於真實專案管理經驗打造的最實用協作介面。"
@@ -77,6 +78,38 @@
       "pricing": {
         "title": "透明無限模式",
         "desc": "看板、任務建立和每日日程等核心功能永久免費。只需每位使用者 $5 即可新增 Slack 整合、週 Gantt 圖等進階功能。"
+      },
+      "personal": {
+        "title": "Personal Productivity Hub",
+        "desc": "Eisenhower Matrix task board, habit tracker with streaks, and AI diary — your personal growth toolkit lives right next to your team workspace."
+      }
+    },
+    "myspace": {
+      "label": "Personal Productivity",
+      "titleLine1": "Your space,",
+      "titleLine2": "your growth",
+      "subtitle": "Beyond team collaboration — manage personal tasks, build habits, and reflect with AI. Everything in one place, always in sync with your work.",
+      "tabs": {
+        "overview": "Overview",
+        "matrix": "Matrix",
+        "habits": "Habits",
+        "diary": "AI Diary"
+      },
+      "matrix": {
+        "title": "Eisenhower Matrix",
+        "text": "Prioritize with a 2×2 urgency-importance grid. D-day badges, auto-sorting, and drag-to-reprioritize."
+      },
+      "habits": {
+        "title": "Habit Tracker",
+        "text": "Build streaks with daily/weekly patterns. Color-coded habits, weekly matrix view, and streak analytics."
+      },
+      "diary": {
+        "title": "AI Diary",
+        "text": "Journal through conversation with AI. Mood tracking, voice input/output, and reflective prompts."
+      },
+      "calendar": {
+        "title": "Personal Calendar",
+        "text": "Time-block your personal schedule with conflict detection. Synced alongside your team calendar."
       }
     },
     "workflow": {
@@ -140,7 +173,7 @@
       "label": "AI 智慧",
       "premium": "Premium",
       "titleLine1": "AI 解讀您",
-      "titleLine2": "團隊的脈絡",
+      "titleLine2": "full context",
       "subtitle": "超越儀表板和圖表。AI 分析您的任務、時間區塊、清單和留言，產出人類容易忽略的敘事洞察。",
       "narrative": {
         "title": "AI 週報敘事",
@@ -153,6 +186,10 @@
       "insights": {
         "title": "個人與團隊洞察",
         "text": "個人績效敘事與團隊動態分析。一目瞭然地掌握工作分配和協作模式。"
+      },
+      "diary": {
+        "title": "AI Conversational Diary",
+        "text": "Reflect on your day through conversation. AI tracks mood patterns, remembers context, and offers personalized insights."
       }
     },
     "pricing": {
@@ -173,6 +210,8 @@
         "feature2": "每日日程和清單",
         "feature3": "團隊共享與協作（手動重新整理）",
         "feature4": "基本通知",
+        "feature5": "Personal task board & habit tracker",
+        "feature6": "Personal calendar & schedule",
         "cta": "START FREE"
       },
       "premium": {
@@ -185,13 +224,14 @@
         "feature4": "進階團隊權限編排",
         "feature5": "AI 衝刺報告 & 洞察",
         "feature6": "即時看板同步（無需重新整理即時更新）",
+        "feature7": "AI conversational diary with voice",
         "cta": "START TRIAL"
       }
     },
     "cta": {
       "titleLine1": "立即",
       "titleLine2": "開始",
-      "subtitle": "用 BridgeSpots 超越簡單的任務管理。\n智慧編排您團隊的無限生產力。",
+      "subtitle": "Go beyond task management. Orchestrate your team's productivity AND your personal growth — all in one platform.",
       "button": "LAUNCH FLOW"
     },
     "footer": {

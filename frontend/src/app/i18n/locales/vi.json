@@ -45,24 +45,25 @@
       "workflow": "Workflow",
       "pricing": "Pricing",
       "compare": "So sánh",
+      "myspace": "My Space",
       "joinNow": "JOIN NOW",
       "startForFree": "Bat dau mien phi",
       "ai": "AI"
     },
     "hero": {
-      "badge": "Dieu phoi PM thong minh",
+      "badge": "Project + Life Management in One",
       "subtitle": "Mot <1>Flow</1> ro rang cat ngang cac quy trinh phuc tap.\nTrai nghiem giao dien cong tac PM tien tien nhat.",
       "subtitleFlow": "Flow",
-      "subtitleText1": "Mot ",
-      "subtitleText2": " ro rang cat ngang cac quy trinh phuc tap.\nTrai nghiem giao dien cong tac PM tien tien nhat.",
+      "subtitleText1": "Team collaboration meets personal growth in one clear ",
+      "subtitleText2": ".\nManage projects AND your life — no plugins, no app switching.",
       "tryFree": "Dung thu Premium 7 ngay mien phi",
       "basicFree": "Basic Board mien phi mai mai"
     },
     "core": {
       "label": "Kien truc cot loi",
       "title": "Dieu phoi\nluong cong tac",
-      "titleLine1": "Dieu phoi",
-      "titleLine2": "luong cong tac",
+      "titleLine1": "Two pillars,",
+      "titleLine2": "one platform",
       "kanban": {
         "title": "Kanban huong thuc hanh",
         "desc": "Xay dung quy trinh lam viec doc dao cua doi nhom tren nen tang cau truc 'Feature - Task - Hoan thanh'. Giao dien cong tac thuc te nhat, duoc xay dung tu kinh nghiem PM thuc te."
@@ -78,6 +79,38 @@
       "pricing": {
         "title": "Mo hinh khong gioi han minh bach",
         "desc": "Cac tinh nang cot loi nhu bang kanban, tao nhiem vu va lich trinh hang ngay mien phi mai mai. Them tich hop Slack, Gantt theo tuan va nhieu hon chi voi $5 moi nguoi dung."
+      },
+      "personal": {
+        "title": "Personal Productivity Hub",
+        "desc": "Eisenhower Matrix task board, habit tracker with streaks, and AI diary — your personal growth toolkit lives right next to your team workspace."
+      }
+    },
+    "myspace": {
+      "label": "Personal Productivity",
+      "titleLine1": "Your space,",
+      "titleLine2": "your growth",
+      "subtitle": "Beyond team collaboration — manage personal tasks, build habits, and reflect with AI. Everything in one place, always in sync with your work.",
+      "tabs": {
+        "overview": "Overview",
+        "matrix": "Matrix",
+        "habits": "Habits",
+        "diary": "AI Diary"
+      },
+      "matrix": {
+        "title": "Eisenhower Matrix",
+        "text": "Prioritize with a 2×2 urgency-importance grid. D-day badges, auto-sorting, and drag-to-reprioritize."
+      },
+      "habits": {
+        "title": "Habit Tracker",
+        "text": "Build streaks with daily/weekly patterns. Color-coded habits, weekly matrix view, and streak analytics."
+      },
+      "diary": {
+        "title": "AI Diary",
+        "text": "Journal through conversation with AI. Mood tracking, voice input/output, and reflective prompts."
+      },
+      "calendar": {
+        "title": "Personal Calendar",
+        "text": "Time-block your personal schedule with conflict detection. Synced alongside your team calendar."
       }
     },
     "workflow": {
@@ -143,6 +176,10 @@
         "text": "Phân tích hiệu suất cá nhân và động lực nhóm. Nắm bắt phân bổ công việc và mô hình cộng tác chỉ trong nháy mắt.",
         "title": "Personal & Team Insights"
       },
+      "diary": {
+        "title": "AI Conversational Diary",
+        "text": "Reflect on your day through conversation. AI tracks mood patterns, remembers context, and offers personalized insights."
+      },
       "label": "AI Intelligence",
       "narrative": {
         "text": "Không chỉ là số liệu — Claude AI dệt hoạt động trong tuần thành câu chuyện có ngữ cảnh, phát hiện các điểm nghẽn và phụ thuộc ẩn.",
@@ -154,7 +191,7 @@
       },
       "subtitle": "Vượt xa bảng điều khiển và biểu đồ. AI phân tích nhiệm vụ, khối thời gian, danh sách kiểm tra và bình luận để tạo ra những thông tin chi tiết mà con người có thể bỏ sót.",
       "titleLine1": "AI đọc hiểu",
-      "titleLine2": "bối cảnh nhóm bạn"
+      "titleLine2": "full context"
     },
     "pricing": {
       "badge": "PREMIUM DUNG THU MIEN PHI 7 NGAY",
@@ -174,6 +211,8 @@
         "feature2": "Lich trinh hang ngay & danh sach cong viec",
         "feature3": "Chia se nhom & cong tac (lam moi thu cong)",
         "feature4": "Thong bao co ban",
+        "feature5": "Personal task board & habit tracker",
+        "feature6": "Personal calendar & schedule",
         "cta": "START FREE"
       },
       "premium": {
@@ -186,13 +225,14 @@
         "feature4": "Dieu phoi quyen nhom nang cao",
         "feature5": "Bao cao sprint AI & thong tin chi tiet",
         "feature6": "Dong bo bang thoi gian thuc (cap nhat tuc thi khong can lam moi)",
+        "feature7": "AI conversational diary with voice",
         "cta": "START TRIAL"
       }
     },
     "cta": {
       "titleLine1": "Bắt đầu",
       "titleLine2": "Ngay",
-      "subtitle": "Vuot xa quan ly nhiem vu don gian voi BridgeSpots.\nDieu phoi thong minh nang suat vo han cua doi nhom ban.",
+      "subtitle": "Go beyond task management. Orchestrate your team's productivity AND your personal growth — all in one platform.",
       "button": "LAUNCH FLOW"
     },
     "footer": {

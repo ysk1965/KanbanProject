@@ -45,24 +45,25 @@
       "workflow": "Workflow",
       "pricing": "Pricing",
       "compare": "तुलना",
+      "myspace": "My Space",
       "joinNow": "JOIN NOW",
       "startForFree": "मुफ़्त शुरू करें",
       "ai": "AI"
     },
     "hero": {
-      "badge": "बुद्धिमान PM ऑर्केस्ट्रेशन",
+      "badge": "Project + Life Management in One",
       "subtitle": "जटिल वर्कफ़्लो को सरल बनाने वाला एक स्पष्ट <1>Flow</1>।\nसबसे उन्नत PM सहयोग इंटरफ़ेस का अनुभव करें।",
       "subtitleFlow": "Flow",
-      "subtitleText1": "जटिल वर्कफ़्लो को सरल बनाने वाला एक स्पष्ट ",
-      "subtitleText2": "।\nसबसे उन्नत PM सहयोग इंटरफ़ेस का अनुभव करें।",
+      "subtitleText1": "Team collaboration meets personal growth in one clear ",
+      "subtitleText2": ".\nManage projects AND your life — no plugins, no app switching.",
       "tryFree": "3 दिन मुफ़्त Premium आज़माएं",
       "basicFree": "Basic बोर्ड हमेशा मुफ़्त"
     },
     "core": {
       "label": "कोर आर्किटेक्चर",
       "title": "सहयोग प्रवाह को\nव्यवस्थित करें",
-      "titleLine1": "सहयोग प्रवाह को",
-      "titleLine2": "व्यवस्थित करें",
+      "titleLine1": "Two pillars,",
+      "titleLine2": "one platform",
       "kanban": {
         "title": "व्यावहारिक Kanban",
         "desc": "'Feature - Task - पूर्ण' संरचना पर अपनी टीम का अनूठा वर्कफ़्लो बनाएं। वास्तविक PM अनुभव से निर्मित सबसे व्यावहारिक सहयोग इंटरफ़ेस।"
@@ -78,6 +79,38 @@
       "pricing": {
         "title": "पारदर्शी असीमित मॉडल",
         "desc": "Kanban बोर्ड, टास्क निर्माण और दैनिक शेड्यूल जैसी मुख्य सुविधाएं हमेशा मुफ़्त हैं। Slack एकीकरण, साप्ताहिक Gantt और अधिक केवल $5 प्रति उपयोगकर्ता में जोड़ें।"
+      },
+      "personal": {
+        "title": "Personal Productivity Hub",
+        "desc": "Eisenhower Matrix task board, habit tracker with streaks, and AI diary — your personal growth toolkit lives right next to your team workspace."
+      }
+    },
+    "myspace": {
+      "label": "Personal Productivity",
+      "titleLine1": "Your space,",
+      "titleLine2": "your growth",
+      "subtitle": "Beyond team collaboration — manage personal tasks, build habits, and reflect with AI. Everything in one place, always in sync with your work.",
+      "tabs": {
+        "overview": "Overview",
+        "matrix": "Matrix",
+        "habits": "Habits",
+        "diary": "AI Diary"
+      },
+      "matrix": {
+        "title": "Eisenhower Matrix",
+        "text": "Prioritize with a 2×2 urgency-importance grid. D-day badges, auto-sorting, and drag-to-reprioritize."
+      },
+      "habits": {
+        "title": "Habit Tracker",
+        "text": "Build streaks with daily/weekly patterns. Color-coded habits, weekly matrix view, and streak analytics."
+      },
+      "diary": {
+        "title": "AI Diary",
+        "text": "Journal through conversation with AI. Mood tracking, voice input/output, and reflective prompts."
+      },
+      "calendar": {
+        "title": "Personal Calendar",
+        "text": "Time-block your personal schedule with conflict detection. Synced alongside your team calendar."
       }
     },
     "workflow": {
@@ -154,7 +187,11 @@
       },
       "subtitle": "डैशबोर्ड और चार्ट से परे। AI आपके टास्क, टाइम ब्लॉक, चेकलिस्ट और कमेंट का विश्लेषण करके ऐसे इनसाइट्स तैयार करता है जो इंसान चूक सकते हैं।",
       "titleLine1": "AI आपकी टीम का",
-      "titleLine2": "संदर्भ पढ़ता है"
+      "titleLine2": "full context",
+      "diary": {
+        "title": "AI Conversational Diary",
+        "text": "Reflect on your day through conversation. AI tracks mood patterns, remembers context, and offers personalized insights."
+      }
     },
     "pricing": {
       "badge": "PREMIUM 3 दिन मुफ़्त ट्रायल",
@@ -174,6 +211,8 @@
         "feature2": "दैनिक शेड्यूल और चेकलिस्ट",
         "feature3": "टीम शेयरिंग और सहयोग (मैनुअल रिफ्रेश)",
         "feature4": "बेसिक नोटिफिकेशन",
+        "feature5": "Personal task board & habit tracker",
+        "feature6": "Personal calendar & schedule",
         "cta": "START FREE"
       },
       "premium": {
@@ -186,13 +225,14 @@
         "feature4": "उन्नत टीम अनुमति ऑर्केस्ट्रेशन",
         "feature5": "AI स्प्रिंट रिपोर्ट और इनसाइट्स",
         "feature6": "रीयल-टाइम बोर्ड सिंक (रिफ्रेश के बिना तुरंत अपडेट)",
+        "feature7": "AI conversational diary with voice",
         "cta": "START TRIAL"
       }
     },
     "cta": {
       "titleLine1": "अभी",
       "titleLine2": "शुरू करें",
-      "subtitle": "BridgeSpots के साथ साधारण टास्क प्रबंधन से आगे बढ़ें।\nअपनी टीम की असीमित उत्पादकता को बुद्धिमानी से व्यवस्थित करें।",
+      "subtitle": "Go beyond task management. Orchestrate your team's productivity AND your personal growth — all in one platform.",
       "button": "LAUNCH FLOW"
     },
     "footer": {

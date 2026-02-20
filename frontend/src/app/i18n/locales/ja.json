@@ -45,24 +45,25 @@
       "workflow": "Workflow",
       "pricing": "Pricing",
       "compare": "比較",
+      "myspace": "My Space",
       "joinNow": "JOIN NOW",
       "startForFree": "無料で始める",
       "ai": "AI"
     },
     "hero": {
-      "badge": "インテリジェントPMオーケストレーション",
+      "badge": "Project + Life Management in One",
       "subtitle": "複雑なワークフローを切り拓く明確な<1>Flow</1>。\n最先端のPMコラボレーションインターフェースを体験してください。",
       "subtitleFlow": "Flow",
-      "subtitleText1": "複雑なワークフローを切り拓く明確な",
-      "subtitleText2": "。\n最先端のPMコラボレーションインターフェースを体験してください。",
+      "subtitleText1": "Team collaboration meets personal growth in one clear ",
+      "subtitleText2": ".\nManage projects AND your life — no plugins, no app switching.",
       "tryFree": "Premium 3日間無料体験",
       "basicFree": "Basic ボードは永久無料"
     },
     "core": {
       "label": "コアアーキテクチャ",
       "title": "コラボレーションの\nフローを統率する",
-      "titleLine1": "コラボレーションの",
-      "titleLine2": "フローを統率する",
+      "titleLine1": "Two pillars,",
+      "titleLine2": "one platform",
       "kanban": {
         "title": "実践型 Kanban",
         "desc": "「Feature - Task - Done」構造の上にチームならではのワークフローを構築。実際のPMの知見から生まれた、最も実践的なコラボレーションインターフェースです。"
@@ -78,6 +79,38 @@
       "pricing": {
         "title": "透明な無制限モデル",
         "desc": "Kanban ボード、Task作成、デイリースケジュールなどのコア機能は永久無料。ユーザーあたり月額$5で Slack 連携、週間 Gantt などを追加できます。"
+      },
+      "personal": {
+        "title": "Personal Productivity Hub",
+        "desc": "Eisenhower Matrix task board, habit tracker with streaks, and AI diary — your personal growth toolkit lives right next to your team workspace."
+      }
+    },
+    "myspace": {
+      "label": "Personal Productivity",
+      "titleLine1": "Your space,",
+      "titleLine2": "your growth",
+      "subtitle": "Beyond team collaboration — manage personal tasks, build habits, and reflect with AI. Everything in one place, always in sync with your work.",
+      "tabs": {
+        "overview": "Overview",
+        "matrix": "Matrix",
+        "habits": "Habits",
+        "diary": "AI Diary"
+      },
+      "matrix": {
+        "title": "Eisenhower Matrix",
+        "text": "Prioritize with a 2×2 urgency-importance grid. D-day badges, auto-sorting, and drag-to-reprioritize."
+      },
+      "habits": {
+        "title": "Habit Tracker",
+        "text": "Build streaks with daily/weekly patterns. Color-coded habits, weekly matrix view, and streak analytics."
+      },
+      "diary": {
+        "title": "AI Diary",
+        "text": "Journal through conversation with AI. Mood tracking, voice input/output, and reflective prompts."
+      },
+      "calendar": {
+        "title": "Personal Calendar",
+        "text": "Time-block your personal schedule with conflict detection. Synced alongside your team calendar."
       }
     },
     "workflow": {
@@ -143,6 +176,10 @@
         "text": "個人のパフォーマンスナラティブとチームダイナミクスの分析。業務配分とコラボレーションパターンを一目で把握できます。",
         "title": "Personal & Team Insights"
       },
+      "diary": {
+        "title": "AI Conversational Diary",
+        "text": "Reflect on your day through conversation. AI tracks mood patterns, remembers context, and offers personalized insights."
+      },
       "label": "AI Intelligence",
       "narrative": {
         "text": "単なる指標ではありません。Claude AIが一週間の活動を文脈のあるストーリーに織り上げ、隠れたボトルネックと依存関係を明らかにします。",
@@ -154,7 +191,7 @@
       },
       "subtitle": "ダッシュボードやチャートの先へ。AIがタスク、タイムブロック、チェックリスト、コメントを分析し、人が見落としがちなインサイトをナラティブで生成します。",
       "titleLine1": "AIがチームの",
-      "titleLine2": "文脈を読み取る"
+      "titleLine2": "full context"
     },
     "pricing": {
       "badge": "PREMIUM 3日間無料トライアル",
@@ -174,6 +211,8 @@
         "feature2": "デイリースケジュール & チェックリスト",
         "feature3": "チーム共有 & コラボレーション（手動更新）",
         "feature4": "基本通知",
+        "feature5": "Personal task board & habit tracker",
+        "feature6": "Personal calendar & schedule",
         "cta": "無料で始める"
       },
       "premium": {
@@ -186,13 +225,14 @@
         "feature4": "高度なチーム権限オーケストレーション",
         "feature5": "AI スプリントレポート & インサイト",
         "feature6": "リアルタイムボード同期（更新なしで即時反映）",
+        "feature7": "AI conversational diary with voice",
         "cta": "トライアル開始"
       }
     },
     "cta": {
       "titleLine1": "今すぐ",
       "titleLine2": "始めよう",
-      "subtitle": "BridgeSpotsで単なるTask管理を超えましょう。\nチームの無限の生産性をインテリジェントにオーケストレーション。",
+      "subtitle": "Go beyond task management. Orchestrate your team's productivity AND your personal growth — all in one platform.",
       "button": "LAUNCH FLOW"
     },
     "footer": {

@@ -5,6 +5,7 @@ import { LayoutGrid, User, Settings, ChevronRight, ChevronLeft, X, Clock } from 
 import { motion, AnimatePresence } from 'framer-motion';
 import { Board } from '../../types';
 import { getGradient } from './BoardCard';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface SidebarProps {
   isOpen?: boolean;
@@ -19,6 +20,8 @@ export function Sidebar({ isOpen = true, onClose, boards = [], onSelectBoard, is
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useTranslation();
+  const { currentUser } = useAuth();
+  const hasPersonalSpace = currentUser?.personal_space_enabled ?? false;
   const [activeItem, setActiveItem] = useState('all');
 
   // Determine active menu item from URL
@@ -30,7 +33,7 @@ export function Sidebar({ isOpen = true, onClose, boards = [], onSelectBoard, is
 
   const menuItems = [
     { key: 'all', icon: <LayoutGrid size={18} />, label: t('dashboard.sidebar.allBoards'), path: '/boards' },
-    { key: 'myBoard', icon: <User size={18} />, label: t('dashboard.sidebar.myBoard'), path: '/my-board' },
+    ...(hasPersonalSpace ? [{ key: 'myBoard', icon: <User size={18} />, label: t('dashboard.sidebar.myBoard'), path: '/my-board' }] : []),
     { key: 'settings', icon: <Settings size={18} />, label: t('dashboard.sidebar.settings'), path: '/settings' },
   ];
 

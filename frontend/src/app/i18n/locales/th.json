@@ -45,24 +45,25 @@
       "workflow": "Workflow",
       "pricing": "Pricing",
       "compare": "เปรียบเทียบ",
+      "myspace": "My Space",
       "joinNow": "JOIN NOW",
       "startForFree": "เริ่มใช้งานฟรี",
       "ai": "AI"
     },
     "hero": {
-      "badge": "ระบบจัดการโปรเจกต์อัจฉริยะ",
+      "badge": "Project + Life Management in One",
       "subtitle": "<1>Flow</1> ที่ชัดเจนตัดผ่านเวิร์กโฟลว์ที่ซับซ้อน\nสัมผัสอินเทอร์เฟซการทำงานร่วมกันด้าน PM ที่ล้ำสมัยที่สุด",
       "subtitleFlow": "Flow",
-      "subtitleText1": "",
-      "subtitleText2": " ที่ชัดเจนตัดผ่านเวิร์กโฟลว์ที่ซับซ้อน\nสัมผัสอินเทอร์เฟซการทำงานร่วมกันด้าน PM ที่ล้ำสมัยที่สุด",
+      "subtitleText1": "Team collaboration meets personal growth in one clear ",
+      "subtitleText2": ".\nManage projects AND your life — no plugins, no app switching.",
       "tryFree": "ทดลองใช้ Premium ฟรี 3 วัน",
       "basicFree": "บอร์ด Basic ใช้งานฟรีตลอดไป"
     },
     "core": {
       "label": "สถาปัตยกรรมหลัก",
       "title": "จัดระเบียบ\nกระแสการทำงานร่วมกัน",
-      "titleLine1": "จัดระเบียบ",
-      "titleLine2": "กระแสการทำงานร่วมกัน",
+      "titleLine1": "Two pillars,",
+      "titleLine2": "one platform",
       "kanban": {
         "title": "Kanban เน้นการปฏิบัติจริง",
         "desc": "สร้างเวิร์กโฟลว์เฉพาะของทีมบนโครงสร้าง 'Feature - Task - Done' อินเทอร์เฟซการทำงานร่วมกันที่ใช้งานได้จริง สร้างจากข้อมูลเชิงลึกของ PM จริง"
@@ -78,6 +79,38 @@
       "pricing": {
         "title": "โมเดลราคาที่โปร่งใสไม่จำกัด",
         "desc": "ฟีเจอร์หลักอย่างบอร์ด Kanban, การสร้างงาน และตารางเวลารายวันใช้งานฟรีตลอดไป เพิ่มการเชื่อมต่อ Slack, Gantt รายสัปดาห์ และอื่นๆ ในราคาเพียง $5 ต่อผู้ใช้"
+      },
+      "personal": {
+        "title": "Personal Productivity Hub",
+        "desc": "Eisenhower Matrix task board, habit tracker with streaks, and AI diary — your personal growth toolkit lives right next to your team workspace."
+      }
+    },
+    "myspace": {
+      "label": "Personal Productivity",
+      "titleLine1": "Your space,",
+      "titleLine2": "your growth",
+      "subtitle": "Beyond team collaboration — manage personal tasks, build habits, and reflect with AI. Everything in one place, always in sync with your work.",
+      "tabs": {
+        "overview": "Overview",
+        "matrix": "Matrix",
+        "habits": "Habits",
+        "diary": "AI Diary"
+      },
+      "matrix": {
+        "title": "Eisenhower Matrix",
+        "text": "Prioritize with a 2×2 urgency-importance grid. D-day badges, auto-sorting, and drag-to-reprioritize."
+      },
+      "habits": {
+        "title": "Habit Tracker",
+        "text": "Build streaks with daily/weekly patterns. Color-coded habits, weekly matrix view, and streak analytics."
+      },
+      "diary": {
+        "title": "AI Diary",
+        "text": "Journal through conversation with AI. Mood tracking, voice input/output, and reflective prompts."
+      },
+      "calendar": {
+        "title": "Personal Calendar",
+        "text": "Time-block your personal schedule with conflict detection. Synced alongside your team calendar."
       }
     },
     "workflow": {
@@ -154,7 +187,11 @@
       },
       "subtitle": "เหนือกว่าแดชบอร์ดและกราฟ AI วิเคราะห์งาน, ไทม์บล็อก, เช็คลิสต์ และคอมเมนต์เพื่อสร้างข้อมูลเชิงลึกที่มนุษย์อาจมองข้าม",
       "titleLine1": "AI อ่าน",
-      "titleLine2": "บริบทของทีมคุณ"
+      "titleLine2": "full context",
+      "diary": {
+        "title": "AI Conversational Diary",
+        "text": "Reflect on your day through conversation. AI tracks mood patterns, remembers context, and offers personalized insights."
+      }
     },
     "pricing": {
       "badge": "PREMIUM ทดลองใช้ฟรี 3 วัน",
@@ -174,6 +211,8 @@
         "feature2": "ตารางเวลารายวันและเช็คลิสต์",
         "feature3": "แชร์ทีมและการทำงานร่วมกัน (รีเฟรชด้วยตนเอง)",
         "feature4": "การแจ้งเตือนพื้นฐาน",
+        "feature5": "Personal task board & habit tracker",
+        "feature6": "Personal calendar & schedule",
         "cta": "START FREE"
       },
       "premium": {
@@ -186,13 +225,14 @@
         "feature4": "การจัดการสิทธิ์ทีมขั้นสูง",
         "feature5": "รายงาน Sprint AI และข้อมูลเชิงลึก",
         "feature6": "ซิงค์บอร์ดแบบเรียลไทม์ (อัปเดตทันทีไม่ต้องรีเฟรช)",
+        "feature7": "AI conversational diary with voice",
         "cta": "START TRIAL"
       }
     },
     "cta": {
       "titleLine1": "เริ่มต้น",
       "titleLine2": "วันนี้",
-      "subtitle": "ก้าวข้ามการจัดการงานธรรมดาด้วย BridgeSpots\nจัดระเบียบผลิตภาพไร้ขีดจำกัดของทีมคุณอย่างชาญฉลาด",
+      "subtitle": "Go beyond task management. Orchestrate your team's productivity AND your personal growth — all in one platform.",
       "button": "LAUNCH FLOW"
     },
     "footer": {

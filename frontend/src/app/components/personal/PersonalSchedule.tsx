@@ -369,7 +369,7 @@ export function PersonalSchedule() {
     const minIdx = Math.min(startSlotIndex, endSlotIndex);
     const maxIdx = Math.max(startSlotIndex, endSlotIndex);
     const st = timeSlots[minIdx];
-    const et = timeSlots[maxIdx + 1] || `${endHour}:00`;
+    const et = timeSlots[maxIdx + 1] || (endHour >= 24 ? '23:59' : `${endHour}:00`);
 
     setCreateDate(dateStr);
     setCreateStartTime(st);
@@ -446,6 +446,7 @@ export function PersonalSchedule() {
 
   // ---- Event block drag/resize handlers ----
   const fmtMinToTime = (min: number): string => {
+    if (min >= 1440) return '23:59';
     const h = Math.floor(min / 60);
     const m = min % 60;
     return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
@@ -1625,9 +1626,19 @@ function CreateEventModal({
 
   useEffect(() => {
     if (open) {
+      setTitle('');
+      setDescription('');
       setStartTime(initialStartTime || '');
       setEndTime(initialEndTime || '');
+      setColor(EVENT_COLORS[0]);
       setRecurrenceRule(initialRecurrenceRule || '');
+      setRecurrenceEndDate('');
+      setRecurrenceDaysOfWeek([]);
+      setMode('new');
+      setSelectedTask(null);
+      setSelectedHabit(null);
+      setSelectedEvent(null);
+      setTaskSearch('');
     }
   }, [open, initialStartTime, initialEndTime, initialRecurrenceRule]);
   const [recurrenceEndDate, setRecurrenceEndDate] = useState('');
