@@ -2,8 +2,8 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Plus, Flame, CheckCircle2, Trash2, X, Loader2,
-  ChevronDown, ChevronUp, Hash, Pencil, MoreHorizontal,
-  TrendingUp, Target, Calendar, Zap,
+  ChevronDown, ChevronUp, Pencil, MoreHorizontal,
+  TrendingUp, Calendar, Zap, RotateCcw, ListTodo,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { personalHabitAPI } from '../../utils/api';
@@ -53,6 +53,7 @@ export function PersonalHabits() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editHabit, setEditHabit] = useState<PersonalHabit | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [checkInConfirm, setCheckInConfirm] = useState<{ id: string; isUndo: boolean } | null>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -84,10 +85,11 @@ export function PersonalHabits() {
     return { total, todayCompleted, todayTotal, bestStreak, totalCurrentStreak };
   }, [habits, todayItems]);
 
-  const handleCheckIn = async (habitId: string) => {
-    // Optimistic update — immediately show checked
+  const handleCheckIn = async (habitId: string, isUndo?: boolean) => {
+    const revertTo = !!isUndo;
+    // Optimistic update
     setTodayItems(prev => prev.map(h =>
-      h.habit_id === habitId ? { ...h, is_completed: true } : h
+      h.habit_id === habitId ? { ...h, is_completed: !isUndo } : h
     ));
     try {
       const updated = await personalHabitAPI.checkIn(habitId);
@@ -95,7 +97,7 @@ export function PersonalHabits() {
     } catch {
       // Revert on failure
       setTodayItems(prev => prev.map(h =>
-        h.habit_id === habitId ? { ...h, is_completed: false } : h
+        h.habit_id === habitId ? { ...h, is_completed: revertTo } : h
       ));
       console.error('Failed to check in');
     }
@@ -210,7 +212,7 @@ export function PersonalHabits() {
                         ? 'bg-bridge-secondary/5 border border-bridge-secondary/20'
                         : 'bg-white/[0.03] border border-white/5 hover:bg-white/[0.06]'
                     }`}
-                    onClick={() => handleCheckIn(item.habit_id)}
+                    onClick={() => setCheckInConfirm({ id: item.habit_id, isUndo: item.is_completed })}
                   >
                     {/* Check circle with animation */}
                     <motion.div
@@ -335,6 +337,25 @@ export function PersonalHabits() {
             onCancel={() => setDeleteConfirm(null)}
           />
         )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {checkInConfirm && (() => {
+          const item = todayItems.find(h => h.habit_id === checkInConfirm.id);
+          return (
+            <CheckInConfirmModal
+              habitName={item?.title || ''}
+              habitIcon={item?.icon}
+              streakCount={item?.current_streak}
+              isUndo={checkInConfirm.isUndo}
+              onConfirm={() => {
+                handleCheckIn(checkInConfirm.id, checkInConfirm.isUndo);
+                setCheckInConfirm(null);
+              }}
+              onCancel={() => setCheckInConfirm(null)}
+            />
+          );
+        })()}
       </AnimatePresence>
     </div>
   );
@@ -500,12 +521,6 @@ function HabitCard({ habit, onEdit, onDelete }: {
               <Calendar size={10} />
               {formatFrequency(habit, t)}
             </span>
-            {habit.target_count > 1 && (
-              <span className="text-[11px] text-slate-400 flex items-center gap-1">
-                <Target size={10} />
-                {habit.target_count}{habit.unit ? ` ${habit.unit}` : ''}
-              </span>
-            )}
             {habit.best_streak > 0 && (
               <span className="text-[11px] text-slate-500 flex items-center gap-1">
                 <TrendingUp size={10} />
@@ -565,7 +580,6 @@ export interface HabitFormData {
   frequency_type?: HabitFrequency;
   frequency_days?: string;
   target_count?: number;
-  unit?: string;
   importance?: HabitImportance;
 }
 
@@ -587,11 +601,8 @@ export function HabitFormModal({ habit, onClose, onSubmit }: {
 
   const [icon, setIcon] = useState(habit?.icon || '');
   const [color, setColor] = useState(habit?.color || HABIT_COLORS[0]);
-  const [goalType, setGoalType] = useState<'check' | 'count'>(
-    (habit?.target_count || 1) > 1 ? 'count' : 'check',
-  );
-  const [targetCount, setTargetCount] = useState(habit?.target_count || 1);
-  const [unit, setUnit] = useState(habit?.unit || '');
+  const [showIconPicker, setShowIconPicker] = useState(false);
+  const [showColorPicker, setShowColorPicker] = useState(false);
   const [description, setDescription] = useState(habit?.description || '');
 
   const isValid = title.trim().length > 0 && (frequencyType !== 'CUSTOM' || customDays.length > 0);
@@ -609,14 +620,19 @@ export function HabitFormModal({ habit, onClose, onSubmit }: {
       color,
       frequency_type: frequencyType,
       frequency_days: frequencyType === 'CUSTOM' ? customDays.sort((a, b) => a - b).join(',') : undefined,
-      target_count: goalType === 'count' ? targetCount : 1,
-      unit: goalType === 'count' && unit.trim() ? unit.trim() : undefined,
+      target_count: 1,
       importance,
     });
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4 bg-black/40 backdrop-blur-sm">
+    <motion.div
+      className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4"
+      initial={{ backgroundColor: 'rgba(0,0,0,0)', backdropFilter: 'blur(0px)' }}
+      animate={{ backgroundColor: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(2px)' }}
+      exit={{ backgroundColor: 'rgba(0,0,0,0)', backdropFilter: 'blur(0px)' }}
+      transition={{ duration: 0.3 }}
+    >
       <motion.div
         initial={{ opacity: 0, y: 20, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -756,110 +772,104 @@ export function HabitFormModal({ habit, onClose, onSubmit }: {
                 exit={{ opacity: 0, height: 0 }}
                 className="space-y-4 overflow-hidden"
               >
-                {/* Icon Picker */}
-                <div>
-                  <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">
-                    {t('personal.habit.icon')}
-                  </label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {HABIT_ICONS.map((emoji) => (
-                      <button
-                        key={emoji}
-                        onClick={() => setIcon(icon === emoji ? '' : emoji)}
-                        className={`w-9 h-9 flex items-center justify-center rounded-lg text-base transition-all ${
-                          icon === emoji
-                            ? 'bg-purple-500/20 ring-2 ring-purple-500 scale-110'
-                            : 'bg-white/5 hover:bg-white/10 hover:scale-105'
-                        }`}
-                      >
-                        {emoji}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Color Picker */}
-                <div>
-                  <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">
-                    {t('personal.habit.color')}
-                  </label>
-                  <div className="flex gap-2">
-                    {HABIT_COLORS.map((c) => (
-                      <button
-                        key={c}
-                        onClick={() => setColor(c)}
-                        className={`w-7 h-7 rounded-full transition-all ${
-                          color === c
-                            ? 'ring-2 ring-white ring-offset-2 ring-offset-bridge-obsidian scale-110'
-                            : 'hover:scale-110'
-                        }`}
-                        style={{ backgroundColor: c }}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                {/* Goal Type */}
-                <div>
-                  <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">
-                    {t('personal.habit.goalType')}
-                  </label>
-                  <div className="flex gap-1.5">
+                {/* Icon & Color — compact inline pickers */}
+                <div className="flex gap-3">
+                  {/* Icon */}
+                  <div className="flex-1">
+                    <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
+                      {t('personal.habit.icon')}
+                    </label>
                     <button
-                      onClick={() => { setGoalType('check'); setTargetCount(1); setUnit(''); }}
-                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold rounded-lg transition-all ${
-                        goalType === 'check'
-                          ? 'bg-purple-500 text-white shadow-sm'
-                          : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                      onClick={() => { setShowIconPicker(!showIconPicker); setShowColorPicker(false); }}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl border transition-all ${
+                        showIconPicker
+                          ? 'border-purple-500/50 bg-purple-500/10'
+                          : 'border-white/10 bg-white/5 hover:bg-white/10'
                       }`}
                     >
-                      <CheckCircle2 size={14} />
-                      {t('personal.habit.checkOff')}
+                      <span className="text-lg">{icon || '😊'}</span>
+                      <span className="text-xs text-slate-400 flex-1 text-left truncate">
+                        {icon ? t('personal.habit.changeIcon', '변경') : t('personal.habit.selectIcon', '선택')}
+                      </span>
+                      <ChevronDown size={14} className={`text-slate-500 transition-transform ${showIconPicker ? 'rotate-180' : ''}`} />
                     </button>
+                  </div>
+                  {/* Color */}
+                  <div className="flex-1">
+                    <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
+                      {t('personal.habit.color')}
+                    </label>
                     <button
-                      onClick={() => setGoalType('count')}
-                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold rounded-lg transition-all ${
-                        goalType === 'count'
-                          ? 'bg-purple-500 text-white shadow-sm'
-                          : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                      onClick={() => { setShowColorPicker(!showColorPicker); setShowIconPicker(false); }}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl border transition-all ${
+                        showColorPicker
+                          ? 'border-purple-500/50 bg-purple-500/10'
+                          : 'border-white/10 bg-white/5 hover:bg-white/10'
                       }`}
                     >
-                      <Hash size={14} />
-                      {t('personal.habit.count')}
+                      <div className="w-5 h-5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+                      <span className="text-xs text-slate-400 flex-1 text-left truncate">
+                        {t('personal.habit.changeColor', '변경')}
+                      </span>
+                      <ChevronDown size={14} className={`text-slate-500 transition-transform ${showColorPicker ? 'rotate-180' : ''}`} />
                     </button>
                   </div>
                 </div>
 
-                {/* Target + Unit */}
-                {goalType === 'count' && (
-                  <div className="flex gap-3">
-                    <div className="w-24">
-                      <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-                        {t('personal.habit.target')}
-                      </label>
-                      <input
-                        type="number"
-                        min={1}
-                        max={999}
-                        value={targetCount}
-                        onChange={(e) => setTargetCount(Math.max(1, parseInt(e.target.value) || 1))}
-                        className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all"
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-                        {t('personal.habit.unit')}
-                      </label>
-                      <input
-                        type="text"
-                        value={unit}
-                        onChange={(e) => setUnit(e.target.value)}
-                        placeholder={t('personal.habit.unitPlaceholder')}
-                        className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-white text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all"
-                      />
-                    </div>
-                  </div>
-                )}
+                {/* Icon Picker Expanded */}
+                <AnimatePresence>
+                  {showIconPicker && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="flex flex-wrap justify-center gap-1.5 pt-1">
+                        {HABIT_ICONS.map((emoji) => (
+                          <button
+                            key={emoji}
+                            onClick={() => { setIcon(icon === emoji ? '' : emoji); setShowIconPicker(false); }}
+                            className={`w-9 h-9 flex items-center justify-center rounded-lg text-base transition-all ${
+                              icon === emoji
+                                ? 'bg-purple-500/20 ring-2 ring-purple-500 scale-110'
+                                : 'bg-white/5 hover:bg-white/10 hover:scale-105'
+                            }`}
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* Color Picker Expanded */}
+                <AnimatePresence>
+                  {showColorPicker && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="flex gap-2 pt-1">
+                        {HABIT_COLORS.map((c) => (
+                          <button
+                            key={c}
+                            onClick={() => { setColor(c); setShowColorPicker(false); }}
+                            className={`w-7 h-7 rounded-full transition-all ${
+                              color === c
+                                ? 'ring-2 ring-white ring-offset-2 ring-offset-bridge-obsidian scale-110'
+                                : 'hover:scale-110'
+                            }`}
+                            style={{ backgroundColor: c }}
+                          />
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
 
                 {/* Description */}
                 <div>
@@ -896,7 +906,7 @@ export function HabitFormModal({ habit, onClose, onSubmit }: {
           </button>
         </div>
       </motion.div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -912,7 +922,13 @@ export function DeleteConfirmModal({ habitName, onConfirm, onCancel }: {
   const { t } = useTranslation();
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4 bg-black/40 backdrop-blur-sm">
+    <motion.div
+      className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4"
+      initial={{ backgroundColor: 'rgba(0,0,0,0)', backdropFilter: 'blur(0px)' }}
+      animate={{ backgroundColor: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(2px)' }}
+      exit={{ backgroundColor: 'rgba(0,0,0,0)', backdropFilter: 'blur(0px)' }}
+      transition={{ duration: 0.3 }}
+    >
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -948,6 +964,171 @@ export function DeleteConfirmModal({ habitName, onConfirm, onCancel }: {
           </button>
         </div>
       </motion.div>
-    </div>
+    </motion.div>
+  );
+}
+
+export function CheckInConfirmModal({ habitName, habitIcon, streakCount, isUndo, onConfirm, onCancel }: {
+  habitName: string;
+  habitIcon?: string;
+  streakCount?: number;
+  isUndo?: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <motion.div
+      className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4"
+      initial={{ backgroundColor: 'rgba(0,0,0,0)', backdropFilter: 'blur(0px)' }}
+      animate={{ backgroundColor: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(2px)' }}
+      exit={{ backgroundColor: 'rgba(0,0,0,0)', backdropFilter: 'blur(0px)' }}
+      transition={{ duration: 0.3 }}
+      onClick={onCancel}
+    >
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 20 }}
+        className="w-full sm:max-w-sm bg-bridge-obsidian rounded-t-2xl sm:rounded-2xl border border-white/10 p-5 md:p-6 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center gap-3 mb-4">
+          <div className={`w-10 h-10 rounded-xl ${isUndo ? 'bg-amber-500/10' : 'bg-bridge-secondary/10'} flex items-center justify-center`}>
+            {isUndo ? (
+              <RotateCcw size={18} className="text-amber-400" />
+            ) : habitIcon ? (
+              <span className="text-lg">{habitIcon}</span>
+            ) : (
+              <CheckCircle2 size={18} className="text-bridge-secondary" />
+            )}
+          </div>
+          <div>
+            <h3 className="text-base font-bold text-white">
+              {isUndo
+                ? t('personal.habit.undoTitle', '완료 취소')
+                : t('personal.habit.checkInTitle', '습관 완료')}
+            </h3>
+            <p className="text-xs text-slate-400 mt-0.5">
+              {isUndo
+                ? t('personal.habit.undoSubtitle', '완료를 취소하시겠습니까?')
+                : t('personal.habit.checkInSubtitle', '오늘의 습관을 완료하시겠습니까?')}
+            </p>
+          </div>
+        </div>
+
+        <p className="text-sm text-slate-300 mb-1">
+          {isUndo
+            ? t('personal.habit.undoConfirm', { name: habitName, defaultValue: '"{{name}}"의 완료를 취소하시겠습니까?' })
+            : t('personal.habit.checkInConfirm', { name: habitName, defaultValue: '"{{name}}"을(를) 완료 처리하시겠습니까?' })}
+        </p>
+        {!isUndo && streakCount != null && streakCount > 0 && (
+          <p className="text-xs text-orange-400 mb-5 flex items-center gap-1">
+            <Flame size={12} />
+            {t('personal.habit.checkInStreak', { count: streakCount + 1, defaultValue: '완료하면 {{count}}일 연속 달성!' })}
+          </p>
+        )}
+        {(isUndo || streakCount == null || streakCount === 0) && <div className="mb-5" />}
+
+        <div className="flex gap-3">
+          <button
+            onClick={onCancel}
+            className="flex-1 py-2.5 text-sm font-bold text-slate-400 hover:text-white border border-white/10 rounded-xl hover:bg-white/5 transition-all"
+          >
+            {t('common.cancel')}
+          </button>
+          <button
+            onClick={onConfirm}
+            className={`flex-1 py-2.5 text-sm font-bold rounded-xl transition-all ${
+              isUndo
+                ? 'bg-amber-500 text-white hover:bg-amber-500/90'
+                : 'bg-bridge-secondary text-white hover:bg-bridge-secondary/90'
+            }`}
+          >
+            {isUndo
+              ? t('personal.habit.undoComplete', '취소하기')
+              : t('personal.habit.checkInComplete', '완료')}
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+export function TaskCompleteConfirmModal({ taskName, isUndo, onConfirm, onCancel }: {
+  taskName: string;
+  isUndo?: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <motion.div
+      className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4"
+      initial={{ backgroundColor: 'rgba(0,0,0,0)', backdropFilter: 'blur(0px)' }}
+      animate={{ backgroundColor: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(2px)' }}
+      exit={{ backgroundColor: 'rgba(0,0,0,0)', backdropFilter: 'blur(0px)' }}
+      transition={{ duration: 0.3 }}
+      onClick={onCancel}
+    >
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 20 }}
+        className="w-full sm:max-w-sm bg-bridge-obsidian rounded-t-2xl sm:rounded-2xl border border-white/10 p-5 md:p-6 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center gap-3 mb-4">
+          <div className={`w-10 h-10 rounded-xl ${isUndo ? 'bg-amber-500/10' : 'bg-bridge-accent/10'} flex items-center justify-center`}>
+            {isUndo ? (
+              <RotateCcw size={18} className="text-amber-400" />
+            ) : (
+              <ListTodo size={18} className="text-bridge-accent" />
+            )}
+          </div>
+          <div>
+            <h3 className="text-base font-bold text-white">
+              {isUndo
+                ? t('personal.task.undoTitle', '완료 취소')
+                : t('personal.task.completeTitle', '할 일 완료')}
+            </h3>
+            <p className="text-xs text-slate-400 mt-0.5">
+              {isUndo
+                ? t('personal.task.undoSubtitle', '완료를 취소하시겠습니까?')
+                : t('personal.task.completeSubtitle', '할 일을 완료하시겠습니까?')}
+            </p>
+          </div>
+        </div>
+
+        <p className="text-sm text-slate-300 mb-5">
+          {isUndo
+            ? t('personal.task.undoConfirm', { name: taskName, defaultValue: '"{{name}}"의 완료를 취소하시겠습니까?' })
+            : t('personal.task.completeConfirm', { name: taskName, defaultValue: '"{{name}}"을(를) 완료 처리하시겠습니까?' })}
+        </p>
+
+        <div className="flex gap-3">
+          <button
+            onClick={onCancel}
+            className="flex-1 py-2.5 text-sm font-bold text-slate-400 hover:text-white border border-white/10 rounded-xl hover:bg-white/5 transition-all"
+          >
+            {t('common.cancel')}
+          </button>
+          <button
+            onClick={onConfirm}
+            className={`flex-1 py-2.5 text-sm font-bold rounded-xl transition-all ${
+              isUndo
+                ? 'bg-amber-500 text-white hover:bg-amber-500/90'
+                : 'bg-bridge-accent text-white hover:bg-bridge-accent/90'
+            }`}
+          >
+            {isUndo
+              ? t('personal.task.undoComplete', '취소하기')
+              : t('personal.task.completeComplete', '완료')}
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
   );
 }

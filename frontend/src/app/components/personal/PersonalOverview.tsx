@@ -3,13 +3,14 @@ import { useTranslation } from 'react-i18next';
 import {
   Clock, CalendarDays, CheckCircle2, BookHeart, Sparkles,
   ArrowRight, Sun, Sunset, Moon, Loader2, Flame, Check,
-  Plus, X, ChevronDown, ChevronUp, Hash,
+  Plus, X, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { personalEventService, diaryService } from '../../utils/services';
 import { personalTaskAPI, personalHabitAPI, personalEventAPI } from '../../utils/api';
 import { getTodayDateString } from '../../utils/dateUtils';
 import { PersonalEvent, DiaryDetail, PersonalTask, HabitTodayItem, HabitFrequency } from '../../types';
+import { CheckInConfirmModal, TaskCompleteConfirmModal } from './PersonalHabits';
 
 type TabType = 'overview' | 'tasks' | 'schedule' | 'habits' | 'calendar' | 'diary';
 
@@ -290,6 +291,7 @@ function UpcomingDeadlinesWidget({
   const [isLoading, setIsLoading] = useState(true);
   const [togglingIds, setTogglingIds] = useState<Set<string>>(new Set());
   const [animatingIds, setAnimatingIds] = useState<Set<string>>(new Set());
+  const [taskConfirm, setTaskConfirm] = useState<{ id: string; title: string; isDone: boolean } | null>(null);
 
   const today = new Date(todayDate + 'T00:00:00');
 
@@ -496,7 +498,7 @@ function UpcomingDeadlinesWidget({
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (!isToggling && !isAnimating) handleToggleTask(item.id, isDone);
+                    if (!isToggling && !isAnimating) setTaskConfirm({ id: item.id, title: item.title, isDone });
                   }}
                   disabled={isToggling || isAnimating}
                   className="flex-shrink-0 w-[18px] h-[18px] relative overflow-visible"
@@ -607,6 +609,21 @@ function UpcomingDeadlinesWidget({
           )}
         </div>
       )}
+
+      {/* Task Complete Confirm Modal */}
+      <AnimatePresence>
+        {taskConfirm && (
+          <TaskCompleteConfirmModal
+            taskName={taskConfirm.title}
+            isUndo={taskConfirm.isDone}
+            onConfirm={() => {
+              handleToggleTask(taskConfirm.id, taskConfirm.isDone);
+              setTaskConfirm(null);
+            }}
+            onCancel={() => setTaskConfirm(null)}
+          />
+        )}
+      </AnimatePresence>
     </WidgetCard>
   );
 }
@@ -622,6 +639,7 @@ function HabitsTodayWidget({
   const [habits, setHabits] = useState<HabitTodayItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [checkInConfirm, setCheckInConfirm] = useState<{ id: string; isUndo: boolean } | null>(null);
 
   const loadHabits = useCallback(async () => {
     try {
@@ -647,7 +665,6 @@ function HabitsTodayWidget({
     frequency_type?: HabitFrequency;
     frequency_days?: string;
     target_count?: number;
-    unit?: string;
   }) => {
     try {
       await personalHabitAPI.create(data);
@@ -662,10 +679,11 @@ function HabitsTodayWidget({
   const totalCount = habits.length;
   const rate = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
 
-  const handleCheckIn = async (habitId: string) => {
-    // Optimistic update — immediately show checked
+  const handleCheckIn = async (habitId: string, isUndo?: boolean) => {
+    const revertTo = !!isUndo;
+    // Optimistic update
     setHabits(prev => prev.map(h =>
-      h.habit_id === habitId ? { ...h, is_completed: true } : h
+      h.habit_id === habitId ? { ...h, is_completed: !isUndo } : h
     ));
     try {
       const updated = await personalHabitAPI.checkIn(habitId);
@@ -673,7 +691,7 @@ function HabitsTodayWidget({
     } catch {
       // Revert on failure
       setHabits(prev => prev.map(h =>
-        h.habit_id === habitId ? { ...h, is_completed: false } : h
+        h.habit_id === habitId ? { ...h, is_completed: revertTo } : h
       ));
       console.error('Failed to check in');
     }
@@ -741,7 +759,7 @@ function HabitsTodayWidget({
             {habits.map(habit => (
               <button
                 key={habit.habit_id}
-                onClick={() => handleCheckIn(habit.habit_id)}
+                onClick={() => setCheckInConfirm({ id: habit.habit_id, isUndo: habit.is_completed })}
                 className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl hover:bg-white/5 transition-colors"
               >
                 {/* Check circle with animation */}
@@ -808,6 +826,26 @@ function HabitsTodayWidget({
             onCreate={handleCreateHabit}
           />
         )}
+      </AnimatePresence>
+
+      {/* Check-in Confirm Modal */}
+      <AnimatePresence>
+        {checkInConfirm && (() => {
+          const habit = habits.find(h => h.habit_id === checkInConfirm.id);
+          return (
+            <CheckInConfirmModal
+              habitName={habit?.title || ''}
+              habitIcon={habit?.icon}
+              streakCount={habit?.current_streak}
+              isUndo={checkInConfirm.isUndo}
+              onConfirm={() => {
+                handleCheckIn(checkInConfirm.id, checkInConfirm.isUndo);
+                setCheckInConfirm(null);
+              }}
+              onCancel={() => setCheckInConfirm(null)}
+            />
+          );
+        })()}
       </AnimatePresence>
     </WidgetCard>
   );
@@ -1072,7 +1110,6 @@ function OverviewCreateHabitModal({
     frequency_type?: HabitFrequency;
     frequency_days?: string;
     target_count?: number;
-    unit?: string;
   }) => void;
 }) {
   const { t } = useTranslation();
@@ -1083,9 +1120,6 @@ function OverviewCreateHabitModal({
 
   const [icon, setIcon] = useState('');
   const [color, setColor] = useState(OV_HABIT_COLORS[0]);
-  const [goalType, setGoalType] = useState<'check' | 'count'>('check');
-  const [targetCount, setTargetCount] = useState(1);
-  const [unit, setUnit] = useState('');
   const [description, setDescription] = useState('');
 
   const isValid = title.trim().length > 0 && (frequencyType !== 'CUSTOM' || customDays.length > 0);
@@ -1103,13 +1137,18 @@ function OverviewCreateHabitModal({
       color,
       frequency_type: frequencyType,
       frequency_days: frequencyType === 'CUSTOM' ? customDays.sort((a, b) => a - b).join(',') : undefined,
-      target_count: goalType === 'count' ? targetCount : 1,
-      unit: goalType === 'count' && unit.trim() ? unit.trim() : undefined,
+      target_count: 1,
     });
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4 bg-black/40 backdrop-blur-sm">
+    <motion.div
+      className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4"
+      initial={{ backgroundColor: 'rgba(0,0,0,0)', backdropFilter: 'blur(0px)' }}
+      animate={{ backgroundColor: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(2px)' }}
+      exit={{ backgroundColor: 'rgba(0,0,0,0)', backdropFilter: 'blur(0px)' }}
+      transition={{ duration: 0.3 }}
+    >
       <motion.div
         initial={{ opacity: 0, y: 20, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -1254,66 +1293,6 @@ function OverviewCreateHabitModal({
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">
-                    {t('personal.habit.goalType', 'Goal Type')}
-                  </label>
-                  <div className="flex gap-1.5">
-                    <button
-                      onClick={() => { setGoalType('check'); setTargetCount(1); setUnit(''); }}
-                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold rounded-lg transition-all ${
-                        goalType === 'check'
-                          ? 'bg-purple-500 text-white shadow-sm'
-                          : 'bg-white/5 text-slate-400 hover:bg-white/10'
-                      }`}
-                    >
-                      <CheckCircle2 size={14} />
-                      {t('personal.habit.checkOff', 'Check-off')}
-                    </button>
-                    <button
-                      onClick={() => setGoalType('count')}
-                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold rounded-lg transition-all ${
-                        goalType === 'count'
-                          ? 'bg-purple-500 text-white shadow-sm'
-                          : 'bg-white/5 text-slate-400 hover:bg-white/10'
-                      }`}
-                    >
-                      <Hash size={14} />
-                      {t('personal.habit.count', 'Count')}
-                    </button>
-                  </div>
-                </div>
-
-                {goalType === 'count' && (
-                  <div className="flex gap-3">
-                    <div className="w-24">
-                      <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-                        {t('personal.habit.target', 'Target')}
-                      </label>
-                      <input
-                        type="number"
-                        min={1}
-                        max={999}
-                        value={targetCount}
-                        onChange={(e) => setTargetCount(Math.max(1, parseInt(e.target.value) || 1))}
-                        className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all"
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-                        {t('personal.habit.unit', 'Unit')}
-                      </label>
-                      <input
-                        type="text"
-                        value={unit}
-                        onChange={(e) => setUnit(e.target.value)}
-                        placeholder={t('personal.habit.unitPlaceholder', 'e.g. glasses, pages, km')}
-                        className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-white text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                <div>
                   <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
                     {t('personal.habit.description', 'Description')}
                   </label>
@@ -1346,6 +1325,6 @@ function OverviewCreateHabitModal({
           </button>
         </div>
       </motion.div>
-    </div>
+    </motion.div>
   );
 }

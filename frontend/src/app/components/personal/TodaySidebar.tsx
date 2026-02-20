@@ -5,7 +5,7 @@ import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import { personalDashboardAPI, personalHabitAPI } from '../../utils/api';
 import { PersonalDashboardToday, PersonalTask, PersonalHabit } from '../../types';
 import { getDDay } from '../../utils/dateUtils';
-import { HabitFormModal, DeleteConfirmModal } from './PersonalHabits';
+import { HabitFormModal, DeleteConfirmModal, CheckInConfirmModal, TaskCompleteConfirmModal } from './PersonalHabits';
 import type { HabitFormData } from './PersonalHabits';
 
 interface TodaySidebarProps {
@@ -21,6 +21,7 @@ export function TodaySidebar({ tasks, onTaskClick }: TodaySidebarProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [editHabitData, setEditHabitData] = useState<PersonalHabit | null>(null);
   const [deleteHabitTarget, setDeleteHabitTarget] = useState<{ id: string; title: string } | null>(null);
+  const [checkInConfirm, setCheckInConfirm] = useState<{ id: string; isUndo: boolean } | null>(null);
 
   const loadTodayData = useCallback(async () => {
     try {
@@ -94,12 +95,18 @@ export function TodaySidebar({ tasks, onTaskClick }: TodaySidebarProps) {
       </button>
 
       {/* Mobile Overlay Backdrop */}
-      {showMobileSidebar && (
-        <div
-          className="md:hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
-          onClick={() => setShowMobileSidebar(false)}
-        />
-      )}
+      <AnimatePresence>
+        {showMobileSidebar && (
+          <motion.div
+            className="md:hidden fixed inset-0 z-50"
+            onClick={() => setShowMobileSidebar(false)}
+            initial={{ backgroundColor: 'rgba(0,0,0,0)', backdropFilter: 'blur(0px)' }}
+            animate={{ backgroundColor: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(2px)' }}
+            exit={{ backgroundColor: 'rgba(0,0,0,0)', backdropFilter: 'blur(0px)' }}
+            transition={{ duration: 0.3 }}
+          />
+        )}
+      </AnimatePresence>
 
       <div
         style={{ width: isCollapsed ? 44 : 340 }}
@@ -286,33 +293,8 @@ export function TodaySidebar({ tasks, onTaskClick }: TodaySidebarProps) {
                         >
                           <div
                             className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer"
-                            onClick={async () => {
-                              const prevCompleted = item.is_completed;
-                              // Optimistic update: toggle immediately
-                              setTodayData(prev => prev ? {
-                                ...prev,
-                                habits_today: prev.habits_today.map(h =>
-                                  h.habit_id === item.habit_id ? { ...h, is_completed: !prevCompleted } : h
-                                ),
-                              } : prev);
-                              try {
-                                const updated = await personalHabitAPI.checkIn(item.habit_id);
-                                setTodayData(prev => prev ? {
-                                  ...prev,
-                                  habits_today: prev.habits_today.map(h =>
-                                    h.habit_id === item.habit_id ? { ...h, ...updated } : h
-                                  ),
-                                } : prev);
-                              } catch {
-                                // Revert on failure
-                                setTodayData(prev => prev ? {
-                                  ...prev,
-                                  habits_today: prev.habits_today.map(h =>
-                                    h.habit_id === item.habit_id ? { ...h, is_completed: prevCompleted } : h
-                                  ),
-                                } : prev);
-                                console.error('Failed to check in habit');
-                              }
+                            onClick={() => {
+                              setCheckInConfirm({ id: item.habit_id, isUndo: item.is_completed });
                             }}
                           >
                             <motion.div
@@ -423,6 +405,51 @@ export function TodaySidebar({ tasks, onTaskClick }: TodaySidebarProps) {
             onCancel={() => setDeleteHabitTarget(null)}
           />
         )}
+      </AnimatePresence>
+
+      {/* Habit Check-in Confirm Modal */}
+      <AnimatePresence>
+        {checkInConfirm && todayData && (() => {
+          const item = todayData.habits_today.find(h => h.habit_id === checkInConfirm.id);
+          return (
+            <CheckInConfirmModal
+              habitName={item?.title || ''}
+              habitIcon={item?.icon}
+              streakCount={item?.current_streak}
+              isUndo={checkInConfirm.isUndo}
+              onConfirm={async () => {
+                const habitId = checkInConfirm.id;
+                const isUndo = checkInConfirm.isUndo;
+                setCheckInConfirm(null);
+                const revertTo = !!isUndo;
+                // Optimistic update
+                setTodayData(prev => prev ? {
+                  ...prev,
+                  habits_today: prev.habits_today.map(h =>
+                    h.habit_id === habitId ? { ...h, is_completed: !isUndo } : h
+                  ),
+                } : prev);
+                try {
+                  const updated = await personalHabitAPI.checkIn(habitId);
+                  setTodayData(prev => prev ? {
+                    ...prev,
+                    habits_today: prev.habits_today.map(h =>
+                      h.habit_id === habitId ? { ...h, ...updated } : h
+                    ),
+                  } : prev);
+                } catch {
+                  setTodayData(prev => prev ? {
+                    ...prev,
+                    habits_today: prev.habits_today.map(h =>
+                      h.habit_id === habitId ? { ...h, is_completed: revertTo } : h
+                    ),
+                  } : prev);
+                }
+              }}
+              onCancel={() => setCheckInConfirm(null)}
+            />
+          );
+        })()}
       </AnimatePresence>
     </>
   );

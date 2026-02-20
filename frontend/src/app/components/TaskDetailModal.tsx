@@ -494,9 +494,16 @@ export function TaskDetailModal({
           }}>
           {/* Feature color accent line */}
           <div className="h-[3px] w-full flex-shrink-0 rounded-t-lg" style={{ backgroundColor: task.feature_color }} />
-          <div className="flex flex-1 min-h-0">
+          <div className="flex flex-col md:flex-row flex-1 min-h-0">
           {/* 왼쪽: 기존 태스크 상세 */}
-          <div className="flex-1 overflow-y-auto p-6 pb-10 kanban-scrollbar">
+          <div className="flex-1 overflow-y-auto p-4 md:p-6 pb-10 kanban-scrollbar min-h-0 relative">
+          {/* 모바일 닫기 버튼 */}
+          <button
+            onClick={handleClose}
+            className="md:hidden absolute top-3 right-3 z-10 p-1 rounded-sm opacity-70 hover:opacity-100 transition-opacity text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </button>
           <DialogHeader>
             {/* 피처 & 블록 상태 표시 */}
             <div className="flex items-center gap-2 mb-3 flex-wrap">
@@ -877,11 +884,11 @@ export function TaskDetailModal({
 
           {/* 오른쪽: 댓글 패널 + 닫기 버튼 */}
           {boardId && (
-            <div className="w-[420px] border-l border-bridge-border/30 flex-shrink-0 relative z-10 bg-bridge-dark/30">
-              {/* 닫기 버튼 */}
+            <div className="w-full md:w-[420px] border-t md:border-t-0 md:border-l border-bridge-border/30 flex-1 md:flex-initial md:flex-shrink-0 relative z-10 bg-bridge-dark/30 min-h-0">
+              {/* 닫기 버튼 (데스크탑 only) */}
               <button
                 onClick={handleClose}
-                className="absolute top-3 right-3 z-10 p-1 rounded-sm opacity-70 hover:opacity-100 transition-opacity text-foreground"
+                className="hidden md:block absolute top-3 right-3 z-10 p-1 rounded-sm opacity-70 hover:opacity-100 transition-opacity text-foreground"
               >
                 <X className="h-4 w-4" />
               </button>

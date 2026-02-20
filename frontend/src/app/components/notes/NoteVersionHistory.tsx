@@ -71,7 +71,7 @@ export function NoteVersionHistory({ boardId, noteId, versionCount, canEdit, onR
         className="flex items-center gap-1 px-2 py-1 text-[10px] text-slate-400 hover:text-white hover:bg-white/5 rounded transition-colors"
       >
         <History size={10} />
-        {t('notes.versionHistory', '버전')}
+        <span className="hidden sm:inline">{t('notes.versionHistory', '버전')}</span>
         {versionCount > 0 && (
           <span className="text-bridge-accent font-semibold">{versionCount}</span>
         )}

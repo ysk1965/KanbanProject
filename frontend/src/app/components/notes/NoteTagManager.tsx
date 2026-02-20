@@ -84,7 +84,7 @@ export function NoteTagManager({
         className="flex items-center gap-1 px-2 py-1 text-[10px] text-slate-400 hover:text-white hover:bg-white/5 rounded transition-colors"
       >
         <TagIcon size={10} />
-        {t('notes.tags', '태그')}
+        <span className="hidden sm:inline">{t('notes.tags', '태그')}</span>
         {noteTags.length > 0 && (
           <span className="text-bridge-accent font-semibold">{noteTags.length}</span>
         )}

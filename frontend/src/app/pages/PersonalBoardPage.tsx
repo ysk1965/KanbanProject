@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { CalendarDays, BookHeart, ArrowLeft, LayoutGrid, Calendar, Plus, Command, Home, Loader2, Flag, Repeat } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { PersonalSchedule } from '../components/personal/PersonalSchedule';
 import { PersonalDiary } from '../components/personal/PersonalDiary';
 import { PersonalTaskBoard } from '../components/personal/PersonalTaskBoard';
@@ -100,14 +100,14 @@ export function PersonalBoardPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-bridge-dark">
+      <div className="flex items-center justify-center h-dvh bg-bridge-dark">
         <Loader2 className="w-8 h-8 animate-spin text-bridge-accent" />
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-screen bg-bridge-dark text-white selection:bg-bridge-secondary/30">
+    <div className="flex flex-col h-dvh bg-bridge-dark text-white selection:bg-bridge-secondary/30">
       {/* Header */}
       <header className="min-h-[3.5rem] md:h-16 border-b border-bridge-border flex items-center justify-between px-3 md:px-6 bg-bridge-dark shrink-0 z-30 gap-2 safe-top">
         {/* 좌측 영역 */}
@@ -204,7 +204,7 @@ export function PersonalBoardPage() {
       </nav>
 
       {/* Floating Quick Capture Button */}
-      {(activeTab === 'tasks' || activeTab === 'overview') && (
+      {activeTab === 'tasks' && (
         <button
           onClick={() => setQuickCaptureOpen(true)}
           className="fixed fab-bottom-safe right-6 w-12 h-12 md:w-14 md:h-14 rounded-full bg-bridge-accent shadow-lg shadow-bridge-accent/30 flex items-center justify-center text-white hover:bg-bridge-accent/90 hover:scale-105 active:scale-95 transition-all z-50"
@@ -214,13 +214,15 @@ export function PersonalBoardPage() {
       )}
 
       {/* Quick Capture Modal (간소화) */}
-      {quickCaptureOpen && (
-        <QuickCaptureModal
-          onClose={() => setQuickCaptureOpen(false)}
-          onSubmitTask={handleQuickCapture}
-          onSubmitHabit={handleQuickHabit}
-        />
-      )}
+      <AnimatePresence>
+        {quickCaptureOpen && (
+          <QuickCaptureModal
+            onClose={() => setQuickCaptureOpen(false)}
+            onSubmitTask={handleQuickCapture}
+            onSubmitHabit={handleQuickHabit}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -301,8 +303,14 @@ function QuickCaptureModal({ onClose, onSubmitTask, onSubmitHabit }: {
   const currentImportance = IMPORTANCE_OPTIONS.find(i => i.value === importance)!;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-start justify-center sm:pt-[20vh]"
-      onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <motion.div
+      className="fixed inset-0 z-50 flex items-end sm:items-start justify-center sm:pt-[20vh]"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+      initial={{ backgroundColor: 'rgba(0,0,0,0)', backdropFilter: 'blur(0px)' }}
+      animate={{ backgroundColor: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(2px)' }}
+      exit={{ backgroundColor: 'rgba(0,0,0,0)', backdropFilter: 'blur(0px)' }}
+      transition={{ duration: 0.3 }}
+    >
       <div className="w-full sm:max-w-lg bg-bridge-obsidian rounded-t-2xl sm:rounded-2xl border border-white/10 shadow-2xl p-4">
         {/* Type Toggle */}
         <div className="flex items-center gap-1 mb-3 bg-white/5 rounded-lg p-0.5 w-fit">
@@ -446,6 +454,6 @@ function QuickCaptureModal({ onClose, onSubmitTask, onSubmitHabit }: {
           </button>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

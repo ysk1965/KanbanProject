@@ -417,12 +417,18 @@ export function PersonalDiary() {
       </button>
 
       {/* Mobile Sidebar Overlay */}
-      {showMobileSidebar && (
-        <div
-          className="md:hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
-          onClick={() => setShowMobileSidebar(false)}
-        />
-      )}
+      <AnimatePresence>
+        {showMobileSidebar && (
+          <motion.div
+            className="md:hidden fixed inset-0 z-50"
+            onClick={() => setShowMobileSidebar(false)}
+            initial={{ backgroundColor: 'rgba(0,0,0,0)', backdropFilter: 'blur(0px)' }}
+            animate={{ backgroundColor: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(2px)' }}
+            exit={{ backgroundColor: 'rgba(0,0,0,0)', backdropFilter: 'blur(0px)' }}
+            transition={{ duration: 0.3 }}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Sidebar - Calendar & Diary List */}
       <div className={`
@@ -684,7 +690,7 @@ export function PersonalDiary() {
             <div className="max-w-2xl mx-auto">
               <div className="flex items-center justify-between mb-4 md:mb-6 gap-3">
                 <div className="min-w-0">
-                  <h2 className="text-lg md:text-2xl font-bold font-serif text-white mb-1 truncate">
+                  <h2 className="text-lg md:text-2xl font-bold font-jakarta text-white mb-1 truncate">
                     {diary.title || t('personal.diary.diaryOf', { date: formatDate(diary.diary_date) })}
                   </h2>
                   {diary.mood && (
@@ -942,50 +948,59 @@ export function PersonalDiary() {
       </div>
 
       {/* Reset Confirm Modal */}
-      {showResetConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowResetConfirm(false)} />
+      <AnimatePresence>
+        {showResetConfirm && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.15 }}
-            className="relative bg-bridge-obsidian rounded-2xl border border-white/10 p-6 shadow-2xl max-w-sm w-full mx-4"
+            className="fixed inset-0 z-50 flex items-center justify-center"
+            onClick={() => setShowResetConfirm(false)}
+            initial={{ backgroundColor: 'rgba(0,0,0,0)', backdropFilter: 'blur(0px)' }}
+            animate={{ backgroundColor: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(2px)' }}
+            exit={{ backgroundColor: 'rgba(0,0,0,0)', backdropFilter: 'blur(0px)' }}
+            transition={{ duration: 0.3 }}
           >
-            <button
-              onClick={() => setShowResetConfirm(false)}
-              className="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors"
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.15 }}
+              className="relative bg-bridge-obsidian rounded-2xl border border-white/10 p-6 shadow-2xl max-w-sm w-full mx-4"
+              onClick={(e) => e.stopPropagation()}
             >
-              <X size={18} />
-            </button>
+              <button
+                onClick={() => setShowResetConfirm(false)}
+                className="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors"
+              >
+                <X size={18} />
+              </button>
 
-            <div className="flex flex-col items-center text-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center">
-                <AlertTriangle size={22} className="text-red-400" />
+              <div className="flex flex-col items-center text-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center">
+                  <AlertTriangle size={22} className="text-red-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white mb-1">{t('personal.diary.resetTitle')}</h3>
+                  <p className="text-sm text-slate-400 leading-relaxed whitespace-pre-line">
+                    {t('personal.diary.resetWarning')}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3 w-full mt-1">
+                  <button
+                    onClick={() => setShowResetConfirm(false)}
+                    className="flex-1 px-4 py-2.5 text-sm font-bold text-slate-300 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all"
+                  >
+                    {t('personal.diary.cancel')}
+                  </button>
+                  <button
+                    onClick={handleReset}
+                    className="flex-1 px-4 py-2.5 text-sm font-bold text-white bg-red-500/80 rounded-xl hover:bg-red-500 transition-all"
+                  >
+                    {t('personal.diary.restart')}
+                  </button>
+                </div>
               </div>
-              <div>
-                <h3 className="text-lg font-bold text-white mb-1">{t('personal.diary.resetTitle')}</h3>
-                <p className="text-sm text-slate-400 leading-relaxed whitespace-pre-line">
-                  {t('personal.diary.resetWarning')}
-                </p>
-              </div>
-              <div className="flex items-center gap-3 w-full mt-1">
-                <button
-                  onClick={() => setShowResetConfirm(false)}
-                  className="flex-1 px-4 py-2.5 text-sm font-bold text-slate-300 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all"
-                >
-                  {t('personal.diary.cancel')}
-                </button>
-                <button
-                  onClick={handleReset}
-                  className="flex-1 px-4 py-2.5 text-sm font-bold text-white bg-red-500/80 rounded-xl hover:bg-red-500 transition-all"
-                >
-                  {t('personal.diary.restart')}
-                </button>
-              </div>
-            </div>
+            </motion.div>
           </motion.div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
 
       <style>{`
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }

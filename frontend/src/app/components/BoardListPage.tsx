@@ -125,10 +125,10 @@ export function BoardListPage({
               onClick={() => navigate('/')}
             >
               <div className="w-12 h-12 bg-bridge-accent rounded-xl flex items-center justify-center shadow-[0_0_25px_rgba(99,102,241,0.4)] group-hover:rotate-6 transition-all duration-500">
-                <span className="text-xl font-serif font-bold text-white">B</span>
+                <span className="text-xl font-jakarta font-bold text-white">B</span>
               </div>
               <div>
-                <h1 className="text-xl font-serif font-bold tracking-tight group-hover:text-bridge-secondary transition-colors">BRIDGE</h1>
+                <h1 className="text-xl font-jakarta font-bold tracking-tight group-hover:text-bridge-secondary transition-colors">BRIDGE</h1>
                 {!hideBilling && (
                   <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
                     <span className="px-2 py-0.5 bg-bridge-accent/20 text-bridge-secondary rounded-full text-[10px] font-bold tracking-wider uppercase">
@@ -165,7 +165,7 @@ export function BoardListPage({
               <div className="p-2 bg-yellow-500/10 rounded-lg">
                 <Star className="h-5 w-5 text-yellow-500" />
               </div>
-              <h2 className="text-lg font-serif font-bold text-foreground tracking-tight">
+              <h2 className="text-lg font-jakarta font-bold text-foreground tracking-tight">
                 Starred Boards
               </h2>
             </div>
@@ -184,13 +184,13 @@ export function BoardListPage({
           </section>
         )}
 
-        {/* 내 보드 */}
+        {/* 마이스페이스 */}
         <section>
           <div className="flex items-center gap-3 mb-6">
             <div className="p-2 bg-bridge-accent/10 rounded-lg">
               <LayoutGrid className="h-5 w-5 text-bridge-accent" />
             </div>
-            <h2 className="text-lg font-serif font-bold text-foreground tracking-tight">Your Boards</h2>
+            <h2 className="text-lg font-jakarta font-bold text-foreground tracking-tight">Your Boards</h2>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {boards.map((board) => (
@@ -266,7 +266,7 @@ export function BoardListPage({
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent className="bg-bridge-obsidian border-white/20">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-foreground font-serif">Delete Board</AlertDialogTitle>
+            <AlertDialogTitle className="text-foreground font-jakarta">Delete Board</AlertDialogTitle>
             <AlertDialogDescription className="text-slate-400">
               Are you sure you want to delete "{selectedBoard?.name}"? This action cannot be undone and all data including tasks, features, and members will be permanently removed.
             </AlertDialogDescription>

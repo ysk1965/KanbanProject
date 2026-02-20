@@ -44,7 +44,7 @@ VALUES (
   'aaaaaaaa-0000-0000-0000-000000000001',
   'TEAM',
   'STANDARD',
-  8,
+  10,
   TIME '09:00:00',
   'TIME',
   TIMESTAMP '2025-06-01 00:00:00',

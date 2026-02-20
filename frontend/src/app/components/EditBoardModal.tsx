@@ -52,7 +52,7 @@ export function EditBoardModal({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="bg-bridge-obsidian text-foreground border-white/10 max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-foreground font-serif">Edit Board</DialogTitle>
+          <DialogTitle className="text-foreground font-jakarta">Edit Board</DialogTitle>
           <DialogDescription className="text-slate-400">
             Update your board information
           </DialogDescription>

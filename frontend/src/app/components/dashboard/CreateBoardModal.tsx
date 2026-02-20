@@ -56,7 +56,7 @@ export function CreateBoardModal({ isOpen, onClose, onCreate, hasPersonalSpace, 
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) handleClose(); }}>
-      <DialogContent className="bg-bridge-obsidian text-foreground border-white/20 p-0 gap-0 [&>button:last-child]:hidden overflow-hidden rounded-2xl" style={{ maxWidth: 'min(calc(100vw - 2rem), 64rem)' }}>
+      <DialogContent className="bg-bridge-obsidian text-foreground border-white/20 p-0 gap-0 [&>button:last-child]:hidden overflow-hidden rounded-2xl" style={{ maxWidth: 'min(calc(100vw - 2rem), 32rem)' }}>
         <DialogTitle className="sr-only">{t('dashboard.createNewBoard')}</DialogTitle>
 
         {step === 'select' ? (

@@ -252,7 +252,7 @@
   "dashboard": {
     "sidebar": {
       "allBoards": "All Boards",
-      "myBoard": "My Board",
+      "myBoard": "My Space",
       "settings": "Settings",
       "upgradePro": "Upgrade Pro",
       "upgradeDesc": "Try unlimited boards and advanced analytics.",
@@ -2692,7 +2692,12 @@
       "importance": "Importance",
       "important": "Important",
       "normal": "Normal",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "checkInTitle": "Complete Habit",
+      "checkInSubtitle": "Mark this habit as done for today?",
+      "checkInConfirm": "Complete \"{{name}}\" for today?",
+      "checkInStreak": "This will be a {{count}}-day streak!",
+      "checkInComplete": "Complete"
     },
     "calendar": {
       "task": "Task",
@@ -2842,6 +2847,7 @@
       "dayThu": "Thu",
       "dayFri": "Fri",
       "daySat": "Sat",
+      "overlapWarning": "Overlaps with {{count}} event(s)",
       "weekSun": "Sun",
       "weekMon": "Mon",
       "weekTue": "Tue",

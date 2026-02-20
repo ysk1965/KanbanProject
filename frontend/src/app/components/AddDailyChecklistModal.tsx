@@ -489,7 +489,7 @@ export function AddDailyChecklistModal({
 
   return (
     <Dialog open onOpenChange={() => handleClose()}>
-      <DialogContent className="bg-bridge-dark text-foreground border-white/10 max-w-7xl w-[92vw] max-h-[85vh] flex flex-col p-0 gap-0 [&>button:last-child]:hidden overflow-hidden rounded-2xl">
+      <DialogContent className="bg-bridge-dark text-foreground border-white/10 max-w-[1800px] w-[96vw] max-h-[85vh] flex flex-col p-0 gap-0 [&>button:last-child]:hidden overflow-hidden rounded-2xl">
         <DialogTitle className="sr-only">{t('dailyChecklist.addTitle')}</DialogTitle>
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">

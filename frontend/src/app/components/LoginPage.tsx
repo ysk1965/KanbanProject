@@ -208,12 +208,12 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
         <div className="absolute -top-20 -right-20 w-40 h-40 bg-bridge-secondary opacity-[0.04] blur-[60px] rounded-full"></div>
         <div className="absolute -bottom-16 -left-16 w-32 h-32 bg-bridge-accent opacity-[0.05] blur-[50px] rounded-full"></div>
 
-        {/* Banner */}
+        {/* Icon */}
         <div className="mb-8 sm:mb-10 flex justify-center">
           <img
-            src="/banner.png"
+            src="/BridgeSpotsIcon.png"
             alt="BRIDGE SPOTS"
-            className="h-14 sm:h-[72px] object-contain drop-shadow-[0_0_20px_rgba(45,212,191,0.15)]"
+            className="h-16 sm:h-20 object-contain drop-shadow-[0_0_20px_rgba(45,212,191,0.15)]"
           />
         </div>
 

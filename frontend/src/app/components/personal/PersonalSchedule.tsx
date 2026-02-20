@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronLeft, ChevronRight, Plus, Trash2, X, Loader2, Settings, RotateCw, CalendarDays, Clock, CheckCircle2, ListTodo, AlertCircle, Search, Flame, ChevronDown, ChevronUp, Hash } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Trash2, X, Loader2, Settings, RotateCw, CalendarDays, Clock, CheckCircle2, ListTodo, AlertCircle, Search, Flame, ChevronDown, ChevronUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { personalEventService, personalTaskService } from '../../utils/services';
 import { personalHabitAPI } from '../../utils/api';
+import { CheckInConfirmModal } from './PersonalHabits';
 import { formatDate } from '../../utils/dateUtils';
 import type { PersonalEvent, PersonalTask, PersonalTaskPriority, PersonalHabit, HabitWeeklyRow, HabitFrequency } from '../../types';
 import {
@@ -32,6 +33,51 @@ const PRIORITY_DOT: Record<string, string> = {
   MEDIUM: 'bg-amber-400',
   HIGH: 'bg-orange-500', URGENT: 'bg-red-500',
 };
+
+function ColorDropdown({ color, onChange, colors = EVENT_COLORS }: { color: string; onChange: (c: string) => void; colors?: string[] }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-2 px-3 py-2 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all"
+      >
+        <span className="w-5 h-5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+        <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full mt-1 z-50 bg-bridge-obsidian border border-white/10 rounded-xl p-2 shadow-2xl">
+          <div className="grid grid-cols-4 gap-1.5">
+            {colors.map((c) => (
+              <button
+                key={c}
+                onClick={() => { onChange(c); setOpen(false); }}
+                className={`w-7 h-7 rounded-full transition-all ${
+                  color === c
+                    ? 'ring-2 ring-white ring-offset-2 ring-offset-bridge-obsidian scale-110'
+                    : 'hover:scale-110'
+                }`}
+                style={{ backgroundColor: c }}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 const SLOT_HEIGHT = 40;
 const DEFAULT_START_HOUR = 7;
@@ -104,6 +150,8 @@ export function PersonalSchedule() {
 
   // Habit create modal
   const [isCreateHabitOpen, setIsCreateHabitOpen] = useState(false);
+  // Habit confirm modal
+  const [habitConfirm, setHabitConfirm] = useState<{ habitId: string; date: string; isUndo: boolean; title: string; icon?: string } | null>(null);
 
   // Mobile sidebar
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
@@ -239,7 +287,6 @@ export function PersonalSchedule() {
     frequency_type?: HabitFrequency;
     frequency_days?: string;
     target_count?: number;
-    unit?: string;
   }) => {
     try {
       await personalHabitAPI.create(data);
@@ -657,12 +704,18 @@ export function PersonalSchedule() {
       </button>
 
       {/* Mobile Overlay Backdrop */}
-      {showMobileSidebar && (
-        <div
-          className="md:hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
-          onClick={() => setShowMobileSidebar(false)}
-        />
-      )}
+      <AnimatePresence>
+        {showMobileSidebar && (
+          <motion.div
+            className="md:hidden fixed inset-0 z-50"
+            onClick={() => setShowMobileSidebar(false)}
+            initial={{ backgroundColor: 'rgba(0,0,0,0)', backdropFilter: 'blur(0px)' }}
+            animate={{ backgroundColor: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(2px)' }}
+            exit={{ backgroundColor: 'rgba(0,0,0,0)', backdropFilter: 'blur(0px)' }}
+            transition={{ duration: 0.3 }}
+          />
+        )}
+      </AnimatePresence>
 
       {/* ======== Left Sidebar ======== */}
       <div className={`
@@ -1120,7 +1173,7 @@ export function PersonalSchedule() {
                               ? 'bg-bridge-secondary/10 border-l-[3px] border-bridge-secondary/40'
                               : 'bg-purple-400/10 border-l-[3px] border-purple-400/60 hover:bg-purple-400/15'
                           }`}
-                          onClick={() => handleHabitCheckIn(item.habit_id, ds)}
+                          onClick={() => setHabitConfirm({ habitId: item.habit_id, date: ds, isUndo: item.is_completed, title: item.title, icon: item.icon })}
                         >
                           <div
                             className={`w-3 h-3 rounded-full border flex items-center justify-center flex-shrink-0 transition-all ${
@@ -1379,6 +1432,7 @@ export function PersonalSchedule() {
             initialStartTime={createStartTime}
             initialEndTime={createEndTime}
             initialRecurrenceRule={createInitialRecurrence}
+            existingEvents={events}
             onClose={() => setIsCreateOpen(false)}
             onCreate={handleCreateEvent}
           />
@@ -1403,6 +1457,7 @@ export function PersonalSchedule() {
         {editEvent && (
           <EventDetailModal
             event={editEvent}
+            existingEvents={events}
             onClose={() => setEditEvent(null)}
             onDelete={handleDeleteEvent}
             onUpdate={handleUpdateEvent}
@@ -1418,6 +1473,22 @@ export function PersonalSchedule() {
           />
         )}
       </AnimatePresence>
+
+      {/* Habit Check-in Confirm Modal */}
+      <AnimatePresence>
+        {habitConfirm && (
+          <CheckInConfirmModal
+            habitName={habitConfirm.title}
+            habitIcon={habitConfirm.icon}
+            isUndo={habitConfirm.isUndo}
+            onConfirm={() => {
+              handleHabitCheckIn(habitConfirm.habitId, habitConfirm.date);
+              setHabitConfirm(null);
+            }}
+            onCancel={() => setHabitConfirm(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -1425,11 +1496,30 @@ export function PersonalSchedule() {
 /* ================================================================
    Create Event Modal
    ================================================================ */
+function getOverlappingEvents(
+  events: PersonalEvent[],
+  date: string,
+  startTime: string,
+  endTime: string,
+  excludeId?: string,
+): PersonalEvent[] {
+  if (!startTime || !endTime) return [];
+  return events.filter((ev) => {
+    if (ev.id === excludeId) return false;
+    if (ev.event_date !== date) return false;
+    if (!ev.start_time || !ev.end_time) return false;
+    const evStart = ev.start_time.slice(0, 5);
+    const evEnd = ev.end_time.slice(0, 5);
+    return startTime < evEnd && endTime > evStart;
+  });
+}
+
 function CreateEventModal({
   date,
   initialStartTime,
   initialEndTime,
   initialRecurrenceRule,
+  existingEvents,
   onClose,
   onCreate,
 }: {
@@ -1437,6 +1527,7 @@ function CreateEventModal({
   initialStartTime?: string;
   initialEndTime?: string;
   initialRecurrenceRule?: string;
+  existingEvents: PersonalEvent[];
   onClose: () => void;
   onCreate: (data: {
     title: string;
@@ -1548,10 +1639,21 @@ function CreateEventModal({
     });
   };
 
+  const overlapping = useMemo(
+    () => getOverlappingEvents(existingEvents, date, startTime, endTime),
+    [existingEvents, date, startTime, endTime],
+  );
+
   const showForm = mode === 'new' || selectedTask !== null || selectedHabit !== null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/40 backdrop-blur-sm">
+    <motion.div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4"
+      initial={{ backgroundColor: 'rgba(0,0,0,0)', backdropFilter: 'blur(0px)' }}
+      animate={{ backgroundColor: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(2px)' }}
+      exit={{ backgroundColor: 'rgba(0,0,0,0)', backdropFilter: 'blur(0px)' }}
+      transition={{ duration: 0.3 }}
+    >
       <motion.div
         initial={{ opacity: 0, y: 20, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -1782,47 +1884,58 @@ function CreateEventModal({
               </div>
             </div>
 
-            {/* Color picker */}
-            <div>
-              <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">
-                {t('personal.schedule.color')}
-              </label>
-              <div className="flex gap-2">
-                {EVENT_COLORS.map((c) => (
-                  <button
-                    key={c}
-                    onClick={() => setColor(c)}
-                    className={`w-7 h-7 rounded-full transition-all ${
-                      color === c
-                        ? 'ring-2 ring-white ring-offset-2 ring-offset-bridge-obsidian scale-110'
-                        : 'hover:scale-110'
-                    }`}
-                    style={{ backgroundColor: c }}
-                  />
-                ))}
+            {/* Overlap warning */}
+            {overlapping.length > 0 && (
+              <div className="flex items-start gap-2.5 px-3 py-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                <AlertCircle size={15} className="text-amber-400 shrink-0 mt-0.5" />
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-amber-400">
+                    {t('personal.schedule.overlapWarning', { count: overlapping.length })}
+                  </p>
+                  <div className="mt-1 space-y-0.5">
+                    {overlapping.slice(0, 3).map((ev) => (
+                      <p key={ev.id} className="text-[11px] text-amber-400/70 truncate">
+                        {ev.start_time?.slice(0, 5)}–{ev.end_time?.slice(0, 5)} {ev.title}
+                      </p>
+                    ))}
+                    {overlapping.length > 3 && (
+                      <p className="text-[11px] text-amber-400/50">
+                        +{overlapping.length - 3}
+                      </p>
+                    )}
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* Recurrence */}
-            <div>
-              <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-                {t('personal.schedule.repeat')}
-              </label>
-              <select
-                value={recurrenceRule}
-                onChange={(e) => {
-                  setRecurrenceRule(e.target.value);
-                  if (!e.target.value) {
-                    setRecurrenceDaysOfWeek([]);
-                    setRecurrenceEndDate('');
-                  }
-                }}
-                className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-white text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
-              >
-                <option value="" className="bg-bridge-obsidian">{t('personal.schedule.noRepeat')}</option>
-                <option value="DAILY" className="bg-bridge-obsidian">{t('personal.schedule.everyDay')}</option>
-                <option value="WEEKLY" className="bg-bridge-obsidian">{t('personal.schedule.everyWeek')}</option>
-              </select>
+            {/* Color + Recurrence in one row */}
+            <div className="flex gap-3 items-end">
+              <div className="shrink-0">
+                <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
+                  {t('personal.schedule.color')}
+                </label>
+                <ColorDropdown color={color} onChange={setColor} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
+                  {t('personal.schedule.repeat')}
+                </label>
+                <select
+                  value={recurrenceRule}
+                  onChange={(e) => {
+                    setRecurrenceRule(e.target.value);
+                    if (!e.target.value) {
+                      setRecurrenceDaysOfWeek([]);
+                      setRecurrenceEndDate('');
+                    }
+                  }}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-white text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+                >
+                  <option value="" className="bg-bridge-obsidian">{t('personal.schedule.noRepeat')}</option>
+                  <option value="DAILY" className="bg-bridge-obsidian">{t('personal.schedule.everyDay')}</option>
+                  <option value="WEEKLY" className="bg-bridge-obsidian">{t('personal.schedule.everyWeek')}</option>
+                </select>
+              </div>
             </div>
 
             {recurrenceRule === 'WEEKLY' && (
@@ -1907,7 +2020,7 @@ function CreateEventModal({
           )}
         </div>
       </motion.div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -1916,11 +2029,13 @@ function CreateEventModal({
    ================================================================ */
 function EventDetailModal({
   event,
+  existingEvents,
   onClose,
   onDelete,
   onUpdate,
 }: {
   event: PersonalEvent;
+  existingEvents: PersonalEvent[];
   onClose: () => void;
   onDelete: (id: string, scope?: string) => void;
   onUpdate: (
@@ -1944,6 +2059,11 @@ function EventDetailModal({
   const [color, setColor] = useState(event.color);
   const [showDeleteScope, setShowDeleteScope] = useState(false);
 
+  const overlapping = useMemo(
+    () => getOverlappingEvents(existingEvents, event.event_date, startTime, endTime, event.id),
+    [existingEvents, event.event_date, event.id, startTime, endTime],
+  );
+
   const handleSave = () => {
     if (!title.trim()) return;
     onUpdate(event.id, {
@@ -1957,7 +2077,13 @@ function EventDetailModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/40 backdrop-blur-sm">
+    <motion.div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4"
+      initial={{ backgroundColor: 'rgba(0,0,0,0)', backdropFilter: 'blur(0px)' }}
+      animate={{ backgroundColor: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(2px)' }}
+      exit={{ backgroundColor: 'rgba(0,0,0,0)', backdropFilter: 'blur(0px)' }}
+      transition={{ duration: 0.3 }}
+    >
       <motion.div
         initial={{ opacity: 0, y: 20, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -2085,25 +2211,36 @@ function EventDetailModal({
             </div>
           </div>
 
+          {/* Overlap warning */}
+          {overlapping.length > 0 && (
+            <div className="flex items-start gap-2.5 px-3 py-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+              <AlertCircle size={15} className="text-amber-400 shrink-0 mt-0.5" />
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-amber-400">
+                  {t('personal.schedule.overlapWarning', { count: overlapping.length })}
+                </p>
+                <div className="mt-1 space-y-0.5">
+                  {overlapping.slice(0, 3).map((ev) => (
+                    <p key={ev.id} className="text-[11px] text-amber-400/70 truncate">
+                      {ev.start_time?.slice(0, 5)}–{ev.end_time?.slice(0, 5)} {ev.title}
+                    </p>
+                  ))}
+                  {overlapping.length > 3 && (
+                    <p className="text-[11px] text-amber-400/50">
+                      +{overlapping.length - 3}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Color */}
           <div>
             <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">
               {t('personal.schedule.color')}
             </label>
-            <div className="flex gap-2">
-              {EVENT_COLORS.map((c) => (
-                <button
-                  key={c}
-                  onClick={() => setColor(c)}
-                  className={`w-7 h-7 rounded-full transition-all ${
-                    color === c
-                      ? 'ring-2 ring-white ring-offset-2 ring-offset-bridge-obsidian scale-110'
-                      : 'hover:scale-110'
-                  }`}
-                  style={{ backgroundColor: c }}
-                />
-              ))}
-            </div>
+            <ColorDropdown color={color} onChange={setColor} />
           </div>
         </div>
 
@@ -2124,7 +2261,7 @@ function EventDetailModal({
           </button>
         </div>
       </motion.div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -2156,7 +2293,13 @@ function ScheduleSettingsModal({
   const fmtHour = (h: number) => `${h.toString().padStart(2, '0')}:00`;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/40 backdrop-blur-sm">
+    <motion.div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4"
+      initial={{ backgroundColor: 'rgba(0,0,0,0)', backdropFilter: 'blur(0px)' }}
+      animate={{ backgroundColor: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(2px)' }}
+      exit={{ backgroundColor: 'rgba(0,0,0,0)', backdropFilter: 'blur(0px)' }}
+      transition={{ duration: 0.3 }}
+    >
       <motion.div
         initial={{ opacity: 0, y: 20, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -2234,7 +2377,7 @@ function ScheduleSettingsModal({
           </button>
         </div>
       </motion.div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -2277,7 +2420,6 @@ function CreateHabitModal({
     frequency_type?: HabitFrequency;
     frequency_days?: string;
     target_count?: number;
-    unit?: string;
   }) => void;
 }) {
   const { t } = useTranslation();
@@ -2289,9 +2431,6 @@ function CreateHabitModal({
   // Advanced fields
   const [icon, setIcon] = useState('');
   const [color, setColor] = useState(HABIT_COLORS[0]);
-  const [goalType, setGoalType] = useState<'check' | 'count'>('check');
-  const [targetCount, setTargetCount] = useState(1);
-  const [unit, setUnit] = useState('');
   const [description, setDescription] = useState('');
 
   const frequencyLabels: Record<HabitFrequency, string> = {
@@ -2316,13 +2455,18 @@ function CreateHabitModal({
       color,
       frequency_type: frequencyType,
       frequency_days: frequencyType === 'CUSTOM' ? customDays.sort((a, b) => a - b).join(',') : undefined,
-      target_count: goalType === 'count' ? targetCount : 1,
-      unit: goalType === 'count' && unit.trim() ? unit.trim() : undefined,
+      target_count: 1,
     });
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/40 backdrop-blur-sm">
+    <motion.div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4"
+      initial={{ backgroundColor: 'rgba(0,0,0,0)', backdropFilter: 'blur(0px)' }}
+      animate={{ backgroundColor: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(2px)' }}
+      exit={{ backgroundColor: 'rgba(0,0,0,0)', backdropFilter: 'blur(0px)' }}
+      transition={{ duration: 0.3 }}
+    >
       <motion.div
         initial={{ opacity: 0, y: 20, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -2454,83 +2598,8 @@ function CreateHabitModal({
                   <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">
                     {t('personal.habit.color')}
                   </label>
-                  <div className="flex gap-2">
-                    {HABIT_COLORS.map((c) => (
-                      <button
-                        key={c}
-                        onClick={() => setColor(c)}
-                        className={`w-7 h-7 rounded-full transition-all ${
-                          color === c
-                            ? 'ring-2 ring-white ring-offset-2 ring-offset-bridge-obsidian scale-110'
-                            : 'hover:scale-110'
-                        }`}
-                        style={{ backgroundColor: c }}
-                      />
-                    ))}
-                  </div>
+                  <ColorDropdown color={color} onChange={setColor} colors={HABIT_COLORS} />
                 </div>
-
-                {/* Goal Type */}
-                <div>
-                  <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">
-                    {t('personal.habit.goalType')}
-                  </label>
-                  <div className="flex gap-1.5">
-                    <button
-                      onClick={() => { setGoalType('check'); setTargetCount(1); setUnit(''); }}
-                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold rounded-lg transition-all ${
-                        goalType === 'check'
-                          ? 'bg-purple-500 text-white shadow-sm'
-                          : 'bg-white/5 text-slate-400 hover:bg-white/10'
-                      }`}
-                    >
-                      <CheckCircle2 size={14} />
-                      {t('personal.habit.checkOff')}
-                    </button>
-                    <button
-                      onClick={() => setGoalType('count')}
-                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold rounded-lg transition-all ${
-                        goalType === 'count'
-                          ? 'bg-purple-500 text-white shadow-sm'
-                          : 'bg-white/5 text-slate-400 hover:bg-white/10'
-                      }`}
-                    >
-                      <Hash size={14} />
-                      {t('personal.habit.count')}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Target Count + Unit (only for count goal) */}
-                {goalType === 'count' && (
-                  <div className="flex gap-3">
-                    <div className="w-24">
-                      <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-                        {t('personal.habit.target')}
-                      </label>
-                      <input
-                        type="number"
-                        min={1}
-                        max={999}
-                        value={targetCount}
-                        onChange={(e) => setTargetCount(Math.max(1, parseInt(e.target.value) || 1))}
-                        className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all"
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-                        {t('personal.habit.unit')}
-                      </label>
-                      <input
-                        type="text"
-                        value={unit}
-                        onChange={(e) => setUnit(e.target.value)}
-                        placeholder={t('personal.habit.unitPlaceholder')}
-                        className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-white text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all"
-                      />
-                    </div>
-                  </div>
-                )}
 
                 {/* Description */}
                 <div>
@@ -2567,6 +2636,6 @@ function CreateHabitModal({
           </button>
         </div>
       </motion.div>
-    </div>
+    </motion.div>
   );
 }

@@ -430,7 +430,7 @@ function CollabNoteEditor({
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Editor Header */}
-      <div className="px-6 py-3 border-b border-white/5 flex items-center justify-between">
+      <div className="px-4 sm:px-6 py-3 border-b border-white/5 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0 sm:justify-between">
         <div className="flex-1 min-w-0">
           <input
             value={title}
@@ -452,7 +452,7 @@ function CollabNoteEditor({
                 </span>
               ))}
             </div>
-            <span className="text-[10px] text-slate-500 flex items-center gap-1">
+            <span className="text-[10px] text-slate-500 flex items-center gap-1 whitespace-nowrap">
               <Clock size={10} />
               {formatDateTime(note.updated_at)}
               {note.updated_by && ` · ${note.updated_by.name}`}
@@ -460,7 +460,7 @@ function CollabNoteEditor({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0 overflow-x-auto">
           {/* Collaboration presence */}
           <CollabPresence
             status={collaboration.status}
@@ -529,7 +529,7 @@ function CollabNoteEditor({
                 ) : (
                   <Sparkles size={12} />
                 )}
-                {t('notes.aiOrganize')}
+                <span className="hidden sm:inline">{t('notes.aiOrganize')}</span>
               </button>
             </div>
           )}
@@ -544,8 +544,8 @@ function CollabNoteEditor({
               }`}
             >
               {saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
-              {t('common.save', '저장')}
-              {hasChanges && <span className="text-[10px] opacity-70">⌘S</span>}
+              <span className="hidden sm:inline">{t('common.save', '저장')}</span>
+              {hasChanges && <span className="text-[10px] opacity-70 hidden sm:inline">⌘S</span>}
             </button>
           )}
         </div>
@@ -845,7 +845,7 @@ function FallbackNoteEditor({ boardId, note, tags, canEdit, onSave, onTagsChange
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <div className="px-6 py-3 border-b border-white/5 flex items-center justify-between">
+      <div className="px-4 sm:px-6 py-3 border-b border-white/5 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0 sm:justify-between">
         <div className="flex-1 min-w-0">
           <input
             value={title}
@@ -855,7 +855,7 @@ function FallbackNoteEditor({ boardId, note, tags, canEdit, onSave, onTagsChange
             readOnly={!canEdit}
           />
           <div className="flex items-center gap-3 mt-1">
-            <span className="text-[10px] text-slate-500 flex items-center gap-1">
+            <span className="text-[10px] text-slate-500 flex items-center gap-1 whitespace-nowrap">
               <Clock size={10} />
               {formatDateTime(note.updated_at)}
               {note.updated_by && ` · ${note.updated_by.name}`}
@@ -865,7 +865,7 @@ function FallbackNoteEditor({ boardId, note, tags, canEdit, onSave, onTagsChange
             )}
           </div>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 flex-shrink-0">
           <NoteTagManager boardId={boardId} noteId={note.id} noteTags={note.tags} allTags={tags} canEdit={canEdit} onSave={(tagIds) => onSave(note.id, { tagIds })} onTagsChange={onTagsChange} />
           <NoteVersionHistory boardId={boardId} noteId={note.id} versionCount={note.version_count} canEdit={canEdit} onRestore={async () => {
             const { noteService } = await import('../../utils/services');
@@ -893,7 +893,7 @@ function FallbackNoteEditor({ boardId, note, tags, canEdit, onSave, onTagsChange
               }`}
             >
               {saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
-              {t('common.save', '저장')}
+              <span className="hidden sm:inline">{t('common.save', '저장')}</span>
             </button>
           )}
         </div>

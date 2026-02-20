@@ -34,7 +34,7 @@ public class Board extends BaseTimeEntity {
 
     @Column(name = "work_hours_per_day")
     @Builder.Default
-    private Integer workHoursPerDay = 8;
+    private Integer workHoursPerDay = 10;
 
     @Column(name = "work_start_time")
     @Builder.Default

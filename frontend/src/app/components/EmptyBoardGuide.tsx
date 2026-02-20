@@ -51,7 +51,7 @@ export function EmptyBoardGuide({ onCreateFeature }: EmptyBoardGuideProps) {
         <div className="w-14 h-14 rounded-2xl bg-bridge-accent/10 border border-bridge-accent/20 flex items-center justify-center mb-6">
           <Sparkles className="h-7 w-7 text-bridge-accent" />
         </div>
-        <h2 className="font-serif text-2xl md:text-3xl font-bold tracking-tight text-foreground mb-3">
+        <h2 className="font-jakarta text-2xl md:text-3xl font-bold tracking-tight text-foreground mb-3">
           {t('emptyBoard.heading')}
         </h2>
         <p className="text-slate-400 font-light text-sm md:text-base max-w-md text-center leading-relaxed">

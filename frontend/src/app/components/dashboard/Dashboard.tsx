@@ -1,10 +1,10 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Search, Plus, Star, LayoutGrid, LogOut, Package2, AlertTriangle, Menu, FlaskConical, CalendarDays, BookHeart, ListTodo, List, Grid3X3, ChevronRight, X, Users } from 'lucide-react';
+import { Search, Plus, Star, LayoutGrid, LogOut, Package2, AlertTriangle, Menu, FlaskConical, CalendarDays, BookHeart, ListTodo, List, Grid3X3, ChevronRight, X, Users, CheckCircle2, Flame, Clock, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
-import { Board } from '../../types';
+import { Board, PersonalDashboardToday } from '../../types';
 import { testDataAPI, personalDashboardAPI, personalSpaceAPI, resolveFileUrl } from '../../utils/api';
 import { boardService } from '../../utils/services';
 import { getInitials } from '../../utils/assigneeColor';
@@ -112,17 +112,13 @@ export function Dashboard({
   );
 
   // Personal Board Today 데이터
-  const [todayData, setTodayData] = useState<{
-    due_today_tasks: Array<{ id: string; title: string }>;
-    in_progress_tasks: Array<{ id: string; title: string }>;
-    completion_rate: number;
-  } | null>(null);
+  const [todayData, setTodayData] = useState<PersonalDashboardToday | null>(null);
 
   useEffect(() => {
     (async () => {
       try {
         const data = await personalDashboardAPI.getToday();
-        setTodayData(data as any);
+        setTodayData(data);
       } catch {
         // Personal dashboard data may not be available
       }
@@ -353,58 +349,126 @@ export function Dashboard({
           <div className="max-w-7xl mx-auto space-y-6">
 
             {/* My Space Card (My Space가 있을 때만, 모바일에서는 하단 바로 대체) */}
-            {!searchQuery && hasPersonalSpace && (
-              <motion.button
-                onClick={() => navigate('/my-board')}
-                whileHover={{ scale: 1.01 }}
-                whileTap={{ scale: 0.99 }}
-                className="hidden lg:block w-full group relative overflow-hidden rounded-2xl border border-white/[0.08] hover:border-bridge-accent/30 transition-all"
+            {!searchQuery && hasPersonalSpace && !window.location.hostname.includes('milkyway.pe.kr') && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, ease: 'easeOut' }}
+                className="hidden lg:block"
               >
-                <div className="absolute inset-0 bg-gradient-to-r from-bridge-accent/15 via-purple-500/8 to-bridge-secondary/15 opacity-50 group-hover:opacity-80 transition-opacity" />
-                <div className="relative px-5 py-4 flex items-center gap-4">
-                  <div className="flex gap-2 shrink-0">
-                    <div className="w-10 h-10 rounded-xl bg-bridge-accent/20 border border-bridge-accent/20 flex items-center justify-center">
-                      <CalendarDays size={18} className="text-bridge-accent" />
-                    </div>
-                    <div className="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-500/20 flex items-center justify-center">
-                      <BookHeart size={18} className="text-purple-400" />
-                    </div>
+                <button
+                  onClick={() => navigate('/my-board')}
+                  className="w-full group relative overflow-hidden rounded-2xl border border-white/[0.06] hover:border-bridge-secondary/25 transition-all duration-500 text-left"
+                >
+                  {/* Ambient Background */}
+                  <div className="absolute inset-0">
+                    <div className="absolute inset-0 bg-gradient-to-br from-bridge-accent/[0.07] via-purple-500/[0.04] to-bridge-secondary/[0.07]" />
+                    <div className="absolute -top-24 -right-24 w-72 h-72 rounded-full blur-[120px] bg-bridge-secondary/[0.06] group-hover:bg-bridge-secondary/[0.1] transition-all duration-700" />
+                    <div className="absolute -bottom-24 -left-24 w-56 h-56 rounded-full blur-[100px] bg-bridge-accent/[0.06] group-hover:bg-bridge-accent/[0.1] transition-all duration-700" />
                   </div>
-                  <div className="text-left flex-1 min-w-0">
-                    <h3 className="text-sm font-bold text-white mb-0.5">{t('dashboard.mySpace')}</h3>
-                    <p className="text-[11px] text-slate-500 truncate">
-                      {t('dashboard.mySpaceDesc')}
-                    </p>
-                  </div>
-                  {todayTaskCount > 0 && (
-                    <div className="shrink-0 flex items-center gap-1.5 px-2.5 py-1 bg-bridge-accent/15 rounded-lg">
-                      <ListTodo size={12} className="text-bridge-accent" />
-                      <span className="text-[11px] font-bold text-bridge-accent">{todayTaskCount}</span>
-                    </div>
-                  )}
-                  <ChevronRight size={16} className="text-slate-600 group-hover:text-white shrink-0 transition-colors" />
-                </div>
 
-                {/* Compact Progress Bar */}
-                {todayData && todayData.completion_rate > 0 && (
-                  <div className="relative px-5 pb-3">
-                    <div className="h-1 bg-white/5 rounded-full overflow-hidden">
-                      <motion.div
-                        className="h-full bg-gradient-to-r from-bridge-secondary to-bridge-accent rounded-full"
-                        initial={{ width: 0 }}
-                        animate={{ width: `${Math.round(todayData.completion_rate)}%` }}
-                        transition={{ duration: 0.8, ease: 'easeOut' }}
-                      />
+                  <div className="relative px-6 py-5">
+                    {/* Header Row */}
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-4">
+                        <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-bridge-secondary/20 to-bridge-accent/20 border border-white/10 flex items-center justify-center group-hover:border-bridge-secondary/30 transition-all duration-300">
+                          <Sparkles size={20} className="text-bridge-secondary" />
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-bold text-white font-jakarta tracking-tight">{t('dashboard.mySpace')}</h3>
+                          <p className="text-[11px] text-slate-500">{t('dashboard.mySpaceDesc')}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-medium text-slate-600 group-hover:text-slate-400 transition-colors">Open</span>
+                        <ChevronRight size={16} className="text-slate-600 group-hover:text-bridge-secondary group-hover:translate-x-0.5 transition-all duration-300" />
+                      </div>
                     </div>
+
+                    {/* Stats Row */}
+                    {todayData && (
+                      <div className="grid grid-cols-4 gap-3 mb-4">
+                        <div className="flex items-center gap-2.5 px-3 py-2.5 bg-white/[0.03] rounded-xl border border-white/[0.05] group-hover:bg-white/[0.05] group-hover:border-white/[0.08] transition-all">
+                          <div className="w-8 h-8 rounded-lg bg-bridge-accent/15 flex items-center justify-center shrink-0">
+                            <ListTodo size={14} className="text-bridge-accent" />
+                          </div>
+                          <div>
+                            <div className="text-sm font-bold text-white leading-none">{todayTaskCount}</div>
+                            <div className="text-[9px] text-slate-500 uppercase tracking-wider mt-0.5">Tasks</div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2.5 px-3 py-2.5 bg-white/[0.03] rounded-xl border border-white/[0.05] group-hover:bg-white/[0.05] group-hover:border-white/[0.08] transition-all">
+                          <div className="w-8 h-8 rounded-lg bg-orange-400/15 flex items-center justify-center shrink-0">
+                            <Flame size={14} className="text-orange-400" />
+                          </div>
+                          <div>
+                            <div className="text-sm font-bold text-white leading-none">
+                              {todayData.habits_today?.filter(h => h.is_completed).length || 0}
+                              <span className="text-slate-500 font-normal text-xs">/{todayData.habits_today?.length || 0}</span>
+                            </div>
+                            <div className="text-[9px] text-slate-500 uppercase tracking-wider mt-0.5">Habits</div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2.5 px-3 py-2.5 bg-white/[0.03] rounded-xl border border-white/[0.05] group-hover:bg-white/[0.05] group-hover:border-white/[0.08] transition-all">
+                          <div className="w-8 h-8 rounded-lg bg-purple-400/15 flex items-center justify-center shrink-0">
+                            <Clock size={14} className="text-purple-400" />
+                          </div>
+                          <div>
+                            <div className="text-sm font-bold text-white leading-none">{todayData.personal_events?.length || 0}</div>
+                            <div className="text-[9px] text-slate-500 uppercase tracking-wider mt-0.5">Events</div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2.5 px-3 py-2.5 bg-white/[0.03] rounded-xl border border-white/[0.05] group-hover:bg-white/[0.05] group-hover:border-white/[0.08] transition-all">
+                          <div className="w-8 h-8 rounded-lg bg-bridge-secondary/15 flex items-center justify-center shrink-0">
+                            <CheckCircle2 size={14} className="text-bridge-secondary" />
+                          </div>
+                          <div>
+                            <div className="text-sm font-bold text-bridge-secondary leading-none">{Math.round(todayData.task_completion_rate || 0)}%</div>
+                            <div className="text-[9px] text-slate-500 uppercase tracking-wider mt-0.5">Done</div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Dual Progress Bars */}
+                    {todayData && (
+                      <div className="flex items-center gap-4">
+                        <div className="flex-1 flex items-center gap-2">
+                          <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider w-8">Task</span>
+                          <div className="flex-1 h-1.5 bg-white/[0.04] rounded-full overflow-hidden">
+                            <motion.div
+                              className="h-full bg-gradient-to-r from-bridge-accent to-bridge-secondary rounded-full"
+                              initial={{ width: 0 }}
+                              animate={{ width: `${Math.round(todayData.task_completion_rate || 0)}%` }}
+                              transition={{ duration: 1, ease: 'easeOut' }}
+                            />
+                          </div>
+                        </div>
+                        <div className="flex-1 flex items-center gap-2">
+                          <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider w-8">Habit</span>
+                          <div className="flex-1 h-1.5 bg-white/[0.04] rounded-full overflow-hidden">
+                            <motion.div
+                              className="h-full bg-gradient-to-r from-orange-400 to-amber-400 rounded-full"
+                              initial={{ width: 0 }}
+                              animate={{ width: `${Math.round(todayData.habit_completion_rate || 0)}%` }}
+                              transition={{ duration: 1, ease: 'easeOut', delay: 0.15 }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                )}
-              </motion.button>
+                </button>
+              </motion.div>
             )}
 
             {/* Project Section Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
               <div>
-                <h1 className="text-2xl font-bold font-serif mb-0.5">{t('dashboard.yourProjects')}</h1>
+                <h1 className="text-2xl font-bold font-jakarta mb-0.5">{t('dashboard.yourProjects')}</h1>
                 <p className="text-slate-500 text-xs">
                   {t('dashboard.managingWorkspaces', { count: boards.length })}
                 </p>
@@ -608,27 +672,36 @@ export function Dashboard({
       />
 
       {/* Mobile Bottom Bar - My Space Quick Access */}
-      {hasPersonalSpace && (
+      {hasPersonalSpace && !window.location.hostname.includes('milkyway.pe.kr') && (
         <div className="fixed bottom-0 inset-x-0 z-40 lg:hidden safe-bottom">
           <div className="bg-bridge-obsidian/95 backdrop-blur-xl border-t border-white/[0.08]">
             <button
               onClick={() => navigate('/my-board')}
-              className="w-full flex items-center justify-between px-5 py-3.5 active:bg-white/5 transition-colors"
+              className="w-full flex items-center justify-between px-5 py-3 active:bg-white/5 transition-colors"
             >
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-bridge-accent/20 to-purple-500/20 border border-white/10 flex items-center justify-center">
-                  <CalendarDays size={16} className="text-bridge-accent" />
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-bridge-secondary/20 to-bridge-accent/20 border border-white/10 flex items-center justify-center">
+                  <Sparkles size={16} className="text-bridge-secondary" />
                 </div>
-                <div className="text-left">
-                  <span className="text-sm font-bold text-white">{t('dashboard.mySpace')}</span>
-                  {todayTaskCount > 0 && (
-                    <span className="ml-2 text-[10px] font-bold text-bridge-accent bg-bridge-accent/15 px-1.5 py-0.5 rounded">
-                      {todayTaskCount}
-                    </span>
-                  )}
-                </div>
+                <span className="text-sm font-bold text-white">{t('dashboard.mySpace')}</span>
               </div>
-              <ChevronRight size={16} className="text-slate-500" />
+              <div className="flex items-center gap-2">
+                {todayData && (
+                  <div className="flex items-center gap-1.5">
+                    {todayTaskCount > 0 && (
+                      <span className="text-[10px] font-bold text-bridge-accent bg-bridge-accent/15 px-1.5 py-0.5 rounded">
+                        {todayTaskCount}
+                      </span>
+                    )}
+                    {(todayData.habits_today?.length || 0) > 0 && (
+                      <span className="text-[10px] font-bold text-orange-400 bg-orange-400/15 px-1.5 py-0.5 rounded">
+                        {todayData.habits_today?.filter(h => h.is_completed).length || 0}/{todayData.habits_today?.length || 0}
+                      </span>
+                    )}
+                  </div>
+                )}
+                <ChevronRight size={16} className="text-slate-500" />
+              </div>
             </button>
           </div>
         </div>

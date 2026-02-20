@@ -39,7 +39,7 @@ export function UpgradeModal({ isOpen, onClose, memberCount = 1 }: UpgradeModalP
               <Rocket className="text-bridge-accent" size={32} />
             </div>
           </div>
-          <h2 className="mb-2 text-3xl font-bold tracking-tight font-serif text-white">
+          <h2 className="mb-2 text-3xl font-bold tracking-tight font-jakarta text-white">
             Premium으로 업그레이드
           </h2>
           <p className="text-slate-400">더 많은 기능으로 팀의 생산성을 높이세요</p>

@@ -92,7 +92,7 @@ export function Sidebar({ isOpen = true, onClose, boards = [], onSelectBoard, is
             {!isCollapsed && (
               <>
                 <div className="flex flex-col leading-none">
-                  <span className="text-lg font-bold tracking-tighter font-serif">BRIDGE</span>
+                  <span className="text-lg font-bold tracking-tighter font-jakarta">BRIDGE</span>
                   <span className="text-[9px] font-bold text-bridge-secondary tracking-[0.25em] uppercase">SPOTS</span>
                 </div>
                 <ChevronRight

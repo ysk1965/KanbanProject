@@ -76,16 +76,18 @@ export function UserMenu({ user, assigneeColor, onOpenSubscription, onLogout, hi
 
           {/* 메뉴 아이템 */}
           <div className="py-2">
-            <button
-              onClick={() => {
-                navigate('/my-board');
-                setIsOpen(false);
-              }}
-              className="w-full px-4 py-2 flex items-center gap-3 hover:bg-white/5 transition-colors text-muted-foreground hover:text-foreground"
-            >
-              <User className="h-4 w-4" />
-              <span>{t('dashboard.sidebar.myBoard', 'My Space')}</span>
-            </button>
+            {!window.location.hostname.includes('milkyway.pe.kr') && (
+              <button
+                onClick={() => {
+                  navigate('/my-board');
+                  setIsOpen(false);
+                }}
+                className="w-full px-4 py-2 flex items-center gap-3 hover:bg-white/5 transition-colors text-muted-foreground hover:text-foreground"
+              >
+                <User className="h-4 w-4" />
+                <span>{t('dashboard.sidebar.myBoard', 'My Space')}</span>
+              </button>
+            )}
 
             <button
               onClick={() => {

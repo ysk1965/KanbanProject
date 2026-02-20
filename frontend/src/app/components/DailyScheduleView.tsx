@@ -117,7 +117,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
 
   // 설정에서 시간 범위 계산
   const workStartHour = settings ? parseHour(settings.work_start_time) : 9;
-  const workEndHour = settings ? workStartHour + settings.work_hours_per_day : 18;
+  const workEndHour = settings ? workStartHour + settings.work_hours_per_day : 19;
 
   // 점심시간 계산
   const breakStartMinutes = settings?.break_start_time ? (() => {

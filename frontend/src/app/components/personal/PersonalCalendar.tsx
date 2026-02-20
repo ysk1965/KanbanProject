@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, Plus, X, Calendar, ListTodo, CalendarDays, CheckCircle2, Clock, RotateCw, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, X, Calendar, ListTodo, CalendarDays, CheckCircle2, Clock, RotateCw, Trash2, Pencil, AlertCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import { personalTaskAPI } from '../../utils/api';
@@ -30,22 +30,8 @@ const EVENT_COLORS = [
 
 const DAY_LABELS_KO = ['일', '월', '화', '수', '목', '금', '토'];
 const DAY_LABELS_EN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const DAY_LABELS_SHORT_KO = ['일', '월', '화', '수', '목', '금', '토'];
-const DAY_LABELS_SHORT_EN = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const MAX_VISIBLE_ITEMS = 3;
 
-function getWeekDays(today: Date): Date[] {
-  const dayOfWeek = today.getDay();
-  const startOfWeek = new Date(today);
-  startOfWeek.setDate(today.getDate() - dayOfWeek);
-  const days: Date[] = [];
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(startOfWeek);
-    d.setDate(startOfWeek.getDate() + i);
-    days.push(d);
-  }
-  return days;
-}
 
 interface CalendarItem {
   id: string;
@@ -74,9 +60,10 @@ export function PersonalCalendar() {
   const [events, setEvents] = useState<PersonalEvent[]>([]);
   const [modalDate, setModalDate] = useState<{ dateKey: string; date: Date } | null>(null);
 
-  // Event create modal
+  // Event create / edit modal
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [createDate, setCreateDate] = useState('');
+  const [editEvent, setEditEvent] = useState<PersonalEvent | null>(null);
 
   // ── navigation ──
   const goToPrevMonth = useCallback(() => {
@@ -221,8 +208,27 @@ export function PersonalCalendar() {
     try {
       await personalEventService.delete(eventId);
       await loadEvents();
+      if (editEvent?.id === eventId) setEditEvent(null);
     } catch (err) {
       console.error('Failed to delete event:', err);
+    }
+  };
+
+  const handleUpdateEvent = async (eventId: string, data: {
+    title?: string;
+    description?: string;
+    event_date?: string;
+    start_time?: string | null;
+    end_time?: string | null;
+    color?: string;
+    all_day?: boolean;
+  }) => {
+    try {
+      await personalEventService.update(eventId, data);
+      await loadEvents();
+      setEditEvent(null);
+    } catch (err) {
+      console.error('Failed to update event:', err);
     }
   };
 
@@ -281,21 +287,18 @@ export function PersonalCalendar() {
         </div>
       </div>
 
-      {/* Weekly mini timeline */}
-      <WeeklyTimeline
+      {/* Today's schedule */}
+      <TodaySchedule
         today={today}
         todayKey={todayKey}
         dayItemsMap={dayItemsMap}
         isKo={isKo}
-        onDayClick={(dateKey, date) => {
-          const items = dayItemsMap.get(dateKey) || [];
-          if (items.length > 0) {
-            setModalDate({ dateKey, date });
-          } else {
-            setCreateDate(dateKey);
-            setIsCreateOpen(true);
-          }
+        onViewAll={() => setModalDate({ dateKey: todayKey, date: today })}
+        onAddEvent={() => {
+          setCreateDate(todayKey);
+          setIsCreateOpen(true);
         }}
+        onEditEvent={(ev) => setEditEvent(ev)}
       />
 
       {/* Day-of-week header */}
@@ -363,25 +366,18 @@ export function PersonalCalendar() {
                     </div>
 
                     {/* Items */}
-                    <div className="px-1 md:px-1.5 pb-0.5 flex-1 space-y-0.5 overflow-hidden">
+                    <div className="flex-1 space-y-px overflow-hidden">
                       {visibleItems.map((item) => (
                         <div
                           key={item.id}
-                          className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] md:text-[11px] truncate ${
+                          className={`px-1 py-0.5 rounded text-[10px] md:text-[11px] overflow-hidden whitespace-nowrap text-center ${
                             item.isDone ? 'opacity-50' : ''
-                          } ${item.isOverdue ? 'bg-red-500/10' : ''}`}
+                          }`}
                           style={{
-                            backgroundColor: item.isOverdue ? undefined : `${item.color}15`,
-                            borderLeft: `3px solid ${item.isOverdue ? '#EF4444' : item.color}`,
+                            backgroundColor: item.isOverdue ? 'rgba(239,68,68,0.18)' : `${item.color}25`,
                           }}
                         >
-                          {item.type === 'task' ? (
-                            <ListTodo size={9} className="shrink-0 text-bridge-accent/70" />
-                          ) : (
-                            <CalendarDays size={9} className="shrink-0 text-bridge-secondary/70" />
-                          )}
-                          <span className={`truncate ${item.isDone ? 'line-through text-zinc-600' : 'text-zinc-300'}`}>
-                            {item.startTime && <span className="text-zinc-500 mr-0.5">{item.startTime}</span>}
+                          <span className={`truncate ${item.isDone ? 'line-through text-zinc-600' : 'text-zinc-200'}`}>
                             {item.title}
                           </span>
                         </div>
@@ -419,6 +415,7 @@ export function PersonalCalendar() {
             dayLabels={dayLabels}
             onClose={() => setModalDate(null)}
             onDeleteEvent={handleDeleteEvent}
+            onEditEvent={(ev) => { setEditEvent(ev); setModalDate(null); }}
             onAddEvent={() => {
               setCreateDate(modalDate.dateKey);
               setIsCreateOpen(true);
@@ -428,11 +425,25 @@ export function PersonalCalendar() {
         )}
       </AnimatePresence>
 
+      {/* ── Edit Event Modal ── */}
+      <AnimatePresence>
+        {editEvent && (
+          <EditEventModal
+            event={editEvent}
+            existingEvents={events}
+            onClose={() => setEditEvent(null)}
+            onUpdate={handleUpdateEvent}
+            onDelete={handleDeleteEvent}
+          />
+        )}
+      </AnimatePresence>
+
       {/* ── Create Event Modal ── */}
       <AnimatePresence>
         {isCreateOpen && (
           <CreateEventModal
             date={createDate}
+            existingEvents={events}
             onClose={() => setIsCreateOpen(false)}
             onCreate={handleCreateEvent}
           />
@@ -442,122 +453,137 @@ export function PersonalCalendar() {
   );
 }
 
-// ── Weekly Mini Timeline ──
+// ── Today's Schedule ──
 
-function WeeklyTimeline({
+function TodaySchedule({
   today,
   todayKey,
   dayItemsMap,
   isKo,
-  onDayClick,
+  onViewAll,
+  onAddEvent,
+  onEditEvent,
 }: {
   today: Date;
   todayKey: string;
   dayItemsMap: Map<string, CalendarItem[]>;
   isKo: boolean;
-  onDayClick: (dateKey: string, date: Date) => void;
+  onViewAll: () => void;
+  onAddEvent: () => void;
+  onEditEvent: (event: PersonalEvent) => void;
 }) {
   const { t } = useTranslation();
-  const weekDays = useMemo(() => getWeekDays(today), [today]);
-  const shortLabels = isKo ? DAY_LABELS_SHORT_KO : DAY_LABELS_SHORT_EN;
+  const items = dayItemsMap.get(todayKey) || [];
+  const MAX_PREVIEW = 3;
+  const visibleItems = items.slice(0, MAX_PREVIEW);
+  const hiddenCount = Math.max(0, items.length - MAX_PREVIEW);
 
-  // Find the max item count this week for proportional bars
-  const maxItems = useMemo(() => {
-    let max = 0;
-    weekDays.forEach((d) => {
-      const count = (dayItemsMap.get(toDateKey(d)) || []).length;
-      if (count > max) max = count;
-    });
-    return Math.max(max, 1);
-  }, [weekDays, dayItemsMap]);
+  const dateLabel = isKo
+    ? `${today.getMonth() + 1}월 ${today.getDate()}일`
+    : `${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][today.getMonth()]} ${today.getDate()}`;
 
   return (
     <div className="px-3 md:px-5 py-2.5 border-b border-white/5 shrink-0">
-      <div className="flex items-center gap-1.5 mb-2">
-        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
-          {t('personal.calendar.thisWeek', 'This Week')}
-        </span>
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
+            {t('personal.calendar.todaySchedule', "Today's Schedule")}
+          </span>
+          <span className="text-[10px] text-zinc-600">{dateLabel}</span>
+        </div>
+        {items.length > MAX_PREVIEW && (
+          <button
+            onClick={onViewAll}
+            className="text-[10px] text-bridge-accent hover:text-bridge-accent/80 font-semibold transition-colors"
+          >
+            {t('personal.calendar.viewAll', 'View all')} ({items.length})
+          </button>
+        )}
       </div>
-      <div className="grid grid-cols-7 gap-1.5">
-        {weekDays.map((date, i) => {
-          const dateKey = toDateKey(date);
-          const items = dayItemsMap.get(dateKey) || [];
-          const isToday = dateKey === todayKey;
-          const taskCount = items.filter((x) => x.type === 'task').length;
-          const eventCount = items.filter((x) => x.type === 'event').length;
-          const overdueCount = items.filter((x) => x.isOverdue).length;
-          const totalCount = items.length;
-          const barHeight = totalCount > 0 ? Math.max(4, Math.round((totalCount / maxItems) * 28)) : 0;
-          const isPast = dateKey < todayKey;
 
-          return (
-            <button
-              key={i}
-              onClick={() => onDayClick(dateKey, date)}
-              className={`flex flex-col items-center gap-0.5 py-1.5 rounded-xl transition-all ${
-                isToday
-                  ? 'bg-bridge-accent/10 ring-1 ring-bridge-accent/30'
-                  : 'hover:bg-white/5'
+      <div className="space-y-1" style={{ minHeight: `${MAX_PREVIEW * 32}px` }}>
+        {items.length === 0 ? (
+          <button
+            onClick={onAddEvent}
+            className="w-full h-full flex items-center justify-center gap-2 rounded-xl border border-dashed border-white/10 text-zinc-600 hover:text-zinc-400 hover:border-white/20 transition-colors"
+            style={{ minHeight: `${MAX_PREVIEW * 32}px` }}
+          >
+            <Plus size={14} />
+            <span className="text-xs">{t('personal.calendar.noScheduleToday', 'No schedule today — add one')}</span>
+          </button>
+        ) : (
+          <>
+          {visibleItems.map((item) => (
+            <div
+              key={item.id}
+              className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg transition-colors hover:bg-white/5 ${
+                item.isDone ? 'opacity-50' : ''
               }`}
             >
-              {/* Day label */}
-              <span className={`text-[9px] font-bold uppercase ${
-                i === 0 ? 'text-red-400/60' : i === 6 ? 'text-blue-400/60' : 'text-slate-600'
-              }`}>
-                {shortLabels[i]}
-              </span>
+              {/* Color dot / status */}
+              {item.type === 'task' ? (
+                item.isDone ? (
+                  <CheckCircle2 size={13} className="shrink-0 text-emerald-400" />
+                ) : (
+                  <div
+                    className="w-2.5 h-2.5 rounded-full shrink-0 ring-1 ring-white/10"
+                    style={{ backgroundColor: item.isOverdue ? '#EF4444' : item.color }}
+                  />
+                )
+              ) : (
+                <div
+                  className="w-2.5 h-2.5 rounded-sm shrink-0 ring-1 ring-white/10"
+                  style={{ backgroundColor: item.color }}
+                />
+              )}
 
-              {/* Date number */}
-              <span className={`text-xs font-bold leading-none ${
-                isToday
-                  ? 'text-bridge-accent'
-                  : isPast
-                    ? 'text-zinc-600'
-                    : 'text-zinc-300'
-              }`}>
-                {date.getDate()}
-              </span>
-
-              {/* Bar */}
-              <div className="w-full px-1 mt-0.5">
-                <div className="w-full h-7 flex items-end justify-center">
-                  {totalCount > 0 ? (
-                    <div
-                      className="w-full max-w-[20px] rounded-sm flex flex-col overflow-hidden transition-all"
-                      style={{ height: barHeight }}
-                    >
-                      {/* Event portion (teal) */}
-                      {eventCount > 0 && (
-                        <div
-                          className="w-full bg-bridge-secondary/60"
-                          style={{ flex: eventCount }}
-                        />
-                      )}
-                      {/* Task portion (indigo) */}
-                      {taskCount > 0 && (
-                        <div
-                          className={`w-full ${overdueCount > 0 ? 'bg-red-400/60' : 'bg-bridge-accent/60'}`}
-                          style={{ flex: taskCount }}
-                        />
-                      )}
-                    </div>
-                  ) : (
-                    <div className="w-1 h-1 rounded-full bg-white/10" />
-                  )}
-                </div>
-              </div>
-
-              {/* Count badge */}
-              {totalCount > 0 && (
-                <span className={`text-[8px] font-bold tabular-nums ${
-                  isToday ? 'text-bridge-accent' : 'text-zinc-500'
-                }`}>
-                  {totalCount}
+              {/* Time */}
+              {item.startTime ? (
+                <span className="text-[11px] text-zinc-500 tabular-nums w-10 shrink-0">{item.startTime}</span>
+              ) : (
+                <span className="text-[11px] text-zinc-700 w-10 shrink-0">
+                  {item.type === 'event' ? t('personal.calendar.allDay', 'All day') : ''}
                 </span>
               )}
+
+              {/* Title */}
+              <span className={`text-xs truncate flex-1 ${
+                item.isDone ? 'line-through text-zinc-600' : item.isOverdue ? 'text-red-300' : 'text-zinc-200'
+              }`}>
+                {item.title}
+              </span>
+
+              {/* Type badge */}
+              <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded shrink-0 ${
+                item.type === 'task'
+                  ? 'text-bridge-accent/70 bg-bridge-accent/10'
+                  : 'text-bridge-secondary/70 bg-bridge-secondary/10'
+              }`}>
+                {item.type === 'task' ? t('personal.calendar.task') : t('personal.calendar.event')}
+              </span>
+
+              {/* Edit button (event only) */}
+              {item.type === 'event' && item.event && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onEditEvent(item.event!); }}
+                  className="p-1 text-zinc-600 hover:text-bridge-accent transition-colors rounded shrink-0"
+                >
+                  <Pencil size={12} />
+                </button>
+              )}
+            </div>
+          ))}
+
+          {hiddenCount > 0 && (
+            <button
+              onClick={onViewAll}
+              className="w-full text-center text-[11px] text-zinc-500 hover:text-zinc-300 py-1 transition-colors"
+            >
+              +{hiddenCount} {t('personal.calendar.more', 'more')}
             </button>
-          );
-        })}
+          )}
+          </>
+        )}
       </div>
     </div>
   );
@@ -572,6 +598,7 @@ function DayDetailModal({
   dayLabels,
   onClose,
   onDeleteEvent,
+  onEditEvent,
   onAddEvent,
 }: {
   date: Date;
@@ -580,6 +607,7 @@ function DayDetailModal({
   dayLabels: string[];
   onClose: () => void;
   onDeleteEvent: (eventId: string) => void;
+  onEditEvent: (event: PersonalEvent) => void;
   onAddEvent: () => void;
 }) {
   const { t } = useTranslation();
@@ -587,9 +615,13 @@ function DayDetailModal({
   const eventCount = items.filter(i => i.type === 'event').length;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm"
+    <motion.div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
       onClick={onClose}
+      initial={{ backgroundColor: 'rgba(0,0,0,0)', backdropFilter: 'blur(0px)' }}
+      animate={{ backgroundColor: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(2px)' }}
+      exit={{ backgroundColor: 'rgba(0,0,0,0)', backdropFilter: 'blur(0px)' }}
+      transition={{ duration: 0.3 }}
     >
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -696,17 +728,28 @@ function DayDetailModal({
                 </div>
               </div>
 
-              {/* Delete event button */}
+              {/* Edit / Delete event buttons */}
               {item.type === 'event' && item.event && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDeleteEvent(item.event!.id);
-                  }}
-                  className="opacity-0 group-hover:opacity-100 p-1.5 text-zinc-500 hover:text-red-400 transition-all rounded-lg hover:bg-white/5"
-                >
-                  <Trash2 size={14} />
-                </button>
+                <div className="flex items-center gap-0.5 sm:opacity-0 sm:group-hover:opacity-100 transition-all">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEditEvent(item.event!);
+                    }}
+                    className="p-1.5 text-zinc-500 hover:text-bridge-accent rounded-lg hover:bg-white/5 transition-colors"
+                  >
+                    <Pencil size={14} />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDeleteEvent(item.event!.id);
+                    }}
+                    className="p-1.5 text-zinc-500 hover:text-red-400 rounded-lg hover:bg-white/5 transition-colors"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
               )}
             </div>
           ))}
@@ -735,18 +778,38 @@ function DayDetailModal({
           </span>
         </div>
       </motion.div>
-    </div>
+    </motion.div>
   );
 }
 
 // ── Create Event Modal ──
 
+function getOverlappingEvents(
+  events: PersonalEvent[],
+  date: string,
+  startTime: string,
+  endTime: string,
+  excludeId?: string,
+): PersonalEvent[] {
+  if (!startTime || !endTime) return [];
+  return events.filter((ev) => {
+    if (ev.id === excludeId) return false;
+    if (ev.event_date !== date) return false;
+    if (!ev.start_time || !ev.end_time) return false;
+    const evStart = ev.start_time.slice(0, 5);
+    const evEnd = ev.end_time.slice(0, 5);
+    return startTime < evEnd && endTime > evStart;
+  });
+}
+
 function CreateEventModal({
   date,
+  existingEvents,
   onClose,
   onCreate,
 }: {
   date: string;
+  existingEvents: PersonalEvent[];
   onClose: () => void;
   onCreate: (data: {
     title: string;
@@ -765,6 +828,11 @@ function CreateEventModal({
   const [color, setColor] = useState(EVENT_COLORS[0]);
   const [allDay, setAllDay] = useState(true);
 
+  const overlapping = useMemo(
+    () => allDay ? [] : getOverlappingEvents(existingEvents, date, startTime, endTime),
+    [existingEvents, date, startTime, endTime, allDay],
+  );
+
   const handleSubmit = () => {
     if (!title.trim()) return;
     onCreate({
@@ -778,7 +846,13 @@ function CreateEventModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/40 backdrop-blur-sm">
+    <motion.div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4"
+      initial={{ backgroundColor: 'rgba(0,0,0,0)', backdropFilter: 'blur(0px)' }}
+      animate={{ backgroundColor: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(2px)' }}
+      exit={{ backgroundColor: 'rgba(0,0,0,0)', backdropFilter: 'blur(0px)' }}
+      transition={{ duration: 0.3 }}
+    >
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -862,6 +936,30 @@ function CreateEventModal({
             </div>
           )}
 
+          {/* Overlap warning */}
+          {overlapping.length > 0 && (
+            <div className="flex items-start gap-2.5 px-3 py-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+              <AlertCircle size={15} className="text-amber-400 shrink-0 mt-0.5" />
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-amber-400">
+                  {t('personal.schedule.overlapWarning', { count: overlapping.length })}
+                </p>
+                <div className="mt-1 space-y-0.5">
+                  {overlapping.slice(0, 3).map((ev) => (
+                    <p key={ev.id} className="text-[11px] text-amber-400/70 truncate">
+                      {ev.start_time?.slice(0, 5)}–{ev.end_time?.slice(0, 5)} {ev.title}
+                    </p>
+                  ))}
+                  {overlapping.length > 3 && (
+                    <p className="text-[11px] text-amber-400/50">
+                      +{overlapping.length - 3}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Color picker */}
           <div>
             <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">{t('personal.calendar.color')}</label>
@@ -899,6 +997,218 @@ function CreateEventModal({
           </button>
         </div>
       </motion.div>
-    </div>
+    </motion.div>
+  );
+}
+
+// ── Edit Event Modal ──
+
+function EditEventModal({
+  event,
+  existingEvents,
+  onClose,
+  onUpdate,
+  onDelete,
+}: {
+  event: PersonalEvent;
+  existingEvents: PersonalEvent[];
+  onClose: () => void;
+  onUpdate: (eventId: string, data: {
+    title?: string;
+    description?: string;
+    event_date?: string;
+    start_time?: string | null;
+    end_time?: string | null;
+    color?: string;
+    all_day?: boolean;
+  }) => void;
+  onDelete: (eventId: string) => void;
+}) {
+  const { t } = useTranslation();
+  const [title, setTitle] = useState(event.title);
+  const [description, setDescription] = useState(event.description || '');
+  const [startTime, setStartTime] = useState(event.start_time?.slice(0, 5) || '');
+  const [endTime, setEndTime] = useState(event.end_time?.slice(0, 5) || '');
+  const [color, setColor] = useState(event.color || EVENT_COLORS[0]);
+  const [allDay, setAllDay] = useState(event.all_day);
+
+  const overlapping = useMemo(
+    () => allDay ? [] : getOverlappingEvents(existingEvents, event.event_date, startTime, endTime, event.id),
+    [existingEvents, event.event_date, event.id, startTime, endTime, allDay],
+  );
+
+  const handleSave = () => {
+    if (!title.trim()) return;
+    onUpdate(event.id, {
+      title: title.trim(),
+      description: description.trim() || undefined,
+      event_date: event.event_date,
+      start_time: allDay ? null : (startTime || null),
+      end_time: allDay ? null : (endTime || null),
+      color,
+      all_day: allDay,
+    });
+  };
+
+  return (
+    <motion.div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4"
+      onClick={onClose}
+      initial={{ backgroundColor: 'rgba(0,0,0,0)', backdropFilter: 'blur(0px)' }}
+      animate={{ backgroundColor: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(2px)' }}
+      exit={{ backgroundColor: 'rgba(0,0,0,0)', backdropFilter: 'blur(0px)' }}
+      transition={{ duration: 0.3 }}
+    >
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 20 }}
+        className="w-full sm:max-w-md bg-bridge-obsidian rounded-t-2xl sm:rounded-2xl border border-white/10 p-5 md:p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-lg font-bold text-white">{t('personal.calendar.editEvent', 'Edit Event')}</h3>
+          <button onClick={onClose} className="p-1 text-slate-400 hover:text-white transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          {/* Date (read-only) */}
+          <div>
+            <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">{t('personal.calendar.date')}</label>
+            <div className="text-sm text-white/80 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5">
+              {formatDate(event.event_date)}
+            </div>
+          </div>
+
+          {/* Title */}
+          <div>
+            <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">{t('personal.calendar.title')}</label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+              className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-white text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+              autoFocus
+            />
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">{t('personal.calendar.description')}</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder={t('personal.calendar.optionalDesc')}
+              rows={2}
+              className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-white text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all resize-none"
+            />
+          </div>
+
+          {/* All-day toggle */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setAllDay(!allDay)}
+              className={`relative w-10 h-5 rounded-full transition-colors ${allDay ? 'bg-bridge-accent' : 'bg-white/10'}`}
+            >
+              <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${allDay ? 'left-5' : 'left-0.5'}`} />
+            </button>
+            <span className="text-sm text-slate-300">{t('personal.calendar.allDay')}</span>
+          </div>
+
+          {/* Time inputs */}
+          {!allDay && (
+            <div className="flex gap-3">
+              <div className="flex-1">
+                <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">{t('personal.calendar.start')}</label>
+                <input
+                  type="time"
+                  value={startTime}
+                  onChange={(e) => setStartTime(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-white text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all [color-scheme:dark]"
+                />
+              </div>
+              <div className="flex-1">
+                <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">{t('personal.calendar.end')}</label>
+                <input
+                  type="time"
+                  value={endTime}
+                  onChange={(e) => setEndTime(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-white text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all [color-scheme:dark]"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Overlap warning */}
+          {overlapping.length > 0 && (
+            <div className="flex items-start gap-2.5 px-3 py-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+              <AlertCircle size={15} className="text-amber-400 shrink-0 mt-0.5" />
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-amber-400">
+                  {t('personal.schedule.overlapWarning', { count: overlapping.length })}
+                </p>
+                <div className="mt-1 space-y-0.5">
+                  {overlapping.slice(0, 3).map((ev) => (
+                    <p key={ev.id} className="text-[11px] text-amber-400/70 truncate">
+                      {ev.start_time?.slice(0, 5)}–{ev.end_time?.slice(0, 5)} {ev.title}
+                    </p>
+                  ))}
+                  {overlapping.length > 3 && (
+                    <p className="text-[11px] text-amber-400/50">
+                      +{overlapping.length - 3}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Color picker */}
+          <div>
+            <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">{t('personal.calendar.color')}</label>
+            <div className="flex gap-2">
+              {EVENT_COLORS.map((c) => (
+                <button
+                  key={c}
+                  onClick={() => setColor(c)}
+                  className={`w-7 h-7 rounded-full transition-all ${
+                    color === c
+                      ? 'ring-2 ring-white ring-offset-2 ring-offset-bridge-obsidian scale-110'
+                      : 'hover:scale-110'
+                  }`}
+                  style={{ backgroundColor: c }}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-3 mt-6">
+          <button
+            onClick={() => onDelete(event.id)}
+            className="py-3 px-4 text-sm font-bold text-red-400 border border-red-400/20 rounded-xl hover:bg-red-400/10 transition-all"
+          >
+            <Trash2 size={16} />
+          </button>
+          <button
+            onClick={onClose}
+            className="flex-1 py-3 text-sm font-bold text-slate-400 hover:text-white border border-white/10 rounded-xl hover:bg-white/5 transition-all"
+          >
+            {t('common.cancel')}
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={!title.trim()}
+            className="flex-1 py-3 bg-bridge-accent text-white text-sm font-bold rounded-xl hover:bg-bridge-accent/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+          >
+            {t('common.save', 'Save')}
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
   );
 }

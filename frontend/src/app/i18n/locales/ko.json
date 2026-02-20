@@ -252,7 +252,7 @@
   "dashboard": {
     "sidebar": {
       "allBoards": "모든 보드",
-      "myBoard": "내 보드",
+      "myBoard": "마이 스페이스",
       "settings": "설정",
       "upgradePro": "프리미엄 업그레이드",
       "upgradeDesc": "무제한 보드와 고급 통계 기능을 사용해보세요.",
@@ -2691,7 +2691,12 @@
       "cancel": "취소",
       "importance": "중요도",
       "important": "중요",
-      "normal": "보통"
+      "normal": "보통",
+      "checkInTitle": "습관 완료",
+      "checkInSubtitle": "오늘의 습관을 완료하시겠습니까?",
+      "checkInConfirm": "\"{{name}}\"을(를) 완료 처리하시겠습니까?",
+      "checkInStreak": "완료하면 {{count}}일 연속 달성!",
+      "checkInComplete": "완료"
     },
     "calendar": {
       "task": "태스크",
@@ -2841,6 +2846,7 @@
       "dayThu": "목",
       "dayFri": "금",
       "daySat": "토",
+      "overlapWarning": "{{count}}개의 일정과 시간이 겹칩니다",
       "weekSun": "일",
       "weekMon": "월",
       "weekTue": "화",

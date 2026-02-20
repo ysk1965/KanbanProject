@@ -9,7 +9,7 @@ import { personalTaskAPI, personalHabitAPI } from '../../utils/api';
 import { PersonalTask, PersonalTaskPriority, HabitTodayItem, PersonalHabit } from '../../types';
 import { getDDay, getTodayDateString, type DdayUrgency } from '../../utils/dateUtils';
 import { startOfDay, parseISO, addDays, format } from 'date-fns';
-import { HabitFormModal, DeleteConfirmModal } from './PersonalHabits';
+import { HabitFormModal, DeleteConfirmModal, CheckInConfirmModal, TaskCompleteConfirmModal } from './PersonalHabits';
 import type { HabitFormData } from './PersonalHabits';
 
 // ── Types ─────────────────────────────────────────────────────
@@ -130,7 +130,7 @@ function getHabitQuadrant(habit: HabitTodayItem): Quadrant {
 export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: PersonalTaskBoardProps) {
   const { t } = useTranslation();
   const [modalTaskId, setModalTaskId] = useState<string | null>(null);
-  const [showCompleted, setShowCompleted] = useState(false);
+  const [showCompleted, setShowCompleted] = useState(true);
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [dragOverQuadrant, setDragOverQuadrant] = useState<Quadrant | null>(null);
 
@@ -139,6 +139,7 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
   const [newDueDate, setNewDueDate] = useState(getTodayDateString());
   const [newPriority, setNewPriority] = useState<PersonalTaskPriority>('MEDIUM');
   const [isAddFocused, setIsAddFocused] = useState(false);
+  const [addMode, setAddMode] = useState<'task' | 'habit'>('task');
   const addInputRef = useRef<HTMLInputElement>(null);
 
   // ── Habits state ──
@@ -148,6 +149,8 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
   const [editHabitData, setEditHabitData] = useState<PersonalHabit | null>(null);
   const [deleteHabitId, setDeleteHabitId] = useState<string | null>(null);
   const [showHabitMenu, setShowHabitMenu] = useState(false);
+  const [habitConfirm, setHabitConfirm] = useState<{ id: string; isUndo: boolean } | null>(null);
+  const [taskConfirm, setTaskConfirm] = useState<{ id: string; title: string; isDone: boolean } | null>(null);
 
   // Load habits
   const loadHabits = useCallback(async () => {
@@ -215,8 +218,19 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
   }, [activeHabits]);
 
   // ── Task Handlers ──
-  const handleAddTask = async () => {
+  const handleQuickAdd = async () => {
     if (!newTitle.trim()) return;
+    if (addMode === 'habit') {
+      try {
+        await personalHabitAPI.create({ title: newTitle.trim() });
+        setNewTitle('');
+        setIsAddFocused(false);
+        await loadHabits();
+      } catch (err) {
+        console.error('Failed to create habit:', err);
+      }
+      return;
+    }
     try {
       await personalTaskAPI.create({
         title: newTitle.trim(),
@@ -239,6 +253,14 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
     } catch (error) {
       console.error('Failed to toggle task:', error);
     }
+  };
+
+  const requestTaskToggle = (task: PersonalTask) => {
+    setTaskConfirm({ id: task.id, title: task.title, isDone: task.status === 'DONE' });
+  };
+
+  const requestHabitToggle = (habitId: string, isCompleted: boolean) => {
+    setHabitConfirm({ id: habitId, isUndo: isCompleted });
   };
 
   const handleDelete = async (taskId: string) => {
@@ -372,10 +394,18 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
 
         {/* ── Quick Add Bar ── */}
         <div className={`bg-bridge-obsidian rounded-xl border transition-all ${
-          isAddFocused ? 'border-bridge-accent/50 shadow-lg shadow-bridge-accent/5' : 'border-white/10'
+          isAddFocused
+            ? addMode === 'habit'
+              ? 'border-purple-500/50 shadow-lg shadow-purple-500/5'
+              : 'border-bridge-accent/50 shadow-lg shadow-bridge-accent/5'
+            : 'border-white/10'
         }`}>
-          <div className="flex items-center gap-3 px-3 md:px-4 py-3">
-            <Plus size={18} className={`shrink-0 ${isAddFocused ? 'text-bridge-accent' : 'text-slate-500'}`} />
+          <div className="flex items-center gap-2 px-3 md:px-4 py-3">
+            <Plus size={18} className={`shrink-0 ${
+              isAddFocused
+                ? addMode === 'habit' ? 'text-purple-400' : 'text-bridge-accent'
+                : 'text-slate-500'
+            }`} />
             <input
               ref={addInputRef}
               value={newTitle}
@@ -383,25 +413,44 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
               onFocus={() => setIsAddFocused(true)}
               onBlur={() => { if (!newTitle.trim()) setIsAddFocused(false); }}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.nativeEvent.isComposing) handleAddTask();
+                if (e.key === 'Enter' && !e.nativeEvent.isComposing) handleQuickAdd();
                 if (e.key === 'Escape') {
                   setNewTitle(''); setNewDueDate(getTodayDateString()); setNewPriority('MEDIUM');
                   setIsAddFocused(false);
                   addInputRef.current?.blur();
                 }
               }}
-              placeholder={t('personal.tasks.addPlaceholder', '할 일 추가...')}
+              placeholder={addMode === 'habit'
+                ? t('personal.habit.habitPlaceholder', '예: 아침 달리기, 10페이지 읽기')
+                : t('personal.tasks.addPlaceholder', '할 일 추가...')}
               className="flex-1 min-w-0 bg-transparent text-sm text-white placeholder-slate-600 outline-none"
             />
-            <input
-              type="date"
-              value={newDueDate}
-              onChange={(e) => setNewDueDate(e.target.value)}
-              className="hidden sm:block bg-transparent text-xs text-slate-400 border border-white/10 rounded-lg px-2 py-1 outline-none focus:border-bridge-accent/50 [color-scheme:dark] w-[130px]"
-            />
-            <PriorityDropdown value={newPriority} onChange={setNewPriority} />
+            {/* Mode toggle pill */}
+            <button
+              type="button"
+              onClick={() => setAddMode(addMode === 'task' ? 'habit' : 'task')}
+              className={`shrink-0 flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-bold transition-all ${
+                addMode === 'habit'
+                  ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
+                  : 'bg-white/5 text-slate-500 border border-white/10 hover:text-slate-300 hover:bg-white/10'
+              }`}
+            >
+              <Flame size={11} />
+              <span className="hidden sm:inline">{t('personal.habit.habits', '습관')}</span>
+            </button>
+            {addMode === 'task' && (
+              <>
+                <input
+                  type="date"
+                  value={newDueDate}
+                  onChange={(e) => setNewDueDate(e.target.value)}
+                  className="hidden sm:block bg-transparent text-xs text-slate-400 border border-white/10 rounded-lg px-2 py-1 outline-none focus:border-bridge-accent/50 [color-scheme:dark] w-[130px]"
+                />
+                <PriorityDropdown value={newPriority} onChange={setNewPriority} />
+              </>
+            )}
           </div>
-          {isAddFocused && (
+          {addMode === 'task' && isAddFocused && (
             <div className="sm:hidden px-3 pb-2">
               <input
                 type="date"
@@ -416,8 +465,12 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
               <div className="flex items-center justify-between pt-2 border-t border-white/5">
                 <span className="text-[10px] text-slate-500">Enter {t('personal.tasks.toAdd', '추가')} · Esc {t('common.cancel', '취소')}</span>
                 <button
-                  onClick={handleAddTask}
-                  className="px-3 py-1 bg-bridge-accent text-white text-xs rounded-lg font-medium hover:bg-bridge-accent/90 transition-colors"
+                  onClick={handleQuickAdd}
+                  className={`px-3 py-1 text-white text-xs rounded-lg font-medium transition-colors ${
+                    addMode === 'habit'
+                      ? 'bg-purple-500 hover:bg-purple-500/90'
+                      : 'bg-bridge-accent hover:bg-bridge-accent/90'
+                  }`}
                 >
                   {t('personal.tasks.add', '추가')}
                 </button>
@@ -536,10 +589,13 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
                   onDragOver={() => setDragOverQuadrant(q)}
                   onDragLeave={() => setDragOverQuadrant(null)}
                   onDrop={() => handleQuadrantDrop(q)}
-                  onToggleComplete={handleToggleComplete}
+                  onToggleComplete={requestTaskToggle}
                   onOpenModal={(id) => setModalTaskId(id)}
                   onUpdate={handleUpdate}
-                  onHabitCheckIn={handleHabitCheckIn}
+                  onHabitCheckIn={(habitId) => {
+                    const habit = todayHabits.find(h => h.habit_id === habitId);
+                    requestHabitToggle(habitId, habit?.is_completed ?? false);
+                  }}
                   onHabitEdit={(habitId) => {
                     const habit = allHabits.find(h => h.id === habitId);
                     if (habit) setEditHabitData(habit);
@@ -606,7 +662,7 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
                     >
                       <CompletedTaskRow
                         task={task}
-                        onToggleComplete={() => handleToggleComplete(task)}
+                        onToggleComplete={() => requestTaskToggle(task)}
                         onDelete={() => handleDelete(task.id)}
                       />
                     </motion.div>
@@ -619,19 +675,21 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
       </div>
 
       {/* ── Task Detail Modal ── */}
-      {modalTaskId && (() => {
-        const modalTask = tasks.find(t => t.id === modalTaskId);
-        if (!modalTask) return null;
-        return (
-          <TaskDetailModal
-            task={modalTask}
-            onClose={() => setModalTaskId(null)}
-            onUpdate={(data) => handleUpdate(modalTaskId, data)}
-            onDelete={() => { handleDelete(modalTaskId); setModalTaskId(null); }}
-            onToggleComplete={() => { handleToggleComplete(modalTask); }}
-          />
-        );
-      })()}
+      <AnimatePresence>
+        {modalTaskId && (() => {
+          const modalTask = tasks.find(t => t.id === modalTaskId);
+          if (!modalTask) return null;
+          return (
+            <TaskDetailModal
+              task={modalTask}
+              onClose={() => setModalTaskId(null)}
+              onUpdate={(data) => handleUpdate(modalTaskId, data)}
+              onDelete={() => { handleDelete(modalTaskId); setModalTaskId(null); }}
+              onToggleComplete={() => { requestTaskToggle(modalTask); }}
+            />
+          );
+        })()}
+      </AnimatePresence>
 
       {/* ── Habit Modals ── */}
       <AnimatePresence>
@@ -659,6 +717,42 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
             habitName={allHabits.find(h => h.id === deleteHabitId)?.title || ''}
             onConfirm={() => handleHabitDelete(deleteHabitId)}
             onCancel={() => setDeleteHabitId(null)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Habit Check-in Confirm Modal */}
+      <AnimatePresence>
+        {habitConfirm && (() => {
+          const habit = todayHabits.find(h => h.habit_id === habitConfirm.id);
+          return (
+            <CheckInConfirmModal
+              habitName={habit?.title || ''}
+              habitIcon={habit?.icon}
+              streakCount={habit?.current_streak}
+              isUndo={habitConfirm.isUndo}
+              onConfirm={() => {
+                handleHabitCheckIn(habitConfirm.id);
+                setHabitConfirm(null);
+              }}
+              onCancel={() => setHabitConfirm(null)}
+            />
+          );
+        })()}
+      </AnimatePresence>
+
+      {/* Task Complete Confirm Modal */}
+      <AnimatePresence>
+        {taskConfirm && (
+          <TaskCompleteConfirmModal
+            taskName={taskConfirm.title}
+            isUndo={taskConfirm.isDone}
+            onConfirm={() => {
+              const task = tasks.find(t => t.id === taskConfirm.id);
+              if (task) handleToggleComplete(task);
+              setTaskConfirm(null);
+            }}
+            onCancel={() => setTaskConfirm(null)}
           />
         )}
       </AnimatePresence>
@@ -815,7 +909,7 @@ function HabitMatrixCard({ habit, onCheckIn, onEdit, onDelete }: {
     >
       {/* Check circle (left) */}
       <motion.div
-        className={`w-5 h-5 rounded-full border-[1.5px] flex items-center justify-center shrink-0 transition-colors ${
+        className={`w-4 h-4 rounded-full border-[1.5px] flex items-center justify-center shrink-0 transition-colors ${
           habit.is_completed
             ? 'bg-bridge-secondary border-bridge-secondary shadow-[0_0_8px_rgba(45,212,191,0.4)]'
             : 'border-white/20 hover:border-bridge-secondary/50'
@@ -833,7 +927,7 @@ function HabitMatrixCard({ habit, onCheckIn, onEdit, onDelete }: {
               exit={{ scale: 0, opacity: 0 }}
               transition={{ type: 'spring', stiffness: 500, damping: 15 }}
             >
-              <Check size={12} className="text-white" strokeWidth={3} />
+              <Check size={10} className="text-white" strokeWidth={3} />
             </motion.div>
           )}
         </AnimatePresence>
@@ -1124,10 +1218,14 @@ function TaskDetailModal({ task, onClose, onUpdate, onDelete, onToggleComplete }
   const dday = getDDay(task.due_date);
 
   return (
-    <div
+    <motion.div
       ref={backdropRef}
       onClick={(e) => { if (e.target === backdropRef.current) onClose(); }}
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm sm:p-4"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4"
+      initial={{ backgroundColor: 'rgba(0,0,0,0)', backdropFilter: 'blur(0px)' }}
+      animate={{ backgroundColor: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(2px)' }}
+      exit={{ backgroundColor: 'rgba(0,0,0,0)', backdropFilter: 'blur(0px)' }}
+      transition={{ duration: 0.3 }}
     >
       <div
         className="bg-bridge-obsidian rounded-t-2xl sm:rounded-2xl border border-white/10 shadow-2xl w-full sm:max-w-md overflow-hidden max-h-[90vh] overflow-y-auto"
@@ -1249,7 +1347,7 @@ function TaskDetailModal({ task, onClose, onUpdate, onDelete, onToggleComplete }
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 

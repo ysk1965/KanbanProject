@@ -252,9 +252,9 @@ function SortableMemberRow({
         </Popover>
 
         {/* 정보 */}
-        <div className="min-w-0">
-          <div className="flex items-center gap-1.5">
-            <span className="text-sm font-medium text-white truncate">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="text-sm font-medium text-white shrink-0">
               {member.name}
             </span>
             {isCurrentMember && (
@@ -280,7 +280,7 @@ function SortableMemberRow({
                 }`}
               />
             </span>
-            <span className="text-xs text-slate-500 truncate">{member.email}</span>
+            <span className="text-xs text-slate-500 truncate min-w-0">{member.email}</span>
           </div>
         </div>
       </div>

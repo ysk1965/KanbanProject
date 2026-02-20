@@ -135,7 +135,7 @@ export function MaintenancePage({ status, onRetry }: MaintenancePageProps) {
         </div>
 
         {/* Title */}
-        <h1 className="font-serif text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">
+        <h1 className="font-jakarta text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">
           {t('maintenance.title')}
         </h1>
 
