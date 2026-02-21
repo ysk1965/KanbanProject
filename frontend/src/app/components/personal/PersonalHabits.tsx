@@ -834,6 +834,14 @@ export function HabitFormModal({ open, habit, onClose, onSubmit, onDelete }: {
             className="flex-1 min-w-0 bg-transparent text-sm font-bold text-foreground outline-none placeholder-slate-600"
             autoFocus
           />
+          {isEdit && onDelete && (
+            <button
+              onClick={onDelete}
+              className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors shrink-0"
+            >
+              <Trash2 size={16} />
+            </button>
+          )}
           <button onClick={onClose} className="p-1.5 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5 transition-colors shrink-0">
             <X size={16} />
           </button>
@@ -983,20 +991,9 @@ export function HabitFormModal({ open, habit, onClose, onSubmit, onDelete }: {
 
           {/* Footer */}
           <div className="flex items-center justify-between pt-3 border-t border-foreground/[0.08]">
-            <div className="flex items-center gap-3">
-              <span className="text-[10px] text-slate-600">
-                Esc {t('common.close', '닫기')}
-              </span>
-              {isEdit && onDelete && (
-                <button
-                  onClick={onDelete}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium text-rose-400 hover:bg-rose-500/10 transition-colors"
-                >
-                  <Trash2 size={12} />
-                  {t('personal.habit.delete')}
-                </button>
-              )}
-            </div>
+            <span className="text-[10px] text-slate-600">
+              Esc {t('common.close', '닫기')}
+            </span>
             <button
               onClick={handleSubmit}
               disabled={!isValid}

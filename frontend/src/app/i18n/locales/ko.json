@@ -2908,7 +2908,7 @@
       "dragToCreate": "격자 위를 드래그해 새 일정을 만드세요...",
       "tapToCreate": "탭하여 일정을 생성하거나 수정하세요",
       "newEvent": "새 일정",
-      "fromTask": "To Do",
+      "fromTask": "기존 일정",
       "searchTasks": "태스크/습관/일정 검색...",
       "noActiveTasks": "활성 태스크, 습관, 일정이 없습니다",
       "tasksSection": "태스크",
