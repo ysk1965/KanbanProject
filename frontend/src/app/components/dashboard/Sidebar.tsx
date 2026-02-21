@@ -189,7 +189,7 @@ export function Sidebar({ isOpen = true, onClose, boards = [], onSelectBoard, is
               animate={{ x: 0 }}
               exit={{ x: -280 }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed left-0 top-0 w-60 h-full bg-bridge-dark border-r border-bridge-border z-50 lg:hidden"
+              className="fixed left-0 top-0 w-60 h-full bg-bridge-dark border-r border-bridge-border z-50 lg:hidden safe-left"
             >
               {sidebarContent}
             </motion.aside>
