@@ -256,7 +256,7 @@ function TodayScheduleWidget({
         <div className="flex-1 flex flex-col min-h-0">
           {/* ── 캘린더 일정 ── */}
           {calendarEvents.length > 0 && (
-            <div className="pb-1.5 space-y-0.5">
+            <div className="pb-1.5 space-y-0.5 border-t border-foreground/[0.06] pt-1.5">
               {calendarEvents.map((ev) => {
                 const color = ev.color || '#6366F1';
                 return (
@@ -274,14 +274,14 @@ function TodayScheduleWidget({
                 );
               })}
               {allTimedEvents.length > 0 && (
-                <div className="h-px bg-foreground/[0.06]" />
+                <div className="h-0" />
               )}
             </div>
           )}
 
           {/* ── 타임라인 ── */}
           {allTimedEvents.length > 0 && (
-            <div ref={scrollRef} className="flex-1 overflow-y-auto custom-scrollbar -mx-1 px-1">
+            <div ref={scrollRef} className="flex-1 overflow-y-auto custom-scrollbar -mx-1 px-1 border-t border-foreground/[0.06] pt-1.5">
               <div className="relative" style={{ height: `${totalHeight}px` }}>
                 {/* ── 30분 단위 시간 그리드 ── */}
                 {timeSlots.map((time, idx) => (

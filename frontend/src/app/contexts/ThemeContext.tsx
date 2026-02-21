@@ -36,6 +36,12 @@ export function ThemeProvider({ children, defaultTheme = 'dark' }: ThemeProvider
     // 새 테마 클래스 추가
     root.classList.add(theme);
 
+    // color-scheme meta 태그 업데이트 (브라우저 기본 스크롤바/폼 컨트롤 테마 반영)
+    const metaColorScheme = document.querySelector('meta[name="color-scheme"]');
+    if (metaColorScheme) {
+      metaColorScheme.setAttribute('content', theme);
+    }
+
     // localStorage에 저장
     localStorage.setItem('theme', theme);
   }, [theme]);
