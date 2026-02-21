@@ -10,8 +10,10 @@ import { MotionModal } from '../ui/MotionModal';
 import { personalEventService, diaryService } from '../../utils/services';
 import { personalTaskAPI, personalHabitAPI, personalEventAPI } from '../../utils/api';
 import { getTodayDateString } from '../../utils/dateUtils';
-import { PersonalEvent, DiaryDetail, PersonalTask, PersonalHabit, HabitTodayItem, HabitFrequency, HabitWeeklyMatrix } from '../../types';
+import { PersonalEvent, DiaryDetail, PersonalTask, PersonalHabit, HabitTodayItem, HabitFrequency, HabitWeeklyMatrix, PersonalTaskPriority } from '../../types';
 import { CheckInConfirmModal, TaskCompleteConfirmModal, HabitFormModal } from './PersonalHabits';
+import { TaskDetailModal } from './PersonalTaskBoard';
+import { EventDetailModal } from './PersonalSchedule';
 
 type TabType = 'overview' | 'tasks' | 'schedule' | 'habits' | 'calendar' | 'diary';
 
@@ -272,6 +274,13 @@ function UpcomingDeadlinesWidget({
   const [animatingIds, setAnimatingIds] = useState<Set<string>>(new Set());
   const [taskConfirm, setTaskConfirm] = useState<{ id: string; title: string; isDone: boolean } | null>(null);
 
+  // Full data maps for detail modals
+  const [taskMap, setTaskMap] = useState<Map<string, PersonalTask>>(new Map());
+  const [eventMap, setEventMap] = useState<Map<string, PersonalEvent>>(new Map());
+  const [selectedTask, setSelectedTask] = useState<PersonalTask | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<PersonalEvent | null>(null);
+  const [allEvents, setAllEvents] = useState<PersonalEvent[]>([]);
+
   const today = new Date(todayDate + 'T00:00:00');
 
   const priorityOrder: Record<string, number> = { URGENT: 4, HIGH: 3, MEDIUM: 2, LOW: 1, NONE: 0 };
@@ -323,6 +332,16 @@ function UpcomingDeadlinesWidget({
 
         const merged = sortDeadlines([...taskItems, ...eventItems]);
 
+        // Store full data maps for detail modals
+        const tMap = new Map<string, PersonalTask>();
+        taskData.forEach(t => tMap.set(t.id, t));
+        setTaskMap(tMap);
+
+        const eMap = new Map<string, PersonalEvent>();
+        eventData.forEach(e => eMap.set(e.id, e));
+        setEventMap(eMap);
+        setAllEvents(eventData);
+
         setItems(merged);
       } catch {
         console.error('Failed to load deadlines');
@@ -366,6 +385,77 @@ function UpcomingDeadlinesWidget({
       setTogglingIds(prev => { const n = new Set(prev); n.delete(taskId); return n; });
     }
   }, [sortDeadlines]);
+
+  // Task detail modal callbacks
+  const handleTaskUpdate = useCallback(async (data: { title?: string; due_date?: string | null; priority?: PersonalTaskPriority; description?: string }) => {
+    if (!selectedTask) return;
+    try {
+      const updated = await personalTaskAPI.update(selectedTask.id, data);
+      setSelectedTask(updated);
+      setTaskMap(prev => { const n = new Map(prev); n.set(updated.id, updated); return n; });
+      // Update deadline item in list
+      setItems(prev => prev.map(item =>
+        item.kind === 'task' && item.id === updated.id
+          ? { ...item, title: updated.title, date: updated.due_date || item.date, priority: updated.priority }
+          : item
+      ));
+    } catch {
+      console.error('Failed to update task');
+    }
+  }, [selectedTask]);
+
+  const handleTaskDelete = useCallback(async () => {
+    if (!selectedTask) return;
+    try {
+      await personalTaskAPI.delete(selectedTask.id);
+      setItems(prev => prev.filter(item => !(item.kind === 'task' && item.id === selectedTask.id)));
+      setSelectedTask(null);
+    } catch {
+      console.error('Failed to delete task');
+    }
+  }, [selectedTask]);
+
+  const handleTaskToggleComplete = useCallback(async () => {
+    if (!selectedTask) return;
+    const newStatus = selectedTask.status === 'DONE' ? 'TODO' as const : 'DONE' as const;
+    try {
+      const updated = await personalTaskAPI.updateStatus(selectedTask.id, newStatus);
+      setSelectedTask(updated);
+      setTaskMap(prev => { const n = new Map(prev); n.set(updated.id, updated); return n; });
+      if (newStatus === 'DONE') {
+        // Remove from list after closing modal
+        setItems(prev => prev.filter(item => !(item.kind === 'task' && item.id === selectedTask.id)));
+      }
+    } catch {
+      console.error('Failed to toggle task');
+    }
+  }, [selectedTask]);
+
+  // Event detail modal callbacks
+  const handleEventUpdate = useCallback(async (id: string, data: Parameters<typeof personalEventAPI.update>[1]) => {
+    try {
+      const updated = await personalEventAPI.update(id, data);
+      setSelectedEvent(updated);
+      setEventMap(prev => { const n = new Map(prev); n.set(updated.id, updated); return n; });
+      setItems(prev => prev.map(item =>
+        item.kind === 'event' && item.id === updated.id
+          ? { ...item, title: updated.title, date: updated.event_date, color: updated.color || '#6366F1', startTime: updated.start_time }
+          : item
+      ));
+    } catch {
+      console.error('Failed to update event');
+    }
+  }, []);
+
+  const handleEventDelete = useCallback(async (id: string, scope?: string) => {
+    try {
+      await personalEventAPI.delete(id, scope);
+      setItems(prev => prev.filter(item => !(item.kind === 'event' && item.id === id)));
+      setSelectedEvent(null);
+    } catch {
+      console.error('Failed to delete event');
+    }
+  }, []);
 
   const getDday = (dateStr: string) => {
     const due = new Date(dateStr + 'T00:00:00');
@@ -431,7 +521,10 @@ function UpcomingDeadlinesWidget({
                 <Fragment key={`event-${item.id}`}>
                   {showDivider && <div className="h-px bg-foreground/15 mx-2 my-1" />}
                   <button
-                    onClick={onNavigateCalendar}
+                    onClick={() => {
+                      const ev = eventMap.get(item.id);
+                      if (ev) setSelectedEvent(ev);
+                    }}
                     className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl hover:bg-foreground/5 transition-colors text-left ${
                       dday === 0 ? 'bg-bridge-secondary/[0.06] ring-1 ring-bridge-secondary/15' : ''
                     }`}
@@ -528,7 +621,10 @@ function UpcomingDeadlinesWidget({
                     )}
                   </button>
                   <button
-                    onClick={onViewAll}
+                    onClick={() => {
+                      const task = taskMap.get(item.id);
+                      if (task) setSelectedTask(task);
+                    }}
                     className="flex-1 flex items-center gap-2.5 min-w-0 text-left"
                   >
                     <div className="w-[60px] flex-shrink-0">
@@ -609,6 +705,26 @@ function UpcomingDeadlinesWidget({
           }
         }}
         onCancel={() => setTaskConfirm(null)}
+      />
+
+      {/* Task Detail Modal */}
+      <TaskDetailModal
+        open={!!selectedTask}
+        task={selectedTask}
+        onClose={() => setSelectedTask(null)}
+        onUpdate={handleTaskUpdate}
+        onDelete={handleTaskDelete}
+        onToggleComplete={handleTaskToggleComplete}
+      />
+
+      {/* Event Detail Modal */}
+      <EventDetailModal
+        open={!!selectedEvent}
+        event={selectedEvent}
+        existingEvents={allEvents}
+        onClose={() => setSelectedEvent(null)}
+        onDelete={handleEventDelete}
+        onUpdate={handleEventUpdate}
       />
     </WidgetCard>
   );
@@ -1122,7 +1238,7 @@ function DiaryWidget({
           </div>
           <button
             onClick={onViewAll}
-            className="mt-1 md:mt-2 flex items-center gap-2 px-4 py-2 md:px-5 md:py-2.5 bg-gradient-to-r from-bridge-accent to-purple-500 text-white text-xs md:text-sm font-bold rounded-xl hover:shadow-[0_0_24px_rgba(99,102,241,0.3)] transition-all"
+            className="mt-1 md:mt-2 flex items-center gap-2 px-4 py-2 md:px-5 md:py-2.5 bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white text-xs md:text-sm font-bold rounded-xl hover:shadow-[0_0_20px_rgba(45,212,191,0.3)] transition-all"
           >
             <Sparkles size={14} />
             {t('personal.overview.startDiary', "Start today's diary")}

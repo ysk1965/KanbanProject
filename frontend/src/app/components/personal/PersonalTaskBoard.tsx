@@ -1362,7 +1362,7 @@ function CompletedTaskRow({ task, onToggleComplete, onDelete }: {
 
 // ── TaskDetailModal ───────────────────────────────────────────
 
-function TaskDetailModal({ open, task, onClose, onUpdate, onDelete, onToggleComplete }: {
+export function TaskDetailModal({ open, task, onClose, onUpdate, onDelete, onToggleComplete }: {
   open: boolean;
   task: PersonalTask | null;
   onClose: () => void;

@@ -42,6 +42,7 @@ interface BoardModalManagerProps {
   allTasks: Task[];
   wsCommentEvent: BoardWebSocketEvent | null;
   wsChecklistEvent: BoardWebSocketEvent | null;
+  onOpenFeature?: (featureId: string) => void;
   // Tag
   tags: Tag[];
   onCreateTag: (name: string, color: string) => Promise<string | undefined>;
@@ -176,6 +177,7 @@ export function BoardModalManager(props: BoardModalManagerProps) {
         isAdminOrOwner={props.isAdminOrOwner}
         wsCommentEvent={props.wsCommentEvent}
         wsChecklistEvent={props.wsChecklistEvent}
+        onOpenFeature={props.onOpenFeature}
       />
 
       <AddBlockModal

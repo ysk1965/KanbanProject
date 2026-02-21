@@ -131,6 +131,15 @@ public class AdminController {
         return ResponseEntity.ok(Map.of("message", "사용자가 보드에서 제거되었습니다"));
     }
 
+    @PostMapping("/users/{userId}/create-personal-board")
+    public ResponseEntity<Map<String, String>> createPersonalBoard(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable String userId) {
+        verifyAdminAccess(principal);
+        adminService.createPersonalBoard(userId);
+        return ResponseEntity.ok(Map.of("message", "개인 보드가 생성되었습니다"));
+    }
+
     @PatchMapping("/users/{userId}/personal-ai-credits")
     public ResponseEntity<AdminResponse.UserDetail> adjustPersonalAiCredits(
             @AuthenticationPrincipal UserPrincipal principal,

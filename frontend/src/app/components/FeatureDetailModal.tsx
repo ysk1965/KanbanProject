@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Feature, Task, Tag } from '../types';
 import { FEATURE_COLORS } from '../constants';
-import { X, Trash2, ClipboardList, Lightbulb, ArrowRight, Pipette, FileText, CalendarIcon, Tags, Sparkles, Pencil, AlertCircle } from 'lucide-react';
+import { X, Trash2, ClipboardList, Lightbulb, ArrowRight, Pipette, FileText, CalendarIcon, Tags, Sparkles, Pencil } from 'lucide-react';
 import { MotionModal } from './ui/MotionModal';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -496,7 +496,7 @@ export function FeatureDetailModal({
                     {canEdit && (
                       <button
                         onClick={() => setShowAIConfirm(true)}
-                        className="ml-1 flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold text-bridge-accent bg-bridge-accent/10 rounded-lg hover:bg-bridge-accent/20 transition-all"
+                        className="ml-1 flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold text-white bg-gradient-to-r from-bridge-secondary to-bridge-accent rounded-lg hover:shadow-[0_0_20px_rgba(45,212,191,0.3)] transition-all"
                       >
                         <Sparkles className="h-3 w-3" />
                         AI
@@ -764,7 +764,7 @@ export function FeatureDetailModal({
           {/* Header */}
           <div className="flex items-center justify-between px-5 py-4 border-b border-foreground/5">
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-bridge-accent to-purple-500 flex items-center justify-center">
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-bridge-secondary to-bridge-accent flex items-center justify-center">
                 <Sparkles className="h-3.5 w-3.5 text-white" />
               </div>
               <h3 className="text-sm font-bold text-foreground">{t('featureDetail.aiConfirmTitle')}</h3>
@@ -783,9 +783,12 @@ export function FeatureDetailModal({
               <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
                 {t('featureDetail.aiConfirmFeatureTitle')}
               </label>
-              <div className="px-3 py-2.5 bg-white/5 rounded-lg border border-foreground/5">
-                <p className="text-sm font-medium text-foreground">{feature.title}</p>
-              </div>
+              <input
+                type="text"
+                value={editedFeature.title}
+                onChange={(e) => updateEditedFeature({ title: e.target.value })}
+                className="w-full px-3 py-2.5 bg-white/5 rounded-lg border border-foreground/5 text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+              />
             </div>
 
             {/* Feature description */}
@@ -793,16 +796,13 @@ export function FeatureDetailModal({
               <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
                 {t('featureDetail.aiConfirmFeatureDesc')}
               </label>
-              {editedFeature?.description ? (
-                <div className="px-3 py-2.5 bg-white/5 rounded-lg border border-foreground/5">
-                  <p className="text-sm text-slate-300 whitespace-pre-wrap line-clamp-4">{editedFeature.description}</p>
-                </div>
-              ) : (
-                <div className="px-3 py-2.5 bg-amber-500/5 rounded-lg border border-amber-500/20 flex items-start gap-2">
-                  <AlertCircle className="h-3.5 w-3.5 text-amber-400 mt-0.5 flex-shrink-0" />
-                  <p className="text-xs text-amber-400/80">{t('featureDetail.aiConfirmNoDesc')}</p>
-                </div>
-              )}
+              <textarea
+                value={editedFeature.description || ''}
+                onChange={(e) => updateEditedFeature({ description: e.target.value })}
+                placeholder={t('featureDetail.aiConfirmNoDesc')}
+                rows={3}
+                className="w-full px-3 py-2.5 bg-white/5 rounded-lg border border-foreground/5 text-sm text-slate-300 placeholder-amber-400/60 resize-none focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+              />
             </div>
           </div>
 
@@ -816,10 +816,15 @@ export function FeatureDetailModal({
             </button>
             <button
               onClick={() => {
+                if (hasChanges && editedFeature) {
+                  onUpdateFeature(editedFeature);
+                  setInitialFeature(JSON.parse(JSON.stringify(editedFeature)));
+                  setHasChanges(false);
+                }
                 setShowAIConfirm(false);
                 setShowAIDecompose(true);
               }}
-              className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-bridge-accent to-purple-500 rounded-lg hover:opacity-90 transition-all flex items-center gap-1.5"
+              className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-bridge-secondary to-bridge-accent rounded-lg hover:shadow-[0_0_20px_rgba(45,212,191,0.3)] transition-all flex items-center gap-1.5"
             >
               <Sparkles className="h-3.5 w-3.5" />
               {t('featureDetail.aiConfirmStart')}
@@ -833,7 +838,7 @@ export function FeatureDetailModal({
         <FeatureAIDecomposeModal
           boardId={boardId}
           featureId={feature.id}
-          featureTitle={feature.title}
+          featureTitle={editedFeature.title}
           existingTaskTitles={tasks.map(t => t.title)}
           onClose={() => setShowAIDecompose(false)}
           onApplied={() => {

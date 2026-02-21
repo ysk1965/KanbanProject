@@ -191,6 +191,10 @@ public enum ErrorCode {
     AI_FEATURE_CONTENT_EMPTY(HttpStatus.BAD_REQUEST, "AF001", "피처 내용이 비어있습니다"),
     AI_FEATURE_DECOMPOSE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "AF002", "AI 태스크 분해에 실패했습니다"),
 
+    // AI Checklist Decompose
+    AI_CHECKLIST_CONTENT_EMPTY(HttpStatus.BAD_REQUEST, "ACL001", "태스크 내용이 비어있습니다"),
+    AI_CHECKLIST_DECOMPOSE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "ACL002", "AI 체크리스트 분해에 실패했습니다"),
+
     // AI Comment Summary
     AI_COMMENT_SUMMARY_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "ACS001", "AI 댓글 요약에 실패했습니다"),
     AI_COMMENT_INSUFFICIENT(HttpStatus.BAD_REQUEST, "ACS002", "요약하기에 댓글 수가 부족합니다"),

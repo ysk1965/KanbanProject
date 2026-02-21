@@ -2226,7 +2226,7 @@ function CreateEventModal({
 /* ================================================================
    Event Detail / Edit Modal
    ================================================================ */
-function EventDetailModal({
+export function EventDetailModal({
   open,
   event,
   existingEvents,

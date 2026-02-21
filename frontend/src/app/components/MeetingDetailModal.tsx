@@ -367,7 +367,7 @@ export function MeetingDetailPanel({
                       className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg transition-colors disabled:opacity-50 ${
                         isAIDimmed()
                           ? 'text-slate-500 bg-foreground/5 cursor-default'
-                          : 'text-bridge-secondary bg-bridge-secondary/10 hover:bg-bridge-secondary/20'
+                          : 'text-white bg-gradient-to-r from-bridge-secondary to-bridge-accent hover:shadow-[0_0_20px_rgba(45,212,191,0.3)]'
                       }`}
                     >
                       {aiLoading ? (
@@ -1025,7 +1025,7 @@ function MeetingAIInlineSection({
             <button
               onClick={handleApply}
               disabled={applying || selectedCount === 0}
-              className="px-5 py-2 text-sm font-bold text-white bg-gradient-to-r from-bridge-accent to-purple-500 rounded-xl hover:shadow-[0_0_30px_rgba(99,102,241,0.3)] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="px-5 py-2 text-sm font-bold text-white bg-gradient-to-r from-bridge-secondary to-bridge-accent rounded-xl hover:shadow-[0_0_20px_rgba(45,212,191,0.3)] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {applying ? (
                 <>

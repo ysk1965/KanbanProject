@@ -475,6 +475,25 @@ export interface FeatureAIApplyResult {
   checklists_created: number;
 }
 
+// Checklist AI Types
+export interface ChecklistAIItemSuggestion {
+  title: string;
+}
+
+export interface ChecklistAIDecompositionResponse {
+  task_id: string;
+  task_title: string;
+  items: ChecklistAIItemSuggestion[];
+}
+
+export interface ChecklistAIApplyRequest {
+  items: { title: string }[];
+}
+
+export interface ChecklistAIApplyResult {
+  items_created: number;
+}
+
 // Comment AI Types
 export interface CommentAIActionItem {
   title: string;
@@ -1286,6 +1305,19 @@ export const checklistAPI = {
     return apiClient.put<{ message: string }>(
       `/boards/${boardId}/tasks/${taskId}/checklist/reorder`,
       data
+    );
+  },
+
+  aiDecompose: async (boardId: string, taskId: string, language?: string) => {
+    const params = language ? `?language=${language}` : '';
+    return apiClient.post<ChecklistAIDecompositionResponse>(
+      `/boards/${boardId}/tasks/${taskId}/checklist/ai/decompose${params}`
+    );
+  },
+
+  aiApply: async (boardId: string, taskId: string, data: ChecklistAIApplyRequest) => {
+    return apiClient.post<ChecklistAIApplyResult>(
+      `/boards/${boardId}/tasks/${taskId}/checklist/ai/apply`, data
     );
   },
 };

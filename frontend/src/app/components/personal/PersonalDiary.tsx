@@ -810,7 +810,7 @@ export function PersonalDiary() {
                 whileHover={{ scale: 1.04 }}
                 whileTap={{ scale: 0.96 }}
                 onClick={handleStartDiary}
-                className="flex items-center gap-2.5 px-8 py-3.5 bg-gradient-to-r from-bridge-accent to-purple-500 text-white font-bold rounded-xl shadow-lg shadow-bridge-accent/25 transition-shadow hover:shadow-bridge-accent/40"
+                className="flex items-center gap-2.5 px-8 py-3.5 bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white font-bold rounded-xl shadow-lg shadow-bridge-secondary/25 transition-shadow hover:shadow-bridge-secondary/40"
               >
                 <Sparkles size={18} />
                 {isToday ? t('personal.diary.startDiary') : t('personal.diary.writeDiary')}

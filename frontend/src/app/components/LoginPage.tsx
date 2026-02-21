@@ -269,7 +269,7 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder={t('auth.namePlaceholder')}
-                  className="w-full bg-slate-50 border border-slate-200 text-slate-800 pl-12 pr-4 h-13 py-3 rounded-xl focus:outline-none focus:border-bridge-accent/40 focus:ring-2 focus:ring-bridge-accent/10 focus:bg-white transition-all placeholder:text-slate-400"
+                  className="w-full bg-white border border-slate-200 text-slate-800 pl-12 pr-4 h-13 py-3 rounded-xl focus:outline-none focus:border-bridge-accent/40 focus:ring-2 focus:ring-bridge-accent/10 transition-all placeholder:text-slate-400"
                   required
                 />
               </div>
@@ -284,7 +284,7 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder={t('auth.emailPlaceholder')}
-                className="w-full bg-slate-50 border border-slate-200 text-slate-800 pl-12 pr-4 h-13 py-3 rounded-xl focus:outline-none focus:border-bridge-accent/40 focus:ring-2 focus:ring-bridge-accent/10 focus:bg-white transition-all placeholder:text-slate-400"
+                className="w-full bg-white border border-slate-200 text-slate-800 pl-12 pr-4 h-13 py-3 rounded-xl focus:outline-none focus:border-bridge-accent/40 focus:ring-2 focus:ring-bridge-accent/10 transition-all placeholder:text-slate-400"
                 required
               />
             </div>
@@ -300,7 +300,7 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
                 onFocus={() => setPasswordFocused(true)}
                 onBlur={() => setPasswordFocused(false)}
                 placeholder={t('auth.passwordPlaceholder')}
-                className="w-full bg-slate-50 border border-slate-200 text-slate-800 pl-12 pr-4 h-13 py-3 rounded-xl focus:outline-none focus:border-bridge-accent/40 focus:ring-2 focus:ring-bridge-accent/10 focus:bg-white transition-all placeholder:text-slate-400"
+                className="w-full bg-white border border-slate-200 text-slate-800 pl-12 pr-4 h-13 py-3 rounded-xl focus:outline-none focus:border-bridge-accent/40 focus:ring-2 focus:ring-bridge-accent/10 transition-all placeholder:text-slate-400"
                 required
                 minLength={8}
               />

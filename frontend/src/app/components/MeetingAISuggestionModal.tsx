@@ -380,7 +380,7 @@ export default function MeetingAISuggestionModal({
               </p>
               <button
                 onClick={onApplied}
-                className="px-6 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-bridge-accent to-purple-500 rounded-xl hover:shadow-[0_0_30px_rgba(99,102,241,0.3)] transition-all"
+                className="px-6 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-bridge-secondary to-bridge-accent rounded-xl hover:shadow-[0_0_20px_rgba(45,212,191,0.3)] transition-all"
               >
                 {t('meeting.aiApplyDone')}
               </button>
@@ -526,7 +526,7 @@ export default function MeetingAISuggestionModal({
               <button
                 onClick={handleApply}
                 disabled={applying || selectedCount === 0}
-                className="px-5 py-2 text-sm font-bold text-white bg-gradient-to-r from-bridge-accent to-purple-500 rounded-xl hover:shadow-[0_0_30px_rgba(99,102,241,0.3)] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-5 py-2 text-sm font-bold text-white bg-gradient-to-r from-bridge-secondary to-bridge-accent rounded-xl hover:shadow-[0_0_20px_rgba(45,212,191,0.3)] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {applying ? (
                   <>

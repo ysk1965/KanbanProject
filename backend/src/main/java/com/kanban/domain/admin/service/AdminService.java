@@ -453,6 +453,15 @@ public class AdminService {
     }
 
     @Transactional
+    public void createPersonalBoard(String userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        boardService.createPersonalBoard(user);
+        log.info("Personal board created by admin for user: {}", userId);
+    }
+
+    @Transactional
     public AdminResponse.UserDetail adjustPersonalAiCredits(String userId, AdminRequest.AdjustPersonalAiCredits request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));

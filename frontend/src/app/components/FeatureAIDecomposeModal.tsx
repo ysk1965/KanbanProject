@@ -331,7 +331,7 @@ export function FeatureAIDecomposeModal({
             <button
               onClick={handleApply}
               disabled={applying || getSelectedCount() === 0}
-              className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-bridge-accent to-purple-500 rounded-lg hover:opacity-90 transition-all disabled:opacity-50 flex items-center gap-1.5"
+              className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-bridge-secondary to-bridge-accent rounded-lg hover:shadow-[0_0_20px_rgba(45,212,191,0.3)] transition-all disabled:opacity-50 flex items-center gap-1.5"
             >
               {applying ? (
                 <>

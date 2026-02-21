@@ -2066,6 +2066,15 @@ export function KanbanBoardPage() {
           allTasks={tasks}
           wsCommentEvent={wsCommentEvent}
           wsChecklistEvent={wsChecklistEvent}
+          onOpenFeature={(featureId) => {
+            setIsTaskModalOpen(false);
+            setSelectedTask(null);
+            const feature = features.find(f => f.id === featureId);
+            if (feature) {
+              setSelectedFeature(feature);
+              setIsFeatureModalOpen(true);
+            }
+          }}
           // Tag
           tags={tags}
           onCreateTag={handleCreateTag}

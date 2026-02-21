@@ -18,8 +18,9 @@ import {
 import { Badge } from './ui/badge';
 import { Calendar } from './ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import { X, Plus, Trash2, Clock, CheckSquare, CalendarIcon, FileText, Tags, Users, Layers, Pencil, CheckCircle2, Undo2, ChevronDown, ChevronRight, Loader2, MessageSquare, Lightbulb, ArrowRightLeft, GripVertical, ArrowRight, Copy } from 'lucide-react';
+import { X, Plus, Trash2, Clock, CheckSquare, CalendarIcon, FileText, Tags, Users, Layers, Pencil, CheckCircle2, Undo2, ChevronDown, ChevronRight, Loader2, MessageSquare, Lightbulb, ArrowRightLeft, GripVertical, ArrowRight, Copy, Sparkles, AlertCircle } from 'lucide-react';
 import { TaskMoveModal } from './TaskMoveModal';
+import { TaskAIChecklistModal } from './TaskAIChecklistModal';
 import { CommentPanel } from './CommentPanel';
 import { TagPickerPopover } from './TagPickerPopover';
 import { getAssigneeClasses, getInitials } from '../utils/assigneeColor';
@@ -72,6 +73,7 @@ interface TaskDetailModalProps {
   isPersonal?: boolean;
   wsCommentEvent?: BoardWebSocketEvent | null;
   wsChecklistEvent?: BoardWebSocketEvent | null;
+  onOpenFeature?: (featureId: string) => void;
 }
 
 export function TaskDetailModal({
@@ -99,6 +101,7 @@ export function TaskDetailModal({
   isPersonal = false,
   wsCommentEvent,
   wsChecklistEvent,
+  onOpenFeature,
 }: TaskDetailModalProps) {
   const { t } = useTranslation();
 
@@ -119,6 +122,8 @@ export function TaskDetailModal({
   const [checklistMoveSearch, setChecklistMoveSearch] = useState('');
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [moveCopyMode, setMoveCopyMode] = useState<'move' | 'copy' | null>(null);
+  const [showAIConfirm, setShowAIConfirm] = useState(false);
+  const [showAIChecklist, setShowAIChecklist] = useState(false);
 
   // 체크리스트 상태
   const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
@@ -762,6 +767,15 @@ export function TaskDetailModal({
               <div className="flex items-center gap-2">
                 <CheckSquare className="h-5 w-5" style={{ color: task.feature_color || '#6366F1' }} />
                 <Label className="text-base font-semibold text-foreground">CheckList</Label>
+                {canEdit && boardId && (
+                  <button
+                    onClick={() => setShowAIConfirm(true)}
+                    className="ml-1 flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold text-white bg-gradient-to-r from-bridge-secondary to-bridge-accent rounded-md hover:shadow-[0_0_20px_rgba(45,212,191,0.3)] transition-all"
+                  >
+                    <Sparkles className="h-3 w-3" />
+                    AI
+                  </button>
+                )}
               </div>
               <div className="flex items-center gap-3">
                 <div className="w-24 h-2 bg-foreground/10 rounded-full overflow-hidden">
@@ -1131,6 +1145,139 @@ export function TaskDetailModal({
             setMoveCopyMode(null);
             if (moveCopyMode === 'move') {
               onClose();
+            }
+          }}
+        />
+      )}
+
+      {/* AI Checklist Confirm Modal */}
+      {showAIConfirm && task && editedTask && boardId && (() => {
+        const parentFeature = features.find(f => f.id === task.feature_id);
+        return (
+          <MotionModal open={true} onClose={() => setShowAIConfirm(false)} className="sm:max-w-md p-0 overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-foreground/5">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-bridge-secondary to-bridge-accent flex items-center justify-center">
+                  <Sparkles className="h-3.5 w-3.5 text-white" />
+                </div>
+                <h3 className="text-sm font-bold text-foreground">{t('task.aiChecklistTitle')}</h3>
+              </div>
+              <button onClick={() => setShowAIConfirm(false)} className="text-slate-400 hover:text-foreground transition-colors">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="px-5 py-4 space-y-3 max-h-[60vh] overflow-y-auto">
+              <p className="text-xs text-slate-400">{t('task.aiChecklistConfirmDesc')}</p>
+
+              {/* Feature group */}
+              <div className="rounded-xl border border-foreground/5 bg-white/[0.02] p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{t('task.aiChecklistConfirmFeatureLabel')}</span>
+                  {onOpenFeature && (
+                    <button
+                      onClick={() => {
+                        setShowAIConfirm(false);
+                        onClose();
+                        onOpenFeature(task.feature_id);
+                      }}
+                      className="flex items-center gap-1 text-[10px] text-bridge-accent hover:text-bridge-accent/80 transition-colors"
+                    >
+                      <ArrowRight className="h-3 w-3" />
+                      {t('task.aiChecklistGoToFeature')}
+                    </button>
+                  )}
+                </div>
+                <p className="text-sm font-medium text-foreground">{parentFeature?.title || task.feature_title}</p>
+                {parentFeature?.description ? (
+                  <p className="text-xs text-slate-400 whitespace-pre-wrap line-clamp-2">{parentFeature.description}</p>
+                ) : (
+                  <div className="flex items-center gap-1.5">
+                    <AlertCircle className="h-3 w-3 text-amber-400 flex-shrink-0" />
+                    <p className="text-[11px] text-amber-400/70">{t('task.aiChecklistConfirmNoDesc')}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Task group */}
+              <div className="rounded-xl border border-foreground/5 bg-white/[0.02] p-3 space-y-2.5">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{t('task.aiChecklistConfirmTaskLabel')}</span>
+                <input
+                  type="text"
+                  value={editedTask.title}
+                  onChange={(e) => updateEditedTask({ title: e.target.value })}
+                  className="w-full px-3 py-2 bg-white/5 rounded-lg border border-foreground/5 text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+                />
+                <textarea
+                  value={editedTask.description || ''}
+                  onChange={(e) => updateEditedTask({ description: e.target.value })}
+                  placeholder={t('task.aiChecklistConfirmNoDesc')}
+                  rows={3}
+                  className="w-full px-3 py-2 bg-white/5 rounded-lg border border-foreground/5 text-sm text-slate-300 placeholder-amber-400/60 resize-none focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+                />
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 py-4 border-t border-foreground/5 flex justify-end gap-2">
+              <button
+                onClick={() => setShowAIConfirm(false)}
+                className="px-4 py-2 text-sm text-slate-400 hover:text-foreground transition-colors"
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                onClick={() => {
+                  if (hasChanges && editedTask) {
+                    onUpdate(editedTask);
+                    setInitialTask(JSON.parse(JSON.stringify(editedTask)));
+                    setHasChanges(false);
+                  }
+                  setShowAIConfirm(false);
+                  setShowAIChecklist(true);
+                }}
+                className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-bridge-secondary to-bridge-accent rounded-lg hover:shadow-[0_0_20px_rgba(45,212,191,0.3)] transition-all flex items-center gap-1.5"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                {t('task.aiChecklistConfirmStart')}
+              </button>
+            </div>
+          </MotionModal>
+        );
+      })()}
+
+      {/* AI Checklist Decompose Modal */}
+      {showAIChecklist && task && boardId && (
+        <TaskAIChecklistModal
+          boardId={boardId}
+          taskId={task.id}
+          taskTitle={editedTask?.title || task.title}
+          existingChecklistTitles={checklistItems.map(item => item.title)}
+          onClose={() => setShowAIChecklist(false)}
+          onApplied={() => {
+            setShowAIChecklist(false);
+            // Reload checklist items
+            if (boardId && task) {
+              checklistAPI.getChecklist(boardId, task.id)
+                .then((response) => {
+                  const rawItems = response.items || [];
+                  const items: ChecklistItem[] = rawItems.map((item) => ({
+                    id: item.id,
+                    title: item.title,
+                    completed: item.completed,
+                    position: item.position,
+                    start_date: item.start_date,
+                    due_date: item.due_date,
+                    done_date: item.done_date,
+                    assignee: item.assignee ? { id: item.assignee.id, name: item.assignee.name, profile_image: item.assignee.profile_image } : null,
+                  }));
+                  setChecklistItems(items);
+                })
+                .catch((error) => {
+                  console.error('Failed to reload checklist:', error);
+                });
             }
           }}
         />

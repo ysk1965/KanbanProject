@@ -153,6 +153,41 @@ public class BoardService {
         blockRepository.save(doneBlock);
     }
 
+    @Transactional
+    public Board createPersonalBoard(User user) {
+        // 이미 개인 보드가 있는지 확인
+        if (boardRepository.existsByOwnerIdAndBoardType(user.getId(), BoardType.PERSONAL)) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
+        }
+
+        Board board = Board.builder()
+                .name("Personal Board")
+                .owner(user)
+                .boardType(BoardType.PERSONAL)
+                .tier(BoardTier.PREMIUM)
+                .build();
+        boardRepository.save(board);
+
+        // Owner로 멤버 추가
+        BoardMember ownerMember = BoardMember.builder()
+                .board(board)
+                .user(user)
+                .role(BoardRole.OWNER)
+                .build();
+        boardMemberRepository.save(ownerMember);
+
+        // 기본 블록 생성
+        createDefaultBlocks(board);
+
+        // 구독 생성 (PREMIUM)
+        Subscription subscription = Subscription.createPremium(board);
+        subscriptionRepository.save(subscription);
+
+        log.info("Personal board created: {} for user: {}", board.getId(), user.getId());
+
+        return board;
+    }
+
     public List<BoardResponse.Simple> getMyBoards(String userId) {
         List<BoardResponse.Simple> result = new ArrayList<>();
 

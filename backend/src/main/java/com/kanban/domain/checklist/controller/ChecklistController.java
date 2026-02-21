@@ -1,7 +1,10 @@
 package com.kanban.domain.checklist.controller;
 
+import com.kanban.domain.checklist.dto.ChecklistAIRequest;
+import com.kanban.domain.checklist.dto.ChecklistAIResponse;
 import com.kanban.domain.checklist.dto.ChecklistRequest;
 import com.kanban.domain.checklist.dto.ChecklistResponse;
+import com.kanban.domain.checklist.service.ChecklistAIService;
 import com.kanban.domain.checklist.service.ChecklistService;
 import com.kanban.global.security.UserPrincipal;
 import jakarta.validation.Valid;
@@ -19,6 +22,7 @@ import java.util.Map;
 public class ChecklistController {
 
     private final ChecklistService checklistService;
+    private final ChecklistAIService checklistAIService;
 
     @GetMapping
     public ResponseEntity<ChecklistResponse.ListResponse> getChecklist(
@@ -90,6 +94,28 @@ public class ChecklistController {
             @PathVariable String itemId,
             @AuthenticationPrincipal UserPrincipal principal) {
         ChecklistResponse.Detail response = checklistService.toggleChecklistItem(boardId, taskId, itemId, principal.getUserId());
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/ai/decompose")
+    public ResponseEntity<ChecklistAIResponse.ChecklistDecomposition> aiDecompose(
+            @PathVariable String boardId,
+            @PathVariable String taskId,
+            @RequestParam(required = false) String language,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        ChecklistAIResponse.ChecklistDecomposition response = checklistAIService.generateChecklistSuggestions(
+                boardId, taskId, principal.getUserId(), language);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/ai/apply")
+    public ResponseEntity<ChecklistAIResponse.ApplyResult> aiApply(
+            @PathVariable String boardId,
+            @PathVariable String taskId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody ChecklistAIRequest.ApplyChecklist request) {
+        ChecklistAIResponse.ApplyResult response = checklistAIService.applyChecklistSuggestions(
+                boardId, taskId, principal.getUserId(), request);
         return ResponseEntity.ok(response);
     }
 }

@@ -246,7 +246,7 @@ export function AiCreditPurchaseModal({
                     <Button
                       onClick={handlePurchase}
                       disabled={isLoading}
-                      className="flex-1 bg-bridge-accent hover:bg-bridge-accent/90 text-white font-bold"
+                      className="flex-1 bg-gradient-to-r from-bridge-secondary to-bridge-accent hover:shadow-[0_0_20px_rgba(45,212,191,0.3)] text-white font-bold"
                     >
                       {isLoading ? (
                         <span className="flex items-center gap-2">
@@ -311,7 +311,7 @@ export function AiCreditPurchaseModal({
             <div className="flex flex-col gap-3">
               <Button
                 onClick={() => setInternalMode('purchase')}
-                className="w-full bg-bridge-accent hover:bg-bridge-accent/90 text-white font-bold"
+                className="w-full bg-gradient-to-r from-bridge-secondary to-bridge-accent hover:shadow-[0_0_20px_rgba(45,212,191,0.3)] text-white font-bold"
               >
                 {t('ai_credits.exhausted_modal.buy_button')}
               </Button>

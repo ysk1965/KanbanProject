@@ -516,7 +516,7 @@ export function AIReportPanel({ boardId, members, hideBilling }: AIReportPanelPr
               </p>
               <button
                 onClick={handleGenerate}
-                className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all bg-bridge-accent text-white hover:bg-bridge-accent/90 hover:shadow-[0_0_30px_rgba(99,102,241,0.3)]"
+                className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white hover:shadow-[0_0_20px_rgba(45,212,191,0.3)]"
               >
                 <Sparkles className="h-4 w-4" />
                 {t('aiReport.generate')}
