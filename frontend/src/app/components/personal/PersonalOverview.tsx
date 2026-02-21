@@ -164,16 +164,19 @@ function TodayScheduleWidget({
     return h * 60 + m;
   };
 
+  const calendarEvents = events.filter(e => e.event_type === 'CALENDAR');
+
   const allTimedEvents = events
-    .filter(e => !e.all_day && e.start_time)
+    .filter(e => e.event_type !== 'CALENDAR' && !e.all_day && e.start_time)
     .sort((a, b) => toMin(a.start_time!) - toMin(b.start_time!));
+
+  const allDayEvents: PersonalEvent[] = [];
 
   // 반응형 윈도우: 모바일 ±1시간(2h), 데스크탑 ±1.5시간(3h)
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
   const halfWindow = isMobile ? 60 : 90;
   const rawWindowStart = currentMinutes - halfWindow;
   const rawWindowEnd = currentMinutes + halfWindow;
-  const windowStartHour = Math.max(0, Math.floor(rawWindowStart / 60));
   const windowStartMin = rawWindowStart >= 0 ? (Math.floor(rawWindowStart / 30) * 30) : 0;
   const windowEndMin = Math.min(24 * 60, Math.ceil(rawWindowEnd / 30) * 30);
 
@@ -224,9 +227,9 @@ function TodayScheduleWidget({
       icon={<Clock size={16} className="text-bridge-secondary" />}
       title={t('personal.overview.todaySchedule', "Today's Schedule")}
       badge={
-        allTimedEvents.length > 0 ? (
+        (allTimedEvents.length + calendarEvents.length) > 0 ? (
           <span className="text-[10px] font-bold text-bridge-secondary bg-bridge-secondary/10 px-1.5 py-0.5 rounded-full">
-            {timedEvents.length}/{allTimedEvents.length}
+            {timedEvents.length + calendarEvents.length}/{allTimedEvents.length + calendarEvents.length}
           </span>
         ) : null
       }
@@ -237,7 +240,7 @@ function TodayScheduleWidget({
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="w-5 h-5 animate-spin text-bridge-accent/50" />
         </div>
-      ) : allTimedEvents.length === 0 ? (
+      ) : allTimedEvents.length === 0 && calendarEvents.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center text-center gap-1.5 md:gap-3">
           <CalendarDays size={24} className="text-slate-600 md:w-7 md:h-7" />
           <p className="text-xs md:text-sm text-slate-500">{t('personal.overview.noEvents', 'No events today')}</p>
@@ -250,113 +253,143 @@ function TodayScheduleWidget({
           </button>
         </div>
       ) : (
-        <div ref={scrollRef} className="flex-1 overflow-y-auto custom-scrollbar -mx-1 px-1">
-          <div className="relative" style={{ height: `${totalHeight}px` }}>
-            {/* ── 30분 단위 시간 그리드 ── */}
-            {timeSlots.map((time, idx) => (
-              <div
-                key={time}
-                className="absolute left-0 right-0 flex border-b border-foreground/[0.04]"
-                style={{ top: `${idx * TIMELINE_SLOT_H}px`, height: `${TIMELINE_SLOT_H}px` }}
-              >
-                <div className="w-10 md:w-12 flex-shrink-0 pr-2 pt-0.5 text-right">
-                  {time.endsWith(':00') && (
-                    <span className="text-[10px] md:text-[11px] text-slate-500 tabular-nums font-light">
-                      {time}
+        <div className="flex-1 flex flex-col min-h-0">
+          {/* ── 캘린더 일정 ── */}
+          {calendarEvents.length > 0 && (
+            <div className="pb-1.5 space-y-0.5">
+              {calendarEvents.map((ev) => {
+                const color = ev.color || '#6366F1';
+                return (
+                  <button
+                    key={ev.id}
+                    onClick={onViewAll}
+                    className="w-full flex items-center gap-2 px-2 py-1 rounded-md hover:bg-foreground/[0.04] transition-colors text-left"
+                  >
+                    <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                    <span className="text-[11px] text-foreground truncate flex-1">{ev.title}</span>
+                    <span className="text-[9px] text-slate-500 tabular-nums shrink-0">
+                      {ev.start_time ? `${ev.start_time.slice(0, 5)}${ev.end_time ? `–${ev.end_time.slice(0, 5)}` : ''}` : t('personal.mobile.allDay', 'All day')}
                     </span>
-                  )}
-                </div>
-                <div className="flex-1 border-l border-foreground/[0.06]" />
-              </div>
-            ))}
+                  </button>
+                );
+              })}
+              {allTimedEvents.length > 0 && (
+                <div className="h-px bg-foreground/[0.06]" />
+              )}
+            </div>
+          )}
 
-            {/* ── 이벤트 블록 ── */}
-            {timedEvents.map(ev => {
-              const evStart = toMin(ev.start_time!);
-              const evEnd = ev.end_time ? toMin(ev.end_time) : evStart + 60;
-              const color = ev.color || '#6366F1';
-
-              // 윈도우 내로 클램프
-              const clampedStart = Math.max(evStart, windowStartMin);
-              const clampedEnd = Math.min(evEnd, windowEndMin);
-
-              const top = ((clampedStart - windowStartMin) / 30) * TIMELINE_SLOT_H;
-              const height = Math.max(((clampedEnd - clampedStart) / 30) * TIMELINE_SLOT_H, TIMELINE_SLOT_H * 0.6);
-
-              const isCurrent = currentMinutes >= evStart && currentMinutes < evEnd;
-              const isPast = currentMinutes >= evEnd;
-
-              return (
-                <motion.div
-                  key={ev.id}
-                  initial={{ opacity: 0, x: 8 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.3 }}
-                  className={`absolute rounded-lg border-l-[3px] px-2.5 py-1.5 overflow-hidden cursor-pointer
-                    hover:shadow-lg transition-shadow ${isPast ? 'opacity-50' : ''}`}
-                  style={{
-                    top: `${top}px`,
-                    height: `${height}px`,
-                    left: '2.75rem',
-                    right: '0.25rem',
-                    borderLeftColor: color,
-                    background: isCurrent
-                      ? `linear-gradient(135deg, ${color}22 0%, ${color}10 100%)`
-                      : `linear-gradient(135deg, ${color}14 0%, ${color}08 100%)`,
-                  }}
-                  onClick={onViewAll}
-                >
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <span className={`text-[11px] font-semibold truncate ${isCurrent ? 'text-foreground' : 'text-foreground/80'}`}>
-                      {ev.title}
-                    </span>
-                    {isCurrent && (
-                      <span className="text-[8px] font-bold text-bridge-secondary bg-bridge-secondary/15 px-1 py-px rounded-full flex-shrink-0 animate-pulse">
-                        NOW
-                      </span>
-                    )}
-                  </div>
-                  {height >= TIMELINE_SLOT_H * 0.8 && (
-                    <div className="text-[10px] text-slate-400 mt-0.5">
-                      {ev.start_time?.slice(0, 5)}{ev.end_time ? ` - ${ev.end_time.slice(0, 5)}` : ''}
+          {/* ── 타임라인 ── */}
+          {allTimedEvents.length > 0 && (
+            <div ref={scrollRef} className="flex-1 overflow-y-auto custom-scrollbar -mx-1 px-1">
+              <div className="relative" style={{ height: `${totalHeight}px` }}>
+                {/* ── 30분 단위 시간 그리드 ── */}
+                {timeSlots.map((time, idx) => (
+                  <div
+                    key={time}
+                    className="absolute left-0 right-0 flex border-b border-foreground/[0.04]"
+                    style={{ top: `${idx * TIMELINE_SLOT_H}px`, height: `${TIMELINE_SLOT_H}px` }}
+                  >
+                    <div className="w-10 md:w-12 flex-shrink-0 pr-2 pt-0.5 text-right">
+                      {time.endsWith(':00') && (
+                        <span className="text-[10px] md:text-[11px] text-slate-500 tabular-nums font-light">
+                          {time}
+                        </span>
+                      )}
                     </div>
-                  )}
-                </motion.div>
-              );
-            })}
+                    <div className="flex-1 border-l border-foreground/[0.06]" />
+                  </div>
+                ))}
 
-            {/* ── 현재 시간 표시선 ── */}
-            {nowTop != null && (
-              <div
-                ref={indicatorRef}
-                className="absolute left-0 right-0 z-10 pointer-events-none flex items-center"
-                style={{ top: `${nowTop}px` }}
-              >
-                <div className="w-10 md:w-12 flex-shrink-0 flex justify-end pr-1">
-                  <span className="text-[9px] font-bold text-red-400 bg-red-500/15 px-1 rounded tabular-nums">
-                    {fmtTime(currentMinutes)}
-                  </span>
-                </div>
-                <div className="flex items-center flex-1">
-                  <div className="w-1.5 h-1.5 rounded-full bg-red-500 -ml-[3px] flex-shrink-0" />
-                  <div className="flex-1 h-[1.5px] bg-red-500/60" />
-                </div>
-              </div>
-            )}
+                {/* ── 이벤트 블록 ── */}
+                {timedEvents.map(ev => {
+                  const evStart = toMin(ev.start_time!);
+                  const evEnd = ev.end_time ? toMin(ev.end_time) : evStart + 60;
+                  const color = ev.color || '#6366F1';
 
-            {/* 윈도우 내 이벤트 없을 때 빈 상태 */}
-            {timedEvents.length === 0 && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-center gap-1.5">
-                <Clock size={20} className="text-slate-600" />
-                <p className="text-[11px] text-slate-500">
-                  {t('personal.overview.noNearbyEvents', 'No events in the next hour')}
-                </p>
-                <p className="text-[10px] text-slate-600">
-                  {t('personal.overview.totalEventsToday', '{{count}} events today', { count: allTimedEvents.length })}
-                </p>
+                  // 윈도우 내로 클램프
+                  const clampedStart = Math.max(evStart, windowStartMin);
+                  const clampedEnd = Math.min(evEnd, windowEndMin);
+
+                  const top = ((clampedStart - windowStartMin) / 30) * TIMELINE_SLOT_H;
+                  const height = Math.max(((clampedEnd - clampedStart) / 30) * TIMELINE_SLOT_H, TIMELINE_SLOT_H * 0.6);
+
+                  const isCurrent = currentMinutes >= evStart && currentMinutes < evEnd;
+                  const isPast = currentMinutes >= evEnd;
+
+                  return (
+                    <motion.div
+                      key={ev.id}
+                      initial={{ opacity: 0, x: 8 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.3 }}
+                      className={`absolute rounded-lg border-l-[3px] px-2.5 py-1.5 overflow-hidden cursor-pointer
+                        hover:shadow-lg transition-shadow ${isPast ? 'opacity-50' : ''}`}
+                      style={{
+                        top: `${top}px`,
+                        height: `${height}px`,
+                        left: '2.75rem',
+                        right: '0.25rem',
+                        borderLeftColor: color,
+                        background: isCurrent
+                          ? `linear-gradient(135deg, ${color}22 0%, ${color}10 100%)`
+                          : `linear-gradient(135deg, ${color}14 0%, ${color}08 100%)`,
+                      }}
+                      onClick={onViewAll}
+                    >
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className={`text-[11px] font-semibold truncate ${isCurrent ? 'text-foreground' : 'text-foreground/80'}`}>
+                          {ev.title}
+                        </span>
+                        {isCurrent && (
+                          <span className="text-[8px] font-bold text-bridge-secondary bg-bridge-secondary/15 px-1 py-px rounded-full flex-shrink-0 animate-pulse">
+                            NOW
+                          </span>
+                        )}
+                      </div>
+                      {height >= TIMELINE_SLOT_H * 0.8 && (
+                        <div className="text-[10px] text-slate-400 mt-0.5">
+                          {ev.start_time?.slice(0, 5)}{ev.end_time ? ` - ${ev.end_time.slice(0, 5)}` : ''}
+                        </div>
+                      )}
+                    </motion.div>
+                  );
+                })}
+
+                {/* ── 현재 시간 표시선 ── */}
+                {nowTop != null && (
+                  <div
+                    ref={indicatorRef}
+                    className="absolute left-0 right-0 z-10 pointer-events-none flex items-center"
+                    style={{ top: `${nowTop}px` }}
+                  >
+                    <div className="w-10 md:w-12 flex-shrink-0 flex justify-end pr-1">
+                      <span className="text-[9px] font-bold text-red-400 bg-red-500/15 px-1 rounded tabular-nums">
+                        {fmtTime(currentMinutes)}
+                      </span>
+                    </div>
+                    <div className="flex items-center flex-1">
+                      <div className="w-1.5 h-1.5 rounded-full bg-red-500 -ml-[3px] flex-shrink-0" />
+                      <div className="flex-1 h-[1.5px] bg-red-500/60" />
+                    </div>
+                  </div>
+                )}
+
+                {/* 윈도우 내 이벤트 없을 때 빈 상태 */}
+                {timedEvents.length === 0 && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-center gap-1.5">
+                    <Clock size={20} className="text-slate-600" />
+                    <p className="text-[11px] text-slate-500">
+                      {t('personal.overview.noNearbyEvents', 'No events in the next hour')}
+                    </p>
+                    <p className="text-[10px] text-slate-600">
+                      {t('personal.overview.totalEventsToday', '{{count}} events today', { count: allTimedEvents.length })}
+                    </p>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       )}
     </WidgetCard>
@@ -371,9 +404,11 @@ type DeadlineItem =
 function UpcomingDeadlinesWidget({
   todayDate,
   onViewAll,
+  onTaskToggle,
 }: {
   todayDate: string;
   onViewAll: () => void;
+  onTaskToggle?: (taskId: string, isDone: boolean) => void;
 }) {
   const { t } = useTranslation();
   const [items, setItems] = useState<DeadlineItem[]>([]);
@@ -406,7 +441,7 @@ function UpcomingDeadlinesWidget({
         const taskData = await personalTaskAPI.getAll();
 
         const taskItems: DeadlineItem[] = taskData
-          .filter(t => t.status !== 'ARCHIVED' && t.status !== 'DONE' && t.due_date && t.due_date >= todayDate)
+          .filter(t => t.status !== 'ARCHIVED' && t.due_date && t.due_date >= todayDate)
           .map(t => ({
             kind: 'task' as const,
             id: t.id,
@@ -436,14 +471,16 @@ function UpcomingDeadlinesWidget({
 
   const handleToggleTask = useCallback(async (taskId: string, currentlyDone: boolean) => {
     setTogglingIds(prev => new Set(prev).add(taskId));
+    const newStatus = currentlyDone ? 'TODO' as const : 'DONE' as const;
+    // Optimistic: update parent dashboard stats immediately
+    onTaskToggle?.(taskId, newStatus === 'DONE');
     try {
-      const newStatus = currentlyDone ? 'TODO' as const : 'DONE' as const;
       await personalTaskAPI.updateStatus(taskId, newStatus);
 
       setTogglingIds(prev => { const n = new Set(prev); n.delete(taskId); return n; });
 
       if (!currentlyDone) {
-        // Checked → animate then remove from list
+        // Checked → animate but keep in list
         setItems(prev => prev.map(item =>
           item.kind === 'task' && item.id === taskId
             ? { ...item, isDone: true, status: newStatus }
@@ -452,7 +489,6 @@ function UpcomingDeadlinesWidget({
         setAnimatingIds(prev => new Set(prev).add(taskId));
         setTimeout(() => {
           setAnimatingIds(prev => { const n = new Set(prev); n.delete(taskId); return n; });
-          setItems(prev => prev.filter(item => !(item.kind === 'task' && item.id === taskId)));
         }, 600);
       } else {
         // Unchecked → restore and re-sort
@@ -466,8 +502,10 @@ function UpcomingDeadlinesWidget({
     } catch {
       console.error('Failed to toggle task status');
       setTogglingIds(prev => { const n = new Set(prev); n.delete(taskId); return n; });
+      // Revert optimistic update
+      onTaskToggle?.(taskId, currentlyDone);
     }
-  }, [sortDeadlines]);
+  }, [sortDeadlines, onTaskToggle]);
 
   // Task detail modal callbacks
   const handleTaskUpdate = useCallback(async (data: { title?: string; due_date?: string | null; priority?: PersonalTaskPriority; description?: string }) => {
@@ -501,14 +539,17 @@ function UpcomingDeadlinesWidget({
   const handleTaskToggleComplete = useCallback(async () => {
     if (!selectedTask) return;
     const newStatus = selectedTask.status === 'DONE' ? 'TODO' as const : 'DONE' as const;
+    onTaskToggle?.(selectedTask.id, newStatus === 'DONE');
     try {
       const updated = await personalTaskAPI.updateStatus(selectedTask.id, newStatus);
       setSelectedTask(updated);
       setTaskMap(prev => { const n = new Map(prev); n.set(updated.id, updated); return n; });
-      if (newStatus === 'DONE') {
-        // Remove from list after closing modal
-        setItems(prev => prev.filter(item => !(item.kind === 'task' && item.id === selectedTask.id)));
-      }
+      // Update isDone in list (keep item visible)
+      setItems(prev => prev.map(item =>
+        item.kind === 'task' && item.id === selectedTask.id
+          ? { ...item, isDone: newStatus === 'DONE', status: newStatus }
+          : item
+      ));
     } catch {
       console.error('Failed to toggle task');
     }
@@ -734,7 +775,7 @@ function UpcomingDeadlinesWidget({
 // ── 좌하단: Habits Today (카드 스타일) ──────────────────────
 
 const HABIT_DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-const HABIT_DAY_ORDER = [1, 2, 3, 4, 5, 6, 0]; // Mon → Sun
+const HABIT_DAY_ORDER = [0, 1, 2, 3, 4, 5, 6]; // Sun → Sat
 
 function getHabitScheduledDays(frequencyType: HabitFrequency, frequencyDays?: string | null): Set<number> {
   switch (frequencyType) {
@@ -790,11 +831,12 @@ function HabitsTodayWidget({
       monday.setDate(now.getDate() + mondayOffset);
       const sunday = new Date(monday);
       sunday.setDate(monday.getDate() + 6);
-      const fmt = (d: Date) => d.toISOString().split('T')[0];
+      const fmt = (d: Date) =>
+        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
       const [all, today, weekly] = await Promise.all([
         personalHabitAPI.getAll(),
-        personalHabitAPI.getToday(),
+        personalHabitAPI.getToday(fmt(now)),
         personalHabitAPI.getWeekly(fmt(monday), fmt(sunday)),
       ]);
       setAllHabits(all.filter(h => h.is_active));
@@ -881,7 +923,7 @@ function HabitsTodayWidget({
       };
     });
     try {
-      const updated = await personalHabitAPI.checkIn(habitId);
+      const updated = await personalHabitAPI.checkIn(habitId, { log_date: todayDate });
       setTodayHabits(prev => prev.map(h => h.habit_id === habitId ? updated : h));
     } catch {
       setTodayHabits(prev => prev.map(h =>
@@ -1024,7 +1066,13 @@ function HabitsTodayWidget({
                       return (
                         <div key={dayIdx} className="flex flex-col items-center gap-1 flex-1">
                           <span className={`text-[9px] leading-none ${
-                            isTodayDay && isScheduled
+                            dayIdx === 0
+                              ? isTodayDay && isScheduled
+                                ? 'font-black text-red-400'
+                                : isTodayDay
+                                ? 'font-bold text-red-400/70'
+                                : 'font-medium text-red-400/60'
+                              : isTodayDay && isScheduled
                               ? 'font-black text-purple-300'
                               : isTodayDay
                               ? 'font-bold text-slate-400'
@@ -1469,7 +1517,7 @@ function MobileQuickHabits({
     // Optimistic: update parent dashboardData (header stats)
     onHabitToggle(habitId, !isUndo);
     try {
-      const updated = await personalHabitAPI.checkIn(habitId);
+      const updated = await personalHabitAPI.checkIn(habitId, { log_date: getTodayDateString() });
       setHabits(prev => prev.map(h => h.habit_id === habitId ? updated : h));
       onHabitToggle(habitId, updated.is_completed);
     } catch {
@@ -1616,13 +1664,13 @@ export function PersonalOverview({ onNavigateTab }: PersonalOverviewProps) {
   useEffect(() => {
     (async () => {
       try {
-        const data = await personalDashboardAPI.getToday();
+        const data = await personalDashboardAPI.getToday(todayDate);
         setDashboardData(data);
       } catch {
         console.error('Failed to load dashboard data');
       }
     })();
-  }, []);
+  }, [todayDate]);
 
   // Optimistically update dashboardData when habit is toggled from the quick strip
   const handleHabitToggle = useCallback((habitId: string, isCompleted: boolean) => {
@@ -1632,6 +1680,20 @@ export function PersonalOverview({ onNavigateTab }: PersonalOverviewProps) {
         ...prev,
         habits_today: prev.habits_today.map(h =>
           h.habit_id === habitId ? { ...h, is_completed: isCompleted } : h
+        ),
+      };
+    });
+  }, []);
+
+  // Optimistically update dashboardData when task is toggled from deadlines widget
+  const handleTaskToggle = useCallback((taskId: string, isDone: boolean) => {
+    setDashboardData(prev => {
+      if (!prev) return prev;
+      const newStatus = isDone ? 'DONE' : 'TODO';
+      return {
+        ...prev,
+        due_today_tasks: prev.due_today_tasks.map(t =>
+          t.id === taskId ? { ...t, status: newStatus } : t
         ),
       };
     });
@@ -1659,6 +1721,7 @@ export function PersonalOverview({ onNavigateTab }: PersonalOverviewProps) {
           <UpcomingDeadlinesWidget
             todayDate={todayDate}
             onViewAll={() => onNavigateTab('tasks')}
+            onTaskToggle={handleTaskToggle}
           />
           {/* Habits widget: hidden on mobile (quick strip replaces it), visible on desktop */}
           <div className="hidden md:block">

@@ -136,7 +136,7 @@ function deriveFrequency(days: number[]): { type: HabitFrequency; days?: string 
 
 const DAY_LABELS_SHORT = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const DAY_LABELS_TWO = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-const DAY_DISPLAY_ORDER = [1, 2, 3, 4, 5, 6, 0]; // Mon → Sun
+const DAY_DISPLAY_ORDER = [0, 1, 2, 3, 4, 5, 6]; // Sun → Sat
 
 function getScheduledDays(frequencyType: HabitFrequency, frequencyDays?: string): Set<number> {
   switch (frequencyType) {
@@ -186,11 +186,12 @@ function AllHabitsBar({ onNavigateHabits, refreshKey }: { onNavigateHabits?: () 
       monday.setDate(now.getDate() + mondayOffset);
       const sunday = new Date(monday);
       sunday.setDate(monday.getDate() + 6);
-      const fmt = (d: Date) => d.toISOString().split('T')[0];
+      const fmt = (d: Date) =>
+        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
       const [all, today, weekly] = await Promise.all([
         personalHabitAPI.getAll(),
-        personalHabitAPI.getToday(),
+        personalHabitAPI.getToday(fmt(now)),
         personalHabitAPI.getWeekly(fmt(monday), fmt(sunday)),
       ]);
       setAllHabits(all.filter(h => h.is_active));
@@ -242,7 +243,7 @@ function AllHabitsBar({ onNavigateHabits, refreshKey }: { onNavigateHabits?: () 
       };
     });
     try {
-      const updated = await personalHabitAPI.checkIn(habitId);
+      const updated = await personalHabitAPI.checkIn(habitId, { log_date: todayDate });
       if (isInTodayHabits) {
         setTodayHabits(prev => prev.map(h => h.habit_id === habitId ? updated : h));
       }
@@ -400,7 +401,13 @@ function AllHabitsBar({ onNavigateHabits, refreshKey }: { onNavigateHabits?: () 
                       return (
                         <div key={dayIdx} className="flex flex-col items-center gap-1 flex-1">
                           <span className={`text-[9px] leading-none ${
-                            isTodayDay && isScheduled
+                            dayIdx === 0
+                              ? isTodayDay && isScheduled
+                                ? 'font-extrabold text-red-400'
+                                : isTodayDay
+                                ? 'font-bold text-red-400/70'
+                                : 'font-medium text-red-400/60'
+                              : isTodayDay && isScheduled
                               ? 'font-extrabold text-purple-300'
                               : isTodayDay
                               ? 'font-bold text-slate-400'
@@ -511,6 +518,8 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
   const [showCompleted, setShowCompleted] = useState(false);
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [dragOverQuadrant, setDragOverQuadrant] = useState<Quadrant | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const savedScrollTop = useRef<number | null>(null);
 
   // Quick add
   const [captureType, setCaptureType] = useState<'task' | 'habit'>('task');
@@ -526,7 +535,16 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
 
   const [taskConfirm, setTaskConfirm] = useState<{ id: string; title: string; isDone: boolean } | null>(null);
 
+  // Restore scroll position after data refresh
+  useEffect(() => {
+    if (savedScrollTop.current != null && scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = savedScrollTop.current;
+      savedScrollTop.current = null;
+    }
+  }, [tasks]);
+
   // ── Filtered lists ──
+  const todayDate = getTodayDateString();
   const activeTasks = useMemo(
     () => tasks.filter(t => t.status !== 'DONE' && t.status !== 'ARCHIVED'),
     [tasks],
@@ -536,6 +554,23 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
       .filter(t => t.status === 'DONE')
       .sort((a, b) => (b.completed_at ?? '').localeCompare(a.completed_at ?? '')),
     [tasks],
+  );
+  // Today's completed tasks → shown inline in quadrants (exclude overdue ones)
+  const todayCompletedTasks = useMemo(
+    () => completedTasks.filter(t => {
+      if (!t.completed_at) return false;
+      if (t.due_date && t.due_date < todayDate) return false;
+      return format(new Date(t.completed_at), 'yyyy-MM-dd') === todayDate;
+    }),
+    [completedTasks, todayDate],
+  );
+  // Past completed tasks → only shown in modal
+  const pastCompletedTasks = useMemo(
+    () => completedTasks.filter(t => {
+      if (!t.completed_at) return true;
+      return format(new Date(t.completed_at), 'yyyy-MM-dd') !== todayDate;
+    }),
+    [completedTasks, todayDate],
   );
 
   // ── Group by quadrant ──
@@ -555,8 +590,12 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
         return a.position - b.position;
       });
     }
+    // Append today's completed tasks at the end of each quadrant
+    for (const task of todayCompletedTasks) {
+      result[getQuadrant(task)].push(task);
+    }
     return result;
-  }, [activeTasks]);
+  }, [activeTasks, todayCompletedTasks]);
 
   // ── Task Handlers ──
   const handleQuickAdd = async () => {
@@ -598,6 +637,7 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
 
   const handleToggleComplete = async (task: PersonalTask) => {
     try {
+      savedScrollTop.current = scrollContainerRef.current?.scrollTop ?? null;
       await personalTaskAPI.updateStatus(task.id, task.status === 'DONE' ? 'TODO' : 'DONE');
       onRefresh();
     } catch (error) {
@@ -685,7 +725,7 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
   const urgentDeadlineLabel = format(getUrgentDeadline(), 'M/d');
 
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+    <div ref={scrollContainerRef} className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
       <div className="max-w-5xl mx-auto p-4 md:p-6 pb-6 space-y-4">
 
         {/* ── Quick Add Bar (hidden on mobile – use FAB instead) ── */}
@@ -869,6 +909,11 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
                 <span className="font-bold">{completedTasks.length}</span>
               </button>
             )}
+            {todayCompletedTasks.length > 0 && (
+              <span className="text-[10px] text-emerald-400/60 hidden sm:inline">
+                ({t('personal.tasks.todayDone', '오늘 {{count}}개', { count: todayCompletedTasks.length })})
+              </span>
+            )}
           </div>
 
           {/* Matrix content */}
@@ -925,12 +970,12 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
                 <span className="text-[10px] text-red-400/80">{t('personal.tasks.q1Desc')}</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <div className="w-2 h-2 rounded-full bg-bridge-accent" />
-                <span className="text-[10px] text-bridge-accent/80">{t('personal.tasks.q2Desc')}</span>
-              </div>
-              <div className="flex items-center gap-1.5">
                 <div className="w-2 h-2 rounded-full bg-amber-400" />
                 <span className="text-[10px] text-amber-400/80">{t('personal.tasks.q3Desc')}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-bridge-accent" />
+                <span className="text-[10px] text-bridge-accent/80">{t('personal.tasks.q2Desc')}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <div className="w-2 h-2 rounded-full bg-slate-400" />
@@ -982,7 +1027,7 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
                 {t('personal.tasks.completed', '완료됨')}
               </h3>
               <span className="text-[10px] text-slate-500">
-                {completedTasks.length}{t('personal.tasks.completedCount', '개 완료')}
+                {completedTasks.length}{t('personal.tasks.completedCount', '개 완료')} · 7일 후 자동 삭제
               </span>
             </div>
             <button
@@ -1296,14 +1341,16 @@ function MatrixTaskCard({
   onOpenModal: () => void;
   onUpdate: (data: { title?: string; due_date?: string | null; priority?: PersonalTaskPriority; description?: string }) => void;
 }) {
+  const isDone = task.status === 'DONE';
   const dday = getDDay(task.due_date);
   const priorityCfg = PRIORITY_CONFIG[task.priority] ?? PRIORITY_CONFIG.MEDIUM;
   const dateInputRef = useRef<HTMLInputElement>(null);
 
   return (
     <div
-      draggable
+      draggable={!isDone}
       onDragStart={(e) => {
+        if (isDone) { e.preventDefault(); return; }
         e.dataTransfer?.setData('text/plain', task.id);
         onDragStart();
       }}
@@ -1313,46 +1360,63 @@ function MatrixTaskCard({
       <div
         onClick={onOpenModal}
         className={`
-          flex items-center gap-2 px-2.5 py-2 rounded-lg cursor-grab active:cursor-grabbing
-          bg-white/[0.03] border border-foreground/5 hover:border-foreground/10
-          transition-all hover:bg-white/[0.06]
-          ${isDragging ? 'opacity-40 rotate-1' : ''}
+          flex items-center gap-2 px-2.5 py-2 rounded-lg
+          ${isDone
+            ? 'bg-emerald-500/[0.04] border border-emerald-500/10 opacity-60 cursor-pointer'
+            : `cursor-grab active:cursor-grabbing bg-white/[0.03] border border-foreground/5 hover:border-foreground/10 hover:bg-white/[0.06] ${isDragging ? 'opacity-40 rotate-1' : ''}`
+          }
+          transition-all
         `}
       >
         <button
           onClick={(e) => { e.stopPropagation(); onToggleComplete(); }}
-          className="w-4 h-4 rounded-full border-[1.5px] border-slate-600 hover:border-bridge-accent flex items-center justify-center shrink-0 transition-colors"
+          className={`w-4 h-4 rounded-full border-[1.5px] flex items-center justify-center shrink-0 transition-colors ${
+            isDone
+              ? 'bg-emerald-500 border-emerald-500'
+              : 'border-slate-600 hover:border-bridge-accent'
+          }`}
         >
+          {isDone && <Check size={10} className="text-white" strokeWidth={3} />}
         </button>
 
         <div className="flex-1 min-w-0">
-          <span className="text-[12px] text-foreground leading-tight line-clamp-2">{task.title}</span>
+          <span className={`text-[12px] leading-tight line-clamp-2 ${
+            isDone ? 'line-through text-slate-500' : 'text-foreground'
+          }`}>{task.title}</span>
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
-          <div className={`w-1.5 h-1.5 rounded-full ${priorityCfg.dot}`} />
-          {dday.urgency !== 'none' && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                dateInputRef.current?.showPicker();
-              }}
-              className={`text-[9px] font-bold px-1.5 py-0.5 rounded hover:ring-1 hover:ring-white/20 transition-all ${DDAY_STYLES[dday.urgency]}`}
-            >
-              {dday.text}
-            </button>
+          {isDone ? (
+            <span className="text-[9px] font-bold text-emerald-400/70 px-1.5 py-0.5 rounded bg-emerald-500/10">
+              ✓
+            </span>
+          ) : (
+            <>
+              <div className={`w-1.5 h-1.5 rounded-full ${priorityCfg.dot}`} />
+              {dday.urgency !== 'none' && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    dateInputRef.current?.showPicker();
+                  }}
+                  className={`text-[9px] font-bold px-1.5 py-0.5 rounded hover:ring-1 hover:ring-white/20 transition-all ${DDAY_STYLES[dday.urgency]}`}
+                >
+                  {dday.text}
+                </button>
+              )}
+              <input
+                ref={dateInputRef}
+                type="date"
+                value={task.due_date ?? ''}
+                onClick={(e) => e.stopPropagation()}
+                onChange={(e) => {
+                  onUpdate({ due_date: e.target.value || getTodayDateString() });
+                }}
+                className="sr-only"
+                tabIndex={-1}
+              />
+            </>
           )}
-          <input
-            ref={dateInputRef}
-            type="date"
-            value={task.due_date ?? ''}
-            onClick={(e) => e.stopPropagation()}
-            onChange={(e) => {
-              onUpdate({ due_date: e.target.value || getTodayDateString() });
-            }}
-            className="sr-only"
-            tabIndex={-1}
-          />
         </div>
       </div>
     </div>
@@ -1366,6 +1430,10 @@ function CompletedTaskRow({ task, onToggleComplete, onDelete }: {
   onToggleComplete: () => void;
   onDelete: () => void;
 }) {
+  const dday = task.due_date ? getDDay(task.due_date) : null;
+  const daysLeft = task.completed_at
+    ? 7 - Math.floor((Date.now() - new Date(task.completed_at).getTime()) / 86_400_000)
+    : null;
   return (
     <div className="flex items-center gap-3 px-3 py-2 rounded-xl bg-white/[0.02] hover:bg-white/[0.04] transition-colors group">
       <button
@@ -1374,7 +1442,23 @@ function CompletedTaskRow({ task, onToggleComplete, onDelete }: {
       >
         <Check size={12} className="text-white" />
       </button>
-      <span className="flex-1 text-sm line-through text-slate-500 truncate">{task.title}</span>
+      <div className="flex-1 min-w-0">
+        <span className="text-sm line-through text-slate-500 truncate block">{task.title}</span>
+        <div className="flex items-center gap-1.5 text-[10px]">
+          {task.due_date && (
+            <span className={dday?.urgency === 'overdue' ? 'text-red-400/60' : 'text-slate-600'}>
+              {task.due_date.slice(5).replace('-', '/')}
+              {dday?.urgency === 'overdue' && ` (${dday.text})`}
+            </span>
+          )}
+          {task.due_date && daysLeft != null && <span className="text-slate-700">·</span>}
+          {daysLeft != null && (
+            <span className={daysLeft <= 1 ? 'text-red-400/50' : 'text-slate-700'}>
+              {daysLeft <= 0 ? '곧 삭제' : `${daysLeft}일 후 삭제`}
+            </span>
+          )}
+        </div>
+      </div>
       <button
         onClick={onDelete}
         className="p-1 text-slate-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"

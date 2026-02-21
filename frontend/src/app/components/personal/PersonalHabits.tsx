@@ -8,6 +8,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { MotionModal } from '../ui/MotionModal';
 import { personalHabitAPI } from '../../utils/api';
+import { getTodayDateString } from '../../utils/dateUtils';
 import type { PersonalHabit, HabitTodayItem, HabitFrequency, HabitImportance } from '../../types';
 
 /* ================================================================
@@ -67,11 +68,11 @@ export function PersonalHabits() {
   const loadData = useCallback(async () => {
     try {
       setIsLoading(true);
-      const utcToday = new Date().toISOString().split('T')[0];
+      const todayStr = getTodayDateString();
       const [allHabits, today, todayMatrix] = await Promise.all([
         personalHabitAPI.getAll(),
-        personalHabitAPI.getToday(),
-        personalHabitAPI.getWeekly(utcToday, utcToday),
+        personalHabitAPI.getToday(todayStr),
+        personalHabitAPI.getWeekly(todayStr, todayStr),
       ]);
       const activeHabits = allHabits.filter(h => h.is_active);
       setHabits(activeHabits);
@@ -127,12 +128,13 @@ export function PersonalHabits() {
 
   const handleCheckIn = async (habitId: string, isUndo?: boolean) => {
     const revertTo = !!isUndo;
+    const todayDate = getTodayDateString();
     // Optimistic update
     setTodayItems(prev => prev.map(h =>
       h.habit_id === habitId ? { ...h, is_completed: !isUndo } : h
     ));
     try {
-      const updated = await personalHabitAPI.checkIn(habitId);
+      const updated = await personalHabitAPI.checkIn(habitId, { log_date: todayDate });
       setTodayItems(prev => prev.map(h => h.habit_id === habitId ? updated : h));
     } catch {
       // Revert on failure
@@ -145,10 +147,11 @@ export function PersonalHabits() {
 
   const handleNonTodayCheckIn = async (habitId: string, isUndo?: boolean) => {
     const prev = nonTodayCompleted[habitId] ?? false;
+    const todayDate = getTodayDateString();
     // Optimistic update
     setNonTodayCompleted(s => ({ ...s, [habitId]: !isUndo }));
     try {
-      await personalHabitAPI.checkIn(habitId);
+      await personalHabitAPI.checkIn(habitId, { log_date: todayDate });
     } catch {
       // Revert on failure
       setNonTodayCompleted(s => ({ ...s, [habitId]: prev }));

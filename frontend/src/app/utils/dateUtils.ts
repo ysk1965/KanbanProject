@@ -10,12 +10,28 @@ import { es } from 'date-fns/locale/es';
 import { ptBR } from 'date-fns/locale/pt-BR';
 import { th } from 'date-fns/locale/th';
 
-// 지원 로케일
+const LANGUAGE_KEY = 'bridge_language';
+
+// 지원 로케일 (full code)
 const locales: Record<string, Locale> = {
   'ko-KR': ko,
   'en-US': enUS,
   'ja-JP': ja,
   'zh-CN': zhCN,
+  'zh-TW': zhTW,
+  'hi': hi,
+  'vi': vi,
+  'es': es,
+  'pt-BR': ptBR,
+  'th': th,
+};
+
+// i18n 언어 코드 → date-fns locale (short code)
+const i18nLocales: Record<string, Locale> = {
+  'ko': ko,
+  'en': enUS,
+  'ja': ja,
+  'zh': zhCN,
   'zh-TW': zhTW,
   'hi': hi,
   'vi': vi,
@@ -51,6 +67,13 @@ export function getLocale(): string {
 }
 
 function getDateFnsLocale(): Locale {
+  // localStorage에서 사용자 설정 언어를 직접 확인 (i18n syncDateLocale 호출 전에도 정확한 로케일 제공)
+  try {
+    const savedLang = localStorage.getItem(LANGUAGE_KEY);
+    if (savedLang && i18nLocales[savedLang]) {
+      return i18nLocales[savedLang];
+    }
+  } catch { /* SSR or localStorage 미지원 환경 */ }
   return locales[currentLocale] || enUS;
 }
 

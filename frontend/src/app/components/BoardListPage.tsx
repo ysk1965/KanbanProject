@@ -11,6 +11,8 @@ import type { Board } from '../types';
 import { testDataAPI, personalSpaceAPI } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
 
+declare const __FE_COMMIT_HASH__: string;
+
 interface BoardListPageProps {
   boards: Board[];
   onSelectBoard: (boardId: string) => void;
@@ -55,6 +57,13 @@ export function BoardListPage({
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { hideBilling, currentUser, updateCurrentUser } = useAuth();
+
+  const [beCommit, setBeCommit] = useState<string>('');
+  useEffect(() => {
+    const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1';
+    const origin = (() => { try { return new URL(apiBase).origin; } catch { return 'http://localhost:8080'; } })();
+    fetch(`${origin}/health`).then(r => r.json()).then(d => setBeCommit(d.commit || '')).catch(() => {});
+  }, []);
 
   const handleEditBoard = (board: Board) => {
     setSelectedBoard(board);
@@ -273,6 +282,12 @@ export function BoardListPage({
           </button>
         </div>
       </MotionModal>
+
+      {/* Version Info */}
+      <div className="fixed bottom-2 left-3 text-[10px] text-slate-600 select-none pointer-events-none z-10">
+        FE: {typeof __FE_COMMIT_HASH__ !== 'undefined' ? __FE_COMMIT_HASH__ : 'dev'}
+        {beCommit && <> · BE: {beCommit}</>}
+      </div>
     </div>
   );
 }

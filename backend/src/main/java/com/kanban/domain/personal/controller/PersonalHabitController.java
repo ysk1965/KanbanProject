@@ -90,8 +90,9 @@ public class PersonalHabitController {
 
     @GetMapping("/today")
     public ResponseEntity<List<PersonalHabitResponse.TodayItem>> getTodayHabits(
-            @AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(personalHabitService.getTodayHabits(principal.getUserId()));
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(value = "date", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        return ResponseEntity.ok(personalHabitService.getTodayHabits(principal.getUserId(), date));
     }
 
     @GetMapping("/weekly")

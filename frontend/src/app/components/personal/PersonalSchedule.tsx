@@ -331,12 +331,29 @@ export function PersonalSchedule() {
   const isTodayInView = weekDays.some((d) => toDateString(d) === todayStr);
 
   // ---- Events grouped by date ----
-  const { allDayByDate, timedByDate, hasAllDay, overnightContinuations } = useMemo(() => {
+  const { allDayByDate, timedByDate, calendarByDate, hasAllDay, hasCalendarEvents, overnightContinuations } = useMemo(() => {
     const allDay: Record<string, PersonalEvent[]> = {};
     const timed: Record<string, PersonalEvent[]> = {};
+    const calendar: Record<string, PersonalEvent[]> = {};
     const continuations = new Set<string>(); // "eventId:dateStr" for next-day continuation blocks
     let hasAny = false;
+    let hasCalendar = false;
     events.forEach((e) => {
+      // Separate CALENDAR events into their own group
+      if (e.event_type === 'CALENDAR') {
+        (calendar[e.event_date] ??= []).push(e);
+        hasCalendar = true;
+        // Also add timed CALENDAR events to time grid
+        if (e.start_time) {
+          (timed[e.event_date] ??= []).push(e);
+          if (e.end_time && e.end_time < e.start_time) {
+            const nextDateStr = format(addDays(new Date(e.event_date + 'T00:00:00'), 1), 'yyyy-MM-dd');
+            (timed[nextDateStr] ??= []).push(e);
+            continuations.add(`${e.id}:${nextDateStr}`);
+          }
+        }
+        return;
+      }
       if (e.all_day || (!e.start_time && !e.end_time)) {
         (allDay[e.event_date] ??= []).push(e);
         hasAny = true;
@@ -350,7 +367,7 @@ export function PersonalSchedule() {
         }
       }
     });
-    return { allDayByDate: allDay, timedByDate: timed, hasAllDay: hasAny, overnightContinuations: continuations };
+    return { allDayByDate: allDay, timedByDate: timed, calendarByDate: calendar, hasAllDay: hasAny, hasCalendarEvents: hasCalendar, overnightContinuations: continuations };
   }, [events]);
 
   // ---- Drag handlers ----
@@ -1003,13 +1020,13 @@ export function PersonalSchedule() {
             <h2 className="text-xs md:text-lg font-bold min-w-0 text-center whitespace-nowrap">
               {viewMode === 'day' ? (
                 <>
-                  <span className="hidden sm:inline">{format(weekDays[0], 'EEE, MMM d, yyyy')}</span>
-                  <span className="sm:hidden">{format(weekDays[0], 'EEE M/d')}</span>
+                  <span className="hidden sm:inline">{formatDate(weekDays[0], 'EEE, MMM d, yyyy')}</span>
+                  <span className="sm:hidden">{formatDate(weekDays[0], 'EEE M/d')}</span>
                 </>
               ) : (
                 <>
-                  <span className="hidden sm:inline">{format(weekDays[0], 'MMM d')} - {format(weekDays[weekDays.length - 1], 'MMM d, yyyy')}</span>
-                  <span className="sm:hidden">{format(weekDays[0], 'M/d')} - {format(weekDays[weekDays.length - 1], 'M/d')}</span>
+                  <span className="hidden sm:inline">{formatDate(weekDays[0], 'MMM d')} - {formatDate(weekDays[weekDays.length - 1], 'MMM d, yyyy')}</span>
+                  <span className="sm:hidden">{formatDate(weekDays[0], 'M/d')} - {formatDate(weekDays[weekDays.length - 1], 'M/d')}</span>
                 </>
               )}
             </h2>
@@ -1145,6 +1162,49 @@ export function PersonalSchedule() {
                         >
                           <Trash2 size={10} />
                         </button>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* ---- Calendar events row ---- */}
+          {hasCalendarEvents && (
+            <div className="flex border-b border-white/[0.06] bg-sky-500/[0.03]">
+              <div
+                className={`${TIME_COL_W} flex-shrink-0 p-2 text-[10px] text-sky-400/70 border-r border-white/[0.06] flex items-center justify-center`}
+              >
+                <CalendarDays size={12} />
+              </div>
+              {weekDays.map((day) => {
+                const ds = toDateString(day);
+                const dayCalendarEvents = calendarByDate[ds] || [];
+                return (
+                  <div
+                    key={`cal-${ds}`}
+                    className={`flex-1 ${COL_MIN_W} p-1.5 border-r border-white/[0.06] space-y-1`}
+                  >
+                    {dayCalendarEvents.map((ev) => (
+                      <div
+                        key={ev.id}
+                        onClick={() => setEditEvent(ev)}
+                        className="group relative px-2 py-1 rounded-md text-xs font-medium truncate cursor-pointer"
+                        style={{
+                          backgroundColor: `${ev.color}25`,
+                          borderLeft: `3px solid ${ev.color}`,
+                        }}
+                      >
+                        <span className="text-foreground/90 truncate flex items-center gap-1">
+                          <CalendarDays className="h-2.5 w-2.5 text-sky-400 flex-shrink-0" />
+                          {ev.title}
+                          {ev.start_time && (
+                            <span className="text-[10px] text-slate-400 ml-auto flex-shrink-0">
+                              {ev.start_time.slice(0, 5)}
+                            </span>
+                          )}
+                        </span>
                       </div>
                     ))}
                   </div>
@@ -1465,6 +1525,7 @@ export function PersonalSchedule() {
                               <span className="text-xs font-medium text-foreground truncate flex items-center gap-1">
                                 {ev.recurrence_group_id && <RotateCw className="h-2.5 w-2.5 text-purple-400 flex-shrink-0" />}
                                 {isContinuation && <span className="text-bridge-accent">↳</span>}
+                                {ev.event_type === 'CALENDAR' && <CalendarDays className="h-2.5 w-2.5 text-sky-400 flex-shrink-0" />}
                                 {ev.title}
                               </span>
                               {displayHeight > 30 && (
@@ -1694,6 +1755,7 @@ function CreateEventModal({
       setRecurrenceEndDate('');
       setRecurrenceDaysOfWeek([]);
       setMode('new');
+      setSubTab('tasks');
       setSelectedTask(null);
       setSelectedHabit(null);
       setSelectedEvent(null);
@@ -1705,6 +1767,7 @@ function CreateEventModal({
 
   // Mode & selection state
   const [mode, setMode] = useState<'new' | 'task'>('new');
+  const [subTab, setSubTab] = useState<'tasks' | 'habits' | 'events'>('tasks');
   const [tasks, setTasks] = useState<PersonalTask[]>([]);
   const [habits, setHabits] = useState<PersonalHabit[]>([]);
   const [events, setEvents] = useState<PersonalEvent[]>([]);
@@ -1751,9 +1814,10 @@ function CreateEventModal({
   }, [habits, taskSearch]);
 
   const filteredEvents = useMemo(() => {
-    if (!taskSearch.trim()) return events;
+    const calendarOnly = events.filter(e => e.event_type === 'CALENDAR');
+    if (!taskSearch.trim()) return calendarOnly;
     const q = taskSearch.toLowerCase();
-    return events.filter(e => e.title.toLowerCase().includes(q));
+    return calendarOnly.filter(e => e.title.toLowerCase().includes(q));
   }, [events, taskSearch]);
 
   const handleSelectTask = (task: PersonalTask) => {
@@ -1875,9 +1939,31 @@ function CreateEventModal({
             </button>
           </div>
 
-          {/* To Do selection list (tasks + habits) */}
+          {/* To Do selection list (tasks + habits + events) with sub-tabs */}
           {mode === 'task' && !selectedTask && !selectedHabit && !selectedEvent && (
             <div className="space-y-3">
+              {/* Sub-tabs: 태스크 / 습관 / 일정 */}
+              <div className="flex gap-1 p-0.5 bg-foreground/[0.04] rounded-lg border border-foreground/[0.06]">
+                {([
+                  { key: 'tasks' as const, label: t('personal.schedule.tasksSection'), count: filteredTasks.length },
+                  { key: 'habits' as const, label: t('personal.schedule.habitsSection'), count: filteredHabits.length },
+                  { key: 'events' as const, label: t('personal.schedule.eventsSection'), count: filteredEvents.length },
+                ]).map(({ key, label, count }) => (
+                  <button
+                    key={key}
+                    onClick={() => setSubTab(key)}
+                    className={`flex-1 py-1.5 text-[10px] font-bold rounded-md transition-all truncate ${
+                      subTab === key
+                        ? 'bg-bridge-accent/15 text-bridge-accent border border-bridge-accent/20'
+                        : 'text-slate-500 hover:text-foreground hover:bg-foreground/5 border border-transparent'
+                    }`}
+                  >
+                    {label}
+                    {!isLoadingItems && <span className="ml-1 opacity-60">{count}</span>}
+                  </button>
+                ))}
+              </div>
+
               <div className="relative">
                 <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
                 <input
@@ -1895,7 +1981,7 @@ function CreateEventModal({
                   <div className="flex items-center justify-center py-8">
                     <Loader2 className="h-5 w-5 text-slate-400 animate-spin" />
                   </div>
-                ) : filteredTasks.length === 0 && filteredHabits.length === 0 && filteredEvents.length === 0 ? (
+                ) : (subTab === 'tasks' ? filteredTasks.length : subTab === 'habits' ? filteredHabits.length : filteredEvents.length) === 0 ? (
                   <div className="flex flex-col items-center justify-center py-8 text-center">
                     <ListTodo size={24} className="text-slate-600 mb-2" />
                     <p className="text-sm text-slate-500">
@@ -1913,11 +1999,8 @@ function CreateEventModal({
                 ) : (
                   <>
                     {/* Tasks section */}
-                    {filteredTasks.length > 0 && (
+                    {subTab === 'tasks' && filteredTasks.length > 0 && (
                       <>
-                        <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500 px-1 pt-1">
-                          {t('personal.schedule.tasksSection')}
-                        </div>
                         {filteredTasks.map((task) => (
                           <button
                             key={task.id}
@@ -1948,11 +2031,8 @@ function CreateEventModal({
                     )}
 
                     {/* Habits section */}
-                    {filteredHabits.length > 0 && (
+                    {subTab === 'habits' && filteredHabits.length > 0 && (
                       <>
-                        <div className={`text-[10px] font-bold uppercase tracking-widest text-slate-500 px-1 ${filteredTasks.length > 0 ? 'pt-3' : 'pt-1'}`}>
-                          {t('personal.schedule.habitsSection')}
-                        </div>
                         {filteredHabits.map((habit) => (
                           <button
                             key={habit.id}
@@ -1977,33 +2057,24 @@ function CreateEventModal({
                     )}
 
                     {/* Calendar events section */}
-                    {filteredEvents.length > 0 && (
+                    {subTab === 'events' && filteredEvents.length > 0 && (
                       <>
-                        <div className={`text-[10px] font-bold uppercase tracking-widest text-slate-500 px-1 ${filteredTasks.length > 0 || filteredHabits.length > 0 ? 'pt-3' : 'pt-1'}`}>
-                          {t('personal.schedule.eventsSection')}
-                        </div>
                         {filteredEvents.map((ev) => (
                           <button
                             key={ev.id}
                             onClick={() => handleSelectEvent(ev)}
-                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-foreground/[0.06] hover:border-foreground/10 transition-all text-left group"
+                            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-white/[0.06] transition-colors text-left"
                           >
-                            <CalendarDays size={14} className="text-slate-400 shrink-0" />
-                            <div className="flex-1 min-w-0">
-                              <span className="text-sm text-foreground truncate block">{ev.title}</span>
-                              {(ev.start_time || ev.end_time) && (
-                                <div className="flex items-center gap-1 mt-0.5">
-                                  <Clock size={10} className="text-slate-500" />
-                                  <span className="text-[10px] text-slate-500">
-                                    {ev.start_time?.slice(0, 5)}{ev.end_time ? `–${ev.end_time.slice(0, 5)}` : ''}{ev.start_time && ev.end_time && ev.end_time < ev.start_time && <span className="text-bridge-accent ml-0.5">({t('personal.schedule.nextDay')})</span>}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
                             <div
-                              className="w-3 h-3 rounded-full shrink-0 opacity-60 group-hover:opacity-100 transition-opacity"
+                              className="w-1.5 h-1.5 rounded-full shrink-0"
                               style={{ backgroundColor: ev.color }}
                             />
+                            <span className="text-sm text-foreground truncate flex-1">{ev.title}</span>
+                            {(ev.start_time || ev.end_time) && (
+                              <span className="text-[10px] text-slate-500 shrink-0">
+                                {ev.start_time?.slice(0, 5)}{ev.end_time ? `–${ev.end_time.slice(0, 5)}` : ''}
+                              </span>
+                            )}
                           </button>
                         ))}
                       </>

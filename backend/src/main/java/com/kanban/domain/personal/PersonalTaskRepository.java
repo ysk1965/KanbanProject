@@ -37,4 +37,7 @@ public interface PersonalTaskRepository extends JpaRepository<PersonalTask, Stri
     long countActiveByUserId(@Param("userId") String userId);
 
     void deleteByUserId(String userId);
+
+    @Query("DELETE FROM PersonalTask t WHERE t.status = 'DONE' AND t.completedAt < :cutoff")
+    int deleteCompletedBefore(@Param("cutoff") java.time.LocalDateTime cutoff);
 }

@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
 import { Board, PersonalDashboardToday } from '../../types';
 import { testDataAPI, personalDashboardAPI, personalSpaceAPI, resolveFileUrl } from '../../utils/api';
+import { getTodayDateString } from '../../utils/dateUtils';
 import { boardService } from '../../utils/services';
 import { getInitials } from '../../utils/assigneeColor';
 import { Sidebar } from './Sidebar';
@@ -117,7 +118,7 @@ export function Dashboard({
   useEffect(() => {
     (async () => {
       try {
-        const data = await personalDashboardAPI.getToday();
+        const data = await personalDashboardAPI.getToday(getTodayDateString());
         setTodayData(data);
       } catch {
         // Personal dashboard data may not be available

@@ -202,27 +202,53 @@ export function PersonalBoardPage() {
       {/* 모바일 하단 탭바 */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-bridge-obsidian/95 backdrop-blur-xl border-t border-foreground/10" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         <div className="flex items-center justify-around px-1 pt-2 pb-1.5">
-          {tabs.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`relative flex flex-col items-center gap-0.5 min-w-[3rem] px-2 py-1 rounded-lg transition-colors ${
-                activeTab === tab.key
-                  ? 'text-bridge-secondary'
-                  : 'text-zinc-500'
-              }`}
-            >
-              {activeTab === tab.key && (
+          {tabs.map((tab) => {
+            const isActive = activeTab === tab.key;
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className="relative flex flex-col items-center gap-0.5 min-w-[3rem] px-2 py-1 rounded-lg"
+              >
+                {isActive && (
+                  <motion.div
+                    layoutId="personal-tab-indicator"
+                    className="absolute -top-2 left-1/2 -translate-x-1/2 w-8 h-[3px] rounded-full bg-bridge-secondary"
+                    transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                  />
+                )}
+                {isActive && (
+                  <motion.div
+                    layoutId="personal-tab-glow"
+                    className="absolute inset-0 rounded-lg bg-bridge-secondary/8"
+                    transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                  />
+                )}
                 <motion.div
-                  layoutId="personal-tab-indicator"
-                  className="absolute -top-2 left-1/2 -translate-x-1/2 w-8 h-[3px] rounded-full bg-bridge-secondary"
-                  transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                />
-              )}
-              <tab.icon size={20} />
-              <span className="text-[10px] font-medium">{tab.label}</span>
-            </button>
-          ))}
+                  animate={isActive
+                    ? { scale: 1.15, y: -2 }
+                    : { scale: 1, y: 0 }
+                  }
+                  transition={{ type: 'spring', stiffness: 500, damping: 25 }}
+                >
+                  <tab.icon
+                    size={20}
+                    className={`transition-colors duration-200 ${isActive ? 'text-bridge-secondary' : 'text-zinc-500'}`}
+                  />
+                </motion.div>
+                <motion.span
+                  className={`text-[10px] font-medium transition-colors duration-200 ${isActive ? 'text-bridge-secondary' : 'text-zinc-500'}`}
+                  animate={isActive
+                    ? { opacity: 1, y: 0 }
+                    : { opacity: 0.7, y: 0 }
+                  }
+                  transition={{ duration: 0.2 }}
+                >
+                  {tab.label}
+                </motion.span>
+              </button>
+            );
+          })}
         </div>
       </nav>
 

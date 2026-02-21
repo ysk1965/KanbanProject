@@ -33,8 +33,8 @@ public class PersonalDashboardService {
     private final PersonalHabitService personalHabitService;
     private final DiaryEntryRepository diaryEntryRepository;
 
-    public PersonalDashboardResponse getTodayDashboard(String userId) {
-        LocalDate today = LocalDate.now(ZoneOffset.UTC);
+    public PersonalDashboardResponse getTodayDashboard(String userId, LocalDate date) {
+        LocalDate today = (date != null) ? date : LocalDate.now(ZoneOffset.UTC);
         LocalDateTime startOfDay = today.atStartOfDay();
 
         // Due today tasks

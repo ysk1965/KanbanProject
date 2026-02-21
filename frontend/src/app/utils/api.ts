@@ -4330,8 +4330,9 @@ export const personalHabitAPI = {
     return apiClient.get(`/personal/habits/${habitId}/logs?start_date=${startDate}&end_date=${endDate}`);
   },
 
-  getToday: async (): Promise<import('../types').HabitTodayItem[]> => {
-    return apiClient.get('/personal/habits/today');
+  getToday: async (date?: string): Promise<import('../types').HabitTodayItem[]> => {
+    const params = date ? `?date=${date}` : '';
+    return apiClient.get(`/personal/habits/today${params}`);
   },
 
   getWeekly: async (startDate: string, endDate: string): Promise<import('../types').HabitWeeklyMatrix> => {
@@ -4342,7 +4343,8 @@ export const personalHabitAPI = {
 // ─── Personal Dashboard API (v9.0) ───
 
 export const personalDashboardAPI = {
-  getToday: async (): Promise<import('../types').PersonalDashboardToday> => {
-    return apiClient.get('/personal/dashboard/today');
+  getToday: async (date?: string): Promise<import('../types').PersonalDashboardToday> => {
+    const params = date ? `?date=${date}` : '';
+    return apiClient.get(`/personal/dashboard/today${params}`);
   },
 };

@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, Clock, CheckCircle2, Calendar, ListTodo, Loa
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import { personalDashboardAPI, personalHabitAPI } from '../../utils/api';
 import { PersonalDashboardToday, PersonalTask, PersonalHabit } from '../../types';
-import { getDDay } from '../../utils/dateUtils';
+import { getDDay, getTodayDateString } from '../../utils/dateUtils';
 import { HabitFormModal, DeleteConfirmModal, CheckInConfirmModal, TaskCompleteConfirmModal } from './PersonalHabits';
 import type { HabitFormData } from './PersonalHabits';
 
@@ -26,7 +26,7 @@ export function TodaySidebar({ tasks, onTaskClick }: TodaySidebarProps) {
   const loadTodayData = useCallback(async () => {
     try {
       setIsLoading(true);
-      const data = await personalDashboardAPI.getToday();
+      const data = await personalDashboardAPI.getToday(getTodayDateString());
       setTodayData(data);
     } catch (error) {
       console.error('Failed to load today data:', error);
@@ -429,7 +429,7 @@ export function TodaySidebar({ tasks, onTaskClick }: TodaySidebarProps) {
             ),
           } : prev);
           try {
-            const updated = await personalHabitAPI.checkIn(habitId);
+            const updated = await personalHabitAPI.checkIn(habitId, { log_date: getTodayDateString() });
             setTodayData(prev => prev ? {
               ...prev,
               habits_today: prev.habits_today.map(h =>

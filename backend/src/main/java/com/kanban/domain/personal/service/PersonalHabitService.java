@@ -129,9 +129,9 @@ public class PersonalHabitService {
 
     // ─── Today / Weekly ───
 
-    public List<PersonalHabitResponse.TodayItem> getTodayHabits(String userId) {
+    public List<PersonalHabitResponse.TodayItem> getTodayHabits(String userId, LocalDate date) {
         List<PersonalHabit> habits = habitRepository.findActiveByUserId(userId);
-        LocalDate today = LocalDate.now(ZoneOffset.UTC);
+        LocalDate today = (date != null) ? date : LocalDate.now(ZoneOffset.UTC);
 
         List<String> habitIds = habits.stream().map(PersonalHabit::getId).toList();
         Map<String, PersonalHabitLog> logMap = habitLogRepository.findByHabitIdsAndDate(habitIds, today)

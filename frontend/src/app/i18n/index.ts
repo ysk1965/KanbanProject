@@ -59,9 +59,13 @@ i18n
       lookupLocalStorage: LANGUAGE_KEY,
       caches: ['localStorage'],
     },
+  })
+  .then(() => {
+    // init 완료 후 확실한 동기화
+    syncDateLocale(i18n.language);
   });
 
-// 초기 dateUtils 로케일 동기화
+// 동기적 즉시 동기화 (init이 sync로 완료되는 경우 대응)
 syncDateLocale(i18n.language);
 
 // 언어 변경 시 dateUtils 로케일 동기화
