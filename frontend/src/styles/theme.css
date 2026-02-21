@@ -290,6 +290,12 @@
 [data-vaul-drawer-direction="top"] {
   padding-top: env(safe-area-inset-top);
 }
+[data-vaul-drawer-direction="left"] {
+  padding-left: env(safe-area-inset-left);
+}
+[data-vaul-drawer-direction="right"] {
+  padding-right: env(safe-area-inset-right);
+}
 
 /* Glass morphism effect */
 .glass {
