@@ -95,6 +95,13 @@ scripts/.env.rds
 # ===== Uploads =====
 backend/uploads/
 
+# ===== Capacitor (native build artifacts) =====
+frontend/ios/App/Pods/
+frontend/ios/App/App/build/
+frontend/android/.gradle/
+frontend/android/app/build/
+frontend/android/build/
+
 # ===== Deployment =====
 backend/deploy/
 backend/deploy.zip

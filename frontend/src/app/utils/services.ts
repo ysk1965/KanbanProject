@@ -1105,6 +1105,18 @@ export const authService = {
     }
   },
 
+  googleLoginWithIdToken: async (idToken: string) => {
+    try {
+      const response = await authAPI.googleLoginWithIdToken(idToken);
+      const userWithProvider = { ...response.user, provider: 'google' as const };
+      localStorage.setItem('user', JSON.stringify(userWithProvider));
+      return { ...response, user: userWithProvider };
+    } catch (error) {
+      console.warn('Google login with id_token failed', error);
+      throw error;
+    }
+  },
+
   logout: async () => {
     try {
       await authAPI.logout();

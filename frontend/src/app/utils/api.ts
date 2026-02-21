@@ -785,6 +785,12 @@ export const authAPI = {
     return response;
   },
 
+  googleLoginWithIdToken: async (idToken: string) => {
+    const response = await apiClient.post<AuthResponse>('/auth/google', { id_token: idToken }, true);
+    setTokens(response.access_token, response.refresh_token);
+    return response;
+  },
+
   logout: async () => {
     const response = await apiClient.post<{ message: string }>('/auth/logout');
     clearTokens();

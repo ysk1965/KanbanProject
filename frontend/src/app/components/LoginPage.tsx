@@ -7,6 +7,8 @@ import { Mail, Lock, User, Users, ArrowLeft, ArrowRight, Check, X } from 'lucide
 import { trackEvent } from '../contexts/AnalyticsContext';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { isGoogleOnlyLogin, isWhiteLabelDomain } from '../utils/domain';
+import { isNative } from '../utils/platform';
+import { nativeGoogleLogin } from '../utils/nativeAuth';
 
 declare const __FE_COMMIT_HASH__: string;
 declare const __FE_BUILD_TIME__: string;
@@ -21,18 +23,42 @@ interface LoginPageProps {
   onLogin: (email: string, password: string) => Promise<void>;
   onSignup: (email: string, password: string, name: string) => Promise<void>;
   onGoogleLogin?: (code: string) => Promise<void>;
+  onGoogleLoginWithIdToken?: (idToken: string) => Promise<void>;
   onBack?: () => void;
   inviteInfo?: InviteInfo | null;
 }
 
-function GoogleLoginButton({ onGoogleLogin, mode, setError }: {
+function GoogleLoginButton({ onGoogleLogin, onGoogleLoginWithIdToken, mode, setError }: {
   onGoogleLogin: (code: string) => Promise<void>;
+  onGoogleLoginWithIdToken?: (idToken: string) => Promise<void>;
   mode: 'login' | 'signup';
   setError: (error: string) => void;
 }) {
   const { t } = useTranslation();
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
+  // Native: use Capacitor Google Auth plugin
+  const handleNativeGoogleLogin = async () => {
+    setIsGoogleLoading(true);
+    setError('');
+    try {
+      const { idToken } = await nativeGoogleLogin();
+      if (onGoogleLoginWithIdToken) {
+        await onGoogleLoginWithIdToken(idToken);
+      }
+      trackEvent(mode === 'login' ? 'login' : 'sign_up', { method: 'google' });
+    } catch (err: any) {
+      setError(err.message || t('auth.googleLoginFailed'));
+      trackEvent('error', {
+        error_type: 'google_auth_failed',
+        error_message: err.message || 'Native Google login failed'
+      });
+    } finally {
+      setIsGoogleLoading(false);
+    }
+  };
+
+  // Web: use @react-oauth/google popup flow
   const googleLogin = useGoogleLogin({
     onSuccess: async (response: any) => {
       if (response.code) {
@@ -65,7 +91,7 @@ function GoogleLoginButton({ onGoogleLogin, mode, setError }: {
   return (
     <button
       type="button"
-      onClick={() => googleLogin()}
+      onClick={() => isNative() ? handleNativeGoogleLogin() : googleLogin()}
       disabled={isGoogleLoading}
       className="flex items-center justify-center gap-3 bg-slate-100 border border-slate-200 text-slate-700 h-[44px] rounded-xl font-semibold w-full transition-all hover:bg-slate-200 hover:border-slate-300 cursor-pointer active:scale-[0.98]"
     >
@@ -85,7 +111,7 @@ function GoogleLoginButton({ onGoogleLogin, mode, setError }: {
   );
 }
 
-export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo }: LoginPageProps) {
+export function LoginPage({ onLogin, onSignup, onGoogleLogin, onGoogleLoginWithIdToken, onBack, inviteInfo }: LoginPageProps) {
   const { t } = useTranslation();
   const [mode, setMode] = useState<'login' | 'signup'>(inviteInfo ? 'signup' : 'login');
   const [email, setEmail] = useState('');
@@ -237,9 +263,9 @@ export function LoginPage({ onLogin, onSignup, onGoogleLogin, onBack, inviteInfo
         </div>
 
         {/* Social Auth Section */}
-        {onGoogleLogin && (
+        {(onGoogleLogin || onGoogleLoginWithIdToken) && (
         <div className="mb-6 sm:mb-8">
-          <GoogleLoginButton onGoogleLogin={onGoogleLogin} mode={mode} setError={setError} />
+          <GoogleLoginButton onGoogleLogin={onGoogleLogin!} onGoogleLoginWithIdToken={onGoogleLoginWithIdToken} mode={mode} setError={setError} />
         </div>
         )}
 

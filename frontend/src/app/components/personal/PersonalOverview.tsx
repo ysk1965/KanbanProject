@@ -11,7 +11,7 @@ import { personalEventService, diaryService } from '../../utils/services';
 import { personalTaskAPI, personalHabitAPI, personalDashboardAPI } from '../../utils/api';
 import { getTodayDateString } from '../../utils/dateUtils';
 import { PersonalEvent, DiaryDetail, PersonalTask, PersonalHabit, HabitTodayItem, HabitFrequency, HabitWeeklyMatrix, PersonalTaskPriority, PersonalDashboardToday } from '../../types';
-import { CheckInConfirmModal, TaskCompleteConfirmModal, HabitFormModal } from './PersonalHabits';
+import { CheckInConfirmModal, TaskCompleteConfirmModal, HabitFormModal, DeleteConfirmModal } from './PersonalHabits';
 import { TaskDetailModal } from './PersonalTaskBoard';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -759,6 +759,7 @@ function HabitsTodayWidget({
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [checkInConfirm, setCheckInConfirm] = useState<{ id: string; isUndo: boolean } | null>(null);
   const [editHabit, setEditHabit] = useState<PersonalHabit | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   const todayDow = new Date().getDay();
 
@@ -844,6 +845,16 @@ function HabitsTodayWidget({
       await loadHabits();
     } catch (err) {
       console.error('Failed to update habit:', err);
+    }
+  };
+
+  const handleDeleteHabit = async (habitId: string) => {
+    try {
+      await personalHabitAPI.delete(habitId);
+      setDeleteConfirm(null);
+      await loadHabits();
+    } catch (err) {
+      console.error('Failed to delete habit:', err);
     }
   };
 
@@ -1103,6 +1114,19 @@ function HabitsTodayWidget({
         habit={editHabit ?? undefined}
         onClose={() => setEditHabit(null)}
         onSubmit={(data) => editHabit && handleUpdateHabit(editHabit.id, data)}
+        onDelete={() => {
+          if (editHabit) {
+            setEditHabit(null);
+            setDeleteConfirm(editHabit.id);
+          }
+        }}
+      />
+
+      <DeleteConfirmModal
+        open={!!deleteConfirm}
+        habitName={allHabits.find(h => h.id === deleteConfirm)?.title || ''}
+        onConfirm={() => deleteConfirm && handleDeleteHabit(deleteConfirm)}
+        onCancel={() => setDeleteConfirm(null)}
       />
     </WidgetCard>
   );

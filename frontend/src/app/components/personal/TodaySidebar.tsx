@@ -391,6 +391,13 @@ export function TodaySidebar({ tasks, onTaskClick }: TodaySidebarProps) {
         habit={editHabitData ?? undefined}
         onClose={() => setEditHabitData(null)}
         onSubmit={(data) => editHabitData && handleHabitUpdate(editHabitData.id, data)}
+        onDelete={() => {
+          if (editHabitData) {
+            const target = editHabitData;
+            setEditHabitData(null);
+            setDeleteHabitTarget(target);
+          }
+        }}
       />
 
       {/* Habit Delete Confirm Modal */}

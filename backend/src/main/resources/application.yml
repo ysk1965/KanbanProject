@@ -143,6 +143,10 @@ toss:
     secret-key: ${TOSS_SECRET_KEY:}
     confirm-url: https://api.tosspayments.com/v1/payments/confirm
 
+# Firebase (FCM Push Notifications)
+firebase:
+  credentials-json: ${FIREBASE_CREDENTIALS_JSON:}
+
 # App config
 app:
   frontend-url: ${FRONTEND_URL:http://localhost:5173}

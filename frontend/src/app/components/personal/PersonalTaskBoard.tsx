@@ -10,7 +10,7 @@ import { personalTaskAPI, personalHabitAPI } from '../../utils/api';
 import { PersonalTask, PersonalTaskPriority, PersonalHabit, HabitTodayItem, HabitFrequency, HabitWeeklyMatrix } from '../../types';
 import { getDDay, getTodayDateString, type DdayUrgency } from '../../utils/dateUtils';
 import { startOfDay, parseISO, addDays, format } from 'date-fns';
-import { CheckInConfirmModal, TaskCompleteConfirmModal, HabitFormModal, type HabitFormData } from './PersonalHabits';
+import { CheckInConfirmModal, TaskCompleteConfirmModal, HabitFormModal, DeleteConfirmModal, type HabitFormData } from './PersonalHabits';
 
 // ── Types ─────────────────────────────────────────────────────
 
@@ -156,6 +156,7 @@ function AllHabitsBar({ onNavigateHabits, refreshKey }: { onNavigateHabits?: () 
   const [isLoading, setIsLoading] = useState(true);
   const [checkInConfirm, setCheckInConfirm] = useState<{ id: string; isUndo: boolean; isNonToday?: boolean } | null>(null);
   const [editHabit, setEditHabit] = useState<PersonalHabit | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   const todayDow = new Date().getDay();
 
@@ -276,6 +277,16 @@ function AllHabitsBar({ onNavigateHabits, refreshKey }: { onNavigateHabits?: () 
       await loadData();
     } catch (err) {
       console.error('Failed to update habit:', err);
+    }
+  };
+
+  const handleDeleteHabit = async (habitId: string) => {
+    try {
+      await personalHabitAPI.delete(habitId);
+      setDeleteConfirm(null);
+      await loadData();
+    } catch (err) {
+      console.error('Failed to delete habit:', err);
     }
   };
 
@@ -474,6 +485,19 @@ function AllHabitsBar({ onNavigateHabits, refreshKey }: { onNavigateHabits?: () 
         habit={editHabit ?? undefined}
         onClose={() => setEditHabit(null)}
         onSubmit={(data) => editHabit && handleUpdateHabit(editHabit.id, data)}
+        onDelete={() => {
+          if (editHabit) {
+            setEditHabit(null);
+            setDeleteConfirm(editHabit.id);
+          }
+        }}
+      />
+
+      <DeleteConfirmModal
+        open={!!deleteConfirm}
+        habitName={allHabits.find(h => h.id === deleteConfirm)?.title || ''}
+        onConfirm={() => deleteConfirm && handleDeleteHabit(deleteConfirm)}
+        onCancel={() => setDeleteConfirm(null)}
       />
     </>
   );

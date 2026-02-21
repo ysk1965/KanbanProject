@@ -1,5 +1,6 @@
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { useTranslation } from 'react-i18next';
+import { isWeb } from '../utils/platform';
 
 export function PWAUpdatePrompt() {
   const { t } = useTranslation();
@@ -8,14 +9,15 @@ export function PWAUpdatePrompt() {
     updateServiceWorker,
   } = useRegisterSW({
     onRegisteredSW(_swUrl, registration) {
-      if (registration) {
-        // 매 1시간마다 업데이트 체크
+      if (registration && isWeb()) {
+        // 매 1시간마다 업데이트 체크 (웹에서만)
         setInterval(() => registration.update(), 60 * 60 * 1000);
       }
     },
   });
 
-  if (!needRefresh) return null;
+  // 네이티브 앱에서는 PWA 업데이트 프롬프트 불필요
+  if (!needRefresh || !isWeb()) return null;
 
   return (
     <div className="fixed toast-bottom-safe right-6 z-[9999] animate-in slide-in-from-bottom-4 fade-in duration-300">

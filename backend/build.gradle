@@ -67,6 +67,9 @@ dependencies {
     // Google OAuth2
     implementation 'com.google.api-client:google-api-client:2.2.0'
 
+    // Firebase Admin (FCM Push Notifications)
+    implementation 'com.google.firebase:firebase-admin:9.3.0'
+
     // Database
     runtimeOnly 'org.postgresql:postgresql'
     runtimeOnly 'com.h2database:h2'

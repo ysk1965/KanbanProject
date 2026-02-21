@@ -1,0 +1,73 @@
+default_platform(:ios)
+
+platform :ios do
+  desc "Build and upload to TestFlight"
+  lane :beta do
+    setup_ci if ENV['CI']
+
+    app_store_connect_api_key(
+      key_id: ENV['APP_STORE_CONNECT_API_KEY_ID'],
+      issuer_id: ENV['APP_STORE_CONNECT_API_ISSUER_ID'],
+      key_content: ENV['APP_STORE_CONNECT_API_KEY'],
+      is_key_content_base64: true
+    )
+
+    match(
+      type: "appstore",
+      readonly: is_ci,
+      app_identifier: "com.bridgespots.app"
+    )
+
+    build_app(
+      workspace: "App.xcworkspace",
+      scheme: "App",
+      export_method: "app-store",
+      output_directory: "./build"
+    )
+
+    upload_to_testflight(
+      skip_waiting_for_build_processing: true
+    )
+  end
+
+  desc "Submit to App Store"
+  lane :release do
+    setup_ci if ENV['CI']
+
+    app_store_connect_api_key(
+      key_id: ENV['APP_STORE_CONNECT_API_KEY_ID'],
+      issuer_id: ENV['APP_STORE_CONNECT_API_ISSUER_ID'],
+      key_content: ENV['APP_STORE_CONNECT_API_KEY'],
+      is_key_content_base64: true
+    )
+
+    match(
+      type: "appstore",
+      readonly: is_ci,
+      app_identifier: "com.bridgespots.app"
+    )
+
+    build_app(
+      workspace: "App.xcworkspace",
+      scheme: "App",
+      export_method: "app-store",
+      output_directory: "./build"
+    )
+
+    upload_to_app_store(
+      skip_metadata: true,
+      skip_screenshots: true,
+      submit_for_review: false
+    )
+  end
+
+  desc "Build for development"
+  lane :dev do
+    build_app(
+      workspace: "App.xcworkspace",
+      scheme: "App",
+      export_method: "development",
+      output_directory: "./build"
+    )
+  end
+end

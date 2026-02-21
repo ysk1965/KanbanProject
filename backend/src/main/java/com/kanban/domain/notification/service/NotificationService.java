@@ -38,6 +38,7 @@ public class NotificationService {
     private final NotificationPreferenceRepository preferenceRepository;
     private final UserRepository userRepository;
     private final WebSocketEventService webSocketEventService;
+    private final PushNotificationService pushNotificationService;
 
     @Transactional
     public void createMentionNotifications(Comment comment, User sender, Board board) {
@@ -87,6 +88,9 @@ public class NotificationService {
             // Send WebSocket event to specific user
             NotificationResponse.Detail response = NotificationResponse.Detail.of(notification);
             webSocketEventService.sendUserEvent(board.getId(), trimmedId, BoardEventType.NOTIFICATION_CREATED, response);
+
+            // Send push notification (async)
+            pushNotificationService.sendPushForNotification(notification);
         }
     }
 
@@ -127,6 +131,9 @@ public class NotificationService {
         // Send WebSocket event to specific user
         NotificationResponse.Detail response = NotificationResponse.Detail.of(notification);
         webSocketEventService.sendUserEvent(board.getId(), assignee.getId(), BoardEventType.NOTIFICATION_CREATED, response);
+
+        // Send push notification (async)
+        pushNotificationService.sendPushForNotification(notification);
     }
 
     @Transactional
@@ -172,6 +179,9 @@ public class NotificationService {
             // Send WebSocket event to specific user
             NotificationResponse.Detail response = NotificationResponse.Detail.of(notification);
             webSocketEventService.sendUserEvent(board.getId(), recipientId, BoardEventType.NOTIFICATION_CREATED, response);
+
+            // Send push notification (async)
+            pushNotificationService.sendPushForNotification(notification);
         }
     }
 
@@ -209,6 +219,9 @@ public class NotificationService {
             // Send WebSocket event to specific user
             NotificationResponse.Detail response = NotificationResponse.Detail.of(notification);
             webSocketEventService.sendUserEvent(board.getId(), participantId, BoardEventType.NOTIFICATION_CREATED, response);
+
+            // Send push notification (async)
+            pushNotificationService.sendPushForNotification(notification);
         }
     }
 
@@ -259,6 +272,9 @@ public class NotificationService {
 
             NotificationResponse.Detail response = NotificationResponse.Detail.of(notification);
             webSocketEventService.sendUserEvent(board.getId(), trimmedId, BoardEventType.NOTIFICATION_CREATED, response);
+
+            // Send push notification (async)
+            pushNotificationService.sendPushForNotification(notification);
         }
     }
 

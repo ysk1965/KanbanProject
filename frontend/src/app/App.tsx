@@ -68,7 +68,7 @@ interface InviteInfo {
 
 // 로그인 페이지 래퍼 (이미 로그인되어 있으면 보드 목록으로)
 function LoginRoute() {
-  const { isAuthenticated, isLoading, login: authLogin, signup: authSignup, googleLogin: authGoogleLogin, isTester } = useAuth();
+  const { isAuthenticated, isLoading, login: authLogin, signup: authSignup, googleLogin: authGoogleLogin, googleLoginWithIdToken: authGoogleLoginWithIdToken, isTester } = useAuth();
   const navigate = useNavigate();
   const { t } = useTranslation();
   const [isProcessingInvite, setIsProcessingInvite] = useState(false);
@@ -114,6 +114,11 @@ function LoginRoute() {
 
   const googleLogin = async (code: string) => {
     await authGoogleLogin(code);
+    await handleLoginSuccess();
+  };
+
+  const googleLoginWithIdToken = async (idToken: string) => {
+    await authGoogleLoginWithIdToken(idToken);
     await handleLoginSuccess();
   };
 
@@ -179,6 +184,7 @@ function LoginRoute() {
       onLogin={login}
       onSignup={signup}
       onGoogleLogin={import.meta.env.VITE_GOOGLE_CLIENT_ID ? googleLogin : undefined}
+      onGoogleLoginWithIdToken={import.meta.env.VITE_GOOGLE_CLIENT_ID ? googleLoginWithIdToken : undefined}
       inviteInfo={inviteInfo}
     />
   );
@@ -384,6 +390,15 @@ function HomeRoute() {
 
 // 메인 앱 라우터
 function AppRoutes() {
+  const appNavigate = useNavigate();
+
+  // Initialize deep link handler for Capacitor native apps
+  useEffect(() => {
+    import('./utils/deepLinks')
+      .then(({ initDeepLinks }) => initDeepLinks(appNavigate))
+      .catch(() => {});
+  }, [appNavigate]);
+
   return (
     <>
       <ThemeSync />

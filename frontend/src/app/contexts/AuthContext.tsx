@@ -25,6 +25,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string, name: string) => Promise<void>;
   googleLogin: (code: string) => Promise<void>;
+  googleLoginWithIdToken: (idToken: string) => Promise<void>;
   logout: () => Promise<void>;
   resendVerificationEmail: () => Promise<void>;
   updateCurrentUser: (updates: Partial<User>) => void;
@@ -65,6 +66,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.debug('[Analytics] Firebase Analytics unavailable');
       });
   };
+
+  // Initialize push notifications when user becomes authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      import('../utils/pushNotifications')
+        .then(({ initPushNotifications }) => initPushNotifications())
+        .catch(() => console.debug('[Push] Push notifications unavailable'));
+    }
+  }, [isAuthenticated]);
 
   useEffect(() => {
     // 초기 인증 상태 확인 (토큰 유효성 검증 포함)
@@ -133,6 +143,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     syncAnalyticsUser(response.user);
   };
 
+  const googleLoginWithIdToken = async (idToken: string) => {
+    const response = await authService.googleLoginWithIdToken(idToken);
+    setIsAuthenticated(true);
+    setCurrentUser(response.user);
+    syncAnalyticsUser(response.user);
+  };
+
   const logout = async () => {
     await authService.logout();
     setIsAuthenticated(false);
@@ -174,6 +191,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         signup,
         googleLogin,
+        googleLoginWithIdToken,
         logout,
         resendVerificationEmail,
         updateCurrentUser,

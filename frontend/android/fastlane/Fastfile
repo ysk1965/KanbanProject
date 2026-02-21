@@ -1,0 +1,39 @@
+default_platform(:android)
+
+platform :android do
+  desc "Build and upload to Google Play internal testing"
+  lane :beta do
+    gradle(
+      task: "bundleRelease",
+      project_dir: "./"
+    )
+
+    upload_to_play_store(
+      track: "internal",
+      aab: "app/build/outputs/bundle/release/app-release.aab",
+      json_key_data: ENV['GOOGLE_PLAY_JSON_KEY']
+    )
+  end
+
+  desc "Upload to Google Play production"
+  lane :release do
+    gradle(
+      task: "bundleRelease",
+      project_dir: "./"
+    )
+
+    upload_to_play_store(
+      track: "production",
+      aab: "app/build/outputs/bundle/release/app-release.aab",
+      json_key_data: ENV['GOOGLE_PLAY_JSON_KEY']
+    )
+  end
+
+  desc "Build debug APK"
+  lane :dev do
+    gradle(
+      task: "assembleDebug",
+      project_dir: "./"
+    )
+  end
+end
