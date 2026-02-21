@@ -4044,12 +4044,14 @@ export const personalSpaceAPI = {
 // ========================================
 
 export const personalEventAPI = {
-  getByDate: async (date: string): Promise<PersonalEvent[]> => {
-    return apiClient.get(`/personal/events?date=${date}`);
+  getByDate: async (date: string, eventType?: string): Promise<PersonalEvent[]> => {
+    const typeParam = eventType ? `&event_type=${eventType}` : '';
+    return apiClient.get(`/personal/events?date=${date}${typeParam}`);
   },
 
-  getWeekly: async (startDate: string, endDate: string): Promise<PersonalEvent[]> => {
-    return apiClient.get(`/personal/events/weekly?start_date=${startDate}&end_date=${endDate}`);
+  getWeekly: async (startDate: string, endDate: string, eventType?: string): Promise<PersonalEvent[]> => {
+    const typeParam = eventType ? `&event_type=${eventType}` : '';
+    return apiClient.get(`/personal/events/weekly?start_date=${startDate}&end_date=${endDate}${typeParam}`);
   },
 
   create: async (data: {
@@ -4063,6 +4065,7 @@ export const personalEventAPI = {
     recurrence_rule?: string;
     recurrence_end_date?: string;
     recurrence_days_of_week?: number[];
+    event_type?: string;
   }): Promise<PersonalEvent> => {
     return apiClient.post('/personal/events', data);
   },

@@ -408,7 +408,7 @@ export function PersonalSchedule() {
     recurrence_days_of_week?: number[];
   }) => {
     try {
-      await personalEventService.create({ ...data, event_date: createDate });
+      await personalEventService.create({ ...data, event_date: createDate, event_type: 'SCHEDULE' });
       await loadEvents();
       setIsCreateOpen(false);
     } catch (err) {
@@ -776,15 +776,6 @@ export function PersonalSchedule() {
   // ---- Render ----
   return (
     <div className="h-full flex flex-col md:flex-row relative">
-      {/* Mobile Sidebar Toggle */}
-      <button
-        onClick={() => setShowMobileSidebar(true)}
-        className="md:hidden fixed left-4 z-40 w-11 h-11 rounded-full bg-bridge-accent shadow-lg shadow-bridge-accent/30 flex items-center justify-center text-white hover:bg-bridge-accent/90 transition-colors"
-        style={{ bottom: 'calc(5rem + env(safe-area-inset-bottom, 0px))' }}
-      >
-        <CalendarDays size={18} />
-      </button>
-
       {/* Mobile Overlay Backdrop */}
       <AnimatePresence>
         {showMobileSidebar && (
@@ -1515,12 +1506,34 @@ export function PersonalSchedule() {
         </div>
       </div>
 
-        {/* ======== Bottom guide ======== */}
-        <div className="px-3 md:px-6 py-2 border-t border-white/[0.06] flex-shrink-0">
-          <p className="text-[10px] md:text-xs text-slate-500">
-            <span className="hidden sm:inline">{t('personal.schedule.dragToCreateFull')}</span>
-            <span className="sm:hidden">{t('personal.schedule.tapToCreate')}</span>
+        {/* ======== Bottom guide + mobile toolbar ======== */}
+        <div className="px-3 md:px-6 py-2 border-t border-white/[0.06] flex-shrink-0 flex items-center justify-between">
+          <p className="hidden md:block text-xs text-slate-500">
+            {t('personal.schedule.dragToCreateFull')}
           </p>
+          <p className="md:hidden text-[10px] text-slate-500 flex-1">
+            {t('personal.schedule.tapToCreate')}
+          </p>
+          <div className="md:hidden flex items-center gap-2">
+            <button
+              onClick={() => setShowMobileSidebar(true)}
+              className="p-3 rounded-xl bg-bridge-accent text-white shadow-lg shadow-bridge-accent/30 hover:bg-bridge-accent/90 active:scale-95 transition-all"
+            >
+              <CalendarDays size={18} />
+            </button>
+            <button
+              onClick={() => {
+                setCreateDate(todayStr);
+                setCreateStartTime('');
+                setCreateEndTime('');
+                setCreateInitialRecurrence('');
+                setIsCreateOpen(true);
+              }}
+              className="p-3 rounded-xl bg-bridge-accent text-white shadow-lg shadow-bridge-accent/30 hover:bg-bridge-accent/90 active:scale-95 transition-all"
+            >
+              <Plus size={18} />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1578,7 +1591,7 @@ export function PersonalSchedule() {
         onCancel={() => setHabitConfirm(null)}
       />
 
-      {/* FAB – 새 일정 추가 */}
+      {/* FAB – Desktop only */}
       <button
         onClick={() => {
           setCreateDate(todayStr);
@@ -1587,9 +1600,9 @@ export function PersonalSchedule() {
           setCreateInitialRecurrence('');
           setIsCreateOpen(true);
         }}
-        className="fixed fab-bottom-safe right-6 w-12 h-12 md:w-14 md:h-14 rounded-full bg-bridge-accent text-white shadow-lg shadow-bridge-accent/30 flex items-center justify-center hover:bg-bridge-accent/90 hover:scale-105 active:scale-95 transition-all z-50"
+        className="hidden md:flex fixed fab-bottom-safe right-6 w-14 h-14 rounded-full bg-bridge-accent text-white shadow-lg shadow-bridge-accent/30 items-center justify-center hover:bg-bridge-accent/90 hover:scale-105 active:scale-95 transition-all z-50"
       >
-        <Plus size={20} className="md:w-6 md:h-6" />
+        <Plus size={24} />
       </button>
     </div>
   );
@@ -1820,306 +1833,292 @@ function CreateEventModal({
   const showForm = mode === 'new' || selectedTask !== null || selectedHabit !== null || selectedEvent !== null;
 
   return (
-    <MotionModal open={open} onClose={onClose} className="sm:max-w-md p-5 md:p-6">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-base md:text-lg font-bold text-foreground">{t('personal.schedule.newEvent')}</h3>
-          <button onClick={onClose} className="p-1 text-slate-400 hover:text-foreground transition-colors">
-            <X size={18} />
+    <MotionModal open={open} onClose={onClose} className="sm:max-w-md p-0 overflow-hidden border-foreground/[0.12]">
+      <div>
+        {/* Top accent line */}
+        <div className="h-[2px]" style={{ background: `linear-gradient(to right, ${color}88, ${color}44, transparent)` }} />
+
+        {/* Header */}
+        <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
+          <div className="w-3 h-3 rounded-full shrink-0 border border-white/10" style={{ backgroundColor: color }} />
+          <span className="text-sm font-bold text-foreground">{t('personal.schedule.newEvent')}</span>
+          <div className="flex-1" />
+          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5 transition-colors shrink-0">
+            <X size={16} />
           </button>
         </div>
 
-        {/* Mode toggle */}
-        <div className="flex gap-1 p-1 bg-foreground/5 rounded-xl mb-4 md:mb-5">
-          <button
-            onClick={() => { setMode('new'); setSelectedTask(null); setSelectedHabit(null); setSelectedEvent(null); setTitle(''); setDescription(''); setColor(EVENT_COLORS[0]); }}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold rounded-lg transition-all ${
-              mode === 'new'
-                ? 'bg-bridge-accent text-white shadow-sm'
-                : 'text-slate-400 hover:text-foreground hover:bg-foreground/5'
-            }`}
-          >
-            <Plus size={14} />
-            {t('personal.schedule.newEvent')}
-          </button>
-          <button
-            onClick={() => setMode('task')}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold rounded-lg transition-all ${
-              mode === 'task'
-                ? 'bg-bridge-accent text-white shadow-sm'
-                : 'text-slate-400 hover:text-foreground hover:bg-foreground/5'
-            }`}
-          >
-            <ListTodo size={14} />
-            {t('personal.schedule.fromTask')}
-          </button>
-        </div>
+        <div className="px-5 pb-5 space-y-4 pt-4">
+          {/* Mode toggle */}
+          <div className="flex gap-1 p-1 bg-foreground/5 rounded-xl border border-foreground/[0.06]">
+            <button
+              onClick={() => { setMode('new'); setSelectedTask(null); setSelectedHabit(null); setSelectedEvent(null); setTitle(''); setDescription(''); setColor(EVENT_COLORS[0]); }}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                mode === 'new'
+                  ? 'bg-bridge-accent text-white shadow-sm'
+                  : 'text-slate-400 hover:text-foreground hover:bg-foreground/5'
+              }`}
+            >
+              <Plus size={13} />
+              {t('personal.schedule.newEvent')}
+            </button>
+            <button
+              onClick={() => setMode('task')}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                mode === 'task'
+                  ? 'bg-bridge-accent text-white shadow-sm'
+                  : 'text-slate-400 hover:text-foreground hover:bg-foreground/5'
+              }`}
+            >
+              <ListTodo size={13} />
+              {t('personal.schedule.fromTask')}
+            </button>
+          </div>
 
-        {/* To Do selection list (tasks + habits) */}
-        {mode === 'task' && !selectedTask && !selectedHabit && !selectedEvent && (
-          <div className="space-y-3">
-            <div className="relative">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-              <input
-                type="text"
-                value={taskSearch}
-                onChange={(e) => setTaskSearch(e.target.value)}
-                placeholder={t('personal.schedule.searchTasks')}
-                className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-2.5 pl-9 pr-4 text-foreground text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
-                autoFocus
-              />
-            </div>
+          {/* To Do selection list (tasks + habits) */}
+          {mode === 'task' && !selectedTask && !selectedHabit && !selectedEvent && (
+            <div className="space-y-3">
+              <div className="relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                <input
+                  type="text"
+                  value={taskSearch}
+                  onChange={(e) => setTaskSearch(e.target.value)}
+                  placeholder={t('personal.schedule.searchTasks')}
+                  className="w-full bg-foreground/[0.04] border border-foreground/10 rounded-xl py-2 pl-9 pr-4 text-foreground text-sm placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-bridge-accent/30 focus:border-bridge-accent/40 transition-all"
+                  autoFocus
+                />
+              </div>
 
-            <div className="max-h-[40vh] overflow-y-auto space-y-1.5 -mx-1 px-1 custom-scrollbar">
-              {isLoadingItems ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-5 w-5 text-slate-400 animate-spin" />
-                </div>
-              ) : filteredTasks.length === 0 && filteredHabits.length === 0 && filteredEvents.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-8 text-center">
-                  <ListTodo size={24} className="text-slate-600 mb-2" />
-                  <p className="text-sm text-slate-500">
-                    {tasks.length === 0 && habits.length === 0 && events.length === 0 ? t('personal.schedule.noActiveTasks') : t('personal.schedule.noMatchingTasks')}
-                  </p>
-                  {tasks.length === 0 && habits.length === 0 && events.length === 0 && (
-                    <button
-                      onClick={() => setMode('new')}
-                      className="mt-2 text-xs text-bridge-accent hover:text-bridge-accent/80 transition-colors"
-                    >
-                      {t('personal.schedule.createNewInstead')}
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <>
-                  {/* Tasks section */}
-                  {filteredTasks.length > 0 && (
-                    <>
-                      <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500 px-1 pt-1">
-                        {t('personal.schedule.tasksSection')}
-                      </div>
-                      {filteredTasks.map((task) => (
-                        <button
-                          key={task.id}
-                          onClick={() => handleSelectTask(task)}
-                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-foreground/5 hover:border-foreground/10 transition-all text-left group"
-                        >
-                          {task.priority !== 'NONE' && (
-                            <div className={`w-2 h-2 rounded-full shrink-0 ${PRIORITY_DOT[task.priority]}`} />
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <span className="text-sm text-foreground truncate block">{task.title}</span>
-                            {(task.category || task.due_date) && (
-                              <div className="flex items-center gap-2 mt-0.5">
-                                {task.category && <span className="text-[10px] text-slate-500">{task.category}</span>}
-                                {task.due_date && <span className="text-[10px] text-slate-500">{formatDate(task.due_date)}</span>}
-                              </div>
+              <div className="max-h-[32vh] overflow-y-auto space-y-1.5 -mx-1 px-1 custom-scrollbar">
+                {isLoadingItems ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-5 w-5 text-slate-400 animate-spin" />
+                  </div>
+                ) : filteredTasks.length === 0 && filteredHabits.length === 0 && filteredEvents.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                    <ListTodo size={24} className="text-slate-600 mb-2" />
+                    <p className="text-sm text-slate-500">
+                      {tasks.length === 0 && habits.length === 0 && events.length === 0 ? t('personal.schedule.noActiveTasks') : t('personal.schedule.noMatchingTasks')}
+                    </p>
+                    {tasks.length === 0 && habits.length === 0 && events.length === 0 && (
+                      <button
+                        onClick={() => setMode('new')}
+                        className="mt-2 text-xs text-bridge-accent hover:text-bridge-accent/80 transition-colors"
+                      >
+                        {t('personal.schedule.createNewInstead')}
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    {/* Tasks section */}
+                    {filteredTasks.length > 0 && (
+                      <>
+                        <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500 px-1 pt-1">
+                          {t('personal.schedule.tasksSection')}
+                        </div>
+                        {filteredTasks.map((task) => (
+                          <button
+                            key={task.id}
+                            onClick={() => handleSelectTask(task)}
+                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-foreground/[0.06] hover:border-foreground/10 transition-all text-left group"
+                          >
+                            {task.priority !== 'NONE' && (
+                              <div className={`w-2 h-2 rounded-full shrink-0 ${PRIORITY_DOT[task.priority]}`} />
                             )}
-                          </div>
-                          {task.color && (
+                            <div className="flex-1 min-w-0">
+                              <span className="text-sm text-foreground truncate block">{task.title}</span>
+                              {(task.category || task.due_date) && (
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  {task.category && <span className="text-[10px] text-slate-500">{task.category}</span>}
+                                  {task.due_date && <span className="text-[10px] text-slate-500">{formatDate(task.due_date)}</span>}
+                                </div>
+                              )}
+                            </div>
+                            {task.color && (
+                              <div
+                                className="w-3 h-3 rounded-full shrink-0 opacity-60 group-hover:opacity-100 transition-opacity"
+                                style={{ backgroundColor: task.color }}
+                              />
+                            )}
+                          </button>
+                        ))}
+                      </>
+                    )}
+
+                    {/* Habits section */}
+                    {filteredHabits.length > 0 && (
+                      <>
+                        <div className={`text-[10px] font-bold uppercase tracking-widest text-slate-500 px-1 ${filteredTasks.length > 0 ? 'pt-3' : 'pt-1'}`}>
+                          {t('personal.schedule.habitsSection')}
+                        </div>
+                        {filteredHabits.map((habit) => (
+                          <button
+                            key={habit.id}
+                            onClick={() => handleSelectHabit(habit)}
+                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-foreground/[0.06] hover:border-foreground/10 transition-all text-left group"
+                          >
+                            <span className="text-sm shrink-0">{habit.icon || '🔄'}</span>
+                            <div className="flex-1 min-w-0">
+                              <span className="text-sm text-foreground truncate block">{habit.title}</span>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <Flame size={10} className="text-slate-500" />
+                                <span className="text-[10px] text-slate-500">{t('personal.schedule.streakDays', { count: habit.current_streak })}</span>
+                              </div>
+                            </div>
                             <div
                               className="w-3 h-3 rounded-full shrink-0 opacity-60 group-hover:opacity-100 transition-opacity"
-                              style={{ backgroundColor: task.color }}
+                              style={{ backgroundColor: habit.color }}
                             />
-                          )}
-                        </button>
-                      ))}
-                    </>
-                  )}
+                          </button>
+                        ))}
+                      </>
+                    )}
 
-                  {/* Habits section */}
-                  {filteredHabits.length > 0 && (
-                    <>
-                      <div className={`text-[10px] font-bold uppercase tracking-widest text-slate-500 px-1 ${filteredTasks.length > 0 ? 'pt-3' : 'pt-1'}`}>
-                        {t('personal.schedule.habitsSection')}
-                      </div>
-                      {filteredHabits.map((habit) => (
-                        <button
-                          key={habit.id}
-                          onClick={() => handleSelectHabit(habit)}
-                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-foreground/5 hover:border-foreground/10 transition-all text-left group"
-                        >
-                          <span className="text-sm shrink-0">{habit.icon || '🔄'}</span>
-                          <div className="flex-1 min-w-0">
-                            <span className="text-sm text-foreground truncate block">{habit.title}</span>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              <Flame size={10} className="text-slate-500" />
-                              <span className="text-[10px] text-slate-500">{t('personal.schedule.streakDays', { count: habit.current_streak })}</span>
+                    {/* Calendar events section */}
+                    {filteredEvents.length > 0 && (
+                      <>
+                        <div className={`text-[10px] font-bold uppercase tracking-widest text-slate-500 px-1 ${filteredTasks.length > 0 || filteredHabits.length > 0 ? 'pt-3' : 'pt-1'}`}>
+                          {t('personal.schedule.eventsSection')}
+                        </div>
+                        {filteredEvents.map((ev) => (
+                          <button
+                            key={ev.id}
+                            onClick={() => handleSelectEvent(ev)}
+                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-foreground/[0.06] hover:border-foreground/10 transition-all text-left group"
+                          >
+                            <CalendarDays size={14} className="text-slate-400 shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <span className="text-sm text-foreground truncate block">{ev.title}</span>
+                              {(ev.start_time || ev.end_time) && (
+                                <div className="flex items-center gap-1 mt-0.5">
+                                  <Clock size={10} className="text-slate-500" />
+                                  <span className="text-[10px] text-slate-500">
+                                    {ev.start_time?.slice(0, 5)}{ev.end_time ? `–${ev.end_time.slice(0, 5)}` : ''}{ev.start_time && ev.end_time && ev.end_time < ev.start_time && <span className="text-bridge-accent ml-0.5">({t('personal.schedule.nextDay')})</span>}
+                                  </span>
+                                </div>
+                              )}
                             </div>
-                          </div>
-                          <div
-                            className="w-3 h-3 rounded-full shrink-0 opacity-60 group-hover:opacity-100 transition-opacity"
-                            style={{ backgroundColor: habit.color }}
-                          />
-                        </button>
-                      ))}
-                    </>
-                  )}
+                            <div
+                              className="w-3 h-3 rounded-full shrink-0 opacity-60 group-hover:opacity-100 transition-opacity"
+                              style={{ backgroundColor: ev.color }}
+                            />
+                          </button>
+                        ))}
+                      </>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          )}
 
-                  {/* Calendar events section */}
-                  {filteredEvents.length > 0 && (
-                    <>
-                      <div className={`text-[10px] font-bold uppercase tracking-widest text-slate-500 px-1 ${filteredTasks.length > 0 || filteredHabits.length > 0 ? 'pt-3' : 'pt-1'}`}>
-                        {t('personal.schedule.eventsSection')}
-                      </div>
-                      {filteredEvents.map((ev) => (
-                        <button
-                          key={ev.id}
-                          onClick={() => handleSelectEvent(ev)}
-                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-foreground/5 hover:border-foreground/10 transition-all text-left group"
-                        >
-                          <CalendarDays size={14} className="text-slate-400 shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <span className="text-sm text-foreground truncate block">{ev.title}</span>
-                            {(ev.start_time || ev.end_time) && (
-                              <div className="flex items-center gap-1 mt-0.5">
-                                <Clock size={10} className="text-slate-500" />
-                                <span className="text-[10px] text-slate-500">
-                                  {ev.start_time?.slice(0, 5)}{ev.end_time ? `–${ev.end_time.slice(0, 5)}` : ''}{ev.start_time && ev.end_time && ev.end_time < ev.start_time && <span className="text-bridge-accent ml-0.5">({t('personal.schedule.nextDay')})</span>}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                          <div
-                            className="w-3 h-3 rounded-full shrink-0 opacity-60 group-hover:opacity-100 transition-opacity"
-                            style={{ backgroundColor: ev.color }}
-                          />
-                        </button>
-                      ))}
-                    </>
-                  )}
-                </>
+          {/* Event form (new mode OR task selected) */}
+          {showForm && (
+            <div className="space-y-3">
+              {/* Selected item indicator */}
+              {(selectedTask || selectedHabit || selectedEvent) && (
+                <div className="flex items-center gap-2 px-3 py-2 bg-bridge-accent/10 border border-bridge-accent/20 rounded-xl">
+                  <CheckCircle2 size={14} className="text-bridge-accent shrink-0" />
+                  <span className="text-xs text-bridge-accent flex-1 truncate">
+                    {t('personal.schedule.scheduling', { title: selectedTask?.title || selectedHabit?.title || selectedEvent?.title || '' })}
+                  </span>
+                  <button
+                    onClick={handleClearSelection}
+                    className="p-0.5 text-bridge-accent/60 hover:text-bridge-accent transition-colors"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
               )}
-            </div>
-          </div>
-        )}
 
-        {/* Event form (new mode OR task selected) */}
-        {showForm && (
-          <div className="space-y-3 md:space-y-4">
-            {/* Selected item indicator */}
-            {(selectedTask || selectedHabit || selectedEvent) && (
-              <div className="flex items-center gap-2 px-3 py-2 bg-bridge-accent/10 border border-bridge-accent/20 rounded-xl">
-                <CheckCircle2 size={14} className="text-bridge-accent shrink-0" />
-                <span className="text-xs text-bridge-accent flex-1 truncate">
-                  {t('personal.schedule.scheduling', { title: selectedTask?.title || selectedHabit?.title || selectedEvent?.title || '' })}
-                </span>
-                <button
-                  onClick={handleClearSelection}
-                  className="p-0.5 text-bridge-accent/60 hover:text-bridge-accent transition-colors"
-                >
-                  <X size={12} />
-                </button>
+              {/* Date chip + Color picker */}
+              <div className="flex items-center gap-3 flex-wrap">
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-foreground/[0.04] border border-foreground/10">
+                  <CalendarDays size={13} className="text-slate-400" />
+                  <span className="text-xs text-muted-foreground">
+                    {formatDate(date, "PPP '('EEE')'")}
+                  </span>
+                </div>
+                <ColorDropdown color={color} onChange={setColor} />
               </div>
-            )}
 
-            {/* Date */}
-            <div>
-              <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-                {t('personal.schedule.date')}
-              </label>
-              <div className="text-sm text-foreground/80 bg-foreground/5 border border-foreground/10 rounded-xl px-4 py-2.5">
-                {formatDate(date, "PPP '('EEE')'")}
-              </div>
-            </div>
-
-            {/* Title */}
-            <div>
-              <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-                {t('personal.schedule.eventTitle')}
-              </label>
+              {/* Title */}
               <input
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
                 placeholder={t('personal.schedule.eventTitlePlaceholder')}
-                className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-2.5 px-4 text-foreground text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+                className="w-full bg-foreground/[0.04] border border-foreground/10 rounded-xl py-2.5 px-4 text-foreground text-sm placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-bridge-accent/30 focus:border-bridge-accent/40 transition-all"
                 autoFocus={mode === 'new'}
               />
-            </div>
 
-            {/* Description */}
-            <div>
-              <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-                {t('personal.schedule.description')}
-              </label>
+              {/* Time - compact row */}
+              <div className="flex items-center gap-2">
+                <div className="flex-1">
+                  <TimePicker
+                    value={startTime}
+                    onChange={(val) => {
+                      setStartTime(val);
+                      if (val && !endTime) {
+                        const [h, m] = val.split(':').map(Number);
+                        const endH = (h + 1) % 24;
+                        setEndTime(`${String(endH).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+                      }
+                    }}
+                    className="py-1.5 px-3 text-xs border-foreground/10"
+                  />
+                </div>
+                <span className="text-slate-500 text-xs shrink-0">~</span>
+                <div className="flex-1">
+                  <TimePicker
+                    value={endTime}
+                    onChange={setEndTime}
+                    className="py-1.5 px-3 text-xs border-foreground/10"
+                  />
+                </div>
+                {startTime && endTime && endTime < startTime && (
+                  <span className="text-[10px] font-bold text-bridge-accent shrink-0">({t('personal.schedule.nextDay')})</span>
+                )}
+              </div>
+
+              {/* Description */}
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder={t('personal.schedule.optionalDesc')}
                 rows={2}
-                className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-2.5 px-4 text-foreground text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all resize-none"
+                className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl p-3 text-sm text-muted-foreground placeholder-slate-600 outline-none resize-none focus:border-bridge-accent/30 focus:ring-1 focus:ring-bridge-accent/10 transition-all"
               />
-            </div>
 
-            {/* Time inputs */}
-            <div className="flex gap-3">
-              <div className="flex-1">
-                <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-                  {t('personal.schedule.start')}
-                </label>
-                <TimePicker
-                  value={startTime}
-                  onChange={(val) => {
-                    setStartTime(val);
-                    if (val && !endTime) {
-                      const [h, m] = val.split(':').map(Number);
-                      const endH = (h + 1) % 24;
-                      setEndTime(`${String(endH).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
-                    }
-                  }}
-                />
-              </div>
-              <div className="flex-1">
-                <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-                  {t('personal.schedule.end')}
-                  {startTime && endTime && endTime < startTime && (
-                    <span className="ml-1.5 text-bridge-accent font-semibold normal-case tracking-normal">({t('personal.schedule.nextDay')})</span>
-                  )}
-                </label>
-                <TimePicker
-                  value={endTime}
-                  onChange={setEndTime}
-                />
-              </div>
-            </div>
-
-            {/* Overlap warning */}
-            {overlapping.length > 0 && (
-              <div className="flex items-start gap-2.5 px-3 py-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl">
-                <AlertCircle size={15} className="text-amber-400 shrink-0 mt-0.5" />
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold text-amber-400">
-                    {t('personal.schedule.overlapWarning', { count: overlapping.length })}
-                  </p>
-                  <div className="mt-1 space-y-0.5">
-                    {overlapping.slice(0, 3).map((ev) => (
-                      <p key={ev.id} className="text-[11px] text-amber-400/70 truncate">
-                        {ev.start_time?.slice(0, 5)}–{ev.end_time?.slice(0, 5)} {ev.title}
-                      </p>
-                    ))}
-                    {overlapping.length > 3 && (
-                      <p className="text-[11px] text-amber-400/50">
-                        +{overlapping.length - 3}
-                      </p>
-                    )}
+              {/* Overlap warning */}
+              {overlapping.length > 0 && (
+                <div className="flex items-start gap-2 px-3 py-2 bg-amber-500/10 border border-amber-500/10 rounded-lg">
+                  <AlertCircle size={13} className="text-amber-400 shrink-0 mt-0.5" />
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-semibold text-amber-400">
+                      {t('personal.schedule.overlapWarning', { count: overlapping.length })}
+                    </p>
+                    <div className="mt-0.5 space-y-0.5">
+                      {overlapping.slice(0, 3).map((ev) => (
+                        <p key={ev.id} className="text-[10px] text-amber-400/70 truncate">
+                          {ev.start_time?.slice(0, 5)}–{ev.end_time?.slice(0, 5)} {ev.title}
+                        </p>
+                      ))}
+                      {overlapping.length > 3 && (
+                        <p className="text-[10px] text-amber-400/50">
+                          +{overlapping.length - 3}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Color + Recurrence in one row */}
-            <div className="flex gap-3 items-end">
-              <div className="shrink-0">
-                <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-                  {t('personal.schedule.color')}
-                </label>
-                <ColorDropdown color={color} onChange={setColor} />
-              </div>
+              {/* Recurrence */}
               <div className="flex-1 min-w-0">
-                <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-                  {t('personal.schedule.repeat')}
-                </label>
                 <select
                   value={recurrenceRule}
                   onChange={(e) => {
@@ -2129,96 +2128,88 @@ function CreateEventModal({
                       setRecurrenceEndDate('');
                     }
                   }}
-                  className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-2.5 px-4 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+                  className="w-full bg-foreground/[0.04] border border-foreground/10 rounded-xl py-2 px-3 text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-bridge-accent/30 transition-all"
                 >
                   <option value="" className="bg-bridge-obsidian">{t('personal.schedule.noRepeat')}</option>
                   <option value="DAILY" className="bg-bridge-obsidian">{t('personal.schedule.everyDay')}</option>
                   <option value="WEEKLY" className="bg-bridge-obsidian">{t('personal.schedule.everyWeek')}</option>
                 </select>
               </div>
-            </div>
 
-            {recurrenceRule === 'WEEKLY' && (
-              <div>
-                <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-                  {t('personal.schedule.repeatOn')}
-                </label>
-                <div className="flex gap-1.5">
-                  {[0, 1, 2, 3, 4, 5, 6].map((dayValue) => {
-                    const labels = [
-                      t('personal.schedule.daySun'),
-                      t('personal.schedule.dayMon'),
-                      t('personal.schedule.dayTue'),
-                      t('personal.schedule.dayWed'),
-                      t('personal.schedule.dayThu'),
-                      t('personal.schedule.dayFri'),
-                      t('personal.schedule.daySat'),
-                    ];
-                    const isSelected = recurrenceDaysOfWeek.includes(dayValue);
-                    return (
-                      <button
-                        key={dayValue}
-                        type="button"
-                        onClick={() => {
-                          setRecurrenceDaysOfWeek((prev) =>
-                            isSelected ? prev.filter((d) => d !== dayValue) : [...prev, dayValue],
-                          );
-                        }}
-                        className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
-                          isSelected
-                            ? 'bg-bridge-accent text-white'
-                            : 'bg-foreground/5 text-slate-400 hover:bg-foreground/10'
-                        }`}
-                      >
-                        {labels[dayValue]}
-                      </button>
-                    );
-                  })}
+              {recurrenceRule === 'WEEKLY' && (
+                <div>
+                  <div className="flex gap-1.5">
+                    {[0, 1, 2, 3, 4, 5, 6].map((dayValue) => {
+                      const labels = [
+                        t('personal.schedule.daySun'),
+                        t('personal.schedule.dayMon'),
+                        t('personal.schedule.dayTue'),
+                        t('personal.schedule.dayWed'),
+                        t('personal.schedule.dayThu'),
+                        t('personal.schedule.dayFri'),
+                        t('personal.schedule.daySat'),
+                      ];
+                      const isSelected = recurrenceDaysOfWeek.includes(dayValue);
+                      return (
+                        <button
+                          key={dayValue}
+                          type="button"
+                          onClick={() => {
+                            setRecurrenceDaysOfWeek((prev) =>
+                              isSelected ? prev.filter((d) => d !== dayValue) : [...prev, dayValue],
+                            );
+                          }}
+                          className={`flex-1 py-1.5 text-[10px] font-bold rounded-md transition-all ${
+                            isSelected
+                              ? 'bg-bridge-accent text-white'
+                              : 'bg-foreground/5 text-slate-400 hover:bg-foreground/10'
+                          }`}
+                        >
+                          {labels[dayValue]}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {recurrenceDaysOfWeek.length === 0 && (
+                    <p className="mt-1 text-[10px] text-amber-400">{t('personal.schedule.selectDay')}</p>
+                  )}
                 </div>
-                {recurrenceDaysOfWeek.length === 0 && (
-                  <p className="mt-1 text-xs text-amber-400">{t('personal.schedule.selectDay')}</p>
-                )}
-              </div>
-            )}
+              )}
 
-            {recurrenceRule && (
-              <div>
-                <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-                  {t('personal.schedule.repeatUntil')}
-                </label>
-                <input
-                  type="date"
-                  value={recurrenceEndDate}
-                  onChange={(e) => setRecurrenceEndDate(e.target.value)}
-                  min={date}
-                  className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-2.5 px-4 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
-                />
-                {!recurrenceEndDate && (
-                  <p className="mt-1 text-xs text-amber-400">{t('personal.schedule.endDateRequired')}</p>
-                )}
-              </div>
+              {recurrenceRule && (
+                <div>
+                  <input
+                    type="date"
+                    value={recurrenceEndDate}
+                    onChange={(e) => setRecurrenceEndDate(e.target.value)}
+                    min={date}
+                    className="w-full bg-foreground/[0.04] border border-foreground/10 rounded-xl py-2 px-3 text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-bridge-accent/30 transition-all [color-scheme:dark]"
+                  />
+                  {!recurrenceEndDate && (
+                    <p className="mt-1 text-[10px] text-amber-400">{t('personal.schedule.endDateRequired')}</p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Footer */}
+          <div className="flex items-center justify-between pt-3 border-t border-foreground/[0.08]">
+            <span className="text-[10px] text-slate-600">
+              Esc {t('common.close', '닫기')}
+            </span>
+            {showForm && (
+              <button
+                onClick={handleSubmit}
+                disabled={!title.trim() || (!!recurrenceRule && !recurrenceEndDate) || (recurrenceRule === 'WEEKLY' && recurrenceDaysOfWeek.length === 0)}
+                className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold text-white bg-bridge-accent hover:bg-bridge-accent/90 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              >
+                {t('personal.schedule.create')}
+              </button>
             )}
           </div>
-        )}
-
-        {/* Actions */}
-        <div className="flex gap-3 mt-6">
-          <button
-            onClick={onClose}
-            className="flex-1 py-3 text-sm font-bold text-slate-400 hover:text-foreground border border-foreground/10 rounded-xl hover:bg-foreground/5 transition-all"
-          >
-            {t('personal.schedule.cancel')}
-          </button>
-          {showForm && (
-            <button
-              onClick={handleSubmit}
-              disabled={!title.trim() || (!!recurrenceRule && !recurrenceEndDate) || (recurrenceRule === 'WEEKLY' && recurrenceDaysOfWeek.length === 0)}
-              className="flex-1 py-3 bg-bridge-accent text-white text-sm font-bold rounded-xl hover:bg-bridge-accent/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-            >
-              {t('personal.schedule.create')}
-            </button>
-          )}
         </div>
+      </div>
     </MotionModal>
   );
 }
@@ -2307,6 +2298,14 @@ export function EventDetailModal({
 
   if (!event) return null;
 
+  const hasChanged =
+    title !== event.title ||
+    description !== (event.description || '') ||
+    startTime !== (event.start_time?.slice(0, 5) || '') ||
+    endTime !== (event.end_time?.slice(0, 5) || '') ||
+    color !== event.color ||
+    !!recurrenceChanged;
+
   const handleSave = () => {
     if (!title.trim()) return;
     if (!recurrenceValid) return;
@@ -2324,6 +2323,7 @@ export function EventDetailModal({
       end_time: endTime || null,
       color,
     });
+    onClose();
   };
 
   const handleSaveWithScope = (scope: string) => {
@@ -2340,96 +2340,143 @@ export function EventDetailModal({
         ? recurrenceDaysOfWeek : undefined,
       scope,
     });
+    onClose();
   };
 
   return (
-    <MotionModal open={open} onClose={onClose} className="sm:max-w-md p-5 md:p-6">
-        <div className="flex items-center justify-between mb-4 md:mb-5">
-          <h3 className="text-base md:text-lg font-bold text-foreground">{t('personal.schedule.editEvent')}</h3>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => {
-                if (event.recurrence_group_id) {
-                  setShowDeleteScope(true);
-                } else {
-                  onDelete(event.id);
-                }
-              }}
-              className="p-1.5 text-slate-400 hover:text-rose-400 transition-colors"
-              title={t('personal.schedule.deleteEvent')}
-            >
-              <Trash2 size={16} />
-            </button>
-            <button onClick={onClose} className="p-1 text-slate-400 hover:text-foreground transition-colors">
-              <X size={18} />
-            </button>
-          </div>
+    <MotionModal open={open} onClose={onClose} className="sm:max-w-md p-0 overflow-hidden border-foreground/[0.12]">
+      <div>
+        {/* Top accent line */}
+        <div className="h-[2px]" style={{ background: `linear-gradient(to right, ${color}88, ${color}44, transparent)` }} />
+
+        {/* Header: color dot + title + delete/close */}
+        <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
+          <div className="w-3 h-3 rounded-full shrink-0 border border-white/10" style={{ backgroundColor: color }} />
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+            className="flex-1 min-w-0 bg-transparent text-sm font-bold text-foreground outline-none placeholder-slate-600"
+            placeholder={t('personal.schedule.eventTitle')}
+            autoFocus
+          />
+          <button
+            onClick={() => {
+              if (event.recurrence_group_id) {
+                setShowDeleteScope(true);
+              } else {
+                onDelete(event.id);
+              }
+            }}
+            className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-foreground/5 transition-colors shrink-0"
+            title={t('personal.schedule.deleteEvent')}
+          >
+            <Trash2 size={16} />
+          </button>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5 transition-colors shrink-0"
+          >
+            <X size={16} />
+          </button>
         </div>
 
-        {showDeleteScope && (
-          <div className="mb-4 p-4 bg-foreground/5 rounded-xl border border-foreground/10 space-y-2.5">
-            <p className="text-sm text-muted-foreground font-medium">{t('personal.schedule.recurringEvent')}</p>
-            <button
-              onClick={() => onDelete(event.id, 'THIS_ONLY')}
-              className="w-full px-4 py-2.5 text-sm font-semibold bg-foreground/5 border border-foreground/10 rounded-xl text-foreground hover:bg-foreground/10 transition-all"
-            >
-              {t('personal.schedule.deleteThisOnly')}
-            </button>
-            <button
-              onClick={() => onDelete(event.id, 'THIS_AND_FUTURE')}
-              className="w-full px-4 py-2.5 text-sm font-semibold bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 hover:bg-red-500/20 transition-all"
-            >
-              {t('personal.schedule.deleteThisAndFuture')}
-            </button>
-            <button
-              onClick={() => setShowDeleteScope(false)}
-              className="w-full px-4 py-2 text-xs text-slate-500 hover:text-muted-foreground transition-colors"
-            >
-              {t('personal.schedule.cancel')}
-            </button>
-          </div>
-        )}
-
-        <div className="space-y-4">
-          {/* Date */}
-          <div>
-            <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-              {t('personal.schedule.date')}
-            </label>
-            <div className="text-sm text-foreground/80 bg-foreground/5 border border-foreground/10 rounded-xl px-4 py-2.5">
-              {formatDate(event.event_date, "PPP '('EEE')'")}
+        <div className="px-5 pb-5 space-y-4 pt-4">
+          {showDeleteScope && (
+            <div className="p-3 bg-foreground/5 rounded-xl border border-foreground/10 space-y-2">
+              <p className="text-xs text-muted-foreground font-medium">{t('personal.schedule.recurringEvent')}</p>
+              <button
+                onClick={() => onDelete(event.id, 'THIS_ONLY')}
+                className="w-full px-3 py-2 text-xs font-semibold bg-foreground/5 border border-foreground/10 rounded-lg text-foreground hover:bg-foreground/10 transition-all"
+              >
+                {t('personal.schedule.deleteThisOnly')}
+              </button>
+              <button
+                onClick={() => onDelete(event.id, 'THIS_AND_FUTURE')}
+                className="w-full px-3 py-2 text-xs font-semibold bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 hover:bg-red-500/20 transition-all"
+              >
+                {t('personal.schedule.deleteThisAndFuture')}
+              </button>
+              <button
+                onClick={() => setShowDeleteScope(false)}
+                className="w-full px-3 py-1.5 text-[10px] text-slate-500 hover:text-muted-foreground transition-colors"
+              >
+                {t('personal.schedule.cancel')}
+              </button>
             </div>
+          )}
+
+          {/* Inline properties: date + color picker */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-foreground/[0.04] border border-foreground/10">
+              <CalendarDays size={13} className="text-slate-400" />
+              <span className="text-xs text-muted-foreground">
+                {formatDate(event.event_date, "PPP '('EEE')'")}
+              </span>
+            </div>
+            <ColorDropdown color={color} onChange={setColor} />
           </div>
 
-          {/* Recurrence settings (for recurring events) */}
+          {/* Time - compact row */}
+          <div className="flex items-center gap-2">
+            <div className="flex-1">
+              <TimePicker
+                value={startTime}
+                onChange={(val) => {
+                  setStartTime(val);
+                  if (val && !endTime) {
+                    const [h, m] = val.split(':').map(Number);
+                    const endH = (h + 1) % 24;
+                    setEndTime(`${String(endH).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+                  }
+                }}
+                className="py-1.5 px-3 text-xs border-foreground/10"
+              />
+            </div>
+            <span className="text-slate-500 text-xs shrink-0">~</span>
+            <div className="flex-1">
+              <TimePicker
+                value={endTime}
+                onChange={setEndTime}
+                className="py-1.5 px-3 text-xs border-foreground/10"
+              />
+            </div>
+            {startTime && endTime && endTime < startTime && (
+              <span className="text-[10px] font-bold text-bridge-accent shrink-0">({t('personal.schedule.nextDay')})</span>
+            )}
+          </div>
+
+          {/* Description */}
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder={t('personal.schedule.optionalDesc')}
+            rows={2}
+            className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl p-3 text-sm text-muted-foreground placeholder-slate-600 outline-none resize-none focus:border-bridge-accent/30 focus:ring-1 focus:ring-bridge-accent/10 transition-all"
+          />
+
+          {/* Recurrence settings (compact) */}
           {isRecurring && (
-            <>
-              <div>
-                <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-                  {t('personal.schedule.repeat')}
-                </label>
-                <select
-                  value={recurrenceRule}
-                  onChange={(e) => {
-                    setRecurrenceRule(e.target.value);
-                    if (!e.target.value) {
-                      setRecurrenceDaysOfWeek([]);
-                      setRecurrenceEndDate('');
-                    }
-                  }}
-                  className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-2.5 px-4 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
-                >
-                  <option value="" className="bg-bridge-obsidian">{t('personal.schedule.noRepeat')}</option>
-                  <option value="DAILY" className="bg-bridge-obsidian">{t('personal.schedule.everyDay')}</option>
-                  <option value="WEEKLY" className="bg-bridge-obsidian">{t('personal.schedule.everyWeek')}</option>
-                </select>
-              </div>
+            <div className="space-y-2.5 p-3 rounded-xl bg-white/[0.02] border border-foreground/10">
+              <select
+                value={recurrenceRule}
+                onChange={(e) => {
+                  setRecurrenceRule(e.target.value);
+                  if (!e.target.value) {
+                    setRecurrenceDaysOfWeek([]);
+                    setRecurrenceEndDate('');
+                  }
+                }}
+                className="w-full bg-foreground/5 border border-foreground/10 rounded-lg py-1.5 px-3 text-foreground text-xs focus:outline-none focus:border-bridge-accent/30 transition-all"
+              >
+                <option value="" className="bg-bridge-obsidian">{t('personal.schedule.noRepeat')}</option>
+                <option value="DAILY" className="bg-bridge-obsidian">{t('personal.schedule.everyDay')}</option>
+                <option value="WEEKLY" className="bg-bridge-obsidian">{t('personal.schedule.everyWeek')}</option>
+              </select>
 
               {recurrenceRule === 'WEEKLY' && (
                 <div>
-                  <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-                    {t('personal.schedule.repeatOn')}
-                  </label>
                   <div className="flex gap-1.5">
                     {[0, 1, 2, 3, 4, 5, 6].map((dayValue) => {
                       const labels = [
@@ -2451,7 +2498,7 @@ export function EventDetailModal({
                               isSelected ? prev.filter((d) => d !== dayValue) : [...prev, dayValue],
                             );
                           }}
-                          className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                          className={`flex-1 py-1.5 text-[10px] font-bold rounded-md transition-all ${
                             isSelected
                               ? 'bg-bridge-accent text-white'
                               : 'bg-foreground/5 text-slate-400 hover:bg-foreground/10'
@@ -2463,108 +2510,44 @@ export function EventDetailModal({
                     })}
                   </div>
                   {recurrenceDaysOfWeek.length === 0 && (
-                    <p className="mt-1 text-xs text-amber-400">{t('personal.schedule.selectDay')}</p>
+                    <p className="mt-1 text-[10px] text-amber-400">{t('personal.schedule.selectDay')}</p>
                   )}
                 </div>
               )}
 
               {recurrenceRule && (
                 <div>
-                  <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-                    {t('personal.schedule.repeatUntil')}
-                  </label>
                   <input
                     type="date"
                     value={recurrenceEndDate}
                     onChange={(e) => setRecurrenceEndDate(e.target.value)}
                     min={event.event_date}
-                    className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-2.5 px-4 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+                    className="w-full bg-foreground/5 border border-foreground/10 rounded-lg py-1.5 px-3 text-foreground text-xs focus:outline-none focus:border-bridge-accent/30 transition-all [color-scheme:dark]"
                   />
                   {!recurrenceEndDate && (
-                    <p className="mt-1 text-xs text-amber-400">{t('personal.schedule.endDateRequired')}</p>
+                    <p className="mt-1 text-[10px] text-amber-400">{t('personal.schedule.endDateRequired')}</p>
                   )}
                 </div>
               )}
-            </>
+            </div>
           )}
-
-          {/* Title */}
-          <div>
-            <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-              {t('personal.schedule.eventTitle')}
-            </label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-              className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-2.5 px-4 text-foreground text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
-              autoFocus
-            />
-          </div>
-
-          {/* Description */}
-          <div>
-            <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-              {t('personal.schedule.description')}
-            </label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder={t('personal.schedule.optionalDesc')}
-              rows={2}
-              className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-2.5 px-4 text-foreground text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all resize-none"
-            />
-          </div>
-
-          {/* Time */}
-          <div className="flex gap-3">
-            <div className="flex-1">
-              <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-                {t('personal.schedule.start')}
-              </label>
-              <TimePicker
-                value={startTime}
-                onChange={(val) => {
-                  setStartTime(val);
-                  if (val && !endTime) {
-                    const [h, m] = val.split(':').map(Number);
-                    const endH = (h + 1) % 24;
-                    setEndTime(`${String(endH).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
-                  }
-                }}
-              />
-            </div>
-            <div className="flex-1">
-              <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-                {t('personal.schedule.end')}
-                {startTime && endTime && endTime < startTime && (
-                  <span className="ml-1.5 text-bridge-accent font-semibold normal-case tracking-normal">({t('personal.schedule.nextDay')})</span>
-                )}
-              </label>
-              <TimePicker
-                value={endTime}
-                onChange={setEndTime}
-              />
-            </div>
-          </div>
 
           {/* Overlap warning */}
           {overlapping.length > 0 && (
-            <div className="flex items-start gap-2.5 px-3 py-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl">
-              <AlertCircle size={15} className="text-amber-400 shrink-0 mt-0.5" />
+            <div className="flex items-start gap-2 px-3 py-2 bg-amber-500/10 border border-amber-500/10 rounded-lg">
+              <AlertCircle size={13} className="text-amber-400 shrink-0 mt-0.5" />
               <div className="min-w-0">
-                <p className="text-xs font-semibold text-amber-400">
+                <p className="text-[10px] font-semibold text-amber-400">
                   {t('personal.schedule.overlapWarning', { count: overlapping.length })}
                 </p>
-                <div className="mt-1 space-y-0.5">
+                <div className="mt-0.5 space-y-0.5">
                   {overlapping.slice(0, 3).map((ev) => (
-                    <p key={ev.id} className="text-[11px] text-amber-400/70 truncate">
+                    <p key={ev.id} className="text-[10px] text-amber-400/70 truncate">
                       {ev.start_time?.slice(0, 5)}–{ev.end_time?.slice(0, 5)} {ev.title}
                     </p>
                   ))}
                   {overlapping.length > 3 && (
-                    <p className="text-[11px] text-amber-400/50">
+                    <p className="text-[10px] text-amber-400/50">
                       +{overlapping.length - 3}
                     </p>
                   )}
@@ -2573,52 +2556,42 @@ export function EventDetailModal({
             </div>
           )}
 
-          {/* Color */}
-          <div>
-            <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">
-              {t('personal.schedule.color')}
-            </label>
-            <ColorDropdown color={color} onChange={setColor} />
-          </div>
+          {/* Update scope dialog */}
+          {showUpdateScope && (
+            <div className="p-3 bg-foreground/5 rounded-xl border border-foreground/10 space-y-2">
+              <p className="text-xs text-muted-foreground font-medium">{t('personal.schedule.recurringUpdateScope')}</p>
+              <button
+                onClick={() => handleSaveWithScope('THIS_AND_FUTURE')}
+                className="w-full px-3 py-2 text-xs font-semibold bg-bridge-accent/10 border border-bridge-accent/20 rounded-lg text-bridge-accent hover:bg-bridge-accent/20 transition-all"
+              >
+                {t('personal.schedule.updateThisAndFuture')}
+              </button>
+              <button
+                onClick={() => setShowUpdateScope(false)}
+                className="w-full px-3 py-1.5 text-[10px] text-slate-500 hover:text-muted-foreground transition-colors"
+              >
+                {t('personal.schedule.cancel')}
+              </button>
+            </div>
+          )}
+
+          {/* Footer */}
+          {!showUpdateScope && (
+            <div className="flex items-center justify-between pt-3 border-t border-foreground/[0.08]">
+              <span className="text-[10px] text-slate-600">
+                Esc {t('common.close', '닫기')}
+              </span>
+              <button
+                onClick={handleSave}
+                disabled={!title.trim() || !recurrenceValid || !hasChanged}
+                className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold text-white bg-bridge-accent hover:bg-bridge-accent/90 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              >
+                {t('personal.schedule.save')}
+              </button>
+            </div>
+          )}
         </div>
-
-        {/* Update scope dialog for recurrence changes */}
-        {showUpdateScope && (
-          <div className="mt-4 p-4 bg-foreground/5 rounded-xl border border-foreground/10 space-y-2.5">
-            <p className="text-sm text-muted-foreground font-medium">{t('personal.schedule.recurringUpdateScope')}</p>
-            <button
-              onClick={() => handleSaveWithScope('THIS_AND_FUTURE')}
-              className="w-full px-4 py-2.5 text-sm font-semibold bg-bridge-accent/10 border border-bridge-accent/30 rounded-xl text-bridge-accent hover:bg-bridge-accent/20 transition-all"
-            >
-              {t('personal.schedule.updateThisAndFuture')}
-            </button>
-            <button
-              onClick={() => setShowUpdateScope(false)}
-              className="w-full px-4 py-2 text-xs text-slate-500 hover:text-muted-foreground transition-colors"
-            >
-              {t('personal.schedule.cancel')}
-            </button>
-          </div>
-        )}
-
-        {/* Actions */}
-        {!showUpdateScope && (
-          <div className="flex gap-3 mt-6">
-            <button
-              onClick={onClose}
-              className="flex-1 py-3 text-sm font-bold text-slate-400 hover:text-foreground border border-foreground/10 rounded-xl hover:bg-foreground/5 transition-all"
-            >
-              {t('personal.schedule.cancel')}
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={!title.trim() || !recurrenceValid}
-              className="flex-1 py-3 bg-bridge-accent text-white text-sm font-bold rounded-xl hover:bg-bridge-accent/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-            >
-              {t('personal.schedule.save')}
-            </button>
-          </div>
-        )}
+      </div>
     </MotionModal>
   );
 }
@@ -2653,77 +2626,77 @@ function ScheduleSettingsModal({
   const fmtHour = (h: number) => `${h.toString().padStart(2, '0')}:00`;
 
   return (
-    <MotionModal open={open} onClose={onClose} className="sm:max-w-sm p-5 md:p-6">
-        <div className="flex items-center justify-between mb-4 md:mb-5">
-          <h3 className="text-base md:text-lg font-bold text-foreground">{t('personal.schedule.settingsTitle')}</h3>
-          <button onClick={onClose} className="p-1 text-slate-400 hover:text-foreground transition-colors">
-            <X size={18} />
+    <MotionModal open={open} onClose={onClose} className="sm:max-w-sm p-0 overflow-hidden border-foreground/[0.12]">
+      <div>
+        <div className="h-[2px] bg-gradient-to-r from-bridge-accent/60 via-bridge-secondary/40 to-transparent" />
+
+        <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
+          <div className="w-8 h-8 rounded-lg bg-bridge-accent/10 flex items-center justify-center shrink-0">
+            <Settings size={15} className="text-bridge-accent" />
+          </div>
+          <h3 className="flex-1 text-sm font-bold text-foreground">{t('personal.schedule.settingsTitle')}</h3>
+          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5 transition-colors shrink-0">
+            <X size={16} />
           </button>
         </div>
 
-        <div className="space-y-4">
-          <div>
-            <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-              {t('personal.schedule.settingsStartTime')}
-            </label>
-            <select
-              value={sHour}
-              onChange={(e) => setSHour(Number(e.target.value))}
-              className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-2.5 px-4 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all appearance-none cursor-pointer"
-            >
-              {HOUR_OPTIONS.filter((h) => h < 24).map((h) => (
-                <option key={h} value={h} className="bg-bridge-obsidian text-foreground">
-                  {fmtHour(h)}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-              {t('personal.schedule.settingsEndTime')}
-            </label>
-            <select
-              value={eHour}
-              onChange={(e) => setEHour(Number(e.target.value))}
-              className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-2.5 px-4 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all appearance-none cursor-pointer"
-            >
-              {HOUR_OPTIONS.filter((h) => h >= 1).map((h) => (
-                <option key={h} value={h} className="bg-bridge-obsidian text-foreground">
-                  {fmtHour(h)}
-                </option>
-              ))}
-            </select>
+        <div className="px-5 pt-4 pb-5 space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="flex-1">
+              <span className="text-[11px] text-slate-500 mb-1 block">{t('personal.schedule.settingsStartTime')}</span>
+              <select
+                value={sHour}
+                onChange={(e) => setSHour(Number(e.target.value))}
+                className="w-full bg-foreground/5 border border-foreground/10 rounded-lg py-2 px-3 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-bridge-accent/10 focus:border-bridge-accent/30 transition-all appearance-none cursor-pointer"
+              >
+                {HOUR_OPTIONS.filter((h) => h < 24).map((h) => (
+                  <option key={h} value={h} className="bg-bridge-obsidian text-foreground">
+                    {fmtHour(h)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <span className="text-slate-500 mt-5">~</span>
+            <div className="flex-1">
+              <span className="text-[11px] text-slate-500 mb-1 block">{t('personal.schedule.settingsEndTime')}</span>
+              <select
+                value={eHour}
+                onChange={(e) => setEHour(Number(e.target.value))}
+                className="w-full bg-foreground/5 border border-foreground/10 rounded-lg py-2 px-3 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-bridge-accent/10 focus:border-bridge-accent/30 transition-all appearance-none cursor-pointer"
+              >
+                {HOUR_OPTIONS.filter((h) => h >= 1).map((h) => (
+                  <option key={h} value={h} className="bg-bridge-obsidian text-foreground">
+                    {fmtHour(h)}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {!isValid && (
             <p className="text-xs text-rose-400">{t('personal.schedule.settingsEndAfterStart')}</p>
           )}
 
-          <div className="bg-foreground/5 rounded-xl px-4 py-3 border border-foreground/5">
-            <span className="text-[11px] font-bold uppercase tracking-widest text-slate-500">{t('personal.schedule.settingsPreview')}</span>
-            <p className="text-sm text-foreground mt-1">
+          <div className="bg-foreground/[0.03] rounded-lg px-3 py-2.5 border border-foreground/10">
+            <span className="text-[10px] text-slate-500 uppercase tracking-wider">{t('personal.schedule.settingsPreview')}</span>
+            <p className="text-sm text-foreground mt-0.5">
               {fmtHour(sHour)} — {fmtHour(eHour)}{' '}
               <span className="text-slate-400">({eHour - sHour}h)</span>
             </p>
           </div>
-        </div>
 
-        <div className="flex gap-3 mt-6">
-          <button
-            onClick={onClose}
-            className="flex-1 py-3 text-sm font-bold text-slate-400 hover:text-foreground border border-foreground/10 rounded-xl hover:bg-foreground/5 transition-all"
-          >
-            {t('personal.schedule.cancel')}
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={!isValid}
-            className="flex-1 py-3 bg-bridge-accent text-white text-sm font-bold rounded-xl hover:bg-bridge-accent/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-          >
-            {t('personal.schedule.save')}
-          </button>
+          <div className="flex items-center justify-between pt-3 border-t border-foreground/[0.08]">
+            <span className="text-[11px] text-slate-600 select-none">Esc 닫기</span>
+            <button
+              onClick={handleSave}
+              disabled={!isValid}
+              className="flex items-center gap-1.5 px-4 py-1.5 bg-bridge-accent text-white text-xs font-bold rounded-lg hover:bg-bridge-accent/90 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              {t('personal.schedule.save')}
+            </button>
+          </div>
         </div>
+      </div>
     </MotionModal>
   );
 }
@@ -2809,76 +2782,65 @@ function CreateHabitModal({
   };
 
   return (
-    <MotionModal open={open} onClose={onClose} className="sm:max-w-md p-5 md:p-6">
+    <MotionModal open={open} onClose={onClose} className="sm:max-w-md p-0 overflow-hidden border-foreground/[0.12]">
+      <div>
+        <div className="h-[2px]" style={{ background: `linear-gradient(to right, ${color}88, ${color}44, transparent)` }} />
+
         {/* Header */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <Flame size={18} className="text-purple-400" />
-            <h3 className="text-base md:text-lg font-bold text-foreground">{t('personal.habit.newHabit')}</h3>
-          </div>
-          <button onClick={onClose} className="p-1 text-slate-400 hover:text-foreground transition-colors">
-            <X size={18} />
+        <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
+          <span className="text-base shrink-0">{icon || <Flame size={16} className="text-purple-400" />}</span>
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && !e.nativeEvent.isComposing && handleSubmit()}
+            placeholder={t('personal.habit.habitPlaceholder')}
+            className="flex-1 min-w-0 bg-transparent text-sm font-bold text-foreground placeholder-slate-600 outline-none"
+            autoFocus
+          />
+          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5 transition-colors shrink-0">
+            <X size={16} />
           </button>
         </div>
 
-        <div className="space-y-4">
-          {/* Habit Name */}
-          <div>
-            <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-              {t('personal.habit.habitName')}
-            </label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-              placeholder={t('personal.habit.habitPlaceholder')}
-              className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-2.5 px-4 text-foreground text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition-all"
-              autoFocus
-            />
-          </div>
-
+        <div className="px-5 pt-4 pb-5 space-y-3">
           {/* Frequency */}
-          <div>
-            <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">
-              {t('personal.habit.frequency')}
-            </label>
-            <div className="flex gap-1.5">
-              {FREQUENCY_PRESET_VALUES.map((value) => (
-                <button
-                  key={value}
-                  onClick={() => {
-                    setFrequencyType(value);
-                    if (value !== 'CUSTOM') setCustomDays([]);
-                  }}
-                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
-                    frequencyType === value
-                      ? 'bg-purple-500 text-white shadow-sm'
-                      : 'bg-foreground/5 text-slate-400 hover:bg-foreground/10 hover:text-foreground'
-                  }`}
-                >
-                  {frequencyLabels[value]}
-                </button>
-              ))}
-            </div>
+          <div className="flex gap-1.5">
+            {FREQUENCY_PRESET_VALUES.map((value) => (
+              <button
+                key={value}
+                onClick={() => {
+                  setFrequencyType(value);
+                  if (value !== 'CUSTOM') setCustomDays([]);
+                }}
+                className="flex-1 py-1.5 text-xs font-bold rounded-lg transition-all"
+                style={frequencyType === value
+                  ? { backgroundColor: color, color: '#fff' }
+                  : undefined}
+                {...(frequencyType !== value && {
+                  className: 'flex-1 py-1.5 text-xs font-bold rounded-lg transition-all bg-foreground/5 text-slate-400 hover:bg-foreground/10 hover:text-foreground',
+                })}
+              >
+                {frequencyLabels[value]}
+              </button>
+            ))}
           </div>
 
           {/* Custom Day Selector */}
           {frequencyType === 'CUSTOM' && (
             <div>
-              <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">
-                {t('personal.habit.repeatOn')}
-              </label>
               <div className="flex gap-1.5">
                 {DAY_CHIPS.map(({ value, label }) => (
                   <button
                     key={value}
                     onClick={() => toggleDay(value)}
-                    className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-all ${
-                      customDays.includes(value)
-                        ? 'bg-purple-500 text-white'
-                        : 'bg-foreground/5 text-slate-400 hover:bg-foreground/10'
-                    }`}
+                    className="flex-1 py-2 text-xs font-bold rounded-lg transition-all"
+                    style={customDays.includes(value)
+                      ? { backgroundColor: color, color: '#fff' }
+                      : undefined}
+                    {...(!customDays.includes(value) && {
+                      className: 'flex-1 py-2 text-xs font-bold rounded-lg transition-all bg-foreground/5 text-slate-400 hover:bg-foreground/10',
+                    })}
                   >
                     {label}
                   </button>
@@ -2906,72 +2868,56 @@ function CreateHabitModal({
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
-                className="space-y-4 overflow-hidden"
+                className="space-y-3 overflow-hidden"
               >
                 {/* Icon Picker */}
-                <div>
-                  <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">
-                    {t('personal.habit.icon')}
-                  </label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {HABIT_ICONS.map((emoji) => (
-                      <button
-                        key={emoji}
-                        onClick={() => setIcon(icon === emoji ? '' : emoji)}
-                        className={`w-9 h-9 flex items-center justify-center rounded-lg text-base transition-all ${
-                          icon === emoji
-                            ? 'bg-purple-500/20 ring-2 ring-purple-500 scale-110'
-                            : 'bg-foreground/5 hover:bg-foreground/10 hover:scale-105'
-                        }`}
-                      >
-                        {emoji}
-                      </button>
-                    ))}
-                  </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {HABIT_ICONS.map((emoji) => (
+                    <button
+                      key={emoji}
+                      onClick={() => setIcon(icon === emoji ? '' : emoji)}
+                      className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm transition-all ${
+                        icon === emoji
+                          ? 'ring-2 scale-110'
+                          : 'bg-foreground/5 hover:bg-foreground/10 hover:scale-105'
+                      }`}
+                      style={icon === emoji ? { backgroundColor: `${color}33`, ringColor: color } : undefined}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
                 </div>
 
                 {/* Color Picker */}
-                <div>
-                  <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">
-                    {t('personal.habit.color')}
-                  </label>
-                  <ColorDropdown color={color} onChange={setColor} colors={HABIT_COLORS} />
-                </div>
+                <ColorDropdown color={color} onChange={setColor} colors={HABIT_COLORS} />
 
                 {/* Description */}
-                <div>
-                  <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-                    {t('personal.habit.description')}
-                  </label>
-                  <textarea
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder={t('personal.habit.descPlaceholder')}
-                    rows={2}
-                    className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-2.5 px-4 text-foreground text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all resize-none"
-                  />
-                </div>
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder={t('personal.habit.descPlaceholder')}
+                  rows={2}
+                  className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg p-3 text-sm text-muted-foreground placeholder-slate-600 outline-none resize-none focus:border-bridge-accent/30 focus:ring-1 focus:ring-bridge-accent/10 transition-all"
+                />
               </motion.div>
             )}
           </AnimatePresence>
-        </div>
 
-        {/* Actions */}
-        <div className="flex gap-3 mt-6">
-          <button
-            onClick={onClose}
-            className="flex-1 py-3 text-sm font-bold text-slate-400 hover:text-foreground border border-foreground/10 rounded-xl hover:bg-foreground/5 transition-all"
-          >
-            {t('personal.habit.cancel')}
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={!isValid}
-            className="flex-1 py-3 bg-purple-500 text-white text-sm font-bold rounded-xl hover:bg-purple-500/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-          >
-            {t('personal.habit.addHabit')}
-          </button>
+          {/* Footer */}
+          <div className="flex items-center justify-between pt-3 border-t border-foreground/[0.08]">
+            <span className="text-[11px] text-slate-600 select-none">Esc 닫기</span>
+            <button
+              onClick={handleSubmit}
+              disabled={!isValid}
+              className="flex items-center gap-1.5 px-4 py-1.5 text-white text-xs font-bold rounded-lg disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              style={{ backgroundColor: isValid ? color : 'rgba(128,128,128,0.3)' }}
+            >
+              <Plus size={13} />
+              {t('personal.habit.addHabit')}
+            </button>
+          </div>
         </div>
+      </div>
     </MotionModal>
   );
 }

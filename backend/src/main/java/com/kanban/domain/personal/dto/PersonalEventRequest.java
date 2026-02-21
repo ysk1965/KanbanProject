@@ -32,6 +32,7 @@ public class PersonalEventRequest {
         private String recurrenceRule;
         private LocalDate recurrenceEndDate;
         private List<Integer> recurrenceDaysOfWeek;
+        private String eventType;
     }
 
     @Getter

@@ -27,6 +27,7 @@ public class PersonalEventResponse {
         private String recurrenceGroupId;
         private LocalDate recurrenceEndDate;
         private String recurrenceDaysOfWeek;
+        private String eventType;
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;
 
@@ -44,6 +45,7 @@ public class PersonalEventResponse {
                     .recurrenceGroupId(event.getRecurrenceGroupId())
                     .recurrenceEndDate(event.getRecurrenceEndDate())
                     .recurrenceDaysOfWeek(event.getRecurrenceDaysOfWeek())
+                    .eventType(event.getEventType())
                     .createdAt(event.getCreatedAt())
                     .updatedAt(event.getUpdatedAt())
                     .build();

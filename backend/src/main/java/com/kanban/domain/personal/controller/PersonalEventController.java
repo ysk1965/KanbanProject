@@ -26,9 +26,10 @@ public class PersonalEventController {
     @GetMapping
     public ResponseEntity<List<PersonalEventResponse.Detail>> getEventsByDate(
             @AuthenticationPrincipal UserPrincipal principal,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(required = false, name = "event_type") String eventType) {
         List<PersonalEventResponse.Detail> events =
-                personalEventService.getEventsByDate(principal.getUserId(), date);
+                personalEventService.getEventsByDate(principal.getUserId(), date, eventType);
         return ResponseEntity.ok(events);
     }
 
@@ -36,9 +37,10 @@ public class PersonalEventController {
     public ResponseEntity<List<PersonalEventResponse.Detail>> getEventsByDateRange(
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestParam("start_date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam("end_date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+            @RequestParam("end_date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(required = false, name = "event_type") String eventType) {
         List<PersonalEventResponse.Detail> events =
-                personalEventService.getEventsByDateRange(principal.getUserId(), startDate, endDate);
+                personalEventService.getEventsByDateRange(principal.getUserId(), startDate, endDate, eventType);
         return ResponseEntity.ok(events);
     }
 

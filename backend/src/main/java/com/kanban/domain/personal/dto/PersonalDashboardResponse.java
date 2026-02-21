@@ -19,4 +19,17 @@ public class PersonalDashboardResponse {
     private double habitCompletionRate;
     private long activeTaskCount;
     private long completedTodayCount;
+
+    // Diary today status
+    private DiaryTodayInfo diaryToday;
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class DiaryTodayInfo {
+        private String id;
+        private String status; // CHATTING, COMPLETED
+        private String title;
+        private String mood;
+    }
 }

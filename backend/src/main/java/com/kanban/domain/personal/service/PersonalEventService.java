@@ -28,16 +28,24 @@ public class PersonalEventService {
     private final PersonalEventRepository personalEventRepository;
     private final UserRepository userRepository;
 
-    public List<PersonalEventResponse.Detail> getEventsByDate(String userId, LocalDate date) {
-        return personalEventRepository.findByUserIdAndDate(userId, date).stream()
-                .map(PersonalEventResponse.Detail::of)
-                .toList();
+    public List<PersonalEventResponse.Detail> getEventsByDate(String userId, LocalDate date, String eventType) {
+        List<PersonalEvent> events;
+        if (eventType != null && !eventType.isBlank()) {
+            events = personalEventRepository.findByUserIdAndDateAndEventType(userId, date, eventType);
+        } else {
+            events = personalEventRepository.findByUserIdAndDate(userId, date);
+        }
+        return events.stream().map(PersonalEventResponse.Detail::of).toList();
     }
 
-    public List<PersonalEventResponse.Detail> getEventsByDateRange(String userId, LocalDate startDate, LocalDate endDate) {
-        return personalEventRepository.findByUserIdAndDateRange(userId, startDate, endDate).stream()
-                .map(PersonalEventResponse.Detail::of)
-                .toList();
+    public List<PersonalEventResponse.Detail> getEventsByDateRange(String userId, LocalDate startDate, LocalDate endDate, String eventType) {
+        List<PersonalEvent> events;
+        if (eventType != null && !eventType.isBlank()) {
+            events = personalEventRepository.findByUserIdAndDateRangeAndEventType(userId, startDate, endDate, eventType);
+        } else {
+            events = personalEventRepository.findByUserIdAndDateRange(userId, startDate, endDate);
+        }
+        return events.stream().map(PersonalEventResponse.Detail::of).toList();
     }
 
     @Transactional
@@ -329,6 +337,7 @@ public class PersonalEventService {
                 .endTime(request.getEndTime())
                 .color(request.getColor() != null ? request.getColor() : "#6366F1")
                 .allDay(request.getAllDay() != null ? request.getAllDay() : false)
+                .eventType(request.getEventType() != null ? request.getEventType() : "SCHEDULE")
                 .recurrenceRule(recurrenceGroupId != null ? recurrenceRule : null)
                 .recurrenceGroupId(recurrenceGroupId)
                 .recurrenceEndDate(recurrenceGroupId != null ? recurrenceEndDate : null)

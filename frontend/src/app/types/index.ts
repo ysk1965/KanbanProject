@@ -1793,6 +1793,7 @@ export interface PersonalEvent {
   recurrence_group_id?: string | null;
   recurrence_end_date?: string | null;
   recurrence_days_of_week?: string | null;
+  event_type: 'CALENDAR' | 'SCHEDULE';
   created_at: string;
   updated_at?: string;
 }
@@ -1943,6 +1944,13 @@ export interface HabitWeeklyMatrix {
   end_date: string;
 }
 
+export interface DiaryTodayInfo {
+  id: string;
+  status: DiaryStatus;
+  title?: string | null;
+  mood?: string | null;
+}
+
 export interface PersonalDashboardToday {
   due_today_tasks: PersonalTask[];
   in_progress_tasks: PersonalTask[];
@@ -1952,4 +1960,5 @@ export interface PersonalDashboardToday {
   habit_completion_rate: number;
   active_task_count: number;
   completed_today_count: number;
+  diary_today: DiaryTodayInfo | null;
 }

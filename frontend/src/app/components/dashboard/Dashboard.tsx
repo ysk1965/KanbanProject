@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Search, Plus, Star, LayoutGrid, LogOut, Package2, AlertTriangle, Menu, FlaskConical, CalendarDays, BookHeart, ListTodo, List, Grid3X3, ChevronRight, X, Users, CheckCircle2, Flame, Clock, Sparkles } from 'lucide-react';
+import { Search, Plus, Star, LayoutGrid, LogOut, Package2, AlertTriangle, Menu, FlaskConical, CalendarDays, BookHeart, ListTodo, List, Grid3X3, ChevronRight, X, Users, CheckCircle2, Flame, Clock, Sparkles, Circle, Flag } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
 import { Board, PersonalDashboardToday } from '../../types';
@@ -350,7 +350,7 @@ export function Dashboard({
         <main className={`flex-1 min-h-0 overflow-y-auto px-6 md:px-8 py-6 custom-scrollbar ${hasPersonalSpace ? 'pb-20 lg:pb-6' : ''}`}>
           <div className="max-w-7xl mx-auto space-y-6">
 
-            {/* My Space Card (My Space가 있을 때만, 모바일에서는 하단 바로 대체) */}
+            {/* My Space Card — Today's Agenda (Desktop only, 모바일은 하단 바) */}
             {!searchQuery && hasPersonalSpace && !window.location.hostname.includes('milkyway.pe.kr') && (
               <motion.div
                 initial={{ opacity: 0, y: 8 }}
@@ -387,49 +387,134 @@ export function Dashboard({
                       </div>
                     </div>
 
-                    {/* Stats Row */}
+                    {/* Today's Items Grid */}
                     {todayData && (
                       <div className="grid grid-cols-4 gap-3 mb-4">
-                        <div className="flex items-center gap-2.5 px-3 py-2.5 bg-foreground/[0.03] rounded-xl border border-foreground/[0.05] group-hover:bg-foreground/[0.05] group-hover:border-foreground/[0.08] transition-all">
-                          <div className="w-8 h-8 rounded-lg bg-bridge-accent/15 flex items-center justify-center shrink-0">
-                            <ListTodo size={14} className="text-bridge-accent" />
+                        {/* Habits Column */}
+                        <div className="bg-foreground/[0.03] rounded-xl border border-foreground/[0.05] p-3 group-hover:bg-foreground/[0.05] group-hover:border-foreground/[0.08] transition-all">
+                          <div className="flex items-center gap-1.5 mb-2.5">
+                            <Flame size={13} className="text-orange-400 shrink-0" />
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Habits</span>
+                            <span className="ml-auto text-[10px] font-bold text-orange-400">
+                              {todayData.habits_today?.filter(h => h.is_completed).length || 0}/{todayData.habits_today?.length || 0}
+                            </span>
                           </div>
-                          <div>
-                            <div className="text-sm font-bold text-foreground leading-none">{todayTaskCount}</div>
-                            <div className="text-[9px] text-slate-500 uppercase tracking-wider mt-0.5">Tasks</div>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2.5 px-3 py-2.5 bg-foreground/[0.03] rounded-xl border border-foreground/[0.05] group-hover:bg-foreground/[0.05] group-hover:border-foreground/[0.08] transition-all">
-                          <div className="w-8 h-8 rounded-lg bg-orange-400/15 flex items-center justify-center shrink-0">
-                            <Flame size={14} className="text-orange-400" />
-                          </div>
-                          <div>
-                            <div className="text-sm font-bold text-foreground leading-none">
-                              {todayData.habits_today?.filter(h => h.is_completed).length || 0}
-                              <span className="text-muted-foreground font-normal text-xs">/{todayData.habits_today?.length || 0}</span>
-                            </div>
-                            <div className="text-[9px] text-slate-500 uppercase tracking-wider mt-0.5">Habits</div>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2.5 px-3 py-2.5 bg-foreground/[0.03] rounded-xl border border-foreground/[0.05] group-hover:bg-foreground/[0.05] group-hover:border-foreground/[0.08] transition-all">
-                          <div className="w-8 h-8 rounded-lg bg-purple-400/15 flex items-center justify-center shrink-0">
-                            <Clock size={14} className="text-purple-400" />
-                          </div>
-                          <div>
-                            <div className="text-sm font-bold text-foreground leading-none">{todayData.personal_events?.length || 0}</div>
-                            <div className="text-[9px] text-slate-500 uppercase tracking-wider mt-0.5">Events</div>
+                          <div className="space-y-1.5 min-h-[52px]">
+                            {todayData.habits_today?.slice(0, 3).map(h => (
+                              <div key={h.habit_id} className="flex items-center gap-1.5">
+                                {h.is_completed
+                                  ? <CheckCircle2 size={11} className="text-bridge-secondary shrink-0" />
+                                  : <Circle size={11} className="text-foreground/30 shrink-0" />
+                                }
+                                <span className={`text-[11px] truncate leading-tight ${h.is_completed ? 'text-muted-foreground line-through' : 'text-foreground/80'}`}>
+                                  {h.title}
+                                </span>
+                              </div>
+                            ))}
+                            {(todayData.habits_today?.length || 0) > 3 && (
+                              <span className="text-[10px] text-muted-foreground">+{todayData.habits_today!.length - 3} more</span>
+                            )}
+                            {(!todayData.habits_today || todayData.habits_today.length === 0) && (
+                              <p className="text-[10px] text-muted-foreground italic">No habits today</p>
+                            )}
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2.5 px-3 py-2.5 bg-foreground/[0.03] rounded-xl border border-foreground/[0.05] group-hover:bg-foreground/[0.05] group-hover:border-foreground/[0.08] transition-all">
-                          <div className="w-8 h-8 rounded-lg bg-bridge-secondary/15 flex items-center justify-center shrink-0">
-                            <CheckCircle2 size={14} className="text-bridge-secondary" />
+                        {/* Tasks Column */}
+                        <div className="bg-foreground/[0.03] rounded-xl border border-foreground/[0.05] p-3 group-hover:bg-foreground/[0.05] group-hover:border-foreground/[0.08] transition-all">
+                          <div className="flex items-center gap-1.5 mb-2.5">
+                            <ListTodo size={13} className="text-bridge-accent shrink-0" />
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Tasks</span>
+                            <span className="ml-auto text-[10px] font-bold text-bridge-accent">{todayTaskCount}</span>
                           </div>
-                          <div>
-                            <div className="text-sm font-bold text-bridge-secondary leading-none">{Math.round(todayData.task_completion_rate || 0)}%</div>
-                            <div className="text-[9px] text-slate-500 uppercase tracking-wider mt-0.5">Done</div>
+                          <div className="space-y-1.5 min-h-[52px]">
+                            {todayData.due_today_tasks?.slice(0, 3).map(task => (
+                              <div key={task.id} className="flex items-center gap-1.5">
+                                {task.status === 'DONE'
+                                  ? <CheckCircle2 size={11} className="text-bridge-secondary shrink-0" />
+                                  : <Circle size={11} className="text-foreground/30 shrink-0" />
+                                }
+                                <span className={`text-[11px] truncate leading-tight ${task.status === 'DONE' ? 'text-muted-foreground line-through' : 'text-foreground/80'}`}>
+                                  {task.title}
+                                </span>
+                                {task.priority === 'URGENT' && <Flag size={9} className="text-rose-400 shrink-0" />}
+                              </div>
+                            ))}
+                            {(todayData.due_today_tasks?.length || 0) > 3 && (
+                              <span className="text-[10px] text-muted-foreground">+{todayData.due_today_tasks!.length - 3} more</span>
+                            )}
+                            {(!todayData.due_today_tasks || todayData.due_today_tasks.length === 0) && (
+                              <p className="text-[10px] text-muted-foreground italic">No tasks due</p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Events Column */}
+                        <div className="bg-foreground/[0.03] rounded-xl border border-foreground/[0.05] p-3 group-hover:bg-foreground/[0.05] group-hover:border-foreground/[0.08] transition-all">
+                          <div className="flex items-center gap-1.5 mb-2.5">
+                            <Clock size={13} className="text-purple-400 shrink-0" />
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Events</span>
+                            <span className="ml-auto text-[10px] font-bold text-purple-400">{todayData.personal_events?.length || 0}</span>
+                          </div>
+                          <div className="space-y-1.5 min-h-[52px]">
+                            {todayData.personal_events?.slice(0, 3).map(event => (
+                              <div key={event.id} className="flex items-center gap-1.5">
+                                <span className="text-[10px] font-mono text-muted-foreground shrink-0 w-10">
+                                  {event.all_day ? 'All' : event.start_time?.slice(0, 5) || '—'}
+                                </span>
+                                <span className="text-[11px] text-foreground/80 truncate leading-tight">{event.title}</span>
+                              </div>
+                            ))}
+                            {(todayData.personal_events?.length || 0) > 3 && (
+                              <span className="text-[10px] text-muted-foreground">+{todayData.personal_events!.length - 3} more</span>
+                            )}
+                            {(!todayData.personal_events || todayData.personal_events.length === 0) && (
+                              <p className="text-[10px] text-muted-foreground italic">No events</p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Diary Column */}
+                        <div className="bg-foreground/[0.03] rounded-xl border border-foreground/[0.05] p-3 group-hover:bg-foreground/[0.05] group-hover:border-foreground/[0.08] transition-all relative overflow-hidden">
+                          <div className="flex items-center gap-1.5 mb-2.5">
+                            <BookHeart size={13} className="text-pink-400 shrink-0" />
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">AI Diary</span>
+                          </div>
+                          <div className="min-h-[52px] flex flex-col justify-center">
+                            {todayData.diary_today ? (
+                              todayData.diary_today.status === 'COMPLETED' ? (
+                                <div className="space-y-1.5">
+                                  <div className="flex items-center gap-1.5">
+                                    <CheckCircle2 size={12} className="text-bridge-secondary shrink-0" />
+                                    <span className="text-[11px] text-bridge-secondary font-bold leading-tight">{t('dashboard.diaryCompleted', 'Done')}</span>
+                                  </div>
+                                  {todayData.diary_today.title && (
+                                    <p className="text-[11px] text-foreground/70 truncate leading-tight pl-[18px]">{todayData.diary_today.title}</p>
+                                  )}
+                                  {todayData.diary_today.mood && (
+                                    <p className="text-[10px] text-muted-foreground pl-[18px]">{todayData.diary_today.mood}</p>
+                                  )}
+                                </div>
+                              ) : (
+                                <div className="space-y-1.5">
+                                  <div className="flex items-center gap-1.5">
+                                    <div className="w-3 h-3 rounded-full border-2 border-amber-400 border-t-transparent animate-spin shrink-0" />
+                                    <span className="text-[11px] text-amber-500 font-bold leading-tight">{t('dashboard.diaryChatting', 'Chatting...')}</span>
+                                  </div>
+                                  <p className="text-[10px] text-muted-foreground pl-[18px]">{t('dashboard.diaryChattingDesc', 'AI와 대화 중')}</p>
+                                </div>
+                              )
+                            ) : (
+                              <div className="space-y-1.5">
+                                <div className="flex items-center gap-1.5">
+                                  <div className="w-3 h-3 rounded-full bg-pink-400/20 flex items-center justify-center shrink-0">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-pink-400" />
+                                  </div>
+                                  <span className="text-[11px] text-foreground/70 font-medium leading-tight">{t('dashboard.diaryNotStarted', '오늘의 기록')}</span>
+                                </div>
+                                <p className="text-[10px] text-muted-foreground pl-[18px]">{t('dashboard.diaryNotStartedDesc', 'AI와 하루를 정리해보세요')}</p>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -672,13 +757,53 @@ export function Dashboard({
           <div className="border-t border-bridge-border">
             <button
               onClick={() => navigate('/my-board')}
-              className="w-full flex items-center justify-between px-5 py-3 active:bg-foreground/5 transition-colors"
+              className="w-full flex items-center justify-between px-4 py-2.5 active:bg-foreground/5 transition-colors"
             >
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-bridge-secondary/20 to-bridge-accent/20 border border-bridge-border flex items-center justify-center">
-                  <Sparkles size={16} className="text-bridge-secondary" />
+                {/* Mini Progress Ring */}
+                {todayData && (todayData.habits_today?.length || 0) > 0 ? (
+                  <div className="relative w-9 h-9 flex items-center justify-center">
+                    <svg width={36} height={36} className="absolute inset-0" style={{ transform: 'rotate(-90deg)' }}>
+                      <circle cx={18} cy={18} r={15} fill="none" className="stroke-foreground/10" strokeWidth={2.5} />
+                      <circle
+                        cx={18} cy={18} r={15}
+                        fill="none"
+                        stroke={
+                          (todayData.habits_today?.filter(h => h.is_completed).length || 0) >= (todayData.habits_today?.length || 1)
+                            ? '#2DD4BF' : '#8B5CF6'
+                        }
+                        strokeWidth={2.5}
+                        strokeLinecap="round"
+                        strokeDasharray={2 * Math.PI * 15}
+                        strokeDashoffset={2 * Math.PI * 15 * (1 - (todayData.habits_today?.filter(h => h.is_completed).length || 0) / Math.max(todayData.habits_today?.length || 1, 1))}
+                        style={{ transition: 'stroke-dashoffset 0.6s ease-out' }}
+                      />
+                    </svg>
+                    <Sparkles size={14} className="text-bridge-secondary" />
+                  </div>
+                ) : (
+                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-bridge-secondary/20 to-bridge-accent/20 border border-bridge-border flex items-center justify-center">
+                    <Sparkles size={16} className="text-bridge-secondary" />
+                  </div>
+                )}
+                <div className="flex flex-col items-start">
+                  <span className="text-sm font-bold text-foreground">{t('dashboard.mySpace')}</span>
+                  {todayData && (() => {
+                    const nextEvent = todayData.personal_events
+                      ?.filter(e => e.start_time && !e.all_day)
+                      .sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''))
+                      .find(e => {
+                        const now = new Date();
+                        const [h, m] = (e.start_time || '00:00').split(':').map(Number);
+                        return h * 60 + m > now.getHours() * 60 + now.getMinutes();
+                      });
+                    return nextEvent ? (
+                      <span className="text-[10px] text-slate-500 truncate max-w-[160px]">
+                        {nextEvent.start_time?.slice(0, 5)} {nextEvent.title}
+                      </span>
+                    ) : null;
+                  })()}
                 </div>
-                <span className="text-sm font-bold text-foreground">{t('dashboard.mySpace')}</span>
               </div>
               <div className="flex items-center gap-2">
                 {todayData && (
@@ -689,7 +814,7 @@ export function Dashboard({
                       </span>
                     )}
                     {(todayData.habits_today?.length || 0) > 0 && (
-                      <span className="text-[10px] font-bold text-orange-400 bg-orange-400/15 px-1.5 py-0.5 rounded">
+                      <span className="text-[10px] font-bold text-purple-400 bg-purple-400/15 px-1.5 py-0.5 rounded">
                         {todayData.habits_today?.filter(h => h.is_completed).length || 0}/{todayData.habits_today?.length || 0}
                       </span>
                     )}

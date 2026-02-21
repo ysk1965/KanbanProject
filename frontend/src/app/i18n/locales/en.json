@@ -2725,7 +2725,22 @@
       "weekdays": "Weekdays",
       "custom": "Custom",
       "roleAI": "AI",
-      "roleYou": "You"
+      "roleYou": "You",
+      "noNearbyEvents": "No events in the next hour",
+      "totalEventsToday": "{{count}} events today"
+    },
+    "mobile": {
+      "goodMorning": "Good Morning",
+      "goodAfternoon": "Good Afternoon",
+      "goodEvening": "Good Evening",
+      "habits": "Habits",
+      "tasks": "Tasks",
+      "diary": "AI Diary",
+      "diaryNotStarted": "Not started",
+      "diaryDone": "Done",
+      "diaryChatting": "Writing...",
+      "habitsToday": "Habits",
+      "addHabit": "Add"
     },
     "habit": {
       "habits": "Habits",
@@ -2790,19 +2805,19 @@
     },
     "calendar": {
       "task": "Task",
-      "event": "Event",
+      "event": "Calendar",
       "today": "Today",
-      "addEvent": "Add event",
+      "addEvent": "Add calendar",
       "tasksCount": "{{count}} tasks",
-      "eventsCount": "{{count}} events",
+      "eventsCount": "{{count}} calendar",
       "taskDeadline": "Task deadline",
       "overdue": "Overdue",
       "recurring": "Recurring",
       "noItems": "No items for this day",
-      "newEvent": "New Event",
+      "newEvent": "New Calendar",
       "date": "Date",
       "title": "Title",
-      "eventTitle": "Event title",
+      "eventTitle": "Calendar title",
       "description": "Description",
       "optionalDesc": "Optional description",
       "allDay": "All day",
@@ -2811,7 +2826,9 @@
       "color": "Color",
       "thisWeek": "This Week",
       "holidayCountry": "Holiday country",
-      "holidayOff": "Off"
+      "holidayOff": "Off",
+      "tapToView": "Tap a date to view or add events",
+      "addSchedule": "Add calendar"
     },
     "diary": {
       "title": "AI Diary",
@@ -2992,7 +3009,8 @@
       "checklist": "Checklist",
       "matrixTitle": "Eisenhower Matrix",
       "completedCount": " completed",
-      "noCompleted": "No completed tasks"
+      "noCompleted": "No completed tasks",
+      "tapToManage": "Tap to manage your tasks"
     },
     "today": "Today",
     "progress": "Progress",

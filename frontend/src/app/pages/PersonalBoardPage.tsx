@@ -181,6 +181,21 @@ export function PersonalBoardPage() {
           {activeTab === 'diary' && <PersonalDiary />}
       </main>
 
+      {/* Mobile bottom toolbar – Tasks tab */}
+      {activeTab === 'tasks' && (
+        <div className="md:hidden border-t border-white/[0.06] px-3 py-2 flex items-center justify-between shrink-0">
+          <p className="text-[10px] text-slate-500 flex-1">
+            {t('personal.tasks.tapToManage')}
+          </p>
+          <button
+            onClick={() => setQuickCaptureOpen(true)}
+            className="p-3 rounded-xl bg-bridge-accent text-white shadow-lg shadow-bridge-accent/30 hover:bg-bridge-accent/90 active:scale-95 transition-all"
+          >
+            <Plus size={18} />
+          </button>
+        </div>
+      )}
+
       {/* 모바일 하단 여백 (탭바 + safe area 공간 확보) */}
       <div className="shrink-0 md:hidden" style={{ height: 'calc(3.5rem + env(safe-area-inset-bottom, 0px))' }} />
 
@@ -211,13 +226,13 @@ export function PersonalBoardPage() {
         </div>
       </nav>
 
-      {/* Floating Quick Capture Button */}
+      {/* Quick Capture Button – Desktop: FAB / Mobile: handled in toolbar above */}
       {activeTab === 'tasks' && (
         <button
           onClick={() => setQuickCaptureOpen(true)}
-          className="fixed fab-bottom-safe right-6 w-12 h-12 md:w-14 md:h-14 rounded-full bg-bridge-accent shadow-lg shadow-bridge-accent/30 flex items-center justify-center text-white hover:bg-bridge-accent/90 hover:scale-105 active:scale-95 transition-all z-50"
+          className="hidden md:flex fixed fab-bottom-safe right-6 w-14 h-14 rounded-full bg-bridge-accent shadow-lg shadow-bridge-accent/30 items-center justify-center text-white hover:bg-bridge-accent/90 hover:scale-105 active:scale-95 transition-all z-50"
         >
-          <Plus size={20} className="md:w-6 md:h-6" />
+          <Plus size={24} />
         </button>
       )}
 

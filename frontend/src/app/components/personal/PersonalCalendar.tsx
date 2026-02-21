@@ -129,7 +129,7 @@ export function PersonalCalendar() {
   const loadEvents = useCallback(async () => {
     if (!gridStartDate || !gridEndDate) return;
     try {
-      const data = await personalEventService.getWeekly(gridStartDate, gridEndDate);
+      const data = await personalEventService.getWeekly(gridStartDate, gridEndDate, 'CALENDAR');
       setEvents(data);
     } catch {
       setEvents([]);
@@ -212,7 +212,7 @@ export function PersonalCalendar() {
     all_day: boolean;
   }) => {
     try {
-      await personalEventService.create({ ...data, event_date: createDate });
+      await personalEventService.create({ ...data, event_date: createDate, event_type: 'CALENDAR' });
       await loadEvents();
       setIsCreateOpen(false);
     } catch (err) {
@@ -418,15 +418,31 @@ export function PersonalCalendar() {
         </div>
       </div>
 
-      {/* FAB - 우하단 일정 추가 */}
+      {/* Mobile toolbar */}
+      <div className="md:hidden border-t border-white/[0.06] px-3 py-2 flex items-center justify-between shrink-0">
+        <p className="text-[10px] text-slate-500 flex-1">
+          {t('personal.calendar.tapToView')}
+        </p>
+        <button
+          onClick={() => {
+            setCreateDate(todayKey);
+            setIsCreateOpen(true);
+          }}
+          className="p-3 rounded-xl bg-bridge-accent text-white shadow-lg shadow-bridge-accent/30 hover:bg-bridge-accent/90 active:scale-95 transition-all"
+        >
+          <Plus size={18} />
+        </button>
+      </div>
+
+      {/* FAB – Desktop only */}
       <button
         onClick={() => {
           setCreateDate(todayKey);
           setIsCreateOpen(true);
         }}
-        className="fixed fab-bottom-safe right-6 w-12 h-12 md:w-14 md:h-14 rounded-full bg-bridge-accent text-white shadow-lg shadow-bridge-accent/30 flex items-center justify-center hover:bg-bridge-accent/90 hover:scale-105 active:scale-95 transition-all z-50"
+        className="hidden md:flex fixed fab-bottom-safe right-6 w-14 h-14 rounded-full bg-bridge-accent text-white shadow-lg shadow-bridge-accent/30 items-center justify-center hover:bg-bridge-accent/90 hover:scale-105 active:scale-95 transition-all z-50"
       >
-        <Plus size={20} className="md:w-6 md:h-6" />
+        <Plus size={24} />
       </button>
 
       {/* ── Day Detail Modal ── */}
@@ -634,9 +650,10 @@ function DayDetailModal({
   const eventCount = items.filter(i => i.type === 'event').length;
 
   return (
-    <MotionModal open={open} onClose={onClose} className="sm:max-w-lg max-h-[85vh] flex flex-col p-0">
+    <MotionModal open={open} onClose={onClose} className="sm:max-w-lg max-h-[85vh] flex flex-col p-0 overflow-hidden border-foreground/[0.12]">
+        <div className="h-[2px] bg-gradient-to-r from-bridge-accent/60 via-bridge-secondary/40 to-transparent" />
         {/* Header */}
-        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-foreground/5 shrink-0">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-foreground/[0.08] shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-bridge-accent/10 flex items-center justify-center">
               <Calendar size={18} className="text-bridge-accent" />
@@ -853,65 +870,79 @@ function CreateEventModal({
   };
 
   return (
-    <MotionModal open={open} onClose={onClose} className="sm:max-w-md p-5 md:p-6">
-        <div className="flex items-center justify-between mb-5">
-          <h3 className="text-lg font-bold text-foreground">{t('personal.calendar.newEvent')}</h3>
-          <button onClick={onClose} className="p-1 text-slate-400 hover:text-foreground transition-colors">
-            <X size={18} />
+    <MotionModal open={open} onClose={onClose} className="sm:max-w-md p-0 overflow-hidden border-foreground/[0.12]">
+      <div>
+        {/* Top accent line */}
+        <div className="h-[2px]" style={{ background: `linear-gradient(to right, ${color}88, ${color}44, transparent)` }} />
+
+        {/* Header */}
+        <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
+          <div className="w-3 h-3 rounded-full shrink-0 border border-white/10" style={{ backgroundColor: color }} />
+          <span className="text-sm font-bold text-foreground">{t('personal.calendar.newEvent')}</span>
+          <div className="flex-1" />
+          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5 transition-colors shrink-0">
+            <X size={16} />
           </button>
         </div>
 
-        <div className="space-y-4">
-          {/* Date */}
-          <div>
-            <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">{t('personal.calendar.date')}</label>
-            <div className="text-sm text-foreground/80 bg-foreground/5 border border-foreground/10 rounded-xl px-4 py-2.5">
-              {formatDate(date)}
+        <div className="px-5 pb-5 space-y-3 pt-4">
+          {/* Date chip + Color picker */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-foreground/[0.04] border border-foreground/10">
+              <CalendarDays size={13} className="text-slate-400" />
+              <span className="text-xs text-muted-foreground">{formatDate(date, "PPP '('EEE')'")}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              {EVENT_COLORS.map((c) => (
+                <button
+                  key={c}
+                  onClick={() => setColor(c)}
+                  className={`w-5 h-5 rounded-full transition-all ${
+                    color === c
+                      ? 'ring-2 ring-foreground/40 ring-offset-1 ring-offset-bridge-obsidian scale-110'
+                      : 'hover:scale-110 opacity-60 hover:opacity-100'
+                  }`}
+                  style={{ backgroundColor: c }}
+                />
+              ))}
             </div>
           </div>
 
           {/* Title */}
-          <div>
-            <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">{t('personal.calendar.title')}</label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-              placeholder={t('personal.calendar.eventTitle')}
-              className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-2.5 px-4 text-foreground text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
-              autoFocus
-            />
-          </div>
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+            placeholder={t('personal.calendar.eventTitle')}
+            className="w-full bg-foreground/[0.04] border border-foreground/10 rounded-xl py-2.5 px-4 text-foreground text-sm placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-bridge-accent/30 focus:border-bridge-accent/40 transition-all"
+            autoFocus
+          />
 
           {/* Description */}
-          <div>
-            <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">{t('personal.calendar.description')}</label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder={t('personal.calendar.optionalDesc')}
-              rows={2}
-              className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-2.5 px-4 text-foreground text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all resize-none"
-            />
-          </div>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder={t('personal.calendar.optionalDesc')}
+            rows={2}
+            className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl p-3 text-sm text-muted-foreground placeholder-slate-600 outline-none resize-none focus:border-bridge-accent/30 focus:ring-1 focus:ring-bridge-accent/10 transition-all"
+          />
 
           {/* All-day toggle */}
           <div className="flex items-center gap-3">
             <button
               onClick={() => setAllDay(!allDay)}
-              className={`relative w-10 h-5 rounded-full transition-colors ${allDay ? 'bg-bridge-accent' : 'bg-foreground/10'}`}
+              className={`relative w-9 h-[18px] rounded-full transition-colors ${allDay ? 'bg-bridge-accent' : 'bg-foreground/10'}`}
             >
-              <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${allDay ? 'left-5' : 'left-0.5'}`} />
+              <span className={`absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white transition-transform ${allDay ? 'left-[18px]' : 'left-[2px]'}`} />
             </button>
-            <span className="text-sm text-muted-foreground">{t('personal.calendar.allDay')}</span>
+            <span className="text-xs text-muted-foreground">{t('personal.calendar.allDay')}</span>
           </div>
 
           {/* Time inputs (only if not all-day) */}
           {!allDay && (
-            <div className="flex gap-3">
+            <div className="flex items-center gap-2">
               <div className="flex-1">
-                <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">{t('personal.calendar.start')}</label>
                 <TimePicker
                   value={startTime}
                   onChange={(val) => {
@@ -922,34 +953,39 @@ function CreateEventModal({
                       setEndTime(`${String(endH).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
                     }
                   }}
+                  className="py-1.5 px-3 text-xs border-foreground/10"
                 />
               </div>
+              <span className="text-slate-500 text-xs shrink-0">~</span>
               <div className="flex-1">
-                <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">{t('personal.calendar.end')}</label>
                 <TimePicker
                   value={endTime}
                   onChange={setEndTime}
+                  className="py-1.5 px-3 text-xs border-foreground/10"
                 />
               </div>
+              {startTime && endTime && endTime < startTime && (
+                <span className="text-[10px] font-bold text-bridge-accent shrink-0">({t('personal.schedule.nextDay')})</span>
+              )}
             </div>
           )}
 
           {/* Overlap warning */}
           {overlapping.length > 0 && (
-            <div className="flex items-start gap-2.5 px-3 py-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl">
-              <AlertCircle size={15} className="text-amber-400 shrink-0 mt-0.5" />
+            <div className="flex items-start gap-2 px-3 py-2 bg-amber-500/10 border border-amber-500/10 rounded-lg">
+              <AlertCircle size={13} className="text-amber-400 shrink-0 mt-0.5" />
               <div className="min-w-0">
-                <p className="text-xs font-semibold text-amber-400">
+                <p className="text-[10px] font-semibold text-amber-400">
                   {t('personal.schedule.overlapWarning', { count: overlapping.length })}
                 </p>
-                <div className="mt-1 space-y-0.5">
+                <div className="mt-0.5 space-y-0.5">
                   {overlapping.slice(0, 3).map((ev) => (
-                    <p key={ev.id} className="text-[11px] text-amber-400/70 truncate">
+                    <p key={ev.id} className="text-[10px] text-amber-400/70 truncate">
                       {ev.start_time?.slice(0, 5)}–{ev.end_time?.slice(0, 5)}{ev.start_time && ev.end_time && ev.end_time < ev.start_time ? ` (${t('personal.schedule.nextDay')})` : ''} {ev.title}
                     </p>
                   ))}
                   {overlapping.length > 3 && (
-                    <p className="text-[11px] text-amber-400/50">
+                    <p className="text-[10px] text-amber-400/50">
                       +{overlapping.length - 3}
                     </p>
                   )}
@@ -958,42 +994,21 @@ function CreateEventModal({
             </div>
           )}
 
-          {/* Color picker */}
-          <div>
-            <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">{t('personal.calendar.color')}</label>
-            <div className="flex gap-2">
-              {EVENT_COLORS.map((c) => (
-                <button
-                  key={c}
-                  onClick={() => setColor(c)}
-                  className={`w-7 h-7 rounded-full transition-all ${
-                    color === c
-                      ? 'ring-2 ring-foreground ring-offset-2 ring-offset-bridge-obsidian scale-110'
-                      : 'hover:scale-110'
-                  }`}
-                  style={{ backgroundColor: c }}
-                />
-              ))}
-            </div>
+          {/* Footer */}
+          <div className="flex items-center justify-between pt-3 border-t border-foreground/[0.08]">
+            <span className="text-[10px] text-slate-600">
+              Esc {t('common.close', '닫기')}
+            </span>
+            <button
+              onClick={handleSubmit}
+              disabled={!title.trim()}
+              className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold text-white bg-bridge-accent hover:bg-bridge-accent/90 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              {t('common.create')}
+            </button>
           </div>
         </div>
-
-        {/* Actions */}
-        <div className="flex gap-3 mt-6">
-          <button
-            onClick={onClose}
-            className="flex-1 py-3 text-sm font-bold text-slate-400 hover:text-foreground border border-foreground/10 rounded-xl hover:bg-foreground/5 transition-all"
-          >
-            {t('common.cancel')}
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={!title.trim()}
-            className="flex-1 py-3 bg-bridge-accent text-white text-sm font-bold rounded-xl hover:bg-bridge-accent/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-          >
-            {t('common.create')}
-          </button>
-        </div>
+      </div>
     </MotionModal>
   );
 }
@@ -1049,8 +1064,16 @@ function EditEventModal({
 
   if (!event) return null;
 
+  const hasChanged =
+    title !== event.title ||
+    description !== (event.description || '') ||
+    startTime !== (event.start_time?.slice(0, 5) || '') ||
+    endTime !== (event.end_time?.slice(0, 5) || '') ||
+    color !== (event.color || EVENT_COLORS[0]) ||
+    allDay !== event.all_day;
+
   const handleSave = () => {
-    if (!title.trim()) return;
+    if (!title.trim() || !hasChanged) return;
     onUpdate(event.id, {
       title: title.trim(),
       description: description.trim() || undefined,
@@ -1060,67 +1083,84 @@ function EditEventModal({
       color,
       all_day: allDay,
     });
+    onClose();
   };
 
   return (
-    <MotionModal open={open} onClose={onClose} className="sm:max-w-md p-5 md:p-6">
-        <div className="flex items-center justify-between mb-5">
-          <h3 className="text-lg font-bold text-foreground">{t('personal.calendar.editEvent', 'Edit Event')}</h3>
-          <button onClick={onClose} className="p-1 text-slate-400 hover:text-foreground transition-colors">
-            <X size={18} />
+    <MotionModal open={open} onClose={onClose} className="sm:max-w-md p-0 overflow-hidden border-foreground/[0.12]">
+      <div>
+        {/* Top accent line */}
+        <div className="h-[2px]" style={{ background: `linear-gradient(to right, ${color}88, ${color}44, transparent)` }} />
+
+        {/* Header: color dot + title + delete + close */}
+        <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
+          <div className="w-3 h-3 rounded-full shrink-0 border border-white/10" style={{ backgroundColor: color }} />
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+            className="flex-1 min-w-0 bg-transparent text-sm font-bold text-foreground outline-none placeholder-slate-600"
+            autoFocus
+          />
+          <button
+            onClick={() => onDelete(event.id)}
+            className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-foreground/5 transition-colors shrink-0"
+          >
+            <Trash2 size={16} />
+          </button>
+          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5 transition-colors shrink-0">
+            <X size={16} />
           </button>
         </div>
 
-        <div className="space-y-4">
-          {/* Date (read-only) */}
-          <div>
-            <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">{t('personal.calendar.date')}</label>
-            <div className="text-sm text-foreground/80 bg-foreground/5 border border-foreground/10 rounded-xl px-4 py-2.5">
-              {formatDate(event.event_date)}
+        <div className="px-5 pb-5 space-y-3 pt-4">
+          {/* Date chip + Color picker */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-foreground/[0.04] border border-foreground/10">
+              <CalendarDays size={13} className="text-slate-400" />
+              <span className="text-xs text-muted-foreground">{formatDate(event.event_date, "PPP '('EEE')'")}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              {EVENT_COLORS.map((c) => (
+                <button
+                  key={c}
+                  onClick={() => setColor(c)}
+                  className={`w-5 h-5 rounded-full transition-all ${
+                    color === c
+                      ? 'ring-2 ring-foreground/40 ring-offset-1 ring-offset-bridge-obsidian scale-110'
+                      : 'hover:scale-110 opacity-60 hover:opacity-100'
+                  }`}
+                  style={{ backgroundColor: c }}
+                />
+              ))}
             </div>
           </div>
 
-          {/* Title */}
-          <div>
-            <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">{t('personal.calendar.title')}</label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-              className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-2.5 px-4 text-foreground text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
-              autoFocus
-            />
-          </div>
-
           {/* Description */}
-          <div>
-            <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">{t('personal.calendar.description')}</label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder={t('personal.calendar.optionalDesc')}
-              rows={2}
-              className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-2.5 px-4 text-foreground text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all resize-none"
-            />
-          </div>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder={t('personal.calendar.optionalDesc')}
+            rows={2}
+            className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl p-3 text-sm text-muted-foreground placeholder-slate-600 outline-none resize-none focus:border-bridge-accent/30 focus:ring-1 focus:ring-bridge-accent/10 transition-all"
+          />
 
           {/* All-day toggle */}
           <div className="flex items-center gap-3">
             <button
               onClick={() => setAllDay(!allDay)}
-              className={`relative w-10 h-5 rounded-full transition-colors ${allDay ? 'bg-bridge-accent' : 'bg-foreground/10'}`}
+              className={`relative w-9 h-[18px] rounded-full transition-colors ${allDay ? 'bg-bridge-accent' : 'bg-foreground/10'}`}
             >
-              <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${allDay ? 'left-5' : 'left-0.5'}`} />
+              <span className={`absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white transition-transform ${allDay ? 'left-[18px]' : 'left-[2px]'}`} />
             </button>
-            <span className="text-sm text-muted-foreground">{t('personal.calendar.allDay')}</span>
+            <span className="text-xs text-muted-foreground">{t('personal.calendar.allDay')}</span>
           </div>
 
           {/* Time inputs */}
           {!allDay && (
-            <div className="flex gap-3">
+            <div className="flex items-center gap-2">
               <div className="flex-1">
-                <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">{t('personal.calendar.start')}</label>
                 <TimePicker
                   value={startTime}
                   onChange={(val) => {
@@ -1131,34 +1171,39 @@ function EditEventModal({
                       setEndTime(`${String(endH).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
                     }
                   }}
+                  className="py-1.5 px-3 text-xs border-foreground/10"
                 />
               </div>
+              <span className="text-slate-500 text-xs shrink-0">~</span>
               <div className="flex-1">
-                <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">{t('personal.calendar.end')}</label>
                 <TimePicker
                   value={endTime}
                   onChange={setEndTime}
+                  className="py-1.5 px-3 text-xs border-foreground/10"
                 />
               </div>
+              {startTime && endTime && endTime < startTime && (
+                <span className="text-[10px] font-bold text-bridge-accent shrink-0">({t('personal.schedule.nextDay')})</span>
+              )}
             </div>
           )}
 
           {/* Overlap warning */}
           {overlapping.length > 0 && (
-            <div className="flex items-start gap-2.5 px-3 py-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl">
-              <AlertCircle size={15} className="text-amber-400 shrink-0 mt-0.5" />
+            <div className="flex items-start gap-2 px-3 py-2 bg-amber-500/10 border border-amber-500/10 rounded-lg">
+              <AlertCircle size={13} className="text-amber-400 shrink-0 mt-0.5" />
               <div className="min-w-0">
-                <p className="text-xs font-semibold text-amber-400">
+                <p className="text-[10px] font-semibold text-amber-400">
                   {t('personal.schedule.overlapWarning', { count: overlapping.length })}
                 </p>
-                <div className="mt-1 space-y-0.5">
+                <div className="mt-0.5 space-y-0.5">
                   {overlapping.slice(0, 3).map((ev) => (
-                    <p key={ev.id} className="text-[11px] text-amber-400/70 truncate">
+                    <p key={ev.id} className="text-[10px] text-amber-400/70 truncate">
                       {ev.start_time?.slice(0, 5)}–{ev.end_time?.slice(0, 5)}{ev.start_time && ev.end_time && ev.end_time < ev.start_time ? ` (${t('personal.schedule.nextDay')})` : ''} {ev.title}
                     </p>
                   ))}
                   {overlapping.length > 3 && (
-                    <p className="text-[11px] text-amber-400/50">
+                    <p className="text-[10px] text-amber-400/50">
                       +{overlapping.length - 3}
                     </p>
                   )}
@@ -1167,48 +1212,21 @@ function EditEventModal({
             </div>
           )}
 
-          {/* Color picker */}
-          <div>
-            <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">{t('personal.calendar.color')}</label>
-            <div className="flex gap-2">
-              {EVENT_COLORS.map((c) => (
-                <button
-                  key={c}
-                  onClick={() => setColor(c)}
-                  className={`w-7 h-7 rounded-full transition-all ${
-                    color === c
-                      ? 'ring-2 ring-foreground ring-offset-2 ring-offset-bridge-obsidian scale-110'
-                      : 'hover:scale-110'
-                  }`}
-                  style={{ backgroundColor: c }}
-                />
-              ))}
-            </div>
+          {/* Footer */}
+          <div className="flex items-center justify-between pt-3 border-t border-foreground/[0.08]">
+            <span className="text-[10px] text-slate-600">
+              Esc {t('common.close', '닫기')}
+            </span>
+            <button
+              onClick={handleSave}
+              disabled={!title.trim() || !hasChanged}
+              className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold text-white bg-bridge-accent hover:bg-bridge-accent/90 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              {t('common.save', '저장')}
+            </button>
           </div>
         </div>
-
-        {/* Actions */}
-        <div className="flex gap-3 mt-6">
-          <button
-            onClick={() => onDelete(event.id)}
-            className="py-3 px-4 text-sm font-bold text-red-400 border border-red-400/20 rounded-xl hover:bg-red-400/10 transition-all"
-          >
-            <Trash2 size={16} />
-          </button>
-          <button
-            onClick={onClose}
-            className="flex-1 py-3 text-sm font-bold text-slate-400 hover:text-foreground border border-foreground/10 rounded-xl hover:bg-foreground/5 transition-all"
-          >
-            {t('common.cancel')}
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={!title.trim()}
-            className="flex-1 py-3 bg-bridge-accent text-white text-sm font-bold rounded-xl hover:bg-bridge-accent/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-          >
-            {t('common.save', 'Save')}
-          </button>
-        </div>
+      </div>
     </MotionModal>
   );
 }

@@ -16,6 +16,12 @@ public interface PersonalEventRepository extends JpaRepository<PersonalEvent, St
     @Query("SELECT e FROM PersonalEvent e WHERE e.user.id = :userId AND e.eventDate BETWEEN :startDate AND :endDate ORDER BY e.eventDate ASC, e.startTime ASC NULLS LAST")
     List<PersonalEvent> findByUserIdAndDateRange(@Param("userId") String userId, @Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
 
+    @Query("SELECT e FROM PersonalEvent e WHERE e.user.id = :userId AND e.eventDate = :date AND e.eventType = :eventType ORDER BY e.startTime ASC NULLS LAST, e.createdAt ASC")
+    List<PersonalEvent> findByUserIdAndDateAndEventType(@Param("userId") String userId, @Param("date") LocalDate date, @Param("eventType") String eventType);
+
+    @Query("SELECT e FROM PersonalEvent e WHERE e.user.id = :userId AND e.eventDate BETWEEN :startDate AND :endDate AND e.eventType = :eventType ORDER BY e.eventDate ASC, e.startTime ASC NULLS LAST")
+    List<PersonalEvent> findByUserIdAndDateRangeAndEventType(@Param("userId") String userId, @Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate, @Param("eventType") String eventType);
+
     List<PersonalEvent> findByRecurrenceGroupIdOrderByEventDateAsc(String recurrenceGroupId);
 
     @Query("SELECT e FROM PersonalEvent e WHERE e.recurrenceGroupId = :groupId AND e.eventDate >= :fromDate ORDER BY e.eventDate ASC")

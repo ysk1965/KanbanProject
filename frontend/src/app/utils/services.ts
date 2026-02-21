@@ -2537,12 +2537,12 @@ export const taskDependencyService = {
 // ========================================
 
 export const personalEventService = {
-  getByDate: async (date: string): Promise<PersonalEvent[]> => {
-    return personalEventAPI.getByDate(date);
+  getByDate: async (date: string, eventType?: string): Promise<PersonalEvent[]> => {
+    return personalEventAPI.getByDate(date, eventType);
   },
 
-  getWeekly: async (startDate: string, endDate: string): Promise<PersonalEvent[]> => {
-    return personalEventAPI.getWeekly(startDate, endDate);
+  getWeekly: async (startDate: string, endDate: string, eventType?: string): Promise<PersonalEvent[]> => {
+    return personalEventAPI.getWeekly(startDate, endDate, eventType);
   },
 
   create: async (data: {
@@ -2556,6 +2556,7 @@ export const personalEventService = {
     recurrence_rule?: string;
     recurrence_end_date?: string;
     recurrence_days_of_week?: number[];
+    event_type?: string;
   }): Promise<PersonalEvent> => {
     return personalEventAPI.create(data);
   },

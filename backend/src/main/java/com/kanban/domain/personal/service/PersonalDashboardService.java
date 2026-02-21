@@ -1,5 +1,7 @@
 package com.kanban.domain.personal.service;
 
+import com.kanban.domain.diary.DiaryEntry;
+import com.kanban.domain.diary.DiaryEntryRepository;
 import com.kanban.domain.personal.*;
 import com.kanban.domain.personal.dto.PersonalDashboardResponse;
 import com.kanban.domain.personal.dto.PersonalEventResponse;
@@ -16,6 +18,7 @@ import java.time.ZoneOffset;
 import java.time.temporal.TemporalAdjusters;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -28,6 +31,7 @@ public class PersonalDashboardService {
     private final PersonalHabitLogRepository habitLogRepository;
     private final PersonalEventRepository personalEventRepository;
     private final PersonalHabitService personalHabitService;
+    private final DiaryEntryRepository diaryEntryRepository;
 
     public PersonalDashboardResponse getTodayDashboard(String userId) {
         LocalDate today = LocalDate.now(ZoneOffset.UTC);
@@ -97,6 +101,17 @@ public class PersonalDashboardService {
                 ? (double) completedHabitsToday / totalHabitsToday
                 : 0.0;
 
+        // Diary today
+        Optional<DiaryEntry> diaryOpt = diaryEntryRepository.findByUserIdAndDate(userId, today);
+        PersonalDashboardResponse.DiaryTodayInfo diaryToday = diaryOpt
+                .map(d -> PersonalDashboardResponse.DiaryTodayInfo.builder()
+                        .id(d.getId())
+                        .status(d.getStatus().name())
+                        .title(d.getTitle())
+                        .mood(d.getMood())
+                        .build())
+                .orElse(null);
+
         return PersonalDashboardResponse.builder()
                 .dueTodayTasks(dueTodayTasks)
                 .inProgressTasks(inProgressTasks)
@@ -106,6 +121,7 @@ public class PersonalDashboardService {
                 .habitCompletionRate(Math.round(habitCompletionRate * 100.0) / 100.0)
                 .activeTaskCount(activeTaskCount)
                 .completedTodayCount(completedTodayCount)
+                .diaryToday(diaryToday)
                 .build();
     }
 }

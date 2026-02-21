@@ -1,19 +1,19 @@
-import { useState, useEffect, useCallback, useMemo, Fragment } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, Fragment } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Clock, CalendarDays, CheckCircle2, BookHeart, Sparkles,
   ArrowRight, Sun, Sunset, Moon, Loader2, Flame, Check,
-  Plus, X, ChevronDown, ChevronUp,
+  Plus, X, ChevronDown, ChevronUp, ListTodo, Zap,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MotionModal } from '../ui/MotionModal';
 import { personalEventService, diaryService } from '../../utils/services';
-import { personalTaskAPI, personalHabitAPI, personalEventAPI } from '../../utils/api';
+import { personalTaskAPI, personalHabitAPI, personalDashboardAPI } from '../../utils/api';
 import { getTodayDateString } from '../../utils/dateUtils';
-import { PersonalEvent, DiaryDetail, PersonalTask, PersonalHabit, HabitTodayItem, HabitFrequency, HabitWeeklyMatrix, PersonalTaskPriority } from '../../types';
+import { PersonalEvent, DiaryDetail, PersonalTask, PersonalHabit, HabitTodayItem, HabitFrequency, HabitWeeklyMatrix, PersonalTaskPriority, PersonalDashboardToday } from '../../types';
 import { CheckInConfirmModal, TaskCompleteConfirmModal, HabitFormModal } from './PersonalHabits';
 import { TaskDetailModal } from './PersonalTaskBoard';
-import { EventDetailModal } from './PersonalSchedule';
+import { useAuth } from '../../contexts/AuthContext';
 
 type TabType = 'overview' | 'tasks' | 'schedule' | 'habits' | 'calendar' | 'diary';
 
@@ -43,19 +43,19 @@ function WidgetCard({
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay }}
-      className="rounded-2xl border border-foreground/[0.12] flex flex-col min-h-[140px] lg:min-h-0 overflow-hidden"
+      className="rounded-2xl border border-foreground/[0.12] flex flex-col min-h-[120px] md:min-h-[140px] lg:min-h-0 overflow-hidden"
     >
-      <div className="px-4 md:px-5 py-2.5 md:py-3 bg-foreground/[0.06] border-b border-foreground/[0.06]">
+      <div className="px-3 md:px-5 py-2 md:py-3 bg-foreground/[0.06] border-b border-foreground/[0.06]">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2">
             {icon}
-            <h3 className="text-sm font-bold text-foreground">{title}</h3>
+            <h3 className="text-[13px] md:text-sm font-bold text-foreground">{title}</h3>
             {badge}
           </div>
           {action}
         </div>
       </div>
-      <div className="flex-1 flex flex-col min-h-0 bg-bridge-dark p-4 md:p-5">{children}</div>
+      <div className="flex-1 flex flex-col min-h-0 bg-bridge-dark p-3 md:p-5">{children}</div>
     </motion.div>
   );
 }
@@ -120,7 +120,9 @@ function CheckParticles({ trigger }: { trigger: boolean }) {
   );
 }
 
-// ── 좌상단: Today's Schedule ─────────────────────────────────────────
+// ── 좌상단: Today's Schedule (Timeline) ──────────────────────────────
+
+const TIMELINE_SLOT_H = 48; // px per 30min slot
 
 function TodayScheduleWidget({
   todayDate,
@@ -133,6 +135,8 @@ function TodayScheduleWidget({
   const [events, setEvents] = useState<PersonalEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [now, setNow] = useState(new Date());
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const indicatorRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 60_000);
@@ -160,23 +164,59 @@ function TodayScheduleWidget({
     return h * 60 + m;
   };
 
-  const timedEvents = events
+  const allTimedEvents = events
     .filter(e => !e.all_day && e.start_time)
     .sort((a, b) => toMin(a.start_time!) - toMin(b.start_time!));
 
-  const getStatus = (ev: PersonalEvent) => {
-    const start = toMin(ev.start_time!);
-    const end = ev.end_time ? toMin(ev.end_time) : start + 60;
-    if (currentMinutes >= start && currentMinutes < end) return 'current';
-    if (currentMinutes < start) return 'upcoming';
-    return 'past';
-  };
+  // 반응형 윈도우: 모바일 ±1시간(2h), 데스크탑 ±1.5시간(3h)
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+  const halfWindow = isMobile ? 60 : 90;
+  const rawWindowStart = currentMinutes - halfWindow;
+  const rawWindowEnd = currentMinutes + halfWindow;
+  const windowStartHour = Math.max(0, Math.floor(rawWindowStart / 60));
+  const windowStartMin = rawWindowStart >= 0 ? (Math.floor(rawWindowStart / 30) * 30) : 0;
+  const windowEndMin = Math.min(24 * 60, Math.ceil(rawWindowEnd / 30) * 30);
 
-  const formatTimeRange = (ev: PersonalEvent) => {
-    if (!ev.start_time) return '';
-    const s = ev.start_time.slice(0, 5);
-    const e = ev.end_time ? ev.end_time.slice(0, 5) : '';
-    return e ? `${s} - ${e}` : s;
+  // 윈도우와 겹치는 이벤트
+  const timedEvents = allTimedEvents.filter(ev => {
+    const evStart = toMin(ev.start_time!);
+    const evEnd = ev.end_time ? toMin(ev.end_time) : evStart + 60;
+    return evStart < rawWindowEnd && evEnd > rawWindowStart;
+  });
+
+  // 30분 단위 타임슬롯 생성
+  const timeSlots = useMemo(() => {
+    const slots: string[] = [];
+    for (let m = windowStartMin; m < windowEndMin; m += 30) {
+      const h = Math.floor(m / 60);
+      const mm = m % 60;
+      slots.push(`${h.toString().padStart(2, '0')}:${mm.toString().padStart(2, '0')}`);
+    }
+    return slots;
+  }, [windowStartMin, windowEndMin]);
+
+  const totalHeight = timeSlots.length * TIMELINE_SLOT_H;
+
+  // 현재 시간 indicator 위치
+  const nowTop = useMemo(() => {
+    const mins = currentMinutes - windowStartMin;
+    if (mins < 0 || mins > (windowEndMin - windowStartMin)) return null;
+    return (mins / 30) * TIMELINE_SLOT_H;
+  }, [currentMinutes, windowStartMin, windowEndMin]);
+
+  // 초기 스크롤: 현재 시간을 중앙으로
+  useEffect(() => {
+    if (nowTop != null && indicatorRef.current && scrollRef.current) {
+      const container = scrollRef.current;
+      const target = nowTop - container.clientHeight / 2;
+      container.scrollTop = Math.max(0, target);
+    }
+  }, [nowTop, isLoading]);
+
+  const fmtTime = (m: number) => {
+    const h = Math.floor(m / 60);
+    const mm = m % 60;
+    return `${h.toString().padStart(2, '0')}:${mm.toString().padStart(2, '0')}`;
   };
 
   return (
@@ -184,9 +224,9 @@ function TodayScheduleWidget({
       icon={<Clock size={16} className="text-bridge-secondary" />}
       title={t('personal.overview.todaySchedule', "Today's Schedule")}
       badge={
-        timedEvents.length > 0 ? (
+        allTimedEvents.length > 0 ? (
           <span className="text-[10px] font-bold text-bridge-secondary bg-bridge-secondary/10 px-1.5 py-0.5 rounded-full">
-            {timedEvents.length}
+            {timedEvents.length}/{allTimedEvents.length}
           </span>
         ) : null
       }
@@ -197,7 +237,7 @@ function TodayScheduleWidget({
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="w-5 h-5 animate-spin text-bridge-accent/50" />
         </div>
-      ) : timedEvents.length === 0 ? (
+      ) : allTimedEvents.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center text-center gap-1.5 md:gap-3">
           <CalendarDays size={24} className="text-slate-600 md:w-7 md:h-7" />
           <p className="text-xs md:text-sm text-slate-500">{t('personal.overview.noEvents', 'No events today')}</p>
@@ -210,42 +250,113 @@ function TodayScheduleWidget({
           </button>
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 -mx-1 px-1">
-          {timedEvents.map(ev => {
-            const status = getStatus(ev);
-            const color = ev.color || '#6366F1';
-            return (
-              <div key={ev.id} className="flex items-start gap-2.5 md:gap-3">
-                <div className="w-[40px] md:w-[46px] flex-shrink-0 pt-3 text-right">
-                  <span className="text-[11px] md:text-[13px] text-slate-500 font-light">{ev.start_time?.slice(0, 5)}</span>
-                </div>
-                <div className="flex-shrink-0 pt-[14px]">
-                  <div className="w-2.5 h-2.5 rounded-full border-[1.5px]" style={{ borderColor: color }} />
-                </div>
-                <div
-                  className={`flex-1 rounded-xl px-4 py-3 border-l-[3px] transition-all ${
-                    status === 'current' ? 'ring-1 ring-white/10' : ''
-                  }`}
-                  style={{
-                    borderLeftColor: color,
-                    background: `linear-gradient(135deg, ${color}18 0%, ${color}0a 60%, transparent 100%)`,
-                  }}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="text-[12px] font-medium" style={{ color }}>
-                      {formatTimeRange(ev)}
+        <div ref={scrollRef} className="flex-1 overflow-y-auto custom-scrollbar -mx-1 px-1">
+          <div className="relative" style={{ height: `${totalHeight}px` }}>
+            {/* ── 30분 단위 시간 그리드 ── */}
+            {timeSlots.map((time, idx) => (
+              <div
+                key={time}
+                className="absolute left-0 right-0 flex border-b border-foreground/[0.04]"
+                style={{ top: `${idx * TIMELINE_SLOT_H}px`, height: `${TIMELINE_SLOT_H}px` }}
+              >
+                <div className="w-10 md:w-12 flex-shrink-0 pr-2 pt-0.5 text-right">
+                  {time.endsWith(':00') && (
+                    <span className="text-[10px] md:text-[11px] text-slate-500 tabular-nums font-light">
+                      {time}
                     </span>
-                    {status === 'current' && (
-                      <span className="text-[9px] font-bold text-bridge-accent bg-bridge-accent/15 px-1.5 py-0.5 rounded-full animate-pulse">
-                        {t('personal.overview.now', 'NOW')}
+                  )}
+                </div>
+                <div className="flex-1 border-l border-foreground/[0.06]" />
+              </div>
+            ))}
+
+            {/* ── 이벤트 블록 ── */}
+            {timedEvents.map(ev => {
+              const evStart = toMin(ev.start_time!);
+              const evEnd = ev.end_time ? toMin(ev.end_time) : evStart + 60;
+              const color = ev.color || '#6366F1';
+
+              // 윈도우 내로 클램프
+              const clampedStart = Math.max(evStart, windowStartMin);
+              const clampedEnd = Math.min(evEnd, windowEndMin);
+
+              const top = ((clampedStart - windowStartMin) / 30) * TIMELINE_SLOT_H;
+              const height = Math.max(((clampedEnd - clampedStart) / 30) * TIMELINE_SLOT_H, TIMELINE_SLOT_H * 0.6);
+
+              const isCurrent = currentMinutes >= evStart && currentMinutes < evEnd;
+              const isPast = currentMinutes >= evEnd;
+
+              return (
+                <motion.div
+                  key={ev.id}
+                  initial={{ opacity: 0, x: 8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className={`absolute rounded-lg border-l-[3px] px-2.5 py-1.5 overflow-hidden cursor-pointer
+                    hover:shadow-lg transition-shadow ${isPast ? 'opacity-50' : ''}`}
+                  style={{
+                    top: `${top}px`,
+                    height: `${height}px`,
+                    left: '2.75rem',
+                    right: '0.25rem',
+                    borderLeftColor: color,
+                    background: isCurrent
+                      ? `linear-gradient(135deg, ${color}22 0%, ${color}10 100%)`
+                      : `linear-gradient(135deg, ${color}14 0%, ${color}08 100%)`,
+                  }}
+                  onClick={onViewAll}
+                >
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className={`text-[11px] font-semibold truncate ${isCurrent ? 'text-foreground' : 'text-foreground/80'}`}>
+                      {ev.title}
+                    </span>
+                    {isCurrent && (
+                      <span className="text-[8px] font-bold text-bridge-secondary bg-bridge-secondary/15 px-1 py-px rounded-full flex-shrink-0 animate-pulse">
+                        NOW
                       </span>
                     )}
                   </div>
-                  <div className="text-[13px] text-foreground mt-1">{ev.title}</div>
+                  {height >= TIMELINE_SLOT_H * 0.8 && (
+                    <div className="text-[10px] text-slate-400 mt-0.5">
+                      {ev.start_time?.slice(0, 5)}{ev.end_time ? ` - ${ev.end_time.slice(0, 5)}` : ''}
+                    </div>
+                  )}
+                </motion.div>
+              );
+            })}
+
+            {/* ── 현재 시간 표시선 ── */}
+            {nowTop != null && (
+              <div
+                ref={indicatorRef}
+                className="absolute left-0 right-0 z-10 pointer-events-none flex items-center"
+                style={{ top: `${nowTop}px` }}
+              >
+                <div className="w-10 md:w-12 flex-shrink-0 flex justify-end pr-1">
+                  <span className="text-[9px] font-bold text-red-400 bg-red-500/15 px-1 rounded tabular-nums">
+                    {fmtTime(currentMinutes)}
+                  </span>
+                </div>
+                <div className="flex items-center flex-1">
+                  <div className="w-1.5 h-1.5 rounded-full bg-red-500 -ml-[3px] flex-shrink-0" />
+                  <div className="flex-1 h-[1.5px] bg-red-500/60" />
                 </div>
               </div>
-            );
-          })}
+            )}
+
+            {/* 윈도우 내 이벤트 없을 때 빈 상태 */}
+            {timedEvents.length === 0 && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-center gap-1.5">
+                <Clock size={20} className="text-slate-600" />
+                <p className="text-[11px] text-slate-500">
+                  {t('personal.overview.noNearbyEvents', 'No events in the next hour')}
+                </p>
+                <p className="text-[10px] text-slate-600">
+                  {t('personal.overview.totalEventsToday', '{{count}} events today', { count: allTimedEvents.length })}
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </WidgetCard>
@@ -255,17 +366,14 @@ function TodayScheduleWidget({
 // ── 우상단: Upcoming Deadlines (PersonalTask 기반) ───────────────────
 
 type DeadlineItem =
-  | { kind: 'task'; id: string; date: string; title: string; priority: string; status: string; category?: string | null; isDone: boolean }
-  | { kind: 'event'; id: string; date: string; title: string; color: string; startTime?: string | null };
+  { kind: 'task'; id: string; date: string; title: string; priority: string; status: string; category?: string | null; isDone: boolean };
 
 function UpcomingDeadlinesWidget({
   todayDate,
   onViewAll,
-  onNavigateCalendar,
 }: {
   todayDate: string;
   onViewAll: () => void;
-  onNavigateCalendar: () => void;
 }) {
   const { t } = useTranslation();
   const [items, setItems] = useState<DeadlineItem[]>([]);
@@ -276,10 +384,7 @@ function UpcomingDeadlinesWidget({
 
   // Full data maps for detail modals
   const [taskMap, setTaskMap] = useState<Map<string, PersonalTask>>(new Map());
-  const [eventMap, setEventMap] = useState<Map<string, PersonalEvent>>(new Map());
   const [selectedTask, setSelectedTask] = useState<PersonalTask | null>(null);
-  const [selectedEvent, setSelectedEvent] = useState<PersonalEvent | null>(null);
-  const [allEvents, setAllEvents] = useState<PersonalEvent[]>([]);
 
   const today = new Date(todayDate + 'T00:00:00');
 
@@ -298,15 +403,7 @@ function UpcomingDeadlinesWidget({
       try {
         setIsLoading(true);
 
-        // Fetch upcoming range: today ~ 30 days ahead
-        const endDate = new Date(today);
-        endDate.setDate(endDate.getDate() + 30);
-        const endDateStr = endDate.toISOString().split('T')[0];
-
-        const [taskData, eventData] = await Promise.all([
-          personalTaskAPI.getAll(),
-          personalEventAPI.getWeekly(todayDate, endDateStr),
-        ]);
+        const taskData = await personalTaskAPI.getAll();
 
         const taskItems: DeadlineItem[] = taskData
           .filter(t => t.status !== 'ARCHIVED' && t.status !== 'DONE' && t.due_date && t.due_date >= todayDate)
@@ -321,28 +418,14 @@ function UpcomingDeadlinesWidget({
             isDone: t.status === 'DONE',
           }));
 
-        const eventItems: DeadlineItem[] = eventData.filter(ev => ev.event_date >= todayDate).map(ev => ({
-          kind: 'event' as const,
-          id: ev.id,
-          date: ev.event_date,
-          title: ev.title,
-          color: ev.color || '#6366F1',
-          startTime: ev.start_time,
-        }));
-
-        const merged = sortDeadlines([...taskItems, ...eventItems]);
+        const sorted = sortDeadlines(taskItems);
 
         // Store full data maps for detail modals
         const tMap = new Map<string, PersonalTask>();
         taskData.forEach(t => tMap.set(t.id, t));
         setTaskMap(tMap);
 
-        const eMap = new Map<string, PersonalEvent>();
-        eventData.forEach(e => eMap.set(e.id, e));
-        setEventMap(eMap);
-        setAllEvents(eventData);
-
-        setItems(merged);
+        setItems(sorted);
       } catch {
         console.error('Failed to load deadlines');
       } finally {
@@ -431,32 +514,6 @@ function UpcomingDeadlinesWidget({
     }
   }, [selectedTask]);
 
-  // Event detail modal callbacks
-  const handleEventUpdate = useCallback(async (id: string, data: Parameters<typeof personalEventAPI.update>[1]) => {
-    try {
-      const updated = await personalEventAPI.update(id, data);
-      setSelectedEvent(updated);
-      setEventMap(prev => { const n = new Map(prev); n.set(updated.id, updated); return n; });
-      setItems(prev => prev.map(item =>
-        item.kind === 'event' && item.id === updated.id
-          ? { ...item, title: updated.title, date: updated.event_date, color: updated.color || '#6366F1', startTime: updated.start_time }
-          : item
-      ));
-    } catch {
-      console.error('Failed to update event');
-    }
-  }, []);
-
-  const handleEventDelete = useCallback(async (id: string, scope?: string) => {
-    try {
-      await personalEventAPI.delete(id, scope);
-      setItems(prev => prev.filter(item => !(item.kind === 'event' && item.id === id)));
-      setSelectedEvent(null);
-    } catch {
-      console.error('Failed to delete event');
-    }
-  }, []);
-
   const getDday = (dateStr: string) => {
     const due = new Date(dateStr + 'T00:00:00');
     return Math.round((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
@@ -515,53 +572,6 @@ function UpcomingDeadlinesWidget({
             const showDivider = idx > 0 && item.date !== prevDate;
             const dday = getDday(item.date);
             const isOverdue = dday < 0;
-
-            if (item.kind === 'event') {
-              return (
-                <Fragment key={`event-${item.id}`}>
-                  {showDivider && <div className="h-px bg-foreground/15 mx-2 my-1" />}
-                  <button
-                    onClick={() => {
-                      const ev = eventMap.get(item.id);
-                      if (ev) setSelectedEvent(ev);
-                    }}
-                    className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl hover:bg-foreground/5 transition-colors text-left ${
-                      dday === 0 ? 'bg-bridge-secondary/[0.06] ring-1 ring-bridge-secondary/15' : ''
-                    }`}
-                  >
-                    <CalendarDays size={14} className="flex-shrink-0" style={{ color: item.color }} />
-                    <div className="w-[60px] flex-shrink-0">
-                      <span className={`text-[11px] ${dday === 0 ? 'text-bridge-secondary font-medium' : 'text-slate-400'}`}>{formatDueDate(item.date)}</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className={`text-xs truncate ${dday === 0 ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>{item.title}</div>
-                      {item.startTime && (
-                        <div className="text-[10px] text-slate-500">{item.startTime.slice(0, 5)}</div>
-                      )}
-                    </div>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${
-                      isOverdue
-                        ? 'text-red-400 bg-red-400/10'
-                        : dday === 0
-                        ? 'text-bridge-secondary bg-bridge-secondary/15 ring-1 ring-bridge-secondary/30'
-                        : dday <= 3
-                        ? 'text-amber-400 bg-amber-400/10'
-                        : dday <= 7
-                        ? 'text-blue-400 bg-blue-400/10'
-                        : 'text-slate-400 bg-foreground/5'
-                    }`}>
-                      {isOverdue
-                        ? `D+${Math.abs(dday)}`
-                        : dday === 0
-                        ? t('personal.overview.today', 'Today')
-                        : `D-${dday}`}
-                    </span>
-                  </button>
-                </Fragment>
-              );
-            }
-
-            // Task item
             const isDone = item.isDone;
             const isToggling = togglingIds.has(item.id);
             const isAnimating = animatingIds.has(item.id);
@@ -717,15 +727,6 @@ function UpcomingDeadlinesWidget({
         onToggleComplete={handleTaskToggleComplete}
       />
 
-      {/* Event Detail Modal */}
-      <EventDetailModal
-        open={!!selectedEvent}
-        event={selectedEvent}
-        existingEvents={allEvents}
-        onClose={() => setSelectedEvent(null)}
-        onDelete={handleEventDelete}
-        onUpdate={handleEventUpdate}
-      />
     </WidgetCard>
   );
 }
@@ -1294,14 +1295,337 @@ function DiaryWidget({
   );
 }
 
+// ── Mobile Greeting Header ───────────────────────────────────────────
+
+function MobileGreetingHeader({
+  dashboardData,
+  onNavigateTab,
+}: {
+  dashboardData: PersonalDashboardToday | null;
+  onNavigateTab: (tab: TabType) => void;
+}) {
+  const { t } = useTranslation();
+  const { currentUser } = useAuth();
+
+  const now = new Date();
+  const hour = now.getHours();
+  const greetingIcon = hour < 12 ? <Sun size={18} className="text-amber-400" /> : hour < 18 ? <Sunset size={18} className="text-orange-400" /> : <Moon size={18} className="text-indigo-400" />;
+  const greetingText = hour < 12
+    ? t('personal.mobile.goodMorning', 'Good Morning')
+    : hour < 18
+    ? t('personal.mobile.goodAfternoon', 'Good Afternoon')
+    : t('personal.mobile.goodEvening', 'Good Evening');
+
+  const dateStr = now.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+  const userName = currentUser?.name || currentUser?.email?.split('@')[0] || '';
+
+  const habitsDone = dashboardData?.habits_today?.filter(h => h.is_completed).length || 0;
+  const habitsTotal = dashboardData?.habits_today?.length || 0;
+
+  // Tasks due today: count done vs total
+  const dueTodayTasks = dashboardData?.due_today_tasks || [];
+  const dueTodayDone = dueTodayTasks.filter(t => t.status === 'DONE').length;
+  const dueTodayTotal = dueTodayTasks.length;
+
+  // AI Diary status
+  const diary = dashboardData?.diary_today;
+  const MOOD_EMOJI: Record<string, string> = { happy: '😊', calm: '😌', thoughtful: '🤔', tired: '😔', sad: '😢', frustrated: '😠', excited: '🤩', bored: '🥱' };
+  const diaryLabel = !diary
+    ? t('personal.mobile.diaryNotStarted', 'Not started')
+    : diary.status === 'COMPLETED'
+    ? t('personal.mobile.diaryDone', 'Done')
+    : t('personal.mobile.diaryChatting', 'Writing...');
+  const diaryEmoji = diary?.mood ? MOOD_EMOJI[diary.mood] : undefined;
+
+  const stats = [
+    {
+      label: t('personal.mobile.habits', 'Habits'),
+      value: habitsTotal > 0 ? `${habitsDone}/${habitsTotal}` : '0',
+      icon: <Flame size={14} className="text-purple-400" />,
+      rate: habitsTotal > 0 ? habitsDone / habitsTotal : 0,
+      onTap: () => onNavigateTab('tasks'),
+    },
+    {
+      label: t('personal.mobile.tasks', 'Tasks'),
+      value: dueTodayTotal > 0 ? `${dueTodayDone}/${dueTodayTotal}` : '0',
+      icon: <ListTodo size={14} className="text-bridge-accent" />,
+      rate: dueTodayTotal > 0 ? dueTodayDone / dueTodayTotal : undefined,
+      onTap: () => onNavigateTab('tasks'),
+    },
+    {
+      label: t('personal.mobile.diary', 'AI Diary'),
+      value: diaryEmoji || (diary ? (diary.status === 'COMPLETED' ? '✅' : '✍️') : '—'),
+      sub: diaryLabel,
+      icon: <BookHeart size={14} className="text-rose-400" />,
+      onTap: () => onNavigateTab('diary'),
+    },
+  ];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
+    >
+      {/* Greeting */}
+      <div className="flex items-center gap-2.5 mb-4">
+        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-bridge-secondary/20 to-bridge-accent/20 border border-foreground/10 flex items-center justify-center">
+          {greetingIcon}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-[15px] font-bold text-foreground">{greetingText}</span>
+            {userName && <span className="text-[13px] text-slate-400 truncate">{userName}</span>}
+          </div>
+          <span className="text-[11px] text-slate-500">{dateStr}</span>
+        </div>
+      </div>
+
+      {/* Stats Row */}
+      <div className="flex gap-2">
+        {stats.map((stat) => (
+          <button
+            key={stat.label}
+            onClick={stat.onTap}
+            className="flex-1 rounded-xl border border-foreground/[0.08] bg-foreground/[0.03] p-3 active:bg-foreground/[0.06] transition-colors text-left"
+          >
+            <div className="flex items-center gap-1.5 mb-1.5">
+              {stat.icon}
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{stat.label}</span>
+            </div>
+            <div className="flex items-baseline gap-1">
+              <span className="text-lg font-bold text-foreground">{stat.value}</span>
+              {stat.sub && <span className="text-[10px] text-slate-400 font-medium">{stat.sub}</span>}
+            </div>
+            {stat.rate !== undefined && stat.rate >= 0 && (
+              <div className="mt-1.5 h-1 rounded-full bg-foreground/10 overflow-hidden">
+                <motion.div
+                  className="h-full rounded-full"
+                  style={{ backgroundColor: stat.rate >= 1 ? '#2DD4BF' : stat.label === 'Tasks' ? '#6366F1' : '#8B5CF6' }}
+                  initial={{ width: 0 }}
+                  animate={{ width: `${Math.round(stat.rate * 100)}%` }}
+                  transition={{ duration: 0.8, delay: 0.2, ease: 'easeOut' }}
+                />
+              </div>
+            )}
+          </button>
+        ))}
+      </div>
+    </motion.div>
+  );
+}
+
+// ── Mobile Quick Habits Strip ────────────────────────────────────────
+
+function MobileQuickHabits({
+  dashboardData,
+  onNavigateTab,
+  onHabitToggle,
+}: {
+  dashboardData: PersonalDashboardToday | null;
+  onNavigateTab: (tab: TabType) => void;
+  onHabitToggle: (habitId: string, isCompleted: boolean) => void;
+}) {
+  const { t } = useTranslation();
+  const [habits, setHabits] = useState<HabitTodayItem[]>([]);
+  const [checkInConfirm, setCheckInConfirm] = useState<{ id: string; name: string; icon?: string; streak?: number; isUndo: boolean } | null>(null);
+
+  useEffect(() => {
+    if (dashboardData?.habits_today) {
+      setHabits(dashboardData.habits_today);
+    }
+  }, [dashboardData]);
+
+  const handleCheckIn = async (habitId: string, isUndo?: boolean) => {
+    const revert = !!isUndo;
+    // Optimistic: update local strip
+    setHabits(prev => prev.map(h =>
+      h.habit_id === habitId ? { ...h, is_completed: !isUndo } : h
+    ));
+    // Optimistic: update parent dashboardData (header stats)
+    onHabitToggle(habitId, !isUndo);
+    try {
+      const updated = await personalHabitAPI.checkIn(habitId);
+      setHabits(prev => prev.map(h => h.habit_id === habitId ? updated : h));
+      onHabitToggle(habitId, updated.is_completed);
+    } catch {
+      setHabits(prev => prev.map(h =>
+        h.habit_id === habitId ? { ...h, is_completed: revert } : h
+      ));
+      onHabitToggle(habitId, revert);
+    }
+  };
+
+  if (!dashboardData || habits.length === 0) {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.1 }}
+        className="flex items-center gap-3 py-2"
+      >
+        <span className="text-[11px] font-bold uppercase tracking-widest text-slate-500">
+          {t('personal.mobile.habitsToday', 'Habits')}
+        </span>
+        <button
+          onClick={() => onNavigateTab('tasks')}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold text-purple-400 bg-purple-400/10 rounded-lg"
+        >
+          <Plus size={12} />
+          {t('personal.mobile.addHabit', 'Add')}
+        </button>
+      </motion.div>
+    );
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.15, duration: 0.3 }}
+    >
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-[11px] font-bold uppercase tracking-widest text-slate-500">
+          {t('personal.mobile.habitsToday', 'Habits')}
+        </span>
+        <button
+          onClick={() => onNavigateTab('tasks')}
+          className="text-[11px] text-slate-500 flex items-center gap-0.5"
+        >
+          {t('personal.overview.viewAll', 'View all')}
+          <ArrowRight size={10} />
+        </button>
+      </div>
+      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
+        {habits.map((habit, idx) => {
+          const isCompleted = habit.is_completed;
+          const color = habit.color || '#8B5CF6';
+          return (
+            <motion.button
+              key={habit.habit_id}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.05 * idx }}
+              onClick={() => setCheckInConfirm({
+                id: habit.habit_id,
+                name: habit.title,
+                icon: habit.icon || undefined,
+                streak: habit.current_streak,
+                isUndo: isCompleted,
+              })}
+              className={`flex-shrink-0 flex flex-col items-center gap-1.5 w-[68px] py-2.5 rounded-xl border transition-all active:scale-95 ${
+                isCompleted
+                  ? 'border-bridge-secondary/30 bg-bridge-secondary/[0.08]'
+                  : 'border-foreground/[0.08] bg-foreground/[0.03]'
+              }`}
+            >
+              <div className="relative">
+                <div
+                  className={`w-10 h-10 rounded-full flex items-center justify-center text-base transition-all ${
+                    isCompleted
+                      ? 'ring-2 ring-bridge-secondary/50'
+                      : 'ring-2 ring-transparent'
+                  }`}
+                  style={{
+                    background: isCompleted
+                      ? 'linear-gradient(135deg, rgba(45,212,191,0.2), rgba(45,212,191,0.08))'
+                      : `linear-gradient(135deg, ${color}25, ${color}10)`,
+                  }}
+                >
+                  {habit.icon ? (
+                    <span className="text-lg">{habit.icon}</span>
+                  ) : (
+                    <Flame size={16} style={{ color }} />
+                  )}
+                </div>
+                {isCompleted && (
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-bridge-secondary rounded-full flex items-center justify-center"
+                  >
+                    <Check size={10} className="text-white" strokeWidth={3} />
+                  </motion.div>
+                )}
+              </div>
+              <span className={`text-[10px] font-medium truncate w-full text-center px-1 ${
+                isCompleted ? 'text-bridge-secondary' : 'text-foreground'
+              }`}>
+                {habit.title}
+              </span>
+              {habit.current_streak > 0 && (
+                <div className="flex items-center gap-0.5 text-[9px] text-orange-400 font-bold">
+                  <Flame size={8} />
+                  {habit.current_streak}
+                </div>
+              )}
+            </motion.button>
+          );
+        })}
+      </div>
+
+      <CheckInConfirmModal
+        open={!!checkInConfirm}
+        habitName={checkInConfirm?.name || ''}
+        habitIcon={checkInConfirm?.icon}
+        streakCount={checkInConfirm?.streak}
+        isUndo={checkInConfirm?.isUndo}
+        onConfirm={() => {
+          if (checkInConfirm) {
+            handleCheckIn(checkInConfirm.id, checkInConfirm.isUndo);
+            setCheckInConfirm(null);
+          }
+        }}
+        onCancel={() => setCheckInConfirm(null)}
+      />
+    </motion.div>
+  );
+}
+
 // ── Main Overview Component ──────────────────────────────────────────
 
 export function PersonalOverview({ onNavigateTab }: PersonalOverviewProps) {
   const todayDate = getTodayDateString();
+  const [dashboardData, setDashboardData] = useState<PersonalDashboardToday | null>(null);
+
+  // Fetch dashboard summary for mobile header
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await personalDashboardAPI.getToday();
+        setDashboardData(data);
+      } catch {
+        console.error('Failed to load dashboard data');
+      }
+    })();
+  }, []);
+
+  // Optimistically update dashboardData when habit is toggled from the quick strip
+  const handleHabitToggle = useCallback((habitId: string, isCompleted: boolean) => {
+    setDashboardData(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        habits_today: prev.habits_today.map(h =>
+          h.habit_id === habitId ? { ...h, is_completed: isCompleted } : h
+        ),
+      };
+    });
+  }, []);
 
   return (
     <div className="h-full overflow-auto p-3 md:p-6">
       <div className="max-w-[1800px] mx-auto flex flex-col gap-2.5 md:gap-5">
+        {/* Mobile Greeting Header + Stats */}
+        <div className="md:hidden">
+          <MobileGreetingHeader dashboardData={dashboardData} onNavigateTab={onNavigateTab} />
+        </div>
+
+        {/* Mobile Quick Habits Strip */}
+        <div className="md:hidden">
+          <MobileQuickHabits dashboardData={dashboardData} onNavigateTab={onNavigateTab} onHabitToggle={handleHabitToggle} />
+        </div>
+
         {/* 2x2 Widget grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 lg:grid-rows-2 gap-2.5 md:gap-5 flex-1">
           <TodayScheduleWidget
@@ -1311,11 +1635,13 @@ export function PersonalOverview({ onNavigateTab }: PersonalOverviewProps) {
           <UpcomingDeadlinesWidget
             todayDate={todayDate}
             onViewAll={() => onNavigateTab('tasks')}
-            onNavigateCalendar={() => onNavigateTab('calendar')}
           />
-          <HabitsTodayWidget
-            onViewAll={() => onNavigateTab('habits')}
-          />
+          {/* Habits widget: hidden on mobile (quick strip replaces it), visible on desktop */}
+          <div className="hidden md:block">
+            <HabitsTodayWidget
+              onViewAll={() => onNavigateTab('tasks')}
+            />
+          </div>
           <DiaryWidget
             todayDate={todayDate}
             onViewAll={() => onNavigateTab('diary')}
@@ -1408,61 +1734,53 @@ function OverviewCreateHabitModal({
   };
 
   return (
-    <MotionModal open={open} onClose={onClose} className="sm:max-w-md p-5 md:p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <Flame size={18} className="text-purple-400" />
-            <h3 className="text-base md:text-lg font-bold text-foreground">
-              {t('personal.habit.newHabit', 'New Habit')}
-            </h3>
-          </div>
-          <button onClick={onClose} className="p-1 text-slate-400 hover:text-foreground transition-colors">
-            <X size={18} />
+    <MotionModal open={open} onClose={onClose} className="sm:max-w-md p-0 overflow-hidden border-foreground/[0.12]">
+      <div>
+        <div className="h-[2px]" style={{ background: `linear-gradient(to right, ${color}88, ${color}44, transparent)` }} />
+
+        {/* Header */}
+        <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
+          <span className="text-base shrink-0">{icon || <Flame size={16} className="text-purple-400" />}</span>
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && !e.nativeEvent.isComposing && handleSubmit()}
+            placeholder={t('personal.habit.habitPlaceholder', 'e.g. Morning Run, Read 10 pages')}
+            className="flex-1 min-w-0 bg-transparent text-sm font-bold text-foreground placeholder-slate-600 outline-none"
+            autoFocus
+          />
+          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5 transition-colors shrink-0">
+            <X size={16} />
           </button>
         </div>
 
-        <div className="space-y-4">
-          <div>
-            <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-              {t('personal.habit.habitName', 'Habit Name')}
-            </label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-              placeholder={t('personal.habit.habitPlaceholder', 'e.g. Morning Run, Read 10 pages')}
-              className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-2.5 px-4 text-foreground text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition-all"
-              autoFocus
-            />
+        <div className="px-5 pt-4 pb-5 space-y-3">
+          {/* Day Selector */}
+          <div className="flex gap-1.5">
+            {OV_DAY_CHIPS.map(({ value, label }) => (
+              <button
+                key={value}
+                onClick={() => toggleDay(value)}
+                className="flex-1 py-2 text-xs font-bold rounded-lg transition-all"
+                style={selectedDays.includes(value)
+                  ? { backgroundColor: color, color: '#fff' }
+                  : undefined}
+                {...(!selectedDays.includes(value) && {
+                  className: 'flex-1 py-2 text-xs font-bold rounded-lg transition-all bg-foreground/5 text-slate-400 hover:bg-foreground/10',
+                })}
+              >
+                {label}
+              </button>
+            ))}
           </div>
+          {selectedDays.length === 0 && (
+            <p className="text-xs text-amber-400">
+              {t('personal.habit.selectDay', 'Select at least one day')}
+            </p>
+          )}
 
-          <div>
-            <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">
-              {t('personal.habit.repeatOn', 'Repeat on')}
-            </label>
-            <div className="flex gap-1.5">
-              {OV_DAY_CHIPS.map(({ value, label }) => (
-                <button
-                  key={value}
-                  onClick={() => toggleDay(value)}
-                  className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-all ${
-                    selectedDays.includes(value)
-                      ? 'bg-purple-500 text-white'
-                      : 'bg-foreground/5 text-slate-400 hover:bg-foreground/10'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-            {selectedDays.length === 0 && (
-              <p className="mt-1.5 text-xs text-amber-400">
-                {t('personal.habit.selectDay', 'Select at least one day')}
-              </p>
-            )}
-          </div>
-
+          {/* More Options Toggle */}
           <button
             onClick={() => setShowMore(!showMore)}
             className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-muted-foreground transition-colors"
@@ -1477,81 +1795,69 @@ function OverviewCreateHabitModal({
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
-                className="space-y-4 overflow-hidden"
+                className="space-y-3 overflow-hidden"
               >
-                <div>
-                  <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">
-                    {t('personal.habit.icon', 'Icon')}
-                  </label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {OV_HABIT_ICONS.map((emoji) => (
-                      <button
-                        key={emoji}
-                        onClick={() => setIcon(icon === emoji ? '' : emoji)}
-                        className={`w-9 h-9 flex items-center justify-center rounded-lg text-base transition-all ${
-                          icon === emoji
-                            ? 'bg-purple-500/20 ring-2 ring-purple-500 scale-110'
-                            : 'bg-foreground/5 hover:bg-foreground/10 hover:scale-105'
-                        }`}
-                      >
-                        {emoji}
-                      </button>
-                    ))}
-                  </div>
+                {/* Icon Picker */}
+                <div className="flex flex-wrap gap-1.5">
+                  {OV_HABIT_ICONS.map((emoji) => (
+                    <button
+                      key={emoji}
+                      onClick={() => setIcon(icon === emoji ? '' : emoji)}
+                      className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm transition-all ${
+                        icon === emoji
+                          ? 'ring-2 scale-110'
+                          : 'bg-foreground/5 hover:bg-foreground/10 hover:scale-105'
+                      }`}
+                      style={icon === emoji ? { backgroundColor: `${color}33`, ringColor: color } : undefined}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
                 </div>
 
-                <div>
-                  <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">
-                    {t('personal.habit.color', 'Color')}
-                  </label>
-                  <div className="flex gap-2">
-                    {OV_HABIT_COLORS.map((c) => (
-                      <button
-                        key={c}
-                        onClick={() => setColor(c)}
-                        className={`w-7 h-7 rounded-full transition-all ${
-                          color === c
-                            ? 'ring-2 ring-white ring-offset-2 ring-offset-bridge-obsidian scale-110'
-                            : 'hover:scale-110'
-                        }`}
-                        style={{ backgroundColor: c }}
-                      />
-                    ))}
-                  </div>
+                {/* Color Picker */}
+                <div className="flex gap-2">
+                  {OV_HABIT_COLORS.map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => setColor(c)}
+                      className={`w-6 h-6 rounded-full transition-all ${
+                        color === c
+                          ? 'ring-2 ring-white ring-offset-2 ring-offset-bridge-obsidian scale-110'
+                          : 'hover:scale-110'
+                      }`}
+                      style={{ backgroundColor: c }}
+                    />
+                  ))}
                 </div>
 
-                <div>
-                  <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
-                    {t('personal.habit.description', 'Description')}
-                  </label>
-                  <textarea
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder={t('personal.habit.descPlaceholder', 'Why this habit matters to you')}
-                    rows={2}
-                    className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-2.5 px-4 text-foreground text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all resize-none"
-                  />
-                </div>
+                {/* Description */}
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder={t('personal.habit.descPlaceholder', 'Why this habit matters to you')}
+                  rows={2}
+                  className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg p-3 text-sm text-muted-foreground placeholder-slate-600 outline-none resize-none focus:border-bridge-accent/30 focus:ring-1 focus:ring-bridge-accent/10 transition-all"
+                />
               </motion.div>
             )}
           </AnimatePresence>
-        </div>
 
-        <div className="flex gap-3 mt-6">
-          <button
-            onClick={onClose}
-            className="flex-1 py-3 text-sm font-bold text-slate-400 hover:text-foreground border border-foreground/10 rounded-xl hover:bg-foreground/5 transition-all"
-          >
-            {t('common.cancel', 'Cancel')}
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={!isValid}
-            className="flex-1 py-3 bg-purple-500 text-white text-sm font-bold rounded-xl hover:bg-purple-500/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-          >
-            {t('personal.habit.addHabit', 'Add Habit')}
-          </button>
+          {/* Footer */}
+          <div className="flex items-center justify-between pt-3 border-t border-foreground/[0.08]">
+            <span className="text-[11px] text-slate-600 select-none">Esc 닫기</span>
+            <button
+              onClick={handleSubmit}
+              disabled={!isValid}
+              className="flex items-center gap-1.5 px-4 py-1.5 text-white text-xs font-bold rounded-lg disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              style={{ backgroundColor: isValid ? color : 'rgba(128,128,128,0.3)' }}
+            >
+              <Plus size={13} />
+              {t('personal.habit.addHabit', 'Add Habit')}
+            </button>
+          </div>
         </div>
+      </div>
     </MotionModal>
   );
 }

@@ -662,7 +662,7 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
 
   return (
     <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
-      <div className="max-w-5xl mx-auto p-4 md:p-6 pb-20 md:pb-6 space-y-4">
+      <div className="max-w-5xl mx-auto p-4 md:p-6 pb-6 space-y-4">
 
         {/* ── Quick Add Bar (hidden on mobile – use FAB instead) ── */}
         <div className={`hidden md:block bg-bridge-obsidian rounded-xl border transition-all ${
@@ -946,9 +946,10 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
       />
 
       {/* Completed Tasks Modal */}
-      <MotionModal open={showCompleted} onClose={() => setShowCompleted(false)} className="sm:max-w-md p-0 overflow-hidden">
+      <MotionModal open={showCompleted} onClose={() => setShowCompleted(false)} className="sm:max-w-md p-0 overflow-hidden border-foreground/[0.12]">
         <div>
-          <div className="flex items-center gap-3 px-5 pt-5 pb-3 border-b border-foreground/5">
+          <div className="h-[2px] bg-gradient-to-r from-emerald-500/60 via-emerald-400/30 to-transparent" />
+          <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
             <div className="w-7 h-7 rounded-full bg-emerald-500/15 flex items-center justify-center">
               <Check size={14} className="text-emerald-400" />
             </div>
@@ -1032,7 +1033,7 @@ function QuadrantCell({
         onDrop();
       }}
       className={`
-        rounded-xl border transition-all min-h-[180px] sm:min-h-[260px] flex flex-col
+        rounded-xl border transition-all min-h-[80px] sm:min-h-[260px] flex flex-col
         ${cfg.border} ${cfg.bg}
         ${isDragOver ? `${cfg.dropBorder} border-dashed ring-1 ring-current/20 scale-[1.01]` : ''}
       `}
@@ -1049,7 +1050,7 @@ function QuadrantCell({
       {/* Items */}
       <div className="flex-1 p-1.5 space-y-1 overflow-y-auto max-h-[400px] custom-scrollbar">
         {totalCount === 0 && !isDragOver && (
-          <div className="flex items-center justify-center h-full min-h-[80px]">
+          <div className="flex items-center justify-center h-full min-h-[40px] sm:min-h-[80px]">
             <span className="text-[10px] text-slate-600">{t('personal.tasks.empty')}</span>
           </div>
         )}
@@ -1385,24 +1386,36 @@ export function TaskDetailModal({ open, task, onClose, onUpdate, onDelete, onTog
     }
   }, [task]);
 
-  const save = (patch: Parameters<typeof onUpdate>[0]) => {
-    const filtered: typeof patch = {};
-    if (patch.title !== undefined && patch.title !== task.title) filtered.title = patch.title;
-    if (patch.due_date !== undefined && patch.due_date !== (task.due_date ?? '')) filtered.due_date = patch.due_date;
-    if (patch.priority !== undefined && patch.priority !== task.priority) filtered.priority = patch.priority;
-    if (patch.description !== undefined && patch.description !== (task.description ?? '')) filtered.description = patch.description;
-    if (Object.keys(filtered).length > 0) onUpdate(filtered);
-  };
-
   if (!task) return null;
 
   const isDone = task.status === 'DONE';
-  const dday = getDDay(task.due_date);
+  const dday = getDDay(dueDate);
+
+  const hasChanges =
+    title !== task.title ||
+    dueDate !== (task.due_date ?? '') ||
+    priority !== task.priority ||
+    description !== (task.description ?? '');
+
+  const handleSave = () => {
+    if (!title.trim() || !hasChanges) return;
+    const patch: Parameters<typeof onUpdate>[0] = {};
+    if (title !== task.title) patch.title = title.trim();
+    if (dueDate !== (task.due_date ?? '')) patch.due_date = dueDate || null;
+    if (priority !== task.priority) patch.priority = priority;
+    if (description !== (task.description ?? '')) patch.description = description;
+    onUpdate(patch);
+    onClose();
+  };
 
   return (
-    <MotionModal open={open} onClose={onClose} className="sm:max-w-md p-0 overflow-hidden">
+    <MotionModal open={open} onClose={onClose} className="sm:max-w-md p-0 overflow-hidden border-foreground/[0.12]">
       <div>
-        <div className="flex items-center gap-3 px-5 pt-5 pb-3">
+        {/* Top accent line */}
+        <div className="h-[2px] bg-gradient-to-r from-bridge-accent/60 via-bridge-secondary/40 to-transparent" />
+
+        {/* Header: checkbox + title + delete + close */}
+        <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
           <button
             onClick={onToggleComplete}
             className={`w-5 h-5 rounded-full border-[1.5px] flex items-center justify-center shrink-0 transition-colors ${
@@ -1413,32 +1426,36 @@ export function TaskDetailModal({ open, task, onClose, onUpdate, onDelete, onTog
           >
             {isDone && <Check size={12} className="text-white" />}
           </button>
-          <div className="flex-1" />
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) (e.target as HTMLInputElement).blur(); }}
+            className={`flex-1 min-w-0 bg-transparent text-sm font-bold outline-none placeholder-slate-600 ${isDone ? 'line-through text-slate-500' : 'text-foreground'}`}
+            placeholder={t('personal.tasks.titlePlaceholder', '할 일 제목')}
+          />
+          <button
+            onClick={onDelete}
+            className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-foreground/5 transition-colors shrink-0"
+            title={t('common.delete', '삭제')}
+          >
+            <Trash2 size={16} />
+          </button>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5 transition-colors"
+            className="p-1.5 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5 transition-colors shrink-0"
           >
             <X size={16} />
           </button>
         </div>
 
-        <div className="px-5 pb-5 space-y-4">
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            onBlur={() => save({ title })}
-            onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) { save({ title }); (e.target as HTMLInputElement).blur(); } }}
-            className="w-full bg-transparent text-base font-bold text-foreground outline-none placeholder-slate-600"
-            placeholder={t('personal.tasks.titlePlaceholder', '할 일 제목')}
-          />
-
+        <div className="px-5 pb-5 space-y-4 pt-4">
           <div className="flex items-center gap-3 flex-wrap">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-foreground/5 border border-foreground/5 hover:border-foreground/10 transition-colors">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-foreground/[0.04] border border-foreground/10 hover:border-foreground/15 transition-colors">
               <Calendar size={13} className="text-slate-400" />
               <input
                 type="date"
                 value={dueDate}
-                onChange={(e) => { setDueDate(e.target.value); save({ due_date: e.target.value || getTodayDateString() }); }}
+                onChange={(e) => setDueDate(e.target.value)}
                 className="bg-transparent text-xs text-muted-foreground outline-none [color-scheme:dark]"
               />
               {dday.urgency !== 'none' && (
@@ -1448,35 +1465,33 @@ export function TaskDetailModal({ open, task, onClose, onUpdate, onDelete, onTog
               )}
             </div>
 
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-foreground/5 border border-foreground/5">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-foreground/[0.04] border border-foreground/10">
               <Flag size={13} className="text-slate-400" />
               <PriorityInline
                 value={priority}
-                onChange={(p) => { setPriority(p); save({ priority: p }); }}
+                onChange={(p) => setPriority(p)}
               />
             </div>
           </div>
 
-
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            onBlur={() => save({ description })}
             placeholder={t('personal.tasks.descPlaceholder', '메모 추가...')}
             rows={3}
-            className="w-full bg-white/[0.03] border border-foreground/5 rounded-xl p-3 text-sm text-muted-foreground placeholder-slate-600 outline-none resize-none focus:border-bridge-accent/30 transition-colors"
+            className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl p-3 text-sm text-muted-foreground placeholder-slate-600 outline-none resize-none focus:border-bridge-accent/30 focus:ring-1 focus:ring-bridge-accent/10 transition-all"
           />
 
-          <div className="flex items-center justify-between pt-2 border-t border-foreground/5">
+          <div className="flex items-center justify-between pt-3 border-t border-foreground/[0.08]">
             <span className="text-[10px] text-slate-600">
               Esc {t('common.close', '닫기')}
             </span>
             <button
-              onClick={onDelete}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+              onClick={handleSave}
+              disabled={!title.trim() || !hasChanges}
+              className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold text-white bg-bridge-accent hover:bg-bridge-accent/90 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             >
-              <Trash2 size={12} />
-              {t('common.delete', '삭제')}
+              {t('personal.schedule.save', '저장')}
             </button>
           </div>
         </div>

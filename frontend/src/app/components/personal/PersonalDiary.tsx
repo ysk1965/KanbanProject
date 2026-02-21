@@ -519,15 +519,6 @@ export function PersonalDiary() {
 
   return (
     <div className="h-full flex relative">
-      {/* Mobile Sidebar Toggle Button */}
-      <button
-        onClick={() => setShowMobileSidebar(true)}
-        className="md:hidden fixed left-4 z-40 w-11 h-11 rounded-full bg-bridge-accent shadow-lg shadow-bridge-accent/30 flex items-center justify-center text-white hover:bg-bridge-accent/90 transition-colors"
-        style={{ bottom: 'calc(5rem + env(safe-area-inset-bottom, 0px))' }}
-      >
-        <CalendarIcon size={18} />
-      </button>
-
       {/* Mobile Sidebar Overlay */}
       <AnimatePresence>
         {showMobileSidebar && (
@@ -1036,6 +1027,13 @@ export function PersonalDiary() {
                 </AnimatePresence>
 
                 <div className="flex gap-2 md:gap-3 items-center">
+                  {/* Mobile calendar sidebar toggle */}
+                  <button
+                    onClick={() => setShowMobileSidebar(true)}
+                    className="md:hidden p-3 rounded-xl bg-bridge-accent text-white shadow-lg shadow-bridge-accent/30 hover:bg-bridge-accent/90 active:scale-95 transition-all shrink-0"
+                  >
+                    <CalendarIcon size={18} />
+                  </button>
                   <input
                     type="text"
                     value={message}
@@ -1053,7 +1051,7 @@ export function PersonalDiary() {
                   <button
                     onClick={handleSendMessage}
                     disabled={!message.trim() || isSending || voiceState !== 'idle'}
-                    className="p-3 bg-bridge-accent text-white rounded-xl hover:bg-bridge-accent/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                    className="p-3 bg-bridge-accent text-white rounded-xl shadow-lg shadow-bridge-accent/30 hover:bg-bridge-accent/90 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
                   >
                     <Send size={18} />
                   </button>
@@ -1069,7 +1067,7 @@ export function PersonalDiary() {
                       onClick={voiceState === 'ai-speaking' ? stopAiSpeaking : undefined}
                       disabled={isSending && voiceState === 'idle'}
                       className={`
-                        relative p-3 rounded-xl transition-all select-none touch-none
+                        relative p-3 rounded-xl transition-all select-none touch-none active:scale-95
                         ${voiceState === 'recording'
                           ? 'bg-red-500 text-white scale-110 shadow-lg shadow-red-500/30'
                           : voiceState === 'processing'
@@ -1116,39 +1114,39 @@ export function PersonalDiary() {
       </div>
 
       {/* Reset Confirm Modal */}
-      <MotionModal open={showResetConfirm} onClose={() => setShowResetConfirm(false)} className="sm:max-w-sm p-6">
-              <button
-                onClick={() => setShowResetConfirm(false)}
-                className="absolute top-4 right-4 text-slate-500 hover:text-foreground transition-colors"
-              >
-                <X size={18} />
-              </button>
+      <MotionModal open={showResetConfirm} onClose={() => setShowResetConfirm(false)} className="sm:max-w-sm p-0 overflow-hidden border-foreground/[0.12]">
+        <div>
+          <div className="h-[2px] bg-gradient-to-r from-red-500/60 via-red-400/30 to-transparent" />
 
-              <div className="flex flex-col items-center text-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center">
-                  <AlertTriangle size={22} className="text-red-400" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-foreground mb-1">{t('personal.diary.resetTitle')}</h3>
-                  <p className="text-sm text-slate-400 leading-relaxed whitespace-pre-line">
-                    {t('personal.diary.resetWarning')}
-                  </p>
-                </div>
-                <div className="flex items-center gap-3 w-full mt-1">
-                  <button
-                    onClick={() => setShowResetConfirm(false)}
-                    className="flex-1 px-4 py-2.5 text-sm font-bold text-muted-foreground bg-foreground/5 border border-foreground/10 rounded-xl hover:bg-foreground/10 transition-all"
-                  >
-                    {t('personal.diary.cancel')}
-                  </button>
-                  <button
-                    onClick={handleReset}
-                    className="flex-1 px-4 py-2.5 text-sm font-bold text-white bg-red-500/80 rounded-xl hover:bg-red-500 transition-all"
-                  >
-                    {t('personal.diary.restart')}
-                  </button>
-                </div>
-              </div>
+          <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
+            <div className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center shrink-0">
+              <AlertTriangle size={15} className="text-red-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-sm font-bold text-foreground">{t('personal.diary.resetTitle')}</h3>
+            </div>
+            <button onClick={() => setShowResetConfirm(false)} className="p-1.5 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5 transition-colors shrink-0">
+              <X size={16} />
+            </button>
+          </div>
+
+          <div className="px-5 pt-4 pb-5">
+            <p className="text-sm text-slate-400 leading-relaxed whitespace-pre-line">
+              {t('personal.diary.resetWarning')}
+            </p>
+
+            <div className="flex items-center justify-between pt-3 mt-4 border-t border-foreground/[0.08]">
+              <span className="text-[11px] text-slate-600 select-none">Esc 닫기</span>
+              <button
+                onClick={handleReset}
+                className="flex items-center gap-1.5 px-4 py-1.5 bg-red-500 text-white text-xs font-bold rounded-lg hover:bg-red-500/90 transition-colors"
+              >
+                <RotateCcw size={13} />
+                {t('personal.diary.restart')}
+              </button>
+            </div>
+          </div>
+        </div>
       </MotionModal>
 
       {/* Personal Credit Modal */}

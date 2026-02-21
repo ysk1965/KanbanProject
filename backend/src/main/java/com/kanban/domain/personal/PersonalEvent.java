@@ -63,6 +63,10 @@ public class PersonalEvent extends BaseTimeEntity {
     @Column(name = "recurrence_days_of_week", length = 20)
     private String recurrenceDaysOfWeek;
 
+    @Column(name = "event_type", nullable = false, length = 20)
+    @Builder.Default
+    private String eventType = "SCHEDULE";
+
     @PrePersist
     public void prePersist() {
         if (this.id == null) {

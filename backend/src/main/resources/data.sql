@@ -579,60 +579,60 @@ INSERT INTO personal_habit_logs (id, habit_id, log_date, completed_count, is_com
 -- 3-4. 개인 일정 (Personal Events)
 -- ============================================================================
 -- 이번 주 일정
-INSERT INTO personal_events (id, user_id, title, description, event_date, start_time, end_time, color, all_day, created_at, updated_at) VALUES
+INSERT INTO personal_events (id, user_id, title, description, event_date, start_time, end_time, color, all_day, event_type, created_at, updated_at) VALUES
   ('66666666-0000-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001',
    '팀 스탠드업', '데일리 스크럼 미팅',
-   DATE '2026-02-19', TIME '09:00:00', TIME '09:30:00', '#6366F1', false,
+   DATE '2026-02-19', TIME '09:00:00', TIME '09:30:00', '#6366F1', false, 'SCHEDULE',
    TIMESTAMP '2026-02-01 00:00:00', TIMESTAMP '2026-02-01 00:00:00');
 
-INSERT INTO personal_events (id, user_id, title, description, event_date, start_time, end_time, color, all_day, created_at, updated_at) VALUES
+INSERT INTO personal_events (id, user_id, title, description, event_date, start_time, end_time, color, all_day, event_type, created_at, updated_at) VALUES
   ('66666666-0000-0000-0000-000000000002', 'aaaaaaaa-0000-0000-0000-000000000001',
    '점심 약속 - 대학 동기', '강남역 근처 이탈리안 레스토랑',
-   DATE '2026-02-19', TIME '12:00:00', TIME '13:30:00', '#F59E0B', false,
+   DATE '2026-02-19', TIME '12:00:00', TIME '13:30:00', '#F59E0B', false, 'SCHEDULE',
    TIMESTAMP '2026-02-15 00:00:00', TIMESTAMP '2026-02-15 00:00:00');
 
-INSERT INTO personal_events (id, user_id, title, description, event_date, start_time, end_time, color, all_day, created_at, updated_at) VALUES
+INSERT INTO personal_events (id, user_id, title, description, event_date, start_time, end_time, color, all_day, event_type, created_at, updated_at) VALUES
   ('66666666-0000-0000-0000-000000000003', 'aaaaaaaa-0000-0000-0000-000000000001',
    '코드 리뷰 세션', 'PR #142, #145 리뷰',
-   DATE '2026-02-20', TIME '14:00:00', TIME '15:00:00', '#2DD4BF', false,
+   DATE '2026-02-20', TIME '14:00:00', TIME '15:00:00', '#2DD4BF', false, 'SCHEDULE',
    TIMESTAMP '2026-02-18 00:00:00', TIMESTAMP '2026-02-18 00:00:00');
 
-INSERT INTO personal_events (id, user_id, title, description, event_date, start_time, end_time, color, all_day, created_at, updated_at) VALUES
+INSERT INTO personal_events (id, user_id, title, description, event_date, start_time, end_time, color, all_day, event_type, created_at, updated_at) VALUES
   ('66666666-0000-0000-0000-000000000004', 'aaaaaaaa-0000-0000-0000-000000000001',
    '스프린트 회고',  '2월 스프린트 회고 발표',
-   DATE '2026-02-21', TIME '16:00:00', TIME '17:30:00', '#F43F5E', false,
+   DATE '2026-02-21', TIME '16:00:00', TIME '17:30:00', '#F43F5E', false, 'SCHEDULE',
    TIMESTAMP '2026-02-10 00:00:00', TIMESTAMP '2026-02-10 00:00:00');
 
-INSERT INTO personal_events (id, user_id, title, description, event_date, start_time, end_time, color, all_day, created_at, updated_at) VALUES
+INSERT INTO personal_events (id, user_id, title, description, event_date, start_time, end_time, color, all_day, event_type, created_at, updated_at) VALUES
   ('66666666-0000-0000-0000-000000000005', 'aaaaaaaa-0000-0000-0000-000000000001',
    '프로젝트 데모', '대시보드 v2 데모 시연',
-   DATE '2026-02-22', TIME '15:00:00', TIME '16:30:00', '#6366F1', false,
+   DATE '2026-02-22', TIME '15:00:00', TIME '16:30:00', '#6366F1', false, 'SCHEDULE',
    TIMESTAMP '2026-02-12 00:00:00', TIMESTAMP '2026-02-12 00:00:00');
 
 -- 다음 주 일정
-INSERT INTO personal_events (id, user_id, title, description, event_date, start_time, end_time, color, all_day, created_at, updated_at) VALUES
+INSERT INTO personal_events (id, user_id, title, description, event_date, start_time, end_time, color, all_day, event_type, created_at, updated_at) VALUES
   ('66666666-0000-0000-0000-000000000006', 'aaaaaaaa-0000-0000-0000-000000000001',
    '치과 검진', '정기 치과 검진 (스케일링 포함)',
-   DATE '2026-02-24', TIME '10:00:00', TIME '11:00:00', '#EF4444', false,
+   DATE '2026-02-24', TIME '10:00:00', TIME '11:00:00', '#EF4444', false, 'SCHEDULE',
    TIMESTAMP '2026-02-10 00:00:00', TIMESTAMP '2026-02-10 00:00:00');
 
-INSERT INTO personal_events (id, user_id, title, description, event_date, start_time, end_time, color, all_day, created_at, updated_at) VALUES
+INSERT INTO personal_events (id, user_id, title, description, event_date, start_time, end_time, color, all_day, event_type, created_at, updated_at) VALUES
   ('66666666-0000-0000-0000-000000000007', 'aaaaaaaa-0000-0000-0000-000000000001',
    '온라인 세미나: Spring Boot 4.0', 'InfoQ 주관 Spring Boot 4.0 신기능 세미나',
-   DATE '2026-02-25', TIME '19:00:00', TIME '21:00:00', '#8B5CF6', false,
+   DATE '2026-02-25', TIME '19:00:00', TIME '21:00:00', '#8B5CF6', false, 'SCHEDULE',
    TIMESTAMP '2026-02-14 00:00:00', TIMESTAMP '2026-02-14 00:00:00');
 
 -- All-day 이벤트
-INSERT INTO personal_events (id, user_id, title, description, event_date, color, all_day, created_at, updated_at) VALUES
+INSERT INTO personal_events (id, user_id, title, description, event_date, color, all_day, event_type, created_at, updated_at) VALUES
   ('66666666-0000-0000-0000-000000000008', 'aaaaaaaa-0000-0000-0000-000000000001',
    'AWS SAA 시험일', 'AWS Solutions Architect Associate 시험',
-   DATE '2026-04-15', '#F59E0B', true,
+   DATE '2026-04-15', '#F59E0B', true, 'CALENDAR',
    TIMESTAMP '2026-01-20 00:00:00', TIMESTAMP '2026-01-20 00:00:00');
 
-INSERT INTO personal_events (id, user_id, title, description, event_date, color, all_day, created_at, updated_at) VALUES
+INSERT INTO personal_events (id, user_id, title, description, event_date, color, all_day, event_type, created_at, updated_at) VALUES
   ('66666666-0000-0000-0000-000000000009', 'aaaaaaaa-0000-0000-0000-000000000001',
    '연차 휴가', '개인 연차',
-   DATE '2026-03-03', '#10B981', true,
+   DATE '2026-03-03', '#10B981', true, 'CALENDAR',
    TIMESTAMP '2026-02-18 00:00:00', TIMESTAMP '2026-02-18 00:00:00');
 
 -- ============================================================================
