@@ -20,6 +20,7 @@ public class SchemaMigrationRunner implements CommandLineRunner {
     @Override
     public void run(String... args) {
         addMissingNotesColumns();
+        addMissingPersonalEventsColumns();
         fixNotificationTypeCheck();
     }
 
@@ -46,6 +47,22 @@ public class SchemaMigrationRunner implements CommandLineRunner {
             }
         } catch (Exception e) {
             log.warn("Schema migration: add column {}.{} - {}", table, column, e.getMessage());
+        }
+    }
+
+    /**
+     * personal_events 테이블에 event_type 컬럼 추가.
+     * Hibernate ddl-auto:update가 NOT NULL 컬럼을 DEFAULT 없이 추가하지 못하는 문제 해결.
+     */
+    private void addMissingPersonalEventsColumns() {
+        addColumnIfNotExists("personal_events", "event_type", "VARCHAR(20) DEFAULT 'SCHEDULE'");
+        // 기존 데이터 NULL 채우기
+        try {
+            jdbcTemplate.execute("UPDATE personal_events SET event_type = 'SCHEDULE' WHERE event_type IS NULL");
+            jdbcTemplate.execute("ALTER TABLE personal_events ALTER COLUMN event_type SET NOT NULL");
+            jdbcTemplate.execute("ALTER TABLE personal_events ALTER COLUMN event_type SET DEFAULT 'SCHEDULE'");
+        } catch (Exception e) {
+            log.warn("Schema migration: personal_events.event_type constraint - {}", e.getMessage());
         }
     }
 
