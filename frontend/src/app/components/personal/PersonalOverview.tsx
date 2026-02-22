@@ -630,7 +630,13 @@ function UpcomingDeadlinesWidget({
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (!isToggling && !isAnimating) setTaskConfirm({ id: item.id, title: item.title, isDone });
+                      if (!isToggling && !isAnimating) {
+                        if (isDone) {
+                          setTaskConfirm({ id: item.id, title: item.title, isDone: true });
+                        } else {
+                          handleToggleTask(item.id, false);
+                        }
+                      }
                     }}
                     disabled={isToggling || isAnimating}
                     className="flex-shrink-0 w-[18px] h-[18px] relative overflow-visible"
@@ -1016,19 +1022,30 @@ function HabitsTodayWidget({
                   onClick={() => setEditHabit(habit)}
                   className="rounded-xl border p-3 text-left relative group transition-colors cursor-pointer border-foreground/[0.08] bg-foreground/[0.03] hover:bg-foreground/[0.06]"
                 >
-                  {/* Top accent bar */}
-                  <div
-                    className="absolute top-0 left-3 right-3 h-[2.5px] rounded-b-full"
-                    style={{ backgroundColor: isCompleted ? '#2DD4BF' : color }}
-                  />
+                  {/* Top progress gauge bar */}
+                  <div className="absolute top-0 left-3 right-3 h-[2.5px] rounded-b-full overflow-hidden"
+                    style={{ backgroundColor: `${color}22` }}
+                  >
+                    <motion.div
+                      className="h-full rounded-b-full"
+                      initial={{ width: 0 }}
+                      animate={{ width: weeklyTarget > 0 ? `${Math.min((weeklyCompleted / weeklyTarget) * 100, 100)}%` : '100%' }}
+                      transition={{ duration: 0.5, ease: 'easeOut' }}
+                      style={{ backgroundColor: weeklyCompleted >= weeklyTarget ? '#2DD4BF' : color }}
+                    />
+                  </div>
 
-                  {/* Icon + title + check */}
-                  <div className="flex items-center gap-2 mb-3">
+                  {/* Icon + title + check + count */}
+                  <div className="flex items-center gap-2 mb-2">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         if (isScheduledToday) {
-                          setCheckInConfirm({ id: habit.id, isUndo: isCompleted });
+                          if (isCompleted) {
+                            setCheckInConfirm({ id: habit.id, isUndo: true });
+                          } else {
+                            handleCheckIn(habit.id);
+                          }
                         }
                       }}
                       className="flex-shrink-0"
@@ -1055,10 +1072,16 @@ function HabitsTodayWidget({
                         {habit.title}
                       </div>
                     </div>
+                    {streak > 0 && (
+                      <span className="inline-flex items-center gap-px text-[9px] text-orange-400 font-bold shrink-0">
+                        <Flame size={9} className="shrink-0" />
+                        {streak}
+                      </span>
+                    )}
                   </div>
 
                   {/* Day chips */}
-                  <div className="flex gap-1 mb-2">
+                  <div className="flex gap-1">
                     {HABIT_DAY_ORDER.map(dayIdx => {
                       const isScheduled = scheduledDays.has(dayIdx);
                       const isTodayDay = dayIdx === todayDow;
@@ -1110,21 +1133,6 @@ function HabitsTodayWidget({
                         </div>
                       );
                     })}
-                  </div>
-
-                  {/* Streak + weekly */}
-                  <div className="flex items-center justify-between">
-                    {streak > 0 ? (
-                      <div className="flex items-center gap-0.5 text-[10px] text-orange-400 font-bold">
-                        <Flame size={10} />
-                        {streak}
-                      </div>
-                    ) : <div />}
-                    {weeklyTarget > 0 && (
-                      <span className="text-[10px] text-slate-500">
-                        {weeklyCompleted}/{weeklyTarget}
-                      </span>
-                    )}
                   </div>
                 </motion.div>
               );
@@ -1528,24 +1536,35 @@ function MobileQuickHabits({
     }
   };
 
+  const completedCount = habits.filter(h => h.is_completed).length;
+  const totalCount = habits.length;
+
   if (!dashboardData || habits.length === 0) {
     return (
       <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.1 }}
-        className="flex items-center gap-3 py-2"
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1, duration: 0.3 }}
+        className="rounded-2xl border border-foreground/[0.12] overflow-hidden"
       >
-        <span className="text-[11px] font-bold uppercase tracking-widest text-slate-500">
-          {t('personal.mobile.habitsToday', 'Habits')}
-        </span>
-        <button
-          onClick={() => onNavigateTab('tasks')}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold text-purple-400 bg-purple-400/10 rounded-lg"
-        >
-          <Plus size={12} />
-          {t('personal.mobile.addHabit', 'Add')}
-        </button>
+        <div className="px-3 py-2 bg-foreground/[0.06] border-b border-foreground/[0.06]">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Flame size={16} className="text-purple-400" />
+              <h3 className="text-[13px] font-bold text-foreground">{t('personal.mobile.habitsToday', 'Habits')}</h3>
+            </div>
+            <button
+              onClick={() => onNavigateTab('tasks')}
+              className="flex items-center gap-1 text-[11px] font-bold text-purple-400"
+            >
+              <Plus size={12} />
+              {t('personal.mobile.addHabit', 'Add')}
+            </button>
+          </div>
+        </div>
+        <div className="bg-bridge-dark p-3 flex items-center justify-center">
+          <p className="text-xs text-slate-500">{t('personal.overview.noHabits', 'No habits set up yet')}</p>
+        </div>
       </motion.div>
     );
   }
@@ -1555,19 +1574,23 @@ function MobileQuickHabits({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.15, duration: 0.3 }}
+      className="rounded-2xl border border-foreground/[0.12] overflow-hidden"
     >
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-[11px] font-bold uppercase tracking-widest text-slate-500">
-          {t('personal.mobile.habitsToday', 'Habits')}
-        </span>
-        <button
-          onClick={() => onNavigateTab('tasks')}
-          className="text-[11px] text-slate-500 flex items-center gap-0.5"
-        >
-          {t('personal.overview.viewAll', 'View all')}
-          <ArrowRight size={10} />
-        </button>
+      <div className="px-3 py-2 bg-foreground/[0.06] border-b border-foreground/[0.06]">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Flame size={16} className="text-purple-400" />
+            <h3 className="text-[13px] font-bold text-foreground">{t('personal.mobile.habitsToday', 'Habits')}</h3>
+            {totalCount > 0 && (
+              <span className="text-[10px] font-bold text-purple-400 bg-purple-400/10 px-1.5 py-0.5 rounded-full">
+                {completedCount}/{totalCount}
+              </span>
+            )}
+          </div>
+          <ViewAllButton onClick={() => onNavigateTab('tasks')} />
+        </div>
       </div>
+      <div className="bg-bridge-dark p-3">
       <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
         {habits.map((habit, idx) => {
           const isCompleted = habit.is_completed;
@@ -1578,13 +1601,19 @@ function MobileQuickHabits({
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.05 * idx }}
-              onClick={() => setCheckInConfirm({
-                id: habit.habit_id,
-                name: habit.title,
-                icon: habit.icon || undefined,
-                streak: habit.current_streak,
-                isUndo: isCompleted,
-              })}
+              onClick={() => {
+                if (isCompleted) {
+                  setCheckInConfirm({
+                    id: habit.habit_id,
+                    name: habit.title,
+                    icon: habit.icon || undefined,
+                    streak: habit.current_streak,
+                    isUndo: true,
+                  });
+                } else {
+                  handleCheckIn(habit.habit_id);
+                }
+              }}
               className={`flex-shrink-0 flex flex-col items-center gap-1.5 w-[68px] py-2.5 rounded-xl border transition-all active:scale-95 ${
                 isCompleted
                   ? 'border-bridge-secondary/30 bg-bridge-secondary/[0.08]'
@@ -1619,21 +1648,21 @@ function MobileQuickHabits({
                     <Check size={10} className="text-white" strokeWidth={3} />
                   </motion.div>
                 )}
+                {habit.current_streak > 0 && (
+                  <div className="absolute -bottom-1 -right-1 min-w-[16px] h-[14px] bg-orange-500 rounded-full flex items-center justify-center px-0.5 shadow-sm">
+                    <span className="text-[8px] font-bold text-white leading-none">{habit.current_streak}</span>
+                  </div>
+                )}
               </div>
               <span className={`text-[10px] font-medium truncate w-full text-center px-1 ${
                 isCompleted ? 'text-bridge-secondary' : 'text-foreground'
               }`}>
                 {habit.title}
               </span>
-              {habit.current_streak > 0 && (
-                <div className="flex items-center gap-0.5 text-[9px] text-orange-400 font-bold">
-                  <Flame size={8} />
-                  {habit.current_streak}
-                </div>
-              )}
             </motion.button>
           );
         })}
+      </div>
       </div>
 
       <CheckInConfirmModal

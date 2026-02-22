@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import { LanguageSwitcher } from '../LanguageSwitcher';
-const HeroScene = lazy(() => import('./BridgeScene').then(m => ({ default: m.HeroScene })));
+import { lazyWithRetry } from '../../utils/lazyWithRetry';
+const HeroScene = lazyWithRetry(() => import('./BridgeScene').then(m => ({ default: m.HeroScene })), 'HeroScene');
 import { KanbanDiagram, GanttDiagram, DailyScheduleDiagram, DailyChecklistDiagram, SlackNotificationDiagram, PriceComparisonDiagram, ResourcePulseDiagram, AIReportDiagram, MySpaceOverviewDiagram, EisenhowerDiagram, HabitTrackerDiagram, AIDiaryDiagram } from './Diagrams';
 import { motion, Variants, AnimatePresence } from 'framer-motion';
 import {

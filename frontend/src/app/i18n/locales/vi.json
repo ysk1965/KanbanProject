@@ -2586,7 +2586,10 @@
       "color": "Màu",
       "thisWeek": "Tuần này",
       "holidayCountry": "Quốc gia ngày lễ",
-      "holidayOff": "Tắt"
+      "holidayOff": "Tắt",
+      "tapToView": "Chạm vào ngày để xem hoặc thêm sự kiện",
+      "addSchedule": "Thêm lịch",
+      "dateRange": "Khoảng thời gian"
     },
     "habit": {
       "habits": "Thói quen",

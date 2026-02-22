@@ -37,6 +37,9 @@ public class PersonalEvent extends BaseTimeEntity {
     @Column(name = "event_date", nullable = false)
     private LocalDate eventDate;
 
+    @Column(name = "end_date")
+    private LocalDate endDate;
+
     @Column(name = "start_time")
     private LocalTime startTime;
 
@@ -79,7 +82,8 @@ public class PersonalEvent extends BaseTimeEntity {
     }
 
     public void update(String title, String description, LocalDate eventDate,
-                       LocalTime startTime, LocalTime endTime, String color, Boolean allDay) {
+                       LocalTime startTime, LocalTime endTime, String color, Boolean allDay,
+                       LocalDate endDate) {
         if (title != null) this.title = title;
         if (description != null) this.description = description;
         if (eventDate != null) this.eventDate = eventDate;
@@ -87,6 +91,7 @@ public class PersonalEvent extends BaseTimeEntity {
         this.endTime = endTime;
         if (color != null) this.color = color;
         if (allDay != null) this.allDay = allDay;
+        this.endDate = endDate;
     }
 
     public void updateRecurrence(String recurrenceRule, String recurrenceGroupId,

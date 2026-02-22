@@ -1084,8 +1084,8 @@ export function PersonalSchedule() {
         </div>
 
         {/* ======== Time-grid ======== */}
-        <div className="flex-1 overflow-auto custom-scrollbar">
-          <div className={viewMode === 'day' ? '' : 'min-w-[520px] md:min-w-[760px]'}>
+        <div className="flex-1 overflow-auto custom-scrollbar bg-bridge-dark">
+          <div className={`${viewMode === 'day' ? '' : 'min-w-[520px] md:min-w-[760px]'} bg-bridge-dark`}>
           {/* ---- Day headers (sticky) ---- */}
           <div className="flex sticky top-0 bg-bridge-obsidian/95 backdrop-blur-sm z-10 border-b border-white/[0.06]">
             <div className={`${TIME_COL_W} flex-shrink-0 border-r border-white/[0.06]`} />

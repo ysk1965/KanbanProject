@@ -112,19 +112,27 @@ export function PersonalBoardPage() {
   }, []);
 
   // 모바일 스와이프로 탭 전환
-  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const touchStartRef = useRef<{ x: number; y: number; target: EventTarget | null } | null>(null);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, target: e.target };
   }, []);
 
   const handleTouchEnd = useCallback((e: React.TouchEvent) => {
     if (!touchStartRef.current) return;
     const deltaX = e.changedTouches[0].clientX - touchStartRef.current.x;
     const deltaY = e.changedTouches[0].clientY - touchStartRef.current.y;
+    const target = touchStartRef.current.target;
     touchStartRef.current = null;
 
     if (Math.abs(deltaX) < 50 || Math.abs(deltaX) < Math.abs(deltaY)) return;
+
+    // 가로 스크롤 가능한 컨테이너 내부에서 시작된 스와이프는 탭 전환 무시
+    let el = target as HTMLElement | null;
+    while (el && el !== e.currentTarget) {
+      if (el.scrollWidth > el.clientWidth + 1) return;
+      el = el.parentElement;
+    }
 
     setActiveTab(prev => {
       const idx = TAB_ORDER.indexOf(prev);
@@ -158,7 +166,7 @@ export function PersonalBoardPage() {
             onClick={() => navigate('/boards')}
             className="p-2 hover:bg-bridge-surface-hover rounded-lg transition-colors text-zinc-400 hover:text-foreground"
           >
-            <ArrowLeft size={18} />
+            <Home size={18} />
           </button>
 
           <h1 className="text-sm md:text-lg font-bold tracking-tight text-foreground truncate">{t('dashboard.mySpace')}</h1>

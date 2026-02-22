@@ -24,6 +24,8 @@ public class PersonalEventRequest {
         @NotNull(message = "일정 날짜는 필수입니다")
         private LocalDate eventDate;
 
+        private LocalDate endDate;
+
         private LocalTime startTime;
         private LocalTime endTime;
         private String color;
@@ -43,6 +45,7 @@ public class PersonalEventRequest {
 
         private String description;
         private LocalDate eventDate;
+        private LocalDate endDate;
         private LocalTime startTime;
         private LocalTime endTime;
         private String color;

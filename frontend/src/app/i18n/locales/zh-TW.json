@@ -2452,7 +2452,10 @@
       "color": "顏色",
       "thisWeek": "本週",
       "holidayCountry": "假日國家",
-      "holidayOff": "關閉"
+      "holidayOff": "關閉",
+      "tapToView": "點擊日期查看或新增事件",
+      "addSchedule": "新增日曆",
+      "dateRange": "日期範圍"
     },
     "habit": {
       "habits": "習慣",

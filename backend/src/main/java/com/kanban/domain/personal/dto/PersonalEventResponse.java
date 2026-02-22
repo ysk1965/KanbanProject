@@ -19,6 +19,7 @@ public class PersonalEventResponse {
         private String title;
         private String description;
         private LocalDate eventDate;
+        private LocalDate endDate;
         private LocalTime startTime;
         private LocalTime endTime;
         private String color;
@@ -37,6 +38,7 @@ public class PersonalEventResponse {
                     .title(event.getTitle())
                     .description(event.getDescription())
                     .eventDate(event.getEventDate())
+                    .endDate(event.getEndDate())
                     .startTime(event.getStartTime())
                     .endTime(event.getEndTime())
                     .color(event.getColor())

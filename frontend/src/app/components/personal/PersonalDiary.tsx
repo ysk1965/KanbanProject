@@ -720,7 +720,7 @@ export function PersonalDiary() {
       <div className="flex-1 flex flex-col">
         {/* Credit Badge */}
         {credits && (
-          <div className="flex items-center justify-end px-4 py-2 border-b border-foreground/5">
+          <div className="flex items-center justify-end px-4 py-1 border-b border-foreground/5">
             <button
               onClick={() => {
                 setCreditModalMode(credits.total_available <= 0 ? 'exhausted' : 'purchase');
@@ -752,7 +752,7 @@ export function PersonalDiary() {
           </div>
         ) : !diary ? (
           /* No diary for this date - Warm Welcome */
-          <div className="flex-1 flex flex-col items-center justify-center p-4 md:p-8">
+          <div className="flex-1 flex flex-col items-center justify-center p-4 md:p-8 relative">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -812,6 +812,14 @@ export function PersonalDiary() {
                 {t('personal.diary.canContinue')}
               </p>
             </motion.div>
+
+            {/* Mobile calendar sidebar toggle */}
+            <button
+              onClick={() => setShowMobileSidebar(true)}
+              className="md:hidden absolute bottom-4 left-4 p-3 rounded-xl bg-bridge-accent text-white shadow-lg shadow-bridge-accent/30 hover:bg-bridge-accent/90 active:scale-95 transition-all"
+            >
+              <CalendarIcon size={18} />
+            </button>
           </div>
         ) : diary.status === 'COMPLETED' ? (
           /* Completed Diary View */

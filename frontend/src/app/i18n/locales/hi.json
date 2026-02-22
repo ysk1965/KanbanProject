@@ -2586,7 +2586,10 @@
       "color": "रंग",
       "thisWeek": "इस सप्ताह",
       "holidayCountry": "छुट्टी का देश",
-      "holidayOff": "बंद"
+      "holidayOff": "बंद",
+      "tapToView": "इवेंट देखने या जोड़ने के लिए तारीख पर टैप करें",
+      "addSchedule": "कैलेंडर जोड़ें",
+      "dateRange": "तारीख सीमा"
     },
     "habit": {
       "habits": "आदतें",

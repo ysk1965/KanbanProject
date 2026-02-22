@@ -2586,7 +2586,10 @@
       "color": "色",
       "thisWeek": "今週",
       "holidayCountry": "祝日の国",
-      "holidayOff": "オフ"
+      "holidayOff": "オフ",
+      "tapToView": "日付をタップしてイベントを確認・追加",
+      "addSchedule": "カレンダーを追加",
+      "dateRange": "期間"
     },
     "habit": {
       "habits": "習慣",

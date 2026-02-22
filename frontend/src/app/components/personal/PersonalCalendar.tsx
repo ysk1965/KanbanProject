@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Plus, X, Calendar, ListTodo, CalendarDays, CheckCircle2, Clock, RotateCw, Trash2, Pencil, AlertCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -46,6 +46,12 @@ interface CalendarItem {
   startTime?: string;
   task?: PersonalTask;
   event?: PersonalEvent;
+  isMultiDay?: boolean;
+  isMultiDayStart?: boolean;
+  isMultiDayEnd?: boolean;
+  isMultiDayMiddle?: boolean;
+  multiDayIndex?: number;
+  multiDayTotal?: number;
 }
 
 // ── component ──
@@ -109,6 +115,76 @@ export function PersonalCalendar() {
     return rows;
   }, [calendarDays]);
 
+  // Multi-day overlay spans per week row (for centered title rendering)
+  interface MultiDaySpan {
+    eventId: string;
+    title: string;
+    color: string;
+    colStart: number; // 0-6
+    colEnd: number;   // 0-6 (inclusive)
+    isDone: boolean;
+    row: number; // slot row within the cell (0-based)
+  }
+
+  const weekMultiDaySpans = useMemo(() => {
+    const result: MultiDaySpan[][] = [];
+
+    // Sort multi-day events by event_date (same as cell sorting)
+    const multiDayEvents = events
+      .filter(ev => ev.end_date && !ev.recurrence_group_id)
+      .sort((a, b) => a.event_date.localeCompare(b.event_date));
+
+    weekRows.forEach((week) => {
+      const spans: MultiDaySpan[] = [];
+      const weekStart = toDateKey(week[0].date);
+      const weekEnd = toDateKey(week[6].date);
+      // Track used slots per column for this week
+      const slotUsed: boolean[][] = Array.from({ length: 7 }, () => []);
+
+      multiDayEvents.forEach((ev) => {
+        const evStart = ev.event_date;
+        const evEnd = ev.end_date!;
+        // Check if event overlaps this week
+        if (evEnd < weekStart || evStart > weekEnd) return;
+
+        const colStart = evStart <= weekStart ? 0 : week.findIndex(d => toDateKey(d.date) === evStart);
+        const colEnd = evEnd >= weekEnd ? 6 : week.findIndex(d => toDateKey(d.date) === evEnd);
+        if (colStart < 0 || colEnd < 0) return;
+
+        // Find first available slot that's free across all columns in this span
+        let slot = 0;
+        while (true) {
+          let free = true;
+          for (let c = colStart; c <= colEnd; c++) {
+            if (slotUsed[c][slot]) { free = false; break; }
+          }
+          if (free) break;
+          slot++;
+        }
+        // Reserve slot
+        for (let c = colStart; c <= colEnd; c++) {
+          slotUsed[c][slot] = true;
+        }
+
+        // Only show overlay if within visible items limit
+        if (slot < MAX_VISIBLE_ITEMS) {
+          spans.push({
+            eventId: ev.id,
+            title: ev.title,
+            color: ev.color || '#6366F1',
+            colStart,
+            colEnd,
+            isDone: false,
+            row: slot,
+          });
+        }
+      });
+
+      result.push(spans);
+    });
+    return result;
+  }, [weekRows, events]);
+
   // ── data range for fetching ──
   const gridStartDate = calendarDays[0] ? toDateKey(calendarDays[0].date) : '';
   const gridEndDate = calendarDays.length > 0 ? toDateKey(calendarDays[calendarDays.length - 1].date) : '';
@@ -159,30 +235,60 @@ export function PersonalCalendar() {
       });
     });
 
-    // Events
+    // Events (expand multi-day events across all dates in range)
     events.forEach((ev) => {
-      const dk = ev.event_date;
-      if (!map.has(dk)) map.set(dk, []);
-      map.get(dk)!.push({
-        id: `event-${ev.id}`,
-        title: ev.title,
-        color: ev.color || '#6366F1',
-        type: 'event',
-        isDone: false,
-        isOverdue: false,
-        startTime: ev.start_time?.slice(0, 5),
-        event: ev,
-      });
+      const startDate = ev.event_date;
+      const endDate = ev.end_date || ev.event_date;
+      const isMultiDay = !!ev.end_date;
+
+      // Calculate total days
+      const startD = new Date(startDate + 'T00:00:00');
+      const endD = new Date(endDate + 'T00:00:00');
+      const totalDays = isMultiDay ? Math.round((endD.getTime() - startD.getTime()) / 86400000) + 1 : 1;
+
+      let current = new Date(startDate + 'T00:00:00');
+      let dayIndex = 0;
+
+      while (current <= endD) {
+        const dk = toDateKey(current);
+        if (!map.has(dk)) map.set(dk, []);
+        map.get(dk)!.push({
+          id: `event-${ev.id}${isMultiDay ? `-${dk}` : ''}`,
+          title: ev.title,
+          color: ev.color || '#6366F1',
+          type: 'event',
+          isDone: false,
+          isOverdue: false,
+          startTime: dk === startDate ? ev.start_time?.slice(0, 5) : undefined,
+          event: ev,
+          isMultiDay,
+          isMultiDayStart: isMultiDay && dk === startDate,
+          isMultiDayEnd: isMultiDay && dk === endDate,
+          isMultiDayMiddle: isMultiDay && dk !== startDate && dk !== endDate,
+          multiDayIndex: dayIndex,
+          multiDayTotal: totalDays,
+        });
+        current.setDate(current.getDate() + 1);
+        dayIndex++;
+      }
     });
 
-    // Sort: events with time first (by time), then tasks, then all-day events
+    // Sort: all multi-day items first (sorted by event_date), then timed events, tasks, then single-day all-day events
     map.forEach((items) => {
       items.sort((a, b) => {
+        // Multi-day items always on top (both start and carry-over)
+        if (a.isMultiDay && !b.isMultiDay) return -1;
+        if (!a.isMultiDay && b.isMultiDay) return 1;
+        if (a.isMultiDay && b.isMultiDay) {
+          return (a.event?.event_date || '').localeCompare(b.event?.event_date || '');
+        }
+        // Then timed events
         if (a.type === 'event' && a.startTime && b.type === 'event' && b.startTime) {
           return a.startTime.localeCompare(b.startTime);
         }
         if (a.type === 'event' && a.startTime) return -1;
         if (b.type === 'event' && b.startTime) return 1;
+        // Then tasks before single-day all-day events
         if (a.type === 'task' && b.type === 'event') return -1;
         if (a.type === 'event' && b.type === 'task') return 1;
         return 0;
@@ -210,6 +316,7 @@ export function PersonalCalendar() {
     end_time?: string;
     color: string;
     all_day: boolean;
+    end_date?: string;
   }) => {
     try {
       await personalEventService.create({ ...data, event_date: createDate, event_type: 'CALENDAR' });
@@ -238,6 +345,7 @@ export function PersonalCalendar() {
     end_time?: string | null;
     color?: string;
     all_day?: boolean;
+    end_date?: string | null;
   }) => {
     try {
       await personalEventService.update(eventId, data);
@@ -258,17 +366,17 @@ export function PersonalCalendar() {
   return (
     <div className="h-full flex flex-col bg-bridge-dark overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 md:px-6 py-3 border-b border-foreground/5 shrink-0">
-        <div className="flex items-center gap-3">
-          <button onClick={goToPrevMonth} className="p-1.5 rounded-lg text-zinc-400 hover:text-foreground hover:bg-foreground/5 transition-colors">
-            <ChevronLeft size={18} />
+      <div className="flex items-center justify-between px-4 md:px-6 py-1.5 border-b border-foreground/5 shrink-0">
+        <div className="flex items-center gap-2">
+          <button onClick={goToPrevMonth} className="p-1 rounded-lg text-zinc-400 hover:text-foreground hover:bg-foreground/5 transition-colors">
+            <ChevronLeft size={16} />
           </button>
-          <h2 className="text-base font-bold text-foreground min-w-[140px] text-center">{monthLabel}</h2>
-          <button onClick={goToNextMonth} className="p-1.5 rounded-lg text-zinc-400 hover:text-foreground hover:bg-foreground/5 transition-colors">
-            <ChevronRight size={18} />
+          <h2 className="text-sm font-bold text-foreground min-w-[120px] text-center">{monthLabel}</h2>
+          <button onClick={goToNextMonth} className="p-1 rounded-lg text-zinc-400 hover:text-foreground hover:bg-foreground/5 transition-colors">
+            <ChevronRight size={16} />
           </button>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           {/* Legend */}
           <div className="hidden md:flex items-center gap-3 mr-3 text-[10px] text-zinc-500">
             <span className="flex items-center gap-1">
@@ -283,7 +391,7 @@ export function PersonalCalendar() {
 
           <button
             onClick={goToToday}
-            className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${
+            className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-colors ${
               isTodayMonth
                 ? 'bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white'
                 : 'text-bridge-secondary border border-bridge-secondary/30 hover:bg-bridge-secondary/10'
@@ -296,9 +404,9 @@ export function PersonalCalendar() {
               setCreateDate(todayKey);
               setIsCreateOpen(true);
             }}
-            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-bridge-accent text-white text-xs font-bold rounded-lg hover:bg-bridge-accent/90 transition-colors"
+            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 bg-bridge-accent text-white text-[11px] font-bold rounded-md hover:bg-bridge-accent/90 transition-colors"
           >
-            <Plus size={14} />
+            <Plus size={12} />
             <span>{t('personal.calendar.event')}</span>
           </button>
         </div>
@@ -336,7 +444,7 @@ export function PersonalCalendar() {
       <div className="flex-1 overflow-hidden">
         <div className="grid h-full" style={{ gridTemplateRows: `repeat(${weekRows.length}, 1fr)` }}>
           {weekRows.map((week, weekIdx) => (
-            <div key={weekIdx} className="grid grid-cols-7 min-h-0 overflow-hidden">
+            <div key={weekIdx} className="relative grid grid-cols-7 min-h-0 overflow-hidden">
               {week.map(({ date, isCurrentMonth }, colIdx) => {
                 const dateKey = toDateKey(date);
                 const cellItems = dayCellItemsMap.get(dateKey) || [];
@@ -394,15 +502,19 @@ export function PersonalCalendar() {
                       {visibleItems.map((item) => (
                         <div
                           key={item.id}
-                          className={`px-1 py-0.5 rounded text-[10px] md:text-[11px] overflow-hidden whitespace-nowrap text-center ${
+                          className={`py-0.5 text-[10px] md:text-[11px] overflow-hidden whitespace-nowrap ${
                             item.isDone ? 'opacity-50' : ''
+                          } ${
+                            item.isMultiDay
+                              ? `text-center ${item.isMultiDayStart ? 'rounded-l pl-1 pr-0' : ''} ${item.isMultiDayEnd ? 'rounded-r pr-1 pl-0' : ''} ${item.isMultiDayMiddle ? 'px-0' : ''}`
+                              : 'rounded px-1 text-center'
                           }`}
                           style={{
                             backgroundColor: item.isOverdue ? 'rgba(239,68,68,0.18)' : `${item.color}25`,
                           }}
                         >
                           <span className={`truncate ${item.isDone ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
-                            {item.title}
+                            {item.isMultiDay ? '\u00A0' : item.title}
                           </span>
                         </div>
                       ))}
@@ -410,6 +522,31 @@ export function PersonalCalendar() {
                         <div className="text-[9px] text-zinc-600 text-center">+{hiddenCount}</div>
                       )}
                     </div>
+                  </div>
+                );
+              })}
+              {/* Multi-day title overlay */}
+              {(weekMultiDaySpans[weekIdx] || []).map((span) => {
+                const totalCols = 7;
+                const leftPct = (span.colStart / totalCols) * 100;
+                const widthPct = ((span.colEnd - span.colStart + 1) / totalCols) * 100;
+                // Position: date header ~28px + slot row offset
+                // Each item row is ~18px (py-0.5 + text-[10px]/text-[11px])
+                const topPx = 28 + span.row * 19;
+                return (
+                  <div
+                    key={`overlay-${span.eventId}-${weekIdx}`}
+                    className="absolute pointer-events-none flex items-center justify-center"
+                    style={{
+                      left: `${leftPct}%`,
+                      width: `${widthPct}%`,
+                      top: `${topPx}px`,
+                      height: '18px',
+                    }}
+                  >
+                    <span className={`text-[10px] md:text-[11px] truncate max-w-full px-1 ${span.isDone ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+                      {span.title}
+                    </span>
                   </div>
                 );
               })}
@@ -516,8 +653,8 @@ function TodaySchedule({
     : `${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][today.getMonth()]} ${today.getDate()}`;
 
   return (
-    <div className="mx-3 md:mx-5 my-2.5 border border-bridge-border rounded-xl shrink-0 overflow-hidden">
-      <div className="flex items-center justify-between px-3 md:px-4 py-2.5 mb-0 bg-foreground/[0.04] border-b border-foreground/[0.06]">
+    <div className="mx-3 md:mx-5 my-1.5 border border-bridge-border rounded-xl shrink-0 overflow-hidden">
+      <div className="flex items-center justify-between px-3 md:px-4 py-1.5 mb-0 bg-foreground/[0.04] border-b border-foreground/[0.06]">
         <div className="flex items-center gap-2">
           <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
             {t('personal.calendar.todaySchedule', "Today's Schedule")}
@@ -534,12 +671,11 @@ function TodaySchedule({
         )}
       </div>
 
-      <div className="divide-y divide-foreground/5 px-3 md:px-4 py-1" style={{ minHeight: `${MAX_PREVIEW * 32}px` }}>
+      <div className="divide-y divide-foreground/5 px-3 md:px-4 py-0.5">
         {items.length === 0 ? (
           <button
             onClick={onAddEvent}
-            className="w-full h-full flex items-center justify-center gap-2 rounded-xl border border-dashed border-foreground/10 text-zinc-600 hover:text-zinc-400 hover:border-bridge-border transition-colors"
-            style={{ minHeight: `${MAX_PREVIEW * 32}px` }}
+            className="w-full h-full flex items-center justify-center gap-2 rounded-xl border border-dashed border-foreground/10 text-zinc-600 hover:text-zinc-400 hover:border-bridge-border transition-colors py-3"
           >
             <Plus size={14} />
             <span className="text-xs">{t('personal.calendar.noScheduleToday', 'No schedule today — add one')}</span>
@@ -549,7 +685,7 @@ function TodaySchedule({
           {visibleItems.map((item) => (
             <div
               key={item.id}
-              className={`flex items-center gap-2.5 px-2.5 py-2 transition-colors hover:bg-foreground/5 ${
+              className={`flex items-center gap-2.5 px-2.5 py-1.5 transition-colors hover:bg-foreground/5 ${
                 item.isDone ? 'opacity-50' : ''
               }`}
             >
@@ -742,6 +878,12 @@ function DayDetailModal({
                   {item.task?.priority && item.task.priority !== 'NONE' && (
                     <span className="text-[10px] text-zinc-500">{item.task.priority}</span>
                   )}
+                  {item.event?.end_date && (
+                    <span className="text-[10px] text-bridge-secondary flex items-center gap-0.5">
+                      <CalendarDays size={8} />
+                      {formatDate(item.event.event_date, 'MM/dd')} ~ {formatDate(item.event.end_date, 'MM/dd')}
+                    </span>
+                  )}
                   {item.event?.recurrence_group_id && (
                     <span className="text-[10px] text-purple-400 flex items-center gap-0.5">
                       <RotateCw size={8} />
@@ -842,6 +984,7 @@ function CreateEventModal({
     end_time?: string;
     color: string;
     all_day: boolean;
+    end_date?: string;
   }) => void;
 }) {
   const { t } = useTranslation();
@@ -851,6 +994,22 @@ function CreateEventModal({
   const [endTime, setEndTime] = useState('');
   const [color, setColor] = useState(EVENT_COLORS[0]);
   const [allDay, setAllDay] = useState(true);
+  const [isDateRange, setIsDateRange] = useState(false);
+  const [endDate, setEndDate] = useState('');
+  const endDateRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (open) {
+      setTitle('');
+      setDescription('');
+      setStartTime('');
+      setEndTime('');
+      setColor(EVENT_COLORS[0]);
+      setAllDay(true);
+      setIsDateRange(false);
+      setEndDate('');
+    }
+  }, [open]);
 
   const overlapping = useMemo(
     () => allDay ? [] : getOverlappingEvents(existingEvents, date, startTime, endTime),
@@ -859,6 +1018,7 @@ function CreateEventModal({
 
   const handleSubmit = () => {
     if (!title.trim()) return;
+    if (isDateRange && endDate && endDate < date) return;
     onCreate({
       title: title.trim(),
       description: description.trim() || undefined,
@@ -866,6 +1026,7 @@ function CreateEventModal({
       end_time: allDay ? undefined : (endTime || undefined),
       color,
       all_day: allDay,
+      end_date: isDateRange && endDate ? endDate : undefined,
     });
   };
 
@@ -908,6 +1069,59 @@ function CreateEventModal({
             </div>
           </div>
 
+          {/* Date range toggle */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => {
+                const next = !isDateRange;
+                setIsDateRange(next);
+                if (!next) {
+                  setEndDate('');
+                } else {
+                  setAllDay(true);
+                  if (!endDate) {
+                    const nextDay = new Date(date + 'T00:00:00');
+                    nextDay.setDate(nextDay.getDate() + 1);
+                    setEndDate(toDateKey(nextDay));
+                  }
+                }
+              }}
+              className={`relative w-9 h-[18px] rounded-full transition-colors ${isDateRange ? 'bg-bridge-secondary' : 'bg-foreground/10'}`}
+            >
+              <span className={`absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white transition-transform ${isDateRange ? 'left-[18px]' : 'left-[2px]'}`} />
+            </button>
+            <span className="text-xs text-muted-foreground">{t('personal.calendar.dateRange', '기간')}</span>
+          </div>
+
+          {/* Date range picker (when date range is enabled) */}
+          {isDateRange && (
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-foreground/[0.04] border border-foreground/10 flex-1 min-w-0">
+                <CalendarDays size={13} className="text-slate-400 shrink-0" />
+                <span className="text-xs text-muted-foreground truncate">{formatDate(date, "yy/MM/dd (EEE)")}</span>
+              </div>
+              <span className="text-slate-500 text-xs shrink-0">~</span>
+              <div
+                onClick={() => { try { endDateRef.current?.showPicker(); } catch {} }}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-foreground/[0.04] border border-foreground/10 flex-1 min-w-0 cursor-pointer hover:bg-foreground/[0.06] transition-colors"
+              >
+                <CalendarDays size={13} className="text-slate-400 shrink-0" />
+                <span className="text-xs text-muted-foreground truncate">
+                  {endDate ? formatDate(endDate, "yy/MM/dd (EEE)") : t('personal.calendar.end', '종료')}
+                </span>
+                <input
+                  ref={endDateRef}
+                  type="date"
+                  value={endDate}
+                  min={date}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="sr-only"
+                  tabIndex={-1}
+                />
+              </div>
+            </div>
+          )}
+
           {/* Title */}
           <input
             type="text"
@@ -931,8 +1145,8 @@ function CreateEventModal({
           {/* All-day toggle */}
           <div className="flex items-center gap-3">
             <button
-              onClick={() => setAllDay(!allDay)}
-              className={`relative w-9 h-[18px] rounded-full transition-colors ${allDay ? 'bg-bridge-accent' : 'bg-foreground/10'}`}
+              onClick={() => { if (!isDateRange) setAllDay(!allDay); }}
+              className={`relative w-9 h-[18px] rounded-full transition-colors ${allDay ? 'bg-bridge-accent' : 'bg-foreground/10'} ${isDateRange ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <span className={`absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white transition-transform ${allDay ? 'left-[18px]' : 'left-[2px]'}`} />
             </button>
@@ -940,7 +1154,7 @@ function CreateEventModal({
           </div>
 
           {/* Time inputs (only if not all-day) */}
-          {!allDay && (
+          {!allDay && !isDateRange && (
             <div className="flex items-center gap-2">
               <div className="flex-1">
                 <TimePicker
@@ -1035,6 +1249,7 @@ function EditEventModal({
     end_time?: string | null;
     color?: string;
     all_day?: boolean;
+    end_date?: string | null;
   }) => void;
   onDelete: (eventId: string) => void;
 }) {
@@ -1045,6 +1260,9 @@ function EditEventModal({
   const [endTime, setEndTime] = useState(event?.end_time?.slice(0, 5) || '');
   const [color, setColor] = useState(event?.color || EVENT_COLORS[0]);
   const [allDay, setAllDay] = useState(event?.all_day ?? true);
+  const [isDateRange, setIsDateRange] = useState(!!event?.end_date);
+  const [endDate, setEndDate] = useState(event?.end_date || '');
+  const editEndDateRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (event) {
@@ -1054,6 +1272,8 @@ function EditEventModal({
       setEndTime(event.end_time?.slice(0, 5) || '');
       setColor(event.color || EVENT_COLORS[0]);
       setAllDay(event.all_day);
+      setIsDateRange(!!event.end_date);
+      setEndDate(event.end_date || '');
     }
   }, [event]);
 
@@ -1070,7 +1290,8 @@ function EditEventModal({
     startTime !== (event.start_time?.slice(0, 5) || '') ||
     endTime !== (event.end_time?.slice(0, 5) || '') ||
     color !== (event.color || EVENT_COLORS[0]) ||
-    allDay !== event.all_day;
+    allDay !== event.all_day ||
+    (isDateRange ? endDate : '') !== (event.end_date || '');
 
   const handleSave = () => {
     if (!title.trim() || !hasChanged) return;
@@ -1082,6 +1303,7 @@ function EditEventModal({
       end_time: allDay ? null : (endTime || null),
       color,
       all_day: allDay,
+      end_date: isDateRange && endDate ? endDate : null,
     });
     onClose();
   };
@@ -1137,6 +1359,51 @@ function EditEventModal({
             </div>
           </div>
 
+          {/* Date range toggle */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => {
+                const next = !isDateRange;
+                setIsDateRange(next);
+                if (!next) setEndDate('');
+                if (next) { setAllDay(true); }
+              }}
+              className={`relative w-9 h-[18px] rounded-full transition-colors ${isDateRange ? 'bg-bridge-secondary' : 'bg-foreground/10'}`}
+            >
+              <span className={`absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white transition-transform ${isDateRange ? 'left-[18px]' : 'left-[2px]'}`} />
+            </button>
+            <span className="text-xs text-muted-foreground">{t('personal.calendar.dateRange', '기간')}</span>
+          </div>
+
+          {/* Date range picker */}
+          {isDateRange && (
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-foreground/[0.04] border border-foreground/10 flex-1 min-w-0">
+                <CalendarDays size={13} className="text-slate-400 shrink-0" />
+                <span className="text-xs text-muted-foreground truncate">{formatDate(event.event_date, "yy/MM/dd (EEE)")}</span>
+              </div>
+              <span className="text-slate-500 text-xs shrink-0">~</span>
+              <div
+                onClick={() => { try { editEndDateRef.current?.showPicker(); } catch {} }}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-foreground/[0.04] border border-foreground/10 flex-1 min-w-0 cursor-pointer hover:bg-foreground/[0.06] transition-colors"
+              >
+                <CalendarDays size={13} className="text-slate-400 shrink-0" />
+                <span className="text-xs text-muted-foreground truncate">
+                  {endDate ? formatDate(endDate, "yy/MM/dd (EEE)") : t('personal.calendar.end', '종료')}
+                </span>
+                <input
+                  ref={editEndDateRef}
+                  type="date"
+                  value={endDate}
+                  min={event.event_date}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="sr-only"
+                  tabIndex={-1}
+                />
+              </div>
+            </div>
+          )}
+
           {/* Description */}
           <textarea
             value={description}
@@ -1149,8 +1416,8 @@ function EditEventModal({
           {/* All-day toggle */}
           <div className="flex items-center gap-3">
             <button
-              onClick={() => setAllDay(!allDay)}
-              className={`relative w-9 h-[18px] rounded-full transition-colors ${allDay ? 'bg-bridge-accent' : 'bg-foreground/10'}`}
+              onClick={() => { if (!isDateRange) setAllDay(!allDay); }}
+              className={`relative w-9 h-[18px] rounded-full transition-colors ${allDay ? 'bg-bridge-accent' : 'bg-foreground/10'} ${isDateRange ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <span className={`absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white transition-transform ${allDay ? 'left-[18px]' : 'left-[2px]'}`} />
             </button>
@@ -1158,7 +1425,7 @@ function EditEventModal({
           </div>
 
           {/* Time inputs */}
-          {!allDay && (
+          {!allDay && !isDateRange && (
             <div className="flex items-center gap-2">
               <div className="flex-1">
                 <TimePicker

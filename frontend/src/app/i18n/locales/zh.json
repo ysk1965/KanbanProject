@@ -2586,7 +2586,10 @@
       "color": "颜色",
       "thisWeek": "本周",
       "holidayCountry": "节假日国家",
-      "holidayOff": "关闭"
+      "holidayOff": "关闭",
+      "tapToView": "点击日期查看或添加事件",
+      "addSchedule": "添加日历",
+      "dateRange": "日期范围"
     },
     "habit": {
       "habits": "习惯",

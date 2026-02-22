@@ -2732,13 +2732,13 @@
       "goodMorning": "좋은 아침",
       "goodAfternoon": "좋은 오후",
       "goodEvening": "좋은 저녁",
-      "habits": "습관",
+      "habits": "오늘의 습관",
       "tasks": "할 일",
       "diary": "AI 다이어리",
       "diaryNotStarted": "시작 전",
       "diaryDone": "완료",
       "diaryChatting": "작성 중...",
-      "habitsToday": "습관",
+      "habitsToday": "오늘의 습관",
       "addHabit": "추가"
     },
     "habit": {
@@ -2827,7 +2827,8 @@
       "holidayCountry": "공휴일 국가",
       "holidayOff": "끄기",
       "tapToView": "날짜를 탭하여 일정을 확인하세요",
-      "addSchedule": "캘린더 추가"
+      "addSchedule": "캘린더 추가",
+      "dateRange": "기간"
     },
     "diary": {
       "title": "AI 다이어리",

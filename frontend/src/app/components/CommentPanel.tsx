@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
+import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
 import { TaskComment, CommentAttachment, CommentReaction, User, BoardCustomEmoji, BoardWebSocketEvent } from '../types';
@@ -10,7 +10,8 @@ import { MotionModal } from './ui/MotionModal';
 import { MessageSquare, Send, RefreshCw, Pencil, Trash2, X, Check, Loader2, Paperclip, Play, ChevronLeft, ChevronRight, SmilePlus, Plus, ImageIcon, Sparkles, CheckCircle2, HelpCircle, ListChecks } from 'lucide-react';
 import { VideoThumbnail } from './VideoThumbnail';
 
-const VideoLightbox = lazy(() => import('./VideoLightbox').then(m => ({ default: m.VideoLightbox })));
+import { lazyWithRetry } from '../utils/lazyWithRetry';
+const VideoLightbox = lazyWithRetry(() => import('./VideoLightbox').then(m => ({ default: m.VideoLightbox })), 'VideoLightbox');
 
 // ========== 상수 & 유틸 ==========
 

@@ -53,8 +53,20 @@ public class PersonalEventService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
+        // Validate end_date
+        if (request.getEndDate() != null) {
+            if (request.getEndDate().isBefore(request.getEventDate())) {
+                throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
+            }
+        }
+
         String recurrenceRule = request.getRecurrenceRule();
         String recurrenceGroupId = null;
+
+        // Date range events cannot have recurrence
+        if (request.getEndDate() != null && recurrenceRule != null && !recurrenceRule.isBlank()) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
+        }
 
         if (recurrenceRule != null && !recurrenceRule.isBlank()) {
             recurrenceGroupId = UUID.randomUUID().toString();
@@ -130,7 +142,8 @@ public class PersonalEventService {
                 request.getStartTime(),
                 request.getEndTime(),
                 request.getColor(),
-                request.getAllDay()
+                request.getAllDay(),
+                request.getEndDate()
         );
 
         // 반복 일정의 색상 변경 시 같은 그룹 전체에 적용
@@ -139,7 +152,7 @@ public class PersonalEventService {
                     .findByRecurrenceGroupIdOrderByEventDateAsc(event.getRecurrenceGroupId());
             for (PersonalEvent e : groupEvents) {
                 if (!e.getId().equals(eventId)) {
-                    e.update(null, null, null, e.getStartTime(), e.getEndTime(), request.getColor(), null);
+                    e.update(null, null, null, e.getStartTime(), e.getEndTime(), request.getColor(), null, e.getEndDate());
                 }
             }
             log.info("Recurring event color updated for group: {} ({} events)", event.getRecurrenceGroupId(), groupEvents.size());
@@ -333,6 +346,7 @@ public class PersonalEventService {
                 .title(request.getTitle())
                 .description(request.getDescription())
                 .eventDate(eventDate)
+                .endDate(recurrenceGroupId == null ? request.getEndDate() : null)
                 .startTime(request.getStartTime())
                 .endTime(request.getEndTime())
                 .color(request.getColor() != null ? request.getColor() : "#6366F1")

@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef, Suspense } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import { isWhiteLabelDomain } from '../utils/domain';
@@ -20,9 +20,10 @@ import { DailyScheduleView } from '../components/DailyScheduleView';
 import { MeetingCalendarView } from '../components/MeetingCalendarView';
 import { WeeklyScheduleView } from '../components/WeeklyScheduleView';
 import { CalendarView } from '../components/CalendarView';
-const StatisticsView = lazy(() => import('../components/StatisticsView').then(m => ({ default: m.StatisticsView })));
-const AIReportPanel = lazy(() => import('../components/AIReportPanel').then(m => ({ default: m.AIReportPanel })));
-const NotesView = lazy(() => import('../components/notes/NotesView').then(m => ({ default: m.NotesView })));
+import { lazyWithRetry } from '../utils/lazyWithRetry';
+const StatisticsView = lazyWithRetry(() => import('../components/StatisticsView').then(m => ({ default: m.StatisticsView })), 'StatisticsView');
+const AIReportPanel = lazyWithRetry(() => import('../components/AIReportPanel').then(m => ({ default: m.AIReportPanel })), 'AIReportPanel');
+const NotesView = lazyWithRetry(() => import('../components/notes/NotesView').then(m => ({ default: m.NotesView })), 'NotesView');
 import { EmptyBoardGuide } from '../components/EmptyBoardGuide';
 import { QuickAddTaskModal } from '../components/QuickAddTaskModal';
 import {

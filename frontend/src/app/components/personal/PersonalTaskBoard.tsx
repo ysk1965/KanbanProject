@@ -347,22 +347,38 @@ function AllHabitsBar({ onNavigateHabits, refreshKey }: { onNavigateHabits?: () 
                 style={isScheduledToday ? { borderColor: `${color}40` } : undefined}
                 onClick={() => setEditHabit(habit)}
               >
-                {/* Top accent bar */}
-                <div
-                  className="absolute top-0 left-3 right-3 h-[2.5px] rounded-b-full"
-                  style={{ backgroundColor: isCompleted ? '#2DD4BF' : color, opacity: isScheduledToday ? 1 : 0.4 }}
-                />
+                {/* Top progress gauge bar */}
+                <div className="absolute top-0 left-3 right-3 h-[2.5px] rounded-b-full overflow-hidden"
+                  style={{ backgroundColor: `${color}22`, opacity: isScheduledToday ? 1 : 0.4 }}
+                >
+                  <motion.div
+                    className="h-full rounded-b-full"
+                    initial={{ width: 0 }}
+                    animate={{ width: weeklyTarget > 0 ? `${Math.min((weeklyCompleted / weeklyTarget) * 100, 100)}%` : '100%' }}
+                    transition={{ duration: 0.5, ease: 'easeOut' }}
+                    style={{ backgroundColor: weeklyCompleted >= weeklyTarget ? '#2DD4BF' : color }}
+                  />
+                </div>
 
                   {/* Icon + title + check */}
-                  <div className="flex items-center gap-2 mb-3">
+                  <div className="flex items-center gap-2 mb-2">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        setCheckInConfirm({
-                          id: habit.id,
-                          isUndo: isCompleted,
-                          isNonToday: !isScheduledToday && !isCompleted,
-                        });
+                        if (isCompleted) {
+                          setCheckInConfirm({
+                            id: habit.id,
+                            isUndo: true,
+                          });
+                        } else if (!isScheduledToday) {
+                          setCheckInConfirm({
+                            id: habit.id,
+                            isUndo: false,
+                            isNonToday: true,
+                          });
+                        } else {
+                          handleCheckIn(habit.id);
+                        }
                       }}
                       className="flex-shrink-0"
                     >
@@ -390,10 +406,16 @@ function AllHabitsBar({ onNavigateHabits, refreshKey }: { onNavigateHabits?: () 
                         {habit.title}
                       </div>
                     </div>
+                    {streak > 0 && (
+                      <span className="inline-flex items-center gap-px text-[9px] text-orange-400 font-bold shrink-0">
+                        <Flame size={9} className="shrink-0" />
+                        {streak}
+                      </span>
+                    )}
                   </div>
 
                   {/* Day chips */}
-                  <div className="flex gap-[3px] mb-2.5">
+                  <div className="flex gap-[3px]">
                     {DAY_DISPLAY_ORDER.map(dayIdx => {
                       const isScheduled = scheduledDays.has(dayIdx);
                       const isTodayDay = dayIdx === todayDow;
@@ -449,20 +471,6 @@ function AllHabitsBar({ onNavigateHabits, refreshKey }: { onNavigateHabits?: () 
                     })}
                   </div>
 
-                  {/* Streak + weekly */}
-                  <div className="flex items-center justify-between">
-                    {streak > 0 ? (
-                      <div className="flex items-center gap-0.5 text-[10px] text-orange-400 font-bold">
-                        <Flame size={11} />
-                        {streak}
-                      </div>
-                    ) : <div />}
-                    {weeklyTarget > 0 && (
-                      <span className="text-[10px] text-slate-500 font-medium">
-                        {weeklyCompleted}/{weeklyTarget}
-                      </span>
-                    )}
-                  </div>
               </motion.div>
             );
           })}
@@ -636,17 +644,24 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
   };
 
   const handleToggleComplete = async (task: PersonalTask) => {
+    const newStatus = task.status === 'DONE' ? 'TODO' : 'DONE';
+    // Optimistic update — no full refresh
+    onOptimisticUpdate(task.id, { status: newStatus });
     try {
-      savedScrollTop.current = scrollContainerRef.current?.scrollTop ?? null;
-      await personalTaskAPI.updateStatus(task.id, task.status === 'DONE' ? 'TODO' : 'DONE');
-      onRefresh();
+      await personalTaskAPI.updateStatus(task.id, newStatus);
     } catch (error) {
       console.error('Failed to toggle task:', error);
+      // Revert on failure
+      onOptimisticUpdate(task.id, { status: task.status });
     }
   };
 
   const requestTaskToggle = (task: PersonalTask) => {
-    setTaskConfirm({ id: task.id, title: task.title, isDone: task.status === 'DONE' });
+    if (task.status === 'DONE') {
+      setTaskConfirm({ id: task.id, title: task.title, isDone: true });
+    } else {
+      handleToggleComplete(task);
+    }
   };
 
   const handleDelete = async (taskId: string) => {

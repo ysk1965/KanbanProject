@@ -2561,6 +2561,7 @@ export const personalEventService = {
     title: string;
     description?: string;
     event_date: string;
+    end_date?: string;
     start_time?: string;
     end_time?: string;
     color?: string;
@@ -2577,6 +2578,7 @@ export const personalEventService = {
     title?: string;
     description?: string;
     event_date?: string;
+    end_date?: string | null;
     start_time?: string | null;
     end_time?: string | null;
     color?: string;

@@ -2586,7 +2586,10 @@
       "color": "Color",
       "thisWeek": "Esta semana",
       "holidayCountry": "País de festivos",
-      "holidayOff": "Desactivado"
+      "holidayOff": "Desactivado",
+      "tapToView": "Toca una fecha para ver o agregar eventos",
+      "addSchedule": "Agregar calendario",
+      "dateRange": "Rango de fechas"
     },
     "habit": {
       "habits": "Hábitos",

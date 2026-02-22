@@ -268,7 +268,13 @@ export function PersonalHabits() {
                         ? 'bg-bridge-secondary/5 border border-bridge-secondary/20'
                         : 'bg-white/[0.03] border border-foreground/5 hover:bg-white/[0.06]'
                     }`}
-                    onClick={() => setCheckInConfirm({ id: item.habit_id, isUndo: item.is_completed })}
+                    onClick={() => {
+                      if (item.is_completed) {
+                        setCheckInConfirm({ id: item.habit_id, isUndo: true });
+                      } else {
+                        handleCheckIn(item.habit_id);
+                      }
+                    }}
                   >
                     {/* Check circle with animation */}
                     <motion.div
@@ -361,7 +367,13 @@ export function PersonalHabits() {
                         ? 'bg-bridge-secondary/5 border border-bridge-secondary/20'
                         : 'bg-white/[0.02] border border-foreground/5 hover:bg-white/[0.04]'
                     }`}
-                    onClick={() => setCheckInConfirm({ id: habit.id, isUndo: isCompleted, isNonToday: true })}
+                    onClick={() => {
+                      if (isCompleted) {
+                        setCheckInConfirm({ id: habit.id, isUndo: true, isNonToday: true });
+                      } else {
+                        setCheckInConfirm({ id: habit.id, isUndo: false, isNonToday: true });
+                      }
+                    }}
                   >
                     {/* Check circle */}
                     <motion.div

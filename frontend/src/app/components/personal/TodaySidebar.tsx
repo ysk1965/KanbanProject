@@ -23,6 +23,32 @@ export function TodaySidebar({ tasks, onTaskClick }: TodaySidebarProps) {
   const [deleteHabitTarget, setDeleteHabitTarget] = useState<{ id: string; title: string } | null>(null);
   const [checkInConfirm, setCheckInConfirm] = useState<{ id: string; isUndo: boolean } | null>(null);
 
+  const doHabitCheckIn = useCallback(async (habitId: string, isUndo?: boolean) => {
+    const revertTo = !!isUndo;
+    setTodayData(prev => prev ? {
+      ...prev,
+      habits_today: prev.habits_today.map(h =>
+        h.habit_id === habitId ? { ...h, is_completed: !isUndo } : h
+      ),
+    } : prev);
+    try {
+      const updated = await personalHabitAPI.checkIn(habitId, { log_date: getTodayDateString() });
+      setTodayData(prev => prev ? {
+        ...prev,
+        habits_today: prev.habits_today.map(h =>
+          h.habit_id === habitId ? { ...h, ...updated } : h
+        ),
+      } : prev);
+    } catch {
+      setTodayData(prev => prev ? {
+        ...prev,
+        habits_today: prev.habits_today.map(h =>
+          h.habit_id === habitId ? { ...h, is_completed: revertTo } : h
+        ),
+      } : prev);
+    }
+  }, []);
+
   const loadTodayData = useCallback(async () => {
     try {
       setIsLoading(true);
@@ -294,7 +320,11 @@ export function TodaySidebar({ tasks, onTaskClick }: TodaySidebarProps) {
                           <div
                             className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer"
                             onClick={() => {
-                              setCheckInConfirm({ id: item.habit_id, isUndo: item.is_completed });
+                              if (item.is_completed) {
+                                setCheckInConfirm({ id: item.habit_id, isUndo: true });
+                              } else {
+                                doHabitCheckIn(item.habit_id);
+                              }
                             }}
                           >
                             <motion.div
@@ -415,35 +445,10 @@ export function TodaySidebar({ tasks, onTaskClick }: TodaySidebarProps) {
         habitIcon={checkInConfirm && todayData ? todayData.habits_today.find(h => h.habit_id === checkInConfirm.id)?.icon : undefined}
         streakCount={checkInConfirm && todayData ? todayData.habits_today.find(h => h.habit_id === checkInConfirm.id)?.current_streak : undefined}
         isUndo={checkInConfirm?.isUndo}
-        onConfirm={async () => {
+        onConfirm={() => {
           if (!checkInConfirm) return;
-          const habitId = checkInConfirm.id;
-          const isUndo = checkInConfirm.isUndo;
+          doHabitCheckIn(checkInConfirm.id, checkInConfirm.isUndo);
           setCheckInConfirm(null);
-          const revertTo = !!isUndo;
-          // Optimistic update
-          setTodayData(prev => prev ? {
-            ...prev,
-            habits_today: prev.habits_today.map(h =>
-              h.habit_id === habitId ? { ...h, is_completed: !isUndo } : h
-            ),
-          } : prev);
-          try {
-            const updated = await personalHabitAPI.checkIn(habitId, { log_date: getTodayDateString() });
-            setTodayData(prev => prev ? {
-              ...prev,
-              habits_today: prev.habits_today.map(h =>
-                h.habit_id === habitId ? { ...h, ...updated } : h
-              ),
-            } : prev);
-          } catch {
-            setTodayData(prev => prev ? {
-              ...prev,
-              habits_today: prev.habits_today.map(h =>
-                h.habit_id === habitId ? { ...h, is_completed: revertTo } : h
-              ),
-            } : prev);
-          }
         }}
         onCancel={() => setCheckInConfirm(null)}
       />

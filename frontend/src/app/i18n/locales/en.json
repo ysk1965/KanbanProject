@@ -2828,7 +2828,8 @@
       "holidayCountry": "Holiday country",
       "holidayOff": "Off",
       "tapToView": "Tap a date to view or add events",
-      "addSchedule": "Add calendar"
+      "addSchedule": "Add calendar",
+      "dateRange": "Date range"
     },
     "diary": {
       "title": "AI Diary",
