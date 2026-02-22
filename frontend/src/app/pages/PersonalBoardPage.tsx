@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { CalendarDays, BookHeart, ArrowLeft, LayoutGrid, Calendar, Plus, Command, Home, Loader2, Flag, Repeat, Flame, X, ChevronDown, ChevronUp } from 'lucide-react';
@@ -17,6 +17,7 @@ import { PersonalTask, PersonalTaskPriority, HabitFrequency, HabitImportance } f
 import { getTodayDateString } from '../utils/dateUtils';
 
 type TabType = 'overview' | 'tasks' | 'schedule' | 'calendar' | 'diary';
+const TAB_ORDER: TabType[] = ['overview', 'tasks', 'schedule', 'calendar', 'diary'];
 
 export function PersonalBoardPage() {
   const { t } = useTranslation();
@@ -99,6 +100,46 @@ export function PersonalBoardPage() {
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, ...updates } : t));
   }, []);
 
+  // 탭 전환 슬라이드 방향 (1: 오른쪽→, -1: ←왼쪽)
+  const slideDirectionRef = useRef(0);
+
+  const changeTab = useCallback((newTab: TabType) => {
+    setActiveTab(prev => {
+      if (prev === newTab) return prev;
+      slideDirectionRef.current = TAB_ORDER.indexOf(newTab) > TAB_ORDER.indexOf(prev) ? 1 : -1;
+      return newTab;
+    });
+  }, []);
+
+  // 모바일 스와이프로 탭 전환
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  }, []);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (!touchStartRef.current) return;
+    const deltaX = e.changedTouches[0].clientX - touchStartRef.current.x;
+    const deltaY = e.changedTouches[0].clientY - touchStartRef.current.y;
+    touchStartRef.current = null;
+
+    if (Math.abs(deltaX) < 50 || Math.abs(deltaX) < Math.abs(deltaY)) return;
+
+    setActiveTab(prev => {
+      const idx = TAB_ORDER.indexOf(prev);
+      if (deltaX < 0 && idx < TAB_ORDER.length - 1) {
+        slideDirectionRef.current = 1;
+        return TAB_ORDER[idx + 1];
+      }
+      if (deltaX > 0 && idx > 0) {
+        slideDirectionRef.current = -1;
+        return TAB_ORDER[idx - 1];
+      }
+      return prev;
+    });
+  }, []);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-dvh bg-bridge-dark">
@@ -129,7 +170,7 @@ export function PersonalBoardPage() {
             {tabs.map((tab) => (
               <button
                 key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
+                onClick={() => changeTab(tab.key)}
                 className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
                   activeTab === tab.key
                     ? 'bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20'
@@ -165,20 +206,37 @@ export function PersonalBoardPage() {
       </header>
 
       {/* Content */}
-      <main className="flex-1 overflow-hidden flex flex-col">
-          {activeTab === 'overview' && (
-            <PersonalOverview onNavigateTab={setActiveTab} />
-          )}
-          {activeTab === 'tasks' && (
-            <PersonalTaskBoard
-              tasks={tasks}
-              onRefresh={refresh}
-              onOptimisticUpdate={optimisticUpdate}
-            />
-          )}
-          {activeTab === 'schedule' && <PersonalSchedule />}
-          {activeTab === 'calendar' && <PersonalCalendar />}
-          {activeTab === 'diary' && <PersonalDiary />}
+      <main className="flex-1 overflow-hidden flex flex-col" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+        <AnimatePresence mode="wait" custom={slideDirectionRef.current}>
+          <motion.div
+            key={activeTab}
+            custom={slideDirectionRef.current}
+            variants={{
+              enter: (dir: number) => ({ x: dir > 0 ? '40%' : '-40%', opacity: 0 }),
+              center: { x: 0, opacity: 1 },
+              exit: (dir: number) => ({ x: dir > 0 ? '-40%' : '40%', opacity: 0 }),
+            }}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ duration: 0.2, ease: 'easeInOut' }}
+            className="flex-1 overflow-hidden flex flex-col"
+          >
+            {activeTab === 'overview' && (
+              <PersonalOverview onNavigateTab={changeTab} />
+            )}
+            {activeTab === 'tasks' && (
+              <PersonalTaskBoard
+                tasks={tasks}
+                onRefresh={refresh}
+                onOptimisticUpdate={optimisticUpdate}
+              />
+            )}
+            {activeTab === 'schedule' && <PersonalSchedule />}
+            {activeTab === 'calendar' && <PersonalCalendar />}
+            {activeTab === 'diary' && <PersonalDiary />}
+          </motion.div>
+        </AnimatePresence>
       </main>
 
       {/* Mobile bottom toolbar – Tasks tab */}
@@ -207,7 +265,7 @@ export function PersonalBoardPage() {
             return (
               <button
                 key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
+                onClick={() => changeTab(tab.key)}
                 className="relative flex flex-col items-center gap-0.5 min-w-[3rem] px-2 py-1 rounded-lg"
               >
                 {isActive && (
