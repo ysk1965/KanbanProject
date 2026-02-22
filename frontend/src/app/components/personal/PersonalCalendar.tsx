@@ -994,9 +994,7 @@ function CreateEventModal({
   const [endTime, setEndTime] = useState('');
   const [color, setColor] = useState(EVENT_COLORS[0]);
   const [allDay, setAllDay] = useState(true);
-  const [isDateRange, setIsDateRange] = useState(false);
-  const [endDate, setEndDate] = useState('');
-  const endDateRef = useRef<HTMLInputElement>(null);
+  const [endDate, setEndDate] = useState(date);
 
   useEffect(() => {
     if (open) {
@@ -1006,8 +1004,7 @@ function CreateEventModal({
       setEndTime('');
       setColor(EVENT_COLORS[0]);
       setAllDay(true);
-      setIsDateRange(false);
-      setEndDate('');
+      setEndDate(date);
     }
   }, [open]);
 
@@ -1018,7 +1015,7 @@ function CreateEventModal({
 
   const handleSubmit = () => {
     if (!title.trim()) return;
-    if (isDateRange && endDate && endDate < date) return;
+    if (endDate && endDate < date) return;
     onCreate({
       title: title.trim(),
       description: description.trim() || undefined,
@@ -1026,7 +1023,7 @@ function CreateEventModal({
       end_time: allDay ? undefined : (endTime || undefined),
       color,
       all_day: allDay,
-      end_date: isDateRange && endDate ? endDate : undefined,
+      end_date: endDate && endDate !== date ? endDate : undefined,
     });
   };
 
@@ -1047,80 +1044,48 @@ function CreateEventModal({
         </div>
 
         <div className="px-5 pb-5 space-y-3 pt-4">
-          {/* Date chip + Color picker */}
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-foreground/[0.04] border border-foreground/10">
-              <CalendarDays size={13} className="text-slate-400" />
-              <span className="text-xs text-muted-foreground">{formatDate(date, "PPP '('EEE')'")}</span>
+          {/* Date range */}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-foreground/[0.04] border border-foreground/10 flex-1 min-w-0">
+              <CalendarDays size={13} className="text-slate-400 shrink-0" />
+              <span className="text-xs text-muted-foreground truncate">{formatDate(date, "yy/MM/dd (EEE)")}</span>
             </div>
-            <div className="flex items-center gap-1.5">
-              {EVENT_COLORS.map((c) => (
-                <button
-                  key={c}
-                  onClick={() => setColor(c)}
-                  className={`w-5 h-5 rounded-full transition-all ${
-                    color === c
-                      ? 'ring-2 ring-foreground/40 ring-offset-1 ring-offset-bridge-obsidian scale-110'
-                      : 'hover:scale-110 opacity-60 hover:opacity-100'
-                  }`}
-                  style={{ backgroundColor: c }}
-                />
-              ))}
+            <span className="text-slate-500 text-xs shrink-0">~</span>
+            <div className="relative flex items-center gap-2 px-3 py-1.5 rounded-lg bg-foreground/[0.04] border border-foreground/10 flex-1 min-w-0 cursor-pointer hover:bg-foreground/[0.06] transition-colors">
+              <CalendarDays size={13} className="text-slate-400 shrink-0 pointer-events-none" />
+              <span className="text-xs text-muted-foreground truncate pointer-events-none">
+                {formatDate(endDate, "yy/MM/dd (EEE)")}
+              </span>
+              <input
+                type="date"
+                value={endDate}
+                min={date}
+                onChange={(e) => {
+                  const newEnd = e.target.value || date;
+                  setEndDate(newEnd);
+                  if (newEnd !== date) setAllDay(true);
+                }}
+                className="date-overlay absolute inset-0 w-full h-full border-0 bg-transparent z-10 cursor-pointer"
+                style={{ opacity: 0.02, fontSize: '16px' }}
+              />
             </div>
           </div>
 
-          {/* Date range toggle */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => {
-                const next = !isDateRange;
-                setIsDateRange(next);
-                if (!next) {
-                  setEndDate('');
-                } else {
-                  setAllDay(true);
-                  if (!endDate) {
-                    const nextDay = new Date(date + 'T00:00:00');
-                    nextDay.setDate(nextDay.getDate() + 1);
-                    setEndDate(toDateKey(nextDay));
-                  }
-                }
-              }}
-              className={`relative w-9 h-[18px] rounded-full transition-colors ${isDateRange ? 'bg-bridge-secondary' : 'bg-foreground/10'}`}
-            >
-              <span className={`absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white transition-transform ${isDateRange ? 'left-[18px]' : 'left-[2px]'}`} />
-            </button>
-            <span className="text-xs text-muted-foreground">{t('personal.calendar.dateRange', '기간')}</span>
+          {/* Color picker */}
+          <div className="flex items-center gap-1.5">
+            {EVENT_COLORS.map((c) => (
+              <button
+                key={c}
+                onClick={() => setColor(c)}
+                className={`w-5 h-5 rounded-full transition-all ${
+                  color === c
+                    ? 'ring-2 ring-foreground/40 ring-offset-1 ring-offset-bridge-obsidian scale-110'
+                    : 'hover:scale-110 opacity-60 hover:opacity-100'
+                }`}
+                style={{ backgroundColor: c }}
+              />
+            ))}
           </div>
-
-          {/* Date range picker (when date range is enabled) */}
-          {isDateRange && (
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-foreground/[0.04] border border-foreground/10 flex-1 min-w-0">
-                <CalendarDays size={13} className="text-slate-400 shrink-0" />
-                <span className="text-xs text-muted-foreground truncate">{formatDate(date, "yy/MM/dd (EEE)")}</span>
-              </div>
-              <span className="text-slate-500 text-xs shrink-0">~</span>
-              <div
-                onClick={() => { try { endDateRef.current?.showPicker(); } catch {} }}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-foreground/[0.04] border border-foreground/10 flex-1 min-w-0 cursor-pointer hover:bg-foreground/[0.06] transition-colors"
-              >
-                <CalendarDays size={13} className="text-slate-400 shrink-0" />
-                <span className="text-xs text-muted-foreground truncate">
-                  {endDate ? formatDate(endDate, "yy/MM/dd (EEE)") : t('personal.calendar.end', '종료')}
-                </span>
-                <input
-                  ref={endDateRef}
-                  type="date"
-                  value={endDate}
-                  min={date}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="sr-only"
-                  tabIndex={-1}
-                />
-              </div>
-            </div>
-          )}
 
           {/* Title */}
           <input
@@ -1145,16 +1110,16 @@ function CreateEventModal({
           {/* All-day toggle */}
           <div className="flex items-center gap-3">
             <button
-              onClick={() => { if (!isDateRange) setAllDay(!allDay); }}
-              className={`relative w-9 h-[18px] rounded-full transition-colors ${allDay ? 'bg-bridge-accent' : 'bg-foreground/10'} ${isDateRange ? 'opacity-50 cursor-not-allowed' : ''}`}
+              onClick={() => { if (endDate === date) setAllDay(!allDay); }}
+              className={`relative w-9 h-[18px] rounded-full transition-colors ${allDay ? 'bg-bridge-accent' : 'bg-foreground/10'} ${endDate !== date ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <span className={`absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white transition-transform ${allDay ? 'left-[18px]' : 'left-[2px]'}`} />
             </button>
             <span className="text-xs text-muted-foreground">{t('personal.calendar.allDay')}</span>
           </div>
 
-          {/* Time inputs (only if not all-day) */}
-          {!allDay && !isDateRange && (
+          {/* Time inputs (only if not all-day and same day) */}
+          {!allDay && endDate === date && (
             <div className="flex items-center gap-2">
               <div className="flex-1">
                 <TimePicker
@@ -1260,9 +1225,7 @@ function EditEventModal({
   const [endTime, setEndTime] = useState(event?.end_time?.slice(0, 5) || '');
   const [color, setColor] = useState(event?.color || EVENT_COLORS[0]);
   const [allDay, setAllDay] = useState(event?.all_day ?? true);
-  const [isDateRange, setIsDateRange] = useState(!!event?.end_date);
-  const [endDate, setEndDate] = useState(event?.end_date || '');
-  const editEndDateRef = useRef<HTMLInputElement>(null);
+  const [endDate, setEndDate] = useState(event?.end_date || event?.event_date || '');
 
   useEffect(() => {
     if (event) {
@@ -1272,8 +1235,7 @@ function EditEventModal({
       setEndTime(event.end_time?.slice(0, 5) || '');
       setColor(event.color || EVENT_COLORS[0]);
       setAllDay(event.all_day);
-      setIsDateRange(!!event.end_date);
-      setEndDate(event.end_date || '');
+      setEndDate(event.end_date || event.event_date);
     }
   }, [event]);
 
@@ -1291,7 +1253,7 @@ function EditEventModal({
     endTime !== (event.end_time?.slice(0, 5) || '') ||
     color !== (event.color || EVENT_COLORS[0]) ||
     allDay !== event.all_day ||
-    (isDateRange ? endDate : '') !== (event.end_date || '');
+    (endDate !== event.event_date ? endDate : '') !== (event.end_date || '');
 
   const handleSave = () => {
     if (!title.trim() || !hasChanged) return;
@@ -1303,7 +1265,7 @@ function EditEventModal({
       end_time: allDay ? null : (endTime || null),
       color,
       all_day: allDay,
-      end_date: isDateRange && endDate ? endDate : null,
+      end_date: endDate && endDate !== event.event_date ? endDate : null,
     });
     onClose();
   };
@@ -1337,72 +1299,48 @@ function EditEventModal({
         </div>
 
         <div className="px-5 pb-5 space-y-3 pt-4">
-          {/* Date chip + Color picker */}
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-foreground/[0.04] border border-foreground/10">
-              <CalendarDays size={13} className="text-slate-400" />
-              <span className="text-xs text-muted-foreground">{formatDate(event.event_date, "PPP '('EEE')'")}</span>
+          {/* Date range */}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-foreground/[0.04] border border-foreground/10 flex-1 min-w-0">
+              <CalendarDays size={13} className="text-slate-400 shrink-0" />
+              <span className="text-xs text-muted-foreground truncate">{formatDate(event.event_date, "yy/MM/dd (EEE)")}</span>
             </div>
-            <div className="flex items-center gap-1.5">
-              {EVENT_COLORS.map((c) => (
-                <button
-                  key={c}
-                  onClick={() => setColor(c)}
-                  className={`w-5 h-5 rounded-full transition-all ${
-                    color === c
-                      ? 'ring-2 ring-foreground/40 ring-offset-1 ring-offset-bridge-obsidian scale-110'
-                      : 'hover:scale-110 opacity-60 hover:opacity-100'
-                  }`}
-                  style={{ backgroundColor: c }}
-                />
-              ))}
+            <span className="text-slate-500 text-xs shrink-0">~</span>
+            <div className="relative flex items-center gap-2 px-3 py-1.5 rounded-lg bg-foreground/[0.04] border border-foreground/10 flex-1 min-w-0 cursor-pointer hover:bg-foreground/[0.06] transition-colors">
+              <CalendarDays size={13} className="text-slate-400 shrink-0 pointer-events-none" />
+              <span className="text-xs text-muted-foreground truncate pointer-events-none">
+                {formatDate(endDate, "yy/MM/dd (EEE)")}
+              </span>
+              <input
+                type="date"
+                value={endDate}
+                min={event.event_date}
+                onChange={(e) => {
+                  const newEnd = e.target.value || event.event_date;
+                  setEndDate(newEnd);
+                  if (newEnd !== event.event_date) setAllDay(true);
+                }}
+                className="date-overlay absolute inset-0 w-full h-full border-0 bg-transparent z-10 cursor-pointer"
+                style={{ opacity: 0.02, fontSize: '16px' }}
+              />
             </div>
           </div>
 
-          {/* Date range toggle */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => {
-                const next = !isDateRange;
-                setIsDateRange(next);
-                if (!next) setEndDate('');
-                if (next) { setAllDay(true); }
-              }}
-              className={`relative w-9 h-[18px] rounded-full transition-colors ${isDateRange ? 'bg-bridge-secondary' : 'bg-foreground/10'}`}
-            >
-              <span className={`absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white transition-transform ${isDateRange ? 'left-[18px]' : 'left-[2px]'}`} />
-            </button>
-            <span className="text-xs text-muted-foreground">{t('personal.calendar.dateRange', '기간')}</span>
+          {/* Color picker */}
+          <div className="flex items-center gap-1.5">
+            {EVENT_COLORS.map((c) => (
+              <button
+                key={c}
+                onClick={() => setColor(c)}
+                className={`w-5 h-5 rounded-full transition-all ${
+                  color === c
+                    ? 'ring-2 ring-foreground/40 ring-offset-1 ring-offset-bridge-obsidian scale-110'
+                    : 'hover:scale-110 opacity-60 hover:opacity-100'
+                }`}
+                style={{ backgroundColor: c }}
+              />
+            ))}
           </div>
-
-          {/* Date range picker */}
-          {isDateRange && (
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-foreground/[0.04] border border-foreground/10 flex-1 min-w-0">
-                <CalendarDays size={13} className="text-slate-400 shrink-0" />
-                <span className="text-xs text-muted-foreground truncate">{formatDate(event.event_date, "yy/MM/dd (EEE)")}</span>
-              </div>
-              <span className="text-slate-500 text-xs shrink-0">~</span>
-              <div
-                onClick={() => { try { editEndDateRef.current?.showPicker(); } catch {} }}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-foreground/[0.04] border border-foreground/10 flex-1 min-w-0 cursor-pointer hover:bg-foreground/[0.06] transition-colors"
-              >
-                <CalendarDays size={13} className="text-slate-400 shrink-0" />
-                <span className="text-xs text-muted-foreground truncate">
-                  {endDate ? formatDate(endDate, "yy/MM/dd (EEE)") : t('personal.calendar.end', '종료')}
-                </span>
-                <input
-                  ref={editEndDateRef}
-                  type="date"
-                  value={endDate}
-                  min={event.event_date}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="sr-only"
-                  tabIndex={-1}
-                />
-              </div>
-            </div>
-          )}
 
           {/* Description */}
           <textarea
@@ -1416,8 +1354,8 @@ function EditEventModal({
           {/* All-day toggle */}
           <div className="flex items-center gap-3">
             <button
-              onClick={() => { if (!isDateRange) setAllDay(!allDay); }}
-              className={`relative w-9 h-[18px] rounded-full transition-colors ${allDay ? 'bg-bridge-accent' : 'bg-foreground/10'} ${isDateRange ? 'opacity-50 cursor-not-allowed' : ''}`}
+              onClick={() => { if (endDate === event.event_date) setAllDay(!allDay); }}
+              className={`relative w-9 h-[18px] rounded-full transition-colors ${allDay ? 'bg-bridge-accent' : 'bg-foreground/10'} ${endDate !== event.event_date ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <span className={`absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white transition-transform ${allDay ? 'left-[18px]' : 'left-[2px]'}`} />
             </button>
@@ -1425,7 +1363,7 @@ function EditEventModal({
           </div>
 
           {/* Time inputs */}
-          {!allDay && !isDateRange && (
+          {!allDay && endDate === event.event_date && (
             <div className="flex items-center gap-2">
               <div className="flex-1">
                 <TimePicker

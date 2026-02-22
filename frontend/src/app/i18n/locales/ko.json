@@ -2803,13 +2803,13 @@
       "nonTodayCheckInComplete": "그래도 완료"
     },
     "calendar": {
-      "task": "태스크",
+      "task": "할일",
       "event": "캘린더",
       "today": "오늘",
       "addEvent": "캘린더 추가",
-      "tasksCount": "{{count}}개 태스크",
+      "tasksCount": "{{count}}개 할일",
       "eventsCount": "{{count}}개 캘린더",
-      "taskDeadline": "태스크 마감",
+      "taskDeadline": "할일 마감",
       "overdue": "기한 초과",
       "recurring": "반복",
       "noItems": "이 날의 항목이 없습니다",

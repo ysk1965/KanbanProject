@@ -1873,6 +1873,7 @@ function CreateEventModal({
         color,
         all_day: false,
       });
+      onClose();
       return;
     }
     onCreate({
