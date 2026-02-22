@@ -2712,6 +2712,8 @@
       "aiDiary": "AI 다이어리",
       "inProgress": "작성 중",
       "readMore": "자세히",
+      "lateNight": "늦은 밤, 오늘 하루 어땠나요?",
+      "earlyMorning": "상쾌한 아침이에요, 기분이 어떤가요?",
       "goodMorning": "오늘 하루, 어떤가요?",
       "goodAfternoon": "오후는 잘 보내고 있나요?",
       "goodEvening": "오늘 하루 어땠나요?",
@@ -2729,6 +2731,8 @@
       "totalEventsToday": "오늘 {{count}}개 일정"
     },
     "mobile": {
+      "lateNight": "아직 안 주무셨군요",
+      "earlyMorning": "일찍 일어나셨네요",
       "goodMorning": "좋은 아침",
       "goodAfternoon": "좋은 오후",
       "goodEvening": "좋은 저녁",

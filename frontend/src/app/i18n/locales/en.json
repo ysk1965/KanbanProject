@@ -2713,6 +2713,8 @@
       "aiDiary": "AI Diary",
       "inProgress": "In progress",
       "readMore": "Read more",
+      "lateNight": "It's late — how was your day?",
+      "earlyMorning": "Fresh morning! How are you feeling?",
       "goodMorning": "How are you feeling today?",
       "goodAfternoon": "How's your day going?",
       "goodEvening": "How was your day?",
@@ -2730,6 +2732,8 @@
       "totalEventsToday": "{{count}} events today"
     },
     "mobile": {
+      "lateNight": "Still Up Late?",
+      "earlyMorning": "Up Early!",
       "goodMorning": "Good Morning",
       "goodAfternoon": "Good Afternoon",
       "goodEvening": "Good Evening",

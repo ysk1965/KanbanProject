@@ -6,14 +6,20 @@ import { Board } from '../../types';
 import { getInitials } from '../../utils/assigneeColor';
 import { formatRelativeTime } from '../../utils/dateUtils';
 
-// 보드 배경 그라데이션 색상
+// 보드 배경 그라데이션 색상 (빨주노초파남보 무지개 순서)
 const GRADIENTS = [
-  'linear-gradient(135deg, #6366F1 0%, #a855f7 100%)', // Indigo Purple
-  'linear-gradient(135deg, #2DD4BF 0%, #0891B2 100%)', // Teal Cyan
-  'linear-gradient(135deg, #F43F5E 0%, #FB923C 100%)', // Rose Orange
-  'linear-gradient(135deg, #10B981 0%, #3B82F6 100%)', // Green Blue
-  'linear-gradient(135deg, #F59E0B 0%, #EF4444 100%)', // Amber Red
-  'linear-gradient(135deg, #8B5CF6 0%, #D946EF 100%)', // Violet Pink
+  'linear-gradient(135deg, #FF416C 0%, #FF4B2B 100%)', // Red
+  'linear-gradient(135deg, #F43F5E 0%, #FB923C 100%)', // Rose → Orange
+  'linear-gradient(135deg, #F97316 0%, #FBBF24 100%)', // Orange → Yellow
+  'linear-gradient(135deg, #EAB308 0%, #84CC16 100%)', // Yellow → Lime
+  'linear-gradient(135deg, #059669 0%, #34D399 100%)', // Emerald Green
+  'linear-gradient(135deg, #10B981 0%, #2DD4BF 100%)', // Emerald → Teal
+  'linear-gradient(135deg, #2DD4BF 0%, #0891B2 100%)', // Teal → Cyan
+  'linear-gradient(135deg, #0EA5E9 0%, #3B82F6 100%)', // Sky → Blue
+  'linear-gradient(135deg, #3B82F6 0%, #6366F1 100%)', // Blue → Indigo
+  'linear-gradient(135deg, #6366F1 0%, #A855F7 100%)', // Indigo → Purple
+  'linear-gradient(135deg, #8B5CF6 0%, #D946EF 100%)', // Violet → Fuchsia
+  'linear-gradient(135deg, #D946EF 0%, #EC4899 100%)', // Fuchsia → Pink
 ];
 
 // boardId를 기반으로 그라데이션 선택

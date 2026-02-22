@@ -42,6 +42,7 @@ export function MotionModal({
 
   // Track whether mousedown started inside the modal content
   const mouseDownInsideRef = useRef(false);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (open) setShouldRender(true);
@@ -78,9 +79,18 @@ export function MotionModal({
           } : undefined}
         >
           <motion.div
+            ref={contentRef}
             initial={{ opacity: 0, y: 20, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.98 }}
+            onAnimationComplete={() => {
+              // Clear residual transform after enter animation.
+              // Mobile browsers miscalculate input caret position when
+              // an ancestor has a CSS transform (even identity transform).
+              if (open && contentRef.current) {
+                contentRef.current.style.transform = 'none';
+              }
+            }}
             className={cn(
               'w-full sm:max-w-md bg-bridge-obsidian rounded-t-2xl sm:rounded-2xl border border-foreground/10 shadow-2xl max-h-[90dvh] overflow-y-auto custom-scrollbar',
               className,

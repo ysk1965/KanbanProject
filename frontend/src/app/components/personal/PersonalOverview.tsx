@@ -2,8 +2,8 @@ import { useState, useEffect, useCallback, useMemo, useRef, Fragment } from 'rea
 import { useTranslation } from 'react-i18next';
 import {
   Clock, CalendarDays, CheckCircle2, BookHeart, Sparkles,
-  ArrowRight, Sun, Sunset, Moon, Loader2, Flame, Check,
-  Plus, X, ChevronDown, ChevronUp, ListTodo, Zap,
+  ArrowRight, Sun, Sunrise, Sunset, Moon, Loader2, Flame, Check,
+  Plus, X, ChevronDown, ChevronUp, ListTodo, Zap, Trophy,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MotionModal } from '../ui/MotionModal';
@@ -113,6 +113,110 @@ function CheckParticles({ trigger }: { trigger: boolean }) {
             borderRadius: '50%',
             backgroundColor: p.color,
             pointerEvents: 'none',
+          }}
+        />
+      ))}
+    </AnimatePresence>
+  );
+}
+
+// ── Completion Sparkles (for 100% stat cards) ──────────────────────────
+
+const SPARKLE_COLORS = ['#2dd4bf', '#34d399', '#6366f1', '#fbbf24', '#f9a8d4', '#a78bfa', '#5eead4'];
+
+/** Idle twinkle sparkles (always visible when complete) */
+function CompletionSparkles({ active }: { active: boolean }) {
+  const sparkles = useMemo(() => Array.from({ length: 6 }, (_, i) => ({
+    id: i,
+    x: Math.random() * 100,
+    y: Math.random() * 100,
+    size: 2 + Math.random() * 2.5,
+    delay: i * 0.3 + Math.random() * 0.5,
+    duration: 1.5 + Math.random() * 1,
+    color: SPARKLE_COLORS[i % SPARKLE_COLORS.length],
+  })), []);
+
+  if (!active) return null;
+
+  return (
+    <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-xl">
+      {sparkles.map(s => (
+        <motion.div
+          key={s.id}
+          className="absolute"
+          style={{
+            left: `${s.x}%`,
+            top: `${s.y}%`,
+            width: s.size,
+            height: s.size,
+            borderRadius: '50%',
+            backgroundColor: s.color,
+          }}
+          animate={{
+            opacity: [0, 1, 0],
+            scale: [0.5, 1.2, 0.5],
+          }}
+          transition={{
+            duration: s.duration,
+            delay: s.delay,
+            repeat: Infinity,
+            repeatDelay: 1 + Math.random() * 2,
+            ease: 'easeInOut',
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+/** One-shot burst confetti (fires each time triggerKey increments above 0) */
+function CompletionBurst({ triggerKey }: { triggerKey: number }) {
+  const [show, setShow] = useState(false);
+  const prevKey = useRef(0);
+  const particles = useMemo(() => Array.from({ length: 12 }, (_, i) => {
+    const angle = (i / 12) * 360;
+    const rad = (angle * Math.PI) / 180;
+    const dist = 20 + Math.random() * 25;
+    return {
+      id: i,
+      x: Math.cos(rad) * dist,
+      y: Math.sin(rad) * dist - 8,
+      color: SPARKLE_COLORS[i % SPARKLE_COLORS.length],
+      size: 3 + Math.random() * 3,
+      delay: i * 0.025,
+    };
+  }), []);
+
+  useEffect(() => {
+    if (triggerKey > 0 && triggerKey !== prevKey.current) {
+      prevKey.current = triggerKey;
+      setShow(true);
+      const timer = setTimeout(() => setShow(false), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [triggerKey]);
+
+  return (
+    <AnimatePresence>
+      {show && particles.map(p => (
+        <motion.div
+          key={p.id}
+          initial={{ x: 0, y: 0, scale: 1, opacity: 1 }}
+          animate={{ x: p.x, y: p.y, scale: 0, opacity: 0 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.7, delay: p.delay, ease: 'easeOut' }}
+          style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            width: p.size,
+            height: p.size,
+            marginTop: -p.size / 2,
+            marginLeft: -p.size / 2,
+            borderRadius: '50%',
+            backgroundColor: p.color,
+            pointerEvents: 'none',
+            zIndex: 10,
           }}
         />
       ))}
@@ -1280,7 +1384,11 @@ function DiaryWidget({
   const isLoading = diary === undefined;
 
   const hour = new Date().getHours();
-  const greeting = hour < 12
+  const greeting = hour < 5
+    ? { text: t('personal.overview.lateNight', "It's late — how was your day?"), icon: <Moon size={20} className="text-indigo-400" /> }
+    : hour < 9
+    ? { text: t('personal.overview.earlyMorning', 'Fresh morning! How are you feeling?'), icon: <Sunrise size={20} className="text-violet-400" /> }
+    : hour < 12
     ? { text: t('personal.overview.goodMorning', 'How are you feeling today?'), icon: <Sun size={20} className="text-amber-400" /> }
     : hour < 18
     ? { text: t('personal.overview.goodAfternoon', "How's your day going?"), icon: <Sunset size={20} className="text-orange-400" /> }
@@ -1389,8 +1497,16 @@ function MobileGreetingHeader({
 
   const now = new Date();
   const hour = now.getHours();
-  const greetingIcon = hour < 12 ? <Sun size={18} className="text-amber-400" /> : hour < 18 ? <Sunset size={18} className="text-orange-400" /> : <Moon size={18} className="text-indigo-400" />;
-  const greetingText = hour < 12
+  const greetingIcon = hour < 5 ? <Moon size={18} className="text-indigo-400" />
+    : hour < 9 ? <Sunrise size={18} className="text-violet-400" />
+    : hour < 12 ? <Sun size={18} className="text-amber-400" />
+    : hour < 18 ? <Sunset size={18} className="text-orange-400" />
+    : <Moon size={18} className="text-indigo-400" />;
+  const greetingText = hour < 5
+    ? t('personal.mobile.lateNight', "Still Up Late?")
+    : hour < 9
+    ? t('personal.mobile.earlyMorning', 'Up Early!')
+    : hour < 12
     ? t('personal.mobile.goodMorning', 'Good Morning')
     : hour < 18
     ? t('personal.mobile.goodAfternoon', 'Good Afternoon')
@@ -1417,26 +1533,59 @@ function MobileGreetingHeader({
     : t('personal.mobile.diaryChatting', 'Writing...');
   const diaryEmoji = diary?.mood ? MOOD_EMOJI[diary.mood] : undefined;
 
+  const habitsRate = habitsTotal > 0 ? habitsDone / habitsTotal : 0;
+  const tasksRate = dueTodayTotal > 0 ? dueTodayDone / dueTodayTotal : undefined;
+  const diaryRate = !diary ? 0 : diary.status === 'COMPLETED' ? 1 : 0.5;
+
+  // celebrate: visual state (teal, trophy, sparkles) — set when gauge ARRIVES at 100%
+  // burstKeys: counter that fires a one-shot confetti each time it increments
+  // bounce: temporary scale-up on the card at the moment of celebration
+  const [celebrate, setCelebrate] = useState({ habits: false, tasks: false, diary: false });
+  const [burstKeys, setBurstKeys] = useState({ habits: 0, tasks: 0, diary: 0 });
+  const [bounce, setBounce] = useState({ habits: false, tasks: false, diary: false });
+
+  // Called by gauge bar's onAnimationComplete — fires at the exact moment the bar finishes
+  const handleGaugeDone = useCallback((key: 'habits' | 'tasks' | 'diary', rate: number) => {
+    if (rate >= 1) {
+      setCelebrate(prev => prev[key] ? prev : { ...prev, [key]: true });
+      setBurstKeys(prev => ({ ...prev, [key]: prev[key] + 1 }));
+      setBounce(prev => ({ ...prev, [key]: true }));
+      setTimeout(() => setBounce(prev => ({ ...prev, [key]: false })), 500);
+    } else {
+      setCelebrate(prev => !prev[key] ? prev : { ...prev, [key]: false });
+    }
+  }, []);
+
   const stats = [
     {
+      key: 'habits' as const,
       label: t('personal.mobile.habits', 'Habits'),
       value: habitsTotal > 0 ? `${habitsDone}/${habitsTotal}` : '0',
-      icon: <Flame size={14} className="text-purple-400" />,
-      rate: habitsTotal > 0 ? habitsDone / habitsTotal : 0,
+      icon: celebrate.habits
+        ? <Trophy size={14} className="text-bridge-secondary" />
+        : <Flame size={14} className="text-purple-400" />,
+      rate: habitsRate,
       onTap: () => onNavigateTab('tasks'),
     },
     {
+      key: 'tasks' as const,
       label: t('personal.mobile.tasks', 'Tasks'),
       value: dueTodayTotal > 0 ? `${dueTodayDone}/${dueTodayTotal}` : '0',
-      icon: <ListTodo size={14} className="text-bridge-accent" />,
-      rate: dueTodayTotal > 0 ? dueTodayDone / dueTodayTotal : undefined,
+      icon: celebrate.tasks
+        ? <Trophy size={14} className="text-bridge-secondary" />
+        : <ListTodo size={14} className="text-bridge-accent" />,
+      rate: tasksRate,
       onTap: () => onNavigateTab('tasks'),
     },
     {
+      key: 'diary' as const,
       label: t('personal.mobile.diary', 'AI Diary'),
       value: diaryEmoji || (diary ? (diary.status === 'COMPLETED' ? '✅' : '✍️') : '—'),
       sub: diaryLabel,
-      icon: <BookHeart size={14} className="text-rose-400" />,
+      icon: celebrate.diary
+        ? <Trophy size={14} className="text-bridge-secondary" />
+        : <BookHeart size={14} className="text-rose-400" />,
+      rate: diaryRate,
       onTap: () => onNavigateTab('diary'),
     },
   ];
@@ -1463,33 +1612,102 @@ function MobileGreetingHeader({
 
       {/* Stats Row */}
       <div className="flex gap-2">
-        {stats.map((stat) => (
-          <button
-            key={stat.label}
-            onClick={stat.onTap}
-            className="flex-1 rounded-xl border border-foreground/[0.08] bg-foreground/[0.03] p-3 active:bg-foreground/[0.06] transition-colors text-left"
-          >
-            <div className="flex items-center gap-1.5 mb-1.5">
-              {stat.icon}
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{stat.label}</span>
-            </div>
-            <div className="flex items-baseline gap-1">
-              <span className="text-lg font-bold text-foreground">{stat.value}</span>
-              {stat.sub && <span className="text-[10px] text-slate-400 font-medium">{stat.sub}</span>}
-            </div>
-            {stat.rate !== undefined && stat.rate >= 0 && (
-              <div className="mt-1.5 h-1 rounded-full bg-foreground/10 overflow-hidden">
-                <motion.div
-                  className="h-full rounded-full"
-                  style={{ backgroundColor: stat.rate >= 1 ? '#2DD4BF' : stat.label === 'Tasks' ? '#6366F1' : '#8B5CF6' }}
-                  initial={{ width: 0 }}
-                  animate={{ width: `${Math.round(stat.rate * 100)}%` }}
-                  transition={{ duration: 0.8, delay: 0.2, ease: 'easeOut' }}
-                />
+        {stats.map((stat) => {
+          const isCelebrating = celebrate[stat.key];
+          const isBouncing = bounce[stat.key];
+          const bk = burstKeys[stat.key];
+          return (
+            <motion.button
+              key={stat.label}
+              onClick={stat.onTap}
+              animate={isBouncing
+                ? { scale: [1, 1.07, 1], borderColor: 'rgba(45,212,191,0.5)' }
+                : isCelebrating
+                ? { scale: 1, borderColor: ['rgba(45,212,191,0.3)', 'rgba(45,212,191,0.15)', 'rgba(45,212,191,0.3)'] }
+                : { scale: 1 }
+              }
+              transition={isBouncing
+                ? { scale: { duration: 0.4, ease: 'easeOut' } }
+                : isCelebrating
+                ? { duration: 3, repeat: Infinity, ease: 'easeInOut' }
+                : {}
+              }
+              className={`flex-1 rounded-xl border p-3 active:bg-foreground/[0.06] text-left relative overflow-hidden transition-colors duration-500 ${
+                isCelebrating
+                  ? 'border-bridge-secondary/30 bg-gradient-to-br from-bridge-secondary/[0.08] to-bridge-secondary/[0.02]'
+                  : 'border-foreground/[0.08] bg-foreground/[0.03]'
+              }`}
+            >
+              <CompletionSparkles active={isCelebrating} />
+              <CompletionBurst triggerKey={bk} />
+              <div className="relative z-[1]">
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  {isCelebrating ? (
+                    <motion.div
+                      initial={{ scale: 0, rotate: -30 }}
+                      animate={{ scale: 1, rotate: 0 }}
+                      transition={{ type: 'spring', stiffness: 400, damping: 12 }}
+                    >
+                      {stat.icon}
+                    </motion.div>
+                  ) : stat.icon}
+                  <span className={`text-[10px] font-bold uppercase tracking-wider transition-colors duration-500 ${
+                    isCelebrating ? 'text-bridge-secondary' : 'text-slate-500'
+                  }`}>{stat.label}</span>
+                  {isCelebrating && (
+                    <motion.span
+                      initial={{ opacity: 0, scale: 0 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: 0.1, type: 'spring', stiffness: 400, damping: 15 }}
+                      className="text-[8px]"
+                    >
+                      ✨
+                    </motion.span>
+                  )}
+                </div>
+                <div className="flex items-baseline gap-1">
+                  <span className={`text-lg font-bold transition-colors duration-500 ${
+                    isCelebrating ? 'text-bridge-secondary' : 'text-foreground'
+                  }`}>{stat.value}</span>
+                  {stat.sub && <span className={`text-[10px] font-medium transition-colors duration-500 ${
+                    isCelebrating ? 'text-bridge-secondary/70' : 'text-slate-400'
+                  }`}>{stat.sub}</span>}
+                </div>
+                {stat.rate !== undefined && stat.rate >= 0 && (
+                  <div className="mt-1.5 h-1 rounded-full bg-foreground/10 overflow-hidden">
+                    <motion.div
+                      className="h-full rounded-full"
+                      style={{
+                        backgroundColor: isCelebrating
+                          ? '#2DD4BF'
+                          : stat.key === 'tasks' ? '#6366F1'
+                          : stat.key === 'diary' ? '#D494CE'
+                          : '#8B5CF6',
+                        ...(isCelebrating ? { boxShadow: '0 0 8px rgba(45,212,191,0.5)' } : {}),
+                      }}
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Math.round(stat.rate * 100)}%` }}
+                      transition={{ duration: 0.8, delay: 0.2, ease: 'easeOut' }}
+                      onAnimationComplete={() => {
+                        handleGaugeDone(stat.key, stat.rate!);
+                      }}
+                    />
+                  </div>
+                )}
               </div>
-            )}
-          </button>
-        ))}
+              {/* Subtle glow behind the card */}
+              {isCelebrating && (
+                <motion.div
+                  className="absolute inset-0 rounded-xl pointer-events-none"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: [0.03, 0.08, 0.03] }}
+                  transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+                  style={{ background: 'radial-gradient(ellipse at center, rgba(45,212,191,0.3) 0%, transparent 70%)' }}
+                />
+              )}
+            </motion.button>
+          );
+        })}
       </div>
     </motion.div>
   );
@@ -1538,6 +1756,7 @@ function MobileQuickHabits({
 
   const completedCount = habits.filter(h => h.is_completed).length;
   const totalCount = habits.length;
+  const allDone = totalCount > 0 && completedCount >= totalCount;
 
   if (!dashboardData || habits.length === 0) {
     return (
@@ -1574,17 +1793,52 @@ function MobileQuickHabits({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.15, duration: 0.3 }}
-      className="rounded-2xl border border-foreground/[0.12] overflow-hidden"
+      className={`rounded-2xl border overflow-hidden relative ${
+        allDone
+          ? 'border-bridge-secondary/30'
+          : 'border-foreground/[0.12]'
+      }`}
     >
-      <div className="px-3 py-2 bg-foreground/[0.06] border-b border-foreground/[0.06]">
+      {allDone && (
+        <motion.div
+          className="absolute inset-0 rounded-2xl pointer-events-none z-[1]"
+          animate={{ opacity: [0.02, 0.06, 0.02] }}
+          transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+          style={{ background: 'radial-gradient(ellipse at top center, rgba(45,212,191,0.25) 0%, transparent 60%)' }}
+        />
+      )}
+      <div className={`px-3 py-2 border-b relative z-[2] ${
+        allDone
+          ? 'bg-bridge-secondary/[0.06] border-bridge-secondary/10'
+          : 'bg-foreground/[0.06] border-foreground/[0.06]'
+      }`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Flame size={16} className="text-purple-400" />
-            <h3 className="text-[13px] font-bold text-foreground">{t('personal.mobile.habitsToday', 'Habits')}</h3>
+            {allDone ? (
+              <motion.div
+                initial={{ scale: 0, rotate: -30 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 12 }}
+              >
+                <Trophy size={16} className="text-bridge-secondary" />
+              </motion.div>
+            ) : (
+              <Flame size={16} className="text-purple-400" />
+            )}
+            <h3 className={`text-[13px] font-bold ${
+              allDone ? 'text-bridge-secondary' : 'text-foreground'
+            }`}>{t('personal.mobile.habitsToday', 'Habits')}</h3>
             {totalCount > 0 && (
-              <span className="text-[10px] font-bold text-purple-400 bg-purple-400/10 px-1.5 py-0.5 rounded-full">
-                {completedCount}/{totalCount}
-              </span>
+              <motion.span
+                layout
+                className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                  allDone
+                    ? 'text-bridge-secondary bg-bridge-secondary/15'
+                    : 'text-purple-400 bg-purple-400/10'
+                }`}
+              >
+                {allDone ? '✨ ' : ''}{completedCount}/{totalCount}
+              </motion.span>
             )}
           </div>
           <ViewAllButton onClick={() => onNavigateTab('tasks')} />

@@ -143,7 +143,7 @@ function getScheduledDays(frequencyType: HabitFrequency, frequencyDays?: string)
     case 'DAILY': return new Set([0, 1, 2, 3, 4, 5, 6]);
     case 'WEEKDAY': return new Set([1, 2, 3, 4, 5]);
     case 'WEEKEND': return new Set([0, 6]);
-    case 'CUSTOM': return new Set(frequencyDays ? frequencyDays.split(',').map(Number) : []);
+    case 'CUSTOM': return new Set(frequencyDays ? frequencyDays.split(',').map(Number).map(d => d === 7 ? 0 : d) : []);
     default: return new Set([0, 1, 2, 3, 4, 5, 6]);
   }
 }

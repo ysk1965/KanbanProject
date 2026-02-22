@@ -77,6 +77,20 @@ export function PersonalCalendar() {
   const [createDate, setCreateDate] = useState('');
   const [editEvent, setEditEvent] = useState<PersonalEvent | null>(null);
 
+  // Drag-select range
+  const [dragSelection, setDragSelection] = useState<{ start: string; end: string } | null>(null);
+  const dragRef = useRef<{
+    timer: ReturnType<typeof setTimeout> | null;
+    startDate: string;
+    endDate: string;
+    startX: number;
+    startY: number;
+    active: boolean;
+  }>({ timer: null, startDate: '', endDate: '', startX: 0, startY: 0, active: false });
+  const justDraggedRef = useRef(false);
+  const calendarGridRef = useRef<HTMLDivElement>(null);
+  const [createEndDate, setCreateEndDate] = useState('');
+
   // ── navigation ──
   const goToPrevMonth = useCallback(() => {
     setCurrentMonth((m) => { if (m === 0) { setCurrentYear((y) => y - 1); return 11; } return m - 1; });
@@ -213,6 +227,90 @@ export function PersonalCalendar() {
   }, [gridStartDate, gridEndDate]);
 
   useEffect(() => { loadEvents(); }, [loadEvents]);
+
+  // ── open create modal helper ──
+  const openCreateModal = useCallback((date: string, endDate?: string) => {
+    setCreateDate(date);
+    setCreateEndDate(endDate || '');
+    setIsCreateOpen(true);
+  }, []);
+
+  // ── long-press drag to select date range ──
+  useEffect(() => {
+    const el = calendarGridRef.current;
+    if (!el) return;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      const touch = e.touches[0];
+      const target = e.target as HTMLElement;
+      const cell = target.closest('[data-datekey]') as HTMLElement | null;
+      if (!cell) return;
+      const dk = cell.dataset.datekey!;
+      dragRef.current = {
+        timer: setTimeout(() => {
+          dragRef.current.active = true;
+          dragRef.current.endDate = dk;
+          setDragSelection({ start: dk, end: dk });
+          try { navigator.vibrate?.(30); } catch {}
+        }, 400),
+        startDate: dk,
+        endDate: dk,
+        startX: touch.clientX,
+        startY: touch.clientY,
+        active: false,
+      };
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      const d = dragRef.current;
+      const touch = e.touches[0];
+      if (!d.active) {
+        if (d.timer && (Math.abs(touch.clientX - d.startX) > 10 || Math.abs(touch.clientY - d.startY) > 10)) {
+          clearTimeout(d.timer);
+          d.timer = null;
+        }
+        return;
+      }
+      e.preventDefault();
+      e.stopPropagation();
+      const target = document.elementFromPoint(touch.clientX, touch.clientY) as HTMLElement | null;
+      const cell = target?.closest('[data-datekey]') as HTMLElement | null;
+      if (cell && cell.dataset.datekey) {
+        d.endDate = cell.dataset.datekey;
+        setDragSelection({ start: d.startDate, end: d.endDate });
+      }
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      const d = dragRef.current;
+      if (d.timer) { clearTimeout(d.timer); d.timer = null; }
+      if (d.active) {
+        e.stopPropagation();
+        const [rangeStart, rangeEnd] = d.startDate <= d.endDate
+          ? [d.startDate, d.endDate]
+          : [d.endDate, d.startDate];
+        setCreateDate(rangeStart);
+        setCreateEndDate(rangeEnd !== rangeStart ? rangeEnd : '');
+        setIsCreateOpen(true);
+        justDraggedRef.current = true;
+        setTimeout(() => { justDraggedRef.current = false; }, 300);
+      }
+      d.active = false;
+      d.startDate = '';
+      d.endDate = '';
+      setDragSelection(null);
+    };
+
+    el.addEventListener('touchstart', handleTouchStart, { passive: true });
+    el.addEventListener('touchmove', handleTouchMove, { passive: false });
+    el.addEventListener('touchend', handleTouchEnd, { passive: true });
+
+    return () => {
+      el.removeEventListener('touchstart', handleTouchStart);
+      el.removeEventListener('touchmove', handleTouchMove);
+      el.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, []);
 
   // ── build per-day items ──
   const dayItemsMap = useMemo(() => {
@@ -363,6 +461,14 @@ export function PersonalCalendar() {
 
   const isTodayMonth = currentYear === today.getFullYear() && currentMonth === today.getMonth();
 
+  const normalizedDragRange = useMemo(() => {
+    if (!dragSelection) return null;
+    const [start, end] = dragSelection.start <= dragSelection.end
+      ? [dragSelection.start, dragSelection.end]
+      : [dragSelection.end, dragSelection.start];
+    return { start, end };
+  }, [dragSelection]);
+
   return (
     <div className="h-full flex flex-col bg-bridge-dark overflow-hidden">
       {/* Header */}
@@ -400,10 +506,7 @@ export function PersonalCalendar() {
             {t('personal.calendar.today')}
           </button>
           <button
-            onClick={() => {
-              setCreateDate(todayKey);
-              setIsCreateOpen(true);
-            }}
+            onClick={() => openCreateModal(todayKey)}
             className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 bg-bridge-accent text-white text-[11px] font-bold rounded-md hover:bg-bridge-accent/90 transition-colors"
           >
             <Plus size={12} />
@@ -419,10 +522,7 @@ export function PersonalCalendar() {
         dayItemsMap={dayItemsMap}
         isKo={isKo}
         onViewAll={() => setModalDate({ dateKey: todayKey, date: today })}
-        onAddEvent={() => {
-          setCreateDate(todayKey);
-          setIsCreateOpen(true);
-        }}
+        onAddEvent={() => openCreateModal(todayKey)}
         onEditEvent={(ev) => setEditEvent(ev)}
       />
 
@@ -442,7 +542,7 @@ export function PersonalCalendar() {
 
       {/* Calendar grid */}
       <div className="flex-1 overflow-hidden">
-        <div className="grid h-full" style={{ gridTemplateRows: `repeat(${weekRows.length}, 1fr)` }}>
+        <div ref={calendarGridRef} className="grid h-full" style={{ gridTemplateRows: `repeat(${weekRows.length}, 1fr)` }}>
           {weekRows.map((week, weekIdx) => (
             <div key={weekIdx} className="relative grid grid-cols-7 min-h-0 overflow-hidden">
               {week.map(({ date, isCurrentMonth }, colIdx) => {
@@ -458,17 +558,22 @@ export function PersonalCalendar() {
                 return (
                   <div
                     key={colIdx}
+                    data-datekey={dateKey}
                     onClick={() => {
+                      if (justDraggedRef.current) return;
                       if (allItems.length > 0) {
                         setModalDate({ dateKey, date });
                       } else {
-                        setCreateDate(dateKey);
-                        setIsCreateOpen(true);
+                        openCreateModal(dateKey);
                       }
                     }}
                     className={`border-b border-r border-foreground/5 flex flex-col overflow-hidden transition-colors cursor-pointer hover:bg-foreground/[0.03] ${
                       !isCurrentMonth ? 'bg-foreground/[0.01]' : isHoliday ? 'bg-red-500/[0.03]' : date.getDay() === 0 || date.getDay() === 6 ? 'bg-foreground/[0.015]' : ''
-                    } ${isTodayCell ? 'ring-1 ring-inset ring-bridge-accent/30 bg-bridge-accent/[0.04]' : ''}`}
+                    } ${isTodayCell ? 'ring-1 ring-inset ring-bridge-accent/30 bg-bridge-accent/[0.04]' : ''}${
+                      normalizedDragRange && dateKey >= normalizedDragRange.start && dateKey <= normalizedDragRange.end
+                        ? ' !bg-bridge-accent/15 ring-1 ring-inset ring-bridge-accent/40'
+                        : ''
+                    }`}
                   >
                     {/* Date number + holiday name */}
                     <div className="px-1 sm:px-1.5 pt-1 flex items-center gap-1 shrink-0 min-w-0">
@@ -488,7 +593,7 @@ export function PersonalCalendar() {
                         {date.getDate()}
                       </span>
                       {isHoliday && (
-                        <span className="text-[9px] text-red-300/80 truncate font-medium leading-none hidden sm:inline">
+                        <span className="text-[8px] sm:text-[9px] text-red-300/80 truncate font-medium leading-none">
                           {holidays[0].name}
                         </span>
                       )}
@@ -561,10 +666,7 @@ export function PersonalCalendar() {
           {t('personal.calendar.tapToView')}
         </p>
         <button
-          onClick={() => {
-            setCreateDate(todayKey);
-            setIsCreateOpen(true);
-          }}
+          onClick={() => openCreateModal(todayKey)}
           className="p-3 rounded-xl bg-bridge-accent text-white shadow-lg shadow-bridge-accent/30 hover:bg-bridge-accent/90 active:scale-95 transition-all"
         >
           <Plus size={18} />
@@ -573,10 +675,7 @@ export function PersonalCalendar() {
 
       {/* FAB – Desktop only */}
       <button
-        onClick={() => {
-          setCreateDate(todayKey);
-          setIsCreateOpen(true);
-        }}
+        onClick={() => openCreateModal(todayKey)}
         className="hidden md:flex fixed fab-bottom-safe right-6 w-14 h-14 rounded-full bg-bridge-accent text-white shadow-lg shadow-bridge-accent/30 items-center justify-center hover:bg-bridge-accent/90 hover:scale-105 active:scale-95 transition-all z-50"
       >
         <Plus size={24} />
@@ -594,8 +693,7 @@ export function PersonalCalendar() {
         onEditEvent={(ev) => { setEditEvent(ev); setModalDate(null); }}
         onAddEvent={() => {
           if (modalDate) {
-            setCreateDate(modalDate.dateKey);
-            setIsCreateOpen(true);
+            openCreateModal(modalDate.dateKey);
             setModalDate(null);
           }
         }}
@@ -615,6 +713,7 @@ export function PersonalCalendar() {
       <CreateEventModal
         open={isCreateOpen}
         date={createDate}
+        initialEndDate={createEndDate}
         existingEvents={events}
         onClose={() => setIsCreateOpen(false)}
         onCreate={handleCreateEvent}
@@ -969,12 +1068,14 @@ function getOverlappingEvents(
 function CreateEventModal({
   open,
   date,
+  initialEndDate,
   existingEvents,
   onClose,
   onCreate,
 }: {
   open: boolean;
   date: string;
+  initialEndDate?: string;
   existingEvents: PersonalEvent[];
   onClose: () => void;
   onCreate: (data: {
@@ -1004,7 +1105,7 @@ function CreateEventModal({
       setEndTime('');
       setColor(EVENT_COLORS[0]);
       setAllDay(true);
-      setEndDate(date);
+      setEndDate(initialEndDate && initialEndDate > date ? initialEndDate : date);
     }
   }, [open]);
 

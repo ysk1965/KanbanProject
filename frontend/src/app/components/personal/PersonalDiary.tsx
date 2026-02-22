@@ -42,7 +42,10 @@ function getMoods(t: TFunction) {
 }
 
 function toDateString(d: Date): string {
-  return d.toISOString().split('T')[0];
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 // ============================
@@ -823,7 +826,14 @@ export function PersonalDiary() {
           </div>
         ) : diary.status === 'COMPLETED' ? (
           /* Completed Diary View */
-          <div className="flex-1 overflow-auto p-4 md:p-8 custom-scrollbar">
+          <div className="flex-1 overflow-auto p-4 md:p-8 custom-scrollbar relative">
+            {/* Mobile calendar sidebar toggle */}
+            <button
+              onClick={() => setShowMobileSidebar(true)}
+              className="md:hidden fixed bottom-20 left-4 z-30 p-3 rounded-xl bg-bridge-accent text-white shadow-lg shadow-bridge-accent/30 hover:bg-bridge-accent/90 active:scale-95 transition-all"
+            >
+              <CalendarIcon size={18} />
+            </button>
             <div className="max-w-2xl mx-auto">
               <div className="flex items-center justify-between mb-4 md:mb-6 gap-3">
                 <div className="min-w-0">

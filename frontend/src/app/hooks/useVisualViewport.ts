@@ -88,14 +88,34 @@ export function useKeyboardAutoScroll() {
 
       // 약간의 딜레이를 줘서 키보드 애니메이션이 끝난 후 스크롤
       setTimeout(() => {
-        target.scrollIntoView({
-          behavior: 'smooth',
-          block: 'center',
-        });
+        // Find the closest scrollable container (modal, overlay, etc.)
+        const scrollParent = findScrollParent(target);
+        if (scrollParent && scrollParent !== document.documentElement && scrollParent !== document.body) {
+          // Inside a scrollable container (e.g. modal) — scroll within it
+          const parentRect = scrollParent.getBoundingClientRect();
+          const targetRect = target.getBoundingClientRect();
+          const offset = targetRect.top - parentRect.top - parentRect.height / 3;
+          scrollParent.scrollBy({ top: offset, behavior: 'smooth' });
+        } else {
+          target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
       }, 300);
     };
 
     document.addEventListener('focusin', handleFocusIn);
     return () => document.removeEventListener('focusin', handleFocusIn);
   }, []);
+}
+
+/** Walk up the DOM to find the nearest scrollable ancestor. */
+function findScrollParent(el: HTMLElement): HTMLElement | null {
+  let node: HTMLElement | null = el.parentElement;
+  while (node) {
+    const { overflowY } = getComputedStyle(node);
+    if ((overflowY === 'auto' || overflowY === 'scroll') && node.scrollHeight > node.clientHeight) {
+      return node;
+    }
+    node = node.parentElement;
+  }
+  return null;
 }

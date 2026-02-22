@@ -273,8 +273,12 @@ public class PersonalHabitService {
                 if (habit.getFrequencyDays() == null) yield true;
                 // Frontend uses JS convention: 0=Sunday, 1=Monday, ..., 6=Saturday
                 int iso = date.getDayOfWeek().getValue(); // 1(Mon)~7(Sun)
-                String dayOfWeek = String.valueOf(iso == 7 ? 0 : iso);
-                yield java.util.Arrays.asList(habit.getFrequencyDays().split(",")).contains(dayOfWeek);
+                List<String> days = java.util.Arrays.asList(habit.getFrequencyDays().split(","));
+                if (iso == 7) {
+                    // Sunday: accept both "0" (JS convention) and "7" (legacy Java convention)
+                    yield days.contains("0") || days.contains("7");
+                }
+                yield days.contains(String.valueOf(iso));
             }
         };
     }

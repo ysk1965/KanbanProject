@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import {
-  Plus, Flame, CheckCircle2, Trash2, X, Loader2,
-  ChevronDown, ChevronUp, Pencil, MoreHorizontal,
+  Plus, Flame, CheckCircle2, Trash2, X, Loader2, ChevronDown,
+  Pencil, MoreHorizontal,
   TrendingUp, Calendar, Zap, RotateCcw, ListTodo,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -25,9 +26,9 @@ const HABIT_ICONS = [
   '🧠', '🌿', '💊', '🍎', '😴', '🚶', '🧹', '📵',
 ];
 
-/** Display order: Sun → Sat, using Java DayOfWeek values (1=Mon…7=Sun) */
+/** Display order: Sun → Sat, using JS getDay() values (0=Sun, 1=Mon…6=Sat) */
 const DAY_DISPLAY = [
-  { value: 7, key: 'calendar.sun' },
+  { value: 0, key: 'calendar.sun' },
   { value: 1, key: 'calendar.mon' },
   { value: 2, key: 'calendar.tue' },
   { value: 3, key: 'calendar.wed' },
@@ -35,7 +36,7 @@ const DAY_DISPLAY = [
   { value: 5, key: 'calendar.fri' },
   { value: 6, key: 'calendar.sat' },
 ];
-const ALL_DAYS = [1, 2, 3, 4, 5, 6, 7];
+const ALL_DAYS = [0, 1, 2, 3, 4, 5, 6];
 
 function formatFrequency(habit: PersonalHabit, t: (key: string, options?: Record<string, unknown>) => string): string {
   if (habit.frequency_type === 'DAILY') return t('personal.habit.everyDay');
@@ -48,6 +49,157 @@ function formatFrequency(habit: PersonalHabit, t: (key: string, options?: Record
     return ordered.map(d => t(d.key)).join(', ');
   }
   return t('personal.habit.everyDay');
+}
+
+/* ================================================================
+   Icon Dropdown (floating popover)
+   ================================================================ */
+
+function IconDropdown({ icon, onChange }: { icon: string; onChange: (v: string) => void }) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (btnRef.current?.contains(target) || dropdownRef.current?.contains(target)) return;
+      setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  useLayoutEffect(() => {
+    if (open && btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect();
+      setPos({ top: rect.bottom + 4, left: rect.left });
+    }
+  }, [open]);
+
+  return (
+    <div className="flex-1">
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={() => setOpen(!open)}
+        className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all ${
+          open
+            ? 'border-purple-500/40 bg-purple-500/5'
+            : 'border-foreground/10 bg-foreground/[0.04] hover:bg-foreground/[0.06]'
+        }`}
+      >
+        <span className="text-sm">{icon || '😊'}</span>
+        <span className="text-[10px] text-slate-400 flex-1 text-left truncate">
+          {icon ? t('personal.habit.changeIcon', '변경') : t('personal.habit.selectIcon', '선택')}
+        </span>
+        <ChevronDown size={12} className={`text-slate-500 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && createPortal(
+        <div
+          ref={dropdownRef}
+          className="fixed z-[100] bg-bridge-obsidian border border-foreground/10 rounded-xl p-2 shadow-2xl"
+          style={{ top: pos.top, left: pos.left }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <div className="grid grid-cols-4 gap-1.5">
+            {HABIT_ICONS.map((emoji) => (
+              <button
+                key={emoji}
+                onClick={() => { onChange(icon === emoji ? '' : emoji); setOpen(false); }}
+                className={`w-9 h-9 flex items-center justify-center rounded-lg text-base transition-all ${
+                  icon === emoji
+                    ? 'bg-purple-500/20 ring-1 ring-purple-500 scale-110'
+                    : 'hover:bg-foreground/10 hover:scale-105'
+                }`}
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        </div>,
+        document.body,
+      )}
+    </div>
+  );
+}
+
+/* ================================================================
+   Color Dropdown (floating popover)
+   ================================================================ */
+
+function ColorDropdown({ color, onChange, colors }: { color: string; onChange: (c: string) => void; colors: string[] }) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (btnRef.current?.contains(target) || dropdownRef.current?.contains(target)) return;
+      setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  useLayoutEffect(() => {
+    if (open && btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect();
+      setPos({ top: rect.bottom + 4, left: rect.left });
+    }
+  }, [open]);
+
+  return (
+    <div className="flex-1">
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={() => setOpen(!open)}
+        className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all ${
+          open
+            ? 'border-purple-500/40 bg-purple-500/5'
+            : 'border-foreground/10 bg-foreground/[0.04] hover:bg-foreground/[0.06]'
+        }`}
+      >
+        <span className="w-5 h-5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+        <span className="text-[10px] text-slate-400 flex-1 text-left truncate">
+          {t('personal.habit.changeColor', '변경')}
+        </span>
+        <ChevronDown size={12} className={`text-slate-500 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && createPortal(
+        <div
+          ref={dropdownRef}
+          className="fixed z-[100] bg-bridge-obsidian border border-foreground/10 rounded-xl p-2 shadow-2xl"
+          style={{ top: pos.top, left: pos.left }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <div className="grid grid-cols-4 gap-1.5">
+            {colors.map((c) => (
+              <button
+                key={c}
+                onClick={() => { onChange(c); setOpen(false); }}
+                className={`w-7 h-7 rounded-full transition-all ${
+                  color === c
+                    ? 'ring-2 ring-white ring-offset-2 ring-offset-bridge-obsidian scale-110'
+                    : 'hover:scale-110'
+                }`}
+                style={{ backgroundColor: c }}
+              />
+            ))}
+          </div>
+        </div>,
+        document.body,
+      )}
+    </div>
+  );
 }
 
 /* ================================================================
@@ -758,9 +910,10 @@ export function HabitFormModal({ open, habit, onClose, onSubmit, onDelete }: {
     switch (h.frequency_type) {
       case 'DAILY': return [...ALL_DAYS];
       case 'WEEKDAY': return [1, 2, 3, 4, 5];
-      case 'WEEKEND': return [6, 7];
+      case 'WEEKEND': return [0, 6];
       case 'CUSTOM':
-        return h.frequency_days ? h.frequency_days.split(',').map(Number) : [...ALL_DAYS];
+        // Convert legacy Java DayOfWeek 7 (Sunday) → JS getDay() 0
+        return h.frequency_days ? h.frequency_days.split(',').map(Number).map(d => d === 7 ? 0 : d) : [...ALL_DAYS];
       default: return [...ALL_DAYS];
     }
   };
@@ -771,8 +924,6 @@ export function HabitFormModal({ open, habit, onClose, onSubmit, onDelete }: {
   const [importance, setImportance] = useState<HabitImportance>(habit?.importance || 'MEDIUM');
   const [icon, setIcon] = useState(habit?.icon || '');
   const [color, setColor] = useState(habit?.color || HABIT_COLORS[0]);
-  const [showIconPicker, setShowIconPicker] = useState(false);
-  const [showColorPicker, setShowColorPicker] = useState(false);
   const [description, setDescription] = useState(habit?.description || '');
 
   // Sync form state when habit prop changes (e.g. opening edit modal)
@@ -785,8 +936,6 @@ export function HabitFormModal({ open, habit, onClose, onSubmit, onDelete }: {
       setColor(habit?.color || HABIT_COLORS[0]);
       setDescription(habit?.description || '');
       setShowMore(!!habit);
-      setShowIconPicker(false);
-      setShowColorPicker(false);
     }
   }, [open, habit]);
 
@@ -908,92 +1057,11 @@ export function HabitFormModal({ open, habit, onClose, onSubmit, onDelete }: {
             </button>
           </div>
 
-          {/* Icon & Color inline pickers */}
+          {/* Icon & Color floating pickers */}
           <div className="flex gap-3">
-            <button
-              onClick={() => { setShowIconPicker(!showIconPicker); setShowColorPicker(false); }}
-              className={`flex-1 flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all ${
-                showIconPicker
-                  ? 'border-purple-500/40 bg-purple-500/5'
-                  : 'border-foreground/10 bg-foreground/[0.04] hover:bg-foreground/[0.06]'
-              }`}
-            >
-              <span className="text-sm">{icon || '😊'}</span>
-              <span className="text-[10px] text-slate-400 flex-1 text-left truncate">
-                {icon ? t('personal.habit.changeIcon', '변경') : t('personal.habit.selectIcon', '선택')}
-              </span>
-              <ChevronDown size={12} className={`text-slate-500 transition-transform ${showIconPicker ? 'rotate-180' : ''}`} />
-            </button>
-            <button
-              onClick={() => { setShowColorPicker(!showColorPicker); setShowIconPicker(false); }}
-              className={`flex-1 flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all ${
-                showColorPicker
-                  ? 'border-purple-500/40 bg-purple-500/5'
-                  : 'border-foreground/10 bg-foreground/[0.04] hover:bg-foreground/[0.06]'
-              }`}
-            >
-              <div className="w-4 h-4 rounded-full shrink-0 border border-white/10" style={{ backgroundColor: color }} />
-              <span className="text-[10px] text-slate-400 flex-1 text-left truncate">
-                {t('personal.habit.changeColor', '변경')}
-              </span>
-              <ChevronDown size={12} className={`text-slate-500 transition-transform ${showColorPicker ? 'rotate-180' : ''}`} />
-            </button>
+            <IconDropdown icon={icon} onChange={setIcon} />
+            <ColorDropdown color={color} onChange={setColor} colors={HABIT_COLORS} />
           </div>
-
-          {/* Icon Picker Expanded */}
-          <AnimatePresence>
-            {showIconPicker && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="overflow-hidden"
-              >
-                <div className="flex flex-wrap justify-center gap-1.5">
-                  {HABIT_ICONS.map((emoji) => (
-                    <button
-                      key={emoji}
-                      onClick={() => { setIcon(icon === emoji ? '' : emoji); setShowIconPicker(false); }}
-                      className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm transition-all ${
-                        icon === emoji
-                          ? 'bg-purple-500/20 ring-1 ring-purple-500 scale-110'
-                          : 'bg-foreground/5 hover:bg-foreground/10 hover:scale-105'
-                      }`}
-                    >
-                      {emoji}
-                    </button>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Color Picker Expanded */}
-          <AnimatePresence>
-            {showColorPicker && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="overflow-hidden"
-              >
-                <div className="flex gap-2">
-                  {HABIT_COLORS.map((c) => (
-                    <button
-                      key={c}
-                      onClick={() => { setColor(c); setShowColorPicker(false); }}
-                      className={`w-6 h-6 rounded-full transition-all ${
-                        color === c
-                          ? 'ring-2 ring-foreground/40 ring-offset-1 ring-offset-bridge-obsidian scale-110'
-                          : 'hover:scale-110 opacity-60 hover:opacity-100'
-                      }`}
-                      style={{ backgroundColor: c }}
-                    />
-                  ))}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
 
           {/* Description */}
           <textarea
