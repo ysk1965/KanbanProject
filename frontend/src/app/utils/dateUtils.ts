@@ -151,6 +151,26 @@ export function getTodayDateString(): string {
   return format(new Date(), 'yyyy-MM-dd');
 }
 
+// ── Diary 날짜 경계 (새벽 5시 기준) ──────────────────────────
+// 자정~새벽 5시 사이에는 전날로 간주 (일기 작성 시)
+const DIARY_DAY_CUTOFF_HOUR = 5;
+
+/** 일기용 "오늘" 날짜 — 새벽 5시 이전이면 전날로 반환 */
+export function getDiaryTodayDate(): Date {
+  const now = new Date();
+  if (now.getHours() < DIARY_DAY_CUTOFF_HOUR) {
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    return yesterday;
+  }
+  return now;
+}
+
+/** 일기용 "오늘" 날짜 문자열 (yyyy-MM-dd) */
+export function getDiaryTodayDateString(): string {
+  return format(getDiaryTodayDate(), 'yyyy-MM-dd');
+}
+
 // 현재 시간 UTC ISO
 export function nowUTC(): string {
   return new Date().toISOString();

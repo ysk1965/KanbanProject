@@ -16,7 +16,7 @@ import {
   subMonths,
 } from 'date-fns';
 import { diaryService } from '../../utils/services';
-import { formatDate } from '../../utils/dateUtils';
+import { formatDate, getDiaryTodayDate, getDiaryTodayDateString } from '../../utils/dateUtils';
 import { useHolidays } from '../../hooks/useHolidays';
 import { PersonalCreditModal } from './PersonalCreditModal';
 import type { DiaryDetail, DiaryMessage, DiarySimple, AiCredits } from '../../types';
@@ -57,7 +57,7 @@ type VoiceState = 'idle' | 'recording' | 'processing' | 'ai-speaking';
 export const PersonalDiary = forwardRef<TabSwipeHandle>(function PersonalDiary(_props, ref) {
   const { t, i18n } = useTranslation();
   const MOODS = useMemo(() => getMoods(t), [t]);
-  const [currentDate, setCurrentDate] = useState(toDateString(new Date()));
+  const [currentDate, setCurrentDate] = useState(getDiaryTodayDateString());
   const [diary, setDiary] = useState<DiaryDetail | null>(null);
   const [diaryList, setDiaryList] = useState<DiarySimple[]>([]);
   const [message, setMessage] = useState('');
@@ -505,7 +505,7 @@ export const PersonalDiary = forwardRef<TabSwipeHandle>(function PersonalDiary(_
     }
   };
 
-  const today = toDateString(new Date());
+  const today = getDiaryTodayDateString();
   const isToday = currentDate === today;
 
   // Diary dates for the mini calendar indicators
@@ -546,9 +546,9 @@ export const PersonalDiary = forwardRef<TabSwipeHandle>(function PersonalDiary(_
   const handlePrevMonth = () => setCalendarMonth(subMonths(calendarMonth, 1));
   const handleNextMonth = () => setCalendarMonth(addMonths(calendarMonth, 1));
   const handleCalendarToday = () => {
-    const now = new Date();
-    setCalendarMonth(startOfMonth(now));
-    setCurrentDate(toDateString(now));
+    const diaryToday = getDiaryTodayDate();
+    setCalendarMonth(startOfMonth(diaryToday));
+    setCurrentDate(toDateString(diaryToday));
   };
 
   return (
@@ -844,6 +844,9 @@ export const PersonalDiary = forwardRef<TabSwipeHandle>(function PersonalDiary(_
               {/* Subtle hint */}
               <p className="text-[11px] text-slate-600 mt-1">
                 {t('personal.diary.canContinue')}
+              </p>
+              <p className="text-[10px] text-slate-600/60 mt-0.5">
+                {t('personal.diary.dayCutoffHint')}
               </p>
             </motion.div>
 

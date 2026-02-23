@@ -2648,7 +2648,8 @@
     },
     "diary": {
       "completionSuggestion": "Parece que compartilhamos bastante hoje. Vamos transformar em um diário? ✨",
-      "continueChat": "Continuar conversando"
+      "continueChat": "Continuar conversando",
+      "dayCutoffHint": "Registros antes das 5h contam como o dia anterior"
     },
     "schedule": {
       "overlapWarning": "Sobrepõe {{count}} evento(s)",

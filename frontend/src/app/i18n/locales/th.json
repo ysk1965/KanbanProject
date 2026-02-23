@@ -2648,7 +2648,8 @@
     },
     "diary": {
       "completionSuggestion": "ดูเหมือนเราคุยกันเยอะแล้ววันนี้ เขียนเป็นไดอารี่กันไหม? ✨",
-      "continueChat": "คุยต่อ"
+      "continueChat": "คุยต่อ",
+      "dayCutoffHint": "ก่อนตี 5 จะนับเป็นไดอารี่ของวันก่อนหน้า"
     },
     "schedule": {
       "overlapWarning": "ซ้อนทับกับ {{count}} กิจกรรม",

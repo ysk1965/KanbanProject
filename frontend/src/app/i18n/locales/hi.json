@@ -2648,7 +2648,8 @@
     },
     "diary": {
       "completionSuggestion": "लगता है आज हमने काफ़ी बातें की हैं। इसे डायरी में लिखें? ✨",
-      "continueChat": "और बात करें"
+      "continueChat": "और बात करें",
+      "dayCutoffHint": "सुबह 5 बजे से पहले की प्रविष्टियाँ पिछले दिन की मानी जाती हैं"
     },
     "schedule": {
       "overlapWarning": "{{count}} इवेंट के साथ ओवरलैप",
