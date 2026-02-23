@@ -32,6 +32,7 @@ export function useVisualViewport() {
 
     // 키보드 판별 임계값: 전체 높이의 25% 이상 줄어들면 키보드로 간주
     const KEYBOARD_THRESHOLD = 0.75;
+    let wasKeyboardOpen = false;
 
     const update = () => {
       const viewportHeight = vv.height;
@@ -49,10 +50,53 @@ export function useVisualViewport() {
       const isKeyboardOpen = viewportHeight < fullHeight * KEYBOARD_THRESHOLD;
 
       if (isKeyboardOpen) {
+        wasKeyboardOpen = true;
         document.documentElement.setAttribute('data-keyboard-open', '');
       } else {
+        // 키보드가 닫힌 직후라면 viewport 복원 강제 트리거
+        if (wasKeyboardOpen) {
+          wasKeyboardOpen = false;
+          requestAnimationFrame(() => {
+            window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
+            // 복원 후 CSS 변수도 전체 높이로 재설정
+            const restored = vv.height;
+            document.documentElement.style.setProperty('--visual-viewport-height', `${restored}px`);
+            document.documentElement.style.setProperty('--vvh', `${restored * 0.01}px`);
+          });
+        }
         document.documentElement.removeAttribute('data-keyboard-open');
       }
+    };
+
+    // iOS PWA standalone 모드에서 키보드 닫힐 때 viewport가 밀린 채 남는 버그 대응
+    // focusout 시 강제로 scroll 위치를 복원하여 하단 빈 공간 제거
+    const handleFocusOut = (e: FocusEvent) => {
+      const target = e.target;
+      if (
+        !(target instanceof HTMLInputElement) &&
+        !(target instanceof HTMLTextAreaElement) &&
+        !(target instanceof HTMLElement && target.isContentEditable)
+      ) {
+        return;
+      }
+
+      // 다른 input으로 포커스가 이동하는 경우는 무시 (키보드가 닫히지 않으므로)
+      setTimeout(() => {
+        const active = document.activeElement;
+        const isStillEditing =
+          active instanceof HTMLInputElement ||
+          active instanceof HTMLTextAreaElement ||
+          (active instanceof HTMLElement && active.isContentEditable);
+
+        if (!isStillEditing) {
+          // 키보드가 실제로 닫힌 경우 — viewport 강제 복원
+          window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
+          // 약간의 딜레이 후 CSS 변수 재계산 (OS 키보드 애니메이션 완료 대기)
+          setTimeout(() => {
+            update();
+          }, 150);
+        }
+      }, 80);
     };
 
     // 초기 세팅
@@ -60,10 +104,12 @@ export function useVisualViewport() {
 
     vv.addEventListener('resize', update);
     vv.addEventListener('scroll', update);
+    document.addEventListener('focusout', handleFocusOut);
 
     return () => {
       vv.removeEventListener('resize', update);
       vv.removeEventListener('scroll', update);
+      document.removeEventListener('focusout', handleFocusOut);
       document.documentElement.removeAttribute('data-keyboard-open');
       document.documentElement.style.removeProperty('--visual-viewport-height');
       document.documentElement.style.removeProperty('--vvh');
