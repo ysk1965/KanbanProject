@@ -24,6 +24,8 @@ import { PaymentSuccessPage } from './pages/PaymentSuccessPage';
 import { PaymentFailPage } from './pages/PaymentFailPage';
 import { AnnouncementsPage } from './pages/AnnouncementsPage';
 import { SharedNotePage } from './pages/SharedNotePage';
+import BibleTranscriptionPage from './pages/BibleTranscriptionPage';
+import RoulettePage from './pages/RoulettePage';
 import { AnnouncementDisplay } from './components/AnnouncementDisplay';
 import { MaintenancePage } from './components/MaintenancePage';
 import { boardService, inviteLinkService, systemService } from './utils/services';
@@ -430,6 +432,12 @@ function AppRoutes() {
 
       {/* 공지사항 */}
       <Route path="/announcements" element={<AnnouncementsPage />} />
+
+      {/* 성경 필사 */}
+      <Route path="/bible" element={<BibleTranscriptionPage />} />
+
+      {/* 커피 룰렛 */}
+      <Route path="/roulette" element={<RoulettePage />} />
 
       {/* 설정 */}
       <Route

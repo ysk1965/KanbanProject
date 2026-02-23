@@ -4,7 +4,7 @@ import { Plus } from 'lucide-react';
 import { isWhiteLabelDomain } from '../utils/domain';
 
 // 뷰 모드 타입
-type ViewMode = 'kanban' | 'weekly' | 'schedule' | 'calendar' | 'meeting' | 'notes' | 'statistics' | 'ai_report';
+type ViewMode = 'kanban' | 'weekly' | 'schedule' | 'calendar' | 'milestone' | 'meeting' | 'notes' | 'statistics' | 'ai_report';
 import { DragProvider } from '../contexts/DragContext';
 import { useAuth } from '../contexts/AuthContext';
 import { Block, Feature, Task, Tag, Board, InviteLink, Subscription, ActivityLog, Milestone, BoardTierInfo, BoardLimits, ChecklistItem, NotificationItem, BoardWebSocketEvent, TaskComment, AiCredits, TaskDependency } from '../types';
@@ -24,6 +24,7 @@ import { lazyWithRetry } from '../utils/lazyWithRetry';
 const StatisticsView = lazyWithRetry(() => import('../components/StatisticsView').then(m => ({ default: m.StatisticsView })), 'StatisticsView');
 const AIReportPanel = lazyWithRetry(() => import('../components/AIReportPanel').then(m => ({ default: m.AIReportPanel })), 'AIReportPanel');
 const NotesView = lazyWithRetry(() => import('../components/notes/NotesView').then(m => ({ default: m.NotesView })), 'NotesView');
+const MilestoneView = lazyWithRetry(() => import('../components/MilestoneView').then(m => ({ default: m.MilestoneView })), 'MilestoneView');
 import { EmptyBoardGuide } from '../components/EmptyBoardGuide';
 import { QuickAddTaskModal } from '../components/QuickAddTaskModal';
 import {
@@ -80,7 +81,7 @@ export function KanbanBoardPage() {
 
   // 뷰 모드 상태 (URL 파라미터 우선, 없으면 localStorage)
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
-    if (urlView && ['kanban', 'weekly', 'schedule', 'calendar', 'meeting', 'notes', 'statistics', 'ai_report'].includes(urlView)) {
+    if (urlView && ['kanban', 'weekly', 'schedule', 'calendar', 'milestone', 'meeting', 'notes', 'statistics', 'ai_report'].includes(urlView)) {
       return urlView;
     }
     const saved = localStorage.getItem(`viewMode_${boardId}`);
@@ -88,10 +89,11 @@ export function KanbanBoardPage() {
   });
 
   // 병합 탭 서브모드 기억 헬퍼
-  const getScheduleSubMode = (): 'schedule' | 'weekly' | 'calendar' => {
+  const getScheduleSubMode = (): 'schedule' | 'weekly' | 'calendar' | 'milestone' => {
     const saved = localStorage.getItem(`scheduleSubMode_${boardId}`);
     if (saved === 'weekly') return 'weekly';
     if (saved === 'calendar') return 'calendar';
+    if (saved === 'milestone') return 'milestone';
     return 'schedule';
   };
   const getAISubMode = (): 'statistics' | 'ai_report' => {
@@ -554,8 +556,13 @@ export function KanbanBoardPage() {
         setFilterOptions((prev) => ({ ...prev, members: [] }));
       }
     }
+    // 마일스톤 뷰 Premium 권한 체크
+    if (mode === 'milestone' && !canAccessMilestone) {
+      openUpgradeModal('milestone');
+      return;
+    }
     // 병합 탭 서브모드 기억
-    if (mode === 'schedule' || mode === 'weekly' || mode === 'calendar') {
+    if (mode === 'schedule' || mode === 'weekly' || mode === 'calendar' || mode === 'milestone') {
       localStorage.setItem(`scheduleSubMode_${boardId}`, mode);
     }
     if (mode === 'statistics' || mode === 'ai_report') {
@@ -1628,7 +1635,7 @@ export function KanbanBoardPage() {
         />
 
         {/* 병합 탭 서브토글 바 */}
-        {(viewMode === 'schedule' || viewMode === 'weekly' || viewMode === 'calendar') && (
+        {(viewMode === 'schedule' || viewMode === 'weekly' || viewMode === 'calendar' || viewMode === 'milestone') && (
           <div className="flex items-center justify-center py-1.5 bg-kanban-header/50 border-b border-foreground/5">
             <div className="flex items-center gap-1 bg-foreground/5 rounded-lg p-0.5">
               <button
@@ -1663,6 +1670,19 @@ export function KanbanBoardPage() {
                 }`}
               >
                 {t('kanban.viewCalendar', '캘린더')}
+              </button>
+              <button
+                onClick={() => handleViewModeChange('milestone')}
+                className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
+                  viewMode === 'milestone'
+                    ? 'bg-foreground/10 text-foreground'
+                    : !canAccessMilestone
+                      ? 'text-zinc-600 cursor-not-allowed'
+                      : 'text-zinc-400 hover:text-foreground'
+                }`}
+              >
+                {t('kanban.viewMilestone', '마일스톤')}
+                {!canAccessMilestone && <Lock size={10} className="inline ml-1 text-zinc-500" />}
               </button>
             </div>
           </div>
@@ -1965,6 +1985,24 @@ export function KanbanBoardPage() {
               />
             </Suspense>
           </main>
+        ) : viewMode === 'milestone' ? (
+          <main className="flex-1 overflow-hidden">
+            <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="w-8 h-8 border-2 border-bridge-accent border-t-transparent rounded-full animate-spin" /></div>}>
+              <MilestoneView
+                boardId={boardId || ''}
+                features={features}
+                tasks={tasks}
+                milestones={milestones}
+                onFeatureClick={handleFeatureClick}
+                onRefresh={() => {
+                  if (boardId) {
+                    const milestoneId = kanbanSelectedMilestoneId !== 'all' ? kanbanSelectedMilestoneId : undefined;
+                    reloadFeaturesAndTasks(milestoneId);
+                  }
+                }}
+              />
+            </Suspense>
+          </main>
         ) : null}
 
         {/* 모바일 하단 여백 (탭바 + safe area 공간 확보) */}
@@ -1975,10 +2013,12 @@ export function KanbanBoardPage() {
           <div className="flex items-center justify-around px-1 pt-2 pb-1.5">
             <MobileTabButton active={viewMode === 'kanban'} onClick={() => handleViewModeChange('kanban')} label={t('kanban.viewKanban')} icon="kanban" />
             <MobileTabButton
-              active={viewMode === 'schedule' || viewMode === 'weekly' || viewMode === 'calendar'}
+              active={viewMode === 'schedule' || viewMode === 'weekly' || viewMode === 'calendar' || viewMode === 'milestone'}
               onClick={() => {
                 const subMode = getScheduleSubMode();
                 if (subMode === 'weekly' && !canAccessSchedule) {
+                  handleViewModeChange('schedule');
+                } else if (subMode === 'milestone' && !canAccessMilestone) {
                   handleViewModeChange('schedule');
                 } else {
                   handleViewModeChange(subMode);
