@@ -137,9 +137,9 @@ public class Subscription {
      * Admin에 의한 STANDARD 전환 시 구독 상태 동기화
      */
     public void downgradeByAdmin() {
-        this.status = SubscriptionStatus.TRIAL;
+        this.status = SubscriptionStatus.CANCELED;
         this.plan = null;
-        this.trialEndsAt = LocalDateTime.now(ZoneOffset.UTC).plusDays(7);
+        this.trialEndsAt = null;
     }
 
     public boolean isActive() {
@@ -229,13 +229,13 @@ public class Subscription {
 
     public int getMemberLimit() {
         if (isTrial()) {
-            return 5;
+            return Integer.MAX_VALUE; // Trial: 멤버 무제한
         }
         // Seat 기반: 구매한 시트 수가 곧 멤버 제한
         if (this.seatCount != null && this.seatCount > 0) {
             return this.seatCount;
         }
-        return 5; // fallback
+        return Integer.MAX_VALUE; // Standard: 멤버 무제한
     }
 
     // AI Credit Management Methods

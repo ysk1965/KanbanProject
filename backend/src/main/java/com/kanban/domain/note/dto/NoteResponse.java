@@ -209,6 +209,7 @@ public class NoteResponse {
         private String profileImage;
 
         public static UserInfo of(User user) {
+            if (user == null) return null;
             return UserInfo.builder()
                     .id(user.getId())
                     .name(user.getName())

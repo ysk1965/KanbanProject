@@ -7,6 +7,8 @@ import {
   ArrowDownRight,
   BarChart3,
   RefreshCw,
+  UserCheck,
+  ArrowRightLeft,
 } from 'lucide-react';
 import {
   LineChart,
@@ -25,6 +27,8 @@ import type {
   SignupTrend,
   ActiveUserStats,
   ConversionStats,
+  DiaryStats,
+  PersonalConversionStats,
 } from '../../utils/api';
 
 type PeriodOption = 7 | 14 | 30 | 90;
@@ -34,10 +38,13 @@ export function AdminAnalyticsTab() {
   const [signupTrend, setSignupTrend] = useState<SignupTrend | null>(null);
   const [activeUserStats, setActiveUserStats] = useState<ActiveUserStats | null>(null);
   const [conversionStats, setConversionStats] = useState<ConversionStats | null>(null);
+  const [diaryStats, setDiaryStats] = useState<DiaryStats | null>(null);
+  const [pbConversionStats, setPbConversionStats] = useState<PersonalConversionStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [signupDays, setSignupDays] = useState<PeriodOption>(30);
   const [dauDays, setDauDays] = useState<PeriodOption>(30);
+  const [diaryDays, setDiaryDays] = useState<PeriodOption>(30);
 
   useEffect(() => {
     loadAllData();
@@ -51,18 +58,26 @@ export function AdminAnalyticsTab() {
     loadActiveUserStats();
   }, [dauDays]);
 
+  useEffect(() => {
+    loadDiaryStats();
+  }, [diaryDays]);
+
   const loadAllData = async () => {
     try {
       setIsLoading(true);
       setError(null);
-      const [signup, active, conversion] = await Promise.all([
+      const [signup, active, conversion, diary, pbConversion] = await Promise.all([
         adminService.getSignupTrend(signupDays),
         adminService.getActiveUserStats(dauDays),
         adminService.getConversionStats(365),
+        adminService.getDiaryStats(diaryDays),
+        adminService.getPersonalConversionStats(365),
       ]);
       setSignupTrend(signup);
       setActiveUserStats(active);
       setConversionStats(conversion);
+      setDiaryStats(diary);
+      setPbConversionStats(pbConversion);
     } catch (err) {
       console.error('Failed to load analytics:', err);
       setError(t('admin.analytics.loadFailed'));
@@ -86,6 +101,15 @@ export function AdminAnalyticsTab() {
       setActiveUserStats(data);
     } catch (err) {
       console.error('Failed to load active user stats:', err);
+    }
+  };
+
+  const loadDiaryStats = async () => {
+    try {
+      const data = await adminService.getDiaryStats(diaryDays);
+      setDiaryStats(data);
+    } catch (err) {
+      console.error('Failed to load diary stats:', err);
     }
   };
 
@@ -124,7 +148,7 @@ export function AdminAnalyticsTab() {
   };
 
   const tooltipStyle = {
-    backgroundColor: '#0F1419',
+    backgroundColor: 'var(--bridge-obsidian)',
     border: '1px solid rgba(255,255,255,0.1)',
     borderRadius: '12px',
     padding: '12px',
@@ -135,12 +159,12 @@ export function AdminAnalyticsTab() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white mb-2">{t('admin.analytics.title')}</h2>
+          <h2 className="text-2xl font-bold text-foreground mb-2">{t('admin.analytics.title')}</h2>
           <p className="text-slate-400">{t('admin.analytics.subtitle')}</p>
         </div>
         <button
           onClick={loadAllData}
-          className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 text-slate-300 rounded-xl hover:bg-white/10 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-foreground/5 border border-foreground/10 text-muted-foreground rounded-xl hover:bg-foreground/10 transition-colors"
         >
           <RefreshCw className="h-4 w-4" />
           {t('admin.common.refresh')}
@@ -176,11 +200,11 @@ export function AdminAnalyticsTab() {
 
       {/* Signup Trend Chart */}
       {signupTrend && (
-        <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-4 md:p-6">
+        <div className="bg-bridge-obsidian rounded-2xl border border-foreground/5 p-4 md:p-6">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-bridge-accent" />
-              <h3 className="text-lg font-bold text-white">{t('admin.analytics.signupTrend')}</h3>
+              <h3 className="text-lg font-bold text-foreground">{t('admin.analytics.signupTrend')}</h3>
               <span className="text-sm text-slate-400 ml-2">
                 {t('admin.analytics.totalCount', { count: signupTrend.total.toLocaleString() })}
               </span>
@@ -216,7 +240,7 @@ export function AdminAnalyticsTab() {
                       email_count: t('admin.analytics.emailSignup'),
                       google_count: t('admin.analytics.googleSignup'),
                     };
-                    return <span className="text-slate-300 text-sm">{labels[value] || value}</span>;
+                    return <span className="text-muted-foreground text-sm">{labels[value] || value}</span>;
                   }}
                 />
                 <Bar dataKey="email_count" stackId="a" fill="#6366F1" radius={[0, 0, 0, 0]} />
@@ -229,11 +253,11 @@ export function AdminAnalyticsTab() {
 
       {/* DAU Trend Chart */}
       {activeUserStats && activeUserStats.trend.length > 0 && (
-        <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-4 md:p-6">
+        <div className="bg-bridge-obsidian rounded-2xl border border-foreground/5 p-4 md:p-6">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
               <Users className="h-5 w-5 text-bridge-secondary" />
-              <h3 className="text-lg font-bold text-white">{t('admin.analytics.dauTrend')}</h3>
+              <h3 className="text-lg font-bold text-foreground">{t('admin.analytics.dauTrend')}</h3>
             </div>
             <PeriodSelector value={dauDays} onChange={setDauDays} options={periodOptions} />
           </div>
@@ -270,10 +294,10 @@ export function AdminAnalyticsTab() {
 
       {/* Conversion Stats */}
       {conversionStats && (
-        <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-4 md:p-6">
+        <div className="bg-bridge-obsidian rounded-2xl border border-foreground/5 p-4 md:p-6">
           <div className="flex items-center gap-2 mb-6">
             <ArrowUpRight className="h-5 w-5 text-amber-400" />
-            <h3 className="text-lg font-bold text-white">{t('admin.analytics.conversionRate')}</h3>
+            <h3 className="text-lg font-bold text-foreground">{t('admin.analytics.conversionRate')}</h3>
           </div>
 
           {/* Conversion Summary Cards */}
@@ -342,7 +366,7 @@ export function AdminAnalyticsTab() {
                           trial_started: t('admin.analytics.trialStarted'),
                           converted: t('admin.analytics.converted'),
                         };
-                        return <span className="text-slate-300 text-sm">{labels[value] || value}</span>;
+                        return <span className="text-muted-foreground text-sm">{labels[value] || value}</span>;
                       }}
                     />
                     <Bar dataKey="trial_started" fill="#6366F1" radius={[4, 4, 0, 0]} />
@@ -352,6 +376,113 @@ export function AdminAnalyticsTab() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Diary Engagement Chart */}
+      {diaryStats && (
+        <div className="bg-bridge-obsidian rounded-2xl border border-foreground/5 p-4 md:p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2">
+              <UserCheck className="h-5 w-5 text-emerald-400" />
+              <h3 className="text-lg font-bold text-foreground">{t('admin.analytics.diaryEngagement', 'Diary Engagement')}</h3>
+            </div>
+            <PeriodSelector value={diaryDays} onChange={setDiaryDays} options={periodOptions} />
+          </div>
+
+          {/* Diary Summary Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
+            <ConversionMetric
+              label={t('admin.analytics.totalDiaryEntries', 'Total Entries')}
+              value={diaryStats.total_entries}
+            />
+            <ConversionMetric
+              label={t('admin.analytics.diaryCompletionRate', 'Completion Rate')}
+              value={`${diaryStats.completion_rate}%`}
+              highlight
+            />
+            <ConversionMetric
+              label={t('admin.analytics.diaryActiveUsers', 'Active Users')}
+              value={diaryStats.active_users}
+              positive
+            />
+          </div>
+
+          {diaryStats.trend.length > 0 && (
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={diaryStats.trend}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                  <XAxis dataKey="date" tickFormatter={formatDate} stroke="#64748b" fontSize={12} />
+                  <YAxis stroke="#64748b" fontSize={12} allowDecimals={false} />
+                  <Tooltip
+                    contentStyle={tooltipStyle}
+                    labelFormatter={(label) => `${t('admin.analytics.date')}: ${label}`}
+                    formatter={(value: number) => [value, t('admin.analytics.diaryEntries', 'Diary Entries')]}
+                  />
+                  <Bar dataKey="count" fill="#10b981" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Personal -> Team Conversion */}
+      {pbConversionStats && (
+        <div className="bg-bridge-obsidian rounded-2xl border border-foreground/5 p-4 md:p-6">
+          <div className="flex items-center gap-2 mb-6">
+            <ArrowRightLeft className="h-5 w-5 text-bridge-secondary" />
+            <h3 className="text-lg font-bold text-foreground">{t('admin.analytics.pbConversion', 'Personal Board Conversion')}</h3>
+          </div>
+
+          {/* Conversion Summary */}
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
+            <ConversionMetric
+              label={t('admin.analytics.personalOnly', 'Personal Only')}
+              value={pbConversionStats.personal_only}
+            />
+            <ConversionMetric
+              label={t('admin.analytics.personalAndTeam', 'Personal + Team')}
+              value={pbConversionStats.both}
+              positive
+            />
+            <ConversionMetric
+              label={t('admin.analytics.pbConversionRate', 'Conversion Rate')}
+              value={`${pbConversionStats.conversion_rate}%`}
+              highlight
+            />
+          </div>
+
+          {/* Conversion Progress Bar */}
+          {(() => {
+            const total = pbConversionStats.personal_only + pbConversionStats.both;
+            if (total === 0) return null;
+            const bothPct = (pbConversionStats.both / total) * 100;
+            const personalPct = (pbConversionStats.personal_only / total) * 100;
+            return (
+              <div className="space-y-2">
+                <div className="h-4 bg-foreground/5 rounded-full overflow-hidden flex">
+                  {bothPct > 0 && (
+                    <div className="h-full bg-bridge-secondary transition-all duration-500" style={{ width: `${bothPct}%` }} />
+                  )}
+                  {personalPct > 0 && (
+                    <div className="h-full bg-purple-500/60 transition-all duration-500" style={{ width: `${personalPct}%` }} />
+                  )}
+                </div>
+                <div className="flex gap-4 text-xs">
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-bridge-secondary" />
+                    <span className="text-slate-400">{t('admin.analytics.personalAndTeam', 'Personal + Team')} {bothPct.toFixed(1)}%</span>
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-purple-500/60" />
+                    <span className="text-slate-400">{t('admin.analytics.personalOnly', 'Personal Only')} {personalPct.toFixed(1)}%</span>
+                  </span>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
     </div>
@@ -374,11 +505,11 @@ function MetricCard({
   bgColor: string;
 }) {
   return (
-    <div className="bg-bridge-obsidian rounded-xl border border-white/15 p-4 md:p-6">
+    <div className="bg-bridge-obsidian rounded-xl border border-bridge-border p-4 md:p-6">
       <div className="flex items-start justify-between">
         <div>
           <p className="text-slate-400 text-sm mb-1">{label}</p>
-          <p className="text-3xl font-bold text-white">{value.toLocaleString()}</p>
+          <p className="text-3xl font-bold text-foreground">{value.toLocaleString()}</p>
         </div>
         <div className={`${bgColor} p-3 rounded-xl`}>
           <Icon className={`h-6 w-6 ${color}`} />
@@ -398,7 +529,7 @@ function PeriodSelector({
   options: { value: PeriodOption; label: string }[];
 }) {
   return (
-    <div className="flex gap-1 bg-white/5 rounded-lg p-1">
+    <div className="flex gap-1 bg-foreground/5 rounded-lg p-1">
       {options.map((opt) => (
         <button
           key={opt.value}
@@ -406,7 +537,7 @@ function PeriodSelector({
           className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
             value === opt.value
               ? 'bg-bridge-accent text-white'
-              : 'text-slate-400 hover:text-white'
+              : 'text-slate-400 hover:text-foreground'
           }`}
         >
           {opt.label}
@@ -429,7 +560,7 @@ function ConversionMetric({
   negative?: boolean;
   highlight?: boolean;
 }) {
-  let valueColor = 'text-white';
+  let valueColor = 'text-foreground';
   let Icon = null;
   if (positive) {
     valueColor = 'text-emerald-400';
@@ -444,7 +575,7 @@ function ConversionMetric({
   }
 
   return (
-    <div className="bg-white/5 rounded-xl p-4">
+    <div className="bg-foreground/5 rounded-xl p-4">
       <p className="text-[11px] text-slate-400 uppercase tracking-wider mb-1">{label}</p>
       <div className="flex items-center gap-1">
         <p className={`text-xl font-bold ${valueColor}`}>
@@ -478,7 +609,7 @@ function ConversionFunnel({
 
   return (
     <div className="space-y-2">
-      <div className="h-4 bg-white/5 rounded-full overflow-hidden flex">
+      <div className="h-4 bg-foreground/5 rounded-full overflow-hidden flex">
         {convertedPct > 0 && (
           <div
             className="h-full bg-emerald-500 transition-all duration-500"

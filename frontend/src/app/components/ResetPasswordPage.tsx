@@ -75,11 +75,11 @@ export function ResetPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen w-full relative flex items-center justify-center p-4 md:p-8 overflow-hidden bg-bridge-dark text-white">
+    <div className="min-h-screen w-full relative flex items-center justify-center p-4 md:p-8 overflow-hidden bg-bridge-dark text-foreground">
       {/* Background Gradient */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10">
         <div
-          className="absolute w-[600px] h-[600px] rounded-full blur-[120px] opacity-[0.07] bg-gradient-to-r from-[#6366F1] to-[#2DD4BF]"
+          className="absolute w-[600px] h-[600px] rounded-full blur-[120px] opacity-[0.07] bg-gradient-to-r from-bridge-accent to-bridge-secondary"
           style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}
         />
       </div>
@@ -87,17 +87,17 @@ export function ResetPasswordPage() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-[500px] bg-bridge-obsidian rounded-[32px] p-8 md:p-12 border border-white/20 shadow-2xl"
+        className="w-full max-w-[500px] bg-bridge-obsidian rounded-[32px] p-8 md:p-12 border border-bridge-border shadow-2xl"
       >
         {/* Loading State */}
         {status === 'loading' && (
           <>
             <div className="flex justify-center mb-8">
-              <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center">
+              <div className="w-20 h-20 bg-foreground/5 rounded-full flex items-center justify-center">
                 <Loader2 className="w-10 h-10 text-bridge-accent animate-spin" />
               </div>
             </div>
-            <h1 className="text-2xl font-bold text-white text-center mb-4">
+            <h1 className="text-2xl font-bold text-foreground text-center mb-4">
               {t('resetPassword.changing')}
             </h1>
             <p className="text-slate-400 text-center">{t('common.pleaseWait')}</p>
@@ -109,13 +109,13 @@ export function ResetPasswordPage() {
           <>
             {/* Icon */}
             <div className="flex justify-center mb-8">
-              <div className="w-20 h-20 bg-gradient-to-br from-[#6366F1] to-[#2DD4BF] rounded-full flex items-center justify-center">
+              <div className="w-20 h-20 bg-gradient-to-br from-bridge-accent to-bridge-secondary rounded-full flex items-center justify-center">
                 <Lock className="w-10 h-10 text-white" />
               </div>
             </div>
 
             {/* Title */}
-            <h1 className="text-2xl md:text-3xl font-bold text-white text-center mb-4">
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground text-center mb-4">
               {t('resetPassword.title')}
             </h1>
 
@@ -137,12 +137,12 @@ export function ResetPasswordPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder={t('resetPassword.passwordPlaceholder')}
-                    className="w-full bg-white/5 border border-white/20 rounded-xl py-3 px-4 pr-12 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+                    className="w-full bg-foreground/5 border border-bridge-border rounded-xl py-3 px-4 pr-12 text-foreground placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-foreground transition-colors"
                   >
                     {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
@@ -160,12 +160,12 @@ export function ResetPasswordPage() {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder={t('resetPassword.confirmPlaceholder')}
-                    className="w-full bg-white/5 border border-white/20 rounded-xl py-3 px-4 pr-12 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+                    className="w-full bg-foreground/5 border border-bridge-border rounded-xl py-3 px-4 pr-12 text-foreground placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-foreground transition-colors"
                   >
                     {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
@@ -182,7 +182,7 @@ export function ResetPasswordPage() {
               {/* Submit Button */}
               <button
                 type="submit"
-                className="w-full h-14 bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white rounded-2xl font-bold transition-all duration-300 flex items-center justify-center gap-2 hover:shadow-[0_0_30px_rgba(99,102,241,0.3)]"
+                className="w-full h-14 bg-gradient-to-r from-bridge-accent to-indigo-600 text-white rounded-2xl font-bold transition-all duration-300 flex items-center justify-center gap-2 hover:shadow-[0_0_30px_rgba(99,102,241,0.3)]"
               >
                 {t('resetPassword.changePassword')}
               </button>
@@ -198,7 +198,7 @@ export function ResetPasswordPage() {
                 <CheckCircle className="w-10 h-10 text-white" />
               </div>
             </div>
-            <h1 className="text-2xl md:text-3xl font-bold text-white text-center mb-4">
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground text-center mb-4">
               {t('resetPassword.successTitle')}
             </h1>
             <p className="text-slate-400 text-center mb-8">
@@ -206,7 +206,7 @@ export function ResetPasswordPage() {
             </p>
             <button
               onClick={() => navigate('/login')}
-              className="w-full h-14 bg-gradient-to-r from-[#6366F1] to-[#4F46E5] text-white rounded-2xl font-bold transition-all duration-300 flex items-center justify-center gap-2 hover:shadow-[0_0_30px_rgba(99,102,241,0.3)]"
+              className="w-full h-14 bg-gradient-to-r from-bridge-accent to-indigo-600 text-white rounded-2xl font-bold transition-all duration-300 flex items-center justify-center gap-2 hover:shadow-[0_0_30px_rgba(99,102,241,0.3)]"
             >
               {t('resetPassword.goToLogin')}
               <ArrowRight className="w-5 h-5" />
@@ -222,7 +222,7 @@ export function ResetPasswordPage() {
                 <XCircle className="w-10 h-10 text-white" />
               </div>
             </div>
-            <h1 className="text-2xl md:text-3xl font-bold text-white text-center mb-4">
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground text-center mb-4">
               {t('resetPassword.errorTitle')}
             </h1>
             <p className="text-slate-400 text-center mb-8">
@@ -230,7 +230,7 @@ export function ResetPasswordPage() {
             </p>
             <button
               onClick={() => navigate('/forgot-password')}
-              className="w-full h-14 bg-white/5 border border-white/20 text-white rounded-2xl font-bold transition-all duration-300 flex items-center justify-center gap-2 hover:bg-white/10"
+              className="w-full h-14 bg-foreground/5 border border-bridge-border text-foreground rounded-2xl font-bold transition-all duration-300 flex items-center justify-center gap-2 hover:bg-foreground/10"
             >
               {t('resetPassword.requestAgain')}
               <ArrowRight className="w-5 h-5" />
@@ -239,8 +239,8 @@ export function ResetPasswordPage() {
         )}
 
         {/* Footer */}
-        <div className="mt-8 pt-6 border-t border-white/15">
-          <Link to="/" className="block text-center text-sm text-slate-400 hover:text-white transition-colors">
+        <div className="mt-8 pt-6 border-t border-bridge-border">
+          <Link to="/" className="block text-center text-sm text-slate-400 hover:text-foreground transition-colors">
             {t('resetPassword.backToHome')}
           </Link>
         </div>

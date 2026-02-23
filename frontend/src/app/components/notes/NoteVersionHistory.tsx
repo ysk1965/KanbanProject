@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { History, RotateCcw, X, Loader2, Eye } from 'lucide-react';
+import DOMPurify from 'dompurify';
 import { noteService } from '../../utils/services';
 import { formatDateTime } from '../../utils/dateUtils';
 import type { NoteVersionInfo, NoteVersionDetail } from '../../utils/api';
@@ -67,10 +68,10 @@ export function NoteVersionHistory({ boardId, noteId, versionCount, canEdit, onR
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="flex items-center gap-1 px-2 py-1 text-[10px] text-slate-400 hover:text-white hover:bg-white/5 rounded transition-colors"
+        className="flex items-center gap-1 px-2 py-1 text-[10px] text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded transition-colors"
       >
         <History size={10} />
-        {t('notes.versionHistory', '버전')}
+        <span className="hidden sm:inline">{t('notes.versionHistory', '버전')}</span>
         {versionCount > 0 && (
           <span className="text-bridge-accent font-semibold">{versionCount}</span>
         )}
@@ -83,16 +84,16 @@ export function NoteVersionHistory({ boardId, noteId, versionCount, canEdit, onR
           <div className="absolute inset-0 bg-black/50" onClick={() => { setIsOpen(false); setSelectedVersion(null); }} />
 
           {/* Panel */}
-          <div className="absolute right-0 top-0 bottom-0 w-96 bg-bridge-obsidian border-l border-white/10 shadow-2xl flex flex-col">
+          <div className="absolute right-0 top-0 bottom-0 w-96 bg-bridge-obsidian border-l border-foreground/10 shadow-2xl flex flex-col">
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-foreground/5">
+              <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
                 <History size={14} className="text-bridge-accent" />
                 {t('notes.versionHistory', '버전 히스토리')}
               </h3>
               <button
                 onClick={() => { setIsOpen(false); setSelectedVersion(null); }}
-                className="p-1 text-slate-400 hover:text-white hover:bg-white/10 rounded"
+                className="p-1 text-slate-400 hover:text-foreground hover:bg-foreground/10 rounded"
               >
                 <X size={14} />
               </button>
@@ -106,7 +107,7 @@ export function NoteVersionHistory({ boardId, noteId, versionCount, canEdit, onR
             ) : selectedVersion ? (
               /* Version Detail View */
               <div className="flex-1 flex flex-col overflow-hidden">
-                <div className="px-4 py-3 border-b border-white/5 flex items-center justify-between">
+                <div className="px-4 py-3 border-b border-foreground/5 flex items-center justify-between">
                   <div>
                     <button
                       onClick={() => setSelectedVersion(null)}
@@ -114,7 +115,7 @@ export function NoteVersionHistory({ boardId, noteId, versionCount, canEdit, onR
                     >
                       ← {t('notes.backToList', '목록으로')}
                     </button>
-                    <p className="text-xs font-semibold text-white mt-1">
+                    <p className="text-xs font-semibold text-foreground mt-1">
                       v{selectedVersion.version_number} · {selectedVersion.title}
                     </p>
                     <p className="text-[10px] text-slate-500 mt-0.5">
@@ -135,7 +136,7 @@ export function NoteVersionHistory({ boardId, noteId, versionCount, canEdit, onR
                 <div className="flex-1 overflow-y-auto p-4">
                   <div
                     className="prose prose-invert prose-sm max-w-none"
-                    dangerouslySetInnerHTML={{ __html: selectedVersion.content || '' }}
+                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(selectedVersion.content || '') }}
                   />
                 </div>
               </div>
@@ -152,10 +153,10 @@ export function NoteVersionHistory({ boardId, noteId, versionCount, canEdit, onR
                       <button
                         key={version.id}
                         onClick={() => handleViewVersion(version.id)}
-                        className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-white/5 transition-colors group"
+                        className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-foreground/5 transition-colors group"
                       >
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-semibold text-white">
+                          <span className="text-xs font-semibold text-foreground">
                             v{version.version_number}
                           </span>
                           <Eye size={12} className="text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity" />

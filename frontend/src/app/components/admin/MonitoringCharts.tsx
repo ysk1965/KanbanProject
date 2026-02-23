@@ -42,7 +42,7 @@ export function MonitoringCharts({ dashboard, history, aiUsage, openAIBilling }:
   const { t } = useTranslation();
 
   const tooltipStyle = {
-    backgroundColor: '#0F1419',
+    backgroundColor: 'var(--bridge-obsidian)',
     border: '1px solid rgba(255,255,255,0.1)',
     borderRadius: '12px',
     padding: '12px',
@@ -57,10 +57,10 @@ export function MonitoringCharts({ dashboard, history, aiUsage, openAIBilling }:
   return (
     <div className="space-y-6">
       {/* API Response Time Top 10 */}
-      <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-6">
+      <div className="bg-bridge-obsidian rounded-2xl border border-foreground/5 p-6">
         <div className="flex items-center gap-2 mb-4">
           <BarChart3 className="h-5 w-5 text-bridge-accent" />
-          <h3 className="text-white font-semibold">{t('admin.monitoring.apiResponseTop10')}</h3>
+          <h3 className="text-foreground font-semibold">{t('admin.monitoring.apiResponseTop10')}</h3>
         </div>
         <div className="h-72">
           {dashboard.api.top_slowest_endpoints.length > 0 ? (
@@ -102,10 +102,10 @@ export function MonitoringCharts({ dashboard, history, aiUsage, openAIBilling }:
       </div>
 
       {/* API Trend (Hourly) */}
-      <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-6">
+      <div className="bg-bridge-obsidian rounded-2xl border border-foreground/5 p-6">
         <div className="flex items-center gap-2 mb-4">
           <TrendingUp className="h-5 w-5 text-bridge-secondary" />
-          <h3 className="text-white font-semibold">{t('admin.monitoring.apiTrend')}</h3>
+          <h3 className="text-foreground font-semibold">{t('admin.monitoring.apiTrend')}</h3>
         </div>
         <div className="h-72">
           {history.length > 0 ? (
@@ -142,9 +142,9 @@ export function MonitoringCharts({ dashboard, history, aiUsage, openAIBilling }:
                 />
                 <Legend
                   formatter={(value: string) => {
-                    if (value === 'avg_response_ms') return <span className="text-slate-300 text-sm">{t('admin.monitoring.responseTime')}</span>;
-                    if (value === 'error_rate') return <span className="text-slate-300 text-sm">{t('admin.monitoring.errorRate')}</span>;
-                    return <span className="text-slate-300 text-sm">{value}</span>;
+                    if (value === 'avg_response_ms') return <span className="text-muted-foreground text-sm">{t('admin.monitoring.responseTime')}</span>;
+                    if (value === 'error_rate') return <span className="text-muted-foreground text-sm">{t('admin.monitoring.errorRate')}</span>;
+                    return <span className="text-muted-foreground text-sm">{value}</span>;
                   }}
                 />
                 <Line
@@ -179,10 +179,10 @@ export function MonitoringCharts({ dashboard, history, aiUsage, openAIBilling }:
       {openAIBilling && openAIBilling.connected && (openAIBilling.daily_costs.length > 0 || openAIBilling.model_usage.length > 0) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Daily Cost Trend */}
-          <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-6">
+          <div className="bg-bridge-obsidian rounded-2xl border border-foreground/5 p-6">
             <div className="flex items-center gap-2 mb-4">
               <CreditCard className="h-5 w-5 text-emerald-400" />
-              <h3 className="text-white font-semibold">{t('admin.monitoring.openAIDailyCost')}</h3>
+              <h3 className="text-foreground font-semibold">{t('admin.monitoring.openAIDailyCost')}</h3>
             </div>
             <div className="h-64">
               {openAIBilling.daily_costs.length > 0 ? (
@@ -213,10 +213,10 @@ export function MonitoringCharts({ dashboard, history, aiUsage, openAIBilling }:
           </div>
 
           {/* Model Usage Distribution */}
-          <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-6">
+          <div className="bg-bridge-obsidian rounded-2xl border border-foreground/5 p-6">
             <div className="flex items-center gap-2 mb-4">
               <CreditCard className="h-5 w-5 text-emerald-400" />
-              <h3 className="text-white font-semibold">{t('admin.monitoring.openAIModelUsage')}</h3>
+              <h3 className="text-foreground font-semibold">{t('admin.monitoring.openAIModelUsage')}</h3>
             </div>
             <div className="h-64">
               {openAIBilling.model_usage.length > 0 ? (
@@ -253,7 +253,7 @@ export function MonitoringCharts({ dashboard, history, aiUsage, openAIBilling }:
                             className="w-3 h-3 rounded-full flex-shrink-0"
                             style={{ backgroundColor: FEATURE_COLORS[i % FEATURE_COLORS.length] }}
                           />
-                          <span className="text-slate-300 truncate">{m.model}</span>
+                          <span className="text-muted-foreground truncate">{m.model}</span>
                         </div>
                         <div className="pl-5 text-xs text-slate-500">
                           {m.requests.toLocaleString()} req / {((m.input_tokens + m.output_tokens) / 1000).toFixed(1)}K tokens
@@ -277,15 +277,15 @@ export function MonitoringCharts({ dashboard, history, aiUsage, openAIBilling }:
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* EC2 CPU */}
           {dashboard.cloud_watch.ec2 && (
-            <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-6">
+            <div className="bg-bridge-obsidian rounded-2xl border border-foreground/5 p-6">
               <div className="flex items-center gap-2 mb-4">
                 <Cloud className="h-5 w-5 text-bridge-accent" />
-                <h3 className="text-white font-semibold">{t('admin.monitoring.ec2Cpu')}</h3>
+                <h3 className="text-foreground font-semibold">{t('admin.monitoring.ec2Cpu')}</h3>
               </div>
-              <p className="text-3xl font-bold text-white mb-3">
+              <p className="text-3xl font-bold text-foreground mb-3">
                 {dashboard.cloud_watch.ec2.cpu_utilization.toFixed(1)}%
               </p>
-              <div className="h-3 bg-white/5 rounded-full overflow-hidden">
+              <div className="h-3 bg-foreground/5 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-bridge-accent rounded-full transition-all duration-500"
                   style={{ width: `${dashboard.cloud_watch.ec2.cpu_utilization}%` }}
@@ -300,15 +300,15 @@ export function MonitoringCharts({ dashboard, history, aiUsage, openAIBilling }:
 
           {/* RDS Metrics */}
           {dashboard.cloud_watch.rds && (
-            <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-6">
+            <div className="bg-bridge-obsidian rounded-2xl border border-foreground/5 p-6">
               <div className="flex items-center gap-2 mb-4">
                 <Cloud className="h-5 w-5 text-bridge-secondary" />
-                <h3 className="text-white font-semibold">{t('admin.monitoring.rdsCpu')}</h3>
+                <h3 className="text-foreground font-semibold">{t('admin.monitoring.rdsCpu')}</h3>
               </div>
-              <p className="text-3xl font-bold text-white mb-3">
+              <p className="text-3xl font-bold text-foreground mb-3">
                 {dashboard.cloud_watch.rds.cpu_utilization.toFixed(1)}%
               </p>
-              <div className="h-3 bg-white/5 rounded-full overflow-hidden mb-4">
+              <div className="h-3 bg-foreground/5 rounded-full overflow-hidden mb-4">
                 <div
                   className="h-full bg-bridge-secondary rounded-full transition-all duration-500"
                   style={{ width: `${dashboard.cloud_watch.rds.cpu_utilization}%` }}
@@ -317,11 +317,11 @@ export function MonitoringCharts({ dashboard, history, aiUsage, openAIBilling }:
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between text-slate-400">
                   <span>{t('admin.monitoring.rdsConnections')}</span>
-                  <span className="text-white font-medium">{dashboard.cloud_watch.rds.database_connections}</span>
+                  <span className="text-foreground font-medium">{dashboard.cloud_watch.rds.database_connections}</span>
                 </div>
                 <div className="flex justify-between text-slate-400">
                   <span>{t('admin.monitoring.rdsIops')}</span>
-                  <span className="text-white font-medium">
+                  <span className="text-foreground font-medium">
                     {t('admin.monitoring.readIops')}: {dashboard.cloud_watch.rds.read_iops.toFixed(0)} / {t('admin.monitoring.writeIops')}: {dashboard.cloud_watch.rds.write_iops.toFixed(0)}
                   </span>
                 </div>
@@ -330,10 +330,10 @@ export function MonitoringCharts({ dashboard, history, aiUsage, openAIBilling }:
           )}
         </div>
       ) : (
-        <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-6">
+        <div className="bg-bridge-obsidian rounded-2xl border border-foreground/5 p-6">
           <div className="flex items-center gap-2 mb-3">
             <Cloud className="h-5 w-5 text-slate-500" />
-            <h3 className="text-white font-semibold">{t('admin.monitoring.cloudWatch')}</h3>
+            <h3 className="text-foreground font-semibold">{t('admin.monitoring.cloudWatch')}</h3>
           </div>
           <div className="text-center py-8">
             <p className="text-slate-400 mb-2">{t('admin.monitoring.cloudWatchNotConnected')}</p>
@@ -346,10 +346,10 @@ export function MonitoringCharts({ dashboard, history, aiUsage, openAIBilling }:
       {aiUsage && aiUsage.total_calls > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Board Top Usage */}
-          <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-6">
+          <div className="bg-bridge-obsidian rounded-2xl border border-foreground/5 p-6">
             <div className="flex items-center gap-2 mb-4">
               <Bot className="h-5 w-5 text-purple-400" />
-              <h3 className="text-white font-semibold">{t('admin.monitoring.aiUsageByBoard')}</h3>
+              <h3 className="text-foreground font-semibold">{t('admin.monitoring.aiUsageByBoard')}</h3>
             </div>
             <div className="h-64">
               {aiUsage.by_board.length > 0 ? (
@@ -386,10 +386,10 @@ export function MonitoringCharts({ dashboard, history, aiUsage, openAIBilling }:
           </div>
 
           {/* Feature Type Distribution */}
-          <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-6">
+          <div className="bg-bridge-obsidian rounded-2xl border border-foreground/5 p-6">
             <div className="flex items-center gap-2 mb-4">
               <Bot className="h-5 w-5 text-purple-400" />
-              <h3 className="text-white font-semibold">{t('admin.monitoring.aiUsageByFeature')}</h3>
+              <h3 className="text-foreground font-semibold">{t('admin.monitoring.aiUsageByFeature')}</h3>
             </div>
             <div className="h-64">
               {aiUsage.by_feature.length > 0 ? (
@@ -426,7 +426,7 @@ export function MonitoringCharts({ dashboard, history, aiUsage, openAIBilling }:
                           className="w-3 h-3 rounded-full"
                           style={{ backgroundColor: FEATURE_COLORS[i % FEATURE_COLORS.length] }}
                         />
-                        <span className="text-slate-300">{FEATURE_LABELS[f.feature_type] || f.feature_type}</span>
+                        <span className="text-muted-foreground">{FEATURE_LABELS[f.feature_type] || f.feature_type}</span>
                         <span className="ml-auto text-slate-400">{f.call_count}</span>
                       </div>
                     ))}

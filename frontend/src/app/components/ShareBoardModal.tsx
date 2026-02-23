@@ -1,12 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from './ui/dialog';
+import { MotionModal } from './ui/MotionModal';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
 import {
@@ -75,7 +69,7 @@ const ROLE_COLORS: Record<MemberRole, string> = {
   owner: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
   admin: 'bg-purple-500/15 text-purple-400 border-purple-500/30',
   member: 'bg-bridge-accent/15 text-bridge-accent border-bridge-accent/30',
-  viewer: 'bg-white/5 text-slate-400 border-white/10',
+  viewer: 'bg-foreground/5 text-slate-400 border-foreground/10',
 };
 
 function SlackIcon({ className }: { className?: string }) {
@@ -122,7 +116,7 @@ function SortableMemberRow({
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex items-center justify-between py-1.5 px-2.5 rounded-lg hover:bg-white/[0.05] transition-colors ${isDragging ? 'bg-white/[0.08] shadow-lg' : ''}`}
+      className={`flex items-center justify-between py-2.5 px-3.5 hover:bg-foreground/[0.04] transition-all duration-150 ${isDragging ? 'bg-foreground/[0.08] shadow-lg' : ''}`}
     >
       <div className="flex items-center gap-2.5 min-w-0">
         {/* 드래그 핸들 */}
@@ -161,14 +155,14 @@ function SortableMemberRow({
                 } ${canChangeColor ? 'group-hover/avatar:opacity-0' : ''} transition-opacity`}
               />
               {canChangeColor && (
-                <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-bridge-obsidian border border-white/20 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity">
+                <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-bridge-obsidian border border-foreground/10 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity">
                   <Palette className="h-2 w-2 text-slate-400" />
                 </div>
               )}
             </button>
           </PopoverTrigger>
           {canChangeColor && onUpdateMemberColor && (
-            <PopoverContent className="w-auto p-2 bg-bridge-obsidian border-white/20" align="start">
+            <PopoverContent className="w-auto p-2 bg-bridge-obsidian border-foreground/10" align="start">
               <div className="flex gap-1.5">
                 {ASSIGNEE_COLOR_NAMES.map((colorName) => {
                   const cls = getAssigneeClasses(colorName, colorName);
@@ -212,7 +206,7 @@ function SortableMemberRow({
                 </button>
               </div>
               {customPickerMemberId === member.id && (
-                <div className="mt-2 pt-2 border-t border-white/10 space-y-2">
+                <div className="mt-2 pt-2 border-t border-foreground/10 space-y-2">
                   <HexColorPicker
                     color={customPickerColor}
                     onChange={setCustomPickerColor}
@@ -220,7 +214,7 @@ function SortableMemberRow({
                   />
                   <div className="flex items-center gap-2">
                     <div
-                      className="w-7 h-7 rounded-full border border-white/20 shrink-0"
+                      className="w-7 h-7 rounded-full border border-foreground/10 shrink-0"
                       style={{ backgroundColor: customPickerColor }}
                     />
                     <input
@@ -230,7 +224,7 @@ function SortableMemberRow({
                         const v = e.target.value;
                         if (/^#[0-9A-Fa-f]{0,6}$/.test(v)) setCustomPickerColor(v);
                       }}
-                      className="flex-1 bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white font-mono focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
+                      className="flex-1 bg-foreground/5 border border-foreground/10 rounded-lg px-2 py-1 text-xs text-foreground font-mono focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
                       maxLength={7}
                     />
                     <button
@@ -252,9 +246,9 @@ function SortableMemberRow({
         </Popover>
 
         {/* 정보 */}
-        <div className="min-w-0">
-          <div className="flex items-center gap-1.5">
-            <span className="text-sm font-medium text-white truncate">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="text-sm font-medium text-foreground shrink-0">
               {member.name}
             </span>
             {isCurrentMember && (
@@ -280,7 +274,7 @@ function SortableMemberRow({
                 }`}
               />
             </span>
-            <span className="text-xs text-slate-500 truncate">{member.email}</span>
+            <span className="text-xs text-slate-500 truncate min-w-0">{member.email}</span>
           </div>
         </div>
       </div>
@@ -295,7 +289,7 @@ function SortableMemberRow({
                 onUpdateMemberRole(member.id, value as MemberRole)
               }
             >
-              <SelectTrigger className="w-[120px] bg-white/[0.08] border-white/15 rounded-lg text-white text-sm h-8">
+              <SelectTrigger className="w-[120px] bg-foreground/[0.08] border-foreground/10 rounded-lg text-foreground text-sm h-8">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -440,16 +434,12 @@ export function ShareBoardModal({
   const isCurrentUserAdmin = currentUser?.role === 'admin' || currentUser?.role === 'owner';
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col bg-bridge-obsidian text-white border border-white/10 rounded-2xl shadow-2xl">
-        <DialogHeader>
-          <DialogTitle className="text-lg font-semibold text-white">{t('share.title')}</DialogTitle>
-          <DialogDescription className="sr-only">
-            {t('share.description')}
-          </DialogDescription>
-        </DialogHeader>
+    <MotionModal open={open} onClose={onClose} className="sm:max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
+        <div className="px-6 pt-6 pb-2">
+          <h2 className="text-lg font-semibold text-foreground">{t('share.title')}</h2>
+        </div>
 
-        <div className="flex-1 overflow-y-auto space-y-6">
+        <div className="flex-1 overflow-y-auto space-y-5 px-6 pb-2 custom-scrollbar">
           {/* 초대 섹션 - ADMIN+ 전용 */}
           {isCurrentUserAdmin && (
           <div className="space-y-3">
@@ -458,7 +448,7 @@ export function ShareBoardModal({
                 value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
                 placeholder={t('share.emailPlaceholder')}
-                className="flex-1 bg-white/[0.08] border-white/15 rounded-xl text-white placeholder:text-slate-400 focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+                className="flex-1 bg-foreground/[0.08] border-foreground/10 rounded-xl text-foreground placeholder:text-slate-400 focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
                 onKeyDown={(e) => {
                   if (e.nativeEvent.isComposing) return;
                   if (e.key === 'Enter') {
@@ -470,7 +460,7 @@ export function ShareBoardModal({
                 value={inviteRole}
                 onValueChange={(value) => setInviteRole(value as MemberRole)}
               >
-                <SelectTrigger className="w-[130px] bg-white/[0.08] border-white/15 rounded-xl text-white">
+                <SelectTrigger className="w-[130px] bg-foreground/[0.08] border-foreground/10 rounded-xl text-foreground">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -489,13 +479,13 @@ export function ShareBoardModal({
             </div>
 
             {/* 링크 공유 */}
-            <div className="flex items-center justify-between p-3.5 bg-white/[0.06] rounded-xl border border-white/10">
+            <div className="flex items-center justify-between p-3.5 bg-foreground/[0.06] rounded-xl border border-foreground/10">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-lg bg-bridge-accent/10 flex items-center justify-center shrink-0">
                   <LinkIcon className="h-4 w-4 text-bridge-accent" />
                 </div>
                 <div>
-                  <p className="text-sm text-slate-200">
+                  <p className="text-sm text-muted-foreground">
                     {t('share.linkShareDesc')}
                   </p>
                   <button
@@ -510,7 +500,7 @@ export function ShareBoardModal({
               <button
                 onClick={handleCopyLink}
                 disabled={isCreatingLink}
-                className="w-9 h-9 rounded-lg flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 transition-all"
+                className="w-9 h-9 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-foreground/10 transition-all"
               >
                 {isCreatingLink ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -536,14 +526,14 @@ export function ShareBoardModal({
                         <Users className="h-4 w-4 text-bridge-accent" />
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-white">{t('share.seatUsage')}</p>
+                        <p className="text-sm font-medium text-foreground">{t('share.seatUsage')}</p>
                         <p className="text-xs text-slate-400">
                           {seatInfo.usedSeats} / {seatInfo.seatCount} {t('share.seatsUsed')}
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <div className="w-20 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                      <div className="w-20 h-1.5 bg-foreground/10 rounded-full overflow-hidden">
                         <div
                           className={`h-full rounded-full transition-all ${
                             (seatInfo.usedSeats / seatInfo.seatCount) >= 0.9
@@ -576,7 +566,7 @@ export function ShareBoardModal({
                         <Sparkles className="h-4 w-4 text-bridge-secondary" />
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-white">{t('ai_credits.title')}</p>
+                        <p className="text-sm font-medium text-foreground">{t('ai_credits.title')}</p>
                         <p className="text-xs text-slate-400">
                           {aiCredits.monthly_used} / {aiCredits.monthly_credits} {t('ai_credits.used')}
                           {aiCredits.purchased_credits > 0 && (
@@ -586,7 +576,7 @@ export function ShareBoardModal({
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <div className="w-20 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                      <div className="w-20 h-1.5 bg-foreground/10 rounded-full overflow-hidden">
                         <div
                           className={`h-full rounded-full transition-all ${
                             aiCredits.warning_level === 'EXHAUSTED'
@@ -628,7 +618,7 @@ export function ShareBoardModal({
           {/* 멤버 목록 */}
           <div className="space-y-3">
             <div className="flex items-center gap-2.5">
-              <h3 className="text-sm font-semibold text-slate-300">{t('share.boardMembers')}</h3>
+              <h3 className="text-sm font-semibold text-muted-foreground">{t('share.boardMembers')}</h3>
               <span className="text-[11px] font-bold text-bridge-accent bg-bridge-accent/10 px-2 py-0.5 rounded-full">
                 {members.length}
               </span>
@@ -641,7 +631,7 @@ export function ShareBoardModal({
               onDragEnd={handleDragEnd}
             >
               <SortableContext items={members.map((m) => m.id)} strategy={verticalListSortingStrategy}>
-                <div className="space-y-1">
+                <div className="rounded-xl border border-foreground/10 bg-foreground/[0.02] divide-y divide-foreground/[0.06] overflow-hidden">
                   {members.map((member) => {
                     const isCurrentMember = member.userId === currentUserId;
                     const canEdit = isCurrentUserAdmin && !isCurrentMember && member.role !== 'owner';
@@ -676,8 +666,8 @@ export function ShareBoardModal({
           </div>
 
           {/* 권한 설명 */}
-          <div className="p-4 bg-white/[0.04] rounded-xl border border-white/10">
-            <h4 className="text-sm font-semibold text-slate-300 mb-3">{t('share.rolePermissions')}</h4>
+          <div className="p-4 bg-foreground/[0.04] rounded-xl border border-foreground/10">
+            <h4 className="text-sm font-semibold text-muted-foreground mb-3">{t('share.rolePermissions')}</h4>
             <div className="space-y-2 text-sm">
               <div className="flex items-start gap-2">
                 <span className="font-medium text-purple-400 shrink-0">Admin</span>
@@ -688,7 +678,7 @@ export function ShareBoardModal({
                 <span className="text-slate-400">{t('share.memberDesc')}</span>
               </div>
               <div className="flex items-start gap-2">
-                <span className="font-medium text-slate-300 shrink-0">Viewer</span>
+                <span className="font-medium text-muted-foreground shrink-0">Viewer</span>
                 <span className="text-slate-400">{t('share.viewerDesc')}</span>
               </div>
             </div>
@@ -696,10 +686,10 @@ export function ShareBoardModal({
         </div>
 
         {/* 닫기 버튼 */}
-        <div className="flex justify-end pt-4 border-t border-white/10">
+        <div className="flex justify-end px-6 pt-4 pb-2 border-t border-foreground/10">
           <button
             onClick={onClose}
-            className="px-5 py-2 bg-white/[0.08] border border-white/15 text-slate-200 rounded-xl text-sm font-medium hover:bg-white/15 hover:text-white transition-all"
+            className="px-5 py-2 bg-foreground/[0.08] border border-foreground/10 text-muted-foreground rounded-xl text-sm font-medium hover:bg-foreground/15 hover:text-foreground transition-all"
           >
             {t('common.close')}
           </button>
@@ -707,7 +697,7 @@ export function ShareBoardModal({
 
         {/* 복사 알림 토스트 */}
         {copyMessage && (
-          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-bridge-obsidian text-white px-5 py-2.5 rounded-xl shadow-2xl border border-white/10 flex items-center gap-2.5 animate-in fade-in slide-in-from-bottom-2 z-50">
+          <div className="fixed toast-bottom-safe left-1/2 -translate-x-1/2 bg-bridge-obsidian text-white px-5 py-2.5 rounded-xl shadow-2xl border border-foreground/10 flex items-center gap-2.5 animate-in fade-in slide-in-from-bottom-2 z-50">
             {linkCopied ? (
               <Check className="h-4 w-4 text-bridge-secondary" />
             ) : (
@@ -716,7 +706,6 @@ export function ShareBoardModal({
             <span className="text-sm font-medium">{copyMessage}</span>
           </div>
         )}
-      </DialogContent>
-    </Dialog>
+    </MotionModal>
   );
 }

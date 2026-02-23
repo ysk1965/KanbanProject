@@ -104,7 +104,7 @@ export function AdminAnnouncementsTab() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white mb-2">{t('admin.announcements.title')}</h2>
+          <h2 className="text-2xl font-bold text-foreground mb-2">{t('admin.announcements.title')}</h2>
           <p className="text-slate-400">{t('admin.announcements.subtitle')}</p>
         </div>
         <button
@@ -125,14 +125,14 @@ export function AdminAnnouncementsTab() {
       )}
 
       {announcements.length === 0 ? (
-        <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-12 text-center">
+        <div className="bg-bridge-obsidian rounded-2xl border border-foreground/5 p-12 text-center">
           <Megaphone className="h-12 w-12 text-slate-600 mx-auto mb-4" />
           <p className="text-slate-400">{t('admin.announcements.noAnnouncements')}</p>
         </div>
       ) : (
         <div className="space-y-3">
           {announcements.map((ann) => (
-            <div key={ann.id} className="bg-bridge-obsidian rounded-xl border border-white/5 p-5">
+            <div key={ann.id} className="bg-bridge-obsidian rounded-xl border border-foreground/5 p-5">
               <div className="flex items-start justify-between">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-2">
@@ -152,7 +152,7 @@ export function AdminAnnouncementsTab() {
                       <span className="text-[11px] text-amber-400">{t('admin.announcements.priority')}: {ann.priority}</span>
                     )}
                   </div>
-                  <h3 className="text-white font-medium mb-1">{ann.title}</h3>
+                  <h3 className="text-foreground font-medium mb-1">{ann.title}</h3>
                   {ann.content && (
                     <p className="text-slate-400 text-sm line-clamp-2">{ann.content}</p>
                   )}
@@ -165,7 +165,7 @@ export function AdminAnnouncementsTab() {
                 <div className="flex gap-1 ml-4">
                   <button
                     onClick={() => { setEditingAnnouncement(ann); setIsCreateOpen(false); }}
-                    className="p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+                    className="p-2 text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
                   >
                     <Edit3 className="h-4 w-4" />
                   </button>
@@ -262,12 +262,12 @@ function AnnouncementFormModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-      <div className="bg-bridge-obsidian rounded-2xl border border-white/10 p-6 shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+      <div className="bg-bridge-obsidian rounded-2xl border border-foreground/10 p-6 shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-bold text-white">
+          <h3 className="text-lg font-bold text-foreground">
             {announcement ? t('admin.announcements.editAnnouncement') : t('admin.announcements.newAnnouncement')}
           </h3>
-          <button onClick={onClose} className="p-1 text-slate-400 hover:text-white transition-colors">
+          <button onClick={onClose} className="p-1 text-slate-400 hover:text-foreground transition-colors">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -278,7 +278,7 @@ function AnnouncementFormModal({
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+              className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-foreground placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
               placeholder={t('admin.announcements.titlePlaceholder')}
             />
           </div>
@@ -289,7 +289,7 @@ function AnnouncementFormModal({
               value={content}
               onChange={(e) => setContent(e.target.value)}
               rows={4}
-              className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all resize-none"
+              className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-foreground placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all resize-none"
               placeholder={t('admin.announcements.contentPlaceholder')}
             />
           </div>
@@ -300,7 +300,7 @@ function AnnouncementFormModal({
               <select
                 value={type}
                 onChange={(e) => setType(e.target.value as 'POPUP' | 'BANNER' | 'NOTICE')}
-                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+                className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
               >
                 <option value="NOTICE">{t('admin.announcements.typeNotice')}</option>
                 <option value="BANNER">{t('admin.announcements.typeBanner')}</option>
@@ -313,7 +313,7 @@ function AnnouncementFormModal({
                 type="number"
                 value={priority}
                 onChange={(e) => setPriority(Number(e.target.value))}
-                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+                className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
                 min={0}
               />
             </div>
@@ -326,7 +326,7 @@ function AnnouncementFormModal({
                 type="datetime-local"
                 value={startAt}
                 onChange={(e) => setStartAt(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+                className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
               />
             </div>
             <div>
@@ -335,7 +335,7 @@ function AnnouncementFormModal({
                 type="datetime-local"
                 value={endAt}
                 onChange={(e) => setEndAt(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+                className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
               />
             </div>
           </div>
@@ -343,18 +343,18 @@ function AnnouncementFormModal({
           <label className="flex items-center gap-3 cursor-pointer">
             <div
               onClick={() => setIsActive(!isActive)}
-              className={`w-10 h-6 rounded-full transition-colors relative ${isActive ? 'bg-bridge-accent' : 'bg-white/10'}`}
+              className={`w-10 h-6 rounded-full transition-colors relative ${isActive ? 'bg-bridge-accent' : 'bg-foreground/10'}`}
             >
               <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${isActive ? 'left-5' : 'left-1'}`} />
             </div>
-            <span className="text-sm text-slate-300">{isActive ? t('admin.announcements.active') : t('admin.announcements.inactive')}</span>
+            <span className="text-sm text-muted-foreground">{isActive ? t('admin.announcements.active') : t('admin.announcements.inactive')}</span>
           </label>
         </div>
 
         <div className="flex gap-3 mt-6">
           <button
             onClick={onClose}
-            className="flex-1 px-4 py-3 bg-white/5 border border-white/10 text-white rounded-xl hover:bg-white/10 transition-all"
+            className="flex-1 px-4 py-3 bg-foreground/5 border border-foreground/10 text-foreground rounded-xl hover:bg-foreground/10 transition-all"
           >
             {t('common.cancel')}
           </button>

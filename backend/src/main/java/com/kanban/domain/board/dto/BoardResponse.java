@@ -5,6 +5,7 @@ import com.kanban.domain.block.dto.BlockResponse;
 import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardMember;
 import com.kanban.domain.board.BoardTier;
+import com.kanban.domain.board.BoardType;
 import com.kanban.domain.board.BoardRole;
 import com.kanban.domain.feature.dto.FeatureResponse;
 import com.kanban.domain.invite.dto.InviteResponse;
@@ -33,6 +34,8 @@ public class BoardResponse {
         private String id;
         private String name;
         private String description;
+        private String backgroundGradient;
+        private BoardType boardType;
         private BoardRole role;
         private boolean isStarred;
         private int memberCount;
@@ -49,6 +52,8 @@ public class BoardResponse {
                     .id(board.getId())
                     .name(board.getName())
                     .description(board.getDescription())
+                    .backgroundGradient(board.getBackgroundGradient())
+                    .boardType(board.getBoardType())
                     .role(role)
                     .isStarred(isStarred)
                     .memberCount(memberCount)
@@ -85,6 +90,8 @@ public class BoardResponse {
         private String id;
         private String name;
         private String description;
+        private String backgroundGradient;
+        private BoardType boardType;
         private OwnerInfo owner;
         private BoardRole myRole;
         private boolean isStarred;
@@ -100,6 +107,8 @@ public class BoardResponse {
                     .id(board.getId())
                     .name(board.getName())
                     .description(board.getDescription())
+                    .backgroundGradient(board.getBackgroundGradient())
+                    .boardType(board.getBoardType())
                     .owner(OwnerInfo.of(board))
                     .myRole(myRole)
                     .isStarred(isStarred)
@@ -226,6 +235,8 @@ public class BoardResponse {
         private String id;
         private String name;
         private String description;
+        private String backgroundGradient;
+        private BoardType boardType;
         private OwnerInfo owner;
         private BoardRole myRole;
         private boolean isStarred;

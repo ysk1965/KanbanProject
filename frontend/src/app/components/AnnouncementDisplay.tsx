@@ -117,7 +117,7 @@ export function AnnouncementDisplay() {
             {banners.length > 1 && (
               <button
                 onClick={() => goToBanner((currentBannerIndex - 1 + banners.length) % banners.length)}
-                className="p-0.5 text-white/40 hover:text-white transition-colors flex-shrink-0"
+                className="p-0.5 text-white/40 hover:text-foreground transition-colors flex-shrink-0"
               >
                 <ChevronLeft className="h-3.5 w-3.5" />
               </button>
@@ -144,7 +144,7 @@ export function AnnouncementDisplay() {
             {banners.length > 1 && (
               <button
                 onClick={() => goToBanner((currentBannerIndex + 1) % banners.length)}
-                className="p-0.5 text-white/40 hover:text-white transition-colors flex-shrink-0"
+                className="p-0.5 text-white/40 hover:text-foreground transition-colors flex-shrink-0"
               >
                 <ChevronRight className="h-3.5 w-3.5" />
               </button>
@@ -153,7 +153,7 @@ export function AnnouncementDisplay() {
             {/* 닫기 버튼 */}
             <button
               onClick={() => dismissBanner(currentBanner.id)}
-              className="p-0.5 text-white/40 hover:text-white transition-colors flex-shrink-0"
+              className="p-0.5 text-white/40 hover:text-foreground transition-colors flex-shrink-0"
             >
               <X className="h-3.5 w-3.5" />
             </button>
@@ -161,7 +161,7 @@ export function AnnouncementDisplay() {
 
           {/* 진행 바 (여러 배너일 때) */}
           {banners.length > 1 && (
-            <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-white/10">
+            <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-foreground/10">
               <div
                 className={`h-full bg-white/40 transition-all duration-300 ${!isPaused ? 'animate-banner-progress' : ''}`}
                 style={{
@@ -176,24 +176,24 @@ export function AnnouncementDisplay() {
       {/* Popup Modal */}
       {popupAnnouncement && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/30 backdrop-blur-sm">
-          <div className="bg-bridge-obsidian rounded-2xl border border-white/10 p-6 shadow-2xl w-full max-w-md mx-4">
+          <div className="bg-bridge-obsidian rounded-2xl border border-foreground/10 p-6 shadow-2xl w-full max-w-md mx-4">
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center gap-2">
                 <div className="bg-bridge-accent/10 p-2 rounded-xl">
                   <Info className="h-5 w-5 text-bridge-accent" />
                 </div>
-                <h3 className="text-lg font-bold text-white">{popupAnnouncement.title}</h3>
+                <h3 className="text-lg font-bold text-foreground">{popupAnnouncement.title}</h3>
               </div>
               <button
                 onClick={() => dismissPopup(popupAnnouncement.id)}
-                className="p-1 text-slate-400 hover:text-white transition-colors"
+                className="p-1 text-slate-400 hover:text-foreground transition-colors"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
             {popupAnnouncement.content && (
-              <div className="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap mb-6">
+              <div className="text-muted-foreground text-sm leading-relaxed whitespace-pre-wrap mb-6">
                 {popupAnnouncement.content}
               </div>
             )}
@@ -201,7 +201,7 @@ export function AnnouncementDisplay() {
             <div className="flex gap-3">
               <button
                 onClick={() => dismissPopup(popupAnnouncement.id, true)}
-                className="flex-1 px-4 py-2.5 bg-white/5 border border-white/10 text-slate-300 rounded-xl text-sm hover:bg-white/10 transition-colors"
+                className="flex-1 px-4 py-2.5 bg-foreground/5 border border-foreground/10 text-muted-foreground rounded-xl text-sm hover:bg-foreground/10 transition-colors"
               >
                 {t('announcement.dismissToday')}
               </button>

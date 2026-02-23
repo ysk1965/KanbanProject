@@ -118,6 +118,7 @@ ai:
       personal: ${CLAUDE_MODEL_PERSONAL:claude-haiku-4-5-20251001}
       standup: ${CLAUDE_MODEL_STANDUP:claude-haiku-4-5-20251001}
       meeting: ${CLAUDE_MODEL_MEETING:claude-haiku-4-5-20251001}
+      diary: ${CLAUDE_MODEL_DIARY:claude-haiku-4-5-20251001}
   openai:
     api-key: ${OPENAI_API_KEY:}
     admin-key: ${OPENAI_ADMIN_KEY:}
@@ -126,6 +127,7 @@ ai:
       personal: ${OPENAI_MODEL_PERSONAL:gpt-4o-mini}
       standup: ${OPENAI_MODEL_STANDUP:gpt-4o-mini}
       meeting: ${OPENAI_MODEL_MEETING:gpt-4o-mini}
+      diary: ${OPENAI_MODEL_DIARY:gpt-4o-mini}
   credit:
     reset-cron: "0 0 0 * * *"  # 매일 자정 UTC
 
@@ -140,6 +142,10 @@ toss:
     client-key: ${TOSS_CLIENT_KEY:}
     secret-key: ${TOSS_SECRET_KEY:}
     confirm-url: https://api.tosspayments.com/v1/payments/confirm
+
+# Firebase (FCM Push Notifications)
+firebase:
+  credentials-json: ${FIREBASE_CREDENTIALS_JSON:}
 
 # App config
 app:
@@ -217,6 +223,14 @@ spring:
     activate:
       on-profile: dev
 
+  sql:
+    init:
+      mode: never
+
+  jpa:
+    defer-datasource-initialization: false
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+
   datasource:
     url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/kanban_dev}
     username: ${DB_USERNAME:kanban}
@@ -228,9 +242,6 @@ spring:
       connection-timeout: 20000
       idle-timeout: 300000
       max-lifetime: 1200000
-
-  jpa:
-    database-platform: org.hibernate.dialect.PostgreSQLDialect
 
 app:
   websocket:
@@ -247,6 +258,17 @@ spring:
     activate:
       on-profile: prod
 
+  sql:
+    init:
+      mode: never
+
+  jpa:
+    defer-datasource-initialization: false
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+
   datasource:
     url: ${DATABASE_URL}
     driver-class-name: org.postgresql.Driver
@@ -256,12 +278,6 @@ spring:
       connection-timeout: 20000
       idle-timeout: 300000
       max-lifetime: 1200000
-
-  jpa:
-    database-platform: org.hibernate.dialect.PostgreSQLDialect
-    hibernate:
-      ddl-auto: validate
-    show-sql: false
 
 app:
   websocket:

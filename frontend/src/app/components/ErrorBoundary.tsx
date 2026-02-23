@@ -81,14 +81,14 @@ class ErrorBoundary extends Component<Props, State> {
       // 기본 에러 UI
       return (
         <div className="min-h-screen bg-bridge-dark flex items-center justify-center p-4">
-          <div className="max-w-md w-full bg-bridge-obsidian rounded-2xl border border-white/20 p-8 text-center">
+          <div className="max-w-md w-full bg-bridge-obsidian rounded-2xl border border-bridge-border p-8 text-center">
             <div className="flex justify-center mb-6">
               <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center">
                 <AlertTriangle className="w-8 h-8 text-red-500" />
               </div>
             </div>
 
-            <h1 className="text-xl font-bold text-white mb-2">
+            <h1 className="text-xl font-bold text-foreground mb-2">
               {i18n.t('error.title')}
             </h1>
             <p className="text-slate-400 mb-6">
@@ -128,15 +128,15 @@ class ErrorBoundary extends Component<Props, State> {
 
               <button
                 onClick={this.handleRefresh}
-                className="w-full px-4 py-3 bg-white/5 border border-white/20 text-white rounded-xl
-                  hover:bg-white/10 transition-colors"
+                className="w-full px-4 py-3 bg-foreground/5 border border-bridge-border text-foreground rounded-xl
+                  hover:bg-foreground/10 transition-colors"
               >
                 {i18n.t('error.refresh')}
               </button>
 
               <button
                 onClick={this.handleGoHome}
-                className="w-full px-4 py-3 text-slate-400 hover:text-white transition-colors
+                className="w-full px-4 py-3 text-slate-400 hover:text-foreground transition-colors
                   flex items-center justify-center gap-2"
               >
                 <Home className="w-4 h-4" />

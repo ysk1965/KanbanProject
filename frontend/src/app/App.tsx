@@ -9,6 +9,7 @@ import { InviteLandingPage } from './components/InviteLandingPage';
 import { LandingPage } from './components/landing/LandingPage';
 import { ComparisonPage } from './components/landing/ComparisonPage';
 import { KanbanBoardPage } from './pages/KanbanBoardPage';
+import { PersonalBoardPage } from './pages/PersonalBoardPage';
 import { EmailVerificationPendingPage } from './components/EmailVerificationPendingPage';
 import { EmailVerificationResultPage } from './components/EmailVerificationResultPage';
 import { ForgotPasswordPage } from './components/ForgotPasswordPage';
@@ -23,6 +24,8 @@ import { PaymentSuccessPage } from './pages/PaymentSuccessPage';
 import { PaymentFailPage } from './pages/PaymentFailPage';
 import { AnnouncementsPage } from './pages/AnnouncementsPage';
 import { SharedNotePage } from './pages/SharedNotePage';
+import BibleTranscriptionPage from './pages/BibleTranscriptionPage';
+import RoulettePage from './pages/RoulettePage';
 import { AnnouncementDisplay } from './components/AnnouncementDisplay';
 import { MaintenancePage } from './components/MaintenancePage';
 import { boardService, inviteLinkService, systemService } from './utils/services';
@@ -30,6 +33,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { Board } from './types';
 import type { MaintenanceStatus } from './utils/api';
 import { trackEvent } from './contexts/AnalyticsContext';
+import { useVisualViewport, useKeyboardAutoScroll } from './hooks/useVisualViewport';
+import { PWAUpdatePrompt } from './components/PWAUpdatePrompt';
 
 // 인증이 필요한 라우트 래퍼
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -65,7 +70,7 @@ interface InviteInfo {
 
 // 로그인 페이지 래퍼 (이미 로그인되어 있으면 보드 목록으로)
 function LoginRoute() {
-  const { isAuthenticated, isLoading, login: authLogin, signup: authSignup, googleLogin: authGoogleLogin, hideBilling } = useAuth();
+  const { isAuthenticated, isLoading, login: authLogin, signup: authSignup, googleLogin: authGoogleLogin, googleLoginWithIdToken: authGoogleLoginWithIdToken, isTester } = useAuth();
   const navigate = useNavigate();
   const { t } = useTranslation();
   const [isProcessingInvite, setIsProcessingInvite] = useState(false);
@@ -105,11 +110,17 @@ function LoginRoute() {
 
   const signup = async (email: string, password: string, name: string) => {
     await authSignup(email, password, name);
+    localStorage.setItem('bridge_show_onboarding', 'true');
     await handleLoginSuccess();
   };
 
   const googleLogin = async (code: string) => {
     await authGoogleLogin(code);
+    await handleLoginSuccess();
+  };
+
+  const googleLoginWithIdToken = async (idToken: string) => {
+    await authGoogleLoginWithIdToken(idToken);
     await handleLoginSuccess();
   };
 
@@ -135,7 +146,7 @@ function LoginRoute() {
           }
         } else if (isAuthenticated && !isLoading) {
           // TESTER인 경우 참여 중인 보드가 있으면 바로 이동
-          if (hideBilling) {
+          if (isTester) {
             try {
               const boards = await boardService.getBoards();
               if (boards.length > 0) {
@@ -174,7 +185,8 @@ function LoginRoute() {
     <LoginPage
       onLogin={login}
       onSignup={signup}
-      onGoogleLogin={googleLogin}
+      onGoogleLogin={import.meta.env.VITE_GOOGLE_CLIENT_ID ? googleLogin : undefined}
+      onGoogleLoginWithIdToken={import.meta.env.VITE_GOOGLE_CLIENT_ID ? googleLoginWithIdToken : undefined}
       inviteInfo={inviteInfo}
     />
   );
@@ -183,7 +195,7 @@ function LoginRoute() {
 // 보드 목록 페이지 래퍼
 function BoardsRoute() {
   const navigate = useNavigate();
-  const { logout, hideBilling } = useAuth();
+  const { logout, isTester } = useAuth();
   const { t } = useTranslation();
   const [boards, setBoards] = useState<Board[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -191,9 +203,8 @@ function BoardsRoute() {
   const loadBoards = async () => {
     try {
       const boardsData = await boardService.getBoards();
-      // TESTER이거나 milkyway.pe.kr 도메인인 경우 참여 중인 보드가 있으면 바로 이동
-      const isMilkyway = window.location.hostname === 'milkyway.pe.kr';
-      if ((hideBilling || isMilkyway) && boardsData.length > 0) {
+      // TESTER인 경우 참여 중인 보드가 있으면 바로 이동 (milkyway.pe.kr 도메인도 isTester에 포함)
+      if (isTester && boardsData.length > 0) {
         navigate(`/boards/${boardsData[0].id}`, { replace: true });
         return;
       }
@@ -214,9 +225,9 @@ function BoardsRoute() {
     navigate(`/boards/${boardId}`);
   };
 
-  const handleCreateBoard = async (name: string, description?: string) => {
+  const handleCreateBoard = async (name: string, description?: string, backgroundGradient?: string) => {
     try {
-      const newBoard = await boardService.createBoard(name, description);
+      const newBoard = await boardService.createBoard(name, description, backgroundGradient);
       setBoards([...boards, newBoard]);
       trackEvent('board_create', { board_id: newBoard.id });
     } catch (error) {
@@ -256,9 +267,9 @@ function BoardsRoute() {
     }
   };
 
-  const handleUpdateBoard = async (boardId: string, name: string, description?: string) => {
+  const handleUpdateBoard = async (boardId: string, name: string, description?: string, backgroundGradient?: string) => {
     try {
-      const updatedBoard = await boardService.updateBoard(boardId, name, description);
+      const updatedBoard = await boardService.updateBoard(boardId, name, description, backgroundGradient);
       setBoards(boards.map((b) => (b.id === boardId ? { ...b, ...updatedBoard } : b)));
     } catch (error) {
       console.error('Failed to update board:', error);
@@ -381,6 +392,15 @@ function HomeRoute() {
 
 // 메인 앱 라우터
 function AppRoutes() {
+  const appNavigate = useNavigate();
+
+  // Initialize deep link handler for Capacitor native apps
+  useEffect(() => {
+    import('./utils/deepLinks')
+      .then(({ initDeepLinks }) => initDeepLinks(appNavigate))
+      .catch(() => {});
+  }, [appNavigate]);
+
   return (
     <>
       <ThemeSync />
@@ -413,6 +433,12 @@ function AppRoutes() {
       {/* 공지사항 */}
       <Route path="/announcements" element={<AnnouncementsPage />} />
 
+      {/* 성경 필사 */}
+      <Route path="/bible" element={<BibleTranscriptionPage />} />
+
+      {/* 커피 룰렛 */}
+      <Route path="/roulette" element={<RoulettePage />} />
+
       {/* 설정 */}
       <Route
         path="/settings"
@@ -429,6 +455,16 @@ function AppRoutes() {
         element={
           <PrivateRoute>
             <BoardsRoute />
+          </PrivateRoute>
+        }
+      />
+
+      {/* 개인 보드 (일정 + AI 일기) */}
+      <Route
+        path="/my-board"
+        element={
+          <PrivateRoute>
+            <PersonalBoardPage />
           </PrivateRoute>
         }
       />
@@ -537,6 +573,10 @@ function MaintenanceGuard({ children }: { children: React.ReactNode }) {
 
 // App 컴포넌트
 function App() {
+  // 모바일 키보드 대응: visual viewport CSS 변수 + 자동 스크롤
+  useVisualViewport();
+  useKeyboardAutoScroll();
+
   return (
     <ErrorBoundary>
       <ThemeProvider defaultTheme="dark">
@@ -544,6 +584,7 @@ function App() {
           <AuthProvider>
             <AnalyticsProvider>
               <AppRoutes />
+              <PWAUpdatePrompt />
             </AnalyticsProvider>
           </AuthProvider>
         </MaintenanceGuard>

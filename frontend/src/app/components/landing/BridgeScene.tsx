@@ -125,7 +125,7 @@ const SpotNetwork = () => {
 
 export const HeroScene: React.FC = () => {
   return (
-    <div className="absolute inset-0 z-0 opacity-100 pointer-events-none bg-[#0A0E17]">
+    <div className="absolute inset-0 z-0 opacity-100 pointer-events-none bg-bridge-dark">
       <Canvas camera={{ position: [0, 0, 12], fov: 42 }}>
         <fog attach="fog" args={['#0A0E17', 8, 28]} />
         <ambientLight intensity={0.15} />
@@ -145,7 +145,7 @@ export const HeroScene: React.FC = () => {
 
 export const KanbanScene: React.FC = () => {
   return (
-    <div className="w-full h-full absolute inset-0 bg-[#0A0E17]">
+    <div className="w-full h-full absolute inset-0 bg-bridge-dark">
       <Canvas camera={{ position: [0, 0, 6], fov: 45 }}>
         <ambientLight intensity={0.6} />
         <Environment preset="night" />

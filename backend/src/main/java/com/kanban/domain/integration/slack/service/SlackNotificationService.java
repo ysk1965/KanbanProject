@@ -4,6 +4,7 @@ import com.kanban.domain.board.Board;
 import com.kanban.domain.checklist.ChecklistItem;
 import com.kanban.domain.comment.Comment;
 import com.kanban.domain.meeting.Meeting;
+import com.kanban.domain.note.NoteComment;
 import com.kanban.domain.integration.slack.MemberSlackWebhook;
 import com.kanban.domain.integration.slack.MemberSlackWebhookRepository;
 import com.kanban.domain.notification.NotificationPreference;
@@ -163,6 +164,78 @@ public class SlackNotificationService {
         String resolvedUrl = resolveFrontendUrl(originUrl);
         Map<String, Object> payload = buildMeetingMemoPayload(meeting, sender, board, resolvedUrl);
         sendToWebhooks(webhooks, payload, board.getId());
+    }
+
+    @Async
+    @Transactional(readOnly = true)
+    public void sendNoteCommentMentionNotifications(NoteComment noteComment, User sender, Board board, String originUrl) {
+        if (!board.canAccessSlack()) {
+            return;
+        }
+        if (noteComment.getMentions() == null || noteComment.getMentions().isEmpty()) {
+            return;
+        }
+
+        List<String> mentionedUserIds = Arrays.stream(noteComment.getMentions().split(","))
+                .map(String::trim)
+                .filter(id -> !id.equals(sender.getId()))
+                .toList();
+
+        if (mentionedUserIds.isEmpty()) {
+            return;
+        }
+
+        List<String> filteredUserIds = filterBySlackPreference(board.getId(), mentionedUserIds, NotificationType.NOTE_COMMENT_MENTION);
+        if (filteredUserIds.isEmpty()) {
+            return;
+        }
+
+        List<MemberSlackWebhook> webhooks = webhookRepository
+                .findByBoardIdAndUserIdInAndEnabledTrue(board.getId(), filteredUserIds);
+
+        if (webhooks.isEmpty()) {
+            return;
+        }
+
+        String resolvedUrl = resolveFrontendUrl(originUrl);
+        Map<String, Object> payload = buildNoteCommentMentionPayload(noteComment, sender, board, resolvedUrl);
+        sendToWebhooks(webhooks, payload, board.getId());
+    }
+
+    private Map<String, Object> buildNoteCommentMentionPayload(NoteComment noteComment, User sender, Board board, String resolvedUrl) {
+        String noteTitle = noteComment.getNote().getTitle();
+        String commentContent = noteComment.getContent();
+        if (commentContent != null && commentContent.length() > 200) {
+            commentContent = commentContent.substring(0, 200) + "...";
+        }
+
+        String boardUrl = resolvedUrl + "/boards/" + board.getId() + "?view=notes";
+
+        List<Map<String, Object>> blocks = new ArrayList<>();
+
+        blocks.add(Map.of("type", "header",
+                "text", Map.of("type", "plain_text", "text", "\uD83D\uDCDD 노트 댓글 멘션", "emoji", true)));
+
+        blocks.add(Map.of("type", "section",
+                "fields", List.of(
+                        Map.of("type", "mrkdwn", "text", "*Board:*\n" + board.getName()),
+                        Map.of("type", "mrkdwn", "text", "*Note:*\n" + noteTitle),
+                        Map.of("type", "mrkdwn", "text", "*Author:*\n" + sender.getName())
+                )));
+
+        if (commentContent != null && !commentContent.isBlank()) {
+            blocks.add(Map.of("type", "section",
+                    "text", Map.of("type", "mrkdwn", "text", "> " + commentContent)));
+        }
+
+        blocks.add(Map.of("type", "actions",
+                "elements", List.of(
+                        Map.of("type", "button",
+                                "text", Map.of("type", "plain_text", "text", getButtonLabel()),
+                                "url", boardUrl)
+                )));
+
+        return Map.of("blocks", blocks);
     }
 
     private void sendToWebhooks(List<MemberSlackWebhook> webhooks, Map<String, Object> payload, String boardId) {

@@ -67,6 +67,7 @@ public class ReportService {
     public ReportResponse.Detail generateReport(String boardId, String userId, ReportRequest.Generate request) {
         Board board = boardRepository.findById(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        validateReportAccess(board);
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
@@ -124,6 +125,7 @@ public class ReportService {
     public ReportResponse.ListResponse getReports(String boardId, String userId,
                                                     ReportType reportType, String targetUserId) {
         boardService.checkViewerOrAbove(boardId, userId);
+        validateReportAccess(boardId);
 
         // Team reports require ADMIN+
         if (reportType == ReportType.TEAM) {
@@ -156,6 +158,7 @@ public class ReportService {
 
     public ReportResponse.Detail getReport(String boardId, String reportId, String userId) {
         boardService.checkViewerOrAbove(boardId, userId);
+        validateReportAccess(boardId);
 
         WeeklyReport report = reportRepository.findById(reportId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.AI_REPORT_NOT_FOUND));
@@ -183,6 +186,7 @@ public class ReportService {
     public ReportResponse.Detail regenerateReport(String boardId, String reportId, String userId, String language) {
         Board board = boardRepository.findById(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        validateReportAccess(board);
 
         WeeklyReport report = reportRepository.findById(reportId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.AI_REPORT_NOT_FOUND));
@@ -509,5 +513,17 @@ public class ReportService {
             map.put("participants", participants.stream().map(User::getName).toList());
             return map;
         }).toList();
+    }
+
+    private void validateReportAccess(Board board) {
+        if (!board.canAccessReport()) {
+            throw new BusinessException(ErrorCode.PREMIUM_FEATURE_REQUIRED);
+        }
+    }
+
+    private void validateReportAccess(String boardId) {
+        Board board = boardRepository.findById(boardId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        validateReportAccess(board);
     }
 }

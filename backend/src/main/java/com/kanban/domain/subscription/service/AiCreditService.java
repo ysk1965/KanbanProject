@@ -58,7 +58,121 @@ public class AiCreditService {
                 boardId, userId, featureType, creditCost, creditSource, subscription.getTotalAvailableCredits());
     }
 
-    // === Credit Query ===
+    // === User-Level Credit Consumption (Personal features like Diary) ===
+
+    @Transactional
+    public void consumeUserCredit(String userId, String featureType, int creditCost) {
+        User user = userRepository.findByIdForUpdate(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        // Initialize credits if first use (no reset date set yet)
+        if (user.getPersonalCreditsResetDate() == null) {
+            user.initializePersonalCredits();
+        }
+
+        if (!user.hasEnoughPersonalCredits(creditCost)) {
+            throw new BusinessException(ErrorCode.PERSONAL_AI_CREDITS_EXHAUSTED);
+        }
+
+        user.consumePersonalCredits(creditCost);
+
+        log.info("Personal AI credit consumed - user: {}, feature: {}, cost: {}, remaining: {}",
+                userId, featureType, creditCost, user.getPersonalAvailableCredits());
+    }
+
+    @Transactional(readOnly = true)
+    public AiCreditResponse.CreditInfo getUserCredits(String userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        int available = user.getPersonalAvailableCredits();
+        String warningLevel = null;
+        if (available <= 0) warningLevel = "EXHAUSTED";
+        else if (available <= 3) warningLevel = "CRITICAL";
+        else if (available <= 10) warningLevel = "LOW";
+
+        return AiCreditResponse.CreditInfo.builder()
+                .monthlyCredits(user.getPersonalAiCredits())
+                .monthlyUsed(user.getPersonalCreditsUsed())
+                .purchasedCredits(user.getPersonalPurchasedCredits() != null ? user.getPersonalPurchasedCredits() : 0)
+                .totalAvailable(available)
+                .resetDate(user.getPersonalCreditsResetDate())
+                .warningLevel(warningLevel)
+                .build();
+    }
+
+    // === User-Level Credit Purchase (Personal) ===
+
+    @Transactional
+    public AiCreditResponse.PurchaseResult purchasePersonalCredits(String userId, AiCreditRequest.Purchase request) {
+        // 1. Validate amount (100 credit units, 10 KRW per credit)
+        int creditAmount = request.getCreditAmount();
+        if (creditAmount < 100 || creditAmount % 100 != 0) {
+            throw new BusinessException(ErrorCode.AI_CREDIT_PURCHASE_AMOUNT_INVALID);
+        }
+
+        int expectedAmount = creditAmount * 10;
+        if (!request.getAmount().equals(expectedAmount)) {
+            throw new BusinessException(ErrorCode.AI_CREDIT_PURCHASE_AMOUNT_INVALID);
+        }
+
+        try {
+            // 2. Confirm Toss Payments (if paymentKey is provided)
+            if (request.getPaymentKey() != null) {
+                tossPaymentsService.confirmPayment(request.getPaymentKey(), request.getOrderId(), request.getAmount());
+            }
+
+            // 3. Add credits with pessimistic lock
+            User user = userRepository.findByIdForUpdate(userId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+            user.addPersonalPurchasedCredits(creditAmount);
+
+            // 4. Save purchase history
+            AiCreditPurchase purchase = AiCreditPurchase.builder()
+                    .boardId(null)  // personal purchase, no board
+                    .userId(userId)
+                    .creditAmount(creditAmount)
+                    .unitPrice(10)
+                    .totalAmount(request.getAmount())
+                    .paymentKey(request.getPaymentKey())
+                    .orderId(request.getOrderId())
+                    .status("COMPLETED")
+                    .build();
+            aiCreditPurchaseRepository.save(purchase);
+
+            log.info("Personal AI credits purchased - user: {}, credits: {}, amount: {}",
+                    userId, creditAmount, request.getAmount());
+
+            // 5. Return result
+            return AiCreditResponse.PurchaseResult.builder()
+                    .purchaseId(purchase.getId())
+                    .creditAmount(creditAmount)
+                    .totalAmount(request.getAmount())
+                    .updatedCredits(getUserCredits(userId))
+                    .build();
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Personal credit purchase failed - user: {}, error: {}", userId, e.getMessage(), e);
+            throw new BusinessException(ErrorCode.AI_CREDIT_PURCHASE_FAILED);
+        }
+    }
+
+    // === User Credit Monthly Reset ===
+
+    @Transactional(readOnly = true)
+    public List<String> findUserIdsDueForPersonalCreditReset() {
+        return userRepository.findUserIdsDueForPersonalCreditReset(LocalDateTime.now(ZoneOffset.UTC));
+    }
+
+    @Transactional
+    public void resetSingleUserPersonalCredits(String userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        user.resetPersonalCredits();
+    }
+
+    // === Credit Query (Board-level) ===
 
     @Transactional(readOnly = true)
     public AiCreditResponse.CreditInfo getCredits(String boardId) {
@@ -178,18 +292,19 @@ public class AiCreditService {
 
     // === Monthly Reset (Called by Scheduler) ===
 
+    @Transactional(readOnly = true)
+    public List<String> findSubscriptionIdsDueForReset() {
+        return subscriptionRepository.findDueForCreditReset(LocalDateTime.now(ZoneOffset.UTC))
+                .stream()
+                .map(Subscription::getId)
+                .toList();
+    }
+
     @Transactional
-    public void resetMonthlyCredits() {
-        List<Subscription> dueForReset = subscriptionRepository.findDueForCreditReset(
-                LocalDateTime.now(ZoneOffset.UTC));
-
-        for (Subscription subscription : dueForReset) {
-            subscription.resetMonthlyCredits();
-        }
-
-        if (!dueForReset.isEmpty()) {
-            log.info("Monthly AI credits reset for {} subscriptions", dueForReset.size());
-        }
+    public void resetSingleSubscriptionCredits(String subscriptionId) {
+        Subscription subscription = subscriptionRepository.findById(subscriptionId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SUBSCRIPTION_NOT_FOUND));
+        subscription.resetMonthlyCredits();
     }
 
     // === Tier-Based Monthly Credit Allocation ===

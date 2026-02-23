@@ -34,7 +34,7 @@ public class Board extends BaseTimeEntity {
 
     @Column(name = "work_hours_per_day")
     @Builder.Default
-    private Integer workHoursPerDay = 8;
+    private Integer workHoursPerDay = 10;
 
     @Column(name = "work_start_time")
     @Builder.Default
@@ -53,6 +53,14 @@ public class Board extends BaseTimeEntity {
     @Column(name = "selected_milestone_id", length = 36)
     private String selectedMilestoneId;
 
+    @Column(name = "background_gradient")
+    private String backgroundGradient;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "board_type", length = 20)
+    @Builder.Default
+    private BoardType boardType = BoardType.TEAM;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "tier", length = 20)
     @Builder.Default
@@ -60,6 +68,9 @@ public class Board extends BaseTimeEntity {
 
     @Column(name = "trial_ends_at")
     private LocalDateTime trialEndsAt;
+
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
 
     @PrePersist
     public void prePersist() {
@@ -71,6 +82,14 @@ public class Board extends BaseTimeEntity {
         }
     }
 
+    public boolean isPersonal() {
+        return this.boardType == BoardType.PERSONAL;
+    }
+
+    public boolean canInviteMembers() {
+        return !isPersonal();
+    }
+
     public void updateInfo(String name, String description) {
         if (name != null) {
             this.name = name;
@@ -78,6 +97,10 @@ public class Board extends BaseTimeEntity {
         if (description != null) {
             this.description = description;
         }
+    }
+
+    public void updateBackgroundGradient(String backgroundGradient) {
+        this.backgroundGradient = backgroundGradient;
     }
 
     public boolean isOwner(String userId) {
@@ -111,6 +134,19 @@ public class Board extends BaseTimeEntity {
     }
 
     /**
+     * Trial 만료를 고려한 실질적 Premium 여부 확인 (읽기 전용, 엔티티 변경 없음)
+     * readOnly 트랜잭션에서 안전하게 사용 가능
+     */
+    public boolean isEffectivelyPremium() {
+        if (this.tier == BoardTier.PREMIUM) return true;
+        if (this.tier == BoardTier.TRIAL) {
+            return this.trialEndsAt != null &&
+                   LocalDateTime.now(ZoneOffset.UTC).isBefore(this.trialEndsAt);
+        }
+        return false;
+    }
+
+    /**
      * Standard 보드인지 확인
      */
     public boolean isStandard() {
@@ -121,14 +157,14 @@ public class Board extends BaseTimeEntity {
      * 스케줄 기능(위클리/데일리) 접근 가능 여부
      */
     public boolean canAccessSchedule() {
-        return isPremium();
+        return isEffectivelyPremium();
     }
 
     /**
      * 마일스톤 기능 접근 가능 여부
      */
     public boolean canAccessMilestone() {
-        return isPremium();
+        return isEffectivelyPremium();
     }
 
     /**
@@ -140,10 +176,45 @@ public class Board extends BaseTimeEntity {
     }
 
     /**
+     * 통계 기능 접근 가능 여부
+     */
+    public boolean canAccessStatistics() {
+        return isEffectivelyPremium();
+    }
+
+    /**
+     * AI 리포트 기능 접근 가능 여부
+     */
+    public boolean canAccessReport() {
+        return isEffectivelyPremium();
+    }
+
+    /**
+     * 미팅 기능 접근 가능 여부
+     */
+    public boolean canAccessMeeting() {
+        return isEffectivelyPremium();
+    }
+
+    /**
+     * 노트 기능 접근 가능 여부
+     */
+    public boolean canAccessNote() {
+        return isEffectivelyPremium();
+    }
+
+    /**
+     * 데일리 체크리스트 접근 가능 여부
+     */
+    public boolean canAccessDailyChecklist() {
+        return isEffectivelyPremium();
+    }
+
+    /**
      * Slack 연동 기능 접근 가능 여부
      */
     public boolean canAccessSlack() {
-        return isPremium();
+        return isEffectivelyPremium();
     }
 
     /**
@@ -201,5 +272,26 @@ public class Board extends BaseTimeEntity {
         if (tier != BoardTier.TRIAL) {
             this.trialEndsAt = null;
         }
+    }
+
+    /**
+     * 소프트 삭제 (deletedAt 마킹)
+     */
+    public void softDelete() {
+        this.deletedAt = LocalDateTime.now(ZoneOffset.UTC);
+    }
+
+    /**
+     * 소프트 삭제 복구
+     */
+    public void restore() {
+        this.deletedAt = null;
+    }
+
+    /**
+     * 소프트 삭제 여부 확인
+     */
+    public boolean isDeleted() {
+        return this.deletedAt != null;
     }
 }

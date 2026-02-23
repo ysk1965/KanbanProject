@@ -43,20 +43,20 @@ export function TagPickerPopover({
         <PopoverTrigger asChild>
           <button
             disabled={disabled}
-            className="flex items-center gap-1.5 px-2.5 py-1 bg-white/5 text-slate-400 text-[10px] font-bold rounded-lg border border-white/10 hover:bg-white/10 hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            className="flex items-center gap-1.5 px-2.5 py-1 bg-foreground/5 text-slate-400 text-[10px] font-bold rounded-lg border border-foreground/10 hover:bg-foreground/10 hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Tags size={12} />
             {t('task.addTag')}
           </button>
         </PopoverTrigger>
         <PopoverContent
-          className="w-56 p-0 bg-kanban-card border-kanban-border"
+          className="w-56 p-0 bg-bridge-surface border-bridge-border"
           align="start"
           sideOffset={8}
         >
           {/* Search */}
-          <div className="p-2 border-b border-kanban-border/50">
-            <div className="flex items-center gap-2 px-2 py-1.5 bg-white/5 rounded-lg">
+          <div className="p-2 border-b border-bridge-border/50">
+            <div className="flex items-center gap-2 px-2 py-1.5 bg-foreground/5 rounded-lg">
               <Search size={12} className="text-slate-400 flex-shrink-0" />
               <input
                 value={search}
@@ -79,7 +79,7 @@ export function TagPickerPopover({
                   <button
                     key={tag.id}
                     onClick={() => onToggleTag(tag.id)}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-white/5 transition-colors text-left"
+                    className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-foreground/5 transition-colors text-left"
                   >
                     <div
                       className="w-3 h-3 rounded-full flex-shrink-0"
@@ -96,13 +96,13 @@ export function TagPickerPopover({
           </div>
 
           {/* Manage tags link */}
-          <div className="border-t border-kanban-border/50 p-1">
+          <div className="border-t border-bridge-border/50 p-1">
             <button
               onClick={() => {
                 setIsOpen(false);
                 setShowManagement(true);
               }}
-              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-slate-400 hover:text-foreground hover:bg-white/5 transition-colors"
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors"
             >
               <Settings size={12} />
               {t('tags.management')}

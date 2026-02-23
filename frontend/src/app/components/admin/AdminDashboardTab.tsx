@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Users, Folder, CreditCard, TrendingUp } from 'lucide-react';
+import { Users, Folder, CreditCard, TrendingUp, User, BookOpen } from 'lucide-react';
 import { adminService } from '../../utils/services';
 import { AdminStatistics } from '../../utils/api';
 
@@ -92,7 +92,7 @@ export function AdminDashboardTab() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white mb-2">{t('admin.dashboard.title')}</h2>
+        <h2 className="text-2xl font-bold text-foreground mb-2">{t('admin.dashboard.title')}</h2>
         <p className="text-slate-400">{t('admin.dashboard.subtitle')}</p>
       </div>
 
@@ -101,12 +101,12 @@ export function AdminDashboardTab() {
         {statCards.map((card) => (
           <div
             key={card.label}
-            className="bg-bridge-obsidian rounded-xl border border-white/15 p-4 md:p-6"
+            className="bg-bridge-obsidian rounded-xl border border-bridge-border p-4 md:p-6"
           >
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-slate-400 text-sm mb-1">{card.label}</p>
-                <p className="text-3xl font-bold text-white">{card.value.toLocaleString()}</p>
+                <p className="text-3xl font-bold text-foreground">{card.value.toLocaleString()}</p>
                 {card.subValue && (
                   <p className="text-sm text-slate-400 mt-1">{card.subValue}</p>
                 )}
@@ -119,11 +119,73 @@ export function AdminDashboardTab() {
         ))}
       </div>
 
+      {/* Personal Board Metrics */}
+      <div className="bg-bridge-obsidian rounded-xl border border-bridge-border p-4 md:p-6">
+        <div className="flex items-center gap-2 mb-6">
+          <User className="h-5 w-5 text-purple-400" />
+          <h3 className="text-lg font-bold text-foreground">{t('admin.dashboard.personalBoardMetrics', 'Personal Board')}</h3>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-foreground/5 rounded-xl p-4">
+            <p className="text-slate-400 text-xs mb-1">{t('admin.dashboard.personalBoards', 'Personal Boards')}</p>
+            <p className="text-2xl font-bold text-foreground">{(statistics.personal_boards ?? 0).toLocaleString()}</p>
+          </div>
+          <div className="bg-foreground/5 rounded-xl p-4">
+            <p className="text-slate-400 text-xs mb-1">{t('admin.dashboard.adoptionRate', 'Adoption Rate')}</p>
+            <p className="text-2xl font-bold text-purple-400">{statistics.personal_board_adoption ?? 0}%</p>
+          </div>
+          <div className="bg-foreground/5 rounded-xl p-4">
+            <p className="text-slate-400 text-xs mb-1">{t('admin.dashboard.activePersonalBoards', 'Active (30d)')}</p>
+            <p className="text-2xl font-bold text-foreground">{(statistics.active_personal_boards ?? 0).toLocaleString()}</p>
+          </div>
+          <div className="bg-foreground/5 rounded-xl p-4">
+            <p className="text-slate-400 text-xs mb-1">{t('admin.dashboard.totalDiaryEntries', 'Diary Entries')}</p>
+            <p className="text-2xl font-bold text-foreground">{(statistics.total_diary_entries ?? 0).toLocaleString()}</p>
+          </div>
+        </div>
+
+        {/* Board Type Distribution */}
+        {statistics.total_boards > 0 && (() => {
+          const teamBoards = statistics.total_boards - (statistics.personal_boards ?? 0);
+          const personalPct = ((statistics.personal_boards ?? 0) / statistics.total_boards) * 100;
+          return (
+            <div className="mt-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-slate-400 text-sm">{t('admin.dashboard.boardTypeDistribution', 'Board Type Distribution')}</span>
+              </div>
+              <div className="h-3 bg-foreground/5 rounded-full overflow-hidden flex">
+                <div
+                  className="h-full bg-slate-500 transition-all duration-500"
+                  style={{ width: `${100 - personalPct}%` }}
+                  title={`Team: ${teamBoards}`}
+                />
+                <div
+                  className="h-full bg-purple-500 transition-all duration-500"
+                  style={{ width: `${personalPct}%` }}
+                  title={`Personal: ${statistics.personal_boards ?? 0}`}
+                />
+              </div>
+              <div className="flex items-center gap-4 mt-2 text-xs">
+                <span className="flex items-center gap-1 text-slate-400">
+                  <span className="w-2 h-2 rounded-full bg-slate-500" />
+                  Team {teamBoards}
+                </span>
+                <span className="flex items-center gap-1 text-purple-400">
+                  <span className="w-2 h-2 rounded-full bg-purple-500" />
+                  Personal {statistics.personal_boards ?? 0}
+                </span>
+              </div>
+            </div>
+          );
+        })()}
+      </div>
+
       {/* Tier Distribution */}
-      <div className="bg-bridge-obsidian rounded-xl border border-white/15 p-4 md:p-6">
+      <div className="bg-bridge-obsidian rounded-xl border border-bridge-border p-4 md:p-6">
         <div className="flex items-center gap-2 mb-6">
           <TrendingUp className="h-5 w-5 text-bridge-accent" />
-          <h3 className="text-lg font-bold text-white">{t('admin.dashboard.tierDistribution')}</h3>
+          <h3 className="text-lg font-bold text-foreground">{t('admin.dashboard.tierDistribution')}</h3>
         </div>
 
         <div className="space-y-4">
@@ -133,11 +195,11 @@ export function AdminDashboardTab() {
               <div key={tier.label}>
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-slate-400">{tier.label}</span>
-                  <span className="text-white font-medium">
+                  <span className="text-foreground font-medium">
                     {tier.value} ({percentage.toFixed(1)}%)
                   </span>
                 </div>
-                <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+                <div className="h-2 bg-foreground/5 rounded-full overflow-hidden">
                   <div
                     className={`h-full ${tier.color} rounded-full transition-all duration-500`}
                     style={{ width: `${percentage}%` }}

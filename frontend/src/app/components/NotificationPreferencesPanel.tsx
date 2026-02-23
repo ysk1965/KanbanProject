@@ -90,14 +90,14 @@ export function NotificationPreferencesPanel({ boardId, hasSlack }: Notification
   if (isLoading || !prefs) return null;
 
   return (
-    <div className="mx-3 mb-2 bg-white/[0.03] rounded-xl border border-white/10 overflow-hidden">
+    <div className="mx-3 mb-2 bg-white/[0.03] rounded-xl border border-foreground/10 overflow-hidden">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-white/5 transition-colors"
+        className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-foreground/5 transition-colors"
       >
         <div className="flex items-center gap-1.5">
           <Settings size={12} className="text-slate-400" />
-          <span className="text-[11px] font-medium text-slate-300">{t('notificationPreferences.title')}</span>
+          <span className="text-[11px] font-medium text-muted-foreground">{t('notificationPreferences.title')}</span>
         </div>
         {isOpen ? (
           <ChevronUp size={12} className="text-slate-400" />
@@ -107,7 +107,7 @@ export function NotificationPreferencesPanel({ boardId, hasSlack }: Notification
       </button>
 
       {isOpen && (
-        <div className="px-3 pb-3 border-t border-white/5">
+        <div className="px-3 pb-3 border-t border-foreground/5">
           {/* Header row */}
           <div className="flex items-center gap-2 pt-2 pb-1.5">
             <div className="flex-1" />
@@ -126,7 +126,7 @@ export function NotificationPreferencesPanel({ boardId, hasSlack }: Notification
             {NOTIFICATION_TYPES.map(({ key, labelKey, descKey }) => (
               <div key={key} className="flex items-center gap-2 py-1.5 group">
                 <div className="flex-1 min-w-0">
-                  <div className="text-[11px] text-slate-300">{t(labelKey)}</div>
+                  <div className="text-[11px] text-muted-foreground">{t(labelKey)}</div>
                   <div className="text-[9px] text-slate-500 leading-tight">{t(descKey)}</div>
                 </div>
                 {/* In-app toggle */}
@@ -136,7 +136,7 @@ export function NotificationPreferencesPanel({ boardId, hasSlack }: Notification
                     className={`w-7 h-4 rounded-full transition-colors relative ${
                       prefs[`${key}_enabled` as keyof NotificationPreferences]
                         ? 'bg-bridge-accent'
-                        : 'bg-white/10'
+                        : 'bg-foreground/10'
                     }`}
                   >
                     <div
@@ -155,10 +155,10 @@ export function NotificationPreferencesPanel({ boardId, hasSlack }: Notification
                     disabled={!hasSlack}
                     className={`w-7 h-4 rounded-full transition-colors relative ${
                       !hasSlack
-                        ? 'bg-white/5 cursor-not-allowed opacity-40'
+                        ? 'bg-foreground/5 cursor-not-allowed opacity-40'
                         : prefs[`slack_${key}_enabled` as keyof NotificationPreferences]
                           ? 'bg-bridge-accent'
-                          : 'bg-white/10'
+                          : 'bg-foreground/10'
                     }`}
                   >
                     <div

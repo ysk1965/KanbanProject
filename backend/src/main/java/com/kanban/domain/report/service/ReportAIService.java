@@ -110,8 +110,8 @@ public class ReportAIService {
     }
 
     public String generateStandupSummary(String dataJson, String language, String boardId, String userId) {
-        // Consume AI credit before processing (only for user-initiated calls with boardId)
-        if (boardId != null && userId != null) {
+        // Consume AI credit before processing (boardId required, userId nullable for scheduled calls)
+        if (boardId != null) {
             aiCreditService.consumeCredit(boardId, userId, "STANDUP", 1);
         }
 

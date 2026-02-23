@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">BRIDGE SPOTS</string>
+    <string name="title_activity_main">BRIDGE SPOTS</string>
+    <string name="package_name">com.bridgespots.app</string>
+    <string name="custom_url_scheme">com.bridgespots.app</string>
+</resources>

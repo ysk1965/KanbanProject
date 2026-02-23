@@ -140,6 +140,13 @@ public class Task extends BaseTimeEntity {
         }
     }
 
+    public void moveToBoard(Board newBoard, Block newBlock, Feature newFeature, int newPosition) {
+        this.board = newBoard;
+        this.block = newBlock;
+        this.feature = newFeature;
+        this.position = newPosition;
+    }
+
     public void complete() {
         if (!this.isCompleted) {
             this.isCompleted = true;

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -15,12 +15,17 @@ import {
   Settings,
   Moon,
   Globe,
+  Camera,
+  CalendarDays,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { userService } from '../utils/services';
+import { resolveFileUrl } from '../utils/api';
+import { getInitials, getAssigneeHex } from '../utils/assigneeColor';
 import { Switch } from './ui/switch';
+import { COUNTRY_LIST } from '../hooks/useHolidays';
 
 export function SettingsPage() {
   const navigate = useNavigate();
@@ -34,6 +39,11 @@ export function SettingsPage() {
   const [profileSuccess, setProfileSuccess] = useState(false);
   const [profileError, setProfileError] = useState('');
 
+  // Profile Image State
+  const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [imageUploading, setImageUploading] = useState(false);
+  const [imageError, setImageError] = useState('');
+
   // Password State
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -44,6 +54,19 @@ export function SettingsPage() {
   const [passwordSuccess, setPasswordSuccess] = useState(false);
   const [passwordError, setPasswordError] = useState('');
 
+  // Holiday Country State
+  const HOLIDAY_STORAGE_KEY = 'bridge_holiday_country';
+  const [holidayCountry, setHolidayCountry] = useState<string>(() => {
+    try { return localStorage.getItem(HOLIDAY_STORAGE_KEY) || ''; } catch { return ''; }
+  });
+  const handleHolidayCountryChange = useCallback((code: string) => {
+    setHolidayCountry(code);
+    try {
+      if (code) localStorage.setItem(HOLIDAY_STORAGE_KEY, code);
+      else localStorage.removeItem(HOLIDAY_STORAGE_KEY);
+    } catch {}
+  }, []);
+
   // Delete Account State
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
@@ -53,8 +76,53 @@ export function SettingsPage() {
   useEffect(() => {
     if (currentUser) {
       setName(currentUser.name || '');
+      setProfileImage(currentUser.profile_image || null);
     }
   }, [currentUser]);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      setImageError(t('settings.imageTypeError'));
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setImageError(t('settings.imageSizeError'));
+      return;
+    }
+
+    setImageUploading(true);
+    setImageError('');
+
+    try {
+      const response = await userService.uploadProfileImage(file);
+      setProfileImage(response.profile_image);
+      updateCurrentUser({ profile_image: response.profile_image });
+    } catch (err: any) {
+      setImageError(err.message || t('settings.imageUploadFailed'));
+    } finally {
+      setImageUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleImageDelete = async () => {
+    setImageUploading(true);
+    setImageError('');
+
+    try {
+      await userService.deleteProfileImage();
+      setProfileImage(null);
+      updateCurrentUser({ profile_image: null });
+    } catch (err: any) {
+      setImageError(err.message || t('settings.imageDeleteFailed'));
+    } finally {
+      setImageUploading(false);
+    }
+  };
 
   const handleProfileSave = async () => {
     if (!name.trim()) {
@@ -68,6 +136,7 @@ export function SettingsPage() {
 
     try {
       await userService.updateProfile({ name: name.trim() });
+      updateCurrentUser({ name: name.trim() });
       setProfileSuccess(true);
       setTimeout(() => setProfileSuccess(false), 3000);
     } catch (err: any) {
@@ -171,10 +240,12 @@ export function SettingsPage() {
     }
   };
 
+  const resolvedImageUrl = profileImage ? resolveFileUrl(profileImage) : null;
+
   return (
     <div className="min-h-screen w-full bg-bridge-dark text-foreground">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-bridge-obsidian/80 backdrop-blur-xl border-b border-white/15">
+      <header className="sticky top-0 z-50 bg-bridge-obsidian/80 backdrop-blur-xl border-b border-bridge-border safe-top">
         <div className="max-w-3xl mx-auto px-6 py-4 flex items-center gap-4">
           <button
             onClick={() => navigate(-1)}
@@ -183,7 +254,7 @@ export function SettingsPage() {
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-[#6366F1] to-[#2DD4BF] rounded-xl flex items-center justify-center">
+            <div className="w-10 h-10 bg-gradient-to-br from-bridge-accent to-bridge-secondary rounded-xl flex items-center justify-center">
               <Settings className="w-5 h-5 text-white" />
             </div>
             <div>
@@ -200,7 +271,7 @@ export function SettingsPage() {
         <motion.section
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-bridge-obsidian rounded-2xl border border-white/15 p-6"
+          className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-6"
         >
           <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 bg-bridge-accent/20 rounded-xl flex items-center justify-center">
@@ -212,6 +283,66 @@ export function SettingsPage() {
             </div>
           </div>
 
+          {/* Profile Image */}
+          <div className="flex items-center gap-6 mb-6">
+            <div className="relative group">
+              {resolvedImageUrl ? (
+                <img
+                  src={resolvedImageUrl}
+                  alt={currentUser?.name || ''}
+                  className="w-20 h-20 rounded-full object-cover border-2 border-foreground/10"
+                />
+              ) : (
+                <div
+                  className="w-20 h-20 rounded-full flex items-center justify-center text-white text-xl font-bold border-2 border-foreground/10"
+                  style={{ backgroundColor: getAssigneeHex(currentUser?.name || '') }}
+                >
+                  {getInitials(currentUser?.name || '')}
+                </div>
+              )}
+
+              {/* Upload overlay on hover */}
+              <label
+                className={`absolute inset-0 rounded-full bg-black/50 flex items-center justify-center cursor-pointer
+                  opacity-0 group-hover:opacity-100 transition-opacity
+                  ${imageUploading ? 'opacity-100 cursor-wait' : ''}`}
+              >
+                {imageUploading ? (
+                  <Loader2 className="w-6 h-6 text-white animate-spin" />
+                ) : (
+                  <Camera className="w-6 h-6 text-white" />
+                )}
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/gif,image/webp"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                  disabled={imageUploading}
+                />
+              </label>
+            </div>
+
+            <div className="space-y-1">
+              <p className="text-sm text-muted-foreground">{t('settings.profileImageDesc')}</p>
+              <p className="text-xs text-slate-500">{t('settings.profileImageHint')}</p>
+              {profileImage && (
+                <button
+                  onClick={handleImageDelete}
+                  disabled={imageUploading}
+                  className="text-xs text-red-400 hover:text-red-300 transition-colors disabled:opacity-50"
+                >
+                  {t('settings.removeProfileImage')}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {imageError && (
+            <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 mb-4">
+              <p className="text-red-400 text-sm">{imageError}</p>
+            </div>
+          )}
+
           <div className="space-y-4">
             <div>
               <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
@@ -221,7 +352,7 @@ export function SettingsPage() {
                 type="email"
                 value={currentUser?.email || ''}
                 disabled
-                className="w-full bg-white/5 border border-white/20 rounded-xl py-3 px-4 text-slate-400 cursor-not-allowed"
+                className="w-full bg-foreground/5 border border-bridge-border rounded-xl py-3 px-4 text-slate-400 cursor-not-allowed"
               />
               <p className="text-xs text-slate-400 mt-1">{t('settings.emailCannotChange')}</p>
             </div>
@@ -235,7 +366,7 @@ export function SettingsPage() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder={t('settings.namePlaceholder')}
-                className="w-full bg-white/5 border border-white/20 rounded-xl py-3 px-4 text-foreground placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+                className="w-full bg-foreground/5 border border-bridge-border rounded-xl py-3 px-4 text-foreground placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
               />
             </div>
 
@@ -272,7 +403,7 @@ export function SettingsPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-bridge-obsidian rounded-2xl border border-white/15 p-6"
+          className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-6"
         >
           <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 bg-bridge-accent/20 rounded-xl flex items-center justify-center">
@@ -284,7 +415,7 @@ export function SettingsPage() {
             </div>
           </div>
           <div className="flex items-center justify-between">
-            <label className="text-sm text-slate-300">{t('settings.darkMode')}</label>
+            <label className="text-sm text-muted-foreground">{t('settings.darkMode')}</label>
             <Switch checked={isDark} onCheckedChange={handleThemeChange} />
           </div>
         </motion.section>
@@ -295,7 +426,7 @@ export function SettingsPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
-          className="bg-bridge-obsidian rounded-2xl border border-white/15 p-6"
+          className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-6"
         >
           <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 bg-bridge-accent/20 rounded-xl flex items-center justify-center">
@@ -306,7 +437,7 @@ export function SettingsPage() {
               <p className="text-sm text-slate-400">{t('settings.languageDesc')}</p>
             </div>
           </div>
-          <div className="grid grid-cols-5 gap-2.5">
+          <div className="grid grid-cols-3 sm:grid-cols-5 gap-2.5">
             {[
               { code: 'ko', label: '한국어' },
               { code: 'en', label: 'English' },
@@ -322,10 +453,10 @@ export function SettingsPage() {
               <button
                 key={lang.code}
                 onClick={() => i18n.changeLanguage(lang.code)}
-                className={`px-3 py-2.5 rounded-xl text-sm font-medium transition-all whitespace-nowrap text-center ${
+                className={`px-3 py-2.5 rounded-xl text-sm font-medium transition-all truncate text-center min-w-0 ${
                   i18n.language === lang.code
                     ? 'bg-bridge-accent/15 border border-bridge-accent/50 text-bridge-accent'
-                    : 'bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 hover:text-white'
+                    : 'bg-foreground/5 border border-foreground/10 text-muted-foreground hover:bg-foreground/10 hover:text-foreground'
                 }`}
               >
                 {lang.label}
@@ -335,13 +466,56 @@ export function SettingsPage() {
         </motion.section>
         )}
 
+        {/* Holiday Country Section */}
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.17 }}
+          className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-6"
+        >
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 bg-red-400/20 rounded-xl flex items-center justify-center">
+              <CalendarDays className="w-5 h-5 text-red-400" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-foreground">{t('settings.holidayCountry')}</h2>
+              <p className="text-sm text-slate-400">{t('settings.holidayCountryDesc')}</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            <button
+              onClick={() => handleHolidayCountryChange('')}
+              className={`px-3 py-2.5 rounded-xl text-sm font-medium transition-all truncate text-center min-w-0 ${
+                !holidayCountry
+                  ? 'bg-bridge-accent/15 border border-bridge-accent/50 text-bridge-accent'
+                  : 'bg-foreground/5 border border-foreground/10 text-muted-foreground hover:bg-foreground/10 hover:text-foreground'
+              }`}
+            >
+              {t('settings.holidayOff')}
+            </button>
+            {COUNTRY_LIST.map((c) => (
+              <button
+                key={c.code}
+                onClick={() => handleHolidayCountryChange(c.code)}
+                className={`px-3 py-2.5 rounded-xl text-sm font-medium transition-all truncate text-center min-w-0 ${
+                  holidayCountry === c.code
+                    ? 'bg-bridge-accent/15 border border-bridge-accent/50 text-bridge-accent'
+                    : 'bg-foreground/5 border border-foreground/10 text-muted-foreground hover:bg-foreground/10 hover:text-foreground'
+                }`}
+              >
+                {c.flag} {c.label}
+              </button>
+            ))}
+          </div>
+        </motion.section>
+
         {/* Password Section - 구글 로그인 사용자에게는 표시하지 않음 */}
         {!isGoogleUser && (
           <motion.section
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="bg-bridge-obsidian rounded-2xl border border-white/15 p-6"
+            className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-6"
           >
             <div className="flex items-center gap-3 mb-6">
               <div className="w-10 h-10 bg-bridge-accent/20 rounded-xl flex items-center justify-center">
@@ -364,7 +538,7 @@ export function SettingsPage() {
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
                     placeholder={t('settings.currentPasswordLabel')}
-                    className="w-full bg-white/5 border border-white/20 rounded-xl py-3 px-4 pr-12 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+                    className="w-full bg-foreground/5 border border-bridge-border rounded-xl py-3 px-4 pr-12 text-foreground placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
                   />
                   <button
                     type="button"
@@ -386,7 +560,7 @@ export function SettingsPage() {
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     placeholder={t('settings.newPasswordPlaceholder')}
-                    className="w-full bg-white/5 border border-white/20 rounded-xl py-3 px-4 pr-12 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+                    className="w-full bg-foreground/5 border border-bridge-border rounded-xl py-3 px-4 pr-12 text-foreground placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
                   />
                   <button
                     type="button"
@@ -407,7 +581,7 @@ export function SettingsPage() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder={t('settings.confirmPasswordPlaceholder')}
-                  className="w-full bg-white/5 border border-white/20 rounded-xl py-3 px-4 text-foreground placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+                  className="w-full bg-foreground/5 border border-bridge-border rounded-xl py-3 px-4 text-foreground placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
                 />
               </div>
 
@@ -487,7 +661,7 @@ export function SettingsPage() {
                   value={deleteConfirmText}
                   onChange={(e) => setDeleteConfirmText(e.target.value)}
                   placeholder={t('settings.deleteAccountText')}
-                  className="w-full bg-red-500/5 border border-red-500/30 rounded-xl py-3 px-4 text-white placeholder-red-400/50 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500 transition-all"
+                  className="w-full bg-red-500/5 border border-red-500/30 rounded-xl py-3 px-4 text-foreground placeholder-red-400/50 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500 transition-all"
                 />
               </div>
 
@@ -516,7 +690,7 @@ export function SettingsPage() {
                     setDeleteConfirmText('');
                     setDeleteError('');
                   }}
-                  className="px-6 py-3 bg-white/5 border border-white/20 text-foreground rounded-xl font-bold hover:bg-white/10 transition-all"
+                  className="px-6 py-3 bg-foreground/5 border border-bridge-border text-foreground rounded-xl font-bold hover:bg-foreground/10 transition-all"
                 >
                   {t('common.cancel')}
                 </button>

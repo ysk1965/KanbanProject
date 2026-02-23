@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Copy, Link as LinkIcon, Trash2, Plus, Check } from 'lucide-react';
 import { Button } from './ui/button';
+import { MotionModal } from './ui/MotionModal';
 import { InviteLink } from '../utils/api';
 
 interface InviteLinkModalProps {
@@ -27,8 +28,6 @@ export function InviteLinkModal({
   const [maxUses, setMaxUses] = useState(10);
   const [expiresIn, setExpiresIn] = useState('7d');
   const [copiedLinkId, setCopiedLinkId] = useState<string | null>(null);
-
-  if (!open) return null;
 
   const handleCreateLink = async () => {
     try {
@@ -79,12 +78,11 @@ export function InviteLinkModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
-      <div className="bg-bridge-obsidian rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+    <MotionModal open={open} onClose={onClose} className="sm:max-w-2xl p-0 overflow-hidden max-h-[90vh] flex flex-col">
         {/* 헤더 */}
-        <div className="flex items-center justify-between p-6 border-b border-white/20">
+        <div className="flex items-center justify-between p-6 border-b border-foreground/10">
           <div className="flex items-center gap-2">
-            <LinkIcon className="h-5 w-5 text-blue-400" />
+            <LinkIcon className="h-5 w-5 text-bridge-accent" />
             <h2 className="text-xl font-semibold text-foreground">{t('inviteLink.title')}</h2>
           </div>
           <button
@@ -101,7 +99,7 @@ export function InviteLinkModal({
           {!isCreating && (
             <Button
               onClick={() => setIsCreating(true)}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+              className="w-full bg-bridge-accent hover:bg-bridge-accent/90 text-white"
             >
               <Plus className="h-4 w-4 mr-2" />
               {t('inviteLink.createNew')}
@@ -110,17 +108,17 @@ export function InviteLinkModal({
 
           {/* 링크 생성 폼 */}
           {isCreating && (
-            <div className="bg-bridge-dark rounded-lg p-4 space-y-4 border border-white/20">
+            <div className="bg-bridge-dark rounded-lg p-4 space-y-4 border border-foreground/10">
               <h3 className="font-medium text-foreground">{t('inviteLink.newLinkSettings')}</h3>
 
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label className="block text-sm font-medium text-muted-foreground mb-2">
                   {t('inviteLink.role')}
                 </label>
                 <select
                   value={role}
                   onChange={(e) => setRole(e.target.value as any)}
-                  className="w-full px-3 py-2 bg-bridge-obsidian border border-white/20 rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 bg-bridge-obsidian border border-foreground/10 rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
                 >
                   <option value="viewer">{t('inviteLink.viewerOption')}</option>
                   <option value="member">{t('inviteLink.memberOption')}</option>
@@ -128,7 +126,7 @@ export function InviteLinkModal({
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label className="block text-sm font-medium text-muted-foreground mb-2">
                   {t('inviteLink.maxUses')}
                 </label>
                 <input
@@ -137,18 +135,18 @@ export function InviteLinkModal({
                   onChange={(e) => setMaxUses(parseInt(e.target.value) || 1)}
                   min="1"
                   max="100"
-                  className="w-full px-3 py-2 bg-bridge-obsidian border border-white/20 rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 bg-bridge-obsidian border border-foreground/10 rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label className="block text-sm font-medium text-muted-foreground mb-2">
                   {t('inviteLink.validPeriod')}
                 </label>
                 <select
                   value={expiresIn}
                   onChange={(e) => setExpiresIn(e.target.value)}
-                  className="w-full px-3 py-2 bg-bridge-obsidian border border-white/20 rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 bg-bridge-obsidian border border-foreground/10 rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
                 >
                   <option value="1d">{t('inviteLink.period1d')}</option>
                   <option value="7d">{t('inviteLink.period7d')}</option>
@@ -160,14 +158,14 @@ export function InviteLinkModal({
               <div className="flex gap-2">
                 <Button
                   onClick={handleCreateLink}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                  className="flex-1 bg-bridge-accent hover:bg-bridge-accent/90 text-white"
                 >
                   {t('common.create')}
                 </Button>
                 <Button
                   onClick={() => setIsCreating(false)}
                   variant="outline"
-                  className="flex-1 border-white/20 text-slate-300 hover:bg-white/5 hover:text-foreground"
+                  className="flex-1 border-foreground/10 text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
                 >
                   {t('common.cancel')}
                 </Button>
@@ -192,7 +190,7 @@ export function InviteLinkModal({
               <div
                 key={link.id}
                 className={`bg-bridge-dark rounded-lg p-4 border ${
-                  isInactive ? 'border-white/20 opacity-60' : 'border-white/20'
+                  isInactive ? 'border-foreground/10 opacity-60' : 'border-foreground/10'
                 }`}
               >
                 <div className="flex items-start justify-between gap-4 mb-3">
@@ -221,7 +219,7 @@ export function InviteLinkModal({
                       size="sm"
                       variant="outline"
                       onClick={() => handleCopyLink(link.url, link.id)}
-                      className="border-white/20 text-slate-300 hover:bg-white/5 hover:text-foreground"
+                      className="border-foreground/10 text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
                       disabled={isInactive}
                     >
                       {copiedLinkId === link.id ? (
@@ -256,16 +254,15 @@ export function InviteLinkModal({
         </div>
 
         {/* 푸터 */}
-        <div className="border-t border-white/20 p-4 bg-bridge-dark">
+        <div className="border-t border-foreground/10 p-4 bg-bridge-dark">
           <Button
             onClick={onClose}
             variant="outline"
-            className="w-full border-white/20 text-slate-300 hover:bg-white/5 hover:text-foreground"
+            className="w-full border-foreground/10 text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
           >
             {t('common.close')}
           </Button>
         </div>
-      </div>
-    </div>
+    </MotionModal>
   );
 }

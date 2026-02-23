@@ -86,6 +86,10 @@ public class AdminResponse {
         private LocalDateTime deactivatedAt;
         private String deactivatedReason;
         private List<BoardSummary> boards;
+        // Personal AI Credit fields
+        private Integer personalAiCredits;
+        private Integer personalCreditsUsed;
+        private LocalDateTime personalCreditsResetDate;
 
         public static UserDetail of(User user, int boardCount, List<BoardSummary> boards) {
             return UserDetail.builder()
@@ -105,6 +109,9 @@ public class AdminResponse {
                     .deactivatedAt(user.getDeactivatedAt())
                     .deactivatedReason(user.getDeactivatedReason())
                     .boards(boards)
+                    .personalAiCredits(user.getPersonalAiCredits())
+                    .personalCreditsUsed(user.getPersonalCreditsUsed())
+                    .personalCreditsResetDate(user.getPersonalCreditsResetDate())
                     .build();
         }
     }
@@ -128,11 +135,13 @@ public class AdminResponse {
         private String description;
         private OwnerInfo owner;
         private BoardTier tier;
+        private String boardType;
         private int memberCount;
         private int taskCount;
         private SubscriptionStatus subscriptionStatus;
         private LocalDateTime trialEndsAt;
         private LocalDateTime createdAt;
+        private LocalDateTime deletedAt;
 
         public static BoardSummary of(Board board, int memberCount, int taskCount, Subscription subscription) {
             return BoardSummary.builder()
@@ -141,11 +150,13 @@ public class AdminResponse {
                     .description(board.getDescription())
                     .owner(OwnerInfo.of(board.getOwner()))
                     .tier(board.getTier())
+                    .boardType(board.getBoardType() != null ? board.getBoardType().name() : "TEAM")
                     .memberCount(memberCount)
                     .taskCount(taskCount)
                     .subscriptionStatus(subscription != null ? subscription.getStatus() : null)
                     .trialEndsAt(board.getTrialEndsAt())
                     .createdAt(board.getCreatedAt())
+                    .deletedAt(board.getDeletedAt())
                     .build();
         }
     }
@@ -159,12 +170,14 @@ public class AdminResponse {
         private String description;
         private OwnerInfo owner;
         private BoardTier tier;
+        private String boardType;
         private int memberCount;
         private int taskCount;
         private SubscriptionStatus subscriptionStatus;
         private Integer seatCount;
         private LocalDateTime trialEndsAt;
         private LocalDateTime createdAt;
+        private LocalDateTime deletedAt;
         private List<MemberInfo> members;
         // AI Credit fields
         private Integer monthlyAiCredits;
@@ -180,12 +193,14 @@ public class AdminResponse {
                     .description(board.getDescription())
                     .owner(OwnerInfo.of(board.getOwner()))
                     .tier(board.getTier())
+                    .boardType(board.getBoardType() != null ? board.getBoardType().name() : "TEAM")
                     .memberCount(memberCount)
                     .taskCount(taskCount)
                     .subscriptionStatus(subscription != null ? subscription.getStatus() : null)
                     .seatCount(subscription != null ? subscription.getSeatCount() : null)
                     .trialEndsAt(board.getTrialEndsAt())
                     .createdAt(board.getCreatedAt())
+                    .deletedAt(board.getDeletedAt())
                     .members(members)
                     .monthlyAiCredits(subscription != null ? subscription.getMonthlyAiCredits() : null)
                     .monthlyCreditsUsed(subscription != null ? subscription.getMonthlyCreditsUsed() : null)

@@ -40,7 +40,8 @@ export function EmptyBoardGuide({ onCreateFeature }: EmptyBoardGuideProps) {
   const { t } = useTranslation();
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
+    <div className="flex-1 min-h-0 overflow-y-auto">
+    <div className="flex flex-col items-center md:justify-center min-h-full px-6 py-6 pb-28 md:py-12">
       {/* 헤딩 */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -51,7 +52,7 @@ export function EmptyBoardGuide({ onCreateFeature }: EmptyBoardGuideProps) {
         <div className="w-14 h-14 rounded-2xl bg-bridge-accent/10 border border-bridge-accent/20 flex items-center justify-center mb-6">
           <Sparkles className="h-7 w-7 text-bridge-accent" />
         </div>
-        <h2 className="font-serif text-2xl md:text-3xl font-bold tracking-tight text-foreground mb-3">
+        <h2 className="font-jakarta text-2xl md:text-3xl font-bold tracking-tight text-foreground mb-3">
           {t('emptyBoard.heading')}
         </h2>
         <p className="text-slate-400 font-light text-sm md:text-base max-w-md text-center leading-relaxed">
@@ -67,7 +68,7 @@ export function EmptyBoardGuide({ onCreateFeature }: EmptyBoardGuideProps) {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15 + index * 0.15, duration: 0.5 }}
-              className={`w-64 bg-kanban-card rounded-2xl border border-kanban-border p-6 transition-all ${step.borderHover}`}
+              className={`w-64 bg-bridge-surface rounded-2xl border border-bridge-border p-6 transition-all ${step.borderHover}`}
             >
               <div className="flex items-center gap-3 mb-4">
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${step.iconBg}`}>
@@ -89,16 +90,23 @@ export function EmptyBoardGuide({ onCreateFeature }: EmptyBoardGuideProps) {
       </div>
 
       {/* CTA 버튼 */}
-      <motion.button
+      <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.6, duration: 0.5 }}
-        onClick={onCreateFeature}
-        className="mt-10 px-8 py-3.5 bg-bridge-accent text-white rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-bridge-accent/90 hover:shadow-[0_0_30px_rgba(99,102,241,0.3)] transition-all"
+        className="relative mt-10 group"
       >
-        <Plus className="h-4 w-4" />
-        {t('emptyBoard.createFirstFeature')}
-      </motion.button>
+        {/* 글로우 배경 */}
+        <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-indigo-500 via-purple-500 to-teal-400 opacity-60 blur-lg group-hover:opacity-100 transition-opacity duration-500" />
+        <button
+          onClick={onCreateFeature}
+          className="relative px-10 py-4 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-2xl font-bold text-base flex items-center gap-2.5 hover:shadow-[0_0_40px_rgba(99,102,241,0.5)] transition-all duration-300 hover:scale-[1.03] active:scale-[0.98]"
+        >
+          <Plus className="h-5 w-5" strokeWidth={2.5} />
+          {t('emptyBoard.createFirstFeature')}
+        </button>
+      </motion.div>
+    </div>
     </div>
   );
 }

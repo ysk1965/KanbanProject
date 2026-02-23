@@ -18,6 +18,9 @@ import {
   inquiryAPI,
   noteAPI,
   apiClient,
+  personalTaskAPI,
+  personalHabitAPI,
+  personalDashboardAPI,
 } from './api';
 import {
   mockBoards,
@@ -93,9 +96,9 @@ export const boardService = {
     }
   },
 
-  createBoard: async (name: string, description?: string): Promise<Board> => {
+  createBoard: async (name: string, description?: string, backgroundGradient?: string): Promise<Board> => {
     try {
-      const board = await boardAPI.createBoard({ name, description });
+      const board = await boardAPI.createBoard({ name, description, background_gradient: backgroundGradient });
       return board;
     } catch (error) {
       console.warn('API failed, using mock data for create board', error);
@@ -123,16 +126,16 @@ export const boardService = {
     }
   },
 
-  updateBoard: async (boardId: string, name: string, description?: string): Promise<Board> => {
+  updateBoard: async (boardId: string, name: string, description?: string, backgroundGradient?: string): Promise<Board> => {
     try {
-      const board = await boardAPI.updateBoard(boardId, { name, description });
+      const board = await boardAPI.updateBoard(boardId, { name, description, background_gradient: backgroundGradient });
       return board;
     } catch (error) {
       console.warn('API failed for update board', error);
       if (USE_MOCK_ON_ERROR) {
         const boards = loadFromLocalStorage('kanban_boards', mockBoards);
         const updatedBoards = boards.map((b: Board) =>
-          b.id === boardId ? { ...b, name, description } : b
+          b.id === boardId ? { ...b, name, description, background_gradient: backgroundGradient } : b
         );
         saveToLocalStorage('kanban_boards', updatedBoards);
         return updatedBoards.find((b: Board) => b.id === boardId)!;
@@ -229,6 +232,14 @@ export const boardService = {
   getBoardFull: async (boardId: string) => {
     const data = await boardAPI.getBoardFull(boardId);
     return data;
+  },
+
+  moveTask: async (taskId: string, data: { target_board_id: string; target_block_id: string }) => {
+    await boardAPI.moveTask(taskId, data);
+  },
+
+  copyTask: async (taskId: string, data: { target_board_id: string; target_block_id: string }) => {
+    await boardAPI.copyTask(taskId, data);
   },
 };
 
@@ -371,6 +382,7 @@ export const featureService = {
       description?: string;
       color?: string;
       assignee_id?: string;
+      start_date?: string;
       due_date?: string;
     }
   ): Promise<Feature> => {
@@ -387,6 +399,7 @@ export const featureService = {
           description: data.description,
           color: data.color || '#3B82F6',
           assignee: null,
+          start_date: data.start_date || null,
           due_date: data.due_date || null,
           status: 'ACTIVE',
           total_tasks: 0,
@@ -412,6 +425,7 @@ export const featureService = {
       description?: string;
       color?: string;
       assignee_id?: string | null;
+      start_date?: string | null;
       due_date?: string | null;
     }
   ): Promise<Feature> => {
@@ -1091,6 +1105,18 @@ export const authService = {
     }
   },
 
+  googleLoginWithIdToken: async (idToken: string) => {
+    try {
+      const response = await authAPI.googleLoginWithIdToken(idToken);
+      const userWithProvider = { ...response.user, provider: 'google' as const };
+      localStorage.setItem('user', JSON.stringify(userWithProvider));
+      return { ...response, user: userWithProvider };
+    } catch (error) {
+      console.warn('Google login with id_token failed', error);
+      throw error;
+    }
+  },
+
   logout: async () => {
     try {
       await authAPI.logout();
@@ -1162,6 +1188,30 @@ export const userService = {
       if (data.name) user.name = data.name;
       if (data.profileImage) user.profile_image = data.profileImage;
       if (data.theme) user.theme = data.theme;
+      localStorage.setItem('user', JSON.stringify(user));
+    }
+    return response;
+  },
+
+  // 프로필 이미지 업로드
+  uploadProfileImage: async (file: File) => {
+    const response = await userAPI.uploadProfileImage(file);
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      user.profile_image = response.profile_image;
+      localStorage.setItem('user', JSON.stringify(user));
+    }
+    return response;
+  },
+
+  // 프로필 이미지 삭제
+  deleteProfileImage: async () => {
+    const response = await userAPI.deleteProfileImage();
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      user.profile_image = '';
       localStorage.setItem('user', JSON.stringify(user));
     }
     return response;
@@ -1250,7 +1300,7 @@ export const subscriptionService = {
           trial_ends_at: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
           current_period_end: null,
           billable_member_count: 1,
-          member_limit: 5,
+          member_limit: 999999,
         };
       }
       throw error;
@@ -1962,8 +2012,11 @@ import {
   SignupTrend,
   ActiveUserStats,
   ConversionStats,
+  DiaryStats,
+  PersonalConversionStats,
   AnnouncementDetail,
   MaintenanceStatus,
+  BulkCreateResult,
 } from './api';
 
 export const adminService = {
@@ -2018,6 +2071,16 @@ export const adminService = {
     return adminAPI.sendPasswordResetEmail(userId);
   },
 
+  // Personal Board 생성
+  createPersonalBoard: async (userId: string): Promise<{ message: string }> => {
+    return adminAPI.createPersonalBoard(userId);
+  },
+
+  // 유저 개인 AI 크레딧 조정
+  adjustPersonalAiCredits: async (userId: string, data: { personal_ai_credits?: number; add_bonus_credits?: number }): Promise<AdminUserDetail> => {
+    return adminAPI.adjustPersonalAiCredits(userId, data);
+  },
+
   // 사용자 영구 삭제
   deleteUser: async (userId: string): Promise<void> => {
     await adminAPI.deleteUser(userId);
@@ -2034,6 +2097,7 @@ export const adminService = {
     size?: number;
     search?: string;
     tier?: string;
+    board_type?: string;
   }): Promise<BoardListResponse> => {
     const response = await adminAPI.getBoards(params);
     return response;
@@ -2045,9 +2109,28 @@ export const adminService = {
     return response;
   },
 
-  // 보드 삭제
+  // 보드 삭제 (소프트)
   deleteBoard: async (boardId: string): Promise<void> => {
     await adminAPI.deleteBoard(boardId);
+  },
+
+  // 보드 복구
+  restoreBoard: async (boardId: string): Promise<void> => {
+    await adminAPI.restoreBoard(boardId);
+  },
+
+  // 보드 영구 삭제
+  permanentlyDeleteBoard: async (boardId: string): Promise<void> => {
+    await adminAPI.permanentlyDeleteBoard(boardId);
+  },
+
+  // 삭제된 보드 목록 조회
+  getDeletedBoards: async (params: {
+    page?: number;
+    size?: number;
+    search?: string;
+  }): Promise<BoardListResponse> => {
+    return adminAPI.getDeletedBoards(params);
   },
 
   // 보드 이름 변경
@@ -2122,6 +2205,16 @@ export const adminService = {
     return await adminAPI.getConversionStats(days);
   },
 
+  // Analytics: Diary 통계
+  getDiaryStats: async (days: number = 30): Promise<DiaryStats> => {
+    return await adminAPI.getDiaryStats(days);
+  },
+
+  // Analytics: Personal → Team 전환 통계
+  getPersonalConversionStats: async (days: number = 365): Promise<PersonalConversionStats> => {
+    return await adminAPI.getPersonalConversionStats(days);
+  },
+
   // 공지사항 관리
   getAnnouncements: async (): Promise<AnnouncementDetail[]> => {
     return await adminAPI.getAnnouncements();
@@ -2155,6 +2248,10 @@ export const adminService = {
 
   deleteAnnouncement: async (id: string): Promise<void> => {
     await adminAPI.deleteAnnouncement(id);
+  },
+
+  bulkCreatePersonalBoards: async (): Promise<BulkCreateResult> => {
+    return await adminAPI.bulkCreatePersonalBoards();
   },
 
   // 점검 모드
@@ -2312,6 +2409,46 @@ export const noteService = {
 };
 
 // ========================================
+// Note Comment Service
+// ========================================
+
+import { noteCommentAPI } from './api';
+
+export const noteCommentService = {
+  getComments: async (boardId: string, noteId: string) => {
+    return await noteCommentAPI.getComments(boardId, noteId);
+  },
+
+  createComment: async (boardId: string, noteId: string, data: {
+    content: string;
+    block_id?: string | null;
+    parent_id?: string | null;
+    mentions?: string[];
+  }) => {
+    return await noteCommentAPI.createComment(boardId, noteId, data);
+  },
+
+  updateComment: async (boardId: string, noteId: string, commentId: string, data: {
+    content: string;
+    mentions?: string[];
+  }) => {
+    return await noteCommentAPI.updateComment(boardId, noteId, commentId, data);
+  },
+
+  deleteComment: async (boardId: string, noteId: string, commentId: string) => {
+    return await noteCommentAPI.deleteComment(boardId, noteId, commentId);
+  },
+
+  toggleResolved: async (boardId: string, noteId: string, commentId: string) => {
+    return await noteCommentAPI.toggleResolved(boardId, noteId, commentId);
+  },
+
+  toggleReaction: async (boardId: string, noteId: string, commentId: string, emoji: string) => {
+    return await noteCommentAPI.toggleReaction(boardId, noteId, commentId, emoji);
+  },
+};
+
+// ========================================
 // Monitoring Service
 // ========================================
 
@@ -2381,4 +2518,185 @@ export const aiCreditService = {
     const response = await apiClient.get(`/boards/${boardId}/ai-credits/usage?days=${days}`);
     return response.data || response;
   },
+};
+
+// ========================================
+// Task Dependency Service
+// ========================================
+
+import { taskDependencyAPI, personalEventAPI, diaryAPI } from './api';
+import type { TaskDependency, PersonalEvent, DiaryDetail, DiarySimple, DiaryAiReply, DiaryVoiceReply, DiaryVoiceSettings } from '../types';
+
+export const taskDependencyService = {
+  getByBoard: async (boardId: string) => {
+    return taskDependencyAPI.getByBoard(boardId);
+  },
+
+  create: async (boardId: string, predecessorId: string, successorId: string) => {
+    return taskDependencyAPI.create(boardId, {
+      predecessor_id: predecessorId,
+      successor_id: successorId,
+    });
+  },
+
+  delete: async (boardId: string, dependencyId: string) => {
+    return taskDependencyAPI.delete(boardId, dependencyId);
+  },
+};
+
+// ========================================
+// Personal Event Service
+// ========================================
+
+export const personalEventService = {
+  getByDate: async (date: string, eventType?: string): Promise<PersonalEvent[]> => {
+    return personalEventAPI.getByDate(date, eventType);
+  },
+
+  getWeekly: async (startDate: string, endDate: string, eventType?: string): Promise<PersonalEvent[]> => {
+    return personalEventAPI.getWeekly(startDate, endDate, eventType);
+  },
+
+  create: async (data: {
+    title: string;
+    description?: string;
+    event_date: string;
+    end_date?: string;
+    start_time?: string;
+    end_time?: string;
+    color?: string;
+    all_day?: boolean;
+    recurrence_rule?: string;
+    recurrence_end_date?: string;
+    recurrence_days_of_week?: number[];
+    event_type?: string;
+  }): Promise<PersonalEvent> => {
+    return personalEventAPI.create(data);
+  },
+
+  update: async (eventId: string, data: {
+    title?: string;
+    description?: string;
+    event_date?: string;
+    end_date?: string | null;
+    start_time?: string | null;
+    end_time?: string | null;
+    color?: string;
+    all_day?: boolean;
+    recurrence_rule?: string;
+    recurrence_end_date?: string;
+    recurrence_days_of_week?: number[];
+    scope?: string;
+  }): Promise<PersonalEvent> => {
+    return personalEventAPI.update(eventId, data);
+  },
+
+  delete: async (eventId: string, scope?: string): Promise<void> => {
+    return personalEventAPI.delete(eventId, scope);
+  },
+};
+
+// ========================================
+// Diary Service
+// ========================================
+
+export const diaryService = {
+  getByDate: async (date: string): Promise<DiaryDetail | null> => {
+    return diaryAPI.getByDate(date);
+  },
+
+  getById: async (diaryId: string): Promise<DiaryDetail> => {
+    return diaryAPI.getById(diaryId);
+  },
+
+  getList: async (year: number, month: number): Promise<DiarySimple[]> => {
+    return diaryAPI.getList(year, month);
+  },
+
+  create: async (diaryDate: string): Promise<DiaryDetail> => {
+    return diaryAPI.create(diaryDate);
+  },
+
+  sendMessage: async (diaryId: string, content: string): Promise<DiaryAiReply> => {
+    return diaryAPI.sendMessage(diaryId, content);
+  },
+
+  complete: async (diaryId: string, data: {
+    title?: string;
+    content?: string;
+    mood?: string;
+  }): Promise<DiaryDetail> => {
+    return diaryAPI.complete(diaryId, data);
+  },
+
+  reopen: async (diaryId: string): Promise<DiaryDetail> => {
+    return diaryAPI.reopen(diaryId);
+  },
+
+  reset: async (diaryId: string): Promise<DiaryDetail> => {
+    return diaryAPI.reset(diaryId);
+  },
+
+  update: async (diaryId: string, data: {
+    title?: string;
+    content?: string;
+    mood?: string;
+  }): Promise<DiaryDetail> => {
+    return diaryAPI.update(diaryId, data);
+  },
+
+  delete: async (diaryId: string): Promise<void> => {
+    return diaryAPI.delete(diaryId);
+  },
+
+  sendVoiceMessage: async (diaryId: string, audioBlob: Blob): Promise<DiaryVoiceReply> => {
+    return diaryAPI.sendVoiceMessage(diaryId, audioBlob);
+  },
+
+  getVoiceSettings: async (): Promise<DiaryVoiceSettings> => {
+    return diaryAPI.getVoiceSettings();
+  },
+
+  updateVoiceSettings: async (data: Partial<DiaryVoiceSettings>): Promise<DiaryVoiceSettings> => {
+    return diaryAPI.updateVoiceSettings(data);
+  },
+
+  // Personal AI Credits
+  getPersonalCredits: async (): Promise<AiCredits> => {
+    return diaryAPI.getPersonalCredits();
+  },
+
+  purchasePersonalCredits: async (data: AiCreditPurchaseRequest): Promise<AiCreditPurchaseResult> => {
+    return diaryAPI.purchasePersonalCredits(data);
+  },
+};
+
+// ─── Personal Task Service (v9.0) ───
+
+export const personalTaskService = {
+  getTasks: personalTaskAPI.getAll,
+  getTask: personalTaskAPI.getById,
+  createTask: personalTaskAPI.create,
+  updateTask: personalTaskAPI.update,
+  updateStatus: personalTaskAPI.updateStatus,
+  updatePosition: personalTaskAPI.updatePosition,
+  deleteTask: personalTaskAPI.delete,
+  getCategories: personalTaskAPI.getCategories,
+};
+
+export const personalHabitService = {
+  getHabits: personalHabitAPI.getAll,
+  getHabit: personalHabitAPI.getById,
+  createHabit: personalHabitAPI.create,
+  updateHabit: personalHabitAPI.update,
+  deleteHabit: personalHabitAPI.delete,
+  updatePosition: personalHabitAPI.updatePosition,
+  checkIn: personalHabitAPI.checkIn,
+  getLogs: personalHabitAPI.getLogs,
+  getToday: personalHabitAPI.getToday,
+  getWeekly: personalHabitAPI.getWeekly,
+};
+
+export const personalDashboardService = {
+  getToday: personalDashboardAPI.getToday,
 };

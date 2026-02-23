@@ -43,8 +43,15 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .headers(headers -> headers
                         .frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin) // H2 Console
+                        .contentTypeOptions(contentType -> {}) // X-Content-Type-Options: nosniff
+                        .httpStrictTransportSecurity(hsts -> hsts
+                                .includeSubDomains(true)
+                                .maxAgeInSeconds(31536000) // 1 year
+                        )
                         .addHeaderWriter((request, response) -> {
                             response.setHeader("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
+                            response.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+                            response.setHeader("Permissions-Policy", "camera=(), microphone=(self), geolocation=()");
                         })
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -80,7 +87,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        List<String> origins = new ArrayList<>(List.of(frontendUrl, "https://bridgespots.com", "https://www.bridgespots.com", "https://milkyway.pe.kr", "https://www.milkyway.pe.kr", "http://localhost:5173", "http://localhost:5174", "http://localhost:3000"));
+        List<String> origins = new ArrayList<>(List.of(frontendUrl, "https://bridgespots.com", "https://www.bridgespots.com", "https://milkyway.pe.kr", "https://www.milkyway.pe.kr", "http://localhost:5173", "http://localhost:5174", "http://localhost:3000", "capacitor://localhost", "http://localhost", "https://localhost"));
         if (testprodFrontendUrl != null && !testprodFrontendUrl.isBlank()) {
             origins.add(testprodFrontendUrl);
         }

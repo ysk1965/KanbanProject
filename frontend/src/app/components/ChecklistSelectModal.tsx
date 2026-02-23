@@ -4,6 +4,7 @@ import { X, Search, Loader2, CheckSquare, ChevronDown } from 'lucide-react';
 import { Clock } from 'lucide-react';
 import { boardChecklistAPI, BoardChecklistItemResponse } from '../utils/api';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from './ui/collapsible';
+import { MotionModal } from './ui/MotionModal';
 
 interface ChecklistSelectModalProps {
   boardId: string;
@@ -77,10 +78,9 @@ export function ChecklistSelectModal({
   }, [filteredItems]);
 
   return (
-    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
-      <div className="bg-bridge-obsidian rounded-2xl shadow-2xl w-[500px] max-h-[80vh] flex flex-col overflow-hidden border border-white/20">
+    <MotionModal open={true} onClose={onClose} className="sm:max-w-[500px] p-0 overflow-hidden max-h-[80vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/20">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-bridge-border">
           <h2 className="text-xl font-semibold text-foreground">{t('checklist.selectTitle')}</h2>
           <button
             onClick={onClose}
@@ -91,7 +91,7 @@ export function ChecklistSelectModal({
         </div>
 
         {/* Time Display */}
-        <div className="px-6 py-3 border-b border-white/20">
+        <div className="px-6 py-3 border-b border-bridge-border">
           <div className="bg-bridge-accent/20 rounded-lg px-4 py-2 flex items-center gap-3">
             <Clock className="h-4 w-4 text-bridge-accent" />
             <span className="text-bridge-accent font-medium text-sm">
@@ -101,7 +101,7 @@ export function ChecklistSelectModal({
         </div>
 
         {/* Search */}
-        <div className="px-6 py-3 border-b border-white/20">
+        <div className="px-6 py-3 border-b border-bridge-border">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input
@@ -109,7 +109,7 @@ export function ChecklistSelectModal({
               placeholder={t('checklist.searchPlaceholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-white/5 border border-white/20 rounded-xl text-sm text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+              className="w-full pl-10 pr-4 py-2 bg-foreground/5 border border-bridge-border rounded-xl text-sm text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
             />
           </div>
         </div>
@@ -130,10 +130,10 @@ export function ChecklistSelectModal({
                 <Collapsible
                   key={group.task?.id || 'no-task'}
                   defaultOpen={true}
-                  className="border border-white/20 rounded-xl overflow-hidden"
+                  className="border border-bridge-border rounded-xl overflow-hidden"
                 >
                   {/* Task Header - Collapsible Trigger */}
-                  <CollapsibleTrigger className="w-full flex items-center justify-between px-4 py-3 bg-white/5 hover:bg-white/10 transition-colors group">
+                  <CollapsibleTrigger className="w-full flex items-center justify-between px-4 py-3 bg-foreground/5 hover:bg-foreground/10 transition-colors group">
                     <div className="flex items-center gap-2 min-w-0 flex-1">
                       {group.feature && (
                         <div
@@ -151,7 +151,7 @@ export function ChecklistSelectModal({
                           <span className="text-xs text-slate-400 flex-shrink-0">/</span>
                         )}
                         {group.task ? (
-                          <span className="text-sm font-medium text-slate-300 truncate">
+                          <span className="text-sm font-medium text-muted-foreground truncate">
                             {group.task.title}
                           </span>
                         ) : (
@@ -160,7 +160,7 @@ export function ChecklistSelectModal({
                           </span>
                         )}
                       </div>
-                      <span className="text-xs text-slate-400 bg-white/10 px-2 py-0.5 rounded-full flex-shrink-0">
+                      <span className="text-xs text-slate-400 bg-foreground/10 px-2 py-0.5 rounded-full flex-shrink-0">
                         {group.items.length}
                       </span>
                     </div>
@@ -174,7 +174,7 @@ export function ChecklistSelectModal({
                         <button
                           key={item.id}
                           onClick={() => onSelect(item.id)}
-                          className="w-full text-left p-3 border border-white/20 rounded-xl hover:border-bridge-accent/50 hover:bg-bridge-accent/10 transition-all group"
+                          className="w-full text-left p-3 border border-bridge-border rounded-xl hover:border-bridge-accent/50 hover:bg-bridge-accent/10 transition-all group"
                         >
                           <div className="flex items-start gap-3">
                             <CheckSquare className="h-5 w-5 text-slate-400 group-hover:text-bridge-accent mt-0.5 flex-shrink-0" />
@@ -202,12 +202,11 @@ export function ChecklistSelectModal({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-3 border-t border-white/20 bg-white/5">
+        <div className="px-6 py-3 border-t border-bridge-border bg-foreground/5">
           <p className="text-xs text-slate-400 text-center">
             {t('checklist.selectFooter')}
           </p>
         </div>
-      </div>
-    </div>
+    </MotionModal>
   );
 }

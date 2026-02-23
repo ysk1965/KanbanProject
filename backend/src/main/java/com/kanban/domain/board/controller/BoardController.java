@@ -72,7 +72,7 @@ public class BoardController {
             @PathVariable String boardId,
             @AuthenticationPrincipal UserPrincipal principal) {
         boardService.deleteBoard(boardId, principal.getUserId());
-        return ResponseEntity.ok(Map.of("message", "보드가 삭제되었습니다"));
+        return ResponseEntity.ok(Map.of("message", "보드가 삭제되었습니다. 7일 내 관리자에게 복구를 요청할 수 있습니다."));
     }
 
     @PatchMapping("/{boardId}/star")

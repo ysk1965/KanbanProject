@@ -36,26 +36,33 @@ public class NoteService {
 
     public List<NoteResponse.TreeItem> getNoteTree(String boardId, String userId) {
         boardService.checkViewerOrAbove(boardId, userId);
+        validateNoteAccess(boardId);
 
-        List<Note> allNotes = noteRepository.findAllByBoardIdNotDeleted(boardId);
-        List<String> noteIds = allNotes.stream().map(Note::getId).toList();
+        try {
+            List<Note> allNotes = noteRepository.findAllByBoardIdNotDeleted(boardId);
+            log.info("getNoteTree: boardId={}, noteCount={}", boardId, allNotes.size());
+            List<String> noteIds = allNotes.stream().map(Note::getId).toList();
 
-        // Batch load tag mappings
-        Map<String, List<NoteResponse.TagInfo>> tagMap = getTagMapForNotes(noteIds);
+            // Batch load tag mappings
+            Map<String, List<NoteResponse.TagInfo>> tagMap = getTagMapForNotes(noteIds);
 
-        // Build tree
-        Map<String, List<Note>> childrenMap = allNotes.stream()
-                .filter(n -> n.getParent() != null)
-                .collect(Collectors.groupingBy(n -> n.getParent().getId()));
+            // Build tree
+            Map<String, List<Note>> childrenMap = allNotes.stream()
+                    .filter(n -> n.getParent() != null)
+                    .collect(Collectors.groupingBy(n -> n.getParent().getId()));
 
-        List<Note> roots = allNotes.stream()
-                .filter(n -> n.getParent() == null)
-                .sorted(Comparator.comparingInt(Note::getPosition))
-                .toList();
+            List<Note> roots = allNotes.stream()
+                    .filter(n -> n.getParent() == null)
+                    .sorted(Comparator.comparingInt(Note::getPosition))
+                    .toList();
 
-        return roots.stream()
-                .map(root -> buildTreeItem(root, childrenMap, tagMap))
-                .toList();
+            return roots.stream()
+                    .map(root -> buildTreeItem(root, childrenMap, tagMap))
+                    .toList();
+        } catch (Exception e) {
+            log.error("getNoteTree failed: boardId={}, userId={}", boardId, userId, e);
+            throw e;
+        }
     }
 
     public List<NoteResponse.ListItem> getNoteList(String boardId, String userId) {
@@ -87,6 +94,7 @@ public class NoteService {
     @Transactional
     public NoteResponse.Detail createNote(String boardId, String userId, NoteRequest.Create request) {
         boardService.checkMemberOrAbove(boardId, userId);
+        validateNoteAccess(boardId);
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
@@ -98,9 +106,6 @@ public class NoteService {
 
         if (request.getParentId() != null) {
             parent = getNoteOrThrow(boardId, request.getParentId());
-            if (!parent.isFolder()) {
-                throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE, "문서 안에는 하위 항목을 생성할 수 없습니다");
-            }
             depth = parent.getDepth() + 1;
             if (depth > Note.getMaxDepth()) {
                 throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE, "폴더 깊이는 최대 5단계입니다");
@@ -193,20 +198,15 @@ public class NoteService {
 
         if (request.getParentId() != null) {
             newParent = getNoteOrThrow(boardId, request.getParentId());
-            if (!newParent.isFolder()) {
-                throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE, "문서 안으로는 이동할 수 없습니다");
-            }
             // Prevent moving into own descendants
             if (isDescendant(note.getId(), request.getParentId())) {
                 throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE, "하위 폴더로 이동할 수 없습니다");
             }
             newDepth = newParent.getDepth() + 1;
-            if (note.isFolder()) {
-                int maxChildDepth = getMaxDescendantDepth(note);
-                int depthDelta = maxChildDepth - note.getDepth();
-                if (newDepth + depthDelta > Note.getMaxDepth()) {
-                    throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE, "이동 시 폴더 깊이가 5단계를 초과합니다");
-                }
+            int maxChildDepth = getMaxDescendantDepth(note);
+            int depthDelta = maxChildDepth - note.getDepth();
+            if (newDepth + depthDelta > Note.getMaxDepth()) {
+                throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE, "이동 시 깊이가 5단계를 초과합니다");
             }
         }
 
@@ -215,10 +215,8 @@ public class NoteService {
 
         note.moveTo(newParent, position);
 
-        // Update depth for all descendants if folder
-        if (note.isFolder()) {
-            updateDescendantDepths(note);
-        }
+        // Update depth for all descendants
+        updateDescendantDepths(note);
 
         List<NoteResponse.TagInfo> tags = getTagsForNote(noteId);
         int versionCount = noteVersionRepository.findMaxVersionNumber(noteId);
@@ -440,9 +438,15 @@ public class NoteService {
         List<Note> children = noteRepository.findChildrenByParentId(parent.getId());
         for (Note child : children) {
             child.moveTo(parent, child.getPosition());
-            if (child.isFolder()) {
-                updateDescendantDepths(child);
-            }
+            updateDescendantDepths(child);
+        }
+    }
+
+    private void validateNoteAccess(String boardId) {
+        Board board = boardRepository.findById(boardId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        if (!board.canAccessNote()) {
+            throw new BusinessException(ErrorCode.PREMIUM_FEATURE_REQUIRED);
         }
     }
 }

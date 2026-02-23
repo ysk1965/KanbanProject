@@ -50,7 +50,7 @@ function getActionText(activity: ActivityLog, t: TFunction) {
       return (
         <>
           <span className="font-medium text-foreground">{user.name}</span>
-          <span className="text-zinc-300">{t('notification.activity.actionBlockCreated')}</span>
+          <span className="text-foreground/80">{t('notification.activity.actionBlockCreated')}</span>
           <span className="font-medium text-purple-400">{metadata.blockName as string}</span>
         </>
       );
@@ -58,7 +58,7 @@ function getActionText(activity: ActivityLog, t: TFunction) {
       return (
         <>
           <span className="font-medium text-foreground">{user.name}</span>
-          <span className="text-zinc-300">{t('notification.activity.actionBlockUpdated')}</span>
+          <span className="text-foreground/80">{t('notification.activity.actionBlockUpdated')}</span>
           <span className="font-medium text-purple-400">{metadata.blockName as string}</span>
         </>
       );
@@ -66,7 +66,7 @@ function getActionText(activity: ActivityLog, t: TFunction) {
       return (
         <>
           <span className="font-medium text-foreground">{user.name}</span>
-          <span className="text-zinc-300">{t('notification.activity.actionBlockDeleted')}</span>
+          <span className="text-foreground/80">{t('notification.activity.actionBlockDeleted')}</span>
           <span className="font-medium text-purple-400">{metadata.blockName as string}</span>
         </>
       );
@@ -74,7 +74,7 @@ function getActionText(activity: ActivityLog, t: TFunction) {
       return (
         <>
           <span className="font-medium text-foreground">{user.name}</span>
-          <span className="text-zinc-300">{t('notification.activity.actionFeatureCreated')}</span>
+          <span className="text-foreground/80">{t('notification.activity.actionFeatureCreated')}</span>
           <span className="font-medium text-indigo-400">{metadata.featureTitle as string}</span>
         </>
       );
@@ -82,7 +82,7 @@ function getActionText(activity: ActivityLog, t: TFunction) {
       return (
         <>
           <span className="font-medium text-foreground">{user.name}</span>
-          <span className="text-zinc-300">{t('notification.activity.actionFeatureUpdated')}</span>
+          <span className="text-foreground/80">{t('notification.activity.actionFeatureUpdated')}</span>
           <span className="font-medium text-indigo-400">{metadata.featureTitle as string}</span>
         </>
       );
@@ -90,7 +90,7 @@ function getActionText(activity: ActivityLog, t: TFunction) {
       return (
         <>
           <span className="font-medium text-foreground">{user.name}</span>
-          <span className="text-zinc-300">{t('notification.activity.actionFeatureDeleted')}</span>
+          <span className="text-foreground/80">{t('notification.activity.actionFeatureDeleted')}</span>
           <span className="font-medium text-indigo-400">{metadata.featureTitle as string}</span>
         </>
       );
@@ -98,7 +98,7 @@ function getActionText(activity: ActivityLog, t: TFunction) {
       return (
         <>
           <span className="font-medium text-foreground">{user.name}</span>
-          <span className="text-zinc-300">{t('notification.activity.actionFeatureCompleted')}</span>
+          <span className="text-foreground/80">{t('notification.activity.actionFeatureCompleted')}</span>
           <span className="font-medium text-emerald-400">{metadata.featureTitle as string}</span>
         </>
       );
@@ -106,7 +106,7 @@ function getActionText(activity: ActivityLog, t: TFunction) {
       return (
         <>
           <span className="font-medium text-foreground">{user.name}</span>
-          <span className="text-zinc-300">{t('notification.activity.actionTaskCreated')}</span>
+          <span className="text-foreground/80">{t('notification.activity.actionTaskCreated')}</span>
           <span className="font-medium text-indigo-400">{metadata.taskTitle as string}</span>
         </>
       );
@@ -114,7 +114,7 @@ function getActionText(activity: ActivityLog, t: TFunction) {
       return (
         <>
           <span className="font-medium text-foreground">{user.name}</span>
-          <span className="text-zinc-300">{t('notification.activity.actionTaskUpdated')}</span>
+          <span className="text-foreground/80">{t('notification.activity.actionTaskUpdated')}</span>
           <span className="font-medium text-indigo-400">{metadata.taskTitle as string}</span>
         </>
       );
@@ -122,7 +122,7 @@ function getActionText(activity: ActivityLog, t: TFunction) {
       return (
         <>
           <span className="font-medium text-foreground">{user.name}</span>
-          <span className="text-zinc-300">{t('notification.activity.actionTaskDeleted')}</span>
+          <span className="text-foreground/80">{t('notification.activity.actionTaskDeleted')}</span>
           <span className="font-medium text-indigo-400">{metadata.taskTitle as string}</span>
         </>
       );
@@ -130,11 +130,11 @@ function getActionText(activity: ActivityLog, t: TFunction) {
       return (
         <>
           <span className="font-medium text-foreground">{user.name}</span>
-          <span className="text-zinc-300">{t('notification.activity.actionTaskMoved')}</span>
+          <span className="text-foreground/80">{t('notification.activity.actionTaskMoved')}</span>
           <span className="font-medium text-indigo-400">{metadata.taskTitle as string}</span>
-          <span className="text-zinc-300"> </span>
+          <span className="text-foreground/80"> </span>
           <span className="font-medium text-green-400">{metadata.fromBlock as string}</span>
-          <span className="text-zinc-300"> → </span>
+          <span className="text-foreground/80"> → </span>
           <span className="font-medium text-green-400">{metadata.toBlock as string}</span>
         </>
       );
@@ -142,7 +142,7 @@ function getActionText(activity: ActivityLog, t: TFunction) {
       return (
         <>
           <span className="font-medium text-foreground">{user.name}</span>
-          <span className="text-zinc-300">{t('notification.activity.actionTaskCompleted')}</span>
+          <span className="text-foreground/80">{t('notification.activity.actionTaskCompleted')}</span>
           <span className="font-medium text-emerald-400">{metadata.taskTitle as string}</span>
         </>
       );
@@ -150,7 +150,7 @@ function getActionText(activity: ActivityLog, t: TFunction) {
       return (
         <>
           <span className="font-medium text-foreground">{user.name}</span>
-          <span className="text-zinc-300">{t('notification.activity.actionChecklistCreated')}</span>
+          <span className="text-foreground/80">{t('notification.activity.actionChecklistCreated')}</span>
           <span className="font-medium text-indigo-400">{metadata.checklistTitle as string}</span>
         </>
       );
@@ -158,7 +158,7 @@ function getActionText(activity: ActivityLog, t: TFunction) {
       return (
         <>
           <span className="font-medium text-foreground">{user.name}</span>
-          <span className="text-zinc-300">
+          <span className="text-foreground/80">
             {metadata.isCompleted
               ? t('notification.activity.actionChecklistCompleted')
               : t('notification.activity.actionChecklistUncompleted')}
@@ -170,7 +170,7 @@ function getActionText(activity: ActivityLog, t: TFunction) {
       return (
         <>
           <span className="font-medium text-foreground">{user.name}</span>
-          <span className="text-zinc-300">{t('notification.activity.actionDefault')}</span>
+          <span className="text-foreground/80">{t('notification.activity.actionDefault')}</span>
         </>
       );
   }
@@ -292,7 +292,7 @@ export function NotificationDropdown({
     <Popover open={isOpen} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <button
-          className="relative flex items-center gap-2 px-3 py-2 text-zinc-400 hover:text-foreground hover:bg-kanban-surface rounded-lg transition-all"
+          className="relative flex items-center gap-2 px-3 py-2 text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover rounded-lg transition-all"
         >
           <Bell size={18} />
           {unreadCount > 0 && (
@@ -303,12 +303,12 @@ export function NotificationDropdown({
         </button>
       </PopoverTrigger>
       <PopoverContent
-        className="w-[400px] bg-bridge-obsidian border-white/20 p-0 shadow-2xl"
+        className="w-[400px] bg-bridge-obsidian border-bridge-border p-0 shadow-2xl"
         align="end"
         sideOffset={8}
       >
         {/* Tab Header */}
-        <div className="flex border-b border-white/15">
+        <div className="flex border-b border-bridge-border">
           <button
             onClick={() => setActiveTab('notifications')}
             className={`flex-1 px-4 py-3 text-xs font-medium transition-colors relative ${
@@ -359,7 +359,7 @@ export function NotificationDropdown({
 
               {/* Notifications Header with Mark All Read */}
               {notifications.length > 0 && unreadCount > 0 && (
-                <div className="flex items-center justify-end px-4 py-2 border-b border-white/20">
+                <div className="flex items-center justify-end px-4 py-2 border-b border-bridge-border">
                   <button
                     onClick={handleMarkAllAsRead}
                     className="flex items-center gap-1 text-xs text-slate-400 hover:text-foreground transition-colors"
@@ -389,7 +389,7 @@ export function NotificationDropdown({
                       <div
                         key={notification.id}
                         onClick={() => handleNotificationClick(notification)}
-                        className={`flex gap-2.5 px-4 py-3 cursor-pointer transition-colors hover:bg-white/5 ${
+                        className={`flex gap-2.5 px-4 py-3 cursor-pointer transition-colors hover:bg-foreground/5 ${
                           !notification.read
                             ? 'bg-indigo-500/5 border-l-2 border-indigo-500'
                             : 'border-l-2 border-transparent'
@@ -433,12 +433,12 @@ export function NotificationDropdown({
 
                   {/* Load More Button */}
                   {hasMore && (
-                    <div className="px-4 py-2 border-t border-white/20">
+                    <div className="px-4 py-2 border-t border-bridge-border">
                       <Button
                         onClick={handleLoadMore}
                         disabled={isLoadingMore}
                         variant="ghost"
-                        className="w-full text-xs text-slate-400 hover:text-foreground hover:bg-white/5 h-8"
+                        className="w-full text-xs text-slate-400 hover:text-foreground hover:bg-foreground/5 h-8"
                       >
                         {isLoadingMore ? (
                           <Loader2 className="h-3 w-3 animate-spin mr-1" />
@@ -468,7 +468,7 @@ export function NotificationDropdown({
                     return (
                       <div
                         key={activity.id}
-                        className="flex gap-2.5 px-4 py-3 border-l-2 border-transparent hover:bg-white/5 transition-colors"
+                        className="flex gap-2.5 px-4 py-3 border-l-2 border-transparent hover:bg-foreground/5 transition-colors"
                       >
                         {/* Avatar */}
                         <div className="flex-shrink-0">
@@ -502,12 +502,12 @@ export function NotificationDropdown({
 
                   {/* Load More Activities Button */}
                   {hasMoreActivities && (
-                    <div className="px-4 py-2 border-t border-white/20">
+                    <div className="px-4 py-2 border-t border-bridge-border">
                       <Button
                         onClick={handleLoadMoreActivities}
                         disabled={isLoadingMoreActivities}
                         variant="ghost"
-                        className="w-full text-xs text-slate-400 hover:text-foreground hover:bg-white/5 h-8"
+                        className="w-full text-xs text-slate-400 hover:text-foreground hover:bg-foreground/5 h-8"
                       >
                         {isLoadingMoreActivities ? (
                           <Loader2 className="h-3 w-3 animate-spin mr-1" />

@@ -60,6 +60,7 @@ public class StatisticsService {
     ) {
         Board board = boardRepository.findById(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        validateStatisticsAccess(board);
 
         // 기본 날짜 설정 (최근 30일)
         if (endDate == null) {
@@ -178,6 +179,7 @@ public class StatisticsService {
     ) {
         Board board = boardRepository.findById(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        validateStatisticsAccess(board);
 
         // 기본 날짜 설정
         if (endDate == null) {
@@ -716,5 +718,11 @@ public class StatisticsService {
             return 0;
         }
         return Duration.between(block.getStartTime(), block.getEndTime()).toMinutes();
+    }
+
+    private void validateStatisticsAccess(Board board) {
+        if (!board.canAccessStatistics()) {
+            throw new BusinessException(ErrorCode.PREMIUM_FEATURE_REQUIRED);
+        }
     }
 }

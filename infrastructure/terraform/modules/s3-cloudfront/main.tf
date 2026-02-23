@@ -53,12 +53,47 @@ resource "aws_cloudfront_origin_access_control" "frontend" {
   signing_protocol                  = "sigv4"
 }
 
+# Security Response Headers Policy
+resource "aws_cloudfront_response_headers_policy" "security_headers" {
+  name    = "${var.project_name}-${var.environment}-security-headers"
+  comment = "Security headers for ${var.project_name} ${var.environment}"
+
+  security_headers_config {
+    strict_transport_security {
+      access_control_max_age_sec = 31536000
+      include_subdomains         = true
+      preload                    = true
+      override                   = true
+    }
+
+    content_type_options {
+      override = true
+    }
+
+    frame_options {
+      frame_option = "DENY"
+      override     = true
+    }
+
+    referrer_policy {
+      referrer_policy = "strict-origin-when-cross-origin"
+      override        = true
+    }
+
+    xss_protection {
+      mode_block = true
+      protection = true
+      override   = true
+    }
+  }
+}
+
 # CloudFront Distribution
 resource "aws_cloudfront_distribution" "frontend" {
   enabled             = true
   is_ipv6_enabled     = true
   default_root_object = "index.html"
-  price_class         = var.environment == "prod" ? "PriceClass_All" : "PriceClass_100"
+  price_class         = var.price_class != "" ? var.price_class : (var.environment == "prod" ? "PriceClass_All" : "PriceClass_100")
   comment             = "${var.project_name} ${var.environment} frontend"
 
   origin {
@@ -68,11 +103,12 @@ resource "aws_cloudfront_distribution" "frontend" {
   }
 
   default_cache_behavior {
-    allowed_methods        = ["GET", "HEAD", "OPTIONS"]
-    cached_methods         = ["GET", "HEAD"]
-    target_origin_id       = "S3-${aws_s3_bucket.frontend.id}"
-    viewer_protocol_policy = "redirect-to-https"
-    compress               = true
+    allowed_methods              = ["GET", "HEAD", "OPTIONS"]
+    cached_methods               = ["GET", "HEAD"]
+    target_origin_id             = "S3-${aws_s3_bucket.frontend.id}"
+    viewer_protocol_policy       = "redirect-to-https"
+    compress                     = true
+    response_headers_policy_id   = aws_cloudfront_response_headers_policy.security_headers.id
 
     forwarded_values {
       query_string = false

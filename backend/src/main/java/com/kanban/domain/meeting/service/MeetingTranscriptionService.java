@@ -4,6 +4,7 @@ import com.kanban.domain.board.service.BoardService;
 import com.kanban.domain.meeting.Meeting;
 import com.kanban.domain.meeting.MeetingRepository;
 import com.kanban.domain.meeting.dto.MeetingResponse;
+import com.kanban.domain.subscription.service.AiCreditService;
 import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
@@ -39,6 +40,7 @@ public class MeetingTranscriptionService {
 
     private final MeetingRepository meetingRepository;
     private final BoardService boardService;
+    private final AiCreditService aiCreditService;
     private final WebSocketEventService webSocketEventService;
     private final UserRepository userRepository;
 
@@ -77,6 +79,9 @@ public class MeetingTranscriptionService {
         if (!meeting.getBoard().getId().equals(boardId)) {
             throw new BusinessException(ErrorCode.MEETING_NOT_FOUND);
         }
+
+        // Consume 1 AI credit before calling Whisper API
+        aiCreditService.consumeCredit(boardId, userId, "MEETING_TRANSCRIBE", 1);
 
         String transcriptText;
         if (audioFile.getSize() <= WHISPER_CHUNK_SIZE) {

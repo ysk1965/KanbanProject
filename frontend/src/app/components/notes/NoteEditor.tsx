@@ -1,15 +1,17 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Save, Clock, Loader2, Tag as TagIcon, Sparkles, Share2, Link2, Check, X } from 'lucide-react';
+import { Save, Clock, Loader2, Tag as TagIcon, Sparkles, Share2, Link2, Check, X, MessageSquare } from 'lucide-react';
 import { BlockNoteSchema, defaultBlockSpecs, defaultInlineContentSpecs, filterSuggestionItems, insertOrUpdateBlock } from '@blocknote/core';
-import { useCreateBlockNote, SuggestionMenuController, getDefaultReactSlashMenuItems } from '@blocknote/react';
+import { useCreateBlockNote, SuggestionMenuController, getDefaultReactSlashMenuItems, TableHandlesController } from '@blocknote/react';
 import { BlockNoteView } from '@blocknote/shadcn';
 import '@blocknote/core/fonts/inter.css';
 import '@blocknote/shadcn/style.css';
 import { NoteTagManager } from './NoteTagManager';
 import { NoteVersionHistory } from './NoteVersionHistory';
 import { NoteAIInlineSection } from './NoteAIInlineSection';
+import { NoteCommentSidebar } from './NoteCommentSidebar';
 import { CollabPresence } from './CollabPresence';
+import { useAuth } from '../../contexts/AuthContext';
 import { Callout } from './blocks/Callout';
 import { Toggle } from './blocks/Toggle';
 import { Divider } from './blocks/Divider';
@@ -18,9 +20,11 @@ import { Embed } from './blocks/Embed';
 import { ColumnLayout, Column } from './blocks/ColumnLayout';
 import { Mention } from './blocks/Mention';
 import { formatDateTime } from '../../utils/dateUtils';
+import { useTheme } from '../../contexts/ThemeContext';
 import { fileAPI, noteAPI, memberAPI } from '../../utils/api';
 import type { NoteDetail, NoteTagInfo, NoteAISuggestionResponse, MemberResponse } from '../../utils/api';
 import { NoteShareButton } from './NoteShareButton';
+import { NoteBottomComments } from './NoteBottomComments';
 import type { CollaborationState } from '../../hooks/useCollaboration';
 
 const schema = BlockNoteSchema.create({
@@ -132,9 +136,20 @@ function CollabNoteEditor({
   collaboration, currentUserName, currentUserColor,
 }: CollabEditorProps) {
   const { t } = useTranslation();
+  const { currentUser } = useAuth();
+  const { isDark } = useTheme();
   const [title, setTitle] = useState(note.title);
   const [hasChanges, setHasChanges] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Comment state
+  const [showComments, setShowComments] = useState(false);
+  const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
+  const [commentBlockIds, setCommentBlockIds] = useState<Set<string>>(new Set());
+  const editorContainerRef = useRef<HTMLDivElement>(null);
+  const [hoveredBlock, setHoveredBlock] = useState<{ id: string; top: number } | null>(null);
+  const hoveredBlockIdRef = useRef<string | null>(null);
+  const commentsPanelRef = useRef<HTMLDivElement>(null);
 
   // AI state
   const [aiData, setAiData] = useState<NoteAISuggestionResponse | null>(null);
@@ -258,6 +273,16 @@ function CollabNoteEditor({
       group: 'Advanced',
       icon: <span style={{ fontSize: '14px', lineHeight: 1 }}>{'▦'}</span>,
     },
+    {
+      title: 'Table',
+      subtext: 'Insert a table',
+      onItemClick: () => {
+        insertOrUpdateBlock(editor, { type: 'table' as any });
+      },
+      aliases: ['table', 'grid', '표', '테이블'],
+      group: 'Basic blocks',
+      icon: <span style={{ fontSize: '14px', lineHeight: 1 }}>{'📊'}</span>,
+    },
   ], [editor]);
 
   // @mention: lazy-fetch board members
@@ -339,6 +364,42 @@ function CollabNoteEditor({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleSave]);
 
+  // Block hover detection for comment button
+  const handleEditorMouseMove = useCallback((e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    const blockEl = target.closest('[data-id]') as HTMLElement;
+    if (!blockEl || !editorContainerRef.current) {
+      if (hoveredBlockIdRef.current) {
+        hoveredBlockIdRef.current = null;
+        setHoveredBlock(null);
+      }
+      return;
+    }
+    const id = blockEl.getAttribute('data-id');
+    if (!id || id === hoveredBlockIdRef.current) return;
+    hoveredBlockIdRef.current = id;
+    const containerRect = editorContainerRef.current.getBoundingClientRect();
+    const blockRect = blockEl.getBoundingClientRect();
+    setHoveredBlock({ id, top: blockRect.top - containerRect.top });
+  }, []);
+
+  const handleAddBlockComment = useCallback((blockId: string) => {
+    setActiveBlockId(blockId);
+    setShowComments(true);
+    setTimeout(() => {
+      commentsPanelRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
+  }, []);
+
+  // CSS for block comment indicators
+  const blockIndicatorStyle = useMemo(() => {
+    if (commentBlockIds.size === 0) return null;
+    const selectors = Array.from(commentBlockIds)
+      .map(id => `[data-id="${id}"]`)
+      .join(', ');
+    return `${selectors} { border-left: 3px solid rgba(99, 102, 241, 0.4) !important; padding-left: 8px; }`;
+  }, [commentBlockIds]);
+
   // AI: check if content has changed since last AI organize
   const isAIDimmed = useCallback(() => {
     if (!aiContentSnapshot || !aiData) return false;
@@ -371,12 +432,12 @@ function CollabNoteEditor({
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Editor Header */}
-      <div className="px-6 py-3 border-b border-white/5 flex items-center justify-between">
+      <div className="px-4 sm:px-6 py-3 border-b border-foreground/5 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0 sm:justify-between">
         <div className="flex-1 min-w-0">
           <input
             value={title}
             onChange={(e) => handleTitleChange(e.target.value)}
-            className="w-full bg-transparent text-lg font-bold text-white focus:outline-none placeholder-slate-600"
+            className="w-full bg-transparent text-lg font-bold text-foreground focus:outline-none placeholder-slate-600"
             placeholder={t('notes.titlePlaceholder', '제목을 입력하세요')}
             readOnly={!canEdit}
           />
@@ -393,7 +454,7 @@ function CollabNoteEditor({
                 </span>
               ))}
             </div>
-            <span className="text-[10px] text-slate-500 flex items-center gap-1">
+            <span className="text-[10px] text-slate-500 flex items-center gap-1 whitespace-nowrap">
               <Clock size={10} />
               {formatDateTime(note.updated_at)}
               {note.updated_by && ` · ${note.updated_by.name}`}
@@ -401,7 +462,7 @@ function CollabNoteEditor({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0 overflow-x-auto">
           {/* Collaboration presence */}
           <CollabPresence
             status={collaboration.status}
@@ -416,6 +477,19 @@ function CollabNoteEditor({
             canEdit={canEdit}
             onNoteUpdate={onNoteUpdate}
           />
+
+          <button
+            onClick={() => setShowComments(!showComments)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+              showComments
+                ? 'text-bridge-accent bg-bridge-accent/10'
+                : 'text-slate-400 hover:text-foreground hover:bg-foreground/5'
+            }`}
+            title={t('notes.comment.title', '댓글')}
+          >
+            <MessageSquare size={14} />
+            <span className="hidden sm:inline">{t('notes.comment.title', '댓글')}</span>
+          </button>
 
           <div className="w-px h-5 bg-white/10" />
 
@@ -448,7 +522,7 @@ function CollabNoteEditor({
                 disabled={aiLoading}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 ${
                   isAIDimmed()
-                  ? 'text-slate-500 bg-white/5 cursor-default'
+                  ? 'text-slate-500 bg-foreground/5 cursor-default'
                   : 'text-bridge-secondary bg-bridge-secondary/10 hover:bg-bridge-secondary/20'
               }`}
               >
@@ -457,7 +531,7 @@ function CollabNoteEditor({
                 ) : (
                   <Sparkles size={12} />
                 )}
-                {t('notes.aiOrganize')}
+                <span className="hidden sm:inline">{t('notes.aiOrganize')}</span>
               </button>
             </div>
           )}
@@ -468,40 +542,71 @@ function CollabNoteEditor({
               className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ml-1 ${
                 hasChanges
                   ? 'bg-bridge-accent text-white hover:bg-bridge-accent/90 shadow-lg shadow-bridge-accent/20'
-                  : 'bg-white/5 text-slate-500 cursor-not-allowed'
+                  : 'bg-foreground/5 text-slate-500 cursor-not-allowed'
               }`}
             >
               {saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
-              {t('common.save', '저장')}
-              {hasChanges && <span className="text-[10px] opacity-70">⌘S</span>}
+              <span className="hidden sm:inline">{t('common.save', '저장')}</span>
+              {hasChanges && <span className="text-[10px] opacity-70 hidden sm:inline">⌘S</span>}
             </button>
           )}
         </div>
       </div>
 
-      {/* BlockNote Editor + AI Section */}
-      <div className="flex-1 overflow-y-auto">
-        <BlockNoteView
-          editor={editor}
-          theme="dark"
-          editable={canEdit}
-          onChange={handleEditorChange}
+      {/* BlockNote Editor + AI Section + Bottom Comments */}
+      <div className="flex-1 overflow-y-auto p-4">
+        {/* Block comment indicator CSS */}
+        {blockIndicatorStyle && <style>{blockIndicatorStyle}</style>}
+
+        {/* Editor with block hover overlay */}
+        <div
+          ref={editorContainerRef}
+          className="relative min-h-[60vh] bg-bridge-obsidian rounded-2xl border border-foreground/5"
+          onMouseMove={handleEditorMouseMove}
+          onMouseLeave={() => {
+            hoveredBlockIdRef.current = null;
+            setHoveredBlock(null);
+          }}
         >
-          <SuggestionMenuController
-            triggerCharacter="/"
-            getItems={async (query) => filterSuggestionItems(slashMenuItems, query)}
-          />
-          <SuggestionMenuController
-            triggerCharacter="@"
-            getItems={getMentionItems}
-          />
-        </BlockNoteView>
+          <BlockNoteView
+            editor={editor}
+            theme={isDark ? "dark" : "light"}
+            editable={canEdit}
+            onChange={handleEditorChange}
+          >
+            <SuggestionMenuController
+              triggerCharacter="/"
+              getItems={async (query) => filterSuggestionItems(slashMenuItems, query)}
+            />
+            <SuggestionMenuController
+              triggerCharacter="@"
+              getItems={getMentionItems}
+            />
+            <TableHandlesController />
+          </BlockNoteView>
+
+          {/* Floating block comment button */}
+          {hoveredBlock && (
+            <button
+              className="absolute right-2 z-10 p-1.5 rounded-lg bg-bridge-dark border border-foreground/10 text-slate-500 hover:text-bridge-accent hover:border-bridge-accent/30 transition-all shadow-lg"
+              style={{ top: hoveredBlock.top + 2 }}
+              onClick={() => handleAddBlockComment(hoveredBlock.id)}
+              onMouseDown={(e) => e.preventDefault()}
+              title={t('notes.comment.addToBlock', '이 블록에 댓글 달기')}
+            >
+              <MessageSquare size={14} />
+              {commentBlockIds.has(hoveredBlock.id) && (
+                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-bridge-accent rounded-full border-2 border-bridge-dark" />
+              )}
+            </button>
+          )}
+        </div>
 
         {/* AI Inline Section */}
         {aiVisible && (
           <div className="px-6 pb-6">
             {aiCollapsed && !aiLoading ? (
-              <div className="mt-4 flex items-center justify-between bg-white/[0.02] rounded-xl border border-white/5 px-4 py-3">
+              <div className="mt-4 flex items-center justify-between bg-white/[0.02] rounded-xl border border-foreground/5 px-4 py-3">
                 <div className="flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-bridge-accent" />
                   <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
@@ -528,6 +633,31 @@ function CollabNoteEditor({
             )}
           </div>
         )}
+
+        {/* Block/Thread Comments Panel (toggled) */}
+        {showComments && currentUser && (
+          <div ref={commentsPanelRef}>
+            <NoteCommentSidebar
+              boardId={boardId}
+              noteId={note.id}
+              currentUserId={currentUser.id}
+              canEdit={canEdit}
+              onClose={() => { setShowComments(false); setActiveBlockId(null); }}
+              activeBlockId={activeBlockId}
+              onBlockIdsChange={setCommentBlockIds}
+            />
+          </div>
+        )}
+
+        {/* Bottom Confluence-style Comments Panel (always visible) */}
+        {currentUser && (
+          <NoteBottomComments
+            boardId={boardId}
+            noteId={note.id}
+            currentUserId={currentUser.id}
+            canEdit={canEdit}
+          />
+        )}
       </div>
     </div>
   );
@@ -551,6 +681,8 @@ const AUTO_SAVE_DELAY = 30_000;
 
 function FallbackNoteEditor({ boardId, note, tags, canEdit, onSave, onTagsChange, onDirtyChange }: FallbackEditorProps) {
   const { t } = useTranslation();
+  const { currentUser: fallbackCurrentUser } = useAuth();
+  const { isDark } = useTheme();
   const [title, setTitle] = useState(note.title);
   const [hasChanges, setHasChanges] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -575,6 +707,16 @@ function FallbackNoteEditor({ boardId, note, tags, canEdit, onSave, onTagsChange
   const slashMenuItems = useMemo(() => [
     ...getDefaultReactSlashMenuItems(editor),
     // Same slash menu items as above (abbreviated for fallback)
+    {
+      title: 'Table',
+      subtext: 'Insert a table',
+      onItemClick: () => {
+        insertOrUpdateBlock(editor, { type: 'table' as any });
+      },
+      aliases: ['table', 'grid', '표', '테이블'],
+      group: 'Basic blocks',
+      icon: <span style={{ fontSize: '14px', lineHeight: 1 }}>{'📊'}</span>,
+    },
   ], [editor]);
 
   const membersCache = useRef<MemberResponse[] | null>(null);
@@ -706,17 +848,17 @@ function FallbackNoteEditor({ boardId, note, tags, canEdit, onSave, onTagsChange
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <div className="px-6 py-3 border-b border-white/5 flex items-center justify-between">
+      <div className="px-4 sm:px-6 py-3 border-b border-foreground/5 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0 sm:justify-between">
         <div className="flex-1 min-w-0">
           <input
             value={title}
             onChange={(e) => { setTitle(e.target.value); setHasChanges(true); setAutoSaved(false); }}
-            className="w-full bg-transparent text-lg font-bold text-white focus:outline-none placeholder-slate-600"
+            className="w-full bg-transparent text-lg font-bold text-foreground focus:outline-none placeholder-slate-600"
             placeholder={t('notes.titlePlaceholder', '제목을 입력하세요')}
             readOnly={!canEdit}
           />
           <div className="flex items-center gap-3 mt-1">
-            <span className="text-[10px] text-slate-500 flex items-center gap-1">
+            <span className="text-[10px] text-slate-500 flex items-center gap-1 whitespace-nowrap">
               <Clock size={10} />
               {formatDateTime(note.updated_at)}
               {note.updated_by && ` · ${note.updated_by.name}`}
@@ -726,7 +868,7 @@ function FallbackNoteEditor({ boardId, note, tags, canEdit, onSave, onTagsChange
             )}
           </div>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 flex-shrink-0">
           <NoteTagManager boardId={boardId} noteId={note.id} noteTags={note.tags} allTags={tags} canEdit={canEdit} onSave={(tagIds) => onSave(note.id, { tagIds })} onTagsChange={onTagsChange} />
           <NoteVersionHistory boardId={boardId} noteId={note.id} versionCount={note.version_count} canEdit={canEdit} onRestore={async () => {
             const { noteService } = await import('../../utils/services');
@@ -750,20 +892,33 @@ function FallbackNoteEditor({ boardId, note, tags, canEdit, onSave, onTagsChange
               className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ml-1 ${
                 hasChanges
                   ? 'bg-bridge-accent text-white hover:bg-bridge-accent/90 shadow-lg shadow-bridge-accent/20'
-                  : 'bg-white/5 text-slate-500 cursor-not-allowed'
+                  : 'bg-foreground/5 text-slate-500 cursor-not-allowed'
               }`}
             >
               {saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
-              {t('common.save', '저장')}
+              <span className="hidden sm:inline">{t('common.save', '저장')}</span>
             </button>
           )}
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto">
-        <BlockNoteView editor={editor} theme="dark" editable={canEdit} onChange={() => { setHasChanges(true); setAutoSaved(false); }}>
-          <SuggestionMenuController triggerCharacter="/" getItems={async (query) => filterSuggestionItems(slashMenuItems, query)} />
-          <SuggestionMenuController triggerCharacter="@" getItems={getMentionItems} />
-        </BlockNoteView>
+      <div className="flex-1 overflow-y-auto p-4">
+        <div className="min-h-[60vh] bg-bridge-obsidian rounded-2xl border border-foreground/5">
+          <BlockNoteView editor={editor} theme={isDark ? "dark" : "light"} editable={canEdit} onChange={() => { setHasChanges(true); setAutoSaved(false); }}>
+            <SuggestionMenuController triggerCharacter="/" getItems={async (query) => filterSuggestionItems(slashMenuItems, query)} />
+            <SuggestionMenuController triggerCharacter="@" getItems={getMentionItems} />
+            <TableHandlesController />
+          </BlockNoteView>
+        </div>
+
+        {/* Bottom Confluence-style Comments Panel */}
+        {fallbackCurrentUser && (
+          <NoteBottomComments
+            boardId={boardId}
+            noteId={note.id}
+            currentUserId={fallbackCurrentUser.id}
+            canEdit={canEdit}
+          />
+        )}
       </div>
     </div>
   );

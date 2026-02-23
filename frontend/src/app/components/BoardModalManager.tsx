@@ -42,6 +42,7 @@ interface BoardModalManagerProps {
   allTasks: Task[];
   wsCommentEvent: BoardWebSocketEvent | null;
   wsChecklistEvent: BoardWebSocketEvent | null;
+  onOpenFeature?: (featureId: string) => void;
   // Tag
   tags: Tag[];
   onCreateTag: (name: string, color: string) => Promise<string | undefined>;
@@ -121,6 +122,8 @@ interface BoardModalManagerProps {
   creditModalMode: 'purchase' | 'exhausted';
   onCreditPurchaseComplete: (credits: AiCredits) => void;
   currentCredits: AiCredits | null;
+  // Onboarding
+  isOnboarding?: boolean;
   // Permissions
   canEdit: boolean;
   isAdminOrOwner: boolean;
@@ -147,6 +150,7 @@ export function BoardModalManager(props: BoardModalManagerProps) {
         onDeleteTag={props.onDeleteTag}
         boardId={props.boardId}
         canEdit={props.canEdit}
+        isOnboarding={props.isOnboarding}
       />
 
       <TaskDetailModal
@@ -173,6 +177,7 @@ export function BoardModalManager(props: BoardModalManagerProps) {
         isAdminOrOwner={props.isAdminOrOwner}
         wsCommentEvent={props.wsCommentEvent}
         wsChecklistEvent={props.wsChecklistEvent}
+        onOpenFeature={props.onOpenFeature}
       />
 
       <AddBlockModal

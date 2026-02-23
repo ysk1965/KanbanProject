@@ -58,7 +58,7 @@ export function NoteListView({ boardId, selectedNoteId, searchQuery, onSelect, t
           <button
             onClick={() => setFilterTagId(null)}
             className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${
-              !filterTagId ? 'bg-bridge-accent/20 text-bridge-accent' : 'text-slate-400 hover:text-white hover:bg-white/5'
+              !filterTagId ? 'bg-bridge-accent/20 text-bridge-accent' : 'text-slate-400 hover:text-foreground hover:bg-foreground/5'
             }`}
           >
             {t('notes.allTags', '전체')}
@@ -70,7 +70,7 @@ export function NoteListView({ boardId, selectedNoteId, searchQuery, onSelect, t
               className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${
                 filterTagId === tag.id
                   ? 'text-white'
-                  : 'text-slate-400 hover:text-white'
+                  : 'text-slate-400 hover:text-foreground'
               }`}
               style={filterTagId === tag.id ? { backgroundColor: `${tag.color}30`, color: tag.color } : {}}
             >
@@ -92,8 +92,8 @@ export function NoteListView({ boardId, selectedNoteId, searchQuery, onSelect, t
             onClick={() => onSelect(item.id)}
             className={`w-full text-left px-2.5 py-2 rounded-lg transition-colors ${
               selectedNoteId === item.id
-                ? 'bg-bridge-accent/15 text-white'
-                : 'text-slate-300 hover:bg-white/5'
+                ? 'bg-bridge-accent/15 text-foreground'
+                : 'text-muted-foreground hover:bg-foreground/5'
             }`}
           >
             <div className="flex items-center gap-2">

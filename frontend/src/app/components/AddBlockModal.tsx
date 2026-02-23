@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, CheckCircle2 } from 'lucide-react';
+import { MotionModal } from './ui/MotionModal';
 
 interface AddBlockModalProps {
   open: boolean;
@@ -43,25 +44,16 @@ export function AddBlockModal({
     }
   };
 
-  if (!open) return null;
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4"
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-md bg-kanban-bg text-zinc-300 rounded-2xl border border-white/20 shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden animate-in zoom-in-95 duration-200"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <MotionModal open={open} onClose={onClose} className="sm:max-w-md bg-bridge-dark p-0 overflow-hidden">
         {/* 헤더 */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-white/15 bg-white/[0.02]">
-          <h2 className="text-lg font-bold text-white">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-foreground/10 bg-white/[0.02]">
+          <h2 className="text-lg font-bold text-foreground">
             {isEdit ? t('block.editTitle') : t('block.addTitle')}
           </h2>
           <button
             onClick={onClose}
-            className="p-2 text-zinc-400 hover:text-foreground transition-colors"
+            className="p-2 text-slate-400 hover:text-foreground transition-colors"
           >
             <X size={20} />
           </button>
@@ -76,7 +68,7 @@ export function AddBlockModal({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="예: In Progress"
-              className="w-full bg-kanban-input border border-white/15 rounded-xl p-3 text-white placeholder-zinc-400 focus:outline-none focus:border-indigo-500/50 transition-all text-sm"
+              className="w-full bg-bridge-obsidian border border-foreground/10 rounded-xl p-3 text-foreground placeholder-slate-400 focus:outline-none focus:border-indigo-500/50 transition-all text-sm"
               onKeyDown={(e) => {
                 if (e.nativeEvent.isComposing) return;
                 if (e.key === 'Enter') {
@@ -96,7 +88,7 @@ export function AddBlockModal({
                   type="button"
                   className={`w-8 h-8 rounded-full transition-all duration-300 ${
                     selectedColor === color.value
-                      ? 'ring-2 ring-white ring-offset-2 ring-offset-kanban-bg scale-110'
+                      ? 'ring-2 ring-white ring-offset-2 ring-offset-bridge-dark scale-110'
                       : 'opacity-50 hover:opacity-100 hover:scale-110'
                   }`}
                   style={{
@@ -112,10 +104,10 @@ export function AddBlockModal({
         </div>
 
         {/* 푸터 */}
-        <div className="px-6 py-5 border-t border-white/15 bg-white/[0.02] flex justify-end items-center gap-4">
+        <div className="px-6 py-5 border-t border-foreground/10 bg-white/[0.02] flex justify-end items-center gap-4">
           <button
             onClick={onClose}
-            className="text-[11px] font-bold text-zinc-400 hover:text-foreground transition-all tracking-wider"
+            className="text-[11px] font-bold text-slate-400 hover:text-foreground transition-all tracking-wider"
           >
             {t('common.cancel')}
           </button>
@@ -128,7 +120,6 @@ export function AddBlockModal({
             <CheckCircle2 size={14} className="text-indigo-600" />
           </button>
         </div>
-      </div>
-    </div>
+    </MotionModal>
   );
 }

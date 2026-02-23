@@ -45,24 +45,25 @@
       "workflow": "Workflow",
       "pricing": "Pricing",
       "compare": "So sánh",
+      "myspace": "My Space",
       "joinNow": "JOIN NOW",
       "startForFree": "Bat dau mien phi",
       "ai": "AI"
     },
     "hero": {
-      "badge": "Dieu phoi PM thong minh",
+      "badge": "Project + Life Management in One",
       "subtitle": "Mot <1>Flow</1> ro rang cat ngang cac quy trinh phuc tap.\nTrai nghiem giao dien cong tac PM tien tien nhat.",
       "subtitleFlow": "Flow",
-      "subtitleText1": "Mot ",
-      "subtitleText2": " ro rang cat ngang cac quy trinh phuc tap.\nTrai nghiem giao dien cong tac PM tien tien nhat.",
+      "subtitleText1": "Team collaboration meets personal growth in one clear ",
+      "subtitleText2": ".\nManage projects AND your life — no plugins, no app switching.",
       "tryFree": "Dung thu Premium 7 ngay mien phi",
       "basicFree": "Basic Board mien phi mai mai"
     },
     "core": {
       "label": "Kien truc cot loi",
       "title": "Dieu phoi\nluong cong tac",
-      "titleLine1": "Dieu phoi",
-      "titleLine2": "luong cong tac",
+      "titleLine1": "Two pillars,",
+      "titleLine2": "one platform",
       "kanban": {
         "title": "Kanban huong thuc hanh",
         "desc": "Xay dung quy trinh lam viec doc dao cua doi nhom tren nen tang cau truc 'Feature - Task - Hoan thanh'. Giao dien cong tac thuc te nhat, duoc xay dung tu kinh nghiem PM thuc te."
@@ -78,6 +79,38 @@
       "pricing": {
         "title": "Mo hinh khong gioi han minh bach",
         "desc": "Cac tinh nang cot loi nhu bang kanban, tao nhiem vu va lich trinh hang ngay mien phi mai mai. Them tich hop Slack, Gantt theo tuan va nhieu hon chi voi $5 moi nguoi dung."
+      },
+      "personal": {
+        "title": "Personal Productivity Hub",
+        "desc": "Eisenhower Matrix task board, habit tracker with streaks, and AI diary — your personal growth toolkit lives right next to your team workspace."
+      }
+    },
+    "myspace": {
+      "label": "Personal Productivity",
+      "titleLine1": "Your space,",
+      "titleLine2": "your growth",
+      "subtitle": "Beyond team collaboration — manage personal tasks, build habits, and reflect with AI. Everything in one place, always in sync with your work.",
+      "tabs": {
+        "overview": "Overview",
+        "matrix": "Matrix",
+        "habits": "Habits",
+        "diary": "AI Diary"
+      },
+      "matrix": {
+        "title": "Eisenhower Matrix",
+        "text": "Prioritize with a 2×2 urgency-importance grid. D-day badges, auto-sorting, and drag-to-reprioritize."
+      },
+      "habits": {
+        "title": "Habit Tracker",
+        "text": "Build streaks with daily/weekly patterns. Color-coded habits, weekly matrix view, and streak analytics."
+      },
+      "diary": {
+        "title": "AI Diary",
+        "text": "Journal through conversation with AI. Mood tracking, voice input/output, and reflective prompts."
+      },
+      "calendar": {
+        "title": "Personal Calendar",
+        "text": "Time-block your personal schedule with conflict detection. Synced alongside your team calendar."
       }
     },
     "workflow": {
@@ -143,6 +176,10 @@
         "text": "Phân tích hiệu suất cá nhân và động lực nhóm. Nắm bắt phân bổ công việc và mô hình cộng tác chỉ trong nháy mắt.",
         "title": "Personal & Team Insights"
       },
+      "diary": {
+        "title": "AI Conversational Diary",
+        "text": "Reflect on your day through conversation. AI tracks mood patterns, remembers context, and offers personalized insights."
+      },
       "label": "AI Intelligence",
       "narrative": {
         "text": "Không chỉ là số liệu — Claude AI dệt hoạt động trong tuần thành câu chuyện có ngữ cảnh, phát hiện các điểm nghẽn và phụ thuộc ẩn.",
@@ -154,7 +191,7 @@
       },
       "subtitle": "Vượt xa bảng điều khiển và biểu đồ. AI phân tích nhiệm vụ, khối thời gian, danh sách kiểm tra và bình luận để tạo ra những thông tin chi tiết mà con người có thể bỏ sót.",
       "titleLine1": "AI đọc hiểu",
-      "titleLine2": "bối cảnh nhóm bạn"
+      "titleLine2": "full context"
     },
     "pricing": {
       "badge": "PREMIUM DUNG THU MIEN PHI 7 NGAY",
@@ -174,6 +211,8 @@
         "feature2": "Lich trinh hang ngay & danh sach cong viec",
         "feature3": "Chia se nhom & cong tac (lam moi thu cong)",
         "feature4": "Thong bao co ban",
+        "feature5": "Personal task board & habit tracker",
+        "feature6": "Personal calendar & schedule",
         "cta": "START FREE"
       },
       "premium": {
@@ -186,13 +225,14 @@
         "feature4": "Dieu phoi quyen nhom nang cao",
         "feature5": "Bao cao sprint AI & thong tin chi tiet",
         "feature6": "Dong bo bang thoi gian thuc (cap nhat tuc thi khong can lam moi)",
+        "feature7": "AI conversational diary with voice",
         "cta": "START TRIAL"
       }
     },
     "cta": {
       "titleLine1": "Bắt đầu",
       "titleLine2": "Ngay",
-      "subtitle": "Vuot xa quan ly nhiem vu don gian voi BridgeSpots.\nDieu phoi thong minh nang suat vo han cua doi nhom ban.",
+      "subtitle": "Go beyond task management. Orchestrate your team's productivity AND your personal growth — all in one platform.",
       "button": "LAUNCH FLOW"
     },
     "footer": {
@@ -252,13 +292,34 @@
   "dashboard": {
     "sidebar": {
       "allBoards": "Tat ca cac bang",
-      "favorites": "Yeu thich",
-      "teamMembers": "Thanh vien doi nhom",
+      "myBoard": "Không gian của tôi",
       "settings": "Cai dat",
       "upgradePro": "Nang cap Pro",
       "upgradeDesc": "Thu bang khong gioi han va phan tich nang cao.",
       "viewPlans": "Xem goi dich vu"
-    }
+    },
+    "searchPlaceholder": "Tìm kiếm dự án...",
+    "logout": "Đăng xuất",
+    "mySpace": "Không gian của tôi",
+    "mySpaceDesc": "Lịch cá nhân & Nhật ký AI",
+    "yourProjects": "Dự án của bạn",
+    "managingWorkspaces": "Đang quản lý {{count}} không gian làm việc",
+    "createNewBoard": "Tạo bảng mới",
+    "noSearchResult": "Không tìm thấy bảng nào cho \"{{query}}\"",
+    "clearSearch": "Xóa tìm kiếm",
+    "starredBoards": "Bảng yêu thích",
+    "workspaceBoards": "Bảng không gian làm việc",
+    "testBoard": "Bảng thử nghiệm",
+    "trialPlan": "Dùng thử",
+    "noDescription": "Chưa có mô tả",
+    "tasksProgress": "Tiến độ công việc",
+    "memberCount": "{{count}} thành viên",
+    "newBoard": "Bảng mới",
+    "boardName": "Tên bảng",
+    "description": "Mô tả",
+    "backgroundColor": "Màu nền",
+    "cancel": "Hủy",
+    "createBoard": "Tạo bảng"
   },
   "share": {
     "title": "Chia se bang",
@@ -940,7 +1001,8 @@
     "noBoards": "Chua co bang nao",
     "createFirst": "Tao bang dau tien cua ban",
     "deleteBoard": "Xoa bang",
-    "deleteConfirm": "Xoa bang nay?",
+    "deleteConfirm": "Xóa bảng \"{{name}}\"?",
+    "softDeleteNotice": "Bảng này có thể được quản trị viên khôi phục trong vòng 7 ngày.",
     "deleteIrreversible": "Hanh dong nay khong the hoan tac.",
     "editBoard": "Chinh sua bang",
     "boardNamePlaceholder": "Nhap ten bang",
@@ -1104,7 +1166,13 @@
       "deleteConfirm": "Xóa emoji này?",
       "maxSize": "PNG, GIF, WebP · Tối đa 128KB",
       "adminOnly": "Chỉ quản trị viên mới có thể thêm emoji"
-    }
+    },
+    "aiSummarize": "AI Tóm tắt",
+    "aiSummaryTitle": "AI Tóm tắt bình luận",
+    "aiDecisions": "Quyết định",
+    "aiOpenQuestions": "Câu hỏi chưa giải quyết",
+    "aiActionItems": "Hành động cần làm",
+    "checklist": "Checklist"
   },
   "activity": {
     "title": "Nhat ky hoat dong",
@@ -1234,7 +1302,13 @@
       "totalBoards": "Tong so bang",
       "activeSubscriptions": "Dang ky dang hoat dong",
       "active": "Hoat dong: {{count}}",
-      "tierDistribution": "Phan bo cap bang"
+      "tierDistribution": "Phan bo cap bang",
+      "personalBoardMetrics": "Bảng cá nhân",
+      "personalBoards": "Bảng cá nhân",
+      "adoptionRate": "Tỷ lệ sử dụng",
+      "activePersonalBoards": "Hoạt động (30 ngày)",
+      "totalDiaryEntries": "Số nhật ký",
+      "boardTypeDistribution": "Phân bố loại bảng"
     },
     "analytics": {
       "title": "Phan tich / Bao cao",
@@ -1263,7 +1337,21 @@
       "trialStarted": "Bat dau dung thu",
       "funnelConverted": "Da chuyen doi",
       "funnelInProgress": "Dang thuc hien",
-      "funnelExpired": "Da het han"
+      "funnelExpired": "Da het han",
+      "pbAdoption": "PB Adoption",
+      "totalPb": "Tổng {{count}}",
+      "totalPersonalBoards": "Tổng Personal Board",
+      "adoptionRateLabel": "Tỷ lệ áp dụng",
+      "pbCreated": "PB đã tạo",
+      "diaryEngagement": "Tương tác Nhật ký",
+      "totalDiaryEntries": "Tổng mục",
+      "diaryCompletionRate": "Tỷ lệ hoàn thành",
+      "diaryActiveUsers": "Người dùng hoạt động",
+      "diaryEntries": "Nhật ký viết",
+      "pbConversion": "Chuyển đổi Personal Board",
+      "personalOnly": "Chỉ Personal",
+      "personalAndTeam": "Personal + Team",
+      "pbConversionRate": "Tỷ lệ chuyển đổi"
     },
     "system": {
       "title": "Quan ly he thong",
@@ -1298,7 +1386,20 @@
       "saving": "Dang luu...",
       "saveChanges": "Luu thay doi",
       "stopping": "Dang dung...",
-      "stopNow": "Dung ngay"
+      "stopNow": "Dung ngay",
+      "pbStatus": "Trạng thái Personal Board",
+      "pbTotalUsers": "Tổng người dùng",
+      "pbWithPb": "Có PB",
+      "pbWithoutPb": "Không có PB",
+      "pbAdoptionRate": "Tỷ lệ áp dụng",
+      "pbAdopted": "Đã áp dụng",
+      "pbRemaining": "Chưa áp dụng",
+      "bulkCreateBtn": "Tạo PB cho {{count}} người dùng",
+      "bulkCreating": "Đang tạo...",
+      "bulkCreateTitle": "Tạo hàng loạt Personal Board",
+      "bulkCreateConfirm": "Tạo Personal Board cho {{count}} người dùng chưa có?",
+      "bulkCreateSuccess": "Đã tạo {{created}} (thất bại: {{failed}}, tổng: {{total}})",
+      "bulkCreateFailed": "Tạo hàng loạt thất bại"
     },
     "subscriptions": {
       "title": "Quan ly dang ky",
@@ -1325,7 +1426,20 @@
       "tasks": "Nhiem vu",
       "createdAt": "Ngay tao",
       "view": "Xem",
-      "viewBoard": "Xem bảng"
+      "viewBoard": "Xem bảng",
+      "type": "Loại",
+      "allTypes": "Tất cả loại",
+      "typeTeam": "Nhóm",
+      "typePersonal": "Cá nhân",
+      "activeBoards": "Bảng hoạt động",
+      "deletedBoards": "Bảng đã xóa",
+      "noDeletedBoards": "Không có bảng đã xóa",
+      "noDeletedBoardsDesc": "Các bảng đã xóa sẽ hiển thị ở đây trong 7 ngày trước khi bị xóa vĩnh viễn.",
+      "deletedAt": "Đã xóa",
+      "daysLeft": "{{days}} ngày trước khi xóa vĩnh viễn",
+      "restore": "Khôi phục",
+      "restoreSuccess": "Bảng đã được khôi phục",
+      "restoreFailed": "Khôi phục bảng thất bại"
     },
     "boardDetail": {
       "title": "Chi tiet bang",
@@ -1359,6 +1473,7 @@
       "dangerZone": "Vung nguy hiem",
       "deleteBoard": "Xoa bang",
       "deleteWarning": "Tat ca du lieu lien quan den bang nay se bi xoa. Hanh dong nay khong the hoan tac.",
+      "softDeleteWarning": "Bảng sẽ được xóa mềm. Có thể khôi phục trong vòng 7 ngày.",
       "deleting": "Dang xoa...",
       "editName": "Sửa tên bảng",
       "nameUpdateSuccess": "Đã cập nhật tên bảng.",
@@ -1378,7 +1493,12 @@
       "seatCount": "Số chỗ",
       "seatCountUpdateFailed": "Cập nhật số chỗ thất bại.",
       "seatCountUpdateSuccess": "Số chỗ đã được cập nhật thành {{count}}.",
-      "updateSeatCount": "Cập nhật số chỗ"
+      "updateSeatCount": "Cập nhật số chỗ",
+      "personalActivity": "Hoạt động cá nhân",
+      "diaryEntries": "Nhật ký",
+      "completionRate": "{{rate}}% Hoàn thành",
+      "events": "Sự kiện",
+      "lastActivity": "Hoạt động gần đây"
     },
     "users": {
       "title": "Quan ly nguoi dung",
@@ -1568,12 +1688,22 @@
     "enterName": "Vui long nhap ten cua ban.",
     "profileSaved": "Ho so da duoc luu thanh cong",
     "profileSaveFailed": "Khong the luu ho so.",
+    "profileImageDesc": "Thay đổi ảnh đại diện",
+    "profileImageHint": "JPG, PNG, GIF, WebP (tối đa 5MB)",
+    "removeProfileImage": "Xóa ảnh đại diện",
+    "imageTypeError": "Định dạng tệp không được hỗ trợ (chỉ JPG, PNG, GIF, WebP)",
+    "imageSizeError": "Kích thước tệp vượt quá 5MB",
+    "imageUploadFailed": "Tải ảnh đại diện lên thất bại",
+    "imageDeleteFailed": "Xóa ảnh đại diện thất bại",
     "theme": "Giao dien",
     "themeDesc": "Thay doi giao dien hien thi",
     "darkMode": "Che do toi",
     "language": "Ngon ngu",
     "languageDesc": "Thay doi ngon ngu hien thi",
     "selectLanguage": "Chon ngon ngu",
+    "holidayCountry": "Quốc gia ngày lễ",
+    "holidayCountryDesc": "Chọn quốc gia để hiển thị ngày lễ trên lịch",
+    "holidayOff": "Tắt",
     "changePassword": "Doi mat khau",
     "changePasswordDesc": "Doi mat khau de bao mat tai khoan",
     "currentPasswordLabel": "Mat khau hien tai",
@@ -1705,7 +1835,8 @@
     "unlinked": "(Chua lien ket)",
     "cannotMove": "Khong the di chuyen",
     "cannotChange": "Khong the thay doi",
-    "willSplit": "Tách phần"
+    "willSplit": "Tách phần",
+    "nextDay": "ngày hôm sau"
   },
   "scheduleDetail": {
     "title": "Chi tiet khoi thoi gian",
@@ -1723,11 +1854,12 @@
     "taskChecklist": "Danh sach kiem tra TASK",
     "completedCount": "{{completed}}/{{total}} hoan thanh",
     "noChecklist": "Khong co muc danh sach kiem tra",
-    "current": "hien tai"
+    "current": "hien tai",
+    "nextDay": "ngày hôm sau"
   },
   "emptyBoard": {
     "heading": "Bat dau voi bang cua ban",
-    "subheading": "Quan ly du an he thong trong 3 buoc",
+    "subheading": "Quan ly du an he thong trong 3 buoc va theo doi tien do",
     "createFirstFeature": "Tao Feature dau tien",
     "step1Title": "Tao Feature",
     "step1Desc": "Feature la mot don vi chuc nang. Nhan nut ben duoi de tao Feature dau tien cua ban.",
@@ -1750,6 +1882,7 @@
     "addTag": "Them the",
     "newTag": "The moi",
     "subtaskList": "Danh sach nhiem vu con",
+    "onboardingStep2": "Bây giờ hãy thêm nhiệm vụ con!",
     "addSubtaskGuide": "Them nhiem vu con ben duoi",
     "subtaskDescription": "Nhiem vu con xuat hien duoi dang the tren khoi Task cua bang kanban, va ban co the quan ly tien do bang cach keo chung giua cac khoi.",
     "newSubtaskPlaceholder": "Them nhiem vu con moi...",
@@ -1757,7 +1890,27 @@
     "saveChangesDesc": "Ban co thay doi chua duoc luu. Dong ma khong luu se bo qua chung.",
     "discard": "Khong luu",
     "deleteTitle": "Xoa feature nay?",
-    "deleteDesc": "Feature nay va tat ca nhiem vu con se bi xoa. Hanh dong nay khong the hoan tac."
+    "deleteDesc": "Feature nay va tat ca nhiem vu con se bi xoa. Hanh dong nay khong the hoan tac.",
+    "aiDecompose": "AI Phân tách",
+    "aiDecomposeTitle": "AI Phân tách Task",
+    "aiAnalyzing": "AI đang phân tích tính năng...",
+    "aiError": "Đã xảy ra lỗi. Vui lòng thử lại.",
+    "aiRetry": "Thử lại",
+    "aiNoSuggestions": "Không có task nào.",
+    "aiSelectAll": "Chọn tất cả",
+    "aiDeselectAll": "Bỏ chọn",
+    "aiSelectedCount": "Đã chọn {{count}} mục",
+    "aiAlreadyExists": "Đã tồn tại",
+    "aiApply": "Áp dụng",
+    "aiApplying": "Đang áp dụng...",
+    "aiApplySuccess": "Đã tạo {{tasks}} task và {{checklists}} checklist.",
+    "aiApplyDone": "Xong",
+    "aiConfirmTitle": "AI gợi ý Task",
+    "aiConfirmDesc": "AI sẽ gợi ý các task con dựa trên thông tin tính năng bên dưới.",
+    "aiConfirmFeatureTitle": "Tiêu đề",
+    "aiConfirmFeatureDesc": "Mô tả",
+    "aiConfirmNoDesc": "Chưa có mô tả. Thêm mô tả sẽ giúp gợi ý chính xác hơn.",
+    "aiConfirmStart": "Nhận gợi ý"
   },
   "weeklySchedule": {
     "day": "Ngay",
@@ -2394,6 +2547,113 @@
       "monthly_usage": "Sử dụng hàng tháng",
       "purchased_remaining": "Mua thêm còn lại",
       "total_remaining": "Tổng còn lại"
+    }
+  },
+  "personal": {
+    "tabs": {
+      "overview": "Tổng quan",
+      "todo": "Việc cần làm",
+      "schedule": "Lịch trình",
+      "calendar": "Lịch",
+      "diary": "Nhật ký AI"
+    },
+    "overview": {
+      "noEvents": "Không có sự kiện hôm nay",
+      "addSchedule": "Thêm lịch trình",
+      "noDeadlines": "Không có hạn chót sắp tới",
+      "addDeadline": "Thêm công việc"
+    },
+    "calendar": {
+      "task": "Nhiệm vụ",
+      "event": "Lịch",
+      "today": "Hôm nay",
+      "addEvent": "Thêm lịch",
+      "tasksCount": "{{count}} nhiệm vụ",
+      "eventsCount": "{{count}} lịch",
+      "taskDeadline": "Hạn chót nhiệm vụ",
+      "overdue": "Quá hạn",
+      "recurring": "Lặp lại",
+      "noItems": "Không có mục nào cho ngày này",
+      "newEvent": "Lịch mới",
+      "date": "Ngày",
+      "title": "Tiêu đề",
+      "eventTitle": "Tiêu đề lịch",
+      "description": "Mô tả",
+      "optionalDesc": "Mô tả tùy chọn",
+      "allDay": "Cả ngày",
+      "start": "Bắt đầu",
+      "end": "Kết thúc",
+      "color": "Màu",
+      "thisWeek": "Tuần này",
+      "holidayCountry": "Quốc gia ngày lễ",
+      "holidayOff": "Tắt",
+      "tapToView": "Chạm vào ngày để xem hoặc thêm sự kiện",
+      "addSchedule": "Thêm lịch",
+      "dateRange": "Khoảng thời gian"
+    },
+    "habit": {
+      "habits": "Thói quen",
+      "newHabit": "Thói quen mới",
+      "editHabit": "Sửa thói quen",
+      "today": "Hôm nay",
+      "activeStreaks": "Chuỗi liên tiếp",
+      "combinedDays": "tổng số ngày",
+      "bestStreak": "Kỷ lục",
+      "days": "ngày",
+      "totalHabits": "Tổng thói quen",
+      "tracking": "đang theo dõi",
+      "todaysProgress": "Tiến độ hôm nay",
+      "allHabits": "Tất cả thói quen",
+      "startBuilding": "Bắt đầu xây dựng thói quen",
+      "startBuildingDesc": "Theo dõi thói quen hàng ngày, xây dựng chuỗi liên tiếp và duy trì mục tiêu.",
+      "addFirstHabit": "Thêm thói quen đầu tiên",
+      "bestLabel": "Kỷ lục: {{days}} ngày",
+      "edit": "Sửa",
+      "delete": "Xóa",
+      "habitName": "Tên thói quen",
+      "habitPlaceholder": "VD: Chạy bộ buổi sáng, Đọc 10 trang",
+      "frequency": "Tần suất",
+      "everyDay": "Mỗi ngày",
+      "weekdays": "Ngày trong tuần",
+      "weekends": "Cuối tuần",
+      "custom": "Tùy chỉnh",
+      "repeatOn": "Lặp lại vào",
+      "selectDay": "Chọn ít nhất một ngày",
+      "moreOptions": "Thêm tùy chọn",
+      "lessOptions": "Thu gọn",
+      "icon": "Biểu tượng",
+      "color": "Màu",
+      "goalType": "Loại mục tiêu",
+      "checkOff": "Đánh dấu",
+      "count": "Số lần",
+      "target": "Mục tiêu",
+      "unit": "Đơn vị",
+      "unitPlaceholder": "VD: ly, trang, km",
+      "description": "Mô tả",
+      "descPlaceholder": "Lý do thói quen này quan trọng với bạn",
+      "addHabit": "Thêm thói quen",
+      "saveChanges": "Lưu",
+      "deleteHabit": "Xóa thói quen",
+      "deleteWarning": "Hành động này không thể hoàn tác",
+      "deleteConfirm": "Bạn có chắc muốn xóa \"{{name}}\"? Tất cả dữ liệu chuỗi và lịch sử sẽ bị xóa vĩnh viễn.",
+      "importance": "Mức độ quan trọng",
+      "important": "Quan trọng",
+      "normal": "Bình thường",
+      "cancel": "Hủy",
+      "checkInTitle": "Hoàn thành thói quen",
+      "checkInSubtitle": "Đánh dấu hoàn thành thói quen hôm nay?",
+      "checkInConfirm": "Hoàn thành \"{{name}}\" hôm nay?",
+      "checkInStreak": "Sẽ đạt chuỗi {{count}} ngày liên tiếp!",
+      "checkInComplete": "Hoàn thành"
+    },
+    "diary": {
+      "completionSuggestion": "Có vẻ chúng ta đã chia sẻ nhiều hôm nay. Viết thành nhật ký nhé? ✨",
+      "continueChat": "Nói thêm chút nữa"
+    },
+    "schedule": {
+      "overlapWarning": "Trùng lịch với {{count}} sự kiện",
+      "nextDay": "ngày hôm sau",
+      "prevDay": "từ hôm trước"
     }
   }
 }

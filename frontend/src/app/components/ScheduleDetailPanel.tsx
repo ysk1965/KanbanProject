@@ -26,14 +26,16 @@ const formatTime = (time: string): string => {
   return time.substring(0, 5);
 };
 
-// 시간 차이 계산 (분 단위)
+// 시간 차이 계산 (분 단위) - overnight 지원
 const calculateDuration = (startTime: string, endTime: string, t: (key: string, options?: Record<string, unknown>) => string): string => {
   const [startH, startM] = startTime.split(':').map(Number);
   const [endH, endM] = endTime.split(':').map(Number);
 
   const startMinutes = startH * 60 + startM;
   const endMinutes = endH * 60 + endM;
-  const durationMinutes = endMinutes - startMinutes;
+  const durationMinutes = endMinutes >= startMinutes
+    ? endMinutes - startMinutes
+    : (24 * 60 - startMinutes) + endMinutes;
 
   const hours = Math.floor(durationMinutes / 60);
   const minutes = durationMinutes % 60;
@@ -55,13 +57,16 @@ const timeToBlockIndex = (time: string, workStartHour: number): number => {
   return Math.floor((totalMinutes - startMinutes) / 30);
 };
 
-// 블록 개수 계산
+// 블록 개수 계산 - overnight 지원
 const calculateBlockCount = (startTime: string, endTime: string): number => {
   const [startH, startM] = startTime.split(':').map(Number);
   const [endH, endM] = endTime.split(':').map(Number);
   const startMinutes = startH * 60 + startM;
   const endMinutes = endH * 60 + endM;
-  return Math.floor((endMinutes - startMinutes) / 30);
+  const durationMinutes = endMinutes >= startMinutes
+    ? endMinutes - startMinutes
+    : (24 * 60 - startMinutes) + endMinutes;
+  return Math.floor(durationMinutes / 30);
 };
 
 export function ScheduleDetailPanel({
@@ -169,15 +174,15 @@ export function ScheduleDetailPanel({
   };
 
   return (
-    <div className="fixed right-0 top-0 h-full w-96 bg-bridge-obsidian border-l border-white/20 shadow-xl z-50 flex flex-col">
+    <div className="fixed right-0 top-0 h-full w-96 bg-bridge-obsidian border-l border-bridge-border shadow-xl z-50 flex flex-col">
       {/* 헤더 */}
-      <div className="flex items-center justify-between p-4 border-b border-white/20">
-        <h2 className="text-lg font-semibold text-white">{t('scheduleDetail.title')}</h2>
+      <div className="flex items-center justify-between p-4 border-b border-bridge-border">
+        <h2 className="text-lg font-semibold text-foreground">{t('scheduleDetail.title')}</h2>
         <Button
           variant="ghost"
           size="sm"
           onClick={onClose}
-          className="text-slate-400 hover:text-white hover:bg-white/5 h-8 w-8 p-0"
+          className="text-slate-400 hover:text-foreground hover:bg-foreground/5 h-8 w-8 p-0"
         >
           <X className="h-4 w-4" />
         </Button>
@@ -187,7 +192,7 @@ export function ScheduleDetailPanel({
       <div className="flex-1 overflow-auto p-4 space-y-4">
         {/* 시간/블록 정보 */}
         <div className="bg-bridge-dark rounded-lg p-4">
-          <div className="flex items-center gap-2 text-white mb-2">
+          <div className="flex items-center gap-2 text-foreground mb-2">
             {displayMode === 'block' ? (
               <>
                 <Layers className="h-5 w-5 text-blue-400" />
@@ -209,6 +214,7 @@ export function ScheduleDetailPanel({
                 <Clock className="h-5 w-5 text-blue-400" />
                 <span className="text-lg font-medium">
                   {formatTime(block.start_time)} - {formatTime(block.end_time)}
+                  {block.end_time < block.start_time && <span className="text-bridge-accent text-sm ml-1">({t('scheduleDetail.nextDay')})</span>}
                 </span>
                 <span className="text-slate-400 text-sm">
                   ({calculateDuration(block.start_time, block.end_time, t)})
@@ -236,7 +242,7 @@ export function ScheduleDetailPanel({
                 className="w-3 h-3 rounded-full flex-shrink-0"
                 style={{ backgroundColor: meeting.color }}
               />
-              <p className="text-white font-medium">{meeting.title}</p>
+              <p className="text-foreground font-medium">{meeting.title}</p>
             </div>
 
             {isLoadingMeeting ? (
@@ -254,7 +260,7 @@ export function ScheduleDetailPanel({
                     </label>
                     <div className="flex flex-wrap gap-1.5">
                       {meetingDetail.participants.map(p => (
-                        <div key={p.id} className="flex items-center gap-1.5 bg-white/5 rounded-lg px-2 py-1">
+                        <div key={p.id} className="flex items-center gap-1.5 bg-foreground/5 rounded-lg px-2 py-1">
                           {p.profile_image ? (
                             <img src={p.profile_image} alt={p.name} className="w-4 h-4 rounded-full" />
                           ) : (
@@ -265,7 +271,7 @@ export function ScheduleDetailPanel({
                               {getInitials(p.name)}
                             </div>
                           )}
-                          <span className="text-xs text-slate-300">{p.name}</span>
+                          <span className="text-xs text-muted-foreground">{p.name}</span>
                         </div>
                       ))}
                     </div>
@@ -278,7 +284,7 @@ export function ScheduleDetailPanel({
                     <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
                       {t('meeting.memo')}
                     </label>
-                    <div className="bg-white/5 rounded-lg p-3 text-sm text-slate-300 whitespace-pre-wrap max-h-32 overflow-y-auto">
+                    <div className="bg-foreground/5 rounded-lg p-3 text-sm text-muted-foreground whitespace-pre-wrap max-h-32 overflow-y-auto">
                       {meetingDetail.memo}
                     </div>
                   </div>
@@ -290,7 +296,7 @@ export function ScheduleDetailPanel({
                     <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
                       {t('meeting.transcript')}
                     </label>
-                    <div className="bg-white/5 rounded-lg p-3 text-sm text-slate-300 whitespace-pre-wrap max-h-32 overflow-y-auto">
+                    <div className="bg-foreground/5 rounded-lg p-3 text-sm text-muted-foreground whitespace-pre-wrap max-h-32 overflow-y-auto">
                       {meetingDetail.transcript}
                     </div>
                   </div>
@@ -307,7 +313,7 @@ export function ScheduleDetailPanel({
                     </div>
                     <ul className="space-y-1">
                       {meetingDetail.ai_suggestions.key_points.map((point, i) => (
-                        <li key={i} className="flex items-start gap-2 text-xs text-slate-300">
+                        <li key={i} className="flex items-start gap-2 text-xs text-muted-foreground">
                           <span className="text-bridge-accent mt-0.5 text-[10px]">●</span>
                           <span>{point}</span>
                         </li>
@@ -332,11 +338,11 @@ export function ScheduleDetailPanel({
                           className={`rounded-lg border p-3 ${
                             topic.important
                               ? 'bg-amber-500/5 border-amber-500/20'
-                              : 'bg-white/[0.02] border-white/5'
+                              : 'bg-white/[0.02] border-foreground/5'
                           }`}
                         >
                           <div className="flex items-center gap-2 mb-1.5">
-                            <span className="text-xs font-medium text-white">{topic.topic}</span>
+                            <span className="text-xs font-medium text-foreground">{topic.topic}</span>
                             {topic.important && (
                               <span className="text-[9px] font-bold uppercase tracking-widest text-amber-400 bg-amber-500/10 px-1 py-0.5 rounded">
                                 {t('meeting.aiImportant')}
@@ -351,7 +357,7 @@ export function ScheduleDetailPanel({
                                   <span className="text-[9px] font-bold uppercase tracking-widest text-green-400">{t('meeting.aiDecisions', 'Decisions')}</span>
                                   <ul className="mt-0.5 space-y-0.5">
                                     {topic.decisions.map((d, j) => (
-                                      <li key={j} className="flex items-start gap-1.5 text-xs text-slate-300">
+                                      <li key={j} className="flex items-start gap-1.5 text-xs text-muted-foreground">
                                         <span className="text-green-400 mt-0.5 text-[10px]">✓</span>
                                         <span className="font-light">{d}</span>
                                       </li>
@@ -364,7 +370,7 @@ export function ScheduleDetailPanel({
                                   <span className="text-[9px] font-bold uppercase tracking-widest text-blue-400">{t('meeting.aiDiscussions', 'Discussions')}</span>
                                   <ul className="mt-0.5 space-y-0.5">
                                     {topic.discussions.map((d, j) => (
-                                      <li key={j} className="flex items-start gap-1.5 text-xs text-slate-300">
+                                      <li key={j} className="flex items-start gap-1.5 text-xs text-muted-foreground">
                                         <span className="text-blue-400 mt-0.5 text-[10px]">–</span>
                                         <span className="font-light">{d}</span>
                                       </li>
@@ -377,7 +383,7 @@ export function ScheduleDetailPanel({
                                   <span className="text-[9px] font-bold uppercase tracking-widest text-amber-400">{t('meeting.aiActionItems', 'Action Items')}</span>
                                   <ul className="mt-0.5 space-y-0.5">
                                     {topic.action_items.map((a, j) => (
-                                      <li key={j} className="flex items-start gap-1.5 text-xs text-slate-300">
+                                      <li key={j} className="flex items-start gap-1.5 text-xs text-muted-foreground">
                                         <span className="text-amber-400 mt-0.5 text-[10px]">→</span>
                                         <span className="font-light">{a}</span>
                                       </li>
@@ -390,7 +396,7 @@ export function ScheduleDetailPanel({
                             /* Fallback: legacy points format */
                             <ul className="space-y-0.5">
                               {topic.points.map((point, j) => (
-                                <li key={j} className="flex items-start gap-1.5 text-xs text-slate-300">
+                                <li key={j} className="flex items-start gap-1.5 text-xs text-muted-foreground">
                                   <span className="text-slate-500 mt-0.5 text-[10px]">–</span>
                                   <span className="font-light">{point}</span>
                                 </li>
@@ -411,7 +417,7 @@ export function ScheduleDetailPanel({
         {!meeting && (
           <div
             className={`bg-bridge-dark rounded-lg p-4 ${
-              feature && onViewFeature ? 'cursor-pointer hover:bg-white/5 transition-colors' : ''
+              feature && onViewFeature ? 'cursor-pointer hover:bg-foreground/5 transition-colors' : ''
             }`}
             onClick={() => feature && onViewFeature && onViewFeature(feature.id)}
           >
@@ -433,7 +439,7 @@ export function ScheduleDetailPanel({
                   className="w-3 h-3 rounded-full flex-shrink-0"
                   style={{ backgroundColor: feature.color }}
                 />
-                <p className="text-white font-medium">{feature.title}</p>
+                <p className="text-foreground font-medium">{feature.title}</p>
               </div>
             ) : (
               <div className="text-slate-400 text-sm text-center py-2">
@@ -447,7 +453,7 @@ export function ScheduleDetailPanel({
         {!meeting && (
           <div
             className={`bg-bridge-dark rounded-lg p-4 ${
-              task && onViewTask ? 'cursor-pointer hover:bg-white/5 transition-colors' : ''
+              task && onViewTask ? 'cursor-pointer hover:bg-foreground/5 transition-colors' : ''
             }`}
             onClick={() => task && onViewTask && onViewTask(task.id)}
           >
@@ -464,7 +470,7 @@ export function ScheduleDetailPanel({
             </div>
 
             {task ? (
-              <div className="text-white">
+              <div className="text-foreground">
                 <p className="font-medium">{task.title}</p>
               </div>
             ) : (
@@ -496,7 +502,7 @@ export function ScheduleDetailPanel({
                   {isCompleted && <Check className="h-3 w-3 text-white" />}
                 </button>
                 <div className="flex-1 min-w-0">
-                  <p className={`text-white font-medium ${isCompleted ? 'line-through text-gray-400' : ''}`}>
+                  <p className={`text-foreground font-medium ${isCompleted ? 'line-through text-muted-foreground' : ''}`}>
                     {checklist.title}
                   </p>
                   <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
@@ -591,7 +597,7 @@ export function ScheduleDetailPanel({
                         {item.completed && <Check className="h-2.5 w-2.5 text-white" />}
                       </button>
                       <div className="flex-1 min-w-0">
-                        <p className={`text-sm ${item.completed ? 'line-through text-slate-400' : 'text-slate-300'}`}>
+                        <p className={`text-sm ${item.completed ? 'line-through text-slate-400' : 'text-muted-foreground'}`}>
                           {item.title}
                           {isCurrent && (
                             <span className="ml-2 text-xs text-purple-400">({t('scheduleDetail.current')})</span>
@@ -608,7 +614,7 @@ export function ScheduleDetailPanel({
       </div>
 
       {/* 하단 삭제 버튼 */}
-      <div className="p-4 border-t border-white/20">
+      <div className="p-4 border-t border-bridge-border">
         <Button
           variant="outline"
           onClick={handleDelete}

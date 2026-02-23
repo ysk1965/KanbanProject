@@ -72,7 +72,7 @@ interface KanbanBoardHeaderProps {
   onLogout: () => void;
   isTester: boolean;
   // Schedule sub mode helpers
-  getScheduleSubMode: () => 'schedule' | 'weekly';
+  getScheduleSubMode: () => 'schedule' | 'weekly' | 'calendar';
   getAISubMode: () => 'statistics' | 'ai_report';
 }
 
@@ -119,16 +119,17 @@ export function KanbanBoardHeader({
         trialEndsAt={tierInfo?.trial_ends_at || subscription?.trial_ends_at}
         onOpenSubscription={onOpenSubscription}
         onOpenPremiumBenefits={onOpenPremiumBenefits}
+        onTrialEnding={() => onOpenUpgradeModal('trial_ending')}
         hideBilling={hideBillingForUser}
       />
 
-      <header className="min-h-[3.5rem] md:h-16 border-b border-kanban-border flex items-center justify-between px-3 md:px-6 bg-kanban-bg shrink-0 z-30 gap-2">
+      <header className="min-h-[3.5rem] md:h-16 border-b border-bridge-border flex items-center justify-between px-3 md:px-6 bg-bridge-dark shrink-0 z-30 gap-2 safe-top">
         {/* 좌측 영역 */}
         <div className="flex items-center gap-2 md:gap-6 min-w-0">
-          {!hideBilling && (
+          {!isWhiteLabelDomain && (
             <button
               onClick={() => navigate('/boards')}
-              className="p-2 hover:bg-kanban-surface rounded-lg transition-colors text-zinc-400 hover:text-foreground"
+              className="p-2 hover:bg-bridge-surface-hover rounded-lg transition-colors text-zinc-400 hover:text-foreground"
             >
               <ArrowLeft size={18} />
             </button>
@@ -145,7 +146,7 @@ export function KanbanBoardHeader({
                   if (e.key === 'Enter') handleSaveBoardName();
                   if (e.key === 'Escape') setIsEditingBoardName(false);
                 }}
-                className="text-sm md:text-lg font-bold tracking-tight text-foreground bg-white/5 border border-white/10 rounded-lg px-2 py-0.5 outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent max-w-[160px] sm:max-w-[200px] md:max-w-[300px]"
+                className="text-sm md:text-lg font-bold tracking-tight text-foreground bg-foreground/5 border border-foreground/10 rounded-lg px-2 py-0.5 outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent max-w-[160px] sm:max-w-[200px] md:max-w-[300px]"
                 autoFocus
               />
             ) : (
@@ -159,15 +160,15 @@ export function KanbanBoardHeader({
             )}
 
             {/* 마일스톤 셀렉터 */}
-            <div className="hidden sm:flex items-center gap-2 bg-kanban-card px-3 py-1.5 rounded-md border border-kanban-border hover:border-[#2DD4BF]/40 cursor-pointer transition-all">
-              <Flag size={14} className="text-[#2DD4BF]" />
+            <div className="hidden sm:flex items-center gap-2 bg-bridge-surface px-3 py-1.5 rounded-md border border-bridge-border hover:border-bridge-secondary/40 cursor-pointer transition-all">
+              <Flag size={14} className="text-bridge-secondary" />
               {milestones.length > 0 ? (
                 <Select value={kanbanSelectedMilestoneId} onValueChange={onMilestoneSelect}>
                   <SelectTrigger className="bg-transparent border-none text-xs font-medium text-foreground focus:ring-0 h-auto p-0 w-[120px] [&>svg]:text-zinc-400">
                     <SelectValue placeholder={t('kanban.selectMilestone')} />
                   </SelectTrigger>
-                  <SelectContent className="bg-kanban-card border-kanban-border">
-                    <SelectItem value="all" className="text-zinc-300 hover:bg-white/10 focus:bg-white/10 focus:text-foreground text-xs">
+                  <SelectContent className="bg-bridge-surface border-bridge-border">
+                    <SelectItem value="all" className="text-muted-foreground hover:bg-foreground/10 focus:bg-foreground/10 focus:text-foreground text-xs">
                       {t('common.all')}
                     </SelectItem>
                     {milestones.map((milestone) => {
@@ -177,7 +178,7 @@ export function KanbanBoardHeader({
                         <SelectItem
                           key={milestone.id}
                           value={milestone.id}
-                          className="text-zinc-300 hover:bg-white/10 focus:bg-white/10 focus:text-foreground text-xs"
+                          className="text-muted-foreground hover:bg-foreground/10 focus:bg-foreground/10 focus:text-foreground text-xs"
                         >
                           <div className="flex flex-col">
                             <span>{milestone.title}</span>
@@ -193,8 +194,8 @@ export function KanbanBoardHeader({
                   onClick={() => onOpenMilestoneOnboarding()}
                   className="flex items-center gap-1.5 group"
                 >
-                  <Lightbulb size={12} className="text-[#2DD4BF] animate-pulse" />
-                  <span className="text-xs text-[#2DD4BF] group-hover:text-[#2DD4BF]/80 transition-colors">{t('kanban.startMilestone')}</span>
+                  <Lightbulb size={12} className="text-bridge-secondary animate-pulse" />
+                  <span className="text-xs text-bridge-secondary group-hover:text-bridge-secondary/80 transition-colors">{t('kanban.startMilestone')}</span>
                 </button>
               ) : (
                 <span className="text-xs text-zinc-500">{t('kanban.noMilestone')}</span>
@@ -230,13 +231,13 @@ export function KanbanBoardHeader({
 
         {/* 중앙 탭 영역 */}
         <div className="hidden md:flex justify-center min-w-0 md:flex-1">
-        <nav className="flex items-center gap-1 bg-kanban-card p-1 rounded-xl border border-kanban-border overflow-x-auto shrink-0">
+        <nav className="flex items-center gap-1 bg-bridge-surface p-1 rounded-xl border border-bridge-border overflow-x-auto shrink-0">
           <button
             onClick={() => onViewModeChange('kanban')}
             className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
               viewMode === 'kanban'
-                ? 'bg-gradient-to-r from-[#2DD4BF] to-[#6366F1] text-white shadow-lg shadow-[#2DD4BF]/20'
-                : 'text-zinc-400 hover:text-zinc-200 hover:bg-kanban-surface'
+                ? 'bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20'
+                : 'text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover'
             }`}
           >
             <LayoutGrid size={14} />
@@ -253,9 +254,9 @@ export function KanbanBoardHeader({
               }
             }}
             className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
-              viewMode === 'schedule' || viewMode === 'weekly'
-                ? 'bg-gradient-to-r from-[#2DD4BF] to-[#6366F1] text-white shadow-lg shadow-[#2DD4BF]/20'
-                : 'text-zinc-400 hover:text-zinc-200 hover:bg-kanban-surface'
+              viewMode === 'schedule' || viewMode === 'weekly' || viewMode === 'calendar'
+                ? 'bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20'
+                : 'text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover'
             }`}
           >
             <Calendar size={14} />
@@ -267,8 +268,8 @@ export function KanbanBoardHeader({
               onClick={() => onViewModeChange('meeting')}
               className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
                 viewMode === 'meeting'
-                  ? 'bg-gradient-to-r from-[#2DD4BF] to-[#6366F1] text-white shadow-lg shadow-[#2DD4BF]/20'
-                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-kanban-surface'
+                  ? 'bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20'
+                  : 'text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover'
               }`}
             >
               <Users size={14} />
@@ -281,8 +282,8 @@ export function KanbanBoardHeader({
               onClick={() => onViewModeChange('notes')}
               className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
                 viewMode === 'notes'
-                  ? 'bg-gradient-to-r from-[#2DD4BF] to-[#6366F1] text-white shadow-lg shadow-[#2DD4BF]/20'
-                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-kanban-surface'
+                  ? 'bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20'
+                  : 'text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover'
               }`}
             >
               <FileText size={14} />
@@ -308,10 +309,10 @@ export function KanbanBoardHeader({
               }}
               className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all relative whitespace-nowrap ${
                 viewMode === 'statistics' || viewMode === 'ai_report'
-                  ? 'bg-gradient-to-r from-[#2DD4BF] to-[#6366F1] text-white shadow-lg shadow-[#2DD4BF]/20'
+                  ? 'bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20'
                   : !canAccessStatistics
                     ? 'text-zinc-600 cursor-not-allowed opacity-50'
-                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-kanban-surface'
+                    : 'text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover'
               }`}
             >
               <BarChart3 size={14} />
@@ -324,7 +325,7 @@ export function KanbanBoardHeader({
 
         {/* 우측 액션 영역 */}
         <div className="flex items-center gap-1 md:gap-2 shrink-0">
-          <div className="flex items-center gap-0.5 md:gap-1 border-r border-kanban-border pr-2 md:pr-3 mr-0.5 md:mr-1">
+          <div className="flex items-center gap-0.5 md:gap-1 border-r border-bridge-border pr-2 md:pr-3 mr-0.5 md:mr-1">
             <NotificationDropdown
               boardId={boardId}
               unreadCount={unreadNotificationCount}
@@ -341,7 +342,7 @@ export function KanbanBoardHeader({
             {!isTester && (
               <button
                 onClick={onOpenInquiry}
-                className="relative flex items-center gap-2 px-3 py-2 text-zinc-400 hover:text-foreground hover:bg-kanban-surface rounded-lg transition-all"
+                className="relative flex items-center gap-2 px-3 py-2 text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover rounded-lg transition-all"
                 title={t('kanban.inquiry')}
               >
                 <MessageSquare size={18} />
@@ -354,7 +355,7 @@ export function KanbanBoardHeader({
             )}
             <button
               onClick={onOpenShareBoard}
-              className="flex items-center gap-2 px-3 py-2 text-zinc-400 hover:text-foreground hover:bg-kanban-surface rounded-lg transition-all"
+              className="flex items-center gap-2 px-3 py-2 text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover rounded-lg transition-all"
             >
               <Users size={18} />
               <span className="hidden md:inline text-xs font-semibold">{t('kanban.team')}</span>
@@ -363,7 +364,10 @@ export function KanbanBoardHeader({
 
           {currentUser && (
             <UserMenu
-              user={currentUser}
+              user={{
+                ...currentUser,
+                avatar: currentUser.profile_image || undefined,
+              }}
               assigneeColor={memberColorMap[currentUser.id]}
               onOpenSubscription={onOpenSubscription}
               onLogout={onLogout}

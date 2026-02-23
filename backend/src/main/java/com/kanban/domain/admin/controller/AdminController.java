@@ -5,6 +5,7 @@ import com.kanban.domain.admin.dto.AdminResponse;
 import com.kanban.domain.admin.service.AdminService;
 import com.kanban.domain.announcement.AnnouncementType;
 import com.kanban.domain.board.BoardTier;
+import com.kanban.domain.board.BoardType;
 import com.kanban.domain.inquiry.InquiryStatus;
 import com.kanban.domain.inquiry.dto.InquiryRequest;
 import com.kanban.domain.inquiry.dto.InquiryResponse;
@@ -130,6 +131,24 @@ public class AdminController {
         return ResponseEntity.ok(Map.of("message", "사용자가 보드에서 제거되었습니다"));
     }
 
+    @PostMapping("/users/{userId}/create-personal-board")
+    public ResponseEntity<Map<String, String>> createPersonalBoard(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable String userId) {
+        verifyAdminAccess(principal);
+        adminService.createPersonalBoard(userId);
+        return ResponseEntity.ok(Map.of("message", "개인 보드가 생성되었습니다"));
+    }
+
+    @PatchMapping("/users/{userId}/personal-ai-credits")
+    public ResponseEntity<AdminResponse.UserDetail> adjustPersonalAiCredits(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable String userId,
+            @Valid @RequestBody AdminRequest.AdjustPersonalAiCredits request) {
+        verifyAdminAccess(principal);
+        return ResponseEntity.ok(adminService.adjustPersonalAiCredits(userId, request));
+    }
+
     // ==================== Boards ====================
 
     @GetMapping("/boards")
@@ -138,9 +157,20 @@ public class AdminController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String search,
-            @RequestParam(required = false) BoardTier tier) {
+            @RequestParam(required = false) BoardTier tier,
+            @RequestParam(name = "board_type", required = false) BoardType boardType) {
         verifyAdminAccess(principal);
-        return ResponseEntity.ok(adminService.getBoards(page, size, search, tier));
+        return ResponseEntity.ok(adminService.getBoards(page, size, search, tier, boardType));
+    }
+
+    @GetMapping("/boards/deleted")
+    public ResponseEntity<AdminResponse.BoardList> getDeletedBoards(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String search) {
+        verifyAdminAccess(principal);
+        return ResponseEntity.ok(adminService.getDeletedBoards(page, size, search));
     }
 
     @GetMapping("/boards/{boardId}")
@@ -157,7 +187,25 @@ public class AdminController {
             @PathVariable String boardId) {
         verifyAdminAccess(principal);
         adminService.deleteBoard(boardId);
-        return ResponseEntity.ok(Map.of("message", "보드가 삭제되었습니다"));
+        return ResponseEntity.ok(Map.of("message", "보드가 삭제되었습니다. 7일 내 복구 가능합니다."));
+    }
+
+    @PostMapping("/boards/{boardId}/restore")
+    public ResponseEntity<Map<String, String>> restoreBoard(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable String boardId) {
+        verifyAdminAccess(principal);
+        adminService.restoreBoard(boardId);
+        return ResponseEntity.ok(Map.of("message", "보드가 복구되었습니다"));
+    }
+
+    @DeleteMapping("/boards/{boardId}/permanent")
+    public ResponseEntity<Map<String, String>> permanentlyDeleteBoard(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable String boardId) {
+        verifyAdminAccess(principal);
+        adminService.permanentlyDeleteBoard(boardId);
+        return ResponseEntity.ok(Map.of("message", "보드가 영구 삭제되었습니다"));
     }
 
     @PatchMapping("/boards/{boardId}/tier")

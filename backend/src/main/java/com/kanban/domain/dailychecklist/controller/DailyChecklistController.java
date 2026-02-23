@@ -13,6 +13,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -34,6 +35,22 @@ public class DailyChecklistController {
             @AuthenticationPrincipal UserPrincipal principal) {
         DailyChecklistResponse.TimeblockDataResponse response = dailyChecklistService.getTimeblockData(
                 boardId, date, assigneeId, principal.getUserId());
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * 날짜 범위 내 데일리 체크리스트 조회 (캘린더용)
+     * GET /api/v1/boards/{boardId}/daily-checklists/range?startDate={startDate}&endDate={endDate}&assigneeId={assigneeId}
+     */
+    @GetMapping("/range")
+    public ResponseEntity<List<DailyChecklistResponse.ItemResponse>> getChecklistItemsInRange(
+            @PathVariable String boardId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam String assigneeId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        List<DailyChecklistResponse.ItemResponse> response = dailyChecklistService.getChecklistItemsInRange(
+                boardId, startDate, endDate, assigneeId, principal.getUserId());
         return ResponseEntity.ok(response);
     }
 

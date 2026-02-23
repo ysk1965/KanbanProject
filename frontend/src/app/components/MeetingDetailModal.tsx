@@ -14,6 +14,7 @@ import { getInitials, getAssigneeHex } from '../utils/assigneeColor';
 import {
   useAudioRecorder, formatDuration, formatFileSize, MAX_RECORDING_SIZE,
 } from '../hooks/useAudioRecorder';
+import { MotionModal } from './ui/MotionModal';
 
 // ============================
 // MeetingDetailPanel (Inline expandable)
@@ -211,7 +212,7 @@ export function MeetingDetailPanel({
 
   return (
     <>
-      <div className="px-5 pb-4 border-t border-white/5 pt-4 space-y-4">
+      <div className="px-5 pb-4 border-t border-foreground/5 pt-4 space-y-4">
           {loading ? (
             <div className="flex items-center justify-center py-4 text-slate-400">
               <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -229,7 +230,7 @@ export function MeetingDetailPanel({
                 ) : (
                   <div className="flex flex-wrap gap-2">
                     {detail.participants.map(p => (
-                      <div key={p.id} className="flex items-center gap-1.5 bg-white/5 rounded-lg px-2.5 py-1.5">
+                      <div key={p.id} className="flex items-center gap-1.5 bg-foreground/5 rounded-lg px-2.5 py-1.5">
                         {p.profile_image ? (
                           <img src={p.profile_image} alt={p.name} className="w-5 h-5 rounded-full" />
                         ) : (
@@ -240,7 +241,7 @@ export function MeetingDetailPanel({
                             {getInitials(p.name)}
                           </div>
                         )}
-                        <span className="text-xs text-slate-300">{p.name}</span>
+                        <span className="text-xs text-muted-foreground">{p.name}</span>
                       </div>
                     ))}
                   </div>
@@ -258,7 +259,7 @@ export function MeetingDetailPanel({
                   onBlur={handleMemoSave}
                   placeholder={t('meeting.memoPlaceholder')}
                   rows={4}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all resize-none"
+                  className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-sm text-foreground placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all resize-none"
                 />
               </div>
 
@@ -331,7 +332,7 @@ export function MeetingDetailPanel({
                           {Math.min(100, Math.round(((isRecording ? recordingSize : (audioBlob?.size ?? 0)) / MAX_RECORDING_SIZE) * 100))}%
                         </span>
                       </div>
-                      <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                      <div className="w-full h-1.5 bg-foreground/5 rounded-full overflow-hidden">
                         <div
                           className={`h-full rounded-full transition-all duration-300 ${
                             ((isRecording ? recordingSize : (audioBlob?.size ?? 0)) / MAX_RECORDING_SIZE) > 0.9
@@ -350,7 +351,7 @@ export function MeetingDetailPanel({
                     onBlur={handleTranscriptSave}
                     placeholder={t('meeting.transcriptPlaceholder')}
                     rows={4}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all resize-none"
+                    className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-sm text-foreground placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all resize-none"
                   />
                 </div>
               )}
@@ -365,8 +366,8 @@ export function MeetingDetailPanel({
                       disabled={aiLoading}
                       className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg transition-colors disabled:opacity-50 ${
                         isAIDimmed()
-                          ? 'text-slate-500 bg-white/5 cursor-default'
-                          : 'text-bridge-secondary bg-bridge-secondary/10 hover:bg-bridge-secondary/20'
+                          ? 'text-slate-500 bg-foreground/5 cursor-default'
+                          : 'text-white bg-gradient-to-r from-bridge-secondary to-bridge-accent hover:shadow-[0_0_20px_rgba(45,212,191,0.3)]'
                       }`}
                     >
                       {aiLoading ? (
@@ -406,7 +407,7 @@ export function MeetingDetailPanel({
               {/* AI Inline Section */}
               {aiVisible && (
                 aiCollapsed && !aiLoading ? (
-                  <div className="mt-4 flex items-center justify-between bg-white/[0.02] rounded-xl border border-white/5 px-4 py-3">
+                  <div className="mt-4 flex items-center justify-between bg-white/[0.02] rounded-xl border border-foreground/5 px-4 py-3">
                     <div className="flex items-center gap-2">
                       <Sparkles className="h-4 w-4 text-bridge-accent" />
                       <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
@@ -437,13 +438,12 @@ export function MeetingDetailPanel({
       </div>
 
       {/* No Changes Modal */}
-      {showNoChangesModal && (
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-bridge-obsidian rounded-2xl shadow-2xl w-[360px] border border-white/10 p-6 text-center">
-            <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-white/5 flex items-center justify-center">
+      <MotionModal open={showNoChangesModal} onClose={() => setShowNoChangesModal(false)} className="sm:w-[360px] sm:max-w-[calc(100%-2rem)] p-0 overflow-hidden">
+          <div className="p-6 text-center">
+            <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-foreground/5 flex items-center justify-center">
               <Sparkles className="h-6 w-6 text-slate-400" />
             </div>
-            <h3 className="text-base font-bold text-white mb-2">
+            <h3 className="text-base font-bold text-foreground mb-2">
               {t('meeting.aiNoChanges')}
             </h3>
             <p className="text-sm text-slate-400 mb-5">
@@ -451,19 +451,17 @@ export function MeetingDetailPanel({
             </p>
             <button
               onClick={() => setShowNoChangesModal(false)}
-              className="px-6 py-2.5 bg-white/5 border border-white/10 text-sm font-bold text-white rounded-xl hover:bg-white/10 transition-all"
+              className="px-6 py-2.5 bg-foreground/5 border border-foreground/10 text-sm font-bold text-foreground rounded-xl hover:bg-foreground/10 transition-all"
             >
               {t('common.confirm') || '확인'}
             </button>
           </div>
-        </div>
-      )}
+      </MotionModal>
 
       {/* Delete Scope Modal */}
-      {deleteScopeModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-bridge-obsidian rounded-2xl border border-white/10 p-6 w-[400px] shadow-2xl">
-            <h3 className="text-lg font-bold text-white mb-2">
+      <MotionModal open={deleteScopeModal} onClose={() => setDeleteScopeModal(false)} className="sm:w-[400px] sm:max-w-[calc(100%-2rem)] p-0 overflow-hidden">
+          <div className="p-6">
+            <h3 className="text-lg font-bold text-foreground mb-2">
               {t('meeting.deleteRecurringTitle', '반복 회의 삭제')}
             </h3>
             <p className="text-sm text-slate-400 mb-6">
@@ -472,7 +470,7 @@ export function MeetingDetailPanel({
             <div className="flex flex-col gap-3">
               <button
                 onClick={() => doDelete('THIS_ONLY')}
-                className="w-full px-4 py-3 text-sm font-semibold bg-white/5 border border-white/10 rounded-xl text-white hover:bg-white/10 transition-all"
+                className="w-full px-4 py-3 text-sm font-semibold bg-foreground/5 border border-foreground/10 rounded-xl text-foreground hover:bg-foreground/10 transition-all"
               >
                 {t('meeting.deleteThisOnly', '이 회의만 삭제')}
               </button>
@@ -484,14 +482,13 @@ export function MeetingDetailPanel({
               </button>
               <button
                 onClick={() => setDeleteScopeModal(false)}
-                className="w-full px-4 py-2 text-sm text-slate-400 hover:text-white transition-colors"
+                className="w-full px-4 py-2 text-sm text-slate-400 hover:text-foreground transition-colors"
               >
                 {t('common.cancel')}
               </button>
             </div>
           </div>
-        </div>
-      )}
+      </MotionModal>
     </>
   );
 }
@@ -752,7 +749,7 @@ function MeetingAIInlineSection({
   const renderFeatureLabel = (feature: AIFeatureSuggestion) => {
     if (feature.type === 'EXISTING') {
       return (
-        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 bg-white/5 px-1.5 py-0.5 rounded">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 bg-foreground/5 px-1.5 py-0.5 rounded">
           {t('meeting.aiExistingFeature')}
         </span>
       );
@@ -767,7 +764,7 @@ function MeetingAIInlineSection({
 
   if (loading) {
     return (
-      <div className="mt-4 bg-white/[0.02] rounded-xl border border-white/5 p-6">
+      <div className="mt-4 bg-white/[0.02] rounded-xl border border-foreground/5 p-6">
         <div className="flex flex-col items-center justify-center py-8 gap-3">
           <div className="relative">
             <Sparkles className="h-8 w-8 text-bridge-accent animate-pulse" />
@@ -781,19 +778,19 @@ function MeetingAIInlineSection({
 
   if (error && !suggestions) {
     return (
-      <div className="mt-4 bg-white/[0.02] rounded-xl border border-white/5 p-6">
+      <div className="mt-4 bg-white/[0.02] rounded-xl border border-foreground/5 p-6">
         <div className="flex flex-col items-center justify-center py-6 gap-3">
           <p className="text-sm text-red-400">{error}</p>
           <div className="flex gap-2">
             <button
               onClick={onRetry}
-              className="px-4 py-2 text-sm font-medium text-white bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all"
+              className="px-4 py-2 text-sm font-medium text-foreground bg-foreground/5 border border-foreground/10 rounded-xl hover:bg-foreground/10 transition-all"
             >
               {t('meeting.aiRetry')}
             </button>
             <button
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-slate-400 hover:text-white transition-colors"
+              className="px-4 py-2 text-sm font-medium text-slate-400 hover:text-foreground transition-colors"
             >
               {t('meeting.aiClose')}
             </button>
@@ -816,7 +813,7 @@ function MeetingAIInlineSection({
         </div>
         <button
           onClick={onClose}
-          className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
+          className="text-xs text-slate-500 hover:text-muted-foreground transition-colors"
         >
           {t('meeting.aiClose')}
         </button>
@@ -855,11 +852,11 @@ function MeetingAIInlineSection({
                 className={`rounded-xl border p-4 ${
                   topic.important
                     ? 'bg-amber-500/5 border-amber-500/20'
-                    : 'bg-white/[0.02] border-white/5'
+                    : 'bg-white/[0.02] border-foreground/5'
                 }`}
               >
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="text-sm font-medium text-white">{topic.topic}</span>
+                  <span className="text-sm font-medium text-foreground">{topic.topic}</span>
                   {topic.important && (
                     <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded">
                       {t('meeting.aiImportant')}
@@ -874,7 +871,7 @@ function MeetingAIInlineSection({
                         <span className="text-[10px] font-bold uppercase tracking-widest text-green-400">{t('meeting.aiDecisions', 'Decisions')}</span>
                         <ul className="mt-1 space-y-0.5">
                           {topic.decisions.map((d, j) => (
-                            <li key={j} className="flex items-start gap-2 text-sm text-slate-300">
+                            <li key={j} className="flex items-start gap-2 text-sm text-muted-foreground">
                               <span className="text-green-400 mt-1 text-xs">✓</span>
                               <span className="font-light">{d}</span>
                             </li>
@@ -887,7 +884,7 @@ function MeetingAIInlineSection({
                         <span className="text-[10px] font-bold uppercase tracking-widest text-blue-400">{t('meeting.aiDiscussions', 'Discussions')}</span>
                         <ul className="mt-1 space-y-0.5">
                           {topic.discussions.map((d, j) => (
-                            <li key={j} className="flex items-start gap-2 text-sm text-slate-300">
+                            <li key={j} className="flex items-start gap-2 text-sm text-muted-foreground">
                               <span className="text-blue-400 mt-1 text-xs">–</span>
                               <span className="font-light">{d}</span>
                             </li>
@@ -900,7 +897,7 @@ function MeetingAIInlineSection({
                         <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400">{t('meeting.aiActionItems', 'Action Items')}</span>
                         <ul className="mt-1 space-y-0.5">
                           {topic.action_items.map((a, j) => (
-                            <li key={j} className="flex items-start gap-2 text-sm text-slate-300">
+                            <li key={j} className="flex items-start gap-2 text-sm text-muted-foreground">
                               <span className="text-amber-400 mt-1 text-xs">→</span>
                               <span className="font-light">{a}</span>
                             </li>
@@ -913,7 +910,7 @@ function MeetingAIInlineSection({
                   /* Fallback: legacy points format */
                   <ul className="space-y-1">
                     {topic.points.map((point, j) => (
-                      <li key={j} className="flex items-start gap-2 text-sm text-slate-300">
+                      <li key={j} className="flex items-start gap-2 text-sm text-muted-foreground">
                         <span className="text-slate-500 mt-1 text-xs">–</span>
                         <span className="font-light">{point}</span>
                       </li>
@@ -945,7 +942,7 @@ function MeetingAIInlineSection({
             {suggestions.features.map((feature, fi) => (
               <div
                 key={fi}
-                className="bg-white/[0.03] rounded-xl border border-white/5 overflow-hidden"
+                className="bg-white/[0.03] rounded-xl border border-foreground/5 overflow-hidden"
               >
                 <div className="flex items-center gap-2 px-4 py-3">
                   {isFeatureAllLocked(fi) ? (
@@ -959,7 +956,7 @@ function MeetingAIInlineSection({
                   )}
                   <button
                     onClick={() => setExpandedFeatures(prev => ({ ...prev, [fi]: !prev[fi] }))}
-                    className="flex-shrink-0 text-slate-400 hover:text-white transition-colors"
+                    className="flex-shrink-0 text-slate-400 hover:text-foreground transition-colors"
                   >
                     <ChevronRight
                       className={`h-4 w-4 transition-transform ${expandedFeatures[fi] ? 'rotate-90' : ''}`}
@@ -968,12 +965,12 @@ function MeetingAIInlineSection({
                   {feature.type === 'NEW' && feature.color && (
                     <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: feature.color }} />
                   )}
-                  <span className="text-sm font-medium text-white truncate flex-1">{feature.title}</span>
+                  <span className="text-sm font-medium text-foreground truncate flex-1">{feature.title}</span>
                   {renderFeatureLabel(feature)}
                 </div>
 
                 {expandedFeatures[fi] && (
-                  <div className="border-t border-white/5">
+                  <div className="border-t border-foreground/5">
                     {feature.tasks.map((task, ti) => (
                       <div key={ti}>
                         <div className={`flex items-center gap-2 px-4 py-2.5 pl-10 ${isTaskLocked(fi, ti) ? 'opacity-60' : ''}`}>
@@ -988,7 +985,7 @@ function MeetingAIInlineSection({
                           )}
                           <ArrowRight className="h-3 w-3 text-slate-500 flex-shrink-0" />
                           <div className="flex-1 min-w-0">
-                            <span className="text-sm text-slate-300 truncate block">{task.title}</span>
+                            <span className="text-sm text-muted-foreground truncate block">{task.title}</span>
                             {task.description && (
                               <span className="text-xs text-slate-500 truncate block mt-0.5">{task.description}</span>
                             )}
@@ -1028,7 +1025,7 @@ function MeetingAIInlineSection({
             <button
               onClick={handleApply}
               disabled={applying || selectedCount === 0}
-              className="px-5 py-2 text-sm font-bold text-white bg-gradient-to-r from-bridge-accent to-purple-500 rounded-xl hover:shadow-[0_0_30px_rgba(99,102,241,0.3)] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="px-5 py-2 text-sm font-bold text-white bg-gradient-to-r from-bridge-secondary to-bridge-accent rounded-xl hover:shadow-[0_0_20px_rgba(45,212,191,0.3)] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {applying ? (
                 <>
@@ -1053,7 +1050,7 @@ function MeetingAIInlineSection({
             <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
               <CheckSquare className="h-4 w-4 text-green-400" />
             </div>
-            <p className="text-sm text-slate-300">
+            <p className="text-sm text-muted-foreground">
               {t('meeting.aiApplySuccess', {
                 features: result.features_created,
                 tasks: result.tasks_created,
@@ -1066,7 +1063,7 @@ function MeetingAIInlineSection({
 
       {/* No suggestions */}
       {suggestions.features.length === 0 && (!suggestions.summary || suggestions.summary.length === 0) && (
-        <div className="bg-white/[0.02] rounded-xl border border-white/5 p-6 text-center">
+        <div className="bg-white/[0.02] rounded-xl border border-foreground/5 p-6 text-center">
           <Sparkles className="h-6 w-6 text-slate-500 mx-auto mb-2" />
           <p className="text-sm text-slate-400">{t('meeting.aiNoSuggestions')}</p>
         </div>

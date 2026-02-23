@@ -6,18 +6,18 @@ import { ArrowLeft, Shield } from 'lucide-react';
 export function PrivacyPage() {
   const { t } = useTranslation();
   return (
-    <div className="min-h-screen w-full bg-bridge-dark text-white">
+    <div className="min-h-screen w-full bg-bridge-dark text-foreground">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-bridge-obsidian/80 backdrop-blur-xl border-b border-white/15">
+      <header className="sticky top-0 z-50 bg-bridge-obsidian/80 backdrop-blur-xl border-b border-bridge-border safe-top">
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
           <Link
             to="/"
-            className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors"
+            className="flex items-center gap-2 text-slate-400 hover:text-foreground transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />
             <span className="font-medium">{t('privacy.backToHome')}</span>
           </Link>
-          <Link to="/" className="text-xl font-bold text-white">
+          <Link to="/" className="text-xl font-bold text-foreground">
             BRIDGE SPOTS
           </Link>
         </div>
@@ -31,17 +31,17 @@ export function PrivacyPage() {
         >
           {/* Title */}
           <div className="flex items-center gap-4 mb-8">
-            <div className="w-14 h-14 bg-gradient-to-br from-[#6366F1] to-[#2DD4BF] rounded-2xl flex items-center justify-center">
+            <div className="w-14 h-14 bg-gradient-to-br from-bridge-accent to-bridge-secondary rounded-2xl flex items-center justify-center">
               <Shield className="w-7 h-7 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-white">{t('privacy.title')}</h1>
+              <h1 className="text-3xl font-bold text-foreground">{t('privacy.title')}</h1>
               <p className="text-slate-400 text-sm mt-1">{t('privacy.lastModified')}</p>
             </div>
           </div>
 
           {/* Content Box */}
-          <div className="bg-bridge-obsidian rounded-2xl border border-white/15 p-8 space-y-8">
+          <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-8 space-y-8">
             {/* Intro */}
             <section>
               <p className="text-slate-400 leading-relaxed">
@@ -51,20 +51,20 @@ export function PrivacyPage() {
 
             {/* Section 1 */}
             <section>
-              <h2 className="text-xl font-bold text-white mb-4">{t('privacy.section1Title')}</h2>
+              <h2 className="text-xl font-bold text-foreground mb-4">{t('privacy.section1Title')}</h2>
               <div className="text-slate-400 leading-relaxed space-y-3">
                 <p>{t('privacy.section1Content')}</p>
-                <div className="bg-white/5 rounded-xl p-4 space-y-3">
+                <div className="bg-foreground/5 rounded-xl p-4 space-y-3">
                   <div>
-                    <p className="text-white font-medium mb-1">{t('privacy.required')}</p>
+                    <p className="text-foreground font-medium mb-1">{t('privacy.required')}</p>
                     <p className="text-sm">{t('privacy.requiredItems')}</p>
                   </div>
                   <div>
-                    <p className="text-white font-medium mb-1">{t('privacy.optional')}</p>
+                    <p className="text-foreground font-medium mb-1">{t('privacy.optional')}</p>
                     <p className="text-sm">{t('privacy.optionalItems')}</p>
                   </div>
                   <div>
-                    <p className="text-white font-medium mb-1">{t('privacy.autoCollected')}</p>
+                    <p className="text-foreground font-medium mb-1">{t('privacy.autoCollected')}</p>
                     <p className="text-sm">{t('privacy.autoCollectedItems')}</p>
                   </div>
                 </div>
@@ -73,7 +73,7 @@ export function PrivacyPage() {
 
             {/* Section 2 */}
             <section>
-              <h2 className="text-xl font-bold text-white mb-4">{t('privacy.section2Title')}</h2>
+              <h2 className="text-xl font-bold text-foreground mb-4">{t('privacy.section2Title')}</h2>
               <div className="text-slate-400 leading-relaxed space-y-3">
                 <p>{t('privacy.section2Content')}</p>
                 <ul className="list-disc list-inside ml-4 space-y-2">
@@ -88,11 +88,11 @@ export function PrivacyPage() {
 
             {/* Section 3 */}
             <section>
-              <h2 className="text-xl font-bold text-white mb-4">{t('privacy.section3Title')}</h2>
+              <h2 className="text-xl font-bold text-foreground mb-4">{t('privacy.section3Title')}</h2>
               <div className="text-slate-400 leading-relaxed space-y-3">
                 <p>{t('privacy.section3Content')}</p>
-                <div className="bg-white/5 rounded-xl p-4 space-y-2">
-                  <p className="text-white font-medium">{t('privacy.retentionTitle')}</p>
+                <div className="bg-foreground/5 rounded-xl p-4 space-y-2">
+                  <p className="text-foreground font-medium">{t('privacy.retentionTitle')}</p>
                   <ul className="text-sm space-y-1">
                     <li>{t('privacy.retentionItem1')}</li>
                     <li>{t('privacy.retentionItem2')}</li>
@@ -105,7 +105,7 @@ export function PrivacyPage() {
 
             {/* Section 4 */}
             <section>
-              <h2 className="text-xl font-bold text-white mb-4">{t('privacy.section4Title')}</h2>
+              <h2 className="text-xl font-bold text-foreground mb-4">{t('privacy.section4Title')}</h2>
               <p className="text-slate-400 leading-relaxed">
                 {t('privacy.section4Content')}
               </p>
@@ -117,7 +117,7 @@ export function PrivacyPage() {
 
             {/* Section 5 */}
             <section>
-              <h2 className="text-xl font-bold text-white mb-4">{t('privacy.section5Title')}</h2>
+              <h2 className="text-xl font-bold text-foreground mb-4">{t('privacy.section5Title')}</h2>
               <div className="text-slate-400 leading-relaxed space-y-3">
                 <p>{t('privacy.section5Content')}</p>
                 <ul className="list-disc list-inside ml-4 space-y-2">
@@ -131,7 +131,7 @@ export function PrivacyPage() {
 
             {/* Section 6 */}
             <section>
-              <h2 className="text-xl font-bold text-white mb-4">{t('privacy.section6Title')}</h2>
+              <h2 className="text-xl font-bold text-foreground mb-4">{t('privacy.section6Title')}</h2>
               <div className="text-slate-400 leading-relaxed space-y-3">
                 <p>{t('privacy.section6Content')}</p>
                 <ul className="list-disc list-inside ml-4 space-y-2">
@@ -148,7 +148,7 @@ export function PrivacyPage() {
 
             {/* Section 7 */}
             <section>
-              <h2 className="text-xl font-bold text-white mb-4">{t('privacy.section7Title')}</h2>
+              <h2 className="text-xl font-bold text-foreground mb-4">{t('privacy.section7Title')}</h2>
               <p className="text-slate-400 leading-relaxed">
                 {t('privacy.section7Content')}
               </p>
@@ -156,8 +156,8 @@ export function PrivacyPage() {
 
             {/* Section 8 */}
             <section>
-              <h2 className="text-xl font-bold text-white mb-4">{t('privacy.section8Title')}</h2>
-              <div className="bg-white/5 rounded-xl p-4 text-slate-400">
+              <h2 className="text-xl font-bold text-foreground mb-4">{t('privacy.section8Title')}</h2>
+              <div className="bg-foreground/5 rounded-xl p-4 text-slate-400">
                 <p className="mb-2">{t('privacy.section8Content')}</p>
                 <p>{t('privacy.section8Officer')}</p>
                 <p>{t('privacy.section8Email')}</p>
@@ -166,7 +166,7 @@ export function PrivacyPage() {
 
             {/* Section 9 */}
             <section>
-              <h2 className="text-xl font-bold text-white mb-4">{t('privacy.section9Title')}</h2>
+              <h2 className="text-xl font-bold text-foreground mb-4">{t('privacy.section9Title')}</h2>
               <p className="text-slate-400 leading-relaxed">
                 {t('privacy.section9Content')}
               </p>
@@ -184,7 +184,7 @@ export function PrivacyPage() {
           <div className="mt-8 flex items-center justify-center gap-6 text-sm">
             <Link
               to="/terms"
-              className="text-slate-400 hover:text-white transition-colors"
+              className="text-slate-400 hover:text-foreground transition-colors"
             >
               {t('privacy.termsLink')}
             </Link>

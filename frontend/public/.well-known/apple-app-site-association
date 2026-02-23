@@ -1,0 +1,15 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "TEAM_ID.com.bridgespots.app",
+        "paths": [
+          "/boards/*",
+          "/invite/*",
+          "/shared/*"
+        ]
+      }
+    ]
+  }
+}

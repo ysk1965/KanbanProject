@@ -45,24 +45,25 @@
       "workflow": "Workflow",
       "pricing": "Pricing",
       "compare": "เปรียบเทียบ",
+      "myspace": "My Space",
       "joinNow": "JOIN NOW",
       "startForFree": "เริ่มใช้งานฟรี",
       "ai": "AI"
     },
     "hero": {
-      "badge": "ระบบจัดการโปรเจกต์อัจฉริยะ",
+      "badge": "Project + Life Management in One",
       "subtitle": "<1>Flow</1> ที่ชัดเจนตัดผ่านเวิร์กโฟลว์ที่ซับซ้อน\nสัมผัสอินเทอร์เฟซการทำงานร่วมกันด้าน PM ที่ล้ำสมัยที่สุด",
       "subtitleFlow": "Flow",
-      "subtitleText1": "",
-      "subtitleText2": " ที่ชัดเจนตัดผ่านเวิร์กโฟลว์ที่ซับซ้อน\nสัมผัสอินเทอร์เฟซการทำงานร่วมกันด้าน PM ที่ล้ำสมัยที่สุด",
+      "subtitleText1": "Team collaboration meets personal growth in one clear ",
+      "subtitleText2": ".\nManage projects AND your life — no plugins, no app switching.",
       "tryFree": "ทดลองใช้ Premium ฟรี 3 วัน",
       "basicFree": "บอร์ด Basic ใช้งานฟรีตลอดไป"
     },
     "core": {
       "label": "สถาปัตยกรรมหลัก",
       "title": "จัดระเบียบ\nกระแสการทำงานร่วมกัน",
-      "titleLine1": "จัดระเบียบ",
-      "titleLine2": "กระแสการทำงานร่วมกัน",
+      "titleLine1": "Two pillars,",
+      "titleLine2": "one platform",
       "kanban": {
         "title": "Kanban เน้นการปฏิบัติจริง",
         "desc": "สร้างเวิร์กโฟลว์เฉพาะของทีมบนโครงสร้าง 'Feature - Task - Done' อินเทอร์เฟซการทำงานร่วมกันที่ใช้งานได้จริง สร้างจากข้อมูลเชิงลึกของ PM จริง"
@@ -78,6 +79,38 @@
       "pricing": {
         "title": "โมเดลราคาที่โปร่งใสไม่จำกัด",
         "desc": "ฟีเจอร์หลักอย่างบอร์ด Kanban, การสร้างงาน และตารางเวลารายวันใช้งานฟรีตลอดไป เพิ่มการเชื่อมต่อ Slack, Gantt รายสัปดาห์ และอื่นๆ ในราคาเพียง $5 ต่อผู้ใช้"
+      },
+      "personal": {
+        "title": "Personal Productivity Hub",
+        "desc": "Eisenhower Matrix task board, habit tracker with streaks, and AI diary — your personal growth toolkit lives right next to your team workspace."
+      }
+    },
+    "myspace": {
+      "label": "Personal Productivity",
+      "titleLine1": "Your space,",
+      "titleLine2": "your growth",
+      "subtitle": "Beyond team collaboration — manage personal tasks, build habits, and reflect with AI. Everything in one place, always in sync with your work.",
+      "tabs": {
+        "overview": "Overview",
+        "matrix": "Matrix",
+        "habits": "Habits",
+        "diary": "AI Diary"
+      },
+      "matrix": {
+        "title": "Eisenhower Matrix",
+        "text": "Prioritize with a 2×2 urgency-importance grid. D-day badges, auto-sorting, and drag-to-reprioritize."
+      },
+      "habits": {
+        "title": "Habit Tracker",
+        "text": "Build streaks with daily/weekly patterns. Color-coded habits, weekly matrix view, and streak analytics."
+      },
+      "diary": {
+        "title": "AI Diary",
+        "text": "Journal through conversation with AI. Mood tracking, voice input/output, and reflective prompts."
+      },
+      "calendar": {
+        "title": "Personal Calendar",
+        "text": "Time-block your personal schedule with conflict detection. Synced alongside your team calendar."
       }
     },
     "workflow": {
@@ -154,7 +187,11 @@
       },
       "subtitle": "เหนือกว่าแดชบอร์ดและกราฟ AI วิเคราะห์งาน, ไทม์บล็อก, เช็คลิสต์ และคอมเมนต์เพื่อสร้างข้อมูลเชิงลึกที่มนุษย์อาจมองข้าม",
       "titleLine1": "AI อ่าน",
-      "titleLine2": "บริบทของทีมคุณ"
+      "titleLine2": "full context",
+      "diary": {
+        "title": "AI Conversational Diary",
+        "text": "Reflect on your day through conversation. AI tracks mood patterns, remembers context, and offers personalized insights."
+      }
     },
     "pricing": {
       "badge": "PREMIUM ทดลองใช้ฟรี 3 วัน",
@@ -174,6 +211,8 @@
         "feature2": "ตารางเวลารายวันและเช็คลิสต์",
         "feature3": "แชร์ทีมและการทำงานร่วมกัน (รีเฟรชด้วยตนเอง)",
         "feature4": "การแจ้งเตือนพื้นฐาน",
+        "feature5": "Personal task board & habit tracker",
+        "feature6": "Personal calendar & schedule",
         "cta": "START FREE"
       },
       "premium": {
@@ -186,13 +225,14 @@
         "feature4": "การจัดการสิทธิ์ทีมขั้นสูง",
         "feature5": "รายงาน Sprint AI และข้อมูลเชิงลึก",
         "feature6": "ซิงค์บอร์ดแบบเรียลไทม์ (อัปเดตทันทีไม่ต้องรีเฟรช)",
+        "feature7": "AI conversational diary with voice",
         "cta": "START TRIAL"
       }
     },
     "cta": {
       "titleLine1": "เริ่มต้น",
       "titleLine2": "วันนี้",
-      "subtitle": "ก้าวข้ามการจัดการงานธรรมดาด้วย BridgeSpots\nจัดระเบียบผลิตภาพไร้ขีดจำกัดของทีมคุณอย่างชาญฉลาด",
+      "subtitle": "Go beyond task management. Orchestrate your team's productivity AND your personal growth — all in one platform.",
       "button": "LAUNCH FLOW"
     },
     "footer": {
@@ -252,13 +292,34 @@
   "dashboard": {
     "sidebar": {
       "allBoards": "บอร์ดทั้งหมด",
-      "favorites": "รายการโปรด",
-      "teamMembers": "สมาชิกในทีม",
+      "myBoard": "พื้นที่ของฉัน",
       "settings": "การตั้งค่า",
       "upgradePro": "อัปเกรดเป็น Pro",
       "upgradeDesc": "ลองใช้บอร์ดไม่จำกัดและการวิเคราะห์ขั้นสูง",
       "viewPlans": "ดูแผนราคา"
-    }
+    },
+    "searchPlaceholder": "ค้นหาโปรเจกต์...",
+    "logout": "ออกจากระบบ",
+    "mySpace": "พื้นที่ของฉัน",
+    "mySpaceDesc": "ตารางส่วนตัว & ไดอารี่ AI",
+    "yourProjects": "โปรเจกต์ของคุณ",
+    "managingWorkspaces": "กำลังจัดการ {{count}} พื้นที่ทำงาน",
+    "createNewBoard": "สร้างบอร์ดใหม่",
+    "noSearchResult": "ไม่พบบอร์ดสำหรับ \"{{query}}\"",
+    "clearSearch": "ล้างการค้นหา",
+    "starredBoards": "บอร์ดที่ชื่นชอบ",
+    "workspaceBoards": "บอร์ดพื้นที่ทำงาน",
+    "testBoard": "บอร์ดทดสอบ",
+    "trialPlan": "ทดลองใช้",
+    "noDescription": "ยังไม่มีคำอธิบาย",
+    "tasksProgress": "ความคืบหน้างาน",
+    "memberCount": "{{count}} สมาชิก",
+    "newBoard": "บอร์ดใหม่",
+    "boardName": "ชื่อบอร์ด",
+    "description": "คำอธิบาย",
+    "backgroundColor": "สีพื้นหลัง",
+    "cancel": "ยกเลิก",
+    "createBoard": "สร้างบอร์ด"
   },
   "share": {
     "title": "แชร์บอร์ด",
@@ -940,7 +1001,8 @@
     "noBoards": "ยังไม่มีบอร์ด",
     "createFirst": "สร้างบอร์ดแรกของคุณ",
     "deleteBoard": "ลบบอร์ด",
-    "deleteConfirm": "ลบบอร์ดนี้?",
+    "deleteConfirm": "ลบบอร์ด \"{{name}}\"?",
+    "softDeleteNotice": "บอร์ดนี้สามารถกู้คืนได้โดยผู้ดูแลระบบภายใน 7 วัน",
     "deleteIrreversible": "การดำเนินการนี้ไม่สามารถย้อนกลับได้",
     "editBoard": "แก้ไขบอร์ด",
     "boardNamePlaceholder": "ป้อนชื่อบอร์ด",
@@ -1104,7 +1166,13 @@
       "deleteConfirm": "ลบอิโมจินี้?",
       "maxSize": "PNG, GIF, WebP · สูงสุด 128KB",
       "adminOnly": "เฉพาะผู้ดูแลเท่านั้นที่เพิ่มอิโมจิได้"
-    }
+    },
+    "aiSummarize": "AI สรุป",
+    "aiSummaryTitle": "AI สรุปความคิดเห็น",
+    "aiDecisions": "การตัดสินใจ",
+    "aiOpenQuestions": "คำถามที่ยังไม่ได้ตอบ",
+    "aiActionItems": "รายการดำเนินการ",
+    "checklist": "เช็คลิสต์"
   },
   "activity": {
     "title": "บันทึกกิจกรรม",
@@ -1234,7 +1302,13 @@
       "totalBoards": "บอร์ดทั้งหมด",
       "activeSubscriptions": "สมาชิกที่ใช้งานอยู่",
       "active": "ใช้งาน: {{count}}",
-      "tierDistribution": "การกระจายระดับบอร์ด"
+      "tierDistribution": "การกระจายระดับบอร์ด",
+      "personalBoardMetrics": "บอร์ดส่วนตัว",
+      "personalBoards": "บอร์ดส่วนตัว",
+      "adoptionRate": "อัตราการใช้งาน",
+      "activePersonalBoards": "ใช้งานอยู่ (30 วัน)",
+      "totalDiaryEntries": "จำนวนไดอารี่",
+      "boardTypeDistribution": "การกระจายประเภทบอร์ด"
     },
     "analytics": {
       "title": "การวิเคราะห์ / รายงาน",
@@ -1263,7 +1337,21 @@
       "trialStarted": "เริ่มทดลองใช้",
       "funnelConverted": "แปลงแล้ว",
       "funnelInProgress": "กำลังดำเนินการ",
-      "funnelExpired": "หมดอายุ"
+      "funnelExpired": "หมดอายุ",
+      "pbAdoption": "PB Adoption",
+      "totalPb": "ทั้งหมด {{count}}",
+      "totalPersonalBoards": "Personal Board ทั้งหมด",
+      "adoptionRateLabel": "อัตราการใช้งาน",
+      "pbCreated": "PB สร้าง",
+      "diaryEngagement": "การมีส่วนร่วม Diary",
+      "totalDiaryEntries": "รายการทั้งหมด",
+      "diaryCompletionRate": "อัตราเสร็จสิ้น",
+      "diaryActiveUsers": "ผู้ใช้ที่ใช้งาน",
+      "diaryEntries": "Diary เขียน",
+      "pbConversion": "การแปลง Personal Board",
+      "personalOnly": "Personal เท่านั้น",
+      "personalAndTeam": "Personal + Team",
+      "pbConversionRate": "อัตราการแปลง"
     },
     "system": {
       "title": "การจัดการระบบ",
@@ -1298,7 +1386,20 @@
       "saving": "กำลังบันทึก...",
       "saveChanges": "บันทึกการเปลี่ยนแปลง",
       "stopping": "กำลังหยุด...",
-      "stopNow": "หยุดเดี๋ยวนี้"
+      "stopNow": "หยุดเดี๋ยวนี้",
+      "pbStatus": "สถานะ Personal Board",
+      "pbTotalUsers": "ผู้ใช้ทั้งหมด",
+      "pbWithPb": "มี PB",
+      "pbWithoutPb": "ไม่มี PB",
+      "pbAdoptionRate": "อัตราการใช้งาน",
+      "pbAdopted": "ใช้งานแล้ว",
+      "pbRemaining": "ยังไม่ใช้งาน",
+      "bulkCreateBtn": "สร้าง PB ให้ {{count}} ผู้ใช้",
+      "bulkCreating": "กำลังสร้าง...",
+      "bulkCreateTitle": "สร้าง Personal Board จำนวนมาก",
+      "bulkCreateConfirm": "สร้าง Personal Board ให้ผู้ใช้ {{count}} คนที่ยังไม่มี?",
+      "bulkCreateSuccess": "สร้างแล้ว {{created}} (ล้มเหลว: {{failed}}, ทั้งหมด: {{total}})",
+      "bulkCreateFailed": "การสร้างจำนวนมากล้มเหลว"
     },
     "subscriptions": {
       "title": "การจัดการสมาชิกสมัครสมาชิก",
@@ -1325,7 +1426,20 @@
       "tasks": "Task",
       "createdAt": "สร้างเมื่อ",
       "view": "ดู",
-      "viewBoard": "ดูบอร์ด"
+      "viewBoard": "ดูบอร์ด",
+      "type": "ประเภท",
+      "allTypes": "ทุกประเภท",
+      "typeTeam": "ทีม",
+      "typePersonal": "ส่วนตัว",
+      "activeBoards": "บอร์ดที่ใช้งาน",
+      "deletedBoards": "บอร์ดที่ถูกลบ",
+      "noDeletedBoards": "ไม่มีบอร์ดที่ถูกลบ",
+      "noDeletedBoardsDesc": "บอร์ดที่ถูกลบจะแสดงที่นี่เป็นเวลา 7 วันก่อนถูกลบถาวร",
+      "deletedAt": "วันที่ลบ",
+      "daysLeft": "อีก {{days}} วันจะถูกลบถาวร",
+      "restore": "กู้คืน",
+      "restoreSuccess": "กู้คืนบอร์ดแล้ว",
+      "restoreFailed": "กู้คืนบอร์ดไม่สำเร็จ"
     },
     "boardDetail": {
       "title": "รายละเอียดบอร์ด",
@@ -1359,6 +1473,7 @@
       "dangerZone": "โซนอันตราย",
       "deleteBoard": "ลบบอร์ด",
       "deleteWarning": "ข้อมูลทั้งหมดที่เกี่ยวข้องกับบอร์ดนี้จะถูกลบ การดำเนินการนี้ไม่สามารถย้อนกลับได้",
+      "softDeleteWarning": "บอร์ดจะถูกลบแบบซอฟต์ สามารถกู้คืนได้ภายใน 7 วัน",
       "deleting": "กำลังลบ...",
       "editName": "แก้ไขชื่อบอร์ด",
       "nameUpdateSuccess": "อัปเดตชื่อบอร์ดแล้ว",
@@ -1378,7 +1493,12 @@
       "seatCount": "จำนวนที่นั่ง",
       "seatCountUpdateFailed": "เปลี่ยนจำนวนที่นั่งไม่สำเร็จ",
       "seatCountUpdateSuccess": "จำนวนที่นั่งถูกเปลี่ยนเป็น {{count}} แล้ว",
-      "updateSeatCount": "อัปเดตจำนวนที่นั่ง"
+      "updateSeatCount": "อัปเดตจำนวนที่นั่ง",
+      "personalActivity": "กิจกรรมส่วนตัว",
+      "diaryEntries": "ไดอารี่",
+      "completionRate": "{{rate}}% เสร็จสิ้น",
+      "events": "กิจกรรม",
+      "lastActivity": "กิจกรรมล่าสุด"
     },
     "users": {
       "title": "การจัดการผู้ใช้",
@@ -1568,12 +1688,22 @@
     "enterName": "กรุณากรอกชื่อของคุณ",
     "profileSaved": "บันทึกโปรไฟล์สำเร็จ",
     "profileSaveFailed": "บันทึกโปรไฟล์ไม่สำเร็จ",
+    "profileImageDesc": "เปลี่ยนรูปโปรไฟล์",
+    "profileImageHint": "JPG, PNG, GIF, WebP (สูงสุด 5MB)",
+    "removeProfileImage": "ลบรูปโปรไฟล์",
+    "imageTypeError": "รูปแบบไฟล์ไม่รองรับ (รองรับเฉพาะ JPG, PNG, GIF, WebP)",
+    "imageSizeError": "ขนาดไฟล์เกิน 5MB",
+    "imageUploadFailed": "อัปโหลดรูปโปรไฟล์ล้มเหลว",
+    "imageDeleteFailed": "ลบรูปโปรไฟล์ล้มเหลว",
     "theme": "ธีม",
     "themeDesc": "เปลี่ยนธีมการแสดงผล",
     "darkMode": "โหมดมืด",
     "language": "ภาษา",
     "languageDesc": "เปลี่ยนภาษาการแสดงผล",
     "selectLanguage": "เลือกภาษา",
+    "holidayCountry": "ประเทศวันหยุด",
+    "holidayCountryDesc": "เลือกประเทศเพื่อแสดงวันหยุดบนปฏิทิน",
+    "holidayOff": "ปิด",
     "changePassword": "เปลี่ยนรหัสผ่าน",
     "changePasswordDesc": "เปลี่ยนรหัสผ่านเพื่อความปลอดภัยของบัญชี",
     "currentPasswordLabel": "รหัสผ่านปัจจุบัน",
@@ -1705,7 +1835,8 @@
     "unlinked": "(ไม่ได้เชื่อมโยง)",
     "cannotMove": "ไม่สามารถย้ายได้",
     "cannotChange": "ไม่สามารถเปลี่ยนได้",
-    "willSplit": "แยกส่วน"
+    "willSplit": "แยกส่วน",
+    "nextDay": "วันถัดไป"
   },
   "scheduleDetail": {
     "title": "รายละเอียด Time Block",
@@ -1723,11 +1854,12 @@
     "taskChecklist": "เช็คลิสต์ TASK",
     "completedCount": "{{completed}}/{{total}} เสร็จ",
     "noChecklist": "ไม่มีรายการเช็คลิสต์",
-    "current": "ปัจจุบัน"
+    "current": "ปัจจุบัน",
+    "nextDay": "วันถัดไป"
   },
   "emptyBoard": {
     "heading": "เริ่มต้นกับบอร์ดของคุณ",
-    "subheading": "จัดการโปรเจกต์อย่างเป็นระบบใน 3 ขั้นตอน",
+    "subheading": "จัดการโปรเจกต์อย่างเป็นระบบใน 3 ขั้นตอนและติดตามความคืบหน้า",
     "createFirstFeature": "สร้าง Feature แรกของคุณ",
     "step1Title": "สร้าง Feature",
     "step1Desc": "Feature คือหน่วยฟังก์ชันการทำงาน กดปุ่มด้านล่างเพื่อสร้าง Feature แรกของคุณ",
@@ -1750,6 +1882,7 @@
     "addTag": "เพิ่มแท็ก",
     "newTag": "แท็กใหม่",
     "subtaskList": "รายการงานย่อย",
+    "onboardingStep2": "เพิ่มงานย่อยกันเลย!",
     "addSubtaskGuide": "เพิ่มงานย่อยด้านล่าง",
     "subtaskDescription": "งานย่อยจะแสดงเป็นการ์ดบน Task Block ของบอร์ด Kanban และคุณสามารถจัดการความคืบหน้าได้โดยการลากระหว่าง Block",
     "newSubtaskPlaceholder": "เพิ่มงานย่อยใหม่...",
@@ -1757,7 +1890,27 @@
     "saveChangesDesc": "คุณมีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก การปิดโดยไม่บันทึกจะทำให้การเปลี่ยนแปลงหายไป",
     "discard": "ไม่บันทึก",
     "deleteTitle": "ลบ Feature นี้?",
-    "deleteDesc": "Feature นี้และงานย่อยทั้งหมดจะถูกลบ การดำเนินการนี้ไม่สามารถย้อนกลับได้"
+    "deleteDesc": "Feature นี้และงานย่อยทั้งหมดจะถูกลบ การดำเนินการนี้ไม่สามารถย้อนกลับได้",
+    "aiDecompose": "AI แยกงาน",
+    "aiDecomposeTitle": "AI แยกงาน",
+    "aiAnalyzing": "AI กำลังวิเคราะห์ฟีเจอร์...",
+    "aiError": "เกิดข้อผิดพลาด กรุณาลองอีกครั้ง",
+    "aiRetry": "ลองอีกครั้ง",
+    "aiNoSuggestions": "ไม่มีงานที่จะสร้าง",
+    "aiSelectAll": "เลือกทั้งหมด",
+    "aiDeselectAll": "ยกเลิกทั้งหมด",
+    "aiSelectedCount": "เลือก {{count}} รายการ",
+    "aiAlreadyExists": "มีอยู่แล้ว",
+    "aiApply": "นำไปใช้",
+    "aiApplying": "กำลังนำไปใช้...",
+    "aiApplySuccess": "สร้าง {{tasks}} งาน และ {{checklists}} เช็คลิสต์แล้ว",
+    "aiApplyDone": "เสร็จ",
+    "aiConfirmTitle": "AI แนะนำงาน",
+    "aiConfirmDesc": "AI จะแนะนำงานย่อยตามข้อมูลฟีเจอร์ด้านล่าง",
+    "aiConfirmFeatureTitle": "หัวข้อ",
+    "aiConfirmFeatureDesc": "คำอธิบาย",
+    "aiConfirmNoDesc": "ไม่มีคำอธิบาย การเพิ่มคำอธิบายจะช่วยให้คำแนะนำแม่นยำขึ้น",
+    "aiConfirmStart": "รับคำแนะนำ"
   },
   "weeklySchedule": {
     "day": "วัน",
@@ -2394,6 +2547,113 @@
       "monthly_usage": "การใช้รายเดือน",
       "purchased_remaining": "ซื้อเพิ่มที่เหลือ",
       "total_remaining": "รวมที่เหลือ"
+    }
+  },
+  "personal": {
+    "tabs": {
+      "overview": "ภาพรวม",
+      "todo": "สิ่งที่ต้องทำ",
+      "schedule": "กำหนดการ",
+      "calendar": "ปฏิทิน",
+      "diary": "ไดอารี่ AI"
+    },
+    "overview": {
+      "noEvents": "ไม่มีกิจกรรมวันนี้",
+      "addSchedule": "เพิ่มกำหนดการ",
+      "noDeadlines": "ไม่มีกำหนดส่งที่จะถึง",
+      "addDeadline": "เพิ่มงาน"
+    },
+    "calendar": {
+      "task": "งาน",
+      "event": "ปฏิทิน",
+      "today": "วันนี้",
+      "addEvent": "เพิ่มปฏิทิน",
+      "tasksCount": "{{count}} งาน",
+      "eventsCount": "{{count}} ปฏิทิน",
+      "taskDeadline": "กำหนดเสร็จงาน",
+      "overdue": "เกินกำหนด",
+      "recurring": "ซ้ำ",
+      "noItems": "ไม่มีรายการสำหรับวันนี้",
+      "newEvent": "ปฏิทินใหม่",
+      "date": "วันที่",
+      "title": "ชื่อเรื่อง",
+      "eventTitle": "ชื่อปฏิทิน",
+      "description": "คำอธิบาย",
+      "optionalDesc": "คำอธิบายเพิ่มเติม",
+      "allDay": "ตลอดวัน",
+      "start": "เริ่มต้น",
+      "end": "สิ้นสุด",
+      "color": "สี",
+      "thisWeek": "สัปดาห์นี้",
+      "holidayCountry": "ประเทศวันหยุด",
+      "holidayOff": "ปิด",
+      "tapToView": "แตะวันที่เพื่อดูหรือเพิ่มกิจกรรม",
+      "addSchedule": "เพิ่มปฏิทิน",
+      "dateRange": "ช่วงวันที่"
+    },
+    "habit": {
+      "habits": "นิสัย",
+      "newHabit": "นิสัยใหม่",
+      "editHabit": "แก้ไขนิสัย",
+      "today": "วันนี้",
+      "activeStreaks": "สถิติต่อเนื่อง",
+      "combinedDays": "วันรวม",
+      "bestStreak": "สถิติที่ดีที่สุด",
+      "days": "วัน",
+      "totalHabits": "นิสัยทั้งหมด",
+      "tracking": "กำลังติดตาม",
+      "todaysProgress": "ความคืบหน้าวันนี้",
+      "allHabits": "นิสัยทั้งหมด",
+      "startBuilding": "เริ่มสร้างนิสัย",
+      "startBuildingDesc": "ติดตามกิจวัตรประจำวัน สร้างสถิติต่อเนื่อง และรักษาเป้าหมายของคุณ",
+      "addFirstHabit": "เพิ่มนิสัยแรก",
+      "bestLabel": "สูงสุด: {{days}} วัน",
+      "edit": "แก้ไข",
+      "delete": "ลบ",
+      "habitName": "ชื่อนิสัย",
+      "habitPlaceholder": "เช่น วิ่งเช้า, อ่านหนังสือ 10 หน้า",
+      "frequency": "ความถี่",
+      "everyDay": "ทุกวัน",
+      "weekdays": "วันธรรมดา",
+      "weekends": "วันหยุดสุดสัปดาห์",
+      "custom": "กำหนดเอง",
+      "repeatOn": "ทำซ้ำในวัน",
+      "selectDay": "เลือกอย่างน้อยหนึ่งวัน",
+      "moreOptions": "ตัวเลือกเพิ่มเติม",
+      "lessOptions": "ซ่อน",
+      "icon": "ไอคอน",
+      "color": "สี",
+      "goalType": "ประเภทเป้าหมาย",
+      "checkOff": "เช็ค",
+      "count": "จำนวนครั้ง",
+      "target": "เป้าหมาย",
+      "unit": "หน่วย",
+      "unitPlaceholder": "เช่น แก้ว, หน้า, กม.",
+      "description": "คำอธิบาย",
+      "descPlaceholder": "เหตุผลที่นิสัยนี้สำคัญ",
+      "addHabit": "เพิ่มนิสัย",
+      "saveChanges": "บันทึก",
+      "deleteHabit": "ลบนิสัย",
+      "deleteWarning": "การดำเนินการนี้ไม่สามารถย้อนกลับได้",
+      "deleteConfirm": "คุณแน่ใจหรือไม่ว่าต้องการลบ \"{{name}}\"? ข้อมูลสถิติและประวัติทั้งหมดจะถูกลบถาวร",
+      "importance": "ความสำคัญ",
+      "important": "สำคัญ",
+      "normal": "ปกติ",
+      "cancel": "ยกเลิก",
+      "checkInTitle": "ทำนิสัยสำเร็จ",
+      "checkInSubtitle": "ยืนยันการทำนิสัยวันนี้?",
+      "checkInConfirm": "ทำ \"{{name}}\" สำเร็จวันนี้?",
+      "checkInStreak": "จะครบ {{count}} วันติดต่อกัน!",
+      "checkInComplete": "สำเร็จ"
+    },
+    "diary": {
+      "completionSuggestion": "ดูเหมือนเราคุยกันเยอะแล้ววันนี้ เขียนเป็นไดอารี่กันไหม? ✨",
+      "continueChat": "คุยต่อ"
+    },
+    "schedule": {
+      "overlapWarning": "ซ้อนทับกับ {{count}} กิจกรรม",
+      "nextDay": "วันถัดไป",
+      "prevDay": "จากวันก่อน"
     }
   }
 }

@@ -1,11 +1,5 @@
 import { useState, useEffect } from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from './ui/dialog';
+import { MotionModal } from './ui/MotionModal';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import { Button } from './ui/button';
@@ -49,19 +43,17 @@ export function EditBoardModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="bg-bridge-obsidian text-foreground border-white/20 max-w-md">
-        <DialogHeader>
-          <DialogTitle className="text-foreground font-serif">Edit Board</DialogTitle>
-          <DialogDescription className="text-slate-400">
-            Update your board information
-          </DialogDescription>
-        </DialogHeader>
+    <MotionModal open={open} onClose={handleClose}>
+        <div className="p-6">
+        <div className="mb-4">
+          <h2 className="text-foreground font-jakarta font-semibold text-lg">Edit Board</h2>
+          <p className="text-slate-400 text-sm">Update your board information</p>
+        </div>
 
         <div className="space-y-6 py-4">
           {/* 보드 이름 */}
           <div className="space-y-2">
-            <Label htmlFor="edit-board-name" className="text-slate-300">
+            <Label htmlFor="edit-board-name" className="text-muted-foreground">
               Board name <span className="text-red-400">*</span>
             </Label>
             <Input
@@ -69,7 +61,7 @@ export function EditBoardModal({
               value={boardName}
               onChange={(e) => setBoardName(e.target.value)}
               placeholder="e.g., Project Management"
-              className="bg-white/5 border-white/20 text-foreground placeholder:text-slate-400 focus:border-bridge-accent focus:ring-bridge-accent/50"
+              className="bg-bridge-dark/50 border-foreground/10 text-foreground placeholder:text-slate-400 focus:border-bridge-accent focus:ring-bridge-accent/50"
               onKeyDown={(e) => {
                 if (e.nativeEvent.isComposing) return;
                 if (e.key === 'Enter' && !e.shiftKey) {
@@ -81,7 +73,7 @@ export function EditBoardModal({
 
           {/* 설명 */}
           <div className="space-y-2">
-            <Label htmlFor="edit-board-description" className="text-slate-300">
+            <Label htmlFor="edit-board-description" className="text-muted-foreground">
               Description
             </Label>
             <Textarea
@@ -89,18 +81,18 @@ export function EditBoardModal({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Brief description of the board (optional)"
-              className="bg-white/5 border-white/20 text-foreground placeholder:text-slate-400 focus:border-bridge-accent focus:ring-bridge-accent/50 resize-none"
+              className="bg-bridge-dark/50 border-foreground/10 text-foreground placeholder:text-slate-400 focus:border-bridge-accent focus:ring-bridge-accent/50 resize-none"
               rows={3}
             />
           </div>
         </div>
 
         {/* 액션 버튼 */}
-        <div className="flex justify-end gap-2 pt-4 border-t border-white/20">
+        <div className="flex justify-end gap-2 pt-4 border-t border-foreground/10">
           <Button
             variant="outline"
             onClick={handleClose}
-            className="border-white/20 text-slate-300 hover:bg-white/5 hover:text-foreground"
+            className="border-foreground/10 text-muted-foreground hover:bg-bridge-dark/50 hover:text-foreground"
           >
             Cancel
           </Button>
@@ -112,7 +104,7 @@ export function EditBoardModal({
             Save Changes
           </Button>
         </div>
-      </DialogContent>
-    </Dialog>
+        </div>
+    </MotionModal>
   );
 }

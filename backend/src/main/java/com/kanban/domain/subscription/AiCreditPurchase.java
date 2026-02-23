@@ -19,7 +19,7 @@ public class AiCreditPurchase {
     @Column(name = "id", length = 36)
     private String id;
 
-    @Column(name = "board_id", nullable = false, length = 36)
+    @Column(name = "board_id", length = 36)
     private String boardId;
 
     @Column(name = "user_id", nullable = false, length = 36)

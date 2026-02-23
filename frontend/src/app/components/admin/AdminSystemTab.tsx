@@ -27,13 +27,12 @@ export function AdminSystemTab() {
     try {
       setIsLoading(true);
       setError(null);
-      const data = await adminService.getMaintenanceStatus();
-      console.log('🔧 [AdminSystemTab] Maintenance status loaded:', data);
-      setMaintenance(data);
-      setMessage(data.message || '');
-      setEstimatedEndAt(toDateTimeLocalValue(data.estimated_end_at));
+      const maintenanceData = await adminService.getMaintenanceStatus();
+      setMaintenance(maintenanceData);
+      setMessage(maintenanceData.message || '');
+      setEstimatedEndAt(toDateTimeLocalValue(maintenanceData.estimated_end_at));
     } catch (err) {
-      console.error('Failed to load maintenance status:', err);
+      console.error('Failed to load system status:', err);
       setError(t('admin.system.loadFailed'));
     } finally {
       setIsLoading(false);
@@ -164,12 +163,12 @@ export function AdminSystemTab() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white mb-2">{t('admin.system.title')}</h2>
+          <h2 className="text-2xl font-bold text-foreground mb-2">{t('admin.system.title')}</h2>
           <p className="text-slate-400">{t('admin.system.subtitle')}</p>
         </div>
         <button
           onClick={loadStatus}
-          className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 text-slate-300 rounded-xl hover:bg-white/10 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-foreground/5 border border-foreground/10 text-muted-foreground rounded-xl hover:bg-foreground/10 transition-colors"
         >
           <RefreshCw className="h-4 w-4" />
           {t('admin.common.refresh')}
@@ -209,7 +208,7 @@ export function AdminSystemTab() {
         {/* Progress Bar (점검 중일 때만) */}
         {isActive && (
           <div className="mt-4">
-            <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+            <div className="h-2 bg-foreground/10 rounded-full overflow-hidden">
               <div
                 className="h-full bg-gradient-to-r from-red-500 to-orange-500 rounded-full transition-all duration-1000"
                 style={{ width: `${progress}%` }}
@@ -221,10 +220,10 @@ export function AdminSystemTab() {
 
       {/* 점검 중이 아닐 때: 점검 시작 폼 */}
       {!isActive && (
-        <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-4 md:p-6">
+        <div className="bg-bridge-obsidian rounded-2xl border border-foreground/5 p-4 md:p-6">
           <div className="flex items-center gap-2 mb-6">
             <Play className="h-5 w-5 text-bridge-accent" />
-            <h3 className="text-lg font-bold text-white">{t('admin.system.startMaintenance')}</h3>
+            <h3 className="text-lg font-bold text-foreground">{t('admin.system.startMaintenance')}</h3>
           </div>
 
           <div className="space-y-5">
@@ -237,7 +236,7 @@ export function AdminSystemTab() {
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 rows={2}
-                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all resize-none"
+                className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-foreground placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all resize-none"
                 placeholder={t('admin.system.maintenancePlaceholder')}
               />
             </div>
@@ -252,7 +251,7 @@ export function AdminSystemTab() {
                 type="datetime-local"
                 value={estimatedEndAt}
                 onChange={(e) => setEstimatedEndAt(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+                className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
               />
             </div>
 
@@ -271,31 +270,31 @@ export function AdminSystemTab() {
 
       {/* 점검 중일 때: 관리 패널 */}
       {isActive && (
-        <div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-4 md:p-6">
+        <div className="bg-bridge-obsidian rounded-2xl border border-foreground/5 p-4 md:p-6">
           <div className="flex items-center gap-2 mb-6">
             <Timer className="h-5 w-5 text-orange-400" />
-            <h3 className="text-lg font-bold text-white">{t('admin.system.manageMaintenance')}</h3>
+            <h3 className="text-lg font-bold text-foreground">{t('admin.system.manageMaintenance')}</h3>
           </div>
 
           <div className="space-y-5">
             {/* Current Info */}
-            <div className="p-4 bg-white/5 rounded-xl space-y-2">
+            <div className="p-4 bg-foreground/5 rounded-xl space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-slate-400">{t('admin.system.startTime')}</span>
-                <span className="text-white">
+                <span className="text-foreground">
                   {formatDateTime(maintenance.started_at)}
                 </span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-slate-400">{t('admin.system.estimatedEnd')}</span>
-                <span className="text-white">
+                <span className="text-foreground">
                   {formatDateTime(maintenance.estimated_end_at)}
                 </span>
               </div>
               {maintenance.message && (
-                <div className="pt-2 border-t border-white/10">
+                <div className="pt-2 border-t border-foreground/10">
                   <span className="text-slate-400 text-sm">{t('admin.system.messageLabel')}: </span>
-                  <span className="text-white text-sm">{maintenance.message}</span>
+                  <span className="text-foreground text-sm">{maintenance.message}</span>
                 </div>
               )}
             </div>
@@ -310,7 +309,7 @@ export function AdminSystemTab() {
                 type="datetime-local"
                 value={estimatedEndAt}
                 onChange={(e) => setEstimatedEndAt(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+                className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
               />
             </div>
 
@@ -323,7 +322,7 @@ export function AdminSystemTab() {
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 rows={2}
-                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all resize-none"
+                className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-foreground placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all resize-none"
                 placeholder={t('admin.system.maintenancePlaceholder')}
               />
             </div>
@@ -336,7 +335,7 @@ export function AdminSystemTab() {
                 className={`py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2 ${
                   hasChanges
                     ? 'bg-orange-500 text-white hover:bg-orange-600'
-                    : 'bg-white/5 text-slate-500 cursor-not-allowed'
+                    : 'bg-foreground/5 text-slate-500 cursor-not-allowed'
                 } disabled:opacity-50`}
               >
                 <Timer className="h-4 w-4" />

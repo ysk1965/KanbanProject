@@ -52,6 +52,7 @@ public class ScheduleService {
 
         Board board = boardRepository.findById(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        validateScheduleAccess(board);
 
         Map<String, User> userCache = new java.util.HashMap<>();
         List<String> targetAssigneeIds = assigneeIds;
@@ -101,6 +102,7 @@ public class ScheduleService {
 
         Board board = boardRepository.findById(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        validateScheduleAccess(board);
 
         // 대상 담당자 목록
         Map<String, User> userCache = new java.util.HashMap<>();
@@ -171,6 +173,7 @@ public class ScheduleService {
 
         Board board = boardRepository.findById(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        validateScheduleAccess(board);
 
         User assignee = userRepository.findById(request.getAssigneeId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
@@ -215,6 +218,7 @@ public class ScheduleService {
 
         Board board = boardRepository.findById(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        validateScheduleAccess(board);
 
         User assignee = userRepository.findById(request.getAssigneeId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
@@ -359,5 +363,11 @@ public class ScheduleService {
         return blocks.stream()
                 .map(ScheduleResponse.BlockDetail::of)
                 .collect(Collectors.toList());
+    }
+
+    private void validateScheduleAccess(Board board) {
+        if (!board.canAccessSchedule()) {
+            throw new BusinessException(ErrorCode.PREMIUM_FEATURE_REQUIRED);
+        }
     }
 }

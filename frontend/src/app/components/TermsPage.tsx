@@ -6,18 +6,18 @@ import { ArrowLeft, FileText } from 'lucide-react';
 export function TermsPage() {
   const { t } = useTranslation();
   return (
-    <div className="min-h-screen w-full bg-bridge-dark text-white">
+    <div className="min-h-screen w-full bg-bridge-dark text-foreground">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-bridge-obsidian/80 backdrop-blur-xl border-b border-white/15">
+      <header className="sticky top-0 z-50 bg-bridge-obsidian/80 backdrop-blur-xl border-b border-bridge-border safe-top">
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
           <Link
             to="/"
-            className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors"
+            className="flex items-center gap-2 text-slate-400 hover:text-foreground transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />
             <span className="font-medium">{t('terms.backToHome')}</span>
           </Link>
-          <Link to="/" className="text-xl font-bold text-white">
+          <Link to="/" className="text-xl font-bold text-foreground">
             BRIDGE SPOTS
           </Link>
         </div>
@@ -31,20 +31,20 @@ export function TermsPage() {
         >
           {/* Title */}
           <div className="flex items-center gap-4 mb-8">
-            <div className="w-14 h-14 bg-gradient-to-br from-[#6366F1] to-[#2DD4BF] rounded-2xl flex items-center justify-center">
+            <div className="w-14 h-14 bg-gradient-to-br from-bridge-accent to-bridge-secondary rounded-2xl flex items-center justify-center">
               <FileText className="w-7 h-7 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-white">{t('terms.title')}</h1>
+              <h1 className="text-3xl font-bold text-foreground">{t('terms.title')}</h1>
               <p className="text-slate-400 text-sm mt-1">{t('terms.lastModified')}</p>
             </div>
           </div>
 
           {/* Content Box */}
-          <div className="bg-bridge-obsidian rounded-2xl border border-white/15 p-8 space-y-8">
+          <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-8 space-y-8">
             {/* Section 1 */}
             <section>
-              <h2 className="text-xl font-bold text-white mb-4">{t('terms.article1Title')}</h2>
+              <h2 className="text-xl font-bold text-foreground mb-4">{t('terms.article1Title')}</h2>
               <p className="text-slate-400 leading-relaxed">
                 {t('terms.article1Content')}
               </p>
@@ -52,7 +52,7 @@ export function TermsPage() {
 
             {/* Section 2 */}
             <section>
-              <h2 className="text-xl font-bold text-white mb-4">{t('terms.article2Title')}</h2>
+              <h2 className="text-xl font-bold text-foreground mb-4">{t('terms.article2Title')}</h2>
               <div className="text-slate-400 leading-relaxed space-y-3">
                 <p>{t('terms.article2Item1')}</p>
                 <p>{t('terms.article2Item2')}</p>
@@ -62,7 +62,7 @@ export function TermsPage() {
 
             {/* Section 3 */}
             <section>
-              <h2 className="text-xl font-bold text-white mb-4">{t('terms.article3Title')}</h2>
+              <h2 className="text-xl font-bold text-foreground mb-4">{t('terms.article3Title')}</h2>
               <div className="text-slate-400 leading-relaxed space-y-3">
                 <p>{t('terms.article3Item1')}</p>
                 <p>{t('terms.article3Item2')}</p>
@@ -72,7 +72,7 @@ export function TermsPage() {
 
             {/* Section 4 */}
             <section>
-              <h2 className="text-xl font-bold text-white mb-4">{t('terms.article4Title')}</h2>
+              <h2 className="text-xl font-bold text-foreground mb-4">{t('terms.article4Title')}</h2>
               <div className="text-slate-400 leading-relaxed space-y-3">
                 <p>{t('terms.article4Item1')}</p>
                 <p>{t('terms.article4Item2')}</p>
@@ -82,7 +82,7 @@ export function TermsPage() {
 
             {/* Section 5 */}
             <section>
-              <h2 className="text-xl font-bold text-white mb-4">{t('terms.article5Title')}</h2>
+              <h2 className="text-xl font-bold text-foreground mb-4">{t('terms.article5Title')}</h2>
               <div className="text-slate-400 leading-relaxed space-y-3">
                 <p>{t('terms.article5Item1')}</p>
                 <p>{t('terms.article5Item2')}</p>
@@ -92,7 +92,7 @@ export function TermsPage() {
 
             {/* Section 6 */}
             <section>
-              <h2 className="text-xl font-bold text-white mb-4">{t('terms.article6Title')}</h2>
+              <h2 className="text-xl font-bold text-foreground mb-4">{t('terms.article6Title')}</h2>
               <div className="text-slate-400 leading-relaxed space-y-3">
                 <p>{t('terms.article6Content')}</p>
                 <ul className="list-disc list-inside ml-4 space-y-2">
@@ -106,7 +106,7 @@ export function TermsPage() {
 
             {/* Section 7 */}
             <section>
-              <h2 className="text-xl font-bold text-white mb-4">{t('terms.article7Title')}</h2>
+              <h2 className="text-xl font-bold text-foreground mb-4">{t('terms.article7Title')}</h2>
               <div className="text-slate-400 leading-relaxed space-y-3">
                 <p>{t('terms.article7Item1')}</p>
                 <p>{t('terms.article7Item2')}</p>
@@ -115,7 +115,7 @@ export function TermsPage() {
 
             {/* Section 8 */}
             <section>
-              <h2 className="text-xl font-bold text-white mb-4">{t('terms.article8Title')}</h2>
+              <h2 className="text-xl font-bold text-foreground mb-4">{t('terms.article8Title')}</h2>
               <div className="text-slate-400 leading-relaxed space-y-3">
                 <p>{t('terms.article8Item1')}</p>
                 <p>{t('terms.article8Item2')}</p>
@@ -134,7 +134,7 @@ export function TermsPage() {
           <div className="mt-8 flex items-center justify-center gap-6 text-sm">
             <Link
               to="/privacy"
-              className="text-slate-400 hover:text-white transition-colors"
+              className="text-slate-400 hover:text-foreground transition-colors"
             >
               {t('terms.privacyLink')}
             </Link>

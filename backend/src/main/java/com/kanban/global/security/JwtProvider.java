@@ -6,16 +6,20 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Date;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class JwtProvider {
+
+    private static final String INSECURE_DEFAULT_PREFIX = "your-super-secret";
 
     @Value("${jwt.secret}")
     private String secretKeyString;
@@ -26,22 +30,40 @@ public class JwtProvider {
     @Value("${jwt.refresh-expiration}")
     private long refreshExpiration;
 
+    private final Environment environment;
+
     private SecretKey secretKey;
 
     @PostConstruct
     public void init() {
+        String[] activeProfiles = environment.getActiveProfiles();
+        boolean isProduction = Arrays.stream(activeProfiles)
+                .anyMatch(p -> p.equals("prod") || p.equals("dev"));
+
+        if (isProduction && secretKeyString.startsWith(INSECURE_DEFAULT_PREFIX)) {
+            throw new IllegalStateException(
+                    "JWT secret is using insecure default value. Set JWT_SECRET environment variable for production.");
+        }
+
+        if (secretKeyString.startsWith(INSECURE_DEFAULT_PREFIX)) {
+            log.warn("JWT secret is using insecure default value. This is only acceptable for local development.");
+        }
+
         this.secretKey = Keys.hmacShaKeyFor(secretKeyString.getBytes(StandardCharsets.UTF_8));
     }
 
+    public static final String TOKEN_TYPE_ACCESS = "access";
+    public static final String TOKEN_TYPE_REFRESH = "refresh";
+
     public String createAccessToken(String userId, String email, String systemRole) {
-        return createToken(userId, email, systemRole, accessExpiration);
+        return createToken(userId, email, systemRole, accessExpiration, TOKEN_TYPE_ACCESS);
     }
 
     public String createRefreshToken(String userId, String email, String systemRole) {
-        return createToken(userId, email, systemRole, refreshExpiration);
+        return createToken(userId, email, systemRole, refreshExpiration, TOKEN_TYPE_REFRESH);
     }
 
-    private String createToken(String userId, String email, String systemRole, long expiration) {
+    private String createToken(String userId, String email, String systemRole, long expiration, String tokenType) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + expiration);
 
@@ -49,6 +71,7 @@ public class JwtProvider {
                 .subject(userId)
                 .claim("email", email)
                 .claim("systemRole", systemRole)
+                .claim("type", tokenType)
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(secretKey)
@@ -66,6 +89,35 @@ public class JwtProvider {
     public String getSystemRoleFromToken(String token) {
         String role = getClaims(token).get("systemRole", String.class);
         return role != null ? role : "USER";
+    }
+
+    public String getTokenType(String token) {
+        String type = getClaims(token).get("type", String.class);
+        return type != null ? type : TOKEN_TYPE_ACCESS;
+    }
+
+    public boolean validateAccessToken(String token) {
+        if (!validateToken(token)) {
+            return false;
+        }
+        String type = getTokenType(token);
+        if (!TOKEN_TYPE_ACCESS.equals(type)) {
+            log.warn("Expected access token but got: {}", type);
+            return false;
+        }
+        return true;
+    }
+
+    public boolean validateRefreshToken(String token) {
+        if (!validateToken(token)) {
+            return false;
+        }
+        String type = getTokenType(token);
+        if (!TOKEN_TYPE_REFRESH.equals(type)) {
+            log.warn("Expected refresh token but got: {}", type);
+            return false;
+        }
+        return true;
     }
 
     public boolean validateToken(String token) {

@@ -264,7 +264,7 @@ export function NoteAIInlineSection({
   const renderFeatureLabel = (feature: AIFeatureSuggestion) => {
     if (feature.type === 'EXISTING') {
       return (
-        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 bg-white/5 px-1.5 py-0.5 rounded">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 bg-foreground/5 px-1.5 py-0.5 rounded">
           {t('notes.aiExistingFeature')}
         </span>
       );
@@ -280,7 +280,7 @@ export function NoteAIInlineSection({
   // Loading state
   if (loading) {
     return (
-      <div className="mt-4 bg-white/[0.02] rounded-xl border border-white/5 p-6">
+      <div className="mt-4 bg-white/[0.02] rounded-xl border border-foreground/5 p-6">
         <div className="flex flex-col items-center justify-center py-8 gap-3">
           <div className="relative">
             <Sparkles className="h-8 w-8 text-bridge-accent animate-pulse" />
@@ -295,19 +295,19 @@ export function NoteAIInlineSection({
   // Error state
   if (error && !suggestions) {
     return (
-      <div className="mt-4 bg-white/[0.02] rounded-xl border border-white/5 p-6">
+      <div className="mt-4 bg-white/[0.02] rounded-xl border border-foreground/5 p-6">
         <div className="flex flex-col items-center justify-center py-6 gap-3">
           <p className="text-sm text-red-400">{error}</p>
           <div className="flex gap-2">
             <button
               onClick={onRetry}
-              className="px-4 py-2 text-sm font-medium text-white bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all"
+              className="px-4 py-2 text-sm font-medium text-foreground bg-foreground/5 border border-foreground/10 rounded-xl hover:bg-foreground/10 transition-all"
             >
               {t('notes.aiRetry')}
             </button>
             <button
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-slate-400 hover:text-white transition-colors"
+              className="px-4 py-2 text-sm font-medium text-slate-400 hover:text-foreground transition-colors"
             >
               {t('notes.aiClose')}
             </button>
@@ -331,7 +331,7 @@ export function NoteAIInlineSection({
         </div>
         <button
           onClick={onClose}
-          className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
+          className="text-xs text-slate-500 hover:text-muted-foreground transition-colors"
         >
           {t('notes.aiClose')}
         </button>
@@ -370,11 +370,11 @@ export function NoteAIInlineSection({
                 className={`rounded-xl border p-4 ${
                   topic.important
                     ? 'bg-amber-500/5 border-amber-500/20'
-                    : 'bg-white/[0.02] border-white/5'
+                    : 'bg-white/[0.02] border-foreground/5'
                 }`}
               >
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="text-sm font-medium text-white">{topic.topic}</span>
+                  <span className="text-sm font-medium text-foreground">{topic.topic}</span>
                   {topic.important && (
                     <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded">
                       {t('notes.aiImportant')}
@@ -389,7 +389,7 @@ export function NoteAIInlineSection({
                         <span className="text-[10px] font-bold uppercase tracking-widest text-green-400">{t('notes.aiDecisions', 'Decisions')}</span>
                         <ul className="mt-1 space-y-0.5">
                           {topic.decisions.map((d, j) => (
-                            <li key={j} className="flex items-start gap-2 text-sm text-slate-300">
+                            <li key={j} className="flex items-start gap-2 text-sm text-muted-foreground">
                               <span className="text-green-400 mt-1 text-xs">✓</span>
                               <span className="font-light">{d}</span>
                             </li>
@@ -402,7 +402,7 @@ export function NoteAIInlineSection({
                         <span className="text-[10px] font-bold uppercase tracking-widest text-blue-400">{t('notes.aiDiscussions', 'Discussions')}</span>
                         <ul className="mt-1 space-y-0.5">
                           {topic.discussions.map((d, j) => (
-                            <li key={j} className="flex items-start gap-2 text-sm text-slate-300">
+                            <li key={j} className="flex items-start gap-2 text-sm text-muted-foreground">
                               <span className="text-blue-400 mt-1 text-xs">–</span>
                               <span className="font-light">{d}</span>
                             </li>
@@ -415,7 +415,7 @@ export function NoteAIInlineSection({
                         <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400">{t('notes.aiActionItems', 'Action Items')}</span>
                         <ul className="mt-1 space-y-0.5">
                           {topic.action_items.map((a, j) => (
-                            <li key={j} className="flex items-start gap-2 text-sm text-slate-300">
+                            <li key={j} className="flex items-start gap-2 text-sm text-muted-foreground">
                               <span className="text-amber-400 mt-1 text-xs">→</span>
                               <span className="font-light">{a}</span>
                             </li>
@@ -428,7 +428,7 @@ export function NoteAIInlineSection({
                   /* Fallback: legacy points format */
                   <ul className="space-y-1">
                     {topic.points.map((point, j) => (
-                      <li key={j} className="flex items-start gap-2 text-sm text-slate-300">
+                      <li key={j} className="flex items-start gap-2 text-sm text-muted-foreground">
                         <span className="text-slate-500 mt-1 text-xs">–</span>
                         <span className="font-light">{point}</span>
                       </li>
@@ -460,7 +460,7 @@ export function NoteAIInlineSection({
             {suggestions.features.map((feature, fi) => (
               <div
                 key={fi}
-                className="bg-white/[0.03] rounded-xl border border-white/5 overflow-hidden"
+                className="bg-white/[0.03] rounded-xl border border-foreground/5 overflow-hidden"
               >
                 {/* Feature row */}
                 <div className="flex items-center gap-2 px-4 py-3">
@@ -475,7 +475,7 @@ export function NoteAIInlineSection({
                   )}
                   <button
                     onClick={() => setExpandedFeatures(prev => ({ ...prev, [fi]: !prev[fi] }))}
-                    className="flex-shrink-0 text-slate-400 hover:text-white transition-colors"
+                    className="flex-shrink-0 text-slate-400 hover:text-foreground transition-colors"
                   >
                     <ChevronRight
                       className={`h-4 w-4 transition-transform ${expandedFeatures[fi] ? 'rotate-90' : ''}`}
@@ -484,13 +484,13 @@ export function NoteAIInlineSection({
                   {feature.type === 'NEW' && feature.color && (
                     <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: feature.color }} />
                   )}
-                  <span className="text-sm font-medium text-white truncate flex-1">{feature.title}</span>
+                  <span className="text-sm font-medium text-foreground truncate flex-1">{feature.title}</span>
                   {renderFeatureLabel(feature)}
                 </div>
 
                 {/* Tasks */}
                 {expandedFeatures[fi] && (
-                  <div className="border-t border-white/5">
+                  <div className="border-t border-foreground/5">
                     {feature.tasks.map((task, ti) => (
                       <div key={ti}>
                         <div className={`flex items-center gap-2 px-4 py-2.5 pl-10 ${isTaskLocked(fi, ti) ? 'opacity-60' : ''}`}>
@@ -505,7 +505,7 @@ export function NoteAIInlineSection({
                           )}
                           <ArrowRight className="h-3 w-3 text-slate-500 flex-shrink-0" />
                           <div className="flex-1 min-w-0">
-                            <span className="text-sm text-slate-300 truncate block">{task.title}</span>
+                            <span className="text-sm text-muted-foreground truncate block">{task.title}</span>
                             {task.description && (
                               <span className="text-xs text-slate-500 truncate block mt-0.5">{task.description}</span>
                             )}
@@ -546,7 +546,7 @@ export function NoteAIInlineSection({
             <button
               onClick={handleApply}
               disabled={applying || selectedCount === 0}
-              className="px-5 py-2 text-sm font-bold text-white bg-gradient-to-r from-bridge-accent to-purple-500 rounded-xl hover:shadow-[0_0_30px_rgba(99,102,241,0.3)] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="px-5 py-2 text-sm font-bold text-white bg-gradient-to-r from-bridge-secondary to-bridge-accent rounded-xl hover:shadow-[0_0_20px_rgba(45,212,191,0.3)] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {applying ? (
                 <>
@@ -571,7 +571,7 @@ export function NoteAIInlineSection({
             <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
               <CheckSquare className="h-4 w-4 text-green-400" />
             </div>
-            <p className="text-sm text-slate-300">
+            <p className="text-sm text-muted-foreground">
               {t('notes.aiApplySuccess', {
                 features: result.features_created,
                 tasks: result.tasks_created,
@@ -584,7 +584,7 @@ export function NoteAIInlineSection({
 
       {/* No suggestions */}
       {suggestions.features.length === 0 && (!suggestions.summary || suggestions.summary.length === 0) && (
-        <div className="bg-white/[0.02] rounded-xl border border-white/5 p-6 text-center">
+        <div className="bg-white/[0.02] rounded-xl border border-foreground/5 p-6 text-center">
           <Sparkles className="h-6 w-6 text-slate-500 mx-auto mb-2" />
           <p className="text-sm text-slate-400">{t('notes.aiNoSuggestions')}</p>
         </div>

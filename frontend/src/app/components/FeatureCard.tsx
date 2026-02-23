@@ -1,7 +1,8 @@
 import { Feature, Task, Milestone } from '../types';
-import { Calendar, ChevronDown, ChevronRight, Flag } from 'lucide-react';
-import { useState } from 'react';
+import { Calendar, Check, ChevronDown, ChevronRight, Flag } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CompletionParticles } from './CompletionParticles';
 
 interface FeatureCardProps {
   feature: Feature;
@@ -20,6 +21,23 @@ export function FeatureCard({ feature, onClick, availableTags = [], tasks = [], 
   const featureTags = feature.tags || [];
   const featureColor = feature.color || '#8B5CF6';
   const [internalIsExpanded, setInternalIsExpanded] = useState(false);
+  const [justCompleted, setJustCompleted] = useState(false);
+  const prevProgressRef = useRef(progressPercent);
+
+  useEffect(() => {
+    const prev = prevProgressRef.current;
+    prevProgressRef.current = progressPercent;
+    if (prev < 100 && progressPercent === 100 && feature.total_tasks > 0) {
+      // 프로그레스 바 transition(duration-1000)이 끝에 도달하는 시점에 맞춤
+      const arriveTimer = setTimeout(() => {
+        setJustCompleted(true);
+      }, 950);
+      const clearTimer = setTimeout(() => {
+        setJustCompleted(false);
+      }, 950 + 1500);
+      return () => { clearTimeout(arriveTimer); clearTimeout(clearTimer); };
+    }
+  }, [progressPercent, feature.total_tasks]);
 
   // 외부 제어가 있으면 외부 상태 사용, 없으면 내부 상태 사용
   const isExpanded = externalIsExpanded !== undefined ? externalIsExpanded : internalIsExpanded;
@@ -36,7 +54,7 @@ export function FeatureCard({ feature, onClick, availableTags = [], tasks = [], 
   return (
     <div
       onClick={onClick}
-      className="group relative bg-kanban-card-hover rounded-2xl border border-kanban-border p-5 hover:border-indigo-500/50 hover:shadow-2xl hover:shadow-indigo-500/10 transition-all cursor-pointer overflow-hidden kanban-glow"
+      className="group relative bg-bridge-surface-hover rounded-2xl border border-bridge-border p-5 hover:border-indigo-500/50 hover:shadow-2xl hover:shadow-indigo-500/10 transition-all cursor-pointer overflow-hidden kanban-glow"
     >
       {/* 좌측 컬러 바 */}
       <div
@@ -59,7 +77,7 @@ export function FeatureCard({ feature, onClick, availableTags = [], tasks = [], 
 
           {/* 마일스톤 뱃지 */}
           {milestone && (
-            <div className="flex items-center gap-2 bg-kanban-card px-2 py-0.5 rounded-md border border-kanban-border mt-2">
+            <div className="flex items-center gap-2 bg-bridge-surface px-2 py-0.5 rounded-md border border-bridge-border mt-2">
               <Flag size={10} className="text-indigo-400" />
               <span className="text-[10px] text-indigo-400 font-bold">{milestone.title}</span>
             </div>
@@ -87,29 +105,33 @@ export function FeatureCard({ feature, onClick, availableTags = [], tasks = [], 
       )}
 
       {/* 진행률 */}
-      <div className="mb-4 pl-2">
+      <div className={`mb-4 pl-2 relative ${justCompleted ? 'feature-complete-pulse' : ''}`}>
         <div className="flex justify-between text-[11px] mb-1.5">
           <span className="text-zinc-400 font-medium">
             {t('feature.completedCount', { completed: feature.completed_tasks, total: feature.total_tasks })}
           </span>
-          <span className={`font-bold ${isCompleted ? 'text-green-400' : 'text-foreground'}`}>
+          <span className={`font-bold flex items-center gap-1 ${isCompleted ? 'text-green-400' : 'text-foreground'} ${justCompleted ? 'progress-text-bounce' : ''}`}>
             {Math.round(progressPercent)}%
+            {isCompleted && (
+              <Check size={12} className={`text-green-400 ${justCompleted ? 'progress-check-pop' : ''}`} strokeWidth={3} />
+            )}
           </span>
         </div>
-        <div className="h-1.5 w-full bg-kanban-surface rounded-full overflow-hidden">
+        <div className={`relative h-1.5 w-full bg-bridge-surface-hover rounded-full overflow-visible ${justCompleted ? 'progress-border-flash' : ''}`}>
           <div
-            className="h-full transition-all duration-1000 ease-out rounded-full"
+            className={`h-full rounded-full transition-all duration-1000 ease-out ${justCompleted ? 'progress-bar-inner' : ''}`}
             style={{
               width: `${progressPercent}%`,
               backgroundColor: isCompleted ? '#22c55e' : featureColor,
               boxShadow: `0 0 10px ${isCompleted ? '#22c55e' : featureColor}44`,
             }}
           />
+          <CompletionParticles active={justCompleted} variant="bar" />
         </div>
       </div>
 
       {/* 추가 정보 */}
-      <div className="flex items-center justify-between border-t border-kanban-border pt-4 mt-1 pl-2">
+      <div className="flex items-center justify-between border-t border-bridge-border pt-4 mt-1 pl-2">
         <div className="flex items-center gap-3">
           {feature.due_date && (
             <div className="flex items-center gap-1.5 text-zinc-400">
@@ -124,7 +146,7 @@ export function FeatureCard({ feature, onClick, availableTags = [], tasks = [], 
             onClick={handleExpandClick}
             className="flex items-center gap-1 group/sub"
           >
-            <span className="text-[10px] font-bold text-zinc-300 group-hover/sub:text-foreground transition-colors">
+            <span className="text-[10px] font-bold text-muted-foreground group-hover/sub:text-foreground transition-colors">
               {t('feature.subtasks')}
             </span>
             {isExpanded ? (
@@ -138,11 +160,11 @@ export function FeatureCard({ feature, onClick, availableTags = [], tasks = [], 
 
       {/* 서브태스크 목록 */}
       {isExpanded && tasks.length > 0 && (
-        <div className="mt-4 pt-4 border-t border-kanban-border pl-2 space-y-2">
+        <div className="mt-4 pt-4 border-t border-bridge-border pl-2 space-y-2">
           {tasks.map((task) => (
             <div
               key={task.id}
-              className="flex items-center gap-2 p-2 rounded-lg bg-kanban-surface hover:bg-white/5 transition-colors"
+              className="flex items-center gap-2 p-2 rounded-lg bg-bridge-surface-hover hover:bg-foreground/5 transition-colors"
             >
               <div
                 className={`w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 ${
@@ -165,7 +187,7 @@ export function FeatureCard({ feature, onClick, availableTags = [], tasks = [], 
               </div>
               <span
                 className={`text-xs flex-1 ${
-                  task.completed ? 'text-zinc-400 line-through' : 'text-zinc-200'
+                  task.completed ? 'text-muted-foreground line-through' : 'text-foreground'
                 }`}
               >
                 {task.title}

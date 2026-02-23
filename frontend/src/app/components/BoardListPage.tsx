@@ -6,39 +6,32 @@ import { CreateBoardModal } from './CreateBoardModal';
 import { EditBoardModal } from './EditBoardModal';
 import { UserMenu } from './UserMenu';
 import { Button } from './ui/button';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from './ui/alert-dialog';
+import { MotionModal } from './ui/MotionModal';
 import type { Board } from '../types';
-import { testDataAPI } from '../utils/api';
+import { testDataAPI, personalSpaceAPI } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
+
+declare const __FE_COMMIT_HASH__: string;
 
 interface BoardListPageProps {
   boards: Board[];
   onSelectBoard: (boardId: string) => void;
-  onCreateBoard: (name: string, description?: string) => void;
-  onUpdateBoard: (boardId: string, name: string, description?: string) => void;
+  onCreateBoard: (name: string, description?: string, backgroundGradient?: string) => void;
+  onUpdateBoard: (boardId: string, name: string, description?: string, backgroundGradient?: string) => void;
   onDeleteBoard: (boardId: string) => void;
   onToggleStar: (boardId: string) => void;
   onLogout: () => void;
   onRefreshBoards?: () => void;
 }
 
-// 보드 색상 gradient 생성 (Bridge 테마)
+// 보드 색상 gradient 생성 (dashboard/BoardCard와 동일)
 const BOARD_GRADIENTS = [
-  'linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)',  // Indigo (Bridge accent)
-  'linear-gradient(135deg, #2DD4BF 0%, #14B8A6 100%)',  // Teal (Bridge secondary)
-  'linear-gradient(135deg, #818CF8 0%, #6366F1 100%)',  // Light indigo
-  'linear-gradient(135deg, #34D399 0%, #10B981 100%)',  // Emerald
-  'linear-gradient(135deg, #A78BFA 0%, #8B5CF6 100%)',  // Violet
-  'linear-gradient(135deg, #F472B6 0%, #EC4899 100%)',  // Pink
+  'linear-gradient(135deg, #6366F1 0%, #a855f7 100%)',  // Indigo Purple
+  'linear-gradient(135deg, #2DD4BF 0%, #0891B2 100%)',  // Teal Cyan
+  'linear-gradient(135deg, #F43F5E 0%, #FB923C 100%)',  // Rose Orange
+  'linear-gradient(135deg, #10B981 0%, #3B82F6 100%)',  // Green Blue
+  'linear-gradient(135deg, #F59E0B 0%, #EF4444 100%)',  // Amber Red
+  'linear-gradient(135deg, #8B5CF6 0%, #D946EF 100%)',  // Violet Pink
 ];
 
 function getBoardGradient(boardId: string): string {
@@ -63,7 +56,14 @@ export function BoardListPage({
   const [isCreatingTestData, setIsCreatingTestData] = useState(false);
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { hideBilling, currentUser } = useAuth();
+  const { hideBilling, currentUser, updateCurrentUser } = useAuth();
+
+  const [beCommit, setBeCommit] = useState<string>('');
+  useEffect(() => {
+    const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1';
+    const origin = (() => { try { return new URL(apiBase).origin; } catch { return 'http://localhost:8080'; } })();
+    fetch(`${origin}/health`).then(r => r.json()).then(d => setBeCommit(d.commit || '')).catch(() => {});
+  }, []);
 
   const handleEditBoard = (board: Board) => {
     setSelectedBoard(board);
@@ -102,11 +102,22 @@ export function BoardListPage({
   };
 
   const starredBoards = boards.filter((b) => b.is_starred);
+  const hasPersonalSpace = currentUser?.personal_space_enabled ?? false;
+
+  const handleActivatePersonalSpace = async () => {
+    try {
+      await personalSpaceAPI.activate();
+      updateCurrentUser({ personal_space_enabled: true });
+      navigate('/my-board');
+    } catch (error) {
+      console.error('Failed to activate personal space:', error);
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-bridge-dark text-white">
+    <div className="min-h-screen bg-bridge-dark text-foreground">
       {/* 헤더 */}
-      <header className="border-b border-white/15 glass">
+      <header className="border-b border-bridge-border glass safe-top">
         <div className="max-w-7xl mx-auto px-8 py-6">
           <div className="flex items-center justify-between">
             <div
@@ -114,10 +125,10 @@ export function BoardListPage({
               onClick={() => navigate('/')}
             >
               <div className="w-12 h-12 bg-bridge-accent rounded-xl flex items-center justify-center shadow-[0_0_25px_rgba(99,102,241,0.4)] group-hover:rotate-6 transition-all duration-500">
-                <span className="text-xl font-serif font-bold text-white">B</span>
+                <span className="text-xl font-jakarta font-bold text-white">B</span>
               </div>
               <div>
-                <h1 className="text-xl font-serif font-bold tracking-tight group-hover:text-bridge-secondary transition-colors">BRIDGE</h1>
+                <h1 className="text-xl font-jakarta font-bold tracking-tight group-hover:text-bridge-secondary transition-colors">BRIDGE</h1>
                 {!hideBilling && (
                   <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
                     <span className="px-2 py-0.5 bg-bridge-accent/20 text-bridge-secondary rounded-full text-[10px] font-bold tracking-wider uppercase">
@@ -154,7 +165,7 @@ export function BoardListPage({
               <div className="p-2 bg-yellow-500/10 rounded-lg">
                 <Star className="h-5 w-5 text-yellow-500" />
               </div>
-              <h2 className="text-lg font-serif font-bold text-foreground tracking-tight">
+              <h2 className="text-lg font-jakarta font-bold text-foreground tracking-tight">
                 Starred Boards
               </h2>
             </div>
@@ -173,13 +184,13 @@ export function BoardListPage({
           </section>
         )}
 
-        {/* 내 보드 */}
+        {/* 마이스페이스 */}
         <section>
           <div className="flex items-center gap-3 mb-6">
             <div className="p-2 bg-bridge-accent/10 rounded-lg">
               <LayoutGrid className="h-5 w-5 text-bridge-accent" />
             </div>
-            <h2 className="text-lg font-serif font-bold text-foreground tracking-tight">Your Boards</h2>
+            <h2 className="text-lg font-jakarta font-bold text-foreground tracking-tight">Your Boards</h2>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {boards.map((board) => (
@@ -196,9 +207,9 @@ export function BoardListPage({
             {/* 새 보드 생성 카드 */}
             <button
               onClick={() => setIsCreateModalOpen(true)}
-              className="h-28 bg-white/5 hover:bg-white/10 border border-white/20 hover:border-bridge-accent/50 rounded-2xl flex flex-col items-center justify-center text-slate-400 hover:text-white transition-all duration-300 group"
+              className="h-28 bg-foreground/5 hover:bg-foreground/10 border border-bridge-border hover:border-bridge-accent/50 rounded-2xl flex flex-col items-center justify-center text-muted-foreground hover:text-foreground transition-all duration-300 group"
             >
-              <div className="p-3 bg-white/5 rounded-xl group-hover:bg-bridge-accent/20 transition-colors mb-2">
+              <div className="p-3 bg-foreground/5 rounded-xl group-hover:bg-bridge-accent/20 transition-colors mb-2">
                 <Plus className="h-6 w-6 group-hover:text-bridge-accent" />
               </div>
               <span className="text-sm font-medium">Create new board</span>
@@ -232,10 +243,12 @@ export function BoardListPage({
       <CreateBoardModal
         open={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
-        onCreateBoard={(name, description) => {
-          onCreateBoard(name, description);
+        onCreateBoard={(name, description, backgroundGradient) => {
+          onCreateBoard(name, description, backgroundGradient);
           setIsCreateModalOpen(false);
         }}
+        hasPersonalSpace={hasPersonalSpace}
+        onActivatePersonalSpace={handleActivatePersonalSpace}
       />
 
       {/* 보드 수정 모달 */}
@@ -250,27 +263,31 @@ export function BoardListPage({
       />
 
       {/* 보드 삭제 확인 다이얼로그 */}
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent className="bg-bridge-obsidian border-white/20">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-foreground font-serif">Delete Board</AlertDialogTitle>
-            <AlertDialogDescription className="text-slate-400">
-              Are you sure you want to delete "{selectedBoard?.name}"? This action cannot be undone and all data including tasks, features, and members will be permanently removed.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="border-white/20 text-slate-300 hover:bg-white/5 hover:text-white">
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDeleteBoard}
-              className="bg-red-600 hover:bg-red-700 text-white"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <MotionModal open={isDeleteDialogOpen} onClose={() => setIsDeleteDialogOpen(false)} className="sm:max-w-sm p-6">
+        <h3 className="text-lg font-semibold text-foreground font-jakarta">{t('board.deleteBoard', 'Delete Board')}</h3>
+        <p className="text-sm text-slate-400 mt-1">
+          {t('board.deleteConfirm', { name: selectedBoard?.name })}
+        </p>
+        <div className="bg-bridge-accent/10 border border-bridge-accent/20 rounded-lg p-3 mt-3">
+          <p className="text-xs text-bridge-secondary">
+            {t('board.softDeleteNotice', 'This board can be recovered by an administrator within 7 days.')}
+          </p>
+        </div>
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end mt-4">
+          <button onClick={() => setIsDeleteDialogOpen(false)} className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 border border-bridge-border text-muted-foreground hover:bg-foreground/5 hover:text-foreground">
+            {t('common.cancel', 'Cancel')}
+          </button>
+          <button onClick={confirmDeleteBoard} className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-red-600 hover:bg-red-700 text-white">
+            {t('common.delete', 'Delete')}
+          </button>
+        </div>
+      </MotionModal>
+
+      {/* Version Info */}
+      <div className="fixed bottom-2 left-3 text-[10px] text-slate-600 select-none pointer-events-none z-10">
+        FE: {typeof __FE_COMMIT_HASH__ !== 'undefined' ? __FE_COMMIT_HASH__ : 'dev'}
+        {beCommit && <> · BE: {beCommit}</>}
+      </div>
     </div>
   );
 }
@@ -311,7 +328,7 @@ function BoardCard({ board, onClick, onToggleStar, onEdit, onDelete }: BoardCard
       {/* 배경 그라데이션 */}
       <div
         className="absolute inset-0"
-        style={{ background: getBoardGradient(board.id) }}
+        style={{ background: board.background_gradient || getBoardGradient(board.id) }}
       />
 
       {/* 패턴 오버레이 */}
@@ -353,14 +370,14 @@ function BoardCard({ board, onClick, onToggleStar, onEdit, onDelete }: BoardCard
 
           {/* 드롭다운 메뉴 */}
           {isMenuOpen && (
-            <div className="absolute top-full right-0 mt-1 w-36 bg-bridge-obsidian border border-white/20 rounded-xl shadow-xl overflow-hidden z-20">
+            <div className="absolute top-full right-0 mt-1 w-36 bg-bridge-obsidian border border-bridge-border rounded-xl shadow-xl overflow-hidden z-20">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   setIsMenuOpen(false);
                   onEdit();
                 }}
-                className="w-full px-3 py-2 text-left text-sm text-slate-300 hover:bg-white/5 hover:text-white flex items-center gap-2 transition-colors"
+                className="w-full px-3 py-2 text-left text-sm text-muted-foreground hover:bg-foreground/5 hover:text-foreground flex items-center gap-2 transition-colors"
               >
                 <Pencil className="h-3.5 w-3.5" />
                 Edit Board

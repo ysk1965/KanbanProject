@@ -81,10 +81,10 @@ export function NoteTagManager({
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-1 px-2 py-1 text-[10px] text-slate-400 hover:text-white hover:bg-white/5 rounded transition-colors"
+        className="flex items-center gap-1 px-2 py-1 text-[10px] text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded transition-colors"
       >
         <TagIcon size={10} />
-        {t('notes.tags', '태그')}
+        <span className="hidden sm:inline">{t('notes.tags', '태그')}</span>
         {noteTags.length > 0 && (
           <span className="text-bridge-accent font-semibold">{noteTags.length}</span>
         )}
@@ -93,8 +93,8 @@ export function NoteTagManager({
       {isOpen && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => { setIsOpen(false); setCreating(false); }} />
-          <div className="absolute right-0 top-full mt-1 z-50 bg-bridge-obsidian border border-white/10 rounded-xl shadow-2xl w-56 overflow-hidden">
-            <div className="p-2 border-b border-white/5">
+          <div className="absolute right-0 top-full mt-1 z-50 bg-bridge-obsidian border border-foreground/10 rounded-xl shadow-2xl w-56 overflow-hidden">
+            <div className="p-2 border-b border-foreground/5">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                 {t('notes.tags', '태그')}
               </span>
@@ -110,7 +110,7 @@ export function NoteTagManager({
                 allTags.map(tag => (
                   <div
                     key={tag.id}
-                    className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/5 group"
+                    className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-foreground/5 group"
                   >
                     <button
                       onClick={() => canEdit && handleToggleTag(tag.id)}
@@ -126,7 +126,7 @@ export function NoteTagManager({
                       >
                         {currentTagIds.has(tag.id) && <Check size={8} className="text-white" />}
                       </div>
-                      <span className="text-xs text-slate-300 truncate">{tag.name}</span>
+                      <span className="text-xs text-muted-foreground truncate">{tag.name}</span>
                     </button>
                     {canEdit && (
                       <button
@@ -143,7 +143,7 @@ export function NoteTagManager({
 
             {/* Create new tag */}
             {canEdit && (
-              <div className="border-t border-white/5 p-2">
+              <div className="border-t border-foreground/5 p-2">
                 {creating ? (
                   <div className="space-y-2">
                     <input
@@ -151,7 +151,7 @@ export function NoteTagManager({
                       onChange={(e) => setNewTagName(e.target.value)}
                       onKeyDown={(e) => { if (e.key === 'Enter') handleCreateTag(); }}
                       placeholder={t('notes.tagName', '태그 이름')}
-                      className="w-full bg-white/5 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
+                      className="w-full bg-foreground/5 border border-foreground/10 rounded-lg px-2.5 py-1.5 text-xs text-foreground placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
                       autoFocus
                     />
                     <div className="flex items-center gap-1">
@@ -174,7 +174,7 @@ export function NoteTagManager({
                       </button>
                       <button
                         onClick={() => { setCreating(false); setNewTagName(''); }}
-                        className="px-2 py-1 text-slate-400 hover:text-white text-[10px]"
+                        className="px-2 py-1 text-slate-400 hover:text-foreground text-[10px]"
                       >
                         {t('common.cancel', '취소')}
                       </button>
@@ -183,7 +183,7 @@ export function NoteTagManager({
                 ) : (
                   <button
                     onClick={() => setCreating(true)}
-                    className="w-full flex items-center gap-1.5 px-2 py-1.5 text-xs text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+                    className="w-full flex items-center gap-1.5 px-2 py-1.5 text-xs text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
                   >
                     <Plus size={12} />
                     {t('notes.addTag', '태그 추가')}

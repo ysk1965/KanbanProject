@@ -230,30 +230,30 @@ export function StatisticsView({
   return (
     <div className="h-full flex flex-col bg-bridge-dark">
       {/* 상단 네비게이션 & 필터 */}
-      <div className="flex-none px-6 py-4 border-b border-white/15 bg-bridge-obsidian">
-        <div className="flex items-center justify-between">
+      <div className="flex-none px-3 sm:px-6 py-3 sm:py-4 border-b border-bridge-border bg-bridge-obsidian">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
           {/* 뷰 타입 탭 */}
-          <div className="flex items-center gap-1 bg-bridge-dark rounded-xl p-1 border border-white/20">
+          <div className="flex items-center gap-0.5 sm:gap-1 bg-bridge-dark rounded-xl p-1 border border-bridge-border overflow-x-auto scrollbar-hide">
             {VIEW_TABS.map((tab) => (
               <button
                 key={tab.type}
                 onClick={() => setActiveView(tab.type)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap flex-shrink-0 ${
                   activeView === tab.type
                     ? 'bg-bridge-accent text-white shadow-lg'
-                    : 'text-slate-400 hover:text-white hover:bg-white/5'
+                    : 'text-slate-400 hover:text-foreground hover:bg-foreground/5'
                 }`}
               >
-                <tab.icon className="h-4 w-4" />
-                {t(tab.labelKey)}
+                <tab.icon className="h-4 w-4 flex-shrink-0" />
+                <span className="hidden sm:inline">{t(tab.labelKey)}</span>
               </button>
             ))}
           </div>
 
           {/* 기간 & 필터 */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 overflow-x-auto scrollbar-hide">
             {/* 마일스톤 선택 */}
-            <div className="relative">
+            <div className="relative flex-shrink-0">
               <select
                 value={filter.milestone_ids[0] || ''}
                 onChange={(e) => {
@@ -267,7 +267,7 @@ export function StatisticsView({
                     setPeriodPreset('all');
                   }
                 }}
-                className="appearance-none bg-bridge-dark border border-white/20 rounded-xl py-2 pl-9 pr-8 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent cursor-pointer hover:border-white/20 transition-all"
+                className="appearance-none bg-bridge-dark border border-bridge-border rounded-xl py-2 pl-9 pr-8 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent cursor-pointer hover:border-bridge-border transition-all"
               >
                 <option value="">{t('statistics.allMilestones')}</option>
                 {milestones.map((m) => (
@@ -281,7 +281,7 @@ export function StatisticsView({
             </div>
 
             {/* 기간 프리셋 */}
-            <div className="flex items-center gap-1 bg-bridge-dark rounded-xl p-1 border border-white/20">
+            <div className="flex items-center gap-0.5 sm:gap-1 bg-bridge-dark rounded-xl p-1 border border-bridge-border flex-shrink-0">
               {PERIOD_PRESETS.map((preset) => (
                 <button
                   key={preset.value}
@@ -290,10 +290,10 @@ export function StatisticsView({
                     // 기간 프리셋 선택 시 마일스톤 필터 해제 (옵션)
                     // setFilter((prev) => ({ ...prev, milestone_ids: [] }));
                   }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  className={`px-2 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-xs font-medium transition-all whitespace-nowrap ${
                     periodPreset === preset.value
-                      ? 'bg-white/10 text-white'
-                      : 'text-slate-400 hover:text-slate-300'
+                      ? 'bg-foreground/10 text-foreground'
+                      : 'text-slate-400 hover:text-muted-foreground'
                   }`}
                 >
                   {t(preset.labelKey)}
@@ -304,14 +304,14 @@ export function StatisticsView({
             {/* 상세 필터 버튼 */}
             <button
               onClick={() => setIsFilterOpen(!isFilterOpen)}
-              className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-all ${
+              className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-all flex-shrink-0 ${
                 isFilterOpen || filter.member_ids.length > 0 || filter.tag_ids.length > 0
                   ? 'border-bridge-accent text-bridge-accent bg-bridge-accent/10'
-                  : 'border-white/20 text-slate-400 hover:text-white hover:border-white/20'
+                  : 'border-bridge-border text-slate-400 hover:text-foreground hover:border-bridge-border'
               }`}
             >
               <Filter className="h-4 w-4" />
-              {t('statistics.filterBtn')}
+              <span className="hidden sm:inline">{t('statistics.filterBtn')}</span>
               {(filter.member_ids.length > 0 || filter.tag_ids.length > 0) && (
                 <span className="w-2 h-2 rounded-full bg-bridge-accent" />
               )}
@@ -322,8 +322,8 @@ export function StatisticsView({
 
         {/* 상세 필터 패널 */}
         {isFilterOpen && (
-          <div className="mt-4 p-4 bg-bridge-dark rounded-xl border border-white/20">
-            <div className="grid grid-cols-3 gap-4">
+          <div className="mt-4 p-4 bg-bridge-dark rounded-xl border border-bridge-border">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {/* 멤버 필터 */}
               <div>
                 <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2 block">
@@ -337,7 +337,7 @@ export function StatisticsView({
                       member_ids: e.target.value ? [e.target.value] : [],
                     }))
                   }
-                  className="w-full bg-white/5 border border-white/20 rounded-lg py-2 px-3 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
+                  className="w-full bg-foreground/5 border border-bridge-border rounded-lg py-2 px-3 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
                 >
                   <option value="">{t('statistics.totalLabel')}</option>
                   {members.map((m) => (
@@ -361,7 +361,7 @@ export function StatisticsView({
                       tag_ids: e.target.value ? [e.target.value] : [],
                     }))
                   }
-                  className="w-full bg-white/5 border border-white/20 rounded-lg py-2 px-3 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
+                  className="w-full bg-foreground/5 border border-bridge-border rounded-lg py-2 px-3 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
                 >
                   <option value="">{t('statistics.totalLabel')}</option>
                   {tags.map((tag) => (
@@ -379,7 +379,7 @@ export function StatisticsView({
                     setFilter(DEFAULT_FILTER);
                     setPeriodPreset('30d');
                   }}
-                  className="px-4 py-2 text-sm text-slate-400 hover:text-white transition-colors"
+                  className="px-4 py-2 text-sm text-slate-400 hover:text-foreground transition-colors"
                 >
                   {t('statistics.resetFilter')}
                 </button>
@@ -390,7 +390,7 @@ export function StatisticsView({
       </div>
 
       {/* 메인 콘텐츠 영역 */}
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex-1 overflow-y-auto p-3 sm:p-6">
         {activeView === 'overview' && statistics && (
           <OverviewDashboard
             statistics={statistics}
@@ -494,7 +494,7 @@ function OverviewDashboard({
   return (
     <div className="space-y-6">
       {/* KPI Cards */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* 총 작업 시간 */}
         <KPICard
           icon={Clock}
@@ -537,9 +537,9 @@ function OverviewDashboard({
       </div>
 
       {/* Charts Row 1 */}
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* 일별 작업 시간 트렌드 */}
-        <div className="bg-bridge-obsidian rounded-2xl border border-white/15 p-6">
+        <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-foreground font-semibold flex items-center gap-2">
               <Activity className="h-5 w-5 text-bridge-accent" />
@@ -564,7 +564,7 @@ function OverviewDashboard({
                 />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: '#0F1419',
+                    backgroundColor: 'var(--bridge-obsidian)',
                     border: '1px solid rgba(255,255,255,0.1)',
                     borderRadius: '12px',
                     padding: '12px',
@@ -607,7 +607,7 @@ function OverviewDashboard({
         </div>
 
         {/* Feature별 시간 분포 */}
-        <div className="bg-bridge-obsidian rounded-2xl border border-white/15 p-6">
+        <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-foreground font-semibold flex items-center gap-2">
               <PieChart className="h-5 w-5 text-bridge-secondary" />
@@ -632,7 +632,7 @@ function OverviewDashboard({
                 </Pie>
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: '#0F1419',
+                    backgroundColor: 'var(--bridge-obsidian)',
                     border: '1px solid rgba(255,255,255,0.1)',
                     borderRadius: '12px',
                     padding: '12px',
@@ -660,9 +660,9 @@ function OverviewDashboard({
       </div>
 
       {/* Charts Row 2 */}
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* 멤버별 기여도 */}
-        <div className="bg-bridge-obsidian rounded-2xl border border-white/15 p-6">
+        <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-foreground font-semibold flex items-center gap-2">
               <Users className="h-5 w-5 text-amber-500" />
@@ -690,7 +690,7 @@ function OverviewDashboard({
                 />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: '#0F1419',
+                    backgroundColor: 'var(--bridge-obsidian)',
                     border: '1px solid rgba(255,255,255,0.1)',
                     borderRadius: '12px',
                     padding: '12px',
@@ -709,7 +709,7 @@ function OverviewDashboard({
         </div>
 
         {/* 요약 통계 카드 */}
-        <div className="bg-bridge-obsidian rounded-2xl border border-white/15 p-6">
+        <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-foreground font-semibold flex items-center gap-2">
               <BarChart3 className="h-5 w-5 text-violet-500" />
@@ -784,7 +784,7 @@ function KPICard({ icon: Icon, label, value, subValue, trend, accentColor }: KPI
       case 'violet-500':
         return 'bg-violet-500/20';
       default:
-        return 'bg-white/10';
+        return 'bg-foreground/10';
     }
   };
 
@@ -804,20 +804,20 @@ function KPICard({ icon: Icon, label, value, subValue, trend, accentColor }: KPI
   };
 
   return (
-    <div className="bg-bridge-obsidian rounded-2xl border border-white/15 p-5">
-      <div className="flex items-start justify-between mb-3">
-        <div className={`p-2.5 rounded-xl ${getAccentBg()}`}>
-          <Icon className={`h-5 w-5 ${getIconColor()}`} />
+    <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-3 sm:p-5">
+      <div className="flex items-start justify-between mb-2 sm:mb-3">
+        <div className={`p-2 sm:p-2.5 rounded-xl ${getAccentBg()}`}>
+          <Icon className={`h-4 w-4 sm:h-5 sm:w-5 ${getIconColor()}`} />
         </div>
         {trend && (
           <TrendingUp
-            className={`h-4 w-4 ${getTrendColor()} ${trend === 'down' ? 'rotate-180' : ''}`}
+            className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${getTrendColor()} ${trend === 'down' ? 'rotate-180' : ''}`}
           />
         )}
       </div>
-      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">{label}</p>
-      <p className="text-2xl font-bold text-foreground">{value}</p>
-      {subValue && <p className="text-sm text-slate-400 mt-1">{subValue}</p>}
+      <p className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1 truncate">{label}</p>
+      <p className="text-lg sm:text-2xl font-bold text-foreground truncate">{value}</p>
+      {subValue && <p className="text-xs sm:text-sm text-slate-400 mt-1 truncate">{subValue}</p>}
     </div>
   );
 }
@@ -835,7 +835,7 @@ interface SummaryItemProps {
 
 function SummaryItem({ label, value, subValue, highlight }: SummaryItemProps) {
   return (
-    <div className="flex items-center justify-between py-2 border-b border-white/15 last:border-0">
+    <div className="flex items-center justify-between py-2 border-b border-bridge-border last:border-0">
       <span className="text-slate-400 text-sm">{label}</span>
       <div className="text-right">
         <span className={`font-semibold ${highlight ? 'text-amber-400' : 'text-foreground'}`}>{value}</span>
@@ -910,7 +910,7 @@ function WorkAnalysisView({ statistics, formatMinutes, formatPercent }: WorkAnal
   return (
     <div className="space-y-6">
       {/* 상단 KPI 요약 */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <KPICard
           icon={ListTodo}
           label={t('statistics.totalFeatureCount')}
@@ -942,9 +942,9 @@ function WorkAnalysisView({ statistics, formatMinutes, formatPercent }: WorkAnal
       </div>
 
       {/* 차트 Row 1: 상태 분포 */}
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Task 상태 분포 */}
-        <div className="bg-bridge-obsidian rounded-2xl border border-white/15 p-6">
+        <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
           <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
             <CheckCircle2 className="h-5 w-5 text-bridge-secondary" />
             {t('statistics.taskStatusDistribution')}
@@ -969,7 +969,7 @@ function WorkAnalysisView({ statistics, formatMinutes, formatPercent }: WorkAnal
                 </Pie>
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: '#0F1419',
+                    backgroundColor: 'var(--bridge-obsidian)',
                     border: '1px solid rgba(255,255,255,0.1)',
                     borderRadius: '12px',
                     padding: '12px',
@@ -984,7 +984,7 @@ function WorkAnalysisView({ statistics, formatMinutes, formatPercent }: WorkAnal
         </div>
 
         {/* 시간 상태 분포 */}
-        <div className="bg-bridge-obsidian rounded-2xl border border-white/15 p-6">
+        <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
           <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
             <Clock className="h-5 w-5 text-amber-500" />
             {t('statistics.timeStatusDistribution')}
@@ -1009,7 +1009,7 @@ function WorkAnalysisView({ statistics, formatMinutes, formatPercent }: WorkAnal
                 </Pie>
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: '#0F1419',
+                    backgroundColor: 'var(--bridge-obsidian)',
                     border: '1px solid rgba(255,255,255,0.1)',
                     borderRadius: '12px',
                     padding: '12px',
@@ -1025,7 +1025,7 @@ function WorkAnalysisView({ statistics, formatMinutes, formatPercent }: WorkAnal
       </div>
 
       {/* 차트 Row 2: 태그별 분석 */}
-      <div className="bg-bridge-obsidian rounded-2xl border border-white/15 p-6">
+      <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
         <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
           <PieChart className="h-5 w-5 text-violet-500" />
           {t('statistics.tagWorkTime')}
@@ -1052,7 +1052,7 @@ function WorkAnalysisView({ statistics, formatMinutes, formatPercent }: WorkAnal
                 />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: '#0F1419',
+                    backgroundColor: 'var(--bridge-obsidian)',
                     border: '1px solid rgba(255,255,255,0.1)',
                     borderRadius: '12px',
                     padding: '12px',
@@ -1080,7 +1080,7 @@ function WorkAnalysisView({ statistics, formatMinutes, formatPercent }: WorkAnal
       </div>
 
       {/* Feature별 상세 테이블 */}
-      <div className="bg-bridge-obsidian rounded-2xl border border-white/15 p-6">
+      <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
         <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
           <ListTodo className="h-5 w-5 text-bridge-accent" />
           {t('statistics.featureDetailAnalysis')}
@@ -1088,7 +1088,7 @@ function WorkAnalysisView({ statistics, formatMinutes, formatPercent }: WorkAnal
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-white/20">
+              <tr className="border-b border-bridge-border">
                 <th className="text-left py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('statistics.featureHeader')}</th>
                 <th className="text-right py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('statistics.totalTimeHeader')}</th>
                 <th className="text-right py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('statistics.completedTimeHeader')}</th>
@@ -1099,7 +1099,7 @@ function WorkAnalysisView({ statistics, formatMinutes, formatPercent }: WorkAnal
             </thead>
             <tbody>
               {featureDetails.map((feature) => (
-                <tr key={feature.id} className="border-b border-white/15 hover:bg-white/5 transition-colors">
+                <tr key={feature.id} className="border-b border-bridge-border hover:bg-foreground/5 transition-colors">
                   <td className="py-3 px-4">
                     <div className="flex items-center gap-3">
                       <div
@@ -1111,13 +1111,13 @@ function WorkAnalysisView({ statistics, formatMinutes, formatPercent }: WorkAnal
                       </span>
                     </div>
                   </td>
-                  <td className="py-3 px-4 text-right text-slate-300 text-sm">
+                  <td className="py-3 px-4 text-right text-muted-foreground text-sm">
                     {formatMinutes(feature.totalMinutes)}
                   </td>
                   <td className="py-3 px-4 text-right text-bridge-secondary text-sm">
                     {formatMinutes(feature.completedMinutes)}
                   </td>
-                  <td className="py-3 px-4 text-right text-slate-300 text-sm">
+                  <td className="py-3 px-4 text-right text-muted-foreground text-sm">
                     {feature.completedTaskCount} / {feature.taskCount}
                   </td>
                   <td className="py-3 px-4 text-right text-sm">
@@ -1126,7 +1126,7 @@ function WorkAnalysisView({ statistics, formatMinutes, formatPercent }: WorkAnal
                     </span>
                   </td>
                   <td className="py-3 px-4">
-                    <div className="w-full bg-white/10 rounded-full h-2">
+                    <div className="w-full bg-foreground/10 rounded-full h-2">
                       <div
                         className="h-2 rounded-full transition-all"
                         style={{
@@ -1253,7 +1253,7 @@ function TeamProductivityView({ statistics, formatMinutes, formatPercent }: Team
   return (
     <div className="space-y-6">
       {/* 팀 전체 KPI */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <KPICard
           icon={Users}
           label={t('statistics.teamSize')}
@@ -1286,9 +1286,9 @@ function TeamProductivityView({ statistics, formatMinutes, formatPercent }: Team
       </div>
 
       {/* 차트 Row 1: 멤버별 비교 */}
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* 멤버별 작업 시간 */}
-        <div className="bg-bridge-obsidian rounded-2xl border border-white/15 p-6">
+        <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
           <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
             <Clock className="h-5 w-5 text-bridge-accent" />
             {t('statistics.memberWorkTimeChart')}
@@ -1311,7 +1311,7 @@ function TeamProductivityView({ statistics, formatMinutes, formatPercent }: Team
                 />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: '#0F1419',
+                    backgroundColor: 'var(--bridge-obsidian)',
                     border: '1px solid rgba(255,255,255,0.1)',
                     borderRadius: '12px',
                     padding: '12px',
@@ -1342,7 +1342,7 @@ function TeamProductivityView({ statistics, formatMinutes, formatPercent }: Team
         </div>
 
         {/* 멤버별 Task 완료율 */}
-        <div className="bg-bridge-obsidian rounded-2xl border border-white/15 p-6">
+        <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
           <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
             <CheckCircle2 className="h-5 w-5 text-bridge-secondary" />
             {t('statistics.memberTaskCompletionRate')}
@@ -1369,7 +1369,7 @@ function TeamProductivityView({ statistics, formatMinutes, formatPercent }: Team
                 />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: '#0F1419',
+                    backgroundColor: 'var(--bridge-obsidian)',
                     border: '1px solid rgba(255,255,255,0.1)',
                     borderRadius: '12px',
                     padding: '12px',
@@ -1396,7 +1396,7 @@ function TeamProductivityView({ statistics, formatMinutes, formatPercent }: Team
       </div>
 
       {/* Feature 참여 현황 */}
-      <div className="bg-bridge-obsidian rounded-2xl border border-white/15 p-6">
+      <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
         <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
           <Target className="h-5 w-5 text-violet-500" />
           {t('statistics.featureParticipation')}
@@ -1404,7 +1404,7 @@ function TeamProductivityView({ statistics, formatMinutes, formatPercent }: Team
         {featureParticipation.length > 0 ? (
           <div className="space-y-4">
             {featureParticipation.map((fp, index) => (
-              <div key={index} className="p-4 bg-bridge-dark rounded-xl border border-white/15">
+              <div key={index} className="p-4 bg-bridge-dark rounded-xl border border-bridge-border">
                 <div className="flex items-center gap-3 mb-3">
                   <div
                     className="w-3 h-3 rounded-full"
@@ -1421,14 +1421,14 @@ function TeamProductivityView({ statistics, formatMinutes, formatPercent }: Team
                     .map((member, mIndex) => (
                       <div
                         key={mIndex}
-                        className="flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-lg"
+                        className="flex items-center gap-2 px-3 py-1.5 bg-foreground/5 rounded-lg"
                       >
                         <div className="w-6 h-6 rounded-full bg-bridge-accent/20 flex items-center justify-center">
                           <span className="text-xs text-bridge-accent font-medium">
                             {getInitials(member.name)}
                           </span>
                         </div>
-                        <span className="text-slate-300 text-sm">{member.name}</span>
+                        <span className="text-muted-foreground text-sm">{member.name}</span>
                         <span className="text-slate-400 text-xs">
                           {formatMinutes(member.minutes)}
                         </span>
@@ -1446,7 +1446,7 @@ function TeamProductivityView({ statistics, formatMinutes, formatPercent }: Team
       </div>
 
       {/* 멤버별 상세 테이블 */}
-      <div className="bg-bridge-obsidian rounded-2xl border border-white/15 p-6">
+      <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
         <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
           <Users className="h-5 w-5 text-bridge-accent" />
           {t('statistics.memberDetailAnalysis')}
@@ -1454,7 +1454,7 @@ function TeamProductivityView({ statistics, formatMinutes, formatPercent }: Team
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-white/20">
+              <tr className="border-b border-bridge-border">
                 <th className="text-left py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('statistics.memberHeader')}</th>
                 <th className="text-right py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('statistics.totalTimeHeader')}</th>
                 <th className="text-right py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('statistics.completedTimeHeader')}</th>
@@ -1465,7 +1465,7 @@ function TeamProductivityView({ statistics, formatMinutes, formatPercent }: Team
             </thead>
             <tbody>
               {memberDetails.map((member) => (
-                <tr key={member.id} className="border-b border-white/15 hover:bg-white/5 transition-colors">
+                <tr key={member.id} className="border-b border-bridge-border hover:bg-foreground/5 transition-colors">
                   <td className="py-3 px-4">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full bg-bridge-accent/20 flex items-center justify-center">
@@ -1484,13 +1484,13 @@ function TeamProductivityView({ statistics, formatMinutes, formatPercent }: Team
                       <span className="text-foreground text-sm font-medium">{member.name}</span>
                     </div>
                   </td>
-                  <td className="py-3 px-4 text-right text-slate-300 text-sm">
+                  <td className="py-3 px-4 text-right text-muted-foreground text-sm">
                     {formatMinutes(member.totalMinutes)}
                   </td>
                   <td className="py-3 px-4 text-right text-bridge-secondary text-sm">
                     {formatMinutes(member.completedMinutes)}
                   </td>
-                  <td className="py-3 px-4 text-right text-slate-300 text-sm">
+                  <td className="py-3 px-4 text-right text-muted-foreground text-sm">
                     {member.completedTaskCount} / {member.taskCount}
                   </td>
                   <td className="py-3 px-4 text-right text-sm">
@@ -1588,7 +1588,7 @@ function IndividualProductivityView({
   return (
     <div className="space-y-6">
       {/* 멤버 선택 */}
-      <div className="bg-bridge-obsidian rounded-2xl border border-white/15 p-6">
+      <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
         <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
           <Users className="h-5 w-5 text-bridge-accent" />
           {t('statistics.selectMember')}
@@ -1604,8 +1604,8 @@ function IndividualProductivityView({
                 onClick={() => setSelectedMemberId(m.member.id)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all ${
                   isSelected
-                    ? 'text-white'
-                    : 'border-white/20 text-slate-400 hover:border-white/20 hover:text-white'
+                    ? 'text-foreground'
+                    : 'border-bridge-border text-slate-400 hover:border-bridge-border hover:text-foreground'
                 }`}
                 style={isSelected ? { borderColor: `${colorHex}80`, backgroundColor: `${colorHex}1A` } : undefined}
               >
@@ -1635,7 +1635,7 @@ function IndividualProductivityView({
       {selectedMemberStats ? (
         <>
           {/* 개인 KPI */}
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <KPICard
               icon={Clock}
               label={t('statistics.personalTotalWorkTime')}
@@ -1668,9 +1668,9 @@ function IndividualProductivityView({
           </div>
 
           {/* 차트 Row */}
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
             {/* Feature별 작업 시간 */}
-            <div className="bg-bridge-obsidian rounded-2xl border border-white/15 p-6">
+            <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
               <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
                 <PieChart className="h-5 w-5 text-bridge-accent" />
                 {t('statistics.featureWorkTime')}
@@ -1694,7 +1694,7 @@ function IndividualProductivityView({
                       </Pie>
                       <Tooltip
                         contentStyle={{
-                          backgroundColor: '#0F1419',
+                          backgroundColor: 'var(--bridge-obsidian)',
                           border: '1px solid rgba(255,255,255,0.1)',
                           borderRadius: '12px',
                           padding: '12px',
@@ -1724,7 +1724,7 @@ function IndividualProductivityView({
             </div>
 
             {/* 일별 작업 트렌드 */}
-            <div className="bg-bridge-obsidian rounded-2xl border border-white/15 p-6">
+            <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
               <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
                 <Activity className="h-5 w-5 text-bridge-secondary" />
                 {t('statistics.dailyWorkTrend')}
@@ -1748,7 +1748,7 @@ function IndividualProductivityView({
                       />
                       <Tooltip
                         contentStyle={{
-                          backgroundColor: '#0F1419',
+                          backgroundColor: 'var(--bridge-obsidian)',
                           border: '1px solid rgba(255,255,255,0.1)',
                           borderRadius: '12px',
                           padding: '12px',
@@ -1777,7 +1777,7 @@ function IndividualProductivityView({
           </div>
 
           {/* Feature 상세 테이블 */}
-          <div className="bg-bridge-obsidian rounded-2xl border border-white/15 p-6">
+          <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
             <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
               <ListTodo className="h-5 w-5 text-violet-500" />
               {t('statistics.participatingFeatureDetail')}
@@ -1785,7 +1785,7 @@ function IndividualProductivityView({
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-white/20">
+                  <tr className="border-b border-bridge-border">
                     <th className="text-left py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('statistics.featureHeader')}</th>
                     <th className="text-right py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('statistics.workTimeHeader')}</th>
                     <th className="text-right py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('statistics.proportionHeader')}</th>
@@ -1802,7 +1802,7 @@ function IndividualProductivityView({
                       <React.Fragment key={f.feature_id}>
                         <tr
                           onClick={() => hasTasks && toggleFeature(f.feature_id)}
-                          className={`border-b border-white/15 transition-colors ${hasTasks ? 'hover:bg-white/5 cursor-pointer' : ''}`}
+                          className={`border-b border-bridge-border transition-colors ${hasTasks ? 'hover:bg-foreground/5 cursor-pointer' : ''}`}
                         >
                           <td className="py-3 px-4">
                             <div className="flex items-center gap-3">
@@ -1825,12 +1825,12 @@ function IndividualProductivityView({
                               )}
                             </div>
                           </td>
-                          <td className="py-3 px-4 text-right text-slate-300 text-sm">
+                          <td className="py-3 px-4 text-right text-muted-foreground text-sm">
                             {formatMinutes(f.minutes)}
                           </td>
                           <td className="py-3 px-4 text-right">
                             <div className="flex items-center justify-end gap-2">
-                              <div className="w-24 bg-white/10 rounded-full h-2">
+                              <div className="w-24 bg-foreground/10 rounded-full h-2">
                                 <div
                                   className="h-2 rounded-full bg-bridge-accent"
                                   style={{ width: `${percentage}%` }}
@@ -1856,7 +1856,7 @@ function IndividualProductivityView({
                             </td>
                             <td className="py-2 px-4 text-right">
                               <div className="flex items-center justify-end gap-2">
-                                <div className="w-24 bg-white/5 rounded-full h-1.5">
+                                <div className="w-24 bg-foreground/5 rounded-full h-1.5">
                                   <div
                                     className="h-1.5 rounded-full bg-slate-500"
                                     style={{ width: `${task.percentage}%` }}
@@ -1951,7 +1951,7 @@ function ImpactAnalysisView({
   return (
     <div className="space-y-6">
       {/* Impact KPI */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <KPICard
           icon={Zap}
           label={t('statistics.totalImpact')}
@@ -1990,9 +1990,9 @@ function ImpactAnalysisView({
       </div>
 
       {/* 차트 Row 1 */}
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* 멤버별 임팩트 점수 */}
-        <div className="bg-bridge-obsidian rounded-2xl border border-white/15 p-6">
+        <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
           <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
             <Zap className="h-5 w-5 text-bridge-accent" />
             {t('statistics.memberImpactScore')}
@@ -2018,7 +2018,7 @@ function ImpactAnalysisView({
                   />
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: '#0F1419',
+                      backgroundColor: 'var(--bridge-obsidian)',
                       border: '1px solid rgba(255,255,255,0.1)',
                       borderRadius: '12px',
                       padding: '12px',
@@ -2049,7 +2049,7 @@ function ImpactAnalysisView({
         </div>
 
         {/* 가중치 레벨별 분포 */}
-        <div className="bg-bridge-obsidian rounded-2xl border border-white/15 p-6">
+        <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
           <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
             <Target className="h-5 w-5 text-amber-500" />
             {t('statistics.weightLevelTimeDistribution')}
@@ -2075,7 +2075,7 @@ function ImpactAnalysisView({
                   </Pie>
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: '#0F1419',
+                      backgroundColor: 'var(--bridge-obsidian)',
                       border: '1px solid rgba(255,255,255,0.1)',
                       borderRadius: '12px',
                       padding: '12px',
@@ -2099,7 +2099,7 @@ function ImpactAnalysisView({
       </div>
 
       {/* 가중치 레벨 설명 */}
-      <div className="bg-bridge-obsidian rounded-2xl border border-white/15 p-6">
+      <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-foreground font-semibold flex items-center gap-2">
             <BarChart3 className="h-5 w-5 text-violet-500" />
@@ -2107,17 +2107,17 @@ function ImpactAnalysisView({
           </h3>
           <button
             onClick={() => setIsWeightSettingsOpen(true)}
-            className="flex items-center gap-2 px-3 py-1.5 bg-white/5 border border-white/20 rounded-lg text-sm text-slate-400 hover:text-white hover:bg-white/10 transition-all"
+            className="flex items-center gap-2 px-3 py-1.5 bg-foreground/5 border border-bridge-border rounded-lg text-sm text-slate-400 hover:text-foreground hover:bg-foreground/10 transition-all"
           >
             <Settings className="h-4 w-4" />
             {t('statistics.settingsBtn')}
           </button>
         </div>
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {impact?.by_weight_level?.map((level, index) => (
             <div
               key={index}
-              className="p-4 bg-bridge-dark rounded-xl border border-white/15"
+              className="p-4 bg-bridge-dark rounded-xl border border-bridge-border"
             >
               <div className="flex items-center gap-3 mb-3">
                 <div
@@ -2145,7 +2145,7 @@ function ImpactAnalysisView({
               </div>
             </div>
           )) || (
-            <div className="col-span-4 py-8 text-center text-slate-400">
+            <div className="col-span-2 lg:col-span-4 py-8 text-center text-slate-400">
               {t('statistics.noWeightLevels')}
             </div>
           )}
@@ -2153,7 +2153,7 @@ function ImpactAnalysisView({
       </div>
 
       {/* 멤버별 상세 테이블 */}
-      <div className="bg-bridge-obsidian rounded-2xl border border-white/15 p-6">
+      <div className="bg-bridge-obsidian rounded-2xl border border-bridge-border p-4 sm:p-6">
         <h3 className="text-foreground font-semibold flex items-center gap-2 mb-4">
           <Users className="h-5 w-5 text-bridge-accent" />
           {t('statistics.memberImpactDetail')}
@@ -2161,7 +2161,7 @@ function ImpactAnalysisView({
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-white/20">
+              <tr className="border-b border-bridge-border">
                 <th className="text-left py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('statistics.rankHeader')}</th>
                 <th className="text-left py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('statistics.memberHeader')}</th>
                 <th className="text-right py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t('statistics.impactScoreHeader')}</th>
@@ -2175,14 +2175,14 @@ function ImpactAnalysisView({
                   ? (member.impact_score / impact.total_impact_score) * 100
                   : 0;
                 return (
-                  <tr key={member.member_id} className="border-b border-white/15 hover:bg-white/5 transition-colors">
+                  <tr key={member.member_id} className="border-b border-bridge-border hover:bg-foreground/5 transition-colors">
                     <td className="py-3 px-4">
                       <span className={`
                         inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold
                         ${index === 0 ? 'bg-amber-500/20 text-amber-400' :
-                          index === 1 ? 'bg-slate-400/20 text-slate-300' :
+                          index === 1 ? 'bg-slate-400/20 text-muted-foreground' :
                           index === 2 ? 'bg-amber-700/20 text-amber-600' :
-                          'bg-white/5 text-slate-400'}
+                          'bg-foreground/5 text-slate-400'}
                       `}>
                         {index + 1}
                       </span>
@@ -2210,12 +2210,12 @@ function ImpactAnalysisView({
                         {member.impact_score.toFixed(1)}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-right text-slate-300 text-sm">
+                    <td className="py-3 px-4 text-right text-muted-foreground text-sm">
                       {formatMinutes(member.weighted_minutes)}
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-2">
-                        <div className="w-full bg-white/10 rounded-full h-2">
+                        <div className="w-full bg-foreground/10 rounded-full h-2">
                           <div
                             className="h-2 rounded-full bg-bridge-accent"
                             style={{ width: `${percentage}%` }}
@@ -2241,7 +2241,7 @@ function ImpactAnalysisView({
       </div>
 
       {/* 임팩트 점수 계산 설명 */}
-      <div className="bg-bridge-dark rounded-xl border border-white/20 p-4">
+      <div className="bg-bridge-dark rounded-xl border border-bridge-border p-4">
         <div className="flex items-start gap-3">
           <div className="p-2 bg-bridge-accent/20 rounded-lg">
             <Zap className="h-4 w-4 text-bridge-accent" />

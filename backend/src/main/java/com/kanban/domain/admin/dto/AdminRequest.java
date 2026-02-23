@@ -112,4 +112,12 @@ public class AdminRequest {
         private Integer monthlyAiCredits;
         private Integer addPurchasedCredits;
     }
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class AdjustPersonalAiCredits {
+        private Integer personalAiCredits;
+        private Integer addBonusCredits;
+    }
 }

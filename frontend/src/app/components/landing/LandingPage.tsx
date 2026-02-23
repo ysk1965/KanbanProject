@@ -1,14 +1,16 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useTheme } from '../../contexts/ThemeContext';
 import { LanguageSwitcher } from '../LanguageSwitcher';
-const HeroScene = lazy(() => import('./BridgeScene').then(m => ({ default: m.HeroScene })));
-import { KanbanDiagram, GanttDiagram, DailyScheduleDiagram, DailyChecklistDiagram, SlackNotificationDiagram, PriceComparisonDiagram, ResourcePulseDiagram, AIReportDiagram } from './Diagrams';
+import { lazyWithRetry } from '../../utils/lazyWithRetry';
+const HeroScene = lazyWithRetry(() => import('./BridgeScene').then(m => ({ default: m.HeroScene })), 'HeroScene');
+import { KanbanDiagram, GanttDiagram, DailyScheduleDiagram, DailyChecklistDiagram, SlackNotificationDiagram, PriceComparisonDiagram, ResourcePulseDiagram, AIReportDiagram, MySpaceOverviewDiagram, EisenhowerDiagram, HabitTrackerDiagram, AIDiaryDiagram } from './Diagrams';
 import { motion, Variants, AnimatePresence } from 'framer-motion';
 import {
   ArrowRight, Menu, X, Layers, Layout, Zap, CheckCircle,
   RefreshCcw, BarChart3, Sparkles, Activity, Bell, AtSign, Settings2,
-  Brain, Clock, Users
+  Brain, Clock, Users, Heart, Flame, BookHeart, CalendarDays, LayoutGrid
 } from 'lucide-react';
 
 const FeatureCard = ({ icon: Icon, title, desc, delay, highlight = false }: { icon: React.ElementType, title: string, desc: string, delay: string, highlight?: boolean }) => (
@@ -88,8 +90,24 @@ export const LandingPage: React.FC = () => {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [dailyTab, setDailyTab] = useState<'timeblock' | 'checklist'>('timeblock');
+  const [mySpaceTab, setMySpaceTab] = useState<'overview' | 'matrix' | 'habits' | 'diary'>('overview');
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { theme, setTheme } = useTheme();
+  const prevThemeRef = useRef(theme);
+
+  // 랜딩 페이지는 항상 다크 모드로 표시
+  useEffect(() => {
+    prevThemeRef.current = theme;
+    if (theme !== 'dark') {
+      setTheme('dark');
+    }
+    return () => {
+      if (prevThemeRef.current !== 'dark') {
+        setTheme(prevThemeRef.current);
+      }
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
@@ -117,7 +135,7 @@ export const LandingPage: React.FC = () => {
     <div className="min-h-screen bg-bridge-dark text-slate-200 selection:bg-bridge-accent selection:text-white font-inter overflow-x-hidden">
 
       {/* Navigation */}
-      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-700 ${scrolled ? 'glass border-b border-white/15 py-4' : 'bg-transparent py-8'}`}>
+      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-700 safe-top ${scrolled ? 'glass border-b border-white/15 py-4' : 'bg-transparent py-8'}`}>
         <div className="container mx-auto px-8 flex justify-between items-center">
           <div className="flex items-center gap-3 cursor-pointer group" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
             <img src="/BridgeSpotsIcon.png" alt="BridgeSpots" className="w-10 h-10 rounded-xl shadow-[0_0_20px_rgba(99,102,241,0.6)] group-hover:scale-110 transition-all duration-500" />
@@ -130,6 +148,7 @@ export const LandingPage: React.FC = () => {
             <a href="#core" onClick={scrollToSection('core')} className="hover:text-white transition-all duration-300">{t('landing.nav.features')}</a>
             <a href="#workflow" onClick={scrollToSection('workflow')} className="hover:text-white transition-all duration-300">{t('landing.nav.workflow')}</a>
             <a href="#pricing" onClick={scrollToSection('pricing')} className="hover:text-white transition-all duration-300">{t('landing.nav.pricing')}</a>
+            <a href="#myspace" onClick={scrollToSection('myspace')} className="hover:text-white transition-all duration-300">{t('landing.nav.myspace')}</a>
             <a href="#ai" onClick={scrollToSection('ai')} className="hover:text-white transition-all duration-300">{t('landing.nav.ai')}</a>
             <Link to="/compare" className="hover:text-bridge-secondary transition-all duration-300">{t('landing.nav.compare')}</Link>
             <LanguageSwitcher variant="compact" />
@@ -152,6 +171,7 @@ export const LandingPage: React.FC = () => {
           <a href="#core" onClick={scrollToSection('core')} className="uppercase font-bold tracking-[0.25em] text-slate-400">{t('landing.nav.features')}</a>
           <a href="#workflow" onClick={scrollToSection('workflow')} className="uppercase font-bold tracking-[0.25em] text-slate-400">{t('landing.nav.workflow')}</a>
           <a href="#pricing" onClick={scrollToSection('pricing')} className="uppercase font-bold tracking-[0.25em] text-slate-400">{t('landing.nav.pricing')}</a>
+          <a href="#myspace" onClick={scrollToSection('myspace')} className="uppercase font-bold tracking-[0.25em] text-slate-400">{t('landing.nav.myspace')}</a>
           <a href="#ai" onClick={scrollToSection('ai')} className="uppercase font-bold tracking-[0.25em] text-slate-400">{t('landing.nav.ai')}</a>
           <Link to="/compare" className="uppercase font-bold tracking-[0.25em] text-slate-400">{t('landing.nav.compare')}</Link>
           <button onClick={handleGetStarted} className="px-10 py-5 bg-bridge-accent text-white rounded-full shadow-2xl uppercase font-bold tracking-widest text-sm">{t('landing.nav.startForFree')}</button>
@@ -236,9 +256,9 @@ export const LandingPage: React.FC = () => {
                 delay="0.3"
               />
               <FeatureCard
-                icon={Zap}
-                title={t('landing.core.pricing.title')}
-                desc={t('landing.core.pricing.desc')}
+                icon={Heart}
+                title={t('landing.core.personal.title')}
+                desc={t('landing.core.personal.desc')}
                 delay="0.4"
               />
             </div>
@@ -339,8 +359,93 @@ export const LandingPage: React.FC = () => {
           </div>
         </section>
 
+        {/* My Space Section */}
+        <section id="myspace" className="py-48 bg-bridge-dark relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-[800px] h-[800px] bg-bridge-secondary/5 blur-[250px] rounded-full -ml-96 -mt-96" />
+          <div className="container mx-auto px-8">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-28 items-center">
+              <div className="lg:col-span-5">
+                <div className="inline-block mb-6 text-[11px] font-bold tracking-[0.4em] text-bridge-secondary uppercase font-jakarta">{t('landing.myspace.label')}</div>
+                <h2 className="font-jakarta text-4xl md:text-7xl mb-12 leading-tight text-white font-extrabold tracking-tighter">{t('landing.myspace.titleLine1')}<br/>{t('landing.myspace.titleLine2')}<span className="spot-dot scale-150 ml-2" /></h2>
+                <p className="text-xl text-slate-400 mb-16 leading-relaxed font-light font-inter">
+                  {t('landing.myspace.subtitle')}
+                </p>
+                <div className="space-y-12">
+                  {[
+                    { icon: LayoutGrid, title: t('landing.myspace.matrix.title'), text: t('landing.myspace.matrix.text') },
+                    { icon: Flame, title: t('landing.myspace.habits.title'), text: t('landing.myspace.habits.text') },
+                    { icon: BookHeart, title: t('landing.myspace.diary.title'), text: t('landing.myspace.diary.text') },
+                    { icon: CalendarDays, title: t('landing.myspace.calendar.title'), text: t('landing.myspace.calendar.text') },
+                  ].map((item, i) => (
+                    <motion.div
+                      key={i}
+                      initial={{ opacity: 0, x: -20 }}
+                      whileInView={{ opacity: 1, x: 0 }}
+                      viewport={{ once: true }}
+                      transition={{ delay: i * 0.15 }}
+                      className="flex gap-6 group"
+                    >
+                      <div className="flex-shrink-0 w-14 h-14 rounded-2xl border border-white/20 bg-white/5 flex items-center justify-center group-hover:bg-bridge-secondary group-hover:border-bridge-secondary transition-all duration-700 shadow-2xl">
+                        <item.icon size={22} className="text-bridge-secondary group-hover:text-white transition-colors duration-700" />
+                      </div>
+                      <div>
+                        <h4 className="text-xl font-jakarta font-bold text-white mb-2 tracking-tight group-hover:text-bridge-secondary transition-colors duration-500">{item.title}</h4>
+                        <p className="text-slate-400 leading-relaxed text-base font-light font-inter">{item.text}</p>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+              <div className="lg:col-span-7">
+                <div className="flex justify-center mb-6">
+                  <div className="inline-flex bg-white/5 border border-white/10 rounded-2xl p-1.5">
+                    {(['overview', 'matrix', 'habits', 'diary'] as const).map(tab => (
+                      <button
+                        key={tab}
+                        onClick={() => setMySpaceTab(tab)}
+                        className={`px-5 py-2.5 rounded-xl text-[11px] font-bold tracking-widest uppercase transition-all font-jakarta ${
+                          mySpaceTab === tab
+                            ? 'bg-bridge-secondary text-bridge-dark shadow-lg'
+                            : 'text-slate-500 hover:text-slate-300'
+                        }`}
+                      >
+                        {t(`landing.myspace.tabs.${tab}`)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="relative">
+                  <div className="absolute -inset-10 bg-bridge-secondary/5 blur-[100px] rounded-full" />
+                  <AnimatePresence mode="wait">
+                    {mySpaceTab === 'overview' && (
+                      <motion.div key="overview" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3 }}>
+                        <MySpaceOverviewDiagram />
+                      </motion.div>
+                    )}
+                    {mySpaceTab === 'matrix' && (
+                      <motion.div key="matrix" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3 }}>
+                        <EisenhowerDiagram />
+                      </motion.div>
+                    )}
+                    {mySpaceTab === 'habits' && (
+                      <motion.div key="habits" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3 }}>
+                        <HabitTrackerDiagram />
+                      </motion.div>
+                    )}
+                    {mySpaceTab === 'diary' && (
+                      <motion.div key="diary" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3 }}>
+                        <AIDiaryDiagram />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* Collaboration Section */}
-        <section id="collaboration" className="py-48 bg-bridge-dark relative">
+        <section id="collaboration" className="py-48 bg-bridge-obsidian border-y border-white/15 relative">
           <div className="container mx-auto px-8">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-28 items-center">
               <div className="lg:col-span-7 order-2 lg:order-1">
@@ -388,7 +493,7 @@ export const LandingPage: React.FC = () => {
         </section>
 
         {/* AI Intelligence Section */}
-        <section id="ai" className="py-48 bg-bridge-obsidian border-y border-white/15 relative overflow-hidden">
+        <section id="ai" className="py-48 bg-bridge-dark relative overflow-hidden">
           <div className="absolute bottom-0 left-0 w-[800px] h-[800px] bg-bridge-accent/5 blur-[250px] rounded-full -ml-96 -mb-96" />
           <div className="container mx-auto px-8">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-28 items-center">
@@ -406,6 +511,7 @@ export const LandingPage: React.FC = () => {
                     { icon: Sparkles, title: t('landing.ai.narrative.title'), text: t('landing.ai.narrative.text') },
                     { icon: Clock, title: t('landing.ai.standup.title'), text: t('landing.ai.standup.text') },
                     { icon: Users, title: t('landing.ai.insights.title'), text: t('landing.ai.insights.text') },
+                    { icon: BookHeart, title: t('landing.ai.diary.title'), text: t('landing.ai.diary.text') },
                   ].map((item, i) => (
                     <motion.div
                       key={i}
@@ -437,7 +543,7 @@ export const LandingPage: React.FC = () => {
         </section>
 
         {/* Pricing Section */}
-        <section id="pricing" className="py-64 bg-bridge-dark relative overflow-hidden">
+        <section id="pricing" className="py-64 bg-bridge-obsidian border-y border-white/15 relative overflow-hidden">
           <div className="container mx-auto px-8 text-center">
              <div className="max-w-5xl mx-auto mb-32">
                 <div className="flex justify-center mb-12">
@@ -469,11 +575,13 @@ export const LandingPage: React.FC = () => {
                     <li className="flex items-center gap-5"><CheckCircle size={22} className="text-bridge-secondary/50" /> {t('landing.pricing.basic.feature1')}</li>
                     <li className="flex items-center gap-5"><CheckCircle size={22} className="text-bridge-secondary/50" /> {t('landing.pricing.basic.feature2')}</li>
                     <li className="flex items-center gap-5"><CheckCircle size={22} className="text-bridge-secondary/50" /> {t('landing.pricing.basic.feature3')}</li>
+                    <li className="flex items-center gap-5"><CheckCircle size={22} className="text-bridge-secondary/50" /> {t('landing.pricing.basic.feature5')}</li>
+                    <li className="flex items-center gap-5"><CheckCircle size={22} className="text-bridge-secondary/50" /> {t('landing.pricing.basic.feature6')}</li>
                   </ul>
                   <button onClick={handleGetStarted} className="w-full py-8 bg-white/10 border border-white/20 rounded-full text-[12px] font-black uppercase tracking-widest text-white hover:bg-white hover:text-bridge-dark transition-all font-jakarta">{t('landing.pricing.basic.cta')}</button>
                 </div>
 
-                <div className="p-16 bg-bridge-slate rounded-[4rem] border-2 border-bridge-secondary/40 shadow-[0_0_120px_rgba(45,212,191,0.2)] flex flex-col items-center text-center transform scale-105 relative z-10 transition-all duration-700">
+                <div className="p-16 bg-bridge-obsidian rounded-[4rem] border-2 border-bridge-secondary/40 shadow-[0_0_120px_rgba(45,212,191,0.2)] flex flex-col items-center text-center transform scale-105 relative z-10 transition-all duration-700">
                   <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-bridge-secondary text-bridge-dark px-14 py-4 rounded-full text-[12px] font-black tracking-[0.5em] uppercase shadow-2xl font-jakarta">{t('landing.pricing.premium.name')}</div>
                   <div className="flex items-baseline gap-3 mb-8">
                     <span className="text-4xl text-bridge-secondary font-jakarta font-bold">$</span>
@@ -487,6 +595,7 @@ export const LandingPage: React.FC = () => {
                     <li className="flex items-center gap-5"><CheckCircle size={26} className="text-bridge-secondary" /> {t('landing.pricing.premium.feature4')}</li>
                     <li className="flex items-center gap-5"><CheckCircle size={26} className="text-bridge-secondary" /> {t('landing.pricing.premium.feature5')}</li>
                     <li className="flex items-center gap-5"><CheckCircle size={26} className="text-bridge-secondary" /> {t('landing.pricing.premium.feature6')}</li>
+                    <li className="flex items-center gap-5"><CheckCircle size={26} className="text-bridge-secondary" /> {t('landing.pricing.premium.feature7')}</li>
                   </ul>
                   <button onClick={handleGetStarted} className="w-full py-9 bg-bridge-secondary text-bridge-dark rounded-full text-[12px] font-black uppercase tracking-widest shadow-2xl hover:shadow-[0_0_80px_rgba(45,212,191,0.7)] transition-all transform hover:scale-[1.03] font-jakarta">{t('landing.pricing.premium.cta')}</button>
                 </div>

@@ -92,12 +92,12 @@ public class NoteCollabHandler extends BinaryWebSocketHandler {
         session.getAttributes().put("noteId", noteId);
         session.getAttributes().put("userId", userId);
 
-        // Room 생성 시 Redis 구독을 먼저 설정한 후 DB 상태 로드 (레이스 조건 최소화)
-        // Redis 구독 → DB 로드 순서로 수행하여, 구독 전 메시지 손실 윈도우를 최소화
+        // DB 상태를 먼저 로드한 후 Redis 구독을 시작하여,
+        // 구독 시점에 아직 storedState가 비어있는 레이스 윈도우를 제거
         Room room = rooms.computeIfAbsent(noteId, k -> {
             Room newRoom = new Room(k);
-            subscribeRedisChannel(k);
             noteCollabService.loadState(k).ifPresent(state -> newRoom.storedState = state);
+            subscribeRedisChannel(k);
             return newRoom;
         });
         room.sessions.put(session.getId(), session);
@@ -294,7 +294,7 @@ public class NoteCollabHandler extends BinaryWebSocketHandler {
             }
         }
 
-        if (token == null || !jwtProvider.validateToken(token)) {
+        if (token == null || !jwtProvider.validateAccessToken(token)) {
             log.warn("Invalid JWT for collab WebSocket");
             return null;
         }

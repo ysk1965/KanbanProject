@@ -166,7 +166,6 @@ public class SlackWebhookService {
     private void validateSlackAccess(String boardId) {
         Board board = boardRepository.findById(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
-        board.checkAndUpdateTierIfTrialExpired();
         if (!board.canAccessSlack()) {
             throw new BusinessException(ErrorCode.SLACK_PREMIUM_REQUIRED);
         }

@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useCallback, useRef } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Clock, CheckCircle2, BarChart3, Calendar, FileText, MessageSquare, ChevronLeft } from 'lucide-react';
 import { format } from 'date-fns';
@@ -6,6 +6,7 @@ import { ko } from 'date-fns/locale';
 import { ScheduleBlockInfo, ScheduleColumnInfo, CommentSummaryItem, commentAPI } from '../utils/api';
 import { getInitials } from '../utils/assigneeColor';
 import { BoardMember } from './ShareBoardModal';
+import { MotionModal } from './ui/MotionModal';
 
 interface WeeklySummaryModalProps {
   boardId: string;
@@ -19,6 +20,13 @@ interface WeeklySummaryModalProps {
 const timeToMinutes = (timeStr: string): number => {
   const [h, m] = timeStr.split(':').map(Number);
   return h * 60 + m;
+};
+
+// Overnight-safe duration: end < start → crosses midnight
+const calcDuration = (startTime: string, endTime: string): number => {
+  const s = timeToMinutes(startTime);
+  const e = timeToMinutes(endTime);
+  return e >= s ? e - s : (24 * 60 - s) + e;
 };
 
 // 주간 기록 테이블 행 타입
@@ -41,8 +49,6 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
   const [commentsFetched, setCommentsFetched] = useState(false);
   // 댓글 상세 뷰 상태
   const [commentDetailRow, setCommentDetailRow] = useState<WeeklyRecordRow | null>(null);
-  const mouseDownTargetRef = useRef<EventTarget | null>(null);
-
   // 전체 블록 수집
   const allBlocks = useMemo(() => {
     const blocks: { date: string; block: ScheduleBlockInfo }[] = [];
@@ -62,7 +68,7 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
 
     let totalMinutes = 0;
     allBlocks.forEach(({ block }) => {
-      totalMinutes += timeToMinutes(block.end_time) - timeToMinutes(block.start_time);
+      totalMinutes += calcDuration(block.start_time, block.end_time);
     });
     const totalHours = totalMinutes / 60;
 
@@ -71,7 +77,7 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
       const dayBlocks = allBlocks.filter((b) => b.date === dateStr);
       let dayMinutes = 0;
       dayBlocks.forEach(({ block }) => {
-        dayMinutes += timeToMinutes(block.end_time) - timeToMinutes(block.start_time);
+        dayMinutes += calcDuration(block.start_time, block.end_time);
       });
       return {
         dateStr,
@@ -90,7 +96,7 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
     let noFeatureBlocks = 0;
 
     allBlocks.forEach(({ block }) => {
-      const duration = timeToMinutes(block.end_time) - timeToMinutes(block.start_time);
+      const duration = calcDuration(block.start_time, block.end_time);
       if (block.feature) {
         const existing = featureMap.get(block.feature.id);
         if (existing) {
@@ -206,7 +212,7 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
     const rowMap = new Map<string, WeeklyRecordRow>();
 
     allBlocks.forEach(({ block }) => {
-      const duration = timeToMinutes(block.end_time) - timeToMinutes(block.start_time);
+      const duration = calcDuration(block.start_time, block.end_time);
       const itemTitle = block.checklist_item?.title || block.task?.title || t('weeklySummary.unassigned');
       const featureTitle = block.feature?.title || t('weeklySummary.unclassified');
       const featureColor = block.feature?.color || '#71717a';
@@ -275,13 +281,9 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
   }, [weeklyRecords]);
 
   return (
-    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50" onMouseDown={(e) => { mouseDownTargetRef.current = e.target; }} onClick={(e) => { if (e.target === e.currentTarget && mouseDownTargetRef.current === e.currentTarget) onClose(); }}>
-      <div
-        className="bg-bridge-obsidian rounded-xl shadow-2xl w-[560px] max-h-[85vh] flex flex-col overflow-hidden border border-white/20"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <MotionModal open onClose={onClose} className="sm:w-[560px] sm:max-w-[calc(100%-2rem)] max-h-[85vh] flex flex-col p-0 overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/20">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-foreground/10">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-sm text-white font-medium">
               {getInitials(member.name)}
@@ -306,7 +308,7 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
             className={`px-4 py-2 text-sm rounded-lg transition-all flex items-center gap-1.5 ${
               activeTab === 'stats'
                 ? 'bg-bridge-accent text-white font-medium'
-                : 'text-slate-400 hover:text-white hover:bg-white/5'
+                : 'text-slate-400 hover:text-foreground hover:bg-foreground/5'
             }`}
           >
             <BarChart3 className="h-3.5 w-3.5" />
@@ -317,7 +319,7 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
             className={`px-4 py-2 text-sm rounded-lg transition-all flex items-center gap-1.5 ${
               activeTab === 'narrative'
                 ? 'bg-bridge-accent text-white font-medium'
-                : 'text-slate-400 hover:text-white hover:bg-white/5'
+                : 'text-slate-400 hover:text-foreground hover:bg-foreground/5'
             }`}
           >
             <FileText className="h-3.5 w-3.5" />
@@ -385,13 +387,13 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
                           day.isToday ? 'bg-indigo-900/20' : ''
                         }`}
                       >
-                        <span className={`w-8 text-xs font-medium ${day.isToday ? 'text-indigo-400' : 'text-slate-300'}`}>
+                        <span className={`w-8 text-xs font-medium ${day.isToday ? 'text-indigo-400' : 'text-muted-foreground'}`}>
                           {day.dayLabel}
                         </span>
                         <span className="w-10 text-[10px] text-slate-400">{day.dateLabel}</span>
                         <span className="w-14 text-xs text-slate-400 text-right">{day.blockCount}</span>
                         <span className="w-14 text-xs text-foreground font-medium text-right">{day.hours.toFixed(1)}h</span>
-                        <div className="flex-1 h-3 bg-white/5 rounded overflow-hidden">
+                        <div className="flex-1 h-3 bg-foreground/5 rounded overflow-hidden">
                           <div
                             className="h-full bg-bridge-accent rounded transition-all"
                             style={{ width: `${(day.hours / summaryData.maxDayHours) * 100}%` }}
@@ -421,7 +423,7 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
                               {(feature.minutes / 60).toFixed(1)}h ({feature.blockCount})
                             </span>
                           </div>
-                          <div className="h-1.5 bg-white/5 rounded overflow-hidden ml-4">
+                          <div className="h-1.5 bg-foreground/5 rounded overflow-hidden ml-4">
                             <div
                               className="h-full rounded transition-all"
                               style={{
@@ -453,7 +455,7 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
               <div>
                 <button
                   onClick={() => setCommentDetailRow(null)}
-                  className="flex items-center gap-1 text-slate-400 hover:text-white text-sm mb-4 transition-colors"
+                  className="flex items-center gap-1 text-slate-400 hover:text-foreground text-sm mb-4 transition-colors"
                 >
                   <ChevronLeft className="h-4 w-4" />
                   {t('weeklySummary.goBack')}
@@ -503,7 +505,7 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
                     <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
                       {t('weeklySummary.weeklyOverview')}
                     </label>
-                    <p className="text-slate-300 font-light leading-relaxed text-sm">
+                    <p className="text-muted-foreground font-light leading-relaxed text-sm">
                       {overviewText}
                     </p>
                   </div>
@@ -515,7 +517,7 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
                     {t('weeklySummary.weeklyRecord')}
                   </label>
                   {/* 테이블 헤더 */}
-                  <div className="flex items-center gap-2 px-3 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-white/10">
+                  <div className="flex items-center gap-2 px-3 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-foreground/10">
                     <div className="flex-1">{t('weeklySummary.timeBlockCol')}</div>
                     <div className="w-20 text-right">{t('weeklySummary.hoursSpent')}</div>
                     <div className="w-14 text-center">{t('weeklySummary.commentsCol')}</div>
@@ -543,7 +545,7 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
                             <div className="flex items-center gap-2 mt-1 ml-4">
                               <span className="text-[10px] text-slate-500">{row.featureTitle}</span>
                               {/* 미니 바 */}
-                              <div className="flex-1 h-1 bg-white/5 rounded overflow-hidden max-w-[120px]">
+                              <div className="flex-1 h-1 bg-foreground/5 rounded overflow-hidden max-w-[120px]">
                                 <div
                                   className="h-full rounded"
                                   style={{ width: `${barWidth}%`, backgroundColor: row.featureColor, opacity: 0.6 }}
@@ -583,15 +585,14 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-white/20 flex justify-center">
+        <div className="px-6 py-4 border-t border-foreground/10 flex justify-center">
           <button
             onClick={onClose}
-            className="px-8 py-2.5 bg-white/5 border border-white/20 text-white rounded-xl hover:bg-white/10 transition-all text-sm"
+            className="px-8 py-2.5 bg-foreground/5 border border-foreground/10 text-foreground rounded-xl hover:bg-foreground/10 transition-all text-sm"
           >
             {t('common.close')}
           </button>
         </div>
-      </div>
-    </div>
+    </MotionModal>
   );
 }

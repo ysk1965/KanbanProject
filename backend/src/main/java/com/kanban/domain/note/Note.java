@@ -154,7 +154,7 @@ public class Note {
     }
 
     public boolean canHaveChildren() {
-        return isFolder() && this.depth < MAX_DEPTH;
+        return this.depth < MAX_DEPTH;
     }
 
     public static int getMaxDepth() {

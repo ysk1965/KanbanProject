@@ -45,24 +45,25 @@
       "workflow": "Workflow",
       "pricing": "Pricing",
       "compare": "Comparar",
+      "myspace": "My Space",
       "joinNow": "JOIN NOW",
       "startForFree": "Comece grátis",
       "ai": "AI"
     },
     "hero": {
-      "badge": "A Orquestração Inteligente de PM",
+      "badge": "Project + Life Management in One",
       "subtitle": "Um <1>Flow</1> claro que simplifica fluxos de trabalho complexos.\nExperimente a interface de colaboração PM mais avançada.",
       "subtitleFlow": "Flow",
-      "subtitleText1": "Um ",
-      "subtitleText2": " claro que simplifica fluxos de trabalho complexos.\nExperimente a interface de colaboração PM mais avançada.",
+      "subtitleText1": "Team collaboration meets personal growth in one clear ",
+      "subtitleText2": ".\nManage projects AND your life — no plugins, no app switching.",
       "tryFree": "Teste 7 Dias Grátis Premium",
       "basicFree": "Board Basic Gratuito Para Sempre"
     },
     "core": {
       "label": "Arquitetura Central",
       "title": "Orquestre o\nfluxo de colaboração",
-      "titleLine1": "Orquestre o",
-      "titleLine2": "fluxo de colaboração",
+      "titleLine1": "Two pillars,",
+      "titleLine2": "one platform",
       "kanban": {
         "title": "Kanban orientado à prática",
         "desc": "Construa o fluxo de trabalho exclusivo da sua equipe sobre a estrutura 'Feature - Task - Concluído'. A interface de colaboração mais prática, construída com insights reais de PM."
@@ -78,6 +79,38 @@
       "pricing": {
         "title": "Modelo Ilimitado Transparente",
         "desc": "Recursos essenciais como boards kanban, criação de tarefas e cronogramas diários são gratuitos para sempre. Adicione integração com Slack, Gantt semanal e mais por apenas $5 por usuário."
+      },
+      "personal": {
+        "title": "Personal Productivity Hub",
+        "desc": "Eisenhower Matrix task board, habit tracker with streaks, and AI diary — your personal growth toolkit lives right next to your team workspace."
+      }
+    },
+    "myspace": {
+      "label": "Personal Productivity",
+      "titleLine1": "Your space,",
+      "titleLine2": "your growth",
+      "subtitle": "Beyond team collaboration — manage personal tasks, build habits, and reflect with AI. Everything in one place, always in sync with your work.",
+      "tabs": {
+        "overview": "Overview",
+        "matrix": "Matrix",
+        "habits": "Habits",
+        "diary": "AI Diary"
+      },
+      "matrix": {
+        "title": "Eisenhower Matrix",
+        "text": "Prioritize with a 2×2 urgency-importance grid. D-day badges, auto-sorting, and drag-to-reprioritize."
+      },
+      "habits": {
+        "title": "Habit Tracker",
+        "text": "Build streaks with daily/weekly patterns. Color-coded habits, weekly matrix view, and streak analytics."
+      },
+      "diary": {
+        "title": "AI Diary",
+        "text": "Journal through conversation with AI. Mood tracking, voice input/output, and reflective prompts."
+      },
+      "calendar": {
+        "title": "Personal Calendar",
+        "text": "Time-block your personal schedule with conflict detection. Synced alongside your team calendar."
       }
     },
     "workflow": {
@@ -154,7 +187,11 @@
       },
       "subtitle": "Além de dashboards e gráficos. A IA analisa suas tarefas, blocos de tempo, checklists e comentários para gerar insights narrativos que conectam pontos que as pessoas podem não perceber.",
       "titleLine1": "A IA lê o",
-      "titleLine2": "contexto da sua equipe"
+      "titleLine2": "full context",
+      "diary": {
+        "title": "AI Conversational Diary",
+        "text": "Reflect on your day through conversation. AI tracks mood patterns, remembers context, and offers personalized insights."
+      }
     },
     "pricing": {
       "badge": "PREMIUM 7 DIAS DE TESTE GRÁTIS",
@@ -174,6 +211,8 @@
         "feature2": "Cronograma diário e checklists",
         "feature3": "Compartilhamento de equipe e colaboração (atualização manual)",
         "feature4": "Notificações básicas",
+        "feature5": "Personal task board & habit tracker",
+        "feature6": "Personal calendar & schedule",
         "cta": "START FREE"
       },
       "premium": {
@@ -186,13 +225,14 @@
         "feature4": "Orquestração avançada de permissões de equipe",
         "feature5": "Relatório de sprint AI e insights",
         "feature6": "Sincronização de board em tempo real (atualizações instantâneas sem recarregar)",
+        "feature7": "AI conversational diary with voice",
         "cta": "START TRIAL"
       }
     },
     "cta": {
       "titleLine1": "Comece",
       "titleLine2": "Agora",
-      "subtitle": "Vá além do simples gerenciamento de tarefas com BridgeSpots.\nOrquestre de forma inteligente a produtividade ilimitada da sua equipe.",
+      "subtitle": "Go beyond task management. Orchestrate your team's productivity AND your personal growth — all in one platform.",
       "button": "LAUNCH FLOW"
     },
     "footer": {
@@ -252,13 +292,34 @@
   "dashboard": {
     "sidebar": {
       "allBoards": "Todos os Boards",
-      "favorites": "Favoritos",
-      "teamMembers": "Membros da Equipe",
+      "myBoard": "Meu Espaço",
       "settings": "Configurações",
       "upgradePro": "Upgrade Pro",
       "upgradeDesc": "Experimente boards ilimitados e análises avançadas.",
       "viewPlans": "Ver Planos"
-    }
+    },
+    "searchPlaceholder": "Buscar projetos...",
+    "logout": "Sair",
+    "mySpace": "Meu espaço",
+    "mySpaceDesc": "Agenda pessoal & Diário com IA",
+    "yourProjects": "Meus projetos",
+    "managingWorkspaces": "Gerenciando {{count}} espaços de trabalho ativos",
+    "createNewBoard": "Criar novo board",
+    "noSearchResult": "Nenhum board encontrado para \"{{query}}\"",
+    "clearSearch": "Limpar busca",
+    "starredBoards": "Boards favoritos",
+    "workspaceBoards": "Boards do espaço de trabalho",
+    "testBoard": "Board de teste",
+    "trialPlan": "Teste",
+    "noDescription": "Sem descrição",
+    "tasksProgress": "Progresso das tarefas",
+    "memberCount": "{{count}} membros",
+    "newBoard": "Novo board",
+    "boardName": "Nome do board",
+    "description": "Descrição",
+    "backgroundColor": "Cor de fundo",
+    "cancel": "Cancelar",
+    "createBoard": "Criar board"
   },
   "share": {
     "title": "Compartilhar Board",
@@ -940,7 +1001,8 @@
     "noBoards": "Nenhum board ainda",
     "createFirst": "Crie seu primeiro board",
     "deleteBoard": "Excluir Board",
-    "deleteConfirm": "Excluir este board?",
+    "deleteConfirm": "Excluir o board \"{{name}}\"?",
+    "softDeleteNotice": "Este board pode ser recuperado por um administrador dentro de 7 dias.",
     "deleteIrreversible": "Esta ação não pode ser desfeita.",
     "editBoard": "Editar Board",
     "boardNamePlaceholder": "Digite o nome do board",
@@ -1104,7 +1166,13 @@
       "deleteConfirm": "Excluir este emoji?",
       "maxSize": "PNG, GIF, WebP · Máx 128KB",
       "adminOnly": "Apenas administradores podem adicionar emojis"
-    }
+    },
+    "aiSummarize": "AI Resumo",
+    "aiSummaryTitle": "AI Resumo de Comentários",
+    "aiDecisions": "Decisões",
+    "aiOpenQuestions": "Perguntas Pendentes",
+    "aiActionItems": "Itens de Ação",
+    "checklist": "Checklist"
   },
   "activity": {
     "title": "Registro de Atividades",
@@ -1234,7 +1302,13 @@
       "totalBoards": "Total de Boards",
       "activeSubscriptions": "Assinaturas Ativas",
       "active": "Ativos: {{count}}",
-      "tierDistribution": "Distribuição de Tiers dos Boards"
+      "tierDistribution": "Distribuição de Tiers dos Boards",
+      "personalBoardMetrics": "Board Pessoal",
+      "personalBoards": "Boards Pessoais",
+      "adoptionRate": "Taxa de Adoção",
+      "activePersonalBoards": "Ativos (30d)",
+      "totalDiaryEntries": "Entradas de Diário",
+      "boardTypeDistribution": "Distribuição de Tipos de Board"
     },
     "analytics": {
       "title": "Análises / Relatórios",
@@ -1263,7 +1337,21 @@
       "trialStarted": "Teste Iniciado",
       "funnelConverted": "Convertido",
       "funnelInProgress": "Em Andamento",
-      "funnelExpired": "Expirado"
+      "funnelExpired": "Expirado",
+      "pbAdoption": "Adoção de PB",
+      "totalPb": "Total {{count}}",
+      "totalPersonalBoards": "Total Personal Boards",
+      "adoptionRateLabel": "Taxa de adoção",
+      "pbCreated": "PB criados",
+      "diaryEngagement": "Engajamento do diário",
+      "totalDiaryEntries": "Total de entradas",
+      "diaryCompletionRate": "Taxa de conclusão",
+      "diaryActiveUsers": "Usuários ativos",
+      "diaryEntries": "Entradas de diário",
+      "pbConversion": "Conversão de Personal Board",
+      "personalOnly": "Apenas Personal",
+      "personalAndTeam": "Personal + Team",
+      "pbConversionRate": "Taxa de conversão"
     },
     "system": {
       "title": "Gerenciamento do Sistema",
@@ -1298,7 +1386,20 @@
       "saving": "Salvando...",
       "saveChanges": "Salvar Alterações",
       "stopping": "Parando...",
-      "stopNow": "Parar Agora"
+      "stopNow": "Parar Agora",
+      "pbStatus": "Status do Personal Board",
+      "pbTotalUsers": "Total de usuários",
+      "pbWithPb": "Com PB",
+      "pbWithoutPb": "Sem PB",
+      "pbAdoptionRate": "Taxa de adoção",
+      "pbAdopted": "Adotado",
+      "pbRemaining": "Pendente",
+      "bulkCreateBtn": "Criar PB para {{count}} usuários",
+      "bulkCreating": "Criando...",
+      "bulkCreateTitle": "Criar Personal Boards em massa",
+      "bulkCreateConfirm": "Criar Personal Boards para {{count}} usuários sem um?",
+      "bulkCreateSuccess": "{{created}} criados (falhas: {{failed}}, total: {{total}})",
+      "bulkCreateFailed": "Criação em massa falhou"
     },
     "subscriptions": {
       "title": "Gerenciamento de Assinaturas",
@@ -1325,7 +1426,20 @@
       "tasks": "Tasks",
       "createdAt": "Criado em",
       "view": "Ver",
-      "viewBoard": "Ver quadro"
+      "viewBoard": "Ver quadro",
+      "type": "Tipo",
+      "allTypes": "Todos os Tipos",
+      "typeTeam": "Equipe",
+      "typePersonal": "Pessoal",
+      "activeBoards": "Boards ativos",
+      "deletedBoards": "Boards excluídos",
+      "noDeletedBoards": "Nenhum board excluído",
+      "noDeletedBoardsDesc": "Boards excluídos aparecerão aqui por 7 dias antes da exclusão permanente.",
+      "deletedAt": "Excluído",
+      "daysLeft": "{{days}} dias para exclusão permanente",
+      "restore": "Restaurar",
+      "restoreSuccess": "Board foi restaurado",
+      "restoreFailed": "Falha ao restaurar o board"
     },
     "boardDetail": {
       "title": "Detalhes do Board",
@@ -1359,6 +1473,7 @@
       "dangerZone": "Zona de Perigo",
       "deleteBoard": "Excluir Board",
       "deleteWarning": "Todos os dados relacionados a este board serão excluídos. Esta ação não pode ser desfeita.",
+      "softDeleteWarning": "O board será excluído temporariamente. Pode ser restaurado dentro de 7 dias.",
       "deleting": "Excluindo...",
       "editName": "Editar nome do quadro",
       "nameUpdateSuccess": "Nome do quadro atualizado.",
@@ -1378,7 +1493,12 @@
       "seatCount": "Vagas",
       "seatCountUpdateFailed": "Falha ao alterar a quantidade de vagas.",
       "seatCountUpdateSuccess": "Quantidade de vagas atualizada para {{count}}.",
-      "updateSeatCount": "Atualizar vagas"
+      "updateSeatCount": "Atualizar vagas",
+      "personalActivity": "Atividade Pessoal",
+      "diaryEntries": "Diário",
+      "completionRate": "{{rate}}% Concluído",
+      "events": "Eventos",
+      "lastActivity": "Última Atividade"
     },
     "users": {
       "title": "Gerenciamento de Usuários",
@@ -1568,12 +1688,22 @@
     "enterName": "Por favor, digite seu nome.",
     "profileSaved": "Perfil salvo com sucesso",
     "profileSaveFailed": "Falha ao salvar o perfil.",
+    "profileImageDesc": "Alterar foto de perfil",
+    "profileImageHint": "JPG, PNG, GIF, WebP (máx. 5MB)",
+    "removeProfileImage": "Remover foto de perfil",
+    "imageTypeError": "Formato de arquivo não suportado (apenas JPG, PNG, GIF, WebP)",
+    "imageSizeError": "O tamanho do arquivo excede 5MB",
+    "imageUploadFailed": "Falha ao carregar foto de perfil",
+    "imageDeleteFailed": "Falha ao excluir foto de perfil",
     "theme": "Tema",
     "themeDesc": "Alterar o tema de exibição",
     "darkMode": "Modo Escuro",
     "language": "Idioma",
     "languageDesc": "Alterar o idioma de exibição",
     "selectLanguage": "Selecionar Idioma",
+    "holidayCountry": "País dos feriados",
+    "holidayCountryDesc": "Selecione um país para exibir feriados no calendário",
+    "holidayOff": "Desligado",
     "changePassword": "Alterar Senha",
     "changePasswordDesc": "Altere sua senha para segurança da conta",
     "currentPasswordLabel": "Senha Atual",
@@ -1705,7 +1835,8 @@
     "unlinked": "(Não vinculado)",
     "cannotMove": "Não é possível mover",
     "cannotChange": "Não é possível alterar",
-    "willSplit": "Dividir"
+    "willSplit": "Dividir",
+    "nextDay": "dia seguinte"
   },
   "scheduleDetail": {
     "title": "Detalhes do Bloco de Tempo",
@@ -1723,11 +1854,12 @@
     "taskChecklist": "Checklist da TASK",
     "completedCount": "{{completed}}/{{total}} concluídos",
     "noChecklist": "Nenhum item de checklist",
-    "current": "atual"
+    "current": "atual",
+    "nextDay": "dia seguinte"
   },
   "emptyBoard": {
     "heading": "Comece com seu board",
-    "subheading": "Gerencie seu projeto sistematicamente em 3 passos",
+    "subheading": "Gerencie seu projeto sistematicamente em 3 passos e acompanhe o progresso",
     "createFirstFeature": "Crie sua primeira Feature",
     "step1Title": "Crie uma Feature",
     "step1Desc": "Uma Feature representa uma unidade funcional. Pressione o botão abaixo para criar sua primeira Feature.",
@@ -1750,6 +1882,7 @@
     "addTag": "Adicionar tag",
     "newTag": "Nova tag",
     "subtaskList": "Lista de Subtarefas",
+    "onboardingStep2": "Agora adicione suas subtarefas!",
     "addSubtaskGuide": "Adicione subtarefas abaixo",
     "subtaskDescription": "As subtarefas aparecem como cards no bloco Task do board kanban, e você pode gerenciar o progresso arrastando-as entre os blocos.",
     "newSubtaskPlaceholder": "Adicionar nova subtarefa...",
@@ -1757,7 +1890,27 @@
     "saveChangesDesc": "Você tem alterações não salvas. Fechar sem salvar irá descartá-las.",
     "discard": "Não salvar",
     "deleteTitle": "Excluir esta feature?",
-    "deleteDesc": "Esta feature e todas as subtarefas serão excluídas. Esta ação não pode ser desfeita."
+    "deleteDesc": "Esta feature e todas as subtarefas serão excluídas. Esta ação não pode ser desfeita.",
+    "aiDecompose": "AI Decompor",
+    "aiDecomposeTitle": "AI Decomposição de Tarefas",
+    "aiAnalyzing": "AI está analisando a funcionalidade...",
+    "aiError": "Erro durante a análise. Tente novamente.",
+    "aiRetry": "Tentar novamente",
+    "aiNoSuggestions": "Nenhuma tarefa para gerar.",
+    "aiSelectAll": "Selecionar tudo",
+    "aiDeselectAll": "Desmarcar tudo",
+    "aiSelectedCount": "{{count}} itens selecionados",
+    "aiAlreadyExists": "Já existe",
+    "aiApply": "Aplicar",
+    "aiApplying": "Aplicando...",
+    "aiApplySuccess": "{{tasks}} tarefas e {{checklists}} checklists criados.",
+    "aiApplyDone": "Concluído",
+    "aiConfirmTitle": "Sugestões de tarefas com IA",
+    "aiConfirmDesc": "A IA sugerirá subtarefas com base nas informações da funcionalidade abaixo.",
+    "aiConfirmFeatureTitle": "Título",
+    "aiConfirmFeatureDesc": "Descrição",
+    "aiConfirmNoDesc": "Sem descrição. Adicionar uma descrição melhorará as recomendações.",
+    "aiConfirmStart": "Obter sugestões"
   },
   "weeklySchedule": {
     "day": "Dia",
@@ -2394,6 +2547,113 @@
       "monthly_usage": "Uso mensal",
       "purchased_remaining": "Créditos comprados restantes",
       "total_remaining": "Total restante"
+    }
+  },
+  "personal": {
+    "tabs": {
+      "overview": "Início",
+      "todo": "Tarefas",
+      "schedule": "Agenda",
+      "calendar": "Calendário",
+      "diary": "Diário IA"
+    },
+    "overview": {
+      "noEvents": "Nenhum evento hoje",
+      "addSchedule": "Adicionar agenda",
+      "noDeadlines": "Nenhum prazo próximo",
+      "addDeadline": "Adicionar tarefa"
+    },
+    "calendar": {
+      "task": "Tarefa",
+      "event": "Calendário",
+      "today": "Hoje",
+      "addEvent": "Adicionar calendário",
+      "tasksCount": "{{count}} tarefas",
+      "eventsCount": "{{count}} calendário",
+      "taskDeadline": "Prazo da tarefa",
+      "overdue": "Atrasado",
+      "recurring": "Recorrente",
+      "noItems": "Nenhum item para este dia",
+      "newEvent": "Novo calendário",
+      "date": "Data",
+      "title": "Título",
+      "eventTitle": "Título do calendário",
+      "description": "Descrição",
+      "optionalDesc": "Descrição opcional",
+      "allDay": "O dia todo",
+      "start": "Início",
+      "end": "Fim",
+      "color": "Cor",
+      "thisWeek": "Esta semana",
+      "holidayCountry": "País de feriados",
+      "holidayOff": "Desligado",
+      "tapToView": "Toque em uma data para ver ou adicionar eventos",
+      "addSchedule": "Adicionar calendário",
+      "dateRange": "Período"
+    },
+    "habit": {
+      "habits": "Hábitos",
+      "newHabit": "Novo hábito",
+      "editHabit": "Editar hábito",
+      "today": "Hoje",
+      "activeStreaks": "Sequências ativas",
+      "combinedDays": "dias combinados",
+      "bestStreak": "Melhor sequência",
+      "days": "dias",
+      "totalHabits": "Total de hábitos",
+      "tracking": "acompanhando",
+      "todaysProgress": "Progresso de hoje",
+      "allHabits": "Todos os hábitos",
+      "startBuilding": "Comece a criar hábitos",
+      "startBuildingDesc": "Acompanhe rotinas diárias, acumule sequências e mantenha a constância com seus objetivos.",
+      "addFirstHabit": "Adicione seu primeiro hábito",
+      "bestLabel": "Melhor: {{days}}d",
+      "edit": "Editar",
+      "delete": "Excluir",
+      "habitName": "Nome do hábito",
+      "habitPlaceholder": "Ex: Corrida matinal, Ler 10 páginas",
+      "frequency": "Frequência",
+      "everyDay": "Todos os dias",
+      "weekdays": "Dias úteis",
+      "weekends": "Fins de semana",
+      "custom": "Personalizado",
+      "repeatOn": "Repetir em",
+      "selectDay": "Selecione pelo menos um dia",
+      "moreOptions": "Mais opções",
+      "lessOptions": "Menos opções",
+      "icon": "Ícone",
+      "color": "Cor",
+      "goalType": "Tipo de meta",
+      "checkOff": "Marcar",
+      "count": "Contagem",
+      "target": "Meta",
+      "unit": "Unidade",
+      "unitPlaceholder": "Ex: copos, páginas, km",
+      "description": "Descrição",
+      "descPlaceholder": "Por que este hábito é importante para você",
+      "addHabit": "Adicionar hábito",
+      "saveChanges": "Salvar",
+      "deleteHabit": "Excluir hábito",
+      "deleteWarning": "Esta ação não pode ser desfeita",
+      "deleteConfirm": "Tem certeza de que deseja excluir \"{{name}}\"? Todos os dados de sequência e histórico serão permanentemente perdidos.",
+      "importance": "Importância",
+      "important": "Importante",
+      "normal": "Normal",
+      "cancel": "Cancelar",
+      "checkInTitle": "Completar hábito",
+      "checkInSubtitle": "Marcar este hábito como concluído?",
+      "checkInConfirm": "Concluir \"{{name}}\" para hoje?",
+      "checkInStreak": "Será uma sequência de {{count}} dias!",
+      "checkInComplete": "Concluir"
+    },
+    "diary": {
+      "completionSuggestion": "Parece que compartilhamos bastante hoje. Vamos transformar em um diário? ✨",
+      "continueChat": "Continuar conversando"
+    },
+    "schedule": {
+      "overlapWarning": "Sobrepõe {{count}} evento(s)",
+      "nextDay": "dia seguinte",
+      "prevDay": "do dia anterior"
     }
   }
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, ChevronLeft, ChevronRight, Shield, User as UserIcon, Mail, Calendar } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Shield, User as UserIcon, Mail, Calendar, Check, Minus } from 'lucide-react';
 import { adminService } from '../../utils/services';
 import { UserListResponse } from '../../utils/api';
 import { AdminUserDetailModal } from './AdminUserDetailModal';
@@ -51,7 +51,7 @@ export function AdminUsersTab() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white mb-2">{t('admin.users.title')}</h2>
+          <h2 className="text-2xl font-bold text-foreground mb-2">{t('admin.users.title')}</h2>
           <p className="text-slate-400">{t('admin.users.subtitle')}</p>
         </div>
       </div>
@@ -65,8 +65,8 @@ export function AdminUsersTab() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={t('admin.users.searchPlaceholder')}
-            className="w-full bg-bridge-obsidian border border-white/20 rounded-xl py-3 pl-12 pr-4
-              text-white placeholder-slate-400
+            className="w-full bg-bridge-obsidian border border-bridge-border rounded-xl py-3 pl-12 pr-4
+              text-foreground placeholder-slate-400
               focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent
               transition-all"
           />
@@ -103,10 +103,10 @@ export function AdminUsersTab() {
       {/* Users Table */}
       {!isLoading && !error && users && (
         <>
-          <div className="bg-bridge-obsidian rounded-xl border border-white/15 overflow-x-auto">
+          <div className="bg-bridge-obsidian rounded-xl border border-bridge-border overflow-x-auto">
             <table className="w-full min-w-[640px]">
               <thead>
-                <tr className="border-b border-white/15">
+                <tr className="border-b border-bridge-border">
                   <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
                     {t('admin.users.user')}
                   </th>
@@ -119,6 +119,9 @@ export function AdminUsersTab() {
                   <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
                     {t('admin.users.boards')}
                   </th>
+                  <th className="text-center px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                    {t('admin.users.personalBoard', 'PB')}
+                  </th>
                   <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
                     {t('admin.users.joinedAt')}
                   </th>
@@ -129,7 +132,7 @@ export function AdminUsersTab() {
                   <tr
                     key={user.id}
                     onClick={() => setSelectedUserId(user.id)}
-                    className="border-b border-white/15 last:border-0 hover:bg-white/5 cursor-pointer transition-colors"
+                    className="border-b border-bridge-border last:border-0 hover:bg-foreground/5 cursor-pointer transition-colors"
                   >
                     <td className="px-3 py-3 md:px-6 md:py-4">
                       <div className="flex items-center gap-3">
@@ -145,7 +148,7 @@ export function AdminUsersTab() {
                           </div>
                         )}
                         <div>
-                          <p className="text-white font-medium">{user.name}</p>
+                          <p className="text-foreground font-medium">{user.name}</p>
                           <p className="text-slate-400 text-sm flex items-center gap-1">
                             <Mail className="h-3 w-3" />
                             {user.email}
@@ -179,7 +182,14 @@ export function AdminUsersTab() {
                       </span>
                     </td>
                     <td className="px-3 py-3 md:px-6 md:py-4">
-                      <span className="text-white">{user.board_count}</span>
+                      <span className="text-foreground">{user.board_count}</span>
+                    </td>
+                    <td className="px-3 py-3 md:px-6 md:py-4 text-center">
+                      {user.has_personal_board ? (
+                        <Check className="h-4 w-4 text-purple-400 mx-auto" />
+                      ) : (
+                        <Minus className="h-4 w-4 text-slate-600 mx-auto" />
+                      )}
                     </td>
                     <td className="px-3 py-3 md:px-6 md:py-4">
                       <span className="text-slate-400 flex items-center gap-1">
@@ -202,8 +212,8 @@ export function AdminUsersTab() {
               <button
                 onClick={() => setPage(Math.max(0, page - 1))}
                 disabled={page === 0}
-                className="p-2 bg-bridge-obsidian border border-white/20 rounded-lg
-                  text-slate-400 hover:text-white hover:bg-white/5
+                className="p-2 bg-bridge-obsidian border border-bridge-border rounded-lg
+                  text-slate-400 hover:text-foreground hover:bg-foreground/5
                   disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <ChevronLeft className="h-5 w-5" />
@@ -214,8 +224,8 @@ export function AdminUsersTab() {
               <button
                 onClick={() => setPage(Math.min(Math.ceil(users.total / users.size) - 1, page + 1))}
                 disabled={page >= Math.ceil(users.total / users.size) - 1}
-                className="p-2 bg-bridge-obsidian border border-white/20 rounded-lg
-                  text-slate-400 hover:text-white hover:bg-white/5
+                className="p-2 bg-bridge-obsidian border border-bridge-border rounded-lg
+                  text-slate-400 hover:text-foreground hover:bg-foreground/5
                   disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <ChevronRight className="h-5 w-5" />

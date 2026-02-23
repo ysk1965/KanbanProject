@@ -71,6 +71,27 @@ public class User extends BaseTimeEntity {
     @Column(name = "deactivated_reason", length = 500)
     private String deactivatedReason;
 
+    // Personal Space
+    @Column(name = "personal_space_enabled", nullable = false, columnDefinition = "BOOLEAN NOT NULL DEFAULT false")
+    @Builder.Default
+    private Boolean personalSpaceEnabled = false;
+
+    // Personal AI Credits
+    @Column(name = "personal_ai_credits")
+    @Builder.Default
+    private Integer personalAiCredits = 30;
+
+    @Column(name = "personal_credits_used")
+    @Builder.Default
+    private Integer personalCreditsUsed = 0;
+
+    @Column(name = "personal_purchased_credits")
+    @Builder.Default
+    private Integer personalPurchasedCredits = 0;
+
+    @Column(name = "personal_credits_reset_date")
+    private LocalDateTime personalCreditsResetDate;
+
     @PrePersist
     public void prePersist() {
         if (this.id == null) {
@@ -94,6 +115,14 @@ public class User extends BaseTimeEntity {
         if (profileImage != null) {
             this.profileImage = profileImage;
         }
+    }
+
+    public void updateProfileImage(String profileImage) {
+        this.profileImage = profileImage;
+    }
+
+    public void clearProfileImage() {
+        this.profileImage = null;
     }
 
     public void updateTheme(String theme) {
@@ -139,5 +168,65 @@ public class User extends BaseTimeEntity {
         this.isActive = true;
         this.deactivatedAt = null;
         this.deactivatedReason = null;
+    }
+
+    // === Personal Space ===
+
+    public void enablePersonalSpace() {
+        this.personalSpaceEnabled = true;
+    }
+
+    // === Personal AI Credit Management ===
+
+    @PostLoad
+    private void initPersonalCreditDefaults() {
+        if (this.personalAiCredits == null) this.personalAiCredits = 30;
+        if (this.personalCreditsUsed == null) this.personalCreditsUsed = 0;
+        if (this.personalPurchasedCredits == null) this.personalPurchasedCredits = 0;
+    }
+
+    public int getPersonalAvailableCredits() {
+        int purchased = personalPurchasedCredits != null ? personalPurchasedCredits : 0;
+        return Math.max(0, personalAiCredits - personalCreditsUsed) + purchased;
+    }
+
+    public boolean hasEnoughPersonalCredits(int required) {
+        return getPersonalAvailableCredits() >= required;
+    }
+
+    public void consumePersonalCredits(int amount) {
+        // 월간 크레딧 먼저 소진, 부족하면 구매 크레딧 차감
+        int monthlyRemaining = Math.max(0, personalAiCredits - personalCreditsUsed);
+        if (monthlyRemaining >= amount) {
+            this.personalCreditsUsed += amount;
+        } else {
+            // 월간 크레딧 전부 소진 + 나머지는 구매 크레딧에서
+            this.personalCreditsUsed = personalAiCredits;
+            int fromPurchased = amount - monthlyRemaining;
+            this.personalPurchasedCredits = Math.max(0, this.personalPurchasedCredits - fromPurchased);
+        }
+    }
+
+    public void addPersonalPurchasedCredits(int amount) {
+        this.personalPurchasedCredits = (this.personalPurchasedCredits != null ? this.personalPurchasedCredits : 0) + amount;
+    }
+
+    public void resetPersonalCredits() {
+        this.personalCreditsUsed = 0;
+        this.personalCreditsResetDate = LocalDateTime.now(ZoneOffset.UTC).plusMonths(1);
+    }
+
+    public void initializePersonalCredits() {
+        this.personalAiCredits = 30;
+        this.personalCreditsUsed = 0;
+        this.personalCreditsResetDate = LocalDateTime.now(ZoneOffset.UTC).plusMonths(1);
+    }
+
+    public void setPersonalAiCredits(int credits) {
+        this.personalAiCredits = credits;
+    }
+
+    public void addPersonalBonusCredits(int amount) {
+        this.personalAiCredits += amount;
     }
 }

@@ -98,7 +98,12 @@ public class BoardFacadeService {
             }
         }
 
-        // 2. 기본 보드 정보
+        // 2. Trial 만료 체크 (데이터 조회 전 tier 확정)
+        if (board.checkAndUpdateTierIfTrialExpired()) {
+            log.info("Board tier auto-downgraded to STANDARD: {}", boardId);
+        }
+
+        // 3. 기본 보드 정보
         boolean isStarred = !isSystemAdminView && userBoardStarRepository.existsByUserIdAndBoardId(userId, boardId);
         int memberCount = boardMemberRepository.countBillableMembers(boardId);
         Subscription subscription = subscriptionRepository.findByBoardId(boardId).orElse(null);
@@ -110,7 +115,12 @@ public class BoardFacadeService {
         TagResponse.ListResponse tagsResponse = tagService.getTags(boardId, userId);
         MemberResponse.ListResponse membersResponse = memberService.getMembers(boardId, userId);
         ActivityResponse.ListResponse activitiesResponse = activityService.getActivities(boardId, userId, null, DEFAULT_ACTIVITY_LIMIT);
-        MilestoneResponse.ListResponse milestonesResponse = milestoneService.getMilestones(boardId, userId);
+        MilestoneResponse.ListResponse milestonesResponse;
+        if (board.canAccessMilestone()) {
+            milestonesResponse = milestoneService.getMilestones(boardId, userId);
+        } else {
+            milestonesResponse = new MilestoneResponse.ListResponse(List.of());
+        }
 
         // 4. 초대 링크 (실제 보드 Admin+ 멤버만, 시스템 Admin 스텔스 뷰에서는 제외)
         List<InviteResponse.Detail> inviteLinks;
@@ -129,9 +139,6 @@ public class BoardFacadeService {
                 ? SubscriptionResponse.Detail.of(subscription) : null;
 
         // 6. Tier & Limits
-        if (board.checkAndUpdateTierIfTrialExpired()) {
-            log.info("Board tier auto-downgraded to STANDARD: {}", boardId);
-        }
         BoardResponse.TierInfo tierInfo = BoardResponse.TierInfo.of(board);
         int currentTaskCount = taskRepository.countByBoardId(boardId);
         BoardResponse.Limits limits = BoardResponse.Limits.of(board, currentTaskCount);
@@ -150,6 +157,8 @@ public class BoardFacadeService {
                 .id(board.getId())
                 .name(board.getName())
                 .description(board.getDescription())
+                .backgroundGradient(board.getBackgroundGradient())
+                .boardType(board.getBoardType())
                 .owner(BoardResponse.OwnerInfo.of(board))
                 .myRole(myRole)
                 .isStarred(isStarred)

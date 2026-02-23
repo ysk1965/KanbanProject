@@ -7,12 +7,13 @@ interface TrialBannerProps {
   status: SubscriptionStatus;
   onOpenSubscription?: () => void;
   onOpenPremiumBenefits?: () => void;
+  onTrialEnding?: () => void;
   tier?: BoardTier;
   trialEndsAt?: string | null;
   hideBilling?: boolean;
 }
 
-export function TrialBanner({ status, onOpenSubscription, onOpenPremiumBenefits, tier, trialEndsAt, hideBilling }: TrialBannerProps) {
+export function TrialBanner({ status, onOpenSubscription, onOpenPremiumBenefits, onTrialEnding, tier, trialEndsAt, hideBilling }: TrialBannerProps) {
   const { t } = useTranslation();
 
   // TESTER/ADMIN 사용자 또는 milkyway.pe.kr 도메인은 과금 배너 숨김
@@ -67,7 +68,7 @@ export function TrialBanner({ status, onOpenSubscription, onOpenPremiumBenefits,
           <Button
             size="sm"
             className={`h-7 text-xs ${buttonClass}`}
-            onClick={onOpenPremiumBenefits || onOpenSubscription}
+            onClick={isUrgent ? (onTrialEnding || onOpenPremiumBenefits || onOpenSubscription) : (onOpenPremiumBenefits || onOpenSubscription)}
           >
             {t('trial.upgradeToPremium')}
           </Button>
@@ -79,7 +80,7 @@ export function TrialBanner({ status, onOpenSubscription, onOpenPremiumBenefits,
   // Standard tier: Premium 유도 배너
   if (tier === 'STANDARD') {
     return (
-      <div className="bg-bridge-obsidian border-b border-white/15 px-6 py-2">
+      <div className="bg-bridge-obsidian border-b border-bridge-border px-6 py-2">
         <div className="flex items-center justify-between max-w-7xl mx-auto">
           <div className="flex items-center gap-2">
             <Crown className="h-4 w-4 text-amber-400" />

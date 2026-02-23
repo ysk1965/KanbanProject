@@ -13,6 +13,7 @@ export interface User {
   theme?: 'dark' | 'light';
   provider?: 'email' | 'google';
   system_role?: SystemRole;
+  personal_space_enabled?: boolean;
 }
 
 // ========================================
@@ -30,10 +31,18 @@ export interface AdminUser {
   board_count: number;
   last_login_at: string | null;
   created_at: string;
+  has_personal_board?: boolean;
 }
 
 export interface AdminUserDetail extends AdminUser {
   boards: AdminBoardSummary[];
+  // Personal Board fields
+  has_personal_board?: boolean;
+  personal_board_id?: string | null;
+  personal_board_created_at?: string | null;
+  personal_board_task_count?: number | null;
+  personal_board_diary_count?: number | null;
+  personal_board_event_count?: number | null;
 }
 
 export interface AdminBoardSummary {
@@ -42,6 +51,7 @@ export interface AdminBoardSummary {
   description: string | null;
   owner: { id: string; name: string; email: string; profile_image: string | null };
   tier: BoardTier;
+  board_type?: BoardType;
   member_count: number;
   task_count: number;
   subscription_status: SubscriptionStatus | null;
@@ -51,6 +61,11 @@ export interface AdminBoardSummary {
 
 export interface AdminBoardDetail extends AdminBoardSummary {
   members: { id: string; name: string; email: string; profile_image: string | null; role: BoardRole; joined_at: string }[];
+  // Personal Board fields
+  diary_count?: number | null;
+  diary_completion_rate?: number | null;
+  personal_event_count?: number | null;
+  last_activity_at?: string | null;
 }
 
 export interface AdminStatistics {
@@ -61,6 +76,11 @@ export interface AdminStatistics {
   standard_boards: number;
   premium_boards: number;
   active_subscriptions: number;
+  // Personal Board metrics (P1)
+  personal_boards?: number;
+  personal_board_adoption?: number;
+  active_personal_boards?: number;
+  total_diary_entries?: number;
 }
 
 export interface AdminSubscription {
@@ -84,6 +104,8 @@ export interface AdminSubscription {
 export type BoardRole = 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER';
 /** @deprecated Use BoardRole instead */
 export type Role = BoardRole;
+
+export type BoardType = 'TEAM' | 'PERSONAL';
 
 // ========================================
 // 구독 관련 타입
@@ -138,6 +160,8 @@ export interface Board {
   id: string;
   name: string;
   description?: string | null;
+  background_gradient?: string | null;
+  board_type?: BoardType;
   owner?: BoardOwner;
   role?: BoardRole;
   my_role?: BoardRole;
@@ -232,6 +256,7 @@ export interface Feature {
   description?: string;
   color: string;
   assignee: Assignee | null;
+  start_date: string | null;
   due_date: string | null;
   status: FeatureStatus;
   total_tasks: number;
@@ -275,6 +300,18 @@ export interface Task {
   created_at?: string;
   updated_at?: string;
   completed_at?: string | null;
+}
+
+// ========================================
+// 태스크 의존성 타입 (FS: Finish-to-Start)
+// ========================================
+
+export interface TaskDependency {
+  id: string;
+  predecessor_id: string;
+  successor_id: string;
+  dependency_type: string;
+  created_at: string;
 }
 
 // ========================================
@@ -1529,6 +1566,8 @@ export type BoardEventType =
   | 'MEMBER_JOINED' | 'MEMBER_LEFT' | 'MEMBER_UPDATED'
   | 'NOTIFICATION_CREATED'
   | 'INQUIRY_REPLIED'
+  | 'NOTE_COMMENT_CREATED' | 'NOTE_COMMENT_UPDATED' | 'NOTE_COMMENT_DELETED'
+  | 'NOTE_COMMENT_RESOLVED' | 'NOTE_COMMENT_REACTION_TOGGLED'
   | 'PRESENCE_JOINED' | 'PRESENCE_LEFT';
 
 export interface BoardWebSocketEvent {
@@ -1735,4 +1774,192 @@ export interface AiCreditUsageHistory {
   feature_type: string;
   credits_used: number;
   created_at: string;
+}
+
+// ========================================
+// 개인 일정 (Personal Event)
+// ========================================
+
+export interface PersonalEvent {
+  id: string;
+  title: string;
+  description?: string | null;
+  event_date: string;
+  end_date?: string | null;
+  start_time?: string | null;
+  end_time?: string | null;
+  color: string;
+  all_day: boolean;
+  recurrence_rule?: string | null;
+  recurrence_group_id?: string | null;
+  recurrence_end_date?: string | null;
+  recurrence_days_of_week?: string | null;
+  event_type: 'CALENDAR' | 'SCHEDULE';
+  created_at: string;
+  updated_at?: string;
+}
+
+// ========================================
+// AI 일기 (Diary)
+// ========================================
+
+export type DiaryStatus = 'CHATTING' | 'COMPLETED';
+
+export interface DiarySimple {
+  id: string;
+  diary_date: string;
+  title?: string | null;
+  mood?: string | null;
+  status: DiaryStatus;
+  created_at: string;
+}
+
+export interface DiaryMessage {
+  id: string;
+  role: 'USER' | 'AI';
+  content: string;
+  message_order: number;
+  audio_url?: string | null;
+  audio_duration_seconds?: number | null;
+  created_at: string;
+}
+
+export interface DiaryDetail {
+  id: string;
+  diary_date: string;
+  title?: string | null;
+  content?: string | null;
+  mood?: string | null;
+  status: DiaryStatus;
+  messages: DiaryMessage[];
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface DiaryAiReply {
+  diary_id: string;
+  user_message: DiaryMessage;
+  ai_message: DiaryMessage;
+}
+
+export interface DiaryVoiceReply {
+  diary_id: string;
+  user_text: string;
+  user_message: DiaryMessage;
+  ai_text: string;
+  ai_message: DiaryMessage;
+  ai_audio_url: string;
+}
+
+export interface DiaryVoiceSettings {
+  voice_type: string;
+  auto_play: boolean;
+  speed: number;
+}
+
+// ─── Personal Task (v9.0 MySpace) ───
+
+export type PersonalTaskStatus = 'TODO' | 'IN_PROGRESS' | 'DONE' | 'ARCHIVED';
+export type PersonalTaskPriority = 'MEDIUM' | 'HIGH' | 'URGENT';
+export type HabitFrequency = 'DAILY' | 'WEEKDAY' | 'WEEKEND' | 'CUSTOM';
+export type HabitImportance = 'HIGH' | 'MEDIUM';
+
+export interface PersonalTask {
+  id: string;
+  title: string;
+  description?: string | null;
+  status: PersonalTaskStatus;
+  priority: PersonalTaskPriority;
+  due_date: string | null;
+  category: string | null;
+  color: string | null;
+  position: number;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
+
+export interface PersonalHabit {
+  id: string;
+  title: string;
+  description?: string | null;
+  icon: string | null;
+  color: string;
+  frequency_type: HabitFrequency;
+  frequency_days: string | null;
+  target_count: number;
+  unit: string | null;
+  importance: HabitImportance;
+  current_streak: number;
+  best_streak: number;
+  position: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface PersonalHabitLog {
+  id: string;
+  log_date: string;
+  completed_count: number;
+  is_completed: boolean;
+  note: string | null;
+}
+
+export interface HabitTodayItem {
+  habit_id: string;
+  title: string;
+  icon: string | null;
+  color: string;
+  target_count: number;
+  completed_count: number;
+  is_completed: boolean;
+  unit: string | null;
+  current_streak: number;
+  importance: HabitImportance;
+  frequency_type: HabitFrequency;
+  frequency_days: string | null;
+  weekly_target: number;
+  weekly_completed: number;
+}
+
+export interface HabitWeeklyRow {
+  habit_id: string;
+  title: string;
+  icon: string | null;
+  color: string;
+  days: HabitDayStatus[];
+}
+
+export interface HabitDayStatus {
+  date: string;
+  completed_count: number;
+  target_count: number;
+  is_completed: boolean;
+}
+
+export interface HabitWeeklyMatrix {
+  habits: HabitWeeklyRow[];
+  start_date: string;
+  end_date: string;
+}
+
+export interface DiaryTodayInfo {
+  id: string;
+  status: DiaryStatus;
+  title?: string | null;
+  mood?: string | null;
+}
+
+export interface PersonalDashboardToday {
+  due_today_tasks: PersonalTask[];
+  in_progress_tasks: PersonalTask[];
+  personal_events: PersonalEvent[];
+  habits_today: HabitTodayItem[];
+  task_completion_rate: number;
+  habit_completion_rate: number;
+  active_task_count: number;
+  completed_today_count: number;
+  diary_today: DiaryTodayInfo | null;
 }

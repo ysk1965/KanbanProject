@@ -15,6 +15,8 @@ public class BoardRequest {
         private String name;
 
         private String description;
+
+        private String backgroundGradient;
     }
 
     @Getter
@@ -24,6 +26,8 @@ public class BoardRequest {
         private String name;
 
         private String description;
+
+        private String backgroundGradient;
     }
 
     @Getter

@@ -45,23 +45,24 @@
       "workflow": "Workflow",
       "pricing": "Pricing",
       "compare": "比較",
+      "myspace": "My Space",
       "joinNow": "JOIN NOW",
       "startForFree": "免費開始"
     },
     "hero": {
-      "badge": "智慧專案管理編排",
+      "badge": "Project + Life Management in One",
       "subtitle": "一個清晰的<1>Flow</1>貫穿複雜工作流程。\n體驗最先進的專案管理協作介面。",
       "subtitleFlow": "Flow",
-      "subtitleText1": "一個清晰的",
-      "subtitleText2": "貫穿複雜工作流程。\n體驗最先進的專案管理協作介面。",
+      "subtitleText1": "Team collaboration meets personal growth in one clear ",
+      "subtitleText2": ".\nManage projects AND your life — no plugins, no app switching.",
       "tryFree": "免費試用 7 天 Premium",
       "basicFree": "Basic 看板永久免費"
     },
     "core": {
       "label": "核心架構",
       "title": "編排\n協作流程",
-      "titleLine1": "編排",
-      "titleLine2": "協作流程",
+      "titleLine1": "Two pillars,",
+      "titleLine2": "one platform",
       "kanban": {
         "title": "實戰驅動的 Kanban",
         "desc": "在「Feature - Task - 完成」的結構之上，建立團隊獨有的工作流程。基於真實專案管理經驗打造的最實用協作介面。"
@@ -77,6 +78,38 @@
       "pricing": {
         "title": "透明無限模式",
         "desc": "看板、任務建立和每日日程等核心功能永久免費。只需每位使用者 $5 即可新增 Slack 整合、週 Gantt 圖等進階功能。"
+      },
+      "personal": {
+        "title": "Personal Productivity Hub",
+        "desc": "Eisenhower Matrix task board, habit tracker with streaks, and AI diary — your personal growth toolkit lives right next to your team workspace."
+      }
+    },
+    "myspace": {
+      "label": "Personal Productivity",
+      "titleLine1": "Your space,",
+      "titleLine2": "your growth",
+      "subtitle": "Beyond team collaboration — manage personal tasks, build habits, and reflect with AI. Everything in one place, always in sync with your work.",
+      "tabs": {
+        "overview": "Overview",
+        "matrix": "Matrix",
+        "habits": "Habits",
+        "diary": "AI Diary"
+      },
+      "matrix": {
+        "title": "Eisenhower Matrix",
+        "text": "Prioritize with a 2×2 urgency-importance grid. D-day badges, auto-sorting, and drag-to-reprioritize."
+      },
+      "habits": {
+        "title": "Habit Tracker",
+        "text": "Build streaks with daily/weekly patterns. Color-coded habits, weekly matrix view, and streak analytics."
+      },
+      "diary": {
+        "title": "AI Diary",
+        "text": "Journal through conversation with AI. Mood tracking, voice input/output, and reflective prompts."
+      },
+      "calendar": {
+        "title": "Personal Calendar",
+        "text": "Time-block your personal schedule with conflict detection. Synced alongside your team calendar."
       }
     },
     "workflow": {
@@ -140,7 +173,7 @@
       "label": "AI 智慧",
       "premium": "Premium",
       "titleLine1": "AI 解讀您",
-      "titleLine2": "團隊的脈絡",
+      "titleLine2": "full context",
       "subtitle": "超越儀表板和圖表。AI 分析您的任務、時間區塊、清單和留言，產出人類容易忽略的敘事洞察。",
       "narrative": {
         "title": "AI 週報敘事",
@@ -153,6 +186,10 @@
       "insights": {
         "title": "個人與團隊洞察",
         "text": "個人績效敘事與團隊動態分析。一目瞭然地掌握工作分配和協作模式。"
+      },
+      "diary": {
+        "title": "AI Conversational Diary",
+        "text": "Reflect on your day through conversation. AI tracks mood patterns, remembers context, and offers personalized insights."
       }
     },
     "pricing": {
@@ -173,6 +210,8 @@
         "feature2": "每日日程和清單",
         "feature3": "團隊共享與協作（手動重新整理）",
         "feature4": "基本通知",
+        "feature5": "Personal task board & habit tracker",
+        "feature6": "Personal calendar & schedule",
         "cta": "START FREE"
       },
       "premium": {
@@ -185,13 +224,14 @@
         "feature4": "進階團隊權限編排",
         "feature5": "AI 衝刺報告 & 洞察",
         "feature6": "即時看板同步（無需重新整理即時更新）",
+        "feature7": "AI conversational diary with voice",
         "cta": "START TRIAL"
       }
     },
     "cta": {
       "titleLine1": "立即",
       "titleLine2": "開始",
-      "subtitle": "用 BridgeSpots 超越簡單的任務管理。\n智慧編排您團隊的無限生產力。",
+      "subtitle": "Go beyond task management. Orchestrate your team's productivity AND your personal growth — all in one platform.",
       "button": "LAUNCH FLOW"
     },
     "footer": {
@@ -251,13 +291,34 @@
   "dashboard": {
     "sidebar": {
       "allBoards": "全部看板",
-      "favorites": "收藏",
-      "teamMembers": "團隊成員",
+      "myBoard": "我的空間",
       "settings": "設定",
       "upgradePro": "升級 Pro",
       "upgradeDesc": "試用無限看板和進階分析功能。",
       "viewPlans": "查看方案"
-    }
+    },
+    "searchPlaceholder": "搜尋專案...",
+    "logout": "登出",
+    "mySpace": "我的空間",
+    "mySpaceDesc": "個人行程 & AI日記",
+    "yourProjects": "我的專案",
+    "managingWorkspaces": "正在管理 {{count}} 個活躍工作區",
+    "createNewBoard": "建立新看板",
+    "noSearchResult": "未找到與「{{query}}」相關的看板",
+    "clearSearch": "清除搜尋",
+    "starredBoards": "收藏看板",
+    "workspaceBoards": "工作區看板",
+    "testBoard": "測試看板",
+    "trialPlan": "試用版",
+    "noDescription": "尚無描述",
+    "tasksProgress": "任務進度",
+    "memberCount": "{{count}} 名成員",
+    "newBoard": "新建看板",
+    "boardName": "看板名稱",
+    "description": "描述",
+    "backgroundColor": "背景顏色",
+    "cancel": "取消",
+    "createBoard": "建立看板"
   },
   "share": {
     "title": "共享看板",
@@ -925,7 +986,8 @@
     "noBoards": "暫無看板",
     "createFirst": "建立您的第一個看板",
     "deleteBoard": "刪除看板",
-    "deleteConfirm": "確定刪除此看板？",
+    "deleteConfirm": "確定刪除「{{name}}」看板？",
+    "softDeleteNotice": "7天內可以聯繫管理員恢復此看板。",
     "deleteIrreversible": "此操作無法復原。",
     "editBoard": "編輯看板",
     "boardNamePlaceholder": "輸入看板名稱",
@@ -1089,7 +1151,13 @@
       "deleteConfirm": "確定刪除此表情？",
       "maxSize": "PNG, GIF, WebP · 最大128KB",
       "adminOnly": "僅管理員可以新增表情"
-    }
+    },
+    "aiSummarize": "AI摘要",
+    "aiSummaryTitle": "AI留言摘要",
+    "aiDecisions": "決策",
+    "aiOpenQuestions": "待解決問題",
+    "aiActionItems": "待辦事項",
+    "checklist": "檢查清單"
   },
   "activity": {
     "title": "活動紀錄",
@@ -1218,7 +1286,13 @@
       "totalBoards": "總看板數",
       "activeSubscriptions": "活躍訂閱",
       "active": "活躍：{{count}}",
-      "tierDistribution": "看板等級分佈"
+      "tierDistribution": "看板等級分佈",
+      "personalBoardMetrics": "個人看板",
+      "personalBoards": "個人看板",
+      "adoptionRate": "採用率",
+      "activePersonalBoards": "活躍 (30天)",
+      "totalDiaryEntries": "日記數",
+      "boardTypeDistribution": "看板類型分佈"
     },
     "analytics": {
       "title": "分析 / 報告",
@@ -1247,7 +1321,21 @@
       "trialStarted": "開始試用",
       "funnelConverted": "已轉換",
       "funnelInProgress": "進行中",
-      "funnelExpired": "已過期"
+      "funnelExpired": "已過期",
+      "pbAdoption": "PB採用率",
+      "totalPb": "共 {{count}}個",
+      "totalPersonalBoards": "全部個人看板",
+      "adoptionRateLabel": "採用率",
+      "pbCreated": "PB建立",
+      "diaryEngagement": "日記參與度",
+      "totalDiaryEntries": "全部日記",
+      "diaryCompletionRate": "完成率",
+      "diaryActiveUsers": "活躍使用者",
+      "diaryEntries": "日記建立",
+      "pbConversion": "Personal Board轉換",
+      "personalOnly": "僅Personal",
+      "personalAndTeam": "Personal + Team",
+      "pbConversionRate": "轉換率"
     },
     "system": {
       "title": "系統管理",
@@ -1282,7 +1370,20 @@
       "saving": "儲存中...",
       "saveChanges": "儲存變更",
       "stopping": "停止中...",
-      "stopNow": "立即停止"
+      "stopNow": "立即停止",
+      "pbStatus": "Personal Board狀態",
+      "pbTotalUsers": "全部使用者",
+      "pbWithPb": "已有PB",
+      "pbWithoutPb": "未有PB",
+      "pbAdoptionRate": "採用率",
+      "pbAdopted": "已採用",
+      "pbRemaining": "未採用",
+      "bulkCreateBtn": "為{{count}}使用者批量建立PB",
+      "bulkCreating": "建立中...",
+      "bulkCreateTitle": "批量建立Personal Board",
+      "bulkCreateConfirm": "為{{count}}位未擁有PB的使用者建立Personal Board？",
+      "bulkCreateSuccess": "已建立{{created}}個（失敗: {{failed}}, 總計: {{total}}）",
+      "bulkCreateFailed": "批量建立失敗"
     },
     "subscriptions": {
       "title": "訂閱管理",
@@ -1307,7 +1408,22 @@
       "tier": "等級",
       "members": "成員",
       "tasks": "Task",
-      "createdAt": "建立時間"
+      "createdAt": "建立時間",
+      "view": "檢視",
+      "viewBoard": "檢視看板",
+      "type": "類型",
+      "allTypes": "所有類型",
+      "typeTeam": "團隊",
+      "typePersonal": "個人",
+      "activeBoards": "活躍看板",
+      "deletedBoards": "已刪除看板",
+      "noDeletedBoards": "沒有已刪除的看板",
+      "noDeletedBoardsDesc": "已刪除的看板將在永久刪除前在此顯示7天。",
+      "deletedAt": "刪除時間",
+      "daysLeft": "{{days}}天後永久刪除",
+      "restore": "恢復",
+      "restoreSuccess": "看板已恢復",
+      "restoreFailed": "看板恢復失敗"
     },
     "boardDetail": {
       "title": "看板詳情",
@@ -1341,10 +1457,16 @@
       "dangerZone": "危險區域",
       "deleteBoard": "刪除看板",
       "deleteWarning": "與此看板相關的所有資料將被刪除。此操作無法復原。",
+      "softDeleteWarning": "看板將被軟刪除。7天內可以恢復。",
       "deleting": "刪除中...",
       "editName": "編輯看板名稱",
       "nameUpdateSuccess": "看板名稱已更新。",
-      "nameUpdateFailed": "看板名稱更新失敗。"
+      "nameUpdateFailed": "看板名稱更新失敗。",
+      "personalActivity": "個人活動",
+      "diaryEntries": "日記",
+      "completionRate": "{{rate}}% 完成",
+      "events": "行程",
+      "lastActivity": "最近活動"
     },
     "users": {
       "title": "使用者管理",
@@ -1524,12 +1646,22 @@
     "enterName": "請輸入姓名。",
     "profileSaved": "個人資料儲存成功",
     "profileSaveFailed": "儲存個人資料失敗。",
+    "profileImageDesc": "變更個人頭像",
+    "profileImageHint": "JPG, PNG, GIF, WebP（最大5MB）",
+    "removeProfileImage": "刪除個人頭像",
+    "imageTypeError": "不支援的檔案格式（僅限JPG, PNG, GIF, WebP）",
+    "imageSizeError": "檔案大小超過5MB",
+    "imageUploadFailed": "上傳個人頭像失敗",
+    "imageDeleteFailed": "刪除個人頭像失敗",
     "theme": "佈景主題",
     "themeDesc": "變更顯示佈景主題",
     "darkMode": "深色模式",
     "language": "語言",
     "languageDesc": "變更顯示語言",
     "selectLanguage": "選擇語言",
+    "holidayCountry": "國定假日國家",
+    "holidayCountryDesc": "選擇在日曆上顯示的國定假日國家",
+    "holidayOff": "關閉",
     "changePassword": "變更密碼",
     "changePasswordDesc": "為帳號安全變更密碼",
     "currentPasswordLabel": "目前密碼",
@@ -1661,7 +1793,8 @@
     "unlinked": "（未關聯）",
     "cannotMove": "無法移動",
     "cannotChange": "無法變更",
-    "willSplit": "分割建立"
+    "willSplit": "分割建立",
+    "nextDay": "隔天"
   },
   "scheduleDetail": {
     "title": "時間區塊詳情",
@@ -1679,11 +1812,12 @@
     "taskChecklist": "TASK 清單",
     "completedCount": "{{completed}}/{{total}} 已完成",
     "noChecklist": "無清單項",
-    "current": "目前"
+    "current": "目前",
+    "nextDay": "隔天"
   },
   "emptyBoard": {
     "heading": "開始使用您的看板",
-    "subheading": "透過 3 個步驟系統化管理專案",
+    "subheading": "透過 3 個步驟系統化管理專案並追蹤進度",
     "createFirstFeature": "建立第一個 Feature",
     "step1Title": "建立 Feature",
     "step1Desc": "Feature 代表一個功能單元。按下方按鈕建立您的第一個 Feature。",
@@ -1706,6 +1840,7 @@
     "addTag": "新增標籤",
     "newTag": "新建標籤",
     "subtaskList": "子任務列表",
+    "onboardingStep2": "現在來新增子任務吧！",
     "addSubtaskGuide": "在下方新增子任務",
     "subtaskDescription": "子任務會作為卡片顯示在看板的 Task Block 上，您可以透過在 Block 之間拖曳來管理進度。",
     "newSubtaskPlaceholder": "新增子任務...",
@@ -1713,7 +1848,27 @@
     "saveChangesDesc": "您有未儲存的變更。關閉而不儲存將捨棄這些變更。",
     "discard": "不儲存",
     "deleteTitle": "刪除此 Feature？",
-    "deleteDesc": "此 Feature 及所有子任務將被刪除。此操作無法復原。"
+    "deleteDesc": "此 Feature 及所有子任務將被刪除。此操作無法復原。",
+    "aiDecompose": "AI任務分解",
+    "aiDecomposeTitle": "AI任務分解",
+    "aiAnalyzing": "AI正在分析功能...",
+    "aiError": "AI分析時發生錯誤，請重試。",
+    "aiRetry": "重試",
+    "aiNoSuggestions": "沒有可生成的任務。",
+    "aiSelectAll": "全選",
+    "aiDeselectAll": "取消全選",
+    "aiSelectedCount": "已選{{count}}項",
+    "aiAlreadyExists": "已存在",
+    "aiApply": "套用",
+    "aiApplying": "套用中...",
+    "aiApplySuccess": "已建立{{tasks}}個任務和{{checklists}}個檢查清單。",
+    "aiApplyDone": "完成",
+    "aiConfirmTitle": "AI任務推薦",
+    "aiConfirmDesc": "AI將根據以下功能資訊推薦子任務。",
+    "aiConfirmFeatureTitle": "標題",
+    "aiConfirmFeatureDesc": "描述",
+    "aiConfirmNoDesc": "暫無描述。添加描述可以獲得更準確的推薦。",
+    "aiConfirmStart": "取得推薦"
   },
   "weeklySchedule": {
     "day": "日",
@@ -2258,6 +2413,113 @@
       "monthly_usage": "月度使用",
       "purchased_remaining": "額外購買剩餘",
       "total_remaining": "總剩餘"
+    }
+  },
+  "personal": {
+    "tabs": {
+      "overview": "總覽",
+      "todo": "待辦",
+      "schedule": "行程",
+      "calendar": "日曆",
+      "diary": "AI日記"
+    },
+    "overview": {
+      "noEvents": "今天沒有活動",
+      "addSchedule": "新增行程",
+      "noDeadlines": "沒有即將到來的截止日期",
+      "addDeadline": "新增任務"
+    },
+    "calendar": {
+      "task": "任務",
+      "event": "日曆",
+      "today": "今天",
+      "addEvent": "新增日曆",
+      "tasksCount": "{{count}} 個任務",
+      "eventsCount": "{{count}} 個日曆",
+      "taskDeadline": "任務截止日期",
+      "overdue": "逾期",
+      "recurring": "重複",
+      "noItems": "此日期沒有項目",
+      "newEvent": "新建日曆",
+      "date": "日期",
+      "title": "標題",
+      "eventTitle": "日曆標題",
+      "description": "描述",
+      "optionalDesc": "選擇性描述",
+      "allDay": "全天",
+      "start": "開始",
+      "end": "結束",
+      "color": "顏色",
+      "thisWeek": "本週",
+      "holidayCountry": "假日國家",
+      "holidayOff": "關閉",
+      "tapToView": "點擊日期查看或新增事件",
+      "addSchedule": "新增日曆",
+      "dateRange": "日期範圍"
+    },
+    "habit": {
+      "habits": "習慣",
+      "newHabit": "新習慣",
+      "editHabit": "編輯習慣",
+      "today": "今天",
+      "activeStreaks": "連續紀錄",
+      "combinedDays": "合計天數",
+      "bestStreak": "最佳紀錄",
+      "days": "天",
+      "totalHabits": "全部習慣",
+      "tracking": "追蹤中",
+      "todaysProgress": "今日進度",
+      "allHabits": "所有習慣",
+      "startBuilding": "開始養成習慣",
+      "startBuildingDesc": "追蹤日常習慣，累積連續紀錄，保持目標一致。",
+      "addFirstHabit": "新增第一個習慣",
+      "bestLabel": "最佳: {{days}}天",
+      "edit": "編輯",
+      "delete": "刪除",
+      "habitName": "習慣名稱",
+      "habitPlaceholder": "例: 晨跑、讀10頁書",
+      "frequency": "頻率",
+      "everyDay": "每天",
+      "weekdays": "平日",
+      "weekends": "週末",
+      "custom": "自訂",
+      "repeatOn": "重複日",
+      "selectDay": "至少選擇一天",
+      "moreOptions": "更多選項",
+      "lessOptions": "收起",
+      "icon": "圖示",
+      "color": "顏色",
+      "goalType": "目標類型",
+      "checkOff": "打卡",
+      "count": "次數",
+      "target": "目標",
+      "unit": "單位",
+      "unitPlaceholder": "例: 杯、頁、公里",
+      "description": "描述",
+      "descPlaceholder": "這個習慣對你重要的原因",
+      "addHabit": "新增習慣",
+      "saveChanges": "儲存",
+      "deleteHabit": "刪除習慣",
+      "deleteWarning": "此操作無法復原",
+      "deleteConfirm": "確定要刪除「{{name}}」嗎？所有連續紀錄和歷史將被永久刪除。",
+      "importance": "重要性",
+      "important": "重要",
+      "normal": "普通",
+      "cancel": "取消",
+      "checkInTitle": "完成習慣",
+      "checkInSubtitle": "確認完成今天的習慣？",
+      "checkInConfirm": "確認完成「{{name}}」？",
+      "checkInStreak": "完成後將達成連續{{count}}天！",
+      "checkInComplete": "完成"
+    },
+    "diary": {
+      "completionSuggestion": "今天聊了很多呢。要整理成日記嗎？ ✨",
+      "continueChat": "繼續聊聊"
+    },
+    "schedule": {
+      "overlapWarning": "與{{count}}個日程時間衝突",
+      "nextDay": "隔天",
+      "prevDay": "前一天起"
     }
   }
 }

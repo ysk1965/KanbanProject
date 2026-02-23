@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, User as UserIcon, Mail, Shield, Calendar, Folder, CheckCircle, XCircle, Key, Image, Clock, Ban, UserCheck, KeyRound, MailCheck, AlertTriangle, Trash2, UserMinus } from 'lucide-react';
+import { X, User as UserIcon, Mail, Shield, Calendar, Folder, CheckCircle, XCircle, Key, Image, Clock, Ban, UserCheck, KeyRound, MailCheck, AlertTriangle, Trash2, UserMinus, BookOpen, CalendarDays, ListTodo, Plus, Sparkles } from 'lucide-react';
 import { adminService } from '../../utils/services';
 import { AdminUserDetail, AdminBoardSummary } from '../../utils/api';
 import { formatDateTime } from '../../utils/dateUtils';
 import { ConfirmModal, PromptModal, Toast } from './AdminConfirmModal';
+import { MotionModal } from '../ui/MotionModal';
 
 interface AdminUserDetailModalProps {
   userId: string;
@@ -220,319 +221,501 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
     });
   };
 
+  const handleSetPersonalCredits = () => {
+    if (!user) return;
+    setPromptAction({
+      title: '월간 개인 AI 크레딧 설정',
+      message: `현재 월간 한도: ${user.personal_ai_credits ?? 30}. 새 월간 한도를 입력하세요.`,
+      placeholder: String(user.personal_ai_credits ?? 30),
+      onConfirm: async (value: string) => {
+        setPromptAction(null);
+        const credits = parseInt(value, 10);
+        if (isNaN(credits) || credits < 0) {
+          setToast({ message: '유효한 크레딧 수를 입력하세요.', type: 'error' });
+          return;
+        }
+        try {
+          setIsUpdating(true);
+          const updated = await adminService.adjustPersonalAiCredits(userId, { personal_ai_credits: credits });
+          setUser({ ...user, personal_ai_credits: updated.personal_ai_credits, personal_credits_used: updated.personal_credits_used, personal_credits_reset_date: updated.personal_credits_reset_date });
+          onUpdate();
+          setToast({ message: `월간 개인 크레딧이 ${credits}으로 설정되었습니다.`, type: 'success' });
+        } catch (err) {
+          console.error('Failed to set personal credits:', err);
+          setToast({ message: '크레딧 설정에 실패했습니다.', type: 'error' });
+        } finally {
+          setIsUpdating(false);
+        }
+      },
+    });
+  };
+
+  const handleAddPersonalBonusCredits = () => {
+    if (!user) return;
+    setPromptAction({
+      title: '보너스 크레딧 추가',
+      message: `현재 한도: ${user.personal_ai_credits ?? 30}. 추가할 크레딧 수를 입력하세요. (한도가 증가합니다)`,
+      placeholder: '10',
+      onConfirm: async (value: string) => {
+        setPromptAction(null);
+        const credits = parseInt(value, 10);
+        if (isNaN(credits) || credits < 1) {
+          setToast({ message: '1 이상의 크레딧 수를 입력하세요.', type: 'error' });
+          return;
+        }
+        try {
+          setIsUpdating(true);
+          const updated = await adminService.adjustPersonalAiCredits(userId, { add_bonus_credits: credits });
+          setUser({ ...user, personal_ai_credits: updated.personal_ai_credits, personal_credits_used: updated.personal_credits_used, personal_credits_reset_date: updated.personal_credits_reset_date });
+          onUpdate();
+          setToast({ message: `${credits} 보너스 크레딧이 추가되었습니다.`, type: 'success' });
+        } catch (err) {
+          console.error('Failed to add bonus credits:', err);
+          setToast({ message: '보너스 크레딧 추가에 실패했습니다.', type: 'error' });
+        } finally {
+          setIsUpdating(false);
+        }
+      },
+    });
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
+    <>
+      <MotionModal open={true} onClose={onClose} className="sm:max-w-2xl p-0 overflow-hidden max-h-[90vh] flex flex-col">
+          {/* Header */}
+          <div className="flex items-center justify-between px-6 py-4 border-b border-bridge-border">
+            <h2 className="text-xl font-bold text-foreground">{t('admin.userDetail.title')}</h2>
+            <button
+              onClick={onClose}
+              className="p-2 text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded-lg transition-colors"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
 
-      {/* Modal */}
-      <div className="relative bg-bridge-obsidian rounded-2xl border border-white/20 w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/15">
-          <h2 className="text-xl font-bold text-white">{t('admin.userDetail.title')}</h2>
-          <button
-            onClick={onClose}
-            className="p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
+          {/* Content */}
+          <div className="p-6 overflow-y-auto flex-1">
+            {isLoading && (
+              <div className="flex items-center justify-center h-64">
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-bridge-accent" />
+              </div>
+            )}
 
-        {/* Content */}
-        <div className="p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
-          {isLoading && (
-            <div className="flex items-center justify-center h-64">
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-bridge-accent" />
-            </div>
-          )}
+            {error && (
+              <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-6 text-center">
+                <p className="text-red-400">{error}</p>
+              </div>
+            )}
 
-          {error && (
-            <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-6 text-center">
-              <p className="text-red-400">{error}</p>
-            </div>
-          )}
-
-          {!isLoading && !error && user && (
-            <div className="space-y-6">
-              {/* User Info */}
-              <div className="flex items-start gap-4">
-                {user.profile_image ? (
-                  <img
-                    src={user.profile_image}
-                    alt={user.name}
-                    className="w-16 h-16 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="w-16 h-16 rounded-full bg-bridge-accent/20 flex items-center justify-center">
-                    <UserIcon className="h-8 w-8 text-bridge-accent" />
-                  </div>
-                )}
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-xl font-bold text-white">{user.name}</h3>
-                    {user.is_active === false && (
-                      <span className="px-2 py-0.5 bg-red-500/20 text-red-400 text-xs font-medium rounded-full flex items-center gap-1">
-                        <Ban className="h-3 w-3" />
-                        {t('admin.userDetail.deactivatedBadge')}
-                      </span>
+            {!isLoading && !error && user && (
+              <div className="space-y-6">
+                {/* User Info */}
+                <div className="flex items-start gap-4">
+                  {user.profile_image ? (
+                    <img
+                      src={user.profile_image}
+                      alt={user.name}
+                      className="w-16 h-16 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-16 h-16 rounded-full bg-bridge-accent/20 flex items-center justify-center">
+                      <UserIcon className="h-8 w-8 text-bridge-accent" />
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-xl font-bold text-foreground">{user.name}</h3>
+                      {user.is_active === false && (
+                        <span className="px-2 py-0.5 bg-red-500/20 text-red-400 text-xs font-medium rounded-full flex items-center gap-1">
+                          <Ban className="h-3 w-3" />
+                          {t('admin.userDetail.deactivatedBadge')}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-slate-400 flex items-center gap-2 mt-1">
+                      <Mail className="h-4 w-4" />
+                      {user.email}
+                      {user.email_verified ? (
+                        <CheckCircle className="h-4 w-4 text-green-400" />
+                      ) : (
+                        <XCircle className="h-4 w-4 text-red-400" />
+                      )}
+                    </p>
+                    {user.is_active === false && user.deactivated_reason && (
+                      <p className="text-red-400/80 text-sm mt-1">
+                        {t('admin.userDetail.reason')}: {user.deactivated_reason}
+                      </p>
                     )}
                   </div>
-                  <p className="text-slate-400 flex items-center gap-2 mt-1">
-                    <Mail className="h-4 w-4" />
-                    {user.email}
-                    {user.email_verified ? (
-                      <CheckCircle className="h-4 w-4 text-green-400" />
-                    ) : (
-                      <XCircle className="h-4 w-4 text-red-400" />
-                    )}
-                  </p>
-                  {user.is_active === false && user.deactivated_reason && (
-                    <p className="text-red-400/80 text-sm mt-1">
-                      {t('admin.userDetail.reason')}: {user.deactivated_reason}
+                </div>
+
+                {/* Info Grid */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-foreground/5 rounded-xl p-4">
+                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                      {t('admin.userDetail.role')}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Shield className="h-5 w-5 text-bridge-accent" />
+                      <select
+                        value={user.system_role}
+                        onChange={(e) => handleRoleChange(e.target.value as 'USER' | 'TESTER' | 'ADMIN')}
+                        disabled={isUpdating}
+                        className="bg-transparent text-foreground font-medium focus:outline-none cursor-pointer disabled:opacity-50"
+                      >
+                        <option value="USER" className="bg-bridge-dark">USER</option>
+                        <option value="TESTER" className="bg-bridge-dark">TESTER</option>
+                        <option value="ADMIN" className="bg-bridge-dark">ADMIN</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="bg-foreground/5 rounded-xl p-4">
+                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                      {t('admin.userDetail.provider')}
+                    </p>
+                    <span
+                      className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                        user.provider === 'google'
+                          ? 'bg-blue-500/20 text-blue-400'
+                          : 'bg-slate-500/20 text-slate-400'
+                      }`}
+                    >
+                      {user.provider === 'google' ? 'Google' : 'Email'}
+                    </span>
+                  </div>
+
+                  <div className="bg-foreground/5 rounded-xl p-4">
+                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                      {t('admin.userDetail.joinedAt')}
+                    </p>
+                    <p className="text-foreground flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-slate-400" />
+                      {formatDateLocal(user.created_at)}
+                    </p>
+                  </div>
+
+                  <div className="bg-foreground/5 rounded-xl p-4">
+                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                      {t('admin.userDetail.lastLogin')}
+                    </p>
+                    <p className="text-foreground flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-slate-400" />
+                      {formatDateLocal(user.last_login_at)}
+                    </p>
+                  </div>
+
+                  <div className="bg-foreground/5 rounded-xl p-4">
+                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                      {t('admin.userDetail.ownedBoards')}
+                    </p>
+                    <p className="text-foreground flex items-center gap-2">
+                      <Folder className="h-4 w-4 text-bridge-accent" />
+                      {t('admin.common.countItems', { count: user.owned_board_count })}
+                    </p>
+                  </div>
+
+                  <div className="bg-foreground/5 rounded-xl p-4">
+                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                      {t('admin.userDetail.memberBoards')}
+                    </p>
+                    <p className="text-foreground flex items-center gap-2">
+                      <Folder className="h-4 w-4 text-bridge-secondary" />
+                      {t('admin.common.countItems', { count: user.member_board_count })}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Personal Board Section */}
+                <div className="bg-purple-500/5 border border-purple-500/20 rounded-xl p-4">
+                  <h4 className="text-sm font-bold text-purple-400 mb-3 flex items-center gap-2">
+                    <UserIcon className="h-4 w-4" />
+                    {t('admin.userDetail.personalBoard', 'Personal Board')}
+                  </h4>
+                  {user.has_personal_board ? (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      <div className="bg-foreground/5 rounded-lg p-3">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">
+                          {t('admin.userDetail.pbTasks', 'Tasks')}
+                        </p>
+                        <p className="text-foreground text-sm flex items-center gap-2">
+                          <ListTodo className="h-3.5 w-3.5 text-purple-400" />
+                          {user.personal_board_task_count ?? 0}
+                        </p>
+                      </div>
+                      <div className="bg-foreground/5 rounded-lg p-3">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">
+                          {t('admin.userDetail.pbDiary', 'Diary')}
+                        </p>
+                        <p className="text-foreground text-sm flex items-center gap-2">
+                          <BookOpen className="h-3.5 w-3.5 text-purple-400" />
+                          {user.personal_board_diary_count ?? 0}
+                        </p>
+                      </div>
+                      <div className="bg-foreground/5 rounded-lg p-3">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">
+                          {t('admin.userDetail.pbEvents', 'Events')}
+                        </p>
+                        <p className="text-foreground text-sm flex items-center gap-2">
+                          <CalendarDays className="h-3.5 w-3.5 text-purple-400" />
+                          {user.personal_board_event_count ?? 0}
+                        </p>
+                      </div>
+                      <div className="bg-foreground/5 rounded-lg p-3">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">
+                          {t('admin.userDetail.pbCreatedAt', 'Created')}
+                        </p>
+                        <p className="text-foreground text-sm flex items-center gap-2">
+                          <Calendar className="h-3.5 w-3.5 text-purple-400" />
+                          {user.personal_board_created_at ? formatDateLocal(user.personal_board_created_at) : '-'}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between">
+                      <p className="text-slate-400 text-sm">{t('admin.userDetail.noPersonalBoard', 'No personal board created yet')}</p>
+                      <button
+                        onClick={async () => {
+                          try {
+                            await adminService.createPersonalBoard(user.id);
+                            onUpdate();
+                            loadUserDetail();
+                          } catch {
+                            // error handled silently
+                          }
+                        }}
+                        disabled={isUpdating}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-purple-400 bg-purple-500/10 border border-purple-500/30 rounded-lg hover:bg-purple-500/20 transition-colors disabled:opacity-50"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        {t('admin.userDetail.createPersonalBoard', 'Create')}
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Personal AI Credits */}
+                <div className="bg-bridge-accent/5 border border-bridge-accent/20 rounded-xl p-4">
+                  <h4 className="text-sm font-bold text-bridge-accent mb-3 flex items-center gap-2">
+                    <Sparkles className="h-4 w-4" />
+                    Personal AI Credits
+                  </h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-foreground/5 rounded-lg p-3">
+                      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">
+                        월간 크레딧
+                      </p>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-foreground text-sm font-medium">
+                            {user.personal_credits_used ?? 0} / {user.personal_ai_credits ?? 30}
+                          </span>
+                          <button
+                            onClick={handleSetPersonalCredits}
+                            disabled={isUpdating}
+                            className="text-xs text-bridge-accent hover:text-bridge-accent/80 disabled:opacity-50 transition-colors"
+                          >
+                            설정
+                          </button>
+                        </div>
+                        <div className="w-full bg-foreground/10 rounded-full h-1.5">
+                          <div
+                            className="bg-bridge-accent rounded-full h-1.5 transition-all"
+                            style={{
+                              width: `${(user.personal_ai_credits ?? 30) > 0 ? Math.min(100, ((user.personal_credits_used ?? 0) / (user.personal_ai_credits ?? 30)) * 100) : 0}%`,
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="bg-foreground/5 rounded-lg p-3">
+                      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">
+                        보너스 크레딧
+                      </p>
+                      <div className="flex items-center justify-between">
+                        <span className="text-foreground text-sm font-medium">
+                          잔여: {Math.max(0, (user.personal_ai_credits ?? 30) - (user.personal_credits_used ?? 0))}
+                        </span>
+                        <button
+                          onClick={handleAddPersonalBonusCredits}
+                          disabled={isUpdating}
+                          className="flex items-center gap-1 text-xs text-bridge-secondary hover:text-bridge-secondary/80 disabled:opacity-50 transition-colors"
+                        >
+                          <Plus className="h-3 w-3" />
+                          추가
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  {user.personal_credits_reset_date && (
+                    <p className="text-xs text-slate-500 mt-2">
+                      다음 리셋: {formatDateLocal(user.personal_credits_reset_date)}
                     </p>
                   )}
                 </div>
-              </div>
 
-              {/* Info Grid */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-white/5 rounded-xl p-4">
-                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-                    {t('admin.userDetail.role')}
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <Shield className="h-5 w-5 text-bridge-accent" />
-                    <select
-                      value={user.system_role}
-                      onChange={(e) => handleRoleChange(e.target.value as 'USER' | 'TESTER' | 'ADMIN')}
-                      disabled={isUpdating}
-                      className="bg-transparent text-white font-medium focus:outline-none cursor-pointer disabled:opacity-50"
-                    >
-                      <option value="USER" className="bg-bridge-dark">USER</option>
-                      <option value="TESTER" className="bg-bridge-dark">TESTER</option>
-                      <option value="ADMIN" className="bg-bridge-dark">ADMIN</option>
-                    </select>
+                {/* OAuth Provider Info */}
+                {user.provider === 'google' && (
+                  <div className="bg-blue-500/5 border border-blue-500/20 rounded-xl p-4">
+                    <h4 className="text-sm font-bold text-blue-400 mb-3 flex items-center gap-2">
+                      <svg className="h-4 w-4" viewBox="0 0 24 24">
+                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                      </svg>
+                      {t('admin.userDetail.googleAccountInfo')}
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="bg-foreground/5 rounded-lg p-3">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">
+                          Google ID
+                        </p>
+                        <p className="text-foreground text-sm font-mono flex items-center gap-2">
+                          <Key className="h-3.5 w-3.5 text-blue-400" />
+                          {user.auth_provider_id || '-'}
+                        </p>
+                      </div>
+                      <div className="bg-foreground/5 rounded-lg p-3">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">
+                          {t('admin.userDetail.profileImageUrl')}
+                        </p>
+                        <p className="text-foreground text-sm flex items-center gap-2 truncate" title={user.profile_image || '-'}>
+                          <Image className="h-3.5 w-3.5 text-blue-400 flex-shrink-0" />
+                          <span className="truncate">{user.profile_image ? t('admin.userDetail.googleProfileUsed') : '-'}</span>
+                        </p>
+                      </div>
+                      <div className="bg-foreground/5 rounded-lg p-3">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">
+                          {t('admin.userDetail.emailVerifiedAt')}
+                        </p>
+                        <p className="text-foreground text-sm flex items-center gap-2">
+                          <Clock className="h-3.5 w-3.5 text-blue-400" />
+                          {user.email_verified_at ? formatDateLocal(user.email_verified_at) : '-'}
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                )}
 
-                <div className="bg-white/5 rounded-xl p-4">
-                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-                    {t('admin.userDetail.provider')}
-                  </p>
-                  <span
-                    className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                      user.provider === 'google'
-                        ? 'bg-blue-500/20 text-blue-400'
-                        : 'bg-slate-500/20 text-slate-400'
-                    }`}
-                  >
-                    {user.provider === 'google' ? 'Google' : 'Email'}
-                  </span>
-                </div>
+                {/* Boards List */}
+                {boards.length > 0 && (
+                  <div>
+                    <h4 className="text-lg font-bold text-foreground mb-4">{t('admin.userDetail.boardList')}</h4>
+                    <div className="space-y-2">
+                      {boards.map((board) => {
+                        const isOwner = board.owner_id === user.id;
+                        return (
+                          <div
+                            key={board.id}
+                            className="bg-foreground/5 rounded-xl p-4 flex items-center justify-between gap-3"
+                          >
+                            <div className="flex-1 min-w-0">
+                              <p className="text-foreground font-medium">{board.name}</p>
+                              <p className="text-slate-400 text-sm">
+                                {t('admin.userDetail.boardMemberTaskInfo', { members: board.member_count, tasks: board.task_count })}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              <span
+                                className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                  board.tier === 'FREE' || board.tier === 'TRIAL'
+                                    ? 'bg-slate-500/20 text-slate-400'
+                                    : board.tier === 'STANDARD'
+                                    ? 'bg-blue-500/20 text-blue-400'
+                                    : board.tier === 'PREMIUM'
+                                    ? 'bg-purple-500/20 text-purple-400'
+                                    : 'bg-amber-500/20 text-amber-400'
+                                }`}
+                              >
+                                {board.tier}
+                              </span>
+                              <button
+                                onClick={() => handleRemoveFromBoard(board)}
+                                disabled={isUpdating || isOwner}
+                                className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                title={isOwner ? t('admin.userDetail.cannotRemoveOwner') : t('admin.userDetail.removeFromBoard')}
+                              >
+                                <UserMinus className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
-                <div className="bg-white/5 rounded-xl p-4">
-                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-                    {t('admin.userDetail.joinedAt')}
-                  </p>
-                  <p className="text-white flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-slate-400" />
-                    {formatDateLocal(user.created_at)}
-                  </p>
-                </div>
-
-                <div className="bg-white/5 rounded-xl p-4">
-                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-                    {t('admin.userDetail.lastLogin')}
-                  </p>
-                  <p className="text-white flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-slate-400" />
-                    {formatDateLocal(user.last_login_at)}
-                  </p>
-                </div>
-
-                <div className="bg-white/5 rounded-xl p-4">
-                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-                    {t('admin.userDetail.ownedBoards')}
-                  </p>
-                  <p className="text-white flex items-center gap-2">
-                    <Folder className="h-4 w-4 text-bridge-accent" />
-                    {t('admin.common.countItems', { count: user.owned_board_count })}
-                  </p>
-                </div>
-
-                <div className="bg-white/5 rounded-xl p-4">
-                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-                    {t('admin.userDetail.memberBoards')}
-                  </p>
-                  <p className="text-white flex items-center gap-2">
-                    <Folder className="h-4 w-4 text-bridge-secondary" />
-                    {t('admin.common.countItems', { count: user.member_board_count })}
-                  </p>
-                </div>
-              </div>
-
-              {/* OAuth Provider Info */}
-              {user.provider === 'google' && (
-                <div className="bg-blue-500/5 border border-blue-500/20 rounded-xl p-4">
-                  <h4 className="text-sm font-bold text-blue-400 mb-3 flex items-center gap-2">
-                    <svg className="h-4 w-4" viewBox="0 0 24 24">
-                      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                    </svg>
-                    {t('admin.userDetail.googleAccountInfo')}
+                {/* Admin Actions */}
+                <div className="border-t border-foreground/10 pt-6 space-y-4">
+                  <h4 className="text-lg font-bold text-foreground flex items-center gap-2">
+                    <AlertTriangle className="h-5 w-5 text-amber-400" />
+                    {t('admin.common.adminActions')}
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div className="bg-white/5 rounded-lg p-3">
-                      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">
-                        Google ID
-                      </p>
-                      <p className="text-white text-sm font-mono flex items-center gap-2">
-                        <Key className="h-3.5 w-3.5 text-blue-400" />
-                        {user.auth_provider_id || '-'}
-                      </p>
-                    </div>
-                    <div className="bg-white/5 rounded-lg p-3">
-                      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">
-                        {t('admin.userDetail.profileImageUrl')}
-                      </p>
-                      <p className="text-white text-sm flex items-center gap-2 truncate" title={user.profile_image || '-'}>
-                        <Image className="h-3.5 w-3.5 text-blue-400 flex-shrink-0" />
-                        <span className="truncate">{user.profile_image ? t('admin.userDetail.googleProfileUsed') : '-'}</span>
-                      </p>
-                    </div>
-                    <div className="bg-white/5 rounded-lg p-3">
-                      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">
-                        {t('admin.userDetail.emailVerifiedAt')}
-                      </p>
-                      <p className="text-white text-sm flex items-center gap-2">
-                        <Clock className="h-3.5 w-3.5 text-blue-400" />
-                        {user.email_verified_at ? formatDateLocal(user.email_verified_at) : '-'}
-                      </p>
-                    </div>
+                    {/* 이메일 인증 */}
+                    {!user.email_verified && (
+                      <button
+                        onClick={handleVerifyEmail}
+                        disabled={isUpdating}
+                        className="flex items-center justify-center gap-2 px-4 py-3 bg-green-500/10 border border-green-500/30 rounded-xl text-green-400 hover:bg-green-500/20 transition-colors disabled:opacity-50"
+                      >
+                        <MailCheck className="h-4 w-4" />
+                        {t('admin.userDetail.forceVerifyEmail')}
+                      </button>
+                    )}
+
+                    {/* 비밀번호 리셋 (Google 계정 제외) */}
+                    {user.provider !== 'google' && (
+                      <button
+                        onClick={handleSendPasswordReset}
+                        disabled={isUpdating}
+                        className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-500/10 border border-blue-500/30 rounded-xl text-blue-400 hover:bg-blue-500/20 transition-colors disabled:opacity-50"
+                      >
+                        <KeyRound className="h-4 w-4" />
+                        {t('admin.userDetail.passwordResetEmail')}
+                      </button>
+                    )}
+
+                    {/* 계정 활성화/비활성화 */}
+                    {user.is_active === false ? (
+                      <button
+                        onClick={handleActivate}
+                        disabled={isUpdating}
+                        className="flex items-center justify-center gap-2 px-4 py-3 bg-teal-500/10 border border-teal-500/30 rounded-xl text-teal-400 hover:bg-teal-500/20 transition-colors disabled:opacity-50"
+                      >
+                        <UserCheck className="h-4 w-4" />
+                        {t('admin.userDetail.activateAccount')}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={handleDeactivate}
+                        disabled={isUpdating || user.system_role === 'ADMIN'}
+                        className="flex items-center justify-center gap-2 px-4 py-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 hover:bg-red-500/20 transition-colors disabled:opacity-50"
+                        title={user.system_role === 'ADMIN' ? t('admin.userDetail.cannotDeactivateAdmin') : undefined}
+                      >
+                        <Ban className="h-4 w-4" />
+                        {t('admin.userDetail.deactivateAccount')}
+                      </button>
+                    )}
                   </div>
-                </div>
-              )}
 
-              {/* Boards List */}
-              {boards.length > 0 && (
-                <div>
-                  <h4 className="text-lg font-bold text-white mb-4">{t('admin.userDetail.boardList')}</h4>
-                  <div className="space-y-2">
-                    {boards.map((board) => {
-                      const isOwner = board.owner_id === user.id;
-                      return (
-                        <div
-                          key={board.id}
-                          className="bg-white/5 rounded-xl p-4 flex items-center justify-between gap-3"
-                        >
-                          <div className="flex-1 min-w-0">
-                            <p className="text-white font-medium">{board.name}</p>
-                            <p className="text-slate-400 text-sm">
-                              {t('admin.userDetail.boardMemberTaskInfo', { members: board.member_count, tasks: board.task_count })}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-2 flex-shrink-0">
-                            <span
-                              className={`px-3 py-1 rounded-full text-xs font-medium ${
-                                board.tier === 'FREE' || board.tier === 'TRIAL'
-                                  ? 'bg-slate-500/20 text-slate-400'
-                                  : board.tier === 'STANDARD'
-                                  ? 'bg-blue-500/20 text-blue-400'
-                                  : board.tier === 'PREMIUM'
-                                  ? 'bg-purple-500/20 text-purple-400'
-                                  : 'bg-amber-500/20 text-amber-400'
-                              }`}
-                            >
-                              {board.tier}
-                            </span>
-                            <button
-                              onClick={() => handleRemoveFromBoard(board)}
-                              disabled={isUpdating || isOwner}
-                              className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                              title={isOwner ? t('admin.userDetail.cannotRemoveOwner') : t('admin.userDetail.removeFromBoard')}
-                            >
-                              <UserMinus className="h-4 w-4" />
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Admin Actions */}
-              <div className="border-t border-white/10 pt-6 space-y-4">
-                <h4 className="text-lg font-bold text-white flex items-center gap-2">
-                  <AlertTriangle className="h-5 w-5 text-amber-400" />
-                  {t('admin.common.adminActions')}
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {/* 이메일 인증 */}
-                  {!user.email_verified && (
+                  {/* 계정 영구 삭제 (비활성화된 사용자만) */}
+                  {user.is_active === false && (
                     <button
-                      onClick={handleVerifyEmail}
+                      onClick={handleDeleteUser}
                       disabled={isUpdating}
-                      className="flex items-center justify-center gap-2 px-4 py-3 bg-green-500/10 border border-green-500/30 rounded-xl text-green-400 hover:bg-green-500/20 transition-colors disabled:opacity-50"
+                      className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-900/30 border border-red-500/50 rounded-xl text-red-400 hover:bg-red-900/50 transition-colors disabled:opacity-50 font-bold"
                     >
-                      <MailCheck className="h-4 w-4" />
-                      {t('admin.userDetail.forceVerifyEmail')}
-                    </button>
-                  )}
-
-                  {/* 비밀번호 리셋 (Google 계정 제외) */}
-                  {user.provider !== 'google' && (
-                    <button
-                      onClick={handleSendPasswordReset}
-                      disabled={isUpdating}
-                      className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-500/10 border border-blue-500/30 rounded-xl text-blue-400 hover:bg-blue-500/20 transition-colors disabled:opacity-50"
-                    >
-                      <KeyRound className="h-4 w-4" />
-                      {t('admin.userDetail.passwordResetEmail')}
-                    </button>
-                  )}
-
-                  {/* 계정 활성화/비활성화 */}
-                  {user.is_active === false ? (
-                    <button
-                      onClick={handleActivate}
-                      disabled={isUpdating}
-                      className="flex items-center justify-center gap-2 px-4 py-3 bg-teal-500/10 border border-teal-500/30 rounded-xl text-teal-400 hover:bg-teal-500/20 transition-colors disabled:opacity-50"
-                    >
-                      <UserCheck className="h-4 w-4" />
-                      {t('admin.userDetail.activateAccount')}
-                    </button>
-                  ) : (
-                    <button
-                      onClick={handleDeactivate}
-                      disabled={isUpdating || user.system_role === 'ADMIN'}
-                      className="flex items-center justify-center gap-2 px-4 py-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 hover:bg-red-500/20 transition-colors disabled:opacity-50"
-                      title={user.system_role === 'ADMIN' ? t('admin.userDetail.cannotDeactivateAdmin') : undefined}
-                    >
-                      <Ban className="h-4 w-4" />
-                      {t('admin.userDetail.deactivateAccount')}
+                      <Trash2 className="h-4 w-4" />
+                      {t('admin.userDetail.deleteAccount')}
                     </button>
                   )}
                 </div>
-
-                {/* 계정 영구 삭제 (비활성화된 사용자만) */}
-                {user.is_active === false && (
-                  <button
-                    onClick={handleDeleteUser}
-                    disabled={isUpdating}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-900/30 border border-red-500/50 rounded-xl text-red-400 hover:bg-red-900/50 transition-colors disabled:opacity-50 font-bold"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    {t('admin.userDetail.deleteAccount')}
-                  </button>
-                )}
               </div>
-            </div>
-          )}
-        </div>
-      </div>
+            )}
+          </div>
+      </MotionModal>
 
       {confirmAction && (
         <ConfirmModal
@@ -564,6 +747,6 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
           onClose={() => setToast(null)}
         />
       )}
-    </div>
+    </>
   );
 }

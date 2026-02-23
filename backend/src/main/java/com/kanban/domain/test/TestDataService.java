@@ -82,7 +82,7 @@ public class TestDataService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         // 공용 테스트 보드가 이미 있는지 확인
-        Optional<Board> existingBoard = boardRepository.findByName(SHARED_TEST_BOARD_NAME);
+        Optional<Board> existingBoard = boardRepository.findActiveByName(SHARED_TEST_BOARD_NAME);
 
         if (existingBoard.isPresent()) {
             return joinExistingTestBoard(existingBoard.get(), currentUser);
@@ -142,7 +142,7 @@ public class TestDataService {
                 .name(SHARED_TEST_BOARD_NAME)
                 .description("팀 협업 및 통계 기능을 테스트하기 위한 공용 프로젝트 보드입니다. 모든 유저가 접근할 수 있습니다.")
                 .owner(owner)
-                .workHoursPerDay(8)
+                .workHoursPerDay(10)
                 .workStartTime(LocalTime.of(9, 0))
                 .build();
         boardRepository.saveAndFlush(board);

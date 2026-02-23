@@ -23,6 +23,8 @@ public class NotificationPreferenceResponse {
         private boolean slackTaskCommentEnabled;
         private boolean meetingMemoSharedEnabled;
         private boolean slackMeetingMemoSharedEnabled;
+        private boolean noteCommentMentionEnabled;
+        private boolean slackNoteCommentMentionEnabled;
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;
 
@@ -38,6 +40,8 @@ public class NotificationPreferenceResponse {
                     .slackTaskCommentEnabled(p.getSlackTaskCommentEnabled())
                     .meetingMemoSharedEnabled(p.getMeetingMemoSharedEnabled())
                     .slackMeetingMemoSharedEnabled(p.getSlackMeetingMemoSharedEnabled())
+                    .noteCommentMentionEnabled(p.getNoteCommentMentionEnabled())
+                    .slackNoteCommentMentionEnabled(p.getSlackNoteCommentMentionEnabled())
                     .createdAt(p.getCreatedAt())
                     .updatedAt(p.getUpdatedAt())
                     .build();
@@ -55,6 +59,8 @@ public class NotificationPreferenceResponse {
                     .slackTaskCommentEnabled(true)
                     .meetingMemoSharedEnabled(true)
                     .slackMeetingMemoSharedEnabled(true)
+                    .noteCommentMentionEnabled(true)
+                    .slackNoteCommentMentionEnabled(true)
                     .createdAt(null)
                     .updatedAt(null)
                     .build();

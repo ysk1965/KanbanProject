@@ -1,0 +1,1 @@
+ALTER TABLE personal_events ADD COLUMN event_type VARCHAR(20) DEFAULT 'SCHEDULE' NOT NULL;

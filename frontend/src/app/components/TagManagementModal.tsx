@@ -3,12 +3,7 @@ import { Tag } from '../types';
 import { FEATURE_COLORS } from '../constants';
 import { X, Pencil, Trash2, Check, Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from './ui/dialog';
+import { MotionModal } from './ui/MotionModal';
 
 interface TagManagementModalProps {
   open: boolean;
@@ -69,11 +64,10 @@ export function TagManagementModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="bg-kanban-card border-kanban-border sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="text-foreground">{t('tags.management')}</DialogTitle>
-        </DialogHeader>
+    <MotionModal open={open} onClose={onClose}>
+        <div className="px-6 pt-6 pb-4">
+          <h2 className="text-foreground text-lg font-semibold">{t('tags.management')}</h2>
+        </div>
 
         {/* Tag list */}
         <div className="space-y-1 max-h-[300px] overflow-y-auto">
@@ -85,12 +79,12 @@ export function TagManagementModal({
             <div key={tag.id}>
               {editingId === tag.id ? (
                 /* Editing mode */
-                <div className="p-3 rounded-xl bg-kanban-bg/50 border border-kanban-border/50 space-y-3">
+                <div className="p-3 rounded-xl bg-bridge-dark/50 border border-bridge-border/50 space-y-3">
                   <div className="flex items-center gap-2">
                     <input
                       value={editName}
                       onChange={(e) => setEditName(e.target.value)}
-                      className="flex-1 h-8 text-sm bg-white/5 border border-white/10 rounded-lg px-3 text-foreground focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
+                      className="flex-1 h-8 text-sm bg-foreground/5 border border-foreground/10 rounded-lg px-3 text-foreground focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
                       onKeyDown={(e) => {
                         if (e.nativeEvent.isComposing) return;
                         if (e.key === 'Enter') saveEdit();
@@ -106,7 +100,7 @@ export function TagManagementModal({
                     </button>
                     <button
                       onClick={cancelEdit}
-                      className="w-8 h-8 rounded-lg bg-white/5 text-slate-400 hover:bg-white/10 hover:text-foreground flex items-center justify-center transition-colors"
+                      className="w-8 h-8 rounded-lg bg-foreground/5 text-slate-400 hover:bg-foreground/10 hover:text-foreground flex items-center justify-center transition-colors"
                     >
                       <X size={14} />
                     </button>
@@ -121,7 +115,7 @@ export function TagManagementModal({
                           key={color}
                           onClick={() => setEditColor(color)}
                           className={`w-6 h-6 rounded-full transition-all ${
-                            editColor === color ? 'ring-2 ring-white ring-offset-2 ring-offset-kanban-card scale-110' : 'hover:scale-110'
+                            editColor === color ? 'ring-2 ring-white ring-offset-2 ring-offset-bridge-surface scale-110' : 'hover:scale-110'
                           }`}
                           style={{ backgroundColor: color }}
                         />
@@ -150,7 +144,7 @@ export function TagManagementModal({
                 </div>
               ) : (
                 /* Normal display */
-                <div className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-white/5 group/tag transition-colors">
+                <div className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-foreground/5 group/tag transition-colors">
                   <div
                     className="w-4 h-4 rounded-full flex-shrink-0"
                     style={{ backgroundColor: tag.color }}
@@ -159,7 +153,7 @@ export function TagManagementModal({
                   <div className="flex items-center gap-1 opacity-0 group-hover/tag:opacity-100 transition-opacity">
                     <button
                       onClick={() => startEdit(tag)}
-                      className="w-7 h-7 rounded-lg hover:bg-white/10 flex items-center justify-center text-slate-400 hover:text-foreground transition-colors"
+                      className="w-7 h-7 rounded-lg hover:bg-foreground/10 flex items-center justify-center text-slate-400 hover:text-foreground transition-colors"
                       title={t('tags.editTag')}
                     >
                       <Pencil size={12} />
@@ -179,7 +173,7 @@ export function TagManagementModal({
         </div>
 
         {/* Create new tag */}
-        <div className="pt-3 border-t border-kanban-border/50 space-y-3">
+        <div className="pt-3 border-t border-bridge-border/50 space-y-3">
           <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
             {t('tags.createNew')}
           </span>
@@ -197,7 +191,7 @@ export function TagManagementModal({
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               placeholder={t('tags.namePlaceholder')}
-              className="flex-1 h-8 text-sm bg-white/5 border border-white/10 rounded-lg px-3 text-foreground placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
+              className="flex-1 h-8 text-sm bg-foreground/5 border border-foreground/10 rounded-lg px-3 text-foreground placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
               onKeyDown={(e) => {
                 if (e.nativeEvent.isComposing) return;
                 if (e.key === 'Enter') handleCreate();
@@ -218,14 +212,13 @@ export function TagManagementModal({
                 key={color}
                 onClick={() => setNewColor(color)}
                 className={`w-6 h-6 rounded-full transition-all ${
-                  newColor === color ? 'ring-2 ring-white ring-offset-2 ring-offset-kanban-card scale-110' : 'hover:scale-110'
+                  newColor === color ? 'ring-2 ring-white ring-offset-2 ring-offset-bridge-surface scale-110' : 'hover:scale-110'
                 }`}
                 style={{ backgroundColor: color }}
               />
             ))}
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+    </MotionModal>
   );
 }

@@ -6,6 +6,7 @@ import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import { Calendar } from './ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { MotionModal } from './ui/MotionModal';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import type { Milestone, Feature } from '../types';
@@ -123,13 +124,10 @@ export function MilestoneModal({
     });
   }, [features, selectedFeatureIds, featureMilestoneCountMap]);
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-kanban-bg rounded-2xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col border border-white/20 shadow-[0_0_50px_rgba(0,0,0,0.5)]">
+    <MotionModal open={isOpen} onClose={onClose} className="sm:max-w-lg bg-bridge-dark p-0 overflow-hidden flex flex-col max-h-[90vh]">
         {/* 헤더 */}
-        <div className="flex items-center justify-between p-5 border-b border-kanban-border bg-white/[0.02]">
+        <div className="flex items-center justify-between p-5 border-b border-bridge-border bg-white/[0.02]">
           <div className="flex items-center gap-2">
             <Flag className="h-5 w-5 text-indigo-400" />
             <h2 className="text-lg font-bold text-foreground">
@@ -138,7 +136,7 @@ export function MilestoneModal({
           </div>
           <button
             onClick={onClose}
-            className="text-zinc-400 hover:text-foreground transition-colors"
+            className="text-slate-400 hover:text-foreground transition-colors"
           >
             <X className="h-5 w-5" />
           </button>
@@ -153,7 +151,7 @@ export function MilestoneModal({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder={t('milestone.titlePlaceholder')}
-              className="bg-kanban-input border-white/15 text-white placeholder-zinc-400 focus:border-indigo-500/50 rounded-xl"
+              className="bg-bridge-obsidian border-foreground/10 text-foreground placeholder-slate-400 focus:border-indigo-500/50 rounded-xl"
             />
           </div>
 
@@ -165,7 +163,7 @@ export function MilestoneModal({
               onChange={(e) => setDescription(e.target.value)}
               placeholder={t('milestone.descriptionPlaceholder')}
               rows={3}
-              className="bg-kanban-input border-white/15 text-white placeholder-zinc-400 resize-none focus:border-indigo-500/50 rounded-xl"
+              className="bg-bridge-obsidian border-foreground/10 text-foreground placeholder-slate-400 resize-none focus:border-indigo-500/50 rounded-xl"
             />
           </div>
 
@@ -176,9 +174,9 @@ export function MilestoneModal({
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
-                  className="w-full h-10 justify-start text-left font-normal bg-kanban-card-hover border-white/15 text-white hover:bg-kanban-surface hover:border-indigo-500/50 rounded-xl"
+                  className="w-full h-10 justify-start text-left font-normal bg-bridge-surface-hover border-foreground/10 text-foreground hover:bg-bridge-surface-hover hover:border-indigo-500/50 rounded-xl"
                 >
-                  <CalendarIcon className="mr-2 h-4 w-4 text-zinc-400" />
+                  <CalendarIcon className="mr-2 h-4 w-4 text-slate-400" />
                   {startDate && endDate ? (
                     <>
                       {format(startDate, 'yyyy. MM. dd.', { locale: ko })}
@@ -186,11 +184,11 @@ export function MilestoneModal({
                       {format(endDate, 'yyyy. MM. dd.', { locale: ko })}
                     </>
                   ) : (
-                    <span className="text-zinc-400">{t('milestone.selectPeriod')}</span>
+                    <span className="text-slate-400">{t('milestone.selectPeriod')}</span>
                   )}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0 bg-kanban-card border-kanban-border" align="start">
+              <PopoverContent className="w-auto p-0 bg-bridge-surface border-bridge-border" align="start">
                 <Calendar
                   mode="range"
                   selected={{
@@ -203,7 +201,7 @@ export function MilestoneModal({
                   }}
                   numberOfMonths={2}
                   locale={ko}
-                  className="text-white"
+                  className="text-foreground"
                 />
               </PopoverContent>
             </Popover>
@@ -212,30 +210,30 @@ export function MilestoneModal({
           {/* Feature 연결 */}
           <div className="space-y-2">
             <label className="kanban-label block">{t('milestone.linkedFeatures')}</label>
-            <div className="max-h-48 overflow-y-auto space-y-1 bg-kanban-card rounded-xl p-2 border border-white/15">
+            <div className="max-h-48 overflow-y-auto space-y-1 bg-bridge-surface rounded-xl p-2 border border-foreground/10">
               {sortedFeatures.length > 0 ? (
                 sortedFeatures.map((feature) => {
                   const milestoneCount = featureMilestoneCountMap[feature.id] || 0;
                   return (
                     <label
                       key={feature.id}
-                      className="flex items-center gap-2 p-2 rounded-lg hover:bg-kanban-surface cursor-pointer transition-colors"
+                      className="flex items-center gap-2 p-2 rounded-lg hover:bg-bridge-surface-hover cursor-pointer transition-colors"
                     >
                       <input
                         type="checkbox"
                         checked={selectedFeatureIds.has(feature.id)}
                         onChange={() => toggleFeature(feature.id)}
-                        className="w-4 h-4 rounded border-white/20 bg-kanban-input text-indigo-500 focus:ring-indigo-500"
+                        className="w-4 h-4 rounded border-foreground/10 bg-bridge-obsidian text-indigo-500 focus:ring-indigo-500"
                       />
                       <div
                         className="w-3 h-3 rounded-full flex-shrink-0"
                         style={{ backgroundColor: feature.color }}
                       />
-                      <span className="text-sm text-zinc-300 truncate flex-1">
+                      <span className="text-sm text-foreground truncate flex-1">
                         {feature.title}
                       </span>
                       {milestoneCount > 0 && (
-                        <span className="text-[10px] text-zinc-500 flex-shrink-0 tabular-nums">
+                        <span className="text-[10px] text-slate-500 flex-shrink-0 tabular-nums">
                           {t('milestone.linkedCount', { count: milestoneCount })}
                         </span>
                       )}
@@ -243,7 +241,7 @@ export function MilestoneModal({
                   );
                 })
               ) : (
-                <p className="text-sm text-zinc-400 text-center py-4">
+                <p className="text-sm text-slate-400 text-center py-4">
                   {t('milestone.noFeatures')}
                 </p>
               )}
@@ -252,7 +250,7 @@ export function MilestoneModal({
         </div>
 
         {/* 푸터 */}
-        <div className="flex items-center justify-between p-5 border-t border-kanban-border bg-white/[0.02]">
+        <div className="flex items-center justify-between p-5 border-t border-bridge-border bg-white/[0.02]">
           <div>
             {isEditMode && onDelete && (
               <Button
@@ -267,7 +265,7 @@ export function MilestoneModal({
           <div className="flex items-center gap-4">
             <button
               onClick={onClose}
-              className="text-[11px] font-bold text-zinc-400 hover:text-foreground transition-all tracking-wider"
+              className="text-[11px] font-bold text-slate-400 hover:text-foreground transition-all tracking-wider"
             >
               {t('common.cancel')}
             </button>
@@ -280,7 +278,6 @@ export function MilestoneModal({
             </button>
           </div>
         </div>
-      </div>
-    </div>
+    </MotionModal>
   );
 }

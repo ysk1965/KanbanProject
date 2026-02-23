@@ -56,6 +56,10 @@ public enum ErrorCode {
     BOARD_ACCESS_DENIED(HttpStatus.FORBIDDEN, "B002", "보드에 접근 권한이 없습니다"),
     BOARD_SUSPENDED(HttpStatus.FORBIDDEN, "B003", "보드가 정지 상태입니다"),
     PREMIUM_FEATURE_REQUIRED(HttpStatus.FORBIDDEN, "B004", "이 기능은 Premium에서만 사용 가능합니다"),
+    PERSONAL_BOARD_NO_INVITE(HttpStatus.FORBIDDEN, "B006", "개인 보드에는 멤버를 초대할 수 없습니다"),
+    PERSONAL_SPACE_ALREADY_ENABLED(HttpStatus.CONFLICT, "B007", "이미 개인 공간이 활성화되어 있습니다"),
+    BOARD_ALREADY_DELETED(HttpStatus.CONFLICT, "B008", "이미 삭제된 보드입니다"),
+    BOARD_NOT_DELETED(HttpStatus.CONFLICT, "B009", "삭제되지 않은 보드입니다"),
 
     // Block
     BLOCK_NOT_FOUND(HttpStatus.NOT_FOUND, "BL001", "블록을 찾을 수 없습니다"),
@@ -83,6 +87,8 @@ public enum ErrorCode {
     // Note
     NOTE_NOT_FOUND(HttpStatus.NOT_FOUND, "NT001", "노트를 찾을 수 없습니다"),
     NOTE_VERSION_NOT_FOUND(HttpStatus.NOT_FOUND, "NT002", "노트 버전을 찾을 수 없습니다"),
+    NOTE_COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "NT003", "노트 댓글을 찾을 수 없습니다"),
+    NOTE_COMMENT_NOT_AUTHOR(HttpStatus.FORBIDDEN, "NT004", "본인의 댓글만 수정/삭제할 수 있습니다"),
 
     // Meeting
     MEETING_NOT_FOUND(HttpStatus.NOT_FOUND, "MT001", "회의를 찾을 수 없습니다"),
@@ -178,7 +184,41 @@ public enum ErrorCode {
     // AI Credits
     AI_CREDITS_EXHAUSTED(HttpStatus.PAYMENT_REQUIRED, "AC001", "AI 크레딧이 소진되었습니다. 추가 크레딧을 구매해주세요"),
     AI_CREDIT_PURCHASE_AMOUNT_INVALID(HttpStatus.BAD_REQUEST, "AC002", "유효하지 않은 크레딧 구매 금액입니다"),
-    AI_CREDIT_PURCHASE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "AC003", "크레딧 구매 처리 중 오류가 발생했습니다");
+    AI_CREDIT_PURCHASE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "AC003", "크레딧 구매 처리 중 오류가 발생했습니다"),
+    PERSONAL_AI_CREDITS_EXHAUSTED(HttpStatus.PAYMENT_REQUIRED, "AC004", "개인 AI 크레딧이 소진되었습니다"),
+
+    // AI Feature Decompose
+    AI_FEATURE_CONTENT_EMPTY(HttpStatus.BAD_REQUEST, "AF001", "피처 내용이 비어있습니다"),
+    AI_FEATURE_DECOMPOSE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "AF002", "AI 태스크 분해에 실패했습니다"),
+
+    // AI Checklist Decompose
+    AI_CHECKLIST_CONTENT_EMPTY(HttpStatus.BAD_REQUEST, "ACL001", "태스크 내용이 비어있습니다"),
+    AI_CHECKLIST_DECOMPOSE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "ACL002", "AI 체크리스트 분해에 실패했습니다"),
+
+    // AI Comment Summary
+    AI_COMMENT_SUMMARY_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "ACS001", "AI 댓글 요약에 실패했습니다"),
+    AI_COMMENT_INSUFFICIENT(HttpStatus.BAD_REQUEST, "ACS002", "요약하기에 댓글 수가 부족합니다"),
+
+    // Personal
+    PERSONAL_EVENT_NOT_FOUND(HttpStatus.NOT_FOUND, "PE001", "개인 일정을 찾을 수 없습니다"),
+    PERSONAL_ACCESS_DENIED(HttpStatus.FORBIDDEN, "PE002", "본인의 데이터만 접근할 수 있습니다"),
+    PERSONAL_TASK_NOT_FOUND(HttpStatus.NOT_FOUND, "PT001", "개인 할 일을 찾을 수 없습니다"),
+PERSONAL_TAG_NOT_FOUND(HttpStatus.NOT_FOUND, "PT003", "태그를 찾을 수 없습니다"),
+    PERSONAL_TAG_DUPLICATE(HttpStatus.CONFLICT, "PT004", "이미 동일한 이름의 태그가 존재합니다"),
+    PERSONAL_TAG_ALREADY_ASSIGNED(HttpStatus.CONFLICT, "PT005", "이미 할당된 태그입니다"),
+    PERSONAL_HABIT_NOT_FOUND(HttpStatus.NOT_FOUND, "PH001", "습관을 찾을 수 없습니다"),
+
+    // Diary
+    DIARY_NOT_FOUND(HttpStatus.NOT_FOUND, "DI001", "일기를 찾을 수 없습니다"),
+    DIARY_ALREADY_EXISTS(HttpStatus.CONFLICT, "DI002", "해당 날짜에 이미 일기가 존재합니다"),
+    DIARY_ACCESS_DENIED(HttpStatus.FORBIDDEN, "DI003", "본인의 일기만 접근할 수 있습니다"),
+    DIARY_ALREADY_COMPLETED(HttpStatus.BAD_REQUEST, "DI004", "이미 완성된 일기입니다"),
+
+    // Diary Voice
+    DIARY_VOICE_FILE_EMPTY(HttpStatus.BAD_REQUEST, "DV001", "음성 파일이 비어있습니다"),
+    DIARY_VOICE_FILE_TOO_LARGE(HttpStatus.BAD_REQUEST, "DV002", "음성 파일이 25MB를 초과합니다"),
+    DIARY_VOICE_STT_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "DV003", "음성 인식에 실패했습니다"),
+    DIARY_VOICE_TTS_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "DV004", "음성 생성에 실패했습니다");
 
     private final HttpStatus status;
     private final String code;

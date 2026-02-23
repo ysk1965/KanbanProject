@@ -49,6 +49,7 @@ public class MilestoneService {
 
     public MilestoneResponse.ListResponse getMilestones(String boardId, String userId) {
         boardService.checkViewerOrAbove(boardId, userId);
+        validateMilestoneAccess(boardId);
 
         // 1회 쿼리로 마일스톤 + 연관 엔티티 조회
         List<Milestone> milestones = milestoneRepository.findByBoardIdWithDetailsOrderByStartDateAsc(boardId);
@@ -96,6 +97,7 @@ public class MilestoneService {
     @Transactional
     public MilestoneResponse.Detail createMilestone(String boardId, String userId, MilestoneRequest.Create request) {
         boardService.checkMemberOrAbove(boardId, userId);
+        validateMilestoneAccess(boardId);
 
         Board board = boardRepository.findById(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
@@ -407,5 +409,13 @@ public class MilestoneService {
                             return Duration.between(sb.getStartTime(), sb.getEndTime()).toMinutes() / 60.0;
                         })
                 ));
+    }
+
+    private void validateMilestoneAccess(String boardId) {
+        Board board = boardRepository.findById(boardId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        if (!board.canAccessMilestone()) {
+            throw new BusinessException(ErrorCode.PREMIUM_FEATURE_REQUIRED);
+        }
     }
 }

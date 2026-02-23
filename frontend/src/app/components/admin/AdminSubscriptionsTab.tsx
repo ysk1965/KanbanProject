@@ -69,7 +69,7 @@ export function AdminSubscriptionsTab() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white mb-2">{t('admin.subscriptions.title')}</h2>
+          <h2 className="text-2xl font-bold text-foreground mb-2">{t('admin.subscriptions.title')}</h2>
           <p className="text-slate-400">{t('admin.subscriptions.subtitle')}</p>
         </div>
       </div>
@@ -98,15 +98,15 @@ export function AdminSubscriptionsTab() {
       {!isLoading && !error && subscriptions && (
         <>
           {subscriptions.subscriptions.length === 0 ? (
-            <div className="bg-bridge-obsidian rounded-xl border border-white/15 p-12 text-center">
+            <div className="bg-bridge-obsidian rounded-xl border border-bridge-border p-12 text-center">
               <CreditCard className="h-12 w-12 text-slate-400 mx-auto mb-4" />
               <p className="text-slate-400">{t('admin.subscriptions.noSubscriptions')}</p>
             </div>
           ) : (
-            <div className="bg-bridge-obsidian rounded-xl border border-white/15 overflow-x-auto">
+            <div className="bg-bridge-obsidian rounded-xl border border-bridge-border overflow-x-auto">
               <table className="w-full min-w-[720px]">
                 <thead>
-                  <tr className="border-b border-white/15">
+                  <tr className="border-b border-bridge-border">
                     <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
                       {t('admin.subscriptions.board')}
                     </th>
@@ -131,19 +131,19 @@ export function AdminSubscriptionsTab() {
                   {subscriptions.subscriptions.map((subscription) => (
                     <tr
                       key={subscription.id}
-                      className="border-b border-white/15 last:border-0 hover:bg-white/5 transition-colors"
+                      className="border-b border-bridge-border last:border-0 hover:bg-foreground/5 transition-colors"
                     >
                       <td className="px-3 py-3 md:px-6 md:py-4">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-lg bg-bridge-accent/20 flex items-center justify-center">
                             <Folder className="h-5 w-5 text-bridge-accent" />
                           </div>
-                          <span className="text-white font-medium">{subscription.board_name}</span>
+                          <span className="text-foreground font-medium">{subscription.board_name}</span>
                         </div>
                       </td>
                       <td className="px-3 py-3 md:px-6 md:py-4">
                         <div>
-                          <p className="text-white">{subscription.owner_name}</p>
+                          <p className="text-foreground">{subscription.owner_name}</p>
                           <p className="text-slate-400 text-sm">{subscription.owner_email}</p>
                         </div>
                       </td>
@@ -194,8 +194,8 @@ export function AdminSubscriptionsTab() {
                 <button
                   onClick={() => setPage(Math.max(0, page - 1))}
                   disabled={page === 0}
-                  className="p-2 bg-bridge-obsidian border border-white/20 rounded-lg
-                    text-slate-400 hover:text-white hover:bg-white/5
+                  className="p-2 bg-bridge-obsidian border border-bridge-border rounded-lg
+                    text-slate-400 hover:text-foreground hover:bg-foreground/5
                     disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   <ChevronLeft className="h-5 w-5" />
@@ -206,8 +206,8 @@ export function AdminSubscriptionsTab() {
                 <button
                   onClick={() => setPage(Math.min(Math.ceil(subscriptions.total / subscriptions.size) - 1, page + 1))}
                   disabled={page >= Math.ceil(subscriptions.total / subscriptions.size) - 1}
-                  className="p-2 bg-bridge-obsidian border border-white/20 rounded-lg
-                    text-slate-400 hover:text-white hover:bg-white/5
+                  className="p-2 bg-bridge-obsidian border border-bridge-border rounded-lg
+                    text-slate-400 hover:text-foreground hover:bg-foreground/5
                     disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   <ChevronRight className="h-5 w-5" />

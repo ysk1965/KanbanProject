@@ -1,7 +1,9 @@
 package com.kanban.domain.comment.controller;
 
+import com.kanban.domain.comment.dto.CommentAIResponse;
 import com.kanban.domain.comment.dto.CommentRequest;
 import com.kanban.domain.comment.dto.CommentResponse;
+import com.kanban.domain.comment.service.CommentAIService;
 import com.kanban.domain.comment.service.CommentService;
 import com.kanban.global.security.UserPrincipal;
 import jakarta.validation.Valid;
@@ -19,6 +21,7 @@ import java.util.Map;
 public class CommentController {
 
     private final CommentService commentService;
+    private final CommentAIService commentAIService;
 
     @GetMapping
     public ResponseEntity<CommentResponse.ListResponse> getComments(
@@ -90,6 +93,17 @@ public class CommentController {
             @Valid @RequestBody CommentRequest.ToggleReaction request) {
         CommentResponse.ReactionsResponse response = commentService.toggleReaction(
                 boardId, commentId, principal.getUserId(), request.getEmoji());
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/ai/summarize")
+    public ResponseEntity<CommentAIResponse.Summary> aiSummarize(
+            @PathVariable String boardId,
+            @PathVariable String taskId,
+            @RequestParam(required = false) String language,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        CommentAIResponse.Summary response = commentAIService.summarizeComments(
+                boardId, taskId, principal.getUserId(), language);
         return ResponseEntity.ok(response);
     }
 }

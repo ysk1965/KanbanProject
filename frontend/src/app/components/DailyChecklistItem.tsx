@@ -79,8 +79,8 @@ export function DailyChecklistItem({
     <div
       ref={setNodeRef}
       style={style}
-      className={`group relative ${compact ? 'rounded-lg' : 'rounded-xl'} border border-white/15 bg-white/5 overflow-hidden transition-all ${
-        isDragging ? 'shadow-2xl ring-2 ring-bridge-accent' : 'hover:border-white/20'
+      className={`group relative ${compact ? 'rounded-lg' : 'rounded-xl'} border border-bridge-border bg-foreground/5 overflow-hidden transition-all ${
+        isDragging ? 'shadow-2xl ring-2 ring-bridge-accent' : 'hover:border-bridge-border'
       } ${optimisticCompleted ? 'opacity-60' : ''}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -111,7 +111,7 @@ export function DailyChecklistItem({
           className={`flex-shrink-0 ${compact ? 'w-4 h-4 rounded' : 'w-5 h-5 rounded-md'} border mt-0.5 flex items-center justify-center transition-colors ${
             optimisticCompleted
               ? 'bg-green-500 border-green-500'
-              : 'border-white/20 bg-white/5 hover:border-white/40'
+              : 'border-bridge-border bg-foreground/5 hover:border-foreground/40'
           } ${!isReadOnly && onToggle ? 'cursor-pointer' : 'cursor-default'}`}
         >
           {optimisticCompleted && <Check className={compact ? 'h-2.5 w-2.5 text-white' : 'h-3 w-3 text-white'} />}
@@ -121,7 +121,7 @@ export function DailyChecklistItem({
         <div className="flex-1 min-w-0">
           <p
             className={`${compact ? 'text-xs' : 'text-sm'} font-medium ${
-              optimisticCompleted ? 'text-slate-400 line-through' : 'text-white'
+              optimisticCompleted ? 'text-slate-400 line-through' : 'text-foreground'
             } truncate`}
           >
             {item.title}

@@ -45,24 +45,25 @@
       "workflow": "Workflow",
       "pricing": "Pricing",
       "compare": "तुलना",
+      "myspace": "My Space",
       "joinNow": "JOIN NOW",
       "startForFree": "मुफ़्त शुरू करें",
       "ai": "AI"
     },
     "hero": {
-      "badge": "बुद्धिमान PM ऑर्केस्ट्रेशन",
+      "badge": "Project + Life Management in One",
       "subtitle": "जटिल वर्कफ़्लो को सरल बनाने वाला एक स्पष्ट <1>Flow</1>।\nसबसे उन्नत PM सहयोग इंटरफ़ेस का अनुभव करें।",
       "subtitleFlow": "Flow",
-      "subtitleText1": "जटिल वर्कफ़्लो को सरल बनाने वाला एक स्पष्ट ",
-      "subtitleText2": "।\nसबसे उन्नत PM सहयोग इंटरफ़ेस का अनुभव करें।",
+      "subtitleText1": "Team collaboration meets personal growth in one clear ",
+      "subtitleText2": ".\nManage projects AND your life — no plugins, no app switching.",
       "tryFree": "3 दिन मुफ़्त Premium आज़माएं",
       "basicFree": "Basic बोर्ड हमेशा मुफ़्त"
     },
     "core": {
       "label": "कोर आर्किटेक्चर",
       "title": "सहयोग प्रवाह को\nव्यवस्थित करें",
-      "titleLine1": "सहयोग प्रवाह को",
-      "titleLine2": "व्यवस्थित करें",
+      "titleLine1": "Two pillars,",
+      "titleLine2": "one platform",
       "kanban": {
         "title": "व्यावहारिक Kanban",
         "desc": "'Feature - Task - पूर्ण' संरचना पर अपनी टीम का अनूठा वर्कफ़्लो बनाएं। वास्तविक PM अनुभव से निर्मित सबसे व्यावहारिक सहयोग इंटरफ़ेस।"
@@ -78,6 +79,38 @@
       "pricing": {
         "title": "पारदर्शी असीमित मॉडल",
         "desc": "Kanban बोर्ड, टास्क निर्माण और दैनिक शेड्यूल जैसी मुख्य सुविधाएं हमेशा मुफ़्त हैं। Slack एकीकरण, साप्ताहिक Gantt और अधिक केवल $5 प्रति उपयोगकर्ता में जोड़ें।"
+      },
+      "personal": {
+        "title": "Personal Productivity Hub",
+        "desc": "Eisenhower Matrix task board, habit tracker with streaks, and AI diary — your personal growth toolkit lives right next to your team workspace."
+      }
+    },
+    "myspace": {
+      "label": "Personal Productivity",
+      "titleLine1": "Your space,",
+      "titleLine2": "your growth",
+      "subtitle": "Beyond team collaboration — manage personal tasks, build habits, and reflect with AI. Everything in one place, always in sync with your work.",
+      "tabs": {
+        "overview": "Overview",
+        "matrix": "Matrix",
+        "habits": "Habits",
+        "diary": "AI Diary"
+      },
+      "matrix": {
+        "title": "Eisenhower Matrix",
+        "text": "Prioritize with a 2×2 urgency-importance grid. D-day badges, auto-sorting, and drag-to-reprioritize."
+      },
+      "habits": {
+        "title": "Habit Tracker",
+        "text": "Build streaks with daily/weekly patterns. Color-coded habits, weekly matrix view, and streak analytics."
+      },
+      "diary": {
+        "title": "AI Diary",
+        "text": "Journal through conversation with AI. Mood tracking, voice input/output, and reflective prompts."
+      },
+      "calendar": {
+        "title": "Personal Calendar",
+        "text": "Time-block your personal schedule with conflict detection. Synced alongside your team calendar."
       }
     },
     "workflow": {
@@ -154,7 +187,11 @@
       },
       "subtitle": "डैशबोर्ड और चार्ट से परे। AI आपके टास्क, टाइम ब्लॉक, चेकलिस्ट और कमेंट का विश्लेषण करके ऐसे इनसाइट्स तैयार करता है जो इंसान चूक सकते हैं।",
       "titleLine1": "AI आपकी टीम का",
-      "titleLine2": "संदर्भ पढ़ता है"
+      "titleLine2": "full context",
+      "diary": {
+        "title": "AI Conversational Diary",
+        "text": "Reflect on your day through conversation. AI tracks mood patterns, remembers context, and offers personalized insights."
+      }
     },
     "pricing": {
       "badge": "PREMIUM 3 दिन मुफ़्त ट्रायल",
@@ -174,6 +211,8 @@
         "feature2": "दैनिक शेड्यूल और चेकलिस्ट",
         "feature3": "टीम शेयरिंग और सहयोग (मैनुअल रिफ्रेश)",
         "feature4": "बेसिक नोटिफिकेशन",
+        "feature5": "Personal task board & habit tracker",
+        "feature6": "Personal calendar & schedule",
         "cta": "START FREE"
       },
       "premium": {
@@ -186,13 +225,14 @@
         "feature4": "उन्नत टीम अनुमति ऑर्केस्ट्रेशन",
         "feature5": "AI स्प्रिंट रिपोर्ट और इनसाइट्स",
         "feature6": "रीयल-टाइम बोर्ड सिंक (रिफ्रेश के बिना तुरंत अपडेट)",
+        "feature7": "AI conversational diary with voice",
         "cta": "START TRIAL"
       }
     },
     "cta": {
       "titleLine1": "अभी",
       "titleLine2": "शुरू करें",
-      "subtitle": "BridgeSpots के साथ साधारण टास्क प्रबंधन से आगे बढ़ें।\nअपनी टीम की असीमित उत्पादकता को बुद्धिमानी से व्यवस्थित करें।",
+      "subtitle": "Go beyond task management. Orchestrate your team's productivity AND your personal growth — all in one platform.",
       "button": "LAUNCH FLOW"
     },
     "footer": {
@@ -252,13 +292,34 @@
   "dashboard": {
     "sidebar": {
       "allBoards": "सभी बोर्ड",
-      "favorites": "पसंदीदा",
-      "teamMembers": "टीम सदस्य",
+      "myBoard": "मेरा स्पेस",
       "settings": "सेटिंग्स",
       "upgradePro": "Pro में अपग्रेड करें",
       "upgradeDesc": "असीमित बोर्ड और उन्नत एनालिटिक्स आज़माएं।",
       "viewPlans": "प्लान देखें"
-    }
+    },
+    "searchPlaceholder": "प्रोजेक्ट खोजें...",
+    "logout": "लॉग आउट",
+    "mySpace": "मेरा स्पेस",
+    "mySpaceDesc": "व्यक्तिगत शेड्यूल & AI डायरी",
+    "yourProjects": "मेरे प्रोजेक्ट",
+    "managingWorkspaces": "{{count}} सक्रिय वर्कस्पेस का प्रबंधन",
+    "createNewBoard": "नया बोर्ड बनाएं",
+    "noSearchResult": "\"{{query}}\" के लिए कोई बोर्ड नहीं मिला",
+    "clearSearch": "खोज साफ़ करें",
+    "starredBoards": "तारांकित बोर्ड",
+    "workspaceBoards": "वर्कस्पेस बोर्ड",
+    "testBoard": "टेस्ट बोर्ड",
+    "trialPlan": "ट्रायल",
+    "noDescription": "कोई विवरण नहीं",
+    "tasksProgress": "कार्य प्रगति",
+    "memberCount": "{{count}} सदस्य",
+    "newBoard": "नया बोर्ड",
+    "boardName": "बोर्ड का नाम",
+    "description": "विवरण",
+    "backgroundColor": "पृष्ठभूमि रंग",
+    "cancel": "रद्द करें",
+    "createBoard": "बोर्ड बनाएं"
   },
   "share": {
     "title": "बोर्ड साझा करें",
@@ -940,7 +1001,8 @@
     "noBoards": "अभी तक कोई बोर्ड नहीं",
     "createFirst": "अपना पहला बोर्ड बनाएं",
     "deleteBoard": "बोर्ड हटाएं",
-    "deleteConfirm": "इस बोर्ड को हटाएं?",
+    "deleteConfirm": "\"{{name}}\" बोर्ड हटाएं?",
+    "softDeleteNotice": "इस बोर्ड को 7 दिनों के भीतर व्यवस्थापक द्वारा पुनर्स्थापित किया जा सकता है।",
     "deleteIrreversible": "यह कार्रवाई पूर्ववत नहीं की जा सकती।",
     "editBoard": "बोर्ड संपादित करें",
     "boardNamePlaceholder": "बोर्ड का नाम दर्ज करें",
@@ -1104,7 +1166,13 @@
       "deleteConfirm": "यह इमोजी हटाएं?",
       "maxSize": "PNG, GIF, WebP · अधिकतम 128KB",
       "adminOnly": "केवल व्यवस्थापक इमोजी जोड़ सकते हैं"
-    }
+    },
+    "aiSummarize": "AI सारांश",
+    "aiSummaryTitle": "AI टिप्पणी सारांश",
+    "aiDecisions": "निर्णय",
+    "aiOpenQuestions": "अनसुलझे प्रश्न",
+    "aiActionItems": "कार्य आइटम",
+    "checklist": "चेकलिस्ट"
   },
   "activity": {
     "title": "गतिविधि लॉग",
@@ -1234,7 +1302,13 @@
       "totalBoards": "कुल बोर्ड",
       "activeSubscriptions": "सक्रिय सदस्यताएं",
       "active": "सक्रिय: {{count}}",
-      "tierDistribution": "बोर्ड टियर वितरण"
+      "tierDistribution": "बोर्ड टियर वितरण",
+      "personalBoardMetrics": "व्यक्तिगत बोर्ड",
+      "personalBoards": "व्यक्तिगत बोर्ड",
+      "adoptionRate": "अपनाने की दर",
+      "activePersonalBoards": "सक्रिय (30 दिन)",
+      "totalDiaryEntries": "डायरी प्रविष्टियाँ",
+      "boardTypeDistribution": "बोर्ड प्रकार वितरण"
     },
     "analytics": {
       "title": "विश्लेषण / रिपोर्ट",
@@ -1263,7 +1337,21 @@
       "trialStarted": "ट्रायल शुरू",
       "funnelConverted": "रूपांतरित",
       "funnelInProgress": "प्रगति में",
-      "funnelExpired": "समाप्त"
+      "funnelExpired": "समाप्त",
+      "pbAdoption": "PB अपनाना",
+      "totalPb": "कुल {{count}}",
+      "totalPersonalBoards": "कुल Personal Board",
+      "adoptionRateLabel": "अपनाने की दर",
+      "pbCreated": "PB बनाए गए",
+      "diaryEngagement": "डायरी सहभागिता",
+      "totalDiaryEntries": "कुल प्रविष्टियाँ",
+      "diaryCompletionRate": "पूर्णता दर",
+      "diaryActiveUsers": "सक्रिय उपयोगकर्ता",
+      "diaryEntries": "डायरी प्रविष्टियाँ",
+      "pbConversion": "Personal Board रूपांतरण",
+      "personalOnly": "केवल Personal",
+      "personalAndTeam": "Personal + Team",
+      "pbConversionRate": "रूपांतरण दर"
     },
     "system": {
       "title": "सिस्टम प्रबंधन",
@@ -1298,7 +1386,20 @@
       "saving": "सहेजा जा रहा है...",
       "saveChanges": "बदलाव सहेजें",
       "stopping": "बंद हो रहा है...",
-      "stopNow": "अभी बंद करें"
+      "stopNow": "अभी बंद करें",
+      "pbStatus": "Personal Board स्थिति",
+      "pbTotalUsers": "कुल उपयोगकर्ता",
+      "pbWithPb": "PB के साथ",
+      "pbWithoutPb": "PB के बिना",
+      "pbAdoptionRate": "अपनाने की दर",
+      "pbAdopted": "अपनाया",
+      "pbRemaining": "शेष",
+      "bulkCreateBtn": "{{count}} उपयोगकर्ताओं के लिए PB बनाएं",
+      "bulkCreating": "बना रहे हैं...",
+      "bulkCreateTitle": "बल्क Personal Board बनाएं",
+      "bulkCreateConfirm": "{{count}} उपयोगकर्ताओं के लिए Personal Board बनाएं?",
+      "bulkCreateSuccess": "{{created}} बनाए गए (विफल: {{failed}}, कुल: {{total}})",
+      "bulkCreateFailed": "बल्क निर्माण विफल"
     },
     "subscriptions": {
       "title": "सदस्यता प्रबंधन",
@@ -1325,7 +1426,20 @@
       "tasks": "Tasks",
       "createdAt": "बनाया गया",
       "view": "देखें",
-      "viewBoard": "बोर्ड देखें"
+      "viewBoard": "बोर्ड देखें",
+      "type": "प्रकार",
+      "allTypes": "सभी प्रकार",
+      "typeTeam": "टीम",
+      "typePersonal": "व्यक्तिगत",
+      "activeBoards": "सक्रिय बोर्ड",
+      "deletedBoards": "हटाए गए बोर्ड",
+      "noDeletedBoards": "कोई हटाया गया बोर्ड नहीं",
+      "noDeletedBoardsDesc": "हटाए गए बोर्ड स्थायी रूप से हटाने से पहले 7 दिनों तक यहां दिखाई देंगे।",
+      "deletedAt": "हटाया गया",
+      "daysLeft": "स्थायी रूप से हटाने में {{days}} दिन शेष",
+      "restore": "पुनर्स्थापित करें",
+      "restoreSuccess": "बोर्ड पुनर्स्थापित किया गया",
+      "restoreFailed": "बोर्ड पुनर्स्थापित करने में विफल"
     },
     "boardDetail": {
       "title": "बोर्ड विवरण",
@@ -1359,6 +1473,7 @@
       "dangerZone": "खतरनाक क्षेत्र",
       "deleteBoard": "बोर्ड हटाएं",
       "deleteWarning": "इस बोर्ड से संबंधित सभी डेटा हटा दिया जाएगा। यह कार्रवाई पूर्ववत नहीं की जा सकती।",
+      "softDeleteWarning": "बोर्ड को सॉफ्ट डिलीट किया जाएगा। 7 दिनों के भीतर पुनर्स्थापित किया जा सकता है।",
       "deleting": "हटाया जा रहा है...",
       "editName": "बोर्ड का नाम संपादित करें",
       "nameUpdateSuccess": "बोर्ड का नाम अपडेट किया गया।",
@@ -1378,7 +1493,12 @@
       "seatCount": "सीट",
       "seatCountUpdateFailed": "सीट संख्या बदलने में विफल।",
       "seatCountUpdateSuccess": "सीट संख्या {{count}} में अपडेट की गई।",
-      "updateSeatCount": "सीट संख्या अपडेट करें"
+      "updateSeatCount": "सीट संख्या अपडेट करें",
+      "personalActivity": "व्यक्तिगत गतिविधि",
+      "diaryEntries": "डायरी",
+      "completionRate": "{{rate}}% पूर्ण",
+      "events": "कार्यक्रम",
+      "lastActivity": "अंतिम गतिविधि"
     },
     "users": {
       "title": "उपयोगकर्ता प्रबंधन",
@@ -1568,12 +1688,22 @@
     "enterName": "कृपया अपना नाम दर्ज करें।",
     "profileSaved": "प्रोफ़ाइल सफलतापूर्वक सहेजी गई",
     "profileSaveFailed": "प्रोफ़ाइल सहेजने में विफल।",
+    "profileImageDesc": "प्रोफ़ाइल फ़ोटो बदलें",
+    "profileImageHint": "JPG, PNG, GIF, WebP (अधिकतम 5MB)",
+    "removeProfileImage": "प्रोफ़ाइल फ़ोटो हटाएं",
+    "imageTypeError": "असमर्थित फ़ाइल प्रारूप (केवल JPG, PNG, GIF, WebP)",
+    "imageSizeError": "फ़ाइल का आकार 5MB से अधिक है",
+    "imageUploadFailed": "प्रोफ़ाइल फ़ोटो अपलोड विफल",
+    "imageDeleteFailed": "प्रोफ़ाइल फ़ोटो हटाना विफल",
     "theme": "थीम",
     "themeDesc": "प्रदर्शन थीम बदलें",
     "darkMode": "डार्क मोड",
     "language": "भाषा",
     "languageDesc": "प्रदर्शन भाषा बदलें",
     "selectLanguage": "भाषा चुनें",
+    "holidayCountry": "छुट्टी का देश",
+    "holidayCountryDesc": "कैलेंडर पर छुट्टियाँ दिखाने के लिए देश चुनें",
+    "holidayOff": "बंद",
     "changePassword": "पासवर्ड बदलें",
     "changePasswordDesc": "खाता सुरक्षा के लिए अपना पासवर्ड बदलें",
     "currentPasswordLabel": "वर्तमान पासवर्ड",
@@ -1705,7 +1835,8 @@
     "unlinked": "(अनलिंक्ड)",
     "cannotMove": "स्थानांतरित नहीं किया जा सकता",
     "cannotChange": "बदला नहीं जा सकता",
-    "willSplit": "विभाजित"
+    "willSplit": "विभाजित",
+    "nextDay": "अगला दिन"
   },
   "scheduleDetail": {
     "title": "टाइम Block विवरण",
@@ -1723,11 +1854,12 @@
     "taskChecklist": "TASK चेकलिस्ट",
     "completedCount": "{{completed}}/{{total}} पूर्ण",
     "noChecklist": "कोई चेकलिस्ट आइटम नहीं",
-    "current": "वर्तमान"
+    "current": "वर्तमान",
+    "nextDay": "अगला दिन"
   },
   "emptyBoard": {
     "heading": "अपने बोर्ड के साथ शुरू करें",
-    "subheading": "अपने प्रोजेक्ट को 3 चरणों में व्यवस्थित रूप से प्रबंधित करें",
+    "subheading": "अपने प्रोजेक्ट को 3 चरणों में व्यवस्थित रूप से प्रबंधित करें और प्रगति ट्रैक करें",
     "createFirstFeature": "अपना पहला Feature बनाएं",
     "step1Title": "Feature बनाएं",
     "step1Desc": "Feature एक कार्यात्मक इकाई का प्रतिनिधित्व करता है। अपना पहला Feature बनाने के लिए नीचे बटन दबाएं।",
@@ -1750,6 +1882,7 @@
     "addTag": "टैग जोड़ें",
     "newTag": "नया टैग",
     "subtaskList": "उप-कार्य सूची",
+    "onboardingStep2": "अब सबटास्क जोड़ें!",
     "addSubtaskGuide": "नीचे उप-कार्य जोड़ें",
     "subtaskDescription": "उप-कार्य Kanban बोर्ड के Task Block पर कार्ड के रूप में दिखाई देते हैं, और आप उन्हें Block के बीच खींचकर प्रगति प्रबंधित कर सकते हैं।",
     "newSubtaskPlaceholder": "नया उप-कार्य जोड़ें...",
@@ -1757,7 +1890,27 @@
     "saveChangesDesc": "आपके पास सहेजे नहीं गए बदलाव हैं। बिना सहेजे बंद करने पर वे खो जाएंगे।",
     "discard": "सहेजें नहीं",
     "deleteTitle": "इस Feature को हटाएं?",
-    "deleteDesc": "यह Feature और सभी उप-कार्य हटा दिए जाएंगे। यह कार्रवाई पूर्ववत नहीं की जा सकती।"
+    "deleteDesc": "यह Feature और सभी उप-कार्य हटा दिए जाएंगे। यह कार्रवाई पूर्ववत नहीं की जा सकती।",
+    "aiDecompose": "AI टास्क विभाजन",
+    "aiDecomposeTitle": "AI टास्क विभाजन",
+    "aiAnalyzing": "AI फीचर का विश्लेषण कर रहा है...",
+    "aiError": "AI विश्लेषण में त्रुटि। कृपया पुनः प्रयास करें।",
+    "aiRetry": "पुनः प्रयास",
+    "aiNoSuggestions": "कोई टास्क नहीं बनाया जा सका।",
+    "aiSelectAll": "सभी चुनें",
+    "aiDeselectAll": "सभी हटाएं",
+    "aiSelectedCount": "{{count}} आइटम चुने गए",
+    "aiAlreadyExists": "पहले से मौजूद",
+    "aiApply": "लागू करें",
+    "aiApplying": "लागू हो रहा है...",
+    "aiApplySuccess": "{{tasks}} टास्क और {{checklists}} चेकलिस्ट बनाए गए।",
+    "aiApplyDone": "पूर्ण",
+    "aiConfirmTitle": "AI टास्क सुझाव",
+    "aiConfirmDesc": "AI नीचे दी गई फीचर जानकारी के आधार पर सबटास्क सुझाएगा।",
+    "aiConfirmFeatureTitle": "शीर्षक",
+    "aiConfirmFeatureDesc": "विवरण",
+    "aiConfirmNoDesc": "कोई विवरण नहीं। विवरण जोड़ने से अधिक सटीक सुझाव मिलेंगे।",
+    "aiConfirmStart": "सुझाव प्राप्त करें"
   },
   "weeklySchedule": {
     "day": "दिन",
@@ -2394,6 +2547,113 @@
       "monthly_usage": "मासिक उपयोग",
       "purchased_remaining": "खरीदे गए शेष",
       "total_remaining": "कुल शेष"
+    }
+  },
+  "personal": {
+    "tabs": {
+      "overview": "होम",
+      "todo": "कार्य",
+      "schedule": "शेड्यूल",
+      "calendar": "कैलेंडर",
+      "diary": "AI डायरी"
+    },
+    "overview": {
+      "noEvents": "आज कोई कार्यक्रम नहीं",
+      "addSchedule": "शेड्यूल जोड़ें",
+      "noDeadlines": "कोई आगामी समय सीमा नहीं",
+      "addDeadline": "कार्य जोड़ें"
+    },
+    "calendar": {
+      "task": "कार्य",
+      "event": "कैलेंडर",
+      "today": "आज",
+      "addEvent": "कैलेंडर जोड़ें",
+      "tasksCount": "{{count}} कार्य",
+      "eventsCount": "{{count}} कैलेंडर",
+      "taskDeadline": "कार्य की अंतिम तिथि",
+      "overdue": "अतिदेय",
+      "recurring": "दोहराएं",
+      "noItems": "इस दिन के लिए कोई आइटम नहीं",
+      "newEvent": "नया कैलेंडर",
+      "date": "तारीख",
+      "title": "शीर्षक",
+      "eventTitle": "कैलेंडर शीर्षक",
+      "description": "विवरण",
+      "optionalDesc": "वैकल्पिक विवरण",
+      "allDay": "पूरे दिन",
+      "start": "शुरुआत",
+      "end": "अंत",
+      "color": "रंग",
+      "thisWeek": "इस सप्ताह",
+      "holidayCountry": "छुट्टी का देश",
+      "holidayOff": "बंद",
+      "tapToView": "इवेंट देखने या जोड़ने के लिए तारीख पर टैप करें",
+      "addSchedule": "कैलेंडर जोड़ें",
+      "dateRange": "तारीख सीमा"
+    },
+    "habit": {
+      "habits": "आदतें",
+      "newHabit": "नई आदत",
+      "editHabit": "आदत संपादित करें",
+      "today": "आज",
+      "activeStreaks": "सक्रिय स्ट्रीक",
+      "combinedDays": "कुल दिन",
+      "bestStreak": "सर्वश्रेष्ठ स्ट्रीक",
+      "days": "दिन",
+      "totalHabits": "कुल आदतें",
+      "tracking": "ट्रैकिंग",
+      "todaysProgress": "आज की प्रगति",
+      "allHabits": "सभी आदतें",
+      "startBuilding": "आदतें बनाना शुरू करें",
+      "startBuildingDesc": "दैनिक दिनचर्या ट्रैक करें, स्ट्रीक बनाएं और अपने लक्ष्यों के साथ निरंतर बने रहें।",
+      "addFirstHabit": "अपनी पहली आदत जोड़ें",
+      "bestLabel": "सर्वश्रेष्ठ: {{days}} दिन",
+      "edit": "संपादित करें",
+      "delete": "हटाएं",
+      "habitName": "आदत का नाम",
+      "habitPlaceholder": "उदा: सुबह की दौड़, 10 पन्ने पढ़ना",
+      "frequency": "आवृत्ति",
+      "everyDay": "हर दिन",
+      "weekdays": "कार्यदिवस",
+      "weekends": "सप्ताहांत",
+      "custom": "कस्टम",
+      "repeatOn": "दोहराएं",
+      "selectDay": "कम से कम एक दिन चुनें",
+      "moreOptions": "और विकल्प",
+      "lessOptions": "कम दिखाएं",
+      "icon": "आइकन",
+      "color": "रंग",
+      "goalType": "लक्ष्य प्रकार",
+      "checkOff": "चेक करें",
+      "count": "गिनती",
+      "target": "लक्ष्य",
+      "unit": "इकाई",
+      "unitPlaceholder": "उदा: गिलास, पन्ने, किमी",
+      "description": "विवरण",
+      "descPlaceholder": "यह आदत आपके लिए क्यों महत्वपूर्ण है",
+      "addHabit": "आदत जोड़ें",
+      "saveChanges": "सहेजें",
+      "deleteHabit": "आदत हटाएं",
+      "deleteWarning": "यह क्रिया पूर्ववत नहीं की जा सकती",
+      "deleteConfirm": "क्या आप \"{{name}}\" को हटाना चाहते हैं? सभी स्ट्रीक डेटा और इतिहास स्थायी रूप से खो जाएंगे।",
+      "importance": "महत्व",
+      "important": "महत्वपूर्ण",
+      "normal": "सामान्य",
+      "cancel": "रद्द करें",
+      "checkInTitle": "आदत पूरी करें",
+      "checkInSubtitle": "आज की आदत पूरी करें?",
+      "checkInConfirm": "\"{{name}}\" को पूरा करें?",
+      "checkInStreak": "{{count}} दिन की लगातार स्ट्रीक होगी!",
+      "checkInComplete": "पूरा करें"
+    },
+    "diary": {
+      "completionSuggestion": "लगता है आज हमने काफ़ी बातें की हैं। इसे डायरी में लिखें? ✨",
+      "continueChat": "और बात करें"
+    },
+    "schedule": {
+      "overlapWarning": "{{count}} इवेंट के साथ ओवरलैप",
+      "nextDay": "अगला दिन",
+      "prevDay": "पिछले दिन से"
     }
   }
 }

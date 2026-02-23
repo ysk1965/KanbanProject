@@ -24,7 +24,9 @@ import {
 } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { formatDate } from '../utils/dateUtils';
-import { Feature, Task, Milestone } from '../types';
+import { useHolidays } from '../hooks/useHolidays';
+import { Feature, Task, Milestone, TaskDependency } from '../types';
+import { DependencyArrows, TaskPosition } from './DependencyArrows';
 
 type ScheduleViewMode = 'day' | 'week';
 
@@ -38,6 +40,9 @@ interface WeeklyScheduleViewProps {
   onViewTask?: (taskId: string) => void;
   onUpdateTaskDates?: (taskId: string, startDate: string, endDate: string) => void;
   onSaveBaseline?: () => Promise<void>;
+  dependencies?: TaskDependency[];
+  onCreateDependency?: (predecessorId: string, successorId: string) => Promise<void>;
+  onDeleteDependency?: (dependencyId: string) => Promise<void>;
 }
 
 // 각 날짜 열의 픽셀 너비
@@ -89,7 +94,7 @@ const getTaskBarColor = (task: Task, endDate: Date | null): string => {
     }
   }
 
-  return 'bg-[#2DD4BF]'; // 진행 중
+  return 'bg-bridge-secondary'; // 진행 중
 };
 
 export function WeeklyScheduleView({
@@ -102,8 +107,12 @@ export function WeeklyScheduleView({
   onViewTask,
   onUpdateTaskDates,
   onSaveBaseline,
+  dependencies = [],
+  onCreateDependency,
+  onDeleteDependency,
 }: WeeklyScheduleViewProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const { holidayMap } = useHolidays(i18n.language, new Date().getFullYear());
   // 일/주 보기 모드
   const [viewMode, setViewMode] = useState<ScheduleViewMode>('day');
 
@@ -155,6 +164,13 @@ export function WeeklyScheduleView({
 
   // 드래그 완료 직후 클릭 방지 플래그
   const justFinishedDragRef = useRef(false);
+
+  // 드래그-투-커넥트 상태 (의존성 연결)
+  const [dragLink, setDragLink] = useState<{
+    fromTaskId: string;
+    cursorX: number;
+    cursorY: number;
+  } | null>(null);
 
   // 스크롤 컨테이너 ref
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -464,6 +480,45 @@ export function WeeklyScheduleView({
     };
   }, []);
 
+  // 드래그-투-커넥트: 마우스 이동/해제 처리
+  const isDragLinking = dragLink !== null;
+  useEffect(() => {
+    if (!isDragLinking) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const rect = timelineRef.current?.getBoundingClientRect();
+      if (rect) {
+        setDragLink(prev => prev ? {
+          ...prev,
+          cursorX: e.clientX - rect.left,
+          cursorY: e.clientY - rect.top,
+        } : null);
+      }
+    };
+
+    const handleMouseUp = () => {
+      setDragLink(null);
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setDragLink(null);
+      }
+    };
+
+    document.body.style.cursor = 'crosshair';
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.cursor = '';
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isDragLinking]);
+
   // Feature 토글
   const toggleFeature = (featureId: string) => {
     setCollapsedFeatures((prev) => {
@@ -754,23 +809,66 @@ export function WeeklyScheduleView({
 
   const todayLinePosition = getTodayLinePosition();
 
+  // 의존성 화살표를 위한 태스크 위치 계산
+  const taskPositions = useMemo(() => {
+    const positions = new Map<string, TaskPosition>();
+    let currentY = 0;
+
+    displayedFeatures.forEach((feature) => {
+      const isCollapsed = collapsedFeatures.has(feature.id);
+      currentY += 48; // Feature row (h-12 = 48px)
+
+      if (!isCollapsed) {
+        const featureTasks = featureTaskMap.get(feature.id) || [];
+        featureTasks.forEach((task) => {
+          const barPos = calculateTaskBarPosition(task);
+          if (barPos) {
+            positions.set(task.id, {
+              taskId: task.id,
+              left: barPos.left,
+              width: barPos.width,
+              top: currentY + 8, // 40px row, 24px bar → (40-24)/2 = 8px offset
+              height: 24,
+            });
+          }
+          currentY += 40; // Task row (h-10 = 40px)
+        });
+      }
+    });
+
+    return positions;
+  }, [displayedFeatures, collapsedFeatures, featureTaskMap, tasks, viewMode, rangeStartDate, days, weeks]);
+
+  // 타임라인 전체 높이 계산
+  const timelineHeight = useMemo(() => {
+    let height = 0;
+    displayedFeatures.forEach((feature) => {
+      height += 48;
+      if (!collapsedFeatures.has(feature.id)) {
+        const featureTasks = featureTaskMap.get(feature.id) || [];
+        height += featureTasks.length * 40;
+      }
+    });
+    return height;
+  }, [displayedFeatures, collapsedFeatures, featureTaskMap]);
+
   // 총 그리드 너비
   const totalGridWidth = viewMode === 'day' ? totalDays * DAY_WIDTH : weeks.length * WEEK_WIDTH;
 
   return (
-    <div className="h-full flex flex-col bg-kanban-bg">
+    <div className="h-full flex flex-col bg-bridge-dark">
       {/* 상단 네비게이션 */}
-      <div className="flex items-center justify-between px-3 md:px-6 py-2 md:py-3 bg-kanban-card border-b border-kanban-border gap-2">
+      <div className="flex items-center justify-between px-3 md:px-6 py-2 md:py-3 bg-bridge-surface border-b border-bridge-border gap-2">
         <div className="flex items-center gap-2 md:gap-4 flex-wrap min-w-0">
           {/* 일/주 토글 */}
           <div
-            className="flex bg-kanban-bg rounded-lg p-1 cursor-pointer"
+            className="flex bg-bridge-dark rounded-lg p-1 cursor-pointer"
             onClick={() => setViewMode(viewMode === 'day' ? 'week' : 'day')}
           >
             <span
               className={`px-3 py-1 text-sm rounded-md transition-colors ${
                 viewMode === 'day'
-                  ? 'bg-kanban-surface text-white'
+                  ? 'bg-bridge-surface-hover text-foreground'
                   : 'text-zinc-400'
               }`}
             >
@@ -779,7 +877,7 @@ export function WeeklyScheduleView({
             <span
               className={`px-3 py-1 text-sm rounded-md transition-colors ${
                 viewMode === 'week'
-                  ? 'bg-kanban-surface text-white'
+                  ? 'bg-bridge-surface-hover text-foreground'
                   : 'text-zinc-400'
               }`}
             >
@@ -791,7 +889,7 @@ export function WeeklyScheduleView({
           <Popover>
             <PopoverTrigger asChild>
               <button
-                className="flex items-center gap-2 px-3 py-1.5 text-sm bg-white/5 border border-white/20 rounded-lg text-zinc-300 hover:bg-white/10 hover:text-white transition-colors"
+                className="flex items-center gap-2 px-3 py-1.5 text-sm bg-foreground/5 border border-bridge-border rounded-lg text-muted-foreground hover:bg-foreground/10 hover:text-foreground transition-colors"
               >
                 <CalendarIcon className="h-4 w-4 text-zinc-400" />
                 <span>
@@ -799,7 +897,7 @@ export function WeeklyScheduleView({
                 </span>
               </button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0 bg-kanban-card border-white/20" align="start">
+            <PopoverContent className="w-auto p-0 bg-bridge-surface border-bridge-border" align="start">
               <Calendar
                 mode="range"
                 selected={{ from: rangeStartDate, to: rangeEndDate }}
@@ -813,7 +911,7 @@ export function WeeklyScheduleView({
                 }}
                 numberOfMonths={2}
                 locale={ko}
-                className="bg-kanban-card text-white"
+                className="bg-bridge-surface text-foreground"
               />
             </PopoverContent>
           </Popover>
@@ -824,7 +922,7 @@ export function WeeklyScheduleView({
 
           <button
             onClick={handleGoToToday}
-            className="px-3 py-1.5 text-sm bg-white/5 border border-white/20 rounded-lg text-zinc-300 hover:bg-white/10 hover:text-white transition-colors"
+            className="px-3 py-1.5 text-sm bg-foreground/5 border border-bridge-border rounded-lg text-muted-foreground hover:bg-foreground/10 hover:text-foreground transition-colors"
           >
             {t('weeklySchedule.today')}
           </button>
@@ -837,7 +935,7 @@ export function WeeklyScheduleView({
                 className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
                   showBaseline
                     ? 'bg-bridge-accent/20 border-bridge-accent/50 text-bridge-accent'
-                    : 'bg-white/5 border-white/20 text-zinc-300 hover:bg-white/10'
+                    : 'bg-foreground/5 border-bridge-border text-muted-foreground hover:bg-foreground/10'
                 }`}
               >
                 {t('weeklySchedule.showBaseline')}
@@ -846,7 +944,7 @@ export function WeeklyScheduleView({
             {onSaveBaseline && (
               <button
                 onClick={onSaveBaseline}
-                className="px-3 py-1.5 text-sm bg-white/5 border border-white/20 rounded-lg text-zinc-300 hover:bg-white/10 hover:text-white transition-colors"
+                className="px-3 py-1.5 text-sm bg-foreground/5 border border-bridge-border rounded-lg text-muted-foreground hover:bg-foreground/10 hover:text-foreground transition-colors"
               >
                 {t('weeklySchedule.saveBaseline')}
               </button>
@@ -855,13 +953,13 @@ export function WeeklyScheduleView({
         </div>
         <div className="hidden md:flex items-center gap-2 text-xs text-zinc-400 shrink-0">
           <span className="inline-block w-3 h-3 bg-gray-400 rounded"></span> {t('weeklySchedule.notStarted')}
-          <span className="inline-block w-3 h-3 bg-[#2DD4BF] rounded ml-2"></span> {t('weeklySchedule.inProgress')}
+          <span className="inline-block w-3 h-3 bg-bridge-secondary rounded ml-2"></span> {t('weeklySchedule.inProgress')}
           <span className="inline-block w-3 h-3 bg-orange-500 rounded ml-2"></span> {t('weeklySchedule.dueSoon')}
           <span className="inline-block w-3 h-3 bg-red-500 rounded ml-2"></span> {t('weeklySchedule.overdue')}
           <span className="inline-block w-3 h-3 bg-green-500 rounded ml-2"></span> {t('common.completed')}
           {showBaseline && (
             <>
-              <span className="inline-block w-3 h-3 border-2 border-dashed border-white/30 bg-white/5 rounded ml-2"></span> {t('weeklySchedule.showBaseline')}
+              <span className="inline-block w-3 h-3 border-2 border-dashed border-white/30 bg-foreground/5 rounded ml-2"></span> {t('weeklySchedule.showBaseline')}
             </>
           )}
         </div>
@@ -872,12 +970,12 @@ export function WeeklyScheduleView({
         {/* 왼쪽 고정 열 (Feature/Task 이름) */}
         <div className="flex-shrink-0 flex flex-col w-[200px] md:w-[280px]">
           {/* 헤더 */}
-          <div className="h-14 p-3 bg-kanban-card border-b border-r border-kanban-border flex items-center">
+          <div className="h-14 p-3 bg-bridge-surface border-b border-r border-bridge-border flex items-center">
             <span className="text-sm font-medium text-zinc-400">Feature / Task</span>
           </div>
 
           {/* Feature/Task 목록 */}
-          <div className="flex-1 overflow-y-auto overflow-x-hidden">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
             {displayedFeatures.map((feature) => {
               const isCollapsed = collapsedFeatures.has(feature.id);
               const featureTasks = featureTaskMap.get(feature.id) || [];
@@ -887,7 +985,7 @@ export function WeeklyScheduleView({
                 <div key={feature.id}>
                   {/* Feature 행 */}
                   <div
-                    className="h-10 md:h-12 p-2 md:p-3 border-b border-r border-kanban-border flex items-center gap-2 cursor-pointer hover:bg-white/5"
+                    className="h-10 md:h-12 p-2 md:p-3 border-b border-r border-bridge-border flex items-center gap-2 cursor-pointer hover:bg-foreground/5"
                     onClick={() => toggleFeature(feature.id)}
                   >
                     {isCollapsed ? (
@@ -900,7 +998,7 @@ export function WeeklyScheduleView({
                       style={{ backgroundColor: feature.color }}
                     />
                     <span
-                      className="text-sm font-medium text-foreground truncate flex-1 hover:text-[#2DD4BF]"
+                      className="text-sm font-medium text-foreground truncate flex-1 hover:text-bridge-secondary"
                       onClick={(e) => {
                         e.stopPropagation();
                         onViewFeature?.(feature.id);
@@ -918,12 +1016,12 @@ export function WeeklyScheduleView({
                     featureTasks.map((task) => (
                       <div
                         key={task.id}
-                        className="h-10 p-2 md:p-3 border-b border-r border-kanban-border flex items-center gap-2 pl-7 md:pl-10 hover:bg-white/5"
+                        className="h-10 p-2 md:p-3 border-b border-r border-bridge-border flex items-center gap-2 pl-7 md:pl-10 hover:bg-foreground/5"
                       >
                         <FileText className="h-3 w-3 text-zinc-400 flex-shrink-0" />
                         <span
-                          className={`text-sm truncate flex-1 cursor-pointer hover:text-[#2DD4BF] ${
-                            task.completed ? 'text-zinc-400 line-through' : 'text-zinc-300'
+                          className={`text-sm truncate flex-1 cursor-pointer hover:text-bridge-secondary ${
+                            task.completed ? 'text-zinc-400 line-through' : 'text-muted-foreground'
                           }`}
                           onClick={() => onViewTask?.(task.id)}
                         >
@@ -949,7 +1047,7 @@ export function WeeklyScheduleView({
           {/* 헤더: 날짜들 또는 주 */}
           <div
             ref={headerScrollRef}
-            className="h-14 bg-kanban-card border-b border-kanban-border overflow-hidden"
+            className="h-14 bg-bridge-surface border-b border-bridge-border overflow-hidden"
           >
             <div className="flex" style={{ width: totalGridWidth }}>
               {viewMode === 'day' ? (
@@ -958,19 +1056,21 @@ export function WeeklyScheduleView({
                   const dayIsToday = isToday(day);
                   const dayOfWeek = getDay(day);
                   const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+                  const dayKey = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
+                  const isHoliday = holidayMap.has(dayKey);
 
                   return (
                     <div
                       key={index}
-                      className={`flex-shrink-0 p-2 text-center border-r border-kanban-border ${
-                        dayIsToday ? 'bg-[#2DD4BF]/15' : isWeekend ? 'bg-zinc-800/30' : ''
+                      className={`flex-shrink-0 p-2 text-center border-r border-bridge-border ${
+                        dayIsToday ? 'bg-bridge-secondary/15' : isWeekend ? 'bg-zinc-800/30' : ''
                       }`}
                       style={{ width: DAY_WIDTH }}
                     >
-                      <div className={`text-xs font-medium ${dayIsToday ? 'text-[#2DD4BF]' : isWeekend ? 'text-zinc-400' : 'text-zinc-400'}`}>
+                      <div className={`text-xs font-medium ${dayIsToday ? 'text-bridge-secondary' : isHoliday || dayOfWeek === 0 ? 'text-red-400' : isWeekend ? 'text-zinc-400' : 'text-zinc-400'}`}>
                         {formatDate(day, 'EEE')}
                       </div>
-                      <div className={`text-xs ${dayIsToday ? 'text-[#2DD4BF]' : 'text-zinc-400'}`}>
+                      <div className={`text-xs ${dayIsToday ? 'text-bridge-secondary' : isHoliday || dayOfWeek === 0 ? 'text-red-400' : 'text-zinc-400'}`}>
                         {format(day, 'M/d')}
                       </div>
                     </div>
@@ -985,15 +1085,15 @@ export function WeeklyScheduleView({
                   return (
                     <div
                       key={index}
-                      className={`flex-shrink-0 p-2 text-center border-r border-kanban-border ${
-                        isCurrentWeek ? 'bg-[#2DD4BF]/15' : ''
+                      className={`flex-shrink-0 p-2 text-center border-r border-bridge-border ${
+                        isCurrentWeek ? 'bg-bridge-secondary/15' : ''
                       }`}
                       style={{ width: WEEK_WIDTH }}
                     >
-                      <div className={`text-xs font-medium ${isCurrentWeek ? 'text-[#2DD4BF]' : 'text-zinc-400'}`}>
+                      <div className={`text-xs font-medium ${isCurrentWeek ? 'text-bridge-secondary' : 'text-zinc-400'}`}>
                         {format(week.start, 'M/d')}
                       </div>
-                      <div className={`text-xs ${isCurrentWeek ? 'text-[#2DD4BF]' : 'text-zinc-400'}`}>
+                      <div className={`text-xs ${isCurrentWeek ? 'text-bridge-secondary' : 'text-zinc-400'}`}>
                         ~{format(week.end, 'M/d')}
                       </div>
                     </div>
@@ -1006,7 +1106,7 @@ export function WeeklyScheduleView({
           {/* 본문: 타임라인 */}
           <div
             ref={scrollContainerRef}
-            className="flex-1 overflow-auto"
+            className="flex-1 overflow-auto custom-scrollbar"
             onScroll={handleScroll}
           >
             <div ref={timelineRef} className="relative" style={{ width: totalGridWidth }}>
@@ -1028,7 +1128,7 @@ export function WeeklyScheduleView({
                     return (
                       <div
                         key={index}
-                        className={`flex-shrink-0 border-r border-kanban-border ${isWeekend ? 'bg-zinc-800/20' : ''}`}
+                        className={`flex-shrink-0 border-r border-bridge-border ${isWeekend ? 'bg-zinc-800/20' : ''}`}
                         style={{ width: DAY_WIDTH }}
                       />
                     );
@@ -1041,7 +1141,7 @@ export function WeeklyScheduleView({
                     return (
                       <div
                         key={index}
-                        className={`flex-shrink-0 border-r border-kanban-border ${isCurrentWeek ? 'bg-[#2DD4BF]/8' : ''}`}
+                        className={`flex-shrink-0 border-r border-bridge-border ${isCurrentWeek ? 'bg-bridge-secondary/8' : ''}`}
                         style={{ width: WEEK_WIDTH }}
                       />
                     );
@@ -1060,14 +1160,14 @@ export function WeeklyScheduleView({
                 return (
                   <div key={feature.id}>
                     {/* Feature 바 행 */}
-                    <div className="h-12 relative border-b border-kanban-border">
+                    <div className="h-12 relative border-b border-bridge-border">
                       {/* Feature Baseline 바 */}
                       {showBaseline && (() => {
                         const baselinePos = calculateFeatureBaselineBarPosition(feature.id);
                         if (!baselinePos) return null;
                         return (
                           <div
-                            className="absolute top-1/2 -translate-y-1/2 h-3 rounded-sm border border-dashed border-white/20 bg-white/5 pointer-events-none"
+                            className="absolute top-1/2 -translate-y-1/2 h-3 rounded-sm border border-dashed border-bridge-border bg-foreground/5 pointer-events-none"
                             style={{
                               left: baselinePos.left,
                               width: baselinePos.width,
@@ -1105,14 +1205,14 @@ export function WeeklyScheduleView({
                         const canDragResize = viewMode === 'day';
 
                         return (
-                          <div key={task.id} className="h-10 relative border-b border-kanban-border">
+                          <div key={task.id} className="h-10 relative border-b border-bridge-border">
                             {/* Task Baseline 바 */}
                             {showBaseline && (() => {
                               const baselinePos = calculateBaselineBarPosition(task);
                               if (!baselinePos) return null;
                               return (
                                 <div
-                                  className="absolute top-1/2 -translate-y-1/2 h-6 rounded border-2 border-dashed border-white/25 bg-white/5 pointer-events-none"
+                                  className="absolute top-1/2 -translate-y-1/2 h-6 rounded border-2 border-dashed border-white/25 bg-foreground/5 pointer-events-none"
                                   style={{
                                     left: baselinePos.left,
                                     width: baselinePos.width,
@@ -1127,6 +1227,8 @@ export function WeeklyScheduleView({
                                 className={`absolute top-1/2 -translate-y-1/2 h-6 ${barColor} rounded transition-colors group ${
                                   isDraggingThis ? 'cursor-grabbing opacity-80 shadow-lg' :
                                   isResizingThis ? 'brightness-110' :
+                                  dragLink?.fromTaskId === task.id ? 'ring-2 ring-bridge-accent brightness-110' :
+                                  dragLink ? 'cursor-crosshair hover:brightness-125 hover:ring-2 hover:ring-bridge-accent/60' :
                                   'cursor-pointer hover:brightness-110'
                                 }`}
                                 style={{
@@ -1134,8 +1236,21 @@ export function WeeklyScheduleView({
                                   width: taskBarPosition.width,
                                   minWidth: 20,
                                 }}
-                                onMouseDown={canDragResize ? (e) => handleLongPressStart(e, task.id, task) : undefined}
-                                onMouseUp={canDragResize ? handleLongPressEnd : undefined}
+                                onMouseDown={canDragResize ? (e) => {
+                                  if (!(e.target as HTMLElement).closest('[data-connect-handle]')) {
+                                    handleLongPressStart(e, task.id, task);
+                                  }
+                                } : undefined}
+                                onMouseUp={(e) => {
+                                  if (canDragResize) handleLongPressEnd();
+                                  if (dragLink && dragLink.fromTaskId !== task.id && onCreateDependency) {
+                                    e.stopPropagation();
+                                    onCreateDependency(dragLink.fromTaskId, task.id);
+                                    setDragLink(null);
+                                    justFinishedDragRef.current = true;
+                                    setTimeout(() => { justFinishedDragRef.current = false; }, 100);
+                                  }
+                                }}
                                 onMouseLeave={canDragResize ? handleLongPressEnd : undefined}
                                 onClick={() => {
                                   if (!resizing && !dragging && !justFinishedDragRef.current) {
@@ -1147,7 +1262,7 @@ export function WeeklyScheduleView({
                                 {canDragResize && hasStartDate && (
                                   <div
                                     data-resize-handle="left"
-                                    className="absolute left-0 top-0 bottom-0 w-3 cursor-ew-resize opacity-0 group-hover:opacity-100 bg-white/30 rounded-l hover:bg-white/50 z-10"
+                                    className="absolute left-0 top-0 bottom-0 w-3 cursor-ew-resize opacity-0 group-hover:opacity-100 bg-white/30 rounded-l hover:bg-foreground/50 z-10"
                                     onMouseDown={(e) => {
                                       handleLongPressEnd();
                                       handleResizeStart(e, task.id, 'left', task);
@@ -1158,10 +1273,31 @@ export function WeeklyScheduleView({
                                 {canDragResize && hasEndDate && (
                                   <div
                                     data-resize-handle="right"
-                                    className="absolute right-0 top-0 bottom-0 w-3 cursor-ew-resize opacity-0 group-hover:opacity-100 bg-white/30 rounded-r hover:bg-white/50 z-10"
+                                    className="absolute right-0 top-0 bottom-0 w-3 cursor-ew-resize opacity-0 group-hover:opacity-100 bg-white/30 rounded-r hover:bg-foreground/50 z-10"
                                     onMouseDown={(e) => {
                                       handleLongPressEnd();
                                       handleResizeStart(e, task.id, 'right', task);
+                                    }}
+                                  />
+                                )}
+                                {/* 의존성 드래그 커넥트 핸들 */}
+                                {onCreateDependency && !dragLink && (
+                                  <div
+                                    data-connect-handle
+                                    className="absolute -right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 bg-bridge-accent rounded-full border-2 border-bridge-dark opacity-0 group-hover:opacity-100 transition-opacity cursor-crosshair z-20 hover:scale-150 hover:border-bridge-accent/50"
+                                    title="드래그하여 의존성 연결"
+                                    onMouseDown={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleLongPressEnd();
+                                      const rect = timelineRef.current?.getBoundingClientRect();
+                                      if (rect) {
+                                        setDragLink({
+                                          fromTaskId: task.id,
+                                          cursorX: e.clientX - rect.left,
+                                          cursorY: e.clientY - rect.top,
+                                        });
+                                      }
                                     }}
                                   />
                                 )}
@@ -1205,6 +1341,18 @@ export function WeeklyScheduleView({
                   </div>
                 );
               })}
+
+              {/* 의존성 화살표 오버레이 */}
+              {(dependencies.length > 0 || dragLink) && (
+                <DependencyArrows
+                  dependencies={dependencies}
+                  taskPositions={taskPositions}
+                  onDeleteDependency={onDeleteDependency}
+                  containerWidth={totalGridWidth}
+                  containerHeight={timelineHeight}
+                  previewLine={dragLink}
+                />
+              )}
             </div>
           </div>
         </div>

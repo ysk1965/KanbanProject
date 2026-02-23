@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "980379860893",
+    "project_id": "bridgespots",
+    "storage_bucket": "bridgespots.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:980379860893:android:1a8fa907aea7ee52873974",
+        "android_client_info": {
+          "package_name": "com.bridgespots.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD-lR2tjCgJaDVEH8yaQtu1dFmobgRCEZM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

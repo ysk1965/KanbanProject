@@ -57,7 +57,10 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                 "https://www.milkyway.pe.kr",
                 "http://localhost:5173",
                 "http://localhost:5174",
-                "http://localhost:3000"
+                "http://localhost:3000",
+                "capacitor://localhost",
+                "http://localhost",
+                "https://localhost"
         ));
         if (testprodFrontendUrl != null && !testprodFrontendUrl.isBlank()) {
             origins.add(testprodFrontendUrl);

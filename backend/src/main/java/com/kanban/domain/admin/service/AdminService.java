@@ -81,7 +81,9 @@ public class AdminService {
                 ));
 
         List<AdminResponse.UserSummary> users = userPage.getContent().stream()
-                .map(user -> AdminResponse.UserSummary.of(user, boardCountMap.getOrDefault(user.getId(), 0)))
+                .map(user -> AdminResponse.UserSummary.of(
+                        user,
+                        boardCountMap.getOrDefault(user.getId(), 0)))
                 .collect(Collectors.toList());
 
         return AdminResponse.UserList.builder()
@@ -261,10 +263,10 @@ public class AdminService {
 
     // ==================== Boards ====================
 
-    public AdminResponse.BoardList getBoards(int page, int size, String search, BoardTier tier) {
+    public AdminResponse.BoardList getBoards(int page, int size, String search, BoardTier tier, BoardType boardType) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
 
-        Page<Board> boardPage = boardRepository.findAllWithFilters(search, tier, pageable);
+        Page<Board> boardPage = boardRepository.findAllWithFilters(search, tier, boardType, pageable);
 
         List<AdminResponse.BoardSummary> boards = toBoardSummaries(boardPage.getContent());
 
@@ -295,6 +297,31 @@ public class AdminService {
     @Transactional
     public void deleteBoard(String boardId) {
         boardService.deleteBoardByAdmin(boardId);
+    }
+
+    @Transactional
+    public void restoreBoard(String boardId) {
+        boardService.restoreBoard(boardId);
+    }
+
+    @Transactional
+    public void permanentlyDeleteBoard(String boardId) {
+        boardService.permanentlyDeleteBoard(boardId);
+    }
+
+    public AdminResponse.BoardList getDeletedBoards(int page, int size, String search) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("deletedAt").descending());
+
+        Page<Board> boardPage = boardRepository.findDeletedWithFilters(search, pageable);
+
+        List<AdminResponse.BoardSummary> boards = toBoardSummaries(boardPage.getContent());
+
+        return AdminResponse.BoardList.builder()
+                .boards(boards)
+                .total(boardPage.getTotalElements())
+                .page(page)
+                .size(size)
+                .build();
     }
 
     @Transactional
@@ -423,6 +450,34 @@ public class AdminService {
         log.info("Board seat count updated by admin: boardId={}, seatCount={}", boardId, request.getSeatCount());
 
         return getBoard(boardId);
+    }
+
+    @Transactional
+    public void createPersonalBoard(String userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        boardService.createPersonalBoard(user);
+        log.info("Personal board created by admin for user: {}", userId);
+    }
+
+    @Transactional
+    public AdminResponse.UserDetail adjustPersonalAiCredits(String userId, AdminRequest.AdjustPersonalAiCredits request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        if (request.getPersonalAiCredits() != null) {
+            user.setPersonalAiCredits(request.getPersonalAiCredits());
+        }
+
+        if (request.getAddBonusCredits() != null && request.getAddBonusCredits() > 0) {
+            user.addPersonalBonusCredits(request.getAddBonusCredits());
+        }
+
+        log.info("Personal AI credits adjusted by admin: userId={}, personalAiCredits={}, addBonusCredits={}",
+                userId, request.getPersonalAiCredits(), request.getAddBonusCredits());
+
+        return getUser(userId);
     }
 
     @Transactional

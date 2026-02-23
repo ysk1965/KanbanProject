@@ -2,22 +2,18 @@
 
 /* Bridge Theme Colors - Dark Mode (Default) */
 :root {
-  --bridge-dark: #0A0E17;
-  --bridge-obsidian: #0F1419;
+  --bridge-dark: #191f2d;
+  --bridge-obsidian: #151B28;
   --bridge-accent: #6366F1;
   --bridge-secondary: #2DD4BF;
 
-  /* Kanban Dark Theme Colors (cosmic navy tint) */
-  --kanban-bg: #0C1220;
-  --kanban-card: #1c263b;
-  --kanban-card-hover: #253148;
-  --kanban-border: #33415c;
-  --kanban-border-hover: #3f4f6c;
-  --kanban-surface: #29364e;
-  --kanban-input: #111c27;
+  /* Bridge Surface Scale (cosmic navy tint) */
+  --bridge-surface: #1e2a42;
+  --bridge-surface-hover: #2a3a58;
+  --bridge-border: #384d6e;
 
   --font-size: 16px;
-  --background: #ffffff;
+  --background: #0A0E17;
   --foreground: oklch(0.145 0 0);
   --card: #ffffff;
   --card-foreground: oklch(0.145 0 0);
@@ -57,6 +53,7 @@
 }
 
 .dark {
+  color-scheme: dark;
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.145 0 0);
@@ -95,43 +92,40 @@
 
 /* Light Mode Theme */
 .light {
+  color-scheme: light;
   /* Bridge Light Theme Colors */
-  --bridge-dark: #F8FAFC;
-  --bridge-obsidian: #FFFFFF;
+  --bridge-dark:  #fffcf8;
+  --bridge-obsidian:  #efe6d8;
   --bridge-accent: #6366F1;
   --bridge-secondary: #14B8A6;
 
-  /* Kanban Light Theme Colors */
-  --kanban-bg: #F1F5F9;
-  --kanban-card: #FFFFFF;
-  --kanban-card-hover: #F8FAFC;
-  --kanban-border: #E2E8F0;
-  --kanban-border-hover: #CBD5E1;
-  --kanban-surface: #F8FAFC;
-  --kanban-input: #FFFFFF;
+  /* Bridge Surface Scale */
+  --bridge-surface: #efe3d2;
+  --bridge-surface-hover: #ffffff;
+  --bridge-border: #E4DFDA;
 
   /* shadcn/ui Light Colors */
-  --background: #FFFFFF;
-  --foreground: #0F172A;
-  --card: #FFFFFF;
-  --card-foreground: #0F172A;
-  --popover: #FFFFFF;
-  --popover-foreground: #0F172A;
+  --background: #FFFDF9;
+  --foreground: #3D2E1F;
+  --card: #FFFDF9;
+  --card-foreground: #3D2E1F;
+  --popover: #FFFDF9;
+  --popover-foreground: #3D2E1F;
   --primary: #6366F1;
   --primary-foreground: #FFFFFF;
-  --secondary: #F1F5F9;
-  --secondary-foreground: #0F172A;
-  --muted: #F1F5F9;
-  --muted-foreground: #64748B;
-  --accent: #F1F5F9;
-  --accent-foreground: #0F172A;
+  --secondary: #EDE8E2;
+  --secondary-foreground: #3D2E1F;
+  --muted: #EDE8E2;
+  --muted-foreground: #8C7B6B;
+  --accent: #EDE8E2;
+  --accent-foreground: #3D2E1F;
   --destructive: #EF4444;
   --destructive-foreground: #FFFFFF;
-  --border: #E2E8F0;
-  --input: #E2E8F0;
-  --ring: #6366F1;
-  --input-background: #F8FAFC;
-  --switch-background: #CBD5E1;
+  --border: #E4DFDA;
+  --input: #E4DFDA;
+  --ring: #D4B483;
+  --input-background: #F5F1ED;
+  --switch-background: #D4CCC4;
 }
 
 @theme inline {
@@ -182,6 +176,9 @@
 
   body {
     @apply bg-background text-foreground;
+    overflow-x: hidden;
+    -ms-touch-action: manipulation;
+    touch-action: manipulation;
   }
 
   /**
@@ -243,19 +240,66 @@
   --color-bridge-accent: var(--bridge-accent);
   --color-bridge-secondary: var(--bridge-secondary);
 
-  /* Kanban Theme Utilities */
-  --color-kanban-bg: var(--kanban-bg);
-  --color-kanban-card: var(--kanban-card);
-  --color-kanban-card-hover: var(--kanban-card-hover);
-  --color-kanban-border: var(--kanban-border);
-  --color-kanban-border-hover: var(--kanban-border-hover);
-  --color-kanban-surface: var(--kanban-surface);
-  --color-kanban-input: var(--kanban-input);
+  /* Bridge Surface Utilities */
+  --color-bridge-surface: var(--bridge-surface);
+  --color-bridge-surface-hover: var(--bridge-surface-hover);
+  --color-bridge-border: var(--bridge-border);
+}
+
+/* ===== Safe Area (Notch) Utilities ===== */
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.safe-left {
+  padding-left: env(safe-area-inset-left);
+}
+.safe-right {
+  padding-right: env(safe-area-inset-right);
+}
+.safe-x {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+.safe-y {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* FAB (Floating Action Button) — mobile: above bottom tab bar + safe area, desktop: normal */
+.fab-bottom-safe {
+  bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+}
+@media (min-width: 768px) {
+  .fab-bottom-safe {
+    bottom: 1.5rem;
+  }
+}
+
+/* Toast notification — offset by safe area */
+.toast-bottom-safe {
+  bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
+}
+
+/* Drawer/Sheet safe area by direction */
+[data-vaul-drawer-direction="bottom"] {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+[data-vaul-drawer-direction="top"] {
+  padding-top: env(safe-area-inset-top);
+}
+[data-vaul-drawer-direction="left"] {
+  padding-left: env(safe-area-inset-left);
+}
+[data-vaul-drawer-direction="right"] {
+  padding-right: env(safe-area-inset-right);
 }
 
 /* Glass morphism effect */
 .glass {
-  background: rgba(15, 20, 25, 0.8);
+  background: rgba(21, 27, 40, 0.8);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
 }
@@ -313,6 +357,28 @@ html {
   display: none;
 }
 
+/* Custom Scrollbar (theme-aware) */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+.light .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1);
+}
+.light .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.18);
+}
+
 /* Kanban Board Styles */
 .kanban-scrollbar::-webkit-scrollbar {
   width: 6px;
@@ -330,6 +396,14 @@ html {
 
 .kanban-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.2);
+}
+
+.light .kanban-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.light .kanban-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.18);
 }
 
 /* Kanban Card Glow Effect */
@@ -482,13 +556,192 @@ html {
   animation: bannerProgress 5s linear infinite;
 }
 
-/* BridgeSpots Slate Color */
-:root {
-  --bridge-slate: #161B22;
+
+/* ===== Feature 100% Completion Animation ===== */
+@keyframes completionPulse {
+  0% {
+    box-shadow: 0 0 8px rgba(34, 197, 94, 0.3);
+  }
+  40% {
+    box-shadow: 0 0 25px rgba(34, 197, 94, 0.6), 0 0 50px rgba(34, 197, 94, 0.2);
+  }
+  100% {
+    box-shadow: 0 0 12px rgba(34, 197, 94, 0.25);
+  }
 }
 
-@theme inline {
-  --color-bridge-slate: var(--bridge-slate);
+@keyframes completionBarShine {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+@keyframes completionBorderFlash {
+  0% {
+    border-color: rgba(34, 197, 94, 0.7);
+    box-shadow: 0 0 20px rgba(34, 197, 94, 0.15);
+  }
+  50% {
+    border-color: rgba(34, 197, 94, 0.9);
+    box-shadow: 0 0 30px rgba(34, 197, 94, 0.25);
+  }
+  100% {
+    border-color: rgba(34, 197, 94, 0.3);
+    box-shadow: none;
+  }
+}
+
+@keyframes completionCheckPop {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 1;
+  }
+  75% {
+    transform: scale(0.9);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes completionTextBounce {
+  0% {
+    transform: scale(1);
+  }
+  30% {
+    transform: scale(1.2);
+  }
+  60% {
+    transform: scale(0.95);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.feature-complete-pulse .progress-bar-inner {
+  animation: completionPulse 0.8s ease-out;
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.3) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: completionPulse 0.8s ease-out, completionBarShine 0.6s ease-out 0.2s;
+}
+
+.feature-complete-pulse .progress-border-flash {
+  animation: completionBorderFlash 1s ease-out;
+}
+
+.feature-complete-pulse .progress-check-pop {
+  animation: completionCheckPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.3s both;
+}
+
+.feature-complete-pulse .progress-text-bounce {
+  animation: completionTextBounce 0.5s ease-out 0.3s;
+}
+
+/* Completion Particles — burst from endpoint */
+@keyframes particleBurst {
+  0% {
+    transform: translate(0, 0) scale(1.2);
+    opacity: 1;
+  }
+  20% {
+    opacity: 1;
+    transform: translate(calc(var(--px) * 0.5), calc(var(--py) * 0.5)) scale(1);
+  }
+  100% {
+    transform: translate(var(--px), var(--py)) scale(0);
+    opacity: 0;
+  }
+}
+
+@keyframes burstFlash {
+  0% {
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 0.9;
+  }
+  40% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0.6;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1.5);
+    opacity: 0;
+  }
+}
+
+.completion-particle {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: particleBurst var(--duration) cubic-bezier(0.16, 1, 0.3, 1) var(--delay) both;
+  background: var(--particle-color);
+  box-shadow: 0 0 4px var(--particle-color), 0 0 8px var(--particle-color);
+  width: var(--size);
+  height: var(--size);
+  left: var(--x);
+  top: var(--y);
+}
+
+/* Card completion — dropped into Done */
+@keyframes cardCompleteBurst {
+  0% {
+    box-shadow: 0 0 0 rgba(34, 197, 94, 0);
+  }
+  30% {
+    box-shadow: 0 0 20px rgba(34, 197, 94, 0.35), inset 0 0 15px rgba(34, 197, 94, 0.08);
+  }
+  100% {
+    box-shadow: 0 0 8px rgba(34, 197, 94, 0.1);
+  }
+}
+
+@keyframes cardCheckPop {
+  0% {
+    transform: scale(0) rotate(-45deg);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.4) rotate(0deg);
+    opacity: 1;
+  }
+  75% {
+    transform: scale(0.85);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.card-complete-burst {
+  animation: cardCompleteBurst 1s ease-out both;
+}
+
+.card-check-pop {
+  animation: cardCheckPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.completion-flash {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(34, 197, 94, 0.8) 0%, rgba(34, 197, 94, 0) 70%);
+  pointer-events: none;
+  animation: burstFlash 0.5s ease-out both;
 }
 
 /* ===== Plyr Video Player - Bridge Theme ===== */
@@ -540,4 +793,44 @@ html {
 .plyr-bridge-theme .plyr__menu__container .plyr__control--forward:hover,
 .plyr-bridge-theme .plyr__menu__container .plyr__control--back:hover {
   background: rgba(255, 255, 255, 0.05);
+}
+
+/* =============================================
+   Mobile Keyboard Awareness
+   ============================================= */
+
+/* 키보드가 올라왔을 때 모든 Dialog/모달의 max-height를 visual viewport 기준으로 제한 */
+[data-keyboard-open] [data-slot="dialog-content"] {
+  max-height: calc(var(--visual-viewport-height) - 1rem) !important;
+  top: 0.5rem !important;
+  transform: translateX(-50%) translateY(0) !important;
+  transition: top 0.2s ease, max-height 0.2s ease, transform 0.2s ease;
+}
+
+/* 키보드가 올라왔을 때 overlay를 스크롤 가능하게 */
+[data-keyboard-open] [data-slot="dialog-overlay"] {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 키보드가 올라왔을 때 fixed 모달 (비-Dialog 기반)도 대응 */
+[data-keyboard-open] .fixed.inset-0 {
+  max-height: var(--visual-viewport-height);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* min-h-screen 사용하는 페이지들의 키보드 대응 */
+[data-keyboard-open] .min-h-screen {
+  min-height: var(--visual-viewport-height) !important;
+}
+
+/* 모바일 input 포커스 시 iOS 자동 확대(auto-zoom) 방지: font-size 16px 이상 보장 */
+@media (max-width: 767px) {
+  input,
+  textarea,
+  select,
+  [contenteditable="true"] {
+    font-size: 16px !important;
+  }
 }

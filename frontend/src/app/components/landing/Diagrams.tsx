@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Columns, Calendar, Clock, CheckCircle2, TrendingDown, Users2, ShieldAlert, Hash, AtSign, Bell, MessageSquare, ListChecks, GripVertical, ChevronRight, Sparkles, FileText, ListTodo } from 'lucide-react';
+import { Columns, Calendar, Clock, CheckCircle2, TrendingDown, Users2, ShieldAlert, Hash, AtSign, Bell, MessageSquare, ListChecks, GripVertical, ChevronRight, Sparkles, FileText, ListTodo, Home, Flame, BookHeart, LayoutGrid, Flag, Mic, Volume2, Archive, CalendarClock, Zap } from 'lucide-react';
 
 // --- RESOURCE PULSE DIAGRAM (PM Dashboard View) ---
 export const ResourcePulseDiagram: React.FC = () => {
@@ -595,6 +595,339 @@ export const AIReportDiagram: React.FC = () => {
           ))}
         </motion.div>
       </AnimatePresence>
+    </div>
+  );
+};
+
+// --- MY SPACE OVERVIEW DIAGRAM ---
+export const MySpaceOverviewDiagram: React.FC = () => {
+  return (
+    <div className="flex flex-col p-8 bg-bridge-obsidian rounded-[2.5rem] border border-white/20 shadow-2xl w-full font-inter">
+      <h3 className="font-jakarta font-bold text-xl mb-6 text-white flex items-center gap-3 tracking-tight">
+        <Home size={20} className="text-bridge-secondary" />
+        My Space Overview
+      </h3>
+
+      <div className="grid grid-cols-2 gap-3">
+        {/* Schedule Widget */}
+        <motion.div initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0 }}
+          className="p-4 bg-white/5 rounded-2xl border border-white/10">
+          <div className="flex items-center gap-2 mb-3">
+            <Clock size={14} className="text-bridge-secondary" />
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Today</span>
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+              <div className="h-2 bg-indigo-500/20 rounded-full flex-1" />
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-bridge-secondary" />
+              <div className="h-2 bg-bridge-secondary/20 rounded-full w-3/4" />
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+              <div className="h-2 bg-purple-500/20 rounded-full w-1/2" />
+            </div>
+            <div className="text-[10px] text-slate-500 mt-1">3 events</div>
+          </div>
+        </motion.div>
+
+        {/* Deadlines Widget */}
+        <motion.div initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.08 }}
+          className="p-4 bg-white/5 rounded-2xl border border-white/10">
+          <div className="flex items-center gap-2 mb-3">
+            <Flag size={14} className="text-red-400" />
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Deadlines</span>
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="text-[8px] font-bold text-red-400 bg-red-400/10 px-1.5 py-0.5 rounded flex-shrink-0">D-2</span>
+              <span className="text-[10px] text-slate-300 truncate">Design Review</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[8px] font-bold text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded flex-shrink-0">D-5</span>
+              <span className="text-[10px] text-slate-300 truncate">API Spec</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[8px] font-bold text-slate-400 bg-white/5 px-1.5 py-0.5 rounded flex-shrink-0">D-12</span>
+              <span className="text-[10px] text-slate-300 truncate">Sprint Review</span>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Habits Widget */}
+        <motion.div initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.16 }}
+          className="p-4 bg-white/5 rounded-2xl border border-white/10">
+          <div className="flex items-center gap-2 mb-3">
+            <Flame size={14} className="text-purple-400" />
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Habits</span>
+          </div>
+          <div className="flex items-center gap-1.5 mb-2">
+            {['bg-purple-500', 'bg-indigo-500', 'bg-emerald-500'].map((c, i) => (
+              <div key={i} className={`w-6 h-6 rounded-lg ${c} flex items-center justify-center`}>
+                <CheckCircle2 size={10} className="text-white" />
+              </div>
+            ))}
+            <div className="w-6 h-6 rounded-lg bg-white/10 border border-white/20" />
+          </div>
+          <div className="text-[10px] text-slate-500">3/4 today</div>
+        </motion.div>
+
+        {/* Diary Widget */}
+        <motion.div initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.24 }}
+          className="p-4 bg-white/5 rounded-2xl border border-white/10">
+          <div className="flex items-center gap-2 mb-3">
+            <BookHeart size={14} className="text-pink-400" />
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Diary</span>
+          </div>
+          <div className="text-2xl mb-1">😊</div>
+          <div className="text-[10px] text-slate-500 mb-1">Today's mood</div>
+          <div className="flex items-center gap-1">
+            <Sparkles size={10} className="text-bridge-accent" />
+            <span className="text-[9px] text-bridge-accent">AI insights ready</span>
+          </div>
+        </motion.div>
+      </div>
+    </div>
+  );
+};
+
+// --- EISENHOWER MATRIX DIAGRAM ---
+export const EisenhowerDiagram: React.FC = () => {
+  const [tasks, setTasks] = useState([
+    { id: 1, title: 'Ship Auth Module', quadrant: 'q1', dday: 'D-1' },
+    { id: 2, title: 'Plan Q2 Roadmap', quadrant: 'q2', dday: 'D-7' },
+    { id: 3, title: 'Fix Typo in Docs', quadrant: 'q3', dday: 'D-0' },
+    { id: 4, title: 'Clean Old Branches', quadrant: 'q4', dday: '' },
+    { id: 5, title: 'Security Audit', quadrant: 'q1', dday: 'D-2' },
+    { id: 6, title: 'Learn GraphQL', quadrant: 'q2', dday: 'D-14' },
+  ]);
+
+  const quadrants = ['q1', 'q2', 'q3', 'q4'];
+
+  const cycleTask = (id: number) => {
+    setTasks(prev => prev.map(t => {
+      if (t.id === id) {
+        const next = (quadrants.indexOf(t.quadrant) + 1) % 4;
+        return { ...t, quadrant: quadrants[next] };
+      }
+      return t;
+    }));
+  };
+
+  const quadrantConfig: Record<string, { label: string; sublabel: string; icon: React.ElementType; color: string; border: string; bg: string }> = {
+    q1: { label: 'Do First', sublabel: 'Urgent & Important', icon: Flame, color: 'text-red-400', border: 'border-red-500/20', bg: 'bg-red-500/5' },
+    q2: { label: 'Schedule', sublabel: 'Important', icon: CalendarClock, color: 'text-bridge-accent', border: 'border-bridge-accent/20', bg: 'bg-bridge-accent/5' },
+    q3: { label: 'Delegate', sublabel: 'Urgent', icon: Zap, color: 'text-amber-400', border: 'border-amber-500/20', bg: 'bg-amber-500/5' },
+    q4: { label: 'Eliminate', sublabel: 'Neither', icon: Archive, color: 'text-slate-400', border: 'border-white/10', bg: 'bg-white/5' },
+  };
+
+  return (
+    <div className="flex flex-col p-8 bg-bridge-obsidian rounded-[2.5rem] border border-white/20 shadow-2xl w-full font-inter">
+      <h3 className="font-jakarta font-bold text-xl mb-6 text-white flex items-center gap-3 tracking-tight">
+        <LayoutGrid size={20} className="text-bridge-accent" />
+        Eisenhower Matrix
+      </h3>
+      <div className="grid grid-cols-2 gap-3">
+        {quadrants.map(q => {
+          const cfg = quadrantConfig[q];
+          const Icon = cfg.icon;
+          return (
+            <div key={q} className={`p-3 rounded-2xl border ${cfg.border} ${cfg.bg} min-h-[120px]`}>
+              <div className="flex items-center gap-2 mb-3">
+                <Icon size={14} className={cfg.color} />
+                <div>
+                  <span className={`text-[10px] font-extrabold uppercase tracking-[0.15em] ${cfg.color}`}>{cfg.label}</span>
+                  <span className="text-[8px] text-slate-600 block">{cfg.sublabel}</span>
+                </div>
+              </div>
+              <AnimatePresence mode="popLayout">
+                {tasks.filter(t => t.quadrant === q).map(task => (
+                  <motion.div
+                    key={task.id}
+                    layoutId={`eisenhower-${task.id}`}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    onClick={() => cycleTask(task.id)}
+                    className="flex items-center justify-between gap-2 p-2 mb-1.5 rounded-xl bg-white/5 border border-white/10 cursor-pointer hover:bg-white/10 transition-all"
+                  >
+                    <span className="text-[10px] font-medium text-slate-300 truncate">{task.title}</span>
+                    {task.dday && (
+                      <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded flex-shrink-0 ${
+                        task.dday === 'D-0' ? 'bg-red-500/15 text-red-400' :
+                        task.dday === 'D-1' || task.dday === 'D-2' ? 'bg-orange-500/15 text-orange-400' :
+                        'bg-white/5 text-slate-400'
+                      }`}>{task.dday}</span>
+                    )}
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+// --- HABIT TRACKER DIAGRAM ---
+export const HabitTrackerDiagram: React.FC = () => {
+  const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+  const [habits, setHabits] = useState([
+    { name: '🏃 Running', color: '#8B5CF6', streak: 12, completions: [true, true, true, false, true, true, false] },
+    { name: '📚 Reading', color: '#6366F1', streak: 8, completions: [true, true, false, true, true, false, false] },
+    { name: '💧 Water 2L', color: '#10B981', streak: 23, completions: [true, true, true, true, true, true, true] },
+    { name: '🧘 Meditate', color: '#EC4899', streak: 5, completions: [true, false, true, true, false, false, false] },
+  ]);
+
+  const toggleDay = (habitIdx: number, dayIdx: number) => {
+    setHabits(prev => prev.map((h, i) => {
+      if (i === habitIdx) {
+        const newCompletions = [...h.completions];
+        newCompletions[dayIdx] = !newCompletions[dayIdx];
+        return { ...h, completions: newCompletions };
+      }
+      return h;
+    }));
+  };
+
+  return (
+    <div className="flex flex-col p-8 bg-bridge-obsidian rounded-[2.5rem] border border-white/20 shadow-2xl w-full font-inter">
+      <h3 className="font-jakarta font-bold text-xl mb-6 text-white flex items-center gap-3 tracking-tight">
+        <Flame size={20} className="text-purple-400" />
+        Habit Tracker
+      </h3>
+
+      {/* Day headers */}
+      <div className="grid grid-cols-[1fr_repeat(7,_minmax(0,_1fr))_auto] gap-2 mb-3 items-center">
+        <div />
+        {days.map((d, i) => (
+          <div key={i} className="text-center text-[9px] font-extrabold text-slate-600 uppercase">{d}</div>
+        ))}
+        <div className="text-[9px] font-extrabold text-slate-600 uppercase text-center w-12">Streak</div>
+      </div>
+
+      {/* Habit rows */}
+      {habits.map((habit, hIdx) => (
+        <motion.div
+          key={hIdx}
+          initial={{ opacity: 0, x: -10 }}
+          whileInView={{ opacity: 1, x: 0 }}
+          viewport={{ once: true }}
+          transition={{ delay: hIdx * 0.08 }}
+          className="grid grid-cols-[1fr_repeat(7,_minmax(0,_1fr))_auto] gap-2 items-center py-2 border-t border-white/5"
+        >
+          <span className="text-[10px] font-medium text-slate-300 truncate">{habit.name}</span>
+          {habit.completions.map((done, dIdx) => (
+            <button
+              key={dIdx}
+              onClick={() => toggleDay(hIdx, dIdx)}
+              className="flex justify-center"
+            >
+              <div
+                className={`w-5 h-5 rounded-md transition-all flex items-center justify-center ${
+                  done
+                    ? 'shadow-[0_0_8px_rgba(0,0,0,0.2)]'
+                    : 'bg-white/5 border border-white/10'
+                }`}
+                style={done ? { backgroundColor: habit.color } : {}}
+              >
+                {done && <CheckCircle2 size={10} className="text-white" />}
+              </div>
+            </button>
+          ))}
+          <div className="flex items-center gap-1 justify-center w-12">
+            <Flame size={10} className="text-orange-400" />
+            <span className="text-[10px] font-bold text-orange-400">{habit.streak}</span>
+          </div>
+        </motion.div>
+      ))}
+    </div>
+  );
+};
+
+// --- AI DIARY DIAGRAM ---
+export const AIDiaryDiagram: React.FC = () => {
+  const [selectedMood, setSelectedMood] = useState<string | null>(null);
+  const moods = ['😊', '😌', '🤔', '😔', '😢', '😠', '🤩', '🥱'];
+
+  const messages = [
+    { role: 'ai' as const, text: "How was your day? Tell me about what stood out." },
+    { role: 'user' as const, text: "Had a productive morning finishing the auth module, but the afternoon meeting drained me." },
+    { role: 'ai' as const, text: "Great deep work followed by meeting fatigue. What made the morning session so productive?" },
+  ];
+
+  return (
+    <div className="flex flex-col p-8 bg-bridge-obsidian rounded-[2.5rem] border border-white/20 shadow-2xl w-full font-inter">
+      <h3 className="font-jakarta font-bold text-xl mb-6 text-white flex items-center gap-3 tracking-tight">
+        <BookHeart size={20} className="text-pink-400" />
+        AI Diary
+      </h3>
+
+      {/* Chat messages */}
+      <div className="space-y-3 mb-6">
+        {messages.map((msg, i) => (
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, y: 8 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: i * 0.15 }}
+            className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}
+          >
+            <div className={`w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0 ${
+              msg.role === 'ai'
+                ? 'bg-bridge-accent/20 border border-bridge-accent/30'
+                : 'bg-bridge-secondary/20 border border-bridge-secondary/30'
+            }`}>
+              {msg.role === 'ai'
+                ? <Sparkles size={12} className="text-bridge-accent" />
+                : <span className="text-[10px]">👤</span>
+              }
+            </div>
+            <div className={`max-w-[75%] p-3 rounded-2xl text-[11px] leading-relaxed ${
+              msg.role === 'ai'
+                ? 'bg-white/5 border border-white/10 text-slate-300 rounded-tl-sm'
+                : 'bg-bridge-secondary/10 border border-bridge-secondary/20 text-slate-200 rounded-tr-sm'
+            }`}>
+              {msg.text}
+            </div>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Mood selector */}
+      <div className="pt-4 border-t border-white/10">
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">Today's Mood</span>
+        </div>
+        <div className="flex gap-2 justify-center">
+          {moods.map((mood, i) => (
+            <button
+              key={i}
+              onClick={() => setSelectedMood(mood === selectedMood ? null : mood)}
+              className={`w-8 h-8 rounded-xl flex items-center justify-center text-base transition-all ${
+                selectedMood === mood
+                  ? 'bg-bridge-accent/20 border-2 border-bridge-accent scale-110'
+                  : 'bg-white/5 border border-white/10 hover:bg-white/10'
+              }`}
+            >
+              {mood}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Voice indicator */}
+      <div className="mt-4 flex items-center justify-center gap-3">
+        <div className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-full">
+          <Mic size={14} className="text-bridge-secondary" />
+          <span className="text-[10px] text-slate-400">Voice journaling supported</span>
+          <Volume2 size={14} className="text-bridge-accent" />
+        </div>
+      </div>
     </div>
   );
 };

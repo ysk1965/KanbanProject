@@ -42,14 +42,14 @@ export function LanguageSwitcher({ variant = 'default' }: { variant?: 'default' 
       <div className="relative" ref={dropdownRef}>
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors text-sm"
+          className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors text-sm"
         >
           <Globe className="h-4 w-4" />
           <span>{currentLang.code.toUpperCase()}</span>
         </button>
 
         {isOpen && (
-          <div className="absolute right-0 top-full mt-1 bg-bridge-obsidian border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50 min-w-[140px]">
+          <div className="absolute right-0 top-full mt-1 bg-bridge-obsidian border border-foreground/10 rounded-xl shadow-2xl overflow-hidden z-50 min-w-[140px]">
             {languages.map(lang => (
               <button
                 key={lang.code}
@@ -57,7 +57,7 @@ export function LanguageSwitcher({ variant = 'default' }: { variant?: 'default' 
                 className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-sm transition-colors ${
                   lang.code === i18n.language
                     ? 'text-bridge-accent bg-bridge-accent/10'
-                    : 'text-slate-300 hover:text-white hover:bg-white/5'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-foreground/5'
                 }`}
               >
                 <span>{lang.label}</span>
@@ -73,14 +73,14 @@ export function LanguageSwitcher({ variant = 'default' }: { variant?: 'default' 
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 border border-white/10 transition-colors text-sm"
+        className="flex items-center gap-2 px-3 py-2 rounded-xl text-slate-400 hover:text-foreground hover:bg-foreground/5 border border-foreground/10 transition-colors text-sm"
       >
         <Globe className="h-4 w-4" />
         <span>{currentLang.label}</span>
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2 bg-bridge-obsidian border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50 min-w-[160px]">
+        <div className="absolute right-0 top-full mt-2 bg-bridge-obsidian border border-foreground/10 rounded-xl shadow-2xl overflow-hidden z-50 min-w-[160px]">
           {languages.map(lang => (
             <button
               key={lang.code}
@@ -88,7 +88,7 @@ export function LanguageSwitcher({ variant = 'default' }: { variant?: 'default' 
               className={`w-full flex items-center gap-2.5 px-4 py-3 text-sm transition-colors ${
                 lang.code === i18n.language
                   ? 'text-bridge-accent bg-bridge-accent/10'
-                  : 'text-slate-300 hover:text-white hover:bg-white/5'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-foreground/5'
               }`}
             >
               <span>{lang.label}</span>

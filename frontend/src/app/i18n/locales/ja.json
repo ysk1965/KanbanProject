@@ -45,24 +45,25 @@
       "workflow": "Workflow",
       "pricing": "Pricing",
       "compare": "比較",
+      "myspace": "My Space",
       "joinNow": "JOIN NOW",
       "startForFree": "無料で始める",
       "ai": "AI"
     },
     "hero": {
-      "badge": "インテリジェントPMオーケストレーション",
+      "badge": "Project + Life Management in One",
       "subtitle": "複雑なワークフローを切り拓く明確な<1>Flow</1>。\n最先端のPMコラボレーションインターフェースを体験してください。",
       "subtitleFlow": "Flow",
-      "subtitleText1": "複雑なワークフローを切り拓く明確な",
-      "subtitleText2": "。\n最先端のPMコラボレーションインターフェースを体験してください。",
+      "subtitleText1": "Team collaboration meets personal growth in one clear ",
+      "subtitleText2": ".\nManage projects AND your life — no plugins, no app switching.",
       "tryFree": "Premium 3日間無料体験",
       "basicFree": "Basic ボードは永久無料"
     },
     "core": {
       "label": "コアアーキテクチャ",
       "title": "コラボレーションの\nフローを統率する",
-      "titleLine1": "コラボレーションの",
-      "titleLine2": "フローを統率する",
+      "titleLine1": "Two pillars,",
+      "titleLine2": "one platform",
       "kanban": {
         "title": "実践型 Kanban",
         "desc": "「Feature - Task - Done」構造の上にチームならではのワークフローを構築。実際のPMの知見から生まれた、最も実践的なコラボレーションインターフェースです。"
@@ -78,6 +79,38 @@
       "pricing": {
         "title": "透明な無制限モデル",
         "desc": "Kanban ボード、Task作成、デイリースケジュールなどのコア機能は永久無料。ユーザーあたり月額$5で Slack 連携、週間 Gantt などを追加できます。"
+      },
+      "personal": {
+        "title": "Personal Productivity Hub",
+        "desc": "Eisenhower Matrix task board, habit tracker with streaks, and AI diary — your personal growth toolkit lives right next to your team workspace."
+      }
+    },
+    "myspace": {
+      "label": "Personal Productivity",
+      "titleLine1": "Your space,",
+      "titleLine2": "your growth",
+      "subtitle": "Beyond team collaboration — manage personal tasks, build habits, and reflect with AI. Everything in one place, always in sync with your work.",
+      "tabs": {
+        "overview": "Overview",
+        "matrix": "Matrix",
+        "habits": "Habits",
+        "diary": "AI Diary"
+      },
+      "matrix": {
+        "title": "Eisenhower Matrix",
+        "text": "Prioritize with a 2×2 urgency-importance grid. D-day badges, auto-sorting, and drag-to-reprioritize."
+      },
+      "habits": {
+        "title": "Habit Tracker",
+        "text": "Build streaks with daily/weekly patterns. Color-coded habits, weekly matrix view, and streak analytics."
+      },
+      "diary": {
+        "title": "AI Diary",
+        "text": "Journal through conversation with AI. Mood tracking, voice input/output, and reflective prompts."
+      },
+      "calendar": {
+        "title": "Personal Calendar",
+        "text": "Time-block your personal schedule with conflict detection. Synced alongside your team calendar."
       }
     },
     "workflow": {
@@ -143,6 +176,10 @@
         "text": "個人のパフォーマンスナラティブとチームダイナミクスの分析。業務配分とコラボレーションパターンを一目で把握できます。",
         "title": "Personal & Team Insights"
       },
+      "diary": {
+        "title": "AI Conversational Diary",
+        "text": "Reflect on your day through conversation. AI tracks mood patterns, remembers context, and offers personalized insights."
+      },
       "label": "AI Intelligence",
       "narrative": {
         "text": "単なる指標ではありません。Claude AIが一週間の活動を文脈のあるストーリーに織り上げ、隠れたボトルネックと依存関係を明らかにします。",
@@ -154,7 +191,7 @@
       },
       "subtitle": "ダッシュボードやチャートの先へ。AIがタスク、タイムブロック、チェックリスト、コメントを分析し、人が見落としがちなインサイトをナラティブで生成します。",
       "titleLine1": "AIがチームの",
-      "titleLine2": "文脈を読み取る"
+      "titleLine2": "full context"
     },
     "pricing": {
       "badge": "PREMIUM 3日間無料トライアル",
@@ -174,6 +211,8 @@
         "feature2": "デイリースケジュール & チェックリスト",
         "feature3": "チーム共有 & コラボレーション（手動更新）",
         "feature4": "基本通知",
+        "feature5": "Personal task board & habit tracker",
+        "feature6": "Personal calendar & schedule",
         "cta": "無料で始める"
       },
       "premium": {
@@ -186,13 +225,14 @@
         "feature4": "高度なチーム権限オーケストレーション",
         "feature5": "AI スプリントレポート & インサイト",
         "feature6": "リアルタイムボード同期（更新なしで即時反映）",
+        "feature7": "AI conversational diary with voice",
         "cta": "トライアル開始"
       }
     },
     "cta": {
       "titleLine1": "今すぐ",
       "titleLine2": "始めよう",
-      "subtitle": "BridgeSpotsで単なるTask管理を超えましょう。\nチームの無限の生産性をインテリジェントにオーケストレーション。",
+      "subtitle": "Go beyond task management. Orchestrate your team's productivity AND your personal growth — all in one platform.",
       "button": "LAUNCH FLOW"
     },
     "footer": {
@@ -252,13 +292,34 @@
   "dashboard": {
     "sidebar": {
       "allBoards": "すべてのボード",
-      "favorites": "お気に入り",
-      "teamMembers": "チームメンバー",
+      "myBoard": "マイスペース",
       "settings": "設定",
       "upgradePro": "Proにアップグレード",
       "upgradeDesc": "無制限のボードと高度な分析をお試しください。",
       "viewPlans": "プランを見る"
-    }
+    },
+    "searchPlaceholder": "プロジェクトを検索...",
+    "logout": "ログアウト",
+    "mySpace": "マイスペース",
+    "mySpaceDesc": "個人スケジュール & AIダイアリー",
+    "yourProjects": "マイプロジェクト",
+    "managingWorkspaces": "{{count}}件のアクティブワークスペースを管理中",
+    "createNewBoard": "新しいボードを作成",
+    "noSearchResult": "「{{query}}」に該当するボードが見つかりません",
+    "clearSearch": "検索をクリア",
+    "starredBoards": "お気に入り",
+    "workspaceBoards": "ワークスペースボード",
+    "testBoard": "テストボード",
+    "trialPlan": "トライアル",
+    "noDescription": "説明なし",
+    "tasksProgress": "タスク進捗",
+    "memberCount": "{{count}}名",
+    "newBoard": "新しいボード",
+    "boardName": "ボード名",
+    "description": "説明",
+    "backgroundColor": "背景色",
+    "cancel": "キャンセル",
+    "createBoard": "ボードを作成"
   },
   "share": {
     "title": "ボードを共有",
@@ -940,7 +1001,8 @@
     "noBoards": "まだボードがありません",
     "createFirst": "最初のボードを作成しましょう",
     "deleteBoard": "ボードを削除",
-    "deleteConfirm": "このボードを削除しますか？",
+    "deleteConfirm": "「{{name}}」ボードを削除しますか？",
+    "softDeleteNotice": "7日以内に管理者に復元を依頼できます。",
     "deleteIrreversible": "この操作は元に戻せません。",
     "editBoard": "ボードを編集",
     "boardNamePlaceholder": "ボード名を入力",
@@ -1104,7 +1166,13 @@
       "deleteConfirm": "この絵文字を削除しますか？",
       "maxSize": "PNG, GIF, WebP · 128KB以下",
       "adminOnly": "管理者のみ絵文字を追加できます"
-    }
+    },
+    "aiSummarize": "AI要約",
+    "aiSummaryTitle": "AIコメント要約",
+    "aiDecisions": "決定事項",
+    "aiOpenQuestions": "未解決の質問",
+    "aiActionItems": "アクションアイテム",
+    "checklist": "チェックリスト"
   },
   "activity": {
     "title": "アクティビティログ",
@@ -1234,7 +1302,13 @@
       "totalBoards": "合計ボード数",
       "activeSubscriptions": "アクティブサブスクリプション",
       "active": "アクティブ: {{count}}",
-      "tierDistribution": "ボードティア分布"
+      "tierDistribution": "ボードティア分布",
+      "personalBoardMetrics": "パーソナルボード",
+      "personalBoards": "パーソナルボード",
+      "adoptionRate": "採用率",
+      "activePersonalBoards": "アクティブ (30日)",
+      "totalDiaryEntries": "日記数",
+      "boardTypeDistribution": "ボードタイプ分布"
     },
     "analytics": {
       "title": "分析 / レポート",
@@ -1263,7 +1337,21 @@
       "trialStarted": "トライアル開始",
       "funnelConverted": "コンバージョン",
       "funnelInProgress": "進行中",
-      "funnelExpired": "期限切れ"
+      "funnelExpired": "期限切れ",
+      "pbAdoption": "PBアダプション",
+      "totalPb": "合計 {{count}}件",
+      "totalPersonalBoards": "全Personal Board",
+      "adoptionRateLabel": "採用率",
+      "pbCreated": "PB作成",
+      "diaryEngagement": "日記エンゲージメント",
+      "totalDiaryEntries": "全エントリ",
+      "diaryCompletionRate": "完了率",
+      "diaryActiveUsers": "アクティブユーザー",
+      "diaryEntries": "日記作成",
+      "pbConversion": "Personal Board転換",
+      "personalOnly": "Personalのみ",
+      "personalAndTeam": "Personal + Team",
+      "pbConversionRate": "転換率"
     },
     "system": {
       "title": "システム管理",
@@ -1298,7 +1386,20 @@
       "saving": "保存中...",
       "saveChanges": "変更を保存",
       "stopping": "停止中...",
-      "stopNow": "今すぐ停止"
+      "stopNow": "今すぐ停止",
+      "pbStatus": "Personal Board現況",
+      "pbTotalUsers": "全ユーザー",
+      "pbWithPb": "PB所有",
+      "pbWithoutPb": "PB未所有",
+      "pbAdoptionRate": "採用率",
+      "pbAdopted": "採用済み",
+      "pbRemaining": "未採用",
+      "bulkCreateBtn": "{{count}}人にPB一括作成",
+      "bulkCreating": "作成中...",
+      "bulkCreateTitle": "Personal Board一括作成",
+      "bulkCreateConfirm": "PB未所有の{{count}}人にPersonal Boardを作成しますか？",
+      "bulkCreateSuccess": "{{created}}件作成完了（失敗: {{failed}}, 対象: {{total}}）",
+      "bulkCreateFailed": "一括作成に失敗しました"
     },
     "subscriptions": {
       "title": "サブスクリプション管理",
@@ -1325,7 +1426,20 @@
       "tasks": "Task",
       "createdAt": "作成日",
       "view": "表示",
-      "viewBoard": "ボードを閲覧"
+      "viewBoard": "ボードを閲覧",
+      "type": "タイプ",
+      "allTypes": "すべてのタイプ",
+      "typeTeam": "チーム",
+      "typePersonal": "個人",
+      "activeBoards": "アクティブボード",
+      "deletedBoards": "削除済みボード",
+      "noDeletedBoards": "削除済みのボードはありません",
+      "noDeletedBoardsDesc": "削除されたボードは完全削除まで7日間ここに表示されます。",
+      "deletedAt": "削除日",
+      "daysLeft": "完全削除まで{{days}}日",
+      "restore": "復元",
+      "restoreSuccess": "ボードが復元されました",
+      "restoreFailed": "ボードの復元に失敗しました"
     },
     "boardDetail": {
       "title": "ボード詳細",
@@ -1359,6 +1473,7 @@
       "dangerZone": "危険な操作",
       "deleteBoard": "ボードを削除",
       "deleteWarning": "このボードに関連するすべてのデータが削除されます。この操作は元に戻せません。",
+      "softDeleteWarning": "ボードはソフト削除されます。7日以内に復元できます。",
       "deleting": "削除中...",
       "editName": "ボード名を編集",
       "nameUpdateSuccess": "ボード名が変更されました。",
@@ -1378,7 +1493,12 @@
       "seatCount": "シート数",
       "seatCountUpdateFailed": "シート数の変更に失敗しました。",
       "seatCountUpdateSuccess": "シート数が{{count}}に変更されました。",
-      "updateSeatCount": "シート数を変更"
+      "updateSeatCount": "シート数を変更",
+      "personalActivity": "個人アクティビティ",
+      "diaryEntries": "日記",
+      "completionRate": "{{rate}}% 完了",
+      "events": "イベント",
+      "lastActivity": "最終アクティビティ"
     },
     "users": {
       "title": "ユーザー管理",
@@ -1568,12 +1688,22 @@
     "enterName": "名前を入力してください。",
     "profileSaved": "プロフィールを保存しました",
     "profileSaveFailed": "プロフィールの保存に失敗しました。",
+    "profileImageDesc": "プロフィール写真を変更します",
+    "profileImageHint": "JPG, PNG, GIF, WebP（最大5MB）",
+    "removeProfileImage": "プロフィール写真を削除",
+    "imageTypeError": "サポートされていないファイル形式です（JPG, PNG, GIF, WebPのみ）",
+    "imageSizeError": "ファイルサイズが5MBを超えています",
+    "imageUploadFailed": "プロフィール写真のアップロードに失敗しました",
+    "imageDeleteFailed": "プロフィール写真の削除に失敗しました",
     "theme": "テーマ",
     "themeDesc": "表示テーマを変更",
     "darkMode": "ダークモード",
     "language": "言語",
     "languageDesc": "表示言語を変更",
     "selectLanguage": "言語を選択",
+    "holidayCountry": "祝日の国",
+    "holidayCountryDesc": "カレンダーに表示する祝日の国を選択します",
+    "holidayOff": "オフ",
     "changePassword": "パスワードを変更",
     "changePasswordDesc": "アカウントセキュリティのためにパスワードを変更",
     "currentPasswordLabel": "現在のパスワード",
@@ -1705,7 +1835,8 @@
     "unlinked": "（未リンク）",
     "cannotMove": "移動不可",
     "cannotChange": "変更不可",
-    "willSplit": "分割作成"
+    "willSplit": "分割作成",
+    "nextDay": "翌日"
   },
   "scheduleDetail": {
     "title": "タイムブロック詳細",
@@ -1723,11 +1854,12 @@
     "taskChecklist": "TASK チェックリスト",
     "completedCount": "{{completed}}/{{total}} 完了",
     "noChecklist": "チェックリストアイテムなし",
-    "current": "現在"
+    "current": "現在",
+    "nextDay": "翌日"
   },
   "emptyBoard": {
     "heading": "ボードを始めましょう",
-    "subheading": "3ステップでプロジェクトを体系的に管理",
+    "subheading": "3ステップでプロジェクトを体系的に管理し、進捗を追跡",
     "createFirstFeature": "最初の Feature を作成",
     "step1Title": "Feature を作成",
     "step1Desc": "Feature は機能単位を表します。下のボタンを押して最初の Feature を作成しましょう。",
@@ -1750,6 +1882,7 @@
     "addTag": "タグを追加",
     "newTag": "新しいタグ",
     "subtaskList": "サブタスク一覧",
+    "onboardingStep2": "サブタスクを追加してみましょう！",
     "addSubtaskGuide": "下にサブタスクを追加",
     "subtaskDescription": "サブタスクは Kanban ボードの Task Block にカードとして表示され、Block 間でドラッグして進捗を管理できます。",
     "newSubtaskPlaceholder": "新しいサブタスクを追加...",
@@ -1757,7 +1890,27 @@
     "saveChangesDesc": "保存されていない変更があります。保存せずに閉じると変更は破棄されます。",
     "discard": "保存しない",
     "deleteTitle": "この Feature を削除しますか？",
-    "deleteDesc": "この Feature とすべてのサブタスクが削除されます。この操作は元に戻せません。"
+    "deleteDesc": "この Feature とすべてのサブタスクが削除されます。この操作は元に戻せません。",
+    "aiDecompose": "AIタスク分解",
+    "aiDecomposeTitle": "AIタスク分解",
+    "aiAnalyzing": "AIがフィーチャーを分析しています...",
+    "aiError": "AI分析中にエラーが発生しました。もう一度お試しください。",
+    "aiRetry": "再試行",
+    "aiNoSuggestions": "生成するタスクがありません。",
+    "aiSelectAll": "全選択",
+    "aiDeselectAll": "全解除",
+    "aiSelectedCount": "{{count}}件選択済み",
+    "aiAlreadyExists": "既存",
+    "aiApply": "適用",
+    "aiApplying": "適用中...",
+    "aiApplySuccess": "{{tasks}}件のタスクと{{checklists}}件のチェックリストが作成されました。",
+    "aiApplyDone": "完了",
+    "aiConfirmTitle": "AIタスク提案",
+    "aiConfirmDesc": "以下のフィーチャー情報をもとに、AIがサブタスクを提案します。",
+    "aiConfirmFeatureTitle": "タイトル",
+    "aiConfirmFeatureDesc": "説明",
+    "aiConfirmNoDesc": "説明がありません。説明を追加すると、より正確な提案を受けられます。",
+    "aiConfirmStart": "提案を取得"
   },
   "weeklySchedule": {
     "day": "日",
@@ -2394,6 +2547,113 @@
       "monthly_usage": "月間使用",
       "purchased_remaining": "追加購入残り",
       "total_remaining": "総残り"
+    }
+  },
+  "personal": {
+    "tabs": {
+      "overview": "ホーム",
+      "todo": "やること",
+      "schedule": "スケジュール",
+      "calendar": "カレンダー",
+      "diary": "AIダイアリー"
+    },
+    "overview": {
+      "noEvents": "今日のイベントはありません",
+      "addSchedule": "スケジュールを追加",
+      "noDeadlines": "予定されている締め切りはありません",
+      "addDeadline": "タスクを追加"
+    },
+    "calendar": {
+      "task": "タスク",
+      "event": "カレンダー",
+      "today": "今日",
+      "addEvent": "カレンダーを追加",
+      "tasksCount": "{{count}}件のタスク",
+      "eventsCount": "{{count}}件のカレンダー",
+      "taskDeadline": "タスク期限",
+      "overdue": "期限切れ",
+      "recurring": "繰り返し",
+      "noItems": "この日のアイテムはありません",
+      "newEvent": "新規カレンダー",
+      "date": "日付",
+      "title": "タイトル",
+      "eventTitle": "カレンダータイトル",
+      "description": "説明",
+      "optionalDesc": "オプションの説明",
+      "allDay": "終日",
+      "start": "開始",
+      "end": "終了",
+      "color": "色",
+      "thisWeek": "今週",
+      "holidayCountry": "祝日の国",
+      "holidayOff": "オフ",
+      "tapToView": "日付をタップしてイベントを確認・追加",
+      "addSchedule": "カレンダーを追加",
+      "dateRange": "期間"
+    },
+    "habit": {
+      "habits": "習慣",
+      "newHabit": "新しい習慣",
+      "editHabit": "習慣を編集",
+      "today": "今日",
+      "activeStreaks": "連続記録",
+      "combinedDays": "合計日数",
+      "bestStreak": "最高記録",
+      "days": "日",
+      "totalHabits": "全習慣",
+      "tracking": "トラッキング中",
+      "todaysProgress": "今日の進捗",
+      "allHabits": "すべての習慣",
+      "startBuilding": "習慣を始めましょう",
+      "startBuildingDesc": "日々のルーティンを記録し、連続記録を積み上げ、目標を継続しましょう。",
+      "addFirstHabit": "最初の習慣を追加",
+      "bestLabel": "最高: {{days}}日",
+      "edit": "編集",
+      "delete": "削除",
+      "habitName": "習慣名",
+      "habitPlaceholder": "例: 朝のランニング、10ページ読書",
+      "frequency": "頻度",
+      "everyDay": "毎日",
+      "weekdays": "平日",
+      "weekends": "週末",
+      "custom": "カスタム",
+      "repeatOn": "繰り返し曜日",
+      "selectDay": "1日以上選択してください",
+      "moreOptions": "詳細オプション",
+      "lessOptions": "閉じる",
+      "icon": "アイコン",
+      "color": "色",
+      "goalType": "目標タイプ",
+      "checkOff": "チェック",
+      "count": "回数",
+      "target": "目標",
+      "unit": "単位",
+      "unitPlaceholder": "例: 杯、ページ、km",
+      "description": "説明",
+      "descPlaceholder": "この習慣が大切な理由",
+      "addHabit": "習慣を追加",
+      "saveChanges": "保存",
+      "deleteHabit": "習慣を削除",
+      "deleteWarning": "この操作は取り消せません",
+      "deleteConfirm": "「{{name}}」を削除しますか？すべての連続記録と履歴が完全に削除されます。",
+      "importance": "重要度",
+      "important": "重要",
+      "normal": "普通",
+      "cancel": "キャンセル",
+      "checkInTitle": "習慣完了",
+      "checkInSubtitle": "今日の習慣を完了しますか？",
+      "checkInConfirm": "「{{name}}」を完了にしますか？",
+      "checkInStreak": "完了すると{{count}}日連続達成！",
+      "checkInComplete": "完了"
+    },
+    "diary": {
+      "completionSuggestion": "今日の話はたくさんできましたね。日記にまとめましょうか？ ✨",
+      "continueChat": "もう少し話す"
+    },
+    "schedule": {
+      "overlapWarning": "{{count}}件のイベントと時間が重複しています",
+      "nextDay": "翌日",
+      "prevDay": "前日から"
     }
   }
 }

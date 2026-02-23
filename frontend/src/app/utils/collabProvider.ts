@@ -28,8 +28,11 @@ export class CollabProvider {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private shouldConnect = true;
   private autoSaveTimer: ReturnType<typeof setInterval> | null = null;
+  private reconnectAttempt = 0;
 
-  private static readonly RECONNECT_DELAY = 3000;
+  private static readonly RECONNECT_BASE_DELAY = 1000;
+  private static readonly RECONNECT_MAX_DELAY = 30_000;
+  private static readonly RECONNECT_JITTER_MAX = 1000;
   private static readonly AUTO_SAVE_INTERVAL = 30_000;
 
   constructor(noteId: string, doc: Y.Doc, user: { name: string; color: string }) {
@@ -62,6 +65,7 @@ export class CollabProvider {
     this.ws.binaryType = 'arraybuffer';
 
     this.ws.onopen = () => {
+      this.reconnectAttempt = 0;
       this.updateStatus('connected');
       this.startAutoSave();
       // Broadcast local awareness so others know we joined
@@ -165,12 +169,23 @@ export class CollabProvider {
     this.send(MSG_AWARENESS, update);
   };
 
+  private getReconnectDelay(): number {
+    const exponential = Math.min(
+      CollabProvider.RECONNECT_BASE_DELAY * Math.pow(2, this.reconnectAttempt),
+      CollabProvider.RECONNECT_MAX_DELAY,
+    );
+    const jitter = Math.random() * CollabProvider.RECONNECT_JITTER_MAX;
+    return exponential + jitter;
+  }
+
   private scheduleReconnect(): void {
     if (this.reconnectTimer) return;
+    const delay = this.getReconnectDelay();
+    this.reconnectAttempt++;
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
       this.connect();
-    }, CollabProvider.RECONNECT_DELAY);
+    }, delay);
   }
 
   private startAutoSave(): void {
