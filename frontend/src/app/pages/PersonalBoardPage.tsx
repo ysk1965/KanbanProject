@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { CalendarDays, BookHeart, ArrowLeft, LayoutGrid, Calendar, Plus, Command, Home, Loader2, Flag, Repeat, Flame, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { PersonalSchedule } from '../components/personal/PersonalSchedule';
+import { PersonalSchedule, type TabSwipeHandle } from '../components/personal/PersonalSchedule';
 import { PersonalDiary } from '../components/personal/PersonalDiary';
 import { PersonalTaskBoard } from '../components/personal/PersonalTaskBoard';
 
@@ -103,6 +103,13 @@ export function PersonalBoardPage() {
   // 탭 전환 슬라이드 방향 (1: 오른쪽→, -1: ←왼쪽)
   const slideDirectionRef = useRef(0);
 
+  // 탭별 스와이프 네비게이션 ref
+  const scheduleRef = useRef<TabSwipeHandle>(null);
+  const calendarRef = useRef<TabSwipeHandle>(null);
+  const diaryRef = useRef<TabSwipeHandle>(null);
+  const activeTabRef = useRef(activeTab);
+  activeTabRef.current = activeTab;
+
   const changeTab = useCallback((newTab: TabType) => {
     setActiveTab(prev => {
       if (prev === newTab) return prev;
@@ -127,25 +134,38 @@ export function PersonalBoardPage() {
 
     if (Math.abs(deltaX) < 50 || Math.abs(deltaX) < Math.abs(deltaY)) return;
 
-    // 가로 스크롤 가능한 컨테이너 내부에서 시작된 스와이프는 탭 전환 무시
+    // 가로 스크롤 가능한 컨테이너 내부에서 시작된 스와이프는 무시
     let el = target as HTMLElement | null;
     while (el && el !== e.currentTarget) {
       if (el.scrollWidth > el.clientWidth + 1) return;
       el = el.parentElement;
     }
 
-    setActiveTab(prev => {
-      const idx = TAB_ORDER.indexOf(prev);
-      if (deltaX < 0 && idx < TAB_ORDER.length - 1) {
-        slideDirectionRef.current = 1;
-        return TAB_ORDER[idx + 1];
-      }
-      if (deltaX > 0 && idx > 0) {
-        slideDirectionRef.current = -1;
-        return TAB_ORDER[idx - 1];
-      }
-      return prev;
-    });
+    const currentTab = activeTabRef.current;
+
+    // 홈/할일: 스와이프 없음
+    if (currentTab === 'overview' || currentTab === 'tasks') return;
+
+    // 일정: 전날/다음날 또는 전주/다음주
+    if (currentTab === 'schedule') {
+      if (deltaX < 0) scheduleRef.current?.swipeNext();
+      else scheduleRef.current?.swipePrev();
+      return;
+    }
+
+    // 캘린더: 이전월/다음월
+    if (currentTab === 'calendar') {
+      if (deltaX < 0) calendarRef.current?.swipeNext();
+      else calendarRef.current?.swipePrev();
+      return;
+    }
+
+    // AI다이어리: 전날/다음날
+    if (currentTab === 'diary') {
+      if (deltaX < 0) diaryRef.current?.swipeNext();
+      else diaryRef.current?.swipePrev();
+      return;
+    }
   }, []);
 
   if (isLoading) {
@@ -231,7 +251,7 @@ export function PersonalBoardPage() {
             className="flex-1 overflow-hidden flex flex-col"
           >
             {activeTab === 'overview' && (
-              <PersonalOverview onNavigateTab={changeTab} />
+              <PersonalOverview onNavigateTab={changeTab} onRefreshTasks={refresh} />
             )}
             {activeTab === 'tasks' && (
               <PersonalTaskBoard
@@ -240,9 +260,9 @@ export function PersonalBoardPage() {
                 onOptimisticUpdate={optimisticUpdate}
               />
             )}
-            {activeTab === 'schedule' && <PersonalSchedule />}
-            {activeTab === 'calendar' && <PersonalCalendar />}
-            {activeTab === 'diary' && <PersonalDiary />}
+            {activeTab === 'schedule' && <PersonalSchedule ref={scheduleRef} />}
+            {activeTab === 'calendar' && <PersonalCalendar ref={calendarRef} />}
+            {activeTab === 'diary' && <PersonalDiary ref={diaryRef} />}
           </motion.div>
         </AnimatePresence>
       </main>

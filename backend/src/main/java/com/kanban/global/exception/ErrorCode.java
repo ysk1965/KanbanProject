@@ -218,7 +218,13 @@ PERSONAL_TAG_NOT_FOUND(HttpStatus.NOT_FOUND, "PT003", "태그를 찾을 수 없�
     DIARY_VOICE_FILE_EMPTY(HttpStatus.BAD_REQUEST, "DV001", "음성 파일이 비어있습니다"),
     DIARY_VOICE_FILE_TOO_LARGE(HttpStatus.BAD_REQUEST, "DV002", "음성 파일이 25MB를 초과합니다"),
     DIARY_VOICE_STT_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "DV003", "음성 인식에 실패했습니다"),
-    DIARY_VOICE_TTS_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "DV004", "음성 생성에 실패했습니다");
+    DIARY_VOICE_TTS_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "DV004", "음성 생성에 실패했습니다"),
+
+    // Custom Icon
+    CUSTOMICON_REFERENCE_NOT_FOUND(HttpStatus.NOT_FOUND, "CI001", "레퍼런스 이미지를 찾을 수 없습니다"),
+    CUSTOMICON_GENERATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "CI002", "아이콘 생성에 실패했습니다"),
+    CUSTOMICON_IMAGE_PROCESSING_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "CI003", "이미지 처리에 실패했습니다"),
+    CUSTOMICON_STYLE_ANALYSIS_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "CI004", "스타일 분석에 실패했습니다");
 
     private final HttpStatus status;
     private final String code;

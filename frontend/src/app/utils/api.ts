@@ -288,8 +288,11 @@ class ApiClient {
     }, skipAuth);
   }
 
-  async delete<T>(endpoint: string, skipAuth: boolean = false): Promise<T> {
-    return this.request<T>(endpoint, { method: 'DELETE' }, skipAuth);
+  async delete<T>(endpoint: string, data?: unknown, skipAuth: boolean = false): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'DELETE',
+      body: data ? JSON.stringify(data) : undefined,
+    }, skipAuth);
   }
 
   async patch<T>(endpoint: string, data?: unknown, skipAuth: boolean = false): Promise<T> {
@@ -1082,8 +1085,8 @@ export const featureAPI = {
     return apiClient.put<FeatureResponse>(`/boards/${boardId}/features/${featureId}`, data);
   },
 
-  deleteFeature: async (boardId: string, featureId: string) => {
-    return apiClient.delete<{ message: string }>(`/boards/${boardId}/features/${featureId}`);
+  deleteFeature: async (boardId: string, featureId: string, data?: { task_migrations?: Array<{ task_id: string; target_feature_id: string }> }) => {
+    return apiClient.delete<{ message: string }>(`/boards/${boardId}/features/${featureId}`, data);
   },
 
   reorderFeatures: async (boardId: string, featureIds: string[]) => {
@@ -4342,11 +4345,51 @@ export const personalHabitAPI = {
   },
 };
 
+// ─── Custom Icon API ───
+
+export const customIconAPI = {
+  uploadReference: async (file: File): Promise<{ reference_id: string; url: string }> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await authenticatedFetch(`${API_BASE_URL}/customicon/upload-reference`, {
+      method: 'POST',
+      body: formData,
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ message: 'Upload failed' }));
+      throw err;
+    }
+    return response.json();
+  },
+  analyzeStyle: async (referenceId: string): Promise<{
+    style: string; stroke_weight: string; corner_radius: string;
+    fill: string; detail: string; padding_ratio: number;
+  }> => {
+    return apiClient.post('/customicon/analyze-style', { reference_id: referenceId });
+  },
+  generate: async (request: {
+    reference_id: string; icon_names: string[]; layout: string;
+    style_options: {
+      type: string; stroke_weight: string; corner_radius: string;
+      padding_ratio: number; background: string; show_grid_lines: boolean;
+    };
+  }): Promise<{
+    job_id: string; sprite_sheet_url: string;
+    icons: Array<{ name: string; index: number; url: string; size: string }>;
+  }> => {
+    return apiClient.post('/customicon/generate', request);
+  },
+};
+
 // ─── Personal Dashboard API (v9.0) ───
 
 export const personalDashboardAPI = {
   getToday: async (date?: string): Promise<import('../types').PersonalDashboardToday> => {
     const params = date ? `?date=${date}` : '';
     return apiClient.get(`/personal/dashboard/today${params}`);
+  },
+  getOverview: async (date?: string): Promise<import('../types').PersonalOverviewData> => {
+    const params = date ? `?date=${date}` : '';
+    return apiClient.get(`/personal/dashboard/overview${params}`);
   },
 };

@@ -1,6 +1,8 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import { isNative } from '../utils/platform';
 
 const STORAGE_KEY = 'bridge_holiday_country';
+const SOURCE_STORAGE_KEY = 'bridge_holiday_source';
 
 export interface HolidayInfo {
   date: string;
@@ -13,6 +15,8 @@ export interface CountryOption {
   flag: string;
   label: string;
 }
+
+export type HolidaySource = 'device' | 'library' | 'off';
 
 export const COUNTRY_LIST: CountryOption[] = [
   { code: 'KR', flag: '🇰🇷', label: '한국' },
@@ -37,7 +41,7 @@ export const COUNTRY_LIST: CountryOption[] = [
   { code: 'IT', flag: '🇮🇹', label: 'Italia' },
 ];
 
-const LOCALE_TO_COUNTRY: Record<string, string> = {
+export const LOCALE_TO_COUNTRY: Record<string, string> = {
   ko: 'KR',
   en: 'US',
   ja: 'JP',
@@ -54,6 +58,15 @@ const LOCALE_TO_COUNTRY: Record<string, string> = {
 let HolidaysClass: any = null;
 const loadHolidays = () => import('date-holidays').then((m) => { HolidaysClass = m.default; });
 
+function getInitialSource(): HolidaySource {
+  try {
+    const stored = localStorage.getItem(SOURCE_STORAGE_KEY);
+    if (stored === 'device' || stored === 'library' || stored === 'off') return stored;
+  } catch { /* ignore */ }
+  // Native apps default to 'device', web defaults to 'library'
+  return isNative() ? 'device' : 'library';
+}
+
 export function useHolidays(locale: string, year: number) {
   const defaultCountry = LOCALE_TO_COUNTRY[locale] || 'US';
 
@@ -65,6 +78,7 @@ export function useHolidays(locale: string, year: number) {
     }
   });
 
+  const [holidaySource, setHolidaySource] = useState<HolidaySource>(getInitialSource);
   const [holidayMap, setHolidayMap] = useState<Map<string, HolidayInfo[]>>(new Map());
 
   const changeCountry = useCallback((code: string) => {
@@ -78,53 +92,116 @@ export function useHolidays(locale: string, year: number) {
     } catch { /* ignore */ }
   }, []);
 
+  const changeHolidaySource = useCallback((source: HolidaySource) => {
+    setHolidaySource(source);
+    try {
+      localStorage.setItem(SOURCE_STORAGE_KEY, source);
+    } catch { /* ignore */ }
+  }, []);
+
+  // Device calendar holidays (native only)
   useEffect(() => {
-    if (!country) {
-      setHolidayMap(new Map());
-      return;
-    }
+    if (holidaySource !== 'device' || !isNative()) return;
 
     let cancelled = false;
 
-    const compute = async () => {
-      if (!HolidaysClass) await loadHolidays();
-      if (cancelled) return;
-
-      const map = new Map<string, HolidayInfo[]>();
+    const fetchDevice = async () => {
       try {
-        const hd = new HolidaysClass(country);
-        const list = hd.getHolidays(year);
-        for (const h of list) {
-          if (h.type !== 'public') continue;
+        const { fetchDeviceHolidays, requestCalendarPermission } = await import('../utils/nativeCalendar');
 
-          // Expand multi-day holidays (e.g. 설날 P3D, 추석 P3D)
-          // Use UTC methods to avoid timezone shift issues
-          const start = h.start ? new Date(h.start) : null;
-          const end = h.end ? new Date(h.end) : null;
+        // Request permission first
+        const perm = await requestCalendarPermission();
+        if (cancelled) return;
 
-          if (start && end && end.getTime() - start.getTime() > 86400000) {
-            const cursor = new Date(start);
-            while (cursor < end) {
-              const dk = `${cursor.getUTCFullYear()}-${String(cursor.getUTCMonth() + 1).padStart(2, '0')}-${String(cursor.getUTCDate()).padStart(2, '0')}`;
-              if (!map.has(dk)) map.set(dk, []);
-              map.get(dk)!.push({ date: dk, name: h.name, type: h.type });
-              cursor.setUTCDate(cursor.getUTCDate() + 1);
-            }
-          } else {
-            // Single-day holiday
-            const dateStr = h.date.slice(0, 10);
-            if (!map.has(dateStr)) map.set(dateStr, []);
-            map.get(dateStr)!.push({ date: dateStr, name: h.name, type: h.type });
-          }
+        if (perm !== 'granted') {
+          console.log('[useHolidays] Calendar permission not granted, falling back to library');
+          // Fallback to library without changing the stored preference
+          await computeLibraryHolidays(country, year, cancelled, setHolidayMap);
+          return;
         }
-      } catch { /* unsupported country */ }
 
-      if (!cancelled) setHolidayMap(map);
+        const deviceMap = await fetchDeviceHolidays(year);
+        if (cancelled) return;
+
+        if (deviceMap && deviceMap.size > 0) {
+          setHolidayMap(deviceMap);
+        } else {
+          // No holiday calendar found on device, fallback to library
+          console.log('[useHolidays] No device holidays found, falling back to library');
+          await computeLibraryHolidays(country, year, cancelled, setHolidayMap);
+        }
+      } catch (e) {
+        console.warn('[useHolidays] Device calendar error, falling back to library:', e);
+        if (!cancelled) {
+          await computeLibraryHolidays(country, year, cancelled, setHolidayMap);
+        }
+      }
     };
 
-    compute();
+    fetchDevice();
     return () => { cancelled = true; };
-  }, [country, year]);
+  }, [holidaySource, year, country]);
 
-  return { country, changeCountry, holidayMap, countries: COUNTRY_LIST };
+  // Library holidays (date-holidays)
+  useEffect(() => {
+    if (holidaySource !== 'library') return;
+
+    let cancelled = false;
+    computeLibraryHolidays(country, year, cancelled, setHolidayMap).then(() => {});
+    return () => { cancelled = true; };
+  }, [holidaySource, country, year]);
+
+  // Off mode
+  useEffect(() => {
+    if (holidaySource !== 'off') return;
+    setHolidayMap(new Map());
+  }, [holidaySource]);
+
+  return { country, changeCountry, holidayMap, countries: COUNTRY_LIST, holidaySource, changeHolidaySource };
+}
+
+async function computeLibraryHolidays(
+  country: string,
+  year: number,
+  cancelled: boolean,
+  setHolidayMap: (m: Map<string, HolidayInfo[]>) => void,
+) {
+  if (!country) {
+    if (!cancelled) setHolidayMap(new Map());
+    return;
+  }
+
+  if (!HolidaysClass) await loadHolidays();
+  if (cancelled) return;
+
+  const map = new Map<string, HolidayInfo[]>();
+  try {
+    const hd = new HolidaysClass(country);
+    const list = hd.getHolidays(year);
+    for (const h of list) {
+      if (h.type !== 'public') continue;
+
+      // Expand multi-day holidays (e.g. 설날 P3D, 추석 P3D)
+      // Use UTC methods to avoid timezone shift issues
+      const start = h.start ? new Date(h.start) : null;
+      const end = h.end ? new Date(h.end) : null;
+
+      if (start && end && end.getTime() - start.getTime() > 86400000) {
+        const cursor = new Date(start);
+        while (cursor < end) {
+          const dk = `${cursor.getUTCFullYear()}-${String(cursor.getUTCMonth() + 1).padStart(2, '0')}-${String(cursor.getUTCDate()).padStart(2, '0')}`;
+          if (!map.has(dk)) map.set(dk, []);
+          map.get(dk)!.push({ date: dk, name: h.name, type: h.type });
+          cursor.setUTCDate(cursor.getUTCDate() + 1);
+        }
+      } else {
+        // Single-day holiday
+        const dateStr = h.date.slice(0, 10);
+        if (!map.has(dateStr)) map.set(dateStr, []);
+        map.get(dateStr)!.push({ date: dateStr, name: h.name, type: h.type });
+      }
+    }
+  } catch { /* unsupported country */ }
+
+  if (!cancelled) setHolidayMap(map);
 }

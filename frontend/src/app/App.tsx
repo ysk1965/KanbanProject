@@ -26,6 +26,7 @@ import { AnnouncementsPage } from './pages/AnnouncementsPage';
 import { SharedNotePage } from './pages/SharedNotePage';
 import BibleTranscriptionPage from './pages/BibleTranscriptionPage';
 import RoulettePage from './pages/RoulettePage';
+import { CustomIconPage } from './pages/CustomIconPage';
 import { AnnouncementDisplay } from './components/AnnouncementDisplay';
 import { MaintenancePage } from './components/MaintenancePage';
 import { boardService, inviteLinkService, systemService } from './utils/services';
@@ -438,6 +439,16 @@ function AppRoutes() {
 
       {/* 커피 룰렛 */}
       <Route path="/roulette" element={<RoulettePage />} />
+
+      {/* 커스텀 아이콘 생성기 */}
+      <Route
+        path="/customicon"
+        element={
+          <PrivateRoute>
+            <CustomIconPage />
+          </PrivateRoute>
+        }
+      />
 
       {/* 설정 */}
       <Route

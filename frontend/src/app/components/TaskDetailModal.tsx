@@ -24,6 +24,7 @@ import { TaskAIChecklistModal } from './TaskAIChecklistModal';
 import { CommentPanel } from './CommentPanel';
 import { TagPickerPopover } from './TagPickerPopover';
 import { getAssigneeClasses, getInitials } from '../utils/assigneeColor';
+import { isDomainAIHidden } from '../utils/domain';
 import { Progress } from './ui/progress';
 import { DateRange } from 'react-day-picker';
 import { format } from 'date-fns';
@@ -767,7 +768,7 @@ export function TaskDetailModal({
               <div className="flex items-center gap-2">
                 <CheckSquare className="h-5 w-5" style={{ color: task.feature_color || '#6366F1' }} />
                 <Label className="text-base font-semibold text-foreground">CheckList</Label>
-                {canEdit && boardId && (
+                {canEdit && boardId && !isDomainAIHidden && (
                   <button
                     onClick={() => setShowAIConfirm(true)}
                     className="ml-1 flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold text-white bg-gradient-to-r from-bridge-secondary to-bridge-accent rounded-md hover:shadow-[0_0_20px_rgba(45,212,191,0.3)] transition-all"

@@ -11,6 +11,9 @@ import {
   Clock,
   Flag,
   User,
+  Plus,
+  Pencil,
+  Trash2,
 } from 'lucide-react';
 import type { Feature, Task, Milestone, MilestoneFeatureInfo } from '../types';
 import { milestoneService } from '../utils/services';
@@ -27,6 +30,9 @@ interface MilestoneViewProps {
   milestones: Milestone[];
   onRefresh?: () => void;
   onFeatureClick?: (feature: Feature) => void;
+  onCreateMilestone?: () => void;
+  onEditMilestone?: (milestone: Milestone) => void;
+  onDeleteMilestone?: (milestoneId: string) => void;
 }
 
 interface MilestoneDetailCache {
@@ -242,6 +248,9 @@ export function MilestoneView({
   milestones,
   onRefresh,
   onFeatureClick,
+  onCreateMilestone,
+  onEditMilestone,
+  onDeleteMilestone,
 }: MilestoneViewProps) {
   const { t } = useTranslation();
 
@@ -323,11 +332,20 @@ export function MilestoneView({
         <h3 className="text-lg font-bold text-white mb-2">
           {t('milestone.onboardingTitle', { defaultValue: 'Manage your project with milestones' })}
         </h3>
-        <p className="text-sm text-slate-400 text-center max-w-md">
+        <p className="text-sm text-slate-400 text-center max-w-md mb-6">
           {t('milestone.onboardingDesc', {
             defaultValue: 'Group features into milestones to track schedules and progress at a glance.',
           })}
         </p>
+        {onCreateMilestone && (
+          <button
+            onClick={onCreateMilestone}
+            className="flex items-center gap-2 px-5 py-2.5 bg-bridge-accent text-white rounded-xl font-bold text-sm hover:bg-bridge-accent/90 hover:shadow-[0_0_30px_rgba(99,102,241,0.3)] transition-all"
+          >
+            <Plus className="h-4 w-4" />
+            {t('milestone.createFirst', { defaultValue: '마일스톤 만들기' })}
+          </button>
+        )}
       </div>
     );
   }
@@ -336,8 +354,37 @@ export function MilestoneView({
   // Render
   // ========================================
 
+  const handleDeleteClick = (e: React.MouseEvent, milestoneId: string) => {
+    e.stopPropagation();
+    if (onDeleteMilestone && confirm(t('milestone.deleteConfirm', { defaultValue: '이 마일스톤을 삭제하시겠습니까?' }))) {
+      onDeleteMilestone(milestoneId);
+    }
+  };
+
+  const handleEditClick = (e: React.MouseEvent, milestone: Milestone) => {
+    e.stopPropagation();
+    onEditMilestone?.(milestone);
+  };
+
   return (
     <div className="h-full overflow-y-auto custom-scrollbar p-4 md:p-6 space-y-4">
+      {/* Header with create button */}
+      {onCreateMilestone && (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm text-slate-400">
+            <Flag className="h-4 w-4" />
+            <span>{milestones.length} {t('milestone.count', { defaultValue: '개 마일스톤' })}</span>
+          </div>
+          <button
+            onClick={onCreateMilestone}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-bridge-accent rounded-lg hover:bg-bridge-accent/90 hover:shadow-[0_0_20px_rgba(99,102,241,0.2)] transition-all"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            {t('milestone.create', { defaultValue: '마일스톤 추가' })}
+          </button>
+        </div>
+      )}
+
       {sortedMilestones.map((milestone) => {
         const isExpanded = expandedMilestones.has(milestone.id);
         const cached = detailCache[milestone.id];
@@ -353,7 +400,7 @@ export function MilestoneView({
             {/* Milestone Header */}
             <button
               onClick={() => toggleMilestone(milestone.id)}
-              className="w-full flex items-center gap-4 px-5 py-4 hover:bg-white/[0.02] transition-colors text-left"
+              className="w-full flex items-center gap-4 px-5 py-4 hover:bg-white/[0.02] transition-colors text-left group/row"
             >
               {/* Expand icon */}
               <div className="flex-shrink-0">
@@ -399,6 +446,36 @@ export function MilestoneView({
                   {Math.round(milestone.progress_percentage)}%
                 </span>
               </div>
+
+              {/* Edit/Delete buttons */}
+              {(onEditMilestone || onDeleteMilestone) && (
+                <div className="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover/row:opacity-100 transition-opacity">
+                  {onEditMilestone && (
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) => handleEditClick(e, milestone)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') handleEditClick(e as unknown as React.MouseEvent, milestone); }}
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                      title={t('common.edit', { defaultValue: '수정' })}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </div>
+                  )}
+                  {onDeleteMilestone && (
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) => handleDeleteClick(e, milestone.id)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') handleDeleteClick(e as unknown as React.MouseEvent, milestone.id); }}
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                      title={t('common.delete', { defaultValue: '삭제' })}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </div>
+                  )}
+                </div>
+              )}
             </button>
 
             {/* Expanded: Feature Cards (horizontal scroll) */}

@@ -38,6 +38,10 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.kanban.domain.task.Task;
+
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -197,7 +201,7 @@ public class FeatureService {
 
     @Transactional
     @CacheEvict(value = "features", key = "#boardId")
-    public void deleteFeature(String boardId, String featureId, String userId) {
+    public void deleteFeature(String boardId, String featureId, String userId, FeatureRequest.Delete request) {
         boardService.checkMemberOrAbove(boardId, userId);
 
         Feature feature = featureRepository.findById(featureId)
@@ -214,14 +218,47 @@ public class FeatureService {
         activityService.logActivity(feature.getBoard(), deleter, ActivityAction.FEATURE_DELETED, TargetType.FEATURE, featureId,
                 Map.of("featureTitle", featureTitle));
 
+        // 태스크 이관 처리 (요청이 있는 경우)
+        List<Map<String, String>> migratedTasks = new ArrayList<>();
+        if (request != null && request.getTaskMigrations() != null && !request.getTaskMigrations().isEmpty()) {
+            for (FeatureRequest.Delete.TaskMigration migration : request.getTaskMigrations()) {
+                Task task = taskRepository.findById(migration.getTaskId())
+                        .orElseThrow(() -> new BusinessException(ErrorCode.TASK_NOT_FOUND));
+
+                if (!task.getFeature().getId().equals(featureId)) {
+                    throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
+                }
+
+                Feature targetFeature = featureRepository.findById(migration.getTargetFeatureId())
+                        .orElseThrow(() -> new BusinessException(ErrorCode.FEATURE_NOT_FOUND));
+
+                if (!targetFeature.getBoard().getId().equals(boardId)) {
+                    throw new BusinessException(ErrorCode.FEATURE_NOT_FOUND);
+                }
+
+                if (targetFeature.getId().equals(featureId)) {
+                    throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
+                }
+
+                task.moveToFeature(targetFeature);
+                migratedTasks.add(Map.of(
+                        "task_id", task.getId(),
+                        "target_feature_id", targetFeature.getId()
+                ));
+            }
+            // flush로 이관 변경사항을 DB에 반영 (이후 bulk delete가 이관된 태스크를 건드리지 않도록)
+            taskRepository.flush();
+        }
+
         // 관련 데이터 삭제 (FK 의존성 순서: leaf → parent)
+        // 이관된 태스크는 feature_id가 변경되었으므로 deleteByFeatureId에서 제외됨
         // 1) 마일스톤-피처 연결 삭제
         milestoneFeatureRepository.deleteByFeatureId(featureId);
 
         // 2) 피처 태그 연결 삭제
         featureTagRepository.deleteByFeatureId(featureId);
 
-        // 3) Task 하위 데이터 벌크 삭제 (feature의 모든 task에 대해)
+        // 3) 남은 Task 하위 데이터 벌크 삭제
         // 3-1) 알림 (task_id는 VARCHAR 참조)
         List<String> taskIds = taskRepository.findByFeatureIdOrderByPositionAsc(featureId)
                 .stream().map(t -> t.getId()).toList();
@@ -248,25 +285,31 @@ public class FeatureService {
         commentAttachmentRepository.deleteByFeatureId(featureId);
         commentRepository.deleteByFeatureId(featureId);
 
-        // 4) Task 삭제
+        // 4) 남은 Task 삭제
         taskRepository.deleteByFeatureId(featureId);
 
-        // 5) Feature 삭제
+        // 5) Feature 삭제 전 position 조정 (삭제 후 조회 시 TransientObjectException 방지)
         int deletedPosition = feature.getPosition();
-        featureRepository.delete(feature);
-
-        // 삭제된 Feature 뒤의 Feature들 position 감소
         List<Feature> featuresToShift = featureRepository.findByBoardIdOrderByPositionAsc(boardId).stream()
-                .filter(f -> f.getPosition() > deletedPosition)
+                .filter(f -> !f.getId().equals(featureId) && f.getPosition() > deletedPosition)
                 .toList();
 
         for (Feature f : featuresToShift) {
             f.updatePosition(f.getPosition() - 1);
         }
 
-        log.info("Feature deleted: {} by user: {}", featureId, userId);
+        // Feature 삭제
+        featureRepository.delete(feature);
 
-        webSocketEventService.sendBoardEvent(boardId, BoardEventType.FEATURE_DELETED, userId, deleter.getName(), Map.of("id", featureId));
+        log.info("Feature deleted: {} by user: {} (migrated {} tasks)", featureId, userId, migratedTasks.size());
+
+        // WebSocket 이벤트 (이관 정보 포함)
+        Map<String, Object> eventData = new HashMap<>();
+        eventData.put("id", featureId);
+        if (!migratedTasks.isEmpty()) {
+            eventData.put("migrated_tasks", migratedTasks);
+        }
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.FEATURE_DELETED, userId, deleter.getName(), eventData);
     }
 
     @Transactional

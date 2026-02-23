@@ -446,9 +446,10 @@ export const featureService = {
     }
   },
 
-  deleteFeature: async (boardId: string, featureId: string): Promise<void> => {
+  deleteFeature: async (boardId: string, featureId: string, taskMigrations?: Array<{ task_id: string; target_feature_id: string }>): Promise<void> => {
     try {
-      await featureAPI.deleteFeature(boardId, featureId);
+      const data = taskMigrations && taskMigrations.length > 0 ? { task_migrations: taskMigrations } : undefined;
+      await featureAPI.deleteFeature(boardId, featureId, data);
     } catch (error) {
       console.warn('API failed, using mock data for delete feature', error);
       if (USE_MOCK_ON_ERROR) {

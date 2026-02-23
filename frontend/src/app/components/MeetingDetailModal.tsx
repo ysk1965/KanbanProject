@@ -5,6 +5,7 @@ import {
   Square as SquareIcon, FileText, CheckSquare,
   ChevronRight, ArrowRight, Star, BookOpen,
 } from 'lucide-react';
+import { isDomainAIHidden } from '../utils/domain';
 import {
   meetingAPI, featureAPI, taskAPI,
   MeetingDetail, AISuggestionResponse, AIFeatureSuggestion,
@@ -358,7 +359,7 @@ export function MeetingDetailPanel({
 
               {/* Actions */}
               <div className="flex items-center gap-2 pt-1">
-                {(editingMemo.trim() || detail.memo?.trim() ||
+                {!isDomainAIHidden && (editingMemo.trim() || detail.memo?.trim() ||
                   editingTranscript.trim() || detail.transcript?.trim()) && (
                   <div className="flex items-center gap-2">
                     <button
@@ -405,7 +406,7 @@ export function MeetingDetailPanel({
               </div>
 
               {/* AI Inline Section */}
-              {aiVisible && (
+              {!isDomainAIHidden && aiVisible && (
                 aiCollapsed && !aiLoading ? (
                   <div className="mt-4 flex items-center justify-between bg-white/[0.02] rounded-xl border border-foreground/5 px-4 py-3">
                     <div className="flex items-center gap-2">

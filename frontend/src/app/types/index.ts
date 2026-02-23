@@ -270,6 +270,13 @@ export interface Feature {
   completed_at?: string | null;
 }
 
+export interface FeatureDeleteRequest {
+  task_migrations?: Array<{
+    task_id: string;
+    target_feature_id: string;
+  }>;
+}
+
 // ========================================
 // Task 타입
 // ========================================
@@ -1950,6 +1957,30 @@ export interface DiaryTodayInfo {
   status: DiaryStatus;
   title?: string | null;
   mood?: string | null;
+}
+
+export interface DiaryOverviewInfo {
+  id: string;
+  status: DiaryStatus;
+  title?: string | null;
+  mood?: string | null;
+  last_message_content?: string | null;
+  last_message_role?: string | null;
+}
+
+export interface PersonalOverviewData {
+  all_tasks: PersonalTask[];
+  all_habits: PersonalHabit[];
+  habits_today: HabitTodayItem[];
+  weekly_matrix: HabitWeeklyMatrix;
+  today_events: PersonalEvent[];
+  due_today_tasks: PersonalTask[];
+  in_progress_tasks: PersonalTask[];
+  task_completion_rate: number;
+  habit_completion_rate: number;
+  active_task_count: number;
+  completed_today_count: number;
+  diary_today: DiaryOverviewInfo | null;
 }
 
 export interface PersonalDashboardToday {

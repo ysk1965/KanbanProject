@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef, useLayoutEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, useLayoutEffect, forwardRef, useImperativeHandle } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { ChevronLeft, ChevronRight, Plus, Trash2, X, Loader2, Settings, RotateCw, CalendarDays, Clock, CheckCircle2, ListTodo, AlertCircle, Search, Flame, ChevronDown, ChevronUp } from 'lucide-react';
@@ -142,10 +142,15 @@ const generateTimeSlots = (startHour: number, endHour: number): string[] => {
 
 const toDateString = (d: Date): string => format(d, 'yyyy-MM-dd');
 
+export interface TabSwipeHandle {
+  swipePrev: () => void;
+  swipeNext: () => void;
+}
+
 /* ================================================================
    PersonalSchedule — Weekly time-grid view
    ================================================================ */
-export function PersonalSchedule() {
+export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSchedule(_props, ref) {
   const { t, i18n } = useTranslation();
   const { holidayMap } = useHolidays(i18n.language, new Date().getFullYear());
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -322,10 +327,26 @@ export function PersonalSchedule() {
     }
   };
 
+  // ---- Slide animation (DOM ref manipulation) ----
+  const animRef = useRef<HTMLDivElement>(null);
+  const triggerSlide = (dir: number) => {
+    const el = animRef.current;
+    if (!el) return;
+    el.style.transition = 'none';
+    el.style.transform = `translateX(${dir * 60}px)`;
+    el.style.opacity = '0';
+    el.offsetHeight; // force reflow
+    el.style.transition = 'transform 0.2s ease-out, opacity 0.2s ease-out';
+    el.style.transform = 'translateX(0)';
+    el.style.opacity = '1';
+  };
+
   // ---- Navigation ----
-  const handlePrev = () => setCurrentDate((d) => viewMode === 'day' ? subDays(d, 1) : subWeeks(d, 1));
-  const handleNext = () => setCurrentDate((d) => viewMode === 'day' ? addDays(d, 1) : addWeeks(d, 1));
+  const handlePrev = () => { triggerSlide(-1); setCurrentDate((d) => viewMode === 'day' ? subDays(d, 1) : subWeeks(d, 1)); };
+  const handleNext = () => { triggerSlide(1); setCurrentDate((d) => viewMode === 'day' ? addDays(d, 1) : addWeeks(d, 1)); };
   const handleToday = () => setCurrentDate(new Date());
+
+  useImperativeHandle(ref, () => ({ swipePrev: handlePrev, swipeNext: handleNext }));
 
   const todayStr = toDateString(new Date());
   const isTodayInView = weekDays.some((d) => toDateString(d) === todayStr);
@@ -1084,7 +1105,7 @@ export function PersonalSchedule() {
         </div>
 
         {/* ======== Time-grid ======== */}
-        <div className="flex-1 overflow-auto custom-scrollbar bg-bridge-dark">
+        <div ref={animRef} className="flex-1 overflow-auto custom-scrollbar bg-bridge-dark">
           <div className={`${viewMode === 'day' ? '' : 'min-w-[520px] md:min-w-[760px]'} bg-bridge-dark`}>
           {/* ---- Day headers (sticky) ---- */}
           <div className="flex sticky top-0 bg-bridge-obsidian/95 backdrop-blur-sm z-10 border-b border-white/[0.06]">
@@ -1667,7 +1688,7 @@ export function PersonalSchedule() {
       </button>
     </div>
   );
-}
+});
 
 /* ================================================================
    Create Event Modal

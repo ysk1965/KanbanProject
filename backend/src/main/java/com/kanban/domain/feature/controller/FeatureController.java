@@ -65,8 +65,9 @@ public class FeatureController {
     public ResponseEntity<Map<String, String>> deleteFeature(
             @PathVariable String boardId,
             @PathVariable String featureId,
-            @AuthenticationPrincipal UserPrincipal principal) {
-        featureService.deleteFeature(boardId, featureId, principal.getUserId());
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestBody(required = false) FeatureRequest.Delete request) {
+        featureService.deleteFeature(boardId, featureId, principal.getUserId(), request);
         return ResponseEntity.ok(Map.of("message", "Feature가 삭제되었습니다"));
     }
 

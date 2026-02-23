@@ -265,7 +265,7 @@ public class TaskService {
         notificationRepository.deleteByTaskId(taskId);
 
         // 2) 스케줄/데일리 (checklist_item_id FK)
-        scheduleBlockRepository.deleteByTaskId(taskId);
+        scheduleBlockRepository.unlinkByTaskId(taskId);
         dailyChecklistRepository.deleteByTaskId(taskId);
 
         // 3) 체크리스트 아이템

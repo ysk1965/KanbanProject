@@ -272,10 +272,21 @@ export function KanbanBoardPage() {
         break;
       }
       case 'FEATURE_DELETED': {
-        const { id } = data as { id: string };
+        const { id, migrated_tasks } = data as { id: string; migrated_tasks?: Array<{ task_id: string; target_feature_id: string }> };
         setFeatures(prev => prev.filter(f => f.id !== id));
         setAllFeatures(prev => prev.filter(f => f.id !== id));
-        setTasks(prev => prev.filter(t => t.feature_id !== id));
+        if (migrated_tasks && migrated_tasks.length > 0) {
+          const migrationMap = new Map(migrated_tasks.map(m => [m.task_id, m.target_feature_id]));
+          setTasks(prev => prev.map(t => {
+            const targetFeatureId = migrationMap.get(t.id);
+            if (targetFeatureId) {
+              return { ...t, feature_id: targetFeatureId };
+            }
+            return t.feature_id === id ? null : t;
+          }).filter(Boolean) as Task[]);
+        } else {
+          setTasks(prev => prev.filter(t => t.feature_id !== id));
+        }
         break;
       }
       case 'FEATURES_REORDERED': {
@@ -1031,17 +1042,40 @@ export function KanbanBoardPage() {
     }
   };
 
-  const handleDeleteFeature = async (featureId: string) => {
+  const handleDeleteFeature = async (featureId: string, taskMigrations?: Array<{ task_id: string; target_feature_id: string }>) => {
     if (!boardId) return;
 
+    // Optimistic UI: 피처 제거
     setFeatures(features.filter((f) => f.id !== featureId));
     setAllFeatures(allFeatures.filter((f) => f.id !== featureId));
-    setTasks(tasks.filter((t) => t.feature_id !== featureId));
+
+    if (taskMigrations && taskMigrations.length > 0) {
+      // 이관된 태스크: feature_id 업데이트
+      const migrationMap = new Map(taskMigrations.map(m => [m.task_id, m.target_feature_id]));
+      setTasks(prev => prev.map(t => {
+        const targetFeatureId = migrationMap.get(t.id);
+        if (targetFeatureId) {
+          const targetFeature = features.find(f => f.id === targetFeatureId);
+          return {
+            ...t,
+            feature_id: targetFeatureId,
+            feature_title: targetFeature?.title || t.feature_title,
+            feature_color: targetFeature?.color || t.feature_color,
+          };
+        }
+        // 이관 안 된 태스크는 삭제 대상
+        return t.feature_id === featureId ? null : t;
+      }).filter(Boolean) as typeof tasks);
+    } else {
+      // 전체 삭제
+      setTasks(tasks.filter((t) => t.feature_id !== featureId));
+    }
+
     setIsFeatureModalOpen(false);
     setSelectedFeature(null);
 
     try {
-      await featureService.deleteFeature(boardId, featureId);
+      await featureService.deleteFeature(boardId, featureId, taskMigrations);
     } catch (error) {
       console.error('Failed to delete feature:', error);
     }
@@ -1994,6 +2028,9 @@ export function KanbanBoardPage() {
                 tasks={tasks}
                 milestones={milestones}
                 onFeatureClick={handleFeatureClick}
+                onCreateMilestone={() => handleOpenMilestoneWithCheck()}
+                onEditMilestone={(milestone) => handleOpenMilestoneWithCheck(milestone)}
+                onDeleteMilestone={handleDeleteMilestone}
                 onRefresh={() => {
                   if (boardId) {
                     const milestoneId = kanbanSelectedMilestoneId !== 'all' ? kanbanSelectedMilestoneId : undefined;
@@ -2027,9 +2064,7 @@ export function KanbanBoardPage() {
               label={t('kanban.viewScheduleTab', '일정')}
               icon="schedule"
             />
-            {!isWhiteLabelDomain && (
-              <MobileTabButton active={viewMode === 'meeting'} onClick={() => handleViewModeChange('meeting')} label={t('kanban.viewMeeting', '회의')} icon="meeting" />
-            )}
+            <MobileTabButton active={viewMode === 'meeting'} onClick={() => handleViewModeChange('meeting')} label={t('kanban.viewMeeting', '회의')} icon="meeting" />
             {!isWhiteLabelDomain && (
               <MobileTabButton active={viewMode === 'notes'} onClick={() => handleViewModeChange('notes')} label={t('kanban.viewNotes', '노트')} icon="notes" />
             )}

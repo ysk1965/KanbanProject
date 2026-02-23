@@ -263,19 +263,17 @@ export function KanbanBoardHeader({
             <span className="hidden md:inline">{t('kanban.viewScheduleTab', '일정')}</span>
           </button>
 
-          {!isWhiteLabelDomain && (
-            <button
-              onClick={() => onViewModeChange('meeting')}
-              className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
-                viewMode === 'meeting'
-                  ? 'bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20'
-                  : 'text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover'
-              }`}
-            >
-              <Users size={14} />
-              <span className="hidden md:inline">{t('kanban.viewMeeting', '회의')}</span>
-            </button>
-          )}
+          <button
+            onClick={() => onViewModeChange('meeting')}
+            className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+              viewMode === 'meeting'
+                ? 'bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20'
+                : 'text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover'
+            }`}
+          >
+            <Users size={14} />
+            <span className="hidden md:inline">{t('kanban.viewMeeting', '회의')}</span>
+          </button>
 
           {!isWhiteLabelDomain && (
             <button

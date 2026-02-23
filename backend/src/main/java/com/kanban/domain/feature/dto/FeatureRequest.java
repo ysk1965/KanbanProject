@@ -54,4 +54,17 @@ public class FeatureRequest {
         @NotNull(message = "Feature ID 목록은 필수입니다")
         private List<String> featureIds;
     }
+
+    @Getter
+    @NoArgsConstructor
+    public static class Delete {
+        private List<TaskMigration> taskMigrations;
+
+        @Getter
+        @NoArgsConstructor
+        public static class TaskMigration {
+            private String taskId;
+            private String targetFeatureId;
+        }
+    }
 }

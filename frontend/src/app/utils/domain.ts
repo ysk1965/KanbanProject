@@ -13,3 +13,6 @@ export const isDomainBillingHidden = isWhiteLabelDomain;
 
 /** 이메일/패스워드 로그인 숨김 (구글 로그인만 허용) */
 export const isGoogleOnlyLogin = isWhiteLabelDomain;
+
+/** AI 기능 버튼 숨김 도메인 여부 */
+export const isDomainAIHidden = isWhiteLabelDomain;

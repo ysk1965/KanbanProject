@@ -17,6 +17,7 @@ import {
   Globe,
   Camera,
   CalendarDays,
+  Smartphone,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
@@ -25,7 +26,10 @@ import { userService } from '../utils/services';
 import { resolveFileUrl } from '../utils/api';
 import { getInitials, getAssigneeHex } from '../utils/assigneeColor';
 import { Switch } from './ui/switch';
-import { COUNTRY_LIST } from '../hooks/useHolidays';
+import { COUNTRY_LIST, LOCALE_TO_COUNTRY } from '../hooks/useHolidays';
+import type { HolidaySource } from '../hooks/useHolidays';
+import { isWhiteLabelDomain } from '../utils/domain';
+import { isNative } from '../utils/platform';
 
 export function SettingsPage() {
   const navigate = useNavigate();
@@ -54,10 +58,22 @@ export function SettingsPage() {
   const [passwordSuccess, setPasswordSuccess] = useState(false);
   const [passwordError, setPasswordError] = useState('');
 
-  // Holiday Country State
+  // Holiday Country State (useHolidays 훅과 동일한 기본값 로직)
   const HOLIDAY_STORAGE_KEY = 'bridge_holiday_country';
+  const SOURCE_STORAGE_KEY = 'bridge_holiday_source';
   const [holidayCountry, setHolidayCountry] = useState<string>(() => {
-    try { return localStorage.getItem(HOLIDAY_STORAGE_KEY) || ''; } catch { return ''; }
+    try {
+      const stored = localStorage.getItem(HOLIDAY_STORAGE_KEY);
+      if (stored !== null) return stored;
+      return LOCALE_TO_COUNTRY[i18n.resolvedLanguage || i18n.language] || '';
+    } catch { return ''; }
+  });
+  const [holidaySource, setHolidaySource] = useState<HolidaySource>(() => {
+    try {
+      const stored = localStorage.getItem(SOURCE_STORAGE_KEY);
+      if (stored === 'device' || stored === 'library' || stored === 'off') return stored;
+    } catch {}
+    return isNative() ? 'device' : 'library';
   });
   const handleHolidayCountryChange = useCallback((code: string) => {
     setHolidayCountry(code);
@@ -66,6 +82,18 @@ export function SettingsPage() {
       else localStorage.removeItem(HOLIDAY_STORAGE_KEY);
     } catch {}
   }, []);
+  const handleHolidaySourceChange = useCallback((source: HolidaySource) => {
+    setHolidaySource(source);
+    try {
+      localStorage.setItem(SOURCE_STORAGE_KEY, source);
+    } catch {}
+    // When switching to 'library', ensure a country is set
+    if (source === 'library' && !holidayCountry) {
+      const defaultCode = LOCALE_TO_COUNTRY[i18n.resolvedLanguage || i18n.language] || 'US';
+      setHolidayCountry(defaultCode);
+      try { localStorage.setItem(HOLIDAY_STORAGE_KEY, defaultCode); } catch {}
+    }
+  }, [holidayCountry, i18n]);
 
   // Delete Account State
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -454,7 +482,7 @@ export function SettingsPage() {
                 key={lang.code}
                 onClick={() => i18n.changeLanguage(lang.code)}
                 className={`px-3 py-2.5 rounded-xl text-sm font-medium transition-all truncate text-center min-w-0 ${
-                  i18n.language === lang.code
+                  (i18n.resolvedLanguage || i18n.language) === lang.code
                     ? 'bg-bridge-accent/15 border border-bridge-accent/50 text-bridge-accent'
                     : 'bg-foreground/5 border border-foreground/10 text-muted-foreground hover:bg-foreground/10 hover:text-foreground'
                 }`}
@@ -467,7 +495,7 @@ export function SettingsPage() {
         )}
 
         {/* Holiday Country Section */}
-        <motion.section
+        {!isWhiteLabelDomain && <motion.section
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.17 }}
@@ -482,32 +510,84 @@ export function SettingsPage() {
               <p className="text-sm text-slate-400">{t('settings.holidayCountryDesc')}</p>
             </div>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-            <button
-              onClick={() => handleHolidayCountryChange('')}
-              className={`px-3 py-2.5 rounded-xl text-sm font-medium transition-all truncate text-center min-w-0 ${
-                !holidayCountry
-                  ? 'bg-bridge-accent/15 border border-bridge-accent/50 text-bridge-accent'
-                  : 'bg-foreground/5 border border-foreground/10 text-muted-foreground hover:bg-foreground/10 hover:text-foreground'
-              }`}
-            >
-              {t('settings.holidayOff')}
-            </button>
-            {COUNTRY_LIST.map((c) => (
+
+          {/* Holiday Source Selector (native only: device / library / off) */}
+          {isNative() && (
+            <div className="grid grid-cols-3 gap-2.5 mb-4">
               <button
-                key={c.code}
-                onClick={() => handleHolidayCountryChange(c.code)}
-                className={`px-3 py-2.5 rounded-xl text-sm font-medium transition-all truncate text-center min-w-0 ${
-                  holidayCountry === c.code
+                onClick={() => handleHolidaySourceChange('device')}
+                className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                  holidaySource === 'device'
                     ? 'bg-bridge-accent/15 border border-bridge-accent/50 text-bridge-accent'
                     : 'bg-foreground/5 border border-foreground/10 text-muted-foreground hover:bg-foreground/10 hover:text-foreground'
                 }`}
               >
-                {c.flag} {c.label}
+                <Smartphone className="w-4 h-4" />
+                {t('settings.holidayDevice', { defaultValue: '디바이스 캘린더' })}
               </button>
-            ))}
-          </div>
-        </motion.section>
+              <button
+                onClick={() => handleHolidaySourceChange('library')}
+                className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                  holidaySource === 'library'
+                    ? 'bg-bridge-accent/15 border border-bridge-accent/50 text-bridge-accent'
+                    : 'bg-foreground/5 border border-foreground/10 text-muted-foreground hover:bg-foreground/10 hover:text-foreground'
+                }`}
+              >
+                <Globe className="w-4 h-4" />
+                {t('settings.holidayLibrary', { defaultValue: '국가 선택' })}
+              </button>
+              <button
+                onClick={() => handleHolidaySourceChange('off')}
+                className={`px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                  holidaySource === 'off'
+                    ? 'bg-bridge-accent/15 border border-bridge-accent/50 text-bridge-accent'
+                    : 'bg-foreground/5 border border-foreground/10 text-muted-foreground hover:bg-foreground/10 hover:text-foreground'
+                }`}
+              >
+                {t('settings.holidayOff')}
+              </button>
+            </div>
+          )}
+
+          {/* Device calendar hint */}
+          {isNative() && holidaySource === 'device' && (
+            <p className="text-xs text-slate-400 mb-2">
+              {t('settings.holidayDeviceDesc', { defaultValue: '기기에 등록된 공휴일 캘린더에서 자동으로 가져옵니다. 임시 공휴일도 반영됩니다.' })}
+            </p>
+          )}
+
+          {/* Country grid: always shown on web, shown on native only when source is 'library' */}
+          {((!isNative()) || holidaySource === 'library') && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+              {/* Off button only for web (native has it in source selector) */}
+              {!isNative() && (
+                <button
+                  onClick={() => handleHolidayCountryChange('')}
+                  className={`px-3 py-2.5 rounded-xl text-sm font-medium transition-all truncate text-center min-w-0 ${
+                    !holidayCountry
+                      ? 'bg-bridge-accent/15 border border-bridge-accent/50 text-bridge-accent'
+                      : 'bg-foreground/5 border border-foreground/10 text-muted-foreground hover:bg-foreground/10 hover:text-foreground'
+                  }`}
+                >
+                  {t('settings.holidayOff')}
+                </button>
+              )}
+              {COUNTRY_LIST.map((c) => (
+                <button
+                  key={c.code}
+                  onClick={() => handleHolidayCountryChange(c.code)}
+                  className={`px-3 py-2.5 rounded-xl text-sm font-medium transition-all truncate text-center min-w-0 ${
+                    holidayCountry === c.code
+                      ? 'bg-bridge-accent/15 border border-bridge-accent/50 text-bridge-accent'
+                      : 'bg-foreground/5 border border-foreground/10 text-muted-foreground hover:bg-foreground/10 hover:text-foreground'
+                  }`}
+                >
+                  {c.flag} {c.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </motion.section>}
 
         {/* Password Section - 구글 로그인 사용자에게는 표시하지 않음 */}
         {!isGoogleUser && (

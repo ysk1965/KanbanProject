@@ -47,6 +47,10 @@
 	<true/>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>BRIDGE needs microphone access for meeting recordings and diary voice notes.</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>BRIDGE uses your calendar to display public holidays on schedule views.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>BRIDGE uses your calendar to display public holidays on schedule views.</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
