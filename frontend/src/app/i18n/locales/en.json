@@ -2896,7 +2896,8 @@
       "voiceMicDenied": "Microphone access denied. Please allow microphone permission in your browser settings.",
       "voiceMicNotFound": "Microphone not found. Please check if a microphone is connected.",
       "completionSuggestion": "It seems like we've shared a lot today. Shall we turn this into a diary entry? ✨",
-      "continueChat": "Keep talking"
+      "continueChat": "Keep talking",
+      "dayCutoffHint": "Entries before 5 AM count as the previous day"
     },
     "schedule": {
       "title": "Schedule",
