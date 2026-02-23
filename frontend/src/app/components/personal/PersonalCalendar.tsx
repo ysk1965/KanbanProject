@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
 import { ChevronLeft, ChevronRight, Plus, X, Calendar, ListTodo, CalendarDays, CheckCircle2, Clock, RotateCw, Trash2, Pencil, AlertCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -9,6 +9,7 @@ import { personalEventService } from '../../utils/services';
 import { formatDate } from '../../utils/dateUtils';
 import { useHolidays } from '../../hooks/useHolidays';
 import type { PersonalTask, PersonalEvent } from '../../types';
+import type { TabSwipeHandle } from './PersonalSchedule';
 
 // ── helpers ──
 
@@ -56,7 +57,7 @@ interface CalendarItem {
 
 // ── component ──
 
-export function PersonalCalendar() {
+export const PersonalCalendar = forwardRef<TabSwipeHandle>(function PersonalCalendar(_props, ref) {
   const { t, i18n } = useTranslation();
   const today = useMemo(() => new Date(), []);
   const todayKey = toDateKey(today);
@@ -91,17 +92,35 @@ export function PersonalCalendar() {
   const calendarGridRef = useRef<HTMLDivElement>(null);
   const [createEndDate, setCreateEndDate] = useState('');
 
+  // ── slide animation (DOM ref manipulation) ──
+  const animRef = useRef<HTMLDivElement>(null);
+  const triggerSlide = (dir: number) => {
+    const el = animRef.current;
+    if (!el) return;
+    el.style.transition = 'none';
+    el.style.transform = `translateX(${dir * 60}px)`;
+    el.style.opacity = '0';
+    el.offsetHeight; // force reflow
+    el.style.transition = 'transform 0.2s ease-out, opacity 0.2s ease-out';
+    el.style.transform = 'translateX(0)';
+    el.style.opacity = '1';
+  };
+
   // ── navigation ──
   const goToPrevMonth = useCallback(() => {
+    triggerSlide(-1);
     setCurrentMonth((m) => { if (m === 0) { setCurrentYear((y) => y - 1); return 11; } return m - 1; });
   }, []);
   const goToNextMonth = useCallback(() => {
+    triggerSlide(1);
     setCurrentMonth((m) => { if (m === 11) { setCurrentYear((y) => y + 1); return 0; } return m + 1; });
   }, []);
   const goToToday = useCallback(() => {
     setCurrentYear(today.getFullYear());
     setCurrentMonth(today.getMonth());
   }, [today]);
+
+  useImperativeHandle(ref, () => ({ swipePrev: goToPrevMonth, swipeNext: goToNextMonth }));
 
   // ── calendar grid ──
   const calendarDays = useMemo(() => {
@@ -541,7 +560,7 @@ export function PersonalCalendar() {
       </div>
 
       {/* Calendar grid */}
-      <div className="flex-1 overflow-hidden">
+      <div ref={animRef} className="flex-1 overflow-hidden">
         <div ref={calendarGridRef} className="grid h-full" style={{ gridTemplateRows: `repeat(${weekRows.length}, 1fr)` }}>
           {weekRows.map((week, weekIdx) => (
             <div key={weekIdx} className="relative grid grid-cols-7 min-h-0 overflow-hidden">
@@ -720,7 +739,7 @@ export function PersonalCalendar() {
       />
     </div>
   );
-}
+});
 
 // ── Today's Schedule ──
 

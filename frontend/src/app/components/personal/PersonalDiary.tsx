@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { Send, BookHeart, ChevronLeft, ChevronRight, Check, Sparkles, RotateCcw, BookOpen, Pencil, RefreshCw, AlertTriangle, X, CalendarIcon, Mic, Volume2, Play, Pause, Square } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MotionModal } from '../ui/MotionModal';
@@ -21,6 +21,7 @@ import { useHolidays } from '../../hooks/useHolidays';
 import { PersonalCreditModal } from './PersonalCreditModal';
 import type { DiaryDetail, DiaryMessage, DiarySimple, AiCredits } from '../../types';
 import type { TFunction } from 'i18next';
+import type { TabSwipeHandle } from './PersonalSchedule';
 
 const MOOD_ENTRIES = [
   { emoji: '\u{1F60A}', key: 'moodHappy', value: 'happy' },
@@ -53,7 +54,7 @@ function toDateString(d: Date): string {
 // ============================
 type VoiceState = 'idle' | 'recording' | 'processing' | 'ai-speaking';
 
-export function PersonalDiary() {
+export const PersonalDiary = forwardRef<TabSwipeHandle>(function PersonalDiary(_props, ref) {
   const { t, i18n } = useTranslation();
   const MOODS = useMemo(() => getMoods(t), [t]);
   const [currentDate, setCurrentDate] = useState(toDateString(new Date()));
@@ -79,6 +80,36 @@ export function PersonalDiary() {
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // ---- Slide animation (DOM ref manipulation) ----
+  const animRef = useRef<HTMLDivElement>(null);
+  const triggerSlide = (dir: number) => {
+    const el = animRef.current;
+    if (!el) return;
+    el.style.transition = 'none';
+    el.style.transform = `translateX(${dir * 60}px)`;
+    el.style.opacity = '0';
+    el.offsetHeight; // force reflow
+    el.style.transition = 'transform 0.2s ease-out, opacity 0.2s ease-out';
+    el.style.transform = 'translateX(0)';
+    el.style.opacity = '1';
+  };
+
+  const handleSwipePrev = useCallback(() => {
+    triggerSlide(-1);
+    const d = new Date(currentDate + 'T00:00:00');
+    d.setDate(d.getDate() - 1);
+    setCurrentDate(toDateString(d));
+  }, [currentDate]);
+
+  const handleSwipeNext = useCallback(() => {
+    triggerSlide(1);
+    const d = new Date(currentDate + 'T00:00:00');
+    d.setDate(d.getDate() + 1);
+    setCurrentDate(toDateString(d));
+  }, [currentDate]);
+
+  useImperativeHandle(ref, () => ({ swipePrev: handleSwipePrev, swipeNext: handleSwipeNext }));
 
   const currentDateObj = new Date(currentDate + 'T00:00:00');
   const [calendarMonth, setCalendarMonth] = useState(startOfMonth(currentDateObj));
@@ -720,7 +751,7 @@ export function PersonalDiary() {
       </div>
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col">
+      <div ref={animRef} className="flex-1 flex flex-col">
         {/* Credit Badge */}
         {credits && (
           <div className="flex items-center justify-end px-4 py-1 border-b border-foreground/5">
@@ -1181,7 +1212,7 @@ export function PersonalDiary() {
 
     </div>
   );
-}
+});
 
 // ============================
 // Audio Playback Button

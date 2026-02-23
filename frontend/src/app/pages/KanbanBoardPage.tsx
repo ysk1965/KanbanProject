@@ -2027,9 +2027,7 @@ export function KanbanBoardPage() {
               label={t('kanban.viewScheduleTab', '일정')}
               icon="schedule"
             />
-            {!isWhiteLabelDomain && (
-              <MobileTabButton active={viewMode === 'meeting'} onClick={() => handleViewModeChange('meeting')} label={t('kanban.viewMeeting', '회의')} icon="meeting" />
-            )}
+            <MobileTabButton active={viewMode === 'meeting'} onClick={() => handleViewModeChange('meeting')} label={t('kanban.viewMeeting', '회의')} icon="meeting" />
             {!isWhiteLabelDomain && (
               <MobileTabButton active={viewMode === 'notes'} onClick={() => handleViewModeChange('notes')} label={t('kanban.viewNotes', '노트')} icon="notes" />
             )}
