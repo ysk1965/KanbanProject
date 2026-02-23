@@ -251,7 +251,7 @@ export function PersonalBoardPage() {
             className="flex-1 overflow-hidden flex flex-col"
           >
             {activeTab === 'overview' && (
-              <PersonalOverview onNavigateTab={changeTab} />
+              <PersonalOverview onNavigateTab={changeTab} onRefreshTasks={refresh} />
             )}
             {activeTab === 'tasks' && (
               <PersonalTaskBoard

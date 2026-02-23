@@ -131,6 +131,12 @@ ai:
   credit:
     reset-cron: "0 0 0 * * *"  # 매일 자정 UTC
 
+# Custom Icon
+app.customicon:
+  vision-model: ${CUSTOMICON_VISION_MODEL:gpt-4o}
+  image-model: ${CUSTOMICON_IMAGE_MODEL:dall-e-3}
+  image-size: ${CUSTOMICON_IMAGE_SIZE:1024x1024}
+
 # App Version (injected at build time)
 app.version:
   commit: '@git.commit@'

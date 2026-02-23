@@ -3,9 +3,11 @@ package com.kanban.domain.personal.service;
 import com.kanban.domain.diary.DiaryEntry;
 import com.kanban.domain.diary.DiaryEntryRepository;
 import com.kanban.domain.personal.*;
+import com.kanban.domain.diary.DiaryMessage;
 import com.kanban.domain.personal.dto.PersonalDashboardResponse;
 import com.kanban.domain.personal.dto.PersonalEventResponse;
 import com.kanban.domain.personal.dto.PersonalHabitResponse;
+import com.kanban.domain.personal.dto.PersonalOverviewResponse;
 import com.kanban.domain.personal.dto.PersonalTaskResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -121,6 +123,60 @@ public class PersonalDashboardService {
                 .habitCompletionRate(Math.round(habitCompletionRate * 100.0) / 100.0)
                 .activeTaskCount(activeTaskCount)
                 .completedTodayCount(completedTodayCount)
+                .diaryToday(diaryToday)
+                .build();
+    }
+
+    public PersonalOverviewResponse getOverview(String userId, LocalDate date) {
+        LocalDate today = (date != null) ? date : LocalDate.now(ZoneOffset.UTC);
+
+        // Reuse existing dashboard aggregation
+        PersonalDashboardResponse dashboard = getTodayDashboard(userId, today);
+
+        // All tasks (for PersonalTaskBoard + UpcomingDeadlinesWidget)
+        List<PersonalTaskResponse.Detail> allTasks = personalTaskRepository
+                .findByUserIdWithDetails(userId).stream()
+                .map(PersonalTaskResponse.Detail::of)
+                .toList();
+
+        // All active habits
+        List<PersonalHabitResponse.Detail> allHabits = personalHabitService.getActiveHabits(userId);
+
+        // Weekly habit matrix
+        LocalDate weekStart = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        LocalDate weekEnd = today.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY));
+        PersonalHabitResponse.WeeklyMatrix weeklyMatrix =
+                personalHabitService.getWeeklyMatrix(userId, weekStart, weekEnd);
+
+        // Diary with last message
+        Optional<DiaryEntry> diaryOpt = diaryEntryRepository.findByUserIdAndDate(userId, today);
+        PersonalOverviewResponse.DiaryOverviewInfo diaryToday = diaryOpt
+                .map(d -> {
+                    List<DiaryMessage> messages = d.getMessages();
+                    DiaryMessage lastMsg = messages.isEmpty() ? null : messages.get(messages.size() - 1);
+                    return PersonalOverviewResponse.DiaryOverviewInfo.builder()
+                            .id(d.getId())
+                            .status(d.getStatus().name())
+                            .title(d.getTitle())
+                            .mood(d.getMood())
+                            .lastMessageContent(lastMsg != null ? lastMsg.getContent() : null)
+                            .lastMessageRole(lastMsg != null ? lastMsg.getRole() : null)
+                            .build();
+                })
+                .orElse(null);
+
+        return PersonalOverviewResponse.builder()
+                .allTasks(allTasks)
+                .allHabits(allHabits)
+                .habitsToday(dashboard.getHabitsToday())
+                .weeklyMatrix(weeklyMatrix)
+                .todayEvents(dashboard.getPersonalEvents())
+                .dueTodayTasks(dashboard.getDueTodayTasks())
+                .inProgressTasks(dashboard.getInProgressTasks())
+                .taskCompletionRate(dashboard.getTaskCompletionRate())
+                .habitCompletionRate(dashboard.getHabitCompletionRate())
+                .activeTaskCount(dashboard.getActiveTaskCount())
+                .completedTodayCount(dashboard.getCompletedTodayCount())
                 .diaryToday(diaryToday)
                 .build();
     }

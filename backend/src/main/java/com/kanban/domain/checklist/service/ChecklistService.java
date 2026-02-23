@@ -189,8 +189,8 @@ public class ChecklistService {
         // 연관된 데일리 체크리스트 연결 해제
         dailyChecklistRepository.unlinkByChecklistItemId(itemId);
 
-        // 연관된 스케줄 블록 삭제
-        scheduleBlockRepository.deleteByChecklistItemId(itemId);
+        // 연관된 스케줄 블록 연결 해제 (타임블럭 업무 기록 보존)
+        scheduleBlockRepository.unlinkByChecklistItemId(itemId);
 
         checklistItemRepository.delete(item);
 

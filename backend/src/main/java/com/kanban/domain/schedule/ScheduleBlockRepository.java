@@ -130,6 +130,15 @@ public interface ScheduleBlockRepository extends JpaRepository<ScheduleBlock, St
     void deleteByTaskId(@Param("taskId") String taskId);
 
     @Modifying
+    @Query("UPDATE ScheduleBlock sb SET sb.checklistItem = null WHERE sb.checklistItem.id IN " +
+           "(SELECT ci.id FROM ChecklistItem ci WHERE ci.task.id = :taskId)")
+    void unlinkByTaskId(@Param("taskId") String taskId);
+
+    @Modifying
+    @Query("UPDATE ScheduleBlock sb SET sb.checklistItem = null WHERE sb.checklistItem.id = :checklistItemId")
+    void unlinkByChecklistItemId(@Param("checklistItemId") String checklistItemId);
+
+    @Modifying
     @Query("DELETE FROM ScheduleBlock sb WHERE sb.checklistItem.id IN " +
            "(SELECT ci.id FROM ChecklistItem ci WHERE ci.task.feature.id = :featureId)")
     void deleteByFeatureId(@Param("featureId") String featureId);

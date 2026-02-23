@@ -10,7 +10,7 @@ import { MotionModal } from '../ui/MotionModal';
 import { personalEventService, diaryService } from '../../utils/services';
 import { personalTaskAPI, personalHabitAPI, personalDashboardAPI } from '../../utils/api';
 import { getTodayDateString } from '../../utils/dateUtils';
-import { PersonalEvent, DiaryDetail, PersonalTask, PersonalHabit, HabitTodayItem, HabitFrequency, HabitWeeklyMatrix, PersonalTaskPriority, PersonalDashboardToday } from '../../types';
+import { PersonalEvent, DiaryDetail, PersonalTask, PersonalHabit, HabitTodayItem, HabitFrequency, HabitWeeklyMatrix, PersonalTaskPriority, PersonalDashboardToday, PersonalOverviewData, DiaryOverviewInfo } from '../../types';
 import { CheckInConfirmModal, TaskCompleteConfirmModal, HabitFormModal, DeleteConfirmModal } from './PersonalHabits';
 import { TaskDetailModal } from './PersonalTaskBoard';
 import { useAuth } from '../../contexts/AuthContext';
@@ -19,6 +19,7 @@ type TabType = 'overview' | 'tasks' | 'schedule' | 'habits' | 'calendar' | 'diar
 
 interface PersonalOverviewProps {
   onNavigateTab: (tab: TabType) => void;
+  onRefreshTasks?: () => void;
 }
 
 // ── Shared WidgetCard shell ──────────────────────────────────────────
@@ -231,9 +232,11 @@ const TIMELINE_SLOT_H = 48; // px per 30min slot
 function TodayScheduleWidget({
   todayDate,
   onViewAll,
+  events: externalEvents,
 }: {
   todayDate: string;
   onViewAll: () => void;
+  events?: PersonalEvent[];
 }) {
   const { t } = useTranslation();
   const [events, setEvents] = useState<PersonalEvent[]>([]);
@@ -248,6 +251,11 @@ function TodayScheduleWidget({
   }, []);
 
   useEffect(() => {
+    if (externalEvents) {
+      setEvents(externalEvents);
+      setIsLoading(false);
+      return;
+    }
     (async () => {
       try {
         setIsLoading(true);
@@ -259,7 +267,7 @@ function TodayScheduleWidget({
         setIsLoading(false);
       }
     })();
-  }, [todayDate]);
+  }, [todayDate, externalEvents]);
 
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
@@ -509,10 +517,14 @@ function UpcomingDeadlinesWidget({
   todayDate,
   onViewAll,
   onTaskToggle,
+  allTasks: externalTasks,
+  onRefresh,
 }: {
   todayDate: string;
   onViewAll: () => void;
   onTaskToggle?: (taskId: string, isDone: boolean) => void;
+  allTasks?: PersonalTask[];
+  onRefresh?: () => void;
 }) {
   const { t } = useTranslation();
   const [items, setItems] = useState<DeadlineItem[]>([]);
@@ -538,40 +550,46 @@ function UpcomingDeadlinesWidget({
     }), []);
 
   useEffect(() => {
+    const processTaskData = (taskData: PersonalTask[]) => {
+      const taskItems: DeadlineItem[] = taskData
+        .filter(t => t.status !== 'ARCHIVED' && t.due_date && t.due_date >= todayDate)
+        .map(t => ({
+          kind: 'task' as const,
+          id: t.id,
+          date: t.due_date!,
+          title: t.title,
+          priority: t.priority,
+          status: t.status,
+          category: t.category,
+          isDone: t.status === 'DONE',
+        }));
+
+      const sorted = sortDeadlines(taskItems);
+
+      const tMap = new Map<string, PersonalTask>();
+      taskData.forEach(t => tMap.set(t.id, t));
+      setTaskMap(tMap);
+
+      setItems(sorted);
+      setIsLoading(false);
+    };
+
+    if (externalTasks) {
+      processTaskData(externalTasks);
+      return;
+    }
+
     (async () => {
       try {
         setIsLoading(true);
-
         const taskData = await personalTaskAPI.getAll();
-
-        const taskItems: DeadlineItem[] = taskData
-          .filter(t => t.status !== 'ARCHIVED' && t.due_date && t.due_date >= todayDate)
-          .map(t => ({
-            kind: 'task' as const,
-            id: t.id,
-            date: t.due_date!,
-            title: t.title,
-            priority: t.priority,
-            status: t.status,
-            category: t.category,
-            isDone: t.status === 'DONE',
-          }));
-
-        const sorted = sortDeadlines(taskItems);
-
-        // Store full data maps for detail modals
-        const tMap = new Map<string, PersonalTask>();
-        taskData.forEach(t => tMap.set(t.id, t));
-        setTaskMap(tMap);
-
-        setItems(sorted);
+        processTaskData(taskData);
       } catch {
         console.error('Failed to load deadlines');
-      } finally {
         setIsLoading(false);
       }
     })();
-  }, [todayDate]);
+  }, [todayDate, externalTasks]);
 
   const handleToggleTask = useCallback(async (taskId: string, currentlyDone: boolean) => {
     setTogglingIds(prev => new Set(prev).add(taskId));
@@ -603,13 +621,14 @@ function UpcomingDeadlinesWidget({
         ));
         setItems(prev => sortDeadlines(prev));
       }
+      onRefresh?.();
     } catch {
       console.error('Failed to toggle task status');
       setTogglingIds(prev => { const n = new Set(prev); n.delete(taskId); return n; });
       // Revert optimistic update
       onTaskToggle?.(taskId, currentlyDone);
     }
-  }, [sortDeadlines, onTaskToggle]);
+  }, [sortDeadlines, onTaskToggle, onRefresh]);
 
   // Task detail modal callbacks
   const handleTaskUpdate = useCallback(async (data: { title?: string; due_date?: string | null; priority?: PersonalTaskPriority; description?: string }) => {
@@ -624,10 +643,11 @@ function UpcomingDeadlinesWidget({
           ? { ...item, title: updated.title, date: updated.due_date || item.date, priority: updated.priority }
           : item
       ));
+      onRefresh?.();
     } catch {
       console.error('Failed to update task');
     }
-  }, [selectedTask]);
+  }, [selectedTask, onRefresh]);
 
   const handleTaskDelete = useCallback(async () => {
     if (!selectedTask) return;
@@ -635,10 +655,11 @@ function UpcomingDeadlinesWidget({
       await personalTaskAPI.delete(selectedTask.id);
       setItems(prev => prev.filter(item => !(item.kind === 'task' && item.id === selectedTask.id)));
       setSelectedTask(null);
+      onRefresh?.();
     } catch {
       console.error('Failed to delete task');
     }
-  }, [selectedTask]);
+  }, [selectedTask, onRefresh]);
 
   const handleTaskToggleComplete = useCallback(async () => {
     if (!selectedTask) return;
@@ -899,8 +920,16 @@ function getHabitScheduledDays(frequencyType: HabitFrequency, frequencyDays?: st
 
 function HabitsTodayWidget({
   onViewAll,
+  allHabits: externalAllHabits,
+  todayHabits: externalTodayHabits,
+  weeklyMatrix: externalWeeklyMatrix,
+  onRefresh,
 }: {
   onViewAll: () => void;
+  allHabits?: PersonalHabit[];
+  todayHabits?: HabitTodayItem[];
+  weeklyMatrix?: HabitWeeklyMatrix;
+  onRefresh?: () => void;
 }) {
   const { t } = useTranslation();
   const [allHabits, setAllHabits] = useState<PersonalHabit[]>([]);
@@ -931,6 +960,13 @@ function HabitsTodayWidget({
   }, [weeklyMatrix]);
 
   const loadHabits = useCallback(async () => {
+    if (externalAllHabits && externalTodayHabits && externalWeeklyMatrix) {
+      setAllHabits(externalAllHabits.filter(h => h.is_active));
+      setTodayHabits(externalTodayHabits);
+      setWeeklyMatrix(externalWeeklyMatrix);
+      setIsLoading(false);
+      return;
+    }
     try {
       setIsLoading(true);
       // Calculate this week's Monday~Sunday range
@@ -957,7 +993,7 @@ function HabitsTodayWidget({
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [externalAllHabits, externalTodayHabits, externalWeeklyMatrix]);
 
   useEffect(() => {
     loadHabits();
@@ -975,7 +1011,7 @@ function HabitsTodayWidget({
     try {
       await personalHabitAPI.create(data);
       setIsCreateOpen(false);
-      await loadHabits();
+      onRefresh ? onRefresh() : await loadHabits();
     } catch (err) {
       console.error('Failed to create habit:', err);
     }
@@ -994,7 +1030,7 @@ function HabitsTodayWidget({
     try {
       await personalHabitAPI.update(habitId, data);
       setEditHabit(null);
-      await loadHabits();
+      onRefresh ? onRefresh() : await loadHabits();
     } catch (err) {
       console.error('Failed to update habit:', err);
     }
@@ -1004,7 +1040,7 @@ function HabitsTodayWidget({
     try {
       await personalHabitAPI.delete(habitId);
       setDeleteConfirm(null);
-      await loadHabits();
+      onRefresh ? onRefresh() : await loadHabits();
     } catch (err) {
       console.error('Failed to delete habit:', err);
     }
@@ -1362,14 +1398,18 @@ const MOODS: Record<string, string> = {
 function DiaryWidget({
   todayDate,
   onViewAll,
+  diaryInfo,
 }: {
   todayDate: string;
   onViewAll: () => void;
+  diaryInfo?: DiaryOverviewInfo | null;
 }) {
   const { t } = useTranslation();
   const [diary, setDiary] = useState<DiaryDetail | null | undefined>(undefined);
+  const hasExternalData = diaryInfo !== undefined;
 
   useEffect(() => {
+    if (hasExternalData) return;
     (async () => {
       try {
         const data = await diaryService.getByDate(todayDate);
@@ -1379,9 +1419,22 @@ function DiaryWidget({
         setDiary(null);
       }
     })();
-  }, [todayDate]);
+  }, [todayDate, hasExternalData]);
 
-  const isLoading = diary === undefined;
+  // Use external data when available, fallback to self-fetched data
+  const diaryData = hasExternalData
+    ? (diaryInfo ? {
+        id: diaryInfo.id,
+        status: diaryInfo.status as 'CHATTING' | 'COMPLETED',
+        title: diaryInfo.title,
+        mood: diaryInfo.mood,
+        messages: diaryInfo.last_message_content
+          ? [{ id: 'last', content: diaryInfo.last_message_content, role: diaryInfo.last_message_role || 'AI', message_order: 0 }]
+          : [],
+      } : null)
+    : diary;
+
+  const isLoading = hasExternalData ? false : diary === undefined;
 
   const hour = new Date().getHours();
   const greeting = hour < 5
@@ -1399,24 +1452,24 @@ function DiaryWidget({
       icon={<BookHeart size={16} className="text-rose-400" />}
       title={t('personal.overview.aiDiary', 'AI Diary')}
       badge={
-        diary && diary.status === 'COMPLETED' ? (
+        diaryData && diaryData.status === 'COMPLETED' ? (
           <span className="text-[10px] font-bold text-bridge-secondary bg-bridge-secondary/10 px-1.5 py-0.5 rounded-full">
             {t('personal.overview.done', 'Done')}
           </span>
-        ) : diary && diary.status === 'CHATTING' ? (
+        ) : diaryData && diaryData.status === 'CHATTING' ? (
           <span className="text-[10px] font-bold text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded-full">
             {t('personal.overview.inProgress', 'In progress')}
           </span>
         ) : null
       }
-      action={diary ? <ViewAllButton onClick={onViewAll} label={t('personal.overview.readMore', 'Read more')} /> : undefined}
+      action={diaryData ? <ViewAllButton onClick={onViewAll} label={t('personal.overview.readMore', 'Read more')} /> : undefined}
       delay={0.15}
     >
       {isLoading ? (
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="w-5 h-5 animate-spin text-bridge-accent/50" />
         </div>
-      ) : !diary ? (
+      ) : !diaryData ? (
         <div className="flex-1 flex flex-col items-center justify-center text-center gap-1.5 md:gap-3 px-4">
           {greeting.icon}
           <div>
@@ -1433,16 +1486,16 @@ function DiaryWidget({
             {t('personal.overview.startDiary', "Start today's diary")}
           </button>
         </div>
-      ) : diary.status === 'CHATTING' ? (
+      ) : diaryData.status === 'CHATTING' ? (
         <div className="flex-1 flex flex-col">
           <div className="flex-1 space-y-3">
-            {diary.messages.length > 0 && (
+            {diaryData.messages.length > 0 && (
               <div className="bg-white/[0.03] rounded-xl p-3">
                 <p className="text-xs text-slate-400 leading-relaxed line-clamp-3">
-                  {diary.messages[diary.messages.length - 1].content}
+                  {diaryData.messages[diaryData.messages.length - 1].content}
                 </p>
                 <span className="text-[10px] text-slate-600 mt-1 block">
-                  {diary.messages[diary.messages.length - 1].role === 'AI' ? t('personal.overview.roleAI', 'AI') : t('personal.overview.roleYou', 'You')}
+                  {diaryData.messages[diaryData.messages.length - 1].role === 'AI' ? t('personal.overview.roleAI', 'AI') : t('personal.overview.roleYou', 'You')}
                 </span>
               </div>
             )}
@@ -1458,19 +1511,19 @@ function DiaryWidget({
       ) : (
         <button onClick={onViewAll} className="flex-1 flex flex-col text-left">
           <div className="flex items-center gap-2 mb-3">
-            {diary.mood && MOODS[diary.mood] && (
-              <span className="text-2xl">{MOODS[diary.mood]}</span>
+            {diaryData.mood && MOODS[diaryData.mood] && (
+              <span className="text-2xl">{MOODS[diaryData.mood]}</span>
             )}
             <div className="flex-1 min-w-0">
               <h4 className="text-sm font-bold text-foreground truncate">
-                {diary.title || t('personal.overview.diaryTitle', "Today's diary")}
+                {diaryData.title || t('personal.overview.diaryTitle', "Today's diary")}
               </h4>
             </div>
           </div>
-          {diary.content && (
+          {'content' in diaryData && diaryData.content && (
             <div className="flex-1">
               <p className="text-xs text-slate-400 leading-relaxed line-clamp-5">
-                {diary.content}
+                {diaryData.content}
               </p>
             </div>
           )}
@@ -1939,25 +1992,45 @@ function MobileQuickHabits({
 
 // ── Main Overview Component ──────────────────────────────────────────
 
-export function PersonalOverview({ onNavigateTab }: PersonalOverviewProps) {
+export function PersonalOverview({ onNavigateTab, onRefreshTasks }: PersonalOverviewProps) {
   const todayDate = getTodayDateString();
-  const [dashboardData, setDashboardData] = useState<PersonalDashboardToday | null>(null);
+  const [overviewData, setOverviewData] = useState<PersonalOverviewData | null>(null);
 
-  // Fetch dashboard summary for mobile header
-  useEffect(() => {
-    (async () => {
-      try {
-        const data = await personalDashboardAPI.getToday(todayDate);
-        setDashboardData(data);
-      } catch {
-        console.error('Failed to load dashboard data');
-      }
-    })();
+  // Single fetch for all overview data
+  const loadOverview = useCallback(async () => {
+    try {
+      const data = await personalDashboardAPI.getOverview(todayDate);
+      setOverviewData(data);
+    } catch {
+      console.error('Failed to load overview data');
+    }
   }, [todayDate]);
 
-  // Optimistically update dashboardData when habit is toggled from the quick strip
+  useEffect(() => {
+    loadOverview();
+  }, [loadOverview]);
+
+  const refreshOverview = useCallback(() => {
+    loadOverview();
+    onRefreshTasks?.();
+  }, [loadOverview, onRefreshTasks]);
+
+  // Derive dashboardData for mobile components (MobileGreetingHeader, MobileQuickHabits)
+  const dashboardData: PersonalDashboardToday | null = overviewData ? {
+    due_today_tasks: overviewData.due_today_tasks,
+    in_progress_tasks: overviewData.in_progress_tasks,
+    personal_events: overviewData.today_events,
+    habits_today: overviewData.habits_today,
+    task_completion_rate: overviewData.task_completion_rate,
+    habit_completion_rate: overviewData.habit_completion_rate,
+    active_task_count: overviewData.active_task_count,
+    completed_today_count: overviewData.completed_today_count,
+    diary_today: overviewData.diary_today,
+  } : null;
+
+  // Optimistically update overviewData when habit is toggled from the quick strip
   const handleHabitToggle = useCallback((habitId: string, isCompleted: boolean) => {
-    setDashboardData(prev => {
+    setOverviewData(prev => {
       if (!prev) return prev;
       return {
         ...prev,
@@ -1968,9 +2041,9 @@ export function PersonalOverview({ onNavigateTab }: PersonalOverviewProps) {
     });
   }, []);
 
-  // Optimistically update dashboardData when task is toggled from deadlines widget
+  // Optimistically update overviewData when task is toggled from deadlines widget
   const handleTaskToggle = useCallback((taskId: string, isDone: boolean) => {
-    setDashboardData(prev => {
+    setOverviewData(prev => {
       if (!prev) return prev;
       const newStatus = isDone ? 'DONE' : 'TODO';
       return {
@@ -2000,21 +2073,29 @@ export function PersonalOverview({ onNavigateTab }: PersonalOverviewProps) {
           <TodayScheduleWidget
             todayDate={todayDate}
             onViewAll={() => onNavigateTab('schedule')}
+            events={overviewData?.today_events}
           />
           <UpcomingDeadlinesWidget
             todayDate={todayDate}
             onViewAll={() => onNavigateTab('tasks')}
             onTaskToggle={handleTaskToggle}
+            allTasks={overviewData?.all_tasks}
+            onRefresh={refreshOverview}
           />
           {/* Habits widget: hidden on mobile (quick strip replaces it), visible on desktop */}
           <div className="hidden md:block">
             <HabitsTodayWidget
               onViewAll={() => onNavigateTab('tasks')}
+              allHabits={overviewData?.all_habits}
+              todayHabits={overviewData?.habits_today}
+              weeklyMatrix={overviewData?.weekly_matrix}
+              onRefresh={refreshOverview}
             />
           </div>
           <DiaryWidget
             todayDate={todayDate}
             onViewAll={() => onNavigateTab('diary')}
+            diaryInfo={overviewData ? overviewData.diary_today : undefined}
           />
         </div>
       </div>

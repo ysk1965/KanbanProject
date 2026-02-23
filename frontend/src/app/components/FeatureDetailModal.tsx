@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Feature, Task, Tag } from '../types';
 import { FEATURE_COLORS } from '../constants';
-import { X, Trash2, ClipboardList, Lightbulb, ArrowRight, Pipette, FileText, CalendarIcon, Tags, Sparkles, Pencil } from 'lucide-react';
+import { X, Trash2, ClipboardList, Lightbulb, ArrowRight, ArrowRightLeft, Pipette, FileText, CalendarIcon, Tags, Sparkles, Pencil, AlertTriangle, ChevronDown } from 'lucide-react';
 import { MotionModal } from './ui/MotionModal';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -18,6 +18,7 @@ import { useTranslation } from 'react-i18next';
 import { TagPickerPopover } from './TagPickerPopover';
 import { featureAPI, taskAPI } from '../utils/api';
 import { FeatureAIDecomposeModal } from './FeatureAIDecomposeModal';
+import { isDomainAIHidden } from '../utils/domain';
 
 interface FeatureDetailModalProps {
   feature: Feature | null;
@@ -28,7 +29,8 @@ interface FeatureDetailModalProps {
   onAddSubtask: (title: string) => void;
   onRenameSubtask?: (taskId: string, newTitle: string) => void;
   onUpdateFeature: (feature: Partial<Feature>) => void;
-  onDelete: (featureId: string) => void;
+  onDelete: (featureId: string, taskMigrations?: Array<{ task_id: string; target_feature_id: string }>) => void;
+  allFeatures: Feature[];
   availableTags: Tag[];
   onCreateTag: (name: string, color: string) => Promise<string | undefined>;
   onUpdateTag: (tagId: string, data: { name?: string; color?: string }) => Promise<void>;
@@ -48,6 +50,7 @@ export function FeatureDetailModal({
   onRenameSubtask,
   onUpdateFeature,
   onDelete,
+  allFeatures,
   availableTags,
   onCreateTag,
   onUpdateTag,
@@ -62,6 +65,8 @@ export function FeatureDetailModal({
   const [hasChanges, setHasChanges] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [taskMigrationMap, setTaskMigrationMap] = useState<Record<string, string>>({});
+  const [bulkTargetFeatureId, setBulkTargetFeatureId] = useState<string>('');
   const [flyingTask, setFlyingTask] = useState<{ title: string; x: number; y: number } | null>(null);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [showAIConfirm, setShowAIConfirm] = useState(false);
@@ -493,7 +498,7 @@ export function FeatureDetailModal({
                   <div className="flex items-center gap-2">
                     <ClipboardList className="h-5 w-5" style={{ color: selectedColor }} />
                     <Label className="text-base font-semibold text-foreground">{t('featureDetail.subtaskList')}</Label>
-                    {canEdit && (
+                    {canEdit && !isDomainAIHidden && (
                       <button
                         onClick={() => setShowAIConfirm(true)}
                         className="ml-1 flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold text-white bg-gradient-to-r from-bridge-secondary to-bridge-accent rounded-lg hover:shadow-[0_0_20px_rgba(45,212,191,0.3)] transition-all"
@@ -738,24 +743,192 @@ export function FeatureDetailModal({
         </div>
       </MotionModal>
 
-      {/* Delete Dialog */}
-      <MotionModal open={showDeleteDialog} onClose={() => setShowDeleteDialog(false)} className="sm:max-w-sm p-6">
-        <h3 className="text-lg font-semibold text-foreground">{t('featureDetail.deleteTitle')}</h3>
-        <p className="text-sm text-slate-400 mt-1">{t('featureDetail.deleteDesc')}</p>
-        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end mt-4">
-          <button onClick={() => setShowDeleteDialog(false)} className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-foreground/5 border border-foreground/10 text-foreground hover:bg-foreground/10">
-            {t('common.cancel')}
-          </button>
-          <button
-            onClick={() => {
-              onDelete(feature.id);
-              onClose();
-            }}
-            className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-red-500 hover:bg-red-600 text-white"
-          >
-            {t('common.delete')}
-          </button>
-        </div>
+      {/* Delete Dialog - 태스크 이관 모달 */}
+      <MotionModal
+        open={showDeleteDialog}
+        onClose={() => {
+          setShowDeleteDialog(false);
+          setTaskMigrationMap({});
+          setBulkTargetFeatureId('');
+        }}
+        className={`${tasks.length > 0 ? 'sm:max-w-lg' : 'sm:max-w-sm'} p-0 max-h-[80vh] flex flex-col overflow-hidden`}
+      >
+        {tasks.length > 0 ? (
+          <>
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-foreground/10 flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-amber-500/15 flex items-center justify-center">
+                  <ArrowRightLeft className="h-4 w-4 text-amber-400" />
+                </div>
+                <div>
+                  <h3 className="text-base font-semibold text-foreground">{t('featureDetail.deleteTitle')}</h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {t('featureDetail.taskMigrationDesc', { count: tasks.length })}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Bulk migration */}
+            <div className="px-6 py-3 border-b border-foreground/5 bg-foreground/[0.02] flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400 whitespace-nowrap">
+                  {t('featureDetail.bulkMigrate', '일괄 이관')}
+                </span>
+                <div className="relative flex-1">
+                  <select
+                    value={bulkTargetFeatureId}
+                    onChange={(e) => {
+                      const targetId = e.target.value;
+                      setBulkTargetFeatureId(targetId);
+                      if (targetId) {
+                        const newMap: Record<string, string> = {};
+                        tasks.forEach(t => { newMap[t.id] = targetId; });
+                        setTaskMigrationMap(newMap);
+                      } else {
+                        setTaskMigrationMap({});
+                      }
+                    }}
+                    className="w-full appearance-none bg-foreground/5 border border-foreground/10 rounded-lg px-3 py-2 pr-8 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
+                  >
+                    <option value="">{t('featureDetail.selectFeature', '이관할 피처 선택...')}</option>
+                    {allFeatures
+                      .filter(f => f.id !== feature.id)
+                      .map(f => (
+                        <option key={f.id} value={f.id}>{f.title}</option>
+                      ))
+                    }
+                  </select>
+                  <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+                </div>
+              </div>
+            </div>
+
+            {/* Task list with individual migration selectors */}
+            <div className="flex-1 overflow-y-auto px-6 py-3 kanban-scrollbar">
+              <div className="space-y-2">
+                {tasks.map(task => (
+                  <div key={task.id} className="flex items-center gap-3 p-2.5 rounded-lg bg-foreground/[0.03] border border-foreground/5">
+                    <div
+                      className="w-2 h-2 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: feature.color, boxShadow: `0 0 6px ${feature.color}44` }}
+                    />
+                    <span className="text-xs font-medium text-foreground truncate flex-1 min-w-0" title={task.title}>
+                      {task.title}
+                    </span>
+                    <div className="relative flex-shrink-0">
+                      <select
+                        value={taskMigrationMap[task.id] || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setTaskMigrationMap(prev => {
+                            const next = { ...prev };
+                            if (val) {
+                              next[task.id] = val;
+                            } else {
+                              delete next[task.id];
+                            }
+                            return next;
+                          });
+                          setBulkTargetFeatureId('');
+                        }}
+                        className="appearance-none bg-foreground/5 border border-foreground/10 rounded-md px-2.5 py-1.5 pr-7 text-[11px] text-foreground focus:outline-none focus:ring-1 focus:ring-bridge-accent/50 max-w-[160px]"
+                      >
+                        <option value="">{t('featureDetail.deleteWithFeature', '삭제')}</option>
+                        {allFeatures
+                          .filter(f => f.id !== feature.id)
+                          .map(f => (
+                            <option key={f.id} value={f.id}>{f.title}</option>
+                          ))
+                        }
+                      </select>
+                      <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 h-3 w-3 text-slate-400 pointer-events-none" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 border-t border-foreground/10 flex-shrink-0">
+              {/* Warning for tasks to be deleted */}
+              {(() => {
+                const deleteCount = tasks.filter(t => !taskMigrationMap[t.id]).length;
+                const migrateCount = tasks.filter(t => !!taskMigrationMap[t.id]).length;
+                return (
+                  <>
+                    {deleteCount > 0 && (
+                      <div className="flex items-start gap-2 mb-3 p-2.5 rounded-lg bg-red-500/10 border border-red-500/20">
+                        <AlertTriangle className="h-3.5 w-3.5 text-red-400 flex-shrink-0 mt-0.5" />
+                        <p className="text-[11px] text-red-300">
+                          {t('featureDetail.deleteWarning', {
+                            deleteCount,
+                            defaultValue: `${deleteCount}개 태스크가 피처와 함께 삭제됩니다.`,
+                          })}
+                        </p>
+                      </div>
+                    )}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          setShowDeleteDialog(false);
+                          setTaskMigrationMap({});
+                          setBulkTargetFeatureId('');
+                        }}
+                        className="flex-1 inline-flex items-center justify-center rounded-lg text-sm font-medium h-10 px-4 bg-foreground/5 border border-foreground/10 text-foreground hover:bg-foreground/10 transition-colors"
+                      >
+                        {t('common.cancel')}
+                      </button>
+                      <button
+                        onClick={() => {
+                          const migrations = Object.entries(taskMigrationMap)
+                            .filter(([, targetId]) => targetId)
+                            .map(([taskId, targetId]) => ({ task_id: taskId, target_feature_id: targetId }));
+                          onDelete(feature.id, migrations.length > 0 ? migrations : undefined);
+                          onClose();
+                        }}
+                        className={`flex-1 inline-flex items-center justify-center rounded-lg text-sm font-bold h-10 px-4 text-white transition-all ${
+                          migrateCount > 0
+                            ? 'bg-bridge-accent hover:bg-bridge-accent/90'
+                            : 'bg-red-500 hover:bg-red-600'
+                        }`}
+                      >
+                        {migrateCount > 0
+                          ? t('featureDetail.migrateAndDelete', {
+                              migrateCount,
+                              defaultValue: `${migrateCount}개 이관 후 삭제`,
+                            })
+                          : t('featureDetail.deleteAll', '전체 삭제')
+                        }
+                      </button>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          </>
+        ) : (
+          /* 태스크 없을 때: 간단 확인 모달 */
+          <div className="p-6">
+            <h3 className="text-lg font-semibold text-foreground">{t('featureDetail.deleteTitle')}</h3>
+            <p className="text-sm text-slate-400 mt-1">{t('featureDetail.deleteDesc')}</p>
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end mt-4">
+              <button onClick={() => setShowDeleteDialog(false)} className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-foreground/5 border border-foreground/10 text-foreground hover:bg-foreground/10">
+                {t('common.cancel')}
+              </button>
+              <button
+                onClick={() => {
+                  onDelete(feature.id);
+                  onClose();
+                }}
+                className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 py-2 bg-red-500 hover:bg-red-600 text-white"
+              >
+                {t('common.delete')}
+              </button>
+            </div>
+          </div>
+        )}
       </MotionModal>
 
       {/* AI Confirm Modal */}
