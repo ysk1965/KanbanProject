@@ -194,6 +194,9 @@ public class ScheduleService {
                 .board(board)
                 .checklistItem(checklistItem)
                 .meeting(meeting)
+                .blockType(determineBlockType(request))
+                .title(request.getTitle())
+                .color(request.getColor())
                 .assignee(assignee)
                 .scheduledDate(request.getScheduledDate())
                 .startTime(request.getStartTime())
@@ -247,6 +250,7 @@ public class ScheduleService {
         ScheduleBlock block = ScheduleBlock.builder()
                 .board(board)
                 .checklistItem(checklistItem)
+                .blockType("CHECKLIST")
                 .assignee(assignee)
                 .scheduledDate(request.getScheduledDate())
                 .startTime(request.getStartTime())
@@ -369,5 +373,18 @@ public class ScheduleService {
         if (!board.canAccessSchedule()) {
             throw new BusinessException(ErrorCode.PREMIUM_FEATURE_REQUIRED);
         }
+    }
+
+    private String determineBlockType(ScheduleRequest.Create request) {
+        if (request.getBlockType() != null) {
+            return request.getBlockType();
+        }
+        if (request.getMeetingId() != null) {
+            return "MEETING";
+        }
+        if (request.getChecklistItemId() != null) {
+            return "CHECKLIST";
+        }
+        return null;
     }
 }

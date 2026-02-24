@@ -281,7 +281,7 @@ export function AdminUserDetailModal({ userId, onClose, onUpdate }: AdminUserDet
 
   return (
     <>
-      <MotionModal open={true} onClose={onClose} className="sm:max-w-2xl p-0 overflow-hidden max-h-[90vh] flex flex-col">
+      <MotionModal open={true} onClose={onClose} className="sm:max-w-2xl p-0 overflow-hidden max-h-[90dvh] flex flex-col">
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-bridge-border">
             <h2 className="text-xl font-bold text-foreground">{t('admin.userDetail.title')}</h2>

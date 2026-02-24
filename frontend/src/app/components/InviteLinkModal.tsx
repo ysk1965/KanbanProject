@@ -78,7 +78,7 @@ export function InviteLinkModal({
   };
 
   return (
-    <MotionModal open={open} onClose={onClose} className="sm:max-w-2xl p-0 overflow-hidden max-h-[90vh] flex flex-col">
+    <MotionModal open={open} onClose={onClose} className="sm:max-w-2xl p-0 overflow-hidden max-h-[90dvh] flex flex-col">
         {/* 헤더 */}
         <div className="flex items-center justify-between p-6 border-b border-foreground/10">
           <div className="flex items-center gap-2">

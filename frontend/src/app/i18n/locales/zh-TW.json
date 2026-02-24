@@ -618,7 +618,19 @@
     "newChecklistPlaceholder": "輸入清單標題",
     "creating": "建立中...",
     "dateFormatDay": "MMM d, yyyy",
-    "dateFormatWeek": "MMM d"
+    "dateFormatWeek": "MMM d",
+    "tabChecklist": "清單",
+    "tabMeeting": "會議",
+    "tabCustom": "自訂",
+    "customPresets": "快速選擇",
+    "presetLunch": "午餐",
+    "presetFocus": "專注時間",
+    "presetPersonal": "個人事務",
+    "presetOutside": "外出",
+    "presetRest": "休息",
+    "customLabel": "自訂",
+    "customPlaceholder": "請輸入日程名稱",
+    "customColor": "顏色"
   },
   "schedule": {
     "settingsTitle": "日程設定",
@@ -1794,7 +1806,8 @@
     "cannotMove": "無法移動",
     "cannotChange": "無法變更",
     "willSplit": "分割建立",
-    "nextDay": "隔天"
+    "nextDay": "隔天",
+    "custom": "自訂區塊"
   },
   "scheduleDetail": {
     "title": "時間區塊詳情",

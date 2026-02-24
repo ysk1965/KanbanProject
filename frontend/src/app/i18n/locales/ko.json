@@ -643,7 +643,19 @@
     "newChecklistPlaceholder": "새 체크리스트 제목 입력",
     "creating": "생성 중...",
     "dateFormatDay": "yyyy년 M월 d일",
-    "dateFormatWeek": "M월 d일"
+    "dateFormatWeek": "M월 d일",
+    "tabChecklist": "체크리스트",
+    "tabMeeting": "회의",
+    "tabCustom": "직접 입력",
+    "customPresets": "빠른 선택",
+    "presetLunch": "점심시간",
+    "presetFocus": "집중시간",
+    "presetPersonal": "개인용무",
+    "presetOutside": "외근",
+    "presetRest": "휴식",
+    "customLabel": "직접 입력",
+    "customPlaceholder": "일정 이름을 입력하세요",
+    "customColor": "색상"
   },
   "schedule": {
     "settingsTitle": "스케줄 설정",
@@ -1509,7 +1521,8 @@
     "cannotMove": "이동 불가",
     "cannotChange": "변경 불가",
     "willSplit": "분할 생성",
-    "nextDay": "다음날"
+    "nextDay": "다음날",
+    "custom": "커스텀 블록"
   },
   "scheduleDetail": {
     "title": "타임블록 상세",

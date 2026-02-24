@@ -434,7 +434,7 @@ export function ShareBoardModal({
   const isCurrentUserAdmin = currentUser?.role === 'admin' || currentUser?.role === 'owner';
 
   return (
-    <MotionModal open={open} onClose={onClose} className="sm:max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
+    <MotionModal open={open} onClose={onClose} className="sm:max-w-2xl max-h-[85dvh] overflow-hidden flex flex-col">
         <div className="px-6 pt-6 pb-2">
           <h2 className="text-lg font-semibold text-foreground">{t('share.title')}</h2>
         </div>

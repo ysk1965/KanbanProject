@@ -488,7 +488,7 @@ export function AddDailyChecklistModal({
 
 
   return (
-    <MotionModal open onClose={handleClose} className="sm:max-w-[1400px] sm:w-[92vw] max-h-[85vh] flex flex-col p-0 overflow-hidden bg-bridge-dark">
+    <MotionModal open onClose={handleClose} className="sm:max-w-[1400px] sm:w-[92vw] max-h-[85dvh] flex flex-col p-0 overflow-hidden bg-bridge-dark">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-foreground/10">
           <div>

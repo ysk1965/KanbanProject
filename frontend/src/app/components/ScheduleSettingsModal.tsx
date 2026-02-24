@@ -193,7 +193,7 @@ export function ScheduleSettingsModal({
   };
 
   return (
-    <MotionModal open={true} onClose={onClose} className="sm:max-w-[480px] p-0 overflow-hidden max-h-[90vh] flex flex-col">
+    <MotionModal open={true} onClose={onClose} className="sm:max-w-[480px] p-0 overflow-hidden max-h-[90dvh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-foreground/10">
           <h2 className="text-lg font-semibold text-foreground">{t('schedule.settingsTitle')}</h2>

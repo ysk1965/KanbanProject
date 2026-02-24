@@ -43,6 +43,15 @@ public class ScheduleBlock {
     @JoinColumn(name = "meeting_id")
     private Meeting meeting;
 
+    @Column(name = "block_type", length = 20)
+    private String blockType;
+
+    @Column(name = "title", length = 100)
+    private String title;
+
+    @Column(name = "color", length = 7)
+    private String color;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "assignee_id", nullable = false)
     private User assignee;

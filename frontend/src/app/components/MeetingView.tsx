@@ -21,7 +21,7 @@ export function MeetingView({ boardId, selectedDate, boardMembers, onRefreshSche
   const { t } = useTranslation();
   const [meetings, setMeetings] = useState<MeetingSummary[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   const loadMeetings = useCallback(async () => {
@@ -31,6 +31,7 @@ export function MeetingView({ boardId, selectedDate, boardMembers, onRefreshSche
       const dateStr = format(selectedDate, 'yyyy-MM-dd');
       const data = await meetingAPI.getMeetings(boardId, dateStr);
       setMeetings(data);
+      setExpandedIds(new Set(data.map((m: MeetingSummary) => m.id)));
     } catch (error) {
       console.error('Failed to load meetings:', error);
     } finally {
@@ -98,7 +99,7 @@ export function MeetingView({ boardId, selectedDate, boardMembers, onRefreshSche
       ) : (
         <div className="space-y-2">
           {meetings.map(meeting => {
-            const isExpanded = expandedId === meeting.id;
+            const isExpanded = expandedIds.has(meeting.id);
             return (
               <div
                 key={meeting.id}
@@ -107,7 +108,12 @@ export function MeetingView({ boardId, selectedDate, boardMembers, onRefreshSche
                 }`}
               >
                 <button
-                  onClick={() => setExpandedId(isExpanded ? null : meeting.id)}
+                  onClick={() => setExpandedIds(prev => {
+                    const next = new Set(prev);
+                    if (isExpanded) next.delete(meeting.id);
+                    else next.add(meeting.id);
+                    return next;
+                  })}
                   className="w-full text-left px-4 py-3 group"
                 >
                   <div className="flex items-center gap-3">
@@ -146,7 +152,7 @@ export function MeetingView({ boardId, selectedDate, boardMembers, onRefreshSche
                     boardId={boardId}
                     meetingId={meeting.id}
                     onDeleted={() => {
-                      setExpandedId(null);
+                      setExpandedIds(prev => { const next = new Set(prev); next.delete(meeting.id); return next; });
                       loadMeetings();
                       onRefreshSchedule();
                     }}
@@ -246,7 +252,7 @@ function MeetingCreateModal({ boardId, selectedDate, onClose, onCreated }: Meeti
 
   return (
     <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-bridge-obsidian rounded-2xl shadow-2xl w-[480px] max-w-[calc(100vw-2rem)] max-h-[90vh] flex flex-col overflow-hidden border border-foreground/10">
+      <div className="bg-bridge-obsidian rounded-2xl shadow-2xl w-[480px] max-w-[calc(100vw-2rem)] max-h-[90dvh] flex flex-col overflow-hidden border border-foreground/10">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-foreground/10">
           <h2 className="text-lg font-bold text-foreground">{t('meeting.addMeeting')}</h2>

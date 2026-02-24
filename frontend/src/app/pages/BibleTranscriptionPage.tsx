@@ -455,7 +455,7 @@ export default function BibleTranscriptionPage() {
               className="fixed inset-0 bg-black/50 z-40"
               onClick={() => setShowReadingChart(false)}
             />
-            <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-4xl max-h-[90vh] overflow-y-auto mx-4">
+            <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-4xl max-h-[90dvh] overflow-y-auto mx-4">
               <div className="bg-white rounded-xl shadow-2xl">
                 <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-xl">
                   <h2 className="text-2xl font-bold text-gray-800">성경 필사표</h2>

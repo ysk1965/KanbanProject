@@ -186,7 +186,7 @@ export function FeatureAIDecomposeModal({
   );
 
   return (
-    <MotionModal open={true} onClose={onClose} className="sm:max-w-lg p-0 overflow-hidden max-h-[80vh] flex flex-col">
+    <MotionModal open={true} onClose={onClose} className="sm:max-w-lg p-0 overflow-hidden max-h-[80dvh] flex flex-col">
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-foreground/5">

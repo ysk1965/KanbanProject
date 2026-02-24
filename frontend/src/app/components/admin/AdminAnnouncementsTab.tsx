@@ -262,7 +262,7 @@ function AnnouncementFormModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-      <div className="bg-bridge-obsidian rounded-2xl border border-foreground/10 p-6 shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+      <div className="bg-bridge-obsidian rounded-2xl border border-foreground/10 p-6 shadow-2xl w-full max-w-lg mx-4 max-h-[90dvh] overflow-y-auto">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-lg font-bold text-foreground">
             {announcement ? t('admin.announcements.editAnnouncement') : t('admin.announcements.newAnnouncement')}

@@ -159,13 +159,11 @@ public class OpenAIImageService {
             Map<String, Object> message = (Map<String, Object>) choices.get(0).get("message");
             String content = (String) message.get("content");
 
-            // JSON 파싱 (마크다운 코드블록 제거)
-            content = content.trim();
-            if (content.startsWith("```")) {
-                content = content.replaceAll("```json\\s*", "").replaceAll("```\\s*", "");
-            }
+            // JSON 추출 (GPT 응답에서 순수 JSON만 추출)
+            String json = extractJson(content);
+            log.debug("Style analysis raw content: {}", content);
 
-            Map<String, Object> styleMap = objectMapper.readValue(content, Map.class);
+            Map<String, Object> styleMap = objectMapper.readValue(json, Map.class);
 
             return CustomIconResponse.StyleAnalysis.builder()
                     .style((String) styleMap.getOrDefault("style", "line"))
@@ -179,7 +177,7 @@ public class OpenAIImageService {
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
-            log.error("Failed to parse style analysis response: {}", e.getMessage());
+            log.error("Failed to parse style analysis response: {}", e.getMessage(), e);
             throw new BusinessException(ErrorCode.CUSTOMICON_STYLE_ANALYSIS_FAILED);
         }
     }
@@ -205,5 +203,37 @@ public class OpenAIImageService {
             log.error("Failed to extract image from response: {}", e.getMessage());
             throw new BusinessException(ErrorCode.CUSTOMICON_GENERATION_FAILED);
         }
+    }
+
+    /**
+     * GPT 응답에서 JSON 객체만 추출
+     * - ```json ... ``` 코드블록
+     * - ``` ... ``` 코드블록
+     * - 텍스트 중간에 있는 { ... } JSON
+     * - 순수 JSON 문자열
+     */
+    private String extractJson(String content) {
+        if (content == null || content.isBlank()) {
+            return "{}";
+        }
+        content = content.trim();
+
+        // 코드블록 내 JSON 추출: ```json ... ``` 또는 ``` ... ```
+        java.util.regex.Matcher codeBlock = java.util.regex.Pattern
+                .compile("```(?:json)?\\s*(\\{.*?})\\s*```", java.util.regex.Pattern.DOTALL)
+                .matcher(content);
+        if (codeBlock.find()) {
+            return codeBlock.group(1).trim();
+        }
+
+        // 첫 번째 { ... } 추출
+        int start = content.indexOf('{');
+        int end = content.lastIndexOf('}');
+        if (start >= 0 && end > start) {
+            return content.substring(start, end + 1);
+        }
+
+        // 그대로 반환 (파싱 시도)
+        return content;
     }
 }

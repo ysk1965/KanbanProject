@@ -220,7 +220,7 @@ export function FeatureDetailModal({
 
   return (
     <>
-      <MotionModal open={open} onClose={handleClose} overlayClose={!hasChanges} className="sm:max-w-xl max-h-[85vh] flex flex-col overflow-hidden bg-bridge-surface p-0">
+      <MotionModal open={open} onClose={handleClose} overlayClose={!hasChanges} className="sm:max-w-xl max-h-[85dvh] flex flex-col overflow-hidden bg-bridge-surface p-0">
           {/* Feature color accent line */}
           <div className="h-[3px] w-full flex-shrink-0 rounded-t-lg" style={{ backgroundColor: selectedColor }} />
 
@@ -751,7 +751,7 @@ export function FeatureDetailModal({
           setTaskMigrationMap({});
           setBulkTargetFeatureId('');
         }}
-        className={`${tasks.length > 0 ? 'sm:max-w-lg' : 'sm:max-w-sm'} p-0 max-h-[80vh] flex flex-col overflow-hidden`}
+        className={`${tasks.length > 0 ? 'sm:max-w-lg' : 'sm:max-w-sm'} p-0 max-h-[80dvh] flex flex-col overflow-hidden`}
       >
         {tasks.length > 0 ? (
           <>

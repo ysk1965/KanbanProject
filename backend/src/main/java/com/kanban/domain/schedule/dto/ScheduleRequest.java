@@ -18,6 +18,13 @@ public class ScheduleRequest {
         private String checklistItemId;
         private String meetingId;
 
+        private String blockType;  // "CHECKLIST", "MEETING", "CUSTOM"
+
+        @Size(max = 100, message = "제목은 100자 이내여야 합니다")
+        private String title;      // CUSTOM 타입에서 사용 (e.g., "점심", "티타임")
+
+        private String color;      // HEX color (e.g., "#F59E0B") - CUSTOM 타입에서 사용
+
         @NotBlank(message = "담당자 ID는 필수입니다")
         private String assigneeId;
 

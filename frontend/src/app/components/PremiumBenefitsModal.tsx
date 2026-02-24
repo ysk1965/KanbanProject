@@ -72,7 +72,7 @@ export function PremiumBenefitsModal({
   };
 
   return (
-    <MotionModal open={open} onClose={onClose} className="sm:max-w-2xl p-0 overflow-hidden max-h-[90vh]">
+    <MotionModal open={open} onClose={onClose} className="sm:max-w-2xl p-0 overflow-hidden max-h-[90dvh]">
         {/* Close */}
         <button
           onClick={onClose}

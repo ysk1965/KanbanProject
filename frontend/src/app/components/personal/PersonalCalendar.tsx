@@ -919,7 +919,7 @@ function DayDetailModal({
   const eventCount = items.filter(i => i.type === 'event').length;
 
   return (
-    <MotionModal open={open} onClose={onClose} className="sm:max-w-lg max-h-[85vh] flex flex-col p-0 overflow-hidden border-foreground/[0.12]">
+    <MotionModal open={open} onClose={onClose} className="sm:max-w-lg max-h-[85dvh] flex flex-col p-0 overflow-hidden border-foreground/[0.12]">
         <div className="h-[2px] bg-gradient-to-r from-bridge-accent/60 via-bridge-secondary/40 to-transparent" />
         {/* Header */}
         <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-foreground/[0.08] shrink-0">

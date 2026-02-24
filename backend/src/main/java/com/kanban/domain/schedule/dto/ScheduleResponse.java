@@ -138,6 +138,9 @@ public class ScheduleResponse {
     @AllArgsConstructor
     public static class BlockInfo {
         private String id;
+        private String blockType;
+        private String title;
+        private String color;
         private LocalTime startTime;
         private LocalTime endTime;
         private ChecklistItemInfo checklistItem;
@@ -153,6 +156,9 @@ public class ScheduleResponse {
 
             return BlockInfo.builder()
                     .id(block.getId())
+                    .blockType(block.getBlockType())
+                    .title(block.getTitle())
+                    .color(block.getColor())
                     .startTime(block.getStartTime())
                     .endTime(block.getEndTime())
                     .checklistItem(item != null ? ChecklistItemInfo.of(item) : null)
@@ -221,6 +227,9 @@ public class ScheduleResponse {
     @AllArgsConstructor
     public static class BlockDetail {
         private String id;
+        private String blockType;
+        private String title;
+        private String color;
         private String assigneeId;
         private LocalDate scheduledDate;
         private LocalTime startTime;
@@ -238,6 +247,9 @@ public class ScheduleResponse {
 
             return BlockDetail.builder()
                     .id(block.getId())
+                    .blockType(block.getBlockType())
+                    .title(block.getTitle())
+                    .color(block.getColor())
                     .assigneeId(block.getAssignee().getId())
                     .scheduledDate(block.getScheduledDate())
                     .startTime(block.getStartTime())

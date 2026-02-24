@@ -56,9 +56,12 @@ export function CustomIconPage() {
     setIsUploading(true);
     setError(null);
     try {
+      // 로컬 blob URL로 미리보기 (서버 URL 대신 — 프로덕션에서 /uploads/ 미서빙)
+      const localPreviewUrl = URL.createObjectURL(file);
+
       const data = await customIconAPI.uploadReference(file);
       setReferenceId(data.reference_id);
-      setReferenceUrl(data.url);
+      setReferenceUrl(localPreviewUrl);
 
       // Auto-analyze style
       setIsAnalyzing(true);

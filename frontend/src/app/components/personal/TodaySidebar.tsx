@@ -140,7 +140,7 @@ export function TodaySidebar({ tasks, onTaskClick }: TodaySidebarProps) {
           fixed md:relative inset-y-0 left-0 z-50 md:z-auto
           h-full border-r border-white/[0.06] bg-bridge-obsidian/95 md:bg-bridge-obsidian/50
           flex-shrink-0 overflow-hidden
-          transition-all duration-300 ease-in-out
+          transition-all duration-300 ease-in-out safe-left safe-top safe-bottom
           ${showMobileSidebar ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
           md:transition-[width] md:duration-200
         `}

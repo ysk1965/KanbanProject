@@ -142,7 +142,7 @@ export function AnnouncementsPage() {
           onClick={() => setSelectedAnnouncement(null)}
         >
           <div
-            className="bg-bridge-obsidian rounded-2xl border border-foreground/10 shadow-2xl w-full max-w-lg max-h-[80vh] overflow-hidden"
+            className="bg-bridge-obsidian rounded-2xl border border-foreground/10 shadow-2xl w-full max-w-lg max-h-[80dvh] overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
@@ -159,7 +159,7 @@ export function AnnouncementsPage() {
             </div>
 
             {/* Modal Content */}
-            <div className="p-6 overflow-y-auto max-h-[50vh]">
+            <div className="p-6 overflow-y-auto max-h-[50dvh]">
               {selectedAnnouncement.content ? (
                 <div className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
                   {selectedAnnouncement.content}

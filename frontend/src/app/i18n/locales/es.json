@@ -627,7 +627,19 @@
     "newChecklistPlaceholder": "Ingresa el título de la lista de verificación",
     "creating": "Creando...",
     "dateFormatDay": "MMM d, yyyy",
-    "dateFormatWeek": "MMM d"
+    "dateFormatWeek": "MMM d",
+    "tabChecklist": "Lista de tareas",
+    "tabMeeting": "Reunion",
+    "tabCustom": "Personalizado",
+    "customPresets": "Selección rápida",
+    "presetLunch": "Almuerzo",
+    "presetFocus": "Tiempo de enfoque",
+    "presetPersonal": "Personal",
+    "presetOutside": "Fuera",
+    "presetRest": "Descanso",
+    "customLabel": "Personalizado",
+    "customPlaceholder": "Ingrese nombre del horario",
+    "customColor": "Color"
   },
   "schedule": {
     "settingsTitle": "Configuración de horario",
@@ -1836,7 +1848,8 @@
     "cannotMove": "No se puede mover",
     "cannotChange": "No se puede cambiar",
     "willSplit": "Dividir",
-    "nextDay": "día siguiente"
+    "nextDay": "día siguiente",
+    "custom": "Bloque personalizado"
   },
   "scheduleDetail": {
     "title": "Detalles del bloque de tiempo",
