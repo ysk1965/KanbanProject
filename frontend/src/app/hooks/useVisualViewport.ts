@@ -32,6 +32,7 @@ export function useVisualViewport() {
 
     // 키보드 판별 임계값: 전체 높이의 25% 이상 줄어들면 키보드로 간주
     const KEYBOARD_THRESHOLD = 0.75;
+    let wasKeyboardOpen = false;
 
     const update = () => {
       const viewportHeight = vv.height;
@@ -50,8 +51,14 @@ export function useVisualViewport() {
 
       if (isKeyboardOpen) {
         document.documentElement.setAttribute('data-keyboard-open', '');
+        wasKeyboardOpen = true;
       } else {
         document.documentElement.removeAttribute('data-keyboard-open');
+        // iOS 키보드 닫힘 후 dvh가 복원되지 않는 문제 대응
+        if (wasKeyboardOpen) {
+          wasKeyboardOpen = false;
+          forceViewportRestore();
+        }
       }
     };
 
@@ -61,14 +68,63 @@ export function useVisualViewport() {
     vv.addEventListener('resize', update);
     vv.addEventListener('scroll', update);
 
+    // iOS: focusout 시 키보드 닫힘 → 뷰포트 강제 복원
+    const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+    const handleFocusOut = (e: FocusEvent) => {
+      if (!isIOSDevice) return;
+      const target = e.target as HTMLElement;
+      if (
+        !(target instanceof HTMLInputElement) &&
+        !(target instanceof HTMLTextAreaElement) &&
+        !target.isContentEditable
+      ) return;
+
+      // focusout 후 다른 input으로 이동하는 경우 무시
+      setTimeout(() => {
+        const active = document.activeElement;
+        if (
+          active instanceof HTMLInputElement ||
+          active instanceof HTMLTextAreaElement ||
+          (active as HTMLElement)?.isContentEditable
+        ) return;
+        forceViewportRestore();
+      }, 100);
+    };
+
+    document.addEventListener('focusout', handleFocusOut);
+
     return () => {
       vv.removeEventListener('resize', update);
       vv.removeEventListener('scroll', update);
+      document.removeEventListener('focusout', handleFocusOut);
       document.documentElement.removeAttribute('data-keyboard-open');
       document.documentElement.style.removeProperty('--visual-viewport-height');
       document.documentElement.style.removeProperty('--vvh');
     };
   }, []);
+}
+
+/**
+ * iOS에서 키보드 닫힘 후 dvh/viewport가 제대로 복원되지 않는 문제를 해결.
+ * scrollTo(0,0)으로 브라우저의 뷰포트 재계산을 강제 트리거.
+ */
+function forceViewportRestore() {
+  // 약간의 딜레이 후 scroll 트리거로 뷰포트 재계산 유도
+  requestAnimationFrame(() => {
+    window.scrollTo(0, 0);
+    // 한 번 더 트리거 (키보드 애니메이션 완료 대기)
+    setTimeout(() => {
+      window.scrollTo(0, 0);
+      // dvh 재계산 강제: body에 1px 변화 후 복원
+      const html = document.documentElement;
+      html.style.setProperty('height', '100%');
+      requestAnimationFrame(() => {
+        html.style.removeProperty('height');
+      });
+    }, 150);
+  });
 }
 
 /**

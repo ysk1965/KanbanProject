@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { FEATURE_COLORS } from '../constants';
 import { CalendarDays, BookHeart, ArrowLeft, LayoutGrid, Calendar, Plus, Command, Home, Loader2, Flag, Repeat, Flame, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PersonalSchedule, type TabSwipeHandle } from '../components/personal/PersonalSchedule';
@@ -382,10 +383,7 @@ const HABIT_DAY_CHIPS = [
   { value: 0, label: '일' },
 ];
 
-const HABIT_COLORS = [
-  '#8B5CF6', '#6366F1', '#EC4899', '#F43F5E',
-  '#F59E0B', '#10B981', '#06B6D4', '#3B82F6',
-];
+const HABIT_COLORS = FEATURE_COLORS;
 
 const HABIT_ICONS = [
   '🏃', '📚', '💧', '🧘', '💪', '🎯', '✍️', '🎵',

@@ -1,10 +1,11 @@
-import { useState, useEffect, useMemo, useCallback, useRef, useLayoutEffect, forwardRef, useImperativeHandle } from 'react';
-import { createPortal } from 'react-dom';
+import { useState, useEffect, useMemo, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
 import { useTranslation } from 'react-i18next';
+import { FEATURE_COLORS } from '../../constants';
 import { ChevronLeft, ChevronRight, Plus, Trash2, X, Loader2, Settings, RotateCw, CalendarDays, Clock, CheckCircle2, ListTodo, AlertCircle, Search, Flame, ChevronDown, ChevronUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MotionModal } from '../ui/MotionModal';
 import { TimePicker } from '../ui/TimePicker';
+import { ColorPickerPopover } from '../ui/ColorPickerPopover';
 import { personalEventService, personalTaskService } from '../../utils/services';
 import { personalHabitAPI } from '../../utils/api';
 import { CheckInConfirmModal } from './PersonalHabits';
@@ -28,78 +29,14 @@ import {
   format,
 } from 'date-fns';
 
-const EVENT_COLORS = [
-  '#6366F1', '#8B5CF6', '#EC4899', '#F43F5E',
-  '#F59E0B', '#10B981', '#06B6D4', '#3B82F6',
-];
+const EVENT_COLORS = FEATURE_COLORS;
 
 const PRIORITY_DOT: Record<string, string> = {
   MEDIUM: 'bg-amber-400',
   HIGH: 'bg-orange-500', URGENT: 'bg-red-500',
 };
 
-function ColorDropdown({ color, onChange, colors = EVENT_COLORS }: { color: string; onChange: (c: string) => void; colors?: string[] }) {
-  const [open, setOpen] = useState(false);
-  const btnRef = useRef<HTMLButtonElement>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState({ top: 0, left: 0 });
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (btnRef.current?.contains(target) || dropdownRef.current?.contains(target)) return;
-      setOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
-
-  useLayoutEffect(() => {
-    if (open && btnRef.current) {
-      const rect = btnRef.current.getBoundingClientRect();
-      setPos({ top: rect.bottom + 4, left: rect.left });
-    }
-  }, [open]);
-
-  return (
-    <div>
-      <button
-        ref={btnRef}
-        type="button"
-        onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 px-3 py-2 bg-foreground/5 border border-foreground/10 rounded-xl hover:bg-foreground/10 transition-all"
-      >
-        <span className="w-5 h-5 rounded-full shrink-0" style={{ backgroundColor: color }} />
-        <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
-      </button>
-      {open && createPortal(
-        <div
-          ref={dropdownRef}
-          className="fixed z-[100] bg-bridge-obsidian border border-foreground/10 rounded-xl p-2 shadow-2xl"
-          style={{ top: pos.top, left: pos.left }}
-          onMouseDown={(e) => e.stopPropagation()}
-        >
-          <div className="grid grid-cols-4 gap-1.5">
-            {colors.map((c) => (
-              <button
-                key={c}
-                onClick={() => { onChange(c); setOpen(false); }}
-                className={`w-7 h-7 rounded-full transition-all ${
-                  color === c
-                    ? 'ring-2 ring-white ring-offset-2 ring-offset-bridge-obsidian scale-110'
-                    : 'hover:scale-110'
-                }`}
-                style={{ backgroundColor: c }}
-              />
-            ))}
-          </div>
-        </div>,
-        document.body,
-      )}
-    </div>
-  );
-}
+/* ColorDropdown replaced by ColorPickerPopover */
 
 const SLOT_HEIGHT = 40;
 const DEFAULT_START_HOUR = 7;
@@ -1927,7 +1864,14 @@ function CreateEventModal({
 
         {/* Header */}
         <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
-          <div className="w-3 h-3 rounded-full shrink-0 border border-white/10" style={{ backgroundColor: color }} />
+          <ColorPickerPopover
+            colors={EVENT_COLORS}
+            selectedColor={color}
+            onColorChange={setColor}
+            triggerSize="sm"
+            triggerShape="circle"
+            showCustomColor={false}
+          />
           <span className="text-sm font-bold text-foreground">{t('personal.schedule.newEvent')}</span>
           <div className="flex-1" />
           <button onClick={onClose} className="p-1.5 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5 transition-colors shrink-0">
@@ -2127,15 +2071,12 @@ function CreateEventModal({
                 </div>
               )}
 
-              {/* Date chip + Color picker */}
-              <div className="flex items-center gap-3 flex-wrap">
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-foreground/[0.04] border border-foreground/10">
-                  <CalendarDays size={13} className="text-slate-400" />
-                  <span className="text-xs text-muted-foreground">
-                    {formatDate(date, "PPP '('EEE')'")}
-                  </span>
-                </div>
-                <ColorDropdown color={color} onChange={setColor} />
+              {/* Date chip */}
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-foreground/[0.04] border border-foreground/10 w-fit">
+                <CalendarDays size={13} className="text-slate-400" />
+                <span className="text-xs text-muted-foreground">
+                  {formatDate(date, "PPP '('EEE')'")}
+                </span>
               </div>
 
               {/* Title */}
@@ -2443,9 +2384,16 @@ export function EventDetailModal({
         {/* Top accent line */}
         <div className="h-[2px]" style={{ background: `linear-gradient(to right, ${color}88, ${color}44, transparent)` }} />
 
-        {/* Header: color dot + title + delete/close */}
+        {/* Header: color picker + title + delete/close */}
         <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
-          <div className="w-3 h-3 rounded-full shrink-0 border border-white/10" style={{ backgroundColor: color }} />
+          <ColorPickerPopover
+            colors={EVENT_COLORS}
+            selectedColor={color}
+            onColorChange={setColor}
+            triggerSize="sm"
+            triggerShape="circle"
+            showCustomColor={false}
+          />
           <input
             type="text"
             value={title}
@@ -2501,15 +2449,12 @@ export function EventDetailModal({
             </div>
           )}
 
-          {/* Inline properties: date + color picker */}
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-foreground/[0.04] border border-foreground/10">
-              <CalendarDays size={13} className="text-slate-400" />
-              <span className="text-xs text-muted-foreground">
-                {formatDate(event.event_date, "PPP '('EEE')'")}
-              </span>
-            </div>
-            <ColorDropdown color={color} onChange={setColor} />
+          {/* Inline properties: date */}
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-foreground/[0.04] border border-foreground/10 w-fit">
+            <CalendarDays size={13} className="text-slate-400" />
+            <span className="text-xs text-muted-foreground">
+              {formatDate(event.event_date, "PPP '('EEE')'")}
+            </span>
           </div>
 
           {/* Time - compact row */}
@@ -2799,10 +2744,7 @@ function ScheduleSettingsModal({
    Create Habit Modal (Progressive Disclosure)
    ================================================================ */
 
-const HABIT_COLORS = [
-  '#8B5CF6', '#6366F1', '#EC4899', '#F43F5E',
-  '#F59E0B', '#10B981', '#06B6D4', '#3B82F6',
-];
+const HABIT_COLORS = FEATURE_COLORS;
 
 const HABIT_ICONS = [
   '🏃', '📚', '💧', '🧘', '💪', '🎯', '✍️', '🎵',
@@ -2983,7 +2925,13 @@ function CreateHabitModal({
                 </div>
 
                 {/* Color Picker */}
-                <ColorDropdown color={color} onChange={setColor} colors={HABIT_COLORS} />
+                <ColorPickerPopover
+                  colors={HABIT_COLORS}
+                  selectedColor={color}
+                  onColorChange={setColor}
+                  triggerShape="circle"
+                  showCustomColor={false}
+                />
 
                 {/* Description */}
                 <textarea

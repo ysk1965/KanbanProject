@@ -150,36 +150,103 @@ public class OpenAIImageService {
 
     @SuppressWarnings("unchecked")
     private CustomIconResponse.StyleAnalysis parseStyleAnalysis(Map<String, Object> responseBody) {
+        String rawContent = null;
         try {
             List<Map<String, Object>> choices = (List<Map<String, Object>>) responseBody.get("choices");
             if (choices == null || choices.isEmpty()) {
+                log.error("Style analysis: no choices in response. Keys: {}", responseBody.keySet());
                 throw new BusinessException(ErrorCode.CUSTOMICON_STYLE_ANALYSIS_FAILED);
             }
 
             Map<String, Object> message = (Map<String, Object>) choices.get(0).get("message");
-            String content = (String) message.get("content");
+            if (message == null) {
+                log.error("Style analysis: message is null. Choice keys: {}", choices.get(0).keySet());
+                throw new BusinessException(ErrorCode.CUSTOMICON_STYLE_ANALYSIS_FAILED);
+            }
+
+            Object contentObj = message.get("content");
+            if (contentObj == null) {
+                // content가 null인 경우 (refusal 등) - 기본값 반환
+                log.warn("Style analysis: content is null, message keys: {}. Using defaults.", message.keySet());
+                return buildDefaultStyleAnalysis();
+            }
+
+            // content가 String이 아닌 경우 (배열 등) 처리
+            if (contentObj instanceof String) {
+                rawContent = (String) contentObj;
+            } else if (contentObj instanceof List) {
+                // 배열 형태 content에서 text 추출
+                List<Map<String, Object>> contentList = (List<Map<String, Object>>) contentObj;
+                for (Map<String, Object> c : contentList) {
+                    if ("text".equals(c.get("type"))) {
+                        rawContent = String.valueOf(c.get("text"));
+                        break;
+                    }
+                }
+            } else {
+                rawContent = String.valueOf(contentObj);
+            }
+
+            if (rawContent == null || rawContent.isBlank()) {
+                log.warn("Style analysis: empty content. Using defaults.");
+                return buildDefaultStyleAnalysis();
+            }
+
+            log.info("Style analysis raw content: {}", rawContent);
 
             // JSON 추출 (GPT 응답에서 순수 JSON만 추출)
-            String json = extractJson(content);
-            log.debug("Style analysis raw content: {}", content);
+            String json = extractJson(rawContent);
 
-            Map<String, Object> styleMap = objectMapper.readValue(json, Map.class);
+            // SNAKE_CASE 전략의 영향을 받지 않는 별도 ObjectMapper 사용
+            ObjectMapper plainMapper = new ObjectMapper();
+            Map<String, Object> styleMap = plainMapper.readValue(json, Map.class);
 
             return CustomIconResponse.StyleAnalysis.builder()
-                    .style((String) styleMap.getOrDefault("style", "line"))
-                    .strokeWeight((String) styleMap.getOrDefault("stroke_weight", "medium"))
-                    .cornerRadius((String) styleMap.getOrDefault("corner_radius", "rounded"))
-                    .fill((String) styleMap.getOrDefault("fill", "none"))
-                    .detail((String) styleMap.getOrDefault("detail", "minimal"))
-                    .paddingRatio(((Number) styleMap.getOrDefault("padding_ratio", 0.15)).doubleValue())
+                    .style(getStringOrDefault(styleMap, "style", "line"))
+                    .strokeWeight(getStringOrDefault(styleMap, "stroke_weight", "medium"))
+                    .cornerRadius(getStringOrDefault(styleMap, "corner_radius", "rounded"))
+                    .fill(getStringOrDefault(styleMap, "fill", "none"))
+                    .detail(getStringOrDefault(styleMap, "detail", "minimal"))
+                    .paddingRatio(getDoubleOrDefault(styleMap, "padding_ratio", 0.15))
                     .build();
 
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
-            log.error("Failed to parse style analysis response: {}", e.getMessage(), e);
+            log.error("Failed to parse style analysis response. rawContent=[{}], error={}", rawContent, e.getMessage(), e);
             throw new BusinessException(ErrorCode.CUSTOMICON_STYLE_ANALYSIS_FAILED);
         }
+    }
+
+    private CustomIconResponse.StyleAnalysis buildDefaultStyleAnalysis() {
+        return CustomIconResponse.StyleAnalysis.builder()
+                .style("line")
+                .strokeWeight("medium")
+                .cornerRadius("rounded")
+                .fill("none")
+                .detail("minimal")
+                .paddingRatio(0.15)
+                .build();
+    }
+
+    private String getStringOrDefault(Map<String, Object> map, String key, String defaultValue) {
+        Object val = map.get(key);
+        return val != null ? String.valueOf(val) : defaultValue;
+    }
+
+    private double getDoubleOrDefault(Map<String, Object> map, String key, double defaultValue) {
+        Object val = map.get(key);
+        if (val instanceof Number) {
+            return ((Number) val).doubleValue();
+        }
+        if (val instanceof String) {
+            try {
+                return Double.parseDouble((String) val);
+            } catch (NumberFormatException e) {
+                return defaultValue;
+            }
+        }
+        return defaultValue;
     }
 
     @SuppressWarnings("unchecked")

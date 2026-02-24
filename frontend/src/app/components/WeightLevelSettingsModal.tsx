@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Plus, Trash2, GripVertical, Check } from 'lucide-react';
 import { statisticsService } from '../utils/services';
+import { FEATURE_COLORS } from '../constants';
 import { MotionModal } from './ui/MotionModal';
+import { ColorPickerPopover } from './ui/ColorPickerPopover';
 
 interface WeightLevel {
   id: string;
@@ -20,18 +22,7 @@ interface WeightLevelSettingsModalProps {
   onSave: () => void;
 }
 
-const PRESET_COLORS = [
-  '#6366f1', // Indigo
-  '#8b5cf6', // Violet
-  '#ec4899', // Pink
-  '#ef4444', // Red
-  '#f97316', // Orange
-  '#f59e0b', // Amber
-  '#10b981', // Emerald
-  '#14b8a6', // Teal
-  '#3b82f6', // Blue
-  '#64748b', // Slate
-];
+const PRESET_COLORS = FEATURE_COLORS;
 
 export function WeightLevelSettingsModal({
   open,
@@ -161,15 +152,12 @@ export function WeightLevelSettingsModal({
                     <GripVertical className="h-4 w-4 text-slate-400 cursor-grab" />
 
                     {/* Color Picker */}
-                    <div className="relative">
-                      <input
-                        type="color"
-                        value={level.color}
-                        onChange={(e) => handleUpdateLevel(level.id, { color: e.target.value })}
-                        className="w-8 h-8 rounded-lg cursor-pointer border-0 bg-transparent"
-                        style={{ padding: 0 }}
-                      />
-                    </div>
+                    <ColorPickerPopover
+                      colors={PRESET_COLORS}
+                      selectedColor={level.color}
+                      onColorChange={(color) => handleUpdateLevel(level.id, { color })}
+                      triggerShape="circle"
+                    />
 
                     {/* Name */}
                     <input

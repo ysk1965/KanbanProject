@@ -4,6 +4,7 @@ import { FEATURE_COLORS } from '../constants';
 import { X, Pencil, Trash2, Check, Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { MotionModal } from './ui/MotionModal';
+import { ColorPickerPopover } from './ui/ColorPickerPopover';
 
 interface TagManagementModalProps {
   open: boolean;
@@ -105,22 +106,17 @@ export function TagManagementModal({
                       <X size={14} />
                     </button>
                   </div>
-                  <div>
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                       {t('tags.selectColor')}
                     </span>
-                    <div className="grid grid-cols-10 gap-1.5">
-                      {FEATURE_COLORS.map((color) => (
-                        <button
-                          key={color}
-                          onClick={() => setEditColor(color)}
-                          className={`w-6 h-6 rounded-full transition-all ${
-                            editColor === color ? 'ring-2 ring-white ring-offset-2 ring-offset-bridge-surface scale-110' : 'hover:scale-110'
-                          }`}
-                          style={{ backgroundColor: color }}
-                        />
-                      ))}
-                    </div>
+                    <ColorPickerPopover
+                      colors={FEATURE_COLORS}
+                      selectedColor={editColor}
+                      onColorChange={setEditColor}
+                      triggerSize="sm"
+                      triggerShape="circle"
+                    />
                   </div>
                 </div>
               ) : deleteConfirmId === tag.id ? (
@@ -178,14 +174,12 @@ export function TagManagementModal({
             {t('tags.createNew')}
           </span>
           <div className="flex items-center gap-2">
-            <button
-              className="w-8 h-8 rounded-full flex-shrink-0 border-2 border-white/20 hover:border-white/40 transition-colors"
-              style={{ backgroundColor: newColor }}
-              onClick={() => {
-                const idx = FEATURE_COLORS.indexOf(newColor);
-                setNewColor(FEATURE_COLORS[(idx + 1) % FEATURE_COLORS.length]);
-              }}
-              title={t('tags.selectColor')}
+            <ColorPickerPopover
+              colors={FEATURE_COLORS}
+              selectedColor={newColor}
+              onColorChange={setNewColor}
+              triggerSize="lg"
+              triggerShape="circle"
             />
             <input
               value={newName}
@@ -205,18 +199,6 @@ export function TagManagementModal({
               <Plus size={12} />
               {t('common.add')}
             </button>
-          </div>
-          <div className="grid grid-cols-10 gap-1.5">
-            {FEATURE_COLORS.map((color) => (
-              <button
-                key={color}
-                onClick={() => setNewColor(color)}
-                className={`w-6 h-6 rounded-full transition-all ${
-                  newColor === color ? 'ring-2 ring-white ring-offset-2 ring-offset-bridge-surface scale-110' : 'hover:scale-110'
-                }`}
-                style={{ backgroundColor: color }}
-              />
-            ))}
           </div>
         </div>
     </MotionModal>

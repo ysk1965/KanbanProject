@@ -49,6 +49,13 @@ const timeToMin = (time: string): number => {
   return h * 60 + m;
 };
 
+// 분 → 시간 문자열 (예: 870 → "14:30")
+const minToTime = (min: number): string => {
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+};
+
 // 시간 슬롯 생성 (30분 단위, 24시까지 지원)
 const generateTimeSlots = (startHour: number, endHour: number) => {
   const slots: string[] = [];
@@ -285,6 +292,82 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
     return map;
   }, [columns]);
 
+  // 선택 범위에서 기존 블록 시간을 제외한 가장 큰 빈 시간 찾기
+  const findFreeTimeInRange = useCallback((userId: string, rangeStartTime: string, rangeEndTime: string): { startTime: string; endTime: string } | null => {
+    const blocks = blocksByUser.get(userId) || [];
+    const rangeStart = timeToMin(rangeStartTime);
+    const rangeEnd = timeToMin(rangeEndTime);
+
+    // 범위와 겹치는 블록 (시작시간순 정렬)
+    const overlapping = blocks.filter(b => {
+      const bStart = timeToMin(b.start_time);
+      let bEnd = timeToMin(b.end_time);
+      if (bEnd <= bStart) bEnd = workEndHour * 60;
+      return bStart < rangeEnd && bEnd > rangeStart;
+    }).sort((a, b) => timeToMin(a.start_time) - timeToMin(b.start_time));
+
+    if (overlapping.length === 0) return { startTime: rangeStartTime, endTime: rangeEndTime };
+
+    // 빈 시간 갭 수집
+    const gaps: Array<{ start: number; end: number }> = [];
+    let cursor = rangeStart;
+
+    for (const block of overlapping) {
+      const bStart = timeToMin(block.start_time);
+      let bEnd = timeToMin(block.end_time);
+      if (bEnd <= bStart) bEnd = workEndHour * 60;
+
+      if (bStart > cursor) {
+        gaps.push({ start: cursor, end: Math.min(bStart, rangeEnd) });
+      }
+      cursor = Math.max(cursor, bEnd);
+    }
+
+    if (cursor < rangeEnd) {
+      gaps.push({ start: cursor, end: rangeEnd });
+    }
+
+    if (gaps.length === 0) return null;
+
+    // 가장 큰 빈 시간 선택
+    const largest = gaps.reduce((max, gap) =>
+      (gap.end - gap.start) > (max.end - max.start) ? gap : max
+    );
+
+    if (largest.end - largest.start < 10) return null; // 최소 10분
+
+    return { startTime: minToTime(largest.start), endTime: minToTime(largest.end) };
+  }, [blocksByUser, workEndHour]);
+
+  // 선택 범위 → 빈 시간 찾기 + 점심시간 분할 (마우스/터치 공용)
+  const computeSegments = useCallback((userId: string, rawStartTime: string, rawEndTime: string): Array<{ startTime: string; endTime: string }> | null => {
+    const freeTime = findFreeTimeInRange(userId, rawStartTime, rawEndTime);
+    if (!freeTime) return null;
+
+    const freeStartMin = timeToMin(freeTime.startTime);
+    const freeEndMin = timeToMin(freeTime.endTime);
+    const segments: Array<{ startTime: string; endTime: string }> = [];
+
+    if (hasBreak && breakStartMinutes != null && breakEndMinutes != null &&
+        freeStartMin < breakEndMinutes && freeEndMin > breakStartMinutes) {
+      // 점심시간과 겹침 → 분할
+      if (freeStartMin < breakStartMinutes) {
+        segments.push({ startTime: freeTime.startTime, endTime: minToTime(breakStartMinutes) });
+      }
+      if (freeEndMin > breakEndMinutes) {
+        segments.push({ startTime: minToTime(breakEndMinutes), endTime: freeTime.endTime });
+      }
+    } else {
+      segments.push({ startTime: freeTime.startTime, endTime: freeTime.endTime });
+    }
+
+    return segments.length > 0 ? segments : null;
+  }, [findFreeTimeInRange, hasBreak, breakStartMinutes, breakEndMinutes]);
+
+  // 터치 핸들러용 ref (stale closure 방지)
+  const computeSegmentsRef = useRef(computeSegments);
+  useEffect(() => { computeSegmentsRef.current = computeSegments; }, [computeSegments]);
+
   // 슬롯별 가변 높이 계산: 짧은 블록이 있는 슬롯을 확장
   const slotHeightData = useMemo(() => {
     const heights = timeSlots.map(() => SLOT_HEIGHT);
@@ -396,34 +479,12 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
 
     // 최소 1슬롯 이상 선택해야 함
     if (maxIndex - minIndex >= 0) {
-      const startTime = timeSlots[minIndex];
-      const endTime = timeSlots[maxIndex + 1] || `${workEndHour}:00`;
+      const rawStartTime = timeSlots[minIndex];
+      const rawEndTime = timeSlots[maxIndex + 1] || `${workEndHour}:00`;
 
-      // 점심시간 분할 로직: break 슬롯을 제외하고 연속 구간을 세그먼트로 분리
-      const segments: Array<{ startTime: string; endTime: string }> = [];
-      let segStart: number | null = null;
-      for (let i = minIndex; i <= maxIndex; i++) {
-        if (!isBreakSlot(timeSlots[i])) {
-          if (segStart === null) segStart = i;
-        } else {
-          if (segStart !== null) {
-            segments.push({
-              startTime: timeSlots[segStart],
-              endTime: timeSlots[i],
-            });
-            segStart = null;
-          }
-        }
-      }
-      if (segStart !== null) {
-        segments.push({
-          startTime: timeSlots[segStart],
-          endTime: timeSlots[maxIndex + 1] || `${workEndHour}:00`,
-        });
-      }
-
-      // 비-break 슬롯이 하나도 없으면 무시
-      if (segments.length === 0) {
+      // 기존 블록 시간 제외 + 점심시간 분할
+      const segments = computeSegments(userId, rawStartTime, rawEndTime);
+      if (!segments) {
         setIsDragging(false);
         setDragState(null);
         return;
@@ -739,30 +800,12 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
         const maxIndex = Math.max(d.startSlotIndex, d.endSlotIndex);
 
         if (maxIndex - minIndex >= 0) {
-          // 점심시간 분할 로직
-          const segments: Array<{ startTime: string; endTime: string }> = [];
-          let segStart: number | null = null;
-          for (let i = minIndex; i <= maxIndex; i++) {
-            if (!isBreakSlot(timeSlots[i])) {
-              if (segStart === null) segStart = i;
-            } else {
-              if (segStart !== null) {
-                segments.push({
-                  startTime: timeSlots[segStart],
-                  endTime: timeSlots[i],
-                });
-                segStart = null;
-              }
-            }
-          }
-          if (segStart !== null) {
-            segments.push({
-              startTime: timeSlots[segStart],
-              endTime: timeSlots[maxIndex + 1] || `${workEndHour}:00`,
-            });
-          }
+          const rawStartTime = timeSlots[minIndex];
+          const rawEndTime = timeSlots[maxIndex + 1] || `${workEndHour}:00`;
 
-          if (segments.length > 0) {
+          // 기존 블록 시간 제외 + 점심시간 분할
+          const segments = computeSegmentsRef.current(d.startUserId, rawStartTime, rawEndTime);
+          if (segments) {
             setPendingBlock({
               userId: d.startUserId,
               startTime: segments[0].startTime,

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
+import { FEATURE_COLORS } from '../../constants';
 import {
   Plus, Flame, CheckCircle2, Trash2, X, Loader2, ChevronDown,
   Pencil, MoreHorizontal,
@@ -8,6 +9,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MotionModal } from '../ui/MotionModal';
+import { ColorPickerPopover } from '../ui/ColorPickerPopover';
 import { personalHabitAPI } from '../../utils/api';
 import { getTodayDateString } from '../../utils/dateUtils';
 import type { PersonalHabit, HabitTodayItem, HabitFrequency, HabitImportance } from '../../types';
@@ -16,10 +18,7 @@ import type { PersonalHabit, HabitTodayItem, HabitFrequency, HabitImportance } f
    Constants
    ================================================================ */
 
-const HABIT_COLORS = [
-  '#8B5CF6', '#6366F1', '#EC4899', '#F43F5E',
-  '#F59E0B', '#10B981', '#06B6D4', '#3B82F6',
-];
+const HABIT_COLORS = FEATURE_COLORS;
 
 const HABIT_ICONS = [
   '🏃', '📚', '💧', '🧘', '💪', '🎯', '✍️', '🎵',
@@ -128,79 +127,8 @@ function IconDropdown({ icon, onChange }: { icon: string; onChange: (v: string) 
 }
 
 /* ================================================================
-   Color Dropdown (floating popover)
+   Color Dropdown → replaced by ColorPickerPopover
    ================================================================ */
-
-function ColorDropdown({ color, onChange, colors }: { color: string; onChange: (c: string) => void; colors: string[] }) {
-  const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
-  const btnRef = useRef<HTMLButtonElement>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState({ top: 0, left: 0 });
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (btnRef.current?.contains(target) || dropdownRef.current?.contains(target)) return;
-      setOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
-
-  useLayoutEffect(() => {
-    if (open && btnRef.current) {
-      const rect = btnRef.current.getBoundingClientRect();
-      setPos({ top: rect.bottom + 4, left: rect.left });
-    }
-  }, [open]);
-
-  return (
-    <div className="flex-1">
-      <button
-        ref={btnRef}
-        type="button"
-        onClick={() => setOpen(!open)}
-        className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all ${
-          open
-            ? 'border-purple-500/40 bg-purple-500/5'
-            : 'border-foreground/10 bg-foreground/[0.04] hover:bg-foreground/[0.06]'
-        }`}
-      >
-        <span className="w-5 h-5 rounded-full shrink-0" style={{ backgroundColor: color }} />
-        <span className="text-[10px] text-slate-400 flex-1 text-left truncate">
-          {t('personal.habit.changeColor', '변경')}
-        </span>
-        <ChevronDown size={12} className={`text-slate-500 transition-transform ${open ? 'rotate-180' : ''}`} />
-      </button>
-      {open && createPortal(
-        <div
-          ref={dropdownRef}
-          className="fixed z-[100] bg-bridge-obsidian border border-foreground/10 rounded-xl p-2 shadow-2xl"
-          style={{ top: pos.top, left: pos.left }}
-          onMouseDown={(e) => e.stopPropagation()}
-        >
-          <div className="grid grid-cols-4 gap-1.5">
-            {colors.map((c) => (
-              <button
-                key={c}
-                onClick={() => { onChange(c); setOpen(false); }}
-                className={`w-7 h-7 rounded-full transition-all ${
-                  color === c
-                    ? 'ring-2 ring-white ring-offset-2 ring-offset-bridge-obsidian scale-110'
-                    : 'hover:scale-110'
-                }`}
-                style={{ backgroundColor: c }}
-              />
-            ))}
-          </div>
-        </div>,
-        document.body,
-      )}
-    </div>
-  );
-}
 
 /* ================================================================
    PersonalHabits — Main Tab Component
@@ -988,7 +916,14 @@ export function HabitFormModal({ open, habit, onClose, onSubmit, onDelete }: {
 
         {/* Header: icon + title + delete + close */}
         <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
-          <span className="text-base shrink-0">{icon || <Flame size={16} className="text-purple-400" />}</span>
+          <ColorPickerPopover
+            colors={HABIT_COLORS}
+            selectedColor={color}
+            onColorChange={setColor}
+            triggerSize="sm"
+            triggerShape="circle"
+            showCustomColor={false}
+          />
           <input
             type="text"
             value={title}
@@ -1057,11 +992,8 @@ export function HabitFormModal({ open, habit, onClose, onSubmit, onDelete }: {
             </button>
           </div>
 
-          {/* Icon & Color floating pickers */}
-          <div className="flex gap-3">
-            <IconDropdown icon={icon} onChange={setIcon} />
-            <ColorDropdown color={color} onChange={setColor} colors={HABIT_COLORS} />
-          </div>
+          {/* Icon picker */}
+          <IconDropdown icon={icon} onChange={setIcon} />
 
           {/* Description */}
           <textarea

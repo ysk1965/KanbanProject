@@ -223,8 +223,12 @@ public class CustomIconImageService {
     }
 
     private String buildUrl(String key) {
-        if (useS3() && cloudfrontDomain != null && !cloudfrontDomain.isEmpty()) {
-            return String.format("https://%s/%s", cloudfrontDomain, key);
+        if (useS3()) {
+            if (cloudfrontDomain != null && !cloudfrontDomain.isEmpty()) {
+                return String.format("https://%s/%s", cloudfrontDomain, key);
+            }
+            // CloudFront 미설정 시 S3 직접 URL 사용
+            return String.format("https://%s.s3.ap-northeast-2.amazonaws.com/%s", bucketName, key);
         }
         return "/uploads/" + key;
     }

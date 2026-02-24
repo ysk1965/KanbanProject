@@ -231,7 +231,7 @@ function CollabNoteEditor({
     }
   }, [note.id]);
 
-  // Slash menu items
+  // Slash menu items - custom items use unique group names to avoid duplicate key warnings
   const slashMenuItems = useMemo(() => [
     ...getDefaultReactSlashMenuItems(editor),
     {
@@ -239,7 +239,7 @@ function CollabNoteEditor({
       subtext: 'Highlighted callout box',
       onItemClick: () => insertOrUpdateBlock(editor, { type: 'callout' as any }),
       aliases: ['callout', 'panel', 'info', 'warning', 'notice'],
-      group: 'Basic blocks',
+      group: 'Custom blocks',
       icon: <span style={{ fontSize: '14px', lineHeight: 1 }}>{'ℹ️'}</span>,
     },
     {
@@ -247,7 +247,7 @@ function CollabNoteEditor({
       subtext: 'Collapsible toggle list',
       onItemClick: () => insertOrUpdateBlock(editor, { type: 'toggle' as any }),
       aliases: ['toggle', 'collapsible', 'dropdown', 'accordion'],
-      group: 'Basic blocks',
+      group: 'Custom blocks',
       icon: <span style={{ fontSize: '14px', lineHeight: 1 }}>{'▶'}</span>,
     },
     {
@@ -255,7 +255,7 @@ function CollabNoteEditor({
       subtext: 'Horizontal divider line',
       onItemClick: () => insertOrUpdateBlock(editor, { type: 'divider' as any }),
       aliases: ['divider', 'separator', 'hr', 'line'],
-      group: 'Basic blocks',
+      group: 'Custom blocks',
       icon: <span style={{ fontSize: '14px', lineHeight: 1 }}>{'—'}</span>,
     },
     {
@@ -263,7 +263,7 @@ function CollabNoteEditor({
       subtext: 'Auto-generated from headings',
       onItemClick: () => insertOrUpdateBlock(editor, { type: 'tableOfContents' as any }),
       aliases: ['toc', 'table of contents', 'outline', 'index'],
-      group: 'Basic blocks',
+      group: 'Custom blocks',
       icon: <span style={{ fontSize: '14px', lineHeight: 1 }}>{'📑'}</span>,
     },
     {
@@ -271,7 +271,7 @@ function CollabNoteEditor({
       subtext: 'YouTube, Vimeo, or any link',
       onItemClick: () => insertOrUpdateBlock(editor, { type: 'embed' as any }),
       aliases: ['embed', 'youtube', 'vimeo', 'bookmark', 'link card', 'iframe'],
-      group: 'Media',
+      group: 'Custom blocks',
       icon: <span style={{ fontSize: '14px', lineHeight: 1 }}>{'🔗'}</span>,
     },
     {
@@ -304,16 +304,6 @@ function CollabNoteEditor({
       aliases: ['3columns', 'three columns', 'triple'],
       group: 'Advanced',
       icon: <span style={{ fontSize: '14px', lineHeight: 1 }}>{'▦'}</span>,
-    },
-    {
-      title: 'Table',
-      subtext: 'Insert a table',
-      onItemClick: () => {
-        insertOrUpdateBlock(editor, { type: 'table' as any });
-      },
-      aliases: ['table', 'grid', '표', '테이블'],
-      group: 'Basic blocks',
-      icon: <span style={{ fontSize: '14px', lineHeight: 1 }}>{'📊'}</span>,
     },
   ], [editor]);
 
@@ -738,17 +728,6 @@ function FallbackNoteEditor({ boardId, note, tags, canEdit, onSave, onTagsChange
 
   const slashMenuItems = useMemo(() => [
     ...getDefaultReactSlashMenuItems(editor),
-    // Same slash menu items as above (abbreviated for fallback)
-    {
-      title: 'Table',
-      subtext: 'Insert a table',
-      onItemClick: () => {
-        insertOrUpdateBlock(editor, { type: 'table' as any });
-      },
-      aliases: ['table', 'grid', '표', '테이블'],
-      group: 'Basic blocks',
-      icon: <span style={{ fontSize: '14px', lineHeight: 1 }}>{'📊'}</span>,
-    },
   ], [editor]);
 
   const membersCache = useRef<MemberResponse[] | null>(null);

@@ -11,16 +11,21 @@ import {
   SelectValue,
 } from './ui/select';
 import { Badge } from './ui/badge';
-import { X, Link as LinkIcon, Copy, Check, UserPlus, Trash2, Plus, Loader2, Palette, Users, Settings, GripVertical, Sparkles } from 'lucide-react';
-import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import { HexColorPicker } from 'react-colorful';
+import { X, Link as LinkIcon, Copy, Check, UserPlus, Trash2, Loader2, Pipette, Users, Settings, GripVertical, Sparkles } from 'lucide-react';
+import { ColorPickerPopover } from './ui/ColorPickerPopover';
 import { InviteLink, slackWebhookAPI, SlackWebhookMemberStatus } from '../utils/api';
 import { AiCredits } from '../types';
+import { FEATURE_COLORS } from '../constants';
 import { ASSIGNEE_COLOR_NAMES, getAssigneeClasses, getAssigneeHex, getInitials } from '../utils/assigneeColor';
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { restrictToVerticalAxis, restrictToParentElement } from '@dnd-kit/modifiers';
 import { arrayMove, SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+
+/** Reverse map hex → assignee color name for preset matching */
+const HEX_TO_NAME_MAP = new Map(
+  ASSIGNEE_COLOR_NAMES.map((name) => [getAssigneeHex(name, name).toLowerCase(), name])
+);
 
 export type MemberRole = 'owner' | 'admin' | 'member' | 'viewer';
 
@@ -88,21 +93,15 @@ interface SortableMemberRowProps {
   canEdit: boolean;
   canChangeColor: boolean;
   webhookStatus: SlackWebhookMemberStatus | undefined;
-  customPickerMemberId: string | null;
-  customPickerColor: string;
   onUpdateMemberRole: (memberId: string, role: MemberRole) => void;
   onRemoveMember: (memberId: string) => void;
   onUpdateMemberColor?: (memberId: string, color: string | null) => void;
-  setCustomPickerMemberId: (id: string | null) => void;
-  setCustomPickerColor: (color: string) => void;
   t: (key: string, options?: Record<string, unknown>) => string;
 }
 
 function SortableMemberRow({
   member, canDrag, isCurrentMember, isOnline, canEdit, canChangeColor, webhookStatus,
-  customPickerMemberId, customPickerColor,
-  onUpdateMemberRole, onRemoveMember, onUpdateMemberColor,
-  setCustomPickerMemberId, setCustomPickerColor, t,
+  onUpdateMemberRole, onRemoveMember, onUpdateMemberColor, t,
 }: SortableMemberRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: member.id, disabled: !canDrag });
   const style = {
@@ -131,119 +130,44 @@ function SortableMemberRow({
         )}
 
         {/* 아바타 + 색상 피커 */}
-        <Popover onOpenChange={(open) => {
-          if (!open) setCustomPickerMemberId(null);
-        }}>
-          <PopoverTrigger asChild>
-            <button
-              className={`relative w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-semibold whitespace-nowrap group/avatar ${
-                getAssigneeClasses(member.name, member.assigneeColor).bg || ''
-              }`}
-              style={
-                member.assigneeColor?.startsWith('#')
-                  ? { backgroundColor: member.assigneeColor }
-                  : undefined
-              }
-              title={canChangeColor ? t('share.changeColor') : undefined}
-              disabled={!canChangeColor}
-            >
-              {getInitials(member.name)}
-              {/* 온라인/오프라인 상태 dot */}
-              <div
-                className={`absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-bridge-obsidian ${
-                  isOnline ? 'bg-emerald-400' : 'bg-red-400/70'
-                } ${canChangeColor ? 'group-hover/avatar:opacity-0' : ''} transition-opacity`}
-              />
-              {canChangeColor && (
-                <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-bridge-obsidian border border-foreground/10 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity">
-                  <Palette className="h-2 w-2 text-slate-400" />
-                </div>
-              )}
-            </button>
-          </PopoverTrigger>
-          {canChangeColor && onUpdateMemberColor && (
-            <PopoverContent className="w-auto p-2 bg-bridge-obsidian border-foreground/10" align="start">
-              <div className="flex gap-1.5">
-                {ASSIGNEE_COLOR_NAMES.map((colorName) => {
-                  const cls = getAssigneeClasses(colorName, colorName);
-                  const currentHex = getAssigneeHex(member.name, member.assigneeColor);
-                  const isSelected = cls.hex === currentHex;
-                  return (
-                    <button
-                      key={colorName}
-                      onClick={() => {
-                        onUpdateMemberColor(member.id, colorName);
-                        setCustomPickerMemberId(null);
-                      }}
-                      className={`w-7 h-7 rounded-full ${cls.bg} flex items-center justify-center transition-all ${
-                        isSelected ? 'ring-2 ring-white ring-offset-2 ring-offset-bridge-obsidian' : 'hover:scale-110'
-                      }`}
-                      title={colorName}
-                    >
-                      {isSelected && <Check className="h-3.5 w-3.5 text-white" />}
-                    </button>
-                  );
-                })}
-                <button
-                  onClick={() => {
-                    const currentHex = getAssigneeHex(member.name, member.assigneeColor);
-                    setCustomPickerColor(currentHex);
-                    setCustomPickerMemberId(
-                      customPickerMemberId === member.id ? null : member.id
-                    );
-                  }}
-                  className={`w-7 h-7 rounded-full border border-dashed border-white/30 flex items-center justify-center transition-all hover:scale-110 hover:border-white/60 ${
-                    customPickerMemberId === member.id ? 'ring-2 ring-white ring-offset-2 ring-offset-bridge-obsidian border-solid' : ''
-                  }`}
-                  style={
-                    member.assigneeColor?.startsWith('#')
-                      ? { backgroundColor: member.assigneeColor + '40', borderColor: member.assigneeColor }
-                      : undefined
-                  }
-                  title={t('share.customColor')}
-                >
-                  <Plus className="h-3.5 w-3.5 text-slate-400" />
-                </button>
+        <ColorPickerPopover
+          colors={FEATURE_COLORS}
+          selectedColor={getAssigneeHex(member.name, member.assigneeColor)}
+          onColorChange={(hex) => {
+            if (!onUpdateMemberColor) return;
+            const colorName = HEX_TO_NAME_MAP.get(hex.toLowerCase());
+            onUpdateMemberColor(member.id, colorName ?? hex);
+          }}
+          disabled={!canChangeColor}
+          triggerSize="sm"
+          columns={3}
+          customColorLabel={t('share.customColor')}
+        >
+          <button
+            className={`relative w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-semibold whitespace-nowrap group/avatar ${
+              getAssigneeClasses(member.name, member.assigneeColor).bg || ''
+            }`}
+            style={
+              member.assigneeColor?.startsWith('#')
+                ? { backgroundColor: member.assigneeColor }
+                : undefined
+            }
+            title={canChangeColor ? t('share.changeColor') : undefined}
+          >
+            {getInitials(member.name)}
+            {/* 온라인/오프라인 상태 dot */}
+            <div
+              className={`absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-bridge-obsidian ${
+                isOnline ? 'bg-emerald-400' : 'bg-red-400/70'
+              } ${canChangeColor ? 'group-hover/avatar:opacity-0' : ''} transition-opacity`}
+            />
+            {canChangeColor && (
+              <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-bridge-obsidian border border-foreground/10 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity">
+                <Pipette className="h-2 w-2 text-slate-400" />
               </div>
-              {customPickerMemberId === member.id && (
-                <div className="mt-2 pt-2 border-t border-foreground/10 space-y-2">
-                  <HexColorPicker
-                    color={customPickerColor}
-                    onChange={setCustomPickerColor}
-                    style={{ width: '100%', height: 140 }}
-                  />
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="w-7 h-7 rounded-full border border-foreground/10 shrink-0"
-                      style={{ backgroundColor: customPickerColor }}
-                    />
-                    <input
-                      type="text"
-                      value={customPickerColor}
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        if (/^#[0-9A-Fa-f]{0,6}$/.test(v)) setCustomPickerColor(v);
-                      }}
-                      className="flex-1 bg-foreground/5 border border-foreground/10 rounded-lg px-2 py-1 text-xs text-foreground font-mono focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
-                      maxLength={7}
-                    />
-                    <button
-                      onClick={() => {
-                        if (/^#[0-9A-Fa-f]{6}$/.test(customPickerColor)) {
-                          onUpdateMemberColor(member.id, customPickerColor);
-                          setCustomPickerMemberId(null);
-                        }
-                      }}
-                      className="px-2.5 py-1 bg-bridge-accent text-white text-xs rounded-lg hover:bg-bridge-accent/90 transition-colors font-medium"
-                    >
-                      {t('common.apply')}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </PopoverContent>
-          )}
-        </Popover>
+            )}
+          </button>
+        </ColorPickerPopover>
 
         {/* 정보 */}
         <div className="min-w-0 flex-1">
@@ -347,8 +271,6 @@ export function ShareBoardModal({
   const [linkCopied, setLinkCopied] = useState(false);
   const [isCreatingLink, setIsCreatingLink] = useState(false);
   const [copyMessage, setCopyMessage] = useState<string | null>(null);
-  const [customPickerMemberId, setCustomPickerMemberId] = useState<string | null>(null);
-  const [customPickerColor, setCustomPickerColor] = useState('#6366F1');
   const [webhookStatusMap, setWebhookStatusMap] = useState<Record<string, SlackWebhookMemberStatus>>({});
 
   const sensors = useSensors(
@@ -649,13 +571,9 @@ export function ShareBoardModal({
                         canEdit={canEdit}
                         canChangeColor={!!canChangeColor}
                         webhookStatus={webhookStatus}
-                        customPickerMemberId={customPickerMemberId}
-                        customPickerColor={customPickerColor}
                         onUpdateMemberRole={onUpdateMemberRole}
                         onRemoveMember={onRemoveMember}
                         onUpdateMemberColor={onUpdateMemberColor}
-                        setCustomPickerMemberId={setCustomPickerMemberId}
-                        setCustomPickerColor={setCustomPickerColor}
                         t={t}
                       />
                     );

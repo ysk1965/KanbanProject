@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef, Fragment } from 'react';
 import { useTranslation } from 'react-i18next';
+import { FEATURE_COLORS } from '../../constants';
 import {
   Clock, CalendarDays, CheckCircle2, BookHeart, Sparkles,
   ArrowRight, Sun, Sunrise, Sunset, Moon, Loader2, Flame, Check,
@@ -7,6 +8,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MotionModal } from '../ui/MotionModal';
+import { ColorPickerPopover } from '../ui/ColorPickerPopover';
 import { personalEventService, diaryService } from '../../utils/services';
 import { personalTaskAPI, personalHabitAPI, personalDashboardAPI } from '../../utils/api';
 import { getTodayDateString } from '../../utils/dateUtils';
@@ -2107,10 +2109,7 @@ export function PersonalOverview({ onNavigateTab, onRefreshTasks }: PersonalOver
    Create Habit Modal for Overview (Lightweight version)
    ================================================================ */
 
-const OV_HABIT_COLORS = [
-  '#8B5CF6', '#6366F1', '#EC4899', '#F43F5E',
-  '#F59E0B', '#10B981', '#06B6D4', '#3B82F6',
-];
+const OV_HABIT_COLORS = FEATURE_COLORS;
 
 const OV_HABIT_ICONS = [
   '🏃', '📚', '💧', '🧘', '💪', '🎯', '✍️', '🎵',
@@ -2267,20 +2266,13 @@ function OverviewCreateHabitModal({
                 </div>
 
                 {/* Color Picker */}
-                <div className="flex gap-2">
-                  {OV_HABIT_COLORS.map((c) => (
-                    <button
-                      key={c}
-                      onClick={() => setColor(c)}
-                      className={`w-6 h-6 rounded-full transition-all ${
-                        color === c
-                          ? 'ring-2 ring-white ring-offset-2 ring-offset-bridge-obsidian scale-110'
-                          : 'hover:scale-110'
-                      }`}
-                      style={{ backgroundColor: c }}
-                    />
-                  ))}
-                </div>
+                <ColorPickerPopover
+                  colors={OV_HABIT_COLORS}
+                  selectedColor={color}
+                  onColorChange={setColor}
+                  triggerShape="circle"
+                  showCustomColor={false}
+                />
 
                 {/* Description */}
                 <textarea

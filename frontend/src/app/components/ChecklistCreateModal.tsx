@@ -5,6 +5,8 @@ import { format, parseISO, isToday as isDateToday } from 'date-fns';
 import { featureAPI, taskAPI, dailyChecklistAPI, FeatureResponse, TaskResponse, DailyChecklistItemResponse, BoardChecklistItemResponse, MeetingSummary } from '../utils/api';
 import { MotionModal } from './ui/MotionModal';
 import { TimePicker } from './ui/TimePicker';
+import { ColorPickerPopover } from './ui/ColorPickerPopover';
+import { FEATURE_COLORS } from '../constants';
 
 type TimeblockTab = 'checklist' | 'meeting' | 'custom';
 
@@ -642,27 +644,16 @@ export function ChecklistCreateModal({
               </div>
 
               {/* Color Picker */}
-              <div>
-                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+              <div className="flex items-center gap-3">
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
                   {t('dailySchedule.customColor')}
                 </label>
-                <div className="flex gap-2 flex-wrap">
-                  {[
-                    '#F59E0B', '#3B82F6', '#8B5CF6', '#10B981',
-                    '#EC4899', '#EF4444', '#64748B', '#06B6D4',
-                  ].map(c => (
-                    <button
-                      key={c}
-                      onClick={() => setCustomColor(c)}
-                      className={`w-8 h-8 rounded-full border-2 transition-all ${
-                        customColor === c
-                          ? 'border-white scale-110 shadow-lg'
-                          : 'border-transparent hover:scale-105'
-                      }`}
-                      style={{ backgroundColor: c }}
-                    />
-                  ))}
-                </div>
+                <ColorPickerPopover
+                  colors={FEATURE_COLORS}
+                  selectedColor={customColor}
+                  onColorChange={setCustomColor}
+                  triggerShape="circle"
+                />
               </div>
             </div>
           )}
