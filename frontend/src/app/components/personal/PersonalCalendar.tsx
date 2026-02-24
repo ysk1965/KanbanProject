@@ -259,6 +259,18 @@ export const PersonalCalendar = forwardRef<TabSwipeHandle>(function PersonalCale
     const el = calendarGridRef.current;
     if (!el) return;
 
+    const disableTextSelection = () => {
+      el.style.userSelect = 'none';
+      el.style.webkitUserSelect = 'none';
+      el.style.touchAction = 'none';
+      window.getSelection()?.removeAllRanges();
+    };
+    const enableTextSelection = () => {
+      el.style.userSelect = '';
+      el.style.webkitUserSelect = '';
+      el.style.touchAction = '';
+    };
+
     const handleTouchStart = (e: TouchEvent) => {
       const touch = e.touches[0];
       const target = e.target as HTMLElement;
@@ -270,6 +282,7 @@ export const PersonalCalendar = forwardRef<TabSwipeHandle>(function PersonalCale
           dragRef.current.active = true;
           dragRef.current.endDate = dk;
           setDragSelection({ start: dk, end: dk });
+          disableTextSelection();
           try { navigator.vibrate?.(30); } catch {}
         }, 400),
         startDate: dk,
@@ -305,6 +318,7 @@ export const PersonalCalendar = forwardRef<TabSwipeHandle>(function PersonalCale
       if (d.timer) { clearTimeout(d.timer); d.timer = null; }
       if (d.active) {
         e.stopPropagation();
+        enableTextSelection();
         const [rangeStart, rangeEnd] = d.startDate <= d.endDate
           ? [d.startDate, d.endDate]
           : [d.endDate, d.startDate];
@@ -328,6 +342,7 @@ export const PersonalCalendar = forwardRef<TabSwipeHandle>(function PersonalCale
       el.removeEventListener('touchstart', handleTouchStart);
       el.removeEventListener('touchmove', handleTouchMove);
       el.removeEventListener('touchend', handleTouchEnd);
+      enableTextSelection();
     };
   }, []);
 

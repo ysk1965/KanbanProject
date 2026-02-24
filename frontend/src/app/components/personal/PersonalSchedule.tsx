@@ -215,7 +215,8 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
     return eachDayOfInterval({ start: ws, end: we });
   }, [currentDate, viewMode]);
 
-  const startDate = toDateString(weekDays[0]);
+  // In day view, fetch one extra day before to capture overnight events spanning into today
+  const startDate = viewMode === 'day' ? toDateString(subDays(weekDays[0], 1)) : toDateString(weekDays[0]);
   const endDate = toDateString(weekDays[weekDays.length - 1]);
 
   // ---- Data loading ----

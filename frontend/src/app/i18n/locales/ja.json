@@ -2648,7 +2648,8 @@
     },
     "diary": {
       "completionSuggestion": "今日の話はたくさんできましたね。日記にまとめましょうか？ ✨",
-      "continueChat": "もう少し話す"
+      "continueChat": "もう少し話す",
+      "dayCutoffHint": "午前5時までは前日の日記として記録されます"
     },
     "schedule": {
       "overlapWarning": "{{count}}件のイベントと時間が重複しています",

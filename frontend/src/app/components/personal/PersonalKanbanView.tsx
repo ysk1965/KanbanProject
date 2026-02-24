@@ -102,7 +102,6 @@ export function PersonalKanbanView({ boardId, onTaskClick, onFeatureClick }: Per
             checklistDataMap={checklistDataMap}
             showFeatureLabel={true}
             isPersonal={true}
-            blockIndex={index}
           />
         ))}
       </div>

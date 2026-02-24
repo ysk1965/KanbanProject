@@ -2648,7 +2648,8 @@
     },
     "diary": {
       "completionSuggestion": "Có vẻ chúng ta đã chia sẻ nhiều hôm nay. Viết thành nhật ký nhé? ✨",
-      "continueChat": "Nói thêm chút nữa"
+      "continueChat": "Nói thêm chút nữa",
+      "dayCutoffHint": "Trước 5 giờ sáng được tính là ngày hôm trước"
     },
     "schedule": {
       "overlapWarning": "Trùng lịch với {{count}} sự kiện",

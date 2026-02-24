@@ -2648,7 +2648,8 @@
     },
     "diary": {
       "completionSuggestion": "今天聊了很多呢。要整理成日记吗？ ✨",
-      "continueChat": "继续聊聊"
+      "continueChat": "继续聊聊",
+      "dayCutoffHint": "凌晨5点前的记录算作前一天"
     },
     "schedule": {
       "overlapWarning": "与{{count}}个日程时间冲突",

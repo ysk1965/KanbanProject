@@ -88,6 +88,19 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
   } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
+  // 터치 드래그 refs (모바일 long-press → 멀티슬롯 선택)
+  const timeGridRef = useRef<HTMLDivElement>(null);
+  const isTouchRef = useRef(false);
+  const touchDragRef = useRef({
+    timer: null as ReturnType<typeof setTimeout> | null,
+    startUserId: '',
+    startSlotIndex: -1,
+    endSlotIndex: -1,
+    startX: 0,
+    startY: 0,
+    active: false,
+  });
+
   // 선택된 블록 (상세 패널용)
   const [selectedBlock, setSelectedBlock] = useState<ScheduleBlockInfo | null>(null);
 
@@ -270,6 +283,8 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
   const handleMouseDown = (e: React.MouseEvent, userId: string, slotIndex: number) => {
     // Viewer는 타임블록 생성 불가
     if (isViewer) return;
+    // 터치 이벤트 진행 중이면 합성 마우스 이벤트 무시
+    if (isTouchRef.current) return;
 
     e.preventDefault(); // 텍스트 선택 방지
     setIsDragging(true);
@@ -539,6 +554,149 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
   useEffect(() => {
     hasScrolledRef.current = false;
   }, [selectedDate]);
+
+  // 모바일 터치 드래그 (long-press 400ms → 멀티슬롯 선택)
+  useEffect(() => {
+    const el = timeGridRef.current;
+    if (!el || isViewer || viewMode !== 'day') return;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      const touch = e.touches[0];
+      const target = e.target as HTMLElement;
+      const cell = target.closest('[data-slotinfo]') as HTMLElement | null;
+      if (!cell) return;
+
+      const [userId, slotIndexStr] = cell.dataset.slotinfo!.split(':');
+      const slotIndex = parseInt(slotIndexStr, 10);
+      const slotTime = timeSlots[slotIndex];
+      if (isBreakSlot(slotTime)) return;
+
+      isTouchRef.current = true;
+      touchDragRef.current = {
+        timer: setTimeout(() => {
+          touchDragRef.current.active = true;
+          setIsDragging(true);
+          setDragState({
+            userId,
+            startSlotIndex: slotIndex,
+            endSlotIndex: slotIndex,
+          });
+          try { navigator.vibrate?.(30); } catch {}
+        }, 400),
+        startUserId: userId,
+        startSlotIndex: slotIndex,
+        endSlotIndex: slotIndex,
+        startX: touch.clientX,
+        startY: touch.clientY,
+        active: false,
+      };
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      const d = touchDragRef.current;
+      const touch = e.touches[0];
+
+      if (!d.active) {
+        // 긴 누르기 전에 움직이면 타이머 취소 (스크롤 허용)
+        if (d.timer && (Math.abs(touch.clientX - d.startX) > 10 || Math.abs(touch.clientY - d.startY) > 10)) {
+          clearTimeout(d.timer);
+          d.timer = null;
+        }
+        return;
+      }
+
+      // 드래그 활성 상태: 스크롤 및 텍스트 선택 방지
+      e.preventDefault();
+      e.stopPropagation();
+
+      const target = document.elementFromPoint(touch.clientX, touch.clientY) as HTMLElement | null;
+      const cell = target?.closest('[data-slotinfo]') as HTMLElement | null;
+      if (cell && cell.dataset.slotinfo) {
+        const [userId, slotIndexStr] = cell.dataset.slotinfo.split(':');
+        const slotIndex = parseInt(slotIndexStr, 10);
+
+        // 같은 멤버 컬럼 내에서만 드래그 허용
+        if (userId === d.startUserId) {
+          d.endSlotIndex = slotIndex;
+          setDragState({
+            userId: d.startUserId,
+            startSlotIndex: d.startSlotIndex,
+            endSlotIndex: slotIndex,
+          });
+        }
+      }
+    };
+
+    const handleTouchEnd = () => {
+      const d = touchDragRef.current;
+      if (d.timer) { clearTimeout(d.timer); d.timer = null; }
+
+      if (d.active) {
+        const minIndex = Math.min(d.startSlotIndex, d.endSlotIndex);
+        const maxIndex = Math.max(d.startSlotIndex, d.endSlotIndex);
+
+        if (maxIndex - minIndex >= 0) {
+          // 점심시간 분할 로직
+          const segments: Array<{ startTime: string; endTime: string }> = [];
+          let segStart: number | null = null;
+          for (let i = minIndex; i <= maxIndex; i++) {
+            if (!isBreakSlot(timeSlots[i])) {
+              if (segStart === null) segStart = i;
+            } else {
+              if (segStart !== null) {
+                segments.push({
+                  startTime: timeSlots[segStart],
+                  endTime: timeSlots[i],
+                });
+                segStart = null;
+              }
+            }
+          }
+          if (segStart !== null) {
+            segments.push({
+              startTime: timeSlots[segStart],
+              endTime: timeSlots[maxIndex + 1] || `${workEndHour}:00`,
+            });
+          }
+
+          if (segments.length > 0) {
+            setPendingBlock({
+              userId: d.startUserId,
+              startTime: segments[0].startTime,
+              endTime: segments[segments.length - 1].endTime,
+              startSlotIndex: minIndex,
+              endSlotIndex: maxIndex,
+              splitBlocks: segments.length > 1 ? segments : undefined,
+            });
+            setShowChecklistModal(true);
+          }
+        }
+      }
+
+      d.active = false;
+      d.startUserId = '';
+      d.startSlotIndex = -1;
+      d.endSlotIndex = -1;
+      setIsDragging(false);
+      setDragState(null);
+
+      // 합성 마우스 이벤트 방지를 위해 약간 지연 후 터치 플래그 해제
+      setTimeout(() => { isTouchRef.current = false; }, 300);
+    };
+
+    el.addEventListener('touchstart', handleTouchStart, { passive: true });
+    el.addEventListener('touchmove', handleTouchMove, { passive: false });
+    el.addEventListener('touchend', handleTouchEnd, { passive: true });
+
+    return () => {
+      el.removeEventListener('touchstart', handleTouchStart);
+      el.removeEventListener('touchmove', handleTouchMove);
+      el.removeEventListener('touchend', handleTouchEnd);
+      if (touchDragRef.current.timer) {
+        clearTimeout(touchDragRef.current.timer);
+      }
+    };
+  }, [isViewer, viewMode, timeSlots, isBreakSlot, workEndHour]);
 
   // selectedBlock을 ref로 추적 (handleBlockResize의 stale closure 방지)
   const selectedBlockRef = useRef(selectedBlock);
@@ -849,7 +1007,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
             </div>
 
             {/* 시간 그리드 */}
-            <div className="relative">
+            <div ref={timeGridRef} className="relative select-none">
               {timeSlots.map((time, slotIndex) => {
                 const isBreak = isBreakSlot(time);
                 return (
@@ -866,6 +1024,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
                     return (
                       <div
                         key={`${member.userId}-${time}`}
+                        data-slotinfo={`${member.userId}:${slotIndex}`}
                         className={`w-36 md:w-48 flex-shrink-0 border-r border-bridge-border transition-colors group relative h-full ${
                           isBreak ? (isDragging ? 'cursor-pointer' : 'cursor-not-allowed') : isViewer ? 'cursor-default' : 'cursor-pointer'
                         } ${

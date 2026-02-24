@@ -1860,6 +1860,23 @@ export interface MeetingSummary {
   participant_count: number;
   recurrence_rule: string | null;
   recurrence_group_id: string | null;
+  recurrence_end_date: string | null;
+}
+
+export interface DiarizedSegment {
+  speaker: string;
+  text: string;
+  order: number;
+}
+
+export interface DiarizedTranscript {
+  segments: DiarizedSegment[];
+  speaker_mapping: Record<string, string | null>;
+}
+
+export interface SpeakerMappingResult {
+  meeting_id: string;
+  speaker_mapping: Record<string, string | null>;
 }
 
 export interface MeetingDetail {
@@ -1877,6 +1894,7 @@ export interface MeetingDetail {
   created_by: { id: string; name: string; profile_image: string | null };
   participants: { id: string; name: string; profile_image: string | null }[];
   ai_suggestions: AISuggestionResponse | null;
+  diarized_transcript: DiarizedTranscript | null;
   created_at: string;
   updated_at: string | null;
 }
@@ -1884,6 +1902,7 @@ export interface MeetingDetail {
 export interface TranscriptResult {
   meeting_id: string;
   transcript: string;
+  diarized_transcript: DiarizedTranscript | null;
 }
 
 export interface AISummaryTopic {
@@ -2239,6 +2258,7 @@ export const meetingAPI = {
       end_time?: string | null;
       memo?: string;
       color?: string;
+      recurrence_end_date?: string | null;
     },
     scope?: 'THIS_ONLY' | 'THIS_AND_FUTURE'
   ): Promise<MeetingDetail> => {
@@ -2306,6 +2326,17 @@ export const meetingAPI = {
     return apiClient.put<TranscriptResult>(
       `/boards/${boardId}/meetings/${meetingId}/transcript`,
       { transcript }
+    );
+  },
+
+  updateSpeakerMapping: async (
+    boardId: string,
+    meetingId: string,
+    speakerMapping: Record<string, string | null>
+  ): Promise<SpeakerMappingResult> => {
+    return apiClient.put<SpeakerMappingResult>(
+      `/boards/${boardId}/meetings/${meetingId}/speaker-mapping`,
+      { speaker_mapping: speakerMapping }
     );
   },
 

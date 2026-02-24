@@ -1,6 +1,7 @@
 package com.kanban.domain.meeting.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
@@ -9,6 +10,7 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Map;
 
 public class MeetingRequest {
 
@@ -43,5 +45,13 @@ public class MeetingRequest {
         private LocalTime endTime;
         private String memo;
         private String color;
+        private LocalDate recurrenceEndDate;
+    }
+
+    @Getter
+    @NoArgsConstructor
+    public static class SpeakerMappingUpdate {
+        @NotEmpty(message = "화자 매핑 정보는 필수입니다")
+        private Map<String, String> speakerMapping;
     }
 }
