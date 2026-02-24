@@ -33,6 +33,8 @@ const generateTimeOptions = () => {
 };
 
 const TIME_OPTIONS = generateTimeOptions();
+// 종료 시간 옵션 (00:30 ~ 24:00)
+const END_TIME_OPTIONS = [...TIME_OPTIONS.slice(1), '24:00'];
 
 // 블록 개수 옵션 (4개 ~ 24개)
 const BLOCK_OPTIONS = Array.from({ length: 21 }, (_, i) => i + 4);
@@ -52,10 +54,14 @@ export function ScheduleSettingsModal({
 
   // 시간 모드 상태
   const [startTime, setStartTime] = useState(currentStartTime.substring(0, 5));
-  const currentEndHour = parseInt(currentStartTime.split(':')[0]) + currentWorkHours;
-  const [endTime, setEndTime] = useState(
-    `${Math.min(currentEndHour, 23).toString().padStart(2, '0')}:00`
-  );
+  const [endTime, setEndTime] = useState(() => {
+    const [startH, startM] = currentStartTime.split(':').map(Number);
+    const startTotalMin = startH * 60 + (startM || 0);
+    const endTotalMin = startTotalMin + currentWorkHours * 60;
+    const endH = Math.min(Math.floor(endTotalMin / 60), 24);
+    const endM = endH === 24 ? 0 : Math.round(endTotalMin % 60);
+    return `${endH.toString().padStart(2, '0')}:${endM.toString().padStart(2, '0')}`;
+  });
 
   // 점심시간 상태
   const [breakEnabled, setBreakEnabled] = useState(!!currentBreakStartTime && !!currentBreakEndTime);
@@ -305,7 +311,7 @@ export function ScheduleSettingsModal({
                   </button>
                   {isEndTimeOpen && (
                     <div ref={endTimeListRef} className="absolute top-full left-0 right-0 mt-1 bg-bridge-dark border border-foreground/10 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
-                      {TIME_OPTIONS.map((time) => (
+                      {END_TIME_OPTIONS.map((time) => (
                         <button
                           key={time}
                           data-selected={time === endTime}

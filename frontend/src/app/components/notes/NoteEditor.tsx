@@ -182,10 +182,42 @@ function CollabNoteEditor({
     },
   } as any, [collaboration.fragment]);
 
+  // When Yjs document is empty but note has HTML content (e.g. created via saveToNote),
+  // initialize the editor from the HTML content
+  const initialContentLoaded = useRef(false);
+  useEffect(() => {
+    if (!editor || !note.content?.trim()) return;
+    if (initialContentLoaded.current) return;
+
+    // Wait a tick for the Yjs provider to sync initial state
+    const timer = setTimeout(async () => {
+      // Check if the Yjs fragment is still empty (no collab state from server)
+      const doc = editor.document;
+      const isEmpty = doc.length === 1
+        && doc[0].type === 'paragraph'
+        && (!doc[0].content || doc[0].content.length === 0);
+
+      if (isEmpty && note.content?.trim()) {
+        try {
+          const blocks = await editor.tryParseHTMLToBlocks(note.content);
+          editor.replaceBlocks(editor.document, blocks);
+          initialContentLoaded.current = true;
+          // Persist the Yjs state so next time it loads from collab
+          collaboration.provider.sendFullState();
+        } catch (err) {
+          console.error('Failed to load initial HTML content into collab editor:', err);
+        }
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [editor, note.content, collaboration.provider]);
+
   // Sync title when note changes
   useEffect(() => {
     setTitle(note.title);
     setHasChanges(false);
+    initialContentLoaded.current = false;
 
     // Reset AI state
     setAiData(null);

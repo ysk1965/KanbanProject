@@ -601,6 +601,7 @@ export function ChecklistCreateModal({
                 <div className="grid grid-cols-3 gap-2">
                   {[
                     { label: t('dailySchedule.presetLunch'), emoji: '\uD83C\uDF7D\uFE0F', color: '#F59E0B' },
+                    { label: t('dailySchedule.presetDinner'), emoji: '\uD83C\uDF19', color: '#6366F1' },
                     { label: t('dailySchedule.presetFocus'), emoji: '\uD83C\uDFAF', color: '#3B82F6' },
                     { label: t('dailySchedule.presetPersonal'), emoji: '\uD83D\uDCCB', color: '#64748B' },
                     { label: t('dailySchedule.presetOutside'), emoji: '\uD83D\uDE97', color: '#10B981' },

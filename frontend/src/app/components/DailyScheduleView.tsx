@@ -40,14 +40,23 @@ interface DailyScheduleViewProps {
   initialSubTab?: string;
 }
 
-const SLOT_HEIGHT = 40; // 30분 슬롯의 높이 (px)
+const SLOT_HEIGHT = 40; // 30분 슬롯의 기본 높이 (px)
+const MIN_BLOCK_HEIGHT = 28; // 블록 최소 가시 높이 (px) - 제목 텍스트가 보이는 최소 크기
 
-// 시간 슬롯 생성 (30분 단위)
+// 시간 문자열 → 분 단위 (예: "14:30" → 870)
+const timeToMin = (time: string): number => {
+  const [h, m] = time.split(':').map(Number);
+  return h * 60 + m;
+};
+
+// 시간 슬롯 생성 (30분 단위, 24시까지 지원)
 const generateTimeSlots = (startHour: number, endHour: number) => {
   const slots: string[] = [];
-  for (let hour = startHour; hour < endHour; hour++) {
-    slots.push(`${hour.toString().padStart(2, '0')}:00`);
-    slots.push(`${hour.toString().padStart(2, '0')}:30`);
+  const endMinutes = Math.min(endHour, 24) * 60;
+  for (let min = Math.floor(startHour) * 60; min < endMinutes; min += 30) {
+    const h = Math.floor(min / 60);
+    const m = min % 60;
+    slots.push(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`);
   }
   return slots;
 };
@@ -275,6 +284,73 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
     });
     return map;
   }, [columns]);
+
+  // 슬롯별 가변 높이 계산: 짧은 블록이 있는 슬롯을 확장
+  const slotHeightData = useMemo(() => {
+    const heights = timeSlots.map(() => SLOT_HEIGHT);
+    const workStartMin = workStartHour * 60;
+
+    for (const col of columns) {
+      for (const block of col.blocks) {
+        const bStart = timeToMin(block.start_time);
+        let bEnd = timeToMin(block.end_time);
+        if (bEnd <= bStart) bEnd = workEndHour * 60; // overnight
+        const bDuration = bEnd - bStart;
+        const naturalHeight = (bDuration / 30) * SLOT_HEIGHT;
+
+        if (naturalHeight >= MIN_BLOCK_HEIGHT) continue;
+
+        // 짧은 블록 → 해당 슬롯 확장
+        const scaleFactor = MIN_BLOCK_HEIGHT / naturalHeight;
+        const startSlotIdx = Math.floor((bStart - workStartMin) / 30);
+        const endSlotIdx = Math.ceil((bEnd - workStartMin) / 30) - 1;
+
+        for (let i = Math.max(0, startSlotIdx); i <= Math.min(endSlotIdx, heights.length - 1); i++) {
+          heights[i] = Math.max(heights[i], SLOT_HEIGHT * scaleFactor);
+        }
+      }
+    }
+
+    // 누적 오프셋 (절대 Y 위치 계산용)
+    const offsets = [0];
+    for (let i = 0; i < heights.length; i++) {
+      offsets.push(offsets[i] + heights[i]);
+    }
+
+    return { heights, offsets, totalHeight: offsets[offsets.length - 1] };
+  }, [timeSlots, columns, workStartHour, workEndHour]);
+
+  // 분(minutes) → 픽셀 위치 변환 (가변 슬롯 높이 반영)
+  const minutesToPx = useCallback((minutes: number): number => {
+    const { heights, offsets } = slotHeightData;
+    const minFromStart = minutes - workStartHour * 60;
+    if (minFromStart <= 0) return 0;
+
+    const slotIdx = Math.floor(minFromStart / 30);
+    const minInSlot = minFromStart % 30;
+
+    if (slotIdx >= heights.length) return offsets[heights.length];
+
+    return offsets[slotIdx] + (minInSlot / 30) * heights[slotIdx];
+  }, [slotHeightData, workStartHour]);
+
+  // 픽셀 → 분 역변환 (드래그/리사이즈용)
+  const pxToMinutes = useCallback((px: number): number => {
+    const { heights, offsets } = slotHeightData;
+    if (px <= 0) return workStartHour * 60;
+
+    let slotIdx = 0;
+    while (slotIdx < heights.length && offsets[slotIdx + 1] <= px) {
+      slotIdx++;
+    }
+
+    if (slotIdx >= heights.length) return workEndHour * 60;
+
+    const pxInSlot = px - offsets[slotIdx];
+    const minInSlot = (pxInSlot / heights[slotIdx]) * 30;
+
+    return workStartHour * 60 + slotIdx * 30 + minInSlot;
+  }, [slotHeightData, workStartHour, workEndHour]);
 
   // Viewer 권한 여부
   const isViewer = currentUserRole === 'viewer';
@@ -558,16 +634,15 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
     return () => clearInterval(timer);
   }, []);
 
-  // 현재 시간의 Y 위치 계산 (px)
+  // 현재 시간의 Y 위치 계산 (px) - 가변 슬롯 높이 반영
   const currentTimeTop = useMemo(() => {
     if (!isToday || viewMode !== 'day') return null;
     const h = now.getHours();
     const m = now.getMinutes();
-    const minutesFromStart = (h - workStartHour) * 60 + m;
-    const totalMinutes = (workEndHour - workStartHour) * 60;
-    if (minutesFromStart < 0 || minutesFromStart > totalMinutes) return null;
-    return minutesFromStart * (SLOT_HEIGHT / 30);
-  }, [now, isToday, viewMode, workStartHour, workEndHour]);
+    const totalMin = h * 60 + m;
+    if (totalMin < workStartHour * 60 || totalMin > workEndHour * 60) return null;
+    return minutesToPx(totalMin);
+  }, [now, isToday, viewMode, workStartHour, workEndHour, minutesToPx]);
 
   // 현재 시간 표시선이 보이도록 자동 스크롤
   const timeIndicatorRef = useRef<HTMLDivElement>(null);
@@ -1039,7 +1114,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
               {timeSlots.map((time, slotIndex) => {
                 const isBreak = isBreakSlot(time);
                 return (
-                <div key={time} className={`flex border-b border-bridge-border ${isBreak ? 'bg-amber-900/5' : ''}`} style={{ height: `${SLOT_HEIGHT}px` }}>
+                <div key={time} className={`flex border-b border-bridge-border ${isBreak ? 'bg-amber-900/5' : ''}`} style={{ height: `${slotHeightData.heights[slotIndex]}px` }}>
                   {/* 시간/블록 라벨 */}
                   <div className={`w-14 md:w-20 flex-shrink-0 p-2 text-xs border-r border-bridge-border bg-bridge-dark ${isBreak ? 'text-amber-500/50' : 'text-zinc-400'}`}>
                     {displayMode === 'block'
@@ -1116,7 +1191,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
                       <div
                         key={member.userId}
                         className="w-36 md:w-48 flex-shrink-0 relative"
-                        style={{ height: `${timeSlots.length * SLOT_HEIGHT}px` }}
+                        style={{ height: `${slotHeightData.totalHeight}px` }}
                       >
                         {blocks.map((block) => (
                           <ScheduleBlock
@@ -1128,6 +1203,8 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
                             otherBlocks={blocks}
                             breakStartTime={settings?.break_start_time}
                             breakEndTime={settings?.break_end_time}
+                            minutesToPx={minutesToPx}
+                            pxToMinutes={pxToMinutes}
                             onClick={handleBlockClick}
                             onResize={handleBlockResize}
                             onMove={handleBlockResize}
@@ -1148,13 +1225,12 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
                     const endParts = meeting.end_time!.split(':');
                     const startMinutes = parseInt(startParts[0]) * 60 + parseInt(startParts[1]);
                     let endMinutes = parseInt(endParts[0]) * 60 + parseInt(endParts[1]);
-                    const workStartMinutes = workStartHour * 60;
                     // Overnight: cap to work end
                     if (endMinutes < startMinutes) {
                       endMinutes = workEndHour * 60;
                     }
-                    const top = ((startMinutes - workStartMinutes) / 30) * SLOT_HEIGHT;
-                    const height = Math.max(((endMinutes - startMinutes) / 30) * SLOT_HEIGHT, SLOT_HEIGHT);
+                    const top = minutesToPx(startMinutes);
+                    const height = Math.max(minutesToPx(endMinutes) - top, SLOT_HEIGHT);
 
                     if (top < 0) return null;
 
@@ -1259,7 +1335,14 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
                     >
                       <div className="space-y-1">
                         {blocks.map((block) => {
-                          const isCompleted = block.checklist_item?.completed ?? false;
+                          const isCustom = block.block_type === 'CUSTOM';
+                          const hasMeeting = !!block.meeting;
+                          const blockTitle = isCustom
+                            ? (block.title || t('scheduleBlock.custom'))
+                            : hasMeeting
+                              ? block.meeting!.title
+                              : (block.checklist_item?.title || t('scheduleBlock.unlinked'));
+                          const isCompleted = isCustom ? false : (block.checklist_item?.completed ?? false);
                           const dueDate = block.checklist_item?.due_date ? new Date(block.checklist_item.due_date) : null;
                           const today = new Date();
                           today.setHours(0, 0, 0, 0);
@@ -1268,7 +1351,18 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
 
                           let blockBg = 'bg-blue-500/30 hover:bg-blue-500/50';
                           let timeColor = 'text-blue-700 dark:text-blue-200';
-                          if (isCompleted) {
+                          let inlineStyle: Record<string, string> = {};
+                          if (isCustom) {
+                            const color = block.color || '#F59E0B';
+                            blockBg = 'hover:opacity-80';
+                            timeColor = 'text-foreground/60';
+                            inlineStyle = { backgroundColor: `${color}33`, borderLeft: `3px solid ${color}` };
+                          } else if (hasMeeting && block.meeting?.color) {
+                            const color = block.meeting.color;
+                            blockBg = 'hover:opacity-80';
+                            timeColor = 'text-foreground/60';
+                            inlineStyle = { backgroundColor: `${color}33`, borderLeft: `3px solid ${color}` };
+                          } else if (isCompleted) {
                             blockBg = 'bg-green-500/30 hover:bg-green-500/50';
                             timeColor = 'text-green-700 dark:text-green-200';
                           } else if (dueDate && dueDate < today) {
@@ -1284,9 +1378,10 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
                             key={block.id}
                             onClick={() => handleBlockClick(block)}
                             className={`p-2 rounded ${blockBg} cursor-pointer transition-colors`}
+                            style={inlineStyle}
                           >
                             <div className={`text-xs text-foreground font-medium truncate ${isCompleted ? 'line-through opacity-70' : ''}`}>
-                              {block.checklist_item?.title || '(제목 없음)'}
+                              {blockTitle}
                             </div>
                             <div className={`text-xs ${timeColor}`}>
                               {block.start_time.slice(0, 5)} - {block.end_time.slice(0, 5)}

@@ -4,6 +4,7 @@ const config: CapacitorConfig = {
   appId: 'com.bridgespots.app',
   appName: 'BRIDGE SPOTS',
   webDir: 'dist',
+  backgroundColor: '#0A0E17',
   server: {
     androidScheme: 'https',
     iosScheme: 'https',

@@ -1285,7 +1285,7 @@ function MeetingAIInlineSection({
             {suggestions.key_points.map((point, i) => (
               <li
                 key={i}
-                className="flex items-start gap-2 text-sm text-slate-200"
+                className="flex items-start gap-2 text-sm text-foreground"
               >
                 <span className="text-bridge-accent mt-1 text-xs">●</span>
                 <span>{point}</span>
@@ -1328,19 +1328,19 @@ function MeetingAIInlineSection({
                   <div className="space-y-2">
                     {topic.decisions && topic.decisions.length > 0 && (
                       <div>
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-green-400">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-green-600 dark:text-green-400">
                           {t("meeting.aiDecisions", "Decisions")}
                         </span>
                         <ul className="mt-1 space-y-0.5">
                           {topic.decisions.map((d, j) => (
                             <li
                               key={j}
-                              className="flex items-start gap-2 text-sm text-muted-foreground"
+                              className="flex items-start gap-2 text-sm text-foreground/80"
                             >
-                              <span className="text-green-400 mt-1 text-xs">
+                              <span className="text-green-600 dark:text-green-400 mt-1 text-xs">
                                 ✓
                               </span>
-                              <span className="font-light">{d}</span>
+                              <span>{d}</span>
                             </li>
                           ))}
                         </ul>
@@ -1348,19 +1348,19 @@ function MeetingAIInlineSection({
                     )}
                     {topic.discussions && topic.discussions.length > 0 && (
                       <div>
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-blue-400">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-blue-600 dark:text-blue-400">
                           {t("meeting.aiDiscussions", "Discussions")}
                         </span>
                         <ul className="mt-1 space-y-0.5">
                           {topic.discussions.map((d, j) => (
                             <li
                               key={j}
-                              className="flex items-start gap-2 text-sm text-muted-foreground"
+                              className="flex items-start gap-2 text-sm text-foreground/80"
                             >
-                              <span className="text-blue-400 mt-1 text-xs">
+                              <span className="text-blue-600 dark:text-blue-400 mt-1 text-xs">
                                 –
                               </span>
-                              <span className="font-light">{d}</span>
+                              <span>{d}</span>
                             </li>
                           ))}
                         </ul>
@@ -1368,19 +1368,19 @@ function MeetingAIInlineSection({
                     )}
                     {topic.action_items && topic.action_items.length > 0 && (
                       <div>
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-amber-600 dark:text-amber-400">
                           {t("meeting.aiActionItems", "Action Items")}
                         </span>
                         <ul className="mt-1 space-y-0.5">
                           {topic.action_items.map((a, j) => (
                             <li
                               key={j}
-                              className="flex items-start gap-2 text-sm text-muted-foreground"
+                              className="flex items-start gap-2 text-sm text-foreground/80"
                             >
-                              <span className="text-amber-400 mt-1 text-xs">
+                              <span className="text-amber-600 dark:text-amber-400 mt-1 text-xs">
                                 →
                               </span>
-                              <span className="font-light">{a}</span>
+                              <span>{a}</span>
                             </li>
                           ))}
                         </ul>
@@ -1393,10 +1393,10 @@ function MeetingAIInlineSection({
                     {topic.points.map((point, j) => (
                       <li
                         key={j}
-                        className="flex items-start gap-2 text-sm text-muted-foreground"
+                        className="flex items-start gap-2 text-sm text-foreground/80"
                       >
-                        <span className="text-slate-500 mt-1 text-xs">–</span>
-                        <span className="font-light">{point}</span>
+                        <span className="text-muted-foreground mt-1 text-xs">–</span>
+                        <span>{point}</span>
                       </li>
                     ))}
                   </ul>

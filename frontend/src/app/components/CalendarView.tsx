@@ -85,6 +85,7 @@ interface WeekFeatureSpan {
 
 const MAX_VISIBLE_GROUPS = 2;
 const MAX_TASKS_PER_FEATURE = 2;
+const MAX_VISIBLE_ORPHANS = 2;
 const LANE_HEIGHT = 22;
 
 // ── component ──
@@ -421,8 +422,10 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
                   const visibleNonSpanning = nonSpanningGroups.slice(0, MAX_VISIBLE_GROUPS);
                   const visibleSpanningTasks = spanningTasksForDay.slice(0, MAX_TASKS_PER_FEATURE);
 
+                  const visibleOrphans = orphans.slice(0, MAX_VISIBLE_ORPHANS);
+
                   // Hidden count (items only visible in modal)
-                  let hiddenCount = orphans.length;
+                  let hiddenCount = Math.max(0, orphans.length - MAX_VISIBLE_ORPHANS);
                   hiddenCount += Math.max(0, spanningTasksForDay.length - MAX_TASKS_PER_FEATURE);
                   nonSpanningGroups.forEach((g, i) => {
                     if (i >= MAX_VISIBLE_GROUPS) {
@@ -607,6 +610,26 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
                             </div>
                           );
                         })}
+
+                        {/* Orphan tasks (not belonging to any feature) */}
+                        {visibleOrphans.map((task) => (
+                          <button
+                            key={task.id}
+                            onClick={(e) => { e.stopPropagation(); onViewTask(task.id); }}
+                            className="w-full flex items-center gap-1.5 pl-2 pr-2 py-0.5 rounded group/t transition-all hover:bg-foreground/5"
+                            style={{ borderLeft: `2px solid ${getTaskStatusBorder(task, today)}` }}
+                          >
+                            {task.completed ? (
+                              <CheckCircle2 size={11} className="shrink-0 text-emerald-400" />
+                            ) : (
+                              <span className="w-[11px] h-[11px] rounded-full border shrink-0" style={{ borderColor: getTaskStatusBorder(task, today) }} />
+                            )}
+                            <span className={`truncate text-[11px] group-hover/t:text-foreground ${task.completed ? 'text-zinc-500 line-through' : 'text-foreground/80'}`}>
+                              {task.title}
+                            </span>
+                            {renderChecklistBadge(task)}
+                          </button>
+                        ))}
 
                         {/* More → opens modal */}
                         {hiddenCount > 0 && (

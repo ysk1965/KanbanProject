@@ -549,28 +549,28 @@ function OverviewDashboard({
           <div className="h-[280px]">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={trendData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis
                   dataKey="date"
-                  tick={{ fill: '#94a3b8', fontSize: 11 }}
-                  tickLine={{ stroke: '#374151' }}
-                  axisLine={{ stroke: '#374151' }}
+                  tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
+                  tickLine={{ stroke: 'var(--border)' }}
+                  axisLine={{ stroke: 'var(--border)' }}
                 />
                 <YAxis
-                  tick={{ fill: '#94a3b8', fontSize: 11 }}
-                  tickLine={{ stroke: '#374151' }}
-                  axisLine={{ stroke: '#374151' }}
+                  tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
+                  tickLine={{ stroke: 'var(--border)' }}
+                  axisLine={{ stroke: 'var(--border)' }}
                   tickFormatter={(v) => `${v}h`}
                 />
                 <Tooltip
                   contentStyle={{
                     backgroundColor: 'var(--bridge-obsidian)',
-                    border: '1px solid rgba(255,255,255,0.1)',
+                    border: '1px solid var(--border)',
                     borderRadius: '12px',
                     padding: '12px',
                   }}
-                  labelStyle={{ color: '#fff', fontWeight: 600, marginBottom: 4 }}
-                  itemStyle={{ color: '#94a3b8' }}
+                  labelStyle={{ color: 'var(--foreground)', fontWeight: 600, marginBottom: 4 }}
+                  itemStyle={{ color: 'var(--muted-foreground)' }}
                   formatter={(value: number, name: string) => [
                     t('statistics.hourSuffix', { value }),
                     name === 'hours' ? t('statistics.totalLabel') : t('statistics.completedLabel'),
@@ -633,12 +633,12 @@ function OverviewDashboard({
                 <Tooltip
                   contentStyle={{
                     backgroundColor: 'var(--bridge-obsidian)',
-                    border: '1px solid rgba(255,255,255,0.1)',
+                    border: '1px solid var(--border)',
                     borderRadius: '12px',
                     padding: '12px',
                   }}
-                  labelStyle={{ color: '#fff', fontWeight: 600, marginBottom: 4 }}
-                  itemStyle={{ color: '#94a3b8' }}
+                  labelStyle={{ color: 'var(--foreground)', fontWeight: 600, marginBottom: 4 }}
+                  itemStyle={{ color: 'var(--muted-foreground)' }}
                   formatter={(value: number) => [formatMinutes(value), t('statistics.workTime')]}
                 />
                 <Legend
@@ -672,18 +672,18 @@ function OverviewDashboard({
           <div className="h-[280px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={memberContribution} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" horizontal={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
                 <XAxis
                   type="number"
-                  tick={{ fill: '#94a3b8', fontSize: 11 }}
-                  tickLine={{ stroke: '#374151' }}
-                  axisLine={{ stroke: '#374151' }}
+                  tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
+                  tickLine={{ stroke: 'var(--border)' }}
+                  axisLine={{ stroke: 'var(--border)' }}
                   tickFormatter={(v) => `${v}h`}
                 />
                 <YAxis
                   dataKey="name"
                   type="category"
-                  tick={{ fill: '#94a3b8', fontSize: 11 }}
+                  tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
                   tickLine={false}
                   axisLine={false}
                   width={80}
@@ -691,12 +691,12 @@ function OverviewDashboard({
                 <Tooltip
                   contentStyle={{
                     backgroundColor: 'var(--bridge-obsidian)',
-                    border: '1px solid rgba(255,255,255,0.1)',
+                    border: '1px solid var(--border)',
                     borderRadius: '12px',
                     padding: '12px',
                   }}
-                  labelStyle={{ color: '#fff', fontWeight: 600, marginBottom: 4 }}
-                  itemStyle={{ color: '#94a3b8' }}
+                  labelStyle={{ color: 'var(--foreground)', fontWeight: 600, marginBottom: 4 }}
+                  itemStyle={{ color: 'var(--muted-foreground)' }}
                   formatter={(value: number, name: string) => [
                     name === 'hours' ? t('statistics.hourSuffix', { value }) : t('statistics.itemCount', { value }),
                     name === 'hours' ? t('statistics.workTime') : t('statistics.taskCount'),
@@ -961,7 +961,7 @@ function WorkAnalysisView({ statistics, formatMinutes, formatPercent }: WorkAnal
                   paddingAngle={4}
                   dataKey="value"
                   label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  labelLine={{ stroke: '#475569', strokeWidth: 1 }}
+                  labelLine={{ stroke: 'var(--muted-foreground)', strokeWidth: 1 }}
                 >
                   {taskStatusData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
@@ -970,12 +970,12 @@ function WorkAnalysisView({ statistics, formatMinutes, formatPercent }: WorkAnal
                 <Tooltip
                   contentStyle={{
                     backgroundColor: 'var(--bridge-obsidian)',
-                    border: '1px solid rgba(255,255,255,0.1)',
+                    border: '1px solid var(--border)',
                     borderRadius: '12px',
                     padding: '12px',
                   }}
-                  labelStyle={{ color: '#fff', fontWeight: 600, marginBottom: 4 }}
-                  itemStyle={{ color: '#94a3b8' }}
+                  labelStyle={{ color: 'var(--foreground)', fontWeight: 600, marginBottom: 4 }}
+                  itemStyle={{ color: 'var(--muted-foreground)' }}
                   formatter={(value: number) => [t('statistics.itemCount', { value }), t('statistics.taskCount')]}
                 />
               </RechartsPieChart>
@@ -1001,7 +1001,7 @@ function WorkAnalysisView({ statistics, formatMinutes, formatPercent }: WorkAnal
                   paddingAngle={4}
                   dataKey="value"
                   label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  labelLine={{ stroke: '#475569', strokeWidth: 1 }}
+                  labelLine={{ stroke: 'var(--muted-foreground)', strokeWidth: 1 }}
                 >
                   {timeStatusData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
@@ -1010,12 +1010,12 @@ function WorkAnalysisView({ statistics, formatMinutes, formatPercent }: WorkAnal
                 <Tooltip
                   contentStyle={{
                     backgroundColor: 'var(--bridge-obsidian)',
-                    border: '1px solid rgba(255,255,255,0.1)',
+                    border: '1px solid var(--border)',
                     borderRadius: '12px',
                     padding: '12px',
                   }}
-                  labelStyle={{ color: '#fff', fontWeight: 600, marginBottom: 4 }}
-                  itemStyle={{ color: '#94a3b8' }}
+                  labelStyle={{ color: 'var(--foreground)', fontWeight: 600, marginBottom: 4 }}
+                  itemStyle={{ color: 'var(--muted-foreground)' }}
                   formatter={(value: number) => [formatMinutes(value), t('statistics.workTime')]}
                 />
               </RechartsPieChart>
@@ -1034,18 +1034,18 @@ function WorkAnalysisView({ statistics, formatMinutes, formatPercent }: WorkAnal
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={tagDistribution} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" horizontal={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
                 <XAxis
                   type="number"
-                  tick={{ fill: '#94a3b8', fontSize: 11 }}
-                  tickLine={{ stroke: '#374151' }}
-                  axisLine={{ stroke: '#374151' }}
+                  tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
+                  tickLine={{ stroke: 'var(--border)' }}
+                  axisLine={{ stroke: 'var(--border)' }}
                   tickFormatter={(v) => formatMinutes(v)}
                 />
                 <YAxis
                   dataKey="name"
                   type="category"
-                  tick={{ fill: '#94a3b8', fontSize: 11 }}
+                  tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
                   tickLine={false}
                   axisLine={false}
                   width={100}
@@ -1053,12 +1053,12 @@ function WorkAnalysisView({ statistics, formatMinutes, formatPercent }: WorkAnal
                 <Tooltip
                   contentStyle={{
                     backgroundColor: 'var(--bridge-obsidian)',
-                    border: '1px solid rgba(255,255,255,0.1)',
+                    border: '1px solid var(--border)',
                     borderRadius: '12px',
                     padding: '12px',
                   }}
-                  labelStyle={{ color: '#fff', fontWeight: 600, marginBottom: 4 }}
-                  itemStyle={{ color: '#94a3b8' }}
+                  labelStyle={{ color: 'var(--foreground)', fontWeight: 600, marginBottom: 4 }}
+                  itemStyle={{ color: 'var(--muted-foreground)' }}
                   formatter={(value: number, name: string) => [
                     formatMinutes(value),
                     t('statistics.workTime'),
@@ -1296,28 +1296,28 @@ function TeamProductivityView({ statistics, formatMinutes, formatPercent }: Team
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={memberTimeData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis
                   dataKey="name"
-                  tick={{ fill: '#94a3b8', fontSize: 11 }}
-                  tickLine={{ stroke: '#374151' }}
-                  axisLine={{ stroke: '#374151' }}
+                  tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
+                  tickLine={{ stroke: 'var(--border)' }}
+                  axisLine={{ stroke: 'var(--border)' }}
                 />
                 <YAxis
-                  tick={{ fill: '#94a3b8', fontSize: 11 }}
-                  tickLine={{ stroke: '#374151' }}
-                  axisLine={{ stroke: '#374151' }}
+                  tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
+                  tickLine={{ stroke: 'var(--border)' }}
+                  axisLine={{ stroke: 'var(--border)' }}
                   tickFormatter={(v) => `${v}h`}
                 />
                 <Tooltip
                   contentStyle={{
                     backgroundColor: 'var(--bridge-obsidian)',
-                    border: '1px solid rgba(255,255,255,0.1)',
+                    border: '1px solid var(--border)',
                     borderRadius: '12px',
                     padding: '12px',
                   }}
-                  labelStyle={{ color: '#fff', fontWeight: 600, marginBottom: 4 }}
-                  itemStyle={{ color: '#94a3b8' }}
+                  labelStyle={{ color: 'var(--foreground)', fontWeight: 600, marginBottom: 4 }}
+                  itemStyle={{ color: 'var(--muted-foreground)' }}
                   formatter={(value: number, name: string) => [
                     t('statistics.hourSuffix', { value }),
                     name === 'total' ? t('statistics.totalTime') : t('statistics.completedTime2'),
@@ -1350,19 +1350,19 @@ function TeamProductivityView({ statistics, formatMinutes, formatPercent }: Team
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={memberCompletionData} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" horizontal={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
                 <XAxis
                   type="number"
                   domain={[0, 100]}
-                  tick={{ fill: '#94a3b8', fontSize: 11 }}
-                  tickLine={{ stroke: '#374151' }}
-                  axisLine={{ stroke: '#374151' }}
+                  tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
+                  tickLine={{ stroke: 'var(--border)' }}
+                  axisLine={{ stroke: 'var(--border)' }}
                   tickFormatter={(v) => `${v}%`}
                 />
                 <YAxis
                   dataKey="name"
                   type="category"
-                  tick={{ fill: '#94a3b8', fontSize: 11 }}
+                  tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
                   tickLine={false}
                   axisLine={false}
                   width={80}
@@ -1370,12 +1370,12 @@ function TeamProductivityView({ statistics, formatMinutes, formatPercent }: Team
                 <Tooltip
                   contentStyle={{
                     backgroundColor: 'var(--bridge-obsidian)',
-                    border: '1px solid rgba(255,255,255,0.1)',
+                    border: '1px solid var(--border)',
                     borderRadius: '12px',
                     padding: '12px',
                   }}
-                  labelStyle={{ color: '#fff', fontWeight: 600, marginBottom: 4 }}
-                  itemStyle={{ color: '#94a3b8' }}
+                  labelStyle={{ color: 'var(--foreground)', fontWeight: 600, marginBottom: 4 }}
+                  itemStyle={{ color: 'var(--muted-foreground)' }}
                   formatter={(value: number, name: string, props: any) => [
                     `${value}% (${props.payload.completed}/${props.payload.total})`,
                     t('statistics.completionRate'),
@@ -1699,8 +1699,8 @@ function IndividualProductivityView({
                           borderRadius: '12px',
                           padding: '12px',
                         }}
-                        labelStyle={{ color: '#fff', fontWeight: 600, marginBottom: 4 }}
-                        itemStyle={{ color: '#94a3b8' }}
+                        labelStyle={{ color: 'var(--foreground)', fontWeight: 600, marginBottom: 4 }}
+                        itemStyle={{ color: 'var(--muted-foreground)' }}
                         formatter={(value: number) => [formatMinutes(value), t('statistics.workTime')]}
                       />
                       <Legend
@@ -1733,17 +1733,17 @@ function IndividualProductivityView({
                 <div className="h-[280px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={memberDailyTrend}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                       <XAxis
                         dataKey="date"
-                        tick={{ fill: '#94a3b8', fontSize: 10 }}
-                        tickLine={{ stroke: '#374151' }}
-                        axisLine={{ stroke: '#374151' }}
+                        tick={{ fill: 'var(--muted-foreground)', fontSize: 10 }}
+                        tickLine={{ stroke: 'var(--border)' }}
+                        axisLine={{ stroke: 'var(--border)' }}
                       />
                       <YAxis
-                        tick={{ fill: '#94a3b8', fontSize: 11 }}
-                        tickLine={{ stroke: '#374151' }}
-                        axisLine={{ stroke: '#374151' }}
+                        tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
+                        tickLine={{ stroke: 'var(--border)' }}
+                        axisLine={{ stroke: 'var(--border)' }}
                         tickFormatter={(v) => `${v}h`}
                       />
                       <Tooltip
@@ -1753,8 +1753,8 @@ function IndividualProductivityView({
                           borderRadius: '12px',
                           padding: '12px',
                         }}
-                        labelStyle={{ color: '#fff', fontWeight: 600, marginBottom: 4 }}
-                        itemStyle={{ color: '#94a3b8' }}
+                        labelStyle={{ color: 'var(--foreground)', fontWeight: 600, marginBottom: 4 }}
+                        itemStyle={{ color: 'var(--muted-foreground)' }}
                         formatter={(value: number) => [t('statistics.hourSuffix', { value }), t('statistics.workTime')]}
                       />
                       <Line
@@ -2001,17 +2001,17 @@ function ImpactAnalysisView({
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={memberImpactData} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" horizontal={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
                   <XAxis
                     type="number"
-                    tick={{ fill: '#94a3b8', fontSize: 11 }}
-                    tickLine={{ stroke: '#374151' }}
-                    axisLine={{ stroke: '#374151' }}
+                    tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
+                    tickLine={{ stroke: 'var(--border)' }}
+                    axisLine={{ stroke: 'var(--border)' }}
                   />
                   <YAxis
                     dataKey="name"
                     type="category"
-                    tick={{ fill: '#94a3b8', fontSize: 11 }}
+                    tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
                     tickLine={false}
                     axisLine={false}
                     width={80}
@@ -2023,8 +2023,8 @@ function ImpactAnalysisView({
                       borderRadius: '12px',
                       padding: '12px',
                     }}
-                    labelStyle={{ color: '#fff', fontWeight: 600, marginBottom: 4 }}
-                    itemStyle={{ color: '#94a3b8' }}
+                    labelStyle={{ color: 'var(--foreground)', fontWeight: 600, marginBottom: 4 }}
+                    itemStyle={{ color: 'var(--muted-foreground)' }}
                     formatter={(value: number, name: string) => [
                       value.toFixed(1),
                       t('statistics.impactScoreLabel'),
@@ -2067,7 +2067,7 @@ function ImpactAnalysisView({
                     paddingAngle={4}
                     dataKey="value"
                     label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                    labelLine={{ stroke: '#475569', strokeWidth: 1 }}
+                    labelLine={{ stroke: 'var(--muted-foreground)', strokeWidth: 1 }}
                   >
                     {weightLevelData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color || getWeightLevelColor(entry.weight)} />
@@ -2080,8 +2080,8 @@ function ImpactAnalysisView({
                       borderRadius: '12px',
                       padding: '12px',
                     }}
-                    labelStyle={{ color: '#fff', fontWeight: 600, marginBottom: 4 }}
-                    itemStyle={{ color: '#94a3b8' }}
+                    labelStyle={{ color: 'var(--foreground)', fontWeight: 600, marginBottom: 4 }}
+                    itemStyle={{ color: 'var(--muted-foreground)' }}
                     formatter={(value: number, name: string, props: any) => [
                       `${formatMinutes(value)} (${props.payload.taskCount} Task)`,
                       props.payload.name,
