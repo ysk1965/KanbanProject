@@ -1328,6 +1328,9 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
           onSelectExisting={handleChecklistItemSelect}
           onSelectBoardItem={handleBoardChecklistItemSelect}
           onSelectMeeting={handleMeetingSelect}
+          onTimeChange={(newStart, newEnd) => {
+            setPendingBlock(prev => prev ? { ...prev, startTime: newStart, endTime: newEnd, splitBlocks: undefined } : null);
+          }}
           onClose={handleCloseChecklistModal}
         />
       )}
