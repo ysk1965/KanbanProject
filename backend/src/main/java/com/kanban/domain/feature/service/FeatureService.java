@@ -85,12 +85,22 @@ public class FeatureService {
 
         // 마일스톤 필터 적용
         if (milestoneId != null && !milestoneId.isEmpty()) {
-            Set<String> milestoneFeatureIds = new HashSet<>(
-                    milestoneFeatureRepository.findFeatureIdsByMilestoneId(milestoneId)
-            );
-            features = features.stream()
-                    .filter(f -> milestoneFeatureIds.contains(f.getId()))
-                    .collect(Collectors.toList());
+            if ("none".equals(milestoneId)) {
+                // 마일스톤 미지정 피처만 필터링
+                Set<String> allMilestoneFeatureIds = new HashSet<>(
+                        milestoneFeatureRepository.findAllFeatureIdsByBoardId(boardId)
+                );
+                features = features.stream()
+                        .filter(f -> !allMilestoneFeatureIds.contains(f.getId()))
+                        .collect(Collectors.toList());
+            } else {
+                Set<String> milestoneFeatureIds = new HashSet<>(
+                        milestoneFeatureRepository.findFeatureIdsByMilestoneId(milestoneId)
+                );
+                features = features.stream()
+                        .filter(f -> milestoneFeatureIds.contains(f.getId()))
+                        .collect(Collectors.toList());
+            }
         }
 
         Map<String, List<Tag>> featureTagsMap = getFeatureTagsMap(features);

@@ -4,6 +4,7 @@ import { X, Clock, ChevronDown, Folder, FileText, Loader2, CheckSquare, Layers, 
 import { format, parseISO, isToday as isDateToday } from 'date-fns';
 import { featureAPI, taskAPI, dailyChecklistAPI, FeatureResponse, TaskResponse, DailyChecklistItemResponse, BoardChecklistItemResponse, MeetingSummary } from '../utils/api';
 import { MotionModal } from './ui/MotionModal';
+import { TimePicker } from './ui/TimePicker';
 
 interface ChecklistCreateModalProps {
   boardId: string;
@@ -19,6 +20,7 @@ interface ChecklistCreateModalProps {
   onSelectExisting: (checklistItemId: string) => void;
   onSelectBoardItem: (checklistItemId: string) => void;
   onSelectMeeting?: (meetingId: string) => void;
+  onTimeChange?: (startTime: string, endTime: string) => void;
   onClose: () => void;
 }
 
@@ -36,9 +38,14 @@ export function ChecklistCreateModal({
   onSelectExisting,
   onSelectBoardItem,
   onSelectMeeting,
+  onTimeChange,
   onClose,
 }: ChecklistCreateModalProps) {
   const { t } = useTranslation();
+
+  // 편집 가능한 시간 상태
+  const [editStartTime, setEditStartTime] = useState(startTime);
+  const [editEndTime, setEditEndTime] = useState(endTime);
 
   // 선택된 날짜 계산
   const targetDate = selectedDate || format(new Date(), 'yyyy-MM-dd');
@@ -194,37 +201,50 @@ export function ChecklistCreateModal({
 
         {/* Time/Block Display */}
         <div className="px-6 py-3 border-b border-foreground/10">
-          <div className="bg-bridge-accent/20 rounded-xl px-4 py-2.5 flex items-center gap-3 border border-bridge-accent/30">
-            {displayMode === 'block' ? (
-              <>
-                <Layers className="h-4 w-4 text-bridge-accent" />
-                <span className="text-bridge-accent font-medium text-sm">
-                  {startBlockIndex !== undefined && endBlockIndex !== undefined
-                    ? startBlockIndex === endBlockIndex
-                      ? t('dailySchedule.blockN', { n: startBlockIndex + 1 })
-                      : t('dailySchedule.blockRange', { start: startBlockIndex + 1, end: endBlockIndex + 1 })
-                    : t('dailySchedule.selectBlock')}
-                </span>
-              </>
-            ) : (
-              <>
+          {displayMode === 'block' ? (
+            <div className="bg-bridge-accent/20 rounded-xl px-4 py-2.5 flex items-center gap-3 border border-bridge-accent/30">
+              <Layers className="h-4 w-4 text-bridge-accent" />
+              <span className="text-bridge-accent font-medium text-sm">
+                {startBlockIndex !== undefined && endBlockIndex !== undefined
+                  ? startBlockIndex === endBlockIndex
+                    ? t('dailySchedule.blockN', { n: startBlockIndex + 1 })
+                    : t('dailySchedule.blockRange', { start: startBlockIndex + 1, end: endBlockIndex + 1 })
+                  : t('dailySchedule.selectBlock')}
+              </span>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4 text-bridge-accent flex-shrink-0" />
                 <span className="text-bridge-accent font-medium text-sm">
-                  <span className="font-bold">{format(targetDateObj, 'M/d')}</span>
-                  {' '}
-                  {splitBlocks && splitBlocks.length > 1
-                    ? splitBlocks.map((seg, i) => (
-                        <span key={i}>
-                          {i > 0 && ', '}
-                          {seg.startTime} - {seg.endTime}
-                        </span>
-                      ))
-                    : `${startTime} - ${endTime}`
-                  }
+                  {format(targetDateObj, 'M/d')}
                 </span>
-              </>
-            )}
-          </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="flex-1">
+                  <TimePicker
+                    value={editStartTime}
+                    onChange={(val) => {
+                      setEditStartTime(val);
+                      onTimeChange?.(val, editEndTime);
+                    }}
+                    className="py-1.5 px-3 text-xs border-foreground/10"
+                  />
+                </div>
+                <span className="text-slate-500 text-xs shrink-0">~</span>
+                <div className="flex-1">
+                  <TimePicker
+                    value={editEndTime}
+                    onChange={(val) => {
+                      setEditEndTime(val);
+                      onTimeChange?.(editStartTime, val);
+                    }}
+                    className="py-1.5 px-3 text-xs border-foreground/10"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Form */}

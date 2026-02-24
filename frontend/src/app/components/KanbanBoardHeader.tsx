@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Users, ArrowLeft, LayoutGrid, Calendar, Flag, Pencil, Lock, BarChart3, Lightbulb, MessageSquare, FileText } from 'lucide-react';
+import { Plus, Users, ArrowLeft, LayoutGrid, Calendar, Flag, Pencil, Lock, BarChart3, MessageSquare, FileText } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useTranslation } from 'react-i18next';
 import { isWhiteLabelDomain } from '../utils/domain';
@@ -12,13 +12,6 @@ import { NotificationDropdown } from './NotificationDropdown';
 import { UserMenu } from './UserMenu';
 import { AnnouncementDisplay } from './AnnouncementDisplay';
 import { boardService } from '../utils/services';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from './ui/select';
 
 type ViewMode = 'kanban' | 'weekly' | 'schedule' | 'calendar' | 'milestone' | 'meeting' | 'notes' | 'statistics' | 'ai_report';
 
@@ -159,73 +152,88 @@ export function KanbanBoardHeader({
               </h1>
             )}
 
-            {/* 마일스톤 셀렉터 */}
-            <div className="hidden sm:flex items-center gap-2 bg-bridge-surface px-3 py-1.5 rounded-md border border-bridge-border hover:border-bridge-secondary/40 cursor-pointer transition-all">
-              <Flag size={14} className="text-bridge-secondary" />
-              {milestones.length > 0 ? (
-                <Select value={kanbanSelectedMilestoneId} onValueChange={onMilestoneSelect}>
-                  <SelectTrigger className="bg-transparent border-none text-xs font-medium text-foreground focus:ring-0 h-auto p-0 w-[120px] [&>svg]:text-zinc-400">
-                    <SelectValue placeholder={t('kanban.selectMilestone')} />
-                  </SelectTrigger>
-                  <SelectContent className="bg-bridge-surface border-bridge-border">
-                    <SelectItem value="all" className="text-muted-foreground hover:bg-foreground/10 focus:bg-foreground/10 focus:text-foreground text-xs">
+            {/* 마일스톤 탭 바 */}
+            {(() => {
+              const allMilestoneFeatureIds = new Set(milestones.flatMap(m => m.features?.map(f => f.id) || []));
+              const hasUnassignedFeatures = allFeatures.some(f => !allMilestoneFeatureIds.has(f.id));
+              return (
+                <div className="hidden sm:flex items-center gap-1.5">
+                  <div className="flex items-center gap-1 bg-bridge-surface px-2 py-1 rounded-xl border border-bridge-border overflow-x-auto">
+                    <Flag size={13} className="text-bridge-secondary shrink-0 ml-1 mr-0.5" />
+                    {/* 전체 탭 */}
+                    <button
+                      onClick={() => onMilestoneSelect('all')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
+                        kanbanSelectedMilestoneId === 'all'
+                          ? 'bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20'
+                          : 'text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover'
+                      }`}
+                    >
                       {t('common.all')}
-                    </SelectItem>
+                    </button>
+                    {/* 미지정 탭 */}
+                    {hasUnassignedFeatures && (
+                      <button
+                        onClick={() => onMilestoneSelect('none')}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
+                          kanbanSelectedMilestoneId === 'none'
+                            ? 'bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20'
+                            : 'text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover'
+                        }`}
+                      >
+                        {t('kanban.unassigned', '미지정')}
+                      </button>
+                    )}
+                    {/* 개별 마일스톤 탭 */}
                     {milestones.map((milestone) => {
                       const startDate = format(parseISO(milestone.start_date), 'M/d');
                       const endDate = format(parseISO(milestone.end_date), 'M/d');
                       return (
-                        <SelectItem
+                        <button
                           key={milestone.id}
-                          value={milestone.id}
-                          className="text-muted-foreground hover:bg-foreground/10 focus:bg-foreground/10 focus:text-foreground text-xs"
+                          onClick={() => onMilestoneSelect(milestone.id)}
+                          className={`flex flex-col items-start px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
+                            kanbanSelectedMilestoneId === milestone.id
+                              ? 'bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20'
+                              : 'text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover'
+                          }`}
                         >
-                          <div className="flex flex-col">
-                            <span>{milestone.title}</span>
-                            <span className="text-zinc-500 text-[10px]">{startDate} ~ {endDate}</span>
-                          </div>
-                        </SelectItem>
+                          <span>{milestone.title}</span>
+                          <span className={`text-[10px] font-normal ${kanbanSelectedMilestoneId === milestone.id ? 'text-white/70' : 'text-zinc-500'}`}>
+                            {startDate} ~ {endDate}
+                          </span>
+                        </button>
                       );
                     })}
-                  </SelectContent>
-                </Select>
-              ) : allFeatures.length > 0 ? (
-                <button
-                  onClick={() => onOpenMilestoneOnboarding()}
-                  className="flex items-center gap-1.5 group"
-                >
-                  <Lightbulb size={12} className="text-bridge-secondary animate-pulse" />
-                  <span className="text-xs text-bridge-secondary group-hover:text-bridge-secondary/80 transition-colors">{t('kanban.startMilestone')}</span>
-                </button>
-              ) : (
-                <span className="text-xs text-zinc-500">{t('kanban.noMilestone')}</span>
-              )}
-            </div>
+                  </div>
 
-            {kanbanSelectedMilestoneId !== 'all' && (
-              <button
-                onClick={() => {
-                  const milestone = milestones.find((m) => m.id === kanbanSelectedMilestoneId);
-                  if (milestone) onOpenMilestoneWithCheck(milestone);
-                }}
-                className="p-1.5 text-zinc-400 hover:text-foreground transition-colors"
-                title={t('kanban.editMilestone')}
-              >
-                <Pencil size={14} />
-              </button>
-            )}
+                  {kanbanSelectedMilestoneId !== 'all' && kanbanSelectedMilestoneId !== 'none' && (
+                    <button
+                      onClick={() => {
+                        const milestone = milestones.find((m) => m.id === kanbanSelectedMilestoneId);
+                        if (milestone) onOpenMilestoneWithCheck(milestone);
+                      }}
+                      className="p-1.5 text-zinc-400 hover:text-foreground transition-colors"
+                      title={t('kanban.editMilestone')}
+                    >
+                      <Pencil size={14} />
+                    </button>
+                  )}
 
-            <button
-              onClick={() => onOpenMilestoneWithCheck()}
-              className={`p-1.5 transition-colors ${
-                !canAccessMilestone
-                  ? 'text-zinc-600 hover:text-zinc-500'
-                  : 'text-zinc-400 hover:text-foreground'
-              }`}
-            >
-              <Plus size={18} />
-              {!canAccessMilestone && <Lock className="h-2.5 w-2.5 absolute -top-0.5 -right-0.5" />}
-            </button>
+                  <button
+                    onClick={() => onOpenMilestoneWithCheck()}
+                    className={`p-1.5 transition-colors ${
+                      !canAccessMilestone
+                        ? 'text-zinc-600 hover:text-zinc-500'
+                        : 'text-zinc-400 hover:text-foreground'
+                    }`}
+                  >
+                    <Plus size={18} />
+                    {!canAccessMilestone && <Lock className="h-2.5 w-2.5 absolute -top-0.5 -right-0.5" />}
+                  </button>
+                </div>
+              );
+            })()}
           </div>
         </div>
 

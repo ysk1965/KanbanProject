@@ -988,12 +988,13 @@ export function KanbanBoardPage() {
     setKanbanSelectedMilestoneId(milestoneId);
     if (boardId) {
       try {
-        const newMilestoneId = milestoneId === "all" ? null : milestoneId;
-        await boardService.updateSelectedMilestone(boardId, newMilestoneId);
+        const saveMilestoneId = milestoneId === "all" || milestoneId === "none" ? null : milestoneId;
+        await boardService.updateSelectedMilestone(boardId, saveMilestoneId);
         setBoard((prev) =>
-          prev ? { ...prev, selected_milestone_id: newMilestoneId } : prev,
+          prev ? { ...prev, selected_milestone_id: saveMilestoneId } : prev,
         );
-        await reloadFeaturesAndTasks(newMilestoneId || undefined);
+        const reloadMilestoneId = milestoneId === "all" ? undefined : milestoneId;
+        await reloadFeaturesAndTasks(reloadMilestoneId);
       } catch (error) {
         console.error("Failed to save selected milestone:", error);
       }

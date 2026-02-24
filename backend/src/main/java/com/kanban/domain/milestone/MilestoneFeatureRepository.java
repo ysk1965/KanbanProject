@@ -20,6 +20,9 @@ public interface MilestoneFeatureRepository extends JpaRepository<MilestoneFeatu
     @Query("SELECT mf.feature.id FROM MilestoneFeature mf WHERE mf.milestone.id = :milestoneId")
     List<String> findFeatureIdsByMilestoneId(@Param("milestoneId") String milestoneId);
 
+    @Query("SELECT DISTINCT mf.feature.id FROM MilestoneFeature mf WHERE mf.milestone.board.id = :boardId")
+    List<String> findAllFeatureIdsByBoardId(@Param("boardId") String boardId);
+
     /**
      * 여러 마일스톤의 features를 한 번에 조회 (N+1 문제 해결)
      */
