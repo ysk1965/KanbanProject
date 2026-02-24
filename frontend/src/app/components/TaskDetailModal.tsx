@@ -459,7 +459,7 @@ export function TaskDetailModal({
 
   return (
     <>
-      <MotionModal open={open} onClose={handleClose} overlayClose={false} className="sm:max-w-[1100px] max-h-[calc(var(--visual-viewport-height,100vh)*0.85)] flex flex-col overflow-hidden bg-bridge-surface p-0">
+      <MotionModal open={open} onClose={handleClose} overlayClose={true} className="sm:max-w-[1100px] max-h-[calc(var(--visual-viewport-height,100vh)*0.85)] flex flex-col overflow-hidden bg-bridge-surface p-0">
           {/* Feature color accent line */}
           <div className="h-[3px] w-full flex-shrink-0 rounded-t-lg" style={{ backgroundColor: task.feature_color }} />
           <div className="flex flex-col md:flex-row flex-1 min-h-0">
@@ -1170,7 +1170,7 @@ export function TaskDetailModal({
             </div>
 
             {/* Content */}
-            <div className="px-5 py-4 space-y-3 max-h-[60vh] overflow-y-auto">
+            <div className="px-5 py-4 space-y-3 max-h-[60dvh] overflow-y-auto">
               <p className="text-xs text-slate-400">{t('task.aiChecklistConfirmDesc')}</p>
 
               {/* Feature group */}

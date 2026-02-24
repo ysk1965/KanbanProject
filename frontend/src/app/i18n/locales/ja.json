@@ -627,7 +627,19 @@
     "newChecklistPlaceholder": "チェックリストのタイトルを入力",
     "creating": "作成中...",
     "dateFormatDay": "MMM d, yyyy",
-    "dateFormatWeek": "MMM d"
+    "dateFormatWeek": "MMM d",
+    "tabChecklist": "チェックリスト",
+    "tabMeeting": "ミーティング",
+    "tabCustom": "直接入力",
+    "customPresets": "クイック選択",
+    "presetLunch": "昼休み",
+    "presetFocus": "集中時間",
+    "presetPersonal": "個人用事",
+    "presetOutside": "外出",
+    "presetRest": "休憩",
+    "customLabel": "直接入力",
+    "customPlaceholder": "予定名を入力してください",
+    "customColor": "色"
   },
   "schedule": {
     "settingsTitle": "スケジュール設定",
@@ -1836,7 +1848,8 @@
     "cannotMove": "移動不可",
     "cannotChange": "変更不可",
     "willSplit": "分割作成",
-    "nextDay": "翌日"
+    "nextDay": "翌日",
+    "custom": "カスタムブロック"
   },
   "scheduleDetail": {
     "title": "タイムブロック詳細",

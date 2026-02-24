@@ -422,7 +422,7 @@ export function AdminMonitoringTab() {
       {showErrorDetail && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowErrorDetail(false)}>
           <div
-            className="bg-bridge-obsidian rounded-2xl border border-foreground/10 shadow-2xl w-full max-w-3xl max-h-[80vh] overflow-hidden"
+            className="bg-bridge-obsidian rounded-2xl border border-foreground/10 shadow-2xl w-full max-w-3xl max-h-[80dvh] overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
@@ -449,7 +449,7 @@ export function AdminMonitoringTab() {
             </div>
 
             {/* Modal Body */}
-            <div className="p-6 overflow-y-auto max-h-[calc(80vh-88px)]">
+            <div className="p-6 overflow-y-auto max-h-[calc(80dvh-88px)]">
               {dashboard.api.top_error_endpoints && dashboard.api.top_error_endpoints.length > 0 ? (
                 <div className="space-y-3">
                   {dashboard.api.top_error_endpoints.map((ep, idx) => (

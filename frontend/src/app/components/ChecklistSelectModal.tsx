@@ -78,7 +78,7 @@ export function ChecklistSelectModal({
   }, [filteredItems]);
 
   return (
-    <MotionModal open={true} onClose={onClose} className="sm:max-w-[500px] p-0 overflow-hidden max-h-[80vh] flex flex-col">
+    <MotionModal open={true} onClose={onClose} className="sm:max-w-[500px] p-0 overflow-hidden max-h-[80dvh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-bridge-border">
           <h2 className="text-xl font-semibold text-foreground">{t('checklist.selectTitle')}</h2>

@@ -572,7 +572,7 @@ export const PersonalDiary = forwardRef<TabSwipeHandle>(function PersonalDiary(_
         fixed md:relative inset-y-0 left-0 z-50 md:z-auto
         w-[300px] md:w-[340px] flex-shrink-0 border-r border-foreground/5 flex flex-col overflow-hidden
         bg-bridge-dark md:bg-transparent
-        transition-transform duration-300 ease-in-out safe-left
+        transition-transform duration-300 ease-in-out safe-left safe-top safe-bottom
         ${showMobileSidebar ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
       `}>
         <div className="px-4 pt-4 pb-2 flex-shrink-0">

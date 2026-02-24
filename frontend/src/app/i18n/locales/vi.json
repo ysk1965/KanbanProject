@@ -627,7 +627,19 @@
     "newChecklistPlaceholder": "Nhap tieu de danh sach kiem tra",
     "creating": "Dang tao...",
     "dateFormatDay": "MMM d, yyyy",
-    "dateFormatWeek": "MMM d"
+    "dateFormatWeek": "MMM d",
+    "tabChecklist": "Danh sach",
+    "tabMeeting": "Cuoc hop",
+    "tabCustom": "Tùy chỉnh",
+    "customPresets": "Chọn nhanh",
+    "presetLunch": "Ăn trưa",
+    "presetFocus": "Tập trung",
+    "presetPersonal": "Việc cá nhân",
+    "presetOutside": "Đi ngoài",
+    "presetRest": "Nghỉ ngơi",
+    "customLabel": "Tùy chỉnh",
+    "customPlaceholder": "Nhập tên lịch",
+    "customColor": "Màu sắc"
   },
   "schedule": {
     "settingsTitle": "Cai dat lich trinh",
@@ -1836,7 +1848,8 @@
     "cannotMove": "Khong the di chuyen",
     "cannotChange": "Khong the thay doi",
     "willSplit": "Tách phần",
-    "nextDay": "ngày hôm sau"
+    "nextDay": "ngày hôm sau",
+    "custom": "Khối tùy chỉnh"
   },
   "scheduleDetail": {
     "title": "Chi tiet khoi thoi gian",

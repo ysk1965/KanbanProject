@@ -181,7 +181,7 @@ export function SelectModal({
   }, [isOpen]);
 
   return (
-    <MotionModal open={isOpen} onClose={onCancel} className="p-0 overflow-hidden max-h-[80vh] flex flex-col">
+    <MotionModal open={isOpen} onClose={onCancel} className="p-0 overflow-hidden max-h-[80dvh] flex flex-col">
         <div className="p-6 flex flex-col flex-1 min-h-0">
           <h3 className="text-lg font-bold text-foreground mb-1">{title}</h3>
           <p className="text-slate-400 text-sm mb-4">{message}</p>

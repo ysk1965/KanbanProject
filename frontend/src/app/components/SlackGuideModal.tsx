@@ -69,8 +69,8 @@ export function SlackGuideModal({ open, onOpenChange }: SlackGuideModalProps) {
   };
 
   return (
-    <MotionModal open={open} onClose={() => onOpenChange(false)} className="sm:max-w-[520px] p-0 overflow-hidden max-h-[80vh]">
-        <div className="overflow-y-auto max-h-[80vh] p-6">
+    <MotionModal open={open} onClose={() => onOpenChange(false)} className="sm:max-w-[520px] p-0 overflow-hidden max-h-[80dvh]">
+        <div className="overflow-y-auto max-h-[80dvh] p-6">
           <div className="mb-5">
             <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
               <div className="w-7 h-7 rounded-lg bg-bridge-accent/15 flex items-center justify-center flex-shrink-0">

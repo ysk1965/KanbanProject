@@ -142,7 +142,7 @@ export function WeightLevelSettingsModal({
         </div>
 
         {/* Content */}
-        <div className="p-6 max-h-[60vh] overflow-y-auto">
+        <div className="p-6 max-h-[60dvh] overflow-y-auto">
           {isLoading ? (
             <div className="text-center py-8 text-slate-400">{t('common.loading')}</div>
           ) : (

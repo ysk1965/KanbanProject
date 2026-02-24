@@ -820,9 +820,12 @@ html {
   -webkit-overflow-scrolling: touch;
 }
 
-/* min-h-screen 사용하는 페이지들의 키보드 대응 */
+/* min-h-screen / h-screen 사용하는 페이지들의 키보드 대응 */
 [data-keyboard-open] .min-h-screen {
   min-height: var(--visual-viewport-height) !important;
+}
+[data-keyboard-open] .h-screen {
+  height: var(--visual-viewport-height) !important;
 }
 
 /* 모바일 input 포커스 시 iOS 자동 확대(auto-zoom) 방지: font-size 16px 이상 보장 */

@@ -627,7 +627,19 @@
     "newChecklistPlaceholder": "输入清单标题",
     "creating": "创建中...",
     "dateFormatDay": "MMM d, yyyy",
-    "dateFormatWeek": "MMM d"
+    "dateFormatWeek": "MMM d",
+    "tabChecklist": "清单",
+    "tabMeeting": "会议",
+    "tabCustom": "自定义",
+    "customPresets": "快速选择",
+    "presetLunch": "午餐",
+    "presetFocus": "专注时间",
+    "presetPersonal": "个人事务",
+    "presetOutside": "外出",
+    "presetRest": "休息",
+    "customLabel": "自定义",
+    "customPlaceholder": "请输入日程名称",
+    "customColor": "颜色"
   },
   "schedule": {
     "settingsTitle": "日程设置",
@@ -1836,7 +1848,8 @@
     "cannotMove": "无法移动",
     "cannotChange": "无法更改",
     "willSplit": "拆分创建",
-    "nextDay": "次日"
+    "nextDay": "次日",
+    "custom": "自定义块"
   },
   "scheduleDetail": {
     "title": "时间块详情",

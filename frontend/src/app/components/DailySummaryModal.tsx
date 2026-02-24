@@ -116,7 +116,7 @@ export function DailySummaryModal({ boardId, member, selectedDate, blocks, onClo
   }, [blocks]);
 
   return (
-    <MotionModal open onClose={onClose} className="sm:w-[520px] sm:max-w-[calc(100%-2rem)] max-h-[80vh] flex flex-col p-0 overflow-hidden">
+    <MotionModal open onClose={onClose} className="sm:w-[520px] sm:max-w-[calc(100%-2rem)] max-h-[80dvh] flex flex-col p-0 overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-foreground/10">
           <div className="flex items-center gap-3">

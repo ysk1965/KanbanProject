@@ -1058,7 +1058,7 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
               {t('personal.tasks.noCompleted', '완료된 할 일이 없습니다')}
             </div>
           ) : (
-            <div className="max-h-[60vh] overflow-y-auto custom-scrollbar p-2 space-y-1">
+            <div className="max-h-[60dvh] overflow-y-auto custom-scrollbar p-2 space-y-1">
               {completedTasks.map(task => (
                 <CompletedTaskRow
                   key={task.id}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Bell,
@@ -117,6 +117,19 @@ export function MeetingDetailPanel({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [activeSpeakerDropdown]);
+
+  // Auto-resize textarea refs
+  const memoRef = useRef<HTMLTextAreaElement>(null);
+  const transcriptRef = useRef<HTMLTextAreaElement>(null);
+
+  const autoResize = useCallback((el: HTMLTextAreaElement | null) => {
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  }, []);
+
+  useEffect(() => autoResize(memoRef.current), [editingMemo, autoResize, loading]);
+  useEffect(() => autoResize(transcriptRef.current), [editingTranscript, autoResize, loading]);
 
   // Delete scope modal
   const [deleteScopeModal, setDeleteScopeModal] = useState(false);
@@ -457,12 +470,13 @@ export function MeetingDetailPanel({
                 {t("meeting.memo")}
               </label>
               <textarea
+                ref={memoRef}
                 value={editingMemo}
                 onChange={(e) => setEditingMemo(e.target.value)}
                 onBlur={handleMemoSave}
                 placeholder={t("meeting.memoPlaceholder")}
-                rows={4}
-                className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-sm text-foreground placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all resize-none"
+                rows={2}
+                className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-sm text-foreground placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all resize-none max-h-[300px] overflow-y-auto"
               />
             </div>
 
@@ -715,12 +729,13 @@ export function MeetingDetailPanel({
                 ) : (
                   /* Plain text textarea (legacy/manual edit mode) */
                   <textarea
+                    ref={transcriptRef}
                     value={editingTranscript}
                     onChange={(e) => setEditingTranscript(e.target.value)}
                     onBlur={handleTranscriptSave}
                     placeholder={t("meeting.transcriptPlaceholder")}
-                    rows={4}
-                    className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-sm text-foreground placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all resize-none"
+                    rows={2}
+                    className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-sm text-foreground placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all resize-none max-h-[400px] overflow-y-auto"
                   />
                 )}
               </div>

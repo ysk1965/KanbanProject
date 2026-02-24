@@ -643,7 +643,19 @@
     "newChecklistPlaceholder": "Enter checklist title",
     "creating": "Creating...",
     "dateFormatDay": "MMM d, yyyy",
-    "dateFormatWeek": "MMM d"
+    "dateFormatWeek": "MMM d",
+    "tabChecklist": "Checklist",
+    "tabMeeting": "Meeting",
+    "tabCustom": "Custom",
+    "customPresets": "Quick Select",
+    "presetLunch": "Lunch",
+    "presetFocus": "Focus Time",
+    "presetPersonal": "Personal",
+    "presetOutside": "Outside",
+    "presetRest": "Rest",
+    "customLabel": "Custom Label",
+    "customPlaceholder": "Enter schedule name",
+    "customColor": "Color"
   },
   "schedule": {
     "settingsTitle": "Schedule Settings",
@@ -1508,7 +1520,8 @@
     "cannotMove": "Cannot move",
     "cannotChange": "Cannot change",
     "willSplit": "Split",
-    "nextDay": "next day"
+    "nextDay": "next day",
+    "custom": "Custom Block"
   },
   "scheduleDetail": {
     "title": "Time Block Details",

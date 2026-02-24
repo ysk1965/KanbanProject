@@ -281,7 +281,7 @@ export function WeeklySummaryModal({ boardId, member, weekDays, weeklyData, onCl
   }, [weeklyRecords]);
 
   return (
-    <MotionModal open onClose={onClose} className="sm:w-[560px] sm:max-w-[calc(100%-2rem)] max-h-[85vh] flex flex-col p-0 overflow-hidden">
+    <MotionModal open onClose={onClose} className="sm:w-[560px] sm:max-w-[calc(100%-2rem)] max-h-[85dvh] flex flex-col p-0 overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-foreground/10">
           <div className="flex items-center gap-3">

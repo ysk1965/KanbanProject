@@ -148,15 +148,6 @@ export function useBoardDataLoader(boardId: string | undefined) {
     loadBoardData();
   }, [boardId, navigate]);
 
-  // 보드의 선택된 마일스톤 동기화
-  useEffect(() => {
-    if (board?.selected_milestone_id) {
-      setKanbanSelectedMilestoneId(board.selected_milestone_id);
-    } else {
-      setKanbanSelectedMilestoneId('all');
-    }
-  }, [board?.selected_milestone_id]);
-
   // Feature와 Task를 milestoneId로 필터링해서 다시 로드
   const reloadFeaturesAndTasks = useCallback(async (milestoneId?: string) => {
     if (!boardId) return;

@@ -128,7 +128,7 @@ export function MilestoneModal({
   }, [features, selectedFeatureIds, featureMilestoneCountMap]);
 
   return (
-    <MotionModal open={isOpen} onClose={onClose} className="sm:max-w-4xl bg-bridge-dark p-0 overflow-hidden flex flex-col max-h-[90vh]">
+    <MotionModal open={isOpen} onClose={onClose} className="sm:max-w-4xl bg-bridge-dark p-0 overflow-hidden flex flex-col max-h-[90dvh]">
         {/* 헤더 */}
         <div className="flex items-center justify-between p-5 border-b border-bridge-border bg-white/[0.02]">
           <div className="flex items-center gap-2">

@@ -634,7 +634,7 @@ export function CalendarView({ features, tasks, checklistDataMap, onViewFeature,
           onClick={() => setModalDate(null)}
         >
           <div
-            className="bg-bridge-obsidian rounded-t-2xl sm:rounded-2xl border border-foreground/10 shadow-2xl w-full sm:max-w-lg max-h-[85vh] sm:max-h-[80vh] flex flex-col animate-in fade-in zoom-in-95 duration-200"
+            className="bg-bridge-obsidian rounded-t-2xl sm:rounded-2xl border border-foreground/10 shadow-2xl w-full sm:max-w-lg max-h-[85dvh] sm:max-h-[80dvh] flex flex-col animate-in fade-in zoom-in-95 duration-200"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal header */}

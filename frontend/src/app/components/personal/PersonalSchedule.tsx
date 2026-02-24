@@ -103,7 +103,7 @@ function ColorDropdown({ color, onChange, colors = EVENT_COLORS }: { color: stri
 
 const SLOT_HEIGHT = 40;
 const DEFAULT_START_HOUR = 7;
-const DEFAULT_END_HOUR = 23;
+const DEFAULT_END_HOUR = 24;
 const COL_MIN_W = 'min-w-[100px] md:min-w-[130px]';
 const TIME_COL_W = 'w-12 md:w-16';
 const STORAGE_KEY = 'bridge-personal-schedule-settings';
@@ -834,7 +834,7 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
         fixed md:relative inset-y-0 left-0 z-50 md:z-auto
         w-[300px] md:w-[340px] flex-shrink-0 border-r border-foreground/5 flex flex-col overflow-hidden
         bg-bridge-dark md:bg-transparent
-        transition-transform duration-300 ease-in-out safe-left
+        transition-transform duration-300 ease-in-out safe-left safe-top safe-bottom
         ${showMobileSidebar ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
       `}>
         <div className="px-4 pt-4 pb-2 flex-shrink-0">
@@ -1999,7 +1999,7 @@ function CreateEventModal({
                 />
               </div>
 
-              <div className="max-h-[32vh] overflow-y-auto space-y-1.5 -mx-1 px-1 custom-scrollbar">
+              <div className="max-h-[32dvh] overflow-y-auto space-y-1.5 -mx-1 px-1 custom-scrollbar">
                 {isLoadingItems ? (
                   <div className="flex items-center justify-center py-8">
                     <Loader2 className="h-5 w-5 text-slate-400 animate-spin" />

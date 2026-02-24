@@ -157,9 +157,8 @@ jobs:
 
       - name: Deploy to S3 (Dev - milkyway.pe.kr)
         run: |
-          # 해시된 에셋만 장기 캐시
+          # 해시된 에셋: --delete 없이 업로드 (구버전 chunk 유지로 기존 세션 보호)
           aws s3 sync frontend/dist/assets s3://${{ env.S3_BUCKET_DEV }}/assets \
-            --delete \
             --cache-control "max-age=31536000,public"
 
           # 나머지 (HTML, SW, manifest 등) no-cache
@@ -170,9 +169,8 @@ jobs:
 
       - name: Deploy to S3 (Prod - bridgespots.com)
         run: |
-          # 해시된 에셋만 장기 캐시
+          # 해시된 에셋: --delete 없이 업로드 (구버전 chunk 유지로 기존 세션 보호)
           aws s3 sync frontend/dist/assets s3://${{ env.S3_BUCKET_PROD }}/assets \
-            --delete \
             --cache-control "max-age=31536000,public"
 
           # 나머지 (HTML, SW, manifest 등) no-cache

@@ -89,17 +89,22 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
     const height = (durationMinutes / 30) * slotHeight;
 
     // 블록 표시 정보
+    const isCustom = block.block_type === 'CUSTOM';
     const hasMeeting = !!block.meeting;
-    const title = hasMeeting ? block.meeting!.title : (block.checklist_item?.title || t('scheduleBlock.unlinked'));
-    const taskTitle = block.task?.title;
-    const featureTitle = block.feature?.title;
-    const featureColor = hasMeeting ? block.meeting!.color : (block.feature?.color || '#6366f1');
-    const isCompleted = block.checklist_item?.completed || false;
+    const title = isCustom
+      ? (block.title || t('scheduleBlock.custom'))
+      : hasMeeting
+        ? block.meeting!.title
+        : (block.checklist_item?.title || t('scheduleBlock.unlinked'));
+    const taskTitle = isCustom ? null : block.task?.title;
+    const featureTitle = isCustom ? null : block.feature?.title;
+    const featureColor = isCustom ? (block.color || '#F59E0B') : hasMeeting ? block.meeting!.color : (block.feature?.color || '#6366f1');
+    const isCompleted = isCustom ? false : (block.checklist_item?.completed || false);
 
     return {
       top,
       height,
-      displayInfo: { title, taskTitle, featureTitle, featureColor, isCompleted, hasMeeting },
+      displayInfo: { title, taskTitle, featureTitle, featureColor, isCompleted, hasMeeting, isCustom },
       startMinutes,
       endMinutes,
       workStartMinutes,
@@ -117,6 +122,10 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
 
   // 상태별 배경색 (className)
   const getBackgroundColor = () => {
+    // 커스텀 블록은 inline style로 처리 (동적 색상)
+    if (displayInfo.isCustom) {
+      return '';
+    }
     // 회의 블록은 inline style로 처리
     if (displayInfo.hasMeeting && block.meeting?.color) {
       return '';
@@ -142,12 +151,19 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
     return 'bg-blue-500/20 border-blue-500';
   };
 
-  // 회의 블록의 인라인 스타일
-  const getMeetingStyle = (): Record<string, string> => {
+  // 회의/커스텀 블록의 인라인 스타일
+  const getInlineStyle = (): Record<string, string> => {
     if (displayInfo.hasMeeting && block.meeting?.color) {
       const color = block.meeting.color;
       return {
         backgroundColor: `${color}33`, // ~20% opacity
+        borderLeftColor: color,
+      };
+    }
+    if (displayInfo.isCustom) {
+      const color = block.color || '#F59E0B';
+      return {
+        backgroundColor: `${color}33`,
         borderLeftColor: color,
       };
     }
@@ -446,7 +462,7 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
         overflow-hidden ${getBackgroundColor()} ${isResizing || isDragging ? 'z-20' : ''}
         ${(isDragging || isResizing) && overlapType === 'block' ? 'cursor-not-allowed shadow-2xl ring-2 ring-red-500 bg-red-500/30' : (isDragging || isResizing) && overlapType === 'split' ? 'cursor-grab shadow-2xl ring-2 ring-amber-400 bg-amber-500/20' : isDragging ? 'cursor-grabbing shadow-2xl ring-2 ring-white/50' : isResizing ? 'cursor-ns-resize shadow-lg' : 'cursor-pointer hover:shadow-lg'}
         ${isDragging || isResizing ? '' : 'transition-shadow'}`}
-      style={{ top: `${displayTop}px`, height: `${Math.max(displayHeight, snapPx)}px`, ...getMeetingStyle() }}
+      style={{ top: `${displayTop}px`, height: `${Math.max(displayHeight, snapPx)}px`, ...getInlineStyle() }}
       onClick={() => !isResizing && !isDragging && onClick?.(block)}
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}

@@ -1976,6 +1976,9 @@ export interface ScheduleBlockInfo {
   task: ScheduleTaskInfo | null;
   feature: ScheduleFeatureInfo | null;
   meeting: MeetingInfo | null;
+  block_type: string | null;
+  title: string | null;
+  color: string | null;
 }
 
 export interface ScheduleColumnInfo {
@@ -2020,6 +2023,9 @@ export interface ScheduleBlockDetailResponse {
   checklist_item: ScheduleChecklistItemInfo | null;
   task: ScheduleTaskInfo | null;
   feature: ScheduleFeatureInfo | null;
+  block_type: string | null;
+  title: string | null;
+  color: string | null;
 }
 
 export interface BoardChecklistItemResponse {
@@ -2114,6 +2120,9 @@ export const scheduleAPI = {
     data: {
       checklist_item_id?: string;
       meeting_id?: string;
+      block_type?: string;
+      title?: string;
+      color?: string;
       assignee_id: string;
       scheduled_date: string;
       start_time: string;

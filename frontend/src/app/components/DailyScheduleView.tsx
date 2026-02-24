@@ -517,6 +517,34 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
     setPendingBlock(null);
   };
 
+  // 커스텀 블록 생성
+  const handleCustomCreate = async (title: string, color: string) => {
+    if (!pendingBlock) return;
+
+    try {
+      const dateStr = format(selectedDate, 'yyyy-MM-dd');
+      const segments = pendingBlock.splitBlocks || [{ startTime: pendingBlock.startTime, endTime: pendingBlock.endTime }];
+
+      for (const seg of segments) {
+        await scheduleAPI.createBlock(boardId, {
+          block_type: 'CUSTOM',
+          title,
+          color,
+          assignee_id: pendingBlock.userId,
+          scheduled_date: dateStr,
+          start_time: seg.startTime,
+          end_time: seg.endTime,
+        });
+      }
+
+      setPendingBlock(null);
+      setShowChecklistModal(false);
+      await loadSchedule();
+    } catch (error) {
+      console.error('Failed to create custom block:', error);
+    }
+  };
+
   // 체크리스트 모달 닫기
   const handleCloseChecklistModal = () => {
     setShowChecklistModal(false);
@@ -1329,6 +1357,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
           onSelectExisting={handleChecklistItemSelect}
           onSelectBoardItem={handleBoardChecklistItemSelect}
           onSelectMeeting={handleMeetingSelect}
+          onCreateCustom={handleCustomCreate}
           onTimeChange={(newStart, newEnd) => {
             setPendingBlock(prev => prev ? { ...prev, startTime: newStart, endTime: newEnd, splitBlocks: undefined } : null);
           }}
