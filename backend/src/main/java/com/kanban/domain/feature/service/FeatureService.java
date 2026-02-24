@@ -31,6 +31,7 @@ import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import com.kanban.global.websocket.WebSocketEventService;
 import com.kanban.global.websocket.dto.BoardEventType;
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
@@ -72,6 +73,7 @@ public class FeatureService {
     private final FileUploadService fileUploadService;
     private final ActivityService activityService;
     private final WebSocketEventService webSocketEventService;
+    private final EntityManager entityManager;
 
     @Cacheable(value = "features", key = "#boardId", condition = "#milestoneId == null", unless = "#result == null")
     public FeatureResponse.ListResponse getFeatures(String boardId, String userId, String milestoneId) {
@@ -288,7 +290,15 @@ public class FeatureService {
         // 4) 남은 Task 삭제
         taskRepository.deleteByFeatureId(featureId);
 
-        // 5) Feature 삭제 전 position 조정 (삭제 후 조회 시 TransientObjectException 방지)
+        // 벌크 JPQL DELETE는 Hibernate 1차 캐시를 우회하므로,
+        // 세션에 남은 stale 엔티티가 삭제된 Feature를 참조하면 TransientObjectException 발생.
+        // flush → clear로 세션 상태를 DB와 동기화.
+        entityManager.flush();
+        entityManager.clear();
+
+        // 5) Feature 삭제 전 position 조정 (clear 후 재조회 필요)
+        feature = featureRepository.findById(featureId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.FEATURE_NOT_FOUND));
         int deletedPosition = feature.getPosition();
         List<Feature> featuresToShift = featureRepository.findByBoardIdOrderByPositionAsc(boardId).stream()
                 .filter(f -> !f.getId().equals(featureId) && f.getPosition() > deletedPosition)
