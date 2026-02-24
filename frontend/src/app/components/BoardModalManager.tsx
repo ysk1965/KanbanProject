@@ -96,6 +96,7 @@ interface BoardModalManagerProps {
   featureMilestoneCountMap: Record<string, number>;
   onSaveMilestone: (data: any) => void;
   onDeleteMilestone: (id: string) => void;
+  onSelectMilestone: (milestone: Milestone | null) => void;
   // Milestone Onboarding
   isMilestoneOnboardingOpen: boolean;
   onCloseMilestoneOnboarding: () => void;
@@ -237,10 +238,12 @@ export function BoardModalManager(props: BoardModalManagerProps) {
         isOpen={props.isMilestoneModalOpen}
         onClose={props.onCloseMilestone}
         milestone={props.selectedMilestone}
+        milestones={props.milestones}
         features={props.allFeatures}
         featureMilestoneCountMap={props.featureMilestoneCountMap}
         onSave={props.onSaveMilestone}
         onDelete={props.onDeleteMilestone}
+        onSelectMilestone={props.onSelectMilestone}
       />
 
       <MilestoneOnboardingModal

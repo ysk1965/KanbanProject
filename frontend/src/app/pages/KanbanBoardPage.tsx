@@ -7,7 +7,8 @@ import {
   Suspense,
 } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
-import { Plus, GripVertical } from "lucide-react";
+import { Plus, GripVertical, Flag, Pencil } from "lucide-react";
+import { format, parseISO } from "date-fns";
 import { isWhiteLabelDomain } from "../utils/domain";
 
 // 뷰 모드 타입
@@ -1749,6 +1750,7 @@ export function KanbanBoardPage() {
             m.id === refreshedMilestone.id ? refreshedMilestone : m,
           ),
         );
+        setSelectedMilestone(refreshedMilestone);
 
         if (kanbanSelectedMilestoneId === selectedMilestone.id) {
           await reloadFeaturesAndTasks(selectedMilestone.id);
@@ -1756,6 +1758,7 @@ export function KanbanBoardPage() {
       } else {
         const created = await milestoneService.createMilestone(boardId, data);
         setMilestones((prev) => [...prev, created]);
+        setSelectedMilestone(created);
 
         await boardService.updateSelectedMilestone(boardId, created.id);
         setBoard((prev) =>
@@ -2233,6 +2236,83 @@ export function KanbanBoardPage() {
             }
           }}
         />
+
+        {/* 마일스톤 탭 바 (칸반 뷰에서만 표시) */}
+        {viewMode === "kanban" && milestones.length > 0 && (() => {
+          const allMilestoneFeatureIds = new Set(milestones.flatMap(m => m.features?.map(f => f.id) || []));
+          const hasUnassignedFeatures = allFeatures.some(f => !allMilestoneFeatureIds.has(f.id));
+          return (
+            <div className="flex items-center px-3 md:px-6 py-1.5 bg-bridge-dark border-b border-bridge-border gap-2 overflow-x-auto shrink-0">
+              <Flag size={13} className="text-bridge-secondary shrink-0" />
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => handleKanbanMilestoneSelect("all")}
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+                    kanbanSelectedMilestoneId === "all"
+                      ? "bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20"
+                      : "text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover"
+                  }`}
+                >
+                  {t("common.all")}
+                </button>
+                {hasUnassignedFeatures && (
+                  <button
+                    onClick={() => handleKanbanMilestoneSelect("none")}
+                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+                      kanbanSelectedMilestoneId === "none"
+                        ? "bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20"
+                        : "text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover"
+                    }`}
+                  >
+                    {t("kanban.unassigned", "미지정")}
+                  </button>
+                )}
+                {milestones.map((milestone) => {
+                  const startDate = format(parseISO(milestone.start_date), "M/d");
+                  const endDate = format(parseISO(milestone.end_date), "M/d");
+                  return (
+                    <button
+                      key={milestone.id}
+                      onClick={() => handleKanbanMilestoneSelect(milestone.id)}
+                      className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+                        kanbanSelectedMilestoneId === milestone.id
+                          ? "bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20"
+                          : "text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover"
+                      }`}
+                    >
+                      <span>{milestone.title}</span>
+                      <span className={`text-[10px] font-normal ${kanbanSelectedMilestoneId === milestone.id ? "text-white/70" : "text-zinc-500"}`}>
+                        {startDate} ~ {endDate}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              {kanbanSelectedMilestoneId !== "all" && kanbanSelectedMilestoneId !== "none" && (
+                <button
+                  onClick={() => {
+                    const milestone = milestones.find((m) => m.id === kanbanSelectedMilestoneId);
+                    if (milestone) handleOpenMilestoneWithCheck(milestone);
+                  }}
+                  className="p-1 text-zinc-400 hover:text-foreground transition-colors shrink-0"
+                  title={t("kanban.editMilestone")}
+                >
+                  <Pencil size={13} />
+                </button>
+              )}
+              <button
+                onClick={() => handleOpenMilestoneWithCheck()}
+                className={`p-1 transition-colors shrink-0 ${
+                  !canAccessMilestone
+                    ? "text-zinc-600 hover:text-zinc-500"
+                    : "text-zinc-400 hover:text-foreground"
+                }`}
+              >
+                <Plus size={16} />
+              </button>
+            </div>
+          );
+        })()}
 
         {/* 병합 탭 서브토글 바 */}
         {(viewMode === "schedule" ||
@@ -3015,6 +3095,18 @@ export function KanbanBoardPage() {
           featureMilestoneCountMap={featureMilestoneCountMap}
           onSaveMilestone={handleSaveMilestone}
           onDeleteMilestone={handleDeleteMilestone}
+          onSelectMilestone={async (ms) => {
+            if (ms && boardId) {
+              try {
+                const detailed = await milestoneService.getMilestone(boardId, ms.id);
+                setSelectedMilestone(detailed);
+              } catch {
+                setSelectedMilestone(ms);
+              }
+            } else {
+              setSelectedMilestone(null);
+            }
+          }}
           // Milestone Onboarding
           isMilestoneOnboardingOpen={isMilestoneOnboardingOpen}
           onCloseMilestoneOnboarding={() => setIsMilestoneOnboardingOpen(false)}
