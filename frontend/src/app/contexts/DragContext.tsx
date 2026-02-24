@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
-import { Task, Block } from '../types';
+import { Task } from '../types';
 
 interface TaskPlaceholder {
   blockId: string;
@@ -11,11 +11,6 @@ interface DragState {
   draggedTask: Task | null;
   sourceBlockId: string | null;
   taskPlaceholder: TaskPlaceholder | null;
-
-  // Block 드래그 상태
-  draggedBlock: Block | null;
-  sourceBlockIndex: number | null;
-  blockPlaceholderIndex: number | null;
 }
 
 interface DragContextValue {
@@ -25,20 +20,12 @@ interface DragContextValue {
   updateTaskPlaceholder: (blockId: string, index: number) => void;
   clearTaskPlaceholder: () => void;
   endTaskDrag: () => void;
-  // Block 드래그 액션
-  startBlockDrag: (block: Block, index: number) => void;
-  updateBlockPlaceholder: (index: number) => void;
-  clearBlockPlaceholder: () => void;
-  endBlockDrag: () => void;
 }
 
 const initialState: DragState = {
   draggedTask: null,
   sourceBlockId: null,
   taskPlaceholder: null,
-  draggedBlock: null,
-  sourceBlockIndex: null,
-  blockPlaceholderIndex: null,
 };
 
 const DragContext = createContext<DragContextValue | null>(null);
@@ -78,38 +65,6 @@ export function DragProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
-  // Block 드래그 액션
-  const startBlockDrag = useCallback((block: Block, index: number) => {
-    setState((prev) => ({
-      ...prev,
-      draggedBlock: block,
-      sourceBlockIndex: index,
-    }));
-  }, []);
-
-  const updateBlockPlaceholder = useCallback((index: number) => {
-    setState((prev) => ({
-      ...prev,
-      blockPlaceholderIndex: index,
-    }));
-  }, []);
-
-  const clearBlockPlaceholder = useCallback(() => {
-    setState((prev) => ({
-      ...prev,
-      blockPlaceholderIndex: null,
-    }));
-  }, []);
-
-  const endBlockDrag = useCallback(() => {
-    setState((prev) => ({
-      ...prev,
-      draggedBlock: null,
-      sourceBlockIndex: null,
-      blockPlaceholderIndex: null,
-    }));
-  }, []);
-
   return (
     <DragContext.Provider
       value={{
@@ -118,10 +73,6 @@ export function DragProvider({ children }: { children: ReactNode }) {
         updateTaskPlaceholder,
         clearTaskPlaceholder,
         endTaskDrag,
-        startBlockDrag,
-        updateBlockPlaceholder,
-        clearBlockPlaceholder,
-        endBlockDrag,
       }}
     >
       {children}

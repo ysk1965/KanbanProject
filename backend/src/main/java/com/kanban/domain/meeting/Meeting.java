@@ -50,6 +50,12 @@ public class Meeting {
     @Column(name = "ai_suggestions", columnDefinition = "TEXT")
     private String aiSuggestions;
 
+    @Column(name = "diarized_transcript", columnDefinition = "TEXT")
+    private String diarizedTranscript;
+
+    @Column(name = "speaker_mapping", columnDefinition = "TEXT")
+    private String speakerMapping;
+
     @Column(name = "color", length = 7)
     @Builder.Default
     private String color = "#8B5CF6";
@@ -109,6 +115,18 @@ public class Meeting {
 
     public void updateAiSuggestions(String aiSuggestions) {
         this.aiSuggestions = aiSuggestions;
+    }
+
+    public void updateDiarizedTranscript(String diarizedTranscript) {
+        this.diarizedTranscript = diarizedTranscript;
+    }
+
+    public void updateSpeakerMapping(String speakerMapping) {
+        this.speakerMapping = speakerMapping;
+    }
+
+    public void updateRecurrenceEndDate(LocalDate recurrenceEndDate) {
+        this.recurrenceEndDate = recurrenceEndDate;
     }
 
     public boolean isRecurring() {

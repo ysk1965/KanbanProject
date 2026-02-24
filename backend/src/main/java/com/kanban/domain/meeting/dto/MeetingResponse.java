@@ -10,6 +10,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Map;
 
 public class MeetingResponse {
 
@@ -24,6 +25,7 @@ public class MeetingResponse {
         private LocalTime endTime;
         private String memo;
         private String transcript;
+        private DiarizedTranscript diarizedTranscript;
         private String color;
         private String recurrenceRule;
         private String recurrenceGroupId;
@@ -38,6 +40,12 @@ public class MeetingResponse {
 
         public static Detail of(Meeting meeting, List<User> participants,
                                 MeetingAIResponse.Suggestions aiSuggestions) {
+            return of(meeting, participants, aiSuggestions, null);
+        }
+
+        public static Detail of(Meeting meeting, List<User> participants,
+                                MeetingAIResponse.Suggestions aiSuggestions,
+                                DiarizedTranscript diarizedTranscript) {
             return Detail.builder()
                     .id(meeting.getId())
                     .title(meeting.getTitle())
@@ -46,6 +54,7 @@ public class MeetingResponse {
                     .endTime(meeting.getEndTime())
                     .memo(meeting.getMemo())
                     .transcript(meeting.getTranscript())
+                    .diarizedTranscript(diarizedTranscript)
                     .color(meeting.getColor())
                     .recurrenceRule(meeting.getRecurrenceRule())
                     .recurrenceGroupId(meeting.getRecurrenceGroupId())
@@ -67,6 +76,32 @@ public class MeetingResponse {
     public static class TranscriptResult {
         private String meetingId;
         private String transcript;
+        private DiarizedTranscript diarizedTranscript;
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class DiarizedTranscript {
+        private List<DiarizedSegment> segments;
+        private Map<String, String> speakerMapping;
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class DiarizedSegment {
+        private String speaker;
+        private String text;
+        private int order;
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class SpeakerMappingResult {
+        private String meetingId;
+        private Map<String, String> speakerMapping;
     }
 
     @Getter
@@ -82,6 +117,7 @@ public class MeetingResponse {
         private int participantCount;
         private String recurrenceRule;
         private String recurrenceGroupId;
+        private LocalDate recurrenceEndDate;
         private String recurrenceDaysOfWeek;
         private Integer recurrenceWeekOfMonth;
 
@@ -96,6 +132,7 @@ public class MeetingResponse {
                     .participantCount(participantCount)
                     .recurrenceRule(meeting.getRecurrenceRule())
                     .recurrenceGroupId(meeting.getRecurrenceGroupId())
+                    .recurrenceEndDate(meeting.getRecurrenceEndDate())
                     .recurrenceDaysOfWeek(meeting.getRecurrenceDaysOfWeek())
                     .recurrenceWeekOfMonth(meeting.getRecurrenceWeekOfMonth())
                     .build();

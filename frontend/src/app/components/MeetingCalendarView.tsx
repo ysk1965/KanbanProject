@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Calendar, Repeat, Clock, MoreVertical, Pencil, Trash2, X, Loader2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, CalendarDays, Repeat, Clock, MoreVertical, Pencil, Trash2, X, Loader2 } from 'lucide-react';
 import {
   startOfMonth,
   endOfMonth,
@@ -366,43 +366,28 @@ function RecurringMeetingCard({ meeting, monthMeetings, boardId, onNavigate, onR
     .sort((a, b) => a.meeting_date.localeCompare(b.meeting_date))[0];
 
   const handleCardClick = () => {
-    if (nextDate) {
-      onNavigate(parseISO(nextDate.meeting_date));
-    }
+    setEditOpen(true);
   };
+
+  const meetingColor = meeting.color || '#8B5CF6';
 
   return (
     <>
       <div
-        className="relative w-full text-left p-2.5 rounded-xl bg-white/[0.03] border border-foreground/5 hover:bg-white/[0.06] hover:border-foreground/10 transition-all group cursor-pointer"
+        className="relative w-full text-left p-3 rounded-xl bg-white/[0.03] border border-foreground/5 hover:bg-white/[0.06] hover:border-foreground/10 transition-all group cursor-pointer"
         onClick={handleCardClick}
       >
-        <div className="flex items-start gap-2.5">
-          <div
-            className="w-1 h-8 rounded-full flex-shrink-0 mt-0.5"
-            style={{ backgroundColor: meeting.color || '#8B5CF6' }}
-          />
-          <div className="flex-1 min-w-0">
-            <div className="text-[13px] font-medium text-foreground truncate group-hover:text-bridge-secondary transition-colors">
-              {meeting.title}
-            </div>
-            <div className="flex items-center gap-1.5 mt-1">
-              <span className="text-[10px] font-semibold text-bridge-secondary/80 bg-bridge-secondary/10 px-1.5 py-0.5 rounded">
-                {ruleLabel}
-              </span>
-              {timeStr && (
-                <span className="flex items-center gap-0.5 text-[10px] text-slate-500">
-                  <Clock size={9} />
-                  {timeStr}
-                </span>
-              )}
-            </div>
-            {firstOccurrence && (
-              <div className="text-[10px] text-slate-500 mt-1">
-                {format(parseISO(firstOccurrence.meeting_date), 'M/d', { locale: ko })}~
-              </div>
-            )}
-          </div>
+        {/* Row 1: Badge + Title + Menu */}
+        <div className="flex items-center gap-2">
+          <span
+            className="flex-shrink-0 text-[10px] font-bold text-white px-2 py-0.5 rounded-md"
+            style={{ backgroundColor: meetingColor }}
+          >
+            {ruleLabel}
+          </span>
+          <span className="flex-1 min-w-0 text-[13px] font-semibold text-foreground truncate group-hover:text-white transition-colors">
+            {meeting.title}
+          </span>
 
           {/* Context Menu Button */}
           <div ref={menuRef} className="relative flex-shrink-0">
@@ -443,6 +428,27 @@ function RecurringMeetingCard({ meeting, monthMeetings, boardId, onNavigate, onR
               </div>
             )}
           </div>
+        </div>
+
+        {/* Row 2: Time + Date Range */}
+        <div className="flex items-center gap-3 mt-1.5 pl-0.5">
+          {timeStr && (
+            <span className="flex items-center gap-1 text-[10px] text-slate-400">
+              <Clock size={10} className="opacity-60" />
+              {timeStr}
+            </span>
+          )}
+          {firstOccurrence && (
+            <span className="flex items-center gap-1 text-[10px] text-slate-400">
+              <CalendarDays size={10} className="opacity-60" />
+              {format(parseISO(firstOccurrence.meeting_date), 'M/d', { locale: ko })}
+              <span className="text-slate-500">~</span>
+              {meeting.recurrence_end_date
+                ? format(parseISO(meeting.recurrence_end_date), 'M/d', { locale: ko })
+                : ''
+              }
+            </span>
+          )}
         </div>
       </div>
 
@@ -513,6 +519,7 @@ function RecurringEditModal({ boardId, meeting, onClose, onUpdated }: RecurringE
   const [startTime, setStartTime] = useState(meeting.start_time?.slice(0, 5) || '');
   const [endTime, setEndTime] = useState(meeting.end_time?.slice(0, 5) || '');
   const [color, setColor] = useState(meeting.color || '#8B5CF6');
+  const [recurrenceEndDate, setRecurrenceEndDate] = useState(meeting.recurrence_end_date || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const colorOptions = ['#8B5CF6', '#6366F1', '#2DD4BF', '#F59E0B', '#EF4444', '#EC4899', '#10B981', '#3B82F6'];
@@ -531,6 +538,7 @@ function RecurringEditModal({ boardId, meeting, onClose, onUpdated }: RecurringE
           start_time: startTime || null,
           end_time: endTime || null,
           color,
+          recurrence_end_date: recurrenceEndDate || null,
         },
         'THIS_AND_FUTURE'
       );
@@ -619,6 +627,22 @@ function RecurringEditModal({ boardId, meeting, onClose, onUpdated }: RecurringE
                 />
               ))}
             </div>
+          </div>
+
+          {/* Recurrence End Date */}
+          <div>
+            <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+              {t('meeting.recurrenceEndDate', '반복 종료일')}
+            </label>
+            <input
+              type="date"
+              value={recurrenceEndDate}
+              onChange={(e) => setRecurrenceEndDate(e.target.value)}
+              className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all [color-scheme:dark]"
+            />
+            <p className="mt-1 text-[10px] text-slate-500">
+              {t('meeting.recurrenceEndDateHint', '비워두면 계속 반복됩니다')}
+            </p>
           </div>
         </div>
 

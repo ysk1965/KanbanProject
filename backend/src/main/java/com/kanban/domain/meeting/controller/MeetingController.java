@@ -132,6 +132,19 @@ public class MeetingController {
         return ResponseEntity.ok(result);
     }
 
+    @PutMapping("/{meetingId}/speaker-mapping")
+    public ResponseEntity<MeetingResponse.SpeakerMappingResult> updateSpeakerMapping(
+            @PathVariable String boardId,
+            @PathVariable String meetingId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody MeetingRequest.SpeakerMappingUpdate request) {
+        MeetingResponse.SpeakerMappingResult result =
+                meetingService.updateSpeakerMapping(
+                        boardId, meetingId, principal.getUserId(),
+                        request.getSpeakerMapping());
+        return ResponseEntity.ok(result);
+    }
+
     @PostMapping("/{meetingId}/ai-organize")
     public ResponseEntity<MeetingAIResponse.Suggestions> aiOrganize(
             @PathVariable String boardId,

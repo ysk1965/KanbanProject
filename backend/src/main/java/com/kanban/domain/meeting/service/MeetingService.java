@@ -96,7 +96,8 @@ public class MeetingService {
 
         List<User> participants = scheduleBlockRepository.findDistinctAssigneesByMeetingId(meetingId);
 
-        return MeetingResponse.Detail.of(meeting, participants, deserializeAiSuggestions(meeting));
+        return MeetingResponse.Detail.of(meeting, participants,
+                deserializeAiSuggestions(meeting), deserializeDiarizedTranscript(meeting));
     }
 
     @Transactional
@@ -334,6 +335,19 @@ public class MeetingService {
                         m.getId().equals(meetingId) ? request.getMemo() : null, // memo는 현재 회의만
                         request.getColor()
                 );
+                if (request.getRecurrenceEndDate() != null) {
+                    m.updateRecurrenceEndDate(request.getRecurrenceEndDate());
+                }
+            }
+            // recurrence_end_date 변경 시 종료일 이후 회의 삭제
+            if (request.getRecurrenceEndDate() != null) {
+                List<Meeting> allGroupMeetings = meetingRepository.findByRecurrenceGroupIdFromDate(
+                        meeting.getRecurrenceGroupId(), request.getRecurrenceEndDate().plusDays(1));
+                if (!allGroupMeetings.isEmpty()) {
+                    meetingRepository.deleteAll(allGroupMeetings);
+                    log.info("Deleted {} meetings after new recurrence end date {} for group={}",
+                            allGroupMeetings.size(), request.getRecurrenceEndDate(), meeting.getRecurrenceGroupId());
+                }
             }
             log.info("Recurring meetings updated from {}: group={}, count={} by user: {}",
                     meeting.getMeetingDate(), meeting.getRecurrenceGroupId(), futureMeetings.size(), userId);
@@ -400,16 +414,21 @@ public class MeetingService {
         }
 
         meeting.updateTranscript(transcript);
+        // Clear diarized transcript when manually editing (must re-transcribe to diarize again)
+        meeting.updateDiarizedTranscript(null);
+        meeting.updateSpeakerMapping(null);
 
         User user = userRepository.findById(userId).orElse(null);
         List<User> participants = scheduleBlockRepository.findDistinctAssigneesByMeetingId(meetingId);
-        MeetingResponse.Detail detailResponse = MeetingResponse.Detail.of(meeting, participants, deserializeAiSuggestions(meeting));
+        MeetingResponse.Detail detailResponse = MeetingResponse.Detail.of(meeting, participants,
+                deserializeAiSuggestions(meeting), null);
         webSocketEventService.sendBoardEvent(boardId, BoardEventType.MEETING_UPDATED,
                 userId, user != null ? user.getName() : null, detailResponse);
 
         return MeetingResponse.TranscriptResult.builder()
                 .meetingId(meetingId)
                 .transcript(meeting.getTranscript())
+                .diarizedTranscript(null)
                 .build();
     }
 
@@ -498,6 +517,39 @@ public class MeetingService {
         return NoteResponse.Detail.of(note, java.util.List.of(), 0);
     }
 
+    @Transactional
+    public MeetingResponse.SpeakerMappingResult updateSpeakerMapping(
+            String boardId, String meetingId, String userId,
+            Map<String, String> speakerMapping) {
+        boardService.checkMemberOrAbove(boardId, userId);
+
+        Meeting meeting = meetingRepository.findById(meetingId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MEETING_NOT_FOUND));
+        if (!meeting.getBoard().getId().equals(boardId)) {
+            throw new BusinessException(ErrorCode.MEETING_NOT_FOUND);
+        }
+
+        try {
+            String mappingJson = objectMapper.writeValueAsString(speakerMapping);
+            meeting.updateSpeakerMapping(mappingJson);
+        } catch (Exception e) {
+            log.error("Failed to serialize speaker mapping for meeting: {}", meetingId, e);
+            throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
+        }
+
+        User user = userRepository.findById(userId).orElse(null);
+        webSocketEventService.sendBoardEvent(boardId, BoardEventType.MEETING_UPDATED,
+                userId, user != null ? user.getName() : null,
+                Map.of("id", meetingId, "speakerMapping", speakerMapping));
+
+        log.info("Speaker mapping updated for meeting: {} by user: {}", meetingId, userId);
+
+        return MeetingResponse.SpeakerMappingResult.builder()
+                .meetingId(meetingId)
+                .speakerMapping(speakerMapping)
+                .build();
+    }
+
     private String buildMeetingNoteContent(Meeting meeting) {
         StringBuilder sb = new StringBuilder();
         sb.append("<h1>").append(escapeHtml(meeting.getTitle())).append("</h1>");
@@ -515,7 +567,26 @@ public class MeetingService {
             sb.append("<p>").append(escapeHtml(meeting.getMemo()).replace("\n", "<br>")).append("</p>");
         }
 
-        if (meeting.getTranscript() != null && !meeting.getTranscript().isBlank()) {
+        // Use diarized transcript if available, otherwise fall back to plain transcript
+        MeetingResponse.DiarizedTranscript diarized = deserializeDiarizedTranscript(meeting);
+        if (diarized != null && diarized.getSegments() != null && !diarized.getSegments().isEmpty()) {
+            sb.append("<h2>회의 녹취 (화자 분리)</h2>");
+
+            // Build speaker name map from speaker_mapping
+            Map<String, String> speakerNames = diarized.getSpeakerMapping();
+
+            for (MeetingResponse.DiarizedSegment segment : diarized.getSegments()) {
+                String displayName = segment.getSpeaker();
+                if (speakerNames != null && speakerNames.containsKey(segment.getSpeaker())) {
+                    String mappedName = speakerNames.get(segment.getSpeaker());
+                    if (mappedName != null && !mappedName.isBlank()) {
+                        displayName = mappedName;
+                    }
+                }
+                sb.append("<p><strong>").append(escapeHtml(displayName)).append(":</strong> ");
+                sb.append(escapeHtml(segment.getText())).append("</p>");
+            }
+        } else if (meeting.getTranscript() != null && !meeting.getTranscript().isBlank()) {
             sb.append("<h2>회의 녹취</h2>");
             sb.append("<p>").append(escapeHtml(meeting.getTranscript()).replace("\n", "<br>")).append("</p>");
         }
@@ -547,6 +618,17 @@ public class MeetingService {
             return objectMapper.readValue(json, MeetingAIResponse.Suggestions.class);
         } catch (Exception e) {
             log.warn("Failed to deserialize AI suggestions for meeting: {}", meeting.getId(), e);
+            return null;
+        }
+    }
+
+    private MeetingResponse.DiarizedTranscript deserializeDiarizedTranscript(Meeting meeting) {
+        String json = meeting.getDiarizedTranscript();
+        if (json == null || json.isBlank()) return null;
+        try {
+            return objectMapper.readValue(json, MeetingResponse.DiarizedTranscript.class);
+        } catch (Exception e) {
+            log.warn("Failed to deserialize diarized transcript for meeting: {}", meeting.getId(), e);
             return null;
         }
     }

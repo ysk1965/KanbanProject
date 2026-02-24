@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -14,6 +14,8 @@ import {
   Plus,
   Pencil,
   Trash2,
+  ChevronsUpDown,
+  ChevronsDownUp,
 } from 'lucide-react';
 import type { Feature, Task, Milestone, MilestoneFeatureInfo } from '../types';
 import { milestoneService } from '../utils/services';
@@ -254,8 +256,35 @@ export function MilestoneView({
 }: MilestoneViewProps) {
   const { t } = useTranslation();
 
-  const [expandedMilestones, setExpandedMilestones] = useState<Set<string>>(new Set());
+  const [expandedMilestones, setExpandedMilestones] = useState<Set<string>>(
+    () => new Set(milestones.map((m) => m.id))
+  );
   const [detailCache, setDetailCache] = useState<MilestoneDetailCache>({});
+
+  // Load details for all milestones on mount (since they default to expanded)
+  useEffect(() => {
+    milestones.forEach(async (milestone) => {
+      if (detailCache[milestone.id]) return;
+      setDetailCache((prev) => ({
+        ...prev,
+        [milestone.id]: { features: [], loading: true },
+      }));
+      try {
+        const detail = await milestoneService.getMilestone(boardId, milestone.id);
+        setDetailCache((prev) => ({
+          ...prev,
+          [milestone.id]: { features: detail.features || [], loading: false },
+        }));
+      } catch (error) {
+        console.warn('Failed to load milestone detail:', error);
+        setDetailCache((prev) => ({
+          ...prev,
+          [milestone.id]: { features: [], loading: false },
+        }));
+      }
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [boardId, milestones.length]);
 
   const toggleMilestone = useCallback(
     async (milestoneId: string) => {
@@ -295,6 +324,37 @@ export function MilestoneView({
     },
     [boardId, detailCache, expandedMilestones]
   );
+
+  const handleExpandAll = useCallback(() => {
+    const allIds = new Set(milestones.map((m) => m.id));
+    setExpandedMilestones(allIds);
+    // Load details for any that haven't been loaded
+    milestones.forEach(async (milestone) => {
+      if (detailCache[milestone.id]) return;
+      setDetailCache((prev) => ({
+        ...prev,
+        [milestone.id]: { features: [], loading: true },
+      }));
+      try {
+        const detail = await milestoneService.getMilestone(boardId, milestone.id);
+        setDetailCache((prev) => ({
+          ...prev,
+          [milestone.id]: { features: detail.features || [], loading: false },
+        }));
+      } catch (error) {
+        setDetailCache((prev) => ({
+          ...prev,
+          [milestone.id]: { features: [], loading: false },
+        }));
+      }
+    });
+  }, [boardId, milestones, detailCache]);
+
+  const handleCollapseAll = useCallback(() => {
+    setExpandedMilestones(new Set());
+  }, []);
+
+  const allExpanded = expandedMilestones.size === milestones.length && milestones.length > 0;
 
   // 여러 마일스톤에 걸쳐 있는 피쳐 ID → 등장 횟수
   const multiMilestoneFeatureMap = useMemo(() => {
@@ -375,13 +435,34 @@ export function MilestoneView({
             <Flag className="h-4 w-4" />
             <span>{milestones.length} {t('milestone.count', { defaultValue: '개 마일스톤' })}</span>
           </div>
-          <button
-            onClick={onCreateMilestone}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-bridge-accent rounded-lg hover:bg-bridge-accent/90 hover:shadow-[0_0_20px_rgba(99,102,241,0.2)] transition-all"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            {t('milestone.create', { defaultValue: '마일스톤 추가' })}
-          </button>
+          <div className="flex items-center gap-2">
+            {/* 모두 펼치기/닫기 */}
+            <div className="flex items-center gap-1">
+              <button
+                onClick={handleExpandAll}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+                title={t('kanban.expandAll', { defaultValue: '모두 펼치기' })}
+              >
+                <ChevronsUpDown className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">{t('kanban.expand', { defaultValue: '펼치기' })}</span>
+              </button>
+              <button
+                onClick={handleCollapseAll}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+                title={t('kanban.collapseAll', { defaultValue: '모두 닫기' })}
+              >
+                <ChevronsDownUp className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">{t('kanban.collapse', { defaultValue: '닫기' })}</span>
+              </button>
+            </div>
+            <button
+              onClick={onCreateMilestone}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-bridge-accent rounded-lg hover:bg-bridge-accent/90 hover:shadow-[0_0_20px_rgba(99,102,241,0.2)] transition-all"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              {t('milestone.create', { defaultValue: '마일스톤 추가' })}
+            </button>
+          </div>
         </div>
       )}
 

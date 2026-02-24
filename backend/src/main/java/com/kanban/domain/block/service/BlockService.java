@@ -226,11 +226,6 @@ public class BlockService {
             throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
         }
 
-        // Done은 항상 마지막
-        if (doneBlock != null && !blockIds.get(blockIds.size() - 1).equals(doneBlock.getId())) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
-        }
-
         // 순서 업데이트
         for (int i = 0; i < blockIds.size(); i++) {
             Block block = blockMap.get(blockIds.get(i));

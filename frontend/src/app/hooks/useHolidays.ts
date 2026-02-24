@@ -81,6 +81,16 @@ export function useHolidays(locale: string, year: number) {
   const [holidaySource, setHolidaySource] = useState<HolidaySource>(getInitialSource);
   const [holidayMap, setHolidayMap] = useState<Map<string, HolidayInfo[]>>(new Map());
 
+  // Sync country when locale changes and no explicit preference is stored
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (!stored) {
+        setCountry(LOCALE_TO_COUNTRY[locale] || 'US');
+      }
+    } catch { /* ignore */ }
+  }, [locale]);
+
   const changeCountry = useCallback((code: string) => {
     setCountry(code);
     try {

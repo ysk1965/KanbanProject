@@ -65,7 +65,12 @@ export function SettingsPage() {
     try {
       const stored = localStorage.getItem(HOLIDAY_STORAGE_KEY);
       if (stored !== null) return stored;
-      return LOCALE_TO_COUNTRY[i18n.resolvedLanguage || i18n.language] || '';
+      // Auto-persist the locale-based default so useHolidays hook stays in sync
+      const defaultCode = LOCALE_TO_COUNTRY[i18n.resolvedLanguage || i18n.language] || '';
+      if (defaultCode) {
+        try { localStorage.setItem(HOLIDAY_STORAGE_KEY, defaultCode); } catch {}
+      }
+      return defaultCode;
     } catch { return ''; }
   });
   const [holidaySource, setHolidaySource] = useState<HolidaySource>(() => {

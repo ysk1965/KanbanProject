@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from './ui/select';
 
-type ViewMode = 'kanban' | 'weekly' | 'schedule' | 'meeting' | 'notes' | 'statistics' | 'ai_report';
+type ViewMode = 'kanban' | 'weekly' | 'schedule' | 'calendar' | 'milestone' | 'meeting' | 'notes' | 'statistics' | 'ai_report';
 
 interface KanbanBoardHeaderProps {
   board: Board | null;
@@ -72,7 +72,7 @@ interface KanbanBoardHeaderProps {
   onLogout: () => void;
   isTester: boolean;
   // Schedule sub mode helpers
-  getScheduleSubMode: () => 'schedule' | 'weekly' | 'calendar';
+  getScheduleSubMode: () => 'schedule' | 'weekly' | 'calendar' | 'milestone';
   getAISubMode: () => 'statistics' | 'ai_report';
 }
 
@@ -254,7 +254,7 @@ export function KanbanBoardHeader({
               }
             }}
             className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
-              viewMode === 'schedule' || viewMode === 'weekly' || viewMode === 'calendar'
+              viewMode === 'schedule' || viewMode === 'weekly' || viewMode === 'calendar' || viewMode === 'milestone'
                 ? 'bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20'
                 : 'text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover'
             }`}

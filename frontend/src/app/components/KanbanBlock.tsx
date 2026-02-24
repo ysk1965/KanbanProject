@@ -12,6 +12,8 @@ import {
   DropdownMenuSeparator,
 } from './ui/dropdown-menu';
 import { useDragContext } from '../contexts/DragContext';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface KanbanBlockProps {
   block: Block;
@@ -30,9 +32,6 @@ interface KanbanBlockProps {
   boardId?: string | null;
   expandedChecklistTaskIds?: Set<string>;
   onToggleChecklistExpand?: (taskId: string) => void;
-  // Block drag and drop
-  blockIndex?: number;
-  onMoveBlockDrag?: (dragIndex: number, hoverIndex: number) => void;
   // 배치 로드된 체크리스트 데이터
   checklistDataMap?: { [taskId: string]: ChecklistItem[] };
   memberColorMap?: Record<string, string | null>;
@@ -56,8 +55,6 @@ export const KanbanBlock = memo(function KanbanBlock({
   boardId,
   expandedChecklistTaskIds,
   onToggleChecklistExpand,
-  blockIndex = 0,
-  onMoveBlockDrag,
   checklistDataMap,
   memberColorMap,
   showFeatureLabel,
@@ -67,53 +64,40 @@ export const KanbanBlock = memo(function KanbanBlock({
   recentlyCompletedTaskIds,
 }: KanbanBlockProps) {
   const { t } = useTranslation();
-  const blockRef = useRef<HTMLDivElement>(null);
-  const dragHandleRef = useRef<HTMLDivElement>(null);
   const taskContainerRef = useRef<HTMLDivElement>(null);
   const dragOverThrottleRef = useRef<number>(0);
 
   const {
     state,
-    startBlockDrag,
-    updateBlockPlaceholder,
-    clearBlockPlaceholder,
-    endBlockDrag,
     updateTaskPlaceholder,
     clearTaskPlaceholder,
     endTaskDrag,
   } = useDragContext();
 
+  // @dnd-kit sortable - TASK 블록은 드래그 비활성화
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: block.id,
+    disabled: block.fixed_type === 'TASK',
+  });
+
+  const sortableStyle = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
   const isCustomBlock = block.type === 'CUSTOM';
   const isFixedBlock = block.type === 'FIXED';
-
-  // 현재 이 블록이 드래그 중인지 확인
-  const isThisBlockDragging = state.draggedBlock?.id === block.id;
 
   // 플레이스홀더가 이 블록에 표시되어야 하는지 확인
   const taskPlaceholderInThisBlock = state.taskPlaceholder?.blockId === block.id;
   const placeholderIndex = state.taskPlaceholder?.index ?? -1;
-
-  // 블록 드래그 시작
-  const handleBlockDragStart = (e: React.DragEvent<HTMLDivElement>) => {
-    if (!isCustomBlock) {
-      e.preventDefault();
-      return;
-    }
-
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('application/block', block.id);
-
-    if (blockRef.current) {
-      e.dataTransfer.setDragImage(blockRef.current, 140, 20);
-    }
-
-    startBlockDrag(block, blockIndex);
-  };
-
-  // 블록 드래그 종료
-  const handleBlockDragEnd = () => {
-    endBlockDrag();
-  };
 
   // Task 드래그 오버 핸들러 - Y좌표로 플레이스홀더 위치 계산
   const handleTaskDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
@@ -211,53 +195,6 @@ export const KanbanBlock = memo(function KanbanBlock({
     endTaskDrag();
   }, [state.taskPlaceholder, block.id, tasks, onMoveTask, onReorderTask, clearTaskPlaceholder, endTaskDrag]);
 
-  // 블록 드래그 오버 핸들러 (블록 순서 변경용)
-  const handleBlockDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-    if (!e.dataTransfer.types.includes('application/block')) {
-      return;
-    }
-
-    const draggedBlock = state.draggedBlock;
-    if (!draggedBlock || draggedBlock.id === block.id) return;
-
-    // X좌표로 삽입 위치 결정
-    const rect = blockRef.current?.getBoundingClientRect();
-    if (!rect) return;
-
-    const midX = rect.left + rect.width / 2;
-    let newIndex = e.clientX < midX ? blockIndex : blockIndex + 1;
-
-    // Task 블록 앞으로는 placeholder 표시 안 함
-    if (block.fixed_type === 'TASK') {
-      newIndex = blockIndex + 1;
-    }
-
-    updateBlockPlaceholder(newIndex);
-  }, [state.draggedBlock, block.id, block.fixed_type, blockIndex, updateBlockPlaceholder]);
-
-  // 블록 드롭 핸들러
-  const handleBlockDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-    if (!e.dataTransfer.types.includes('application/block')) {
-      return;
-    }
-
-    e.preventDefault();
-
-    const draggedBlock = state.draggedBlock;
-    if (!draggedBlock || draggedBlock.id === block.id) return;
-
-    // 드래그된 블록의 원래 인덱스와 타겟 인덱스를 사용해 이동
-    const originalIndex = state.sourceBlockIndex;
-    const targetIndex = state.blockPlaceholderIndex;
-
-    if (onMoveBlockDrag && originalIndex !== null && targetIndex !== null && originalIndex !== targetIndex) {
-      onMoveBlockDrag(originalIndex, targetIndex);
-    }
-
-    clearBlockPlaceholder();
-    endBlockDrag();
-  }, [state.draggedBlock, state.sourceBlockIndex, state.blockPlaceholderIndex, block.id, onMoveBlockDrag, clearBlockPlaceholder, endBlockDrag]);
-
   // 플레이스홀더 JSX
   const placeholderElement = (
     <div
@@ -282,46 +219,53 @@ export const KanbanBlock = memo(function KanbanBlock({
 
   return (
     <div
-      ref={blockRef}
+      ref={setNodeRef}
+      style={sortableStyle}
       onDragEnter={(e) => {
-        // dragenter에서도 preventDefault 필요
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
+        // Task 드래그용 dragenter
+        if (e.dataTransfer.types.includes('application/task')) {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+        }
       }}
       onDragOver={(e) => {
-        // 항상 preventDefault를 먼저 호출해야 drop 이벤트가 발생함
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-        handleTaskDragOver(e);
-        handleBlockDragOver(e);
+        // Task 드래그용 dragover
+        if (e.dataTransfer.types.includes('application/task')) {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          handleTaskDragOver(e);
+        }
       }}
       onDragLeave={handleTaskDragLeave}
       onDrop={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        handleTaskDrop(e);
-        handleBlockDrop(e);
+        if (e.dataTransfer.types.includes('application/task')) {
+          e.preventDefault();
+          e.stopPropagation();
+          handleTaskDrop(e);
+        }
       }}
-      className={`relative flex flex-col bg-bridge-surface rounded-2xl border border-bridge-border min-w-[260px] max-w-[260px] md:min-w-[280px] md:max-w-[280px] transition-all duration-200 ${
+      className={`relative flex flex-col bg-bridge-surface rounded-2xl overflow-hidden border border-bridge-border min-w-[260px] max-w-[260px] md:min-w-[280px] md:max-w-[280px] transition-shadow duration-200 ${
         taskPlaceholderInThisBlock ? 'ring-2 ring-bridge-secondary/50 bg-bridge-secondary/5' : ''
-      } ${isThisBlockDragging ? 'opacity-40 scale-95 rotate-1' : ''} ${
-        state.blockPlaceholderIndex === blockIndex && state.draggedBlock ? 'ring-2 ring-bridge-secondary' : ''
-      }`}
+      } ${isDragging ? 'opacity-40 scale-95 z-10' : ''}`}
     >
-      {/* 드롭 인디케이터 (왼쪽) */}
-      {state.blockPlaceholderIndex === blockIndex && state.draggedBlock && (
-        <div className="absolute -left-2 top-0 bottom-0 w-1 bg-bridge-secondary rounded-full animate-pulse" />
+      {/* 고정 블록 상단 강조선 */}
+      {isFixedBlock && (
+        <div
+          className={`h-1 ${
+            block.fixed_type === 'TASK'
+              ? 'bg-gradient-to-r from-bridge-accent/60 via-bridge-accent/30 to-transparent'
+              : 'bg-gradient-to-r from-emerald-500/60 via-emerald-500/30 to-transparent'
+          }`}
+        />
       )}
 
       {/* 블록 헤더 */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-bridge-border group">
-        {/* 드래그 핸들 - 커스텀 블록만 표시 */}
-        {isCustomBlock && (
+        {/* 드래그 핸들 - TASK 제외 모든 블록 표시 */}
+        {block.fixed_type !== 'TASK' && (
           <div
-            ref={dragHandleRef}
-            draggable
-            onDragStart={handleBlockDragStart}
-            onDragEnd={handleBlockDragEnd}
+            {...attributes}
+            {...listeners}
             className="cursor-grab active:cursor-grabbing p-1 -ml-1 mr-1 rounded-lg hover:bg-bridge-surface-hover opacity-40 group-hover:opacity-100 transition-all"
             title={t('kanbanBlock.dragToMove')}
           >
@@ -336,6 +280,13 @@ export const KanbanBlock = memo(function KanbanBlock({
             />
           )}
           <h3 className="font-bold text-sm text-foreground tracking-tight">{block.name}</h3>
+          {isFixedBlock && (
+            <span className={`text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded ${
+              block.fixed_type === 'TASK'
+                ? 'bg-bridge-accent/15 text-bridge-accent'
+                : 'bg-emerald-500/15 text-emerald-400'
+            }`}>Fixed</span>
+          )}
           <span className="text-xs font-semibold text-zinc-400 bg-bridge-surface-hover px-2 py-0.5 rounded-md">{tasks.length}</span>
         </div>
 
@@ -370,36 +321,48 @@ export const KanbanBlock = memo(function KanbanBlock({
         ref={taskContainerRef}
         className="flex-1 p-3 space-y-3 overflow-y-auto min-h-0 kanban-scrollbar"
         onDragEnter={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
+          if (e.dataTransfer.types.includes('application/task')) {
+            e.preventDefault();
+            e.stopPropagation();
+          }
         }}
         onDragOver={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          e.dataTransfer.dropEffect = 'move';
-          handleTaskDragOver(e);
+          if (e.dataTransfer.types.includes('application/task')) {
+            e.preventDefault();
+            e.stopPropagation();
+            e.dataTransfer.dropEffect = 'move';
+            handleTaskDragOver(e);
+          }
         }}
         onDrop={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          handleTaskDrop(e);
+          if (e.dataTransfer.types.includes('application/task')) {
+            e.preventDefault();
+            e.stopPropagation();
+            handleTaskDrop(e);
+          }
         }}
       >
         {tasks.map((task, index) => (
           <div
             key={task.id}
             onDragEnter={(e) => {
-              e.preventDefault();
-              e.dataTransfer.dropEffect = 'move';
+              if (e.dataTransfer.types.includes('application/task')) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+              }
             }}
             onDragOver={(e) => {
-              e.preventDefault();
-              e.dataTransfer.dropEffect = 'move';
+              if (e.dataTransfer.types.includes('application/task')) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+              }
             }}
             onDrop={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              handleTaskDrop(e);
+              if (e.dataTransfer.types.includes('application/task')) {
+                e.preventDefault();
+                e.stopPropagation();
+                handleTaskDrop(e);
+              }
             }}
           >
             {/* 플레이스홀더 - 해당 인덱스 전에 표시 */}
