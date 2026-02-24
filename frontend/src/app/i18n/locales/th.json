@@ -1855,7 +1855,8 @@
     "completedCount": "{{completed}}/{{total}} เสร็จ",
     "noChecklist": "ไม่มีรายการเช็คลิสต์",
     "current": "ปัจจุบัน",
-    "nextDay": "วันถัดไป"
+    "nextDay": "วันถัดไป",
+    "editTime": "แก้ไขเวลา"
   },
   "emptyBoard": {
     "heading": "เริ่มต้นกับบอร์ดของคุณ",

@@ -1306,6 +1306,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
           workStartHour={workStartHour}
           onClose={handleClosePanel}
           onDelete={handleBlockDeleted}
+          onUpdate={loadSchedule}
           onChecklistToggle={handleChecklistToggled}
           onViewFeature={onViewFeature}
           onViewTask={onViewTask}

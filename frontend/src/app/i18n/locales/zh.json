@@ -1855,7 +1855,8 @@
     "completedCount": "{{completed}}/{{total}} 已完成",
     "noChecklist": "无清单项",
     "current": "当前",
-    "nextDay": "次日"
+    "nextDay": "次日",
+    "editTime": "编辑时间"
   },
   "emptyBoard": {
     "heading": "开始使用您的看板",

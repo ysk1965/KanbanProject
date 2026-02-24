@@ -1528,7 +1528,8 @@
     "completedCount": "{{completed}}/{{total}} 완료",
     "noChecklist": "체크리스트가 없습니다",
     "current": "현재",
-    "nextDay": "다음날"
+    "nextDay": "다음날",
+    "editTime": "시간 편집"
   },
   "emptyBoard": {
     "heading": "보드를 시작해보세요",

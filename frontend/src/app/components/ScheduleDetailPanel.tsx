@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { X, Clock, Calendar, User, Users, CheckSquare, FileText, Folder, Trash2, Check, Loader2, Layers, Star, Sparkles } from 'lucide-react';
+import { X, Clock, Calendar, User, Users, CheckSquare, FileText, Folder, Trash2, Check, Loader2, Layers, Star, Sparkles, Pencil } from 'lucide-react';
 import { Button } from './ui/button';
+import { TimePicker } from './ui/TimePicker';
 import { ScheduleBlockInfo, scheduleAPI, checklistAPI, ChecklistItemResponse, meetingAPI, MeetingDetail } from '../utils/api';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
@@ -16,6 +17,7 @@ interface ScheduleDetailPanelProps {
   workStartHour: number;
   onClose: () => void;
   onDelete: () => void;
+  onUpdate: () => void;
   onChecklistToggle: () => void;
   onViewTask?: (taskId: string) => void;
   onViewFeature?: (featureId: string) => void;
@@ -77,6 +79,7 @@ export function ScheduleDetailPanel({
   workStartHour,
   onClose,
   onDelete,
+  onUpdate,
   onChecklistToggle,
   onViewTask,
   onViewFeature,
@@ -97,6 +100,12 @@ export function ScheduleDetailPanel({
   // Meeting 상세 정보
   const [meetingDetail, setMeetingDetail] = useState<MeetingDetail | null>(null);
   const [isLoadingMeeting, setIsLoadingMeeting] = useState(false);
+
+  // 시간 편집 상태
+  const [isEditingTime, setIsEditingTime] = useState(false);
+  const [editStartTime, setEditStartTime] = useState(formatTime(block.start_time));
+  const [editEndTime, setEditEndTime] = useState(formatTime(block.end_time));
+  const [isSavingTime, setIsSavingTime] = useState(false);
 
   // block이 변경되면 로컬 상태도 동기화
   useEffect(() => {
@@ -145,6 +154,47 @@ export function ScheduleDetailPanel({
     loadMeetingDetail();
   }, [boardId, meeting?.id]);
 
+  // block이 변경되면 시간 편집 상태도 동기화
+  useEffect(() => {
+    setEditStartTime(formatTime(block.start_time));
+    setEditEndTime(formatTime(block.end_time));
+    setIsEditingTime(false);
+  }, [block.id, block.start_time, block.end_time]);
+
+  const handleSaveTime = async () => {
+    const newStartTime = `${editStartTime}:00`;
+    const newEndTime = `${editEndTime}:00`;
+
+    // 변경 없으면 편집 모드만 닫기
+    if (newStartTime === block.start_time && newEndTime === block.end_time) {
+      setIsEditingTime(false);
+      return;
+    }
+
+    setIsSavingTime(true);
+    try {
+      await scheduleAPI.updateBlock(boardId, block.id, {
+        start_time: newStartTime,
+        end_time: newEndTime,
+      });
+      setIsEditingTime(false);
+      onUpdate();
+    } catch (error) {
+      console.error('Failed to update time:', error);
+      // 실패 시 원래 값으로 롤백
+      setEditStartTime(formatTime(block.start_time));
+      setEditEndTime(formatTime(block.end_time));
+    } finally {
+      setIsSavingTime(false);
+    }
+  };
+
+  const handleCancelTimeEdit = () => {
+    setEditStartTime(formatTime(block.start_time));
+    setEditEndTime(formatTime(block.end_time));
+    setIsEditingTime(false);
+  };
+
   const handleToggleComplete = async () => {
     if (!checklist || !task) return;
 
@@ -192,42 +242,106 @@ export function ScheduleDetailPanel({
       <div className="flex-1 overflow-auto p-4 space-y-4">
         {/* 시간/블록 정보 */}
         <div className="bg-bridge-dark rounded-lg p-4">
-          <div className="flex items-center gap-2 text-foreground mb-2">
-            {displayMode === 'block' ? (
-              <>
-                <Layers className="h-5 w-5 text-blue-400" />
-                <span className="text-lg font-medium">
-                  {(() => {
-                    const startBlock = timeToBlockIndex(block.start_time, workStartHour) + 1;
-                    const endBlock = timeToBlockIndex(block.end_time, workStartHour);
-                    return startBlock === endBlock
-                      ? t('scheduleDetail.singleBlock', { block: startBlock })
-                      : t('scheduleDetail.blockRange', { start: startBlock, end: endBlock });
-                  })()}
-                </span>
-                <span className="text-slate-400 text-sm">
-                  ({t('scheduleDetail.blockCount', { count: calculateBlockCount(block.start_time, block.end_time) })})
-                </span>
-              </>
-            ) : (
-              <>
+          {isEditingTime ? (
+            /* 시간 편집 모드 */
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-foreground">
                 <Clock className="h-5 w-5 text-blue-400" />
-                <span className="text-lg font-medium">
-                  {formatTime(block.start_time)} - {formatTime(block.end_time)}
-                  {block.end_time < block.start_time && <span className="text-bridge-accent text-sm ml-1">({t('scheduleDetail.nextDay')})</span>}
-                </span>
-                <span className="text-slate-400 text-sm">
-                  ({calculateDuration(block.start_time, block.end_time, t)})
-                </span>
-              </>
-            )}
-          </div>
-          <div className="flex items-center gap-4 text-sm text-slate-400">
-            <div className="flex items-center gap-1">
-              <Calendar className="h-4 w-4" />
-              <span>{format(selectedDate, 'yyyy년 M월 d일', { locale: ko })}</span>
+                <span className="text-sm font-medium text-slate-400">{t('scheduleDetail.editTime')}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="flex-1">
+                  <TimePicker
+                    value={editStartTime}
+                    onChange={setEditStartTime}
+                    minuteStep={30}
+                    className="py-1.5 px-3 text-xs border-foreground/10"
+                  />
+                </div>
+                <span className="text-slate-500 text-xs shrink-0">~</span>
+                <div className="flex-1">
+                  <TimePicker
+                    value={editEndTime}
+                    onChange={setEditEndTime}
+                    minuteStep={30}
+                    className="py-1.5 px-3 text-xs border-foreground/10"
+                  />
+                </div>
+              </div>
+              {editStartTime && editEndTime && (
+                <div className="text-xs text-slate-400">
+                  {calculateDuration(`${editStartTime}:00`, `${editEndTime}:00`, t)}
+                </div>
+              )}
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleCancelTimeEdit}
+                  disabled={isSavingTime}
+                  className="flex-1 border-white/10 text-slate-400 hover:bg-white/5"
+                >
+                  {t('common.cancel')}
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleSaveTime}
+                  disabled={isSavingTime || !editStartTime || !editEndTime}
+                  className="flex-1 bg-bridge-accent text-white hover:bg-bridge-accent/90"
+                >
+                  {isSavingTime ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                  {t('common.save')}
+                </Button>
+              </div>
             </div>
-          </div>
+          ) : (
+            /* 시간 표시 모드 */
+            <>
+              <div className="flex items-center gap-2 text-foreground mb-2">
+                {displayMode === 'block' ? (
+                  <>
+                    <Layers className="h-5 w-5 text-blue-400" />
+                    <span className="text-lg font-medium">
+                      {(() => {
+                        const startBlock = timeToBlockIndex(block.start_time, workStartHour) + 1;
+                        const endBlock = timeToBlockIndex(block.end_time, workStartHour);
+                        return startBlock === endBlock
+                          ? t('scheduleDetail.singleBlock', { block: startBlock })
+                          : t('scheduleDetail.blockRange', { start: startBlock, end: endBlock });
+                      })()}
+                    </span>
+                    <span className="text-slate-400 text-sm">
+                      ({t('scheduleDetail.blockCount', { count: calculateBlockCount(block.start_time, block.end_time) })})
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <Clock className="h-5 w-5 text-blue-400" />
+                    <span className="text-lg font-medium">
+                      {formatTime(block.start_time)} - {formatTime(block.end_time)}
+                      {block.end_time < block.start_time && <span className="text-bridge-accent text-sm ml-1">({t('scheduleDetail.nextDay')})</span>}
+                    </span>
+                    <span className="text-slate-400 text-sm">
+                      ({calculateDuration(block.start_time, block.end_time, t)})
+                    </span>
+                  </>
+                )}
+                <button
+                  onClick={() => setIsEditingTime(true)}
+                  className="ml-auto text-slate-400 hover:text-foreground hover:bg-white/5 rounded-md p-1 transition-colors"
+                  title={t('scheduleDetail.editTime')}
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+              </div>
+              <div className="flex items-center gap-4 text-sm text-slate-400">
+                <div className="flex items-center gap-1">
+                  <Calendar className="h-4 w-4" />
+                  <span>{format(selectedDate, 'yyyy년 M월 d일', { locale: ko })}</span>
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Meeting 정보 */}

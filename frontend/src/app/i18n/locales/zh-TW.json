@@ -1813,7 +1813,8 @@
     "completedCount": "{{completed}}/{{total}} 已完成",
     "noChecklist": "無清單項",
     "current": "目前",
-    "nextDay": "隔天"
+    "nextDay": "隔天",
+    "editTime": "編輯時間"
   },
   "emptyBoard": {
     "heading": "開始使用您的看板",

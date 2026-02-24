@@ -228,7 +228,6 @@ export function ChecklistCreateModal({
                       setEditStartTime(val);
                       onTimeChange?.(val, editEndTime);
                     }}
-                    minuteStep={30}
                     className="py-1.5 px-3 text-xs border-foreground/10"
                   />
                 </div>
@@ -240,7 +239,6 @@ export function ChecklistCreateModal({
                       setEditEndTime(val);
                       onTimeChange?.(editStartTime, val);
                     }}
-                    minuteStep={30}
                     className="py-1.5 px-3 text-xs border-foreground/10"
                   />
                 </div>
