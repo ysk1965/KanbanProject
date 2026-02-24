@@ -118,8 +118,8 @@ resource "aws_cloudfront_distribution" "frontend" {
     }
 
     min_ttl     = 0
-    default_ttl = 86400     # 1 day
-    max_ttl     = 31536000  # 1 year
+    default_ttl = 0         # no cache (HTML, SW, manifest 등)
+    max_ttl     = 86400     # 1 day max (S3 헤더가 있어도 1일 이내)
   }
 
   # Cache behavior for static assets (long cache)

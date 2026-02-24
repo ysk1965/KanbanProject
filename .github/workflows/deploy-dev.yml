@@ -157,22 +157,28 @@ jobs:
 
       - name: Deploy to S3 (Dev - milkyway.pe.kr)
         run: |
+          # 해시된 에셋만 장기 캐시
+          aws s3 sync frontend/dist/assets s3://${{ env.S3_BUCKET_DEV }}/assets \
+            --delete \
+            --cache-control "max-age=31536000,public"
+
+          # 나머지 (HTML, SW, manifest 등) no-cache
           aws s3 sync frontend/dist s3://${{ env.S3_BUCKET_DEV }} \
             --delete \
-            --cache-control "max-age=31536000,public" \
-            --exclude "index.html"
-
-          aws s3 cp frontend/dist/index.html s3://${{ env.S3_BUCKET_DEV }}/index.html \
+            --exclude "assets/*" \
             --cache-control "no-cache,no-store,must-revalidate"
 
       - name: Deploy to S3 (Prod - bridgespots.com)
         run: |
+          # 해시된 에셋만 장기 캐시
+          aws s3 sync frontend/dist/assets s3://${{ env.S3_BUCKET_PROD }}/assets \
+            --delete \
+            --cache-control "max-age=31536000,public"
+
+          # 나머지 (HTML, SW, manifest 등) no-cache
           aws s3 sync frontend/dist s3://${{ env.S3_BUCKET_PROD }} \
             --delete \
-            --cache-control "max-age=31536000,public" \
-            --exclude "index.html"
-
-          aws s3 cp frontend/dist/index.html s3://${{ env.S3_BUCKET_PROD }}/index.html \
+            --exclude "assets/*" \
             --cache-control "no-cache,no-store,must-revalidate"
 
       - name: Invalidate CloudFront (Dev - milkyway.pe.kr)
