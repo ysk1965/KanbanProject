@@ -37,7 +37,12 @@ const isOverlapping = (start1: number, end1: number, start2: number, end2: numbe
   return start1 < e2 && e1 > start2;
 };
 
+// 스냅 단위 (분) - 리사이즈/드래그 시 이 단위로 정렬
+const SNAP_MINUTES = 10;
+
 export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, otherBlocks = [], breakStartTime, breakEndTime, onClick, onResize, onMove, onSplitResize }: ScheduleBlockProps) {
+  // 10분 = slotHeight * (10/30) px
+  const snapPx = slotHeight * (SNAP_MINUTES / 30);
   const { t } = useTranslation();
   const [isResizing, setIsResizing] = useState<'top' | 'bottom' | null>(null);
   const [resizeOffset, setResizeOffset] = useState(0);
@@ -186,7 +191,7 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
         for (const seg of segments) {
           const segStart = timeToMinutes(seg.startTime);
           const segEnd = timeToMinutes(seg.endTime);
-          if (segEnd - segStart < 30) return 'block'; // 최소 30분 미만이면 불가
+          if (segEnd - segStart < SNAP_MINUTES) return 'block'; // 최소 SNAP_MINUTES 미만이면 불가
           for (const other of otherBlocks) {
             if (other.id === block.id) continue;
             const otherStart = timeToMinutes(other.start_time);
@@ -220,11 +225,11 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
 
       if (handle === 'top') {
         const newAbsoluteTop = top + deltaY;
-        const snappedTop = Math.round(newAbsoluteTop / slotHeight) * slotHeight;
+        const snappedTop = Math.round(newAbsoluteTop / snapPx) * snapPx;
         snappedDelta = snappedTop - top;
       } else {
         const newAbsoluteBottom = top + height + deltaY;
-        const snappedBottom = Math.round(newAbsoluteBottom / slotHeight) * slotHeight;
+        const snappedBottom = Math.round(newAbsoluteBottom / snapPx) * snapPx;
         snappedDelta = snappedBottom - (top + height);
       }
 
@@ -235,15 +240,15 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
       let newStartMin = startMinutes;
       let newEndMin = endMinutes;
       if (handle === 'top') {
-        const snappedSlots = Math.round((top + snappedDelta) / slotHeight);
-        newStartMin = workStartMinutes + snappedSlots * 30;
+        const snappedUnits = Math.round((top + snappedDelta) / snapPx);
+        newStartMin = workStartMinutes + snappedUnits * SNAP_MINUTES;
         newStartMin = Math.max(workStartMinutes, newStartMin);
-        newStartMin = Math.min(newEndMin - 30, newStartMin);
+        newStartMin = Math.min(newEndMin - SNAP_MINUTES, newStartMin);
       } else {
-        const snappedSlots = Math.round((top + height + snappedDelta) / slotHeight);
-        newEndMin = workStartMinutes + snappedSlots * 30;
+        const snappedUnits = Math.round((top + height + snappedDelta) / snapPx);
+        newEndMin = workStartMinutes + snappedUnits * SNAP_MINUTES;
         newEndMin = Math.min(workEndMinutes, newEndMin);
-        newEndMin = Math.max(newStartMin + 30, newEndMin);
+        newEndMin = Math.max(newStartMin + SNAP_MINUTES, newEndMin);
       }
       const overlap = checkOverlap(newStartMin, newEndMin);
       setOverlapType(overlap);
@@ -273,15 +278,15 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
         let newEndMinutes = endMinutes;
 
         if (handle === 'top') {
-          const snappedSlots = Math.round((top + finalOffset) / slotHeight);
-          newStartMinutes = workStartMinutes + snappedSlots * 30;
+          const snappedUnits = Math.round((top + finalOffset) / snapPx);
+          newStartMinutes = workStartMinutes + snappedUnits * SNAP_MINUTES;
           newStartMinutes = Math.max(workStartMinutes, newStartMinutes);
-          newStartMinutes = Math.min(newEndMinutes - 30, newStartMinutes);
+          newStartMinutes = Math.min(newEndMinutes - SNAP_MINUTES, newStartMinutes);
         } else {
-          const snappedSlots = Math.round((top + height + finalOffset) / slotHeight);
-          newEndMinutes = workStartMinutes + snappedSlots * 30;
+          const snappedUnits = Math.round((top + height + finalOffset) / snapPx);
+          newEndMinutes = workStartMinutes + snappedUnits * SNAP_MINUTES;
           newEndMinutes = Math.min(workEndMinutes, newEndMinutes);
-          newEndMinutes = Math.max(newStartMinutes + 30, newEndMinutes);
+          newEndMinutes = Math.max(newStartMinutes + SNAP_MINUTES, newEndMinutes);
         }
 
         if (finalOverlapType === 'split' && onSplitResizeRef.current) {
@@ -324,14 +329,14 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
       const handleDragMove = (moveEvent: MouseEvent) => {
         const deltaY = moveEvent.clientY - dragStartY.current;
         const newAbsoluteTop = top + deltaY;
-        const snappedTop = Math.round(newAbsoluteTop / slotHeight) * slotHeight;
+        const snappedTop = Math.round(newAbsoluteTop / snapPx) * snapPx;
         const snappedDelta = snappedTop - top;
         setDragOffset(snappedDelta);
         dragOffsetRef.current = snappedDelta;
 
-        const snappedSlots = Math.round(snappedTop / slotHeight);
+        const snappedUnits = Math.round(snappedTop / snapPx);
         const duration = endMinutes - startMinutes;
-        let newStartMinutes = workStartMinutes + snappedSlots * 30;
+        let newStartMinutes = workStartMinutes + snappedUnits * SNAP_MINUTES;
         let newEndMinutes = newStartMinutes + duration;
 
         if (newStartMinutes < workStartMinutes) {
@@ -368,10 +373,10 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
         if (finalOverlapType === 'block') return;
 
         if (finalOffset !== 0) {
-          const snappedSlots = Math.round((top + finalOffset) / slotHeight);
+          const snappedUnits = Math.round((top + finalOffset) / snapPx);
           const duration = endMinutes - startMinutes;
 
-          let newStartMinutes = workStartMinutes + snappedSlots * 30;
+          let newStartMinutes = workStartMinutes + snappedUnits * SNAP_MINUTES;
           let newEndMinutes = newStartMinutes + duration;
 
           if (newStartMinutes < workStartMinutes) {
@@ -441,7 +446,7 @@ export function ScheduleBlock({ block, slotHeight, workStartHour, workEndHour, o
         overflow-hidden ${getBackgroundColor()} ${isResizing || isDragging ? 'z-20' : ''}
         ${(isDragging || isResizing) && overlapType === 'block' ? 'cursor-not-allowed shadow-2xl ring-2 ring-red-500 bg-red-500/30' : (isDragging || isResizing) && overlapType === 'split' ? 'cursor-grab shadow-2xl ring-2 ring-amber-400 bg-amber-500/20' : isDragging ? 'cursor-grabbing shadow-2xl ring-2 ring-white/50' : isResizing ? 'cursor-ns-resize shadow-lg' : 'cursor-pointer hover:shadow-lg'}
         ${isDragging || isResizing ? '' : 'transition-shadow'}`}
-      style={{ top: `${displayTop}px`, height: `${Math.max(displayHeight, slotHeight)}px`, ...getMeetingStyle() }}
+      style={{ top: `${displayTop}px`, height: `${Math.max(displayHeight, snapPx)}px`, ...getMeetingStyle() }}
       onClick={() => !isResizing && !isDragging && onClick?.(block)}
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}

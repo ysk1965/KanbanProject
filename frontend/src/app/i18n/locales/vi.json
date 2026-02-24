@@ -1855,7 +1855,8 @@
     "completedCount": "{{completed}}/{{total}} hoan thanh",
     "noChecklist": "Khong co muc danh sach kiem tra",
     "current": "hien tai",
-    "nextDay": "ngày hôm sau"
+    "nextDay": "ngày hôm sau",
+    "editTime": "Chỉnh sửa thời gian"
   },
   "emptyBoard": {
     "heading": "Bat dau voi bang cua ban",

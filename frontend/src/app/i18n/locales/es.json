@@ -1855,7 +1855,8 @@
     "completedCount": "{{completed}}/{{total}} hechos",
     "noChecklist": "Sin elementos de lista de verificación",
     "current": "actual",
-    "nextDay": "día siguiente"
+    "nextDay": "día siguiente",
+    "editTime": "Editar hora"
   },
   "emptyBoard": {
     "heading": "Comienza con tu tablero",

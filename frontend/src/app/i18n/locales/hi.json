@@ -1855,7 +1855,8 @@
     "completedCount": "{{completed}}/{{total}} पूर्ण",
     "noChecklist": "कोई चेकलिस्ट आइटम नहीं",
     "current": "वर्तमान",
-    "nextDay": "अगला दिन"
+    "nextDay": "अगला दिन",
+    "editTime": "समय संपादित करें"
   },
   "emptyBoard": {
     "heading": "अपने बोर्ड के साथ शुरू करें",

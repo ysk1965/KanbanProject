@@ -1855,7 +1855,8 @@
     "completedCount": "{{completed}}/{{total}} 完了",
     "noChecklist": "チェックリストアイテムなし",
     "current": "現在",
-    "nextDay": "翌日"
+    "nextDay": "翌日",
+    "editTime": "時間を編集"
   },
   "emptyBoard": {
     "heading": "ボードを始めましょう",

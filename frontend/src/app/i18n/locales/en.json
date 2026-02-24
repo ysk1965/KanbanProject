@@ -1527,7 +1527,8 @@
     "completedCount": "{{completed}}/{{total}} done",
     "noChecklist": "No checklist items",
     "current": "current",
-    "nextDay": "next day"
+    "nextDay": "next day",
+    "editTime": "Edit time"
   },
   "emptyBoard": {
     "heading": "Get started with your board",

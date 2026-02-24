@@ -1855,7 +1855,8 @@
     "completedCount": "{{completed}}/{{total}} concluídos",
     "noChecklist": "Nenhum item de checklist",
     "current": "atual",
-    "nextDay": "dia seguinte"
+    "nextDay": "dia seguinte",
+    "editTime": "Editar horário"
   },
   "emptyBoard": {
     "heading": "Comece com seu board",
