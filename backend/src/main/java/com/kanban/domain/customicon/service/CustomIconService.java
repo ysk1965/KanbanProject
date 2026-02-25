@@ -93,36 +93,69 @@ public class CustomIconService {
     }
 
     private String buildPrompt(List<String> iconNames, CustomIconRequest.StyleOptions opts, String layout) {
-        String iconList = String.join(", ", iconNames);
         int[] grid = parseLayout(layout);
         int cols = grid[0];
         int rows = grid[1];
 
+        // 각 아이콘의 위치를 명시적으로 지정
+        StringBuilder positionDesc = buildPositionDescription(iconNames, cols);
+
         return String.format("""
-                Create a sprite sheet of %d icons arranged in a %dx%d grid on a %s background.
-                Each icon should represent: %s
+                Technical sprite sheet: exactly %d icons in a strict %dx%d grid on a %s background.
+
+                GRID LAYOUT (the image is divided into %d equal-sized cells):
+                %s
 
                 Style specification:
                 - Type: %s
                 - Stroke weight: %s
                 - Corner radius: %s
-                - Padding ratio: %.0f%%
 
-                Important rules:
-                - All icons must have consistent style, stroke weight, and visual language
-                - Each grid cell contains exactly one icon, centered with equal padding
-                - Icons should be clearly separated within the grid
+                CRITICAL LAYOUT RULES:
+                - The image MUST be divided into exactly %d equal-sized cells (%d columns x %d rows)
+                - Each cell occupies exactly 1/%d of the total image area
+                - Every icon MUST be perfectly centered within its cell with %.0f%% padding on all sides
+                - All %d icons MUST be the exact same size relative to their cell
+                - No icon may overlap cell boundaries
                 - No text labels, only visual icons
-                - Clean, professional icon design
+                - Clean, professional, consistent icon design across all cells
                 """,
                 iconNames.size(), cols, rows,
                 opts.getBackground(),
-                iconList,
+                cols * rows,
+                positionDesc.toString(),
                 opts.getType(),
                 opts.getStrokeWeight(),
                 opts.getCornerRadius(),
-                opts.getPaddingRatio() * 100
+                cols * rows, cols, rows,
+                cols * rows,
+                opts.getPaddingRatio() * 100,
+                iconNames.size()
         );
+    }
+
+    private StringBuilder buildPositionDescription(List<String> iconNames, int cols) {
+        StringBuilder sb = new StringBuilder();
+        String[] posLabels = {"top-left", "top-center", "top-right",
+                "middle-left", "center", "middle-right",
+                "bottom-left", "bottom-center", "bottom-right"};
+
+        // 2x2 전용 라벨
+        String[] pos2x2 = {"top-left quadrant", "top-right quadrant",
+                "bottom-left quadrant", "bottom-right quadrant"};
+
+        for (int i = 0; i < iconNames.size(); i++) {
+            String pos;
+            if (cols == 2 && i < pos2x2.length) {
+                pos = pos2x2[i];
+            } else if (i < posLabels.length) {
+                pos = posLabels[i];
+            } else {
+                pos = "cell " + (i + 1);
+            }
+            sb.append(String.format("- %s: \"%s\" icon, centered in cell\n", pos, iconNames.get(i)));
+        }
+        return sb;
     }
 
     private void validateImageFile(MultipartFile file) {

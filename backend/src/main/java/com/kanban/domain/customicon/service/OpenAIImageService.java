@@ -214,7 +214,8 @@ public class OpenAIImageService {
             throw e;
         } catch (Exception e) {
             log.error("Failed to parse style analysis response. rawContent=[{}], error={}", rawContent, e.getMessage(), e);
-            throw new BusinessException(ErrorCode.CUSTOMICON_STYLE_ANALYSIS_FAILED);
+            // 파싱 실패 시 기본값 반환 (OpenAI 응답 포맷 변동 대응)
+            return buildDefaultStyleAnalysis();
         }
     }
 
