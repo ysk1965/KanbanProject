@@ -12,6 +12,10 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+
 import java.util.*;
 
 @Slf4j
@@ -20,6 +24,7 @@ public class OpenAIImageService {
 
     private static final String OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions";
     private static final String OPENAI_IMAGES_URL = "https://api.openai.com/v1/images/generations";
+    private static final String OPENAI_IMAGES_EDIT_URL = "https://api.openai.com/v1/images/edits";
 
     private final RestTemplate aiRestTemplate;
     private final ObjectMapper objectMapper;
@@ -102,7 +107,7 @@ public class OpenAIImageService {
     }
 
     /**
-     * OpenAI Images API로 아이콘 스프라이트 시트 생성
+     * OpenAI Images API로 아이콘 스프라이트 시트 생성 (텍스트 프롬프트만)
      */
     public byte[] generateSpriteSheet(String prompt) {
         validateApiKey();
@@ -138,6 +143,49 @@ public class OpenAIImageService {
             throw e;
         } catch (Exception e) {
             log.error("스프라이트 시트 생성 실패: {}", e.getMessage(), e);
+            throw new BusinessException(ErrorCode.CUSTOMICON_GENERATION_FAILED);
+        }
+    }
+
+    /**
+     * OpenAI Images Edit API로 레퍼런스 이미지 기반 스프라이트 시트 생성
+     */
+    public byte[] generateSpriteSheet(String prompt, byte[] referenceImage) {
+        validateApiKey();
+
+        try {
+            MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+            body.add("image", new ByteArrayResource(referenceImage) {
+                @Override
+                public String getFilename() {
+                    return "reference.png";
+                }
+            });
+            body.add("prompt", prompt);
+            body.add("model", imageModel);
+            body.add("size", imageSize);
+            body.add("n", "1");
+            body.add("response_format", "b64_json");
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+            headers.setBearerAuth(apiKey);
+
+            HttpEntity<MultiValueMap<String, Object>> entity = new HttpEntity<>(body, headers);
+            log.info("OpenAI Images Edit API 스프라이트 시트 생성 호출 (레퍼런스 이미지 포함), 모델: {}", imageModel);
+
+            ResponseEntity<Map> response = aiRestTemplate.postForEntity(OPENAI_IMAGES_EDIT_URL, entity, Map.class);
+
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                return extractImageBytes(response.getBody());
+            }
+
+            throw new BusinessException(ErrorCode.CUSTOMICON_GENERATION_FAILED);
+
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("레퍼런스 기반 스프라이트 시트 생성 실패: {}", e.getMessage(), e);
             throw new BusinessException(ErrorCode.CUSTOMICON_GENERATION_FAILED);
         }
     }

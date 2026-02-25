@@ -64,18 +64,36 @@ public class CustomIconService {
             opts = new CustomIconRequest.StyleOptions();
         }
 
-        // 2. 프롬프트 구성
-        String prompt = buildPrompt(request.getIconNames(), opts, request.getLayout());
+        // 2. 레퍼런스 이미지 로드
+        byte[] referenceImage = null;
+        if (request.getReferenceId() != null && !request.getReferenceId().isBlank()) {
+            try {
+                referenceImage = customIconImageService.loadReferenceImage(request.getReferenceId());
+                log.info("레퍼런스 이미지 로드 완료, 크기: {} bytes", referenceImage.length);
+            } catch (Exception e) {
+                log.warn("레퍼런스 이미지 로드 실패, 텍스트 프롬프트만으로 생성합니다: {}", e.getMessage());
+            }
+        }
 
-        // 3. OpenAI Images API로 스프라이트 시트 생성
-        log.info("스프라이트 시트 생성 요청 - 아이콘 {}개, 레이아웃: {}", request.getIconNames().size(), request.getLayout());
-        byte[] spriteSheetBytes = openAIImageService.generateSpriteSheet(prompt);
+        // 3. 프롬프트 구성
+        String prompt = buildPrompt(request.getIconNames(), opts, request.getLayout(), referenceImage != null);
 
-        // 4. 개별 아이콘 크롭 + 정규화 (바운딩 박스 → 풀사이즈 → 정중앙)
+        // 4. OpenAI API로 스프라이트 시트 생성
+        log.info("스프라이트 시트 생성 요청 - 아이콘 {}개, 레이아웃: {}, 레퍼런스: {}",
+                request.getIconNames().size(), request.getLayout(), referenceImage != null ? "있음" : "없음");
+
+        byte[] spriteSheetBytes;
+        if (referenceImage != null) {
+            spriteSheetBytes = openAIImageService.generateSpriteSheet(prompt, referenceImage);
+        } else {
+            spriteSheetBytes = openAIImageService.generateSpriteSheet(prompt);
+        }
+
+        // 5. 개별 아이콘 크롭 + 정규화 (바운딩 박스 → 풀사이즈 → 정중앙)
         CustomIconImageService.CropResult cropResult =
                 customIconImageService.cropAndNormalize(spriteSheetBytes, request.getIconNames(), request.getLayout());
 
-        // 5. 응답 DTO 변환
+        // 6. 응답 DTO 변환
         List<CustomIconResponse.IconInfo> icons = cropResult.icons().stream()
                 .map(icon -> CustomIconResponse.IconInfo.builder()
                         .name(icon.name())
@@ -92,7 +110,7 @@ public class CustomIconService {
                 .build();
     }
 
-    private String buildPrompt(List<String> iconNames, CustomIconRequest.StyleOptions opts, String layout) {
+    private String buildPrompt(List<String> iconNames, CustomIconRequest.StyleOptions opts, String layout, boolean hasReference) {
         int[] grid = parseLayout(layout);
         int cols = grid[0];
         int rows = grid[1];
@@ -105,9 +123,18 @@ public class CustomIconService {
             iconList.append(String.format("- Row %d, Col %d: \"%s\"\n", row, col, iconNames.get(i)));
         }
 
+        String referenceInstruction = hasReference ? """
+
+                CRITICAL — REFERENCE IMAGE MATCHING:
+                - You MUST match the exact visual style of the provided reference image
+                - Copy the line weight, stroke thickness, corner radius, fill style, and overall aesthetic precisely
+                - The generated icons should look like they belong to the same icon set as the reference
+                - Prioritize visual consistency with the reference over the style parameters below
+                """ : "";
+
         return String.format("""
                 Create a sprite sheet image of exactly %d monochrome UI icons in a %dx%d grid on a %s background.
-
+                %s
                 ICONS (row, column → concept):
                 %s
 
@@ -132,6 +159,7 @@ public class CustomIconService {
                 """,
                 iconNames.size(), cols, rows,
                 opts.getBackground(),
+                referenceInstruction,
                 iconList,
                 opts.getType(), opts.getStrokeWeight(), opts.getCornerRadius(),
                 cols * rows, cols, rows
