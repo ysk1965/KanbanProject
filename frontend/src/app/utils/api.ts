@@ -4413,6 +4413,7 @@ export const customIconAPI = {
       type: string; stroke_weight: string; corner_radius: string;
       padding_ratio: number; background: string; show_grid_lines: boolean;
     };
+    custom_prompt?: string;
   }): Promise<{
     job_id: string; sprite_sheet_url: string;
     icons: Array<{ name: string; index: number; url: string; size: string }>;

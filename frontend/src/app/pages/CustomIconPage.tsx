@@ -4,6 +4,7 @@ import { ArrowLeft, Sparkles, Loader2 } from 'lucide-react';
 import { ReferenceUpload } from '../components/customicon/ReferenceUpload';
 import { StyleOptions, type StyleOptionsData } from '../components/customicon/StyleOptions';
 import { IconNameInput } from '../components/customicon/IconNameInput';
+import { CustomPrompt } from '../components/customicon/CustomPrompt';
 import { ResultGallery } from '../components/customicon/ResultGallery';
 import { customIconAPI } from '../utils/api';
 
@@ -48,6 +49,7 @@ export function CustomIconPage() {
   });
   const [iconNames, setIconNames] = useState<string[]>([]);
   const [layout, setLayout] = useState('4x4');
+  const [customPrompt, setCustomPrompt] = useState('');
   const [result, setResult] = useState<GenerateResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -108,6 +110,7 @@ export function CustomIconPage() {
           background: styleOptions.background,
           show_grid_lines: false,
         },
+        custom_prompt: customPrompt || undefined,
       });
       setResult(data);
       setStep('result');
@@ -115,7 +118,7 @@ export function CustomIconPage() {
       setError(err?.message || 'Generation failed');
       setStep('configure');
     }
-  }, [referenceId, iconNames, layout, styleOptions]);
+  }, [referenceId, iconNames, layout, styleOptions, customPrompt]);
 
   // Reset to start
   const handleReset = () => {
@@ -131,6 +134,7 @@ export function CustomIconPage() {
       background: 'transparent',
     });
     setIconNames([]);
+    setCustomPrompt('');
     setResult(null);
     setError(null);
   };
@@ -220,6 +224,11 @@ export function CustomIconPage() {
               onChange={setIconNames}
               layout={layout}
               onLayoutChange={setLayout}
+            />
+
+            <CustomPrompt
+              value={customPrompt}
+              onChange={setCustomPrompt}
             />
 
             <button

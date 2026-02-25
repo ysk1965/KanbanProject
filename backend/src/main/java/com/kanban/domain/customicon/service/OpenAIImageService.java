@@ -147,6 +147,9 @@ public class OpenAIImageService {
 
         } catch (BusinessException e) {
             throw e;
+        } catch (org.springframework.web.client.HttpClientErrorException e) {
+            log.error("스프라이트 시트 생성 실패 - HTTP {}: {}", e.getStatusCode(), e.getResponseBodyAsString(), e);
+            throw new BusinessException(ErrorCode.CUSTOMICON_GENERATION_FAILED);
         } catch (Exception e) {
             log.error("스프라이트 시트 생성 실패: {}", e.getMessage(), e);
             throw new BusinessException(ErrorCode.CUSTOMICON_GENERATION_FAILED);
@@ -161,7 +164,10 @@ public class OpenAIImageService {
 
         try {
             MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-            body.add("image", new ByteArrayResource(referenceImage) {
+
+            // gpt-image-1은 image[] (배열), dall-e-2는 image (단일)
+            String imageFieldName = imageModel.startsWith("gpt-image") ? "image[]" : "image";
+            body.add(imageFieldName, new ByteArrayResource(referenceImage) {
                 @Override
                 public String getFilename() {
                     return "reference.png";
@@ -196,6 +202,9 @@ public class OpenAIImageService {
 
         } catch (BusinessException e) {
             throw e;
+        } catch (org.springframework.web.client.HttpClientErrorException e) {
+            log.error("레퍼런스 기반 스프라이트 시트 생성 실패 - HTTP {}: {}", e.getStatusCode(), e.getResponseBodyAsString(), e);
+            throw new BusinessException(ErrorCode.CUSTOMICON_GENERATION_FAILED);
         } catch (Exception e) {
             log.error("레퍼런스 기반 스프라이트 시트 생성 실패: {}", e.getMessage(), e);
             throw new BusinessException(ErrorCode.CUSTOMICON_GENERATION_FAILED);

@@ -76,7 +76,7 @@ public class CustomIconService {
         }
 
         // 3. 프롬프트 구성
-        String prompt = buildPrompt(request.getIconNames(), opts, request.getLayout(), referenceImage != null);
+        String prompt = buildPrompt(request.getIconNames(), opts, request.getLayout(), referenceImage != null, request.getCustomPrompt());
 
         // 4. OpenAI API로 스프라이트 시트 생성
         log.info("스프라이트 시트 생성 요청 - 아이콘 {}개, 레이아웃: {}, 레퍼런스: {}",
@@ -110,10 +110,11 @@ public class CustomIconService {
                 .build();
     }
 
-    private String buildPrompt(List<String> iconNames, CustomIconRequest.StyleOptions opts, String layout, boolean hasReference) {
+    private String buildPrompt(List<String> iconNames, CustomIconRequest.StyleOptions opts, String layout, boolean hasReference, String customPrompt) {
         int[] grid = parseLayout(layout);
         int cols = grid[0];
         int rows = grid[1];
+        int totalCells = cols * rows;
 
         // 아이콘 목록을 Row/Column으로 명시
         StringBuilder iconList = new StringBuilder();
@@ -132,37 +133,75 @@ public class CustomIconService {
                 - Prioritize visual consistency with the reference over the style parameters below
                 """ : "";
 
+        // 사용자 커스텀 프롬프트
+        String userInstruction = "";
+        if (customPrompt != null && !customPrompt.isBlank()) {
+            userInstruction = String.format("""
+
+                    ADDITIONAL USER INSTRUCTIONS:
+                    %s
+                    """, customPrompt.trim());
+        }
+
+        // 스타일 상세 설명 매핑
+        String styleDetail = switch (opts.getType()) {
+            case "solid" -> "filled/solid icons with no visible stroke, shapes are completely filled";
+            case "duotone" -> "duotone icons with a primary filled layer and a lighter secondary fill layer for depth";
+            default -> "outline/line icons drawn with consistent stroke width, no fills";
+        };
+
+        String strokeDetail = switch (opts.getStrokeWeight()) {
+            case "thin" -> "thin (~1px equivalent)";
+            case "light" -> "light (~1.5px equivalent)";
+            case "bold" -> "bold (~3px equivalent)";
+            default -> "medium (~2px equivalent)";
+        };
+
+        String cornerDetail = switch (opts.getCornerRadius()) {
+            case "sharp" -> "sharp 90-degree corners, no rounding";
+            case "slightly-rounded" -> "slightly rounded corners (~2px radius)";
+            case "fully-rounded" -> "fully rounded/circular corners";
+            default -> "moderately rounded corners (~4px radius)";
+        };
+
         return String.format("""
-                Create a sprite sheet image of exactly %d monochrome UI icons in a %dx%d grid on a %s background.
+                Create a sprite sheet image containing exactly %d monochrome UI icons arranged in a strict %dx%d grid on a %s background.
                 %s
-                ICONS (row, column → concept):
+                ICON LIST (row, column → concept):
                 %s
+                STYLE SPECIFICATION:
+                - %s
+                - Stroke weight: %s
+                - Corner style: %s
+                - Color: single-color black (#000000) or very dark gray (#333333) only
+                - Aesthetic: flat 2D, minimalist, professional UI icon style
+                - Consistency: every icon must share identical stroke weight, visual size, and level of detail
+                - Each icon should be universally recognizable — use the most common visual metaphor for each concept
 
-                STYLE:
-                - %s icon style, %s weight, %s corners
-                - Monochrome: black or dark gray icons only
-                - Flat 2D, minimalist, professional, consistent across all icons
+                GRID LAYOUT (STRICT):
+                - The output image is divided into exactly %d equal-sized cells: %d columns x %d rows
+                - Each cell occupies exactly 1/%d of the image width and 1/%d of the image height
+                - Each icon is perfectly centered within its cell with equal padding on all sides
+                - Icons should occupy approximately 70-80%% of their cell area
+                - All %d icons must be present — do not skip or merge any cells
 
-                LAYOUT RULES:
-                - Divide the image into exactly %d equal cells (%d columns, %d rows)
-                - Each icon is perfectly centered within its cell
-                - All icons are the same visual size and stroke weight
-                - Icons should fill most of their cell area
-
-                DO NOT INCLUDE ANY OF THE FOLLOWING:
-                - No grid lines, borders, dividers, or separators between cells
-                - No connectors, joints, brackets, or linking shapes between icons
-                - No frames, boxes, rounded rectangles, or containers around icons
-                - No text, labels, numbers, or letters anywhere
-                - No 3D effects, shadows, gradients, or drop shadows
-                - No decorative elements between icons — only empty space
-                """,
+                ABSOLUTE PROHIBITIONS:
+                - NO grid lines, borders, dividers, rules, or separators of any kind
+                - NO connectors, joints, brackets, or linking shapes between icons
+                - NO frames, boxes, or containers around individual icons
+                - NO text, labels, numbers, letters, or captions anywhere in the image
+                - NO 3D effects, shadows, gradients, glows, or drop shadows
+                - NO decorative elements, ornaments, or fills between icon cells
+                - NO background patterns or textures — cells contain only the icon and empty space
+                %s""",
                 iconNames.size(), cols, rows,
                 opts.getBackground(),
                 referenceInstruction,
                 iconList,
-                opts.getType(), opts.getStrokeWeight(), opts.getCornerRadius(),
-                cols * rows, cols, rows
+                styleDetail, strokeDetail, cornerDetail,
+                totalCells, cols, rows, cols, rows,
+                iconNames.size(),
+                userInstruction
         );
     }
 
