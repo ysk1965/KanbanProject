@@ -9,6 +9,7 @@ import com.kanban.domain.comment.CommentRepository;
 import com.kanban.domain.dailychecklist.DailyChecklistRepository;
 import com.kanban.domain.feature.FeatureRepository;
 import com.kanban.domain.invite.InviteLinkRepository;
+import com.kanban.domain.organization.repository.OrganizationRepository;
 import com.kanban.domain.milestone.MilestoneAllocationRepository;
 import com.kanban.domain.milestone.MilestoneRepository;
 import com.kanban.domain.notification.NotificationRepository;
@@ -60,6 +61,7 @@ public class UserService {
     private final MilestoneRepository milestoneRepository;
     private final ChecklistItemRepository checklistItemRepository;
     private final InviteLinkRepository inviteLinkRepository;
+    private final OrganizationRepository organizationRepository;
 
     public User getUser(String userId) {
         return userRepository.findById(userId)
@@ -162,6 +164,11 @@ public class UserService {
     @Transactional
     public void deleteAccount(String userId) {
         User user = getUser(userId);
+
+        // 조직 Owner인 경우 탈퇴 불가
+        if (organizationRepository.existsByOwnerIdAndDeletedAtIsNull(userId)) {
+            throw new BusinessException(ErrorCode.CANNOT_DEACTIVATE_ORG_OWNER);
+        }
 
         // 보드 Owner인 경우 탈퇴 불가
         if (boardMemberRepository.existsByUserIdAndRole(userId, BoardRole.OWNER)) {

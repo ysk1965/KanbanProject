@@ -292,6 +292,7 @@
   "dashboard": {
     "sidebar": {
       "allBoards": "All Boards",
+      "organizations": "Organizations",
       "myBoard": "My Space",
       "settings": "Settings",
       "upgradePro": "Upgrade Pro",
@@ -3042,5 +3043,120 @@
     "completed": "Completed",
     "noTodayItems": "No items for today",
     "dueToday": "Due Today"
+  },
+  "organization": {
+    "list": {
+      "title": "My Organizations",
+      "subtitle": "You are part of {{count}} organizations",
+      "create": "Create Organization"
+    },
+    "create": {
+      "title": "Create Organization",
+      "name": "Organization Name",
+      "namePlaceholder": "e.g. CookApps",
+      "description": "Description",
+      "descriptionPlaceholder": "Brief description of the organization"
+    },
+    "tabs": {
+      "dashboard": "Dashboard",
+      "members": "Members",
+      "boards": "Boards",
+      "leaves": "Leaves",
+      "settings": "Settings"
+    },
+    "dashboard": {
+      "members": "Members",
+      "boards": "Boards",
+      "todayLeaves": "Today's Leaves",
+      "connectedBoards": "Connected Boards",
+      "onLeaveToday": "On Leave Today"
+    },
+    "members": {
+      "searchPlaceholder": "Search by name or email...",
+      "allDepartments": "All Departments",
+      "allStatuses": "All Statuses",
+      "active": "Active",
+      "onLeave": "On Leave",
+      "resigned": "Resigned",
+      "invite": "Invite",
+      "resultCount": "{{count}} members found",
+      "empty": "No members found",
+      "inviteTitle": "Invite Member",
+      "email": "Email",
+      "role": "Role",
+      "department": "Department",
+      "jobTitle": "Job Title",
+      "jobTitlePlaceholder": "e.g. Frontend Developer",
+      "sendInvite": "Send Invite"
+    },
+    "boards": {
+      "title": "Connected Boards",
+      "add": "Add Board",
+      "empty": "No boards linked to this organization",
+      "release": "Release from organization",
+      "releaseConfirm": "Release Board?",
+      "releaseWarning": "After release, non-members can join this board. To re-link, all members must be org members.",
+      "releaseButton": "Release",
+      "addTitle": "Add Board to Organization",
+      "noAvailable": "No available boards to add",
+      "nonOrgMembers": "Non-org members",
+      "addButton": "Add Board"
+    },
+    "leave": {
+      "myBalance": "My Leave Balance",
+      "allStatuses": "All Statuses",
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "canceled": "Canceled",
+      "request": "Request Leave",
+      "empty": "No leave requests",
+      "days": " days",
+      "fullDay": "Full Day",
+      "amHalf": "AM Half",
+      "pmHalf": "PM Half",
+      "approve": "Approve",
+      "reject": "Reject",
+      "cancel": "Cancel",
+      "requestTitle": "Request Leave",
+      "leaveType": "Leave Type",
+      "selectType": "Select leave type",
+      "durationType": "Duration Type",
+      "startDate": "Start Date",
+      "endDate": "End Date",
+      "reason": "Reason (Optional)",
+      "submit": "Submit Request"
+    },
+    "settings": {
+      "basicInfo": "Basic Information",
+      "orgName": "Organization Name",
+      "description": "Description",
+      "departments": "Departments",
+      "addDepartment": "Add department...",
+      "jobGroups": "Job Groups",
+      "addJobGroup": "Add job group...",
+      "leavePolicies": "Leave Policies",
+      "policyName": "Name",
+      "defaultDays": "Default Days",
+      "paid": "Paid",
+      "active": "Active",
+      "inviteLinks": "Invite Links",
+      "generateLink": "Generate Link",
+      "noLinks": "No active invite links",
+      "dangerZone": "Danger Zone",
+      "deleteWarning": "Deleting this organization cannot be undone. All boards will be released.",
+      "typeOrgName": "Type organization name to confirm"
+    },
+    "invite": {
+      "invalidLink": "This invite link is invalid or expired.",
+      "error": "Invite Error",
+      "accepted": "Welcome!",
+      "redirecting": "Redirecting to organization...",
+      "members": "members",
+      "joining": "Joining...",
+      "join": "Join Organization",
+      "loginToJoin": "Log in to Join",
+      "acceptFailed": "Failed to accept invite."
+    }
   }
 }

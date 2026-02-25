@@ -21,6 +21,8 @@ import {
   personalTaskAPI,
   personalHabitAPI,
   personalDashboardAPI,
+  organizationAPI,
+  leaveAPI,
 } from './api';
 import {
   mockBoards,
@@ -2700,4 +2702,67 @@ export const personalHabitService = {
 
 export const personalDashboardService = {
   getToday: personalDashboardAPI.getToday,
+};
+
+// ─── Organization Service ───
+
+export const organizationService = {
+  list: organizationAPI.list,
+  get: organizationAPI.get,
+  create: organizationAPI.create,
+  update: organizationAPI.update,
+  uploadLogo: organizationAPI.uploadLogo,
+  delete: organizationAPI.delete,
+  transferOwnership: organizationAPI.transferOwnership,
+
+  // Departments
+  getDepartments: organizationAPI.getDepartments,
+  createDepartment: organizationAPI.createDepartment,
+  updateDepartment: organizationAPI.updateDepartment,
+  deleteDepartment: organizationAPI.deleteDepartment,
+
+  // Job Groups
+  getJobGroups: organizationAPI.getJobGroups,
+  createJobGroup: organizationAPI.createJobGroup,
+  updateJobGroup: organizationAPI.updateJobGroup,
+  deleteJobGroup: organizationAPI.deleteJobGroup,
+
+  // Members
+  getMembers: organizationAPI.getMembers,
+  getMember: organizationAPI.getMember,
+  inviteMember: organizationAPI.inviteMember,
+  updateMember: organizationAPI.updateMember,
+  changeMemberRole: organizationAPI.changeMemberRole,
+  removeMember: organizationAPI.removeMember,
+
+  // Boards
+  getBoards: organizationAPI.getBoards,
+  checkBoardEligibility: organizationAPI.checkBoardEligibility,
+  addBoard: organizationAPI.addBoard,
+  removeBoard: organizationAPI.removeBoard,
+
+  // Invite Links
+  getInviteLinks: organizationAPI.getInviteLinks,
+  createInviteLink: organizationAPI.createInviteLink,
+  deleteInviteLink: organizationAPI.deleteInviteLink,
+  getInviteInfo: organizationAPI.getInviteInfo,
+  acceptInvite: organizationAPI.acceptInvite,
+};
+
+// ─── Leave Service ───
+
+export const leaveService = {
+  getPolicies: leaveAPI.getPolicies,
+  createPolicy: leaveAPI.createPolicy,
+  updatePolicy: leaveAPI.updatePolicy,
+
+  getMyBalance: leaveAPI.getMyBalance,
+  getMemberBalance: leaveAPI.getMemberBalance,
+  updateMemberBalance: leaveAPI.updateMemberBalance,
+
+  getRequests: leaveAPI.getRequests,
+  createRequest: leaveAPI.createRequest,
+  approveRequest: leaveAPI.approveRequest,
+  rejectRequest: leaveAPI.rejectRequest,
+  cancelRequest: leaveAPI.cancelRequest,
 };

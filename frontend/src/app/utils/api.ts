@@ -4421,6 +4421,187 @@ export const customIconAPI = {
   },
 };
 
+// ─── Organization API ───
+
+export const organizationAPI = {
+  // Organization CRUD
+  list: async (): Promise<import('../types').OrganizationSimple[]> => {
+    return apiClient.get('/organizations');
+  },
+  get: async (orgId: string): Promise<import('../types').OrganizationDetail> => {
+    return apiClient.get(`/organizations/${orgId}`);
+  },
+  create: async (data: { name: string; description?: string }): Promise<import('../types').OrganizationDetail> => {
+    return apiClient.post('/organizations', data);
+  },
+  update: async (orgId: string, data: { name?: string; description?: string }): Promise<import('../types').OrganizationDetail> => {
+    return apiClient.put(`/organizations/${orgId}`, data);
+  },
+  uploadLogo: async (orgId: string, file: File): Promise<import('../types').OrganizationDetail> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await authenticatedFetch(`${API_BASE_URL}/organizations/${orgId}/logo`, {
+      method: 'POST',
+      body: formData,
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ message: 'Upload failed' }));
+      throw err;
+    }
+    return response.json();
+  },
+  delete: async (orgId: string): Promise<{ message: string }> => {
+    return apiClient.delete(`/organizations/${orgId}`);
+  },
+  transferOwnership: async (orgId: string, data: { member_id: string }): Promise<import('../types').OrganizationDetail> => {
+    return apiClient.put(`/organizations/${orgId}/transfer-ownership`, data);
+  },
+
+  // Departments
+  getDepartments: async (orgId: string): Promise<import('../types').OrgDepartment[]> => {
+    return apiClient.get(`/organizations/${orgId}/departments`);
+  },
+  createDepartment: async (orgId: string, data: { name: string; display_order?: number }): Promise<import('../types').OrgDepartment> => {
+    return apiClient.post(`/organizations/${orgId}/departments`, data);
+  },
+  updateDepartment: async (orgId: string, deptId: string, data: { name?: string; display_order?: number }): Promise<import('../types').OrgDepartment> => {
+    return apiClient.put(`/organizations/${orgId}/departments/${deptId}`, data);
+  },
+  deleteDepartment: async (orgId: string, deptId: string): Promise<void> => {
+    return apiClient.delete(`/organizations/${orgId}/departments/${deptId}`);
+  },
+
+  // Job Groups
+  getJobGroups: async (orgId: string): Promise<import('../types').OrgJobGroup[]> => {
+    return apiClient.get(`/organizations/${orgId}/job-groups`);
+  },
+  createJobGroup: async (orgId: string, data: { name: string; display_order?: number }): Promise<import('../types').OrgJobGroup> => {
+    return apiClient.post(`/organizations/${orgId}/job-groups`, data);
+  },
+  updateJobGroup: async (orgId: string, jobGroupId: string, data: { name?: string; display_order?: number }): Promise<import('../types').OrgJobGroup> => {
+    return apiClient.put(`/organizations/${orgId}/job-groups/${jobGroupId}`, data);
+  },
+  deleteJobGroup: async (orgId: string, jobGroupId: string): Promise<void> => {
+    return apiClient.delete(`/organizations/${orgId}/job-groups/${jobGroupId}`);
+  },
+
+  // Members
+  getMembers: async (orgId: string, params?: {
+    department_id?: string; job_group_id?: string; contract_type?: string;
+    work_status?: string; search?: string; page?: number; size?: number;
+  }): Promise<import('../types').OrgMemberPageResponse> => {
+    const query = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') query.set(k, String(v)); });
+    }
+    const qs = query.toString();
+    return apiClient.get(`/organizations/${orgId}/members${qs ? `?${qs}` : ''}`);
+  },
+  getMember: async (orgId: string, memberId: string): Promise<import('../types').OrgMemberDetail> => {
+    return apiClient.get(`/organizations/${orgId}/members/${memberId}`);
+  },
+  inviteMember: async (orgId: string, data: { email: string; role?: string; department_id?: string; job_title?: string }): Promise<import('../types').OrgMemberInviteResult> => {
+    return apiClient.post(`/organizations/${orgId}/members`, data);
+  },
+  updateMember: async (orgId: string, memberId: string, data: Record<string, unknown>): Promise<import('../types').OrgMemberDetail> => {
+    return apiClient.put(`/organizations/${orgId}/members/${memberId}`, data);
+  },
+  changeMemberRole: async (orgId: string, memberId: string, data: { role: string }): Promise<void> => {
+    return apiClient.put(`/organizations/${orgId}/members/${memberId}/role`, data);
+  },
+  removeMember: async (orgId: string, memberId: string): Promise<import('../types').OrgMemberRemoveResult> => {
+    return apiClient.delete(`/organizations/${orgId}/members/${memberId}`);
+  },
+
+  // Boards
+  getBoards: async (orgId: string): Promise<import('../types').OrgBoardSimple[]> => {
+    return apiClient.get(`/organizations/${orgId}/boards`);
+  },
+  checkBoardEligibility: async (orgId: string, boardId: string): Promise<import('../types').OrgBoardEligibilityCheck> => {
+    return apiClient.get(`/organizations/${orgId}/boards/check-eligibility?board_id=${boardId}`);
+  },
+  addBoard: async (orgId: string, data: { board_id: string }): Promise<import('../types').OrgBoardSimple> => {
+    return apiClient.post(`/organizations/${orgId}/boards`, data);
+  },
+  removeBoard: async (orgId: string, boardId: string): Promise<void> => {
+    return apiClient.delete(`/organizations/${orgId}/boards/${boardId}`);
+  },
+
+  // Invite Links
+  getInviteLinks: async (orgId: string): Promise<import('../types').OrgInviteLink[]> => {
+    return apiClient.get(`/organizations/${orgId}/invites`);
+  },
+  createInviteLink: async (orgId: string, data: { role?: string; max_uses?: number | null; expires_in_days?: number }): Promise<import('../types').OrgInviteLink> => {
+    return apiClient.post(`/organizations/${orgId}/invites`, data);
+  },
+  deleteInviteLink: async (orgId: string, linkId: string): Promise<void> => {
+    return apiClient.delete(`/organizations/${orgId}/invites/${linkId}`);
+  },
+  getInviteInfo: async (code: string): Promise<import('../types').OrgInvitePublicInfo> => {
+    return apiClient.get(`/org-invites/${code}`);
+  },
+  acceptInvite: async (code: string): Promise<{ organization_id: string; organization_name: string; role: string; message: string }> => {
+    return apiClient.post(`/org-invites/${code}/accept`, {});
+  },
+};
+
+// ─── Leave Management API ───
+
+export const leaveAPI = {
+  // Policies
+  getPolicies: async (orgId: string): Promise<import('../types').LeavePolicy[]> => {
+    return apiClient.get(`/organizations/${orgId}/leave-policies`);
+  },
+  createPolicy: async (orgId: string, data: {
+    name: string; leave_category: string; default_days?: number;
+    is_paid?: boolean; requires_approval?: boolean; description?: string;
+  }): Promise<import('../types').LeavePolicy> => {
+    return apiClient.post(`/organizations/${orgId}/leave-policies`, data);
+  },
+  updatePolicy: async (orgId: string, policyId: string, data: Record<string, unknown>): Promise<import('../types').LeavePolicy> => {
+    return apiClient.put(`/organizations/${orgId}/leave-policies/${policyId}`, data);
+  },
+
+  // Balances
+  getMyBalance: async (orgId: string): Promise<import('../types').LeaveBalance[]> => {
+    return apiClient.get(`/organizations/${orgId}/my-leave-balance`);
+  },
+  getMemberBalance: async (orgId: string, memberId: string): Promise<import('../types').LeaveBalance[]> => {
+    return apiClient.get(`/organizations/${orgId}/members/${memberId}/leave-balance`);
+  },
+  updateMemberBalance: async (orgId: string, memberId: string, balanceId: string, data: { total_days: number }): Promise<import('../types').LeaveBalance> => {
+    return apiClient.put(`/organizations/${orgId}/members/${memberId}/leave-balance/${balanceId}`, data);
+  },
+
+  // Leave Requests
+  getRequests: async (orgId: string, params?: {
+    status?: string; requester_id?: string; start_date?: string;
+    end_date?: string; page?: number; size?: number;
+  }): Promise<import('../types').LeaveRequestPageResponse> => {
+    const query = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') query.set(k, String(v)); });
+    }
+    const qs = query.toString();
+    return apiClient.get(`/organizations/${orgId}/leave-requests${qs ? `?${qs}` : ''}`);
+  },
+  createRequest: async (orgId: string, data: {
+    policy_id: string; start_date: string; end_date: string;
+    duration_type?: string; reason?: string;
+  }): Promise<import('../types').LeaveRequestResponse> => {
+    return apiClient.post(`/organizations/${orgId}/leave-requests`, data);
+  },
+  approveRequest: async (orgId: string, requestId: string): Promise<import('../types').LeaveRequestResponse> => {
+    return apiClient.put(`/organizations/${orgId}/leave-requests/${requestId}/approve`, {});
+  },
+  rejectRequest: async (orgId: string, requestId: string, data?: { comment?: string }): Promise<import('../types').LeaveRequestResponse> => {
+    return apiClient.put(`/organizations/${orgId}/leave-requests/${requestId}/reject`, data || {});
+  },
+  cancelRequest: async (orgId: string, requestId: string): Promise<import('../types').LeaveRequestResponse> => {
+    return apiClient.put(`/organizations/${orgId}/leave-requests/${requestId}/cancel`, {});
+  },
+};
+
 // ─── Personal Dashboard API (v9.0) ───
 
 export const personalDashboardAPI = {

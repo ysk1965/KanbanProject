@@ -2,6 +2,7 @@ package com.kanban.domain.invite.service;
 
 import com.kanban.domain.board.*;
 import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.organization.repository.OrgMemberRepository;
 import com.kanban.domain.invite.InviteLink;
 import com.kanban.domain.invite.InviteLinkRepository;
 import com.kanban.domain.invite.dto.InviteRequest;
@@ -36,6 +37,7 @@ public class InviteService {
     private final SubscriptionRepository subscriptionRepository;
     private final BoardService boardService;
     private final CacheManager cacheManager;
+    private final OrgMemberRepository orgMemberRepository;
 
     public InviteResponse.ListResponse getInviteLinks(String boardId, String userId) {
         boardService.checkAdminOrAbove(boardId, userId);
@@ -120,6 +122,14 @@ public class InviteService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         Board board = link.getBoard();
+
+        // R2: 조직 보드인 경우 조직원 여부 검증
+        if (board.isOrganizationBoard()) {
+            String orgId = board.getOrganization().getId();
+            if (!orgMemberRepository.existsByOrganizationIdAndUserId(orgId, userId)) {
+                throw new BusinessException(ErrorCode.NOT_ORG_MEMBER_FOR_BOARD);
+            }
+        }
 
         // 이미 멤버인지 확인
         if (boardMemberRepository.existsByBoardIdAndUserId(board.getId(), userId)) {

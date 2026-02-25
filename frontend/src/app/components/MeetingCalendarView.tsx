@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { FEATURE_COLORS } from '../constants';
 import { useSearchParams } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Calendar, CalendarDays, Repeat, Clock, MoreVertical, Pencil, Trash2, X, Loader2 } from 'lucide-react';
 import {
@@ -523,7 +524,7 @@ function RecurringEditModal({ boardId, meeting, onClose, onUpdated }: RecurringE
   const [recurrenceEndDate, setRecurrenceEndDate] = useState(meeting.recurrence_end_date || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const colorOptions = ['#8B5CF6', '#6366F1', '#2DD4BF', '#F59E0B', '#EF4444', '#EC4899', '#10B981', '#3B82F6'];
+  const colorOptions = FEATURE_COLORS;
 
   const canSubmit = title.trim().length > 0;
 

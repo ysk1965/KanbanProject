@@ -224,7 +224,50 @@ PERSONAL_TAG_NOT_FOUND(HttpStatus.NOT_FOUND, "PT003", "태그를 찾을 수 없�
     CUSTOMICON_REFERENCE_NOT_FOUND(HttpStatus.NOT_FOUND, "CI001", "레퍼런스 이미지를 찾을 수 없습니다"),
     CUSTOMICON_GENERATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "CI002", "아이콘 생성에 실패했습니다"),
     CUSTOMICON_IMAGE_PROCESSING_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "CI003", "이미지 처리에 실패했습니다"),
-    CUSTOMICON_STYLE_ANALYSIS_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "CI004", "스타일 분석에 실패했습니다");
+    CUSTOMICON_STYLE_ANALYSIS_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "CI004", "스타일 분석에 실패했습니다"),
+
+    // Organization
+    ORG_NOT_FOUND(HttpStatus.NOT_FOUND, "O001", "조직을 찾을 수 없습니다"),
+    ORG_ACCESS_DENIED(HttpStatus.FORBIDDEN, "O002", "조직에 접근 권한이 없습니다"),
+    ORG_ADMIN_REQUIRED(HttpStatus.FORBIDDEN, "O003", "조직 관리자 권한이 필요합니다"),
+    ORG_OWNER_REQUIRED(HttpStatus.FORBIDDEN, "O004", "조직 소유자 권한이 필요합니다"),
+    ORG_MEMBER_ALREADY_EXISTS(HttpStatus.CONFLICT, "O005", "이미 조직 구성원입니다"),
+    ORG_MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, "O006", "조직 구성원을 찾을 수 없습니다"),
+    CANNOT_REMOVE_ORG_OWNER(HttpStatus.BAD_REQUEST, "O007", "조직 소유자는 제거할 수 없습니다"),
+    CANNOT_CHANGE_ORG_OWNER_ROLE(HttpStatus.BAD_REQUEST, "O008", "조직 소유자의 역할은 변경할 수 없습니다"),
+    CANNOT_TRANSFER_TO_SELF(HttpStatus.BAD_REQUEST, "O009", "본인에게 소유권을 이양할 수 없습니다"),
+    CANNOT_DEACTIVATE_ORG_OWNER(HttpStatus.BAD_REQUEST, "O010", "조직 소유자는 계정을 비활성화할 수 없습니다. 먼저 소유권을 이양해주세요"),
+
+    // Organization - Board
+    NOT_ORG_MEMBER_FOR_BOARD(HttpStatus.FORBIDDEN, "O011", "조직 보드에 참여하려면 조직 구성원이어야 합니다"),
+    BOARD_NOT_ELIGIBLE_FOR_ORG(HttpStatus.BAD_REQUEST, "O012", "보드를 조직에 편입할 수 없습니다. 모든 보드 멤버가 조직 구성원이어야 합니다"),
+    BOARD_ALREADY_IN_ORG(HttpStatus.CONFLICT, "O013", "이미 조직에 소속된 보드입니다"),
+    BOARD_NOT_IN_ORG(HttpStatus.BAD_REQUEST, "O014", "조직에 소속되지 않은 보드입니다"),
+    CANNOT_REMOVE_BOARD_OWNER_FROM_ORG(HttpStatus.BAD_REQUEST, "O015", "조직 보드의 Owner인 구성원은 제거할 수 없습니다. 먼저 보드 Owner를 변경해주세요"),
+
+    // Organization - Invite
+    ORG_INVITE_NOT_FOUND(HttpStatus.NOT_FOUND, "OI001", "조직 초대 링크를 찾을 수 없습니다"),
+    ORG_INVITE_EXPIRED(HttpStatus.BAD_REQUEST, "OI002", "만료된 조직 초대 링크입니다"),
+    ORG_INVITE_INVALID(HttpStatus.BAD_REQUEST, "OI003", "유효하지 않은 조직 초대 링크입니다"),
+
+    // Organization - Department / Job Group
+    ORG_DEPARTMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "OD001", "부서를 찾을 수 없습니다"),
+    ORG_DEPARTMENT_ALREADY_EXISTS(HttpStatus.CONFLICT, "OD002", "이미 존재하는 부서명입니다"),
+    ORG_JOB_GROUP_NOT_FOUND(HttpStatus.NOT_FOUND, "OJ001", "직무그룹을 찾을 수 없습니다"),
+    ORG_JOB_GROUP_ALREADY_EXISTS(HttpStatus.CONFLICT, "OJ002", "이미 존재하는 직무그룹명입니다"),
+
+    // Leave Management
+    LEAVE_POLICY_NOT_FOUND(HttpStatus.NOT_FOUND, "L001", "휴가 정책을 찾을 수 없습니다"),
+    LEAVE_BALANCE_NOT_FOUND(HttpStatus.NOT_FOUND, "L002", "휴가 잔여 정보를 찾을 수 없습니다"),
+    LEAVE_REQUEST_NOT_FOUND(HttpStatus.NOT_FOUND, "L003", "휴가 신청을 찾을 수 없습니다"),
+    LEAVE_INSUFFICIENT_BALANCE(HttpStatus.BAD_REQUEST, "L004", "휴가 잔여일이 부족합니다"),
+    LEAVE_OVERLAP_EXISTS(HttpStatus.BAD_REQUEST, "L005", "해당 기간에 이미 휴가가 존재합니다"),
+    LEAVE_HALF_DAY_MULTI_DATE(HttpStatus.BAD_REQUEST, "L006", "반차는 하루만 선택할 수 있습니다"),
+    LEAVE_POLICY_INACTIVE(HttpStatus.BAD_REQUEST, "L007", "비활성화된 휴가 정책입니다"),
+    LEAVE_CANNOT_APPROVE(HttpStatus.BAD_REQUEST, "L008", "승인할 수 없는 휴가 신청입니다"),
+    LEAVE_CANNOT_REJECT(HttpStatus.BAD_REQUEST, "L009", "거절할 수 없는 휴가 신청입니다"),
+    LEAVE_CANNOT_CANCEL(HttpStatus.BAD_REQUEST, "L010", "취소할 수 없는 휴가 신청입니다"),
+    LEAVE_CANCEL_PAST_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "L011", "이미 종료된 휴가는 취소할 수 없습니다");
 
     private final HttpStatus status;
     private final String code;

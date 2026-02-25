@@ -153,3 +153,9 @@ variable "ssl_certificate_arn" {
   type        = string
   default     = ""
 }
+
+variable "cloudfront_domain" {
+  description = "CloudFront domain for S3 attachments bucket (empty to use backend proxy)"
+  type        = string
+  default     = ""
+}

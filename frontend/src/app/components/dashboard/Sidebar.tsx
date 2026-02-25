@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { LayoutGrid, User, Settings, ChevronRight, ChevronLeft, X, Clock } from 'lucide-react';
+import { LayoutGrid, User, Settings, ChevronRight, ChevronLeft, X, Clock, Building2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Board } from '../../types';
 import { getGradient } from './BoardCard';
@@ -27,13 +27,15 @@ export function Sidebar({ isOpen = true, onClose, boards = [], onSelectBoard, is
 
   // Determine active menu item from URL
   useEffect(() => {
-    if (location.pathname.includes('/my-board')) setActiveItem('myBoard');
+    if (location.pathname.includes('/organizations')) setActiveItem('organizations');
+    else if (location.pathname.includes('/my-board')) setActiveItem('myBoard');
     else if (location.pathname.includes('/settings')) setActiveItem('settings');
     else setActiveItem('all');
   }, [location]);
 
   const menuItems = [
     { key: 'all', icon: <LayoutGrid size={18} />, label: t('dashboard.sidebar.allBoards'), path: '/boards' },
+    { key: 'organizations', icon: <Building2 size={18} />, label: t('dashboard.sidebar.organizations', 'Organizations'), path: '/organizations' },
     ...(hasPersonalSpace ? [{ key: 'myBoard', icon: <User size={18} />, label: t('dashboard.sidebar.myBoard'), path: '/my-board' }] : []),
     { key: 'settings', icon: <Settings size={18} />, label: t('dashboard.sidebar.settings'), path: '/settings' },
   ];

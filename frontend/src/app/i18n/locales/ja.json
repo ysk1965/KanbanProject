@@ -292,6 +292,7 @@
   "dashboard": {
     "sidebar": {
       "allBoards": "すべてのボード",
+      "organizations": "組織",
       "myBoard": "マイスペース",
       "settings": "設定",
       "upgradePro": "Proにアップグレード",
@@ -2670,6 +2671,121 @@
       "overlapWarning": "{{count}}件のイベントと時間が重複しています",
       "nextDay": "翌日",
       "prevDay": "前日から"
+    },
+    "organization": {
+      "list": {
+        "title": "マイ組織",
+        "subtitle": "{{count}}つの組織に所属しています",
+        "create": "組織を作成"
+      },
+      "create": {
+        "title": "組織を作成",
+        "name": "組織名",
+        "namePlaceholder": "例）CookApps",
+        "description": "説明",
+        "descriptionPlaceholder": "組織の簡単な説明"
+      },
+      "tabs": {
+        "dashboard": "ダッシュボード",
+        "members": "メンバー",
+        "boards": "ボード",
+        "leaves": "休暇",
+        "settings": "設定"
+      },
+      "dashboard": {
+        "members": "メンバー",
+        "boards": "ボード",
+        "todayLeaves": "今日の休暇",
+        "connectedBoards": "接続されたボード",
+        "onLeaveToday": "今日の休暇者"
+      },
+      "members": {
+        "searchPlaceholder": "名前またはメールで検索...",
+        "allDepartments": "全部門",
+        "allStatuses": "全ステータス",
+        "active": "在籍",
+        "onLeave": "休暇中",
+        "resigned": "退職",
+        "invite": "招待",
+        "resultCount": "{{count}}人のメンバーが見つかりました",
+        "empty": "メンバーが見つかりません",
+        "inviteTitle": "メンバーを招待",
+        "email": "メールアドレス",
+        "role": "役割",
+        "department": "部門",
+        "jobTitle": "職種",
+        "jobTitlePlaceholder": "例）フロントエンド開発者",
+        "sendInvite": "招待を送信"
+      },
+      "boards": {
+        "title": "接続されたボード",
+        "add": "ボードを追加",
+        "empty": "この組織にリンクされたボードはありません",
+        "release": "組織から解除",
+        "releaseConfirm": "ボードを解除しますか？",
+        "releaseWarning": "解除後、非メンバーもこのボードに参加できます。再リンクするには、全メンバーが組織メンバーである必要があります。",
+        "releaseButton": "解除",
+        "addTitle": "組織にボードを追加",
+        "noAvailable": "追加可能なボードがありません",
+        "nonOrgMembers": "組織外メンバー",
+        "addButton": "ボードを追加"
+      },
+      "leave": {
+        "myBalance": "休暇残日数",
+        "allStatuses": "全ステータス",
+        "pending": "承認待ち",
+        "approved": "承認済み",
+        "rejected": "却下",
+        "canceled": "キャンセル",
+        "request": "休暇を申請",
+        "empty": "休暇申請はありません",
+        "days": "日",
+        "fullDay": "全日",
+        "amHalf": "午前半休",
+        "pmHalf": "午後半休",
+        "approve": "承認",
+        "reject": "却下",
+        "cancel": "キャンセル",
+        "requestTitle": "休暇申請",
+        "leaveType": "休暇タイプ",
+        "selectType": "休暇タイプを選択",
+        "durationType": "期間タイプ",
+        "startDate": "開始日",
+        "endDate": "終了日",
+        "reason": "理由（任意）",
+        "submit": "申請を提出"
+      },
+      "settings": {
+        "basicInfo": "基本情報",
+        "orgName": "組織名",
+        "description": "説明",
+        "departments": "部門",
+        "addDepartment": "部門を追加...",
+        "jobGroups": "職種グループ",
+        "addJobGroup": "職種グループを追加...",
+        "leavePolicies": "休暇ポリシー",
+        "policyName": "名前",
+        "defaultDays": "デフォルト日数",
+        "paid": "有給",
+        "active": "有効",
+        "inviteLinks": "招待リンク",
+        "generateLink": "リンクを生成",
+        "noLinks": "有効な招待リンクはありません",
+        "dangerZone": "危険な操作",
+        "deleteWarning": "この組織を削除すると元に戻せません。すべてのボードが解除されます。",
+        "typeOrgName": "確認のため組織名を入力してください"
+      },
+      "invite": {
+        "invalidLink": "この招待リンクは無効または期限切れです。",
+        "error": "招待エラー",
+        "accepted": "ようこそ！",
+        "redirecting": "組織にリダイレクト中...",
+        "members": "人のメンバー",
+        "joining": "参加中...",
+        "join": "組織に参加",
+        "loginToJoin": "ログインして参加",
+        "acceptFailed": "招待の受け入れに失敗しました。"
+      }
     }
   }
 }
