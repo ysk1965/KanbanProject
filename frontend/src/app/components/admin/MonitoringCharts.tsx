@@ -50,7 +50,7 @@ export function MonitoringCharts({ dashboard, history, aiUsage, openAIBilling }:
   };
 
   const formatTime = (timeStr: string) => {
-    const d = new Date(timeStr);
+    const d = new Date(timeStr.endsWith('Z') ? timeStr : timeStr + 'Z');
     return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
   };
 

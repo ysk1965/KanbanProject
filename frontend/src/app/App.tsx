@@ -146,19 +146,7 @@ function LoginRoute() {
             setIsProcessingInvite(false);
           }
         } else if (isAuthenticated && !isLoading) {
-          // TESTER인 경우 참여 중인 보드가 있으면 바로 이동
-          if (isTester) {
-            try {
-              const boards = await boardService.getBoards();
-              if (boards.length > 0) {
-                navigate(`/boards/${boards[0].id}`);
-                return;
-              }
-            } catch (error) {
-              console.error('Failed to fetch boards for tester redirect:', error);
-            }
-          }
-          // 이미 로그인되어 있고 초대 코드가 없으면 보드 목록으로
+          // 보드 목록으로 이동 (TESTER 자동 리다이렉트는 BoardsRoute에서 처리)
           navigate('/boards');
         }
       }
@@ -196,16 +184,21 @@ function LoginRoute() {
 // 보드 목록 페이지 래퍼
 function BoardsRoute() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { logout, isTester } = useAuth();
   const { t } = useTranslation();
   const [boards, setBoards] = useState<Board[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // 보드 로드 실패로 돌아온 경우 (무한 리다이렉트 방지)
+  const boardLoadFailed = (location.state as any)?.boardLoadFailed;
+
   const loadBoards = async () => {
     try {
       const boardsData = await boardService.getBoards();
       // TESTER인 경우 참여 중인 보드가 있으면 바로 이동 (milkyway.pe.kr 도메인도 isTester에 포함)
-      if (isTester && boardsData.length > 0) {
+      // 단, 해당 보드 로드 실패로 돌아온 경우엔 리다이렉트하지 않음
+      if (isTester && boardsData.length > 0 && boardLoadFailed !== boardsData[0].id) {
         navigate(`/boards/${boardsData[0].id}`, { replace: true });
         return;
       }
