@@ -227,10 +227,31 @@ public class CustomIconImageService {
             if (cloudfrontDomain != null && !cloudfrontDomain.isEmpty()) {
                 return String.format("https://%s/%s", cloudfrontDomain, key);
             }
-            // CloudFront 미설정 시 S3 직접 URL 사용
-            return String.format("https://%s.s3.ap-northeast-2.amazonaws.com/%s", bucketName, key);
+            // CloudFront 미설정 시 백엔드 프록시로 서빙
+            return "/api/v1/customicon/files/" + key;
         }
         return "/uploads/" + key;
+    }
+
+    /**
+     * S3에서 파일 로드 (프록시 서빙용)
+     */
+    public byte[] loadFile(String key) {
+        if (!key.startsWith("customicon/")) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
+        }
+        try {
+            if (useS3()) {
+                return s3Client.getObject(GetObjectRequest.builder()
+                        .bucket(bucketName).key(key).build()).readAllBytes();
+            } else {
+                Path filePath = Paths.get(localDir, key);
+                return Files.readAllBytes(filePath);
+            }
+        } catch (Exception e) {
+            log.error("Failed to load file: {}", key, e);
+            throw new BusinessException(ErrorCode.CUSTOMICON_REFERENCE_NOT_FOUND);
+        }
     }
 
     // ─── 이미지 처리 ───

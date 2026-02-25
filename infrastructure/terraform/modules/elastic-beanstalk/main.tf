@@ -390,6 +390,16 @@ resource "aws_elastic_beanstalk_environment" "main" {
     value     = var.google_client_id
   }
 
+  # S3 Attachments CloudFront
+  dynamic "setting" {
+    for_each = var.cloudfront_domain != "" ? [1] : []
+    content {
+      namespace = "aws:elasticbeanstalk:application:environment"
+      name      = "CLOUDFRONT_DOMAIN"
+      value     = var.cloudfront_domain
+    }
+  }
+
   tags = {
     Name        = "${var.project_name}-${var.environment}-env"
     Environment = var.environment

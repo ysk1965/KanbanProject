@@ -64,6 +64,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/public/**").permitAll()
                         // System status (maintenance check, active announcements)
                         .requestMatchers("/api/v1/system/**").permitAll()
+                        // Custom icon generated files (S3 proxy)
+                        .requestMatchers("/api/v1/customicon/files/**").permitAll()
                         // Local uploaded files (dev)
                         .requestMatchers("/uploads/**").permitAll()
                         // File upload API (인증 필요하지만 multipart 허용)

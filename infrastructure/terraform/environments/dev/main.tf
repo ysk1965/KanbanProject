@@ -131,6 +131,8 @@ module "elastic_beanstalk" {
 
   ssl_certificate_arn = var.domain_name != "" ? module.acm_certificate_alb[0].validated_certificate_arn : ""
 
+  cloudfront_domain = aws_cloudfront_distribution.attachments.domain_name
+
   depends_on = [module.rds, module.elasticache, module.acm_certificate_alb]
 }
 
@@ -249,6 +251,90 @@ resource "aws_route53_record" "frontend_www" {
   }
 
   depends_on = [module.s3_cloudfront]
+}
+
+# ─── S3 Attachments CloudFront ───
+
+data "aws_s3_bucket" "attachments" {
+  bucket = "bridge-kanban-attachments"
+}
+
+resource "aws_cloudfront_origin_access_control" "attachments" {
+  name                              = "${var.project_name}-${var.environment}-attachments-oac"
+  description                       = "OAC for attachments S3 bucket"
+  origin_access_control_origin_type = "s3"
+  signing_behavior                  = "always"
+  signing_protocol                  = "sigv4"
+}
+
+resource "aws_cloudfront_distribution" "attachments" {
+  enabled         = true
+  is_ipv6_enabled = true
+  price_class     = "PriceClass_100"
+  comment         = "${var.project_name} ${var.environment} attachments CDN"
+
+  origin {
+    domain_name              = data.aws_s3_bucket.attachments.bucket_regional_domain_name
+    origin_id                = "S3-attachments"
+    origin_access_control_id = aws_cloudfront_origin_access_control.attachments.id
+  }
+
+  default_cache_behavior {
+    allowed_methods        = ["GET", "HEAD"]
+    cached_methods         = ["GET", "HEAD"]
+    target_origin_id       = "S3-attachments"
+    viewer_protocol_policy = "redirect-to-https"
+    compress               = true
+
+    forwarded_values {
+      query_string = false
+      cookies {
+        forward = "none"
+      }
+    }
+
+    min_ttl     = 0
+    default_ttl = 86400    # 1 day
+    max_ttl     = 31536000 # 1 year
+  }
+
+  restrictions {
+    geo_restriction {
+      restriction_type = "none"
+    }
+  }
+
+  viewer_certificate {
+    cloudfront_default_certificate = true
+  }
+
+  tags = {
+    Name        = "${var.project_name}-${var.environment}-attachments-cdn"
+    Environment = var.environment
+  }
+}
+
+resource "aws_s3_bucket_policy" "attachments" {
+  bucket = data.aws_s3_bucket.attachments.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid       = "AllowCloudFrontAccess"
+        Effect    = "Allow"
+        Principal = {
+          Service = "cloudfront.amazonaws.com"
+        }
+        Action   = "s3:GetObject"
+        Resource = "${data.aws_s3_bucket.attachments.arn}/*"
+        Condition = {
+          StringEquals = {
+            "AWS:SourceArn" = aws_cloudfront_distribution.attachments.arn
+          }
+        }
+      }
+    ]
+  })
 }
 
 # Backend API Domain Record
