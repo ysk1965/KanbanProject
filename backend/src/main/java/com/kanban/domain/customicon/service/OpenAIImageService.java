@@ -118,10 +118,16 @@ public class OpenAIImageService {
             requestBody.put("prompt", prompt);
             requestBody.put("n", 1);
             requestBody.put("size", imageSize);
-            requestBody.put("response_format", "b64_json");
 
-            if ("dall-e-3".equals(imageModel)) {
-                requestBody.put("quality", "standard");
+            // gpt-image-1과 dall-e-3의 파라미터 차이 처리
+            if (imageModel.startsWith("gpt-image")) {
+                requestBody.put("output_format", "png");
+                requestBody.put("quality", "medium");
+            } else {
+                requestBody.put("response_format", "b64_json");
+                if ("dall-e-3".equals(imageModel)) {
+                    requestBody.put("quality", "standard");
+                }
             }
 
             HttpHeaders headers = new HttpHeaders();
@@ -165,7 +171,13 @@ public class OpenAIImageService {
             body.add("model", imageModel);
             body.add("size", imageSize);
             body.add("n", "1");
-            body.add("response_format", "b64_json");
+
+            if (imageModel.startsWith("gpt-image")) {
+                body.add("output_format", "png");
+                body.add("quality", "medium");
+            } else {
+                body.add("response_format", "b64_json");
+            }
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.MULTIPART_FORM_DATA);
