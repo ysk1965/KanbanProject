@@ -1,11 +1,18 @@
-import { useRef, useState, useMemo, useEffect } from 'react';
-import { Task, Tag, Feature, ChecklistItem } from '../types';
-import { Calendar, Clock, ChevronDown, ChevronUp, CheckSquare, Check } from 'lucide-react';
-import { checklistAPI } from '../utils/api';
-import { useDragContext } from '../contexts/DragContext';
-import { getAssigneeHex, getInitials } from '../utils/assigneeColor';
-import { useTranslation } from 'react-i18next';
-import { CompletionParticles } from './CompletionParticles';
+import { useRef, useState, useMemo, useEffect } from "react";
+import { Task, Tag, Feature, ChecklistItem } from "../types";
+import {
+  Calendar,
+  Clock,
+  ChevronDown,
+  ChevronUp,
+  CheckSquare,
+  Check,
+} from "lucide-react";
+import { checklistAPI } from "../utils/api";
+import { useDragContext } from "../contexts/DragContext";
+import { getAssigneeHex, getInitials } from "../utils/assigneeColor";
+import { useTranslation } from "react-i18next";
+import { CompletionParticles } from "./CompletionParticles";
 
 // 클릭으로 인정할 최대 이동 거리 (픽셀)
 const CLICK_THRESHOLD = 5;
@@ -48,14 +55,21 @@ export function DraggableCard({
 }: DraggableCardProps) {
   const { t } = useTranslation();
   const ref = useRef<HTMLDivElement>(null);
-  // 부모에서 전달받은 체크리스트 데이터를 사용하거나 로컬 상태 사용
-  const [localChecklistItems, setLocalChecklistItems] = useState<ChecklistItem[]>([]);
+  const [localChecklistItems, setLocalChecklistItems] = useState<
+    ChecklistItem[]
+  >([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
-  // 부모에서 전달받은 데이터가 있으면 사용, 없으면 로컬 상태 사용
-  const checklistItems = checklistData || localChecklistItems;
-  const hasLoaded = checklistData !== undefined || localChecklistItems.length > 0;
+  // 부모 데이터가 들어오면 로컬 상태로 동기화
+  useEffect(() => {
+    if (checklistData) {
+      setLocalChecklistItems(checklistData);
+    }
+  }, [checklistData]);
+
+  const checklistItems = localChecklistItems;
+  const hasLoaded = localChecklistItems.length > 0;
 
   // 클릭 vs 드래그 판별을 위한 마우스 위치 추적
   const mouseStartRef = useRef<{ x: number; y: number } | null>(null);
@@ -69,7 +83,7 @@ export function DraggableCard({
   // 마우스 다운 - 시작 위치 기록
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     // 버튼 클릭은 무시
-    if ((e.target as HTMLElement).closest('button')) return;
+    if ((e.target as HTMLElement).closest("button")) return;
 
     mouseStartRef.current = { x: e.clientX, y: e.clientY };
     wasDraggedRef.current = false;
@@ -78,14 +92,14 @@ export function DraggableCard({
   // 드래그 시작
   const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
     // 버튼에서 시작된 드래그는 취소
-    if ((e.target as HTMLElement).closest('button')) {
+    if ((e.target as HTMLElement).closest("button")) {
       e.preventDefault();
       return;
     }
 
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('application/task', task.id);
-    e.dataTransfer.setData('text/plain', task.id);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("application/task", task.id);
+    e.dataTransfer.setData("text/plain", task.id);
 
     if (ref.current) {
       e.dataTransfer.setDragImage(ref.current, 20, 20);
@@ -105,7 +119,7 @@ export function DraggableCard({
   // 클릭 처리 - 드래그가 아닌 경우에만
   const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     // 버튼 클릭은 무시
-    if ((e.target as HTMLElement).closest('button')) return;
+    if ((e.target as HTMLElement).closest("button")) return;
 
     // 드래그였으면 클릭 무시
     if (wasDraggedRef.current) {
@@ -133,14 +147,14 @@ export function DraggableCard({
   const linkedFeature = features.find((f) => f.id === task.feature_id);
 
   // Feature 색상 (기본값: indigo)
-  const featureColor = linkedFeature?.color || '#6366F1';
+  const featureColor = linkedFeature?.color || "#6366F1";
 
   // Task 이름만 추출 (Feature이름 - Task이름 형식인 경우)
   const getTaskOnlyTitle = (title: string) => {
-    if (linkedFeature && title.includes(' - ')) {
-      const parts = title.split(' - ');
+    if (linkedFeature && title.includes(" - ")) {
+      const parts = title.split(" - ");
       if (parts.length > 1) {
-        return parts.slice(1).join(' - '); // Feature이름 이후 부분만 반환
+        return parts.slice(1).join(" - "); // Feature이름 이후 부분만 반환
       }
     }
     return title;
@@ -151,8 +165,8 @@ export function DraggableCard({
   const formatDueDate = (dateString: string) => {
     const date = new Date(dateString);
     const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
     return `${year}. ${month}. ${day}.`;
   };
 
@@ -187,11 +201,13 @@ export function DraggableCard({
         completed: item.completed,
         position: item.position,
         due_date: item.due_date,
-        assignee: item.assignee ? { id: item.assignee.id, name: item.assignee.name } : null,
+        assignee: item.assignee
+          ? { id: item.assignee.id, name: item.assignee.name }
+          : null,
       }));
       setLocalChecklistItems(items);
     } catch (error) {
-      console.error('Failed to load checklist:', error);
+      console.error("Failed to load checklist:", error);
     } finally {
       setIsLoading(false);
     }
@@ -203,32 +219,28 @@ export function DraggableCard({
     onToggleChecklistExpand?.(task.id);
   };
 
-  // 체크리스트 토글 (로컬 상태 사용 시에만 동작, 부모 데이터 사용 시 낙관적 업데이트 후 API 호출)
+  // 체크리스트 토글 (낙관적 업데이트 후 API 호출)
   const handleToggleItem = async (e: React.MouseEvent, itemId: string) => {
     e.stopPropagation();
     if (!boardId) return;
 
-    // 로컬 상태를 사용하는 경우에만 직접 업데이트
-    if (checklistData === undefined) {
-      setLocalChecklistItems(
-        localChecklistItems.map((item) =>
-          item.id === itemId ? { ...item, completed: !item.completed } : item
-        )
-      );
-    }
+    // 낙관적 업데이트
+    setLocalChecklistItems((prev) =>
+      prev.map((item) =>
+        item.id === itemId ? { ...item, completed: !item.completed } : item,
+      ),
+    );
 
     try {
       await checklistAPI.toggleItem(boardId, task.id, itemId);
     } catch (error) {
-      console.error('Failed to toggle checklist item:', error);
-      // 롤백 (로컬 상태 사용 시에만)
-      if (checklistData === undefined) {
-        setLocalChecklistItems(
-          localChecklistItems.map((item) =>
-            item.id === itemId ? { ...item, completed: !item.completed } : item
-          )
-        );
-      }
+      console.error("Failed to toggle checklist item:", error);
+      // 롤백
+      setLocalChecklistItems((prev) =>
+        prev.map((item) =>
+          item.id === itemId ? { ...item, completed: !item.completed } : item,
+        ),
+      );
     }
   };
 
@@ -237,7 +249,13 @@ export function DraggableCard({
 
   // 체크리스트 펼칠 때 데이터가 없으면 자동 로드
   useEffect(() => {
-    if (isChecklistExpanded && hasChecklist && boardId && checklistData === undefined && localChecklistItems.length === 0 && !isLoading) {
+    if (
+      isChecklistExpanded &&
+      hasChecklist &&
+      boardId &&
+      localChecklistItems.length === 0 &&
+      !isLoading
+    ) {
       loadChecklist();
     }
   }, [isChecklistExpanded]);
@@ -256,7 +274,10 @@ export function DraggableCard({
     // 체크리스트 담당자 보충 (체크리스트 펼침 시 최신 데이터 반영)
     checklistItems.forEach((item) => {
       if (item.assignee && !assigneeMap.has(item.assignee.id)) {
-        assigneeMap.set(item.assignee.id, { id: item.assignee.id, name: item.assignee.name });
+        assigneeMap.set(item.assignee.id, {
+          id: item.assignee.id,
+          name: item.assignee.name,
+        });
       }
     });
 
@@ -264,7 +285,8 @@ export function DraggableCard({
   }, [task.assignees, checklistItems]);
 
   // 드래그 중인 다른 카드가 있으면 이 카드는 pointer-events: none (이벤트가 블록으로 직접 전달됨)
-  const shouldDisablePointerEvents = state.draggedTask && state.draggedTask.id !== task.id;
+  const shouldDisablePointerEvents =
+    state.draggedTask && state.draggedTask.id !== task.id;
 
   return (
     <div
@@ -274,12 +296,12 @@ export function DraggableCard({
       draggable={!shouldDisablePointerEvents}
       className={`group relative bg-bridge-surface-hover rounded-xl border px-3 py-2.5 hover:border-bridge-secondary/40 hover:shadow-2xl hover:shadow-bridge-secondary/10 transition-all cursor-pointer overflow-hidden kanban-glow select-none ${
         isDragging || isThisCardDragging
-          ? 'opacity-30 scale-95 border-2 border-dashed border-bridge-secondary'
+          ? "opacity-30 scale-95 border-2 border-dashed border-bridge-secondary"
           : justCompleted
-            ? 'card-complete-burst border-green-500/60'
-            : 'border-bridge-border'
-      } ${task.completed && !justCompleted ? 'opacity-60' : ''} ${
-        shouldDisablePointerEvents ? 'pointer-events-none' : ''
+            ? "card-complete-burst border-green-500/60"
+            : "border-bridge-border"
+      } ${task.completed && !justCompleted ? "opacity-60" : ""} ${
+        shouldDisablePointerEvents ? "pointer-events-none" : ""
       }`}
       onMouseDown={handleMouseDown}
       onClick={handleClick}
@@ -287,11 +309,11 @@ export function DraggableCard({
       onDragEnd={handleDragEnd}
       onDragEnter={(e) => {
         e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
+        e.dataTransfer.dropEffect = "move";
       }}
       onDragOver={(e) => {
         e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
+        e.dataTransfer.dropEffect = "move";
       }}
       onDrop={(e) => {
         e.preventDefault();
@@ -305,8 +327,12 @@ export function DraggableCard({
 
       {/* 완료 체크 배지 */}
       {task.completed && (
-        <div className={`absolute top-2 right-2 ${justCompleted ? 'z-20' : ''}`}>
-          <div className={`relative w-5 h-5 rounded-full bg-green-500 flex items-center justify-center shadow-[0_0_8px_rgba(34,197,94,0.4)] ${justCompleted ? 'card-check-pop' : ''}`}>
+        <div
+          className={`absolute top-2 right-2 ${justCompleted ? "z-20" : ""}`}
+        >
+          <div
+            className={`relative w-5 h-5 rounded-full bg-green-500 flex items-center justify-center shadow-[0_0_8px_rgba(34,197,94,0.4)] ${justCompleted ? "card-check-pop" : ""}`}
+          >
             <Check className="w-3 h-3 text-white" strokeWidth={3} />
           </div>
           {justCompleted && (
@@ -321,7 +347,7 @@ export function DraggableCard({
       <div className="mb-2 pl-2.5">
         {/* Feature 표시: showFeatureLabel이면 뱃지를 윗줄에, 아니면 dot + 제목 한 줄 */}
         {linkedFeature ? (
-          (showFeatureLabel || isChecklistExpanded) ? (
+          showFeatureLabel || isChecklistExpanded ? (
             <div className="flex flex-col gap-1">
               <span
                 className="text-[9px] font-bold px-1.5 py-px rounded-full border self-start"
@@ -353,7 +379,9 @@ export function DraggableCard({
           <div className="flex items-center gap-1.5 min-w-0">
             <div
               className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-              style={{ backgroundColor: task.completed ? '#22c55e' : featureColor }}
+              style={{
+                backgroundColor: task.completed ? "#22c55e" : featureColor,
+              }}
             />
             <h4 className="font-bold text-foreground text-[13px] leading-snug group-hover:text-bridge-secondary transition-colors truncate">
               {displayTitle}
@@ -384,12 +412,25 @@ export function DraggableCard({
       {/* 마감일 표시 */}
       {task.due_date && (
         <div className="flex items-center gap-1.5 mb-2 pl-2.5">
-          <Calendar size={12} className={`${
-            isOverdue(task.due_date) ? 'text-red-400' : isDueSoon(task.due_date) ? 'text-amber-400' : 'text-amber-400'
-          }`} />
-          <span className={`text-[11px] font-bold ${
-            isOverdue(task.due_date) ? 'text-red-300' : isDueSoon(task.due_date) ? 'text-amber-300' : 'text-amber-300'
-          }`}>
+          <Calendar
+            size={12}
+            className={`${
+              isOverdue(task.due_date)
+                ? "text-red-400"
+                : isDueSoon(task.due_date)
+                  ? "text-amber-400"
+                  : "text-amber-400"
+            }`}
+          />
+          <span
+            className={`text-[11px] font-bold ${
+              isOverdue(task.due_date)
+                ? "text-red-300"
+                : isDueSoon(task.due_date)
+                  ? "text-amber-300"
+                  : "text-amber-300"
+            }`}
+          >
             {formatDueDate(task.due_date)}
           </span>
         </div>
@@ -399,7 +440,10 @@ export function DraggableCard({
       <div className="flex items-center justify-between border-t border-bridge-border pt-2 pl-2.5">
         <div className="flex items-center gap-3">
           {isScheduled && (
-            <div className="flex items-center gap-1" title={t('card.hasTimeblock', 'Timeblock scheduled')}>
+            <div
+              className="flex items-center gap-1"
+              title={t("card.hasTimeblock", "Timeblock scheduled")}
+            >
               <Clock size={11} className="text-teal-400" />
             </div>
           )}
@@ -414,15 +458,24 @@ export function DraggableCard({
                   <div
                     className="h-full bg-indigo-500 rounded-full transition-all duration-300"
                     style={{
-                      width: `${hasLoaded
-                        ? (checklistItems.length > 0 ? (completedCount / checklistItems.length) * 100 : 0)
-                        : ((task.checklist_total ?? 0) > 0 ? ((task.checklist_completed ?? 0) / (task.checklist_total ?? 0)) * 100 : 0)
-                      }%`
+                      width: `${
+                        hasLoaded
+                          ? checklistItems.length > 0
+                            ? (completedCount / checklistItems.length) * 100
+                            : 0
+                          : (task.checklist_total ?? 0) > 0
+                            ? ((task.checklist_completed ?? 0) /
+                                (task.checklist_total ?? 0)) *
+                              100
+                            : 0
+                      }%`,
                     }}
                   />
                 </div>
                 <span className="text-[10px] font-semibold text-foreground/80">
-                  {hasLoaded ? `${completedCount}/${checklistItems.length}` : `${task.checklist_completed ?? 0}/${task.checklist_total ?? 0}`}
+                  {hasLoaded
+                    ? `${completedCount}/${checklistItems.length}`
+                    : `${task.checklist_completed ?? 0}/${task.checklist_total ?? 0}`}
                 </span>
               </div>
               {isChecklistExpanded ? (
@@ -443,7 +496,10 @@ export function DraggableCard({
                   key={assignee.id}
                   className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white border-2 border-bridge-surface-hover whitespace-nowrap overflow-hidden"
                   style={{
-                    backgroundColor: getAssigneeHex(assignee.name, memberColorMap?.[assignee.id]),
+                    backgroundColor: getAssigneeHex(
+                      assignee.name,
+                      memberColorMap?.[assignee.id],
+                    ),
                     zIndex: 3 - index,
                   }}
                   title={assignee.name}
@@ -455,14 +511,19 @@ export function DraggableCard({
                 <div
                   className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold text-white bg-zinc-600 border-2 border-bridge-surface-hover"
                   style={{ zIndex: 0 }}
-                  title={allAssignees.slice(3).map(a => a.name).join(', ')}
+                  title={allAssignees
+                    .slice(3)
+                    .map((a) => a.name)
+                    .join(", ")}
                 >
                   +{allAssignees.length - 3}
                 </div>
               )}
             </div>
             {allAssignees.length === 1 && (
-              <span className="text-[10px] font-medium text-zinc-400 ml-1.5">{allAssignees[0].name}</span>
+              <span className="text-[10px] font-medium text-zinc-400 ml-1.5">
+                {allAssignees[0].name}
+              </span>
             )}
           </div>
         )}
@@ -472,7 +533,7 @@ export function DraggableCard({
       {isChecklistExpanded && hasChecklist && boardId && (
         <div className="mt-2 pt-2 border-t border-bridge-border space-y-1 pl-2.5">
           {isLoading ? (
-            <div className="text-xs text-zinc-400">{t('common.loading')}</div>
+            <div className="text-xs text-zinc-400">{t("common.loading")}</div>
           ) : (
             checklistItems
               .sort((a, b) => a.position - b.position)
@@ -485,8 +546,8 @@ export function DraggableCard({
                   <div
                     className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 border transition-colors ${
                       item.completed
-                        ? 'bg-green-500 border-green-500'
-                        : 'bg-transparent border-zinc-500 hover:border-zinc-400'
+                        ? "bg-green-500 border-green-500"
+                        : "bg-transparent border-zinc-500 hover:border-zinc-400"
                     }`}
                   >
                     {item.completed && (
@@ -505,7 +566,9 @@ export function DraggableCard({
                   </div>
                   <span
                     className={`text-xs flex-1 ${
-                      item.completed ? 'text-zinc-400 line-through' : 'text-foreground/80'
+                      item.completed
+                        ? "text-zinc-400 line-through"
+                        : "text-foreground/80"
                     }`}
                   >
                     {item.title}
@@ -513,7 +576,14 @@ export function DraggableCard({
                   {item.assignee && (
                     <div
                       className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0 border border-bridge-border whitespace-nowrap overflow-hidden"
-                      style={{ backgroundColor: getAssigneeHex(item.assignee.name, item.assignee?.id ? memberColorMap?.[item.assignee.id] : undefined) }}
+                      style={{
+                        backgroundColor: getAssigneeHex(
+                          item.assignee.name,
+                          item.assignee?.id
+                            ? memberColorMap?.[item.assignee.id]
+                            : undefined,
+                        ),
+                      }}
                       title={item.assignee.name}
                     >
                       {getInitials(item.assignee.name)}

@@ -989,12 +989,14 @@ export function KanbanBoardPage() {
     setKanbanSelectedMilestoneId(milestoneId);
     if (boardId) {
       try {
-        const saveMilestoneId = milestoneId === "all" || milestoneId === "none" ? null : milestoneId;
+        const saveMilestoneId =
+          milestoneId === "all" || milestoneId === "none" ? null : milestoneId;
         await boardService.updateSelectedMilestone(boardId, saveMilestoneId);
         setBoard((prev) =>
           prev ? { ...prev, selected_milestone_id: saveMilestoneId } : prev,
         );
-        const reloadMilestoneId = milestoneId === "all" ? undefined : milestoneId;
+        const reloadMilestoneId =
+          milestoneId === "all" ? undefined : milestoneId;
         await reloadFeaturesAndTasks(reloadMilestoneId);
       } catch (error) {
         console.error("Failed to save selected milestone:", error);
@@ -2238,81 +2240,97 @@ export function KanbanBoardPage() {
         />
 
         {/* 마일스톤 탭 바 (칸반 뷰에서만 표시) */}
-        {viewMode === "kanban" && milestones.length > 0 && (() => {
-          const allMilestoneFeatureIds = new Set(milestones.flatMap(m => m.features?.map(f => f.id) || []));
-          const hasUnassignedFeatures = allFeatures.some(f => !allMilestoneFeatureIds.has(f.id));
-          return (
-            <div className="flex items-center px-3 md:px-6 py-1.5 bg-bridge-dark border-b border-bridge-border gap-2 overflow-x-auto shrink-0">
-              <Flag size={13} className="text-bridge-secondary shrink-0" />
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => handleKanbanMilestoneSelect("all")}
-                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
-                    kanbanSelectedMilestoneId === "all"
-                      ? "bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20"
-                      : "text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover"
-                  }`}
-                >
-                  {t("common.all")}
-                </button>
-                {hasUnassignedFeatures && (
+        {viewMode === "kanban" &&
+          milestones.length > 0 &&
+          (() => {
+            const allMilestoneFeatureIds = new Set(
+              milestones.flatMap((m) => m.features?.map((f) => f.id) || []),
+            );
+            const hasUnassignedFeatures = allFeatures.some(
+              (f) => !allMilestoneFeatureIds.has(f.id),
+            );
+            return (
+              <div className="flex items-center px-3 md:px-6 py-1.5 bg-bridge-dark border-b border-bridge-border gap-2 overflow-x-auto shrink-0">
+                <Flag size={13} className="text-bridge-secondary shrink-0" />
+                <div className="flex items-center gap-1">
                   <button
-                    onClick={() => handleKanbanMilestoneSelect("none")}
+                    onClick={() => handleKanbanMilestoneSelect("all")}
                     className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
-                      kanbanSelectedMilestoneId === "none"
+                      kanbanSelectedMilestoneId === "all"
                         ? "bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20"
                         : "text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover"
                     }`}
                   >
-                    {t("kanban.unassigned", "미지정")}
+                    {t("common.all")}
                   </button>
-                )}
-                {milestones.map((milestone) => {
-                  const startDate = format(parseISO(milestone.start_date), "M/d");
-                  const endDate = format(parseISO(milestone.end_date), "M/d");
-                  return (
+                  {hasUnassignedFeatures && (
                     <button
-                      key={milestone.id}
-                      onClick={() => handleKanbanMilestoneSelect(milestone.id)}
-                      className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
-                        kanbanSelectedMilestoneId === milestone.id
+                      onClick={() => handleKanbanMilestoneSelect("none")}
+                      className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+                        kanbanSelectedMilestoneId === "none"
                           ? "bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20"
                           : "text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover"
                       }`}
                     >
-                      <span>{milestone.title}</span>
-                      <span className={`text-[10px] font-normal ${kanbanSelectedMilestoneId === milestone.id ? "text-white/70" : "text-zinc-500"}`}>
-                        {startDate} ~ {endDate}
-                      </span>
+                      {t("kanban.unassigned", "미지정")}
                     </button>
-                  );
-                })}
-              </div>
-              {kanbanSelectedMilestoneId !== "all" && kanbanSelectedMilestoneId !== "none" && (
+                  )}
+                  {milestones.map((milestone) => {
+                    const startDate = format(
+                      parseISO(milestone.start_date),
+                      "M/d",
+                    );
+                    const endDate = format(parseISO(milestone.end_date), "M/d");
+                    return (
+                      <button
+                        key={milestone.id}
+                        onClick={() =>
+                          handleKanbanMilestoneSelect(milestone.id)
+                        }
+                        className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+                          kanbanSelectedMilestoneId === milestone.id
+                            ? "bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20"
+                            : "text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover"
+                        }`}
+                      >
+                        <span>{milestone.title}</span>
+                        <span
+                          className={`text-[10px] font-normal ${kanbanSelectedMilestoneId === milestone.id ? "text-white/70" : "text-zinc-500"}`}
+                        >
+                          {startDate} ~ {endDate}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {kanbanSelectedMilestoneId !== "all" &&
+                  kanbanSelectedMilestoneId !== "none" && (
+                    <button
+                      onClick={() => {
+                        const milestone = milestones.find(
+                          (m) => m.id === kanbanSelectedMilestoneId,
+                        );
+                        if (milestone) handleOpenMilestoneWithCheck(milestone);
+                      }}
+                      className="p-1 text-zinc-400 hover:text-foreground transition-colors shrink-0"
+                      title={t("kanban.editMilestone")}
+                    >
+                      <Pencil size={13} />
+                    </button>
+                  )}
                 <button
-                  onClick={() => {
-                    const milestone = milestones.find((m) => m.id === kanbanSelectedMilestoneId);
-                    if (milestone) handleOpenMilestoneWithCheck(milestone);
-                  }}
-                  className="p-1 text-zinc-400 hover:text-foreground transition-colors shrink-0"
-                  title={t("kanban.editMilestone")}
+                  onClick={() => handleOpenMilestoneWithCheck()}
+                  className={`p-1 transition-colors shrink-0 ${
+                    !canAccessMilestone
+                      ? "text-zinc-600 hover:text-zinc-500"
+                      : "text-zinc-400 hover:text-foreground"
+                  }`}
                 >
-                  <Pencil size={13} />
+                  <Plus size={16} />
                 </button>
-              )}
-              <button
-                onClick={() => handleOpenMilestoneWithCheck()}
-                className={`p-1 transition-colors shrink-0 ${
-                  !canAccessMilestone
-                    ? "text-zinc-600 hover:text-zinc-500"
-                    : "text-zinc-400 hover:text-foreground"
-                }`}
-              >
-                <Plus size={16} />
-              </button>
-            </div>
-          );
-        })()}
+              </div>
+            );
+          })()}
 
         {/* 병합 탭 서브토글 바 */}
         {(viewMode === "schedule" ||
@@ -3098,7 +3116,10 @@ export function KanbanBoardPage() {
           onSelectMilestone={async (ms) => {
             if (ms && boardId) {
               try {
-                const detailed = await milestoneService.getMilestone(boardId, ms.id);
+                const detailed = await milestoneService.getMilestone(
+                  boardId,
+                  ms.id,
+                );
                 setSelectedMilestone(detailed);
               } catch {
                 setSelectedMilestone(ms);

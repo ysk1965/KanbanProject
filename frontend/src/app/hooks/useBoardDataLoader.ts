@@ -101,45 +101,43 @@ export function useBoardDataLoader(boardId: string | undefined) {
           assigneeColor: m.assignee_color || null,
         })));
 
+        // 마일스톤 선택 시 클라이언트 사이드 필터링 (추가 API 호출 제거)
+        let filteredFeatures = fullData.features;
         let finalTasks = fullData.tasks;
         if (fullData.selected_milestone_id) {
           setKanbanSelectedMilestoneId(fullData.selected_milestone_id);
-          const [filteredFeatures, filteredTasks] = await Promise.all([
-            featureService.getFeatures(boardId, fullData.selected_milestone_id),
-            taskService.getTasks(boardId, { milestone_id: fullData.selected_milestone_id }),
-          ]);
-          setFeatures(filteredFeatures);
-          setTasks(filteredTasks);
-          finalTasks = filteredTasks;
-        } else {
-          setFeatures(fullData.features);
-          setTasks(fullData.tasks);
+          const selectedMilestone = fullData.milestones.milestones.find(
+            (m: Milestone) => m.id === fullData.selected_milestone_id
+          );
+          if (selectedMilestone?.features) {
+            const milestoneFeatureIds = new Set(selectedMilestone.features.map((f: { id: string }) => f.id));
+            filteredFeatures = fullData.features.filter((f: Feature) => milestoneFeatureIds.has(f.id));
+            finalTasks = fullData.tasks.filter((t: Task) => milestoneFeatureIds.has(t.feature_id));
+          }
         }
-
-        // 체크리스트 배치 로드
+        // 체크리스트 배치 + 스케줄 Task ID를 먼저 로드 (카드 렌더링 전에 데이터 준비)
         const taskIdsWithChecklist = finalTasks
           .filter((t: Task) => (t.checklist_total ?? 0) > 0)
           .map((t: Task) => t.id);
 
-        if (taskIdsWithChecklist.length > 0) {
-          try {
-            const batchChecklistData = await checklistService.getBatchChecklists(boardId, taskIdsWithChecklist);
-            setChecklistDataMap(parseChecklistBatch(batchChecklistData));
-          } catch (error) {
-            console.warn('Failed to load batch checklists:', error);
-          }
-        }
+        const [batchChecklistMap, scheduledData] = await Promise.all([
+          taskIdsWithChecklist.length > 0
+            ? checklistService.getBatchChecklists(boardId, taskIdsWithChecklist)
+                .then(parseChecklistBatch)
+                .catch((error) => { console.warn('Failed to load batch checklists:', error); return {} as { [taskId: string]: ChecklistItem[] }; })
+            : Promise.resolve({} as { [taskId: string]: ChecklistItem[] }),
+          scheduleAPI.getScheduledTaskIds(boardId)
+            .catch((error) => { console.warn('Failed to load scheduled task ids:', error); return { task_ids: [] as string[] }; }),
+        ]);
 
-        // 스케줄 Task ID 로드
-        try {
-          const scheduledData = await scheduleAPI.getScheduledTaskIds(boardId);
-          setScheduledTaskIds(new Set(scheduledData.task_ids));
-        } catch (error) {
-          console.warn('Failed to load scheduled task ids:', error);
-        }
+        // 모든 데이터를 동시에 set → 카드 렌더링 시 checklistDataMap이 이미 존재
+        setFeatures(filteredFeatures);
+        setTasks(finalTasks);
+        setChecklistDataMap(batchChecklistMap);
+        setScheduledTaskIds(new Set(scheduledData.task_ids));
       } catch (error) {
         console.error('Failed to load board data:', error);
-        navigate('/boards');
+        navigate('/boards', { state: { boardLoadFailed: boardId }, replace: true });
       } finally {
         setIsLoading(false);
       }
@@ -156,30 +154,24 @@ export function useBoardDataLoader(boardId: string | undefined) {
         featureService.getFeatures(boardId, milestoneId),
         taskService.getTasks(boardId, milestoneId ? { milestone_id: milestoneId } : undefined),
       ]);
-      setFeatures(featuresData);
-      setTasks(tasksData);
-
       const taskIdsWithChecklist = tasksData
         .filter((t: Task) => (t.checklist_total ?? 0) > 0)
         .map((t: Task) => t.id);
 
-      if (taskIdsWithChecklist.length > 0) {
-        try {
-          const batchChecklistData = await checklistService.getBatchChecklists(boardId, taskIdsWithChecklist);
-          setChecklistDataMap(parseChecklistBatch(batchChecklistData));
-        } catch (error) {
-          console.warn('Failed to load batch checklists:', error);
-        }
-      } else {
-        setChecklistDataMap({});
-      }
+      const [batchChecklistMap, scheduledData] = await Promise.all([
+        taskIdsWithChecklist.length > 0
+          ? checklistService.getBatchChecklists(boardId, taskIdsWithChecklist)
+              .then(parseChecklistBatch)
+              .catch((error) => { console.warn('Failed to load batch checklists:', error); return {} as { [taskId: string]: ChecklistItem[] }; })
+          : Promise.resolve({} as { [taskId: string]: ChecklistItem[] }),
+        scheduleAPI.getScheduledTaskIds(boardId)
+          .catch((error) => { console.warn('Failed to load scheduled task ids:', error); return { task_ids: [] as string[] }; }),
+      ]);
 
-      try {
-        const scheduledData = await scheduleAPI.getScheduledTaskIds(boardId);
-        setScheduledTaskIds(new Set(scheduledData.task_ids));
-      } catch (error) {
-        console.warn('Failed to load scheduled task ids:', error);
-      }
+      setFeatures(featuresData);
+      setTasks(tasksData);
+      setChecklistDataMap(batchChecklistMap);
+      setScheduledTaskIds(new Set(scheduledData.task_ids));
     } catch (error) {
       console.error('Failed to reload features and tasks:', error);
     }
