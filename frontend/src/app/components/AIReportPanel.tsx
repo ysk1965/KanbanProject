@@ -259,7 +259,7 @@ export function AIReportPanel({ boardId, members, hideBilling }: AIReportPanelPr
           <button
             onClick={() => setShowHistory(!showHistory)}
             className="md:hidden fixed left-4 z-20 flex items-center gap-2 px-4 py-2.5 bg-bridge-obsidian border border-foreground/10 rounded-xl text-xs font-medium text-muted-foreground shadow-lg"
-            style={{ bottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
+            style={{ bottom: 'calc(5rem + env(safe-area-inset-bottom, 0px))' }}
           >
             <Clock className="h-3.5 w-3.5" />
             {t('aiReport.history')}
