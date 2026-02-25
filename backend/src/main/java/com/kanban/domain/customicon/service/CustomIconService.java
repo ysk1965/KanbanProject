@@ -40,7 +40,7 @@ public class CustomIconService {
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
-            log.error("Reference image upload failed: {}", e.getMessage(), e);
+            log.error("레퍼런스 이미지 업로드 실패: {}", e.getMessage(), e);
             throw new BusinessException(ErrorCode.CUSTOMICON_IMAGE_PROCESSING_FAILED);
         }
     }
@@ -58,24 +58,24 @@ public class CustomIconService {
      * 아이콘 생성 (프롬프트 → 스프라이트 시트 → 크롭/정규화)
      */
     public CustomIconResponse.GenerateResult generate(CustomIconRequest.Generate request) {
-        // 1. 스타일 옵션 (프론트에서 전달받은 값 사용)
+        // 1. 스타일 옵션 (프론트엔드에서 전달받은 값 사용)
         CustomIconRequest.StyleOptions opts = request.getStyleOptions();
         if (opts == null) {
             opts = new CustomIconRequest.StyleOptions();
         }
 
-        // 2. 프롬프트 생성
+        // 2. 프롬프트 구성
         String prompt = buildPrompt(request.getIconNames(), opts, request.getLayout());
 
         // 3. OpenAI Images API로 스프라이트 시트 생성
-        log.info("Generating sprite sheet with {} icons, layout: {}", request.getIconNames().size(), request.getLayout());
+        log.info("스프라이트 시트 생성 요청 - 아이콘 {}개, 레이아웃: {}", request.getIconNames().size(), request.getLayout());
         byte[] spriteSheetBytes = openAIImageService.generateSpriteSheet(prompt);
 
-        // 4. 크롭 + 정규화
+        // 4. 개별 아이콘 크롭 + 정규화 (바운딩 박스 → 풀사이즈 → 정중앙)
         CustomIconImageService.CropResult cropResult =
                 customIconImageService.cropAndNormalize(spriteSheetBytes, request.getIconNames(), request.getLayout());
 
-        // 5. 결과 변환
+        // 5. 응답 DTO 변환
         List<CustomIconResponse.IconInfo> icons = cropResult.icons().stream()
                 .map(icon -> CustomIconResponse.IconInfo.builder()
                         .name(icon.name())
@@ -97,65 +97,45 @@ public class CustomIconService {
         int cols = grid[0];
         int rows = grid[1];
 
-        // 각 아이콘의 위치를 명시적으로 지정
-        StringBuilder positionDesc = buildPositionDescription(iconNames, cols);
+        // 아이콘 목록을 Row/Column으로 명시
+        StringBuilder iconList = new StringBuilder();
+        for (int i = 0; i < iconNames.size(); i++) {
+            int row = i / cols + 1;
+            int col = i % cols + 1;
+            iconList.append(String.format("- Row %d, Col %d: \"%s\"\n", row, col, iconNames.get(i)));
+        }
 
         return String.format("""
-                Technical sprite sheet: exactly %d icons in a strict %dx%d grid on a %s background.
+                Create a sprite sheet image of exactly %d monochrome UI icons in a %dx%d grid on a %s background.
 
-                GRID LAYOUT (the image is divided into %d equal-sized cells):
+                ICONS (row, column → concept):
                 %s
 
-                Style specification:
-                - Type: %s
-                - Stroke weight: %s
-                - Corner radius: %s
+                STYLE:
+                - %s icon style, %s weight, %s corners
+                - Monochrome: black or dark gray icons only
+                - Flat 2D, minimalist, professional, consistent across all icons
 
-                CRITICAL LAYOUT RULES:
-                - The image MUST be divided into exactly %d equal-sized cells (%d columns x %d rows)
-                - Each cell occupies exactly 1/%d of the total image area
-                - Every icon MUST be perfectly centered within its cell with %.0f%% padding on all sides
-                - All %d icons MUST be the exact same size relative to their cell
-                - No icon may overlap cell boundaries
-                - No text labels, only visual icons
-                - Clean, professional, consistent icon design across all cells
+                LAYOUT RULES:
+                - Divide the image into exactly %d equal cells (%d columns, %d rows)
+                - Each icon is perfectly centered within its cell
+                - All icons are the same visual size and stroke weight
+                - Icons should fill most of their cell area
+
+                DO NOT INCLUDE ANY OF THE FOLLOWING:
+                - No grid lines, borders, dividers, or separators between cells
+                - No connectors, joints, brackets, or linking shapes between icons
+                - No frames, boxes, rounded rectangles, or containers around icons
+                - No text, labels, numbers, or letters anywhere
+                - No 3D effects, shadows, gradients, or drop shadows
+                - No decorative elements between icons — only empty space
                 """,
                 iconNames.size(), cols, rows,
                 opts.getBackground(),
-                cols * rows,
-                positionDesc.toString(),
-                opts.getType(),
-                opts.getStrokeWeight(),
-                opts.getCornerRadius(),
-                cols * rows, cols, rows,
-                cols * rows,
-                opts.getPaddingRatio() * 100,
-                iconNames.size()
+                iconList,
+                opts.getType(), opts.getStrokeWeight(), opts.getCornerRadius(),
+                cols * rows, cols, rows
         );
-    }
-
-    private StringBuilder buildPositionDescription(List<String> iconNames, int cols) {
-        StringBuilder sb = new StringBuilder();
-        String[] posLabels = {"top-left", "top-center", "top-right",
-                "middle-left", "center", "middle-right",
-                "bottom-left", "bottom-center", "bottom-right"};
-
-        // 2x2 전용 라벨
-        String[] pos2x2 = {"top-left quadrant", "top-right quadrant",
-                "bottom-left quadrant", "bottom-right quadrant"};
-
-        for (int i = 0; i < iconNames.size(); i++) {
-            String pos;
-            if (cols == 2 && i < pos2x2.length) {
-                pos = pos2x2[i];
-            } else if (i < posLabels.length) {
-                pos = posLabels[i];
-            } else {
-                pos = "cell " + (i + 1);
-            }
-            sb.append(String.format("- %s: \"%s\" icon, centered in cell\n", pos, iconNames.get(i)));
-        }
-        return sb;
     }
 
     private void validateImageFile(MultipartFile file) {

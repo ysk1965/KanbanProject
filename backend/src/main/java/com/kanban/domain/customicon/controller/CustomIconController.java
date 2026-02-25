@@ -55,7 +55,7 @@ public class CustomIconController {
     }
 
     /**
-     * 생성된 아이콘 파일 서빙 (CloudFront 미설정 시 S3 프록시)
+     * 생성된 아이콘 파일 서빙 (CloudFront 미설정 시 백엔드 프록시)
      */
     @GetMapping("/files/**")
     public ResponseEntity<byte[]> serveFile(HttpServletRequest request) {

@@ -60,12 +60,12 @@ public class CustomIconImageService {
             String referenceId = UUID.randomUUID().toString();
             String key = String.format("customicon/ref/%s.%s", referenceId, extension);
             saveFile(imageBytes, key, "image/" + extension);
-            log.info("Reference image saved: {}", key);
+            log.info("레퍼런스 이미지 저장 완료: {}", key);
             return referenceId;
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
-            log.error("Failed to save reference image: {}", e.getMessage(), e);
+            log.error("레퍼런스 이미지 저장 실패: {}", e.getMessage(), e);
             throw new BusinessException(ErrorCode.CUSTOMICON_IMAGE_PROCESSING_FAILED);
         }
     }
@@ -78,7 +78,6 @@ public class CustomIconImageService {
             String prefix = "customicon/ref/" + referenceId + ".";
 
             if (useS3()) {
-                // S3: prefix로 목록 조회
                 var response = s3Client.listObjectsV2(ListObjectsV2Request.builder()
                         .bucket(bucketName).prefix(prefix).maxKeys(1).build());
                 if (response.contents().isEmpty()) {
@@ -88,7 +87,6 @@ public class CustomIconImageService {
                 return s3Client.getObject(GetObjectRequest.builder()
                         .bucket(bucketName).key(key).build()).readAllBytes();
             } else {
-                // Local
                 Path refDir = Paths.get(localDir, "customicon/ref");
                 Path found = Files.list(refDir)
                         .filter(p -> p.getFileName().toString().startsWith(referenceId + "."))
@@ -99,7 +97,7 @@ public class CustomIconImageService {
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
-            log.error("Failed to load reference image: {}", e.getMessage());
+            log.error("레퍼런스 이미지 로드 실패: {}", e.getMessage());
             throw new BusinessException(ErrorCode.CUSTOMICON_REFERENCE_NOT_FOUND);
         }
     }
@@ -112,7 +110,7 @@ public class CustomIconImageService {
             String jobId = UUID.randomUUID().toString();
             String resultDir = String.format("customicon/result/%s", jobId);
 
-            // 스프라이트 시트 저장
+            // 원본 스프라이트 시트 저장
             String spriteKey = resultDir + "/sprite.png";
             saveFile(spriteSheetBytes, spriteKey, "image/png");
 
@@ -121,7 +119,7 @@ public class CustomIconImageService {
                 throw new BusinessException(ErrorCode.CUSTOMICON_IMAGE_PROCESSING_FAILED);
             }
 
-            // 레이아웃 파싱 (예: "4x4" → 4행 4열)
+            // 레이아웃 파싱 (예: "4x4" → 4열 4행)
             int[] grid = parseLayout(layout);
             int cols = grid[0];
             int rows = grid[1];
@@ -134,20 +132,20 @@ public class CustomIconImageService {
 
             for (int r = 0; r < rows && idx < iconNames.size(); r++) {
                 for (int c = 0; c < cols && idx < iconNames.size(); c++) {
-                    // 1차: 그리드 셀 크롭
+                    // 1단계: 그리드 셀 크롭
                     int left = c * cellW;
                     int top = r * cellH;
                     BufferedImage cell = spriteSheet.getSubimage(left, top, cellW, cellH);
 
-                    // 2차: 정규화 (바운딩 박스 → 리사이즈 → 중앙정렬)
+                    // 2단계: 정규화 (바운딩 박스 → 풀사이즈 리사이즈 → 정중앙 배치)
                     BufferedImage normalized = normalizeIcon(cell, ICON_OUTPUT_SIZE);
 
-                    // PNG 바이트로 변환
+                    // PNG 바이트 변환
                     ByteArrayOutputStream baos = new ByteArrayOutputStream();
                     ImageIO.write(normalized, "png", baos);
                     byte[] iconBytes = baos.toByteArray();
 
-                    // 저장
+                    // 개별 아이콘 저장
                     String iconFileName = String.format("icon_%02d.png", idx);
                     String iconKey = resultDir + "/" + iconFileName;
                     saveFile(iconBytes, iconKey, "image/png");
@@ -165,7 +163,7 @@ public class CustomIconImageService {
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
-            log.error("Crop and normalize failed: {}", e.getMessage(), e);
+            log.error("크롭 및 정규화 실패: {}", e.getMessage(), e);
             throw new BusinessException(ErrorCode.CUSTOMICON_IMAGE_PROCESSING_FAILED);
         }
     }
@@ -193,7 +191,7 @@ public class CustomIconImageService {
         }
     }
 
-    // ─── 스토리지 추상화 ───
+    // ─── 스토리지 계층 ───
 
     private boolean useS3() {
         return s3Enabled && s3Client != null;
@@ -217,7 +215,7 @@ public class CustomIconImageService {
                 Files.write(filePath, data);
             }
         } catch (IOException e) {
-            log.error("Failed to save file: {}", key, e);
+            log.error("파일 저장 실패: {}", key, e);
             throw new BusinessException(ErrorCode.CUSTOMICON_IMAGE_PROCESSING_FAILED);
         }
     }
@@ -227,14 +225,13 @@ public class CustomIconImageService {
             if (cloudfrontDomain != null && !cloudfrontDomain.isEmpty()) {
                 return String.format("https://%s/%s", cloudfrontDomain, key);
             }
-            // CloudFront 미설정 시 백엔드 프록시로 서빙
             return "/api/v1/customicon/files/" + key;
         }
         return "/uploads/" + key;
     }
 
     /**
-     * S3에서 파일 로드 (프록시 서빙용)
+     * 파일 로드 (S3 프록시 서빙용)
      */
     public byte[] loadFile(String key) {
         if (!key.startsWith("customicon/")) {
@@ -249,7 +246,7 @@ public class CustomIconImageService {
                 return Files.readAllBytes(filePath);
             }
         } catch (Exception e) {
-            log.error("Failed to load file: {}", key, e);
+            log.error("파일 로드 실패: {}", key, e);
             throw new BusinessException(ErrorCode.CUSTOMICON_REFERENCE_NOT_FOUND);
         }
     }
@@ -257,7 +254,7 @@ public class CustomIconImageService {
     // ─── 이미지 처리 ───
 
     /**
-     * 아이콘 정규화: 콘텐츠 바운딩 박스 → 70% 리사이즈 → 중앙 배치
+     * 아이콘 정규화: 콘텐츠 바운딩 박스 추출 → 출력 크기에 꽉 차게 리사이즈 → 정중앙 배치
      */
     private BufferedImage normalizeIcon(BufferedImage cell, int outputSize) {
         int[] bbox = findContentBounds(cell);
@@ -269,10 +266,8 @@ public class CustomIconImageService {
 
         BufferedImage content = cell.getSubimage(bx, by, bw, bh);
 
-        double targetRatio = 0.70;
-        int targetMaxDim = (int) (outputSize * targetRatio);
-
-        double scale = Math.min((double) targetMaxDim / bw, (double) targetMaxDim / bh);
+        // 콘텐츠를 출력 크기에 최대한 채움 (비율 유지)
+        double scale = Math.min((double) outputSize / bw, (double) outputSize / bh);
         int newW = Math.max(1, (int) (bw * scale));
         int newH = Math.max(1, (int) (bh * scale));
 
@@ -283,6 +278,7 @@ public class CustomIconImageService {
         g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
+        // 정중앙 배치
         int x = (outputSize - newW) / 2;
         int y = (outputSize - newH) / 2;
         g.drawImage(resized, x, y, null);

@@ -30,7 +30,7 @@ public class OpenAIImageService {
     @Value("${app.customicon.vision-model:gpt-4o}")
     private String visionModel;
 
-    @Value("${app.customicon.image-model:dall-e-3}")
+    @Value("${app.customicon.image-model:gpt-image-1}")
     private String imageModel;
 
     @Value("${app.customicon.image-size:1024x1024}")
@@ -43,7 +43,7 @@ public class OpenAIImageService {
     }
 
     /**
-     * GPT-4o Vision으로 레퍼런스 이미지 스타일 분석
+     * GPT-4o Vision으로 레퍼런스 이미지의 스타일 분석
      */
     public CustomIconResponse.StyleAnalysis analyzeStyle(String base64Image) {
         validateApiKey();
@@ -83,7 +83,7 @@ public class OpenAIImageService {
             headers.setBearerAuth(apiKey);
 
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
-            log.info("Calling OpenAI Vision API for style analysis, model: {}", visionModel);
+            log.info("OpenAI Vision API 스타일 분석 호출, 모델: {}", visionModel);
 
             ResponseEntity<Map> response = aiRestTemplate.postForEntity(OPENAI_CHAT_URL, entity, Map.class);
 
@@ -96,7 +96,7 @@ public class OpenAIImageService {
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
-            log.error("Style analysis failed: {}", e.getMessage(), e);
+            log.error("스타일 분석 실패: {}", e.getMessage(), e);
             throw new BusinessException(ErrorCode.CUSTOMICON_STYLE_ANALYSIS_FAILED);
         }
     }
@@ -124,7 +124,7 @@ public class OpenAIImageService {
             headers.setBearerAuth(apiKey);
 
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
-            log.info("Calling OpenAI Images API for sprite sheet generation, model: {}", imageModel);
+            log.info("OpenAI Images API 스프라이트 시트 생성 호출, 모델: {}", imageModel);
 
             ResponseEntity<Map> response = aiRestTemplate.postForEntity(OPENAI_IMAGES_URL, entity, Map.class);
 
@@ -137,7 +137,7 @@ public class OpenAIImageService {
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
-            log.error("Sprite sheet generation failed: {}", e.getMessage(), e);
+            log.error("스프라이트 시트 생성 실패: {}", e.getMessage(), e);
             throw new BusinessException(ErrorCode.CUSTOMICON_GENERATION_FAILED);
         }
     }
@@ -154,24 +154,24 @@ public class OpenAIImageService {
         try {
             List<Map<String, Object>> choices = (List<Map<String, Object>>) responseBody.get("choices");
             if (choices == null || choices.isEmpty()) {
-                log.error("Style analysis: no choices in response. Keys: {}", responseBody.keySet());
+                log.error("스타일 분석: 응답에 choices 없음. 키: {}", responseBody.keySet());
                 throw new BusinessException(ErrorCode.CUSTOMICON_STYLE_ANALYSIS_FAILED);
             }
 
             Map<String, Object> message = (Map<String, Object>) choices.get(0).get("message");
             if (message == null) {
-                log.error("Style analysis: message is null. Choice keys: {}", choices.get(0).keySet());
+            log.error("스타일 분석: message가 null. Choice 키: {}", choices.get(0).keySet());
                 throw new BusinessException(ErrorCode.CUSTOMICON_STYLE_ANALYSIS_FAILED);
             }
 
             Object contentObj = message.get("content");
             if (contentObj == null) {
-                // content가 null인 경우 (refusal 등) - 기본값 반환
-                log.warn("Style analysis: content is null, message keys: {}. Using defaults.", message.keySet());
+                // content가 null인 경우 (refusal 등) → 기본값 반환
+                log.warn("스타일 분석: content가 null, message 키: {}. 기본값 사용.", message.keySet());
                 return buildDefaultStyleAnalysis();
             }
 
-            // content가 String이 아닌 경우 (배열 등) 처리
+            // content가 String이 아닌 경우 (배열 형태) 처리
             if (contentObj instanceof String) {
                 rawContent = (String) contentObj;
             } else if (contentObj instanceof List) {
@@ -188,13 +188,13 @@ public class OpenAIImageService {
             }
 
             if (rawContent == null || rawContent.isBlank()) {
-                log.warn("Style analysis: empty content. Using defaults.");
+                log.warn("스타일 분석: 빈 content. 기본값 사용.");
                 return buildDefaultStyleAnalysis();
             }
 
-            log.info("Style analysis raw content: {}", rawContent);
+            log.info("스타일 분석 원본 응답: {}", rawContent);
 
-            // JSON 추출 (GPT 응답에서 순수 JSON만 추출)
+            // GPT 응답에서 순수 JSON만 추출
             String json = extractJson(rawContent);
 
             // SNAKE_CASE 전략의 영향을 받지 않는 별도 ObjectMapper 사용
@@ -213,8 +213,8 @@ public class OpenAIImageService {
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
-            log.error("Failed to parse style analysis response. rawContent=[{}], error={}", rawContent, e.getMessage(), e);
-            // 파싱 실패 시 기본값 반환 (OpenAI 응답 포맷 변동 대응)
+            log.error("스타일 분석 응답 파싱 실패. rawContent=[{}], error={}", rawContent, e.getMessage(), e);
+            // 파싱 실패 시 기본값 반환 (OpenAI 응답 형식 변동 대응)
             return buildDefaultStyleAnalysis();
         }
     }
@@ -268,17 +268,13 @@ public class OpenAIImageService {
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
-            log.error("Failed to extract image from response: {}", e.getMessage());
+            log.error("응답에서 이미지 추출 실패: {}", e.getMessage());
             throw new BusinessException(ErrorCode.CUSTOMICON_GENERATION_FAILED);
         }
     }
 
     /**
-     * GPT 응답에서 JSON 객체만 추출
-     * - ```json ... ``` 코드블록
-     * - ``` ... ``` 코드블록
-     * - 텍스트 중간에 있는 { ... } JSON
-     * - 순수 JSON 문자열
+     * GPT 응답에서 JSON 객체만 추출 (코드블록, 텍스트 내 JSON, 순수 JSON 지원)
      */
     private String extractJson(String content) {
         if (content == null || content.isBlank()) {
