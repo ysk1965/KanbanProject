@@ -291,6 +291,7 @@
   "dashboard": {
     "sidebar": {
       "allBoards": "全部看板",
+      "organizations": "組織",
       "myBoard": "我的空間",
       "settings": "設定",
       "upgradePro": "升級 Pro",
@@ -2536,6 +2537,121 @@
       "overlapWarning": "與{{count}}個日程時間衝突",
       "nextDay": "隔天",
       "prevDay": "前一天起"
+    },
+    "organization": {
+      "list": {
+        "title": "我的組織",
+        "subtitle": "您加入了{{count}}個組織",
+        "create": "建立組織"
+      },
+      "create": {
+        "title": "建立組織",
+        "name": "組織名稱",
+        "namePlaceholder": "例如 CookApps",
+        "description": "描述",
+        "descriptionPlaceholder": "組織的簡要描述"
+      },
+      "tabs": {
+        "dashboard": "儀表板",
+        "members": "成員",
+        "boards": "看板",
+        "leaves": "請假",
+        "settings": "設定"
+      },
+      "dashboard": {
+        "members": "成員",
+        "boards": "看板",
+        "todayLeaves": "今日請假",
+        "connectedBoards": "關聯看板",
+        "onLeaveToday": "今日請假人員"
+      },
+      "members": {
+        "searchPlaceholder": "依姓名或電子郵件搜尋...",
+        "allDepartments": "全部部門",
+        "allStatuses": "全部狀態",
+        "active": "在職",
+        "onLeave": "請假中",
+        "resigned": "已離職",
+        "invite": "邀請",
+        "resultCount": "找到{{count}}位成員",
+        "empty": "未找到成員",
+        "inviteTitle": "邀請成員",
+        "email": "電子郵件",
+        "role": "角色",
+        "department": "部門",
+        "jobTitle": "職稱",
+        "jobTitlePlaceholder": "例如 前端開發工程師",
+        "sendInvite": "發送邀請"
+      },
+      "boards": {
+        "title": "關聯看板",
+        "add": "新增看板",
+        "empty": "此組織尚無關聯看板",
+        "release": "從組織解除",
+        "releaseConfirm": "解除看板？",
+        "releaseWarning": "解除後，非成員可以加入此看板。重新關聯時，所有成員必須是組織成員。",
+        "releaseButton": "解除",
+        "addTitle": "新增看板至組織",
+        "noAvailable": "沒有可新增的看板",
+        "nonOrgMembers": "非組織成員",
+        "addButton": "新增看板"
+      },
+      "leave": {
+        "myBalance": "我的假期餘額",
+        "allStatuses": "全部狀態",
+        "pending": "待審核",
+        "approved": "已核准",
+        "rejected": "已拒絕",
+        "canceled": "已取消",
+        "request": "申請請假",
+        "empty": "暫無請假記錄",
+        "days": "天",
+        "fullDay": "全天",
+        "amHalf": "上午半天",
+        "pmHalf": "下午半天",
+        "approve": "核准",
+        "reject": "拒絕",
+        "cancel": "取消",
+        "requestTitle": "請假申請",
+        "leaveType": "請假類型",
+        "selectType": "選擇請假類型",
+        "durationType": "時長類型",
+        "startDate": "開始日期",
+        "endDate": "結束日期",
+        "reason": "原因（選填）",
+        "submit": "提交申請"
+      },
+      "settings": {
+        "basicInfo": "基本資訊",
+        "orgName": "組織名稱",
+        "description": "描述",
+        "departments": "部門",
+        "addDepartment": "新增部門...",
+        "jobGroups": "職位群組",
+        "addJobGroup": "新增職位群組...",
+        "leavePolicies": "請假政策",
+        "policyName": "名稱",
+        "defaultDays": "預設天數",
+        "paid": "帶薪",
+        "active": "啟用",
+        "inviteLinks": "邀請連結",
+        "generateLink": "產生連結",
+        "noLinks": "目前沒有有效的邀請連結",
+        "dangerZone": "危險操作",
+        "deleteWarning": "刪除此組織將無法復原。所有看板將被解除關聯。",
+        "typeOrgName": "輸入組織名稱以確認"
+      },
+      "invite": {
+        "invalidLink": "此邀請連結無效或已過期。",
+        "error": "邀請錯誤",
+        "accepted": "歡迎！",
+        "redirecting": "正在跳轉至組織...",
+        "members": "位成員",
+        "joining": "加入中...",
+        "join": "加入組織",
+        "loginToJoin": "登入後加入",
+        "acceptFailed": "接受邀請失敗。"
+      }
     }
   }
 }

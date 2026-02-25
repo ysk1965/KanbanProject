@@ -292,6 +292,7 @@
   "dashboard": {
     "sidebar": {
       "allBoards": "บอร์ดทั้งหมด",
+      "organizations": "องค์กร",
       "myBoard": "พื้นที่ของฉัน",
       "settings": "การตั้งค่า",
       "upgradePro": "อัปเกรดเป็น Pro",
@@ -2670,6 +2671,121 @@
       "overlapWarning": "ซ้อนทับกับ {{count}} กิจกรรม",
       "nextDay": "วันถัดไป",
       "prevDay": "จากวันก่อน"
+    },
+    "organization": {
+      "list": {
+        "title": "องค์กรของฉัน",
+        "subtitle": "คุณอยู่ใน {{count}} องค์กร",
+        "create": "สร้างองค์กร"
+      },
+      "create": {
+        "title": "สร้างองค์กร",
+        "name": "ชื่อองค์กร",
+        "namePlaceholder": "เช่น CookApps",
+        "description": "คำอธิบาย",
+        "descriptionPlaceholder": "คำอธิบายสั้นๆ เกี่ยวกับองค์กร"
+      },
+      "tabs": {
+        "dashboard": "แดชบอร์ด",
+        "members": "สมาชิก",
+        "boards": "บอร์ด",
+        "leaves": "การลา",
+        "settings": "การตั้งค่า"
+      },
+      "dashboard": {
+        "members": "สมาชิก",
+        "boards": "บอร์ด",
+        "todayLeaves": "การลาวันนี้",
+        "connectedBoards": "บอร์ดที่เชื่อมต่อ",
+        "onLeaveToday": "ลาวันนี้"
+      },
+      "members": {
+        "searchPlaceholder": "ค้นหาด้วยชื่อหรืออีเมล...",
+        "allDepartments": "ทุกแผนก",
+        "allStatuses": "ทุกสถานะ",
+        "active": "ทำงานอยู่",
+        "onLeave": "กำลังลา",
+        "resigned": "ลาออกแล้ว",
+        "invite": "เชิญ",
+        "resultCount": "พบ {{count}} สมาชิก",
+        "empty": "ไม่พบสมาชิก",
+        "inviteTitle": "เชิญสมาชิก",
+        "email": "อีเมล",
+        "role": "บทบาท",
+        "department": "แผนก",
+        "jobTitle": "ตำแหน่งงาน",
+        "jobTitlePlaceholder": "เช่น Frontend Developer",
+        "sendInvite": "ส่งคำเชิญ"
+      },
+      "boards": {
+        "title": "บอร์ดที่เชื่อมต่อ",
+        "add": "เพิ่มบอร์ด",
+        "empty": "ยังไม่มีบอร์ดที่เชื่อมต่อกับองค์กรนี้",
+        "release": "ปลดจากองค์กร",
+        "releaseConfirm": "ปลดบอร์ด?",
+        "releaseWarning": "หลังจากปลด ผู้ที่ไม่ใช่สมาชิกสามารถเข้าร่วมบอร์ดนี้ได้ หากต้องการเชื่อมต่อใหม่ สมาชิกทุกคนต้องเป็นสมาชิกองค์กร",
+        "releaseButton": "ปลด",
+        "addTitle": "เพิ่มบอร์ดในองค์กร",
+        "noAvailable": "ไม่มีบอร์ดที่สามารถเพิ่มได้",
+        "nonOrgMembers": "สมาชิกนอกองค์กร",
+        "addButton": "เพิ่มบอร์ด"
+      },
+      "leave": {
+        "myBalance": "วันลาคงเหลือ",
+        "allStatuses": "ทุกสถานะ",
+        "pending": "รอดำเนินการ",
+        "approved": "อนุมัติแล้ว",
+        "rejected": "ถูกปฏิเสธ",
+        "canceled": "ยกเลิกแล้ว",
+        "request": "ขอลา",
+        "empty": "ไม่มีคำขอลา",
+        "days": " วัน",
+        "fullDay": "เต็มวัน",
+        "amHalf": "ครึ่งวันเช้า",
+        "pmHalf": "ครึ่งวันบ่าย",
+        "approve": "อนุมัติ",
+        "reject": "ปฏิเสธ",
+        "cancel": "ยกเลิก",
+        "requestTitle": "คำขอลา",
+        "leaveType": "ประเภทการลา",
+        "selectType": "เลือกประเภทการลา",
+        "durationType": "ประเภทระยะเวลา",
+        "startDate": "วันที่เริ่มต้น",
+        "endDate": "วันที่สิ้นสุด",
+        "reason": "เหตุผล (ไม่บังคับ)",
+        "submit": "ส่งคำขอ"
+      },
+      "settings": {
+        "basicInfo": "ข้อมูลพื้นฐาน",
+        "orgName": "ชื่อองค์กร",
+        "description": "คำอธิบาย",
+        "departments": "แผนก",
+        "addDepartment": "เพิ่มแผนก...",
+        "jobGroups": "กลุ่มตำแหน่งงาน",
+        "addJobGroup": "เพิ่มกลุ่มตำแหน่งงาน...",
+        "leavePolicies": "นโยบายการลา",
+        "policyName": "ชื่อ",
+        "defaultDays": "จำนวนวันเริ่มต้น",
+        "paid": "มีเงินเดือน",
+        "active": "เปิดใช้งาน",
+        "inviteLinks": "ลิงก์เชิญ",
+        "generateLink": "สร้างลิงก์",
+        "noLinks": "ยังไม่มีลิงก์เชิญที่ใช้งานได้",
+        "dangerZone": "โซนอันตราย",
+        "deleteWarning": "การลบองค์กรนี้ไม่สามารถยกเลิกได้ บอร์ดทั้งหมดจะถูกปลด",
+        "typeOrgName": "พิมพ์ชื่อองค์กรเพื่อยืนยัน"
+      },
+      "invite": {
+        "invalidLink": "ลิงก์เชิญนี้ไม่ถูกต้องหรือหมดอายุแล้ว",
+        "error": "ข้อผิดพลาดในการเชิญ",
+        "accepted": "ยินดีต้อนรับ!",
+        "redirecting": "กำลังเปลี่ยนเส้นทางไปยังองค์กร...",
+        "members": "สมาชิก",
+        "joining": "กำลังเข้าร่วม...",
+        "join": "เข้าร่วมองค์กร",
+        "loginToJoin": "เข้าสู่ระบบเพื่อเข้าร่วม",
+        "acceptFailed": "ไม่สามารถตอบรับคำเชิญได้"
+      }
     }
   }
 }

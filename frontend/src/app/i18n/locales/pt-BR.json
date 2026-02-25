@@ -292,6 +292,7 @@
   "dashboard": {
     "sidebar": {
       "allBoards": "Todos os Boards",
+      "organizations": "Organizações",
       "myBoard": "Meu Espaço",
       "settings": "Configurações",
       "upgradePro": "Upgrade Pro",
@@ -2670,6 +2671,121 @@
       "overlapWarning": "Sobrepõe {{count}} evento(s)",
       "nextDay": "dia seguinte",
       "prevDay": "do dia anterior"
+    },
+    "organization": {
+      "list": {
+        "title": "Minhas organizações",
+        "subtitle": "Você faz parte de {{count}} organizações",
+        "create": "Criar organização"
+      },
+      "create": {
+        "title": "Criar organização",
+        "name": "Nome da organização",
+        "namePlaceholder": "Ex.: CookApps",
+        "description": "Descrição",
+        "descriptionPlaceholder": "Breve descrição da organização"
+      },
+      "tabs": {
+        "dashboard": "Painel",
+        "members": "Membros",
+        "boards": "Boards",
+        "leaves": "Licenças",
+        "settings": "Configurações"
+      },
+      "dashboard": {
+        "members": "Membros",
+        "boards": "Boards",
+        "todayLeaves": "Licenças de hoje",
+        "connectedBoards": "Boards conectados",
+        "onLeaveToday": "De licença hoje"
+      },
+      "members": {
+        "searchPlaceholder": "Buscar por nome ou e-mail...",
+        "allDepartments": "Todos os departamentos",
+        "allStatuses": "Todos os status",
+        "active": "Ativo",
+        "onLeave": "De licença",
+        "resigned": "Desligado",
+        "invite": "Convidar",
+        "resultCount": "{{count}} membros encontrados",
+        "empty": "Nenhum membro encontrado",
+        "inviteTitle": "Convidar membro",
+        "email": "E-mail",
+        "role": "Função",
+        "department": "Departamento",
+        "jobTitle": "Cargo",
+        "jobTitlePlaceholder": "Ex.: Desenvolvedor Frontend",
+        "sendInvite": "Enviar convite"
+      },
+      "boards": {
+        "title": "Boards conectados",
+        "add": "Adicionar board",
+        "empty": "Nenhum board vinculado a esta organização",
+        "release": "Desvincular da organização",
+        "releaseConfirm": "Desvincular board?",
+        "releaseWarning": "Após desvincular, não-membros poderão entrar neste board. Para revincular, todos os membros devem ser membros da organização.",
+        "releaseButton": "Desvincular",
+        "addTitle": "Adicionar board à organização",
+        "noAvailable": "Nenhum board disponível para adicionar",
+        "nonOrgMembers": "Membros fora da organização",
+        "addButton": "Adicionar board"
+      },
+      "leave": {
+        "myBalance": "Meu saldo de licenças",
+        "allStatuses": "Todos os status",
+        "pending": "Pendente",
+        "approved": "Aprovado",
+        "rejected": "Rejeitado",
+        "canceled": "Cancelado",
+        "request": "Solicitar licença",
+        "empty": "Nenhuma solicitação de licença",
+        "days": " dias",
+        "fullDay": "Dia inteiro",
+        "amHalf": "Meio período (manhã)",
+        "pmHalf": "Meio período (tarde)",
+        "approve": "Aprovar",
+        "reject": "Rejeitar",
+        "cancel": "Cancelar",
+        "requestTitle": "Solicitar licença",
+        "leaveType": "Tipo de licença",
+        "selectType": "Selecionar tipo de licença",
+        "durationType": "Tipo de duração",
+        "startDate": "Data de início",
+        "endDate": "Data de término",
+        "reason": "Motivo (Opcional)",
+        "submit": "Enviar solicitação"
+      },
+      "settings": {
+        "basicInfo": "Informações básicas",
+        "orgName": "Nome da organização",
+        "description": "Descrição",
+        "departments": "Departamentos",
+        "addDepartment": "Adicionar departamento...",
+        "jobGroups": "Grupos de cargo",
+        "addJobGroup": "Adicionar grupo de cargo...",
+        "leavePolicies": "Políticas de licença",
+        "policyName": "Nome",
+        "defaultDays": "Dias padrão",
+        "paid": "Remunerado",
+        "active": "Ativo",
+        "inviteLinks": "Links de convite",
+        "generateLink": "Gerar link",
+        "noLinks": "Nenhum link de convite ativo",
+        "dangerZone": "Zona de perigo",
+        "deleteWarning": "A exclusão desta organização não pode ser desfeita. Todos os boards serão desvinculados.",
+        "typeOrgName": "Digite o nome da organização para confirmar"
+      },
+      "invite": {
+        "invalidLink": "Este link de convite é inválido ou expirou.",
+        "error": "Erro no convite",
+        "accepted": "Bem-vindo!",
+        "redirecting": "Redirecionando para a organização...",
+        "members": "membros",
+        "joining": "Entrando...",
+        "join": "Entrar na organização",
+        "loginToJoin": "Faça login para entrar",
+        "acceptFailed": "Falha ao aceitar o convite."
+      }
     }
   }
 }

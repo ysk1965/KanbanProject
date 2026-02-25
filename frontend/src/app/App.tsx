@@ -27,6 +27,9 @@ import { SharedNotePage } from './pages/SharedNotePage';
 import BibleTranscriptionPage from './pages/BibleTranscriptionPage';
 import RoulettePage from './pages/RoulettePage';
 import { CustomIconPage } from './pages/CustomIconPage';
+import { OrganizationPage } from './pages/OrganizationPage';
+import { OrganizationDetailPage } from './pages/OrganizationDetailPage';
+import { OrgInviteAcceptPage } from './pages/OrgInviteAcceptPage';
 import { AnnouncementDisplay } from './components/AnnouncementDisplay';
 import { MaintenancePage } from './components/MaintenancePage';
 import { boardService, inviteLinkService, systemService } from './utils/services';
@@ -500,6 +503,27 @@ function AppRoutes() {
           </PrivateRoute>
         }
       />
+
+      {/* 조직 */}
+      <Route
+        path="/organizations"
+        element={
+          <PrivateRoute>
+            <OrganizationPage />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/organizations/:orgId"
+        element={
+          <PrivateRoute>
+            <OrganizationDetailPage />
+          </PrivateRoute>
+        }
+      />
+
+      {/* 조직 초대 링크 */}
+      <Route path="/org-invite/:code" element={<OrgInviteAcceptPage />} />
 
       {/* 초대 링크 */}
       <Route path="/invite/:code" element={<InviteRoute />} />

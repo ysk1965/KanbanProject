@@ -292,6 +292,7 @@
   "dashboard": {
     "sidebar": {
       "allBoards": "Tat ca cac bang",
+      "organizations": "Tổ chức",
       "myBoard": "Không gian của tôi",
       "settings": "Cai dat",
       "upgradePro": "Nang cap Pro",
@@ -2670,6 +2671,121 @@
       "overlapWarning": "Trùng lịch với {{count}} sự kiện",
       "nextDay": "ngày hôm sau",
       "prevDay": "từ hôm trước"
+    },
+    "organization": {
+      "list": {
+        "title": "Tổ chức của tôi",
+        "subtitle": "Bạn thuộc {{count}} tổ chức",
+        "create": "Tạo tổ chức"
+      },
+      "create": {
+        "title": "Tạo tổ chức",
+        "name": "Tên tổ chức",
+        "namePlaceholder": "Ví dụ: CookApps",
+        "description": "Mô tả",
+        "descriptionPlaceholder": "Mô tả ngắn gọn về tổ chức"
+      },
+      "tabs": {
+        "dashboard": "Bảng điều khiển",
+        "members": "Thành viên",
+        "boards": "Bảng",
+        "leaves": "Nghỉ phép",
+        "settings": "Cài đặt"
+      },
+      "dashboard": {
+        "members": "Thành viên",
+        "boards": "Bảng",
+        "todayLeaves": "Nghỉ phép hôm nay",
+        "connectedBoards": "Bảng đã liên kết",
+        "onLeaveToday": "Nghỉ phép hôm nay"
+      },
+      "members": {
+        "searchPlaceholder": "Tìm theo tên hoặc email...",
+        "allDepartments": "Tất cả phòng ban",
+        "allStatuses": "Tất cả trạng thái",
+        "active": "Đang làm việc",
+        "onLeave": "Đang nghỉ phép",
+        "resigned": "Đã nghỉ việc",
+        "invite": "Mời",
+        "resultCount": "Tìm thấy {{count}} thành viên",
+        "empty": "Không tìm thấy thành viên",
+        "inviteTitle": "Mời thành viên",
+        "email": "Email",
+        "role": "Vai trò",
+        "department": "Phòng ban",
+        "jobTitle": "Chức danh",
+        "jobTitlePlaceholder": "Ví dụ: Lập trình viên Frontend",
+        "sendInvite": "Gửi lời mời"
+      },
+      "boards": {
+        "title": "Bảng đã liên kết",
+        "add": "Thêm bảng",
+        "empty": "Chưa có bảng nào liên kết với tổ chức này",
+        "release": "Gỡ khỏi tổ chức",
+        "releaseConfirm": "Gỡ bảng?",
+        "releaseWarning": "Sau khi gỡ, người không phải thành viên có thể tham gia bảng này. Để liên kết lại, tất cả thành viên phải là thành viên tổ chức.",
+        "releaseButton": "Gỡ",
+        "addTitle": "Thêm bảng vào tổ chức",
+        "noAvailable": "Không có bảng nào khả dụng để thêm",
+        "nonOrgMembers": "Thành viên ngoài tổ chức",
+        "addButton": "Thêm bảng"
+      },
+      "leave": {
+        "myBalance": "Số ngày phép còn lại",
+        "allStatuses": "Tất cả trạng thái",
+        "pending": "Đang chờ",
+        "approved": "Đã duyệt",
+        "rejected": "Đã từ chối",
+        "canceled": "Đã hủy",
+        "request": "Yêu cầu nghỉ phép",
+        "empty": "Chưa có yêu cầu nghỉ phép",
+        "days": " ngày",
+        "fullDay": "Cả ngày",
+        "amHalf": "Nửa ngày sáng",
+        "pmHalf": "Nửa ngày chiều",
+        "approve": "Duyệt",
+        "reject": "Từ chối",
+        "cancel": "Hủy",
+        "requestTitle": "Yêu cầu nghỉ phép",
+        "leaveType": "Loại nghỉ phép",
+        "selectType": "Chọn loại nghỉ phép",
+        "durationType": "Loại thời gian",
+        "startDate": "Ngày bắt đầu",
+        "endDate": "Ngày kết thúc",
+        "reason": "Lý do (Tùy chọn)",
+        "submit": "Gửi yêu cầu"
+      },
+      "settings": {
+        "basicInfo": "Thông tin cơ bản",
+        "orgName": "Tên tổ chức",
+        "description": "Mô tả",
+        "departments": "Phòng ban",
+        "addDepartment": "Thêm phòng ban...",
+        "jobGroups": "Nhóm chức danh",
+        "addJobGroup": "Thêm nhóm chức danh...",
+        "leavePolicies": "Chính sách nghỉ phép",
+        "policyName": "Tên",
+        "defaultDays": "Số ngày mặc định",
+        "paid": "Có lương",
+        "active": "Kích hoạt",
+        "inviteLinks": "Liên kết mời",
+        "generateLink": "Tạo liên kết",
+        "noLinks": "Chưa có liên kết mời nào đang hoạt động",
+        "dangerZone": "Vùng nguy hiểm",
+        "deleteWarning": "Xóa tổ chức này không thể hoàn tác. Tất cả các bảng sẽ bị gỡ liên kết.",
+        "typeOrgName": "Nhập tên tổ chức để xác nhận"
+      },
+      "invite": {
+        "invalidLink": "Liên kết mời này không hợp lệ hoặc đã hết hạn.",
+        "error": "Lỗi lời mời",
+        "accepted": "Chào mừng!",
+        "redirecting": "Đang chuyển hướng đến tổ chức...",
+        "members": "thành viên",
+        "joining": "Đang tham gia...",
+        "join": "Tham gia tổ chức",
+        "loginToJoin": "Đăng nhập để tham gia",
+        "acceptFailed": "Không thể chấp nhận lời mời."
+      }
     }
   }
 }

@@ -98,6 +98,12 @@ public interface BoardRepository extends JpaRepository<Board, String> {
     long countByBoardType(@Param("boardType") BoardType boardType);
 
     /**
+     * 조직 소속 보드 조회
+     */
+    @Query("SELECT b FROM Board b WHERE b.organization.id = :orgId AND b.deletedAt IS NULL")
+    List<Board> findByOrganizationId(@Param("orgId") String orgId);
+
+    /**
      * 스케줄러용: 7일 이상 지난 소프트 삭제 보드 조회
      */
     @Query("SELECT b FROM Board b WHERE b.deletedAt IS NOT NULL AND b.deletedAt < :cutoff")

@@ -1,6 +1,6 @@
 # Organization Service - Core Flows
 
-> **Version**: v1.0.0 | **Date**: 2026-02-25
+> **Version**: v1.1.0 | **Date**: 2026-02-25
 
 ---
 
@@ -19,7 +19,9 @@
                      ▼               ▼               ▼
               Organization 생성  OrgMember 생성   기본 휴가정책 4개
               (owner = 요청자)  (role = OWNER)    (연차/병가/리프레시/기타)
-                                     │
+                                     │               │
+                                     │        각 정책에 대해 Owner의
+                                     │        leave_balance 생성
                                      ▼
                           조직 상세 페이지로 이동
 ```
@@ -46,8 +48,9 @@
                     OrganizationMember   InviteLink 생성
                     직접 추가            (1회용, 7일 만료)
                            │                    │
-                           │              이메일 발송
-                           │             "CookApps에서 초대"
+                    각 활성 정책에 대해     이메일 발송
+                    leave_balance 생성    "CookApps에서 초대"
+                           │                    │
                            ▼                    │
                     즉시 멤버 됨         ▼ [수신자 클릭]
                                               │
@@ -58,6 +61,7 @@
                                      POST /org-invites/{code}/accept
                                               │
                                      OrganizationMember 생성
+                                     + leave_balance 자동 생성
 ```
 
 ### 2.2 링크 초대
@@ -89,7 +93,7 @@
                               │            │
                               ▼ PASS       ▼ FAIL
                         OrganizationMember  에러 메시지
-                        생성                표시
+                        생성 + balance 생성 표시
                         usedCount++
 ```
 
@@ -114,7 +118,7 @@
                                      │
                               ┌──── 결과 표시 ────┐
                               ▼                   ▼
-                        ✅ 전원 조직원         ⚠️ 비조직원 존재
+                        ✅ 전원 조직원         ⚠ 비조직원 존재
                         [편입 →] 활성화        [편입 불가] 비활성화
                               │                   │
                               │            비조직원 목록 표시
@@ -142,7 +146,8 @@
 [OrgAdmin] ── 보드 방출 (✕) ──→ 확인 다이얼로그
                                     "이 보드를 조직에서 방출하시겠습니까?"
                                     "보드 데이터는 유지됩니다."
-                                    "⚠️ 방출 후 비조직원도 이 보드에 참여할 수 있습니다."
+                                    "⚠ 방출 후 비조직원도 이 보드에 참여할 수 있습니다."
+                                    "⚠ 재편입 시 모든 멤버가 조직원이어야 합니다."
                                          │
                                     [방출 확인]
                                          │
@@ -221,7 +226,7 @@
              │
              ▼
         ┌──────────┐
-        │ CANCELED │ (승인 후 취소 가능)
+        │ CANCELED │ (승인 후 취소 가능, end_date >= 오늘인 경우만)
         │ (잔여복원)│
         └──────────┘
 ```
@@ -242,32 +247,39 @@
 [멤버] ── 휴가 신청 ──→ [LeaveRequestModal]
                               │
                               ▼
-                    ┌─ 입력 항목 ─────────────┐
-                    │ 1. 휴가 유형 (select)    │
-                    │ 2. 기간 유형 (radio)      │
-                    │    전일 / 오전반차 / 오후반차│
-                    │ 3. 시작일 (date picker)   │
-                    │ 4. 종료일 (date picker)   │
-                    │ 5. 사유 (textarea)        │
-                    └──────────────────────────┘
+                    ┌─ 입력 항목 ─────────────────┐
+                    │ 1. 휴가 유형 (select)        │
+                    │ 2. 기간 유형 (radio)          │
+                    │    전일 / 오전반차 / 오후반차   │
+                    │    ⚠ 반차 선택 시 종료일 비활성 │
+                    │ 3. 시작일 (date picker)       │
+                    │ 4. 종료일 (date picker)       │
+                    │    반차: 시작일 자동 복사      │
+                    │ 5. 사유 (textarea)            │
+                    └──────────────────────────────┘
                               │
                        total_days 자동 계산
+                       (캘린더 일수 기준, 주말/공휴일 포함)
                        잔여 표시: "16일 → 15일"
                               │
                          [신청하기]
                               │
                   POST /organizations/{orgId}/leave-requests
                               │
-                    ┌─── 검증 ───────────────┐
-                    │ 잔여 >= total_days?     │
-                    │ 중복 기간 없음?          │
-                    │ 정책 활성 상태?          │
-                    └─────────┬───────────────┘
+                    ┌─── 검증 ────────────────────┐
+                    │ 반차 단일일 검증?              │
+                    │   AM/PM_HALF && start != end  │
+                    │   → 400 HALF_DAY_SINGLE_DATE  │
+                    │ 정책 활성 상태?                │
+                    │ 잔여 >= total_days?           │
+                    │ 중복 기간 없음?                │
+                    │   (AM+PM 조합은 허용)         │
+                    └─────────┬────────────────────┘
                               │
                       ┌───── PASS ─────┐
                       ▼                ▼ FAIL
                 LeaveRequest 생성    에러 메시지
-                status = PENDING     ("잔여 휴가 부족")
+                status = PENDING     ("잔여 휴가 부족" 등)
                       │
                       ▼
                 목록에 PENDING 표시
@@ -311,25 +323,62 @@
 ```java
 public BigDecimal calculateTotalDays(LocalDate startDate, LocalDate endDate,
                                       LeaveDurationType durationType) {
+    // 반차 단일일 검증
+    if (durationType != LeaveDurationType.FULL_DAY && !startDate.equals(endDate)) {
+        throw new BusinessException(ErrorCode.HALF_DAY_SINGLE_DATE_ONLY);
+    }
+
     long daysBetween = ChronoUnit.DAYS.between(startDate, endDate) + 1;
 
+    // Phase 1: 캘린더 일수 기준 (주말/공휴일 포함)
     switch (durationType) {
         case FULL_DAY:
             return BigDecimal.valueOf(daysBetween);
         case AM_HALF:
         case PM_HALF:
-            return BigDecimal.valueOf(daysBetween).multiply(BigDecimal.valueOf(0.5));
+            return BigDecimal.valueOf(0.5); // 반차는 항상 0.5일 (단일일이므로)
     }
 }
 ```
 
 **예시:**
-| 시작일 | 종료일 | 유형 | total_days |
-|--------|--------|------|-----------|
-| 03-01 | 03-01 | FULL_DAY | 1.0 |
-| 03-01 | 03-03 | FULL_DAY | 3.0 |
-| 03-01 | 03-01 | AM_HALF | 0.5 |
-| 03-01 | 03-02 | PM_HALF | 1.0 |
+| 시작일 | 종료일 | 유형 | total_days | 비고 |
+|--------|--------|------|-----------|------|
+| 03-01 | 03-01 | FULL_DAY | 1.0 | |
+| 03-01 | 03-03 | FULL_DAY | 3.0 | 주말 포함 시 3일 |
+| 03-01 | 03-01 | AM_HALF | 0.5 | |
+| 03-01 | 03-01 | PM_HALF | 0.5 | |
+| 03-01 | 03-02 | AM_HALF | ❌ | `HALF_DAY_SINGLE_DATE_ONLY` |
+
+### 4.5 중복 기간 검증 로직
+
+```java
+public void validateNoConflict(String orgId, String requesterId,
+                                LocalDate startDate, LocalDate endDate,
+                                LeaveDurationType durationType) {
+    // 같은 기간에 PENDING 또는 APPROVED 상태 휴가 조회
+    List<LeaveRequest> existing = leaveRequestRepository
+        .findOverlapping(orgId, requesterId, startDate, endDate,
+                         List.of(LeaveStatus.PENDING, LeaveStatus.APPROVED));
+
+    for (LeaveRequest req : existing) {
+        // FULL_DAY 기존 요청 → 무조건 충돌
+        if (req.getDurationType() == LeaveDurationType.FULL_DAY) {
+            throw new BusinessException(ErrorCode.LEAVE_DATE_CONFLICT);
+        }
+        // 같은 duration_type 중복 → 충돌
+        if (req.getDurationType() == durationType) {
+            throw new BusinessException(ErrorCode.LEAVE_DATE_CONFLICT);
+        }
+        // AM_HALF + PM_HALF 조합 → 허용 (통과)
+    }
+
+    // 신규가 FULL_DAY이고 기존에 반차 있으면 → 충돌
+    if (durationType == LeaveDurationType.FULL_DAY && !existing.isEmpty()) {
+        throw new BusinessException(ErrorCode.LEAVE_DATE_CONFLICT);
+    }
+}
+```
 
 ---
 
@@ -347,7 +396,7 @@ public BigDecimal calculateTotalDays(LocalDate startDate, LocalDate endDate,
                                       │
                               ┌── YES ──┴── NO ──┐
                               ▼                  ▼
-                        ⚠️ 차단               영향 범위 조회
+                        ⚠ 차단               영향 범위 조회
                         "다음 보드의 소유권을         │
                          먼저 이양하세요:         조직 보드 목록 조회
                          • Board1               (board_members bm
@@ -379,8 +428,7 @@ public BigDecimal calculateTotalDays(LocalDate startDate, LocalDate endDate,
                           └────────────────────────────────────────┘
                                   │
                                   ▼
-                          응답: { removed_member, cascade_removed_from_boards,
-                                  canceled_leave_requests }
+                          응답: { removed_member, cascade_removed_from_boards }
 ```
 
 **구현 주의사항:**
@@ -427,6 +475,9 @@ public BigDecimal calculateTotalDays(LocalDate startDate, LocalDate endDate,
                     │ hire_date                  │
                     │ phone, birth_date, bio     │
                     └────────────────────────────┘
+                                     │
+                    work_status → RESIGNED 변경 시
+                    해당 멤버의 PENDING 휴가 → CANCELED
 ```
 
 ---
@@ -450,8 +501,10 @@ public BigDecimal calculateTotalDays(LocalDate startDate, LocalDate endDate,
                     │ 1. boards.organization_id = NULL (방출)     │
                     │ 2. invite_links.is_active = false (비활성화)  │
                     │ 3. leave_requests (PENDING) → CANCELED       │
-                    │ 4. org.softDelete() (deleted_at 설정)        │
-                    │ ⚠️ Soft Delete이므로 ON DELETE CASCADE 미발동  │
+                    │ 4. leave_requests (APPROVED, end_date >= today) │
+                    │    → CANCELED + leave_balances.used_days 복원  │
+                    │ 5. org.softDelete() (deleted_at 설정)        │
+                    │ ⚠ Soft Delete이므로 ON DELETE CASCADE 미발동   │
                     │ 멤버/정책/잔여는 org.deleted_at으로 논리적 삭제 │
                     └─────────────────────────────────────────────┘
                                  │
@@ -460,41 +513,7 @@ public BigDecimal calculateTotalDays(LocalDate startDate, LocalDate endDate,
 
 ---
 
-## 8. 사용자 계정 비활성화 시 조직 연쇄 처리
-
-> **기존 UserService 수정**: 계정 비활성화 시 소유 조직 검증 + 소속 조직 자동 탈퇴
-
-```
-[사용자] ── 계정 비활성화 ──→ UserService.deactivate()
-                                     │
-                          ┌──── 소유 조직 검증 ────┐
-                          │ organizations WHERE     │
-                          │ owner_id = userId       │
-                          │ AND deleted_at IS NULL   │
-                          └───────────┬─────────────┘
-                                      │
-                              ┌── 존재 ──┴── 없음 ──┐
-                              ▼                     ▼
-                        ⚠️ 차단                소속 조직 자동 탈퇴
-                        "N개 조직의 소유권을          │
-                         먼저 이양하세요:         ┌─── 각 소속 조직 ───┐
-                         • CookApps             │ R3 연쇄 적용:       │
-                         • Side Project"        │ 1. 보드 Owner 검증   │
-                                                │ 2. PENDING 휴가 취소 │
-                                                │ 3. 조직 보드에서 제거 │
-                                                │ 4. OrgMember 삭제   │
-                                                └──────────────────┘
-                                                         │
-                                                         ▼
-                                                user.isActive = false
-                                                user.deactivatedAt = now
-```
-
-**구현 위치**: `UserService.deactivateAccount()` 또는 별도 `UserDeactivationHandler`
-
----
-
-## 9. 멤버 합류 시 초기 설정 플로우
+## 8. 멤버 합류 시 초기 설정 플로우
 
 ```
 [새 멤버 합류] (초대 수락 또는 직접 추가)
@@ -527,15 +546,15 @@ BigDecimal prorated = defaultDays
 
 ---
 
-## 10. 연간 휴가 리셋 플로우
+## 9. 연간 휴가 리셋 플로우
 
 ```
 [Scheduler] ── 매년 1월 1일 00:00 UTC ──→ 전 조직 대상 리셋
                                               │
-                           ┌─── 각 Organization ───┐
-                           │ 각 활성 멤버 대상       │
-                           │ 각 활성 정책 대상       │
-                           └───────┬───────────────┘
+                           ┌─── 각 Organization (deleted_at IS NULL) ───┐
+                           │ 각 활성 멤버 대상 (ACTIVE + ON_LEAVE)       │
+                           │ 각 활성 정책 대상                           │
+                           └───────┬──────────────────────────────────┘
                                    │
                            ┌─ 리셋 로직 ─────────────┐
                            │ 1. 신규 year의 balance 생성 │
@@ -545,9 +564,95 @@ BigDecimal prorated = defaultDays
                            └───────────────────────────┘
 ```
 
+> **RESIGNED 멤버 제외**: 연간 리셋 대상은 `work_status IN (ACTIVE, ON_LEAVE)` 멤버만.
+
 ---
 
-## 11. Frontend 라우팅 통합
+## 10. 소유권 이양 플로우
+
+```
+[OrgOwner] ── 조직 설정 ──→ 소유권 이양 섹션
+                                     │
+                              [소유권 이양 버튼]
+                                     │
+                              [M-07 모달 표시]
+                                     │
+                          ┌─ 이양 대상 선택 (조직 멤버 목록) ─┐
+                          │ ( ) 김준영 (Admin)                │
+                          │ ( ) 오윤정 (Member)               │
+                          └────────────┬──────────────────────┘
+                                       │
+                               [소유권 이양 확인]
+                                       │
+                          PUT /organizations/{orgId}/transfer-ownership
+                                       │
+                          ┌──── 처리 순서 (@Transactional) ────┐
+                          │ 1. 대상 멤버 조직원 검증             │
+                          │ 2. organizations.owner_id 변경      │
+                          │ 3. 기존 Owner → OrgRole.ADMIN       │
+                          │ 4. 대상 멤버 → OrgRole.OWNER        │
+                          └────────────────────────────────────┘
+                                       │
+                                       ▼
+                          "소유권이 김준영님에게 이양되었습니다."
+                          본인 역할: Owner → Admin
+```
+
+---
+
+## 11. 휴가 정책 생성 플로우 (기존 멤버 Balance 자동 생성)
+
+```
+[OrgAdmin] ── 조직 설정 ──→ 휴가 정책 섹션
+                                     │
+                          [+ 휴가 유형 추가]
+                                     │
+                          ┌─ 입력 항목 ──────────┐
+                          │ 이름: 장기근속 휴가    │
+                          │ 카테고리: OTHER        │
+                          │ 기본 부여일: 3일       │
+                          │ 유급: true            │
+                          │ 승인 필요: true        │
+                          └──────────┬────────────┘
+                                     │
+                    POST /organizations/{orgId}/leave-policies
+                                     │
+                    ┌──── 처리 순서 (@Transactional) ────┐
+                    │ 1. leave_policies INSERT           │
+                    │ 2. 활성 멤버 전원 조회               │
+                    │    (work_status IN (ACTIVE, ON_LEAVE)) │
+                    │ 3. 각 멤버에 대해 leave_balance 생성  │
+                    │    total_days = 3.0                │
+                    │    used_days = 0                   │
+                    │    year = 현재연도                  │
+                    └────────────────────────────────────┘
+                                     │
+                          정책 목록에 표시
+```
+
+---
+
+## 12. 휴가 정책 비활성화 플로우
+
+```
+[OrgAdmin] ── 조직 설정 ──→ 휴가 정책 수정
+                                     │
+                          is_active: true → false 변경
+                                     │
+                    PUT /organizations/{orgId}/leave-policies/{id}
+                                     │
+                    ┌──── 처리 순서 (@Transactional) ────┐
+                    │ 1. policy.is_active = false         │
+                    │ 2. 해당 정책의 PENDING 요청 조회     │
+                    │ 3. 전부 CANCELED 처리               │
+                    │    (잔여 변동 없음 - PENDING이므로)   │
+                    │ 4. 기존 APPROVED 요청은 유지         │
+                    └────────────────────────────────────┘
+```
+
+---
+
+## 13. Frontend 라우팅 통합
 
 ```tsx
 // App.tsx에 추가
@@ -566,12 +671,12 @@ BigDecimal prorated = defaultDays
 
 ---
 
-## 12. Backend 패키지 의존성
+## 14. Backend 패키지 의존성
 
 ```
 organization/
 ├── controller/
-│   ├── OrganizationController.java      (조직 CRUD)
+│   ├── OrganizationController.java      (조직 CRUD + 소유권 이양)
 │   ├── OrgMemberController.java         (멤버 관리)
 │   ├── OrgBoardController.java          (보드 편입/방출)
 │   └── OrgInviteController.java         (초대 링크)
@@ -587,7 +692,7 @@ organization/
 │   ├── OrgJobGroupRepository.java
 │   └── OrgInviteLinkRepository.java
 └── dto/
-    ├── request/  (CreateOrgRequest, InviteMemberRequest, ...)
+    ├── request/  (CreateOrgRequest, InviteMemberRequest, TransferOwnershipRequest, ...)
     └── response/ (OrgResponse, OrgMemberResponse, ...)
 
 leave/
@@ -613,21 +718,23 @@ leave/
 - `BoardService` → 기존 코드에 `organization_id` 관련 쿼리 추가
 - `MemberService` (기존) → `OrgMemberRepository` 추가 (R2: 조직 보드 멤버 추가 시 조직원 검증)
 - `InviteService` (기존) → `OrgMemberRepository` 추가 (R2: 보드 초대 수락 시 조직원 검증)
-- `UserService` (기존) → `OrganizationRepository` 추가 (계정 비활성화 시 소유 조직 검증 + 소속 조직 탈퇴)
+- `UserService` (기존) → `OrganizationRepository` 추가 (계정 삭제 시 Org Owner 검증)
 
 ---
 
-## 13. 구현 우선순위 (추천)
+## 15. 구현 우선순위 (추천)
 
 | 순서 | 기능 | 이유 |
 |------|------|------|
 | 1 | Organization + OrgMember 엔티티/CRUD | 핵심 도메인 |
-| 2 | Organization 초대 시스템 | 멤버 합류 필수 |
-| 3 | 보드 편입/방출 | 기존 시스템 연동 |
-| 4 | 구성원 디렉토리 + 프로필 | 주요 화면 |
-| 5 | 부서/직무 그룹 관리 | 필터링 기반 |
-| 6 | 휴가 정책 + 잔여 관리 | 휴가 기반 |
-| 7 | 휴가 신청/승인 | 핵심 워크플로우 |
-| 8 | 일일 휴가 현황 | 대시보드 |
-| 9 | FE 조직 목록/상세 페이지 | UI |
-| 10 | FE 구성원/휴가 탭 | UI |
+| 2 | Organization 소유권 이양 | R3/계정 비활성화의 전제조건 |
+| 3 | Organization 초대 시스템 | 멤버 합류 필수 |
+| 4 | 보드 편입/방출 | 기존 시스템 연동 |
+| 5 | 구성원 디렉토리 + 프로필 | 주요 화면 |
+| 6 | 부서/직무 그룹 관리 | 필터링 기반 |
+| 7 | 휴가 정책 + 잔여 관리 | 휴가 기반 |
+| 8 | 휴가 신청/승인 | 핵심 워크플로우 |
+| 9 | 일일 휴가 현황 | 대시보드 |
+| 10 | FE 조직 목록/상세 페이지 | UI |
+| 11 | FE 구성원/휴가 탭 | UI |
+| 12 | 기존 시스템 연동 (MemberService R2, InviteService R2, UserService Org Owner) | 기존 코드 수정 |

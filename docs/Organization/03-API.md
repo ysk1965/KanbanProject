@@ -1,6 +1,6 @@
 # Organization Service - API Specification
 
-> **Version**: v1.0.0 | **Date**: 2026-02-25
+> **Version**: v1.1.0 | **Date**: 2026-02-25
 > **Base URL**: `/api/v1`
 > **JSON 필드**: `snake_case` (Jackson SNAKE_CASE 전략)
 
@@ -76,6 +76,8 @@ Auth: User
 }
 ```
 
+> **Soft Delete 필터**: `WHERE o.deleted_at IS NULL` 조건으로 삭제된 조직 제외.
+
 ---
 
 ### 1.3 조직 상세 조회
@@ -99,6 +101,7 @@ Auth: OrgMember+
       "profile_image": null
     },
     "member_count": 12,
+    "active_member_count": 10,
     "board_count": 3,
     "my_role": "ADMIN",
     "departments": [
@@ -118,6 +121,8 @@ Auth: OrgMember+
   }
 }
 ```
+
+> `active_member_count`: `work_status IN (ACTIVE, ON_LEAVE)` 기준. 대시보드 요약 카드에 사용.
 
 ---
 
@@ -165,7 +170,49 @@ Auth: OrgOwner
 
 **Response (204):** No Content
 
-**로직:** Soft delete (deleted_at 설정). 소속 보드의 organization_id는 NULL로.
+**로직:**
+1. `boards.organization_id = NULL` (소속 보드 방출)
+2. `organization_invite_links.is_active = false` (초대 링크 비활성화)
+3. PENDING 상태 `leave_requests` → CANCELED (잔여 변동 없음)
+4. **APPROVED 상태이면서 `end_date >= today`인 `leave_requests` → CANCELED + `leave_balances.used_days` 복원**
+5. `organization.softDelete()` (`deleted_at` 설정)
+
+---
+
+### 1.7 조직 소유권 이양
+```
+PUT /api/v1/organizations/{orgId}/transfer-ownership
+Auth: OrgOwner
+```
+
+**Request:**
+```json
+{
+  "new_owner_member_id": "member-uuid"
+}
+```
+
+**Response (200):**
+```json
+{
+  "data": {
+    "organization_id": "uuid",
+    "previous_owner": { "id": "uuid", "name": "Admin" },
+    "new_owner": { "id": "uuid", "name": "김준영" },
+    "message": "소유권이 김준영님에게 이양되었습니다."
+  }
+}
+```
+
+**로직:**
+1. 대상 멤버가 조직 구성원인지 확인
+2. `organizations.owner_id` = 대상 User ID
+3. 기존 Owner의 `OrgRole` → ADMIN으로 변경
+4. 대상 멤버의 `OrgRole` → OWNER로 변경
+
+**Validation:**
+- 대상이 본인 → 400 `CANNOT_TRANSFER_TO_SELF`
+- 대상이 조직 멤버가 아님 → 404 `ORG_MEMBER_NOT_FOUND`
 
 ---
 
@@ -183,11 +230,13 @@ Auth: OrgMember+
 | `department_id` | string (UUID) | 부서 ID 필터 |
 | `job_group_id` | string (UUID) | 직무 그룹 ID 필터 |
 | `contract_type` | string | 계약 형태 필터 (FULL_TIME/CONTRACT/INTERN/PART_TIME) |
-| `work_status` | string | 근무 상태 필터 (ACTIVE/ON_LEAVE/RESIGNED) |
+| `work_status` | string | 근무 상태 필터 (ACTIVE/ON_LEAVE/RESIGNED). **기본값: ACTIVE,ON_LEAVE** |
 | `search` | string | 이름/이메일 검색 |
 | `sort` | string | 정렬 (hire_date_desc, hire_date_asc, name_asc) |
 | `page` | int | 페이지 (0-based, default: 0) |
 | `size` | int | 페이지 크기 (default: 20) |
+
+> **기본 필터**: `work_status` 미지정 시 `ACTIVE` + `ON_LEAVE`만 반환. RESIGNED 멤버는 명시적으로 `work_status=RESIGNED` 지정 시에만 노출.
 
 **Response (200):**
 ```json
@@ -301,7 +350,7 @@ Auth: OrgAdmin+
 
 **로직:**
 1. 이메일로 User 검색
-2. 존재 → 직접 OrganizationMember 추가
+2. 존재 → 직접 OrganizationMember 추가 + **각 활성 정책에 대해 leave_balance 생성**
 3. 미존재 → OrganizationInviteLink 생성 (1회용, 7일) + 이메일 발송
 
 ---
@@ -319,6 +368,7 @@ Auth: OrgAdmin+ 또는 본인
   "job_group_id": "jobgroup-uuid",
   "job_title": "UA 마케팅",
   "contract_type": "CONTRACT",
+  "work_status": "ACTIVE",
   "phone": "010-1234-5678",
   "birth_date": "1995-05-16",
   "bio": "자기소개 텍스트"
@@ -326,6 +376,9 @@ Auth: OrgAdmin+ 또는 본인
 ```
 
 > 본인 수정 시: `department_id`, `job_group_id`, `contract_type`, `work_status`, `employee_id`, `hire_date` 수정 불가 (Admin+ only)
+
+**work_status → RESIGNED 변경 시 추가 로직:**
+- 해당 멤버의 PENDING 상태 `leave_requests`를 자동 CANCELED 처리
 
 ---
 
@@ -342,7 +395,7 @@ Auth: OrgAdmin+
 }
 ```
 
-**제약:** OWNER 역할 변경 불가. OWNER 이양은 별도 API.
+**제약:** OWNER 역할 변경 불가. OWNER 이양은 별도 API (1.7).
 
 ---
 
@@ -502,7 +555,7 @@ Auth: OrgAdmin+
 
 **로직:** `boards.organization_id = NULL` 설정. 보드 자체는 삭제하지 않음.
 
-> **UX 안내**: 방출 확인 다이얼로그에 "방출 후 비조직원도 이 보드에 참여할 수 있습니다" 문구 표시.
+> **UX 안내**: 방출 확인 다이얼로그에 "방출 후 비조직원도 이 보드에 참여할 수 있습니다. 재편입 시 모든 멤버가 조직원이어야 합니다." 문구 표시.
 
 ---
 
@@ -595,6 +648,13 @@ Auth: User (로그인 필수)
 }
 ```
 
+**로직:**
+1. 링크 검증 (만료/비활성/사용초과)
+2. 이미 멤버 → 400 `ALREADY_ORG_MEMBER`
+3. OrganizationMember 생성
+4. **각 활성 정책에 대해 leave_balance 생성** (total_days = default_days)
+5. usedCount++
+
 **Validation:**
 - 이미 멤버 → 400 `ALREADY_ORG_MEMBER`
 - 링크 만료/비활성/사용초과 → 400 `ORG_INVITE_INVALID`
@@ -605,7 +665,7 @@ Auth: User (로그인 필수)
 
 ## 5. Department & Job Group Management
 
-### 5.1 부서 목록 / 생성 / 삭제
+### 5.1 부서 목록 / 생성 / 수정 / 삭제
 ```
 GET    /api/v1/organizations/{orgId}/departments        Auth: OrgMember+
 POST   /api/v1/organizations/{orgId}/departments        Auth: OrgAdmin+
@@ -613,7 +673,9 @@ PUT    /api/v1/organizations/{orgId}/departments/{id}   Auth: OrgAdmin+
 DELETE /api/v1/organizations/{orgId}/departments/{id}   Auth: OrgAdmin+
 ```
 
-### 5.2 직무 그룹 목록 / 생성 / 삭제
+> **삭제 시**: FK `ON DELETE SET NULL`로 해당 부서 소속 멤버의 `department_id`가 NULL로 변경됨. UI에서 "N명의 구성원이 이 부서에 소속되어 있습니다. 삭제하면 소속 없음으로 변경됩니다." 안내.
+
+### 5.2 직무 그룹 목록 / 생성 / 수정 / 삭제
 ```
 GET    /api/v1/organizations/{orgId}/job-groups          Auth: OrgMember+
 POST   /api/v1/organizations/{orgId}/job-groups          Auth: OrgAdmin+
@@ -693,6 +755,14 @@ PUT  /api/v1/organizations/{orgId}/leave-policies/{id}   Auth: OrgAdmin+
 }
 ```
 
+**POST 생성 시 추가 로직:**
+- 모든 활성 멤버(work_status = ACTIVE/ON_LEAVE)에 대해 해당 연도의 `leave_balance` 자동 생성
+- `total_days = default_days`, `used_days = 0`, `year = 현재연도`
+
+**PUT 수정 시 `is_active = false` (비활성화) 추가 로직:**
+- 해당 정책의 PENDING 상태 `leave_requests`를 자동 CANCELED 처리
+- 기존 APPROVED 요청은 유지
+
 ---
 
 ### 6.3 내 휴가 잔여 조회
@@ -752,6 +822,10 @@ Auth: OrgAdmin+
 }
 ```
 
+**수동 변경 시 감사 로직:**
+- `activity_log` 기록: `LEAVE_BALANCE_ADJUSTED`
+- 기록 내용: `{ member_id, policy_id, year, before_total, after_total, adjusted_by }`
+
 ---
 
 ### 6.5 휴가 신청
@@ -789,11 +863,13 @@ Auth: OrgMember+
 ```
 
 **로직:**
-1. `total_days` 자동 계산 (FULL_DAY: 일수, HALF: 0.5 * 일수)
-2. 잔여 확인 (`leave_balances.remaining >= total_days`)
-3. 잔여 부족 → 400 `INSUFFICIENT_LEAVE_BALANCE`
-4. 중복 기간 확인 → 400 `LEAVE_DATE_CONFLICT`
-5. status = PENDING으로 생성
+1. **반차 단일일 검증**: `AM_HALF`/`PM_HALF`는 `start_date == end_date`일 때만 허용 → 위반 시 400 `HALF_DAY_SINGLE_DATE_ONLY`
+2. `total_days` 자동 계산 (FULL_DAY: 일수, HALF: 0.5일) — **캘린더 일수 기준 (주말/공휴일 포함)**
+3. 정책 활성 상태 확인 (`is_active = true`) → 비활성 시 400 `LEAVE_POLICY_INACTIVE`
+4. 잔여 확인 (`leave_balances.remaining >= total_days`)
+5. 잔여 부족 → 400 `INSUFFICIENT_LEAVE_BALANCE`
+6. **중복 기간 확인** (같은 날 AM_HALF + PM_HALF 조합 허용, 동일 타입 중복 차단) → 400 `LEAVE_DATE_CONFLICT`
+7. status = PENDING으로 생성
 
 ---
 
@@ -905,18 +981,21 @@ Auth: 신청자 본인
 | `ORG_MEMBER_NOT_FOUND` | 404 | 조직 구성원을 찾을 수 없음 |
 | `CANNOT_REMOVE_ORG_OWNER` | 400 | Owner 제거 불가 |
 | `CANNOT_CHANGE_ORG_OWNER_ROLE` | 400 | Owner 역할 변경 불가 |
+| `CANNOT_TRANSFER_TO_SELF` | 400 | 본인에게 소유권 이양 불가 |
+| `CANNOT_DEACTIVATE_ORG_OWNER` | 400 | 조직 소유자는 소유권 이양 후 비활성화 가능 |
 | `BOARD_ALREADY_IN_ORGANIZATION` | 400 | 보드가 이미 다른 조직에 소속 |
 | `BOARD_OWNER_REQUIRED` | 403 | 보드 Owner만 편입 가능 |
 | `PERSONAL_BOARD_NOT_ALLOWED` | 400 | 개인 보드는 조직에 편입 불가 |
 | `BOARD_HAS_NON_ORG_MEMBERS` | 400 | 보드에 비조직원이 있어 편입 불가 (R1) |
 | `NOT_ORG_MEMBER_FOR_BOARD` | 403 | 조직원만 조직 보드에 참여 가능 (R2) |
 | `CANNOT_REMOVE_BOARD_OWNER` | 400 | 조직 보드 Owner는 소유권 이양 후 제거 가능 (R3) |
-| `CANNOT_DEACTIVATE_ORG_OWNER` | 400 | 조직 소유자는 소유권 이양 후 비활성화 가능 |
 | `ORG_INVITE_NOT_FOUND` | 404 | 초대 링크를 찾을 수 없음 |
 | `ORG_INVITE_INVALID` | 400 | 초대 링크가 만료/비활성/초과 |
 | `LEAVE_POLICY_NOT_FOUND` | 404 | 휴가 정책을 찾을 수 없음 |
+| `LEAVE_POLICY_INACTIVE` | 400 | 비활성 상태의 휴가 정책 |
 | `INSUFFICIENT_LEAVE_BALANCE` | 400 | 잔여 휴가 부족 |
 | `LEAVE_DATE_CONFLICT` | 400 | 중복 휴가 기간 |
+| `HALF_DAY_SINGLE_DATE_ONLY` | 400 | 반차는 단일일(시작일=종료일)만 가능 |
 | `LEAVE_REQUEST_NOT_FOUND` | 404 | 휴가 요청을 찾을 수 없음 |
 | `LEAVE_ALREADY_PROCESSED` | 400 | 이미 처리된 휴가 요청 |
 | `LEAVE_CANCEL_NOT_ALLOWED` | 400 | 취소 불가 (이미 사용한 휴가 또는 종결 상태) |
@@ -933,44 +1012,45 @@ Auth: 신청자 본인
 | 4 | PUT | `/organizations/{orgId}` | OrgAdmin+ | 조직 수정 |
 | 5 | POST | `/organizations/{orgId}/logo` | OrgAdmin+ | 로고 업로드 |
 | 6 | DELETE | `/organizations/{orgId}` | OrgOwner | 조직 삭제 |
-| 7 | GET | `/organizations/{orgId}/members` | OrgMember+ | 구성원 목록 |
-| 8 | POST | `/organizations/{orgId}/members` | OrgAdmin+ | 멤버 초대 |
-| 9 | GET | `/organizations/{orgId}/members/{id}` | OrgMember+ | 프로필 상세 |
-| 10 | PUT | `/organizations/{orgId}/members/{id}` | OrgAdmin+/본인 | 정보 수정 |
-| 11 | PUT | `/organizations/{orgId}/members/{id}/role` | OrgAdmin+ | 역할 변경 |
-| 12 | DELETE | `/organizations/{orgId}/members/{id}` | OrgAdmin+ | 멤버 제거 |
-| 13 | GET | `/organizations/{orgId}/boards` | OrgMember+ | 보드 목록 |
-| 14 | GET | `/organizations/{orgId}/boards/check-eligibility` | OrgAdmin+BoardOwner | 보드 편입 적격성 확인 (R1) |
-| 15 | POST | `/organizations/{orgId}/boards` | OrgAdmin+BoardOwner | 보드 편입 (R1 검증) |
-| 16 | DELETE | `/organizations/{orgId}/boards/{boardId}` | OrgAdmin+ | 보드 방출 |
-| 17 | POST | `/organizations/{orgId}/invites` | OrgAdmin+ | 초대 링크 생성 |
-| 18 | GET | `/organizations/{orgId}/invites` | OrgAdmin+ | 초대 목록 |
-| 19 | DELETE | `/organizations/{orgId}/invites/{id}` | OrgAdmin+ | 초대 삭제 |
-| 20 | GET | `/org-invites/{code}` | Public | 초대 정보 |
-| 21 | POST | `/org-invites/{code}/accept` | User | 초대 수락 |
-| 22 | GET | `/organizations/{orgId}/departments` | OrgMember+ | 부서 목록 |
-| 23 | POST | `/organizations/{orgId}/departments` | OrgAdmin+ | 부서 생성 |
-| 24 | PUT | `/organizations/{orgId}/departments/{id}` | OrgAdmin+ | 부서 수정 |
-| 25 | DELETE | `/organizations/{orgId}/departments/{id}` | OrgAdmin+ | 부서 삭제 |
-| 26 | GET | `/organizations/{orgId}/job-groups` | OrgMember+ | 직무 목록 |
-| 27 | POST | `/organizations/{orgId}/job-groups` | OrgAdmin+ | 직무 생성 |
-| 28 | PUT | `/organizations/{orgId}/job-groups/{id}` | OrgAdmin+ | 직무 수정 |
-| 29 | DELETE | `/organizations/{orgId}/job-groups/{id}` | OrgAdmin+ | 직무 삭제 |
-| 30 | GET | `/organizations/{orgId}/leave-policies` | OrgMember+ | 휴가 정책 목록 |
-| 31 | POST | `/organizations/{orgId}/leave-policies` | OrgAdmin+ | 휴가 정책 생성 |
-| 32 | PUT | `/organizations/{orgId}/leave-policies/{id}` | OrgAdmin+ | 휴가 정책 수정 |
-| 33 | GET | `/organizations/{orgId}/my-leave-balance` | OrgMember+ | 내 잔여 조회 |
-| 34 | GET | `/organizations/{orgId}/members/{id}/leave-balance` | OrgAdmin+ | 멤버 잔여 조회 |
-| 35 | PUT | `/organizations/{orgId}/members/{id}/leave-balance` | OrgAdmin+ | 잔여 수정 |
-| 36 | POST | `/organizations/{orgId}/leave-requests` | OrgMember+ | 휴가 신청 |
-| 37 | GET | `/organizations/{orgId}/leave-requests` | OrgMember+ | 휴가 목록 |
-| 38 | PUT | `/organizations/{orgId}/leave-requests/{id}/approve` | OrgAdmin+ | 승인 |
-| 39 | PUT | `/organizations/{orgId}/leave-requests/{id}/reject` | OrgAdmin+ | 거절 |
-| 40 | PUT | `/organizations/{orgId}/leave-requests/{id}/cancel` | 신청자 본인 | 취소 |
+| **7** | **PUT** | **`/organizations/{orgId}/transfer-ownership`** | **OrgOwner** | **소유권 이양** |
+| 8 | GET | `/organizations/{orgId}/members` | OrgMember+ | 구성원 목록 |
+| 9 | POST | `/organizations/{orgId}/members` | OrgAdmin+ | 멤버 초대 |
+| 10 | GET | `/organizations/{orgId}/members/{id}` | OrgMember+ | 프로필 상세 |
+| 11 | PUT | `/organizations/{orgId}/members/{id}` | OrgAdmin+/본인 | 정보 수정 |
+| 12 | PUT | `/organizations/{orgId}/members/{id}/role` | OrgAdmin+ | 역할 변경 |
+| 13 | DELETE | `/organizations/{orgId}/members/{id}` | OrgAdmin+ | 멤버 제거 |
+| 14 | GET | `/organizations/{orgId}/boards` | OrgMember+ | 보드 목록 |
+| 15 | GET | `/organizations/{orgId}/boards/check-eligibility` | OrgAdmin+BoardOwner | 보드 편입 적격성 확인 (R1) |
+| 16 | POST | `/organizations/{orgId}/boards` | OrgAdmin+BoardOwner | 보드 편입 (R1 검증) |
+| 17 | DELETE | `/organizations/{orgId}/boards/{boardId}` | OrgAdmin+ | 보드 방출 |
+| 18 | POST | `/organizations/{orgId}/invites` | OrgAdmin+ | 초대 링크 생성 |
+| 19 | GET | `/organizations/{orgId}/invites` | OrgAdmin+ | 초대 목록 |
+| 20 | DELETE | `/organizations/{orgId}/invites/{id}` | OrgAdmin+ | 초대 삭제 |
+| 21 | GET | `/org-invites/{code}` | Public | 초대 정보 |
+| 22 | POST | `/org-invites/{code}/accept` | User | 초대 수락 |
+| 23 | GET | `/organizations/{orgId}/departments` | OrgMember+ | 부서 목록 |
+| 24 | POST | `/organizations/{orgId}/departments` | OrgAdmin+ | 부서 생성 |
+| 25 | PUT | `/organizations/{orgId}/departments/{id}` | OrgAdmin+ | 부서 수정 |
+| 26 | DELETE | `/organizations/{orgId}/departments/{id}` | OrgAdmin+ | 부서 삭제 |
+| 27 | GET | `/organizations/{orgId}/job-groups` | OrgMember+ | 직무 목록 |
+| 28 | POST | `/organizations/{orgId}/job-groups` | OrgAdmin+ | 직무 생성 |
+| 29 | PUT | `/organizations/{orgId}/job-groups/{id}` | OrgAdmin+ | 직무 수정 |
+| 30 | DELETE | `/organizations/{orgId}/job-groups/{id}` | OrgAdmin+ | 직무 삭제 |
+| 31 | GET | `/organizations/{orgId}/leave-policies` | OrgMember+ | 휴가 정책 목록 |
+| 32 | POST | `/organizations/{orgId}/leave-policies` | OrgAdmin+ | 휴가 정책 생성 |
+| 33 | PUT | `/organizations/{orgId}/leave-policies/{id}` | OrgAdmin+ | 휴가 정책 수정 |
+| 34 | GET | `/organizations/{orgId}/my-leave-balance` | OrgMember+ | 내 잔여 조회 |
+| 35 | GET | `/organizations/{orgId}/members/{id}/leave-balance` | OrgAdmin+ | 멤버 잔여 조회 |
+| 36 | PUT | `/organizations/{orgId}/members/{id}/leave-balance` | OrgAdmin+ | 잔여 수정 |
+| 37 | POST | `/organizations/{orgId}/leave-requests` | OrgMember+ | 휴가 신청 |
+| 38 | GET | `/organizations/{orgId}/leave-requests` | OrgMember+ | 휴가 목록 |
+| 39 | PUT | `/organizations/{orgId}/leave-requests/{id}/approve` | OrgAdmin+ | 승인 |
+| 40 | PUT | `/organizations/{orgId}/leave-requests/{id}/reject` | OrgAdmin+ | 거절 |
+| 41 | PUT | `/organizations/{orgId}/leave-requests/{id}/cancel` | 신청자 본인 | 취소 |
 
-> **총 40개 엔드포인트** (Phase 1)
+> **총 41개 엔드포인트** (Phase 1)
 >
 > **3대 규칙 관련 API:**
-> - R1: #14 (적격성 확인) + #15 (편입 시 검증)
+> - R1: #15 (적격성 확인) + #16 (편입 시 검증)
 > - R2: 기존 `MemberService.addMember()` 에서 조직 보드인 경우 조직원 검증 추가 (별도 API 아님)
-> - R3: #12 (멤버 제거 시 조직 보드에서 연쇄 제거)
+> - R3: #13 (멤버 제거 시 조직 보드에서 연쇄 제거)

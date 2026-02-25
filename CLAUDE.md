@@ -6,46 +6,58 @@
 
 ```
 KanbanProject/
-├── frontend/                     # React 18 + TypeScript + Vite
+├── frontend/                     # React 18.3 + TypeScript 5.5 + Vite 6.3
 │   └── src/app/
-│       ├── components/           # 79개 UI 컴포넌트
-│       │   ├── landing/          # 랜딩 페이지 (LandingPage, Diagrams, BridgeScene)
-│       │   └── ui/               # 48개 shadcn/Radix 기반 컴포넌트
-│       ├── pages/                # 페이지 (KanbanBoardPage, AdminPage 등)
+│       ├── components/           # 207개 컴포넌트
+│       │   ├── ui/               # 52개 shadcn/Radix 기반 컴포넌트
+│       │   ├── landing/          # 랜딩 페이지 (3D: BridgeScene, QuantumScene)
+│       │   ├── admin/            # 관리자 대시보드 (13개)
+│       │   ├── notes/            # 노트 에디터/댓글/협업 (20개)
+│       │   ├── dashboard/        # 대시보드 뷰 (8개)
+│       │   ├── personal/         # 개인 스페이스 (9개)
+│       │   ├── bible/            # 성경 읽기 (4개)
+│       │   ├── roulette/         # 룰렛 (4개)
+│       │   └── customicon/       # 커스텀 이모지 (4개)
+│       ├── pages/                # 10개 페이지 (KanbanBoardPage, AdminPage, PersonalBoardPage 등)
 │       ├── contexts/             # AuthContext, DragContext, ThemeContext, AnalyticsContext
-│       ├── hooks/                # useAnalytics, useVideoThumbnail
-│       ├── utils/                # api.ts, services.ts, dateUtils.ts, assigneeColor.ts
+│       ├── hooks/                # 11개 훅 (useBoardWebSocket, useCollaboration 등)
+│       ├── utils/                # 15개 유틸 (api.ts, services.ts, websocket.ts 등)
 │       ├── types/                # TypeScript 타입 정의 (index.ts)
 │       ├── i18n/locales/         # 10개 언어 (ko, en, ja, zh, zh-TW, vi, th, es, pt-BR, hi)
 │       ├── constants/            # 상수 정의
 │       └── lib/                  # 외부 라이브러리 설정
-├── backend/                      # Spring Boot 3.4 + Java 21 + Gradle
+├── backend/                      # Spring Boot 3.4.1 + Java 21 + Gradle 9.2
 │   └── src/main/java/com/kanban/
-│       ├── domain/               # 31개 도메인 패키지 (246개 Java 파일)
+│       ├── domain/               # 36개 도메인 패키지 (409개 Java 파일)
 │       │   ├── auth/             # 인증 (JWT, Google OAuth2)
-│       │   ├── board/            # 보드 (CRUD, 멤버, 커스텀 이모지)
+│       │   ├── board/            # 보드 (CRUD, 멤버, 커스텀 이모지, Today)
 │       │   ├── block/            # 칸반 블록
-│       │   ├── feature/          # 피처 카드
-│       │   ├── task/             # 태스크
-│       │   ├── comment/          # 댓글 + 리액션
-│       │   ├── checklist/        # 체크리스트
+│       │   ├── feature/          # 피처 카드 (AI 분해)
+│       │   ├── task/             # 태스크 (의존성, 크로스보드)
+│       │   ├── comment/          # 댓글 + 리액션 + AI
+│       │   ├── checklist/        # 체크리스트 (AI)
 │       │   ├── dailychecklist/   # 일일 체크리스트
 │       │   ├── schedule/         # 일정 관리
-│       │   ├── meeting/          # 미팅 (AI 전사/요약)
-│       │   ├── note/             # 노트 (폴더/문서, 버전관리)
-│       │   ├── notification/     # 알림
+│       │   ├── meeting/          # 미팅 (AI 전사/요약, 반복)
+│       │   ├── note/             # 노트 (실시간 협업, 공유, 댓글)
+│       │   ├── notification/     # 알림 + FCM 푸시
 │       │   ├── integration/slack/# 슬랙 웹훅
-│       │   ├── subscription/     # 구독/결제 (토스페이먼츠)
-│       │   ├── statistics/       # 통계
+│       │   ├── subscription/     # 구독/결제 + AI 크레딧
+│       │   ├── statistics/       # 통계/관리
 │       │   ├── report/           # 주간 리포트 (AI)
+│       │   ├── standup/          # 데일리 스탠드업
 │       │   ├── member/           # 보드 멤버 관리
 │       │   ├── invite/           # 초대 링크
 │       │   ├── admin/            # 시스템 관리
-│       │   └── ...               # activity, announcement, inquiry, milestone, tag, weight 등
-│       └── global/               # 공통 (config, security, filter, exception, email, scheduler)
-├── infrastructure/terraform/     # Terraform IaC (dev, prod 환경)
-├── docs/                         # 기획 문서 (IA, Wireframe, Design, ERD, API, Tech)
-└── .github/workflows/            # CI/CD (ci, deploy-dev, deploy-testprod, terraform)
+│       │   ├── personal/         # 개인 스페이스 (대시보드, 이벤트, 습관, 태스크)
+│       │   ├── diary/            # 다이어리 (AI, 음성)
+│       │   ├── customicon/       # 커스텀 아이콘 (OpenAI 이미지)
+│       │   ├── monitoring/       # 모니터링 (CloudWatch, OpenAI 빌링)
+│       │   └── ...               # activity, announcement, inquiry, milestone, tag, weight, system, test
+│       └── global/               # 공통 (config 20개, security, filter, exception, scheduler 8개, websocket)
+├── infrastructure/terraform/     # Terraform IaC (10개 모듈, dev/prod 환경)
+├── docs/                         # 117개 문서 (IA, Wireframe, Design, ERD, API, Tech)
+└── .github/workflows/            # CI/CD (ci, deploy-dev, deploy-mobile, terraform)
 ```
 
 ---
@@ -59,7 +71,7 @@ cd frontend && npm run build      # 프로덕션 빌드 (타입체크 포함)
 
 # Backend
 cd backend && ./gradlew bootRun --args='--spring.profiles.active=local'  # H2 로컬
-cd backend && ./gradlew build test --no-daemon                           # 빌드+테스트
+cd backend && ./gradlew build --no-daemon                                # 빌드
 
 # Docker (로컬 DB)
 docker-compose up -d              # PostgreSQL 15 + Redis 7
@@ -158,6 +170,7 @@ docker-compose up -d              # PostgreSQL 15 + Redis 7
 - 백엔드: `http://localhost:8080/api/v1/`
 - API 클라이언트: `frontend/src/app/utils/api.ts` (JWT 자동 갱신 포함)
 - 서비스 레이어: `frontend/src/app/utils/services.ts`
+- WebSocket: `frontend/src/app/utils/websocket.ts` (STOMP)
 
 ### JSON 필드 네이밍: snake_case 통일 (필수)
 
@@ -244,20 +257,65 @@ new Date(x).toLocaleDateString('ko-KR')
 - `AnalyticsContext` → 분석 이벤트
 - 주요 상태는 KanbanBoardPage에서 관리 후 props로 전달
 
+### Frontend 핵심 훅
+- `useBoardDataLoader` → 보드 데이터 로딩/패칭
+- `useBoardWebSocket` → WebSocket 연결 관리
+- `useBoardFilters` → 필터 상태 관리
+- `useBoardPermissions` → 역할 기반 권한 체크
+- `useCollaboration` → 실시간 협업 (Yjs)
+- `useNotificationManager` → 알림 처리
+- `useAudioRecorder` → 미팅 녹음
+
 ### Backend 레이어
 ```
 Controller → Service (비즈니스 로직) → Repository (JPA)
                 └→ FacadeService (복합 로직: BoardFacadeService, ScheduleFacadeService)
+                └→ AIService (AI 기능: MeetingAI, NoteAI, ReportAI, DiaryAI, FeatureAI, ChecklistAI, CommentAI)
 ```
+
+### Backend 스케줄러 (8개)
+- `MonitoringScheduler` → 시스템 모니터링 + AI 크레딧 월간 리셋
+- `SubscriptionScheduler` → 구독 상태 관리
+- `ActivityLogCleanupScheduler` → 활동 로그 정리
+- `BoardCleanupScheduler` → 삭제된 보드 정리
+- `DailyStandupScheduler` → 스탠드업 알림
+- `ExpiredTokenCleanupScheduler` → 만료 토큰 정리
+- `PersonalTaskCleanupScheduler` → 개인 태스크 정리
+- `TempFileCleanupScheduler` → 임시 파일 정리
 
 ### 프로파일별 환경
 | 설정 | local | dev | prod |
 |------|-------|-----|------|
 | DB | H2 in-memory | PostgreSQL (RDS) | PostgreSQL (Aurora Serverless v2) |
-| Cache | Simple | Simple | Redis (ElastiCache) |
+| Cache | Simple | Redis | Redis (ElastiCache) |
 | Storage | Local filesystem | S3 + CloudFront | S3 + CloudFront |
 | JPA ddl-auto | update | update | validate |
 | Flyway | off | on | on |
+| Push | disabled | FCM | FCM |
+
+---
+
+## 실시간 기능
+
+### WebSocket (STOMP)
+- 보드 이벤트 실시간 동기화 (카드 이동, 생성, 수정, 삭제)
+- Redis Pub/Sub 기반 멀티 인스턴스 브로드캐스트
+- `frontend/src/app/utils/websocket.ts` → `useBoardWebSocket` 훅
+
+### 실시간 협업 (Yjs)
+- 노트 동시 편집 (Yjs + y-protocols)
+- `NoteCollabWebSocketConfig` (백엔드) + `useCollaboration` (프론트엔드)
+- 커서 위치/선택 영역 공유 (CollabPresence)
+
+---
+
+## AI 크레딧 시스템
+
+- `AiCreditService` → 크레딧 소비 (pessimistic lock)
+- 티어별 크레딧: TRIAL=100, STANDARD=30, PREMIUM=200+(seats*50)
+- 소비 순서: Monthly free → Purchased (FIFO)
+- 402 `AI_CREDITS_EXHAUSTED` → FE `ai-credits-exhausted` CustomEvent → 모달
+- 월간 리셋: `MonitoringScheduler` (cron daily midnight UTC)
 
 ---
 
@@ -293,6 +351,6 @@ Controller → Service (비즈니스 로직) → Repository (JPA)
 # Frontend 빌드 (타입체크 포함)
 cd frontend && npm run build
 
-# Backend 빌드 + 테스트
-cd backend && ./gradlew build
+# Backend 빌드
+cd backend && ./gradlew build --no-daemon
 ```

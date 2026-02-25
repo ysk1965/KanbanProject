@@ -292,6 +292,7 @@
   "dashboard": {
     "sidebar": {
       "allBoards": "Todos los tableros",
+      "organizations": "Organizaciones",
       "myBoard": "Mi Espacio",
       "settings": "Configuración",
       "upgradePro": "Mejorar a Pro",
@@ -2670,6 +2671,121 @@
       "overlapWarning": "Se superpone con {{count}} evento(s)",
       "nextDay": "día siguiente",
       "prevDay": "del día anterior"
+    },
+    "organization": {
+      "list": {
+        "title": "Mis organizaciones",
+        "subtitle": "Perteneces a {{count}} organizaciones",
+        "create": "Crear organización"
+      },
+      "create": {
+        "title": "Crear organización",
+        "name": "Nombre de la organización",
+        "namePlaceholder": "Ej. CookApps",
+        "description": "Descripción",
+        "descriptionPlaceholder": "Breve descripción de la organización"
+      },
+      "tabs": {
+        "dashboard": "Panel",
+        "members": "Miembros",
+        "boards": "Tableros",
+        "leaves": "Ausencias",
+        "settings": "Configuración"
+      },
+      "dashboard": {
+        "members": "Miembros",
+        "boards": "Tableros",
+        "todayLeaves": "Ausencias de hoy",
+        "connectedBoards": "Tableros conectados",
+        "onLeaveToday": "Ausentes hoy"
+      },
+      "members": {
+        "searchPlaceholder": "Buscar por nombre o correo...",
+        "allDepartments": "Todos los departamentos",
+        "allStatuses": "Todos los estados",
+        "active": "Activo",
+        "onLeave": "De licencia",
+        "resigned": "Retirado",
+        "invite": "Invitar",
+        "resultCount": "{{count}} miembros encontrados",
+        "empty": "No se encontraron miembros",
+        "inviteTitle": "Invitar miembro",
+        "email": "Correo electrónico",
+        "role": "Rol",
+        "department": "Departamento",
+        "jobTitle": "Cargo",
+        "jobTitlePlaceholder": "Ej. Desarrollador Frontend",
+        "sendInvite": "Enviar invitación"
+      },
+      "boards": {
+        "title": "Tableros conectados",
+        "add": "Agregar tablero",
+        "empty": "No hay tableros vinculados a esta organización",
+        "release": "Desvincular de la organización",
+        "releaseConfirm": "¿Desvincular tablero?",
+        "releaseWarning": "Después de desvincular, los no miembros podrán unirse a este tablero. Para revincular, todos los miembros deben ser miembros de la organización.",
+        "releaseButton": "Desvincular",
+        "addTitle": "Agregar tablero a la organización",
+        "noAvailable": "No hay tableros disponibles para agregar",
+        "nonOrgMembers": "Miembros no organizacionales",
+        "addButton": "Agregar tablero"
+      },
+      "leave": {
+        "myBalance": "Mi saldo de licencia",
+        "allStatuses": "Todos los estados",
+        "pending": "Pendiente",
+        "approved": "Aprobado",
+        "rejected": "Rechazado",
+        "canceled": "Cancelado",
+        "request": "Solicitar licencia",
+        "empty": "No hay solicitudes de licencia",
+        "days": " días",
+        "fullDay": "Día completo",
+        "amHalf": "Media mañana",
+        "pmHalf": "Media tarde",
+        "approve": "Aprobar",
+        "reject": "Rechazar",
+        "cancel": "Cancelar",
+        "requestTitle": "Solicitar licencia",
+        "leaveType": "Tipo de licencia",
+        "selectType": "Seleccionar tipo de licencia",
+        "durationType": "Tipo de duración",
+        "startDate": "Fecha de inicio",
+        "endDate": "Fecha de fin",
+        "reason": "Motivo (Opcional)",
+        "submit": "Enviar solicitud"
+      },
+      "settings": {
+        "basicInfo": "Información básica",
+        "orgName": "Nombre de la organización",
+        "description": "Descripción",
+        "departments": "Departamentos",
+        "addDepartment": "Agregar departamento...",
+        "jobGroups": "Grupos de cargo",
+        "addJobGroup": "Agregar grupo de cargo...",
+        "leavePolicies": "Políticas de licencia",
+        "policyName": "Nombre",
+        "defaultDays": "Días predeterminados",
+        "paid": "Remunerado",
+        "active": "Activo",
+        "inviteLinks": "Enlaces de invitación",
+        "generateLink": "Generar enlace",
+        "noLinks": "No hay enlaces de invitación activos",
+        "dangerZone": "Zona de peligro",
+        "deleteWarning": "Eliminar esta organización no se puede deshacer. Todos los tableros serán desvinculados.",
+        "typeOrgName": "Escriba el nombre de la organización para confirmar"
+      },
+      "invite": {
+        "invalidLink": "Este enlace de invitación es inválido o ha expirado.",
+        "error": "Error de invitación",
+        "accepted": "¡Bienvenido!",
+        "redirecting": "Redirigiendo a la organización...",
+        "members": "miembros",
+        "joining": "Uniéndose...",
+        "join": "Unirse a la organización",
+        "loginToJoin": "Iniciar sesión para unirse",
+        "acceptFailed": "No se pudo aceptar la invitación."
+      }
     }
   }
 }

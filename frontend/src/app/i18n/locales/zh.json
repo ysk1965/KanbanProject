@@ -292,6 +292,7 @@
   "dashboard": {
     "sidebar": {
       "allBoards": "全部看板",
+      "organizations": "组织",
       "myBoard": "我的空间",
       "settings": "设置",
       "upgradePro": "升级 Pro",
@@ -2670,6 +2671,121 @@
       "overlapWarning": "与{{count}}个日程时间冲突",
       "nextDay": "次日",
       "prevDay": "前一天起"
+    },
+    "organization": {
+      "list": {
+        "title": "我的组织",
+        "subtitle": "您加入了{{count}}个组织",
+        "create": "创建组织"
+      },
+      "create": {
+        "title": "创建组织",
+        "name": "组织名称",
+        "namePlaceholder": "例如 CookApps",
+        "description": "描述",
+        "descriptionPlaceholder": "组织的简要描述"
+      },
+      "tabs": {
+        "dashboard": "仪表盘",
+        "members": "成员",
+        "boards": "看板",
+        "leaves": "请假",
+        "settings": "设置"
+      },
+      "dashboard": {
+        "members": "成员",
+        "boards": "看板",
+        "todayLeaves": "今日请假",
+        "connectedBoards": "关联看板",
+        "onLeaveToday": "今日请假人员"
+      },
+      "members": {
+        "searchPlaceholder": "按姓名或邮箱搜索...",
+        "allDepartments": "全部部门",
+        "allStatuses": "全部状态",
+        "active": "在职",
+        "onLeave": "请假中",
+        "resigned": "已离职",
+        "invite": "邀请",
+        "resultCount": "找到{{count}}位成员",
+        "empty": "未找到成员",
+        "inviteTitle": "邀请成员",
+        "email": "邮箱",
+        "role": "角色",
+        "department": "部门",
+        "jobTitle": "职位",
+        "jobTitlePlaceholder": "例如 前端开发工程师",
+        "sendInvite": "发送邀请"
+      },
+      "boards": {
+        "title": "关联看板",
+        "add": "添加看板",
+        "empty": "该组织暂无关联看板",
+        "release": "从组织解除",
+        "releaseConfirm": "解除看板？",
+        "releaseWarning": "解除后，非成员可以加入此看板。重新关联时，所有成员必须是组织成员。",
+        "releaseButton": "解除",
+        "addTitle": "添加看板到组织",
+        "noAvailable": "没有可添加的看板",
+        "nonOrgMembers": "非组织成员",
+        "addButton": "添加看板"
+      },
+      "leave": {
+        "myBalance": "我的假期余额",
+        "allStatuses": "全部状态",
+        "pending": "待审批",
+        "approved": "已批准",
+        "rejected": "已拒绝",
+        "canceled": "已取消",
+        "request": "申请请假",
+        "empty": "暂无请假记录",
+        "days": "天",
+        "fullDay": "全天",
+        "amHalf": "上午半天",
+        "pmHalf": "下午半天",
+        "approve": "批准",
+        "reject": "拒绝",
+        "cancel": "取消",
+        "requestTitle": "请假申请",
+        "leaveType": "请假类型",
+        "selectType": "选择请假类型",
+        "durationType": "时长类型",
+        "startDate": "开始日期",
+        "endDate": "结束日期",
+        "reason": "原因（可选）",
+        "submit": "提交申请"
+      },
+      "settings": {
+        "basicInfo": "基本信息",
+        "orgName": "组织名称",
+        "description": "描述",
+        "departments": "部门",
+        "addDepartment": "添加部门...",
+        "jobGroups": "职位组",
+        "addJobGroup": "添加职位组...",
+        "leavePolicies": "请假政策",
+        "policyName": "名称",
+        "defaultDays": "默认天数",
+        "paid": "带薪",
+        "active": "启用",
+        "inviteLinks": "邀请链接",
+        "generateLink": "生成链接",
+        "noLinks": "暂无有效的邀请链接",
+        "dangerZone": "危险操作",
+        "deleteWarning": "删除此组织不可撤销。所有看板将被解除关联。",
+        "typeOrgName": "输入组织名称以确认"
+      },
+      "invite": {
+        "invalidLink": "此邀请链接无效或已过期。",
+        "error": "邀请错误",
+        "accepted": "欢迎！",
+        "redirecting": "正在跳转到组织...",
+        "members": "位成员",
+        "joining": "加入中...",
+        "join": "加入组织",
+        "loginToJoin": "登录后加入",
+        "acceptFailed": "接受邀请失败。"
+      }
     }
   }
 }

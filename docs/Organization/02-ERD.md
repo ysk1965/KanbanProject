@@ -1,6 +1,6 @@
 # Organization Service - ERD & Database Design
 
-> **Version**: v1.0.0 | **Date**: 2026-02-25
+> **Version**: v1.1.0 | **Date**: 2026-02-25
 > **기존 Flyway 최신**: V59 | **신규 시작**: V60
 
 ---
@@ -53,6 +53,7 @@
                │   │ organization_id (FK)            │
                │   │ name                            │
                │   │ display_order                   │
+               │   │ created_at, updated_at          │
                │   └────────────────────────────────┘
                │
                │   ┌────────────────────────────────┐
@@ -62,6 +63,7 @@
                │   │ organization_id (FK)            │
                │   │ name                            │
                │   │ display_order                   │
+               │   │ created_at, updated_at          │
                │   └────────────────────────────────┘
                │
                │   ┌────────────────────────────────┐
@@ -154,7 +156,7 @@ public enum ContractType {
 public enum WorkStatus {
     ACTIVE,      // 재직 중
     ON_LEAVE,    // 휴직 중
-    RESIGNED     // 퇴사
+    RESIGNED     // 퇴사 (기록 보존 목적, 기본 필터 제외)
 }
 
 // 휴가 카테고리 (대분류)
@@ -168,8 +170,8 @@ public enum LeaveCategory {
 // 휴가 기간 유형
 public enum LeaveDurationType {
     FULL_DAY,    // 전일
-    AM_HALF,     // 오전 반차
-    PM_HALF      // 오후 반차
+    AM_HALF,     // 오전 반차 (start_date == end_date 필수)
+    PM_HALF      // 오후 반차 (start_date == end_date 필수)
 }
 
 // 휴가 요청 상태
@@ -207,6 +209,8 @@ CREATE TABLE IF NOT EXISTS organizations (
 
 CREATE INDEX idx_org_owner ON organizations(owner_id);
 CREATE INDEX idx_org_deleted ON organizations(deleted_at);
+-- Partial index: 활성 조직만 빠르게 조회 (soft delete 필터 최적화)
+CREATE INDEX idx_org_active ON organizations(id) WHERE deleted_at IS NULL;
 
 -- 2. Organization Members
 CREATE TABLE IF NOT EXISTS organization_members (
@@ -226,7 +230,7 @@ CREATE TABLE IF NOT EXISTS organization_members (
     bio TEXT,
     joined_at TIMESTAMP NOT NULL DEFAULT (NOW() AT TIME ZONE 'UTC'),
     invited_by VARCHAR(36),
-    display_order INT,
+    display_order INT DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT (NOW() AT TIME ZONE 'UTC'),
     updated_at TIMESTAMP,
     CONSTRAINT fk_orgmember_org FOREIGN KEY (organization_id) REFERENCES organizations(id),
@@ -249,6 +253,8 @@ CREATE TABLE IF NOT EXISTS organization_departments (
     organization_id VARCHAR(36) NOT NULL,
     name VARCHAR(100) NOT NULL,
     display_order INT DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT (NOW() AT TIME ZONE 'UTC'),
+    updated_at TIMESTAMP,
     CONSTRAINT fk_orgdept_org FOREIGN KEY (organization_id) REFERENCES organizations(id),
     CONSTRAINT uq_orgdept_name UNIQUE (organization_id, name)
 );
@@ -259,6 +265,8 @@ CREATE TABLE IF NOT EXISTS organization_job_groups (
     organization_id VARCHAR(36) NOT NULL,
     name VARCHAR(100) NOT NULL,
     display_order INT DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT (NOW() AT TIME ZONE 'UTC'),
+    updated_at TIMESTAMP,
     CONSTRAINT fk_orgjob_org FOREIGN KEY (organization_id) REFERENCES organizations(id),
     CONSTRAINT uq_orgjob_name UNIQUE (organization_id, name)
 );
@@ -276,7 +284,7 @@ ALTER TABLE boards ADD CONSTRAINT fk_board_org FOREIGN KEY (organization_id) REF
 ALTER TABLE boards ADD CONSTRAINT chk_org_board_type CHECK (organization_id IS NULL OR board_type = 'TEAM');
 CREATE INDEX idx_board_org ON boards(organization_id);
 
--- 6. Organization Invite Links
+-- 7. Organization Invite Links
 CREATE TABLE IF NOT EXISTS organization_invite_links (
     id VARCHAR(36) PRIMARY KEY,
     organization_id VARCHAR(36) NOT NULL,
@@ -319,7 +327,8 @@ CREATE TABLE IF NOT EXISTS leave_policies (
     created_at TIMESTAMP NOT NULL DEFAULT (NOW() AT TIME ZONE 'UTC'),
     updated_at TIMESTAMP,
     CONSTRAINT fk_leavepolicy_org FOREIGN KEY (organization_id) REFERENCES organizations(id),
-    CONSTRAINT chk_leave_category CHECK (leave_category IN ('ANNUAL', 'SICK', 'REFRESH', 'OTHER'))
+    CONSTRAINT chk_leave_category CHECK (leave_category IN ('ANNUAL', 'SICK', 'REFRESH', 'OTHER')),
+    CONSTRAINT chk_default_days_positive CHECK (default_days >= 0)
 );
 
 CREATE INDEX idx_leavepolicy_org ON leave_policies(organization_id);
@@ -338,7 +347,9 @@ CREATE TABLE IF NOT EXISTS leave_balances (
     CONSTRAINT fk_leavebal_org FOREIGN KEY (organization_id) REFERENCES organizations(id),
     CONSTRAINT fk_leavebal_member FOREIGN KEY (member_id) REFERENCES organization_members(id) ON DELETE CASCADE,
     CONSTRAINT fk_leavebal_policy FOREIGN KEY (policy_id) REFERENCES leave_policies(id),
-    CONSTRAINT uq_leave_balance UNIQUE (member_id, policy_id, year)
+    CONSTRAINT uq_leave_balance UNIQUE (member_id, policy_id, year),
+    CONSTRAINT chk_total_days_positive CHECK (total_days >= 0),
+    CONSTRAINT chk_used_days_positive CHECK (used_days >= 0)
 );
 
 CREATE INDEX idx_leavebal_member ON leave_balances(member_id);
@@ -367,7 +378,9 @@ CREATE TABLE IF NOT EXISTS leave_requests (
     CONSTRAINT fk_leavereq_reviewer FOREIGN KEY (reviewer_id) REFERENCES organization_members(id) ON DELETE SET NULL,
     CONSTRAINT chk_duration_type CHECK (duration_type IN ('FULL_DAY', 'AM_HALF', 'PM_HALF')),
     CONSTRAINT chk_leave_status CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED', 'CANCELED')),
-    CONSTRAINT chk_date_range CHECK (end_date >= start_date)
+    CONSTRAINT chk_date_range CHECK (end_date >= start_date),
+    CONSTRAINT chk_half_day_single_date CHECK (duration_type = 'FULL_DAY' OR start_date = end_date),
+    CONSTRAINT chk_total_days_positive CHECK (total_days > 0)
 );
 
 CREATE INDEX idx_leavereq_org_date ON leave_requests(organization_id, start_date);
@@ -432,6 +445,10 @@ public class Organization {
 
     public boolean isDeleted() {
         return this.deletedAt != null;
+    }
+
+    public void transferOwnership(User newOwner) {
+        this.owner = newOwner;
     }
 }
 ```
@@ -506,7 +523,8 @@ public class OrganizationMember {
     private User invitedBy;
 
     @Column(name = "display_order")
-    private Integer displayOrder;
+    @Builder.Default
+    private Integer displayOrder = 0;
 
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -525,6 +543,7 @@ public class OrganizationMember {
     public boolean isOwner() { return this.role == OrgRole.OWNER; }
     public boolean isAdmin() { return this.role == OrgRole.ADMIN; }
     public boolean isAdminOrAbove() { return this.role == OrgRole.OWNER || this.role == OrgRole.ADMIN; }
+    public boolean isActive() { return this.workStatus == WorkStatus.ACTIVE || this.workStatus == WorkStatus.ON_LEAVE; }
 }
 ```
 
@@ -614,6 +633,11 @@ public class LeaveRequest {
     public void cancel() {
         this.status = LeaveStatus.CANCELED;
     }
+
+    /** 승인 후 취소 가능 여부: end_date가 오늘 이후여야 함 */
+    public boolean canCancelAfterApproval() {
+        return !this.endDate.isBefore(LocalDate.now());
+    }
 }
 ```
 
@@ -628,13 +652,24 @@ public class LeaveRequest {
 | Unique(org_id, user_id) | 같은 조직에 중복 가입 불가 |
 | Unique(member_id, policy_id, year) | 멤버별/정책별/연도별 잔여 고유 |
 | end_date >= start_date | 휴가 종료일은 시작일 이후 |
-| OWNER 변경 불가 | Admin이 Owner 역할 변경/제거 불가 |
+| **반차 단일일 제약** | `AM_HALF`/`PM_HALF`는 `start_date == end_date`일 때만 허용 |
+| **total_days > 0** | 휴가 사용일수는 양수 필수 |
+| **used_days >= 0** | 잔여 사용일은 음수 불가 |
+| **total_days >= 0** (balance) | 총 부여일은 음수 불가 |
+| OWNER 변경 불가 | Admin이 Owner 역할 변경/제거 불가 (소유권 이양 API 별도) |
 | Invite code UNIQUE | 초대 코드 글로벌 고유 |
 | Soft Delete | Organization은 deleted_at으로 소프트 삭제 (실제 DELETE 없음) |
-| FK 전략 | Soft Delete이므로 ON DELETE CASCADE/SET NULL 사용 안 함. 조직 삭제 시 서비스 레이어에서 처리: 1) boards.org_id = NULL, 2) org_members/policies/balances/invites 비활성화 또는 함께 soft delete |
+| **Soft Delete 쿼리 규칙** | 모든 조직 관련 쿼리에 `WHERE o.deleted_at IS NULL` 조건 필수 |
+| FK 전략 | Soft Delete이므로 ON DELETE CASCADE/SET NULL 사용 안 함. 조직 삭제 시 서비스 레이어에서 처리: 1) boards.org_id = NULL, 2) PENDING leaves → CANCELED, 3) APPROVED 미래 leaves → CANCELED + 잔여 복원, 4) invite_links 비활성화, 5) org.softDelete() |
 | 멤버 제거 연쇄 | organization_members 물리 삭제 시 leave_balances ON DELETE CASCADE로 함께 삭제. leave_requests/invite_links는 ON DELETE SET NULL로 기록 보존 |
 | 조직 보드 타입 제약 | `CHECK (organization_id IS NULL OR board_type = 'TEAM')` — 조직 소속 보드는 반드시 TEAM 타입이어야 함 |
 | R3 보드 Owner 보호 | 서비스 레이어에서 멤버 제거 전, 해당 멤버가 조직 보드의 Owner인지 사전 검증. Owner이면 제거 차단 |
 | R3 PENDING 휴가 자동 취소 | 멤버 제거 시 해당 멤버의 PENDING 상태 leave_requests를 CANCELED로 자동 전환 |
-| 조직 Owner 비활성화 차단 | 서비스 레이어에서 계정 비활성화 전, 소유 조직 존재 시 차단 (소유권 이양 필수) |
+| 조직 Owner 비활성화 차단 | `UserService.deleteAccount()`에서 계정 비활성화 전, **소유 조직 존재 시 차단** (소유권 이양 필수) |
 | R2 보드 초대 검증 | 기존 InviteService에서 보드 초대 수락 시, 조직 보드이면 조직원 여부 추가 검증 |
+| **정책 생성 시 Balance 자동 생성** | 새 휴가 정책 생성 시, 모든 활성 멤버(ACTIVE/ON_LEAVE)에 대해 해당 연도 leave_balance 자동 생성 |
+| **정책 비활성화 시 PENDING 자동 취소** | 정책 비활성화 시 해당 정책의 PENDING 상태 leave_requests를 CANCELED로 자동 전환 |
+| **RESIGNED 상태 처리** | RESIGNED 멤버는 구성원 목록 기본 필터에서 제외 (별도 필터로 조회 가능). RESIGNED 변경 시 PENDING 휴가 자동 CANCELED |
+| **같은 날 반차 조합** | 같은 날짜 AM_HALF + PM_HALF 허용 (합산 1.0일). 동일 duration_type 중복은 차단 |
+| **주말/공휴일** | Phase 1: 캘린더 일수 기준 (주말/공휴일 포함). Phase 2: 영업일 기반 전환 예정 |
+| **잔여 수동 변경 감사** | Admin의 leave_balance 수동 변경 시 activity_log 기록 (LEAVE_BALANCE_ADJUSTED) |

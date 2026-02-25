@@ -1994,3 +1994,227 @@ export interface PersonalDashboardToday {
   completed_today_count: number;
   diary_today: DiaryTodayInfo | null;
 }
+
+// ========================================
+// Organization (조직)
+// ========================================
+
+export type OrgRole = 'OWNER' | 'ADMIN' | 'MEMBER';
+export type ContractType = 'FULL_TIME' | 'CONTRACT' | 'INTERN' | 'PART_TIME';
+export type WorkStatus = 'ACTIVE' | 'ON_LEAVE' | 'RESIGNED';
+export type LeaveCategory = 'ANNUAL' | 'SICK' | 'REFRESH' | 'OTHER';
+export type LeaveDurationType = 'FULL_DAY' | 'AM_HALF' | 'PM_HALF';
+export type LeaveStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELED';
+
+export interface OrganizationOwnerInfo {
+  id: string;
+  name: string;
+  email?: string;
+  profile_image?: string | null;
+}
+
+export interface OrganizationSimple {
+  id: string;
+  name: string;
+  description?: string | null;
+  logo_url?: string | null;
+  owner: OrganizationOwnerInfo;
+  member_count: number;
+  board_count: number;
+  my_role: OrgRole;
+  created_at: string;
+}
+
+export interface OrganizationDetail extends OrganizationSimple {
+  updated_at?: string;
+}
+
+export interface OrgDepartment {
+  id: string;
+  name: string;
+  display_order: number;
+  created_at: string;
+}
+
+export interface OrgJobGroup {
+  id: string;
+  name: string;
+  display_order: number;
+  created_at: string;
+}
+
+export interface OrgMemberUserInfo {
+  id: string;
+  name: string;
+  email: string;
+  profile_image?: string | null;
+}
+
+export interface OrgMemberDepartmentInfo {
+  id: string;
+  name: string;
+}
+
+export interface OrgMemberJobGroupInfo {
+  id: string;
+  name: string;
+}
+
+export interface OrgMemberSimple {
+  id: string;
+  user: OrgMemberUserInfo;
+  role: OrgRole;
+  department?: OrgMemberDepartmentInfo | null;
+  job_group?: OrgMemberJobGroupInfo | null;
+  job_title?: string | null;
+  contract_type: ContractType;
+  work_status: WorkStatus;
+  joined_at: string;
+}
+
+export interface OrgMemberDetail extends OrgMemberSimple {
+  employee_id?: string | null;
+  phone?: string | null;
+  birth_date?: string | null;
+  hire_date?: string | null;
+  bio?: string | null;
+  tenure_months: number;
+  invited_by?: OrgMemberUserInfo | null;
+}
+
+export interface OrgMemberPageResponse {
+  content: OrgMemberSimple[];
+  total_elements: number;
+  total_pages: number;
+  page: number;
+  size: number;
+}
+
+export interface OrgMemberInviteResult {
+  type: 'direct_add' | 'email_sent';
+  member?: OrgMemberSimple;
+  email?: string;
+  role?: OrgRole;
+}
+
+export interface OrgMemberRemoveResult {
+  removed_member: {
+    id: string;
+    name: string;
+  };
+  cascade_removed_from_boards: Array<{
+    board_id: string;
+    board_name: string;
+  }>;
+}
+
+export interface OrgInviteLink {
+  id: string;
+  code: string;
+  role: OrgRole;
+  max_uses?: number | null;
+  used_count: number;
+  expires_at?: string | null;
+  is_active: boolean;
+  invite_url?: string;
+  created_at: string;
+}
+
+export interface OrgInvitePublicInfo {
+  organization_name: string;
+  logo_url?: string | null;
+  member_count: number;
+  role: OrgRole;
+}
+
+export interface OrgBoardSimple {
+  id: string;
+  name: string;
+  description?: string | null;
+  owner: { id: string; name: string };
+  member_count: number;
+  tier?: string;
+  created_at: string;
+}
+
+export interface OrgBoardEligibilityCheck {
+  board_id: string;
+  board_name: string;
+  is_eligible: boolean;
+  total_members: number;
+  non_org_members: Array<{
+    user_id: string;
+    name: string;
+    email: string;
+  }>;
+}
+
+// ========================================
+// Leave (휴가)
+// ========================================
+
+export interface LeavePolicy {
+  id: string;
+  name: string;
+  leave_category: LeaveCategory;
+  default_days: number;
+  is_paid: boolean;
+  requires_approval: boolean;
+  description?: string | null;
+  display_order?: number;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface LeaveBalance {
+  id: string;
+  policy_id: string;
+  policy_name: string;
+  leave_category: LeaveCategory;
+  year: number;
+  total_days: number;
+  used_days: number;
+  remaining: number;
+}
+
+export interface LeaveRequestRequester {
+  member_id: string;
+  name: string;
+  email: string;
+  department_name?: string | null;
+}
+
+export interface LeaveRequestReviewer {
+  member_id: string;
+  name: string;
+}
+
+export interface LeaveRequestPolicyInfo {
+  id: string;
+  name: string;
+  leave_category: LeaveCategory;
+}
+
+export interface LeaveRequestResponse {
+  id: string;
+  requester: LeaveRequestRequester;
+  policy: LeaveRequestPolicyInfo;
+  start_date: string;
+  end_date: string;
+  duration_type: LeaveDurationType;
+  total_days: number;
+  reason?: string | null;
+  status: LeaveStatus;
+  reviewer?: LeaveRequestReviewer | null;
+  reviewed_at?: string | null;
+  review_comment?: string | null;
+  created_at: string;
+}
+
+export interface LeaveRequestPageResponse {
+  content: LeaveRequestResponse[];
+  total_elements: number;
+  total_pages: number;
+  page: number;
+  size: number;
+}

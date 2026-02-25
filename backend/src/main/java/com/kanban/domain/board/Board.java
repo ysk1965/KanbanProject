@@ -1,6 +1,7 @@
 package com.kanban.domain.board;
 
 import com.kanban.domain.common.BaseTimeEntity;
+import com.kanban.domain.organization.Organization;
 import com.kanban.domain.user.User;
 import jakarta.persistence.*;
 import lombok.*;
@@ -55,6 +56,10 @@ public class Board extends BaseTimeEntity {
 
     @Column(name = "background_gradient")
     private String backgroundGradient;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "organization_id")
+    private Organization organization;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "board_type", length = 20)
@@ -277,6 +282,18 @@ public class Board extends BaseTimeEntity {
     /**
      * 소프트 삭제 (deletedAt 마킹)
      */
+    public void setOrganization(Organization organization) {
+        this.organization = organization;
+    }
+
+    public void removeOrganization() {
+        this.organization = null;
+    }
+
+    public boolean isOrganizationBoard() {
+        return this.organization != null;
+    }
+
     public void softDelete() {
         this.deletedAt = LocalDateTime.now(ZoneOffset.UTC);
     }

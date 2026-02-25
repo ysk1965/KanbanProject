@@ -4,6 +4,7 @@ import com.kanban.domain.board.*;
 import com.kanban.domain.board.service.BoardService;
 import com.kanban.domain.invite.InviteLink;
 import com.kanban.domain.invite.InviteLinkRepository;
+import com.kanban.domain.organization.repository.OrgMemberRepository;
 import com.kanban.domain.member.dto.MemberRequest;
 import com.kanban.domain.member.dto.MemberResponse;
 import com.kanban.domain.subscription.Subscription;
@@ -44,6 +45,7 @@ public class MemberService {
     private final BoardService boardService;
     private final EmailService emailService;
     private final WebSocketEventService webSocketEventService;
+    private final OrgMemberRepository orgMemberRepository;
 
     @Cacheable(value = "members", key = "#boardId", unless = "#result == null")
     public MemberResponse.ListResponse getMembers(String boardId, String userId) {
@@ -86,6 +88,14 @@ public class MemberService {
     private MemberResponse.InviteResult addExistingUserAsMember(Board board, User inviter, User invitee, BoardRole role, String boardId) {
         // Pessimistic Lock으로 Board 조회 - 멤버 제한 동시성 제어
         boardRepository.findByIdWithLock(boardId);
+
+        // R2: 조직 보드인 경우 조직원 여부 검증
+        if (board.isOrganizationBoard()) {
+            String orgId = board.getOrganization().getId();
+            if (!orgMemberRepository.existsByOrganizationIdAndUserId(orgId, invitee.getId())) {
+                throw new BusinessException(ErrorCode.NOT_ORG_MEMBER_FOR_BOARD);
+            }
+        }
 
         // 이미 멤버인지 확인
         if (boardMemberRepository.existsByBoardIdAndUserId(boardId, invitee.getId())) {

@@ -60,6 +60,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/api/v1/pricing/**").permitAll()
                         .requestMatchers("/api/v1/invites/**").permitAll()
+                        .requestMatchers("/api/v1/org-invites/**").permitAll()
                         // Public shared content (no auth required)
                         .requestMatchers("/api/v1/public/**").permitAll()
                         // System status (maintenance check, active announcements)
