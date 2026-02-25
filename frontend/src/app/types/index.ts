@@ -2082,6 +2082,16 @@ export interface OrgMemberDetail extends OrgMemberSimple {
   invited_by?: OrgMemberUserInfo | null;
 }
 
+// Member Detail - Board Info
+export interface OrgMemberBoard {
+  id: string;
+  name: string;
+  description?: string | null;
+  owner_name: string;
+  member_count: number;
+  created_at: string;
+}
+
 export interface OrgMemberPageResponse {
   content: OrgMemberSimple[];
   total_elements: number;
@@ -2125,6 +2135,47 @@ export interface OrgInvitePublicInfo {
   logo_url?: string | null;
   member_count: number;
   role: OrgRole;
+}
+
+// ========================================
+// Organization Announcement & Activity
+// ========================================
+
+export interface OrgAnnouncement {
+  id: string;
+  author_name: string;
+  title: string;
+  content: string | null;
+  is_pinned: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OrgAnnouncementListResponse {
+  announcements: OrgAnnouncement[];
+  has_more: boolean;
+  next_cursor: string | null;
+}
+
+export type OrgActivityType =
+  | 'MEMBER_JOINED' | 'MEMBER_LEFT' | 'MEMBER_ROLE_CHANGED'
+  | 'BOARD_ADDED' | 'BOARD_REMOVED' | 'BOARD_CREATED'
+  | 'LEAVE_APPROVED' | 'LEAVE_REJECTED'
+  | 'ANNOUNCEMENT_POSTED';
+
+export interface OrgActivity {
+  id: string;
+  actor_name: string;
+  activity_type: OrgActivityType;
+  target_name: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export interface OrgActivityListResponse {
+  activities: OrgActivity[];
+  has_more: boolean;
+  next_cursor: string | null;
 }
 
 export interface OrgBoardSimple {

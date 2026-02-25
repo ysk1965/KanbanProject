@@ -4,7 +4,13 @@ import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardMember;
 import com.kanban.domain.board.BoardMemberRepository;
 import com.kanban.domain.board.BoardRepository;
+import com.kanban.domain.board.dto.BoardRequest;
+import com.kanban.domain.board.dto.BoardResponse;
+import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.organization.OrgActivityType;
 import com.kanban.domain.organization.Organization;
+import com.kanban.domain.organization.OrganizationMember;
+import com.kanban.domain.organization.dto.OrgBoardRequest;
 import com.kanban.domain.organization.dto.OrgBoardResponse;
 import com.kanban.domain.organization.repository.OrgMemberRepository;
 import com.kanban.domain.organization.repository.OrganizationRepository;
@@ -30,6 +36,8 @@ public class OrganizationFacadeService {
     private final BoardRepository boardRepository;
     private final BoardMemberRepository boardMemberRepository;
     private final OrganizationService organizationService;
+    private final OrgActivityService orgActivityService;
+    private final BoardService boardService;
 
     public List<OrgBoardResponse.Simple> getOrgBoards(String orgId, String userId) {
         organizationService.getOrgMemberOrThrow(orgId, userId);
@@ -107,6 +115,12 @@ public class OrganizationFacadeService {
 
         board.setOrganization(org);
         int memberCount = boardMembers.size();
+
+        // Log activity
+        OrganizationMember actor = organizationService.getOrgMemberOrThrow(orgId, userId);
+        orgActivityService.log(org, actor.getUser().getName(),
+                OrgActivityType.BOARD_ADDED, board.getName(), null);
+
         log.info("Board added to organization: boardId={}, orgId={}", boardId, orgId);
         return OrgBoardResponse.Simple.of(board, memberCount);
     }
@@ -123,7 +137,39 @@ public class OrganizationFacadeService {
             throw new BusinessException(ErrorCode.BOARD_NOT_IN_ORG);
         }
 
+        // Log activity before removing
+        Organization org = organizationService.getActiveOrgOrThrow(orgId);
+        OrganizationMember actor = organizationService.getOrgMemberOrThrow(orgId, userId);
+        orgActivityService.log(org, actor.getUser().getName(),
+                OrgActivityType.BOARD_REMOVED, board.getName(), null);
+
         board.removeOrganization();
         log.info("Board removed from organization: boardId={}, orgId={}", boardId, orgId);
+    }
+
+    @Transactional
+    public OrgBoardResponse.Simple createBoardForOrg(String orgId, OrgBoardRequest.CreateBoard request, String userId) {
+        Organization org = organizationRepository.findActiveByIdWithLock(orgId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ORG_NOT_FOUND));
+        organizationService.checkAdminOrAbove(orgId, userId);
+
+        // Create board via BoardService (creates board + owner member + default blocks + subscription)
+        BoardRequest.Create boardRequest = new BoardRequest.Create(request.getName(), request.getDescription(), null);
+        BoardResponse.Detail detail = boardService.createBoard(userId, boardRequest);
+
+        // Link to organization
+        Board board = boardRepository.findActiveById(detail.getId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+        board.setOrganization(org);
+
+        int memberCount = boardMemberRepository.findByBoardId(board.getId()).size();
+
+        // Log activity
+        OrganizationMember actor = organizationService.getOrgMemberOrThrow(orgId, userId);
+        orgActivityService.log(org, actor.getUser().getName(),
+                OrgActivityType.BOARD_CREATED, board.getName(), null);
+
+        log.info("Board created for organization: boardId={}, orgId={}", board.getId(), orgId);
+        return OrgBoardResponse.Simple.of(board, memberCount);
     }
 }

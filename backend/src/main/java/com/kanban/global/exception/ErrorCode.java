@@ -250,6 +250,9 @@ PERSONAL_TAG_NOT_FOUND(HttpStatus.NOT_FOUND, "PT003", "태그를 찾을 수 없�
     ORG_INVITE_EXPIRED(HttpStatus.BAD_REQUEST, "OI002", "만료된 조직 초대 링크입니다"),
     ORG_INVITE_INVALID(HttpStatus.BAD_REQUEST, "OI003", "유효하지 않은 조직 초대 링크입니다"),
 
+    // Organization - Announcement
+    ORG_ANNOUNCEMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "OA001", "공지사항을 찾을 수 없습니다"),
+
     // Organization - Department / Job Group
     ORG_DEPARTMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "OD001", "부서를 찾을 수 없습니다"),
     ORG_DEPARTMENT_ALREADY_EXISTS(HttpStatus.CONFLICT, "OD002", "이미 존재하는 부서명입니다"),
@@ -267,7 +270,8 @@ PERSONAL_TAG_NOT_FOUND(HttpStatus.NOT_FOUND, "PT003", "태그를 찾을 수 없�
     LEAVE_CANNOT_APPROVE(HttpStatus.BAD_REQUEST, "L008", "승인할 수 없는 휴가 신청입니다"),
     LEAVE_CANNOT_REJECT(HttpStatus.BAD_REQUEST, "L009", "거절할 수 없는 휴가 신청입니다"),
     LEAVE_CANNOT_CANCEL(HttpStatus.BAD_REQUEST, "L010", "취소할 수 없는 휴가 신청입니다"),
-    LEAVE_CANCEL_PAST_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "L011", "이미 종료된 휴가는 취소할 수 없습니다");
+    LEAVE_CANCEL_PAST_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "L011", "이미 종료된 휴가는 취소할 수 없습니다"),
+    LEAVE_CANNOT_REOPEN(HttpStatus.BAD_REQUEST, "L012", "다시 신청할 수 없는 휴가입니다");
 
     private final HttpStatus status;
     private final String code;

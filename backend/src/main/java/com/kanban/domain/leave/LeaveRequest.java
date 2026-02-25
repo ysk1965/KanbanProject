@@ -103,6 +103,17 @@ public class LeaveRequest {
         this.status = LeaveStatus.CANCELED;
     }
 
+    public void reopen() {
+        this.status = LeaveStatus.PENDING;
+        this.reviewer = null;
+        this.reviewedAt = null;
+        this.reviewComment = null;
+    }
+
+    public boolean isCanceled() {
+        return this.status == LeaveStatus.CANCELED;
+    }
+
     public boolean canCancelAfterApproval() {
         return !this.endDate.isBefore(LocalDate.now());
     }

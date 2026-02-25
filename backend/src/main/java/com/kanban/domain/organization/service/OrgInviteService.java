@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -102,7 +103,7 @@ public class OrgInviteService {
     }
 
     @Transactional
-    public void acceptInvite(String code, String userId) {
+    public Map<String, String> acceptInvite(String code, String userId) {
         OrganizationInviteLink link = orgInviteLinkRepository.findByCode(code)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORG_INVITE_NOT_FOUND));
 
@@ -138,5 +139,12 @@ public class OrgInviteService {
         link.incrementUsedCount();
 
         log.info("Organization invite accepted: orgId={}, userId={}, code={}", org.getId(), userId, code);
+
+        return Map.of(
+                "organization_id", org.getId(),
+                "organization_name", org.getName(),
+                "role", link.getRole().name(),
+                "message", "조직에 가입되었습니다."
+        );
     }
 }

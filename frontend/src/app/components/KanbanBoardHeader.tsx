@@ -116,17 +116,15 @@ export function KanbanBoardHeader({
         hideBilling={hideBillingForUser}
       />
 
-      <header className="min-h-[3.5rem] md:h-16 border-b border-bridge-border flex items-center justify-between px-3 md:px-6 bg-bridge-dark shrink-0 z-30 gap-2 safe-top">
+      <header className="min-h-[3.5rem] md:h-16 border-b border-bridge-border flex items-center px-3 md:px-6 bg-bridge-dark shrink-0 z-30 gap-2 safe-top relative">
         {/* 좌측 영역 */}
-        <div className="flex items-center gap-2 md:gap-6 min-w-0">
-          {!isWhiteLabelDomain && (
-            <button
-              onClick={() => navigate('/boards')}
-              className="p-2 hover:bg-bridge-surface-hover rounded-lg transition-colors text-zinc-400 hover:text-foreground"
-            >
-              <ArrowLeft size={18} />
-            </button>
-          )}
+        <div className="flex items-center gap-2 md:gap-6 min-w-0 shrink-0">
+          <button
+            onClick={() => navigate('/boards')}
+            className="p-2 hover:bg-bridge-surface-hover rounded-lg transition-colors text-zinc-400 hover:text-foreground"
+          >
+            <ArrowLeft size={18} />
+          </button>
 
           <div className="flex items-center gap-2 md:gap-3 min-w-0">
             {isEditingBoardName ? (
@@ -155,8 +153,8 @@ export function KanbanBoardHeader({
           </div>
         </div>
 
-        {/* 중앙 탭 영역 */}
-        <div className="hidden md:flex justify-center min-w-0 md:flex-1">
+        {/* 중앙 탭 영역 - 절대 중앙 정렬 */}
+        <div className="hidden md:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
         <nav className="flex items-center gap-1 bg-bridge-surface p-1 rounded-xl border border-bridge-border overflow-x-auto shrink-0">
           <button
             onClick={() => onViewModeChange('kanban')}
@@ -248,7 +246,7 @@ export function KanbanBoardHeader({
         </div>
 
         {/* 우측 액션 영역 */}
-        <div className="flex items-center gap-1 md:gap-2 shrink-0">
+        <div className="flex items-center gap-1 md:gap-2 shrink-0 ml-auto">
           <div className="flex items-center gap-0.5 md:gap-1 border-r border-bridge-border pr-2 md:pr-3 mr-0.5 md:mr-1">
             <NotificationDropdown
               boardId={boardId}

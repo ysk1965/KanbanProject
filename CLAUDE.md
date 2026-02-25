@@ -79,69 +79,112 @@ docker-compose up -d              # PostgreSQL 15 + Redis 7
 
 ---
 
-## BRIDGE 디자인 시스템
+## BRIDGE 디자인 시스템 (v1.5.0)
+
+상세 기획서: `docs/Design/v1.5.0.md`
 
 ### 컬러 팔레트
 
-| 이름 | 변수 | HEX | 용도 |
-|------|------|-----|------|
-| Bridge Dark | `bridge-dark` | `#0A0E17` | 메인 배경 |
-| Bridge Obsidian | `bridge-obsidian` | `#0F1419` | 카드/헤더 배경 |
-| Bridge Accent | `bridge-accent` | `#6366F1` | 주요 액센트 (인디고) |
-| Bridge Secondary | `bridge-secondary` | `#2DD4BF` | 보조 액센트 (틸) |
+| 이름 | 변수 | Dark Mode | Light Mode | 용도 |
+|------|------|-----------|------------|------|
+| Bridge Dark | `bridge-dark` | `#191f2d` | `#fffcf8` | 메인 배경 |
+| Bridge Obsidian | `bridge-obsidian` | `#151B28` | `#efe6d8` | 카드/헤더 배경 |
+| Bridge Accent | `bridge-accent` | `#6366F1` | `#6366F1` | 주요 액센트 (인디고) |
+| Bridge Secondary | `bridge-secondary` | `#2DD4BF` | `#14B8A6` | 보조 액센트 (틸) |
+| Bridge Surface | `bridge-surface` | `#1e2a42` | `#efe3d2` | 서피스 배경 |
+| Bridge Border | `bridge-border` | `#384d6e` | `#E4DFDA` | 강조 테두리 |
 
-모든 Bridge 테마 변수는 `frontend/src/styles/theme.css`에 정의.
+모든 Bridge 테마 변수는 `frontend/src/styles/theme.css`에 정의. `.light` 클래스로 자동 전환.
 
-#### 사용 예시
+### 3-Tier 테마 시스템 (다크/라이트 모드)
+
+| Tier | 방식 | `dark:` 필요 | 용도 |
+|------|------|-------------|------|
+| 1 | Bridge Colors (CSS Variables) | **불필요** (자동 전환) | 배경, 액센트, 테두리 |
+| 2 | `dark:` Prefix (Tailwind) | **필요** | 입력 필드, 텍스트, Status 색상 |
+| 3 | BlockNote Colors | **불필요** | 노트 에디터 전용 |
+
 ```tsx
-// 배경
-<div className="bg-bridge-dark" />           // 메인 배경
-<div className="bg-bridge-obsidian" />       // 카드/섹션 배경
+// Tier 1: Bridge 토큰 - dark: 불필요 (자동 전환)
+<div className="bg-bridge-dark" />              // #191f2d ↔ #fffcf8
+<div className="bg-bridge-obsidian" />          // #151B28 ↔ #efe6d8
+<span className="text-foreground" />            // oklch(0.985) ↔ #3D2E1F
+<div className="border-foreground/10" />        // 자동 대응
 
-// 텍스트
-<span className="text-bridge-accent" />      // 강조 텍스트
-<span className="text-bridge-secondary" />   // 보조 강조
-
-// 버튼
-<button className="bg-bridge-accent hover:bg-bridge-accent/90" />
-
-// 테두리
-<div className="border border-white/10" />   // 기본 테두리
-<div className="border border-bridge-accent/50" /> // 강조 테두리
+// Tier 2: dark: Prefix - 수동 분기
+<input className="bg-black/5 dark:bg-white/5 text-slate-900 dark:text-white
+  border-black/10 dark:border-white/10" />
+<span className="text-emerald-600 dark:text-emerald-400" />  // Status 뱃지
 ```
 
 ### 타이포그래피
 
-- **헤딩**: `font-serif font-bold tracking-tight`
-- **본문**: `font-light` 또는 기본
+- **페이지 제목**: `text-2xl font-bold text-foreground tracking-tight`
+- **위젯 제목**: `text-[13px] md:text-sm font-bold text-foreground`
 - **라벨**: `text-[11px] font-bold uppercase tracking-widest text-slate-400`
-- **작은 텍스트**: `text-[10px] tracking-[0.3em] uppercase`
+- **Subtitle**: `text-[11px] text-slate-500`
+- **본문**: `text-base font-light leading-relaxed`
+- **Badge**: `text-[10px] font-bold`
+- **Hint**: `text-[10px] text-slate-600`
 
 ### 컴포넌트 스타일
 
 ```tsx
-// 카드
-<div className="bg-bridge-obsidian rounded-2xl border border-white/5 p-6" />
+// 카드 (마이스페이스 - Foreground 기반)
+<div className="bg-bridge-obsidian rounded-xl border border-foreground/5 p-4" />
 
-// Primary 버튼
-<button className="px-6 py-3 bg-bridge-accent text-white rounded-xl font-bold
+// 카드 (Organization - dark: 기반)
+<div className="bg-bridge-obsidian rounded-2xl border border-black/5 dark:border-white/5 p-6" />
+
+// WidgetCard (마이스페이스 위젯)
+<div className="rounded-2xl border border-foreground/[0.12] overflow-hidden">
+  <div className="px-3 md:px-5 py-2 md:py-3 bg-foreground/[0.06] border-b border-foreground/[0.06]" />
+  <div className="bg-bridge-dark p-3 md:p-5">{children}</div>
+</div>
+
+// MotionModal (마이스페이스 모달)
+// Backdrop: rgba(0,0,0,0.2) + blur(2px)
+<div className="w-full sm:max-w-md bg-bridge-obsidian rounded-t-2xl sm:rounded-2xl
+  border border-foreground/10 shadow-2xl" />
+// 모달 Top Accent Line
+<div className="h-[2px] bg-gradient-to-r from-bridge-accent/60 via-bridge-secondary/40 to-transparent" />
+// 모달 Header
+<div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]" />
+// 모달 Footer
+<div className="flex items-center justify-between pt-3 border-t border-foreground/[0.08]">
+  <span className="text-[10px] text-slate-600">Esc 닫기</span>
+  <button className="px-4 py-1.5 rounded-lg text-xs font-bold text-white bg-bridge-accent" />
+</div>
+
+// Primary 버튼 (페이지)
+<button className="px-5 py-2.5 bg-bridge-accent text-white rounded-xl font-bold
   hover:bg-bridge-accent/90 hover:shadow-[0_0_30px_rgba(99,102,241,0.3)] transition-all" />
 
-// Secondary 버튼
-<button className="px-6 py-3 bg-white/5 border border-white/10 text-white rounded-xl
-  hover:bg-white/10 transition-all" />
+// Secondary 버튼 (dark: 기반)
+<button className="px-5 py-2.5 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10
+  text-slate-900 dark:text-white rounded-xl hover:bg-black/10 dark:hover:bg-white/10 transition-all" />
 
 // Ghost 버튼
-<button className="text-slate-400 hover:text-white hover:bg-white/5 transition-colors" />
+<button className="text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors" />
 
-// 입력 필드
-<input className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4
-  text-white placeholder-slate-600
-  focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent
-  transition-all" />
+// Icon 버튼
+<button className="p-1.5 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5
+  transition-colors shrink-0" />
 
-// 모달
-<div className="bg-bridge-obsidian rounded-2xl border border-white/10 p-6 shadow-2xl" />
+// 입력 필드 (dark: 기반 - Organization 등)
+<input className="w-full bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10
+  rounded-xl py-3 px-4 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-600
+  focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all" />
+
+// Textarea (Foreground 기반 - 마이스페이스 모달)
+<textarea className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl p-3
+  text-sm text-muted-foreground placeholder-slate-600 outline-none resize-none
+  focus:border-bridge-accent/30 focus:ring-1 focus:ring-bridge-accent/10 transition-all" />
+
+// 뱃지 (공통 패턴)
+<span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-{color}/10 text-{color}" />
+// Bridge 뱃지: bg-bridge-accent/20 text-bridge-accent (dark: 불필요)
+// Status 뱃지: bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 (dark: 필요)
 
 // Glass Morphism 헤더
 <header className="bg-bridge-obsidian border-b border-white/5 glass" />
@@ -149,19 +192,24 @@ docker-compose up -d              # PostgreSQL 15 + Redis 7
 
 ### 새 컴포넌트 작성 시 규칙
 
-1. **Bridge 컬러 사용**: `#1d2125` 대신 `bridge-dark`, `bridge-obsidian`
-2. **테두리**: `border-gray-700` 대신 `border-white/10` 또는 `border-white/5`
-3. **텍스트**: `text-gray-400` 대신 `text-slate-400`
-4. **호버**: `hover:bg-[#3a4149]` 대신 `hover:bg-white/5`
-5. **라운드**: `rounded-xl` 또는 `rounded-2xl`
+1. **Bridge 컬러 사용**: `#1d2125` 대신 `bridge-dark`, `bridge-obsidian` (자동 테마 전환)
+2. **테두리**: Org = `border-black/5 dark:border-white/5` / 마이스페이스 = `border-foreground/5`
+3. **텍스트**: Org = `text-slate-900 dark:text-white` / 마이스페이스 = `text-foreground`
+4. **호버**: `hover:bg-foreground/5` 또는 `hover:bg-black/10 dark:hover:bg-white/10`
+5. **라운드**: 카드 `rounded-2xl`, 버튼/인풋 `rounded-xl`, 작은 요소 `rounded-lg`, 뱃지 `rounded-full`
 6. **아이콘**: Lucide React (`import { Plus } from 'lucide-react'`)
 7. **애니메이션**: Framer Motion (`motion.div` with `initial/animate/transition`)
+8. **모달**: `MotionModal` 컴포넌트 사용 (`frontend/src/app/components/ui/MotionModal.tsx`)
+9. **Status 색상**: 뱃지 BG는 `/20` 고정, 텍스트만 `dark:` 분기 (예: `text-amber-600 dark:text-amber-400`)
 
 ### 디자인 참조 파일
 
-- `frontend/src/app/components/landing/LandingPage.tsx` - 전체 디자인 시스템
-- `frontend/src/app/components/LoginPage.tsx` - 폼 디자인
-- `frontend/src/app/components/BoardListPage.tsx` - 카드 그리드
+- `docs/Design/v1.5.0.md` - **디자인 시스템 전체 기획서**
+- `frontend/src/styles/theme.css` - CSS 변수 정의 (Bridge + shadcn + Light Mode)
+- `frontend/src/app/components/personal/` - 마이스페이스 (foreground 기반 패턴)
+- `frontend/src/app/components/organization/tabs/` - 조직 관리 (dark: 기반 패턴)
+- `frontend/src/app/components/ui/MotionModal.tsx` - 모달 컴포넌트
+- `frontend/src/app/components/landing/LandingPage.tsx` - 랜딩 디자인
 
 ---
 

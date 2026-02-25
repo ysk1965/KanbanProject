@@ -6,6 +6,8 @@ import com.kanban.domain.board.BoardMemberRepository;
 import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.leave.LeaveRequest;
 import com.kanban.domain.leave.LeaveStatus;
+import com.kanban.domain.leave.dto.LeaveDto;
+import com.kanban.domain.leave.repository.LeaveBalanceRepository;
 import com.kanban.domain.leave.repository.LeaveRequestRepository;
 import com.kanban.domain.leave.service.LeaveService;
 import com.kanban.domain.organization.*;
@@ -16,18 +18,23 @@ import com.kanban.domain.organization.repository.OrgJobGroupRepository;
 import com.kanban.domain.organization.repository.OrgMemberRepository;
 import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
+import com.kanban.domain.user.service.UserService;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
+import java.util.HashMap;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -42,9 +49,12 @@ public class OrgMemberService {
     private final BoardRepository boardRepository;
     private final BoardMemberRepository boardMemberRepository;
     private final UserRepository userRepository;
+    private final UserService userService;
     private final OrganizationService organizationService;
+    private final OrgActivityService orgActivityService;
     private final LeaveService leaveService;
     private final LeaveRequestRepository leaveRequestRepository;
+    private final LeaveBalanceRepository leaveBalanceRepository;
 
     public OrgMemberResponse.PageResponse getMembers(String orgId, String userId,
             String departmentId, String jobGroupId, ContractType contractType,
@@ -85,11 +95,6 @@ public class OrgMemberService {
         User inviter = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        // Check if already a member
-        if (orgMemberRepository.existsByOrganizationIdAndUserId(orgId, request.getEmail())) {
-            // Check by email - user might exist
-        }
-
         // Find user by email
         User targetUser = userRepository.findByEmail(request.getEmail()).orElse(null);
 
@@ -123,6 +128,10 @@ public class OrgMemberService {
 
             // Create leave balances for new member
             leaveService.createBalancesForNewMember(org, newMember);
+
+            // Log activity
+            orgActivityService.log(org, inviter.getName(),
+                    OrgActivityType.MEMBER_JOINED, targetUser.getName(), null);
 
             return OrgMemberResponse.InviteResult.builder()
                     .type("direct_add")
@@ -214,7 +223,17 @@ public class OrgMemberService {
             throw new BusinessException(ErrorCode.CANNOT_CHANGE_ORG_OWNER_ROLE);
         }
 
+        Organization org = organizationService.getActiveOrgOrThrow(orgId);
+        OrganizationMember requester = organizationService.getOrgMemberOrThrow(orgId, userId);
+        String oldRole = target.getRole().name();
         target.updateRole(request.getRole());
+
+        // Log activity
+        Map<String, Object> meta = new HashMap<>();
+        meta.put("old_role", oldRole);
+        meta.put("new_role", request.getRole().name());
+        orgActivityService.log(org, requester.getUser().getName(),
+                OrgActivityType.MEMBER_ROLE_CHANGED, target.getUser().getName(), meta);
     }
 
     @Transactional
@@ -270,6 +289,11 @@ public class OrgMemberService {
         }
 
         String memberName = target.getUser().getName();
+        Organization org = organizationService.getActiveOrgOrThrow(orgId);
+
+        // Log activity before deletion
+        orgActivityService.log(org, requester.getUser().getName(),
+                OrgActivityType.MEMBER_LEFT, memberName, null);
 
         // Delete the org member (leave_balances ON DELETE CASCADE)
         orgMemberRepository.delete(target);
@@ -284,5 +308,106 @@ public class OrgMemberService {
                         .build())
                 .cascadeRemovedFromBoards(removedBoards)
                 .build();
+    }
+
+    public List<OrgMemberResponse.MemberBoard> getMemberBoards(String orgId, String memberId, String userId) {
+        organizationService.getOrgMemberOrThrow(orgId, userId);
+
+        OrganizationMember target = orgMemberRepository.findById(memberId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ORG_MEMBER_NOT_FOUND));
+        if (!target.getOrganization().getId().equals(orgId)) {
+            throw new BusinessException(ErrorCode.ORG_MEMBER_NOT_FOUND);
+        }
+
+        String targetUserId = target.getUser().getId();
+        List<Board> orgBoards = boardRepository.findByOrganizationId(orgId);
+
+        // Batch query member counts for all org boards
+        List<String> boardIds = orgBoards.stream().map(Board::getId).collect(Collectors.toList());
+        Map<String, Long> memberCountMap = boardMemberRepository.countGroupedByBoardId(boardIds).stream()
+                .collect(Collectors.toMap(
+                        row -> (String) row[0],
+                        row -> (Long) row[1]
+                ));
+
+        List<OrgMemberResponse.MemberBoard> result = new ArrayList<>();
+        for (Board board : orgBoards) {
+            boolean isMember = boardMemberRepository.existsByBoardIdAndUserId(board.getId(), targetUserId);
+            if (isMember) {
+                result.add(OrgMemberResponse.MemberBoard.builder()
+                        .id(board.getId())
+                        .name(board.getName())
+                        .description(board.getDescription())
+                        .ownerName(board.getOwner().getName())
+                        .memberCount(memberCountMap.getOrDefault(board.getId(), 0L).intValue())
+                        .createdAt(board.getCreatedAt())
+                        .build());
+            }
+        }
+
+        return result;
+    }
+
+    @Transactional
+    public OrgMemberResponse.Detail uploadMemberProfileImage(String orgId, String memberId,
+            String userId, MultipartFile file) {
+        organizationService.getActiveOrgOrThrow(orgId);
+        OrganizationMember requester = organizationService.getOrgMemberOrThrow(orgId, userId);
+        OrganizationMember target = orgMemberRepository.findById(memberId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ORG_MEMBER_NOT_FOUND));
+        if (!target.getOrganization().getId().equals(orgId)) {
+            throw new BusinessException(ErrorCode.ORG_MEMBER_NOT_FOUND);
+        }
+
+        boolean isSelf = requester.getId().equals(target.getId());
+        if (!isSelf && !requester.isAdminOrAbove()) {
+            throw new BusinessException(ErrorCode.ORG_ADMIN_REQUIRED);
+        }
+
+        userService.updateProfileImage(target.getUser().getId(), file);
+        // Refresh target to get updated user
+        OrganizationMember updated = orgMemberRepository.findById(memberId).orElse(target);
+        return OrgMemberResponse.Detail.of(updated);
+    }
+
+    @Transactional
+    public OrgMemberResponse.Detail deleteMemberProfileImage(String orgId, String memberId, String userId) {
+        organizationService.getActiveOrgOrThrow(orgId);
+        OrganizationMember requester = organizationService.getOrgMemberOrThrow(orgId, userId);
+        OrganizationMember target = orgMemberRepository.findById(memberId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ORG_MEMBER_NOT_FOUND));
+        if (!target.getOrganization().getId().equals(orgId)) {
+            throw new BusinessException(ErrorCode.ORG_MEMBER_NOT_FOUND);
+        }
+
+        boolean isSelf = requester.getId().equals(target.getId());
+        if (!isSelf && !requester.isAdminOrAbove()) {
+            throw new BusinessException(ErrorCode.ORG_ADMIN_REQUIRED);
+        }
+
+        userService.deleteProfileImage(target.getUser().getId());
+        OrganizationMember updated = orgMemberRepository.findById(memberId).orElse(target);
+        return OrgMemberResponse.Detail.of(updated);
+    }
+
+    public List<LeaveDto.BalanceResponse> getMemberLeaveBalances(String orgId, String memberId,
+            String userId, Integer year) {
+        OrganizationMember requester = organizationService.getOrgMemberOrThrow(orgId, userId);
+        OrganizationMember target = orgMemberRepository.findById(memberId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ORG_MEMBER_NOT_FOUND));
+        if (!target.getOrganization().getId().equals(orgId)) {
+            throw new BusinessException(ErrorCode.ORG_MEMBER_NOT_FOUND);
+        }
+
+        // Only ADMIN+ or self can view leave balances
+        boolean isSelf = requester.getId().equals(target.getId());
+        if (!isSelf && !requester.isAdminOrAbove()) {
+            throw new BusinessException(ErrorCode.ORG_ADMIN_REQUIRED);
+        }
+
+        int targetYear = year != null ? year : LocalDate.now(ZoneOffset.UTC).getYear();
+        return leaveBalanceRepository.findByOrgIdAndMemberIdAndYear(orgId, memberId, targetYear).stream()
+                .map(LeaveDto.BalanceResponse::of)
+                .collect(Collectors.toList());
     }
 }

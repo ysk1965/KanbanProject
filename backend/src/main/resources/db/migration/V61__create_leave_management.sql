@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS leave_balances (
     organization_id VARCHAR(36) NOT NULL,
     member_id VARCHAR(36) NOT NULL,
     policy_id VARCHAR(36) NOT NULL,
-    year INT NOT NULL,
+    leave_year INT NOT NULL,
     total_days DECIMAL(4,1) NOT NULL DEFAULT 0,
     used_days DECIMAL(4,1) NOT NULL DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT (NOW() AT TIME ZONE 'UTC'),
@@ -37,13 +37,13 @@ CREATE TABLE IF NOT EXISTS leave_balances (
     CONSTRAINT fk_leavebal_org FOREIGN KEY (organization_id) REFERENCES organizations(id),
     CONSTRAINT fk_leavebal_member FOREIGN KEY (member_id) REFERENCES organization_members(id) ON DELETE CASCADE,
     CONSTRAINT fk_leavebal_policy FOREIGN KEY (policy_id) REFERENCES leave_policies(id),
-    CONSTRAINT uq_leave_balance UNIQUE (member_id, policy_id, year),
+    CONSTRAINT uq_leave_balance UNIQUE (member_id, policy_id, leave_year),
     CONSTRAINT chk_total_days_positive CHECK (total_days >= 0),
     CONSTRAINT chk_used_days_positive CHECK (used_days >= 0)
 );
 
 CREATE INDEX idx_leavebal_member ON leave_balances(member_id);
-CREATE INDEX idx_leavebal_org_year ON leave_balances(organization_id, year);
+CREATE INDEX idx_leavebal_org_year ON leave_balances(organization_id, leave_year);
 
 -- 3. Leave Requests
 CREATE TABLE IF NOT EXISTS leave_requests (
