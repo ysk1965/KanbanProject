@@ -21,7 +21,8 @@ export function Sidebar({ isOpen = true, onClose, boards = [], onSelectBoard, is
   const location = useLocation();
   const { t } = useTranslation();
   const { currentUser } = useAuth();
-  const hasPersonalSpace = currentUser?.personal_space_enabled ?? false;
+  const isMilkyway = window.location.hostname.includes('milkyway.pe.kr');
+  const hasPersonalSpace = !isMilkyway && (currentUser?.personal_space_enabled ?? false);
   const [activeItem, setActiveItem] = useState('all');
 
   // Determine active menu item from URL
