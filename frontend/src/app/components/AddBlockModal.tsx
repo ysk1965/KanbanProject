@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, CheckCircle2 } from 'lucide-react';
 import { MotionModal } from './ui/MotionModal';
+import { ColorPickerPopover } from './ui/ColorPickerPopover';
 
 interface AddBlockModalProps {
   open: boolean;
@@ -22,6 +23,8 @@ const COLORS = [
   { name: 'Indigo', value: '#6366F1' },
   { name: 'Gray', value: '#6B7280' },
 ];
+
+const BLOCK_COLOR_VALUES = COLORS.map(c => c.value);
 
 export function AddBlockModal({
   open,
@@ -80,25 +83,13 @@ export function AddBlockModal({
           </div>
 
           <div className="space-y-3">
-            <label className="kanban-label block">{t('block.colorLabel')}</label>
-            <div className="flex gap-2.5 flex-wrap">
-              {COLORS.map((color) => (
-                <button
-                  key={color.value}
-                  type="button"
-                  className={`w-8 h-8 rounded-full transition-all duration-300 ${
-                    selectedColor === color.value
-                      ? 'ring-2 ring-white ring-offset-2 ring-offset-bridge-dark scale-110'
-                      : 'opacity-50 hover:opacity-100 hover:scale-110'
-                  }`}
-                  style={{
-                    backgroundColor: color.value,
-                    boxShadow: selectedColor === color.value ? `0 0 15px ${color.value}` : 'none',
-                  }}
-                  onClick={() => setSelectedColor(color.value)}
-                  title={color.name}
-                />
-              ))}
+            <div className="flex items-center gap-3">
+              <label className="kanban-label">{t('block.colorLabel')}</label>
+              <ColorPickerPopover
+                colors={BLOCK_COLOR_VALUES}
+                selectedColor={selectedColor}
+                onColorChange={setSelectedColor}
+              />
             </div>
           </div>
         </div>

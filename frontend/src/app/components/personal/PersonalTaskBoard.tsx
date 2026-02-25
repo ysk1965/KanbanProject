@@ -1,11 +1,13 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { FEATURE_COLORS } from '../../constants';
 import {
   Plus, Check, Trash2, Flag, Calendar, ChevronDown,
   Flame, CalendarClock, Zap, Archive, X, Pencil, Repeat,
 } from 'lucide-react';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import { MotionModal } from '../ui/MotionModal';
+import { ColorPickerPopover } from '../ui/ColorPickerPopover';
 import { personalTaskAPI, personalHabitAPI } from '../../utils/api';
 import { PersonalTask, PersonalTaskPriority, PersonalHabit, HabitTodayItem, HabitFrequency, HabitWeeklyMatrix } from '../../types';
 import { getDDay, getTodayDateString, type DdayUrgency } from '../../utils/dateUtils';
@@ -117,10 +119,7 @@ const HABIT_DAY_CHIPS = [
   { value: 0, label: '일' },
 ];
 
-const HABIT_COLORS_INLINE = [
-  '#8B5CF6', '#6366F1', '#EC4899', '#F43F5E',
-  '#F59E0B', '#10B981', '#06B6D4', '#3B82F6',
-];
+const HABIT_COLORS_INLINE = FEATURE_COLORS;
 
 function deriveFrequency(days: number[]): { type: HabitFrequency; days?: string } {
   const sorted = [...days].sort((a, b) => a - b);
@@ -860,20 +859,15 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
             <div className="px-4 pb-2">
               <div className="flex items-center gap-2">
                 <span className="text-[10px] text-slate-500 shrink-0">{t('personal.habit.color', '색상')}</span>
-                <div className="flex gap-1.5">
-                  {HABIT_COLORS_INLINE.map((c) => (
-                    <button
-                      key={c}
-                      onClick={() => setHabitColor(c)}
-                      className={`w-5 h-5 rounded-full transition-all ${
-                        habitColor === c
-                          ? 'ring-2 ring-white ring-offset-1 ring-offset-bridge-obsidian scale-110'
-                          : 'hover:scale-110'
-                      }`}
-                      style={{ backgroundColor: c }}
-                    />
-                  ))}
-                </div>
+                <ColorPickerPopover
+                  colors={HABIT_COLORS_INLINE}
+                  selectedColor={habitColor}
+                  onColorChange={setHabitColor}
+                  triggerSize="sm"
+                  triggerShape="circle"
+                  showGlow={false}
+                  showCustomColor={false}
+                />
               </div>
             </div>
           )}

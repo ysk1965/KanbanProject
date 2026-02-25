@@ -23,6 +23,7 @@ import { BoardMember } from './ShareBoardModal';
 import { MeetingView } from './MeetingView';
 import { Sheet, SheetContent, SheetTitle } from './ui/sheet';
 import { MotionModal } from './ui/MotionModal';
+import { ColorPickerPopover } from './ui/ColorPickerPopover';
 import { TimePicker } from './ui/TimePicker';
 
 interface MeetingCalendarViewProps {
@@ -615,18 +616,13 @@ function RecurringEditModal({ boardId, meeting, onClose, onUpdated }: RecurringE
             <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
               {t('meeting.color', '색상')}
             </label>
-            <div className="flex gap-2">
-              {colorOptions.map((c) => (
-                <button
-                  key={c}
-                  onClick={() => setColor(c)}
-                  className={`w-7 h-7 rounded-full border-2 transition-all ${
-                    color === c ? 'border-white scale-110' : 'border-transparent hover:border-white/30'
-                  }`}
-                  style={{ backgroundColor: c }}
-                />
-              ))}
-            </div>
+            <ColorPickerPopover
+              colors={colorOptions}
+              selectedColor={color}
+              onColorChange={setColor}
+              triggerShape="circle"
+              showCustomColor={false}
+            />
           </div>
 
           {/* Recurrence End Date */}

@@ -468,12 +468,12 @@ export function ScheduleDetailPanel({
                             <div className="space-y-1.5">
                               {topic.decisions && topic.decisions.length > 0 && (
                                 <div>
-                                  <span className="text-[9px] font-bold uppercase tracking-widest text-green-400">{t('meeting.aiDecisions', 'Decisions')}</span>
+                                  <span className="text-[9px] font-bold uppercase tracking-widest text-green-600 dark:text-green-400">{t('meeting.aiDecisions', 'Decisions')}</span>
                                   <ul className="mt-0.5 space-y-0.5">
                                     {topic.decisions.map((d, j) => (
-                                      <li key={j} className="flex items-start gap-1.5 text-xs text-muted-foreground">
-                                        <span className="text-green-400 mt-0.5 text-[10px]">✓</span>
-                                        <span className="font-light">{d}</span>
+                                      <li key={j} className="flex items-start gap-1.5 text-xs text-foreground/80">
+                                        <span className="text-green-600 dark:text-green-400 mt-0.5 text-[10px]">✓</span>
+                                        <span>{d}</span>
                                       </li>
                                     ))}
                                   </ul>
@@ -481,12 +481,12 @@ export function ScheduleDetailPanel({
                               )}
                               {topic.discussions && topic.discussions.length > 0 && (
                                 <div>
-                                  <span className="text-[9px] font-bold uppercase tracking-widest text-blue-400">{t('meeting.aiDiscussions', 'Discussions')}</span>
+                                  <span className="text-[9px] font-bold uppercase tracking-widest text-blue-600 dark:text-blue-400">{t('meeting.aiDiscussions', 'Discussions')}</span>
                                   <ul className="mt-0.5 space-y-0.5">
                                     {topic.discussions.map((d, j) => (
-                                      <li key={j} className="flex items-start gap-1.5 text-xs text-muted-foreground">
-                                        <span className="text-blue-400 mt-0.5 text-[10px]">–</span>
-                                        <span className="font-light">{d}</span>
+                                      <li key={j} className="flex items-start gap-1.5 text-xs text-foreground/80">
+                                        <span className="text-blue-600 dark:text-blue-400 mt-0.5 text-[10px]">–</span>
+                                        <span>{d}</span>
                                       </li>
                                     ))}
                                   </ul>
@@ -494,12 +494,12 @@ export function ScheduleDetailPanel({
                               )}
                               {topic.action_items && topic.action_items.length > 0 && (
                                 <div>
-                                  <span className="text-[9px] font-bold uppercase tracking-widest text-amber-400">{t('meeting.aiActionItems', 'Action Items')}</span>
+                                  <span className="text-[9px] font-bold uppercase tracking-widest text-amber-600 dark:text-amber-400">{t('meeting.aiActionItems', 'Action Items')}</span>
                                   <ul className="mt-0.5 space-y-0.5">
                                     {topic.action_items.map((a, j) => (
-                                      <li key={j} className="flex items-start gap-1.5 text-xs text-muted-foreground">
-                                        <span className="text-amber-400 mt-0.5 text-[10px]">→</span>
-                                        <span className="font-light">{a}</span>
+                                      <li key={j} className="flex items-start gap-1.5 text-xs text-foreground/80">
+                                        <span className="text-amber-600 dark:text-amber-400 mt-0.5 text-[10px]">→</span>
+                                        <span>{a}</span>
                                       </li>
                                     ))}
                                   </ul>
@@ -510,9 +510,9 @@ export function ScheduleDetailPanel({
                             /* Fallback: legacy points format */
                             <ul className="space-y-0.5">
                               {topic.points.map((point, j) => (
-                                <li key={j} className="flex items-start gap-1.5 text-xs text-muted-foreground">
-                                  <span className="text-slate-500 mt-0.5 text-[10px]">–</span>
-                                  <span className="font-light">{point}</span>
+                                <li key={j} className="flex items-start gap-1.5 text-xs text-foreground/80">
+                                  <span className="text-muted-foreground mt-0.5 text-[10px]">–</span>
+                                  <span>{point}</span>
                                 </li>
                               ))}
                             </ul>

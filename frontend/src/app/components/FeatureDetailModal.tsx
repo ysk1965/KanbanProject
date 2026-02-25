@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Feature, Task, Tag } from '../types';
 import { FEATURE_COLORS } from '../constants';
-import { X, Trash2, ClipboardList, Lightbulb, ArrowRight, ArrowRightLeft, Pipette, FileText, CalendarIcon, Tags, Sparkles, Pencil, AlertTriangle, ChevronDown } from 'lucide-react';
+import { X, Trash2, ClipboardList, Lightbulb, ArrowRight, ArrowRightLeft, FileText, CalendarIcon, Tags, Sparkles, Pencil, AlertTriangle, ChevronDown } from 'lucide-react';
 import { MotionModal } from './ui/MotionModal';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -15,6 +15,7 @@ import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import type { DateRange } from 'react-day-picker';
 import { useTranslation } from 'react-i18next';
+import { ColorPickerPopover } from './ui/ColorPickerPopover';
 import { TagPickerPopover } from './TagPickerPopover';
 import { featureAPI, taskAPI } from '../utils/api';
 import { FeatureAIDecomposeModal } from './FeatureAIDecomposeModal';
@@ -230,62 +231,13 @@ export function FeatureDetailModal({
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3 flex-1 group">
                   {/* Color Picker */}
-                  {canEdit ? (
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <button
-                          className="w-5 h-5 rounded-md shadow-lg flex-shrink-0 transition-all duration-300 hover:scale-125 cursor-pointer"
-                          style={{
-                            backgroundColor: selectedColor,
-                            boxShadow: `0 0 15px ${selectedColor}88`,
-                            border: '1px solid rgba(255,255,255,0.2)',
-                          }}
-                        />
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-3 bg-bridge-obsidian border-foreground/10" align="start" sideOffset={8}>
-                        <div className="space-y-3">
-                          <div className="grid grid-cols-5 gap-2">
-                            {FEATURE_COLORS.map((color) => (
-                              <button
-                                key={color}
-                                onClick={() => updateEditedFeature({ color })}
-                                className={`w-7 h-7 rounded-full transition-all duration-200 ${
-                                  selectedColor === color
-                                    ? 'ring-2 ring-white ring-offset-2 ring-offset-bridge-obsidian scale-110'
-                                    : 'opacity-50 hover:opacity-100 hover:scale-110'
-                                }`}
-                                style={{
-                                  backgroundColor: color,
-                                  boxShadow: selectedColor === color ? `0 0 12px ${color}` : 'none',
-                                }}
-                              />
-                            ))}
-                          </div>
-                          <div className="border-t border-foreground/10 pt-3">
-                            <label className="flex items-center gap-2 cursor-pointer group">
-                              <Pipette size={14} className="text-slate-400 group-hover:text-foreground transition-colors" />
-                              <span className="text-[11px] text-slate-400 group-hover:text-foreground transition-colors">{t('featureDetail.customColor')}</span>
-                              <input
-                                type="color"
-                                value={selectedColor}
-                                onChange={(e) => updateEditedFeature({ color: e.target.value })}
-                                className="w-6 h-6 rounded cursor-pointer border-none bg-transparent ml-auto [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:rounded [&::-webkit-color-swatch]:border-foreground/10 [&::-webkit-color-swatch]:border"
-                              />
-                            </label>
-                          </div>
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                  ) : (
-                    <div
-                      className="w-5 h-5 rounded-md shadow-lg flex-shrink-0"
-                      style={{
-                        backgroundColor: selectedColor,
-                        boxShadow: `0 0 15px ${selectedColor}88`,
-                        border: '1px solid rgba(255,255,255,0.2)',
-                      }}
-                    />
-                  )}
+                  <ColorPickerPopover
+                    colors={FEATURE_COLORS}
+                    selectedColor={selectedColor}
+                    onColorChange={(color) => updateEditedFeature({ color })}
+                    disabled={!canEdit}
+                    customColorLabel={t('featureDetail.customColor')}
+                  />
 
                   {/* Title - hover to edit */}
                   {canEdit && isEditingTitle ? (

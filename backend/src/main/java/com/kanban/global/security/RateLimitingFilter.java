@@ -145,9 +145,11 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
-        // Health check와 정적 리소스는 Rate Limiting에서 제외
+        // Health check, 정적 리소스, Admin 엔드포인트는 Rate Limiting에서 제외
+        // Admin 엔드포인트는 인증 + 역할 검증으로 보호됨
         return path.equals("/health") ||
                path.startsWith("/actuator") ||
-               path.startsWith("/h2-console");
+               path.startsWith("/h2-console") ||
+               path.startsWith("/api/v1/admin");
     }
 }

@@ -24,6 +24,7 @@ import {
 } from '../utils/api';
 import { FEATURE_COLORS, getRandomFeatureColor } from '../constants';
 import { MotionModal } from './ui/MotionModal';
+import { ColorPickerPopover } from './ui/ColorPickerPopover';
 
 interface AddDailyChecklistModalProps {
   boardId: string;
@@ -558,19 +559,15 @@ export function AddDailyChecklistModal({
           {isCreatingFeature && (
             <div className="flex items-center gap-3 bg-bridge-surface/50 rounded-xl p-3 border border-foreground/10">
               {/* 색상 선택 */}
-              <div className="flex items-center gap-1.5 flex-shrink-0">
-                {FEATURE_COLORS.map((color) => (
-                  <button
-                    key={color}
-                    onClick={() => setNewFeatureColor(color)}
-                    className={`w-5 h-5 rounded-full transition-all ${
-                      newFeatureColor === color
-                        ? 'ring-2 ring-white ring-offset-1 ring-offset-bridge-dark scale-110'
-                        : 'hover:scale-110 opacity-60 hover:opacity-100'
-                    }`}
-                    style={{ backgroundColor: color }}
-                  />
-                ))}
+              <div className="flex-shrink-0">
+                <ColorPickerPopover
+                  colors={FEATURE_COLORS}
+                  selectedColor={newFeatureColor}
+                  onColorChange={setNewFeatureColor}
+                  triggerSize="sm"
+                  triggerShape="circle"
+                  showCustomColor={false}
+                />
               </div>
               {/* 제목 입력 */}
               <input

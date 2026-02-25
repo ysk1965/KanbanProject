@@ -5,6 +5,8 @@ import { format, parseISO, isToday as isDateToday } from 'date-fns';
 import { featureAPI, taskAPI, dailyChecklistAPI, FeatureResponse, TaskResponse, DailyChecklistItemResponse, BoardChecklistItemResponse, MeetingSummary } from '../utils/api';
 import { MotionModal } from './ui/MotionModal';
 import { TimePicker } from './ui/TimePicker';
+import { ColorPickerPopover } from './ui/ColorPickerPopover';
+import { FEATURE_COLORS } from '../constants';
 
 type TimeblockTab = 'checklist' | 'meeting' | 'custom';
 
@@ -601,6 +603,7 @@ export function ChecklistCreateModal({
                 <div className="grid grid-cols-3 gap-2">
                   {[
                     { label: t('dailySchedule.presetLunch'), emoji: '\uD83C\uDF7D\uFE0F', color: '#F59E0B' },
+                    { label: t('dailySchedule.presetDinner'), emoji: '\uD83C\uDF19', color: '#6366F1' },
                     { label: t('dailySchedule.presetFocus'), emoji: '\uD83C\uDFAF', color: '#3B82F6' },
                     { label: t('dailySchedule.presetPersonal'), emoji: '\uD83D\uDCCB', color: '#64748B' },
                     { label: t('dailySchedule.presetOutside'), emoji: '\uD83D\uDE97', color: '#10B981' },
@@ -641,27 +644,16 @@ export function ChecklistCreateModal({
               </div>
 
               {/* Color Picker */}
-              <div>
-                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+              <div className="flex items-center gap-3">
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
                   {t('dailySchedule.customColor')}
                 </label>
-                <div className="flex gap-2 flex-wrap">
-                  {[
-                    '#F59E0B', '#3B82F6', '#8B5CF6', '#10B981',
-                    '#EC4899', '#EF4444', '#64748B', '#06B6D4',
-                  ].map(c => (
-                    <button
-                      key={c}
-                      onClick={() => setCustomColor(c)}
-                      className={`w-8 h-8 rounded-full border-2 transition-all ${
-                        customColor === c
-                          ? 'border-white scale-110 shadow-lg'
-                          : 'border-transparent hover:scale-105'
-                      }`}
-                      style={{ backgroundColor: c }}
-                    />
-                  ))}
-                </div>
+                <ColorPickerPopover
+                  colors={FEATURE_COLORS}
+                  selectedColor={customColor}
+                  onColorChange={setCustomColor}
+                  triggerShape="circle"
+                />
               </div>
             </div>
           )}

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Check, User, Users, ArrowLeft, CalendarDays, BookHeart, Sparkles, Columns3, MessageSquare, BarChart3 } from 'lucide-react';
+import { X, User, Users, ArrowLeft, CalendarDays, BookHeart, Sparkles, Columns3, MessageSquare, BarChart3 } from 'lucide-react';
+import { GradientPickerPopover } from '../ui/GradientPickerPopover';
 import { MotionModal } from '../ui/MotionModal';
 
 const GRADIENTS = [
@@ -217,24 +218,15 @@ export function CreateBoardModal({ isOpen, onClose, onCreate, hasPersonalSpace, 
 
                 {/* Background Color */}
                 <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-                    {t('dashboard.backgroundColor')}
-                  </label>
-                  <div className="grid grid-cols-6 gap-3">
-                    {GRADIENTS.map((color, i) => (
-                      <button
-                        key={i}
-                        onClick={() => setSelectedColor(color)}
-                        className="h-10 rounded-lg relative overflow-hidden transition-transform active:scale-90 hover:scale-105"
-                        style={{ background: color }}
-                      >
-                        {selectedColor === color && (
-                          <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                            <Check size={16} className="text-white" />
-                          </div>
-                        )}
-                      </button>
-                    ))}
+                  <div className="flex items-center gap-3">
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                      {t('dashboard.backgroundColor')}
+                    </label>
+                    <GradientPickerPopover
+                      gradients={GRADIENTS}
+                      selectedGradient={selectedColor}
+                      onGradientChange={setSelectedColor}
+                    />
                   </div>
                 </div>
               </div>

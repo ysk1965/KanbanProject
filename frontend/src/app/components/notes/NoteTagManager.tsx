@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Tag as TagIcon, Plus, X, Check } from 'lucide-react';
 import { noteService } from '../../utils/services';
+import { ColorPickerPopover } from '../ui/ColorPickerPopover';
 import type { NoteTagInfo } from '../../utils/api';
 
 const TAG_COLORS = [
@@ -154,16 +155,14 @@ export function NoteTagManager({
                       className="w-full bg-foreground/5 border border-foreground/10 rounded-lg px-2.5 py-1.5 text-xs text-foreground placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-bridge-accent/50"
                       autoFocus
                     />
-                    <div className="flex items-center gap-1">
-                      {TAG_COLORS.map(color => (
-                        <button
-                          key={color}
-                          onClick={() => setNewTagColor(color)}
-                          className={`w-4 h-4 rounded-full transition-transform ${newTagColor === color ? 'scale-125 ring-1 ring-white ring-offset-1 ring-offset-bridge-obsidian' : 'hover:scale-110'}`}
-                          style={{ backgroundColor: color }}
-                        />
-                      ))}
-                    </div>
+                    <ColorPickerPopover
+                      colors={TAG_COLORS}
+                      selectedColor={newTagColor}
+                      onColorChange={setNewTagColor}
+                      triggerSize="sm"
+                      triggerShape="circle"
+                      showCustomColor={false}
+                    />
                     <div className="flex gap-1">
                       <button
                         onClick={handleCreateTag}

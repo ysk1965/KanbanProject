@@ -1,5 +1,39 @@
 /* BlockNote Editor - Bridge Dark Theme */
 
+/* ============================================
+   Fix CSS variable conflict:
+   BlockNote's bn-bg-popover → hsl(var(--popover))
+   Project's .light class sets --popover: #FFFDF9 (hex)
+   → hsl(#FFFDF9) = INVALID CSS → transparent toolbar
+
+   Solution: Override shadcn CSS vars within .bn-shadcn
+   with HSL-triplet format that BlockNote expects.
+   Use compound selectors for higher specificity than .light
+   ============================================ */
+/* Light: .bn-shadcn gets "light" class from BlockNoteView theme prop.
+   Compound selector .bn-shadcn.light beats .light alone in specificity */
+.bn-shadcn.light {
+  --popover: 40 33% 99%;           /* #FFFDF9 */
+  --popover-foreground: 27 35% 18%; /* #3D2E1F */
+  --background: 40 100% 98%;        /* #FFFDF9 */
+  --foreground: 27 35% 18%;         /* #3D2E1F */
+  --border: 30 9% 87%;              /* #E4DFDA */
+  --input: 30 9% 87%;               /* #E4DFDA */
+  --accent: 30 14% 91%;             /* #EDE8E2 */
+  --accent-foreground: 27 35% 18%;  /* #3D2E1F */
+  --muted: 30 14% 91%;              /* #EDE8E2 */
+  --muted-foreground: 24 14% 48%;   /* #8C7B6B */
+  --primary: 239 84% 67%;           /* #6366F1 */
+  --primary-foreground: 0 0% 100%;  /* #FFFFFF */
+  --secondary: 30 14% 91%;          /* #EDE8E2 */
+  --secondary-foreground: 27 35% 18%; /* #3D2E1F */
+  --destructive: 0 84% 60%;         /* #EF4444 */
+  --destructive-foreground: 0 0% 100%; /* #FFFFFF */
+  --ring: 33 38% 67%;               /* #D4B483 */
+  --card: 40 100% 98%;              /* #FFFDF9 */
+  --card-foreground: 27 35% 18%;    /* #3D2E1F */
+}
+
 /* Force dark color scheme */
 .bn-container[data-color-scheme="dark"] {
   /* Editor background & text */
@@ -44,6 +78,55 @@
   --bn-colors-highlights-purple-text: #6366f1;
   --bn-colors-highlights-pink-background: rgba(236, 72, 153, 0.15);
   --bn-colors-highlights-pink-text: #ec4899;
+
+  /* Font */
+  --bn-font-family: inherit;
+}
+
+/* Light color scheme - Bridge warm light theme */
+.bn-container[data-color-scheme="light"] {
+  /* Editor background & text */
+  --bn-colors-editor-background: #FFFDF9;
+  --bn-colors-editor-text: #3D2E1F;
+
+  /* Menu (slash menu, formatting toolbar, etc.) */
+  --bn-colors-menu-background: #FFFDF9;
+  --bn-colors-menu-text: #3D2E1F;
+
+  /* Tooltips */
+  --bn-colors-tooltip-background: #3D2E1F;
+  --bn-colors-tooltip-text: #FFFDF9;
+
+  /* Interaction states */
+  --bn-colors-hovered-background: rgba(0, 0, 0, 0.04);
+  --bn-colors-selected-background: rgba(99, 102, 241, 0.1);
+  --bn-colors-disabled-background: rgba(0, 0, 0, 0.02);
+  --bn-colors-disabled-text: #8C7B6B;
+
+  /* Borders & shadows */
+  --bn-colors-border: #E4DFDA;
+  --bn-colors-shadow: rgba(0, 0, 0, 0.12);
+  --bn-colors-side-menu: rgba(0, 0, 0, 0.4);
+
+  /* Highlight colors */
+  --bn-colors-highlights-gray-background: rgba(148, 163, 184, 0.12);
+  --bn-colors-highlights-gray-text: #64748b;
+  --bn-colors-highlights-brown-background: rgba(120, 113, 108, 0.12);
+  --bn-colors-highlights-brown-text: #78716c;
+  --bn-colors-highlights-red-background: rgba(239, 68, 68, 0.1);
+  --bn-colors-highlights-red-text: #dc2626;
+  --bn-colors-highlights-orange-background: rgba(249, 115, 22, 0.1);
+  --bn-colors-highlights-orange-text: #ea580c;
+  --bn-colors-highlights-yellow-background: rgba(234, 179, 8, 0.1);
+  --bn-colors-highlights-yellow-text: #ca8a04;
+  --bn-colors-highlights-green-background: rgba(34, 197, 94, 0.1);
+  --bn-colors-highlights-green-text: #16a34a;
+  --bn-colors-highlights-blue-background: rgba(59, 130, 246, 0.1);
+  --bn-colors-highlights-blue-text: #2563eb;
+  --bn-colors-highlights-purple-background: rgba(99, 102, 241, 0.1);
+  --bn-colors-highlights-purple-text: #4f46e5;
+  --bn-colors-highlights-pink-background: rgba(236, 72, 153, 0.1);
+  --bn-colors-highlights-pink-text: #db2777;
 
   /* Font */
   --bn-font-family: inherit;
@@ -737,3 +820,199 @@ table:hover [data-table-handle],
 .light .bn-container ::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 0, 0, 0.15);
 }
+
+/* ============================================
+   Light Theme Overrides
+   ============================================ */
+
+/* Typography - headings */
+.light .bn-container [class*="blockContent"] h1,
+.light .bn-container h1[data-level="1"] {
+  color: #3D2E1F;
+}
+.light .bn-container [class*="blockContent"] h2,
+.light .bn-container h2[data-level="2"] {
+  color: #3D2E1F;
+}
+.light .bn-container [class*="blockContent"] h3,
+.light .bn-container h3[data-level="3"] {
+  color: #3D2E1F;
+}
+
+/* Paragraph */
+.light .bn-container [class*="inlineContent"] {
+  color: #3D2E1F;
+}
+
+/* Code inline */
+.light .bn-container code {
+  background: rgba(0, 0, 0, 0.06);
+  color: #be185d;
+}
+
+/* Code block */
+.light .bn-container pre {
+  background: #F5F1ED;
+  border: 1px solid #E4DFDA;
+}
+.light .bn-container pre code {
+  background: transparent;
+  color: #3D2E1F;
+}
+
+/* Table */
+.light .bn-container th,
+.light .bn-container td {
+  border-color: #E4DFDA;
+  color: #3D2E1F;
+}
+.light .bn-container th {
+  background: rgba(0, 0, 0, 0.04);
+  color: #3D2E1F;
+}
+.light .bn-container tr:hover td {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+.light .bn-container tr:hover th {
+  background-color: rgba(0, 0, 0, 0.06);
+}
+
+/* Table handle menu */
+.light .bn-container [class*="tableHandleMenu"],
+.light [data-radix-popper-content-wrapper] [class*="tableHandleMenu"] {
+  background: #FFFDF9 !important;
+  border: 1px solid #E4DFDA !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12) !important;
+}
+.light .bn-container [class*="tableHandleMenu"] button,
+.light [data-radix-popper-content-wrapper] [class*="tableHandleMenu"] button {
+  color: #3D2E1F !important;
+}
+.light .bn-container [class*="tableHandleMenu"] button:hover,
+.light [data-radix-popper-content-wrapper] [class*="tableHandleMenu"] button:hover {
+  background: rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Table handle */
+.light .bn-container [class*="tableHandle"] {
+  background: rgba(0, 0, 0, 0.04);
+  border: 1px solid #E4DFDA;
+}
+.light .bn-container [class*="tableHandle"]:hover {
+  background: rgba(99, 102, 241, 0.1);
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+/* Extend button (add row/column) */
+.light .bn-container [class*="extendButton"],
+.light .bn-container [class*="ExtendButton"] {
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px dashed #E4DFDA;
+  color: rgba(0, 0, 0, 0.3);
+}
+.light .bn-container [class*="extendButton"]:hover,
+.light .bn-container [class*="ExtendButton"]:hover {
+  background: rgba(99, 102, 241, 0.06);
+  border-color: rgba(99, 102, 241, 0.3);
+  color: rgba(99, 102, 241, 0.8);
+}
+
+/* Blockquote */
+.light .bn-container blockquote {
+  color: #8C7B6B;
+}
+
+/* Side menu */
+.light .bn-side-menu {
+  opacity: 0.4;
+}
+
+/* Divider */
+.light .bn-divider hr {
+  background: #E4DFDA;
+}
+
+/* Toggle btn */
+.light .bn-toggle-btn {
+  color: #8C7B6B;
+}
+.light .bn-toggle-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: #3D2E1F;
+}
+
+/* Column block */
+.light .bn-column-block {
+  border: 1px dashed #E4DFDA;
+  background: rgba(0, 0, 0, 0.01);
+}
+.light .bn-column-block:focus-within {
+  border-color: rgba(99, 102, 241, 0.3);
+  background: rgba(99, 102, 241, 0.03);
+}
+
+/* Callout light overrides */
+.light .bn-callout-info {
+  background: rgba(59, 130, 246, 0.06);
+}
+.light .bn-callout-warning {
+  background: rgba(245, 158, 11, 0.06);
+}
+.light .bn-callout-success {
+  background: rgba(34, 197, 94, 0.06);
+}
+.light .bn-callout-error {
+  background: rgba(239, 68, 68, 0.06);
+}
+
+/* TOC */
+.light .bn-toc {
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px solid #E4DFDA;
+}
+.light .bn-toc-item {
+  color: #8C7B6B;
+}
+.light .bn-toc-item:hover {
+  background: rgba(0, 0, 0, 0.04);
+  color: #3D2E1F;
+}
+.light .bn-toc-level-1 {
+  color: #3D2E1F;
+}
+
+/* Embed */
+.light .bn-embed-input {
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px dashed #E4DFDA;
+}
+.light .bn-embed-url-input {
+  color: #3D2E1F;
+}
+.light .bn-embed-url-input::placeholder {
+  color: #8C7B6B;
+}
+.light .bn-embed-footer {
+  background: rgba(0, 0, 0, 0.02);
+}
+.light .bn-embed-edit-btn {
+  background: rgba(0, 0, 0, 0.04);
+  color: #8C7B6B;
+}
+.light .bn-embed-edit-btn:hover {
+  background: rgba(0, 0, 0, 0.08);
+  color: #3D2E1F;
+}
+.light .bn-embed-card {
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px solid #E4DFDA;
+}
+
+/* Merged cell */
+.light .bn-container td[colspan],
+.light .bn-container th[colspan],
+.light .bn-container td[rowspan],
+.light .bn-container th[rowspan] {
+  background: rgba(0, 0, 0, 0.01);
+}
+

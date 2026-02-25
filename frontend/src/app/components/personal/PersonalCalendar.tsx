@@ -1,15 +1,18 @@
 import { useState, useEffect, useMemo, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
 import { ChevronLeft, ChevronRight, Plus, X, Calendar, ListTodo, CalendarDays, CheckCircle2, Clock, RotateCw, Trash2, Pencil, AlertCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { FEATURE_COLORS } from '../../constants';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MotionModal } from '../ui/MotionModal';
 import { TimePicker } from '../ui/TimePicker';
+import { ColorPickerPopover } from '../ui/ColorPickerPopover';
 import { personalTaskAPI } from '../../utils/api';
 import { personalEventService } from '../../utils/services';
 import { formatDate } from '../../utils/dateUtils';
 import { useHolidays } from '../../hooks/useHolidays';
-import type { PersonalTask, PersonalEvent } from '../../types';
+import type { PersonalTask, PersonalEvent, PersonalTaskPriority } from '../../types';
 import type { TabSwipeHandle } from './PersonalSchedule';
+import { TaskDetailModal } from './PersonalTaskBoard';
 
 // ── helpers ──
 
@@ -27,10 +30,7 @@ const PRIORITY_COLORS: Record<string, string> = {
   MEDIUM: '#EAB308',
 };
 
-const EVENT_COLORS = [
-  '#6366F1', '#8B5CF6', '#EC4899', '#F43F5E',
-  '#F59E0B', '#10B981', '#06B6D4', '#3B82F6',
-];
+const EVENT_COLORS = FEATURE_COLORS;
 
 const DAY_LABELS_KO = ['일', '월', '화', '수', '목', '금', '토'];
 const DAY_LABELS_EN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -77,6 +77,9 @@ export const PersonalCalendar = forwardRef<TabSwipeHandle>(function PersonalCale
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [createDate, setCreateDate] = useState('');
   const [editEvent, setEditEvent] = useState<PersonalEvent | null>(null);
+
+  // Task edit modal
+  const [editTask, setEditTask] = useState<PersonalTask | null>(null);
 
   // Drag-select range
   const [dragSelection, setDragSelection] = useState<{ start: string; end: string } | null>(null);
@@ -488,6 +491,41 @@ export const PersonalCalendar = forwardRef<TabSwipeHandle>(function PersonalCale
     }
   };
 
+  // ── task CRUD ──
+  const handleUpdateTask = async (data: { title?: string; due_date?: string | null; priority?: PersonalTaskPriority; description?: string }) => {
+    if (!editTask) return;
+    try {
+      await personalTaskAPI.update(editTask.id, data);
+      await loadTasks();
+      setEditTask(null);
+    } catch (err) {
+      console.error('Failed to update task:', err);
+    }
+  };
+
+  const handleDeleteTask = async () => {
+    if (!editTask) return;
+    try {
+      await personalTaskAPI.delete(editTask.id);
+      await loadTasks();
+      setEditTask(null);
+    } catch (err) {
+      console.error('Failed to delete task:', err);
+    }
+  };
+
+  const handleToggleTaskComplete = async () => {
+    if (!editTask) return;
+    try {
+      const newStatus = editTask.status === 'DONE' ? 'TODO' : 'DONE';
+      await personalTaskAPI.updateStatus(editTask.id, newStatus);
+      await loadTasks();
+      setEditTask((prev) => prev ? { ...prev, status: newStatus } : null);
+    } catch (err) {
+      console.error('Failed to toggle task:', err);
+    }
+  };
+
   // ── render ──
   const monthLabel = isKo
     ? `${currentYear}년 ${currentMonth + 1}월`
@@ -725,6 +763,7 @@ export const PersonalCalendar = forwardRef<TabSwipeHandle>(function PersonalCale
         onClose={() => setModalDate(null)}
         onDeleteEvent={handleDeleteEvent}
         onEditEvent={(ev) => { setEditEvent(ev); setModalDate(null); }}
+        onEditTask={(task) => { setEditTask(task); setModalDate(null); }}
         onAddEvent={() => {
           if (modalDate) {
             openCreateModal(modalDate.dateKey);
@@ -741,6 +780,16 @@ export const PersonalCalendar = forwardRef<TabSwipeHandle>(function PersonalCale
         onClose={() => setEditEvent(null)}
         onUpdate={handleUpdateEvent}
         onDelete={handleDeleteEvent}
+      />
+
+      {/* ── Task Detail Modal ── */}
+      <TaskDetailModal
+        open={!!editTask}
+        task={editTask}
+        onClose={() => setEditTask(null)}
+        onUpdate={handleUpdateTask}
+        onDelete={handleDeleteTask}
+        onToggleComplete={handleToggleTaskComplete}
       />
 
       {/* ── Create Event Modal ── */}
@@ -902,6 +951,7 @@ function DayDetailModal({
   onClose,
   onDeleteEvent,
   onEditEvent,
+  onEditTask,
   onAddEvent,
 }: {
   open: boolean;
@@ -912,6 +962,7 @@ function DayDetailModal({
   onClose: () => void;
   onDeleteEvent: (eventId: string) => void;
   onEditEvent: (event: PersonalEvent) => void;
+  onEditTask: (task: PersonalTask) => void;
   onAddEvent: () => void;
 }) {
   const { t } = useTranslation();
@@ -960,7 +1011,11 @@ function DayDetailModal({
           {items.map((item) => (
             <div
               key={item.id}
-              className={`group flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all hover:bg-foreground/5 ${
+              onClick={() => {
+                if (item.type === 'event' && item.event) onEditEvent(item.event);
+                else if (item.type === 'task' && item.task) onEditTask(item.task);
+              }}
+              className={`group flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all cursor-pointer hover:bg-foreground/5 ${
                 item.isDone ? 'opacity-50' : ''
               }`}
               style={{ borderLeft: `3px solid ${item.isOverdue ? '#EF4444' : item.color}` }}
@@ -1170,7 +1225,14 @@ function CreateEventModal({
 
         {/* Header */}
         <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
-          <div className="w-3 h-3 rounded-full shrink-0 border border-white/10" style={{ backgroundColor: color }} />
+          <ColorPickerPopover
+            colors={EVENT_COLORS}
+            selectedColor={color}
+            onColorChange={setColor}
+            triggerSize="sm"
+            triggerShape="circle"
+            showCustomColor={false}
+          />
           <span className="text-sm font-bold text-foreground">{t('personal.calendar.newEvent')}</span>
           <div className="flex-1" />
           <button onClick={onClose} className="p-1.5 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5 transition-colors shrink-0">
@@ -1204,22 +1266,6 @@ function CreateEventModal({
                 style={{ opacity: 0.02, fontSize: '16px' }}
               />
             </div>
-          </div>
-
-          {/* Color picker */}
-          <div className="flex items-center gap-1.5">
-            {EVENT_COLORS.map((c) => (
-              <button
-                key={c}
-                onClick={() => setColor(c)}
-                className={`w-5 h-5 rounded-full transition-all ${
-                  color === c
-                    ? 'ring-2 ring-foreground/40 ring-offset-1 ring-offset-bridge-obsidian scale-110'
-                    : 'hover:scale-110 opacity-60 hover:opacity-100'
-                }`}
-                style={{ backgroundColor: c }}
-              />
-            ))}
           </div>
 
           {/* Title */}
@@ -1413,7 +1459,14 @@ function EditEventModal({
 
         {/* Header: color dot + title + delete + close */}
         <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
-          <div className="w-3 h-3 rounded-full shrink-0 border border-white/10" style={{ backgroundColor: color }} />
+          <ColorPickerPopover
+            colors={EVENT_COLORS}
+            selectedColor={color}
+            onColorChange={setColor}
+            triggerSize="sm"
+            triggerShape="circle"
+            showCustomColor={false}
+          />
           <input
             type="text"
             value={title}
@@ -1459,22 +1512,6 @@ function EditEventModal({
                 style={{ opacity: 0.02, fontSize: '16px' }}
               />
             </div>
-          </div>
-
-          {/* Color picker */}
-          <div className="flex items-center gap-1.5">
-            {EVENT_COLORS.map((c) => (
-              <button
-                key={c}
-                onClick={() => setColor(c)}
-                className={`w-5 h-5 rounded-full transition-all ${
-                  color === c
-                    ? 'ring-2 ring-foreground/40 ring-offset-1 ring-offset-bridge-obsidian scale-110'
-                    : 'hover:scale-110 opacity-60 hover:opacity-100'
-                }`}
-                style={{ backgroundColor: c }}
-              />
-            ))}
           </div>
 
           {/* Description */}

@@ -188,6 +188,7 @@
 
   html {
     font-size: var(--font-size);
+    background-color: var(--bridge-dark, #0A0E17);
   }
 
   h1 {
