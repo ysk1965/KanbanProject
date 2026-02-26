@@ -39,6 +39,7 @@ import type { MaintenanceStatus } from './utils/api';
 import { trackEvent } from './contexts/AnalyticsContext';
 import { useVisualViewport, useKeyboardAutoScroll } from './hooks/useVisualViewport';
 import { PWAUpdatePrompt } from './components/PWAUpdatePrompt';
+import { Toaster } from './components/ui/sonner';
 
 // 인증이 필요한 라우트 래퍼
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -613,6 +614,7 @@ function App() {
             <AnalyticsProvider>
               <AppRoutes />
               <PWAUpdatePrompt />
+              <Toaster position="top-center" richColors closeButton />
             </AnalyticsProvider>
           </AuthProvider>
         </MaintenanceGuard>

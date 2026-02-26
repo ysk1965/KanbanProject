@@ -267,6 +267,37 @@ resource "aws_cloudfront_origin_access_control" "attachments" {
   signing_protocol                  = "sigv4"
 }
 
+resource "aws_cloudfront_response_headers_policy" "attachments_cors" {
+  name = "${var.project_name}-${var.environment}-attachments-cors"
+
+  cors_config {
+    access_control_allow_credentials = false
+
+    access_control_allow_headers {
+      items = ["*"]
+    }
+
+    access_control_allow_methods {
+      items = ["GET", "HEAD"]
+    }
+
+    access_control_allow_origins {
+      items = [
+        "https://bridgespots.com",
+        "https://www.bridgespots.com",
+        "https://milkyway.pe.kr",
+        "https://www.milkyway.pe.kr",
+        "http://localhost:5173",
+        "http://localhost:5174",
+      ]
+    }
+
+    access_control_max_age_sec = 86400
+
+    origin_override = true
+  }
+}
+
 resource "aws_cloudfront_distribution" "attachments" {
   enabled         = true
   is_ipv6_enabled = true
@@ -280,7 +311,7 @@ resource "aws_cloudfront_distribution" "attachments" {
   }
 
   default_cache_behavior {
-    allowed_methods        = ["GET", "HEAD"]
+    allowed_methods        = ["GET", "HEAD", "OPTIONS"]
     cached_methods         = ["GET", "HEAD"]
     target_origin_id       = "S3-attachments"
     viewer_protocol_policy = "redirect-to-https"
@@ -288,10 +319,13 @@ resource "aws_cloudfront_distribution" "attachments" {
 
     forwarded_values {
       query_string = false
+      headers      = ["Origin", "Access-Control-Request-Method", "Access-Control-Request-Headers"]
       cookies {
         forward = "none"
       }
     }
+
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.attachments_cors.id
 
     min_ttl     = 0
     default_ttl = 86400    # 1 day
