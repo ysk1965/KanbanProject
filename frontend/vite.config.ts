@@ -74,7 +74,7 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       includeAssets: ['MilkyWay.png', 'BridgeSpotsIcon.png', 'banner.png'],
       manifest: {
         name: 'Milkyway - Smart Project Management',

@@ -1,8 +1,12 @@
-import { lazy, ComponentType } from 'react';
+import { lazy, ComponentType, createElement } from 'react';
+import { Loader2 } from 'lucide-react';
 
 /**
  * 배포 후 청크 해시 변경으로 dynamic import가 실패할 때
  * SW 캐시를 클리어하고 페이지를 새로고침하여 최신 청크를 로드하는 래퍼.
+ *
+ * - 1차 실패: 캐시 클리어 + SW 업데이트 + 리로드 (로딩 화면 표시)
+ * - 2차 실패: "업데이트 적용 중" 화면 표시 후 강제 리로드
  *
  * sessionStorage로 무한 새로고침 루프를 방지한다.
  */
@@ -41,9 +45,23 @@ export function lazyWithRetry<T extends ComponentType<unknown>>(
         return new Promise<{ default: T }>(() => {});
       }
 
-      // 이미 새로고침했는데도 실패하면 에러를 그대로 throw
+      // 2차 실패: 깨진 UI 대신 업데이트 화면 표시 후 강제 리로드
       sessionStorage.removeItem(key);
-      throw error;
+
+      const UpdateFallback = () =>
+        createElement('div', {
+          className: 'flex flex-col items-center justify-center h-screen bg-bridge-dark gap-4',
+        },
+          createElement(Loader2, { className: 'w-8 h-8 text-bridge-accent animate-spin' }),
+          createElement('p', { className: 'text-sm text-slate-400' }, '업데이트 적용 중...'),
+        );
+
+      // 3초 후 강제 리로드 (캐시 무시)
+      setTimeout(() => {
+        window.location.href = window.location.pathname + '?_t=' + Date.now();
+      }, 2000);
+
+      return { default: UpdateFallback as unknown as T };
     }),
   );
 }
