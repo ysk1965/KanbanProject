@@ -30,6 +30,9 @@ public class CustomIconRequest {
         private String layout = "4x4";
 
         private StyleOptions styleOptions;
+
+        @Size(max = 500, message = "커스텀 프롬프트는 500자까지 가능합니다")
+        private String customPrompt;
     }
 
     @Getter

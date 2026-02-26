@@ -141,6 +141,11 @@ export default defineConfig({
     }),
     generateBrandedIndex(),
   ],
+  build: {
+    rollupOptions: {
+      external: ['@ebarooni/capacitor-calendar'],
+    },
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

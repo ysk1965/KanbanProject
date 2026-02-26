@@ -86,6 +86,18 @@ public class LeaveController {
         return ResponseEntity.ok(response);
     }
 
+    // ==================== On Leave Today ====================
+
+    @GetMapping("/on-leave-today")
+    public ResponseEntity<List<LeaveDto.LeaveRequestResponse>> getOnLeaveToday(
+            @PathVariable String orgId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        List<LeaveDto.LeaveRequestResponse> response = leaveService.getOnLeaveToday(
+                orgId, principal.getUserId(), date);
+        return ResponseEntity.ok(response);
+    }
+
     // ==================== Leave Requests ====================
 
     @PostMapping("/leave-requests")
@@ -139,6 +151,16 @@ public class LeaveController {
             @PathVariable String requestId,
             @AuthenticationPrincipal UserPrincipal principal) {
         LeaveDto.LeaveRequestResponse response = leaveService.cancelLeaveRequest(
+                orgId, requestId, principal.getUserId());
+        return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/leave-requests/{requestId}/reopen")
+    public ResponseEntity<LeaveDto.LeaveRequestResponse> reopenLeaveRequest(
+            @PathVariable String orgId,
+            @PathVariable String requestId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        LeaveDto.LeaveRequestResponse response = leaveService.reopenLeaveRequest(
                 orgId, requestId, principal.getUserId());
         return ResponseEntity.ok(response);
     }

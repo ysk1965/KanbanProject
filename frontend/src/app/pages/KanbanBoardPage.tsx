@@ -2174,7 +2174,7 @@ export function KanbanBoardPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-bridge-dark flex items-center justify-center">
+      <div className="min-h-dvh bg-bridge-dark flex items-center justify-center">
         <div className="text-foreground text-lg font-light">
           {t("common.loading")}
         </div>
@@ -2184,7 +2184,7 @@ export function KanbanBoardPage() {
 
   return (
     <DragProvider>
-      <div className="h-screen bg-bridge-dark flex flex-col overflow-hidden">
+      <div className="h-dvh bg-bridge-dark flex flex-col overflow-hidden">
         <KanbanBoardHeader
           boardId={boardId || ""}
           board={board}

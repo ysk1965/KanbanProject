@@ -12,14 +12,22 @@ const BACKEND_ORIGIN = (() => {
   }
 })();
 
+// S3 직접 URL → CloudFront 리라이트
+const CLOUDFRONT_DOMAIN = import.meta.env.VITE_CLOUDFRONT_DOMAIN as string | undefined;
+const S3_DIRECT_URL_RE = /^https:\/\/[\w.-]+\.s3\.[\w.-]+\.amazonaws\.com\//;
+
 /**
- * 백엔드에서 반환한 상대 경로 파일 URL을 절대 URL로 변환
+ * 백엔드에서 반환한 파일 URL을 최적 URL로 변환
+ * - S3 직접 URL → CloudFront URL 리라이트 (VITE_CLOUDFRONT_DOMAIN 설정 시)
  * - 이미 절대 URL(http/https/blob/data)이면 그대로 반환
  * - 상대 경로(/uploads/...)이면 백엔드 origin을 앞에 붙임
  */
 export const resolveFileUrl = (url: string | null | undefined): string => {
   if (!url) return '';
   if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('blob:') || url.startsWith('data:')) {
+    if (CLOUDFRONT_DOMAIN && S3_DIRECT_URL_RE.test(url)) {
+      return url.replace(S3_DIRECT_URL_RE, `https://${CLOUDFRONT_DOMAIN}/`);
+    }
     return url;
   }
   return `${BACKEND_ORIGIN}${url}`;
@@ -4413,6 +4421,7 @@ export const customIconAPI = {
       type: string; stroke_weight: string; corner_radius: string;
       padding_ratio: number; background: string; show_grid_lines: boolean;
     };
+    custom_prompt?: string;
   }): Promise<{
     job_id: string; sprite_sheet_url: string;
     icons: Array<{ name: string; index: number; url: string; size: string }>;
@@ -4512,6 +4521,29 @@ export const organizationAPI = {
   removeMember: async (orgId: string, memberId: string): Promise<import('../types').OrgMemberRemoveResult> => {
     return apiClient.delete(`/organizations/${orgId}/members/${memberId}`);
   },
+  getMemberBoards: async (orgId: string, memberId: string): Promise<import('../types').OrgMemberBoard[]> => {
+    return apiClient.get(`/organizations/${orgId}/members/${memberId}/boards`);
+  },
+  getMemberLeaveBalances: async (orgId: string, memberId: string, year?: number): Promise<import('../types').LeaveBalance[]> => {
+    const params = year ? `?year=${year}` : '';
+    return apiClient.get(`/organizations/${orgId}/members/${memberId}/leave-balances${params}`);
+  },
+  uploadMemberProfileImage: async (orgId: string, memberId: string, file: File): Promise<import('../types').OrgMemberDetail> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await authenticatedFetch(`${API_BASE_URL}/organizations/${orgId}/members/${memberId}/profile-image`, {
+      method: 'POST',
+      body: formData,
+    });
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({ code: 'UNKNOWN', message: response.statusText }));
+      throw errData;
+    }
+    return response.json();
+  },
+  deleteMemberProfileImage: async (orgId: string, memberId: string): Promise<import('../types').OrgMemberDetail> => {
+    return apiClient.delete(`/organizations/${orgId}/members/${memberId}/profile-image`);
+  },
 
   // Boards
   getBoards: async (orgId: string): Promise<import('../types').OrgBoardSimple[]> => {
@@ -4522,6 +4554,9 @@ export const organizationAPI = {
   },
   addBoard: async (orgId: string, data: { board_id: string }): Promise<import('../types').OrgBoardSimple> => {
     return apiClient.post(`/organizations/${orgId}/boards`, data);
+  },
+  createBoard: async (orgId: string, data: { name: string; description?: string }): Promise<import('../types').OrgBoardSimple> => {
+    return apiClient.post(`/organizations/${orgId}/boards/create`, data);
   },
   removeBoard: async (orgId: string, boardId: string): Promise<void> => {
     return apiClient.delete(`/organizations/${orgId}/boards/${boardId}`);
@@ -4542,6 +4577,42 @@ export const organizationAPI = {
   },
   acceptInvite: async (code: string): Promise<{ organization_id: string; organization_name: string; role: string; message: string }> => {
     return apiClient.post(`/org-invites/${code}/accept`, {});
+  },
+};
+
+// ─── Organization Announcement API ───
+
+export const orgAnnouncementAPI = {
+  list: async (orgId: string, params?: { cursor?: string; limit?: number }): Promise<import('../types').OrgAnnouncementListResponse> => {
+    const query = new URLSearchParams();
+    if (params?.cursor) query.set('cursor', params.cursor);
+    if (params?.limit) query.set('limit', String(params.limit));
+    const qs = query.toString();
+    return apiClient.get(`/organizations/${orgId}/announcements${qs ? `?${qs}` : ''}`);
+  },
+  create: async (orgId: string, data: { title: string; content?: string; is_pinned?: boolean }): Promise<import('../types').OrgAnnouncement> => {
+    return apiClient.post(`/organizations/${orgId}/announcements`, data);
+  },
+  update: async (orgId: string, id: string, data: { title: string; content?: string }): Promise<import('../types').OrgAnnouncement> => {
+    return apiClient.put(`/organizations/${orgId}/announcements/${id}`, data);
+  },
+  delete: async (orgId: string, id: string): Promise<void> => {
+    return apiClient.delete(`/organizations/${orgId}/announcements/${id}`);
+  },
+  togglePin: async (orgId: string, id: string): Promise<import('../types').OrgAnnouncement> => {
+    return apiClient.put(`/organizations/${orgId}/announcements/${id}/pin`, {});
+  },
+};
+
+// ─── Organization Activity API ───
+
+export const orgActivityAPI = {
+  list: async (orgId: string, params?: { cursor?: string; limit?: number }): Promise<import('../types').OrgActivityListResponse> => {
+    const query = new URLSearchParams();
+    if (params?.cursor) query.set('cursor', params.cursor);
+    if (params?.limit) query.set('limit', String(params.limit));
+    const qs = query.toString();
+    return apiClient.get(`/organizations/${orgId}/activities${qs ? `?${qs}` : ''}`);
   },
 };
 
@@ -4573,6 +4644,12 @@ export const leaveAPI = {
     return apiClient.put(`/organizations/${orgId}/members/${memberId}/leave-balance/${balanceId}`, data);
   },
 
+  // On Leave Today
+  getOnLeaveToday: async (orgId: string, date?: string): Promise<import('../types').LeaveRequestResponse[]> => {
+    const query = date ? `?date=${date}` : '';
+    return apiClient.get(`/organizations/${orgId}/on-leave-today${query}`);
+  },
+
   // Leave Requests
   getRequests: async (orgId: string, params?: {
     status?: string; requester_id?: string; start_date?: string;
@@ -4599,6 +4676,9 @@ export const leaveAPI = {
   },
   cancelRequest: async (orgId: string, requestId: string): Promise<import('../types').LeaveRequestResponse> => {
     return apiClient.put(`/organizations/${orgId}/leave-requests/${requestId}/cancel`, {});
+  },
+  reopenRequest: async (orgId: string, requestId: string): Promise<import('../types').LeaveRequestResponse> => {
+    return apiClient.put(`/organizations/${orgId}/leave-requests/${requestId}/reopen`, {});
   },
 };
 

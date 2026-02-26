@@ -177,6 +177,18 @@ public class OrgMemberResponse {
     @Getter
     @Builder
     @AllArgsConstructor
+    public static class MemberBoard {
+        private String id;
+        private String name;
+        private String description;
+        private String ownerName;
+        private int memberCount;
+        private LocalDateTime createdAt;
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
     public static class PageResponse {
         private List<Simple> content;
         private long totalElements;

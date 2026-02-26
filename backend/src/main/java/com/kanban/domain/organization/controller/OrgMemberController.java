@@ -1,5 +1,6 @@
 package com.kanban.domain.organization.controller;
 
+import com.kanban.domain.leave.dto.LeaveDto;
 import com.kanban.domain.organization.ContractType;
 import com.kanban.domain.organization.WorkStatus;
 import com.kanban.domain.organization.dto.OrgMemberRequest;
@@ -14,6 +15,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/organizations/{orgId}/members")
@@ -26,10 +30,10 @@ public class OrgMemberController {
     public ResponseEntity<OrgMemberResponse.PageResponse> getMembers(
             @PathVariable String orgId,
             @AuthenticationPrincipal UserPrincipal principal,
-            @RequestParam(required = false) String departmentId,
-            @RequestParam(required = false) String jobGroupId,
-            @RequestParam(required = false) ContractType contractType,
-            @RequestParam(required = false) WorkStatus workStatus,
+            @RequestParam(name = "department_id", required = false) String departmentId,
+            @RequestParam(name = "job_group_id", required = false) String jobGroupId,
+            @RequestParam(name = "contract_type", required = false) ContractType contractType,
+            @RequestParam(name = "work_status", required = false) WorkStatus workStatus,
             @RequestParam(required = false) String search,
             @PageableDefault(size = 20) Pageable pageable) {
         OrgMemberResponse.PageResponse response = orgMemberService.getMembers(
@@ -63,7 +67,7 @@ public class OrgMemberController {
             @PathVariable String orgId,
             @PathVariable String memberId,
             @AuthenticationPrincipal UserPrincipal principal,
-            @RequestBody OrgMemberRequest.Update request) {
+            @Valid @RequestBody OrgMemberRequest.Update request) {
         OrgMemberResponse.Detail response = orgMemberService.updateMember(
                 orgId, memberId, principal.getUserId(), request);
         return ResponseEntity.ok(response);
@@ -86,6 +90,48 @@ public class OrgMemberController {
             @AuthenticationPrincipal UserPrincipal principal) {
         OrgMemberResponse.RemoveResult response = orgMemberService.removeMember(
                 orgId, memberId, principal.getUserId());
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/{memberId}/boards")
+    public ResponseEntity<List<OrgMemberResponse.MemberBoard>> getMemberBoards(
+            @PathVariable String orgId,
+            @PathVariable String memberId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        List<OrgMemberResponse.MemberBoard> response = orgMemberService.getMemberBoards(
+                orgId, memberId, principal.getUserId());
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{memberId}/profile-image")
+    public ResponseEntity<OrgMemberResponse.Detail> uploadMemberProfileImage(
+            @PathVariable String orgId,
+            @PathVariable String memberId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestPart("file") MultipartFile file) {
+        OrgMemberResponse.Detail response = orgMemberService.uploadMemberProfileImage(
+                orgId, memberId, principal.getUserId(), file);
+        return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/{memberId}/profile-image")
+    public ResponseEntity<OrgMemberResponse.Detail> deleteMemberProfileImage(
+            @PathVariable String orgId,
+            @PathVariable String memberId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        OrgMemberResponse.Detail response = orgMemberService.deleteMemberProfileImage(
+                orgId, memberId, principal.getUserId());
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/{memberId}/leave-balances")
+    public ResponseEntity<List<LeaveDto.BalanceResponse>> getMemberLeaveBalances(
+            @PathVariable String orgId,
+            @PathVariable String memberId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(required = false) Integer year) {
+        List<LeaveDto.BalanceResponse> response = orgMemberService.getMemberLeaveBalances(
+                orgId, memberId, principal.getUserId(), year);
         return ResponseEntity.ok(response);
     }
 }

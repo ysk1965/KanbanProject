@@ -54,7 +54,11 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Stri
             @Param("policyId") String policyId,
             @Param("status") LeaveStatus status);
 
-    @Query("SELECT lr FROM LeaveRequest lr WHERE lr.organization.id = :orgId " +
+    @Query("SELECT lr FROM LeaveRequest lr " +
+           "JOIN FETCH lr.requester req " +
+           "JOIN FETCH req.user " +
+           "JOIN FETCH lr.policy " +
+           "WHERE lr.organization.id = :orgId " +
            "AND lr.status = 'APPROVED' " +
            "AND lr.startDate <= :date AND lr.endDate >= :date")
     List<LeaveRequest> findApprovedOnDate(

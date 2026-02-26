@@ -22,6 +22,8 @@ import {
   personalHabitAPI,
   personalDashboardAPI,
   organizationAPI,
+  orgAnnouncementAPI,
+  orgActivityAPI,
   leaveAPI,
 } from './api';
 import {
@@ -2734,11 +2736,16 @@ export const organizationService = {
   updateMember: organizationAPI.updateMember,
   changeMemberRole: organizationAPI.changeMemberRole,
   removeMember: organizationAPI.removeMember,
+  getMemberBoards: organizationAPI.getMemberBoards,
+  getMemberLeaveBalances: organizationAPI.getMemberLeaveBalances,
+  uploadMemberProfileImage: organizationAPI.uploadMemberProfileImage,
+  deleteMemberProfileImage: organizationAPI.deleteMemberProfileImage,
 
   // Boards
   getBoards: organizationAPI.getBoards,
   checkBoardEligibility: organizationAPI.checkBoardEligibility,
   addBoard: organizationAPI.addBoard,
+  createBoard: organizationAPI.createBoard,
   removeBoard: organizationAPI.removeBoard,
 
   // Invite Links
@@ -2749,6 +2756,22 @@ export const organizationService = {
   acceptInvite: organizationAPI.acceptInvite,
 };
 
+// ─── Organization Announcement Service ───
+
+export const orgAnnouncementService = {
+  list: orgAnnouncementAPI.list,
+  create: orgAnnouncementAPI.create,
+  update: orgAnnouncementAPI.update,
+  delete: orgAnnouncementAPI.delete,
+  togglePin: orgAnnouncementAPI.togglePin,
+};
+
+// ─── Organization Activity Service ───
+
+export const orgActivityService = {
+  list: orgActivityAPI.list,
+};
+
 // ─── Leave Service ───
 
 export const leaveService = {
@@ -2756,6 +2779,7 @@ export const leaveService = {
   createPolicy: leaveAPI.createPolicy,
   updatePolicy: leaveAPI.updatePolicy,
 
+  getOnLeaveToday: leaveAPI.getOnLeaveToday,
   getMyBalance: leaveAPI.getMyBalance,
   getMemberBalance: leaveAPI.getMemberBalance,
   updateMemberBalance: leaveAPI.updateMemberBalance,
@@ -2765,4 +2789,5 @@ export const leaveService = {
   approveRequest: leaveAPI.approveRequest,
   rejectRequest: leaveAPI.rejectRequest,
   cancelRequest: leaveAPI.cancelRequest,
+  reopenRequest: leaveAPI.reopenRequest,
 };

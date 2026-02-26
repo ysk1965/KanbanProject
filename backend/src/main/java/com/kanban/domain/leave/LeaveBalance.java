@@ -38,7 +38,7 @@ public class LeaveBalance {
     @JoinColumn(name = "policy_id", nullable = false)
     private LeavePolicy policy;
 
-    @Column(nullable = false)
+    @Column(name = "leave_year", nullable = false)
     private Integer year;
 
     @Column(name = "total_days", nullable = false, precision = 4, scale = 1)

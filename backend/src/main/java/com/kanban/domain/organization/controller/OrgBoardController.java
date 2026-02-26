@@ -49,6 +49,16 @@ public class OrgBoardController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
+    @PostMapping("/create")
+    public ResponseEntity<OrgBoardResponse.Simple> createBoard(
+            @PathVariable String orgId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody OrgBoardRequest.CreateBoard request) {
+        OrgBoardResponse.Simple response = organizationFacadeService.createBoardForOrg(
+                orgId, request, principal.getUserId());
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
     @DeleteMapping("/{boardId}")
     public ResponseEntity<Void> removeBoard(
             @PathVariable String orgId,

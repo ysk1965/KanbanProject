@@ -4,6 +4,7 @@ import com.kanban.domain.organization.dto.OrgInviteRequest;
 import com.kanban.domain.organization.dto.OrgInviteResponse;
 import com.kanban.domain.organization.service.OrgInviteService;
 import com.kanban.global.security.UserPrincipal;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -25,7 +26,7 @@ public class OrgInviteController {
     public ResponseEntity<OrgInviteResponse.Detail> createInviteLink(
             @PathVariable String orgId,
             @AuthenticationPrincipal UserPrincipal principal,
-            @RequestBody OrgInviteRequest.Create request) {
+            @Valid @RequestBody OrgInviteRequest.Create request) {
         OrgInviteResponse.Detail response = orgInviteService.createInviteLink(
                 orgId, principal.getUserId(), request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -62,7 +63,7 @@ public class OrgInviteController {
     public ResponseEntity<Map<String, String>> acceptInvite(
             @PathVariable String code,
             @AuthenticationPrincipal UserPrincipal principal) {
-        orgInviteService.acceptInvite(code, principal.getUserId());
-        return ResponseEntity.ok(Map.of("message", "조직에 가입되었습니다."));
+        Map<String, String> result = orgInviteService.acceptInvite(code, principal.getUserId());
+        return ResponseEntity.ok(result);
     }
 }

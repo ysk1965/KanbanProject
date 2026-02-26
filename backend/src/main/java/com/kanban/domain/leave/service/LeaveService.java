@@ -5,10 +5,12 @@ import com.kanban.domain.leave.dto.LeaveDto;
 import com.kanban.domain.leave.repository.LeaveBalanceRepository;
 import com.kanban.domain.leave.repository.LeavePolicyRepository;
 import com.kanban.domain.leave.repository.LeaveRequestRepository;
+import com.kanban.domain.organization.OrgActivityType;
 import com.kanban.domain.organization.Organization;
 import com.kanban.domain.organization.OrganizationMember;
 import com.kanban.domain.organization.WorkStatus;
 import com.kanban.domain.organization.repository.OrgMemberRepository;
+import com.kanban.domain.organization.service.OrgActivityService;
 import com.kanban.domain.organization.service.OrganizationService;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
@@ -38,12 +40,21 @@ public class LeaveService {
     private final LeaveRequestRepository leaveRequestRepository;
     private final OrgMemberRepository orgMemberRepository;
     private final OrganizationService organizationService;
+    private final OrgActivityService orgActivityService;
 
     // ==================== Leave Policy ====================
 
+    @Transactional
     public List<LeaveDto.PolicyResponse> getPolicies(String orgId, String userId) {
         organizationService.getOrgMemberOrThrow(orgId, userId);
-        return leavePolicyRepository.findByOrganizationId(orgId).stream()
+        List<LeavePolicy> policies = leavePolicyRepository.findByOrganizationId(orgId);
+        if (policies.isEmpty()) {
+            Organization org = organizationService.getActiveOrgOrThrow(orgId);
+            createDefaultPolicies(org);
+            policies = leavePolicyRepository.findByOrganizationId(orgId);
+            log.info("Auto-created default leave policies for org: {}", orgId);
+        }
+        return policies.stream()
                 .map(LeaveDto.PolicyResponse::of)
                 .collect(Collectors.toList());
     }
@@ -266,6 +277,14 @@ public class LeaveService {
         }
 
         leaveRequest.approve(reviewer);
+
+        // Log activity
+        Organization org = organizationService.getActiveOrgOrThrow(orgId);
+        String requesterName = leaveRequest.getRequester() != null
+                ? leaveRequest.getRequester().getUser().getName() : "Unknown";
+        orgActivityService.log(org, reviewer.getUser().getName(),
+                OrgActivityType.LEAVE_APPROVED, requesterName, null);
+
         return LeaveDto.LeaveRequestResponse.of(leaveRequest);
     }
 
@@ -283,6 +302,14 @@ public class LeaveService {
         }
 
         leaveRequest.reject(reviewer, request != null ? request.getComment() : null);
+
+        // Log activity
+        Organization org = organizationService.getActiveOrgOrThrow(orgId);
+        String requesterName = leaveRequest.getRequester() != null
+                ? leaveRequest.getRequester().getUser().getName() : "Unknown";
+        orgActivityService.log(org, reviewer.getUser().getName(),
+                OrgActivityType.LEAVE_REJECTED, requesterName, null);
+
         return LeaveDto.LeaveRequestResponse.of(leaveRequest);
     }
 
@@ -323,6 +350,62 @@ public class LeaveService {
         }
 
         return LeaveDto.LeaveRequestResponse.of(leaveRequest);
+    }
+
+    @Transactional
+    public LeaveDto.LeaveRequestResponse reopenLeaveRequest(String orgId, String requestId, String userId) {
+        OrganizationMember member = organizationService.getOrgMemberOrThrow(orgId, userId);
+
+        LeaveRequest leaveRequest = leaveRequestRepository.findByIdAndOrganizationId(requestId, orgId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.LEAVE_REQUEST_NOT_FOUND));
+
+        if (!leaveRequest.isCanceled()) {
+            throw new BusinessException(ErrorCode.LEAVE_CANNOT_REOPEN);
+        }
+
+        // Only requester or admin can reopen
+        boolean isRequester = leaveRequest.getRequester() != null
+                && leaveRequest.getRequester().getUser().getId().equals(userId);
+        if (!isRequester && !member.isAdminOrAbove()) {
+            throw new BusinessException(ErrorCode.LEAVE_CANNOT_REOPEN);
+        }
+
+        // Check policy is still active
+        if (!leaveRequest.getPolicy().getIsActive()) {
+            throw new BusinessException(ErrorCode.LEAVE_POLICY_INACTIVE);
+        }
+
+        // Check overlap with existing active requests
+        List<LeaveStatus> activeStatuses = Arrays.asList(LeaveStatus.PENDING, LeaveStatus.APPROVED);
+        List<LeaveRequest> overlapping = leaveRequestRepository.findOverlapping(
+                leaveRequest.getRequester().getId(), leaveRequest.getStartDate(), leaveRequest.getEndDate(), activeStatuses);
+        if (!overlapping.isEmpty()) {
+            throw new BusinessException(ErrorCode.LEAVE_OVERLAP_EXISTS);
+        }
+
+        // Check balance
+        int year = leaveRequest.getStartDate().getYear();
+        LeaveBalance balance = leaveBalanceRepository
+                .findByMemberIdAndPolicyIdAndYear(leaveRequest.getRequester().getId(),
+                        leaveRequest.getPolicy().getId(), year)
+                .orElse(null);
+        if (balance != null && !balance.hasEnough(leaveRequest.getTotalDays())) {
+            throw new BusinessException(ErrorCode.LEAVE_INSUFFICIENT_BALANCE);
+        }
+
+        leaveRequest.reopen();
+
+        return LeaveDto.LeaveRequestResponse.of(leaveRequest);
+    }
+
+    // ==================== On Leave Today ====================
+
+    public List<LeaveDto.LeaveRequestResponse> getOnLeaveToday(String orgId, String userId, LocalDate date) {
+        organizationService.getOrgMemberOrThrow(orgId, userId);
+        LocalDate targetDate = date != null ? date : LocalDate.now(ZoneOffset.UTC);
+        return leaveRequestRepository.findApprovedOnDate(orgId, targetDate).stream()
+                .map(LeaveDto.LeaveRequestResponse::of)
+                .collect(Collectors.toList());
     }
 
     // ==================== Helper: Create default policies ====================
