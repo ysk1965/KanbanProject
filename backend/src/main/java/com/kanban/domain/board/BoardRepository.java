@@ -103,6 +103,13 @@ public interface BoardRepository extends JpaRepository<Board, String> {
     @Query("SELECT b FROM Board b WHERE b.organization.id = :orgId AND b.deletedAt IS NULL")
     List<Board> findByOrganizationId(@Param("orgId") String orgId);
 
+    @Query("SELECT COUNT(b) FROM Board b WHERE b.organization.id = :orgId AND b.deletedAt IS NULL")
+    int countByOrganizationId(@Param("orgId") String orgId);
+
+    @Query("SELECT b.organization.id, COUNT(b) FROM Board b " +
+           "WHERE b.organization.id IN :orgIds AND b.deletedAt IS NULL GROUP BY b.organization.id")
+    List<Object[]> countGroupedByOrgIds(@Param("orgIds") List<String> orgIds);
+
     /**
      * 스케줄러용: 7일 이상 지난 소프트 삭제 보드 조회
      */
@@ -114,4 +121,10 @@ public interface BoardRepository extends JpaRepository<Board, String> {
      */
     @Query("SELECT COUNT(b) FROM Board b WHERE b.deletedAt IS NOT NULL")
     long countDeleted();
+
+    /**
+     * 조직 소속 활성 보드 ID 목록 조회 (Insights Tab용)
+     */
+    @Query("SELECT b.id FROM Board b WHERE b.organization.id = :orgId AND b.deletedAt IS NULL")
+    List<String> findBoardIdsByOrgId(@Param("orgId") String orgId);
 }

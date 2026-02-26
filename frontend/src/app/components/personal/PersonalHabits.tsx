@@ -88,7 +88,7 @@ function IconDropdown({ icon, onChange }: { icon: string; onChange: (v: string) 
         className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all ${
           open
             ? 'border-purple-500/40 bg-purple-500/5'
-            : 'border-foreground/10 bg-foreground/[0.04] hover:bg-foreground/[0.06]'
+            : 'border-foreground/10 bg-foreground/[0.04] hover:bg-foreground/5'
         }`}
       >
         <span className="text-sm">{icon || '😊'}</span>
@@ -272,7 +272,7 @@ export function PersonalHabits() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <Loader2 className="w-6 h-6 animate-spin text-bridge-accent/50" />
+        <Loader2 className="w-6 h-6 animate-spin text-bridge-accent" />
       </div>
     );
   }
@@ -286,7 +286,7 @@ export function PersonalHabits() {
             <Flame size={22} className="text-purple-400" />
             <h2 className="text-lg md:text-xl font-bold text-foreground">{t('personal.habit.habits')}</h2>
             {habits.length > 0 && (
-              <span className="text-xs font-bold text-purple-400 bg-purple-400/10 px-2 py-0.5 rounded-full">
+              <span className="text-xs font-bold text-purple-400 bg-purple-400/15 px-2 py-0.5 rounded-full">
                 {habits.length}
               </span>
             )}
@@ -346,7 +346,7 @@ export function PersonalHabits() {
                     className={`relative flex items-center gap-3 px-4 py-3 rounded-xl transition-all cursor-pointer overflow-hidden ${
                       item.is_completed
                         ? 'bg-bridge-secondary/5 border border-bridge-secondary/20'
-                        : 'bg-white/[0.03] border border-foreground/5 hover:bg-white/[0.06]'
+                        : 'bg-white/[0.03] border border-foreground/[0.08] hover:bg-white/[0.06]'
                     }`}
                     onClick={() => {
                       if (item.is_completed) {
@@ -445,7 +445,7 @@ export function PersonalHabits() {
                     className={`relative flex items-center gap-3 px-4 py-3 rounded-xl transition-all cursor-pointer overflow-hidden ${
                       isCompleted
                         ? 'bg-bridge-secondary/5 border border-bridge-secondary/20'
-                        : 'bg-white/[0.02] border border-foreground/5 hover:bg-white/[0.04]'
+                        : 'bg-white/[0.02] border border-foreground/[0.08] hover:bg-white/[0.04]'
                     }`}
                     onClick={() => {
                       if (isCompleted) {
@@ -615,7 +615,7 @@ function StatCard({ icon, label, value, sub }: {
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-bridge-obsidian rounded-xl border border-foreground/5 p-3 md:p-4"
+      className="bg-bridge-obsidian rounded-xl border border-foreground/[0.08] p-3 md:p-4"
     >
       <div className="flex items-center gap-2 mb-2">
         {icon}
@@ -699,7 +699,7 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
       animate={{ opacity: 1 }}
       className="flex flex-col items-center justify-center py-16 text-center"
     >
-      <div className="w-16 h-16 rounded-2xl bg-purple-500/10 flex items-center justify-center mb-4">
+      <div className="w-16 h-16 rounded-2xl bg-purple-500/15 flex items-center justify-center mb-4">
         <Flame size={32} className="text-purple-400" />
       </div>
       <h3 className="text-lg font-bold text-foreground mb-2">{t('personal.habit.startBuilding')}</h3>
@@ -732,9 +732,9 @@ function HabitCard({ habit, onEdit, onDelete }: {
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, y: 4 }}
+      initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className="group bg-bridge-obsidian rounded-xl border border-foreground/5 hover:border-foreground/10 p-4 transition-all"
+      className="group bg-bridge-obsidian rounded-xl border border-foreground/[0.08] hover:border-foreground/[0.12] p-4 transition-all"
     >
       <div className="flex items-start gap-3">
         {/* Icon / Color indicator */}
@@ -750,7 +750,7 @@ function HabitCard({ habit, onEdit, onDelete }: {
           <div className="flex items-center gap-2">
             <h4 className="text-sm font-bold text-foreground truncate">{habit.title}</h4>
             {habit.current_streak > 0 && (
-              <div className="flex items-center gap-0.5 text-[10px] text-orange-400 font-bold flex-shrink-0 bg-orange-400/10 px-1.5 py-0.5 rounded-full">
+              <div className="flex items-center gap-0.5 text-[10px] text-orange-400 font-bold flex-shrink-0 bg-orange-400/15 px-1.5 py-0.5 rounded-full">
                 <Flame size={10} />
                 {habit.current_streak}
               </div>
@@ -909,7 +909,7 @@ export function HabitFormModal({ open, habit, onClose, onSubmit, onDelete }: {
   };
 
   return (
-    <MotionModal open={open} onClose={onClose} className="sm:max-w-md p-0 overflow-hidden border-foreground/[0.12]">
+    <MotionModal open={open} onClose={onClose} className="sm:max-w-md p-0 overflow-hidden border-foreground/[0.08]">
       <div>
         {/* Top accent line */}
         <div className="h-[2px]" style={{ background: `linear-gradient(to right, ${color}88, ${color}44, transparent)` }} />
@@ -930,7 +930,7 @@ export function HabitFormModal({ open, habit, onClose, onSubmit, onDelete }: {
             onChange={(e) => setTitle(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
             placeholder={t('personal.habit.habitPlaceholder')}
-            className="flex-1 min-w-0 bg-transparent text-sm font-bold text-foreground outline-none placeholder-slate-600"
+            className="flex-1 min-w-0 bg-transparent text-sm font-bold text-foreground outline-none placeholder-slate-500"
             autoFocus
           />
           {isEdit && onDelete && (
@@ -1001,7 +1001,7 @@ export function HabitFormModal({ open, habit, onClose, onSubmit, onDelete }: {
             onChange={(e) => setDescription(e.target.value)}
             placeholder={t('personal.habit.descPlaceholder')}
             rows={2}
-            className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl p-3 text-sm text-muted-foreground placeholder-slate-600 outline-none resize-none focus:border-bridge-accent/30 focus:ring-1 focus:ring-bridge-accent/10 transition-all"
+            className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl p-3 text-sm text-muted-foreground placeholder-slate-500 outline-none resize-none focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
           />
 
           {/* Footer */}
@@ -1037,12 +1037,12 @@ export function DeleteConfirmModal({ open, habitName, onConfirm, onCancel }: {
   const { t } = useTranslation();
 
   return (
-    <MotionModal open={open} onClose={onCancel} className="sm:max-w-sm p-0 overflow-hidden border-foreground/[0.12]">
+    <MotionModal open={open} onClose={onCancel} className="sm:max-w-sm p-0 overflow-hidden border-foreground/[0.08]">
       <div>
         <div className="h-[2px] bg-gradient-to-r from-red-500/60 via-red-400/30 to-transparent" />
 
         <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
-          <div className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center shrink-0">
+          <div className="w-8 h-8 rounded-lg bg-red-500/15 flex items-center justify-center shrink-0">
             <Trash2 size={15} className="text-red-400" />
           </div>
           <div className="flex-1 min-w-0">
@@ -1104,7 +1104,7 @@ export function CheckInConfirmModal({ open, habitName, habitIcon, streakCount, i
       : 'bg-bridge-secondary hover:bg-bridge-secondary/90';
 
   return (
-    <MotionModal open={open} onClose={onCancel} className="sm:max-w-sm p-0 overflow-hidden border-foreground/[0.12]">
+    <MotionModal open={open} onClose={onCancel} className="sm:max-w-sm p-0 overflow-hidden border-foreground/[0.08]">
       <div>
         <div className="h-[2px]" style={{ background: `linear-gradient(to right, ${accentColor}88, ${accentColor}44, transparent)` }} />
 
@@ -1179,7 +1179,7 @@ export function TaskCompleteConfirmModal({ open, taskName, isUndo, onConfirm, on
   const accentColor = isUndo ? '#F59E0B' : '#6366F1';
 
   return (
-    <MotionModal open={open} onClose={onCancel} className="sm:max-w-sm p-0 overflow-hidden border-foreground/[0.12]">
+    <MotionModal open={open} onClose={onCancel} className="sm:max-w-sm p-0 overflow-hidden border-foreground/[0.08]">
       <div>
         <div className="h-[2px]" style={{ background: `linear-gradient(to right, ${accentColor}88, ${accentColor}44, transparent)` }} />
 

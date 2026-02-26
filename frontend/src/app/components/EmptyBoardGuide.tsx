@@ -74,7 +74,7 @@ export function EmptyBoardGuide({ onCreateFeature }: EmptyBoardGuideProps) {
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${step.iconBg}`}>
                   <step.icon className={`h-5 w-5 ${step.iconColor}`} />
                 </div>
-                <span className="text-[10px] tracking-[0.3em] uppercase text-zinc-600 font-bold">
+                <span className="text-[10px] tracking-[0.3em] uppercase text-slate-500 font-bold">
                   Step {step.number}
                 </span>
               </div>
@@ -83,7 +83,7 @@ export function EmptyBoardGuide({ onCreateFeature }: EmptyBoardGuideProps) {
             </motion.div>
 
             {index < steps.length - 1 && (
-              <ArrowRight className="hidden md:block h-5 w-5 text-zinc-600 flex-shrink-0" />
+              <ArrowRight className="hidden md:block h-5 w-5 text-slate-500 flex-shrink-0" />
             )}
           </div>
         ))}

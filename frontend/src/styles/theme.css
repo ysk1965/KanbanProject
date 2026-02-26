@@ -380,33 +380,6 @@ html {
   background: rgba(0, 0, 0, 0.18);
 }
 
-/* Kanban Board Styles */
-.kanban-scrollbar::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-.kanban-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.kanban-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-}
-
-.kanban-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
-}
-
-.light .kanban-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.1);
-}
-
-.light .kanban-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.18);
-}
-
 /* Kanban Card Glow Effect */
 .kanban-glow {
   transition: all 0.3s ease;

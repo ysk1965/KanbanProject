@@ -55,9 +55,9 @@ export function AddFeatureModal({ open, onClose, onAdd, milestones = [], default
   };
 
   return (
-    <MotionModal open={open} onClose={onClose} className="sm:max-w-lg bg-bridge-dark p-0 overflow-hidden">
+    <MotionModal open={open} onClose={onClose} className="sm:max-w-lg bg-bridge-obsidian p-0 overflow-hidden">
         {/* 헤더 */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-foreground/10 bg-white/[0.03]">
+        <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-foreground/[0.08] bg-foreground/[0.03]">
           <h2 className="text-lg font-bold text-foreground">{t('feature.addTitle')}</h2>
           <button
             onClick={onClose}
@@ -68,7 +68,7 @@ export function AddFeatureModal({ open, onClose, onAdd, milestones = [], default
         </div>
 
         {/* 콘텐츠 */}
-        <div className="px-6 py-6 space-y-6">
+        <div className="px-5 pb-5 pt-4 space-y-6">
           <div className="space-y-2">
             <label className="kanban-label block">{t('feature.titleLabel')} *</label>
             <input
@@ -76,7 +76,7 @@ export function AddFeatureModal({ open, onClose, onAdd, milestones = [], default
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder={t('feature.titlePlaceholder')}
-              className="w-full bg-bridge-obsidian border border-foreground/10 rounded-xl p-3 text-foreground placeholder-slate-500 focus:outline-none focus:border-indigo-500/50 transition-all text-sm"
+              className="w-full bg-bridge-obsidian border border-foreground/10 rounded-xl p-3 text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all text-sm"
               autoFocus
             />
           </div>
@@ -88,7 +88,7 @@ export function AddFeatureModal({ open, onClose, onAdd, milestones = [], default
               onChange={(e) => setDescription(e.target.value)}
               placeholder={t('feature.descriptionPlaceholder')}
               rows={3}
-              className="w-full bg-bridge-obsidian border border-foreground/10 rounded-xl p-3 text-foreground placeholder-slate-500 focus:outline-none focus:border-indigo-500/50 transition-all resize-none text-sm"
+              className="w-full bg-bridge-obsidian border border-foreground/10 rounded-xl p-3 text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all resize-none text-sm"
             />
           </div>
 
@@ -98,7 +98,7 @@ export function AddFeatureModal({ open, onClose, onAdd, milestones = [], default
               <PopoverTrigger asChild>
                 <button
                   type="button"
-                  className="w-full flex items-center bg-bridge-surface-hover border border-foreground/10 rounded-lg px-4 py-2.5 focus:outline-none focus:border-indigo-500/50 text-xs font-bold text-foreground transition-all text-left"
+                  className="w-full flex items-center bg-bridge-surface-hover border border-foreground/10 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 text-xs font-bold text-foreground transition-all text-left"
                 >
                   <CalendarIcon className="mr-2 h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
                   {dateRange?.from ? (
@@ -154,7 +154,7 @@ export function AddFeatureModal({ open, onClose, onAdd, milestones = [], default
                 <select
                   value={milestoneId}
                   onChange={(e) => setMilestoneId(e.target.value)}
-                  className="w-full appearance-none bg-bridge-surface-hover border border-foreground/10 rounded-lg px-4 py-2.5 focus:outline-none focus:border-indigo-500/50 text-xs font-bold text-foreground cursor-pointer"
+                  className="w-full appearance-none bg-bridge-surface-hover border border-foreground/10 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 text-xs font-bold text-foreground cursor-pointer"
                 >
                   <option value="">{t('kanban.noMilestone', '없음')}</option>
                   {milestones.map((m) => (
@@ -168,7 +168,7 @@ export function AddFeatureModal({ open, onClose, onAdd, milestones = [], default
         </div>
 
         {/* 푸터 */}
-        <div className="px-6 py-5 border-t border-foreground/10 bg-white/[0.03] flex justify-end items-center gap-4">
+        <div className="px-5 py-3 border-t border-foreground/[0.08] bg-foreground/[0.03] flex justify-end items-center gap-4">
           <button
             onClick={onClose}
             className="text-[11px] font-bold text-slate-400 hover:text-foreground transition-all tracking-wider"
@@ -178,7 +178,7 @@ export function AddFeatureModal({ open, onClose, onAdd, milestones = [], default
           <button
             onClick={handleSubmit}
             disabled={!title.trim()}
-            className="px-6 py-2.5 bg-white text-black font-black text-[11px] rounded-lg tracking-widest hover:bg-zinc-200 transition-all flex items-center gap-2 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-6 py-2.5 bg-white text-black font-black text-[11px] rounded-lg tracking-widest hover:bg-slate-200 transition-all flex items-center gap-2 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {t('common.add')}
             <CheckCircle2 size={14} className="text-indigo-600" />

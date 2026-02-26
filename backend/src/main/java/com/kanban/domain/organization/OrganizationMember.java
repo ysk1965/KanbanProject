@@ -46,6 +46,18 @@ public class OrganizationMember {
     @JoinColumn(name = "job_group_id")
     private OrganizationJobGroup jobGroup;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "position_id")
+    private OrganizationPosition position;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "title_id")
+    private OrganizationTitle title;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "grade_id")
+    private OrganizationGrade grade;
+
     @Column(name = "job_title", length = 100)
     private String jobTitle;
 
@@ -70,6 +82,14 @@ public class OrganizationMember {
 
     @Column(name = "hire_date")
     private LocalDate hireDate;
+
+    @Column(name = "timezone", length = 50)
+    @Builder.Default
+    private String timezone = "Asia/Seoul";
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "manager_id")
+    private OrganizationMember manager;
 
     @Column(columnDefinition = "TEXT")
     private String bio;
@@ -131,6 +151,18 @@ public class OrganizationMember {
         this.jobGroup = jobGroup;
     }
 
+    public void updatePosition(OrganizationPosition position) {
+        this.position = position;
+    }
+
+    public void updateTitle(OrganizationTitle title) {
+        this.title = title;
+    }
+
+    public void updateGrade(OrganizationGrade grade) {
+        this.grade = grade;
+    }
+
     public void updateInfo(String jobTitle, ContractType contractType, WorkStatus workStatus,
                            String employeeId, String phone, LocalDate birthDate, LocalDate hireDate, String bio) {
         if (jobTitle != null) this.jobTitle = jobTitle;
@@ -138,8 +170,12 @@ public class OrganizationMember {
         if (workStatus != null) this.workStatus = workStatus;
         if (employeeId != null) this.employeeId = employeeId;
         if (phone != null) this.phone = phone;
-        this.birthDate = birthDate;
-        this.hireDate = hireDate;
+        if (birthDate != null) this.birthDate = birthDate;
+        if (hireDate != null) this.hireDate = hireDate;
         if (bio != null) this.bio = bio;
+    }
+
+    public void updateManager(OrganizationMember manager) {
+        this.manager = manager;
     }
 }

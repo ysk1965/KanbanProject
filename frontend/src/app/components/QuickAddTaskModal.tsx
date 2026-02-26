@@ -122,7 +122,7 @@ export function QuickAddTaskModal({
   // Simple Mode UI
   if (isSimpleMode) {
     return (
-      <MotionModal open={open} onClose={onClose} className="sm:max-w-md bg-bridge-dark p-0 overflow-hidden">
+      <MotionModal open={open} onClose={onClose} className="sm:max-w-md bg-bridge-obsidian p-0 overflow-hidden">
           <div className="px-5 py-4">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-7 h-7 rounded-lg bg-bridge-secondary/10 flex items-center justify-center">
@@ -149,7 +149,7 @@ export function QuickAddTaskModal({
               onChange={(e) => setTaskTitle(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder={t('quickAdd.quickPlaceholder', '할 일을 입력하세요...')}
-              className="w-full bg-foreground/5 border border-foreground/10 rounded-xl px-4 py-3 text-foreground placeholder-slate-500 focus:outline-none focus:border-bridge-secondary/50 focus:ring-1 focus:ring-bridge-secondary/20 transition-all text-sm"
+              className="w-full bg-foreground/5 border border-foreground/10 rounded-xl px-4 py-3 text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all text-sm"
               autoFocus
             />
 
@@ -172,9 +172,9 @@ export function QuickAddTaskModal({
 
   // Standard Mode UI
   return (
-    <MotionModal open={open} onClose={onClose} className="sm:max-w-lg bg-bridge-dark p-0 overflow-hidden">
+    <MotionModal open={open} onClose={onClose} className="sm:max-w-lg bg-bridge-obsidian p-0 overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-foreground/10 bg-white/[0.03]">
+        <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-foreground/[0.08] bg-foreground/[0.03]">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-bridge-accent/10 flex items-center justify-center">
               <Plus size={16} className="text-bridge-accent" />
@@ -195,7 +195,7 @@ export function QuickAddTaskModal({
         </div>
 
         {/* Content */}
-        <div className="px-6 py-6 space-y-5" onKeyDown={handleKeyDown}>
+        <div className="px-5 pb-5 pt-4 space-y-5" onKeyDown={handleKeyDown}>
           {/* Feature Selector */}
           <div className="space-y-2">
             <label className="kanban-label block flex items-center gap-1.5">
@@ -276,7 +276,7 @@ export function QuickAddTaskModal({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-5 border-t border-foreground/10 bg-white/[0.03] flex justify-end items-center gap-4">
+        <div className="px-5 py-3 border-t border-foreground/[0.08] bg-foreground/[0.03] flex justify-end items-center gap-4">
           <button
             onClick={onClose}
             className="text-[11px] font-bold text-slate-400 hover:text-foreground transition-all tracking-wider"
@@ -286,7 +286,7 @@ export function QuickAddTaskModal({
           <button
             onClick={handleSubmit}
             disabled={!canSubmit}
-            className="px-6 py-2.5 bg-white text-black font-black text-[11px] rounded-lg tracking-widest hover:bg-zinc-200 transition-all flex items-center gap-2 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-6 py-2.5 bg-white text-black font-black text-[11px] rounded-lg tracking-widest hover:bg-slate-200 transition-all flex items-center gap-2 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSubmitting ? t('common.processing') : t('common.add')}
             <CheckCircle2 size={14} className="text-bridge-accent" />

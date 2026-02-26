@@ -287,7 +287,7 @@ export const KanbanBlock = memo(function KanbanBlock({
             className="cursor-grab active:cursor-grabbing p-1 -ml-1 mr-1 rounded-lg hover:bg-bridge-surface-hover opacity-40 group-hover:opacity-100 transition-all"
             title={t("kanbanBlock.dragToMove")}
           >
-            <GripVertical className="h-4 w-4 text-zinc-400" />
+            <GripVertical className="h-4 w-4 text-slate-400" />
           </div>
         )}
         <div className="flex items-center gap-2 flex-1">
@@ -311,7 +311,7 @@ export const KanbanBlock = memo(function KanbanBlock({
               Fixed
             </span>
           )}
-          <span className="text-xs font-semibold text-zinc-400 bg-bridge-surface-hover px-2 py-0.5 rounded-md">
+          <span className="text-xs font-semibold text-slate-400 bg-bridge-surface-hover px-2 py-0.5 rounded-md">
             {tasks.length}
           </span>
         </div>
@@ -322,7 +322,7 @@ export const KanbanBlock = memo(function KanbanBlock({
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 w-7 p-0 text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover opacity-0 group-hover:opacity-100 transition-all"
+                className="h-7 w-7 p-0 text-slate-400 hover:text-foreground hover:bg-bridge-surface-hover opacity-0 group-hover:opacity-100 transition-all"
               >
                 <MoreVertical className="h-4 w-4" />
               </Button>
@@ -358,7 +358,7 @@ export const KanbanBlock = memo(function KanbanBlock({
       {/* 카드 리스트 */}
       <div
         ref={taskContainerRef}
-        className="flex-1 p-3 space-y-3 overflow-y-auto min-h-0 kanban-scrollbar"
+        className="flex-1 p-3 space-y-3 overflow-y-auto min-h-0 custom-scrollbar"
         onDragEnter={(e) => {
           if (e.dataTransfer.types.includes("application/task")) {
             e.preventDefault();

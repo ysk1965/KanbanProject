@@ -2,7 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, ChevronLeft, ChevronRight, Check, X, Clock, CalendarOff, Palmtree, RotateCcw } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { toast } from 'sonner';
 import { leaveService } from '../../../utils/services';
+import { getTodayDateString } from '../../../utils/dateUtils';
 import { MotionModal } from '../../ui/MotionModal';
 import type {
   LeaveBalance, LeavePolicy, LeaveRequestResponse, LeaveRequestPageResponse,
@@ -15,10 +17,17 @@ interface OrgLeaveTabProps {
 }
 
 const STATUS_STYLES: Record<LeaveStatus, string> = {
-  PENDING: 'bg-amber-500/20 text-amber-600 dark:text-amber-400',
-  APPROVED: 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400',
-  REJECTED: 'bg-red-500/20 text-red-600 dark:text-red-400',
-  CANCELED: 'bg-slate-500/20 text-slate-600 dark:text-slate-400',
+  PENDING: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
+  APPROVED: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
+  REJECTED: 'bg-red-500/15 text-red-600 dark:text-red-400',
+  CANCELED: 'bg-slate-500/15 text-slate-600 dark:text-slate-400',
+};
+
+const STATUS_LABEL_KEYS: Record<LeaveStatus, string> = {
+  PENDING: 'organization.leave.statusPending',
+  APPROVED: 'organization.leave.statusApproved',
+  REJECTED: 'organization.leave.statusRejected',
+  CANCELED: 'organization.leave.statusCanceled',
 };
 
 export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
@@ -38,8 +47,8 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [requestForm, setRequestForm] = useState({
     policy_id: '',
-    start_date: new Date().toISOString().split('T')[0],
-    end_date: new Date().toISOString().split('T')[0],
+    start_date: getTodayDateString(),
+    end_date: getTodayDateString(),
     duration_type: 'FULL_DAY' as LeaveDurationType,
     reason: '',
   });
@@ -65,6 +74,7 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
       setOnLeaveToday(onLeaveTodayData);
     } catch (error) {
       console.warn('Failed to fetch leave data:', error);
+      toast.error(t('organization.leave.fetchError', 'Failed to load leave data'));
     } finally {
       setLoading(false);
     }
@@ -88,43 +98,54 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
       setShowRequestModal(false);
       setRequestForm({
         policy_id: '',
-        start_date: new Date().toISOString().split('T')[0],
-        end_date: new Date().toISOString().split('T')[0],
+        start_date: getTodayDateString(),
+        end_date: getTodayDateString(),
         duration_type: 'FULL_DAY',
         reason: '',
       });
       fetchData();
+      toast.success(t('organization.leave.submitSuccess', 'Leave request submitted'));
     } catch (error) {
       console.warn('Failed to submit leave request:', error);
+      toast.error(t('organization.leave.submitError', 'Failed to submit leave request'));
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleApprove = async (requestId: string) => {
+    if (!confirm(t('organization.leave.approveConfirm', 'Approve this leave request?'))) return;
     try {
       await leaveService.approveRequest(orgId, requestId);
       fetchData();
+      toast.success(t('organization.leave.approveSuccess', 'Leave request approved'));
     } catch (error) {
       console.warn('Failed to approve:', error);
+      toast.error(t('organization.leave.approveError', 'Failed to approve leave request'));
     }
   };
 
   const handleReject = async (requestId: string) => {
+    if (!confirm(t('organization.leave.rejectConfirm', 'Reject this leave request?'))) return;
     try {
       await leaveService.rejectRequest(orgId, requestId);
       fetchData();
+      toast.success(t('organization.leave.rejectSuccess', 'Leave request rejected'));
     } catch (error) {
       console.warn('Failed to reject:', error);
+      toast.error(t('organization.leave.rejectError', 'Failed to reject leave request'));
     }
   };
 
   const handleCancel = async (requestId: string) => {
+    if (!confirm(t('organization.leave.cancelConfirm', 'Cancel this leave request?'))) return;
     try {
       await leaveService.cancelRequest(orgId, requestId);
       fetchData();
+      toast.success(t('organization.leave.cancelSuccess', 'Leave request canceled'));
     } catch (error) {
       console.warn('Failed to cancel:', error);
+      toast.error(t('organization.leave.cancelError', 'Failed to cancel leave request'));
     }
   };
 
@@ -134,6 +155,7 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
       fetchData();
     } catch (error) {
       console.warn('Failed to reopen:', error);
+      toast.error(t('organization.leave.reopenError', 'Failed to reopen leave request'));
     }
   };
 
@@ -141,7 +163,7 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
     return (
       <div className="space-y-4">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="h-20 bg-bridge-obsidian rounded-xl border border-foreground/[0.05] animate-pulse" />
+          <div key={i} className="h-20 bg-bridge-obsidian rounded-xl border border-foreground/[0.08] animate-pulse" />
         ))}
       </div>
     );
@@ -151,7 +173,7 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
     <div className="space-y-6">
       {/* My Balance */}
       {balances.length > 0 && (
-        <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.05] p-5">
+        <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-5">
           <h3 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-3">
             {t('organization.leave.myBalance', 'My Leave Balance')}
           </h3>
@@ -161,10 +183,10 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
               return (
                 <motion.div
                   key={b.id}
-                  initial={{ opacity: 0, y: 4 }}
+                  initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                  className="p-3 bg-foreground/[0.02] rounded-xl border border-foreground/[0.05]"
+                  transition={{ delay: index * 0.04 }}
+                  className="p-3 bg-foreground/[0.02] rounded-xl border border-foreground/[0.08]"
                 >
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm text-foreground font-medium">{b.policy_name}</span>
@@ -188,13 +210,13 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
 
       {/* On Leave Today */}
       {onLeaveToday.length > 0 && (
-        <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.05] p-5">
+        <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-5">
           <div className="flex items-center gap-2 mb-3">
             <Palmtree size={14} className="text-bridge-secondary" />
             <h3 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
               {t('organization.leave.onLeaveToday', "Today's Leave")}
             </h3>
-            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/20 text-bridge-secondary">
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary">
               {onLeaveToday.length}
             </span>
           </div>
@@ -205,9 +227,9 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: index * 0.04 }}
-                className="flex items-center gap-2.5 px-3 py-2 bg-foreground/[0.03] rounded-xl border border-foreground/[0.05]"
+                className="flex items-center gap-2.5 px-3 py-2 bg-foreground/[0.03] rounded-xl border border-foreground/[0.08]"
               >
-                <div className="w-7 h-7 rounded-full bg-bridge-accent/20 flex items-center justify-center text-[11px] text-bridge-accent font-bold shrink-0">
+                <div className="w-7 h-7 rounded-full bg-bridge-accent/15 flex items-center justify-center text-[11px] text-bridge-accent font-bold shrink-0">
                   {leave.requester?.name?.charAt(0) || '?'}
                 </div>
                 <div className="min-w-0">
@@ -275,24 +297,51 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
         </motion.div>
       ) : (
         <div className="space-y-2">
+          {/* Pagination */}
+          {totalElements > 20 && (
+            <div className="flex items-center justify-between pb-2">
+              <p className="text-muted-foreground text-xs">
+                {t('organization.leave.totalRequests', '{{count}} requests', { count: totalElements })}
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setPage(Math.max(0, page - 1))}
+                  disabled={page === 0}
+                  className="p-1.5 bg-bridge-obsidian border border-foreground/[0.08] rounded-lg text-muted-foreground hover:text-foreground hover:bg-foreground/5 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <span className="text-muted-foreground text-xs px-2">
+                  {page + 1} / {Math.ceil(totalElements / 20) || 1}
+                </span>
+                <button
+                  onClick={() => setPage(Math.min(Math.ceil(totalElements / 20) - 1, page + 1))}
+                  disabled={page >= Math.ceil(totalElements / 20) - 1}
+                  className="p-1.5 bg-bridge-obsidian border border-foreground/[0.08] rounded-lg text-muted-foreground hover:text-foreground hover:bg-foreground/5 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          )}
           {requests.map((req, index) => (
             <motion.div
               key={req.id}
-              initial={{ opacity: 0, y: 4 }}
+              initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.03 }}
-              className="bg-bridge-obsidian rounded-xl border border-foreground/[0.05] p-4"
+              transition={{ delay: index * 0.04 }}
+              className="bg-bridge-obsidian rounded-xl border border-foreground/[0.08] p-4"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-bridge-accent/20 flex items-center justify-center text-xs text-bridge-accent font-bold">
+                  <div className="w-8 h-8 rounded-full bg-bridge-accent/15 flex items-center justify-center text-xs text-bridge-accent font-bold">
                     {req.requester?.name?.charAt(0) || '?'}
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="text-foreground font-medium text-sm">{req.requester?.name}</span>
                       <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${STATUS_STYLES[req.status]}`}>
-                        {req.status}
+                        {t(STATUS_LABEL_KEYS[req.status])}
                       </span>
                     </div>
                     <div className="text-xs text-muted-foreground mt-0.5">
@@ -351,10 +400,10 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
       {/* Leave Request Modal */}
       <MotionModal open={showRequestModal} onClose={() => setShowRequestModal(false)}>
         <div className="h-1 bg-gradient-to-r from-bridge-accent to-bridge-secondary rounded-t-2xl" />
-        <div className="px-6 pt-5 pb-4 border-b border-foreground/[0.08]">
+        <div className="px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
           <h2 className="text-lg font-bold text-foreground">{t('organization.leave.requestTitle', 'Request Leave')}</h2>
         </div>
-        <div className="px-6 py-5 space-y-4">
+        <div className="px-5 pb-5 pt-4 space-y-4">
           <div>
             <label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">
               {t('organization.leave.leaveType', 'Leave Type')}
@@ -387,7 +436,7 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
                   }}
                   className={`flex-1 py-2 px-3 rounded-xl text-sm font-medium transition-colors border ${
                     requestForm.duration_type === dt
-                      ? 'bg-bridge-accent/20 text-bridge-accent border-bridge-accent/30'
+                      ? 'bg-bridge-accent/15 text-bridge-accent border-bridge-accent/30'
                       : 'bg-foreground/[0.03] text-muted-foreground border-foreground/[0.08] hover:bg-foreground/[0.06]'
                   }`}
                 >
@@ -437,11 +486,11 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
               value={requestForm.reason}
               onChange={(e) => setRequestForm({ ...requestForm, reason: e.target.value })}
               rows={2}
-              className="w-full bg-foreground/[0.03] border border-foreground/[0.08] rounded-xl py-3 px-4 text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all resize-none"
+              className="w-full bg-foreground/[0.03] border border-foreground/[0.08] rounded-xl py-3 px-4 text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all resize-none"
             />
           </div>
         </div>
-        <div className="px-6 py-4 border-t border-foreground/[0.08] flex items-center justify-between">
+        <div className="px-5 py-3 border-t border-foreground/[0.08] flex items-center justify-between">
           <span className="text-[10px] text-muted-foreground">ESC</span>
           <div className="flex gap-2">
             <button

@@ -7,6 +7,7 @@ import com.kanban.global.security.UserPrincipal;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -35,7 +36,7 @@ public class OrgAnnouncementController {
             @PathVariable String orgId,
             @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody OrgAnnouncementRequest.Create request) {
-        return ResponseEntity.ok(
+        return ResponseEntity.status(HttpStatus.CREATED).body(
                 announcementService.create(orgId, principal.getUserId(), request));
     }
 

@@ -166,4 +166,127 @@ public class OrganizationController {
         organizationService.deleteJobGroup(orgId, jobGroupId, principal.getUserId());
         return ResponseEntity.noContent().build();
     }
+
+    // ==================== Positions (직책) ====================
+
+    @GetMapping("/{orgId}/positions")
+    public ResponseEntity<List<OrgPositionResponse.Detail>> getPositions(
+            @PathVariable String orgId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        List<OrgPositionResponse.Detail> response = organizationService.getPositions(
+                orgId, principal.getUserId());
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{orgId}/positions")
+    public ResponseEntity<OrgPositionResponse.Detail> createPosition(
+            @PathVariable String orgId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody OrgPositionRequest.Create request) {
+        OrgPositionResponse.Detail response = organizationService.createPosition(
+                orgId, principal.getUserId(), request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PutMapping("/{orgId}/positions/{positionId}")
+    public ResponseEntity<OrgPositionResponse.Detail> updatePosition(
+            @PathVariable String orgId,
+            @PathVariable String positionId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody OrgPositionRequest.Update request) {
+        OrgPositionResponse.Detail response = organizationService.updatePosition(
+                orgId, positionId, principal.getUserId(), request);
+        return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/{orgId}/positions/{positionId}")
+    public ResponseEntity<Void> deletePosition(
+            @PathVariable String orgId,
+            @PathVariable String positionId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        organizationService.deletePosition(orgId, positionId, principal.getUserId());
+        return ResponseEntity.noContent().build();
+    }
+
+    // ==================== Titles (직위) ====================
+
+    @GetMapping("/{orgId}/titles")
+    public ResponseEntity<List<OrgTitleResponse.Detail>> getTitles(
+            @PathVariable String orgId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        List<OrgTitleResponse.Detail> response = organizationService.getTitles(
+                orgId, principal.getUserId());
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{orgId}/titles")
+    public ResponseEntity<OrgTitleResponse.Detail> createTitle(
+            @PathVariable String orgId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody OrgTitleRequest.Create request) {
+        OrgTitleResponse.Detail response = organizationService.createTitle(
+                orgId, principal.getUserId(), request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PutMapping("/{orgId}/titles/{titleId}")
+    public ResponseEntity<OrgTitleResponse.Detail> updateTitle(
+            @PathVariable String orgId,
+            @PathVariable String titleId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody OrgTitleRequest.Update request) {
+        OrgTitleResponse.Detail response = organizationService.updateTitle(
+                orgId, titleId, principal.getUserId(), request);
+        return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/{orgId}/titles/{titleId}")
+    public ResponseEntity<Void> deleteTitle(
+            @PathVariable String orgId,
+            @PathVariable String titleId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        organizationService.deleteTitle(orgId, titleId, principal.getUserId());
+        return ResponseEntity.noContent().build();
+    }
+
+    // ==================== Grades (직급) ====================
+
+    @GetMapping("/{orgId}/grades")
+    public ResponseEntity<List<OrgGradeResponse.Detail>> getGrades(
+            @PathVariable String orgId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        List<OrgGradeResponse.Detail> response = organizationService.getGrades(
+                orgId, principal.getUserId());
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{orgId}/grades")
+    public ResponseEntity<OrgGradeResponse.Detail> createGrade(
+            @PathVariable String orgId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody OrgGradeRequest.Create request) {
+        OrgGradeResponse.Detail response = organizationService.createGrade(
+                orgId, principal.getUserId(), request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PutMapping("/{orgId}/grades/{gradeId}")
+    public ResponseEntity<OrgGradeResponse.Detail> updateGrade(
+            @PathVariable String orgId,
+            @PathVariable String gradeId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody OrgGradeRequest.Update request) {
+        OrgGradeResponse.Detail response = organizationService.updateGrade(
+                orgId, gradeId, principal.getUserId(), request);
+        return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/{orgId}/grades/{gradeId}")
+    public ResponseEntity<Void> deleteGrade(
+            @PathVariable String orgId,
+            @PathVariable String gradeId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        organizationService.deleteGrade(orgId, gradeId, principal.getUserId());
+        return ResponseEntity.noContent().build();
+    }
 }

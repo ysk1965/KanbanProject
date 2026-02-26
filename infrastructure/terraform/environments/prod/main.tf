@@ -262,6 +262,8 @@ data "aws_s3_bucket" "attachments" {
   bucket = "bridge-kanban-attachments"
 }
 
+# NOTE: S3 Lifecycle & Intelligent-Tiering은 dev 환경에서 관리 (동일 버킷 공유)
+
 resource "aws_cloudfront_origin_access_control" "attachments" {
   name                              = "${var.project_name}-${var.environment}-attachments-oac"
   description                       = "OAC for attachments S3 bucket"
@@ -333,6 +335,54 @@ resource "aws_cloudfront_distribution" "attachments" {
     min_ttl     = 0
     default_ttl = 86400    # 1 day
     max_ttl     = 31536000 # 1 year
+  }
+
+  # 댓글 첨부파일 - 30일 캐시 (UUID 기반 immutable 파일)
+  ordered_cache_behavior {
+    path_pattern           = "comments/*"
+    allowed_methods        = ["GET", "HEAD"]
+    cached_methods         = ["GET", "HEAD"]
+    target_origin_id       = "S3-attachments"
+    viewer_protocol_policy = "redirect-to-https"
+    compress               = true
+
+    forwarded_values {
+      query_string = false
+      headers      = ["Origin", "Access-Control-Request-Method", "Access-Control-Request-Headers"]
+      cookies {
+        forward = "none"
+      }
+    }
+
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.attachments_cors.id
+
+    min_ttl     = 86400     # 1 day minimum
+    default_ttl = 2592000   # 30 days
+    max_ttl     = 31536000  # 1 year
+  }
+
+  # 커스텀 아이콘 - 30일 캐시 (immutable)
+  ordered_cache_behavior {
+    path_pattern           = "customicon/*"
+    allowed_methods        = ["GET", "HEAD"]
+    cached_methods         = ["GET", "HEAD"]
+    target_origin_id       = "S3-attachments"
+    viewer_protocol_policy = "redirect-to-https"
+    compress               = true
+
+    forwarded_values {
+      query_string = false
+      headers      = ["Origin", "Access-Control-Request-Method", "Access-Control-Request-Headers"]
+      cookies {
+        forward = "none"
+      }
+    }
+
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.attachments_cors.id
+
+    min_ttl     = 86400     # 1 day minimum
+    default_ttl = 2592000   # 30 days
+    max_ttl     = 31536000  # 1 year
   }
 
   restrictions {

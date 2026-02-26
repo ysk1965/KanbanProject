@@ -5,6 +5,7 @@ import com.kanban.domain.organization.OrgRole;
 import com.kanban.domain.organization.WorkStatus;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -29,6 +30,9 @@ public class OrgMemberRequest {
     public static class Update {
         private String departmentId;
         private String jobGroupId;
+        private String positionId;
+        private String titleId;
+        private String gradeId;
         private String jobTitle;
         private ContractType contractType;
         private WorkStatus workStatus;
@@ -41,7 +45,22 @@ public class OrgMemberRequest {
 
     @Getter
     @NoArgsConstructor
+    public static class UpdateConcurrentDepts {
+        private java.util.List<ConcurrentDeptItem> concurrentDepts;
+    }
+
+    @Getter
+    @NoArgsConstructor
+    public static class ConcurrentDeptItem {
+        private String departmentId;
+        private String positionId;
+        private Integer displayOrder;
+    }
+
+    @Getter
+    @NoArgsConstructor
     public static class ChangeRole {
+        @NotNull(message = "역할은 필수입니다")
         private OrgRole role;
     }
 }

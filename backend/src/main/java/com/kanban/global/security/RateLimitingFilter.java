@@ -40,6 +40,9 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     // 회원가입 엔드포인트용 버킷 (IP 기반, 가장 엄격한 제한)
     private final Map<String, Bucket> signupBuckets = new ConcurrentHashMap<>();
 
+    // 초대 링크 공개 엔드포인트용 버킷 (IP 기반, 브루트포스 방지)
+    private final Map<String, Bucket> inviteBuckets = new ConcurrentHashMap<>();
+
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
@@ -62,8 +65,11 @@ public class RateLimitingFilter extends OncePerRequestFilter {
      * 버킷 키 결정: 인증된 사용자는 userId, 미인증은 IP
      */
     private String resolveBucketKey(HttpServletRequest request, String requestUri) {
-        // 로그인/회원가입은 항상 IP 기반
+        // 로그인/회원가입/공개 초대 링크는 항상 IP 기반
         if (requestUri.contains("/auth/login") || requestUri.contains("/auth/google") || requestUri.contains("/auth/signup")) {
+            return "ip:" + getClientIp(request);
+        }
+        if (requestUri.contains("/org-invites/")) {
             return "ip:" + getClientIp(request);
         }
 
@@ -102,6 +108,8 @@ public class RateLimitingFilter extends OncePerRequestFilter {
             return signupBuckets.computeIfAbsent(bucketKey, this::createSignupBucket);
         } else if (requestUri.contains("/auth/login") || requestUri.contains("/auth/google")) {
             return loginBuckets.computeIfAbsent(bucketKey, this::createLoginBucket);
+        } else if (requestUri.contains("/org-invites/")) {
+            return inviteBuckets.computeIfAbsent(bucketKey, this::createInviteBucket);
         } else {
             return buckets.computeIfAbsent(bucketKey, this::createStandardBucket);
         }
@@ -133,6 +141,16 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     private Bucket createSignupBucket(String key) {
         return Bucket.builder()
                 .addLimit(Bandwidth.classic(5, Refill.greedy(5, Duration.ofHours(1))))
+                .build();
+    }
+
+    /**
+     * 초대 링크 공개 엔드포인트용 버킷: 분당 30회, 시간당 100회 (브루트포스 방지)
+     */
+    private Bucket createInviteBucket(String key) {
+        return Bucket.builder()
+                .addLimit(Bandwidth.classic(30, Refill.greedy(30, Duration.ofMinutes(1))))
+                .addLimit(Bandwidth.classic(100, Refill.greedy(100, Duration.ofHours(1))))
                 .build();
     }
 
@@ -178,6 +196,8 @@ public class RateLimitingFilter extends OncePerRequestFilter {
             return "회원가입 요청이 너무 많습니다. 1시간 후 다시 시도해주세요.";
         } else if (requestUri.contains("/auth/login")) {
             return "로그인 시도가 너무 많습니다. 잠시 후 다시 시도해주세요.";
+        } else if (requestUri.contains("/org-invites/")) {
+            return "초대 링크 요청이 너무 많습니다. 잠시 후 다시 시도해주세요.";
         } else {
             return "요청이 너무 많습니다. 잠시 후 다시 시도해주세요.";
         }

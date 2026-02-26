@@ -259,6 +259,67 @@ data "aws_s3_bucket" "attachments" {
   bucket = "bridge-kanban-attachments"
 }
 
+# ─── S3 Lifecycle Rules (shared bucket - managed in dev only) ───
+
+# 1. Temp 파일 자동 삭제 (1일)
+resource "aws_s3_bucket_lifecycle_configuration" "attachments" {
+  bucket = data.aws_s3_bucket.attachments.id
+
+  rule {
+    id     = "cleanup-temp-files"
+    status = "Enabled"
+
+    filter {
+      prefix = "temp/"
+    }
+
+    expiration {
+      days = 1
+    }
+  }
+
+  # 2. 댓글 첨부파일 → Intelligent-Tiering 전환
+  rule {
+    id     = "comments-intelligent-tiering"
+    status = "Enabled"
+
+    filter {
+      prefix = "comments/"
+    }
+
+    transition {
+      days          = 0
+      storage_class = "INTELLIGENT_TIERING"
+    }
+  }
+
+  # 3. 커스텀 아이콘 레퍼런스 → Intelligent-Tiering 전환 (일회성 파일)
+  rule {
+    id     = "customicon-ref-intelligent-tiering"
+    status = "Enabled"
+
+    filter {
+      prefix = "customicon/ref/"
+    }
+
+    transition {
+      days          = 0
+      storage_class = "INTELLIGENT_TIERING"
+    }
+  }
+}
+
+# Intelligent-Tiering: Archive Instant Access까지만 (즉시 접근 보장)
+resource "aws_s3_bucket_intelligent_tiering_configuration" "attachments" {
+  bucket = data.aws_s3_bucket.attachments.id
+  name   = "attachments-tiering"
+
+  tiering {
+    access_tier = "ARCHIVE_INSTANT_ACCESS"
+    days        = 90
+  }
+}
+
 resource "aws_cloudfront_origin_access_control" "attachments" {
   name                              = "${var.project_name}-${var.environment}-attachments-oac"
   description                       = "OAC for attachments S3 bucket"
@@ -330,6 +391,54 @@ resource "aws_cloudfront_distribution" "attachments" {
     min_ttl     = 0
     default_ttl = 86400    # 1 day
     max_ttl     = 31536000 # 1 year
+  }
+
+  # 댓글 첨부파일 - 30일 캐시 (UUID 기반 immutable 파일)
+  ordered_cache_behavior {
+    path_pattern           = "comments/*"
+    allowed_methods        = ["GET", "HEAD"]
+    cached_methods         = ["GET", "HEAD"]
+    target_origin_id       = "S3-attachments"
+    viewer_protocol_policy = "redirect-to-https"
+    compress               = true
+
+    forwarded_values {
+      query_string = false
+      headers      = ["Origin", "Access-Control-Request-Method", "Access-Control-Request-Headers"]
+      cookies {
+        forward = "none"
+      }
+    }
+
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.attachments_cors.id
+
+    min_ttl     = 86400     # 1 day minimum
+    default_ttl = 2592000   # 30 days
+    max_ttl     = 31536000  # 1 year
+  }
+
+  # 커스텀 아이콘 - 30일 캐시 (immutable)
+  ordered_cache_behavior {
+    path_pattern           = "customicon/*"
+    allowed_methods        = ["GET", "HEAD"]
+    cached_methods         = ["GET", "HEAD"]
+    target_origin_id       = "S3-attachments"
+    viewer_protocol_policy = "redirect-to-https"
+    compress               = true
+
+    forwarded_values {
+      query_string = false
+      headers      = ["Origin", "Access-Control-Request-Method", "Access-Control-Request-Headers"]
+      cookies {
+        forward = "none"
+      }
+    }
+
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.attachments_cors.id
+
+    min_ttl     = 86400     # 1 day minimum
+    default_ttl = 2592000   # 30 days
+    max_ttl     = 31536000  # 1 year
   }
 
   restrictions {

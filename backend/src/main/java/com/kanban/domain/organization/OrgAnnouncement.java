@@ -2,6 +2,9 @@ package com.kanban.domain.organization;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -9,6 +12,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "org_announcements")
+@EntityListeners(AuditingEntityListener.class)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
@@ -37,9 +41,11 @@ public class OrgAnnouncement {
     @Builder.Default
     private Boolean isPinned = false;
 
-    @Column(name = "created_at", nullable = false)
+    @CreatedDate
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    @LastModifiedDate
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
@@ -47,13 +53,6 @@ public class OrgAnnouncement {
     public void prePersist() {
         if (this.id == null) {
             this.id = UUID.randomUUID().toString();
-        }
-        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
-        if (this.createdAt == null) {
-            this.createdAt = now;
-        }
-        if (this.updatedAt == null) {
-            this.updatedAt = now;
         }
     }
 

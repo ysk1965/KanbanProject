@@ -660,7 +660,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
   const InlineMentionDropdown = ({ isEdit }: { isEdit: boolean }) => {
     if (!showInlineMention || inlineMentionForEdit !== isEdit || filteredMembers.length === 0) return null;
     return (
-      <div className="absolute bottom-full left-0 mb-1 w-full bg-bridge-obsidian border border-bridge-border rounded-lg shadow-lg z-50 py-1 max-h-40 overflow-y-auto kanban-scrollbar">
+      <div className="absolute bottom-full left-0 mb-1 w-full bg-bridge-obsidian border border-bridge-border rounded-lg shadow-lg z-50 py-1 max-h-40 overflow-y-auto custom-scrollbar">
         {filteredMembers.map((member, idx) => {
           const color = getAssigneeClasses(member.name, member.assigneeColor);
           return (
@@ -1021,7 +1021,7 @@ export function CommentPanel({ taskId, boardId, boardMembers, currentUser, canEd
       </div>
 
       {/* 댓글 목록 */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-4 kanban-scrollbar">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-4 custom-scrollbar">
         {/* AI 요약 카드 */}
         {aiSummary && (
           <div className="mb-2 bg-bridge-accent/5 border border-bridge-accent/20 rounded-xl p-4 space-y-3">
