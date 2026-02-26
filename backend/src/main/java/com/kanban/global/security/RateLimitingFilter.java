@@ -7,10 +7,12 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -20,19 +22,22 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * API 요청에 대한 Rate Limiting을 적용하는 필터
- * IP 주소 기반으로 요청 횟수를 제한합니다.
+ * 인증된 사용자는 userId 기반, 미인증 요청은 IP 기반으로 제한합니다.
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class RateLimitingFilter extends OncePerRequestFilter {
 
-    // IP별 버킷 저장소
+    private final JwtProvider jwtProvider;
+
+    // 일반 API용 버킷 (userId 또는 IP 기반)
     private final Map<String, Bucket> buckets = new ConcurrentHashMap<>();
 
-    // 로그인 엔드포인트용 버킷 (더 엄격한 제한)
+    // 로그인 엔드포인트용 버킷 (IP 기반, 더 엄격한 제한)
     private final Map<String, Bucket> loginBuckets = new ConcurrentHashMap<>();
 
-    // 회원가입 엔드포인트용 버킷 (가장 엄격한 제한)
+    // 회원가입 엔드포인트용 버킷 (IP 기반, 가장 엄격한 제한)
     private final Map<String, Bucket> signupBuckets = new ConcurrentHashMap<>();
 
     @Override
@@ -40,29 +45,65 @@ public class RateLimitingFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
 
-        String clientIp = getClientIp(request);
         String requestUri = request.getRequestURI();
+        String bucketKey = resolveBucketKey(request, requestUri);
 
-        Bucket bucket = resolveBucket(clientIp, requestUri);
+        Bucket bucket = resolveBucket(bucketKey, requestUri);
 
         if (bucket.tryConsume(1)) {
             filterChain.doFilter(request, response);
         } else {
-            log.warn("Rate limit exceeded for IP: {} on endpoint: {}", clientIp, requestUri);
+            log.warn("Rate limit exceeded for key: {} on endpoint: {}", bucketKey, requestUri);
             sendRateLimitExceededResponse(response, requestUri);
         }
     }
 
     /**
+     * 버킷 키 결정: 인증된 사용자는 userId, 미인증은 IP
+     */
+    private String resolveBucketKey(HttpServletRequest request, String requestUri) {
+        // 로그인/회원가입은 항상 IP 기반
+        if (requestUri.contains("/auth/login") || requestUri.contains("/auth/google") || requestUri.contains("/auth/signup")) {
+            return "ip:" + getClientIp(request);
+        }
+
+        // JWT 토큰에서 userId 추출 시도
+        String token = resolveToken(request);
+        if (StringUtils.hasText(token)) {
+            try {
+                String userId = jwtProvider.getUserIdFromToken(token);
+                if (StringUtils.hasText(userId)) {
+                    return "user:" + userId;
+                }
+            } catch (Exception e) {
+                // 토큰 파싱 실패 시 IP 기반 폴백
+            }
+        }
+
+        return "ip:" + getClientIp(request);
+    }
+
+    /**
+     * Authorization 헤더에서 JWT 토큰 추출
+     */
+    private String resolveToken(HttpServletRequest request) {
+        String bearerToken = request.getHeader("Authorization");
+        if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
+            return bearerToken.substring(7);
+        }
+        return null;
+    }
+
+    /**
      * 요청 URI에 따라 적절한 버킷을 반환
      */
-    private Bucket resolveBucket(String clientIp, String requestUri) {
+    private Bucket resolveBucket(String bucketKey, String requestUri) {
         if (requestUri.contains("/auth/signup")) {
-            return signupBuckets.computeIfAbsent(clientIp, this::createSignupBucket);
+            return signupBuckets.computeIfAbsent(bucketKey, this::createSignupBucket);
         } else if (requestUri.contains("/auth/login") || requestUri.contains("/auth/google")) {
-            return loginBuckets.computeIfAbsent(clientIp, this::createLoginBucket);
+            return loginBuckets.computeIfAbsent(bucketKey, this::createLoginBucket);
         } else {
-            return buckets.computeIfAbsent(clientIp, this::createStandardBucket);
+            return buckets.computeIfAbsent(bucketKey, this::createStandardBucket);
         }
     }
 
