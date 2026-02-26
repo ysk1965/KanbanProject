@@ -12,14 +12,22 @@ const BACKEND_ORIGIN = (() => {
   }
 })();
 
+// S3 직접 URL → CloudFront 리라이트
+const CLOUDFRONT_DOMAIN = import.meta.env.VITE_CLOUDFRONT_DOMAIN as string | undefined;
+const S3_DIRECT_URL_RE = /^https:\/\/[\w.-]+\.s3\.[\w.-]+\.amazonaws\.com\//;
+
 /**
- * 백엔드에서 반환한 상대 경로 파일 URL을 절대 URL로 변환
+ * 백엔드에서 반환한 파일 URL을 최적 URL로 변환
+ * - S3 직접 URL → CloudFront URL 리라이트 (VITE_CLOUDFRONT_DOMAIN 설정 시)
  * - 이미 절대 URL(http/https/blob/data)이면 그대로 반환
  * - 상대 경로(/uploads/...)이면 백엔드 origin을 앞에 붙임
  */
 export const resolveFileUrl = (url: string | null | undefined): string => {
   if (!url) return '';
   if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('blob:') || url.startsWith('data:')) {
+    if (CLOUDFRONT_DOMAIN && S3_DIRECT_URL_RE.test(url)) {
+      return url.replace(S3_DIRECT_URL_RE, `https://${CLOUDFRONT_DOMAIN}/`);
+    }
     return url;
   }
   return `${BACKEND_ORIGIN}${url}`;
