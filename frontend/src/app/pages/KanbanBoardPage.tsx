@@ -2544,7 +2544,7 @@ export function KanbanBoardPage() {
                 />
 
                 {/* 칸반 보드 */}
-                <div className="flex-1 p-3 md:p-6 overflow-x-auto overflow-y-hidden min-h-0 kanban-scrollbar">
+                <div className="flex-1 p-3 md:p-6 overflow-x-auto overflow-y-hidden min-h-0 custom-scrollbar">
                   <DndContext
                     sensors={blockSensors}
                     collisionDetection={closestCenter}

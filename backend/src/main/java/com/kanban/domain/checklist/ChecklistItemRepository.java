@@ -116,4 +116,17 @@ public interface ChecklistItemRepository extends JpaRepository<ChecklistItem, St
     @Modifying
     @Query("DELETE FROM ChecklistItem ci WHERE ci.task.feature.id = :featureId")
     void deleteByFeatureId(@Param("featureId") String featureId);
+
+    // ==================== Organization Insights Queries ====================
+
+    /**
+     * 특정 담당자의 조직 보드들에서 기간 내 완료한 체크리스트 수
+     */
+    @Query("SELECT COUNT(ci) FROM ChecklistItem ci JOIN ci.task t WHERE t.board.id IN :boardIds " +
+           "AND ci.assignee.id = :assigneeId AND ci.isCompleted = true " +
+           "AND ci.completedAt BETWEEN :startDateTime AND :endDateTime")
+    long countCompletedByAssigneeAndBoardIds(@Param("assigneeId") String assigneeId,
+                                              @Param("boardIds") List<String> boardIds,
+                                              @Param("startDateTime") LocalDateTime startDateTime,
+                                              @Param("endDateTime") LocalDateTime endDateTime);
 }

@@ -1,12 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, Plus, Users, X } from 'lucide-react';
+import { Search, Plus, Users, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { toast } from 'sonner';
 import { organizationService } from '../../../utils/services';
 import { MotionModal } from '../../ui/MotionModal';
 import { MemberDetailModal } from '../MemberDetailModal';
 import type {
   OrgMemberSimple, OrgMemberPageResponse, OrgDepartment, OrgJobGroup,
+  OrgPosition, OrgTitle, OrgGrade,
   OrgRole, ContractType, WorkStatus, OrgMemberInviteResult,
 } from '../../../types';
 
@@ -17,16 +19,29 @@ interface OrgMembersTabProps {
 }
 
 const CONTRACT_BADGE: Record<ContractType, string> = {
-  FULL_TIME: 'bg-bridge-accent/20 text-bridge-accent',
-  CONTRACT: 'bg-amber-500/20 text-amber-600 dark:text-amber-400',
-  INTERN: 'bg-bridge-secondary/20 text-bridge-secondary',
-  PART_TIME: 'bg-purple-500/20 text-purple-600 dark:text-purple-400',
+  FULL_TIME: 'bg-bridge-accent/15 text-bridge-accent',
+  CONTRACT: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
+  INTERN: 'bg-bridge-secondary/15 text-bridge-secondary',
+  PART_TIME: 'bg-purple-500/15 text-purple-600 dark:text-purple-400',
+};
+
+const CONTRACT_LABEL_KEYS: Record<ContractType, string> = {
+  FULL_TIME: 'organization.members.contractFullTime',
+  CONTRACT: 'organization.members.contractContract',
+  INTERN: 'organization.members.contractIntern',
+  PART_TIME: 'organization.members.contractPartTime',
 };
 
 const STATUS_BADGE: Record<WorkStatus, string> = {
-  ACTIVE: 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400',
-  ON_LEAVE: 'bg-amber-500/20 text-amber-600 dark:text-amber-400',
-  RESIGNED: 'bg-red-500/20 text-red-600 dark:text-red-400',
+  ACTIVE: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
+  ON_LEAVE: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
+  RESIGNED: 'bg-red-500/15 text-red-600 dark:text-red-400',
+};
+
+const STATUS_LABEL_KEYS: Record<WorkStatus, string> = {
+  ACTIVE: 'organization.members.statusActive',
+  ON_LEAVE: 'organization.members.statusOnLeave',
+  RESIGNED: 'organization.members.statusResigned',
 };
 
 export function OrgMembersTab({ orgId, myRole, myUserId }: OrgMembersTabProps) {
@@ -36,6 +51,9 @@ export function OrgMembersTab({ orgId, myRole, myUserId }: OrgMembersTabProps) {
   const [totalElements, setTotalElements] = useState(0);
   const [departments, setDepartments] = useState<OrgDepartment[]>([]);
   const [jobGroups, setJobGroups] = useState<OrgJobGroup[]>([]);
+  const [positions, setPositions] = useState<OrgPosition[]>([]);
+  const [titles, setTitles] = useState<OrgTitle[]>([]);
+  const [grades, setGrades] = useState<OrgGrade[]>([]);
   const [loading, setLoading] = useState(true);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteForm, setInviteForm] = useState({ email: '', role: 'MEMBER', department_id: '', job_title: '' });
@@ -78,12 +96,18 @@ export function OrgMembersTab({ orgId, myRole, myUserId }: OrgMembersTabProps) {
   useEffect(() => {
     const fetchFilters = async () => {
       try {
-        const [depts, jgs] = await Promise.all([
+        const [depts, jgs, pos, tls, gds] = await Promise.all([
           organizationService.getDepartments(orgId),
           organizationService.getJobGroups(orgId),
+          organizationService.getPositions(orgId).catch(() => [] as OrgPosition[]),
+          organizationService.getTitles(orgId).catch(() => [] as OrgTitle[]),
+          organizationService.getGrades(orgId).catch(() => [] as OrgGrade[]),
         ]);
         setDepartments(depts);
         setJobGroups(jgs);
+        setPositions(pos);
+        setTitles(tls);
+        setGrades(gds);
       } catch {
         // Filters are optional
       }
@@ -104,8 +128,10 @@ export function OrgMembersTab({ orgId, myRole, myUserId }: OrgMembersTabProps) {
       setShowInviteModal(false);
       setInviteForm({ email: '', role: 'MEMBER', department_id: '', job_title: '' });
       fetchMembers();
+      toast.success(t('organization.members.inviteSuccess', 'Invite sent successfully'));
     } catch (error) {
       console.warn('Failed to invite member:', error);
+      toast.error(t('organization.members.inviteError', 'Failed to invite member'));
     } finally {
       setInviting(false);
     }
@@ -122,7 +148,7 @@ export function OrgMembersTab({ orgId, myRole, myUserId }: OrgMembersTabProps) {
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(0); }}
             placeholder={t('organization.members.searchPlaceholder', 'Search by name or email...')}
-            className="w-full bg-foreground/[0.03] border border-foreground/[0.08] rounded-xl py-2.5 pl-9 pr-4 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+            className="w-full bg-foreground/[0.03] border border-foreground/[0.08] rounded-xl py-2.5 pl-9 pr-4 text-sm text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
           />
         </div>
 
@@ -171,7 +197,7 @@ export function OrgMembersTab({ orgId, myRole, myUserId }: OrgMembersTabProps) {
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-24 bg-bridge-obsidian rounded-xl border border-foreground/[0.05] animate-pulse" />
+            <div key={i} className="h-24 bg-bridge-obsidian rounded-xl border border-foreground/[0.08] animate-pulse" />
           ))}
         </div>
       ) : members.length === 0 ? (
@@ -204,14 +230,14 @@ export function OrgMembersTab({ orgId, myRole, myUserId }: OrgMembersTabProps) {
           {members.map((member, index) => (
             <motion.div
               key={member.id}
-              initial={{ opacity: 0, y: 4 }}
+              initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.03 }}
+              transition={{ delay: index * 0.04 }}
               onClick={() => setSelectedMemberId(member.id)}
-              className="bg-bridge-obsidian rounded-xl border border-foreground/[0.05] p-4 hover:border-bridge-accent/30 transition-colors cursor-pointer"
+              className="bg-bridge-obsidian rounded-xl border border-foreground/[0.08] p-4 hover:border-foreground/[0.12] transition-colors cursor-pointer"
             >
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-bridge-accent/20 flex items-center justify-center text-sm text-bridge-accent font-bold shrink-0">
+                <div className="w-10 h-10 rounded-full bg-bridge-accent/15 flex items-center justify-center text-sm text-bridge-accent font-bold shrink-0">
                   {member.user.profile_image ? (
                     <img src={member.user.profile_image} alt="" className="w-10 h-10 rounded-full object-cover" />
                   ) : (
@@ -222,8 +248,18 @@ export function OrgMembersTab({ orgId, myRole, myUserId }: OrgMembersTabProps) {
                   <div className="flex items-center gap-2">
                     <span className="text-foreground font-medium text-sm truncate">{member.user.name}</span>
                     <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${CONTRACT_BADGE[member.contract_type]}`}>
-                      {member.contract_type.replace('_', ' ')}
+                      {t(CONTRACT_LABEL_KEYS[member.contract_type])}
                     </span>
+                    {member.position?.name && (
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-sky-500/15 text-sky-600 dark:text-sky-400">
+                        {member.position.name}
+                      </span>
+                    )}
+                    {member.grade?.name && (
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-slate-500/15 text-slate-600 dark:text-slate-300">
+                        {member.grade.name}
+                      </span>
+                    )}
                   </div>
                   <div className="text-xs text-muted-foreground truncate mt-0.5">
                     {member.department?.name && <span>{member.department.name}</span>}
@@ -232,11 +268,39 @@ export function OrgMembersTab({ orgId, myRole, myUserId }: OrgMembersTabProps) {
                   </div>
                 </div>
                 <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${STATUS_BADGE[member.work_status]}`}>
-                  {member.work_status.replace('_', ' ')}
+                  {t(STATUS_LABEL_KEYS[member.work_status])}
                 </span>
               </div>
             </motion.div>
           ))}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {totalElements > 20 && (
+        <div className="flex items-center justify-between">
+          <p className="text-muted-foreground text-xs">
+            {t('organization.members.resultCount', '{{count}} members found', { count: totalElements })}
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPage(Math.max(0, page - 1))}
+              disabled={page === 0}
+              className="p-1.5 bg-bridge-obsidian border border-foreground/[0.08] rounded-lg text-muted-foreground hover:text-foreground hover:bg-foreground/5 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <span className="text-muted-foreground text-xs px-2">
+              {page + 1} / {Math.ceil(totalElements / 20) || 1}
+            </span>
+            <button
+              onClick={() => setPage(Math.min(Math.ceil(totalElements / 20) - 1, page + 1))}
+              disabled={page >= Math.ceil(totalElements / 20) - 1}
+              className="p-1.5 bg-bridge-obsidian border border-foreground/[0.08] rounded-lg text-muted-foreground hover:text-foreground hover:bg-foreground/5 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       )}
 
@@ -250,16 +314,19 @@ export function OrgMembersTab({ orgId, myRole, myUserId }: OrgMembersTabProps) {
         myUserId={myUserId}
         departments={departments}
         jobGroups={jobGroups}
+        positions={positions}
+        titles={titles}
+        grades={grades}
         onMemberUpdated={fetchMembers}
       />
 
       {/* Invite Modal */}
       <MotionModal open={showInviteModal} onClose={() => setShowInviteModal(false)}>
         <div className="h-1 bg-gradient-to-r from-bridge-accent to-bridge-secondary rounded-t-2xl" />
-        <div className="px-6 pt-5 pb-4 border-b border-foreground/[0.08]">
+        <div className="px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
           <h2 className="text-lg font-bold text-foreground">{t('organization.members.inviteTitle', 'Invite Member')}</h2>
         </div>
-        <div className="px-6 py-5 space-y-4">
+        <div className="px-5 pb-5 pt-4 space-y-4">
           <div>
             <label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">
               {t('organization.members.email', 'Email')}
@@ -269,7 +336,7 @@ export function OrgMembersTab({ orgId, myRole, myUserId }: OrgMembersTabProps) {
               value={inviteForm.email}
               onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })}
               placeholder="user@example.com"
-              className="w-full bg-foreground/[0.03] border border-foreground/[0.08] rounded-xl py-3 px-4 text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+              className="w-full bg-foreground/[0.03] border border-foreground/[0.08] rounded-xl py-3 px-4 text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
               autoFocus
             />
           </div>
@@ -282,8 +349,8 @@ export function OrgMembersTab({ orgId, myRole, myUserId }: OrgMembersTabProps) {
               onChange={(e) => setInviteForm({ ...inviteForm, role: e.target.value })}
               className="w-full bg-foreground/[0.03] border border-foreground/[0.08] rounded-xl py-3 px-4 text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
             >
-              <option value="MEMBER">Member</option>
-              <option value="ADMIN">Admin</option>
+              <option value="MEMBER">{t('organization.members.roleMember', 'Member')}</option>
+              <option value="ADMIN">{t('organization.members.roleAdmin', 'Admin')}</option>
             </select>
           </div>
           {departments.length > 0 && (
@@ -312,11 +379,11 @@ export function OrgMembersTab({ orgId, myRole, myUserId }: OrgMembersTabProps) {
               value={inviteForm.job_title}
               onChange={(e) => setInviteForm({ ...inviteForm, job_title: e.target.value })}
               placeholder={t('organization.members.jobTitlePlaceholder', 'e.g. Frontend Developer')}
-              className="w-full bg-foreground/[0.03] border border-foreground/[0.08] rounded-xl py-3 px-4 text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+              className="w-full bg-foreground/[0.03] border border-foreground/[0.08] rounded-xl py-3 px-4 text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
             />
           </div>
         </div>
-        <div className="px-6 py-4 border-t border-foreground/[0.08] flex items-center justify-between">
+        <div className="px-5 py-3 border-t border-foreground/[0.08] flex items-center justify-between">
           <span className="text-[10px] text-muted-foreground">ESC</span>
           <div className="flex gap-2">
             <button

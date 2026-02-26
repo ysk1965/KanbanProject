@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Megaphone, Pin, Trash2, Pencil } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { toast } from 'sonner';
 import { MotionModal } from '../ui/MotionModal';
 import { orgAnnouncementService } from '../../utils/services';
 import { formatRelativeTime } from '../../utils/dateUtils';
@@ -45,10 +46,13 @@ export function OrgAnnouncementListModal({ open, onClose, orgId, role, onEditCli
   }, [open, orgId]);
 
   const handleDelete = async (id: string) => {
+    if (!confirm(t('organization.announcement.deleteConfirm', 'Delete this announcement?'))) return;
     try {
       await orgAnnouncementService.delete(orgId, id);
       setAnnouncements(prev => prev.filter(a => a.id !== id));
-    } catch { /* */ }
+    } catch {
+      toast.error(t('organization.announcement.deleteError', 'Failed to delete announcement'));
+    }
   };
 
   const handleTogglePin = async (id: string) => {
@@ -64,18 +68,18 @@ export function OrgAnnouncementListModal({ open, onClose, orgId, role, onEditCli
         <div className="h-[2px] bg-gradient-to-r from-bridge-accent/60 via-bridge-secondary/40 to-transparent" />
 
         <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
-          <div className="w-8 h-8 rounded-lg bg-bridge-accent/20 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-lg bg-bridge-accent/15 flex items-center justify-center">
             <Megaphone size={16} className="text-bridge-accent" />
           </div>
           <h3 className="text-base font-bold text-foreground">
             {t('organization.dashboard.announcements', 'Announcements')}
           </h3>
-          <span className="text-[10px] font-bold text-bridge-accent bg-bridge-accent/10 px-1.5 py-0.5 rounded-full">
+          <span className="text-[10px] font-bold text-bridge-accent bg-bridge-accent/15 px-1.5 py-0.5 rounded-full">
             {announcements.length}
           </span>
         </div>
 
-        <div className="flex-1 overflow-y-auto divide-y divide-foreground/[0.05]">
+        <div className="flex-1 overflow-y-auto divide-y divide-foreground/[0.08]">
           {announcements.map((a, index) => (
             <motion.div
               key={a.id}
@@ -119,7 +123,7 @@ export function OrgAnnouncementListModal({ open, onClose, orgId, role, onEditCli
         </div>
 
         {hasMore && (
-          <div className="px-5 py-3 border-t border-foreground/[0.05]">
+          <div className="px-5 py-3 border-t border-foreground/[0.08]">
             <button onClick={() => fetchData(false)} disabled={loading}
               className="w-full text-xs text-bridge-accent hover:text-bridge-accent/80 font-bold transition-colors">
               {loading ? '...' : t('common.loadMore', 'Load more')}
@@ -128,7 +132,7 @@ export function OrgAnnouncementListModal({ open, onClose, orgId, role, onEditCli
         )}
 
         <div className="flex items-center justify-end px-5 pb-4 pt-3 border-t border-foreground/[0.08]">
-          <span className="text-[10px] text-slate-600">Esc {t('common.close', 'Close')}</span>
+          <span className="text-[10px] text-slate-500">Esc {t('common.close', 'Close')}</span>
         </div>
       </div>
     </MotionModal>

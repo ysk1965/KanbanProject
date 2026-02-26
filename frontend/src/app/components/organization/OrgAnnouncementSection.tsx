@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Megaphone, Pin, Plus, ChevronRight, Trash2, Pencil } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { toast } from 'sonner';
 import { orgAnnouncementService } from '../../utils/services';
 import { formatRelativeTime } from '../../utils/dateUtils';
 import type { OrgAnnouncement, OrgRole } from '../../types';
@@ -35,10 +36,13 @@ export function OrgAnnouncementSection({ orgId, role, onCreateClick, onEditClick
   }, [orgId]);
 
   const handleDelete = async (id: string) => {
+    if (!confirm(t('organization.announcement.deleteConfirm', 'Delete this announcement?'))) return;
     try {
       await orgAnnouncementService.delete(orgId, id);
       setAnnouncements(prev => prev.filter(a => a.id !== id));
-    } catch { /* */ }
+    } catch {
+      toast.error(t('organization.announcement.deleteError', 'Failed to delete announcement'));
+    }
   };
 
   const handleTogglePin = async (id: string) => {
@@ -56,7 +60,7 @@ export function OrgAnnouncementSection({ orgId, role, onCreateClick, onEditClick
     return (
       <div className="space-y-3">
         {[1, 2, 3].map(i => (
-          <div key={i} className="h-24 bg-bridge-obsidian rounded-2xl border border-foreground/[0.05] animate-pulse" />
+          <div key={i} className="h-24 bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] animate-pulse" />
         ))}
       </div>
     );
@@ -70,7 +74,7 @@ export function OrgAnnouncementSection({ orgId, role, onCreateClick, onEditClick
           <h3 className="text-sm font-bold text-foreground">
             {t('organization.dashboard.announcements', 'Announcements')}
           </h3>
-          <span className="text-[10px] font-bold text-bridge-accent bg-bridge-accent/10 px-1.5 py-0.5 rounded-full">
+          <span className="text-[10px] font-bold text-bridge-accent bg-bridge-accent/15 px-1.5 py-0.5 rounded-full">
             {announcements.length}
           </span>
         </div>
@@ -93,8 +97,8 @@ export function OrgAnnouncementSection({ orgId, role, onCreateClick, onEditClick
       </div>
 
       {announcements.length === 0 ? (
-        <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.05] p-12 text-center">
-          <div className="w-14 h-14 rounded-xl bg-bridge-accent/10 flex items-center justify-center mx-auto mb-4">
+        <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-12 text-center">
+          <div className="w-14 h-14 rounded-xl bg-bridge-accent/15 flex items-center justify-center mx-auto mb-4">
             <Megaphone size={28} className="text-bridge-accent/60" />
           </div>
           <p className="text-sm text-muted-foreground mb-1">
@@ -111,10 +115,10 @@ export function OrgAnnouncementSection({ orgId, role, onCreateClick, onEditClick
           {announcements.map((a, index) => (
             <motion.div
               key={a.id}
-              initial={{ opacity: 0, y: 6 }}
+              initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.04 }}
-              className="group bg-bridge-obsidian rounded-xl border border-foreground/[0.05] hover:border-foreground/[0.1] transition-all"
+              className="group bg-bridge-obsidian rounded-xl border border-foreground/[0.08] hover:border-foreground/[0.12] transition-all"
             >
               {a.is_pinned && (
                 <div className="h-[2px] bg-gradient-to-r from-bridge-accent/60 via-bridge-accent/20 to-transparent rounded-t-xl" />
@@ -124,7 +128,7 @@ export function OrgAnnouncementSection({ orgId, role, onCreateClick, onEditClick
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1.5">
                       {a.is_pinned && (
-                        <span className="text-[9px] font-bold uppercase tracking-widest text-bridge-accent bg-bridge-accent/10 px-1.5 py-0.5 rounded-full shrink-0">
+                        <span className="text-[9px] font-bold uppercase tracking-widest text-bridge-accent bg-bridge-accent/15 px-1.5 py-0.5 rounded-full shrink-0">
                           PIN
                         </span>
                       )}

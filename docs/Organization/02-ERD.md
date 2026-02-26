@@ -1,7 +1,7 @@
 # Organization Service - ERD & Database Design
 
-> **Version**: v1.1.0 | **Date**: 2026-02-25
-> **기존 Flyway 최신**: V59 | **신규 시작**: V60
+> **Version**: v1.2.0 | **Date**: 2026-02-26
+> **기존 Flyway 최신**: V65 | **신규 시작**: V66
 
 ---
 
@@ -42,7 +42,33 @@
                │   │ bio (TEXT)                      │
                │   │ joined_at                       │
                │   │ invited_by (FK) ───────────────►│
+               │   │ timezone (VARCHAR 50)            │
                │   │ display_order                   │
+               │   │ created_at, updated_at          │
+               │   └────────────────────────────────┘
+               │
+               │   ┌────────────────────────────────┐
+               │   │  org_anniversary_settings       │
+               │   │────────────────────────────────│
+               │   │ id (PK)                         │
+               │   │ organization_id (FK) UNIQUE     │
+               │   │ birthday_enabled (BOOLEAN)      │
+               │   │ hire_anniversary_enabled (BOOL)  │
+               │   │ notify_timing (ENUM)            │
+               │   │ dashboard_range (ENUM)          │
+               │   │ created_at, updated_at          │
+               │   └────────────────────────────────┘
+               │
+               │   ┌────────────────────────────────┐
+               │   │  org_celebration_messages       │
+               │   │────────────────────────────────│
+               │   │ id (PK)                         │
+               │   │ organization_id (FK)            │
+               ├───┤ author_id (FK) → org_members    │
+               │   │ target_member_id (FK) → members │
+               │   │ anniversary_type (ENUM)         │
+               │   │ anniversary_date (DATE)         │
+               │   │ message (TEXT)                  │
                │   │ created_at, updated_at          │
                │   └────────────────────────────────┘
                │
@@ -180,6 +206,25 @@ public enum LeaveStatus {
     APPROVED,    // 승인
     REJECTED,    // 거절
     CANCELED     // 취소 (본인)
+}
+
+// 기념일 유형 (HR Extension P1)
+public enum AnniversaryType {
+    BIRTHDAY,           // 생일
+    HIRE_ANNIVERSARY    // 입사 기념일
+}
+
+// 알림 타이밍 (HR Extension P1)
+public enum NotifyTiming {
+    SAME_DAY,           // 당일만
+    DAY_BEFORE,         // 전날 + 당일
+    THREE_DAYS_BEFORE   // 3일 전 ~ 당일 (매일)
+}
+
+// 대시보드 범위 (HR Extension P1)
+public enum DashboardRange {
+    THIS_WEEK,    // 이번 주
+    THIS_MONTH    // 이번 달
 }
 ```
 
@@ -390,6 +435,57 @@ CREATE INDEX idx_leavereq_org_status_date ON leave_requests(organization_id, sta
 CREATE INDEX idx_leavereq_reviewer ON leave_requests(reviewer_id);
 ```
 
+### V65__add_anniversary_settings_and_celebrations.sql
+
+```sql
+-- =============================================
+-- V65: Anniversary Settings & Celebration Messages (HR Extension P1)
+-- =============================================
+
+-- 1. Add timezone to organization_members
+ALTER TABLE organization_members ADD COLUMN IF NOT EXISTS timezone VARCHAR(50) DEFAULT 'Asia/Seoul';
+
+-- 2. Anniversary Settings (1:1 with Organization)
+CREATE TABLE IF NOT EXISTS org_anniversary_settings (
+    id VARCHAR(36) PRIMARY KEY,
+    organization_id VARCHAR(36) NOT NULL,
+    birthday_enabled BOOLEAN NOT NULL DEFAULT true,
+    hire_anniversary_enabled BOOLEAN NOT NULL DEFAULT true,
+    notify_timing VARCHAR(30) NOT NULL DEFAULT 'SAME_DAY',
+    dashboard_range VARCHAR(20) NOT NULL DEFAULT 'THIS_MONTH',
+    created_at TIMESTAMP NOT NULL DEFAULT (NOW() AT TIME ZONE 'UTC'),
+    updated_at TIMESTAMP,
+    CONSTRAINT fk_annisetting_org FOREIGN KEY (organization_id) REFERENCES organizations(id),
+    CONSTRAINT uq_annisetting_org UNIQUE (organization_id),
+    CONSTRAINT chk_notify_timing CHECK (notify_timing IN ('SAME_DAY', 'DAY_BEFORE', 'THREE_DAYS_BEFORE')),
+    CONSTRAINT chk_dashboard_range CHECK (dashboard_range IN ('THIS_WEEK', 'THIS_MONTH'))
+);
+
+CREATE INDEX idx_annisetting_org ON org_anniversary_settings(organization_id);
+
+-- 3. Celebration Messages
+CREATE TABLE IF NOT EXISTS org_celebration_messages (
+    id VARCHAR(36) PRIMARY KEY,
+    organization_id VARCHAR(36) NOT NULL,
+    author_id VARCHAR(36) NOT NULL,
+    target_member_id VARCHAR(36) NOT NULL,
+    anniversary_type VARCHAR(30) NOT NULL,
+    anniversary_date DATE NOT NULL,
+    message TEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT (NOW() AT TIME ZONE 'UTC'),
+    updated_at TIMESTAMP,
+    CONSTRAINT fk_celebmsg_org FOREIGN KEY (organization_id) REFERENCES organizations(id),
+    CONSTRAINT fk_celebmsg_author FOREIGN KEY (author_id) REFERENCES organization_members(id) ON DELETE CASCADE,
+    CONSTRAINT fk_celebmsg_target FOREIGN KEY (target_member_id) REFERENCES organization_members(id) ON DELETE CASCADE,
+    CONSTRAINT uq_celebmsg_unique UNIQUE (author_id, target_member_id, anniversary_type, anniversary_date),
+    CONSTRAINT chk_anniversary_type CHECK (anniversary_type IN ('BIRTHDAY', 'HIRE_ANNIVERSARY'))
+);
+
+CREATE INDEX idx_celebmsg_org ON org_celebration_messages(organization_id);
+CREATE INDEX idx_celebmsg_target ON org_celebration_messages(target_member_id, anniversary_date);
+CREATE INDEX idx_celebmsg_author ON org_celebration_messages(author_id);
+```
+
 ---
 
 ## 4. JPA Entity Design
@@ -522,6 +618,10 @@ public class OrganizationMember {
     @JoinColumn(name = "invited_by")
     private User invitedBy;
 
+    @Column(name = "timezone", length = 50)
+    @Builder.Default
+    private String timezone = "Asia/Seoul";
+
     @Column(name = "display_order")
     @Builder.Default
     private Integer displayOrder = 0;
@@ -641,6 +741,119 @@ public class LeaveRequest {
 }
 ```
 
+### OrgAnniversarySetting.java (HR Extension P1)
+
+```java
+@Entity
+@Table(name = "org_anniversary_settings",
+       uniqueConstraints = @UniqueConstraint(columnNames = {"organization_id"}))
+@Getter @Setter @Builder
+@NoArgsConstructor @AllArgsConstructor
+public class OrgAnniversarySetting {
+
+    @Id
+    @Column(length = 36)
+    private String id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "organization_id", nullable = false)
+    private Organization organization;
+
+    @Column(name = "birthday_enabled", nullable = false)
+    @Builder.Default
+    private Boolean birthdayEnabled = true;
+
+    @Column(name = "hire_anniversary_enabled", nullable = false)
+    @Builder.Default
+    private Boolean hireAnniversaryEnabled = true;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "notify_timing", nullable = false, length = 30)
+    @Builder.Default
+    private NotifyTiming notifyTiming = NotifyTiming.SAME_DAY;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "dashboard_range", nullable = false, length = 20)
+    @Builder.Default
+    private DashboardRange dashboardRange = DashboardRange.THIS_MONTH;
+
+    @CreatedDate
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @LastModifiedDate
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    @PrePersist
+    public void prePersist() {
+        if (this.id == null) this.id = UUID.randomUUID().toString();
+    }
+
+    public static OrgAnniversarySetting createDefault(Organization org) {
+        return OrgAnniversarySetting.builder()
+                .organization(org)
+                .birthdayEnabled(true)
+                .hireAnniversaryEnabled(true)
+                .notifyTiming(NotifyTiming.SAME_DAY)
+                .dashboardRange(DashboardRange.THIS_MONTH)
+                .build();
+    }
+}
+```
+
+### OrgCelebrationMessage.java (HR Extension P1)
+
+```java
+@Entity
+@Table(name = "org_celebration_messages",
+       uniqueConstraints = @UniqueConstraint(
+           columnNames = {"author_id", "target_member_id", "anniversary_type", "anniversary_date"}))
+@Getter @Setter @Builder
+@NoArgsConstructor @AllArgsConstructor
+public class OrgCelebrationMessage {
+
+    @Id
+    @Column(length = 36)
+    private String id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "organization_id", nullable = false)
+    private Organization organization;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "author_id", nullable = false)
+    private OrganizationMember author;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "target_member_id", nullable = false)
+    private OrganizationMember targetMember;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "anniversary_type", nullable = false, length = 30)
+    private AnniversaryType anniversaryType;
+
+    @Column(name = "anniversary_date", nullable = false)
+    private LocalDate anniversaryDate;
+
+    @Column(nullable = false, columnDefinition = "TEXT")
+    private String message;
+
+    @CreatedDate
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @LastModifiedDate
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    @PrePersist
+    public void prePersist() {
+        if (this.id == null) this.id = UUID.randomUUID().toString();
+    }
+}
+```
+
 ---
 
 ## 5. Key Constraints & Business Rules
@@ -673,3 +886,9 @@ public class LeaveRequest {
 | **같은 날 반차 조합** | 같은 날짜 AM_HALF + PM_HALF 허용 (합산 1.0일). 동일 duration_type 중복은 차단 |
 | **주말/공휴일** | Phase 1: 캘린더 일수 기준 (주말/공휴일 포함). Phase 2: 영업일 기반 전환 예정 |
 | **잔여 수동 변경 감사** | Admin의 leave_balance 수동 변경 시 activity_log 기록 (LEAVE_BALANCE_ADJUSTED) |
+| **Anniversary 설정 1:1** | org_anniversary_settings는 Organization당 최대 1개 (UNIQUE 제약) |
+| **축하 메시지 중복 방지** | 같은 author → target, 같은 type + date에 1개만 허용 (UNIQUE 제약, 409 CONFLICT) |
+| **Celebration ON DELETE CASCADE** | 멤버 삭제 시 해당 멤버가 작성/수신한 축하 메시지도 함께 삭제 |
+| **NotifyTiming 동작** | SAME_DAY: 당일만, DAY_BEFORE: 전날+당일, THREE_DAYS_BEFORE: 3일전~당일 매일 |
+| **윤년 생일 처리** | 2/29 생일 → 비윤년에는 2/28로 처리 |
+| **Timezone 기반 알림** | 매 시간 스케줄러가 각 멤버의 timezone 기준 09:00인지 확인 후 알림 발송 |

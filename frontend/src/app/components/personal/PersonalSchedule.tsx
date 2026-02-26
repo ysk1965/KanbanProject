@@ -893,7 +893,7 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
                 {t('personal.schedule.recurring')}
               </span>
               {recurringEvents.length > 0 && (
-                <span className="text-[10px] font-bold text-purple-400 bg-purple-400/10 px-1.5 py-0.5 rounded">
+                <span className="text-[10px] font-bold text-purple-400 bg-purple-400/15 px-1.5 py-0.5 rounded">
                   {recurringEvents.length}
                 </span>
               )}
@@ -906,7 +906,7 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
                 setCreateInitialRecurrence('WEEKLY');
                 setIsCreateOpen(true);
               }}
-              className="flex items-center gap-1 px-2 py-1 text-[10px] font-bold text-purple-400 bg-purple-400/10 rounded-lg hover:bg-purple-400/20 transition-colors"
+              className="flex items-center gap-1 px-2 py-1 text-[10px] font-bold text-purple-400 bg-purple-400/15 rounded-lg hover:bg-purple-400/25 transition-colors"
             >
               <Plus size={12} />
               {t('personal.schedule.add')}
@@ -936,7 +936,7 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
                         {e.title}
                       </span>
                       <div className="flex items-center gap-1.5 mt-1">
-                        <span className="text-[10px] font-semibold text-purple-400/80 bg-purple-400/10 px-1.5 py-0.5 rounded">
+                        <span className="text-[10px] font-semibold text-purple-400/80 bg-purple-400/15 px-1.5 py-0.5 rounded">
                           {formatRecurrenceLabel(e)}
                         </span>
                         {e.start_time && (
@@ -968,7 +968,7 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
         }}
       >
         {/* ======== Navigation header ======== */}
-        <div className="flex items-center justify-between px-3 md:px-6 py-2 md:py-3 border-b border-white/[0.06] flex-shrink-0">
+        <div className="flex items-center justify-between px-3 md:px-6 py-2 md:py-3 border-b border-foreground/[0.08] flex-shrink-0">
           <div className="flex items-center gap-1.5 md:gap-3">
             <button
               onClick={handlePrev}
@@ -1046,8 +1046,8 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
         <div ref={animRef} className="flex-1 overflow-auto custom-scrollbar bg-bridge-dark">
           <div className={`${viewMode === 'day' ? '' : 'min-w-[520px] md:min-w-[760px]'} bg-bridge-dark`}>
           {/* ---- Day headers (sticky) ---- */}
-          <div className="flex sticky top-0 bg-bridge-obsidian/95 backdrop-blur-sm z-10 border-b border-white/[0.06]">
-            <div className={`${TIME_COL_W} flex-shrink-0 border-r border-white/[0.06]`} />
+          <div className="flex sticky top-0 bg-bridge-obsidian/95 backdrop-blur-sm z-10 border-b border-foreground/[0.08]">
+            <div className={`${TIME_COL_W} flex-shrink-0 border-r border-foreground/[0.08]`} />
             {weekDays.map((day, idx) => {
               const ds = toDateString(day);
               const isToday = ds === todayStr;
@@ -1055,7 +1055,7 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
               return (
                 <div
                   key={ds}
-                  className={`flex-1 ${COL_MIN_W} p-3 border-r border-white/[0.06] ${
+                  className={`flex-1 ${COL_MIN_W} p-3 border-r border-foreground/[0.08] ${
                     isToday ? 'bg-bridge-accent/5' : ''
                   }`}
                 >
@@ -1084,9 +1084,9 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
 
           {/* ---- All-day events row ---- */}
           {hasAllDay && (
-            <div className="flex border-b border-white/[0.06] bg-white/[0.02]">
+            <div className="flex border-b border-foreground/[0.08] bg-white/[0.02]">
               <div
-                className={`${TIME_COL_W} flex-shrink-0 p-2 text-[10px] text-slate-500 border-r border-white/[0.06] flex items-center justify-center font-bold tracking-wider`}
+                className={`${TIME_COL_W} flex-shrink-0 p-2 text-[10px] text-slate-500 border-r border-foreground/[0.08] flex items-center justify-center font-bold tracking-wider`}
               >
                 {t('personal.schedule.all')}
               </div>
@@ -1096,7 +1096,7 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
                 return (
                   <div
                     key={`ad-${ds}`}
-                    className={`flex-1 ${COL_MIN_W} p-1.5 border-r border-white/[0.06] space-y-1`}
+                    className={`flex-1 ${COL_MIN_W} p-1.5 border-r border-foreground/[0.08] space-y-1`}
                   >
                     {dayEvents.map((ev) => (
                       <div
@@ -1131,9 +1131,9 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
 
           {/* ---- Calendar events row ---- */}
           {hasCalendarEvents && (
-            <div className="flex border-b border-white/[0.06] bg-sky-500/[0.03]">
+            <div className="flex border-b border-foreground/[0.08] bg-sky-500/[0.03]">
               <div
-                className={`${TIME_COL_W} flex-shrink-0 p-2 text-[10px] text-sky-400/70 border-r border-white/[0.06] flex items-center justify-center`}
+                className={`${TIME_COL_W} flex-shrink-0 p-2 text-[10px] text-sky-400/70 border-r border-foreground/[0.08] flex items-center justify-center`}
               >
                 <CalendarDays size={12} />
               </div>
@@ -1143,7 +1143,7 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
                 return (
                   <div
                     key={`cal-${ds}`}
-                    className={`flex-1 ${COL_MIN_W} p-1.5 border-r border-white/[0.06] space-y-1`}
+                    className={`flex-1 ${COL_MIN_W} p-1.5 border-r border-foreground/[0.08] space-y-1`}
                   >
                     {dayCalendarEvents.map((ev) => (
                       <div
@@ -1174,9 +1174,9 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
 
           {/* ---- Task deadlines row ---- */}
           {hasTasksDue && (
-            <div className="flex border-b border-white/[0.06] bg-amber-500/[0.03]">
+            <div className="flex border-b border-foreground/[0.08] bg-amber-500/[0.03]">
               <div
-                className={`${TIME_COL_W} flex-shrink-0 p-2 text-[10px] text-amber-400/70 border-r border-white/[0.06] flex items-center justify-center`}
+                className={`${TIME_COL_W} flex-shrink-0 p-2 text-[10px] text-amber-400/70 border-r border-foreground/[0.08] flex items-center justify-center`}
               >
                 <ListTodo size={12} />
               </div>
@@ -1186,7 +1186,7 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
                 return (
                   <div
                     key={`tk-${ds}`}
-                    className={`flex-1 ${COL_MIN_W} p-1.5 border-r border-white/[0.06] space-y-1`}
+                    className={`flex-1 ${COL_MIN_W} p-1.5 border-r border-foreground/[0.08] space-y-1`}
                   >
                     {dayTasks.map((task) => {
                       const isDone = task.status === 'DONE';
@@ -1230,11 +1230,11 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
           )}
 
           {/* ---- Habits row ---- */}
-          <div className="border-b border-white/[0.06] bg-purple-500/[0.03]">
+          <div className="border-b border-foreground/[0.08] bg-purple-500/[0.03]">
             {habitRows.length > 0 && (
               <div className="flex">
                 <div
-                  className={`${TIME_COL_W} flex-shrink-0 p-2 text-[10px] text-purple-400/70 border-r border-white/[0.06] flex items-center justify-center`}
+                  className={`${TIME_COL_W} flex-shrink-0 p-2 text-[10px] text-purple-400/70 border-r border-foreground/[0.08] flex items-center justify-center`}
                 >
                   <CheckCircle2 size={12} />
                 </div>
@@ -1244,7 +1244,7 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
                   return (
                     <div
                       key={`hb-${ds}`}
-                      className={`flex-1 ${COL_MIN_W} p-1.5 border-r border-white/[0.06] space-y-1`}
+                      className={`flex-1 ${COL_MIN_W} p-1.5 border-r border-foreground/[0.08] space-y-1`}
                     >
                       {dayHabits.map((item) => (
                         <div
@@ -1280,7 +1280,7 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
             )}
             {/* Add Habit button */}
             <div className="flex">
-              <div className={`${TIME_COL_W} flex-shrink-0 border-r border-white/[0.06]`} />
+              <div className={`${TIME_COL_W} flex-shrink-0 border-r border-foreground/[0.08]`} />
               <button
                 onClick={() => setIsCreateHabitOpen(true)}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] text-purple-400/70 hover:text-purple-300 hover:bg-purple-400/5 transition-all rounded-md m-1"
@@ -1301,7 +1301,7 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
               >
                 {/* Time label */}
                 <div
-                  className={`${TIME_COL_W} flex-shrink-0 px-2 text-xs text-slate-500 border-r border-white/[0.06] flex items-start pt-1`}
+                  className={`${TIME_COL_W} flex-shrink-0 px-2 text-xs text-slate-500 border-r border-foreground/[0.08] flex items-start pt-1`}
                 >
                   {time.endsWith(':00') ? time : ''}
                 </div>
@@ -1343,7 +1343,7 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
                 style={{ top: `${currentTimeTop}px` }}
               >
                 <div className={`${TIME_COL_W} flex-shrink-0 flex justify-end pr-1`}>
-                  <span className="text-[10px] font-bold text-red-400 bg-red-500/20 px-1 rounded">
+                  <span className="text-[10px] font-bold text-red-400 bg-red-500/15 px-1 rounded">
                     {now.getHours().toString().padStart(2, '0')}:
                     {now.getMinutes().toString().padStart(2, '0')}
                   </span>
@@ -1527,7 +1527,7 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
       </div>
 
         {/* ======== Bottom guide + mobile toolbar ======== */}
-        <div className="px-3 md:px-6 py-2 border-t border-white/[0.06] flex-shrink-0 flex items-center justify-between">
+        <div className="px-3 md:px-6 py-2 border-t border-foreground/[0.08] flex-shrink-0 flex items-center justify-between">
           <p className="hidden md:block text-xs text-slate-500">
             {t('personal.schedule.dragToCreateFull')}
           </p>
@@ -1857,7 +1857,7 @@ function CreateEventModal({
   const showForm = mode === 'new' || selectedTask !== null || selectedHabit !== null || selectedEvent !== null;
 
   return (
-    <MotionModal open={open} onClose={onClose} className="sm:max-w-md p-0 overflow-hidden border-foreground/[0.12]">
+    <MotionModal open={open} onClose={onClose} className="sm:max-w-md p-0 overflow-hidden border-foreground/[0.08]">
       <div>
         {/* Top accent line */}
         <div className="h-[2px]" style={{ background: `linear-gradient(to right, ${color}88, ${color}44, transparent)` }} />
@@ -1881,7 +1881,7 @@ function CreateEventModal({
 
         <div className="px-5 pb-5 space-y-4 pt-4">
           {/* Mode toggle */}
-          <div className="flex gap-1 p-1 bg-foreground/5 rounded-xl border border-foreground/[0.06]">
+          <div className="flex gap-1 p-1 bg-foreground/5 rounded-xl border border-foreground/[0.08]">
             <button
               onClick={() => { setMode('new'); setSelectedTask(null); setSelectedHabit(null); setSelectedEvent(null); setTitle(''); setDescription(''); setColor(EVENT_COLORS[0]); }}
               className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-bold rounded-lg transition-all ${
@@ -1910,7 +1910,7 @@ function CreateEventModal({
           {mode === 'task' && !selectedTask && !selectedHabit && !selectedEvent && (
             <div className="space-y-3">
               {/* Sub-tabs: 태스크 / 습관 / 일정 */}
-              <div className="flex gap-1 p-0.5 bg-foreground/[0.04] rounded-lg border border-foreground/[0.06]">
+              <div className="flex gap-1 p-0.5 bg-foreground/[0.04] rounded-lg border border-foreground/[0.08]">
                 {([
                   { key: 'tasks' as const, label: t('personal.schedule.tasksSection'), count: filteredTasks.length },
                   { key: 'habits' as const, label: t('personal.schedule.habitsSection'), count: filteredHabits.length },
@@ -1938,7 +1938,7 @@ function CreateEventModal({
                   value={taskSearch}
                   onChange={(e) => setTaskSearch(e.target.value)}
                   placeholder={t('personal.schedule.searchTasks')}
-                  className="w-full bg-foreground/[0.04] border border-foreground/10 rounded-xl py-2 pl-9 pr-4 text-foreground text-sm placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-bridge-accent/30 focus:border-bridge-accent/40 transition-all"
+                  className="w-full bg-foreground/[0.04] border border-foreground/10 rounded-xl py-2 pl-9 pr-4 text-foreground text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
                   autoFocus
                 />
               </div>
@@ -1972,7 +1972,7 @@ function CreateEventModal({
                           <button
                             key={task.id}
                             onClick={() => handleSelectTask(task)}
-                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-foreground/[0.06] hover:border-foreground/10 transition-all text-left group"
+                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-foreground/[0.08] hover:border-foreground/10 transition-all text-left group"
                           >
                             {task.priority !== 'NONE' && (
                               <div className={`w-2 h-2 rounded-full shrink-0 ${PRIORITY_DOT[task.priority]}`} />
@@ -2004,7 +2004,7 @@ function CreateEventModal({
                           <button
                             key={habit.id}
                             onClick={() => handleSelectHabit(habit)}
-                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-foreground/[0.06] hover:border-foreground/10 transition-all text-left group"
+                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-foreground/[0.08] hover:border-foreground/10 transition-all text-left group"
                           >
                             <span className="text-sm shrink-0">{habit.icon || '🔄'}</span>
                             <div className="flex-1 min-w-0">
@@ -2086,7 +2086,7 @@ function CreateEventModal({
                 onChange={(e) => setTitle(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
                 placeholder={t('personal.schedule.eventTitlePlaceholder')}
-                className="w-full bg-foreground/[0.04] border border-foreground/10 rounded-xl py-2.5 px-4 text-foreground text-sm placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-bridge-accent/30 focus:border-bridge-accent/40 transition-all"
+                className="w-full bg-foreground/[0.04] border border-foreground/10 rounded-xl py-2.5 px-4 text-foreground text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
                 autoFocus={mode === 'new'}
               />
 
@@ -2125,7 +2125,7 @@ function CreateEventModal({
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder={t('personal.schedule.optionalDesc')}
                 rows={2}
-                className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl p-3 text-sm text-muted-foreground placeholder-slate-600 outline-none resize-none focus:border-bridge-accent/30 focus:ring-1 focus:ring-bridge-accent/10 transition-all"
+                className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl p-3 text-sm text-muted-foreground placeholder-slate-500 outline-none resize-none focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
               />
 
               {/* Overlap warning */}
@@ -2163,7 +2163,7 @@ function CreateEventModal({
                       setRecurrenceEndDate('');
                     }
                   }}
-                  className="w-full bg-foreground/[0.04] border border-foreground/10 rounded-xl py-2 px-3 text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-bridge-accent/30 transition-all"
+                  className="w-full bg-foreground/[0.04] border border-foreground/10 rounded-xl py-2 px-3 text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
                 >
                   <option value="" className="bg-bridge-obsidian">{t('personal.schedule.noRepeat')}</option>
                   <option value="DAILY" className="bg-bridge-obsidian">{t('personal.schedule.everyDay')}</option>
@@ -2218,7 +2218,7 @@ function CreateEventModal({
                     value={recurrenceEndDate}
                     onChange={(e) => setRecurrenceEndDate(e.target.value)}
                     min={date}
-                    className="w-full bg-foreground/[0.04] border border-foreground/10 rounded-xl py-2 px-3 text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-bridge-accent/30 transition-all [color-scheme:dark]"
+                    className="w-full bg-foreground/[0.04] border border-foreground/10 rounded-xl py-2 px-3 text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all [color-scheme:dark]"
                   />
                   {!recurrenceEndDate && (
                     <p className="mt-1 text-[10px] text-amber-400">{t('personal.schedule.endDateRequired')}</p>
@@ -2379,7 +2379,7 @@ export function EventDetailModal({
   };
 
   return (
-    <MotionModal open={open} onClose={onClose} className="sm:max-w-md p-0 overflow-hidden border-foreground/[0.12]">
+    <MotionModal open={open} onClose={onClose} className="sm:max-w-md p-0 overflow-hidden border-foreground/[0.08]">
       <div>
         {/* Top accent line */}
         <div className="h-[2px]" style={{ background: `linear-gradient(to right, ${color}88, ${color}44, transparent)` }} />
@@ -2399,7 +2399,7 @@ export function EventDetailModal({
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-            className="flex-1 min-w-0 bg-transparent text-sm font-bold text-foreground outline-none placeholder-slate-600"
+            className="flex-1 min-w-0 bg-transparent text-sm font-bold text-foreground outline-none placeholder-slate-500"
             placeholder={t('personal.schedule.eventTitle')}
             autoFocus
           />
@@ -2492,7 +2492,7 @@ export function EventDetailModal({
             onChange={(e) => setDescription(e.target.value)}
             placeholder={t('personal.schedule.optionalDesc')}
             rows={2}
-            className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl p-3 text-sm text-muted-foreground placeholder-slate-600 outline-none resize-none focus:border-bridge-accent/30 focus:ring-1 focus:ring-bridge-accent/10 transition-all"
+            className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl p-3 text-sm text-muted-foreground placeholder-slate-500 outline-none resize-none focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
           />
 
           {/* Recurrence settings (compact) */}
@@ -2507,7 +2507,7 @@ export function EventDetailModal({
                     setRecurrenceEndDate('');
                   }
                 }}
-                className="w-full bg-foreground/5 border border-foreground/10 rounded-lg py-1.5 px-3 text-foreground text-xs focus:outline-none focus:border-bridge-accent/30 transition-all"
+                className="w-full bg-foreground/5 border border-foreground/10 rounded-lg py-1.5 px-3 text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
               >
                 <option value="" className="bg-bridge-obsidian">{t('personal.schedule.noRepeat')}</option>
                 <option value="DAILY" className="bg-bridge-obsidian">{t('personal.schedule.everyDay')}</option>
@@ -2561,7 +2561,7 @@ export function EventDetailModal({
                     value={recurrenceEndDate}
                     onChange={(e) => setRecurrenceEndDate(e.target.value)}
                     min={event.event_date}
-                    className="w-full bg-foreground/5 border border-foreground/10 rounded-lg py-1.5 px-3 text-foreground text-xs focus:outline-none focus:border-bridge-accent/30 transition-all [color-scheme:dark]"
+                    className="w-full bg-foreground/5 border border-foreground/10 rounded-lg py-1.5 px-3 text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all [color-scheme:dark]"
                   />
                   {!recurrenceEndDate && (
                     <p className="mt-1 text-[10px] text-amber-400">{t('personal.schedule.endDateRequired')}</p>
@@ -2665,7 +2665,7 @@ function ScheduleSettingsModal({
   const fmtHour = (h: number) => `${h.toString().padStart(2, '0')}:00`;
 
   return (
-    <MotionModal open={open} onClose={onClose} className="sm:max-w-sm p-0 overflow-hidden border-foreground/[0.12]">
+    <MotionModal open={open} onClose={onClose} className="sm:max-w-sm p-0 overflow-hidden border-foreground/[0.08]">
       <div>
         <div className="h-[2px] bg-gradient-to-r from-bridge-accent/60 via-bridge-secondary/40 to-transparent" />
 
@@ -2686,7 +2686,7 @@ function ScheduleSettingsModal({
               <select
                 value={sHour}
                 onChange={(e) => setSHour(Number(e.target.value))}
-                className="w-full bg-foreground/5 border border-foreground/10 rounded-lg py-2 px-3 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-bridge-accent/10 focus:border-bridge-accent/30 transition-all appearance-none cursor-pointer"
+                className="w-full bg-foreground/5 border border-foreground/10 rounded-lg py-2 px-3 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all appearance-none cursor-pointer"
               >
                 {HOUR_OPTIONS.filter((h) => h < 24).map((h) => (
                   <option key={h} value={h} className="bg-bridge-obsidian text-foreground">
@@ -2701,7 +2701,7 @@ function ScheduleSettingsModal({
               <select
                 value={eHour}
                 onChange={(e) => setEHour(Number(e.target.value))}
-                className="w-full bg-foreground/5 border border-foreground/10 rounded-lg py-2 px-3 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-bridge-accent/10 focus:border-bridge-accent/30 transition-all appearance-none cursor-pointer"
+                className="w-full bg-foreground/5 border border-foreground/10 rounded-lg py-2 px-3 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all appearance-none cursor-pointer"
               >
                 {HOUR_OPTIONS.filter((h) => h >= 1).map((h) => (
                   <option key={h} value={h} className="bg-bridge-obsidian text-foreground">
@@ -2818,7 +2818,7 @@ function CreateHabitModal({
   };
 
   return (
-    <MotionModal open={open} onClose={onClose} className="sm:max-w-md p-0 overflow-hidden border-foreground/[0.12]">
+    <MotionModal open={open} onClose={onClose} className="sm:max-w-md p-0 overflow-hidden border-foreground/[0.08]">
       <div>
         <div className="h-[2px]" style={{ background: `linear-gradient(to right, ${color}88, ${color}44, transparent)` }} />
 
@@ -2831,7 +2831,7 @@ function CreateHabitModal({
             onChange={(e) => setTitle(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && !e.nativeEvent.isComposing && handleSubmit()}
             placeholder={t('personal.habit.habitPlaceholder')}
-            className="flex-1 min-w-0 bg-transparent text-sm font-bold text-foreground placeholder-slate-600 outline-none"
+            className="flex-1 min-w-0 bg-transparent text-sm font-bold text-foreground placeholder-slate-500 outline-none"
             autoFocus
           />
           <button onClick={onClose} className="p-1.5 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5 transition-colors shrink-0">
@@ -2939,7 +2939,7 @@ function CreateHabitModal({
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder={t('personal.habit.descPlaceholder')}
                   rows={2}
-                  className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg p-3 text-sm text-muted-foreground placeholder-slate-600 outline-none resize-none focus:border-bridge-accent/30 focus:ring-1 focus:ring-bridge-accent/10 transition-all"
+                  className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg p-3 text-sm text-muted-foreground placeholder-slate-500 outline-none resize-none focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
                 />
               </motion.div>
             )}

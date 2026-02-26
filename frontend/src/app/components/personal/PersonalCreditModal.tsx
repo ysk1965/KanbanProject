@@ -62,11 +62,11 @@ export function PersonalCreditModal({
         <div className="flex items-start justify-between mb-6">
           <div className="flex items-center gap-3">
             {internalMode === 'exhausted' ? (
-              <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-xl bg-amber-500/15 border border-amber-500/20 flex items-center justify-center">
                 <AlertCircle className="w-6 h-6 text-amber-500" />
               </div>
             ) : (
-              <div className="w-12 h-12 rounded-xl bg-bridge-accent/10 border border-bridge-accent/20 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-xl bg-bridge-accent/15 border border-bridge-accent/20 flex items-center justify-center">
                 <Sparkles className="w-6 h-6 text-bridge-accent" />
               </div>
             )}
@@ -120,7 +120,7 @@ export function PersonalCreditModal({
               </div>
             </div>
             {currentCredits.reset_date && (
-              <p className="text-[11px] text-slate-500 text-center mt-3 pt-3 border-t border-foreground/5">
+              <p className="text-[11px] text-slate-500 text-center mt-3 pt-3 border-t border-foreground/[0.08]">
                 {t('personal_credits.reset_info', '월간 크레딧 리셋')}: {new Date(currentCredits.reset_date).toLocaleDateString('ko-KR')}
               </p>
             )}

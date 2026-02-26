@@ -387,12 +387,20 @@ public class MeetingService {
         String deletedMeetingId = meeting.getId();
 
         if ("THIS_AND_FUTURE".equals(scope) && meeting.isRecurring()) {
+            // 반복 미팅 삭제 전 연관된 schedule_blocks의 meeting_id를 null로 해제
+            List<String> meetingIds = meetingRepository.findByRecurrenceGroupIdFromDate(
+                    meeting.getRecurrenceGroupId(), meeting.getMeetingDate())
+                    .stream().map(Meeting::getId).toList();
+            if (!meetingIds.isEmpty()) {
+                scheduleBlockRepository.unlinkByMeetingIds(meetingIds);
+            }
             meetingRepository.deleteByRecurrenceGroupIdFromDate(
                     meeting.getRecurrenceGroupId(), meeting.getMeetingDate());
             log.info("Recurring meetings deleted from {}: group={} by user: {}",
                     meeting.getMeetingDate(), meeting.getRecurrenceGroupId(), userId);
         } else {
-            // schedule_blocks의 meeting_id는 ON DELETE SET NULL로 자동 처리
+            // 단일 미팅 삭제 전 연관된 schedule_blocks의 meeting_id를 null로 해제
+            scheduleBlockRepository.unlinkByMeetingId(meetingId);
             meetingRepository.delete(meeting);
             log.info("Meeting deleted: {} by user: {}", meetingId, userId);
         }

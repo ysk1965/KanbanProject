@@ -72,7 +72,7 @@ public class MeetingAIService {
     @Value("${ai.openai.model.meeting:gpt-4o-mini}")
     private String openaiMeetingModel;
 
-    private static final int MAX_TOKENS_MEETING = 4096;
+    private static final int MAX_TOKENS_MEETING = 8192;
 
     private String getMeetingModel() {
         return "openai".equals(provider) ? openaiMeetingModel : claudeMeetingModel;
@@ -529,7 +529,62 @@ public class MeetingAIService {
             return trimmed.substring(start, end + 1);
         }
 
+        // Truncated JSON recovery: close unclosed brackets/braces
+        if (start >= 0) {
+            String partial = trimmed.substring(start);
+            log.warn("Attempting truncated JSON recovery ({} chars)", partial.length());
+            partial = repairTruncatedJson(partial);
+            return partial;
+        }
+
         return trimmed;
+    }
+
+    /**
+     * 토큰 제한으로 잘린 JSON을 복구: 열린 괄호/배열을 닫아줌
+     */
+    private String repairTruncatedJson(String json) {
+        // Remove trailing incomplete string/value (cut at last complete token)
+        int lastComplete = -1;
+        for (int i = json.length() - 1; i >= 0; i--) {
+            char c = json.charAt(i);
+            if (c == ',' || c == '{' || c == '[' || c == ':' || c == '"'
+                    || c == '}' || c == ']') {
+                lastComplete = i;
+                break;
+            }
+        }
+        if (lastComplete > 0) {
+            char lastChar = json.charAt(lastComplete);
+            // Trim trailing comma or colon (incomplete entry)
+            if (lastChar == ',' || lastChar == ':') {
+                json = json.substring(0, lastComplete);
+            } else if (lastChar == '"') {
+                // Check if inside an unclosed string — close it
+                json = json.substring(0, lastComplete + 1);
+            } else {
+                json = json.substring(0, lastComplete + 1);
+            }
+        }
+
+        // Count open brackets and close them
+        int braces = 0, brackets = 0;
+        boolean inString = false;
+        for (int i = 0; i < json.length(); i++) {
+            char c = json.charAt(i);
+            if (c == '\\' && inString) { i++; continue; }
+            if (c == '"') { inString = !inString; continue; }
+            if (inString) continue;
+            if (c == '{') braces++;
+            else if (c == '}') braces--;
+            else if (c == '[') brackets++;
+            else if (c == ']') brackets--;
+        }
+
+        StringBuilder sb = new StringBuilder(json);
+        while (brackets > 0) { sb.append(']'); brackets--; }
+        while (braces > 0) { sb.append('}'); braces--; }
+        return sb.toString();
     }
 
     private List<String> parseStringArray(JsonNode node, String field) {

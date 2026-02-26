@@ -1,19 +1,22 @@
-import { nowUTC } from './dateUtils';
+import { nowUTC } from "./dateUtils";
 
 // API Base URL - BE 서버
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1';
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api/v1";
 
 // 백엔드 Origin (파일 URL 해석용)
 const BACKEND_ORIGIN = (() => {
   try {
     return new URL(API_BASE_URL).origin;
   } catch {
-    return 'http://localhost:8080';
+    return "http://localhost:8080";
   }
 })();
 
 // S3 직접 URL → CloudFront 리라이트
-const CLOUDFRONT_DOMAIN = import.meta.env.VITE_CLOUDFRONT_DOMAIN as string | undefined;
+const CLOUDFRONT_DOMAIN = import.meta.env.VITE_CLOUDFRONT_DOMAIN as
+  | string
+  | undefined;
 const S3_DIRECT_URL_RE = /^https:\/\/[\w.-]+\.s3\.[\w.-]+\.amazonaws\.com\//;
 
 /**
@@ -23,8 +26,13 @@ const S3_DIRECT_URL_RE = /^https:\/\/[\w.-]+\.s3\.[\w.-]+\.amazonaws\.com\//;
  * - 상대 경로(/uploads/...)이면 백엔드 origin을 앞에 붙임
  */
 export const resolveFileUrl = (url: string | null | undefined): string => {
-  if (!url) return '';
-  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('blob:') || url.startsWith('data:')) {
+  if (!url) return "";
+  if (
+    url.startsWith("http://") ||
+    url.startsWith("https://") ||
+    url.startsWith("blob:") ||
+    url.startsWith("data:")
+  ) {
     if (CLOUDFRONT_DOMAIN && S3_DIRECT_URL_RE.test(url)) {
       return url.replace(S3_DIRECT_URL_RE, `https://${CLOUDFRONT_DOMAIN}/`);
     }
@@ -35,33 +43,33 @@ export const resolveFileUrl = (url: string | null | undefined): string => {
 
 // 토큰 관리
 const getAccessToken = (): string | null => {
-  return localStorage.getItem('access_token');
+  return localStorage.getItem("access_token");
 };
 
 const setTokens = (accessToken: string, refreshToken: string) => {
-  localStorage.setItem('access_token', accessToken);
-  localStorage.setItem('refresh_token', refreshToken);
+  localStorage.setItem("access_token", accessToken);
+  localStorage.setItem("refresh_token", refreshToken);
 };
 
 const clearTokens = () => {
-  localStorage.removeItem('access_token');
-  localStorage.removeItem('refresh_token');
+  localStorage.removeItem("access_token");
+  localStorage.removeItem("refresh_token");
 };
 
 const getRefreshToken = (): string | null => {
-  return localStorage.getItem('refresh_token');
+  return localStorage.getItem("refresh_token");
 };
 
 // JWT 토큰 디코딩 (만료 시간 확인용)
 const decodeToken = (token: string): { exp: number } | null => {
   try {
-    const base64Url = token.split('.')[1];
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const base64Url = token.split(".")[1];
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
     const jsonPayload = decodeURIComponent(
       atob(base64)
-        .split('')
-        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-        .join('')
+        .split("")
+        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+        .join(""),
     );
     return JSON.parse(jsonPayload);
   } catch {
@@ -110,13 +118,13 @@ class ApiClient {
   private async request<T>(
     endpoint: string,
     options?: RequestInit,
-    skipAuth: boolean = false
+    skipAuth: boolean = false,
   ): Promise<T> {
     const url = `${this.baseURL}${endpoint}`;
 
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      ...options?.headers as Record<string, string>,
+      "Content-Type": "application/json",
+      ...(options?.headers as Record<string, string>),
     };
 
     // 인증 토큰 추가 (선제적 갱신 포함)
@@ -125,16 +133,16 @@ class ApiClient {
 
       // 토큰이 10분 이내 만료 예정이면 선제적으로 갱신
       if (token && isTokenExpiringSoon(token)) {
-        console.log('🔄 [Token] 토큰 만료 임박, 선제적 갱신 시도...');
+        console.log("🔄 [Token] 토큰 만료 임박, 선제적 갱신 시도...");
         const refreshed = await this.tryRefreshToken();
         if (refreshed) {
           token = getAccessToken();
-          console.log('✅ [Token] 선제적 갱신 완료');
+          console.log("✅ [Token] 선제적 갱신 완료");
         }
       }
 
       if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
+        headers["Authorization"] = `Bearer ${token}`;
       }
     }
 
@@ -144,8 +152,11 @@ class ApiClient {
     };
 
     // Request 로깅
-    console.log(`🚀 [API Request] ${options?.method || 'GET'} ${url}`, {
-      headers: { ...headers, Authorization: headers.Authorization ? '***' : undefined },
+    console.log(`🚀 [API Request] ${options?.method || "GET"} ${url}`, {
+      headers: {
+        ...headers,
+        Authorization: headers.Authorization ? "***" : undefined,
+      },
       body: options?.body ? JSON.parse(options.body as string) : undefined,
     });
 
@@ -154,19 +165,19 @@ class ApiClient {
 
       if (!response.ok) {
         const errorData: ApiError = await response.json().catch(() => ({
-          code: 'UNKNOWN',
+          code: "UNKNOWN",
           message: response.statusText,
           timestamp: nowUTC(),
         }));
 
         // Error Response 로깅
-        console.error(`❌ [API Error] ${options?.method || 'GET'} ${url}`, {
+        console.error(`❌ [API Error] ${options?.method || "GET"} ${url}`, {
           status: response.status,
           error: errorData,
         });
 
         // 토큰 만료시 자동 갱신 시도
-        if (response.status === 401 && errorData.code === 'A004') {
+        if (response.status === 401 && errorData.code === "A004") {
           const refreshed = await this.tryRefreshToken();
           if (refreshed) {
             // 토큰 갱신 성공, 원래 요청 재시도
@@ -177,10 +188,10 @@ class ApiClient {
         // AI 크레딧 소진 (402 Payment Required)
         if (response.status === 402) {
           // AI 크레딧 소진 이벤트 발행
-          const creditExhaustedEvent = new CustomEvent('ai-credits-exhausted', {
+          const creditExhaustedEvent = new CustomEvent("ai-credits-exhausted", {
             detail: {
-              message: errorData.message || 'AI 크레딧이 소진되었습니다',
-              code: errorData.code || 'AI_CREDITS_EXHAUSTED',
+              message: errorData.message || "AI 크레딧이 소진되었습니다",
+              code: errorData.code || "AI_CREDITS_EXHAUSTED",
             },
           });
           window.dispatchEvent(creditExhaustedEvent);
@@ -191,29 +202,38 @@ class ApiClient {
 
       // 204 No Content 또는 빈 응답 처리
       if (response.status === 204) {
-        console.log(`✅ [API Response] ${options?.method || 'GET'} ${url}`, { status: 204, data: null });
+        console.log(`✅ [API Response] ${options?.method || "GET"} ${url}`, {
+          status: 204,
+          data: null,
+        });
         return {} as T;
       }
 
       // Content-Length가 0이거나 응답 본문이 비어있는 경우 처리
-      const contentLength = response.headers.get('Content-Length');
-      const contentType = response.headers.get('Content-Type');
+      const contentLength = response.headers.get("Content-Length");
+      const contentType = response.headers.get("Content-Type");
 
-      if (contentLength === '0' || !contentType?.includes('application/json')) {
-        console.log(`✅ [API Response] ${options?.method || 'GET'} ${url}`, { status: response.status, data: null });
+      if (contentLength === "0" || !contentType?.includes("application/json")) {
+        console.log(`✅ [API Response] ${options?.method || "GET"} ${url}`, {
+          status: response.status,
+          data: null,
+        });
         return {} as T;
       }
 
       const text = await response.text();
-      if (!text || text.trim() === '') {
-        console.log(`✅ [API Response] ${options?.method || 'GET'} ${url}`, { status: response.status, data: null });
+      if (!text || text.trim() === "") {
+        console.log(`✅ [API Response] ${options?.method || "GET"} ${url}`, {
+          status: response.status,
+          data: null,
+        });
         return {} as T;
       }
 
       const data = JSON.parse(text);
 
       // Success Response 로깅
-      console.log(`✅ [API Response] ${options?.method || 'GET'} ${url}`, {
+      console.log(`✅ [API Response] ${options?.method || "GET"} ${url}`, {
         status: response.status,
         data,
       });
@@ -248,8 +268,8 @@ class ApiClient {
 
     try {
       const response = await fetch(`${this.baseURL}/auth/refresh`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ refresh_token: refreshToken }),
       });
 
@@ -263,51 +283,86 @@ class ApiClient {
     }
 
     // 세션 만료 - 로그인 페이지로 리다이렉트
-    console.log('🔒 [Auth] 세션 만료, 로그인 페이지로 이동');
+    console.log("🔒 [Auth] 세션 만료, 로그인 페이지로 이동");
     clearTokens();
-    localStorage.removeItem('user');
+    localStorage.removeItem("user");
     this.redirectToLogin();
     return false;
   }
 
   private redirectToLogin(): void {
     // 이미 로그인 페이지면 리다이렉트 안함
-    if (window.location.pathname === '/login' || window.location.pathname === '/signup') {
+    if (
+      window.location.pathname === "/login" ||
+      window.location.pathname === "/signup"
+    ) {
       return;
     }
-    window.location.href = '/login';
+    window.location.href = "/login";
   }
 
   async get<T>(endpoint: string, skipAuth: boolean = false): Promise<T> {
-    return this.request<T>(endpoint, { method: 'GET' }, skipAuth);
+    return this.request<T>(endpoint, { method: "GET" }, skipAuth);
   }
 
-  async post<T>(endpoint: string, data?: unknown, skipAuth: boolean = false): Promise<T> {
-    return this.request<T>(endpoint, {
-      method: 'POST',
-      body: data ? JSON.stringify(data) : undefined,
-    }, skipAuth);
+  async post<T>(
+    endpoint: string,
+    data?: unknown,
+    skipAuth: boolean = false,
+  ): Promise<T> {
+    return this.request<T>(
+      endpoint,
+      {
+        method: "POST",
+        body: data ? JSON.stringify(data) : undefined,
+      },
+      skipAuth,
+    );
   }
 
-  async put<T>(endpoint: string, data?: unknown, skipAuth: boolean = false): Promise<T> {
-    return this.request<T>(endpoint, {
-      method: 'PUT',
-      body: data ? JSON.stringify(data) : undefined,
-    }, skipAuth);
+  async put<T>(
+    endpoint: string,
+    data?: unknown,
+    skipAuth: boolean = false,
+  ): Promise<T> {
+    return this.request<T>(
+      endpoint,
+      {
+        method: "PUT",
+        body: data ? JSON.stringify(data) : undefined,
+      },
+      skipAuth,
+    );
   }
 
-  async delete<T>(endpoint: string, data?: unknown, skipAuth: boolean = false): Promise<T> {
-    return this.request<T>(endpoint, {
-      method: 'DELETE',
-      body: data ? JSON.stringify(data) : undefined,
-    }, skipAuth);
+  async delete<T>(
+    endpoint: string,
+    data?: unknown,
+    skipAuth: boolean = false,
+  ): Promise<T> {
+    return this.request<T>(
+      endpoint,
+      {
+        method: "DELETE",
+        body: data ? JSON.stringify(data) : undefined,
+      },
+      skipAuth,
+    );
   }
 
-  async patch<T>(endpoint: string, data?: unknown, skipAuth: boolean = false): Promise<T> {
-    return this.request<T>(endpoint, {
-      method: 'PATCH',
-      body: data ? JSON.stringify(data) : undefined,
-    }, skipAuth);
+  async patch<T>(
+    endpoint: string,
+    data?: unknown,
+    skipAuth: boolean = false,
+  ): Promise<T> {
+    return this.request<T>(
+      endpoint,
+      {
+        method: "PATCH",
+        body: data ? JSON.stringify(data) : undefined,
+      },
+      skipAuth,
+    );
   }
 }
 
@@ -319,31 +374,31 @@ export const apiClient = new ApiClient(API_BASE_URL);
  */
 export async function authenticatedFetch(
   url: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
 ): Promise<Response> {
   let token = getAccessToken();
 
   // 토큰 만료 임박 시 선제적 갱신
   if (token && isTokenExpiringSoon(token)) {
-    const refreshed = await apiClient['tryRefreshToken']();
+    const refreshed = await apiClient["tryRefreshToken"]();
     if (refreshed) token = getAccessToken();
   }
 
   const headers: Record<string, string> = {
     ...(options.headers as Record<string, string>),
   };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
+  if (token) headers["Authorization"] = `Bearer ${token}`;
 
   let response = await fetch(url, { ...options, headers });
 
   // 401 + 토큰 만료 → 갱신 후 재시도
   if (response.status === 401) {
     const errData = await response.json().catch(() => null);
-    if (errData?.code === 'A004') {
-      const refreshed = await apiClient['tryRefreshToken']();
+    if (errData?.code === "A004") {
+      const refreshed = await apiClient["tryRefreshToken"]();
       if (refreshed) {
         token = getAccessToken();
-        if (token) headers['Authorization'] = `Bearer ${token}`;
+        if (token) headers["Authorization"] = `Bearer ${token}`;
         response = await fetch(url, { ...options, headers });
       }
     }
@@ -371,7 +426,7 @@ export interface AuthResponse {
 }
 
 export interface BoardSubscription {
-  status: 'TRIAL' | 'ACTIVE' | 'SUSPENDED' | 'CANCELED';
+  status: "TRIAL" | "ACTIVE" | "SUSPENDED" | "CANCELED";
   plan: string | null;
   trial_ends_at: string | null;
   current_period_end: string | null;
@@ -387,8 +442,8 @@ export interface BoardListItem {
   id: string;
   name: string;
   description: string | null;
-  board_type?: 'TEAM' | 'PERSONAL';
-  role: 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER';
+  board_type?: "TEAM" | "PERSONAL";
+  role: "OWNER" | "ADMIN" | "MEMBER" | "VIEWER";
   is_starred: boolean;
   member_count: number;
   task_count: number;
@@ -409,9 +464,9 @@ export interface BoardDetail {
   id: string;
   name: string;
   description: string | null;
-  board_type?: 'TEAM' | 'PERSONAL';
+  board_type?: "TEAM" | "PERSONAL";
   owner: BoardOwner;
-  my_role: 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER';
+  my_role: "OWNER" | "ADMIN" | "MEMBER" | "VIEWER";
   is_starred: boolean;
   member_count: number;
   subscription: BoardSubscription;
@@ -423,8 +478,8 @@ export interface BoardDetail {
 export interface BlockResponse {
   id: string;
   name: string;
-  type: 'FIXED' | 'CUSTOM';
-  fixed_type: 'FEATURE' | 'TASK' | 'DONE' | null;
+  type: "FIXED" | "CUSTOM";
+  fixed_type: "FEATURE" | "TASK" | "DONE" | null;
   color: string | null;
   position: number;
 }
@@ -449,10 +504,10 @@ export interface FeatureResponse {
   description?: string;
   color: string;
   assignee: AssigneeResponse | null;
-  priority: 'HIGH' | 'MEDIUM' | 'LOW' | null;
+  priority: "HIGH" | "MEDIUM" | "LOW" | null;
   start_date: string | null;
   due_date: string | null;
-  status: 'ACTIVE' | 'COMPLETED';
+  status: "ACTIVE" | "COMPLETED";
   total_tasks: number;
   completed_tasks: number;
   progress_percentage: number;
@@ -478,7 +533,11 @@ export interface FeatureAIDecompositionResponse {
 }
 
 export interface FeatureAIApplyRequest {
-  tasks: { title: string; description?: string; checklists?: { title: string }[] }[];
+  tasks: {
+    title: string;
+    description?: string;
+    checklists?: { title: string }[];
+  }[];
 }
 
 export interface FeatureAIApplyResult {
@@ -611,7 +670,7 @@ export interface MemberUserResponse {
 export interface MemberResponse {
   id: string;
   user: MemberUserResponse;
-  role: 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER';
+  role: "OWNER" | "ADMIN" | "MEMBER" | "VIEWER";
   joined_at: string;
   invited_by: { id: string; name: string } | null;
   assignee_color?: string | null;
@@ -625,16 +684,16 @@ export interface MembersListResponse {
 }
 
 export interface InviteResultResponse {
-  type: 'DIRECT_ADD' | 'EMAIL_SENT';
-  member?: MemberResponse;  // DIRECT_ADD인 경우
-  email?: string;           // EMAIL_SENT인 경우
-  role?: string;            // EMAIL_SENT인 경우
+  type: "DIRECT_ADD" | "EMAIL_SENT";
+  member?: MemberResponse; // DIRECT_ADD인 경우
+  email?: string; // EMAIL_SENT인 경우
+  role?: string; // EMAIL_SENT인 경우
 }
 
 export interface InviteLinkResponse {
   id: string;
   code: string;
-  role: 'ADMIN' | 'MEMBER' | 'VIEWER';
+  role: "ADMIN" | "MEMBER" | "VIEWER";
   max_uses: number | null;
   used_count: number;
   expires_at: string | null;
@@ -673,9 +732,9 @@ export interface ActivitiesResponse {
 
 export interface SubscriptionResponse {
   id: string;
-  status: 'TRIAL' | 'ACTIVE' | 'SUSPENDED' | 'CANCELED';
+  status: "TRIAL" | "ACTIVE" | "SUSPENDED" | "CANCELED";
   plan: string | null;
-  billing_cycle: 'MONTHLY' | 'YEARLY' | null;
+  billing_cycle: "MONTHLY" | "YEARLY" | null;
   price: number | null;
   trial_ends_at: string | null;
   current_period_start: string | null;
@@ -706,7 +765,7 @@ export interface PricingResponse {
 }
 
 // Board Tier Response Types
-export type BoardTier = 'TRIAL' | 'STANDARD' | 'PREMIUM';
+export type BoardTier = "TRIAL" | "STANDARD" | "PREMIUM";
 
 export interface BoardTierResponse {
   tier: BoardTier;
@@ -731,9 +790,9 @@ export interface BoardFullResponse {
   id: string;
   name: string;
   description: string | null;
-  board_type?: 'TEAM' | 'PERSONAL';
+  board_type?: "TEAM" | "PERSONAL";
   owner: BoardOwner;
-  my_role: 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER';
+  my_role: "OWNER" | "ADMIN" | "MEMBER" | "VIEWER";
   is_starred: boolean;
   member_count: number;
   subscription: BoardSubscription;
@@ -750,14 +809,14 @@ export interface BoardFullResponse {
   features: FeatureResponse[];
   tasks: TaskResponse[];
   tags: TagResponse[];
-  invite_links: InviteLinkResponse[];  // Admin+ 권한 없으면 빈 배열
+  invite_links: InviteLinkResponse[]; // Admin+ 권한 없으면 빈 배열
   subscription_detail: SubscriptionResponse | null;
   activities: ActivitiesResponse;
   members: MembersListResponse;
   milestones: { milestones: MilestoneDetailResponse[] };
   tier_info: BoardTierResponse;
   limits: BoardLimitsResponse;
-  ai_credits: import('../types').AiCredits | null;
+  ai_credits: import("../types").AiCredits | null;
 }
 
 // Seat Pricing Response
@@ -779,57 +838,88 @@ export interface SeatPricingResponse {
 
 export const authAPI = {
   signup: async (data: { email: string; password: string; name: string }) => {
-    const response = await apiClient.post<AuthResponse>('/auth/signup', data, true);
+    const response = await apiClient.post<AuthResponse>(
+      "/auth/signup",
+      data,
+      true,
+    );
     setTokens(response.access_token, response.refresh_token);
     return response;
   },
 
   login: async (data: { email: string; password: string }) => {
-    const response = await apiClient.post<AuthResponse>('/auth/login', data, true);
+    const response = await apiClient.post<AuthResponse>(
+      "/auth/login",
+      data,
+      true,
+    );
     setTokens(response.access_token, response.refresh_token);
     return response;
   },
 
   googleLogin: async (code: string) => {
-    const response = await apiClient.post<AuthResponse>('/auth/google', { code }, true);
+    const response = await apiClient.post<AuthResponse>(
+      "/auth/google",
+      { code },
+      true,
+    );
     setTokens(response.access_token, response.refresh_token);
     return response;
   },
 
   googleLoginWithIdToken: async (idToken: string) => {
-    const response = await apiClient.post<AuthResponse>('/auth/google', { id_token: idToken }, true);
+    const response = await apiClient.post<AuthResponse>(
+      "/auth/google",
+      { id_token: idToken },
+      true,
+    );
     setTokens(response.access_token, response.refresh_token);
     return response;
   },
 
   logout: async () => {
-    const response = await apiClient.post<{ message: string }>('/auth/logout');
+    const response = await apiClient.post<{ message: string }>("/auth/logout");
     clearTokens();
     return response;
   },
 
   verifyEmail: async (token: string) => {
-    return apiClient.get<{ message: string }>(`/auth/verify-email?token=${token}`, true);
+    return apiClient.get<{ message: string }>(
+      `/auth/verify-email?token=${token}`,
+      true,
+    );
   },
 
   resendVerificationEmail: async (email: string) => {
-    return apiClient.post<{ message: string }>('/auth/resend-verification', { email }, true);
+    return apiClient.post<{ message: string }>(
+      "/auth/resend-verification",
+      { email },
+      true,
+    );
   },
 
   forgotPassword: async (email: string) => {
-    return apiClient.post<{ message: string }>('/auth/forgot-password', { email }, true);
+    return apiClient.post<{ message: string }>(
+      "/auth/forgot-password",
+      { email },
+      true,
+    );
   },
 
   resetPassword: async (token: string, newPassword: string) => {
-    return apiClient.post<{ message: string }>('/auth/reset-password', { token, newPassword }, true);
+    return apiClient.post<{ message: string }>(
+      "/auth/reset-password",
+      { token, newPassword },
+      true,
+    );
   },
 
   refresh: async (refreshToken: string) => {
-    return apiClient.post<{ access_token: string; refresh_token: string; token_type: string }>(
-      '/auth/refresh',
-      { refresh_token: refreshToken },
-      true
-    );
+    return apiClient.post<{
+      access_token: string;
+      refresh_token: string;
+      token_type: string;
+    }>("/auth/refresh", { refresh_token: refreshToken }, true);
   },
 
   // 토큰이 존재하고 유효한지 확인 (만료 여부 포함)
@@ -849,7 +939,7 @@ export const authAPI = {
   // refresh token으로 access token 갱신 시도 (중복 요청 방지)
   tryRefreshToken: async (): Promise<boolean> => {
     // ApiClient의 refreshPromise를 공유하여 모든 경로에서 단일 요청 보장
-    return apiClient['tryRefreshToken']();
+    return apiClient["tryRefreshToken"]();
   },
 
   getAccessToken,
@@ -868,18 +958,22 @@ export const userAPI = {
       name: string;
       profile_image: string;
       email_verified: boolean;
-    }>('/users/me');
+    }>("/users/me");
   },
 
-  updateProfile: async (data: { name?: string; profileImage?: string; theme?: 'dark' | 'light' }) => {
+  updateProfile: async (data: {
+    name?: string;
+    profileImage?: string;
+    theme?: "dark" | "light";
+  }) => {
     return apiClient.patch<{
       id: string;
       email: string;
       name: string;
       profile_image: string;
       email_verified: boolean;
-      theme?: 'dark' | 'light';
-    }>('/users/me', {
+      theme?: "dark" | "light";
+    }>("/users/me", {
       name: data.name,
       profile_image: data.profileImage,
       theme: data.theme,
@@ -887,28 +981,32 @@ export const userAPI = {
   },
 
   changePassword: async (currentPassword: string, newPassword: string) => {
-    return apiClient.post<{ message: string }>('/users/me/password', {
+    return apiClient.post<{ message: string }>("/users/me/password", {
       current_password: currentPassword,
       new_password: newPassword,
     });
   },
 
   deleteAccount: async () => {
-    return apiClient.delete<{ message: string }>('/users/me');
+    return apiClient.delete<{ message: string }>("/users/me");
   },
 
   uploadProfileImage: async (file: File) => {
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append("file", file);
 
-    const response = await authenticatedFetch(`${API_BASE_URL}/users/me/profile-image`, {
-      method: 'POST',
-      body: formData,
-    });
+    const response = await authenticatedFetch(
+      `${API_BASE_URL}/users/me/profile-image`,
+      {
+        method: "POST",
+        body: formData,
+      },
+    );
 
     if (!response.ok) {
       const errData = await response.json().catch(() => ({
-        code: 'UNKNOWN', message: response.statusText,
+        code: "UNKNOWN",
+        message: response.statusText,
       }));
       throw errData;
     }
@@ -933,10 +1031,10 @@ export const userAPI = {
       email_verified: boolean;
       theme: string;
       provider: string;
-    }>('/users/me/profile-image');
+    }>("/users/me/profile-image");
   },
 
-  getMyTasks: async (filter: 'today' | 'week' | 'overdue' = 'today') => {
+  getMyTasks: async (filter: "today" | "week" | "overdue" = "today") => {
     return apiClient.get<MyTasksResponse>(`/users/me/tasks?filter=${filter}`);
   },
 };
@@ -968,18 +1066,25 @@ export interface MyTasksResponse {
 
 export const boardAPI = {
   getBoards: async () => {
-    return apiClient.get<BoardListItem[]>('/boards');
+    return apiClient.get<BoardListItem[]>("/boards");
   },
 
   getBoard: async (boardId: string) => {
     return apiClient.get<BoardDetail>(`/boards/${boardId}`);
   },
 
-  createBoard: async (data: { name: string; description?: string; background_gradient?: string }) => {
-    return apiClient.post<BoardDetail>('/boards', data);
+  createBoard: async (data: {
+    name: string;
+    description?: string;
+    background_gradient?: string;
+  }) => {
+    return apiClient.post<BoardDetail>("/boards", data);
   },
 
-  updateBoard: async (boardId: string, data: { name?: string; description?: string; background_gradient?: string }) => {
+  updateBoard: async (
+    boardId: string,
+    data: { name?: string; description?: string; background_gradient?: string },
+  ) => {
     return apiClient.put<BoardDetail>(`/boards/${boardId}`, data);
   },
 
@@ -988,13 +1093,21 @@ export const boardAPI = {
   },
 
   toggleStar: async (boardId: string) => {
-    return apiClient.patch<{ board_id: string; is_starred: boolean }>(`/boards/${boardId}/star`);
+    return apiClient.patch<{ board_id: string; is_starred: boolean }>(
+      `/boards/${boardId}/star`,
+    );
   },
 
-  updateSelectedMilestone: async (boardId: string, milestoneId: string | null) => {
-    return apiClient.patch<BoardDetail>(`/boards/${boardId}/selected-milestone`, {
-      milestone_id: milestoneId,
-    });
+  updateSelectedMilestone: async (
+    boardId: string,
+    milestoneId: string | null,
+  ) => {
+    return apiClient.patch<BoardDetail>(
+      `/boards/${boardId}/selected-milestone`,
+      {
+        milestone_id: milestoneId,
+      },
+    );
   },
 
   getBoardTier: async (boardId: string) => {
@@ -1028,25 +1141,42 @@ export const boardAPI = {
 
 export const blockAPI = {
   getBlocks: async (boardId: string) => {
-    return apiClient.get<{ blocks: BlockResponse[] }>(`/boards/${boardId}/blocks`);
+    return apiClient.get<{ blocks: BlockResponse[] }>(
+      `/boards/${boardId}/blocks`,
+    );
   },
 
-  createBlock: async (boardId: string, data: { name: string; color: string }) => {
+  createBlock: async (
+    boardId: string,
+    data: { name: string; color: string },
+  ) => {
     return apiClient.post<BlockResponse>(`/boards/${boardId}/blocks`, data);
   },
 
-  updateBlock: async (boardId: string, blockId: string, data: { name?: string; color?: string }) => {
-    return apiClient.put<BlockResponse>(`/boards/${boardId}/blocks/${blockId}`, data);
+  updateBlock: async (
+    boardId: string,
+    blockId: string,
+    data: { name?: string; color?: string },
+  ) => {
+    return apiClient.put<BlockResponse>(
+      `/boards/${boardId}/blocks/${blockId}`,
+      data,
+    );
   },
 
   deleteBlock: async (boardId: string, blockId: string) => {
-    return apiClient.delete<{ message: string }>(`/boards/${boardId}/blocks/${blockId}`);
+    return apiClient.delete<{ message: string }>(
+      `/boards/${boardId}/blocks/${blockId}`,
+    );
   },
 
   reorderBlocks: async (boardId: string, blockIds: string[]) => {
-    return apiClient.put<{ blocks: BlockResponse[] }>(`/boards/${boardId}/blocks/reorder`, {
-      block_ids: blockIds,
-    });
+    return apiClient.put<{ blocks: BlockResponse[] }>(
+      `/boards/${boardId}/blocks/reorder`,
+      {
+        block_ids: blockIds,
+      },
+    );
   },
 };
 
@@ -1056,12 +1186,16 @@ export const blockAPI = {
 
 export const featureAPI = {
   getFeatures: async (boardId: string, milestoneId?: string) => {
-    const query = milestoneId ? `?milestoneId=${milestoneId}` : '';
-    return apiClient.get<{ features: FeatureResponse[] }>(`/boards/${boardId}/features${query}`);
+    const query = milestoneId ? `?milestoneId=${milestoneId}` : "";
+    return apiClient.get<{ features: FeatureResponse[] }>(
+      `/boards/${boardId}/features${query}`,
+    );
   },
 
   getFeature: async (boardId: string, featureId: string) => {
-    return apiClient.get<FeatureResponse>(`/boards/${boardId}/features/${featureId}`);
+    return apiClient.get<FeatureResponse>(
+      `/boards/${boardId}/features/${featureId}`,
+    );
   },
 
   createFeature: async (
@@ -1073,7 +1207,7 @@ export const featureAPI = {
       assignee_id?: string;
       start_date?: string;
       due_date?: string;
-    }
+    },
   ) => {
     return apiClient.post<FeatureResponse>(`/boards/${boardId}/features`, data);
   },
@@ -1088,44 +1222,71 @@ export const featureAPI = {
       assignee_id?: string | null;
       start_date?: string | null;
       due_date?: string | null;
-    }
+    },
   ) => {
-    return apiClient.put<FeatureResponse>(`/boards/${boardId}/features/${featureId}`, data);
+    return apiClient.put<FeatureResponse>(
+      `/boards/${boardId}/features/${featureId}`,
+      data,
+    );
   },
 
-  deleteFeature: async (boardId: string, featureId: string, data?: { task_migrations?: Array<{ task_id: string; target_feature_id: string }> }) => {
-    return apiClient.delete<{ message: string }>(`/boards/${boardId}/features/${featureId}`, data);
+  deleteFeature: async (
+    boardId: string,
+    featureId: string,
+    data?: {
+      task_migrations?: Array<{ task_id: string; target_feature_id: string }>;
+    },
+  ) => {
+    return apiClient.delete<{ message: string }>(
+      `/boards/${boardId}/features/${featureId}`,
+      data,
+    );
   },
 
   reorderFeatures: async (boardId: string, featureIds: string[]) => {
-    return apiClient.put<{ features: FeatureResponse[] }>(`/boards/${boardId}/features/reorder`, {
-      feature_ids: featureIds,
-    });
+    return apiClient.put<{ features: FeatureResponse[] }>(
+      `/boards/${boardId}/features/reorder`,
+      {
+        feature_ids: featureIds,
+      },
+    );
   },
 
   // Feature 태그 관리
   addTag: async (boardId: string, featureId: string, tagId: string) => {
-    return apiClient.post<TagResponse[]>(`/boards/${boardId}/features/${featureId}/tags`, {
-      tag_id: tagId,
-    });
+    return apiClient.post<TagResponse[]>(
+      `/boards/${boardId}/features/${featureId}/tags`,
+      {
+        tag_id: tagId,
+      },
+    );
   },
 
   removeTag: async (boardId: string, featureId: string, tagId: string) => {
     return apiClient.delete<{ message: string }>(
-      `/boards/${boardId}/features/${featureId}/tags/${tagId}`
+      `/boards/${boardId}/features/${featureId}/tags/${tagId}`,
     );
   },
 
-  aiDecompose: async (boardId: string, featureId: string, language?: string) => {
-    const params = language ? `?language=${language}` : '';
+  aiDecompose: async (
+    boardId: string,
+    featureId: string,
+    language?: string,
+  ) => {
+    const params = language ? `?language=${language}` : "";
     return apiClient.post<FeatureAIDecompositionResponse>(
-      `/boards/${boardId}/features/${featureId}/ai/decompose${params}`
+      `/boards/${boardId}/features/${featureId}/ai/decompose${params}`,
     );
   },
 
-  aiApply: async (boardId: string, featureId: string, data: FeatureAIApplyRequest) => {
+  aiApply: async (
+    boardId: string,
+    featureId: string,
+    data: FeatureAIApplyRequest,
+  ) => {
     return apiClient.post<FeatureAIApplyResult>(
-      `/boards/${boardId}/features/${featureId}/ai/apply`, data
+      `/boards/${boardId}/features/${featureId}/ai/apply`,
+      data,
     );
   },
 };
@@ -1135,14 +1296,17 @@ export const featureAPI = {
 // ========================================
 
 export const taskAPI = {
-  getTasks: async (boardId: string, params?: { block_id?: string; feature_id?: string; milestone_id?: string }) => {
+  getTasks: async (
+    boardId: string,
+    params?: { block_id?: string; feature_id?: string; milestone_id?: string },
+  ) => {
     const query = new URLSearchParams();
-    if (params?.block_id) query.set('blockId', params.block_id);
-    if (params?.feature_id) query.set('featureId', params.feature_id);
-    if (params?.milestone_id) query.set('milestoneId', params.milestone_id);
+    if (params?.block_id) query.set("blockId", params.block_id);
+    if (params?.feature_id) query.set("featureId", params.feature_id);
+    if (params?.milestone_id) query.set("milestoneId", params.milestone_id);
     const queryString = query.toString();
     return apiClient.get<{ tasks: TaskResponse[] }>(
-      `/boards/${boardId}/tasks${queryString ? `?${queryString}` : ''}`
+      `/boards/${boardId}/tasks${queryString ? `?${queryString}` : ""}`,
     );
   },
 
@@ -1160,11 +1324,11 @@ export const taskAPI = {
       start_date?: string;
       due_date?: string;
       estimated_minutes?: number;
-    }
+    },
   ) => {
     return apiClient.post<TaskResponse>(
       `/boards/${boardId}/features/${featureId}/tasks`,
-      data
+      data,
     );
   },
 
@@ -1178,9 +1342,12 @@ export const taskAPI = {
       start_date?: string | null;
       due_date?: string | null;
       estimated_minutes?: number | null;
-    }
+    },
   ) => {
-    return apiClient.put<TaskResponse>(`/boards/${boardId}/tasks/${taskId}`, data);
+    return apiClient.put<TaskResponse>(
+      `/boards/${boardId}/tasks/${taskId}`,
+      data,
+    );
   },
 
   updateTaskDates: async (
@@ -1189,49 +1356,67 @@ export const taskAPI = {
     data: {
       start_date?: string | null;
       end_date?: string | null;
-    }
+    },
   ) => {
-    return apiClient.put<TaskResponse>(`/boards/${boardId}/tasks/${taskId}/dates`, data);
+    return apiClient.put<TaskResponse>(
+      `/boards/${boardId}/tasks/${taskId}/dates`,
+      data,
+    );
   },
 
   deleteTask: async (boardId: string, taskId: string) => {
-    return apiClient.delete<{ message: string }>(`/boards/${boardId}/tasks/${taskId}`);
+    return apiClient.delete<{ message: string }>(
+      `/boards/${boardId}/tasks/${taskId}`,
+    );
   },
 
   saveBaseline: async (boardId: string) => {
-    return apiClient.post<{ message: string }>(`/boards/${boardId}/tasks/save-baseline`);
+    return apiClient.post<{ message: string }>(
+      `/boards/${boardId}/tasks/save-baseline`,
+    );
   },
 
   clearBaseline: async (boardId: string) => {
-    return apiClient.delete<{ message: string }>(`/boards/${boardId}/tasks/baseline`);
+    return apiClient.delete<{ message: string }>(
+      `/boards/${boardId}/tasks/baseline`,
+    );
   },
 
   moveTask: async (
     boardId: string,
     taskId: string,
-    data: { target_block_id: string; position: number }
+    data: { target_block_id: string; position: number },
   ) => {
-    return apiClient.put<TaskResponse>(`/boards/${boardId}/tasks/${taskId}/move`, data);
+    return apiClient.put<TaskResponse>(
+      `/boards/${boardId}/tasks/${taskId}/move`,
+      data,
+    );
   },
 
   moveTaskToFeature: async (
     boardId: string,
     taskId: string,
-    data: { target_feature_id: string }
+    data: { target_feature_id: string },
   ) => {
-    return apiClient.put<TaskResponse>(`/boards/${boardId}/tasks/${taskId}/move-feature`, data);
+    return apiClient.put<TaskResponse>(
+      `/boards/${boardId}/tasks/${taskId}/move-feature`,
+      data,
+    );
   },
 
   // Task 태그 관리
   addTag: async (boardId: string, taskId: string, tagId: string) => {
-    return apiClient.post<TagResponse[]>(`/boards/${boardId}/tasks/${taskId}/tags`, {
-      tag_id: tagId,
-    });
+    return apiClient.post<TagResponse[]>(
+      `/boards/${boardId}/tasks/${taskId}/tags`,
+      {
+        tag_id: tagId,
+      },
+    );
   },
 
   removeTag: async (boardId: string, taskId: string, tagId: string) => {
     return apiClient.delete<{ message: string }>(
-      `/boards/${boardId}/tasks/${taskId}/tags/${tagId}`
+      `/boards/${boardId}/tasks/${taskId}/tags/${tagId}`,
     );
   },
 };
@@ -1249,12 +1434,18 @@ export const tagAPI = {
     return apiClient.post<TagResponse>(`/boards/${boardId}/tags`, data);
   },
 
-  updateTag: async (boardId: string, tagId: string, data: { name?: string; color?: string }) => {
+  updateTag: async (
+    boardId: string,
+    tagId: string,
+    data: { name?: string; color?: string },
+  ) => {
     return apiClient.put<TagResponse>(`/boards/${boardId}/tags/${tagId}`, data);
   },
 
   deleteTag: async (boardId: string, tagId: string) => {
-    return apiClient.delete<{ message: string }>(`/boards/${boardId}/tags/${tagId}`);
+    return apiClient.delete<{ message: string }>(
+      `/boards/${boardId}/tags/${tagId}`,
+    );
   },
 };
 
@@ -1269,21 +1460,31 @@ export interface BatchChecklistResponse {
 
 export const checklistAPI = {
   getChecklist: async (boardId: string, taskId: string) => {
-    return apiClient.get<ChecklistResponse>(`/boards/${boardId}/tasks/${taskId}/checklist`);
+    return apiClient.get<ChecklistResponse>(
+      `/boards/${boardId}/tasks/${taskId}/checklist`,
+    );
   },
 
   getBatchChecklists: async (boardId: string, taskIds: string[]) => {
-    return apiClient.post<BatchChecklistResponse>(`/boards/${boardId}/checklist-items/batch`, { task_ids: taskIds });
+    return apiClient.post<BatchChecklistResponse>(
+      `/boards/${boardId}/checklist-items/batch`,
+      { task_ids: taskIds },
+    );
   },
 
   addItem: async (
     boardId: string,
     taskId: string,
-    data: { title: string; assignee_id?: string; start_date?: string; due_date?: string }
+    data: {
+      title: string;
+      assignee_id?: string;
+      start_date?: string;
+      due_date?: string;
+    },
   ) => {
     return apiClient.post<ChecklistItemResponse>(
       `/boards/${boardId}/tasks/${taskId}/checklist`,
-      data
+      data,
     );
   },
 
@@ -1291,50 +1492,69 @@ export const checklistAPI = {
     boardId: string,
     taskId: string,
     itemId: string,
-    data: { title?: string; assignee_id?: string | null; start_date?: string | null; due_date?: string | null }
+    data: {
+      title?: string;
+      assignee_id?: string | null;
+      start_date?: string | null;
+      due_date?: string | null;
+    },
   ) => {
     return apiClient.put<ChecklistItemResponse>(
       `/boards/${boardId}/tasks/${taskId}/checklist/${itemId}`,
-      data
+      data,
     );
   },
 
   deleteItem: async (boardId: string, taskId: string, itemId: string) => {
     return apiClient.delete<{ message: string }>(
-      `/boards/${boardId}/tasks/${taskId}/checklist/${itemId}`
+      `/boards/${boardId}/tasks/${taskId}/checklist/${itemId}`,
     );
   },
 
   toggleItem: async (boardId: string, taskId: string, itemId: string) => {
     return apiClient.patch<ChecklistItemResponse>(
-      `/boards/${boardId}/tasks/${taskId}/checklist/${itemId}/toggle`
+      `/boards/${boardId}/tasks/${taskId}/checklist/${itemId}/toggle`,
     );
   },
 
-  moveToTask: async (boardId: string, taskId: string, itemId: string, data: { target_task_id: string }) => {
+  moveToTask: async (
+    boardId: string,
+    taskId: string,
+    itemId: string,
+    data: { target_task_id: string },
+  ) => {
     return apiClient.put<ChecklistItemResponse>(
       `/boards/${boardId}/tasks/${taskId}/checklist/${itemId}/move-task`,
-      data
+      data,
     );
   },
 
-  reorderItems: async (boardId: string, taskId: string, data: { item_ids: string[] }) => {
+  reorderItems: async (
+    boardId: string,
+    taskId: string,
+    data: { item_ids: string[] },
+  ) => {
     return apiClient.put<{ message: string }>(
       `/boards/${boardId}/tasks/${taskId}/checklist/reorder`,
-      data
+      data,
     );
   },
 
   aiDecompose: async (boardId: string, taskId: string, language?: string) => {
-    const params = language ? `?language=${language}` : '';
+    const params = language ? `?language=${language}` : "";
     return apiClient.post<ChecklistAIDecompositionResponse>(
-      `/boards/${boardId}/tasks/${taskId}/checklist/ai/decompose${params}`
+      `/boards/${boardId}/tasks/${taskId}/checklist/ai/decompose${params}`,
     );
   },
 
-  aiApply: async (boardId: string, taskId: string, data: ChecklistAIApplyRequest) => {
+  aiApply: async (
+    boardId: string,
+    taskId: string,
+    data: ChecklistAIApplyRequest,
+  ) => {
     return apiClient.post<ChecklistAIApplyResult>(
-      `/boards/${boardId}/tasks/${taskId}/checklist/ai/apply`, data
+      `/boards/${boardId}/tasks/${taskId}/checklist/ai/apply`,
+      data,
     );
   },
 };
@@ -1422,32 +1642,42 @@ export const fileAPI = {
    * Presigned URL 요청 (S3 모드에서만)
    * mode="direct"이면 presigned 미지원 → upload() 사용
    */
-  presign: async (data: { fileName: string; contentType: string; fileSize: number }) => {
-    return apiClient.post<{ mode: string; tempKey?: string; uploadUrl?: string; message?: string }>(
-      '/files/presign', {
-        file_name: data.fileName,
-        content_type: data.contentType,
-        file_size: data.fileSize,
-      }
-    );
+  presign: async (data: {
+    fileName: string;
+    contentType: string;
+    fileSize: number;
+  }) => {
+    return apiClient.post<{
+      mode: string;
+      tempKey?: string;
+      uploadUrl?: string;
+      message?: string;
+    }>("/files/presign", {
+      file_name: data.fileName,
+      content_type: data.contentType,
+      file_size: data.fileSize,
+    });
   },
 
   /**
    * 서버 직접 업로드 (Local/S3 모두 지원)
    * 인증된 multipart 요청
    */
-  upload: async (file: File): Promise<{ tempKey: string; previewUrl: string }> => {
+  upload: async (
+    file: File,
+  ): Promise<{ tempKey: string; previewUrl: string }> => {
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append("file", file);
 
     const response = await authenticatedFetch(`${API_BASE_URL}/files/upload`, {
-      method: 'POST',
+      method: "POST",
       body: formData,
     });
 
     if (!response.ok) {
       const errData = await response.json().catch(() => ({
-        code: 'UNKNOWN', message: response.statusText,
+        code: "UNKNOWN",
+        message: response.statusText,
       }));
       throw errData;
     }
@@ -1459,7 +1689,9 @@ export const fileAPI = {
    * 파일 업로드 (presigned URL 시도 → fallback: 직접 업로드)
    * 항상 tempKey를 반환
    */
-  smartUpload: async (file: File): Promise<{ tempKey: string; previewUrl: string }> => {
+  smartUpload: async (
+    file: File,
+  ): Promise<{ tempKey: string; previewUrl: string }> => {
     try {
       // 1. presigned URL 시도
       const presign = await fileAPI.presign({
@@ -1468,12 +1700,16 @@ export const fileAPI = {
         fileSize: file.size,
       });
 
-      if (presign.mode === 'presigned' && presign.uploadUrl && presign.tempKey) {
+      if (
+        presign.mode === "presigned" &&
+        presign.uploadUrl &&
+        presign.tempKey
+      ) {
         // 2. S3에 직접 업로드
         const putResponse = await fetch(presign.uploadUrl, {
-          method: 'PUT',
+          method: "PUT",
           body: file,
-          headers: { 'Content-Type': file.type },
+          headers: { "Content-Type": file.type },
         });
 
         if (putResponse.ok) {
@@ -1500,14 +1736,14 @@ export const fileAPI = {
 export const commentAPI = {
   getComments: async (boardId: string, taskId: string) => {
     return apiClient.get<CommentListResponse>(
-      `/boards/${boardId}/tasks/${taskId}/comments`
+      `/boards/${boardId}/tasks/${taskId}/comments`,
     );
   },
 
   createComment: async (
     boardId: string,
     taskId: string,
-    data: { content: string; mentions?: string[]; fileKeys?: string[] }
+    data: { content: string; mentions?: string[]; fileKeys?: string[] },
   ) => {
     return apiClient.post<CommentDetailResponse>(
       `/boards/${boardId}/tasks/${taskId}/comments`,
@@ -1515,7 +1751,7 @@ export const commentAPI = {
         content: data.content,
         mentions: data.mentions,
         file_keys: data.fileKeys,
-      }
+      },
     );
   },
 
@@ -1528,7 +1764,7 @@ export const commentAPI = {
       mentions?: string[];
       keepAttachmentIds?: string[];
       newFileKeys?: string[];
-    }
+    },
   ) => {
     return apiClient.put<CommentDetailResponse>(
       `/boards/${boardId}/tasks/${taskId}/comments/${commentId}`,
@@ -1537,13 +1773,13 @@ export const commentAPI = {
         mentions: data.mentions,
         keep_attachment_ids: data.keepAttachmentIds,
         new_file_keys: data.newFileKeys,
-      }
+      },
     );
   },
 
   deleteComment: async (boardId: string, taskId: string, commentId: string) => {
     return apiClient.delete<{ message: string }>(
-      `/boards/${boardId}/tasks/${taskId}/comments/${commentId}`
+      `/boards/${boardId}/tasks/${taskId}/comments/${commentId}`,
     );
   },
 
@@ -1551,10 +1787,10 @@ export const commentAPI = {
     boardId: string,
     taskId: string,
     commentId: string,
-    attachmentId: string
+    attachmentId: string,
   ) => {
     return apiClient.delete<{ message: string }>(
-      `/boards/${boardId}/tasks/${taskId}/comments/${commentId}/attachments/${attachmentId}`
+      `/boards/${boardId}/tasks/${taskId}/comments/${commentId}/attachments/${attachmentId}`,
     );
   },
 
@@ -1562,10 +1798,10 @@ export const commentAPI = {
     boardId: string,
     authorId: string,
     startDate: string,
-    endDate: string
+    endDate: string,
   ) => {
     return apiClient.get<CommentSummaryResponse>(
-      `/boards/${boardId}/comments/summary?authorId=${authorId}&startDate=${startDate}&endDate=${endDate}`
+      `/boards/${boardId}/comments/summary?authorId=${authorId}&startDate=${startDate}&endDate=${endDate}`,
     );
   },
 
@@ -1573,10 +1809,10 @@ export const commentAPI = {
     boardId: string,
     mentionedUserId: string,
     startDate: string,
-    endDate: string
+    endDate: string,
   ) => {
     return apiClient.get<MentionSummaryResponse>(
-      `/boards/${boardId}/comments/mentions?mentionedUserId=${mentionedUserId}&startDate=${startDate}&endDate=${endDate}`
+      `/boards/${boardId}/comments/mentions?mentionedUserId=${mentionedUserId}&startDate=${startDate}&endDate=${endDate}`,
     );
   },
 
@@ -1584,18 +1820,18 @@ export const commentAPI = {
     boardId: string,
     taskId: string,
     commentId: string,
-    emoji: string
+    emoji: string,
   ) => {
     return apiClient.post<ReactionsToggleResponse>(
       `/boards/${boardId}/tasks/${taskId}/comments/${commentId}/reactions/toggle`,
-      { emoji }
+      { emoji },
     );
   },
 
   aiSummarize: async (boardId: string, taskId: string, language?: string) => {
-    const params = language ? `?language=${language}` : '';
+    const params = language ? `?language=${language}` : "";
     return apiClient.post<CommentAISummaryResponse>(
-      `/boards/${boardId}/tasks/${taskId}/comments/ai/summarize${params}`
+      `/boards/${boardId}/tasks/${taskId}/comments/ai/summarize${params}`,
     );
   },
 };
@@ -1620,20 +1856,28 @@ export interface CustomEmojiListResponse {
 
 export const customEmojiAPI = {
   getEmojis: async (boardId: string) => {
-    return apiClient.get<CustomEmojiListResponse>(`/boards/${boardId}/custom-emojis`);
+    return apiClient.get<CustomEmojiListResponse>(
+      `/boards/${boardId}/custom-emojis`,
+    );
   },
 
   uploadEmoji: async (boardId: string, name: string, file: File) => {
     const formData = new FormData();
-    formData.append('name', name);
-    formData.append('file', file);
-    return apiClient.post<CustomEmojiDetail>(`/boards/${boardId}/custom-emojis`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    formData.append("name", name);
+    formData.append("file", file);
+    return apiClient.post<CustomEmojiDetail>(
+      `/boards/${boardId}/custom-emojis`,
+      formData,
+      {
+        headers: { "Content-Type": "multipart/form-data" },
+      },
+    );
   },
 
   deleteEmoji: async (boardId: string, emojiId: string) => {
-    return apiClient.delete<{ message: string }>(`/boards/${boardId}/custom-emojis/${emojiId}`);
+    return apiClient.delete<{ message: string }>(
+      `/boards/${boardId}/custom-emojis/${emojiId}`,
+    );
   },
 };
 
@@ -1646,23 +1890,38 @@ export const memberAPI = {
     return apiClient.get<MembersListResponse>(`/boards/${boardId}/members`);
   },
 
-  inviteMember: async (boardId: string, data: { email: string; role: 'ADMIN' | 'MEMBER' | 'VIEWER' }) => {
-    return apiClient.post<InviteResultResponse>(`/boards/${boardId}/members/invite`, data);
+  inviteMember: async (
+    boardId: string,
+    data: { email: string; role: "ADMIN" | "MEMBER" | "VIEWER" },
+  ) => {
+    return apiClient.post<InviteResultResponse>(
+      `/boards/${boardId}/members/invite`,
+      data,
+    );
   },
 
   updateMemberRole: async (
     boardId: string,
     memberId: string,
-    role: 'ADMIN' | 'MEMBER' | 'VIEWER'
+    role: "ADMIN" | "MEMBER" | "VIEWER",
   ) => {
-    return apiClient.put<MemberResponse>(`/boards/${boardId}/members/${memberId}/role`, { role });
+    return apiClient.put<MemberResponse>(
+      `/boards/${boardId}/members/${memberId}/role`,
+      { role },
+    );
   },
 
   removeMember: async (boardId: string, memberId: string) => {
-    return apiClient.delete<{ message: string }>(`/boards/${boardId}/members/${memberId}`);
+    return apiClient.delete<{ message: string }>(
+      `/boards/${boardId}/members/${memberId}`,
+    );
   },
 
-  updateMemberColor: async (boardId: string, memberId: string, assigneeColor: string | null) => {
+  updateMemberColor: async (
+    boardId: string,
+    memberId: string,
+    assigneeColor: string | null,
+  ) => {
     return apiClient.put<MemberResponse>(
       `/boards/${boardId}/members/${memberId}/color`,
       { assignee_color: assigneeColor },
@@ -1683,22 +1942,29 @@ export const memberAPI = {
 
 export const inviteLinkAPI = {
   getInviteLinks: async (boardId: string) => {
-    return apiClient.get<{ invites: InviteLinkResponse[] }>(`/boards/${boardId}/invites`);
+    return apiClient.get<{ invites: InviteLinkResponse[] }>(
+      `/boards/${boardId}/invites`,
+    );
   },
 
   createInviteLink: async (
     boardId: string,
     data: {
-      role: 'ADMIN' | 'MEMBER' | 'VIEWER';
+      role: "ADMIN" | "MEMBER" | "VIEWER";
       max_uses?: number | null;
       expires_in_hours?: number | null;
-    }
+    },
   ) => {
-    return apiClient.post<InviteLinkResponse>(`/boards/${boardId}/invites`, data);
+    return apiClient.post<InviteLinkResponse>(
+      `/boards/${boardId}/invites`,
+      data,
+    );
   },
 
   deleteInviteLink: async (boardId: string, inviteId: string) => {
-    return apiClient.delete<{ message: string }>(`/boards/${boardId}/invites/${inviteId}`);
+    return apiClient.delete<{ message: string }>(
+      `/boards/${boardId}/invites/${inviteId}`,
+    );
   },
 
   getInviteLinkInfo: async (code: string) => {
@@ -1706,9 +1972,12 @@ export const inviteLinkAPI = {
   },
 
   acceptInvite: async (code: string) => {
-    return apiClient.post<{ board_id: string; board_name: string; role: string; message: string }>(
-      `/invites/${code}/accept`
-    );
+    return apiClient.post<{
+      board_id: string;
+      board_name: string;
+      role: string;
+      message: string;
+    }>(`/invites/${code}/accept`);
   },
 };
 
@@ -1717,13 +1986,16 @@ export const inviteLinkAPI = {
 // ========================================
 
 export const activityAPI = {
-  getActivities: async (boardId: string, params?: { cursor?: string; limit?: number }) => {
+  getActivities: async (
+    boardId: string,
+    params?: { cursor?: string; limit?: number },
+  ) => {
     const query = new URLSearchParams();
-    if (params?.cursor) query.set('cursor', params.cursor);
-    if (params?.limit) query.set('limit', params.limit.toString());
+    if (params?.cursor) query.set("cursor", params.cursor);
+    if (params?.limit) query.set("limit", params.limit.toString());
     const queryString = query.toString();
     return apiClient.get<ActivitiesResponse>(
-      `/boards/${boardId}/activities${queryString ? `?${queryString}` : ''}`
+      `/boards/${boardId}/activities${queryString ? `?${queryString}` : ""}`,
     );
   },
 };
@@ -1734,50 +2006,74 @@ export const activityAPI = {
 
 export const subscriptionAPI = {
   getSubscription: async (boardId: string) => {
-    return apiClient.get<SubscriptionResponse>(`/boards/${boardId}/subscription`);
+    return apiClient.get<SubscriptionResponse>(
+      `/boards/${boardId}/subscription`,
+    );
   },
 
   startSubscription: async (
     boardId: string,
-    data: { plan_id: string; billing_cycle: 'MONTHLY' | 'YEARLY'; payment_method_id: string }
+    data: {
+      plan_id: string;
+      billing_cycle: "MONTHLY" | "YEARLY";
+      payment_method_id: string;
+    },
   ) => {
-    return apiClient.post<SubscriptionResponse>(`/boards/${boardId}/subscription/start`, data);
+    return apiClient.post<SubscriptionResponse>(
+      `/boards/${boardId}/subscription/start`,
+      data,
+    );
   },
 
   // Seat 기반 구독 시작
   startSeatSubscription: async (
     boardId: string,
-    data: { billing_cycle: 'MONTHLY' | 'YEARLY'; seat_count: number; payment_method_id?: string }
+    data: {
+      billing_cycle: "MONTHLY" | "YEARLY";
+      seat_count: number;
+      payment_method_id?: string;
+    },
   ) => {
-    return apiClient.post<SubscriptionResponse>(`/boards/${boardId}/subscription/start`, {
-      ...data,
-      plan_id: 'PREMIUM',
-    });
+    return apiClient.post<SubscriptionResponse>(
+      `/boards/${boardId}/subscription/start`,
+      {
+        ...data,
+        plan_id: "PREMIUM",
+      },
+    );
   },
 
   // Seat 가격 조회
   getSeatPricing: async (boardId: string) => {
-    return apiClient.get<SeatPricingResponse>(`/boards/${boardId}/subscription/pricing`);
+    return apiClient.get<SeatPricingResponse>(
+      `/boards/${boardId}/subscription/pricing`,
+    );
   },
 
   changePlan: async (
     boardId: string,
-    data: { billing_cycle: 'MONTHLY' | 'YEARLY' }
+    data: { billing_cycle: "MONTHLY" | "YEARLY" },
   ) => {
-    return apiClient.put<SubscriptionResponse>(`/boards/${boardId}/subscription/plan`, data);
+    return apiClient.put<SubscriptionResponse>(
+      `/boards/${boardId}/subscription/plan`,
+      data,
+    );
   },
 
   purchaseSeats: async (
     boardId: string,
-    data: { additional_seats: number }
+    data: { additional_seats: number },
   ) => {
     return apiClient.post<SubscriptionResponse>(
-      `/boards/${boardId}/subscription/seats`, data
+      `/boards/${boardId}/subscription/seats`,
+      data,
     );
   },
 
   cancelSubscription: async (boardId: string) => {
-    return apiClient.delete<{ message: string }>(`/boards/${boardId}/subscription`);
+    return apiClient.delete<{ message: string }>(
+      `/boards/${boardId}/subscription`,
+    );
   },
 
   // Toss Payments 결제 승인 - 구독 시작
@@ -1786,10 +2082,13 @@ export const subscriptionAPI = {
     order_id: string;
     amount: number;
     board_id: string;
-    billing_cycle: 'MONTHLY' | 'YEARLY';
+    billing_cycle: "MONTHLY" | "YEARLY";
     seat_count: number;
   }) => {
-    return apiClient.post<SubscriptionResponse>('/payments/confirm/subscription', data);
+    return apiClient.post<SubscriptionResponse>(
+      "/payments/confirm/subscription",
+      data,
+    );
   },
 
   // Toss Payments 결제 승인 - 시트 추가 구매
@@ -1800,7 +2099,10 @@ export const subscriptionAPI = {
     board_id: string;
     additional_seats: number;
   }) => {
-    return apiClient.post<SubscriptionResponse>('/payments/confirm/seats', data);
+    return apiClient.post<SubscriptionResponse>(
+      "/payments/confirm/seats",
+      data,
+    );
   },
 };
 
@@ -1810,7 +2112,7 @@ export const subscriptionAPI = {
 
 export const pricingAPI = {
   getPlans: async () => {
-    return apiClient.get<PricingResponse>('/pricing', true);
+    return apiClient.get<PricingResponse>("/pricing", true);
   },
 };
 
@@ -1821,9 +2123,9 @@ export const pricingAPI = {
 export interface ScheduleSettingsResponse {
   work_hours_per_day: number;
   work_start_time: string; // "HH:mm:ss" format
-  schedule_display_mode: 'TIME' | 'BLOCK';
+  schedule_display_mode: "TIME" | "BLOCK";
   break_start_time: string | null; // "HH:mm:ss" or null
-  break_end_time: string | null;   // "HH:mm:ss" or null
+  break_end_time: string | null; // "HH:mm:ss" or null
 }
 
 export interface ScheduleUserInfo {
@@ -1931,7 +2233,7 @@ export interface AISuggestionResponse {
 }
 
 export interface AIFeatureSuggestion {
-  type: 'NEW' | 'EXISTING';
+  type: "NEW" | "EXISTING";
   feature_id: string | null;
   title: string;
   description: string | null;
@@ -1954,7 +2256,7 @@ export interface AIApplyRequest {
 }
 
 export interface AIFeatureSuggestionApply {
-  type: 'NEW' | 'EXISTING';
+  type: "NEW" | "EXISTING";
   feature_id?: string;
   title?: string;
   description?: string;
@@ -1979,7 +2281,7 @@ export interface AIApplyResult {
 export interface ScheduleBlockInfo {
   id: string;
   start_time: string; // "HH:mm:ss" format
-  end_time: string;   // "HH:mm:ss" format
+  end_time: string; // "HH:mm:ss" format
   checklist_item: ScheduleChecklistItemInfo | null;
   task: ScheduleTaskInfo | null;
   feature: ScheduleFeatureInfo | null;
@@ -2071,15 +2373,15 @@ export const scheduleAPI = {
   getDailySchedule: async (
     boardId: string,
     date: string,
-    assigneeIds?: string[]
+    assigneeIds?: string[],
   ) => {
     const query = new URLSearchParams();
-    query.set('date', date);
+    query.set("date", date);
     if (assigneeIds && assigneeIds.length > 0) {
-      assigneeIds.forEach(id => query.append('assigneeIds', id));
+      assigneeIds.forEach((id) => query.append("assigneeIds", id));
     }
     return apiClient.get<DailyScheduleResponse>(
-      `/boards/${boardId}/schedules?${query.toString()}`
+      `/boards/${boardId}/schedules?${query.toString()}`,
     );
   },
 
@@ -2091,16 +2393,16 @@ export const scheduleAPI = {
     boardId: string,
     startDate: string,
     endDate: string,
-    assigneeIds?: string[]
+    assigneeIds?: string[],
   ) => {
     const query = new URLSearchParams();
-    query.set('startDate', startDate);
-    query.set('endDate', endDate);
+    query.set("startDate", startDate);
+    query.set("endDate", endDate);
     if (assigneeIds && assigneeIds.length > 0) {
-      assigneeIds.forEach(id => query.append('assigneeIds', id));
+      assigneeIds.forEach((id) => query.append("assigneeIds", id));
     }
     return apiClient.get<WeeklyScheduleResponse>(
-      `/boards/${boardId}/schedules/weekly?${query.toString()}`
+      `/boards/${boardId}/schedules/weekly?${query.toString()}`,
     );
   },
 
@@ -2111,15 +2413,15 @@ export const scheduleAPI = {
   getDailyFull: async (
     boardId: string,
     date: string,
-    assigneeIds?: string[]
+    assigneeIds?: string[],
   ) => {
     const query = new URLSearchParams();
-    query.set('date', date);
+    query.set("date", date);
     if (assigneeIds && assigneeIds.length > 0) {
-      assigneeIds.forEach(id => query.append('assigneeIds', id));
+      assigneeIds.forEach((id) => query.append("assigneeIds", id));
     }
     return apiClient.get<DailyFullResponse>(
-      `/boards/${boardId}/schedules/daily-full?${query.toString()}`
+      `/boards/${boardId}/schedules/daily-full?${query.toString()}`,
     );
   },
 
@@ -2135,11 +2437,11 @@ export const scheduleAPI = {
       scheduled_date: string;
       start_time: string;
       end_time: string;
-    }
+    },
   ) => {
     return apiClient.post<ScheduleBlockDetailResponse>(
       `/boards/${boardId}/schedules`,
-      data
+      data,
     );
   },
 
@@ -2156,11 +2458,11 @@ export const scheduleAPI = {
         start_date?: string;
         due_date?: string;
       };
-    }
+    },
   ) => {
     return apiClient.post<ScheduleBlockDetailResponse>(
       `/boards/${boardId}/schedules/with-checklist-item`,
-      data
+      data,
     );
   },
 
@@ -2170,23 +2472,23 @@ export const scheduleAPI = {
     data: {
       start_time?: string;
       end_time?: string;
-    }
+    },
   ) => {
     return apiClient.put<ScheduleBlockDetailResponse>(
       `/boards/${boardId}/schedules/${blockId}`,
-      data
+      data,
     );
   },
 
   deleteBlock: async (boardId: string, blockId: string) => {
     return apiClient.delete<{ message: string }>(
-      `/boards/${boardId}/schedules/${blockId}`
+      `/boards/${boardId}/schedules/${blockId}`,
     );
   },
 
   getSettings: async (boardId: string) => {
     return apiClient.get<ScheduleSettingsResponse>(
-      `/boards/${boardId}/schedules/settings`
+      `/boards/${boardId}/schedules/settings`,
     );
   },
 
@@ -2195,33 +2497,33 @@ export const scheduleAPI = {
     data: {
       work_hours_per_day?: number;
       work_start_time?: string;
-      schedule_display_mode?: 'TIME' | 'BLOCK';
+      schedule_display_mode?: "TIME" | "BLOCK";
       break_start_time?: string | null;
       break_end_time?: string | null;
-    }
+    },
   ) => {
     return apiClient.put<ScheduleSettingsResponse>(
       `/boards/${boardId}/schedules/settings`,
-      data
+      data,
     );
   },
 
   getByChecklistItem: async (boardId: string, checklistItemId: string) => {
     return apiClient.get<ScheduleBlockDetailResponse[]>(
-      `/boards/${boardId}/schedules/checklist-item/${checklistItemId}`
+      `/boards/${boardId}/schedules/checklist-item/${checklistItemId}`,
     );
   },
 
   getByChecklistItems: async (boardId: string, checklistItemIds: string[]) => {
     return apiClient.post<Record<string, ScheduleBlockDetailResponse[]>>(
       `/boards/${boardId}/schedules/checklist-items/batch`,
-      { checklist_item_ids: checklistItemIds }
+      { checklist_item_ids: checklistItemIds },
     );
   },
 
   getScheduledTaskIds: async (boardId: string) => {
     return apiClient.get<{ task_ids: string[] }>(
-      `/boards/${boardId}/schedules/scheduled-task-ids`
+      `/boards/${boardId}/schedules/scheduled-task-ids`,
     );
   },
 };
@@ -2231,23 +2533,33 @@ export const scheduleAPI = {
 // ========================================
 
 export const meetingAPI = {
-  getMeetings: async (boardId: string, date: string): Promise<MeetingSummary[]> => {
+  getMeetings: async (
+    boardId: string,
+    date: string,
+  ): Promise<MeetingSummary[]> => {
     const query = new URLSearchParams();
-    query.set('date', date);
+    query.set("date", date);
     return apiClient.get<MeetingSummary[]>(
-      `/boards/${boardId}/meetings?${query.toString()}`
+      `/boards/${boardId}/meetings?${query.toString()}`,
     );
   },
 
-  getMeetingsByDateRange: async (boardId: string, startDate: string, endDate: string): Promise<MeetingSummary[]> => {
+  getMeetingsByDateRange: async (
+    boardId: string,
+    startDate: string,
+    endDate: string,
+  ): Promise<MeetingSummary[]> => {
     return apiClient.get<MeetingSummary[]>(
-      `/boards/${boardId}/meetings/range?startDate=${startDate}&endDate=${endDate}`
+      `/boards/${boardId}/meetings/range?startDate=${startDate}&endDate=${endDate}`,
     );
   },
 
-  getMeetingDetail: async (boardId: string, meetingId: string): Promise<MeetingDetail> => {
+  getMeetingDetail: async (
+    boardId: string,
+    meetingId: string,
+  ): Promise<MeetingDetail> => {
     return apiClient.get<MeetingDetail>(
-      `/boards/${boardId}/meetings/${meetingId}`
+      `/boards/${boardId}/meetings/${meetingId}`,
     );
   },
 
@@ -2264,12 +2576,9 @@ export const meetingAPI = {
       recurrence_end_date?: string | null;
       recurrence_days_of_week?: number[] | null;
       recurrence_week_of_month?: number | null;
-    }
+    },
   ): Promise<MeetingDetail> => {
-    return apiClient.post<MeetingDetail>(
-      `/boards/${boardId}/meetings`,
-      data
-    );
+    return apiClient.post<MeetingDetail>(`/boards/${boardId}/meetings`, data);
   },
 
   updateMeeting: async (
@@ -2284,56 +2593,76 @@ export const meetingAPI = {
       color?: string;
       recurrence_end_date?: string | null;
     },
-    scope?: 'THIS_ONLY' | 'THIS_AND_FUTURE'
+    scope?: "THIS_ONLY" | "THIS_AND_FUTURE",
   ): Promise<MeetingDetail> => {
-    const query = scope ? `?scope=${scope}` : '';
+    const query = scope ? `?scope=${scope}` : "";
     return apiClient.put<MeetingDetail>(
       `/boards/${boardId}/meetings/${meetingId}${query}`,
-      data
+      data,
     );
   },
 
-  deleteMeeting: async (boardId: string, meetingId: string, scope?: 'THIS_ONLY' | 'THIS_AND_FUTURE'): Promise<{ message: string }> => {
-    const query = scope ? `?scope=${scope}` : '';
+  deleteMeeting: async (
+    boardId: string,
+    meetingId: string,
+    scope?: "THIS_ONLY" | "THIS_AND_FUTURE",
+  ): Promise<{ message: string }> => {
+    const query = scope ? `?scope=${scope}` : "";
     return apiClient.delete<{ message: string }>(
-      `/boards/${boardId}/meetings/${meetingId}${query}`
+      `/boards/${boardId}/meetings/${meetingId}${query}`,
     );
   },
 
-  notifyParticipants: async (boardId: string, meetingId: string): Promise<{ message: string }> => {
+  notifyParticipants: async (
+    boardId: string,
+    meetingId: string,
+  ): Promise<{ message: string }> => {
     return apiClient.post<{ message: string }>(
-      `/boards/${boardId}/meetings/${meetingId}/notify`
+      `/boards/${boardId}/meetings/${meetingId}/notify`,
     );
   },
 
-  aiOrganize: async (boardId: string, meetingId: string, language?: string): Promise<AISuggestionResponse> => {
-    const params = language ? `?language=${encodeURIComponent(language)}` : '';
-    return apiClient.post<AISuggestionResponse>(`/boards/${boardId}/meetings/${meetingId}/ai-organize${params}`);
+  aiOrganize: async (
+    boardId: string,
+    meetingId: string,
+    language?: string,
+  ): Promise<AISuggestionResponse> => {
+    const params = language ? `?language=${encodeURIComponent(language)}` : "";
+    return apiClient.post<AISuggestionResponse>(
+      `/boards/${boardId}/meetings/${meetingId}/ai-organize${params}`,
+    );
   },
 
-  aiApply: async (boardId: string, meetingId: string, data: AIApplyRequest): Promise<AIApplyResult> => {
-    return apiClient.post<AIApplyResult>(`/boards/${boardId}/meetings/${meetingId}/ai-apply`, data);
+  aiApply: async (
+    boardId: string,
+    meetingId: string,
+    data: AIApplyRequest,
+  ): Promise<AIApplyResult> => {
+    return apiClient.post<AIApplyResult>(
+      `/boards/${boardId}/meetings/${meetingId}/ai-apply`,
+      data,
+    );
   },
 
   transcribeAudio: async (
     boardId: string,
     meetingId: string,
-    audioBlob: Blob
+    audioBlob: Blob,
   ): Promise<TranscriptResult> => {
     const formData = new FormData();
-    formData.append('file', audioBlob, 'recording.webm');
+    formData.append("file", audioBlob, "recording.webm");
 
     const response = await authenticatedFetch(
       `${API_BASE_URL}/boards/${boardId}/meetings/${meetingId}/transcribe`,
       {
-        method: 'POST',
+        method: "POST",
         body: formData,
-      }
+      },
     );
 
     if (!response.ok) {
       const errData = await response.json().catch(() => ({
-        code: 'UNKNOWN',
+        code: "UNKNOWN",
         message: response.statusText,
       }));
       throw errData;
@@ -2345,28 +2674,31 @@ export const meetingAPI = {
   updateTranscript: async (
     boardId: string,
     meetingId: string,
-    transcript: string
+    transcript: string,
   ): Promise<TranscriptResult> => {
     return apiClient.put<TranscriptResult>(
       `/boards/${boardId}/meetings/${meetingId}/transcript`,
-      { transcript }
+      { transcript },
     );
   },
 
   updateSpeakerMapping: async (
     boardId: string,
     meetingId: string,
-    speakerMapping: Record<string, string | null>
+    speakerMapping: Record<string, string | null>,
   ): Promise<SpeakerMappingResult> => {
     return apiClient.put<SpeakerMappingResult>(
       `/boards/${boardId}/meetings/${meetingId}/speaker-mapping`,
-      { speaker_mapping: speakerMapping }
+      { speaker_mapping: speakerMapping },
     );
   },
 
-  saveToNote: async (boardId: string, meetingId: string): Promise<NoteDetail> => {
+  saveToNote: async (
+    boardId: string,
+    meetingId: string,
+  ): Promise<NoteDetail> => {
     return apiClient.post<NoteDetail>(
-      `/boards/${boardId}/meetings/${meetingId}/save-to-note`
+      `/boards/${boardId}/meetings/${meetingId}/save-to-note`,
     );
   },
 };
@@ -2381,16 +2713,16 @@ export const boardChecklistAPI = {
     params?: {
       assignee_id?: string;
       is_scheduled?: boolean;
-    }
+    },
   ) => {
     const query = new URLSearchParams();
-    if (params?.assignee_id) query.set('assigneeId', params.assignee_id);
+    if (params?.assignee_id) query.set("assigneeId", params.assignee_id);
     if (params?.is_scheduled !== undefined) {
-      query.set('isScheduled', params.is_scheduled.toString());
+      query.set("isScheduled", params.is_scheduled.toString());
     }
     const queryString = query.toString();
     return apiClient.get<BoardChecklistResponse>(
-      `/boards/${boardId}/checklist-items${queryString ? `?${queryString}` : ''}`
+      `/boards/${boardId}/checklist-items${queryString ? `?${queryString}` : ""}`,
     );
   },
 };
@@ -2412,16 +2744,20 @@ export interface MilestoneAllocationResponse {
   total_allocated_hours: number;
   actual_worked_hours?: number;
   difference?: number;
-  status?: 'OVER' | 'UNDER' | 'NORMAL';
+  status?: "OVER" | "UNDER" | "NORMAL";
 }
 
 export const milestoneAPI = {
   getMilestones: async (boardId: string) => {
-    return apiClient.get<{ milestones: MilestoneSimpleResponse[] }>(`/boards/${boardId}/milestones`);
+    return apiClient.get<{ milestones: MilestoneSimpleResponse[] }>(
+      `/boards/${boardId}/milestones`,
+    );
   },
 
   getMilestone: async (boardId: string, milestoneId: string) => {
-    return apiClient.get<MilestoneDetailResponse>(`/boards/${boardId}/milestones/${milestoneId}`);
+    return apiClient.get<MilestoneDetailResponse>(
+      `/boards/${boardId}/milestones/${milestoneId}`,
+    );
   },
 
   createMilestone: async (
@@ -2432,15 +2768,18 @@ export const milestoneAPI = {
       start_date: string;
       end_date: string;
       feature_ids?: string[];
-    }
+    },
   ) => {
-    return apiClient.post<MilestoneDetailResponse>(`/boards/${boardId}/milestones`, {
-      title: data.title,
-      description: data.description,
-      start_date: data.start_date,
-      end_date: data.end_date,
-      feature_ids: data.feature_ids,
-    });
+    return apiClient.post<MilestoneDetailResponse>(
+      `/boards/${boardId}/milestones`,
+      {
+        title: data.title,
+        description: data.description,
+        start_date: data.start_date,
+        end_date: data.end_date,
+        feature_ids: data.feature_ids,
+      },
+    );
   },
 
   updateMilestone: async (
@@ -2451,36 +2790,52 @@ export const milestoneAPI = {
       description?: string;
       start_date?: string;
       end_date?: string;
-    }
+    },
   ) => {
-    return apiClient.put<MilestoneDetailResponse>(`/boards/${boardId}/milestones/${milestoneId}`, {
-      title: data.title,
-      description: data.description,
-      start_date: data.start_date,
-      end_date: data.end_date,
-    });
+    return apiClient.put<MilestoneDetailResponse>(
+      `/boards/${boardId}/milestones/${milestoneId}`,
+      {
+        title: data.title,
+        description: data.description,
+        start_date: data.start_date,
+        end_date: data.end_date,
+      },
+    );
   },
 
   deleteMilestone: async (boardId: string, milestoneId: string) => {
-    return apiClient.delete<{ message: string }>(`/boards/${boardId}/milestones/${milestoneId}`);
-  },
-
-  addFeatures: async (boardId: string, milestoneId: string, featureIds: string[]) => {
-    return apiClient.post<MilestoneDetailResponse>(`/boards/${boardId}/milestones/${milestoneId}/features`, {
-      feature_ids: featureIds,
-    });
-  },
-
-  removeFeature: async (boardId: string, milestoneId: string, featureId: string) => {
     return apiClient.delete<{ message: string }>(
-      `/boards/${boardId}/milestones/${milestoneId}/features/${featureId}`
+      `/boards/${boardId}/milestones/${milestoneId}`,
+    );
+  },
+
+  addFeatures: async (
+    boardId: string,
+    milestoneId: string,
+    featureIds: string[],
+  ) => {
+    return apiClient.post<MilestoneDetailResponse>(
+      `/boards/${boardId}/milestones/${milestoneId}/features`,
+      {
+        feature_ids: featureIds,
+      },
+    );
+  },
+
+  removeFeature: async (
+    boardId: string,
+    milestoneId: string,
+    featureId: string,
+  ) => {
+    return apiClient.delete<{ message: string }>(
+      `/boards/${boardId}/milestones/${milestoneId}/features/${featureId}`,
     );
   },
 
   // Milestone Allocation APIs
   getAllocations: async (boardId: string, milestoneId: string) => {
     return apiClient.get<{ allocations: MilestoneAllocationResponse[] }>(
-      `/boards/${boardId}/milestones/${milestoneId}/allocations`
+      `/boards/${boardId}/milestones/${milestoneId}/allocations`,
     );
   },
 
@@ -2491,11 +2846,11 @@ export const milestoneAPI = {
       member_id: string;
       working_days: number;
       total_allocated_hours: number;
-    }
+    },
   ) => {
     return apiClient.post<MilestoneAllocationResponse>(
       `/boards/${boardId}/milestones/${milestoneId}/allocations`,
-      data
+      data,
     );
   },
 
@@ -2506,17 +2861,21 @@ export const milestoneAPI = {
     data: {
       working_days?: number;
       total_allocated_hours?: number;
-    }
+    },
   ) => {
     return apiClient.put<MilestoneAllocationResponse>(
       `/boards/${boardId}/milestones/${milestoneId}/allocations/${allocationId}`,
-      data
+      data,
     );
   },
 
-  deleteAllocation: async (boardId: string, milestoneId: string, allocationId: string) => {
+  deleteAllocation: async (
+    boardId: string,
+    milestoneId: string,
+    allocationId: string,
+  ) => {
     return apiClient.delete<{ message: string }>(
-      `/boards/${boardId}/milestones/${milestoneId}/allocations/${allocationId}`
+      `/boards/${boardId}/milestones/${milestoneId}/allocations/${allocationId}`,
     );
   },
 };
@@ -2538,7 +2897,7 @@ export interface TestDataResponse {
 
 export const testDataAPI = {
   createTestBoard: async () => {
-    return apiClient.post<TestDataResponse>('/test/create-board');
+    return apiClient.post<TestDataResponse>("/test/create-board");
   },
 };
 
@@ -2592,16 +2951,20 @@ export interface TimeblockDataResponse {
 
 export const dailyChecklistAPI = {
   // 타임블록 모달용 통합 데이터 조회
-  getTimeblockData: async (boardId: string, date: string, assigneeId: string) => {
+  getTimeblockData: async (
+    boardId: string,
+    date: string,
+    assigneeId: string,
+  ) => {
     return apiClient.get<TimeblockDataResponse>(
-      `/boards/${boardId}/daily-checklists/timeblock-data?date=${date}&assigneeId=${assigneeId}`
+      `/boards/${boardId}/daily-checklists/timeblock-data?date=${date}&assigneeId=${assigneeId}`,
     );
   },
 
   // 일일 데일리 체크리스트 조회
   getDailyChecklist: async (boardId: string, date: string) => {
     return apiClient.get<DailyChecklistResponse>(
-      `/boards/${boardId}/daily-checklists?date=${date}`
+      `/boards/${boardId}/daily-checklists?date=${date}`,
     );
   },
 
@@ -2612,11 +2975,11 @@ export const dailyChecklistAPI = {
       checklist_item_id: string;
       assignee_id: string;
       assigned_date: string;
-    }
+    },
   ) => {
     return apiClient.post<DailyChecklistItemResponse>(
       `/boards/${boardId}/daily-checklists`,
-      data
+      data,
     );
   },
 
@@ -2628,18 +2991,23 @@ export const dailyChecklistAPI = {
       title: string;
       assignee_id: string;
       assigned_date: string;
-    }
+    },
   ) => {
     return apiClient.post<DailyChecklistItemResponse>(
       `/boards/${boardId}/daily-checklists/with-item`,
-      data
+      data,
     );
   },
 
   // 날짜 범위 내 체크리스트 조회 (캘린더용)
-  getChecklistRange: async (boardId: string, startDate: string, endDate: string, assigneeId: string) => {
+  getChecklistRange: async (
+    boardId: string,
+    startDate: string,
+    endDate: string,
+    assigneeId: string,
+  ) => {
     return apiClient.get<DailyChecklistItem[]>(
-      `/boards/${boardId}/daily-checklists/range?startDate=${startDate}&endDate=${endDate}&assigneeId=${assigneeId}`
+      `/boards/${boardId}/daily-checklists/range?startDate=${startDate}&endDate=${endDate}&assigneeId=${assigneeId}`,
     );
   },
 
@@ -2647,18 +3015,18 @@ export const dailyChecklistAPI = {
   updatePosition: async (
     boardId: string,
     itemId: string,
-    data: { position: number }
+    data: { position: number },
   ) => {
     return apiClient.put<DailyChecklistItemResponse>(
       `/boards/${boardId}/daily-checklists/${itemId}/position`,
-      data
+      data,
     );
   },
 
   // 데일리 체크리스트에서 제거 (원본 체크리스트는 유지)
   removeItem: async (boardId: string, itemId: string) => {
     return apiClient.delete<{ message: string }>(
-      `/boards/${boardId}/daily-checklists/${itemId}`
+      `/boards/${boardId}/daily-checklists/${itemId}`,
     );
   },
 };
@@ -2781,7 +3149,7 @@ export interface MilestoneHealthResponse {
   };
   progress_percentage: number;
   estimated_completion_date: string | null;
-  status: 'ON_TRACK' | 'SLOW' | 'AT_RISK' | 'OVERDUE';
+  status: "ON_TRACK" | "SLOW" | "AT_RISK" | "OVERDUE";
   days_remaining: number;
   days_overdue: number;
   velocity: {
@@ -2817,7 +3185,7 @@ export interface MemberProductivityResponse {
   total_checklists: number;
   completed_checklists: number;
   checklist_completion_rate: number;
-  status: 'NORMAL' | 'NEEDS_ATTENTION' | 'COMPLETED';
+  status: "NORMAL" | "NEEDS_ATTENTION" | "COMPLETED";
   in_progress_task_details: {
     task_id: string;
     task_title: string;
@@ -2981,26 +3349,26 @@ export const statisticsAPI = {
       feature_ids?: string[];
       member_ids?: string[];
       tag_ids?: string[];
-    }
+    },
   ) => {
     const query = new URLSearchParams();
-    if (params?.start_date) query.set('start_date', params.start_date);
-    if (params?.end_date) query.set('end_date', params.end_date);
+    if (params?.start_date) query.set("start_date", params.start_date);
+    if (params?.end_date) query.set("end_date", params.end_date);
     if (params?.milestone_ids?.length) {
-      params.milestone_ids.forEach(id => query.append('milestone_ids', id));
+      params.milestone_ids.forEach((id) => query.append("milestone_ids", id));
     }
     if (params?.feature_ids?.length) {
-      params.feature_ids.forEach(id => query.append('feature_ids', id));
+      params.feature_ids.forEach((id) => query.append("feature_ids", id));
     }
     if (params?.member_ids?.length) {
-      params.member_ids.forEach(id => query.append('member_ids', id));
+      params.member_ids.forEach((id) => query.append("member_ids", id));
     }
     if (params?.tag_ids?.length) {
-      params.tag_ids.forEach(id => query.append('tag_ids', id));
+      params.tag_ids.forEach((id) => query.append("tag_ids", id));
     }
     const queryString = query.toString();
     return apiClient.get<BoardStatisticsResponse>(
-      `/boards/${boardId}/statistics${queryString ? `?${queryString}` : ''}`
+      `/boards/${boardId}/statistics${queryString ? `?${queryString}` : ""}`,
     );
   },
 
@@ -3010,14 +3378,14 @@ export const statisticsAPI = {
     params?: {
       start_date?: string;
       end_date?: string;
-    }
+    },
   ) => {
     const query = new URLSearchParams();
-    if (params?.start_date) query.set('start_date', params.start_date);
-    if (params?.end_date) query.set('end_date', params.end_date);
+    if (params?.start_date) query.set("start_date", params.start_date);
+    if (params?.end_date) query.set("end_date", params.end_date);
     const queryString = query.toString();
     return apiClient.get<PersonalStatisticsResponse>(
-      `/boards/${boardId}/statistics/personal${queryString ? `?${queryString}` : ''}`
+      `/boards/${boardId}/statistics/personal${queryString ? `?${queryString}` : ""}`,
     );
   },
 
@@ -3028,26 +3396,26 @@ export const statisticsAPI = {
       milestone_id?: string;
       stagnant_task_days?: number;
       stuck_checklist_days?: number;
-    }
+    },
   ) => {
     const query = new URLSearchParams();
-    if (params?.milestone_id) query.set('milestone_id', params.milestone_id);
+    if (params?.milestone_id) query.set("milestone_id", params.milestone_id);
     if (params?.stagnant_task_days !== undefined) {
-      query.set('stagnant_task_days', params.stagnant_task_days.toString());
+      query.set("stagnant_task_days", params.stagnant_task_days.toString());
     }
     if (params?.stuck_checklist_days !== undefined) {
-      query.set('stuck_checklist_days', params.stuck_checklist_days.toString());
+      query.set("stuck_checklist_days", params.stuck_checklist_days.toString());
     }
     const queryString = query.toString();
     return apiClient.get<ManagementStatisticsResponse>(
-      `/boards/${boardId}/statistics/management${queryString ? `?${queryString}` : ''}`
+      `/boards/${boardId}/statistics/management${queryString ? `?${queryString}` : ""}`,
     );
   },
 
   // 가중치 레벨 설정 조회
   getWeightLevels: async (boardId: string) => {
     return apiClient.get<BoardWeightSettingsResponse>(
-      `/boards/${boardId}/weight-levels`
+      `/boards/${boardId}/weight-levels`,
     );
   },
 
@@ -3063,11 +3431,11 @@ export const statisticsAPI = {
         position: number;
       }[];
       default_level_id?: string;
-    }
+    },
   ) => {
     return apiClient.put<BoardWeightSettingsResponse>(
       `/boards/${boardId}/weight-levels`,
-      data
+      data,
     );
   },
 
@@ -3075,19 +3443,20 @@ export const statisticsAPI = {
   setTaskWeight: async (
     boardId: string,
     taskId: string,
-    weightLevelId: string
+    weightLevelId: string,
   ) => {
     return apiClient.patch<{ task_id: string; weight_level_id: string }>(
       `/boards/${boardId}/tasks/${taskId}/weight`,
-      { weight_level_id: weightLevelId }
+      { weight_level_id: weightLevelId },
     );
   },
 
   // Task 가중치 조회
   getTaskWeight: async (boardId: string, taskId: string) => {
-    return apiClient.get<{ task_id: string; weight_level: WeightLevelResponse | null }>(
-      `/boards/${boardId}/tasks/${taskId}/weight`
-    );
+    return apiClient.get<{
+      task_id: string;
+      weight_level: WeightLevelResponse | null;
+    }>(`/boards/${boardId}/tasks/${taskId}/weight`);
   },
 };
 
@@ -3098,8 +3467,8 @@ export interface AdminUserSummary {
   email: string;
   name: string;
   profile_image?: string | null;
-  system_role: 'USER' | 'TESTER' | 'ADMIN';
-  provider: 'email' | 'google';
+  system_role: "USER" | "TESTER" | "ADMIN";
+  provider: "email" | "google";
   email_verified: boolean;
   created_at: string;
   board_count: number;
@@ -3132,8 +3501,8 @@ export interface AdminBoardSummary {
   id: string;
   name: string;
   description?: string | null;
-  tier: 'FREE' | 'TRIAL' | 'STANDARD' | 'PREMIUM' | 'ENTERPRISE';
-  board_type?: 'TEAM' | 'PERSONAL';
+  tier: "FREE" | "TRIAL" | "STANDARD" | "PREMIUM" | "ENTERPRISE";
+  board_type?: "TEAM" | "PERSONAL";
   owner_id: string;
   owner_name: string;
   owner_email: string;
@@ -3150,13 +3519,13 @@ export interface AdminBoardDetail extends AdminBoardSummary {
     name: string;
     email: string;
     profile_image?: string | null;
-    role: 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER';
+    role: "OWNER" | "ADMIN" | "MEMBER" | "VIEWER";
     joined_at: string;
   }[];
   seat_count?: number | null;
   subscription?: {
     id: string;
-    status: 'ACTIVE' | 'CANCELLED' | 'EXPIRED' | 'PENDING';
+    status: "ACTIVE" | "CANCELLED" | "EXPIRED" | "PENDING";
     started_at: string;
     expires_at?: string | null;
   } | null;
@@ -3251,7 +3620,7 @@ export interface AnnouncementDetail {
   id: string;
   title: string;
   content: string;
-  type: 'POPUP' | 'BANNER' | 'NOTICE';
+  type: "POPUP" | "BANNER" | "NOTICE";
   is_active: boolean;
   start_at: string | null;
   end_at: string | null;
@@ -3281,8 +3650,8 @@ export interface AdminSubscriptionSummary {
   owner_id: string;
   owner_name: string;
   owner_email: string;
-  tier: 'FREE' | 'STANDARD' | 'PREMIUM' | 'ENTERPRISE';
-  status: 'ACTIVE' | 'CANCELLED' | 'EXPIRED' | 'PENDING';
+  tier: "FREE" | "STANDARD" | "PREMIUM" | "ENTERPRISE";
+  status: "ACTIVE" | "CANCELLED" | "EXPIRED" | "PENDING";
   started_at: string;
   expires_at?: string | null;
 }
@@ -3310,13 +3679,19 @@ export interface SubscriptionListResponse {
 
 export const adminAPI = {
   // 사용자 목록 조회
-  getUsers: async (params: { page?: number; size?: number; search?: string }) => {
+  getUsers: async (params: {
+    page?: number;
+    size?: number;
+    search?: string;
+  }) => {
     const searchParams = new URLSearchParams();
-    if (params.page !== undefined) searchParams.append('page', params.page.toString());
-    if (params.size !== undefined) searchParams.append('size', params.size.toString());
-    if (params.search) searchParams.append('search', params.search);
+    if (params.page !== undefined)
+      searchParams.append("page", params.page.toString());
+    if (params.size !== undefined)
+      searchParams.append("size", params.size.toString());
+    if (params.search) searchParams.append("search", params.search);
     return apiClient.get<UserListResponse>(
-      `/admin/users?${searchParams.toString()}`
+      `/admin/users?${searchParams.toString()}`,
     );
   },
 
@@ -3326,43 +3701,69 @@ export const adminAPI = {
   },
 
   // 사용자 정보 수정
-  updateUser: async (userId: string, data: { system_role?: 'USER' | 'TESTER' | 'ADMIN' }) => {
+  updateUser: async (
+    userId: string,
+    data: { system_role?: "USER" | "TESTER" | "ADMIN" },
+  ) => {
     return apiClient.patch<AdminUserSummary>(`/admin/users/${userId}`, data);
   },
 
   // 사용자의 보드 목록 조회
   getUserBoards: async (userId: string) => {
-    return apiClient.get<{ boards: AdminBoardSummary[] }>(`/admin/users/${userId}/boards`);
+    return apiClient.get<{ boards: AdminBoardSummary[] }>(
+      `/admin/users/${userId}/boards`,
+    );
   },
 
   // 사용자 비활성화
   deactivateUser: async (userId: string, reason?: string) => {
-    return apiClient.post<AdminUserSummary>(`/admin/users/${userId}/deactivate`, { reason });
+    return apiClient.post<AdminUserSummary>(
+      `/admin/users/${userId}/deactivate`,
+      { reason },
+    );
   },
 
   // 사용자 활성화
   activateUser: async (userId: string) => {
-    return apiClient.post<AdminUserSummary>(`/admin/users/${userId}/activate`, {});
+    return apiClient.post<AdminUserSummary>(
+      `/admin/users/${userId}/activate`,
+      {},
+    );
   },
 
   // 이메일 강제 인증
   verifyUserEmail: async (userId: string) => {
-    return apiClient.post<AdminUserSummary>(`/admin/users/${userId}/verify-email`, {});
+    return apiClient.post<AdminUserSummary>(
+      `/admin/users/${userId}/verify-email`,
+      {},
+    );
   },
 
   // 비밀번호 리셋 메일 발송
   sendPasswordResetEmail: async (userId: string) => {
-    return apiClient.post<{ message: string }>(`/admin/users/${userId}/send-password-reset`, {});
+    return apiClient.post<{ message: string }>(
+      `/admin/users/${userId}/send-password-reset`,
+      {},
+    );
   },
 
   // Personal Board 생성
   createPersonalBoard: async (userId: string) => {
-    return apiClient.post<{ message: string }>(`/admin/users/${userId}/create-personal-board`, {});
+    return apiClient.post<{ message: string }>(
+      `/admin/users/${userId}/create-personal-board`,
+      {},
+    );
   },
 
   // 유저 개인 AI 크레딧 조정
-  adjustPersonalAiCredits: async (userId: string, data: { personal_ai_credits?: number; add_bonus_credits?: number }) => {
-    return apiClient.patch<AdminUserDetail>(`/admin/users/${userId}/personal-ai-credits`, data);
+  adjustPersonalAiCredits: async (
+    userId: string,
+    data: { personal_ai_credits?: number; add_bonus_credits?: number },
+  ) => {
+    return apiClient.patch<AdminUserDetail>(
+      `/admin/users/${userId}/personal-ai-credits`,
+      data,
+    );
   },
 
   // 사용자 영구 삭제
@@ -3372,19 +3773,29 @@ export const adminAPI = {
 
   // 사용자를 보드에서 제거
   removeUserFromBoard: async (userId: string, boardId: string) => {
-    return apiClient.delete<{ message: string }>(`/admin/users/${userId}/boards/${boardId}`);
+    return apiClient.delete<{ message: string }>(
+      `/admin/users/${userId}/boards/${boardId}`,
+    );
   },
 
   // 보드 목록 조회
-  getBoards: async (params: { page?: number; size?: number; search?: string; tier?: string; board_type?: string }) => {
+  getBoards: async (params: {
+    page?: number;
+    size?: number;
+    search?: string;
+    tier?: string;
+    board_type?: string;
+  }) => {
     const searchParams = new URLSearchParams();
-    if (params.page !== undefined) searchParams.append('page', params.page.toString());
-    if (params.size !== undefined) searchParams.append('size', params.size.toString());
-    if (params.search) searchParams.append('search', params.search);
-    if (params.tier) searchParams.append('tier', params.tier);
-    if (params.board_type) searchParams.append('board_type', params.board_type);
+    if (params.page !== undefined)
+      searchParams.append("page", params.page.toString());
+    if (params.size !== undefined)
+      searchParams.append("size", params.size.toString());
+    if (params.search) searchParams.append("search", params.search);
+    if (params.tier) searchParams.append("tier", params.tier);
+    if (params.board_type) searchParams.append("board_type", params.board_type);
     return apiClient.get<BoardListResponse>(
-      `/admin/boards?${searchParams.toString()}`
+      `/admin/boards?${searchParams.toString()}`,
     );
   },
 
@@ -3400,63 +3811,102 @@ export const adminAPI = {
 
   // 보드 복구
   restoreBoard: async (boardId: string) => {
-    return apiClient.post<{ message: string }>(`/admin/boards/${boardId}/restore`);
+    return apiClient.post<{ message: string }>(
+      `/admin/boards/${boardId}/restore`,
+    );
   },
 
   // 보드 영구 삭제
   permanentlyDeleteBoard: async (boardId: string) => {
-    return apiClient.delete<{ message: string }>(`/admin/boards/${boardId}/permanent`);
+    return apiClient.delete<{ message: string }>(
+      `/admin/boards/${boardId}/permanent`,
+    );
   },
 
   // 삭제된 보드 목록 조회
-  getDeletedBoards: async (params: { page?: number; size?: number; search?: string }) => {
+  getDeletedBoards: async (params: {
+    page?: number;
+    size?: number;
+    search?: string;
+  }) => {
     const searchParams = new URLSearchParams();
-    if (params.page !== undefined) searchParams.append('page', params.page.toString());
-    if (params.size !== undefined) searchParams.append('size', params.size.toString());
-    if (params.search) searchParams.append('search', params.search);
+    if (params.page !== undefined)
+      searchParams.append("page", params.page.toString());
+    if (params.size !== undefined)
+      searchParams.append("size", params.size.toString());
+    if (params.search) searchParams.append("search", params.search);
     return apiClient.get<BoardListResponse>(
-      `/admin/boards/deleted?${searchParams.toString()}`
+      `/admin/boards/deleted?${searchParams.toString()}`,
     );
   },
 
   // 보드 이름 변경
   updateBoardName: async (boardId: string, name: string) => {
-    return apiClient.patch<AdminBoardDetail>(`/admin/boards/${boardId}/name`, { name });
+    return apiClient.patch<AdminBoardDetail>(`/admin/boards/${boardId}/name`, {
+      name,
+    });
   },
 
   // 보드 티어 변경
-  updateBoardTier: async (boardId: string, tier: 'FREE' | 'STANDARD' | 'PREMIUM' | 'ENTERPRISE') => {
-    return apiClient.patch<AdminBoardSummary>(`/admin/boards/${boardId}/tier`, { tier });
+  updateBoardTier: async (
+    boardId: string,
+    tier: "FREE" | "STANDARD" | "PREMIUM" | "ENTERPRISE",
+  ) => {
+    return apiClient.patch<AdminBoardSummary>(`/admin/boards/${boardId}/tier`, {
+      tier,
+    });
   },
 
   // 소유권 이전
   transferBoardOwnership: async (boardId: string, newOwnerId: string) => {
-    return apiClient.post<AdminBoardDetail>(`/admin/boards/${boardId}/transfer-ownership`, { new_owner_id: newOwnerId });
+    return apiClient.post<AdminBoardDetail>(
+      `/admin/boards/${boardId}/transfer-ownership`,
+      { new_owner_id: newOwnerId },
+    );
   },
 
   // Trial 기간 연장
   extendTrial: async (boardId: string, extendDays: number) => {
-    return apiClient.patch<AdminBoardSummary>(`/admin/boards/${boardId}/extend-trial`, { extendDays });
+    return apiClient.patch<AdminBoardSummary>(
+      `/admin/boards/${boardId}/extend-trial`,
+      { extendDays },
+    );
   },
 
   // 멤버 역할 변경
-  updateMemberRole: async (boardId: string, memberId: string, role: 'ADMIN' | 'MEMBER' | 'VIEWER') => {
-    return apiClient.patch<AdminBoardDetail>(`/admin/boards/${boardId}/members/${memberId}/role`, { role });
+  updateMemberRole: async (
+    boardId: string,
+    memberId: string,
+    role: "ADMIN" | "MEMBER" | "VIEWER",
+  ) => {
+    return apiClient.patch<AdminBoardDetail>(
+      `/admin/boards/${boardId}/members/${memberId}/role`,
+      { role },
+    );
   },
 
   // 시트 수 변경
   updateSeatCount: async (boardId: string, seatCount: number) => {
-    return apiClient.patch<AdminBoardDetail>(`/admin/boards/${boardId}/seat-count`, { seat_count: seatCount });
+    return apiClient.patch<AdminBoardDetail>(
+      `/admin/boards/${boardId}/seat-count`,
+      { seat_count: seatCount },
+    );
   },
 
   // AI 크레딧 조정
-  adjustAiCredits: async (boardId: string, data: { monthly_ai_credits?: number; add_purchased_credits?: number }) => {
-    return apiClient.patch<AdminBoardDetail>(`/admin/boards/${boardId}/ai-credits`, data);
+  adjustAiCredits: async (
+    boardId: string,
+    data: { monthly_ai_credits?: number; add_purchased_credits?: number },
+  ) => {
+    return apiClient.patch<AdminBoardDetail>(
+      `/admin/boards/${boardId}/ai-credits`,
+      data,
+    );
   },
 
   // 통계 조회
   getStatistics: async () => {
-    return apiClient.get<AdminStatistics>('/admin/statistics');
+    return apiClient.get<AdminStatistics>("/admin/statistics");
   },
 
   // Analytics: 가입자 추이
@@ -3466,12 +3916,16 @@ export const adminAPI = {
 
   // Analytics: DAU/WAU/MAU
   getActiveUserStats: async (days: number = 30) => {
-    return apiClient.get<ActiveUserStats>(`/admin/statistics/active-users?days=${days}`);
+    return apiClient.get<ActiveUserStats>(
+      `/admin/statistics/active-users?days=${days}`,
+    );
   },
 
   // Analytics: 결제 전환율
   getConversionStats: async (days: number = 365) => {
-    return apiClient.get<ConversionStats>(`/admin/statistics/conversion?days=${days}`);
+    return apiClient.get<ConversionStats>(
+      `/admin/statistics/conversion?days=${days}`,
+    );
   },
 
   // Analytics: Diary 통계
@@ -3481,48 +3935,58 @@ export const adminAPI = {
 
   // Analytics: Personal → Team 전환 통계
   getPersonalConversionStats: async (days: number = 365) => {
-    return apiClient.get<PersonalConversionStats>(`/admin/statistics/personal-conversion?days=${days}`);
+    return apiClient.get<PersonalConversionStats>(
+      `/admin/statistics/personal-conversion?days=${days}`,
+    );
   },
 
   // 구독 목록 조회
   getSubscriptions: async (params: { page?: number; size?: number }) => {
     const searchParams = new URLSearchParams();
-    if (params.page !== undefined) searchParams.append('page', params.page.toString());
-    if (params.size !== undefined) searchParams.append('size', params.size.toString());
+    if (params.page !== undefined)
+      searchParams.append("page", params.page.toString());
+    if (params.size !== undefined)
+      searchParams.append("size", params.size.toString());
     return apiClient.get<SubscriptionListResponse>(
-      `/admin/subscriptions?${searchParams.toString()}`
+      `/admin/subscriptions?${searchParams.toString()}`,
     );
   },
 
   // 공지사항 관리
   getAnnouncements: async () => {
-    return apiClient.get<AnnouncementDetail[]>('/admin/announcements');
+    return apiClient.get<AnnouncementDetail[]>("/admin/announcements");
   },
 
   createAnnouncement: async (data: {
     title: string;
     content?: string;
-    type?: 'POPUP' | 'BANNER' | 'NOTICE';
+    type?: "POPUP" | "BANNER" | "NOTICE";
     is_active?: boolean;
     start_at?: string | null;
     end_at?: string | null;
     priority?: number;
     target_role?: string | null;
   }) => {
-    return apiClient.post<AnnouncementDetail>('/admin/announcements', data);
+    return apiClient.post<AnnouncementDetail>("/admin/announcements", data);
   },
 
-  updateAnnouncement: async (id: string, data: {
-    title: string;
-    content?: string;
-    type?: 'POPUP' | 'BANNER' | 'NOTICE';
-    is_active?: boolean;
-    start_at?: string | null;
-    end_at?: string | null;
-    priority?: number;
-    target_role?: string | null;
-  }) => {
-    return apiClient.put<AnnouncementDetail>(`/admin/announcements/${id}`, data);
+  updateAnnouncement: async (
+    id: string,
+    data: {
+      title: string;
+      content?: string;
+      type?: "POPUP" | "BANNER" | "NOTICE";
+      is_active?: boolean;
+      start_at?: string | null;
+      end_at?: string | null;
+      priority?: number;
+      target_role?: string | null;
+    },
+  ) => {
+    return apiClient.put<AnnouncementDetail>(
+      `/admin/announcements/${id}`,
+      data,
+    );
   },
 
   deleteAnnouncement: async (id: string) => {
@@ -3530,12 +3994,15 @@ export const adminAPI = {
   },
 
   bulkCreatePersonalBoards: async () => {
-    return apiClient.post<BulkCreateResult>('/admin/system/bulk-create-personal-boards', {});
+    return apiClient.post<BulkCreateResult>(
+      "/admin/system/bulk-create-personal-boards",
+      {},
+    );
   },
 
   // 점검 모드
   getMaintenanceStatus: async () => {
-    return apiClient.get<MaintenanceStatus>('/admin/system/maintenance');
+    return apiClient.get<MaintenanceStatus>("/admin/system/maintenance");
   },
 
   setMaintenanceMode: async (data: {
@@ -3543,30 +4010,44 @@ export const adminAPI = {
     message?: string;
     estimated_end_at?: string | null;
   }) => {
-    return apiClient.post<MaintenanceStatus>('/admin/system/maintenance', data);
+    return apiClient.post<MaintenanceStatus>("/admin/system/maintenance", data);
   },
 
   // 문의 관리
-  getInquiries: async (params: { page?: number; size?: number; status?: string }) => {
+  getInquiries: async (params: {
+    page?: number;
+    size?: number;
+    status?: string;
+  }) => {
     const searchParams = new URLSearchParams();
-    if (params.page !== undefined) searchParams.append('page', params.page.toString());
-    if (params.size !== undefined) searchParams.append('size', params.size.toString());
-    if (params.status) searchParams.append('status', params.status);
-    return apiClient.get<import('../types').InquiryListResponse>(
-      `/admin/inquiries?${searchParams.toString()}`
+    if (params.page !== undefined)
+      searchParams.append("page", params.page.toString());
+    if (params.size !== undefined)
+      searchParams.append("size", params.size.toString());
+    if (params.status) searchParams.append("status", params.status);
+    return apiClient.get<import("../types").InquiryListResponse>(
+      `/admin/inquiries?${searchParams.toString()}`,
     );
   },
 
   getInquiryDetail: async (inquiryId: string) => {
-    return apiClient.get<import('../types').InquiryDetail>(`/admin/inquiries/${inquiryId}`);
+    return apiClient.get<import("../types").InquiryDetail>(
+      `/admin/inquiries/${inquiryId}`,
+    );
   },
 
   replyToInquiry: async (inquiryId: string, content: string) => {
-    return apiClient.post<import('../types').InquiryReply>(`/admin/inquiries/${inquiryId}/reply`, { content });
+    return apiClient.post<import("../types").InquiryReply>(
+      `/admin/inquiries/${inquiryId}/reply`,
+      { content },
+    );
   },
 
   updateInquiryStatus: async (inquiryId: string, status: string) => {
-    return apiClient.patch<import('../types').InquiryDetail>(`/admin/inquiries/${inquiryId}/status`, { status });
+    return apiClient.patch<import("../types").InquiryDetail>(
+      `/admin/inquiries/${inquiryId}/status`,
+      { status },
+    );
   },
 };
 
@@ -3575,35 +4056,44 @@ export const adminAPI = {
 // ========================================
 
 export const inquiryAPI = {
-  createInquiry: async (data: { title: string; content: string; fileKeys?: string[] }) => {
-    return apiClient.post<import('../types').InquiryDetail>('/inquiries', data);
+  createInquiry: async (data: {
+    title: string;
+    content: string;
+    fileKeys?: string[];
+  }) => {
+    return apiClient.post<import("../types").InquiryDetail>("/inquiries", data);
   },
 
   getMyInquiries: async () => {
-    return apiClient.get<import('../types').InquirySummary[]>('/inquiries');
+    return apiClient.get<import("../types").InquirySummary[]>("/inquiries");
   },
 
   getInquiry: async (inquiryId: string) => {
-    return apiClient.get<import('../types').InquiryDetail>(`/inquiries/${inquiryId}`);
+    return apiClient.get<import("../types").InquiryDetail>(
+      `/inquiries/${inquiryId}`,
+    );
   },
 
   replyToInquiry: async (inquiryId: string, content: string) => {
-    return apiClient.post<import('../types').InquiryReply>(`/inquiries/${inquiryId}/replies`, { content });
+    return apiClient.post<import("../types").InquiryReply>(
+      `/inquiries/${inquiryId}/replies`,
+      { content },
+    );
   },
 
   getUnreadReplyCount: async () => {
-    return apiClient.get<number>('/inquiries/unread-count');
+    return apiClient.get<number>("/inquiries/unread-count");
   },
 };
 
 // System API (공개)
 export const systemAPI = {
   getStatus: async () => {
-    return apiClient.get<MaintenanceStatus>('/system/status');
+    return apiClient.get<MaintenanceStatus>("/system/status");
   },
 
   getActiveAnnouncements: async () => {
-    return apiClient.get<AnnouncementDetail[]>('/system/announcements/active');
+    return apiClient.get<AnnouncementDetail[]>("/system/announcements/active");
   },
 };
 
@@ -3612,11 +4102,15 @@ export const systemAPI = {
 // ========================================
 
 export const notificationAPI = {
-  getNotifications: async (params?: { boardId?: string; cursor?: string; limit?: number }) => {
+  getNotifications: async (params?: {
+    boardId?: string;
+    cursor?: string;
+    limit?: number;
+  }) => {
     const query = new URLSearchParams();
-    if (params?.boardId) query.set('boardId', params.boardId);
-    if (params?.cursor) query.set('cursor', params.cursor);
-    if (params?.limit) query.set('limit', params.limit.toString());
+    if (params?.boardId) query.set("boardId", params.boardId);
+    if (params?.cursor) query.set("cursor", params.cursor);
+    if (params?.limit) query.set("limit", params.limit.toString());
     const queryString = query.toString();
     return apiClient.get<{
       notifications: Array<{
@@ -3628,7 +4122,11 @@ export const notificationAPI = {
         board_name: string | null;
         task_id: string | null;
         comment_id: string | null;
-        sender: { id: string; name: string | null; profile_image: string | null };
+        sender: {
+          id: string;
+          name: string | null;
+          profile_image: string | null;
+        };
         read: boolean;
         read_at: string | null;
         created_at: string;
@@ -3636,26 +4134,35 @@ export const notificationAPI = {
       unread_count: number;
       has_more: boolean;
       next_cursor: string | null;
-    }>(`/notifications${queryString ? `?${queryString}` : ''}`);
+    }>(`/notifications${queryString ? `?${queryString}` : ""}`);
   },
 
   getUnreadCount: async (boardId?: string) => {
-    const query = boardId ? `?boardId=${boardId}` : '';
-    return apiClient.get<{ unread_count: number }>(`/notifications/unread-count${query}`);
+    const query = boardId ? `?boardId=${boardId}` : "";
+    return apiClient.get<{ unread_count: number }>(
+      `/notifications/unread-count${query}`,
+    );
   },
 
   getUnreadCounts: async (boardId?: string) => {
-    const query = boardId ? `?boardId=${boardId}` : '';
-    return apiClient.get<{ unread_count: number; unread_inquiry_count: number }>(`/notifications/unread-counts${query}`);
+    const query = boardId ? `?boardId=${boardId}` : "";
+    return apiClient.get<{
+      unread_count: number;
+      unread_inquiry_count: number;
+    }>(`/notifications/unread-counts${query}`);
   },
 
   markAsRead: async (notificationId: string) => {
-    return apiClient.put<Record<string, unknown>>(`/notifications/${notificationId}/read`);
+    return apiClient.put<Record<string, unknown>>(
+      `/notifications/${notificationId}/read`,
+    );
   },
 
   markAllAsRead: async (boardId?: string) => {
-    const query = boardId ? `?boardId=${boardId}` : '';
-    return apiClient.put<{ message: string }>(`/notifications/read-all${query}`);
+    const query = boardId ? `?boardId=${boardId}` : "";
+    return apiClient.put<{ message: string }>(
+      `/notifications/read-all${query}`,
+    );
   },
 };
 
@@ -3701,14 +4208,17 @@ export const notificationPreferenceAPI = {
     }>(`/boards/${boardId}/notification-preferences/me`);
   },
 
-  upsertMyPreferences: async (boardId: string, data: {
-    commentMentionEnabled?: boolean;
-    checklistAssignedEnabled?: boolean;
-    taskCommentEnabled?: boolean;
-    slackCommentMentionEnabled?: boolean;
-    slackChecklistAssignedEnabled?: boolean;
-    slackTaskCommentEnabled?: boolean;
-  }) => {
+  upsertMyPreferences: async (
+    boardId: string,
+    data: {
+      commentMentionEnabled?: boolean;
+      checklistAssignedEnabled?: boolean;
+      taskCommentEnabled?: boolean;
+      slackCommentMentionEnabled?: boolean;
+      slackChecklistAssignedEnabled?: boolean;
+      slackTaskCommentEnabled?: boolean;
+    },
+  ) => {
     return apiClient.put(`/boards/${boardId}/notification-preferences/me`, {
       comment_mention_enabled: data.commentMentionEnabled,
       checklist_assigned_enabled: data.checklistAssignedEnabled,
@@ -3722,32 +4232,48 @@ export const notificationPreferenceAPI = {
 
 export const slackWebhookAPI = {
   getMemberStatuses: async (boardId: string) => {
-    return apiClient.get<SlackWebhookMemberStatus[]>(`/boards/${boardId}/slack-webhook/statuses`);
+    return apiClient.get<SlackWebhookMemberStatus[]>(
+      `/boards/${boardId}/slack-webhook/statuses`,
+    );
   },
 
   getMyConfig: async (boardId: string) => {
-    return apiClient.get<SlackWebhookConfig>(`/boards/${boardId}/slack-webhook/me`);
+    return apiClient.get<SlackWebhookConfig>(
+      `/boards/${boardId}/slack-webhook/me`,
+    );
   },
 
-  upsertMyConfig: async (boardId: string, data: {
-    webhookUrl?: string;
-    channelName?: string;
-    enabled?: boolean;
-  }) => {
-    return apiClient.put<SlackWebhookConfig>(`/boards/${boardId}/slack-webhook/me`, {
-      webhook_url: data.webhookUrl || undefined,
-      channel_name: data.channelName,
-      enabled: data.enabled,
-    });
+  upsertMyConfig: async (
+    boardId: string,
+    data: {
+      webhookUrl?: string;
+      channelName?: string;
+      enabled?: boolean;
+    },
+  ) => {
+    return apiClient.put<SlackWebhookConfig>(
+      `/boards/${boardId}/slack-webhook/me`,
+      {
+        webhook_url: data.webhookUrl || undefined,
+        channel_name: data.channelName,
+        enabled: data.enabled,
+      },
+    );
   },
 
   deleteMyConfig: async (boardId: string) => {
-    return apiClient.delete<{ message: string }>(`/boards/${boardId}/slack-webhook/me`);
+    return apiClient.delete<{ message: string }>(
+      `/boards/${boardId}/slack-webhook/me`,
+    );
   },
 
   testMyWebhook: async (boardId: string) => {
-    const brandName = window.location.hostname.includes('milkyway') ? 'Milkyway' : 'BRIDGE SPOTS';
-    return apiClient.post<SlackTestResult>(`/boards/${boardId}/slack-webhook/me/test?brandName=${encodeURIComponent(brandName)}`);
+    const brandName = window.location.hostname.includes("milkyway")
+      ? "Milkyway"
+      : "BRIDGE SPOTS";
+    return apiClient.post<SlackTestResult>(
+      `/boards/${boardId}/slack-webhook/me/test?brandName=${encodeURIComponent(brandName)}`,
+    );
   },
 };
 
@@ -3755,20 +4281,23 @@ export const slackWebhookAPI = {
 // Daily Standup Config API
 // ========================================
 
-import type { StandupConfig } from '../types';
+import type { StandupConfig } from "../types";
 
 export const standupConfigAPI = {
   getConfig: async (boardId: string) => {
     return apiClient.get<StandupConfig>(`/boards/${boardId}/standup-config`);
   },
 
-  upsertConfig: async (boardId: string, data: {
-    enabled: boolean;
-    sendHour: number;
-    sendMinute: number;
-    timezone: string;
-    language?: string;
-  }) => {
+  upsertConfig: async (
+    boardId: string,
+    data: {
+      enabled: boolean;
+      sendHour: number;
+      sendMinute: number;
+      timezone: string;
+      language?: string;
+    },
+  ) => {
     return apiClient.put<StandupConfig>(`/boards/${boardId}/standup-config`, {
       enabled: data.enabled,
       send_hour: data.sendHour,
@@ -3783,12 +4312,18 @@ export const standupConfigAPI = {
 // AI Report API
 // ========================================
 
-import type { ReportType, WeeklyReport, WeeklyReportListItem } from '../types';
+import type { ReportType, WeeklyReport, WeeklyReportListItem } from "../types";
 
 export const reportAPI = {
   generateReport: async (
     boardId: string,
-    data: { reportType: ReportType; periodStart: string; periodEnd: string; language?: string; targetUserId?: string }
+    data: {
+      reportType: ReportType;
+      periodStart: string;
+      periodEnd: string;
+      language?: string;
+      targetUserId?: string;
+    },
   ) => {
     return apiClient.post<WeeklyReport>(`/boards/${boardId}/reports`, {
       report_type: data.reportType,
@@ -3799,24 +4334,34 @@ export const reportAPI = {
     });
   },
 
-  getReports: async (boardId: string, reportType?: ReportType, targetUserId?: string) => {
+  getReports: async (
+    boardId: string,
+    reportType?: ReportType,
+    targetUserId?: string,
+  ) => {
     const params = new URLSearchParams();
-    if (reportType) params.set('report_type', reportType);
-    if (targetUserId) params.set('target_user_id', targetUserId);
-    const query = params.toString() ? `?${params.toString()}` : '';
+    if (reportType) params.set("report_type", reportType);
+    if (targetUserId) params.set("target_user_id", targetUserId);
+    const query = params.toString() ? `?${params.toString()}` : "";
     return apiClient.get<{ reports: WeeklyReportListItem[] }>(
-      `/boards/${boardId}/reports${query}`
+      `/boards/${boardId}/reports${query}`,
     );
   },
 
   getReport: async (boardId: string, reportId: string) => {
-    return apiClient.get<WeeklyReport>(`/boards/${boardId}/reports/${reportId}`);
+    return apiClient.get<WeeklyReport>(
+      `/boards/${boardId}/reports/${reportId}`,
+    );
   },
 
-  regenerateReport: async (boardId: string, reportId: string, language?: string) => {
-    const params = language ? `?language=${encodeURIComponent(language)}` : '';
+  regenerateReport: async (
+    boardId: string,
+    reportId: string,
+    language?: string,
+  ) => {
+    const params = language ? `?language=${encodeURIComponent(language)}` : "";
     return apiClient.post<WeeklyReport>(
-      `/boards/${boardId}/reports/${reportId}/regenerate${params}`
+      `/boards/${boardId}/reports/${reportId}/regenerate${params}`,
     );
   },
 };
@@ -3828,7 +4373,7 @@ export const reportAPI = {
 export interface NoteTreeItem {
   id: string;
   parent_id: string | null;
-  type: 'FOLDER' | 'DOCUMENT';
+  type: "FOLDER" | "DOCUMENT";
   title: string;
   position: number;
   depth: number;
@@ -3843,7 +4388,7 @@ export interface NoteTreeItem {
 export interface NoteDetail {
   id: string;
   parent_id: string | null;
-  type: 'FOLDER' | 'DOCUMENT';
+  type: "FOLDER" | "DOCUMENT";
   title: string;
   content: string | null;
   position: number;
@@ -3954,37 +4499,67 @@ export interface NoteCommentListResponse {
 
 export const noteCommentAPI = {
   getComments: async (boardId: string, noteId: string) => {
-    return apiClient.get<NoteCommentListResponse>(`/boards/${boardId}/notes/${noteId}/comments`);
+    return apiClient.get<NoteCommentListResponse>(
+      `/boards/${boardId}/notes/${noteId}/comments`,
+    );
   },
 
-  createComment: async (boardId: string, noteId: string, data: {
-    content: string;
-    block_id?: string | null;
-    parent_id?: string | null;
-    mentions?: string[];
-  }) => {
-    return apiClient.post<NoteCommentDetail>(`/boards/${boardId}/notes/${noteId}/comments`, data);
+  createComment: async (
+    boardId: string,
+    noteId: string,
+    data: {
+      content: string;
+      block_id?: string | null;
+      parent_id?: string | null;
+      mentions?: string[];
+    },
+  ) => {
+    return apiClient.post<NoteCommentDetail>(
+      `/boards/${boardId}/notes/${noteId}/comments`,
+      data,
+    );
   },
 
-  updateComment: async (boardId: string, noteId: string, commentId: string, data: {
-    content: string;
-    mentions?: string[];
-  }) => {
-    return apiClient.put<NoteCommentDetail>(`/boards/${boardId}/notes/${noteId}/comments/${commentId}`, data);
+  updateComment: async (
+    boardId: string,
+    noteId: string,
+    commentId: string,
+    data: {
+      content: string;
+      mentions?: string[];
+    },
+  ) => {
+    return apiClient.put<NoteCommentDetail>(
+      `/boards/${boardId}/notes/${noteId}/comments/${commentId}`,
+      data,
+    );
   },
 
   deleteComment: async (boardId: string, noteId: string, commentId: string) => {
-    return apiClient.delete<{ message: string }>(`/boards/${boardId}/notes/${noteId}/comments/${commentId}`);
+    return apiClient.delete<{ message: string }>(
+      `/boards/${boardId}/notes/${noteId}/comments/${commentId}`,
+    );
   },
 
-  toggleResolved: async (boardId: string, noteId: string, commentId: string) => {
-    return apiClient.post<NoteCommentDetail>(`/boards/${boardId}/notes/${noteId}/comments/${commentId}/resolve`);
+  toggleResolved: async (
+    boardId: string,
+    noteId: string,
+    commentId: string,
+  ) => {
+    return apiClient.post<NoteCommentDetail>(
+      `/boards/${boardId}/notes/${noteId}/comments/${commentId}/resolve`,
+    );
   },
 
-  toggleReaction: async (boardId: string, noteId: string, commentId: string, emoji: string) => {
+  toggleReaction: async (
+    boardId: string,
+    noteId: string,
+    commentId: string,
+    emoji: string,
+  ) => {
     return apiClient.post<ReactionsToggleResponse>(
       `/boards/${boardId}/notes/${noteId}/comments/${commentId}/reactions/toggle`,
-      { emoji }
+      { emoji },
     );
   },
 };
@@ -4002,49 +4577,83 @@ export const noteAPI = {
     return apiClient.get<NoteDetail>(`/boards/${boardId}/notes/${noteId}`);
   },
 
-  create: async (boardId: string, data: {
-    title: string;
-    type: 'FOLDER' | 'DOCUMENT';
-    parentId?: string | null;
-    content?: string;
-    tagIds?: string[];
-  }) => {
+  create: async (
+    boardId: string,
+    data: {
+      title: string;
+      type: "FOLDER" | "DOCUMENT";
+      parentId?: string | null;
+      content?: string;
+      tagIds?: string[];
+    },
+  ) => {
     return apiClient.post<NoteDetail>(`/boards/${boardId}/notes`, data);
   },
 
-  update: async (boardId: string, noteId: string, data: {
-    title?: string;
-    content?: string;
-    tagIds?: string[];
-  }, createVersion = true) => {
-    const params = createVersion ? '' : '?createVersion=false';
-    return apiClient.put<NoteDetail>(`/boards/${boardId}/notes/${noteId}${params}`, data);
+  update: async (
+    boardId: string,
+    noteId: string,
+    data: {
+      title?: string;
+      content?: string;
+      tagIds?: string[];
+    },
+    createVersion = true,
+  ) => {
+    const params = createVersion ? "" : "?createVersion=false";
+    return apiClient.put<NoteDetail>(
+      `/boards/${boardId}/notes/${noteId}${params}`,
+      data,
+    );
   },
 
   delete: async (boardId: string, noteId: string) => {
-    return apiClient.delete<{ message: string }>(`/boards/${boardId}/notes/${noteId}`);
+    return apiClient.delete<{ message: string }>(
+      `/boards/${boardId}/notes/${noteId}`,
+    );
   },
 
-  move: async (boardId: string, noteId: string, data: {
-    parentId?: string | null;
-    position?: number;
-  }) => {
-    return apiClient.put<NoteDetail>(`/boards/${boardId}/notes/${noteId}/move`, {
-      parent_id: data.parentId,
-      position: data.position,
-    });
+  move: async (
+    boardId: string,
+    noteId: string,
+    data: {
+      parentId?: string | null;
+      position?: number;
+    },
+  ) => {
+    return apiClient.put<NoteDetail>(
+      `/boards/${boardId}/notes/${noteId}/move`,
+      {
+        parent_id: data.parentId,
+        position: data.position,
+      },
+    );
   },
 
   getVersions: async (boardId: string, noteId: string) => {
-    return apiClient.get<NoteVersionInfo[]>(`/boards/${boardId}/notes/${noteId}/versions`);
+    return apiClient.get<NoteVersionInfo[]>(
+      `/boards/${boardId}/notes/${noteId}/versions`,
+    );
   },
 
-  getVersionDetail: async (boardId: string, noteId: string, versionId: string) => {
-    return apiClient.get<NoteVersionDetail>(`/boards/${boardId}/notes/${noteId}/versions/${versionId}`);
+  getVersionDetail: async (
+    boardId: string,
+    noteId: string,
+    versionId: string,
+  ) => {
+    return apiClient.get<NoteVersionDetail>(
+      `/boards/${boardId}/notes/${noteId}/versions/${versionId}`,
+    );
   },
 
-  restoreVersion: async (boardId: string, noteId: string, versionId: string) => {
-    return apiClient.post<NoteDetail>(`/boards/${boardId}/notes/${noteId}/versions/${versionId}/restore`);
+  restoreVersion: async (
+    boardId: string,
+    noteId: string,
+    versionId: string,
+  ) => {
+    return apiClient.post<NoteDetail>(
+      `/boards/${boardId}/notes/${noteId}/versions/${versionId}/restore`,
+    );
   },
 
   getTags: async (boardId: string) => {
@@ -4056,24 +4665,43 @@ export const noteAPI = {
   },
 
   deleteTag: async (boardId: string, tagId: string) => {
-    return apiClient.delete<{ message: string }>(`/boards/${boardId}/note-tags/${tagId}`);
+    return apiClient.delete<{ message: string }>(
+      `/boards/${boardId}/note-tags/${tagId}`,
+    );
   },
 
-  aiOrganize: async (boardId: string, noteId: string, language?: string): Promise<NoteAISuggestionResponse> => {
-    const params = language ? `?language=${language}` : '';
-    return apiClient.post<NoteAISuggestionResponse>(`/boards/${boardId}/notes/${noteId}/ai-organize${params}`);
+  aiOrganize: async (
+    boardId: string,
+    noteId: string,
+    language?: string,
+  ): Promise<NoteAISuggestionResponse> => {
+    const params = language ? `?language=${language}` : "";
+    return apiClient.post<NoteAISuggestionResponse>(
+      `/boards/${boardId}/notes/${noteId}/ai-organize${params}`,
+    );
   },
 
-  aiApply: async (boardId: string, noteId: string, data: AIApplyRequest): Promise<NoteAIApplyResult> => {
-    return apiClient.post<NoteAIApplyResult>(`/boards/${boardId}/notes/${noteId}/ai-apply`, data);
+  aiApply: async (
+    boardId: string,
+    noteId: string,
+    data: AIApplyRequest,
+  ): Promise<NoteAIApplyResult> => {
+    return apiClient.post<NoteAIApplyResult>(
+      `/boards/${boardId}/notes/${noteId}/ai-apply`,
+      data,
+    );
   },
 
   enableShare: async (boardId: string, noteId: string) => {
-    return apiClient.post<NoteDetail>(`/boards/${boardId}/notes/${noteId}/share`);
+    return apiClient.post<NoteDetail>(
+      `/boards/${boardId}/notes/${noteId}/share`,
+    );
   },
 
   disableShare: async (boardId: string, noteId: string) => {
-    return apiClient.delete<NoteDetail>(`/boards/${boardId}/notes/${noteId}/share`);
+    return apiClient.delete<NoteDetail>(
+      `/boards/${boardId}/notes/${noteId}/share`,
+    );
   },
 };
 
@@ -4087,7 +4715,17 @@ export const publicNoteAPI = {
 // Task Dependency API
 // ========================================
 
-import type { PersonalEvent, DiaryDetail, DiarySimple, DiaryAiReply, DiaryVoiceReply, DiaryVoiceSettings, AiCredits, AiCreditPurchaseRequest, AiCreditPurchaseResult } from '../types';
+import type {
+  PersonalEvent,
+  DiaryDetail,
+  DiarySimple,
+  DiaryAiReply,
+  DiaryVoiceReply,
+  DiaryVoiceSettings,
+  AiCredits,
+  AiCreditPurchaseRequest,
+  AiCreditPurchaseResult,
+} from "../types";
 
 // ========================================
 // Personal Space API
@@ -4095,11 +4733,11 @@ import type { PersonalEvent, DiaryDetail, DiarySimple, DiaryAiReply, DiaryVoiceR
 
 export const personalSpaceAPI = {
   activate: async (): Promise<{ personal_space_enabled: boolean }> => {
-    return apiClient.post('/personal-space/activate', {});
+    return apiClient.post("/personal-space/activate", {});
   },
 
   getStatus: async (): Promise<{ personal_space_enabled: boolean }> => {
-    return apiClient.get('/personal-space/status');
+    return apiClient.get("/personal-space/status");
   },
 };
 
@@ -4108,14 +4746,23 @@ export const personalSpaceAPI = {
 // ========================================
 
 export const personalEventAPI = {
-  getByDate: async (date: string, eventType?: string): Promise<PersonalEvent[]> => {
-    const typeParam = eventType ? `&event_type=${eventType}` : '';
+  getByDate: async (
+    date: string,
+    eventType?: string,
+  ): Promise<PersonalEvent[]> => {
+    const typeParam = eventType ? `&event_type=${eventType}` : "";
     return apiClient.get(`/personal/events?date=${date}${typeParam}`);
   },
 
-  getWeekly: async (startDate: string, endDate: string, eventType?: string): Promise<PersonalEvent[]> => {
-    const typeParam = eventType ? `&event_type=${eventType}` : '';
-    return apiClient.get(`/personal/events/weekly?start_date=${startDate}&end_date=${endDate}${typeParam}`);
+  getWeekly: async (
+    startDate: string,
+    endDate: string,
+    eventType?: string,
+  ): Promise<PersonalEvent[]> => {
+    const typeParam = eventType ? `&event_type=${eventType}` : "";
+    return apiClient.get(
+      `/personal/events/weekly?start_date=${startDate}&end_date=${endDate}${typeParam}`,
+    );
   },
 
   create: async (data: {
@@ -4132,28 +4779,31 @@ export const personalEventAPI = {
     recurrence_days_of_week?: number[];
     event_type?: string;
   }): Promise<PersonalEvent> => {
-    return apiClient.post('/personal/events', data);
+    return apiClient.post("/personal/events", data);
   },
 
-  update: async (eventId: string, data: {
-    title?: string;
-    description?: string;
-    event_date?: string;
-    end_date?: string | null;
-    start_time?: string | null;
-    end_time?: string | null;
-    color?: string;
-    all_day?: boolean;
-    recurrence_rule?: string;
-    recurrence_end_date?: string;
-    recurrence_days_of_week?: number[];
-    scope?: string;
-  }): Promise<PersonalEvent> => {
+  update: async (
+    eventId: string,
+    data: {
+      title?: string;
+      description?: string;
+      event_date?: string;
+      end_date?: string | null;
+      start_time?: string | null;
+      end_time?: string | null;
+      color?: string;
+      all_day?: boolean;
+      recurrence_rule?: string;
+      recurrence_end_date?: string;
+      recurrence_days_of_week?: number[];
+      scope?: string;
+    },
+  ): Promise<PersonalEvent> => {
     return apiClient.put(`/personal/events/${eventId}`, data);
   },
 
   delete: async (eventId: string, scope?: string): Promise<void> => {
-    const query = scope ? `?scope=${scope}` : '';
+    const query = scope ? `?scope=${scope}` : "";
     return apiClient.delete(`/personal/events/${eventId}${query}`);
   },
 };
@@ -4178,18 +4828,24 @@ export const diaryAPI = {
   },
 
   create: async (diaryDate: string): Promise<DiaryDetail> => {
-    return apiClient.post('/diary', { diary_date: diaryDate });
+    return apiClient.post("/diary", { diary_date: diaryDate });
   },
 
-  sendMessage: async (diaryId: string, content: string): Promise<DiaryAiReply> => {
+  sendMessage: async (
+    diaryId: string,
+    content: string,
+  ): Promise<DiaryAiReply> => {
     return apiClient.post(`/diary/${diaryId}/messages`, { content });
   },
 
-  complete: async (diaryId: string, data: {
-    title?: string;
-    content?: string;
-    mood?: string;
-  }): Promise<DiaryDetail> => {
+  complete: async (
+    diaryId: string,
+    data: {
+      title?: string;
+      content?: string;
+      mood?: string;
+    },
+  ): Promise<DiaryDetail> => {
     return apiClient.put(`/diary/${diaryId}/complete`, data);
   },
 
@@ -4201,11 +4857,14 @@ export const diaryAPI = {
     return apiClient.put(`/diary/${diaryId}/reset`, {});
   },
 
-  update: async (diaryId: string, data: {
-    title?: string;
-    content?: string;
-    mood?: string;
-  }): Promise<DiaryDetail> => {
+  update: async (
+    diaryId: string,
+    data: {
+      title?: string;
+      content?: string;
+      mood?: string;
+    },
+  ): Promise<DiaryDetail> => {
     return apiClient.put(`/diary/${diaryId}`, data);
   },
 
@@ -4214,21 +4873,24 @@ export const diaryAPI = {
   },
 
   // Voice endpoints
-  sendVoiceMessage: async (diaryId: string, audioBlob: Blob): Promise<DiaryVoiceReply> => {
+  sendVoiceMessage: async (
+    diaryId: string,
+    audioBlob: Blob,
+  ): Promise<DiaryVoiceReply> => {
     const formData = new FormData();
-    formData.append('file', audioBlob, 'recording.webm');
+    formData.append("file", audioBlob, "recording.webm");
 
     const response = await authenticatedFetch(
       `${API_BASE_URL}/diary/${diaryId}/voice-message`,
       {
-        method: 'POST',
+        method: "POST",
         body: formData,
-      }
+      },
     );
 
     if (!response.ok) {
       const errData = await response.json().catch(() => ({
-        code: 'UNKNOWN',
+        code: "UNKNOWN",
         message: response.statusText,
       }));
       throw errData;
@@ -4238,20 +4900,24 @@ export const diaryAPI = {
   },
 
   getVoiceSettings: async (): Promise<DiaryVoiceSettings> => {
-    return apiClient.get('/diary/voice-settings');
+    return apiClient.get("/diary/voice-settings");
   },
 
-  updateVoiceSettings: async (data: Partial<DiaryVoiceSettings>): Promise<DiaryVoiceSettings> => {
-    return apiClient.put('/diary/voice-settings', data);
+  updateVoiceSettings: async (
+    data: Partial<DiaryVoiceSettings>,
+  ): Promise<DiaryVoiceSettings> => {
+    return apiClient.put("/diary/voice-settings", data);
   },
 
   // Personal AI Credits
   getPersonalCredits: async (): Promise<AiCredits> => {
-    return apiClient.get('/diary/credits');
+    return apiClient.get("/diary/credits");
   },
 
-  purchasePersonalCredits: async (data: AiCreditPurchaseRequest): Promise<AiCreditPurchaseResult> => {
-    return apiClient.post('/diary/credits/purchase', data);
+  purchasePersonalCredits: async (
+    data: AiCreditPurchaseRequest,
+  ): Promise<AiCreditPurchaseResult> => {
+    return apiClient.post("/diary/credits/purchase", data);
   },
 };
 
@@ -4259,7 +4925,7 @@ export const diaryAPI = {
 // Task Dependency API
 // ========================================
 
-import type { TaskDependency } from '../types';
+import type { TaskDependency } from "../types";
 
 export const taskDependencyAPI = {
   // 보드의 모든 의존성 조회
@@ -4270,58 +4936,69 @@ export const taskDependencyAPI = {
   // 의존성 생성
   create: async (
     boardId: string,
-    data: { predecessor_id: string; successor_id: string }
+    data: { predecessor_id: string; successor_id: string },
   ): Promise<TaskDependency> => {
     return apiClient.post(`/boards/${boardId}/task-dependencies`, data);
   },
 
   // 의존성 삭제
   delete: async (boardId: string, dependencyId: string): Promise<void> => {
-    return apiClient.delete(`/boards/${boardId}/task-dependencies/${dependencyId}`);
+    return apiClient.delete(
+      `/boards/${boardId}/task-dependencies/${dependencyId}`,
+    );
   },
 };
 
 // ─── Personal Task API (v9.0) ───
 
 export const personalTaskAPI = {
-  getAll: async (): Promise<import('../types').PersonalTask[]> => {
-    return apiClient.get('/personal/tasks');
+  getAll: async (): Promise<import("../types").PersonalTask[]> => {
+    return apiClient.get("/personal/tasks");
   },
 
-  getById: async (taskId: string): Promise<import('../types').PersonalTask> => {
+  getById: async (taskId: string): Promise<import("../types").PersonalTask> => {
     return apiClient.get(`/personal/tasks/${taskId}`);
   },
 
   create: async (data: {
     title: string;
     description?: string;
-    priority?: import('../types').PersonalTaskPriority;
+    priority?: import("../types").PersonalTaskPriority;
     due_date?: string;
     category?: string;
     color?: string;
-  }): Promise<import('../types').PersonalTask> => {
-    return apiClient.post('/personal/tasks', data);
+  }): Promise<import("../types").PersonalTask> => {
+    return apiClient.post("/personal/tasks", data);
   },
 
-  update: async (taskId: string, data: {
-    title?: string;
-    description?: string;
-    priority?: import('../types').PersonalTaskPriority;
-    due_date?: string | null;
-    category?: string | null;
-    color?: string;
-  }): Promise<import('../types').PersonalTask> => {
+  update: async (
+    taskId: string,
+    data: {
+      title?: string;
+      description?: string;
+      priority?: import("../types").PersonalTaskPriority;
+      due_date?: string | null;
+      category?: string | null;
+      color?: string;
+    },
+  ): Promise<import("../types").PersonalTask> => {
     return apiClient.put(`/personal/tasks/${taskId}`, data);
   },
 
-  updateStatus: async (taskId: string, status: import('../types').PersonalTaskStatus): Promise<import('../types').PersonalTask> => {
+  updateStatus: async (
+    taskId: string,
+    status: import("../types").PersonalTaskStatus,
+  ): Promise<import("../types").PersonalTask> => {
     return apiClient.patch(`/personal/tasks/${taskId}/status`, { status });
   },
 
-  updatePosition: async (taskId: string, data: {
-    status?: import('../types').PersonalTaskStatus;
-    position: number;
-  }): Promise<void> => {
+  updatePosition: async (
+    taskId: string,
+    data: {
+      status?: import("../types").PersonalTaskStatus;
+      position: number;
+    },
+  ): Promise<void> => {
     return apiClient.put(`/personal/tasks/${taskId}/position`, data);
   },
 
@@ -4330,19 +5007,20 @@ export const personalTaskAPI = {
   },
 
   getCategories: async (): Promise<string[]> => {
-    return apiClient.get('/personal/tasks/categories');
+    return apiClient.get("/personal/tasks/categories");
   },
-
 };
 
 // ─── Personal Habit API (v9.0) ───
 
 export const personalHabitAPI = {
-  getAll: async (): Promise<import('../types').PersonalHabit[]> => {
-    return apiClient.get('/personal/habits');
+  getAll: async (): Promise<import("../types").PersonalHabit[]> => {
+    return apiClient.get("/personal/habits");
   },
 
-  getById: async (habitId: string): Promise<import('../types').PersonalHabit> => {
+  getById: async (
+    habitId: string,
+  ): Promise<import("../types").PersonalHabit> => {
     return apiClient.get(`/personal/habits/${habitId}`);
   },
 
@@ -4351,26 +5029,29 @@ export const personalHabitAPI = {
     description?: string;
     icon?: string;
     color?: string;
-    frequency_type?: import('../types').HabitFrequency;
+    frequency_type?: import("../types").HabitFrequency;
     frequency_days?: string;
     target_count?: number;
     unit?: string;
-    importance?: import('../types').HabitImportance;
-  }): Promise<import('../types').PersonalHabit> => {
-    return apiClient.post('/personal/habits', data);
+    importance?: import("../types").HabitImportance;
+  }): Promise<import("../types").PersonalHabit> => {
+    return apiClient.post("/personal/habits", data);
   },
 
-  update: async (habitId: string, data: {
-    title?: string;
-    description?: string;
-    icon?: string;
-    color?: string;
-    frequency_type?: import('../types').HabitFrequency;
-    frequency_days?: string;
-    target_count?: number;
-    unit?: string;
-    importance?: import('../types').HabitImportance;
-  }): Promise<import('../types').PersonalHabit> => {
+  update: async (
+    habitId: string,
+    data: {
+      title?: string;
+      description?: string;
+      icon?: string;
+      color?: string;
+      frequency_type?: import("../types").HabitFrequency;
+      frequency_days?: string;
+      target_count?: number;
+      unit?: string;
+      importance?: import("../types").HabitImportance;
+    },
+  ): Promise<import("../types").PersonalHabit> => {
     return apiClient.put(`/personal/habits/${habitId}`, data);
   },
 
@@ -4382,58 +5063,99 @@ export const personalHabitAPI = {
     return apiClient.put(`/personal/habits/${habitId}/position`, { position });
   },
 
-  checkIn: async (habitId: string, options?: { note?: string; log_date?: string }): Promise<import('../types').HabitTodayItem> => {
-    return apiClient.post(`/personal/habits/${habitId}/check-in`, options ?? {});
+  checkIn: async (
+    habitId: string,
+    options?: { note?: string; log_date?: string },
+  ): Promise<import("../types").HabitTodayItem> => {
+    return apiClient.post(
+      `/personal/habits/${habitId}/check-in`,
+      options ?? {},
+    );
   },
 
-  getLogs: async (habitId: string, startDate: string, endDate: string): Promise<import('../types').PersonalHabitLog[]> => {
-    return apiClient.get(`/personal/habits/${habitId}/logs?start_date=${startDate}&end_date=${endDate}`);
+  getLogs: async (
+    habitId: string,
+    startDate: string,
+    endDate: string,
+  ): Promise<import("../types").PersonalHabitLog[]> => {
+    return apiClient.get(
+      `/personal/habits/${habitId}/logs?start_date=${startDate}&end_date=${endDate}`,
+    );
   },
 
-  getToday: async (date?: string): Promise<import('../types').HabitTodayItem[]> => {
-    const params = date ? `?date=${date}` : '';
+  getToday: async (
+    date?: string,
+  ): Promise<import("../types").HabitTodayItem[]> => {
+    const params = date ? `?date=${date}` : "";
     return apiClient.get(`/personal/habits/today${params}`);
   },
 
-  getWeekly: async (startDate: string, endDate: string): Promise<import('../types').HabitWeeklyMatrix> => {
-    return apiClient.get(`/personal/habits/weekly?start_date=${startDate}&end_date=${endDate}`);
+  getWeekly: async (
+    startDate: string,
+    endDate: string,
+  ): Promise<import("../types").HabitWeeklyMatrix> => {
+    return apiClient.get(
+      `/personal/habits/weekly?start_date=${startDate}&end_date=${endDate}`,
+    );
   },
 };
 
 // ─── Custom Icon API ───
 
 export const customIconAPI = {
-  uploadReference: async (file: File): Promise<{ reference_id: string; url: string }> => {
+  uploadReference: async (
+    file: File,
+  ): Promise<{ reference_id: string; url: string }> => {
     const formData = new FormData();
-    formData.append('file', file);
-    const response = await authenticatedFetch(`${API_BASE_URL}/customicon/upload-reference`, {
-      method: 'POST',
-      body: formData,
-    });
+    formData.append("file", file);
+    const response = await authenticatedFetch(
+      `${API_BASE_URL}/customicon/upload-reference`,
+      {
+        method: "POST",
+        body: formData,
+      },
+    );
     if (!response.ok) {
-      const err = await response.json().catch(() => ({ message: 'Upload failed' }));
+      const err = await response
+        .json()
+        .catch(() => ({ message: "Upload failed" }));
       throw err;
     }
     return response.json();
   },
-  analyzeStyle: async (referenceId: string): Promise<{
-    style: string; stroke_weight: string; corner_radius: string;
-    fill: string; detail: string; padding_ratio: number;
+  analyzeStyle: async (
+    referenceId: string,
+  ): Promise<{
+    style: string;
+    stroke_weight: string;
+    corner_radius: string;
+    fill: string;
+    detail: string;
+    padding_ratio: number;
   }> => {
-    return apiClient.post('/customicon/analyze-style', { reference_id: referenceId });
+    return apiClient.post("/customicon/analyze-style", {
+      reference_id: referenceId,
+    });
   },
   generate: async (request: {
-    reference_id: string; icon_names: string[]; layout: string;
+    reference_id: string;
+    icon_names: string[];
+    layout: string;
     style_options: {
-      type: string; stroke_weight: string; corner_radius: string;
-      padding_ratio: number; background: string; show_grid_lines: boolean;
+      type: string;
+      stroke_weight: string;
+      corner_radius: string;
+      padding_ratio: number;
+      background: string;
+      show_grid_lines: boolean;
     };
     custom_prompt?: string;
   }): Promise<{
-    job_id: string; sprite_sheet_url: string;
+    job_id: string;
+    sprite_sheet_url: string;
     icons: Array<{ name: string; index: number; url: string; size: string }>;
   }> => {
-    return apiClient.post('/customicon/generate', request);
+    return apiClient.post("/customicon/generate", request);
   },
 };
 
@@ -4441,27 +5163,43 @@ export const customIconAPI = {
 
 export const organizationAPI = {
   // Organization CRUD
-  list: async (): Promise<import('../types').OrganizationSimple[]> => {
-    return apiClient.get('/organizations');
+  list: async (): Promise<import("../types").OrganizationSimple[]> => {
+    return apiClient.get("/organizations");
   },
-  get: async (orgId: string): Promise<import('../types').OrganizationDetail> => {
+  get: async (
+    orgId: string,
+  ): Promise<import("../types").OrganizationDetail> => {
     return apiClient.get(`/organizations/${orgId}`);
   },
-  create: async (data: { name: string; description?: string }): Promise<import('../types').OrganizationDetail> => {
-    return apiClient.post('/organizations', data);
+  create: async (data: {
+    name: string;
+    description?: string;
+  }): Promise<import("../types").OrganizationDetail> => {
+    return apiClient.post("/organizations", data);
   },
-  update: async (orgId: string, data: { name?: string; description?: string }): Promise<import('../types').OrganizationDetail> => {
+  update: async (
+    orgId: string,
+    data: { name?: string; description?: string },
+  ): Promise<import("../types").OrganizationDetail> => {
     return apiClient.put(`/organizations/${orgId}`, data);
   },
-  uploadLogo: async (orgId: string, file: File): Promise<import('../types').OrganizationDetail> => {
+  uploadLogo: async (
+    orgId: string,
+    file: File,
+  ): Promise<import("../types").OrganizationDetail> => {
     const formData = new FormData();
-    formData.append('file', file);
-    const response = await authenticatedFetch(`${API_BASE_URL}/organizations/${orgId}/logo`, {
-      method: 'POST',
-      body: formData,
-    });
+    formData.append("file", file);
+    const response = await authenticatedFetch(
+      `${API_BASE_URL}/organizations/${orgId}/logo`,
+      {
+        method: "POST",
+        body: formData,
+      },
+    );
     if (!response.ok) {
-      const err = await response.json().catch(() => ({ message: 'Upload failed' }));
+      const err = await response
+        .json()
+        .catch(() => ({ message: "Upload failed" }));
       throw err;
     }
     return response.json();
@@ -4469,18 +5207,42 @@ export const organizationAPI = {
   delete: async (orgId: string): Promise<{ message: string }> => {
     return apiClient.delete(`/organizations/${orgId}`);
   },
-  transferOwnership: async (orgId: string, data: { member_id: string }): Promise<import('../types').OrganizationDetail> => {
+  transferOwnership: async (
+    orgId: string,
+    data: { member_id: string },
+  ): Promise<import("../types").OrganizationDetail> => {
     return apiClient.put(`/organizations/${orgId}/transfer-ownership`, data);
   },
 
   // Departments
-  getDepartments: async (orgId: string): Promise<import('../types').OrgDepartment[]> => {
+  getDepartments: async (
+    orgId: string,
+  ): Promise<import("../types").OrgDepartment[]> => {
     return apiClient.get(`/organizations/${orgId}/departments`);
   },
-  createDepartment: async (orgId: string, data: { name: string; display_order?: number }): Promise<import('../types').OrgDepartment> => {
+  createDepartment: async (
+    orgId: string,
+    data: {
+      name: string;
+      display_order?: number;
+      parent_department_id?: string;
+      leader_id?: string;
+      description?: string;
+    },
+  ): Promise<import("../types").OrgDepartment> => {
     return apiClient.post(`/organizations/${orgId}/departments`, data);
   },
-  updateDepartment: async (orgId: string, deptId: string, data: { name?: string; display_order?: number }): Promise<import('../types').OrgDepartment> => {
+  updateDepartment: async (
+    orgId: string,
+    deptId: string,
+    data: {
+      name?: string;
+      display_order?: number;
+      parent_department_id?: string | null;
+      leader_id?: string | null;
+      description?: string;
+    },
+  ): Promise<import("../types").OrgDepartment> => {
     return apiClient.put(`/organizations/${orgId}/departments/${deptId}`, data);
   },
   deleteDepartment: async (orgId: string, deptId: string): Promise<void> => {
@@ -4488,81 +5250,290 @@ export const organizationAPI = {
   },
 
   // Job Groups
-  getJobGroups: async (orgId: string): Promise<import('../types').OrgJobGroup[]> => {
+  getJobGroups: async (
+    orgId: string,
+  ): Promise<import("../types").OrgJobGroup[]> => {
     return apiClient.get(`/organizations/${orgId}/job-groups`);
   },
-  createJobGroup: async (orgId: string, data: { name: string; display_order?: number }): Promise<import('../types').OrgJobGroup> => {
+  createJobGroup: async (
+    orgId: string,
+    data: { name: string; display_order?: number },
+  ): Promise<import("../types").OrgJobGroup> => {
     return apiClient.post(`/organizations/${orgId}/job-groups`, data);
   },
-  updateJobGroup: async (orgId: string, jobGroupId: string, data: { name?: string; display_order?: number }): Promise<import('../types').OrgJobGroup> => {
-    return apiClient.put(`/organizations/${orgId}/job-groups/${jobGroupId}`, data);
+  updateJobGroup: async (
+    orgId: string,
+    jobGroupId: string,
+    data: { name?: string; display_order?: number },
+  ): Promise<import("../types").OrgJobGroup> => {
+    return apiClient.put(
+      `/organizations/${orgId}/job-groups/${jobGroupId}`,
+      data,
+    );
   },
   deleteJobGroup: async (orgId: string, jobGroupId: string): Promise<void> => {
     return apiClient.delete(`/organizations/${orgId}/job-groups/${jobGroupId}`);
   },
 
+  // Positions
+  getPositions: async (
+    orgId: string,
+  ): Promise<import("../types").OrgPosition[]> => {
+    return apiClient.get(`/organizations/${orgId}/positions`);
+  },
+  createPosition: async (
+    orgId: string,
+    data: { name: string; display_order?: number },
+  ): Promise<import("../types").OrgPosition> => {
+    return apiClient.post(`/organizations/${orgId}/positions`, data);
+  },
+  updatePosition: async (
+    orgId: string,
+    positionId: string,
+    data: { name?: string; display_order?: number },
+  ): Promise<import("../types").OrgPosition> => {
+    return apiClient.put(
+      `/organizations/${orgId}/positions/${positionId}`,
+      data,
+    );
+  },
+  deletePosition: async (orgId: string, positionId: string): Promise<void> => {
+    return apiClient.delete(`/organizations/${orgId}/positions/${positionId}`);
+  },
+
+  // Titles
+  getTitles: async (orgId: string): Promise<import("../types").OrgTitle[]> => {
+    return apiClient.get(`/organizations/${orgId}/titles`);
+  },
+  createTitle: async (
+    orgId: string,
+    data: { name: string; display_order?: number },
+  ): Promise<import("../types").OrgTitle> => {
+    return apiClient.post(`/organizations/${orgId}/titles`, data);
+  },
+  updateTitle: async (
+    orgId: string,
+    titleId: string,
+    data: { name?: string; display_order?: number },
+  ): Promise<import("../types").OrgTitle> => {
+    return apiClient.put(`/organizations/${orgId}/titles/${titleId}`, data);
+  },
+  deleteTitle: async (orgId: string, titleId: string): Promise<void> => {
+    return apiClient.delete(`/organizations/${orgId}/titles/${titleId}`);
+  },
+
+  // Grades
+  getGrades: async (orgId: string): Promise<import("../types").OrgGrade[]> => {
+    return apiClient.get(`/organizations/${orgId}/grades`);
+  },
+  createGrade: async (
+    orgId: string,
+    data: { name: string; display_order?: number },
+  ): Promise<import("../types").OrgGrade> => {
+    return apiClient.post(`/organizations/${orgId}/grades`, data);
+  },
+  updateGrade: async (
+    orgId: string,
+    gradeId: string,
+    data: { name?: string; display_order?: number },
+  ): Promise<import("../types").OrgGrade> => {
+    return apiClient.put(`/organizations/${orgId}/grades/${gradeId}`, data);
+  },
+  deleteGrade: async (orgId: string, gradeId: string): Promise<void> => {
+    return apiClient.delete(`/organizations/${orgId}/grades/${gradeId}`);
+  },
+
   // Members
-  getMembers: async (orgId: string, params?: {
-    department_id?: string; job_group_id?: string; contract_type?: string;
-    work_status?: string; search?: string; page?: number; size?: number;
-  }): Promise<import('../types').OrgMemberPageResponse> => {
+  getMembers: async (
+    orgId: string,
+    params?: {
+      department_id?: string;
+      job_group_id?: string;
+      contract_type?: string;
+      work_status?: string;
+      search?: string;
+      page?: number;
+      size?: number;
+    },
+  ): Promise<import("../types").OrgMemberPageResponse> => {
     const query = new URLSearchParams();
     if (params) {
-      Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') query.set(k, String(v)); });
+      Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== "") query.set(k, String(v));
+      });
     }
     const qs = query.toString();
-    return apiClient.get(`/organizations/${orgId}/members${qs ? `?${qs}` : ''}`);
+    return apiClient.get(
+      `/organizations/${orgId}/members${qs ? `?${qs}` : ""}`,
+    );
   },
-  getMember: async (orgId: string, memberId: string): Promise<import('../types').OrgMemberDetail> => {
+  getMember: async (
+    orgId: string,
+    memberId: string,
+  ): Promise<import("../types").OrgMemberDetail> => {
     return apiClient.get(`/organizations/${orgId}/members/${memberId}`);
   },
-  inviteMember: async (orgId: string, data: { email: string; role?: string; department_id?: string; job_title?: string }): Promise<import('../types').OrgMemberInviteResult> => {
+  inviteMember: async (
+    orgId: string,
+    data: {
+      email: string;
+      role?: string;
+      department_id?: string;
+      job_title?: string;
+    },
+  ): Promise<import("../types").OrgMemberInviteResult> => {
     return apiClient.post(`/organizations/${orgId}/members`, data);
   },
-  updateMember: async (orgId: string, memberId: string, data: Record<string, unknown>): Promise<import('../types').OrgMemberDetail> => {
+  updateMember: async (
+    orgId: string,
+    memberId: string,
+    data: Record<string, unknown>,
+  ): Promise<import("../types").OrgMemberDetail> => {
     return apiClient.put(`/organizations/${orgId}/members/${memberId}`, data);
   },
-  changeMemberRole: async (orgId: string, memberId: string, data: { role: string }): Promise<void> => {
-    return apiClient.put(`/organizations/${orgId}/members/${memberId}/role`, data);
+  changeMemberRole: async (
+    orgId: string,
+    memberId: string,
+    data: { role: string },
+  ): Promise<void> => {
+    return apiClient.put(
+      `/organizations/${orgId}/members/${memberId}/role`,
+      data,
+    );
   },
-  removeMember: async (orgId: string, memberId: string): Promise<import('../types').OrgMemberRemoveResult> => {
+  removeMember: async (
+    orgId: string,
+    memberId: string,
+  ): Promise<import("../types").OrgMemberRemoveResult> => {
     return apiClient.delete(`/organizations/${orgId}/members/${memberId}`);
   },
-  getMemberBoards: async (orgId: string, memberId: string): Promise<import('../types').OrgMemberBoard[]> => {
+  getMemberBoards: async (
+    orgId: string,
+    memberId: string,
+  ): Promise<import("../types").OrgMemberBoard[]> => {
     return apiClient.get(`/organizations/${orgId}/members/${memberId}/boards`);
   },
-  getMemberLeaveBalances: async (orgId: string, memberId: string, year?: number): Promise<import('../types').LeaveBalance[]> => {
-    const params = year ? `?year=${year}` : '';
-    return apiClient.get(`/organizations/${orgId}/members/${memberId}/leave-balances${params}`);
+  getMemberLeaveBalances: async (
+    orgId: string,
+    memberId: string,
+    year?: number,
+  ): Promise<import("../types").LeaveBalance[]> => {
+    const params = year ? `?year=${year}` : "";
+    return apiClient.get(
+      `/organizations/${orgId}/members/${memberId}/leave-balances${params}`,
+    );
   },
-  uploadMemberProfileImage: async (orgId: string, memberId: string, file: File): Promise<import('../types').OrgMemberDetail> => {
+  uploadMemberProfileImage: async (
+    orgId: string,
+    memberId: string,
+    file: File,
+  ): Promise<import("../types").OrgMemberDetail> => {
     const formData = new FormData();
-    formData.append('file', file);
-    const response = await authenticatedFetch(`${API_BASE_URL}/organizations/${orgId}/members/${memberId}/profile-image`, {
-      method: 'POST',
-      body: formData,
-    });
+    formData.append("file", file);
+    const response = await authenticatedFetch(
+      `${API_BASE_URL}/organizations/${orgId}/members/${memberId}/profile-image`,
+      {
+        method: "POST",
+        body: formData,
+      },
+    );
     if (!response.ok) {
-      const errData = await response.json().catch(() => ({ code: 'UNKNOWN', message: response.statusText }));
+      const errData = await response
+        .json()
+        .catch(() => ({ code: "UNKNOWN", message: response.statusText }));
       throw errData;
     }
     return response.json();
   },
-  deleteMemberProfileImage: async (orgId: string, memberId: string): Promise<import('../types').OrgMemberDetail> => {
-    return apiClient.delete(`/organizations/${orgId}/members/${memberId}/profile-image`);
+  deleteMemberProfileImage: async (
+    orgId: string,
+    memberId: string,
+  ): Promise<import("../types").OrgMemberDetail> => {
+    return apiClient.delete(
+      `/organizations/${orgId}/members/${memberId}/profile-image`,
+    );
+  },
+  updateMemberConcurrentDepts: async (
+    orgId: string,
+    memberId: string,
+    data: {
+      concurrent_depts: Array<{
+        department_id: string;
+        position_id?: string | null;
+        display_order?: number;
+      }>;
+    },
+  ): Promise<import("../types").OrgMemberConcurrentDeptInfo[]> => {
+    return apiClient.put(
+      `/organizations/${orgId}/members/${memberId}/concurrent-depts`,
+      data,
+    );
+  },
+
+  // Member History
+  getMemberHistory: async (
+    orgId: string,
+    memberId: string,
+  ): Promise<import("../types").OrgMemberHistoryItem[]> => {
+    return apiClient.get(
+      `/organizations/${orgId}/members/${memberId}/histories`,
+    );
+  },
+  createMemberHistory: async (
+    orgId: string,
+    memberId: string,
+    data: import("../types").OrgMemberHistoryCreateRequest,
+  ): Promise<import("../types").OrgMemberHistoryItem> => {
+    return apiClient.post(
+      `/organizations/${orgId}/members/${memberId}/histories`,
+      data,
+    );
+  },
+  updateMemberHistoryDescription: async (
+    orgId: string,
+    memberId: string,
+    historyId: string,
+    description: string,
+  ): Promise<import("../types").OrgMemberHistoryItem> => {
+    return apiClient.patch(
+      `/organizations/${orgId}/members/${memberId}/histories/${historyId}/description`,
+      { description },
+    );
+  },
+  deleteMemberHistory: async (
+    orgId: string,
+    memberId: string,
+    historyId: string,
+  ): Promise<void> => {
+    return apiClient.delete(
+      `/organizations/${orgId}/members/${memberId}/histories/${historyId}`,
+    );
   },
 
   // Boards
-  getBoards: async (orgId: string): Promise<import('../types').OrgBoardSimple[]> => {
+  getBoards: async (
+    orgId: string,
+  ): Promise<import("../types").OrgBoardSimple[]> => {
     return apiClient.get(`/organizations/${orgId}/boards`);
   },
-  checkBoardEligibility: async (orgId: string, boardId: string): Promise<import('../types').OrgBoardEligibilityCheck> => {
-    return apiClient.get(`/organizations/${orgId}/boards/check-eligibility?board_id=${boardId}`);
+  checkBoardEligibility: async (
+    orgId: string,
+    boardId: string,
+  ): Promise<import("../types").OrgBoardEligibilityCheck> => {
+    return apiClient.get(
+      `/organizations/${orgId}/boards/check-eligibility?board_id=${boardId}`,
+    );
   },
-  addBoard: async (orgId: string, data: { board_id: string }): Promise<import('../types').OrgBoardSimple> => {
+  addBoard: async (
+    orgId: string,
+    data: { board_id: string },
+  ): Promise<import("../types").OrgBoardSimple> => {
     return apiClient.post(`/organizations/${orgId}/boards`, data);
   },
-  createBoard: async (orgId: string, data: { name: string; description?: string }): Promise<import('../types').OrgBoardSimple> => {
+  createBoard: async (
+    orgId: string,
+    data: { name: string; description?: string },
+  ): Promise<import("../types").OrgBoardSimple> => {
     return apiClient.post(`/organizations/${orgId}/boards/create`, data);
   },
   removeBoard: async (orgId: string, boardId: string): Promise<void> => {
@@ -4570,43 +5541,458 @@ export const organizationAPI = {
   },
 
   // Invite Links
-  getInviteLinks: async (orgId: string): Promise<import('../types').OrgInviteLink[]> => {
+  getInviteLinks: async (
+    orgId: string,
+  ): Promise<import("../types").OrgInviteLink[]> => {
     return apiClient.get(`/organizations/${orgId}/invites`);
   },
-  createInviteLink: async (orgId: string, data: { role?: string; max_uses?: number | null; expires_in_days?: number }): Promise<import('../types').OrgInviteLink> => {
+  createInviteLink: async (
+    orgId: string,
+    data: { role?: string; max_uses?: number | null; expires_in_days?: number },
+  ): Promise<import("../types").OrgInviteLink> => {
     return apiClient.post(`/organizations/${orgId}/invites`, data);
   },
   deleteInviteLink: async (orgId: string, linkId: string): Promise<void> => {
     return apiClient.delete(`/organizations/${orgId}/invites/${linkId}`);
   },
-  getInviteInfo: async (code: string): Promise<import('../types').OrgInvitePublicInfo> => {
+  getInviteInfo: async (
+    code: string,
+  ): Promise<import("../types").OrgInvitePublicInfo> => {
     return apiClient.get(`/org-invites/${code}`);
   },
-  acceptInvite: async (code: string): Promise<{ organization_id: string; organization_name: string; role: string; message: string }> => {
+  acceptInvite: async (
+    code: string,
+  ): Promise<{
+    organization_id: string;
+    organization_name: string;
+    role: string;
+    message: string;
+  }> => {
     return apiClient.post(`/org-invites/${code}/accept`, {});
+  },
+
+  // Onboarding
+  getOnboardingTemplates: async (
+    orgId: string,
+  ): Promise<import("../types").OnboardingTemplateSummary[]> => {
+    return apiClient.get(`/organizations/${orgId}/onboarding/templates`);
+  },
+  getOnboardingTemplate: async (
+    orgId: string,
+    templateId: string,
+  ): Promise<import("../types").OnboardingTemplateDetail> => {
+    return apiClient.get(
+      `/organizations/${orgId}/onboarding/templates/${templateId}`,
+    );
+  },
+  createOnboardingTemplate: async (
+    orgId: string,
+    data: Record<string, unknown>,
+  ): Promise<import("../types").OnboardingTemplateDetail> => {
+    return apiClient.post(`/organizations/${orgId}/onboarding/templates`, data);
+  },
+  updateOnboardingTemplate: async (
+    orgId: string,
+    templateId: string,
+    data: Record<string, unknown>,
+  ): Promise<import("../types").OnboardingTemplateDetail> => {
+    return apiClient.put(
+      `/organizations/${orgId}/onboarding/templates/${templateId}`,
+      data,
+    );
+  },
+  deleteOnboardingTemplate: async (
+    orgId: string,
+    templateId: string,
+  ): Promise<void> => {
+    return apiClient.delete(
+      `/organizations/${orgId}/onboarding/templates/${templateId}`,
+    );
+  },
+  getOnboardingInstances: async (
+    orgId: string,
+    params?: { status?: string; member_id?: string },
+  ): Promise<import("../types").OnboardingInstanceSummary[]> => {
+    const query = new URLSearchParams();
+    if (params?.status) query.set("status", params.status);
+    if (params?.member_id) query.set("member_id", params.member_id);
+    const qs = query.toString();
+    return apiClient.get(
+      `/organizations/${orgId}/onboarding/instances${qs ? `?${qs}` : ""}`,
+    );
+  },
+  getOnboardingInstanceItems: async (
+    orgId: string,
+    instanceId: string,
+  ): Promise<import("../types").OnboardingInstanceItemDetail[]> => {
+    return apiClient.get(
+      `/organizations/${orgId}/onboarding/instances/${instanceId}/items`,
+    );
+  },
+  toggleOnboardingItem: async (
+    orgId: string,
+    instanceId: string,
+    itemId: string,
+  ): Promise<import("../types").OnboardingToggleResult> => {
+    return apiClient.put(
+      `/organizations/${orgId}/onboarding/instances/${instanceId}/items/${itemId}/toggle`,
+      {},
+    );
+  },
+  createOnboardingInstance: async (
+    orgId: string,
+    data: { member_id: string; template_id: string },
+  ): Promise<import("../types").OnboardingInstanceSummary> => {
+    return apiClient.post(`/organizations/${orgId}/onboarding/instances`, data);
+  },
+
+  // Chart
+  getChart: async (orgId: string): Promise<import("../types").OrgChartData> => {
+    return apiClient.get(`/organizations/${orgId}/chart`);
+  },
+  updateManager: async (
+    orgId: string,
+    memberId: string,
+    data: { manager_id: string | null },
+  ): Promise<void> => {
+    return apiClient.put(
+      `/organizations/${orgId}/members/${memberId}/manager`,
+      data,
+    );
+  },
+
+  // Insights
+  getInsightsSummary: async (
+    orgId: string,
+    params: { start_date: string; end_date: string },
+  ): Promise<import("../types").OrgInsightsSummary> => {
+    const query = new URLSearchParams({
+      start_date: params.start_date,
+      end_date: params.end_date,
+    });
+    return apiClient.get(`/organizations/${orgId}/insights/summary?${query}`);
+  },
+
+  getInsightMembers: async (
+    orgId: string,
+    params: {
+      start_date: string;
+      end_date: string;
+      department_id?: string;
+      job_group_id?: string;
+      sort_by?: string;
+      sort_dir?: string;
+    },
+  ): Promise<import("../types").OrgMemberContribution[]> => {
+    const query = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== "") query.set(k, String(v));
+    });
+    return apiClient.get(`/organizations/${orgId}/insights/members?${query}`);
+  },
+
+  getInsightMemberDetail: async (
+    orgId: string,
+    memberId: string,
+    params: { start_date: string; end_date: string },
+  ): Promise<import("../types").OrgMemberContributionDetail> => {
+    const query = new URLSearchParams({
+      start_date: params.start_date,
+      end_date: params.end_date,
+    });
+    return apiClient.get(
+      `/organizations/${orgId}/insights/members/${memberId}?${query}`,
+    );
+  },
+
+  getInsightBoards: async (
+    orgId: string,
+    params: {
+      start_date: string;
+      end_date: string;
+      sort_by?: string;
+    },
+  ): Promise<import("../types").OrgBoardResourceResponse> => {
+    const query = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== "") query.set(k, String(v));
+    });
+    return apiClient.get(`/organizations/${orgId}/insights/boards?${query}`);
+  },
+
+  // 1:1 Meeting Notes
+  getOneOnOnes: async (
+    orgId: string,
+  ): Promise<import("../types").OneOnOneSummary[]> => {
+    return apiClient.get(`/organizations/${orgId}/one-on-ones`);
+  },
+  createOneOnOne: async (
+    orgId: string,
+    data: {
+      member_b_id: string;
+      recurrence_type?: string;
+      recurrence_day?: number;
+    },
+  ): Promise<import("../types").OneOnOneSummary> => {
+    return apiClient.post(`/organizations/${orgId}/one-on-ones`, data);
+  },
+  updateOneOnOne: async (
+    orgId: string,
+    oneOnOneId: string,
+    data: {
+      recurrence_type?: string;
+      recurrence_day?: number;
+      next_meeting_date?: string;
+    },
+  ): Promise<import("../types").OneOnOneSummary> => {
+    return apiClient.put(
+      `/organizations/${orgId}/one-on-ones/${oneOnOneId}`,
+      data,
+    );
+  },
+  deleteOneOnOne: async (orgId: string, oneOnOneId: string): Promise<void> => {
+    return apiClient.delete(
+      `/organizations/${orgId}/one-on-ones/${oneOnOneId}`,
+    );
+  },
+  getOneOnOneByMember: async (
+    orgId: string,
+    memberId: string,
+  ): Promise<import("../types").OneOnOneSummary | null> => {
+    try {
+      const data = await apiClient.get<import("../types").OneOnOneSummary>(
+        `/organizations/${orgId}/one-on-ones/by-member/${memberId}`,
+      );
+      // 204 No Content returns {} — treat as null
+      if (!data || !data.id) return null;
+      return data;
+    } catch {
+      return null;
+    }
+  },
+  getOneOnOneMeetings: async (
+    orgId: string,
+    oneOnOneId: string,
+    params?: {
+      cursor?: string;
+      size?: number;
+    },
+  ): Promise<import("../types").OneOnOneMeetingListResponse> => {
+    const query = new URLSearchParams();
+    if (params?.cursor) query.set("cursor", params.cursor);
+    if (params?.size) query.set("size", String(params.size));
+    const qs = query.toString();
+    return apiClient.get(
+      `/organizations/${orgId}/one-on-ones/${oneOnOneId}/meetings${qs ? `?${qs}` : ""}`,
+    );
+  },
+  createOneOnOneMeeting: async (
+    orgId: string,
+    oneOnOneId: string,
+    data: {
+      meeting_date: string;
+      agenda?: string;
+      notes?: string;
+      action_items?: { title: string; assignee_id?: string }[];
+    },
+  ): Promise<import("../types").OneOnOneMeetingDetail> => {
+    return apiClient.post(
+      `/organizations/${orgId}/one-on-ones/${oneOnOneId}/meetings`,
+      data,
+    );
+  },
+  updateOneOnOneMeeting: async (
+    orgId: string,
+    oneOnOneId: string,
+    meetingId: string,
+    data: {
+      meeting_date?: string;
+      agenda?: string;
+      notes?: string;
+      action_items?: { title: string; assignee_id?: string }[];
+    },
+  ): Promise<import("../types").OneOnOneMeetingDetail> => {
+    return apiClient.put(
+      `/organizations/${orgId}/one-on-ones/${oneOnOneId}/meetings/${meetingId}`,
+      data,
+    );
+  },
+  deleteOneOnOneMeeting: async (
+    orgId: string,
+    oneOnOneId: string,
+    meetingId: string,
+  ): Promise<void> => {
+    return apiClient.delete(
+      `/organizations/${orgId}/one-on-ones/${oneOnOneId}/meetings/${meetingId}`,
+    );
+  },
+  toggleOneOnOneActionItem: async (
+    orgId: string,
+    oneOnOneId: string,
+    actionId: string,
+  ): Promise<import("../types").OneOnOneActionItemDetail> => {
+    return apiClient.put(
+      `/organizations/${orgId}/one-on-ones/${oneOnOneId}/action-items/${actionId}/toggle`,
+      {},
+    );
+  },
+  getOneOnOneOpenActions: async (
+    orgId: string,
+    oneOnOneId: string,
+  ): Promise<import("../types").OneOnOneOpenActionItem[]> => {
+    return apiClient.get(
+      `/organizations/${orgId}/one-on-ones/${oneOnOneId}/action-items/open`,
+    );
+  },
+
+  // Attendance & Time Tracking
+  clockIn: async (
+    orgId: string,
+  ): Promise<import("../types").AttendanceRecordDetail> => {
+    return apiClient.post(`/organizations/${orgId}/attendance/clock-in`, {});
+  },
+  clockOut: async (
+    orgId: string,
+  ): Promise<import("../types").AttendanceRecordDetail> => {
+    return apiClient.post(`/organizations/${orgId}/attendance/clock-out`, {});
+  },
+  cancelClockOut: async (
+    orgId: string,
+  ): Promise<import("../types").AttendanceRecordDetail> => {
+    return apiClient.post(`/organizations/${orgId}/attendance/cancel-clock-out`, {});
+  },
+  getMyAttendanceRecords: async (
+    orgId: string,
+    params?: { year?: number; month?: number },
+  ): Promise<import("../types").AttendanceMyRecordsResponse> => {
+    const query = new URLSearchParams();
+    if (params?.year) query.set("year", String(params.year));
+    if (params?.month) query.set("month", String(params.month));
+    const qs = query.toString();
+    return apiClient.get(
+      `/organizations/${orgId}/attendance/my-records${qs ? `?${qs}` : ""}`,
+    );
+  },
+  getAttendanceToday: async (
+    orgId: string,
+  ): Promise<import("../types").AttendanceTodayStatus> => {
+    return apiClient.get(`/organizations/${orgId}/attendance/today`);
+  },
+  getAttendanceTeamSummary: async (
+    orgId: string,
+    params?: { year?: number; month?: number; department_id?: string },
+  ): Promise<import("../types").AttendanceTeamSummaryResponse> => {
+    const query = new URLSearchParams();
+    if (params?.year) query.set("year", String(params.year));
+    if (params?.month) query.set("month", String(params.month));
+    if (params?.department_id) query.set("department_id", params.department_id);
+    const qs = query.toString();
+    return apiClient.get(
+      `/organizations/${orgId}/attendance/team-summary${qs ? `?${qs}` : ""}`,
+    );
+  },
+  adminModifyAttendance: async (
+    orgId: string,
+    recordId: string,
+    data: { clock_in?: string; clock_out?: string; note?: string },
+  ): Promise<import("../types").AttendanceRecordDetail> => {
+    return apiClient.put(
+      `/organizations/${orgId}/attendance/records/${recordId}`,
+      data,
+    );
+  },
+  getAttendancePolicy: async (
+    orgId: string,
+  ): Promise<import("../types").AttendancePolicyResponse> => {
+    return apiClient.get(`/organizations/${orgId}/attendance/policy`);
+  },
+  updateAttendancePolicy: async (
+    orgId: string,
+    data: {
+      standard_hours?: number;
+      core_time_start?: string;
+      core_time_end?: string;
+      late_threshold?: string;
+      auto_clock_out?: boolean;
+      auto_clock_out_time?: string;
+      weekend_days?: string;
+    },
+  ): Promise<import("../types").AttendancePolicyResponse> => {
+    return apiClient.put(`/organizations/${orgId}/attendance/policy`, data);
+  },
+  getAttendanceHolidays: async (
+    orgId: string,
+  ): Promise<import("../types").AttendanceHolidayResponse[]> => {
+    return apiClient.get(`/organizations/${orgId}/attendance/holidays`);
+  },
+  createAttendanceHoliday: async (
+    orgId: string,
+    data: { holiday_date: string; name: string; is_recurring?: boolean },
+  ): Promise<import("../types").AttendanceHolidayResponse> => {
+    return apiClient.post(`/organizations/${orgId}/attendance/holidays`, data);
+  },
+  deleteAttendanceHoliday: async (
+    orgId: string,
+    holidayId: string,
+  ): Promise<void> => {
+    return apiClient.delete(
+      `/organizations/${orgId}/attendance/holidays/${holidayId}`,
+    );
+  },
+  exportAttendanceCsv: async (
+    orgId: string,
+    params?: { year?: number; month?: number; department_id?: string },
+  ): Promise<Blob> => {
+    const query = new URLSearchParams();
+    if (params?.year) query.set("year", String(params.year));
+    if (params?.month) query.set("month", String(params.month));
+    if (params?.department_id) query.set("department_id", params.department_id);
+    const qs = query.toString();
+    const url = `${API_BASE_URL}/organizations/${orgId}/attendance/export${qs ? `?${qs}` : ""}`;
+    const token = getAccessToken();
+    const res = await fetch(url, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) throw new Error("Export failed");
+    return res.blob();
   },
 };
 
 // ─── Organization Announcement API ───
 
 export const orgAnnouncementAPI = {
-  list: async (orgId: string, params?: { cursor?: string; limit?: number }): Promise<import('../types').OrgAnnouncementListResponse> => {
+  list: async (
+    orgId: string,
+    params?: { cursor?: string; limit?: number },
+  ): Promise<import("../types").OrgAnnouncementListResponse> => {
     const query = new URLSearchParams();
-    if (params?.cursor) query.set('cursor', params.cursor);
-    if (params?.limit) query.set('limit', String(params.limit));
+    if (params?.cursor) query.set("cursor", params.cursor);
+    if (params?.limit) query.set("limit", String(params.limit));
     const qs = query.toString();
-    return apiClient.get(`/organizations/${orgId}/announcements${qs ? `?${qs}` : ''}`);
+    return apiClient.get(
+      `/organizations/${orgId}/announcements${qs ? `?${qs}` : ""}`,
+    );
   },
-  create: async (orgId: string, data: { title: string; content?: string; is_pinned?: boolean }): Promise<import('../types').OrgAnnouncement> => {
+  create: async (
+    orgId: string,
+    data: { title: string; content?: string; is_pinned?: boolean },
+  ): Promise<import("../types").OrgAnnouncement> => {
     return apiClient.post(`/organizations/${orgId}/announcements`, data);
   },
-  update: async (orgId: string, id: string, data: { title: string; content?: string }): Promise<import('../types').OrgAnnouncement> => {
+  update: async (
+    orgId: string,
+    id: string,
+    data: { title: string; content?: string },
+  ): Promise<import("../types").OrgAnnouncement> => {
     return apiClient.put(`/organizations/${orgId}/announcements/${id}`, data);
   },
   delete: async (orgId: string, id: string): Promise<void> => {
     return apiClient.delete(`/organizations/${orgId}/announcements/${id}`);
   },
-  togglePin: async (orgId: string, id: string): Promise<import('../types').OrgAnnouncement> => {
+  togglePin: async (
+    orgId: string,
+    id: string,
+  ): Promise<import("../types").OrgAnnouncement> => {
     return apiClient.put(`/organizations/${orgId}/announcements/${id}/pin`, {});
   },
 };
@@ -4614,12 +6000,17 @@ export const orgAnnouncementAPI = {
 // ─── Organization Activity API ───
 
 export const orgActivityAPI = {
-  list: async (orgId: string, params?: { cursor?: string; limit?: number }): Promise<import('../types').OrgActivityListResponse> => {
+  list: async (
+    orgId: string,
+    params?: { cursor?: string; limit?: number },
+  ): Promise<import("../types").OrgActivityListResponse> => {
     const query = new URLSearchParams();
-    if (params?.cursor) query.set('cursor', params.cursor);
-    if (params?.limit) query.set('limit', String(params.limit));
+    if (params?.cursor) query.set("cursor", params.cursor);
+    if (params?.limit) query.set("limit", String(params.limit));
     const qs = query.toString();
-    return apiClient.get(`/organizations/${orgId}/activities${qs ? `?${qs}` : ''}`);
+    return apiClient.get(
+      `/organizations/${orgId}/activities${qs ? `?${qs}` : ""}`,
+    );
   },
 };
 
@@ -4627,77 +6018,230 @@ export const orgActivityAPI = {
 
 export const leaveAPI = {
   // Policies
-  getPolicies: async (orgId: string): Promise<import('../types').LeavePolicy[]> => {
+  getPolicies: async (
+    orgId: string,
+  ): Promise<import("../types").LeavePolicy[]> => {
     return apiClient.get(`/organizations/${orgId}/leave-policies`);
   },
-  createPolicy: async (orgId: string, data: {
-    name: string; leave_category: string; default_days?: number;
-    is_paid?: boolean; requires_approval?: boolean; description?: string;
-  }): Promise<import('../types').LeavePolicy> => {
+  createPolicy: async (
+    orgId: string,
+    data: {
+      name: string;
+      leave_category: string;
+      default_days?: number;
+      is_paid?: boolean;
+      requires_approval?: boolean;
+      description?: string;
+    },
+  ): Promise<import("../types").LeavePolicy> => {
     return apiClient.post(`/organizations/${orgId}/leave-policies`, data);
   },
-  updatePolicy: async (orgId: string, policyId: string, data: Record<string, unknown>): Promise<import('../types').LeavePolicy> => {
-    return apiClient.put(`/organizations/${orgId}/leave-policies/${policyId}`, data);
+  updatePolicy: async (
+    orgId: string,
+    policyId: string,
+    data: Record<string, unknown>,
+  ): Promise<import("../types").LeavePolicy> => {
+    return apiClient.put(
+      `/organizations/${orgId}/leave-policies/${policyId}`,
+      data,
+    );
   },
 
   // Balances
-  getMyBalance: async (orgId: string): Promise<import('../types').LeaveBalance[]> => {
+  getMyBalance: async (
+    orgId: string,
+  ): Promise<import("../types").LeaveBalance[]> => {
     return apiClient.get(`/organizations/${orgId}/my-leave-balance`);
   },
-  getMemberBalance: async (orgId: string, memberId: string): Promise<import('../types').LeaveBalance[]> => {
-    return apiClient.get(`/organizations/${orgId}/members/${memberId}/leave-balance`);
+  getMemberBalance: async (
+    orgId: string,
+    memberId: string,
+  ): Promise<import("../types").LeaveBalance[]> => {
+    return apiClient.get(
+      `/organizations/${orgId}/members/${memberId}/leave-balance`,
+    );
   },
-  updateMemberBalance: async (orgId: string, memberId: string, balanceId: string, data: { total_days: number }): Promise<import('../types').LeaveBalance> => {
-    return apiClient.put(`/organizations/${orgId}/members/${memberId}/leave-balance/${balanceId}`, data);
+  updateMemberBalance: async (
+    orgId: string,
+    memberId: string,
+    balanceId: string,
+    data: { total_days: number },
+  ): Promise<import("../types").LeaveBalance> => {
+    return apiClient.put(
+      `/organizations/${orgId}/members/${memberId}/leave-balance/${balanceId}`,
+      data,
+    );
   },
 
   // On Leave Today
-  getOnLeaveToday: async (orgId: string, date?: string): Promise<import('../types').LeaveRequestResponse[]> => {
-    const query = date ? `?date=${date}` : '';
+  getOnLeaveToday: async (
+    orgId: string,
+    date?: string,
+  ): Promise<import("../types").LeaveRequestResponse[]> => {
+    const query = date ? `?date=${date}` : "";
     return apiClient.get(`/organizations/${orgId}/on-leave-today${query}`);
   },
 
   // Leave Requests
-  getRequests: async (orgId: string, params?: {
-    status?: string; requester_id?: string; start_date?: string;
-    end_date?: string; page?: number; size?: number;
-  }): Promise<import('../types').LeaveRequestPageResponse> => {
+  getRequests: async (
+    orgId: string,
+    params?: {
+      status?: string;
+      requester_id?: string;
+      start_date?: string;
+      end_date?: string;
+      page?: number;
+      size?: number;
+    },
+  ): Promise<import("../types").LeaveRequestPageResponse> => {
     const query = new URLSearchParams();
     if (params) {
-      Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') query.set(k, String(v)); });
+      Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== "") query.set(k, String(v));
+      });
     }
     const qs = query.toString();
-    return apiClient.get(`/organizations/${orgId}/leave-requests${qs ? `?${qs}` : ''}`);
+    return apiClient.get(
+      `/organizations/${orgId}/leave-requests${qs ? `?${qs}` : ""}`,
+    );
   },
-  createRequest: async (orgId: string, data: {
-    policy_id: string; start_date: string; end_date: string;
-    duration_type?: string; reason?: string;
-  }): Promise<import('../types').LeaveRequestResponse> => {
+  createRequest: async (
+    orgId: string,
+    data: {
+      policy_id: string;
+      start_date: string;
+      end_date: string;
+      duration_type?: string;
+      reason?: string;
+    },
+  ): Promise<import("../types").LeaveRequestResponse> => {
     return apiClient.post(`/organizations/${orgId}/leave-requests`, data);
   },
-  approveRequest: async (orgId: string, requestId: string): Promise<import('../types').LeaveRequestResponse> => {
-    return apiClient.put(`/organizations/${orgId}/leave-requests/${requestId}/approve`, {});
+  approveRequest: async (
+    orgId: string,
+    requestId: string,
+  ): Promise<import("../types").LeaveRequestResponse> => {
+    return apiClient.put(
+      `/organizations/${orgId}/leave-requests/${requestId}/approve`,
+      {},
+    );
   },
-  rejectRequest: async (orgId: string, requestId: string, data?: { comment?: string }): Promise<import('../types').LeaveRequestResponse> => {
-    return apiClient.put(`/organizations/${orgId}/leave-requests/${requestId}/reject`, data || {});
+  rejectRequest: async (
+    orgId: string,
+    requestId: string,
+    data?: { comment?: string },
+  ): Promise<import("../types").LeaveRequestResponse> => {
+    return apiClient.put(
+      `/organizations/${orgId}/leave-requests/${requestId}/reject`,
+      data || {},
+    );
   },
-  cancelRequest: async (orgId: string, requestId: string): Promise<import('../types').LeaveRequestResponse> => {
-    return apiClient.put(`/organizations/${orgId}/leave-requests/${requestId}/cancel`, {});
+  cancelRequest: async (
+    orgId: string,
+    requestId: string,
+  ): Promise<import("../types").LeaveRequestResponse> => {
+    return apiClient.put(
+      `/organizations/${orgId}/leave-requests/${requestId}/cancel`,
+      {},
+    );
   },
-  reopenRequest: async (orgId: string, requestId: string): Promise<import('../types').LeaveRequestResponse> => {
-    return apiClient.put(`/organizations/${orgId}/leave-requests/${requestId}/reopen`, {});
+  reopenRequest: async (
+    orgId: string,
+    requestId: string,
+  ): Promise<import("../types").LeaveRequestResponse> => {
+    return apiClient.put(
+      `/organizations/${orgId}/leave-requests/${requestId}/reopen`,
+      {},
+    );
+  },
+};
+
+// ─── Anniversary & Celebrations API ───
+
+export const anniversaryAPI = {
+  getUpcoming: async (
+    orgId: string,
+    range?: string,
+  ): Promise<import("../types").UpcomingAnniversaries> => {
+    const params = range ? `?range=${range}` : "";
+    return apiClient.get(
+      `/organizations/${orgId}/anniversaries/upcoming${params}`,
+    );
+  },
+  getMessages: async (
+    orgId: string,
+    memberId: string,
+    params: { type: string; date: string; cursor?: string; size?: number },
+  ): Promise<{
+    messages: import("../types").CelebrationMessage[];
+    next_cursor: string | null;
+    has_more: boolean;
+  }> => {
+    const query = new URLSearchParams();
+    query.set("type", params.type);
+    query.set("date", params.date);
+    if (params.cursor) query.set("cursor", params.cursor);
+    if (params.size) query.set("size", String(params.size));
+    return apiClient.get(
+      `/organizations/${orgId}/anniversaries/${memberId}/messages?${query.toString()}`,
+    );
+  },
+  createMessage: async (
+    orgId: string,
+    memberId: string,
+    data: { type: string; date: string; message: string },
+  ): Promise<{ id: string; message: string; created_at: string }> => {
+    return apiClient.post(
+      `/organizations/${orgId}/anniversaries/${memberId}/messages`,
+      data,
+    );
+  },
+  updateMessage: async (
+    orgId: string,
+    memberId: string,
+    messageId: string,
+    data: { message: string },
+  ): Promise<import("../types").CelebrationMessage> => {
+    return apiClient.put(
+      `/organizations/${orgId}/anniversaries/${memberId}/messages/${messageId}`,
+      data,
+    );
+  },
+  deleteMessage: async (
+    orgId: string,
+    memberId: string,
+    messageId: string,
+  ): Promise<void> => {
+    return apiClient.delete(
+      `/organizations/${orgId}/anniversaries/${memberId}/messages/${messageId}`,
+    );
+  },
+  getSettings: async (
+    orgId: string,
+  ): Promise<import("../types").AnniversarySettings> => {
+    return apiClient.get(`/organizations/${orgId}/anniversary-settings`);
+  },
+  updateSettings: async (
+    orgId: string,
+    data: Partial<import("../types").AnniversarySettings>,
+  ): Promise<import("../types").AnniversarySettings> => {
+    return apiClient.put(`/organizations/${orgId}/anniversary-settings`, data);
   },
 };
 
 // ─── Personal Dashboard API (v9.0) ───
 
 export const personalDashboardAPI = {
-  getToday: async (date?: string): Promise<import('../types').PersonalDashboardToday> => {
-    const params = date ? `?date=${date}` : '';
+  getToday: async (
+    date?: string,
+  ): Promise<import("../types").PersonalDashboardToday> => {
+    const params = date ? `?date=${date}` : "";
     return apiClient.get(`/personal/dashboard/today${params}`);
   },
-  getOverview: async (date?: string): Promise<import('../types').PersonalOverviewData> => {
-    const params = date ? `?date=${date}` : '';
+  getOverview: async (
+    date?: string,
+  ): Promise<import("../types").PersonalOverviewData> => {
+    const params = date ? `?date=${date}` : "";
     return apiClient.get(`/personal/dashboard/overview${params}`);
   },
 };

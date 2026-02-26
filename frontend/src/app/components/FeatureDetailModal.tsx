@@ -293,7 +293,7 @@ export function FeatureDetailModal({
           </div>
 
           {/* Scrollable Content */}
-          <div className="flex-1 overflow-y-auto p-6 pb-10 kanban-scrollbar">
+          <div className="flex-1 overflow-y-auto p-6 pb-10 custom-scrollbar">
             <div className="space-y-5">
               {/* Description Section */}
               <div className="space-y-2">
@@ -611,7 +611,7 @@ export function FeatureDetailModal({
                           ) : (
                             <span
                               className={`text-xs font-semibold text-foreground/80 group-hover:text-foreground transition-colors truncate ${canEdit ? 'cursor-text hover:bg-foreground/5 rounded px-1 -mx-1' : ''}`}
-                              onDoubleClick={(e) => { e.stopPropagation(); handleStartEditTask(task); }}
+                              onClick={(e) => { if (canEdit) { e.stopPropagation(); handleStartEditTask(task); } }}
                             >
                               {task.title}
                             </span>
@@ -642,7 +642,7 @@ export function FeatureDetailModal({
                           if (e.nativeEvent.isComposing) return;
                           if (e.key === 'Enter') handleAddSubtask();
                         }}
-                        className={`flex-1 rounded-lg px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent text-foreground transition-all ${isOnboarding && tasks.length === 0 ? 'bg-bridge-dark/70 border-2 border-bridge-accent/40 placeholder-slate-400 shadow-[0_0_12px_rgba(99,102,241,0.15)]' : 'bg-bridge-dark/50 border border-bridge-border/30 placeholder-slate-500'}`}
+                        className={`flex-1 rounded-lg px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent text-foreground transition-all ${isOnboarding && tasks.length === 0 ? 'bg-bridge-dark/70 border-2 border-bridge-accent/40 placeholder-slate-500 shadow-[0_0_12px_rgba(99,102,241,0.15)]' : 'bg-bridge-dark/50 border border-bridge-border/30 placeholder-slate-500'}`}
                         autoFocus={isOnboarding && tasks.length === 0}
                       />
                       <motion.button
@@ -766,7 +766,7 @@ export function FeatureDetailModal({
             </div>
 
             {/* Task list with individual migration selectors */}
-            <div className="flex-1 overflow-y-auto px-6 py-3 kanban-scrollbar">
+            <div className="flex-1 overflow-y-auto px-6 py-3 custom-scrollbar">
               <div className="space-y-2">
                 {tasks.map(task => (
                   <div key={task.id} className="flex items-center gap-3 p-2.5 rounded-lg bg-foreground/[0.03] border border-foreground/5">

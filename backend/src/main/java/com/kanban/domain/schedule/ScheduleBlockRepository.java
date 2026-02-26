@@ -113,6 +113,14 @@ public interface ScheduleBlockRepository extends JpaRepository<ScheduleBlock, St
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate);
 
+    @Modifying
+    @Query("UPDATE ScheduleBlock sb SET sb.meeting = null WHERE sb.meeting.id = :meetingId")
+    void unlinkByMeetingId(@Param("meetingId") String meetingId);
+
+    @Modifying
+    @Query("UPDATE ScheduleBlock sb SET sb.meeting = null WHERE sb.meeting.id IN :meetingIds")
+    void unlinkByMeetingIds(@Param("meetingIds") List<String> meetingIds);
+
     // Meeting 관련 쿼리
     @Query("SELECT COUNT(DISTINCT sb.assignee.id) FROM ScheduleBlock sb WHERE sb.meeting.id = :meetingId")
     int countDistinctAssigneeByMeetingId(@Param("meetingId") String meetingId);
@@ -156,4 +164,52 @@ public interface ScheduleBlockRepository extends JpaRepository<ScheduleBlock, St
     @Modifying
     @Query("DELETE FROM ScheduleBlock sb WHERE sb.assignee.id = :userId")
     void deleteByAssigneeId(@Param("userId") String userId);
+
+    // ==================== Organization Insights Queries ====================
+
+    /**
+     * 조직 내 보드들의 기간별 총 소요 시간(분) 합산
+     */
+    @Query("SELECT COALESCE(SUM(HOUR(sb.endTime) * 60 + MINUTE(sb.endTime) - HOUR(sb.startTime) * 60 - MINUTE(sb.startTime)), 0) " +
+           "FROM ScheduleBlock sb WHERE sb.board.id IN :boardIds AND sb.scheduledDate BETWEEN :startDate AND :endDate")
+    long sumMinutesByBoardIdsAndDateRange(@Param("boardIds") List<String> boardIds,
+                                          @Param("startDate") LocalDate startDate,
+                                          @Param("endDate") LocalDate endDate);
+
+    /**
+     * 사용자 및 보드별 소요 시간(분) 그룹 집계
+     */
+    @Query("SELECT sb.assignee.id, sb.board.id, " +
+           "COALESCE(SUM(HOUR(sb.endTime) * 60 + MINUTE(sb.endTime) - HOUR(sb.startTime) * 60 - MINUTE(sb.startTime)), 0) " +
+           "FROM ScheduleBlock sb WHERE sb.board.id IN :boardIds AND sb.scheduledDate BETWEEN :startDate AND :endDate " +
+           "GROUP BY sb.assignee.id, sb.board.id")
+    List<Object[]> sumMinutesGroupByUserAndBoard(@Param("boardIds") List<String> boardIds,
+                                                  @Param("startDate") LocalDate startDate,
+                                                  @Param("endDate") LocalDate endDate);
+
+    /**
+     * 보드 및 날짜별 소요 시간(분) 그룹 집계 (서비스 레이어에서 주별 집계 처리)
+     */
+    @Query("SELECT sb.board.id, sb.scheduledDate, " +
+           "COALESCE(SUM(HOUR(sb.endTime) * 60 + MINUTE(sb.endTime) - HOUR(sb.startTime) * 60 - MINUTE(sb.startTime)), 0) " +
+           "FROM ScheduleBlock sb WHERE sb.board.id IN :boardIds AND sb.scheduledDate BETWEEN :startDate AND :endDate " +
+           "GROUP BY sb.board.id, sb.scheduledDate " +
+           "ORDER BY sb.scheduledDate")
+    List<Object[]> sumMinutesGroupByBoardAndDate(@Param("boardIds") List<String> boardIds,
+                                                  @Param("startDate") LocalDate startDate,
+                                                  @Param("endDate") LocalDate endDate);
+
+    /**
+     * 특정 사용자의 날짜별 소요 시간(분) 그룹 집계 (서비스 레이어에서 주별 집계 처리)
+     */
+    @Query("SELECT sb.assignee.id, sb.scheduledDate, " +
+           "COALESCE(SUM(HOUR(sb.endTime) * 60 + MINUTE(sb.endTime) - HOUR(sb.startTime) * 60 - MINUTE(sb.startTime)), 0) " +
+           "FROM ScheduleBlock sb WHERE sb.board.id IN :boardIds AND sb.assignee.id = :userId " +
+           "AND sb.scheduledDate BETWEEN :startDate AND :endDate " +
+           "GROUP BY sb.assignee.id, sb.scheduledDate " +
+           "ORDER BY sb.scheduledDate")
+    List<Object[]> sumMinutesGroupByUserAndDate(@Param("boardIds") List<String> boardIds,
+                                                 @Param("userId") String userId,
+                                                 @Param("startDate") LocalDate startDate,
+                                                 @Param("endDate") LocalDate endDate);
 }

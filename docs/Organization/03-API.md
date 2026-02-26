@@ -1,6 +1,6 @@
 # Organization Service - API Specification
 
-> **Version**: v1.1.0 | **Date**: 2026-02-25
+> **Version**: v1.2.0 | **Date**: 2026-02-26
 > **Base URL**: `/api/v1`
 > **JSON 필드**: `snake_case` (Jackson SNAKE_CASE 전략)
 
@@ -969,6 +969,195 @@ Auth: 신청자 본인
 
 ---
 
+## 8. Anniversary Notifications & Celebrations (HR Extension P1)
+
+### 8.1 다가오는 기념일 조회
+```
+GET /api/v1/organizations/{orgId}/anniversaries/upcoming
+Auth: OrgMember+
+```
+
+**Query Parameters:**
+| 파라미터 | 타입 | 설명 |
+|---------|------|------|
+| `range` | string | 범위 (THIS_WEEK / THIS_MONTH, default: THIS_MONTH) |
+
+**Response (200):**
+```json
+{
+  "data": {
+    "today": [
+      {
+        "member_id": "member-uuid",
+        "member_name": "최성섭",
+        "profile_image_url": "https://...",
+        "department_name": "Rabbit Hole",
+        "type": "BIRTHDAY",
+        "date": "2026-02-26",
+        "years": null,
+        "message_count": 3
+      }
+    ],
+    "this_week": [],
+    "this_month": [
+      {
+        "member_id": "member-uuid",
+        "member_name": "김준영",
+        "profile_image_url": null,
+        "department_name": "Business",
+        "type": "HIRE_ANNIVERSARY",
+        "date": "2026-03-01",
+        "years": 2,
+        "message_count": 0
+      }
+    ]
+  }
+}
+```
+
+**로직:**
+1. org_anniversary_settings 조회 (없으면 기본값 생성)
+2. birthday_enabled / hire_anniversary_enabled에 따라 필터
+3. 범위 내 멤버의 birth_date / hire_date 매칭
+4. 윤년 처리: 2/29 생일 → 비윤년에는 2/28로 매칭
+
+---
+
+### 8.2 축하 메시지 목록 조회
+```
+GET /api/v1/organizations/{orgId}/anniversaries/messages
+Auth: OrgMember+
+```
+
+**Query Parameters:**
+| 파라미터 | 타입 | 설명 |
+|---------|------|------|
+| `target_member_id` | string (UUID) | 대상 멤버 ID (필수) |
+| `anniversary_type` | string | BIRTHDAY / HIRE_ANNIVERSARY (필수) |
+| `anniversary_date` | string (yyyy-MM-dd) | 기념일 날짜 (필수) |
+| `cursor` | string (UUID) | 커서 (다음 페이지) |
+| `limit` | int | 페이지 크기 (default: 20) |
+
+**Response (200):**
+```json
+{
+  "data": {
+    "messages": [
+      {
+        "id": "msg-uuid",
+        "author": {
+          "id": "member-uuid",
+          "name": "이종서",
+          "profile_image_url": "https://..."
+        },
+        "message": "생일 축하해요! 🎂",
+        "created_at": "2026-02-26T03:00:00",
+        "is_mine": true
+      }
+    ],
+    "next_cursor": null,
+    "has_more": false
+  }
+}
+```
+
+---
+
+### 8.3 축하 메시지 작성
+```
+POST /api/v1/organizations/{orgId}/anniversaries/messages
+Auth: OrgMember+
+```
+
+**Request:**
+```json
+{
+  "target_member_id": "member-uuid",
+  "anniversary_type": "BIRTHDAY",
+  "anniversary_date": "2026-02-26",
+  "message": "생일 축하해요! 좋은 하루 되세요 🎂"
+}
+```
+
+**Response (201):**
+```json
+{
+  "data": {
+    "id": "msg-uuid",
+    "author": { "id": "member-uuid", "name": "이종서" },
+    "message": "생일 축하해요! 좋은 하루 되세요 🎂",
+    "created_at": "2026-02-26T03:00:00"
+  }
+}
+```
+
+**Validation:**
+- 같은 author → target, 같은 type + date에 이미 메시지 존재 시 → 409 `CELEBRATION_MESSAGE_ALREADY_EXISTS`
+- 메시지 길이: 최대 500자
+
+---
+
+### 8.4 축하 메시지 수정
+```
+PUT /api/v1/organizations/{orgId}/anniversaries/messages/{messageId}
+Auth: 작성자 본인
+```
+
+**Request:**
+```json
+{
+  "message": "수정된 축하 메시지입니다!"
+}
+```
+
+---
+
+### 8.5 축하 메시지 삭제
+```
+DELETE /api/v1/organizations/{orgId}/anniversaries/messages/{messageId}
+Auth: 작성자 본인 또는 OrgAdmin+
+```
+
+---
+
+### 8.6 기념일 설정 조회
+```
+GET /api/v1/organizations/{orgId}/anniversaries/settings
+Auth: OrgAdmin+
+```
+
+**Response (200):**
+```json
+{
+  "data": {
+    "birthday_enabled": true,
+    "hire_anniversary_enabled": true,
+    "notify_timing": "SAME_DAY",
+    "dashboard_range": "THIS_MONTH"
+  }
+}
+```
+
+---
+
+### 8.7 기념일 설정 수정
+```
+PUT /api/v1/organizations/{orgId}/anniversaries/settings
+Auth: OrgAdmin+
+```
+
+**Request:**
+```json
+{
+  "birthday_enabled": true,
+  "hire_anniversary_enabled": false,
+  "notify_timing": "DAY_BEFORE",
+  "dashboard_range": "THIS_WEEK"
+}
+```
+
+---
+
 ## 7. Error Codes (신규)
 
 | 코드 | HTTP | 설명 |
@@ -999,10 +1188,13 @@ Auth: 신청자 본인
 | `LEAVE_REQUEST_NOT_FOUND` | 404 | 휴가 요청을 찾을 수 없음 |
 | `LEAVE_ALREADY_PROCESSED` | 400 | 이미 처리된 휴가 요청 |
 | `LEAVE_CANCEL_NOT_ALLOWED` | 400 | 취소 불가 (이미 사용한 휴가 또는 종결 상태) |
+| `CELEBRATION_MESSAGE_ALREADY_EXISTS` | 409 | 이미 축하 메시지를 작성함 (같은 대상/유형/날짜) |
+| `CELEBRATION_MESSAGE_NOT_FOUND` | 404 | 축하 메시지를 찾을 수 없음 |
+| `CELEBRATION_MESSAGE_FORBIDDEN` | 403 | 축하 메시지 수정/삭제 권한 없음 |
 
 ---
 
-## 8. API Summary Table
+## 9. API Summary Table
 
 | # | Method | Path | Auth | 설명 |
 |---|--------|------|------|------|
@@ -1047,10 +1239,19 @@ Auth: 신청자 본인
 | 39 | PUT | `/organizations/{orgId}/leave-requests/{id}/approve` | OrgAdmin+ | 승인 |
 | 40 | PUT | `/organizations/{orgId}/leave-requests/{id}/reject` | OrgAdmin+ | 거절 |
 | 41 | PUT | `/organizations/{orgId}/leave-requests/{id}/cancel` | 신청자 본인 | 취소 |
+| **42** | **GET** | **`/organizations/{orgId}/anniversaries/upcoming`** | **OrgMember+** | **다가오는 기념일** |
+| **43** | **GET** | **`/organizations/{orgId}/anniversaries/messages`** | **OrgMember+** | **축하 메시지 목록** |
+| **44** | **POST** | **`/organizations/{orgId}/anniversaries/messages`** | **OrgMember+** | **축하 메시지 작성** |
+| **45** | **PUT** | **`/organizations/{orgId}/anniversaries/messages/{id}`** | **작성자 본인** | **축하 메시지 수정** |
+| **46** | **DELETE** | **`/organizations/{orgId}/anniversaries/messages/{id}`** | **본인/Admin+** | **축하 메시지 삭제** |
+| **47** | **GET** | **`/organizations/{orgId}/anniversaries/settings`** | **OrgAdmin+** | **기념일 설정 조회** |
+| **48** | **PUT** | **`/organizations/{orgId}/anniversaries/settings`** | **OrgAdmin+** | **기념일 설정 수정** |
 
-> **총 41개 엔드포인트** (Phase 1)
+> **총 48개 엔드포인트** (Core 41 + HR Extension P1: 7)
 >
 > **3대 규칙 관련 API:**
 > - R1: #15 (적격성 확인) + #16 (편입 시 검증)
 > - R2: 기존 `MemberService.addMember()` 에서 조직 보드인 경우 조직원 검증 추가 (별도 API 아님)
 > - R3: #13 (멤버 제거 시 조직 보드에서 연쇄 제거)
+>
+> **HR Extension P1 (Anniversary):** #42~#48 (기념일 조회, 축하 메시지 CRUD, 설정 CRUD)

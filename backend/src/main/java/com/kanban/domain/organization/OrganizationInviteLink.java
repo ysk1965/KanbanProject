@@ -3,6 +3,8 @@ package com.kanban.domain.organization;
 import com.kanban.domain.user.User;
 import jakarta.persistence.*;
 import lombok.*;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -10,6 +12,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "organization_invite_links")
+@EntityListeners(AuditingEntityListener.class)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
@@ -50,7 +53,8 @@ public class OrganizationInviteLink {
     @JoinColumn(name = "created_by")
     private User createdBy;
 
-    @Column(name = "created_at", nullable = false)
+    @CreatedDate
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     @PrePersist
@@ -60,9 +64,6 @@ public class OrganizationInviteLink {
         }
         if (this.code == null) {
             this.code = UUID.randomUUID().toString().replace("-", "").substring(0, 12);
-        }
-        if (this.createdAt == null) {
-            this.createdAt = LocalDateTime.now(ZoneOffset.UTC);
         }
     }
 

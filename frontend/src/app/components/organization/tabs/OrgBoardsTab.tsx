@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { Plus, LayoutGrid, X, AlertTriangle, Check, ChevronRight, Link } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { toast } from 'sonner';
 import { organizationService, boardService } from '../../../utils/services';
 import { MotionModal } from '../../ui/MotionModal';
 import type { OrgBoardSimple, OrgBoardEligibilityCheck, OrgRole, Board } from '../../../types';
@@ -91,8 +92,10 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
       setNewBoardName('');
       setNewBoardDescription('');
       fetchBoards();
+      toast.success(t('organization.boards.createSuccess', 'Board created'));
     } catch (error) {
       console.warn('Failed to create board:', error);
+      toast.error(t('organization.boards.createError', 'Failed to create board'));
     } finally {
       setCreating(false);
     }
@@ -106,8 +109,10 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
       setShowAddModal(false);
       setSelectedBoardId('');
       fetchBoards();
+      toast.success(t('organization.boards.addSuccess', 'Board linked'));
     } catch (error) {
       console.warn('Failed to add board:', error);
+      toast.error(t('organization.boards.addError', 'Failed to link board'));
     } finally {
       setAdding(false);
     }
@@ -118,8 +123,10 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
       await organizationService.removeBoard(orgId, boardId);
       setShowReleaseConfirm(null);
       fetchBoards();
+      toast.success(t('organization.boards.releaseSuccess', 'Board released'));
     } catch (error) {
       console.warn('Failed to release board:', error);
+      toast.error(t('organization.boards.releaseError', 'Failed to release board'));
     }
   };
 
@@ -132,7 +139,7 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
           <h3 className="text-sm font-bold text-foreground">
             {t('organization.boards.title', 'Connected Boards')}
           </h3>
-          <span className="text-[10px] font-bold text-bridge-secondary bg-bridge-secondary/10 px-1.5 py-0.5 rounded-full">
+          <span className="text-[10px] font-bold text-bridge-secondary bg-bridge-secondary/15 px-1.5 py-0.5 rounded-full">
             {boards.length}
           </span>
         </div>
@@ -151,7 +158,7 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
       {loading ? (
         <div className="space-y-2">
           {[1, 2].map((i) => (
-            <div key={i} className="h-16 bg-bridge-obsidian rounded-xl border border-foreground/[0.05] animate-pulse" />
+            <div key={i} className="h-16 bg-bridge-obsidian rounded-xl border border-foreground/[0.08] animate-pulse" />
           ))}
         </div>
       ) : boards.length === 0 ? (
@@ -160,7 +167,7 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
           animate={{ opacity: 1 }}
           className="flex flex-col items-center justify-center py-16 text-center"
         >
-          <div className="w-16 h-16 rounded-2xl bg-bridge-secondary/10 flex items-center justify-center mb-4">
+          <div className="w-16 h-16 rounded-2xl bg-bridge-secondary/15 flex items-center justify-center mb-4">
             <LayoutGrid size={32} className="text-bridge-secondary/60" />
           </div>
           <h3 className="text-base font-bold text-foreground mb-1">
@@ -184,23 +191,23 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
           {boards.map((board, index) => (
             <motion.div
               key={board.id}
-              initial={{ opacity: 0, y: 4 }}
+              initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.04 }}
-              className="group bg-bridge-obsidian rounded-xl border border-foreground/[0.05] p-4 flex items-center justify-between hover:border-foreground/[0.08] transition-all"
+              className="group bg-bridge-obsidian rounded-xl border border-foreground/[0.08] p-4 flex items-center justify-between hover:border-foreground/[0.12] transition-all"
             >
               <div
                 onClick={() => navigate(`/boards/${board.id}`)}
                 className="flex items-center gap-3 flex-1 cursor-pointer"
               >
-                <div className="w-8 h-8 rounded-lg bg-bridge-secondary/10 flex items-center justify-center shrink-0">
+                <div className="w-8 h-8 rounded-lg bg-bridge-secondary/15 flex items-center justify-center shrink-0">
                   <LayoutGrid size={14} className="text-bridge-secondary" />
                 </div>
                 <div>
                   <span className="text-foreground font-medium text-sm group-hover:text-bridge-accent transition-colors">{board.name}</span>
                   <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
                     <span>{board.owner.name}</span>
-                    <span>{board.member_count} members</span>
+                    <span>{t('organization.boards.memberCount', '{{count}} members', { count: board.member_count })}</span>
                   </div>
                 </div>
               </div>
@@ -224,18 +231,18 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
       {/* Release Confirmation Modal */}
       <MotionModal open={!!showReleaseConfirm} onClose={() => setShowReleaseConfirm(null)} className="sm:max-w-sm">
         <div className="h-1 bg-gradient-to-r from-amber-500 to-red-500 rounded-t-2xl" />
-        <div className="px-6 pt-5 pb-4 border-b border-foreground/[0.08]">
+        <div className="px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
           <div className="flex items-center gap-3">
             <AlertTriangle size={20} className="text-amber-600 dark:text-amber-400" />
             <h2 className="text-lg font-bold text-foreground">{t('organization.boards.releaseConfirm', 'Release Board?')}</h2>
           </div>
         </div>
-        <div className="px-6 py-5">
+        <div className="px-5 pb-5 pt-4">
           <p className="text-sm text-muted-foreground">
             {t('organization.boards.releaseWarning', 'After release, non-members can join this board. To re-link, all members must be org members.')}
           </p>
         </div>
-        <div className="px-6 py-4 border-t border-foreground/[0.08] flex items-center justify-between">
+        <div className="px-5 py-3 border-t border-foreground/[0.08] flex items-center justify-between">
           <span className="text-[10px] text-muted-foreground">ESC</span>
           <div className="flex gap-2">
             <button
@@ -246,7 +253,7 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
             </button>
             <button
               onClick={() => showReleaseConfirm && handleReleaseBoard(showReleaseConfirm)}
-              className="px-4 py-1.5 rounded-lg text-xs font-bold bg-red-500/20 text-red-600 dark:text-red-400 border border-red-500/30 hover:bg-red-500/30 transition-colors"
+              className="px-4 py-1.5 rounded-lg text-xs font-bold bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30 hover:bg-red-500/30 transition-colors"
             >
               {t('organization.boards.releaseButton', 'Release')}
             </button>
@@ -257,7 +264,7 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
       {/* Add Board Modal */}
       <MotionModal open={showAddModal} onClose={() => setShowAddModal(false)}>
         <div className="h-1 bg-gradient-to-r from-bridge-accent to-bridge-secondary rounded-t-2xl" />
-        <div className="px-6 pt-5 pb-3 border-b border-foreground/[0.08]">
+        <div className="px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
           <h2 className="text-lg font-bold text-foreground mb-3">
             {t('organization.boards.addTitle', 'Add Board to Organization')}
           </h2>
@@ -291,7 +298,7 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
         {/* Create New Board Tab */}
         {addModalTab === 'create' && (
           <>
-            <div className="px-6 py-5 space-y-3">
+            <div className="px-5 pb-5 pt-4 space-y-3">
               <input
                 type="text"
                 value={newBoardName}
@@ -300,7 +307,7 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
                 placeholder={t('organization.boards.boardNamePlaceholder', 'Board name')}
                 maxLength={100}
                 autoFocus
-                className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl py-3 px-4 text-sm text-foreground placeholder-slate-500 outline-none focus:border-bridge-accent/30 focus:ring-1 focus:ring-bridge-accent/10 transition-all"
+                className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl py-3 px-4 text-sm text-foreground placeholder-slate-500 outline-none focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
               />
               <textarea
                 value={newBoardDescription}
@@ -308,10 +315,10 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
                 placeholder={t('organization.boards.boardDescPlaceholder', 'Description (optional)')}
                 rows={2}
                 maxLength={500}
-                className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl p-3 text-sm text-foreground placeholder-slate-500 outline-none resize-none focus:border-bridge-accent/30 focus:ring-1 focus:ring-bridge-accent/10 transition-all"
+                className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl p-3 text-sm text-foreground placeholder-slate-500 outline-none resize-none focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
               />
             </div>
-            <div className="px-6 py-4 border-t border-foreground/[0.08] flex items-center justify-between">
+            <div className="px-5 py-3 border-t border-foreground/[0.08] flex items-center justify-between">
               <span className="text-[10px] text-muted-foreground">ESC</span>
               <div className="flex gap-2">
                 <button
@@ -337,7 +344,7 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
         {/* Link Existing Board Tab */}
         {addModalTab === 'link' && (
           <>
-            <div className="px-6 py-5 space-y-2 max-h-[60vh] overflow-y-auto custom-scrollbar">
+            <div className="px-5 pb-5 pt-4 space-y-2 max-h-[60vh] overflow-y-auto custom-scrollbar">
               {myBoards.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-4 text-center">
                   {t('organization.boards.noAvailable', 'No available boards to add')}
@@ -354,8 +361,8 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
                         selectedBoardId === board.id
                           ? 'border-bridge-accent bg-bridge-accent/10'
                           : isEligible
-                          ? 'border-foreground/[0.05] hover:border-foreground/[0.08] cursor-pointer'
-                          : 'border-foreground/[0.05] opacity-60'
+                          ? 'border-foreground/[0.08] hover:border-foreground/[0.12] cursor-pointer'
+                          : 'border-foreground/[0.08] opacity-60'
                       }`}
                     >
                       <div className="flex items-center justify-between">
@@ -376,7 +383,7 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
                 })
               )}
             </div>
-            <div className="px-6 py-4 border-t border-foreground/[0.08] flex items-center justify-between">
+            <div className="px-5 py-3 border-t border-foreground/[0.08] flex items-center justify-between">
               <span className="text-[10px] text-muted-foreground">ESC</span>
               <div className="flex gap-2">
                 <button

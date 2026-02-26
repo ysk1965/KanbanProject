@@ -1,6 +1,6 @@
 package com.kanban.domain.organization.controller;
 
-import com.kanban.domain.leave.dto.LeaveDto;
+import com.kanban.domain.organization.leave.dto.LeaveDto;
 import com.kanban.domain.organization.ContractType;
 import com.kanban.domain.organization.WorkStatus;
 import com.kanban.domain.organization.dto.OrgMemberRequest;
@@ -78,7 +78,7 @@ public class OrgMemberController {
             @PathVariable String orgId,
             @PathVariable String memberId,
             @AuthenticationPrincipal UserPrincipal principal,
-            @RequestBody OrgMemberRequest.ChangeRole request) {
+            @Valid @RequestBody OrgMemberRequest.ChangeRole request) {
         orgMemberService.changeRole(orgId, memberId, principal.getUserId(), request);
         return ResponseEntity.ok().build();
     }
@@ -121,6 +121,17 @@ public class OrgMemberController {
             @AuthenticationPrincipal UserPrincipal principal) {
         OrgMemberResponse.Detail response = orgMemberService.deleteMemberProfileImage(
                 orgId, memberId, principal.getUserId());
+        return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/{memberId}/concurrent-depts")
+    public ResponseEntity<List<OrgMemberResponse.ConcurrentDeptInfo>> updateConcurrentDepts(
+            @PathVariable String orgId,
+            @PathVariable String memberId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody OrgMemberRequest.UpdateConcurrentDepts request) {
+        List<OrgMemberResponse.ConcurrentDeptInfo> response = orgMemberService.updateConcurrentDepts(
+                orgId, memberId, principal.getUserId(), request);
         return ResponseEntity.ok(response);
     }
 

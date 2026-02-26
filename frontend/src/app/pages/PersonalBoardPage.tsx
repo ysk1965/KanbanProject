@@ -185,7 +185,7 @@ export function PersonalBoardPage() {
         <div className="flex items-center gap-2 md:gap-4 min-w-0">
           <button
             onClick={() => navigate('/boards')}
-            className="p-2 hover:bg-bridge-surface-hover rounded-lg transition-colors text-zinc-400 hover:text-foreground"
+            className="p-2 hover:bg-bridge-surface-hover rounded-lg transition-colors text-slate-400 hover:text-foreground"
           >
             <Home size={18} />
           </button>
@@ -203,7 +203,7 @@ export function PersonalBoardPage() {
                 className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
                   activeTab === tab.key
                     ? 'bg-gradient-to-r from-bridge-secondary to-bridge-accent text-white shadow-lg shadow-bridge-secondary/20'
-                    : 'text-zinc-400 hover:text-foreground hover:bg-bridge-surface-hover'
+                    : 'text-slate-400 hover:text-foreground hover:bg-bridge-surface-hover'
                 }`}
               >
                 <tab.icon size={14} />
@@ -215,7 +215,7 @@ export function PersonalBoardPage() {
 
         {/* 우측 영역 */}
         <div className="flex items-center gap-2">
-          <div className="hidden md:flex items-center gap-1.5 text-zinc-500 text-xs">
+          <div className="hidden md:flex items-center gap-1.5 text-slate-500 text-xs">
             <Command size={12} />
             <span>K</span>
           </div>
@@ -270,7 +270,7 @@ export function PersonalBoardPage() {
 
       {/* Mobile bottom toolbar – Tasks tab */}
       {activeTab === 'tasks' && (
-        <div className="md:hidden border-t border-white/[0.06] px-3 py-2 flex items-center justify-between shrink-0">
+        <div className="md:hidden border-t border-foreground/[0.08] px-3 py-2 flex items-center justify-between shrink-0">
           <p className="text-[10px] text-slate-500 flex-1">
             {t('personal.tasks.tapToManage')}
           </p>
@@ -320,11 +320,11 @@ export function PersonalBoardPage() {
                 >
                   <tab.icon
                     size={20}
-                    className={`transition-colors duration-200 ${isActive ? 'text-bridge-secondary' : 'text-zinc-500'}`}
+                    className={`transition-colors duration-200 ${isActive ? 'text-bridge-secondary' : 'text-slate-500'}`}
                   />
                 </motion.div>
                 <motion.span
-                  className={`text-[10px] font-medium transition-colors duration-200 ${isActive ? 'text-bridge-secondary' : 'text-zinc-500'}`}
+                  className={`text-[10px] font-medium transition-colors duration-200 ${isActive ? 'text-bridge-secondary' : 'text-slate-500'}`}
                   animate={isActive
                     ? { opacity: 1, y: 0 }
                     : { opacity: 0.7, y: 0 }
@@ -513,7 +513,7 @@ function QuickCaptureModal({ onClose, onSubmitTask, onSubmitHabit }: {
             ? t('personal.quickCapture.taskPlaceholder', '할 일을 입력하세요...')
             : t('personal.quickCapture.habitPlaceholder', '습관 이름을 입력하세요...')
           }
-          className="w-full bg-transparent text-foreground text-lg placeholder-slate-600 outline-none py-2"
+          className="w-full bg-transparent text-foreground text-lg placeholder-slate-500 outline-none py-2"
         />
 
         <AnimatePresence mode="wait">
@@ -524,14 +524,14 @@ function QuickCaptureModal({ onClose, onSubmitTask, onSubmitHabit }: {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -4 }}
               transition={{ duration: 0.15 }}
-              className="flex items-center justify-between mt-3 pt-3 border-t border-foreground/5"
+              className="flex items-center justify-between mt-3 pt-3 border-t border-foreground/[0.08]"
             >
               <div className="flex items-center gap-2">
                 <input
                   type="date"
                   value={dueDate}
                   onChange={(e) => setDueDate(e.target.value)}
-                  className="bg-transparent text-xs text-slate-400 border border-foreground/10 rounded-lg px-2 py-1 outline-none focus:border-bridge-accent/50 dark:[color-scheme:dark]"
+                  className="bg-transparent text-xs text-slate-400 border border-foreground/10 rounded-lg px-2 py-1 outline-none focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 dark:[color-scheme:dark]"
                   placeholder="마감일"
                 />
                 {/* Priority selector */}
@@ -580,7 +580,7 @@ function QuickCaptureModal({ onClose, onSubmitTask, onSubmitHabit }: {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -4 }}
               transition={{ duration: 0.15 }}
-              className="mt-3 pt-3 border-t border-foreground/5 space-y-3"
+              className="mt-3 pt-3 border-t border-foreground/[0.08] space-y-3"
             >
               {/* Repeat Days - compact inline */}
               <div className="flex items-center gap-2">

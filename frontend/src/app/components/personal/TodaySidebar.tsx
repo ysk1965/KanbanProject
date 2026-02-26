@@ -138,7 +138,7 @@ export function TodaySidebar({ tasks, onTaskClick }: TodaySidebarProps) {
         style={{ width: isCollapsed ? 44 : 340 }}
         className={`
           fixed md:relative inset-y-0 left-0 z-50 md:z-auto
-          h-full border-r border-white/[0.06] bg-bridge-obsidian/95 md:bg-bridge-obsidian/50
+          h-full border-r border-foreground/[0.08] bg-bridge-obsidian/95 md:bg-bridge-obsidian/50
           flex-shrink-0 overflow-hidden
           transition-all duration-300 ease-in-out safe-left safe-top safe-bottom
           ${showMobileSidebar ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
@@ -157,7 +157,7 @@ export function TodaySidebar({ tasks, onTaskClick }: TodaySidebarProps) {
         ) : (
           <div className="flex flex-col h-full">
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06]">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-foreground/[0.08]">
               <h3 className="text-base font-bold text-foreground">{t('personal.today', 'Today')}</h3>
               <div className="flex items-center gap-1">
                 <button
@@ -220,7 +220,7 @@ export function TodaySidebar({ tasks, onTaskClick }: TodaySidebarProps) {
                         </button>
                       ))}
                       {todayTasks.done.length > 0 && (
-                        <div className="mt-1.5 pt-1.5 border-t border-white/[0.06]">
+                        <div className="mt-1.5 pt-1.5 border-t border-foreground/[0.08]">
                           <div className="flex items-center justify-center gap-1 mb-1">
                             <CheckCircle2 size={10} className="text-bridge-secondary" />
                             <span className="text-[11px] text-slate-500">{t('personal.completed', '완료됨')} {todayTasks.done.length}</span>

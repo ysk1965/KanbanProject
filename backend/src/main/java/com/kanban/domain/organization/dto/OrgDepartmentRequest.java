@@ -15,6 +15,10 @@ public class OrgDepartmentRequest {
         private String name;
 
         private Integer displayOrder;
+        private String parentDepartmentId;
+        private String leaderId;
+        @Size(max = 500)
+        private String description;
     }
 
     @Getter
@@ -24,5 +28,9 @@ public class OrgDepartmentRequest {
         private String name;
 
         private Integer displayOrder;
+        private String parentDepartmentId;
+        private String leaderId;
+        @Size(max = 500)
+        private String description;
     }
 }

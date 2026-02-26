@@ -9,6 +9,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import org.springframework.data.jpa.repository.Modifying;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -27,6 +29,9 @@ public interface OrgMemberRepository extends JpaRepository<OrganizationMember, S
            "JOIN FETCH om.user " +
            "LEFT JOIN FETCH om.department " +
            "LEFT JOIN FETCH om.jobGroup " +
+           "LEFT JOIN FETCH om.position " +
+           "LEFT JOIN FETCH om.title " +
+           "LEFT JOIN FETCH om.grade " +
            "WHERE om.organization.id = :orgId " +
            "AND (:departmentId IS NULL OR om.department.id = :departmentId) " +
            "AND (:jobGroupId IS NULL OR om.jobGroup.id = :jobGroupId) " +
@@ -42,13 +47,27 @@ public interface OrgMemberRepository extends JpaRepository<OrganizationMember, S
             @Param("search") String search,
             Pageable pageable);
 
-    @Query("SELECT om FROM OrganizationMember om WHERE om.organization.id = :orgId " +
+    @Query("SELECT om FROM OrganizationMember om " +
+           "JOIN FETCH om.user " +
+           "LEFT JOIN FETCH om.department " +
+           "LEFT JOIN FETCH om.jobGroup " +
+           "LEFT JOIN FETCH om.position " +
+           "LEFT JOIN FETCH om.title " +
+           "LEFT JOIN FETCH om.grade " +
+           "WHERE om.organization.id = :orgId " +
            "AND om.workStatus IN :statuses")
     List<OrganizationMember> findActiveMembers(
             @Param("orgId") String orgId,
             @Param("statuses") List<WorkStatus> statuses);
 
-    @Query("SELECT om FROM OrganizationMember om WHERE om.organization.id = :orgId")
+    @Query("SELECT om FROM OrganizationMember om " +
+           "JOIN FETCH om.user " +
+           "LEFT JOIN FETCH om.department " +
+           "LEFT JOIN FETCH om.jobGroup " +
+           "LEFT JOIN FETCH om.position " +
+           "LEFT JOIN FETCH om.title " +
+           "LEFT JOIN FETCH om.grade " +
+           "WHERE om.organization.id = :orgId")
     List<OrganizationMember> findByOrganizationId(@Param("orgId") String orgId);
 
     @Query("SELECT COUNT(om) FROM OrganizationMember om WHERE om.organization.id = :orgId")
@@ -59,4 +78,67 @@ public interface OrgMemberRepository extends JpaRepository<OrganizationMember, S
     int countActiveMembersByOrgId(@Param("orgId") String orgId);
 
     void deleteByOrganizationId(String orgId);
+
+    @Query("SELECT om FROM OrganizationMember om " +
+           "JOIN FETCH om.user " +
+           "LEFT JOIN FETCH om.department " +
+           "LEFT JOIN FETCH om.jobGroup " +
+           "LEFT JOIN FETCH om.position " +
+           "LEFT JOIN FETCH om.title " +
+           "LEFT JOIN FETCH om.grade " +
+           "WHERE om.id = :memberId")
+    Optional<OrganizationMember> findByIdWithDetails(@Param("memberId") String memberId);
+
+    @Query("SELECT om FROM OrganizationMember om " +
+           "JOIN FETCH om.organization o " +
+           "WHERE om.user.id = :userId AND o.deletedAt IS NULL")
+    List<OrganizationMember> findByUserIdWithOrganization(@Param("userId") String userId);
+
+    @Query("SELECT om.organization.id, COUNT(om) FROM OrganizationMember om " +
+           "WHERE om.organization.id IN :orgIds GROUP BY om.organization.id")
+    List<Object[]> countGroupedByOrgIds(@Param("orgIds") List<String> orgIds);
+
+    @Query("SELECT om FROM OrganizationMember om " +
+           "JOIN FETCH om.user " +
+           "LEFT JOIN FETCH om.department " +
+           "LEFT JOIN FETCH om.jobGroup " +
+           "LEFT JOIN FETCH om.position " +
+           "LEFT JOIN FETCH om.title " +
+           "LEFT JOIN FETCH om.grade " +
+           "WHERE om.manager.id = :managerId " +
+           "AND om.workStatus IN ('ACTIVE', 'ON_LEAVE')")
+    List<OrganizationMember> findByManagerId(@Param("managerId") String managerId);
+
+    @Modifying
+    @Query("UPDATE OrganizationMember om SET om.department = NULL WHERE om.department.id = :departmentId")
+    void clearDepartmentReference(@Param("departmentId") String departmentId);
+
+    @Modifying
+    @Query("UPDATE OrganizationMember om SET om.jobGroup = NULL WHERE om.jobGroup.id = :jobGroupId")
+    void clearJobGroupReference(@Param("jobGroupId") String jobGroupId);
+
+    @Modifying
+    @Query("UPDATE OrganizationMember om SET om.position = NULL WHERE om.position.id = :positionId")
+    void clearPositionReference(@Param("positionId") String positionId);
+
+    @Modifying
+    @Query("UPDATE OrganizationMember om SET om.title = NULL WHERE om.title.id = :titleId")
+    void clearTitleReference(@Param("titleId") String titleId);
+
+    @Modifying
+    @Query("UPDATE OrganizationMember om SET om.grade = NULL WHERE om.grade.id = :gradeId")
+    void clearGradeReference(@Param("gradeId") String gradeId);
+
+    @Query("SELECT om FROM OrganizationMember om " +
+           "JOIN FETCH om.user " +
+           "LEFT JOIN FETCH om.department " +
+           "LEFT JOIN FETCH om.manager " +
+           "LEFT JOIN FETCH om.position " +
+           "LEFT JOIN FETCH om.title " +
+           "LEFT JOIN FETCH om.grade " +
+           "WHERE om.organization.id = :orgId " +
+           "AND om.workStatus IN :statuses")
+    List<OrganizationMember> findActiveMembersWithDetails(
+            @Param("orgId") String orgId,
+            @Param("statuses") List<WorkStatus> statuses);
 }

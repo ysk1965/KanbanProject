@@ -296,12 +296,12 @@ function AllHabitsBar({ onNavigateHabits, refreshKey }: { onNavigateHabits?: () 
     <>
       <div className="rounded-xl border border-foreground/[0.08] overflow-hidden">
         {/* Header */}
-        <div className="flex items-center gap-2 px-3 py-2 bg-foreground/[0.04] border-b border-foreground/[0.06]">
+        <div className="flex items-center gap-2 px-3 py-2 bg-foreground/[0.04] border-b border-foreground/[0.08]">
           <Flame size={13} className="text-purple-400" />
           <span className="text-xs font-bold text-foreground">
             {t('personal.habit.habits', '습관 관리')}
           </span>
-          <span className="text-[10px] font-bold text-purple-400 bg-purple-400/10 px-1.5 py-0.5 rounded-full">
+          <span className="text-[10px] font-bold text-purple-400 bg-purple-400/15 px-1.5 py-0.5 rounded-full">
             {completedCount}/{todayHabits.length}
           </span>
           <div className="flex-1" />
@@ -340,8 +340,8 @@ function AllHabitsBar({ onNavigateHabits, refreshKey }: { onNavigateHabits?: () 
                 transition={{ delay: idx * 0.03 }}
                 className={`flex-shrink-0 w-[164px] md:w-[188px] rounded-xl border p-3.5 text-left relative group transition-colors cursor-pointer ${
                   isScheduledToday
-                    ? 'bg-foreground/[0.03] hover:bg-foreground/[0.06]'
-                    : 'border-dashed border-foreground/[0.06] bg-foreground/[0.02] hover:bg-foreground/[0.04] opacity-60 hover:opacity-80'
+                    ? 'bg-foreground/[0.03] hover:bg-foreground/5'
+                    : 'border-dashed border-foreground/[0.08] bg-foreground/[0.02] hover:bg-foreground/5 opacity-60 hover:opacity-80'
                 }`}
                 style={isScheduledToday ? { borderColor: `${color}40` } : undefined}
                 onClick={() => setEditHabit(habit)}
@@ -793,7 +793,7 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
                 ? t('personal.tasks.addPlaceholder', '할 일 추가...')
                 : t('personal.quickCapture.habitPlaceholder', '습관 이름을 입력하세요...')
               }
-              className="flex-1 min-w-0 bg-transparent text-sm text-foreground placeholder-slate-600 outline-none"
+              className="flex-1 min-w-0 bg-transparent text-sm text-foreground placeholder-slate-500 outline-none"
             />
             {captureType === 'task' ? (
               <>
@@ -801,7 +801,7 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
                   type="date"
                   value={newDueDate}
                   onChange={(e) => setNewDueDate(e.target.value)}
-                  className="hidden sm:block bg-transparent text-xs text-slate-400 border border-foreground/10 rounded-lg px-2 py-1 outline-none focus:border-bridge-accent/50 [color-scheme:dark] w-[130px]"
+                  className="hidden sm:block bg-transparent text-xs text-slate-400 border border-foreground/10 rounded-lg px-2 py-1 outline-none focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 [color-scheme:dark] w-[130px]"
                 />
                 <PriorityDropdown value={newPriority} onChange={setNewPriority} />
               </>
@@ -830,7 +830,7 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
                 type="date"
                 value={newDueDate}
                 onChange={(e) => setNewDueDate(e.target.value)}
-                className="w-full bg-transparent text-xs text-slate-400 border border-foreground/10 rounded-lg px-3 py-1.5 outline-none focus:border-bridge-accent/50 [color-scheme:dark]"
+                className="w-full bg-transparent text-xs text-slate-400 border border-foreground/10 rounded-lg px-3 py-1.5 outline-none focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 [color-scheme:dark]"
               />
             </div>
           )}
@@ -896,7 +896,7 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
         {/* ── Eisenhower Matrix Container ── */}
         <div className="rounded-xl border border-foreground/[0.08] overflow-hidden">
           {/* Header bar (same pattern as AllHabitsBar) */}
-          <div className="flex items-center gap-2 px-3 py-2 bg-foreground/[0.04] border-b border-foreground/[0.06]">
+          <div className="flex items-center gap-2 px-3 py-2 bg-foreground/[0.04] border-b border-foreground/[0.08]">
             <CalendarClock size={13} className="text-bridge-accent" />
             <span className="text-xs font-bold text-foreground">
               {t('personal.tasks.matrixTitle', '아이젠하워 매트릭스')}
@@ -911,7 +911,7 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
             {completedTasks.length > 0 && (
               <button
                 onClick={() => setShowCompleted(true)}
-                className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 hover:border-emerald-500/30 transition-all"
+                className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px] font-medium bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 hover:border-emerald-500/30 transition-all"
               >
                 <Check size={11} />
                 {t('personal.tasks.completed', '완료됨')}
@@ -1024,7 +1024,7 @@ export function PersonalTaskBoard({ tasks, onRefresh, onOptimisticUpdate }: Pers
       />
 
       {/* Completed Tasks Modal */}
-      <MotionModal open={showCompleted} onClose={() => setShowCompleted(false)} className="sm:max-w-md p-0 overflow-hidden border-foreground/[0.12]">
+      <MotionModal open={showCompleted} onClose={() => setShowCompleted(false)} className="sm:max-w-md p-0 overflow-hidden border-foreground/[0.08]">
         <div>
           <div className="h-[2px] bg-gradient-to-r from-emerald-500/60 via-emerald-400/30 to-transparent" />
           <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
@@ -1239,7 +1239,7 @@ function HabitMatrixCard({ habit, onCheckIn, onEdit, onDelete }: {
           </span>
           {/* Urgency indicator */}
           {!habit.is_completed && urgencyRatio >= 1.0 && (
-            <span className="text-[8px] font-bold text-red-400 bg-red-400/10 px-1 rounded">
+            <span className="text-[8px] font-bold text-red-400 bg-red-400/15 px-1 rounded">
               {t('personal.habit.tight', '빠듯')}
             </span>
           )}
@@ -1396,7 +1396,7 @@ function MatrixTaskCard({
 
         <div className="flex items-center gap-1.5 shrink-0">
           {isDone ? (
-            <span className="text-[9px] font-bold text-emerald-400/70 px-1.5 py-0.5 rounded bg-emerald-500/10">
+            <span className="text-[9px] font-bold text-emerald-400/70 px-1.5 py-0.5 rounded bg-emerald-500/15">
               ✓
             </span>
           ) : (
@@ -1526,7 +1526,7 @@ export function TaskDetailModal({ open, task, onClose, onUpdate, onDelete, onTog
   };
 
   return (
-    <MotionModal open={open} onClose={onClose} className="sm:max-w-md p-0 overflow-hidden border-foreground/[0.12]">
+    <MotionModal open={open} onClose={onClose} className="sm:max-w-md p-0 overflow-hidden border-foreground/[0.08]">
       <div>
         {/* Top accent line */}
         <div className="h-[2px] bg-gradient-to-r from-bridge-accent/60 via-bridge-secondary/40 to-transparent" />
@@ -1547,7 +1547,7 @@ export function TaskDetailModal({ open, task, onClose, onUpdate, onDelete, onTog
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) (e.target as HTMLInputElement).blur(); }}
-            className={`flex-1 min-w-0 bg-transparent text-sm font-bold outline-none placeholder-slate-600 ${isDone ? 'line-through text-slate-500' : 'text-foreground'}`}
+            className={`flex-1 min-w-0 bg-transparent text-sm font-bold outline-none placeholder-slate-500 ${isDone ? 'line-through text-slate-500' : 'text-foreground'}`}
             placeholder={t('personal.tasks.titlePlaceholder', '할 일 제목')}
           />
           <button
@@ -1596,7 +1596,7 @@ export function TaskDetailModal({ open, task, onClose, onUpdate, onDelete, onTog
             onChange={(e) => setDescription(e.target.value)}
             placeholder={t('personal.tasks.descPlaceholder', '메모 추가...')}
             rows={3}
-            className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl p-3 text-sm text-muted-foreground placeholder-slate-600 outline-none resize-none focus:border-bridge-accent/30 focus:ring-1 focus:ring-bridge-accent/10 transition-all"
+            className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl p-3 text-sm text-muted-foreground placeholder-slate-500 outline-none resize-none focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
           />
 
           <div className="flex items-center justify-between pt-3 border-t border-foreground/[0.08]">

@@ -278,6 +278,43 @@ public class NotificationService {
         }
     }
 
+    @Transactional
+    public void createAnniversaryNotification(User recipient, User targetUser,
+                                               String orgId, String orgName,
+                                               String anniversaryType, String title, String message) {
+        Map<String, Object> metadata = new HashMap<>();
+        metadata.put("senderName", targetUser.getName());
+        metadata.put("senderProfileImage", targetUser.getProfileImage() != null ? targetUser.getProfileImage() : "");
+        metadata.put("orgId", orgId);
+        metadata.put("orgName", orgName);
+        metadata.put("anniversaryType", anniversaryType);
+
+        Notification notification = Notification.builder()
+                .recipient(recipient)
+                .board(null)
+                .type(NotificationType.ANNIVERSARY)
+                .title(title)
+                .message(message)
+                .senderId(targetUser.getId())
+                .metadata(metadata)
+                .build();
+
+        notificationRepository.save(notification);
+
+        // Send push notification (async)
+        pushNotificationService.sendPushForNotification(notification);
+    }
+
+    public boolean hasAnniversaryNotificationSent(String targetUserId, LocalDateTime since) {
+        return notificationRepository.existsAnniversaryNotification(
+                NotificationType.ANNIVERSARY, targetUserId, since);
+    }
+
+    public boolean hasAnniversaryNotificationForRecipient(String recipientUserId, String targetUserId, LocalDateTime since) {
+        return notificationRepository.existsAnniversaryNotificationForRecipient(
+                NotificationType.ANNIVERSARY, recipientUserId, targetUserId, since);
+    }
+
     public boolean isInAppEnabled(String userId, String boardId, NotificationType type) {
         return preferenceRepository.findByBoardIdAndUserId(boardId, userId)
                 .map(p -> p.isInAppEnabled(type))

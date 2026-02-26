@@ -1,8 +1,8 @@
 # Organization Service - Overview
 
-> **Version**: v1.1.0
-> **Date**: 2026-02-25
-> **Status**: Planning
+> **Version**: v1.2.0
+> **Date**: 2026-02-26
+> **Status**: In Progress (P1: Anniversary & Celebrations ✅ Implemented)
 > **Author**: BRIDGE Team
 
 ---

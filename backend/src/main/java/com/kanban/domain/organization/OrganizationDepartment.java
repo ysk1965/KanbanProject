@@ -34,6 +34,17 @@ public class OrganizationDepartment {
     @Builder.Default
     private Integer displayOrder = 0;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_department_id")
+    private OrganizationDepartment parentDepartment;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "leader_id")
+    private OrganizationMember leader;
+
+    @Column(length = 500)
+    private String description;
+
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -55,5 +66,17 @@ public class OrganizationDepartment {
 
     public void updateDisplayOrder(Integer displayOrder) {
         this.displayOrder = displayOrder;
+    }
+
+    public void updateParentDepartment(OrganizationDepartment parent) {
+        this.parentDepartment = parent;
+    }
+
+    public void updateLeader(OrganizationMember leader) {
+        this.leader = leader;
+    }
+
+    public void updateDescription(String description) {
+        this.description = description;
     }
 }

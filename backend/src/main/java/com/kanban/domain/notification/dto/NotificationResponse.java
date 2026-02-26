@@ -37,7 +37,7 @@ public class NotificationResponse {
                     .type(n.getType())
                     .title(n.getTitle())
                     .message(n.getMessage())
-                    .boardId(n.getBoard().getId())
+                    .boardId(n.getBoard() != null ? n.getBoard().getId() : null)
                     .boardName(meta != null ? (String) meta.get("boardName") : null)
                     .taskId(n.getTaskId())
                     .noteId(n.getNoteId())

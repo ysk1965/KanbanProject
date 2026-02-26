@@ -1,6 +1,6 @@
 package com.kanban.domain.organization.service;
 
-import com.kanban.domain.leave.service.LeaveService;
+import com.kanban.domain.organization.leave.service.LeaveService;
 import com.kanban.domain.organization.*;
 import com.kanban.domain.organization.dto.OrgInviteRequest;
 import com.kanban.domain.organization.dto.OrgInviteResponse;
@@ -32,6 +32,7 @@ public class OrgInviteService {
     private final UserRepository userRepository;
     private final OrganizationService organizationService;
     private final LeaveService leaveService;
+    private final OrgOnboardingService onboardingService;
 
     @Transactional
     public OrgInviteResponse.Detail createInviteLink(String orgId, String userId, OrgInviteRequest.Create request) {
@@ -134,6 +135,9 @@ public class OrgInviteService {
 
         // Create leave balances for new member
         leaveService.createBalancesForNewMember(org, newMember);
+
+        // Auto-assign onboarding checklists
+        onboardingService.autoAssignOnboarding(org, newMember);
 
         // Increment used count
         link.incrementUsedCount();

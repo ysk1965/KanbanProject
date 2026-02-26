@@ -357,11 +357,11 @@ export function ShareBoardModal({
 
   return (
     <MotionModal open={open} onClose={onClose} className="sm:max-w-2xl max-h-[85dvh] overflow-hidden flex flex-col">
-        <div className="px-6 pt-6 pb-2">
+        <div className="px-5 pt-4 pb-3">
           <h2 className="text-lg font-semibold text-foreground">{t('share.title')}</h2>
         </div>
 
-        <div className="flex-1 overflow-y-auto space-y-5 px-6 pb-2 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto space-y-5 px-5 pb-2 custom-scrollbar">
           {/* 초대 섹션 - ADMIN+ 전용 */}
           {isCurrentUserAdmin && (
           <div className="space-y-3">
@@ -370,7 +370,7 @@ export function ShareBoardModal({
                 value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
                 placeholder={t('share.emailPlaceholder')}
-                className="flex-1 bg-foreground/[0.08] border-foreground/10 rounded-xl text-foreground placeholder:text-slate-400 focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+                className="flex-1 bg-foreground/[0.08] border-foreground/10 rounded-xl text-foreground placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
                 onKeyDown={(e) => {
                   if (e.nativeEvent.isComposing) return;
                   if (e.key === 'Enter') {
@@ -541,7 +541,7 @@ export function ShareBoardModal({
           <div className="space-y-3">
             <div className="flex items-center gap-2.5">
               <h3 className="text-sm font-semibold text-muted-foreground">{t('share.boardMembers')}</h3>
-              <span className="text-[11px] font-bold text-bridge-accent bg-bridge-accent/10 px-2 py-0.5 rounded-full">
+              <span className="text-[11px] font-bold text-bridge-accent bg-bridge-accent/15 px-2 py-0.5 rounded-full">
                 {members.length}
               </span>
             </div>
@@ -604,7 +604,7 @@ export function ShareBoardModal({
         </div>
 
         {/* 닫기 버튼 */}
-        <div className="flex justify-end px-6 pt-4 pb-2 border-t border-foreground/10">
+        <div className="flex justify-end px-5 py-3 border-t border-foreground/[0.08]">
           <button
             onClick={onClose}
             className="px-5 py-2 bg-foreground/[0.08] border border-foreground/10 text-muted-foreground rounded-xl text-sm font-medium hover:bg-foreground/15 hover:text-foreground transition-all"
