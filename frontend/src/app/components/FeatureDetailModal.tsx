@@ -39,6 +39,7 @@ interface FeatureDetailModalProps {
   boardId: string;
   canEdit?: boolean;
   isOnboarding?: boolean;
+  onTaskClick?: (task: Task) => void;
 }
 
 export function FeatureDetailModal({
@@ -59,6 +60,7 @@ export function FeatureDetailModal({
   boardId,
   canEdit = true,
   isOnboarding = false,
+  onTaskClick,
 }: FeatureDetailModalProps) {
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
   const [initialFeature, setInitialFeature] = useState<Feature | null>(null);
@@ -576,7 +578,12 @@ export function FeatureDetailModal({
                     {tasks.map((task) => (
                       <div
                         key={task.id}
-                        className="flex items-center justify-between px-5 py-4 hover:bg-white/[0.02] transition-colors group"
+                        className={`flex items-center justify-between px-5 py-4 hover:bg-white/[0.02] transition-colors group ${onTaskClick ? 'cursor-pointer' : ''}`}
+                        onClick={() => {
+                          if (onTaskClick && editingTaskId !== task.id) {
+                            onTaskClick(task);
+                          }
+                        }}
                       >
                         <div className="flex items-center gap-3 flex-1 min-w-0">
                           <div
@@ -593,6 +600,7 @@ export function FeatureDetailModal({
                               value={editingTaskTitle}
                               onChange={(e) => setEditingTaskTitle(e.target.value)}
                               onBlur={handleSaveTaskTitle}
+                              onClick={(e) => e.stopPropagation()}
                               onKeyDown={(e) => {
                                 if (e.nativeEvent.isComposing) return;
                                 if (e.key === 'Enter') handleSaveTaskTitle();
@@ -603,7 +611,7 @@ export function FeatureDetailModal({
                           ) : (
                             <span
                               className={`text-xs font-semibold text-foreground/80 group-hover:text-foreground transition-colors truncate ${canEdit ? 'cursor-text hover:bg-foreground/5 rounded px-1 -mx-1' : ''}`}
-                              onDoubleClick={() => handleStartEditTask(task)}
+                              onDoubleClick={(e) => { e.stopPropagation(); handleStartEditTask(task); }}
                             >
                               {task.title}
                             </span>

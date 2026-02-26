@@ -107,7 +107,7 @@ public class CommentService {
 
         List<Comment> comments = commentRepository.findByTaskIdWithAuthorAndReactions(taskId);
         Map<String, String> customEmojiUrlMap = buildCustomEmojiUrlMap(boardId);
-        return CommentResponse.ListResponse.of(comments, customEmojiUrlMap);
+        return CommentResponse.ListResponse.of(comments, customEmojiUrlMap, fileUploadService::resolveUrl);
     }
 
     /**
@@ -192,7 +192,7 @@ public class CommentService {
         log.info("Comment created: {} on task: {} by user: {} with {} attachments",
                 comment.getId(), taskId, userId, comment.getAttachments().size());
 
-        CommentResponse.Detail response = CommentResponse.Detail.of(comment);
+        CommentResponse.Detail response = CommentResponse.Detail.of(comment, Map.of(), fileUploadService::resolveUrl);
         webSocketEventService.sendBoardEvent(boardId, BoardEventType.COMMENT_CREATED, userId, user.getName(), response);
         return response;
     }
@@ -246,7 +246,7 @@ public class CommentService {
         log.info("Comment updated: {} by user: {} (attachments: {})",
                 commentId, userId, comment.getAttachments().size());
 
-        CommentResponse.Detail response = CommentResponse.Detail.of(comment);
+        CommentResponse.Detail response = CommentResponse.Detail.of(comment, Map.of(), fileUploadService::resolveUrl);
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
         webSocketEventService.sendBoardEvent(boardId, BoardEventType.COMMENT_UPDATED, userId, user.getName(), response);

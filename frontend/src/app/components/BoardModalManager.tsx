@@ -28,6 +28,7 @@ interface BoardModalManagerProps {
   onRenameSubtask: (taskId: string, newTitle: string) => void;
   onUpdateFeature: (updates: Partial<Feature>) => void;
   onDeleteFeature: (featureId: string, taskMigrations?: Array<{ task_id: string; target_feature_id: string }>) => void;
+  onFeatureTaskClick?: (task: Task) => void;
   // Task Modal
   selectedTask: Task | null;
   isTaskModalOpen: boolean;
@@ -153,6 +154,7 @@ export function BoardModalManager(props: BoardModalManagerProps) {
         boardId={props.boardId}
         canEdit={props.canEdit}
         isOnboarding={props.isOnboarding}
+        onTaskClick={props.onFeatureTaskClick}
       />
 
       <TaskDetailModal

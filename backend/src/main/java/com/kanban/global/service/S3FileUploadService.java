@@ -292,4 +292,10 @@ public class S3FileUploadService implements FileUploadService {
         }
         return String.format("https://%s.s3.ap-northeast-2.amazonaws.com/%s", bucketName, key);
     }
+
+    @Override
+    public String resolveUrl(String key) {
+        if (key == null || key.isEmpty()) return "";
+        return buildUrl(key);
+    }
 }

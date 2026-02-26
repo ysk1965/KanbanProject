@@ -33,6 +33,16 @@ public interface ScheduleBlockRepository extends JpaRepository<ScheduleBlock, St
            "WHERE sb.checklistItem.id = :checklistItemId")
     List<ScheduleBlock> findByChecklistItemId(@Param("checklistItemId") String checklistItemId);
 
+    @Query("SELECT sb FROM ScheduleBlock sb " +
+           "LEFT JOIN FETCH sb.checklistItem ci " +
+           "LEFT JOIN FETCH ci.task t " +
+           "LEFT JOIN FETCH t.feature " +
+           "LEFT JOIN FETCH sb.meeting " +
+           "JOIN FETCH sb.assignee " +
+           "WHERE sb.checklistItem.id IN :checklistItemIds " +
+           "ORDER BY sb.checklistItem.id, sb.startTime")
+    List<ScheduleBlock> findByChecklistItemIdIn(@Param("checklistItemIds") List<String> checklistItemIds);
+
     @Query("SELECT sb FROM ScheduleBlock sb WHERE sb.board.id = :boardId AND sb.scheduledDate = :date ORDER BY sb.assignee.id, sb.startTime")
     List<ScheduleBlock> findAllByBoardIdAndDate(@Param("boardId") String boardId, @Param("date") LocalDate date);
 

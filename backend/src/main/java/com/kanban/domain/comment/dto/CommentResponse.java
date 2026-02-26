@@ -9,6 +9,7 @@ import lombok.Getter;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
 public class CommentResponse {
@@ -28,16 +29,21 @@ public class CommentResponse {
         private LocalDateTime updatedAt;
 
         public static Detail of(Comment comment) {
-            return of(comment, Map.of());
+            return of(comment, Map.of(), null);
         }
 
         public static Detail of(Comment comment, Map<String, String> customEmojiUrlMap) {
+            return of(comment, customEmojiUrlMap, null);
+        }
+
+        public static Detail of(Comment comment, Map<String, String> customEmojiUrlMap,
+                                 UnaryOperator<String> urlResolver) {
             List<String> mentionList = comment.getMentions() != null && !comment.getMentions().isEmpty()
                     ? Arrays.asList(comment.getMentions().split(","))
                     : List.of();
 
             List<AttachmentInfo> attachmentList = comment.getAttachments() != null
-                    ? comment.getAttachments().stream().map(AttachmentInfo::of).toList()
+                    ? comment.getAttachments().stream().map(att -> AttachmentInfo.of(att, urlResolver)).toList()
                     : List.of();
 
             List<ReactionInfo> reactionList = buildReactionList(comment.getReactions(), customEmojiUrlMap);
@@ -147,12 +153,22 @@ public class CommentResponse {
         private Long fileSize;
         private LocalDateTime createdAt;
 
-        public static AttachmentInfo of(CommentAttachment attachment) {
+        public static AttachmentInfo of(CommentAttachment attachment, UnaryOperator<String> urlResolver) {
+            String url;
+            String thumbUrl;
+            if (urlResolver != null && attachment.getS3Key() != null) {
+                url = urlResolver.apply(attachment.getS3Key());
+                thumbUrl = attachment.getThumbnailS3Key() != null
+                        ? urlResolver.apply(attachment.getThumbnailS3Key()) : null;
+            } else {
+                url = attachment.getUrl();
+                thumbUrl = attachment.getThumbnailUrl();
+            }
             return AttachmentInfo.builder()
                     .id(attachment.getId())
                     .fileName(attachment.getOriginalFileName())
-                    .url(attachment.getUrl())
-                    .thumbnailUrl(attachment.getThumbnailUrl())
+                    .url(url)
+                    .thumbnailUrl(thumbUrl)
                     .contentType(attachment.getContentType())
                     .fileSize(attachment.getFileSize())
                     .createdAt(attachment.getCreatedAt())
@@ -168,12 +184,17 @@ public class CommentResponse {
         private int totalCount;
 
         public static ListResponse of(List<Comment> comments) {
-            return of(comments, Map.of());
+            return of(comments, Map.of(), null);
         }
 
         public static ListResponse of(List<Comment> comments, Map<String, String> customEmojiUrlMap) {
+            return of(comments, customEmojiUrlMap, null);
+        }
+
+        public static ListResponse of(List<Comment> comments, Map<String, String> customEmojiUrlMap,
+                                       UnaryOperator<String> urlResolver) {
             return ListResponse.builder()
-                    .comments(comments.stream().map(c -> Detail.of(c, customEmojiUrlMap)).toList())
+                    .comments(comments.stream().map(c -> Detail.of(c, customEmojiUrlMap, urlResolver)).toList())
                     .totalCount(comments.size())
                     .build();
         }

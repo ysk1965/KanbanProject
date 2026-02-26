@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.List;
 
 public class ScheduleRequest {
 
@@ -87,5 +88,12 @@ public class ScheduleRequest {
         private String scheduleDisplayMode;
         private LocalTime breakStartTime;
         private LocalTime breakEndTime;
+    }
+
+    @Getter
+    @NoArgsConstructor
+    public static class BatchChecklistItemSchedules {
+        @NotNull(message = "체크리스트 아이템 ID 목록은 필수입니다")
+        private List<String> checklistItemIds;
     }
 }

@@ -1,5 +1,6 @@
 package com.kanban.global.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.orm.jpa.EntityManagerFactoryDependsOnPostProcessor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -18,9 +19,15 @@ import javax.sql.DataSource;
 @Configuration
 public class SchemaMigrationConfig {
 
+    @Value("${app.file.cloudfront-domain:}")
+    private String cloudfrontDomain;
+
+    @Value("${app.file.s3-bucket:bridge-kanban-attachments}")
+    private String s3Bucket;
+
     @Bean
     public SchemaMigrationInitializer schemaMigrationInitializer(DataSource dataSource) {
-        return new SchemaMigrationInitializer(dataSource);
+        return new SchemaMigrationInitializer(dataSource, cloudfrontDomain, s3Bucket);
     }
 
     @Bean

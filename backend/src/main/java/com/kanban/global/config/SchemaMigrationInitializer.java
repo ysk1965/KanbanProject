@@ -20,9 +20,17 @@ import java.util.List;
 public class SchemaMigrationInitializer implements InitializingBean {
 
     private final JdbcTemplate jdbcTemplate;
+    private final String cloudfrontDomain;
+    private final String s3Bucket;
 
     public SchemaMigrationInitializer(DataSource dataSource) {
+        this(dataSource, null, null);
+    }
+
+    public SchemaMigrationInitializer(DataSource dataSource, String cloudfrontDomain, String s3Bucket) {
         this.jdbcTemplate = new JdbcTemplate(dataSource);
+        this.cloudfrontDomain = cloudfrontDomain;
+        this.s3Bucket = s3Bucket;
     }
 
     @Override
@@ -52,6 +60,9 @@ public class SchemaMigrationInitializer implements InitializingBean {
 
         // Notifications CHECK 제약조건
         fixNotificationTypeCheck();
+
+        // S3 직접 URL → CloudFront URL 마이그레이션
+        migrateS3UrlsToCloudFront();
 
         log.info("Schema migration: pre-JPA patches completed");
     }
@@ -90,6 +101,51 @@ public class SchemaMigrationInitializer implements InitializingBean {
             jdbcTemplate.execute("ALTER TABLE personal_events ALTER COLUMN event_type SET DEFAULT 'SCHEDULE'");
         } catch (Exception e) {
             log.warn("Schema migration: personal_events.event_type constraint - {}", e.getMessage());
+        }
+    }
+
+    private void migrateS3UrlsToCloudFront() {
+        if (cloudfrontDomain == null || cloudfrontDomain.isEmpty() || s3Bucket == null || s3Bucket.isEmpty()) {
+            log.info("Schema migration: CloudFront domain not configured, skipping S3 URL migration");
+            return;
+        }
+
+        String s3Prefix = "https://" + s3Bucket + ".s3.ap-northeast-2.amazonaws.com/";
+        String cfPrefix = "https://" + cloudfrontDomain + "/";
+
+        try {
+            // comment_attachments.url
+            int urlCount = jdbcTemplate.update(
+                    "UPDATE comment_attachments SET url = REPLACE(url, ?, ?) WHERE url LIKE ?",
+                    s3Prefix, cfPrefix, s3Prefix + "%");
+
+            // comment_attachments.thumbnail_url
+            int thumbCount = jdbcTemplate.update(
+                    "UPDATE comment_attachments SET thumbnail_url = REPLACE(thumbnail_url, ?, ?) WHERE thumbnail_url LIKE ?",
+                    s3Prefix, cfPrefix, s3Prefix + "%");
+
+            // board_custom_emojis.image_url
+            int emojiCount = jdbcTemplate.update(
+                    "UPDATE board_custom_emojis SET image_url = REPLACE(image_url, ?, ?) WHERE image_url LIKE ?",
+                    s3Prefix, cfPrefix, s3Prefix + "%");
+
+            // inquiry_attachments.url / thumbnail_url
+            int inquiryUrlCount = jdbcTemplate.update(
+                    "UPDATE inquiry_attachments SET url = REPLACE(url, ?, ?) WHERE url LIKE ?",
+                    s3Prefix, cfPrefix, s3Prefix + "%");
+            int inquiryThumbCount = jdbcTemplate.update(
+                    "UPDATE inquiry_attachments SET thumbnail_url = REPLACE(thumbnail_url, ?, ?) WHERE thumbnail_url LIKE ?",
+                    s3Prefix, cfPrefix, s3Prefix + "%");
+
+            int total = urlCount + thumbCount + emojiCount + inquiryUrlCount + inquiryThumbCount;
+            if (total > 0) {
+                log.info("Schema migration: migrated {} S3 URLs to CloudFront (comments: {}/{}, emojis: {}, inquiries: {}/{})",
+                        total, urlCount, thumbCount, emojiCount, inquiryUrlCount, inquiryThumbCount);
+            } else {
+                log.info("Schema migration: no S3 direct URLs to migrate");
+            }
+        } catch (Exception e) {
+            log.warn("Schema migration: S3 URL migration - {}", e.getMessage());
         }
     }
 
