@@ -36,6 +36,9 @@ public interface FileUploadService {
     /** 만료된 임시 파일 정리 */
     void cleanupExpiredTemp();
 
+    /** S3 key로부터 현재 설정에 맞는 URL 생성 (CloudFront/로컬) */
+    String resolveUrl(String key);
+
     @Getter
     @RequiredArgsConstructor
     class TempUploadResult {

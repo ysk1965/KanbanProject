@@ -144,4 +144,14 @@ public class ScheduleController {
                 boardId, checklistItemId, principal.getUserId());
         return ResponseEntity.ok(response);
     }
+
+    @PostMapping("/checklist-items/batch")
+    public ResponseEntity<Map<String, List<ScheduleResponse.BlockDetail>>> getBatchSchedulesByChecklistItems(
+            @PathVariable String boardId,
+            @Valid @RequestBody ScheduleRequest.BatchChecklistItemSchedules request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        Map<String, List<ScheduleResponse.BlockDetail>> response = scheduleService.getSchedulesByChecklistItems(
+                boardId, request.getChecklistItemIds(), principal.getUserId());
+        return ResponseEntity.ok(response);
+    }
 }

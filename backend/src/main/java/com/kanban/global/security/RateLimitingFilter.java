@@ -67,12 +67,12 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     }
 
     /**
-     * 일반 API용 버킷: 분당 300회, 시간당 3000회
+     * 일반 API용 버킷: 분당 600회, 시간당 6000회
      */
     private Bucket createStandardBucket(String key) {
         return Bucket.builder()
-                .addLimit(Bandwidth.classic(300, Refill.greedy(300, Duration.ofMinutes(1))))
-                .addLimit(Bandwidth.classic(3000, Refill.greedy(3000, Duration.ofHours(1))))
+                .addLimit(Bandwidth.classic(600, Refill.greedy(600, Duration.ofMinutes(1))))
+                .addLimit(Bandwidth.classic(6000, Refill.greedy(6000, Duration.ofHours(1))))
                 .build();
     }
 

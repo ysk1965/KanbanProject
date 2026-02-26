@@ -200,6 +200,12 @@ public class LocalFileUploadService implements FileUploadService {
     }
 
     @Override
+    public String resolveUrl(String key) {
+        if (key == null || key.isEmpty()) return "";
+        return "/uploads/" + key;
+    }
+
+    @Override
     public void cleanupExpiredTemp() {
         Path tempDir = Paths.get(localDir, "temp");
         if (!Files.exists(tempDir)) return;

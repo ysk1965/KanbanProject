@@ -369,6 +369,25 @@ public class ScheduleService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * 여러 체크리스트 아이템에 연결된 스케줄 블록 벌크 조회
+     */
+    public Map<String, List<ScheduleResponse.BlockDetail>> getSchedulesByChecklistItems(String boardId, List<String> checklistItemIds, String userId) {
+        boardService.checkViewerOrAbove(boardId, userId);
+
+        if (checklistItemIds == null || checklistItemIds.isEmpty()) {
+            return Map.of();
+        }
+
+        List<ScheduleBlock> blocks = scheduleBlockRepository.findByChecklistItemIdIn(checklistItemIds);
+
+        return blocks.stream()
+                .collect(Collectors.groupingBy(
+                        block -> block.getChecklistItem().getId(),
+                        Collectors.mapping(ScheduleResponse.BlockDetail::of, Collectors.toList())
+                ));
+    }
+
     private void validateScheduleAccess(Board board) {
         if (!board.canAccessSchedule()) {
             throw new BusinessException(ErrorCode.PREMIUM_FEATURE_REQUIRED);

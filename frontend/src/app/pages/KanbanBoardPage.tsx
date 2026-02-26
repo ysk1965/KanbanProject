@@ -2996,6 +2996,12 @@ export function KanbanBoardPage() {
           }}
           onUpdateFeature={handleUpdateFeature}
           onDeleteFeature={handleDeleteFeature}
+          onFeatureTaskClick={(task) => {
+            setIsFeatureModalOpen(false);
+            setSelectedFeature(null);
+            setSelectedTask(task);
+            setIsTaskModalOpen(true);
+          }}
           // Task Modal
           selectedTask={selectedTask}
           isTaskModalOpen={isTaskModalOpen}

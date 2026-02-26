@@ -129,6 +129,7 @@ export function TaskDetailModal({
   // 체크리스트 상태
   const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
   const [checklistItemToDelete, setChecklistItemToDelete] = useState<string | null>(null);
+  const [checklistTimeBlocksMap, setChecklistTimeBlocksMap] = useState<Record<string, ScheduleBlockDetailResponse[]>>({});
 
   useEffect(() => {
     if (task && open) {
@@ -140,6 +141,7 @@ export function TaskDetailModal({
 
       // 체크리스트 API 로드
       if (boardId) {
+        setChecklistTimeBlocksMap({});
         checklistAPI.getChecklist(boardId, task.id)
           .then((response) => {
             const rawItems = response.items || [];
@@ -154,6 +156,14 @@ export function TaskDetailModal({
               assignee: item.assignee ? { id: item.assignee.id, name: item.assignee.name, profile_image: item.assignee.profile_image } : null,
             }));
             setChecklistItems(items);
+
+            // 벌크로 스케줄 블록 로드 (N+1 → 1회 호출)
+            if (items.length > 0) {
+              const itemIds = items.map((i) => i.id);
+              scheduleAPI.getByChecklistItems(boardId!, itemIds)
+                .then(setChecklistTimeBlocksMap)
+                .catch(() => {});
+            }
           })
           .catch((error) => {
             console.error('Failed to load checklist:', error);
@@ -477,13 +487,19 @@ export function TaskDetailModal({
             <div className="flex items-center gap-2 mb-3 flex-wrap">
               {/* 피처 뱃지 */}
               <div className="flex items-center gap-1">
-                <div
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium"
+                <button
+                  onClick={() => {
+                    if (onOpenFeature) {
+                      onClose();
+                      onOpenFeature(task.feature_id);
+                    }
+                  }}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all ${onOpenFeature ? 'cursor-pointer hover:brightness-110 hover:shadow-sm' : 'cursor-default'}`}
                   style={{ backgroundColor: `${task.feature_color}20`, color: task.feature_color, border: `1px solid ${task.feature_color}40` }}
                 >
                   <div className="w-2 h-2 rounded-full" style={{ backgroundColor: task.feature_color }} />
                   {task.feature_title}
-                </div>
+                </button>
                 {canEdit && onMoveToFeature && features.length > 1 && (
                   <button
                     onClick={() => setShowMoveFeatureDialog(true)}
@@ -833,6 +849,7 @@ export function TaskDetailModal({
                       boardId={boardId}
                       canEdit={canEdit}
                       isPersonal={isPersonal}
+                      preloadedTimeBlocks={checklistTimeBlocksMap[item.id]}
                     />
                   ))}
                 </SortableContext>
@@ -1298,6 +1315,7 @@ function SortableChecklistItemRow(props: {
   boardId: string | null;
   canEdit?: boolean;
   isPersonal?: boolean;
+  preloadedTimeBlocks?: ScheduleBlockDetailResponse[];
 }) {
   const {
     attributes,
@@ -1340,6 +1358,7 @@ function ChecklistItemRow({
   canEdit = true,
   isPersonal = false,
   dragHandleProps,
+  preloadedTimeBlocks,
 }: {
   item: ChecklistItem;
   onToggle: () => void;
@@ -1351,29 +1370,20 @@ function ChecklistItemRow({
   canEdit?: boolean;
   isPersonal?: boolean;
   dragHandleProps?: React.HTMLAttributes<HTMLElement>;
+  preloadedTimeBlocks?: ScheduleBlockDetailResponse[];
 }) {
   const { t } = useTranslation();
   const [isEditing, setIsEditing] = useState(false);
   const [editedTitle, setEditedTitle] = useState(item.title);
   const [showOptions, setShowOptions] = useState(false);
   const [showTimeBlocks, setShowTimeBlocks] = useState(false);
-  const [timeBlocks, setTimeBlocks] = useState<ScheduleBlockDetailResponse[]>([]);
-  const [isLoadingTimeBlocks, setIsLoadingTimeBlocks] = useState(false);
+
+  // 부모에서 벌크로 로드된 타임블록 사용
+  const timeBlocks = preloadedTimeBlocks || [];
 
   // 담당자 색상
   const memberData = item.assignee ? boardMembers.find((m) => m.userId === item.assignee!.id) : null;
   const assigneeColor = item.assignee ? getAssigneeClasses(item.assignee.name, memberData?.assigneeColor) : null;
-
-  // 마운트 시 타임블록 자동 로드
-  useEffect(() => {
-    if (boardId) {
-      setIsLoadingTimeBlocks(true);
-      scheduleAPI.getByChecklistItem(boardId, item.id)
-        .then(setTimeBlocks)
-        .catch(() => {})
-        .finally(() => setIsLoadingTimeBlocks(false));
-    }
-  }, [boardId, item.id]);
 
   // 타임블록 총합 시간 (분)
   const totalTimeMinutes = timeBlocks.reduce((sum, block) => {
@@ -1666,7 +1676,7 @@ function ChecklistItemRow({
         }`}
         title={t('task.viewTimeBlocks')}
       >
-        {isLoadingTimeBlocks ? (
+        {preloadedTimeBlocks === undefined ? (
           <Loader2 className="h-3 w-3 animate-spin" />
         ) : showTimeBlocks ? (
           <ChevronDown className="h-3 w-3" />

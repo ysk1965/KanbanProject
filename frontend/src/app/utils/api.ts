@@ -2212,6 +2212,13 @@ export const scheduleAPI = {
     );
   },
 
+  getByChecklistItems: async (boardId: string, checklistItemIds: string[]) => {
+    return apiClient.post<Record<string, ScheduleBlockDetailResponse[]>>(
+      `/boards/${boardId}/schedules/checklist-items/batch`,
+      { checklist_item_ids: checklistItemIds }
+    );
+  },
+
   getScheduledTaskIds: async (boardId: string) => {
     return apiClient.get<{ task_ids: string[] }>(
       `/boards/${boardId}/schedules/scheduled-task-ids`

@@ -35,7 +35,7 @@ export function Sidebar({ isOpen = true, onClose, boards = [], onSelectBoard, is
 
   const menuItems = [
     { key: 'all', icon: <LayoutGrid size={18} />, label: t('dashboard.sidebar.allBoards'), path: '/boards' },
-    { key: 'organizations', icon: <Building2 size={18} />, label: t('dashboard.sidebar.organizations', 'Organizations'), path: '/organizations' },
+    ...(!isMilkyway ? [{ key: 'organizations', icon: <Building2 size={18} />, label: t('dashboard.sidebar.organizations', 'Organizations'), path: '/organizations' }] : []),
     ...(hasPersonalSpace ? [{ key: 'myBoard', icon: <User size={18} />, label: t('dashboard.sidebar.myBoard'), path: '/my-board' }] : []),
     { key: 'settings', icon: <Settings size={18} />, label: t('dashboard.sidebar.settings'), path: '/settings' },
   ];
@@ -85,35 +85,44 @@ export function Sidebar({ isOpen = true, onClose, boards = [], onSelectBoard, is
     <div className="flex flex-col h-full">
       <div className={`p-4 ${isCollapsed ? 'px-3' : 'px-5'}`}>
         {/* Logo */}
-        <div className="flex items-center justify-between mb-6">
-          <div
-            className={`flex items-center gap-2 group cursor-pointer ${isCollapsed ? 'justify-center w-full' : ''}`}
-            onClick={() => handleNavigate('/')}
-          >
-            <img
-              src="/BridgeSpotsIcon.png"
-              alt="BRIDGE SPOTS"
-              className="w-8 h-8 rounded-lg shadow-lg shadow-bridge-secondary/20"
-            />
-            {!isCollapsed && (
-              <>
-                <div className="flex flex-col leading-none">
-                  <span className="text-lg font-bold tracking-tighter font-jakarta">BRIDGE</span>
-                  <span className="text-[9px] font-bold text-bridge-secondary tracking-[0.25em] uppercase">SPOTS</span>
-                </div>
-                <ChevronRight
-                  size={14}
-                  className="text-slate-400 group-hover:translate-x-1 transition-transform ml-auto"
-                />
-              </>
+        {!isMilkyway && (
+          <div className="flex items-center justify-between mb-6">
+            <div
+              className={`flex items-center gap-2 group cursor-pointer ${isCollapsed ? 'justify-center w-full' : ''}`}
+              onClick={() => handleNavigate('/')}
+            >
+              <img
+                src="/BridgeSpotsIcon.png"
+                alt="BRIDGE SPOTS"
+                className="w-8 h-8 rounded-lg shadow-lg shadow-bridge-secondary/20"
+              />
+              {!isCollapsed && (
+                <>
+                  <div className="flex flex-col leading-none">
+                    <span className="text-lg font-bold tracking-tighter font-jakarta">BRIDGE</span>
+                    <span className="text-[9px] font-bold text-bridge-secondary tracking-[0.25em] uppercase">SPOTS</span>
+                  </div>
+                  <ChevronRight
+                    size={14}
+                    className="text-slate-400 group-hover:translate-x-1 transition-transform ml-auto"
+                  />
+                </>
+              )}
+            </div>
+            {onClose && (
+              <button onClick={onClose} className="lg:hidden p-2 text-muted-foreground hover:text-foreground transition-colors">
+                <X size={20} />
+              </button>
             )}
           </div>
-          {onClose && (
+        )}
+        {isMilkyway && onClose && (
+          <div className="flex items-center justify-end mb-6">
             <button onClick={onClose} className="lg:hidden p-2 text-muted-foreground hover:text-foreground transition-colors">
               <X size={20} />
             </button>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Navigation */}
         <nav className="space-y-0.5">
