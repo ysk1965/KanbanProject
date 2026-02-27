@@ -15,6 +15,8 @@ import { getTodayDateString } from '../../utils/dateUtils';
 import { PersonalEvent, DiaryDetail, PersonalTask, PersonalHabit, HabitTodayItem, HabitFrequency, HabitWeeklyMatrix, PersonalTaskPriority, PersonalDashboardToday, PersonalOverviewData, DiaryOverviewInfo } from '../../types';
 import { CheckInConfirmModal, TaskCompleteConfirmModal, HabitFormModal, DeleteConfirmModal } from './PersonalHabits';
 import { TaskDetailModal } from './PersonalTaskBoard';
+import { BoardTasksWidget } from './BoardTasksWidget';
+import { CelebrationsWidget } from './CelebrationsWidget';
 import { useAuth } from '../../contexts/AuthContext';
 
 type TabType = 'overview' | 'tasks' | 'schedule' | 'habits' | 'calendar' | 'diary';
@@ -43,12 +45,12 @@ function WidgetCard({
 }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 16 }}
+      initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay }}
-      className="rounded-2xl border border-foreground/[0.12] flex flex-col min-h-[120px] md:min-h-[140px] lg:min-h-0 overflow-hidden"
+      className="rounded-2xl border border-foreground/[0.08] flex flex-col min-h-[120px] md:min-h-[140px] lg:min-h-0 overflow-hidden"
     >
-      <div className="px-3 md:px-5 py-2 md:py-3 bg-foreground/[0.06] border-b border-foreground/[0.06]">
+      <div className="px-3 md:px-5 py-2 md:py-3 bg-foreground/[0.06] border-b border-foreground/[0.08]">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             {icon}
@@ -342,7 +344,7 @@ function TodayScheduleWidget({
       title={t('personal.overview.todaySchedule', "Today's Schedule")}
       badge={
         (allTimedEvents.length + calendarEvents.length) > 0 ? (
-          <span className="text-[10px] font-bold text-bridge-secondary bg-bridge-secondary/10 px-1.5 py-0.5 rounded-full">
+          <span className="text-[10px] font-bold text-bridge-secondary bg-bridge-secondary/15 px-1.5 py-0.5 rounded-full">
             {timedEvents.length + calendarEvents.length}/{allTimedEvents.length + calendarEvents.length}
           </span>
         ) : null
@@ -352,7 +354,7 @@ function TodayScheduleWidget({
     >
       {isLoading ? (
         <div className="flex-1 flex items-center justify-center">
-          <Loader2 className="w-5 h-5 animate-spin text-bridge-accent/50" />
+          <Loader2 className="w-5 h-5 animate-spin text-bridge-accent" />
         </div>
       ) : allTimedEvents.length === 0 && calendarEvents.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center text-center gap-1.5 md:gap-3">
@@ -360,7 +362,7 @@ function TodayScheduleWidget({
           <p className="text-xs md:text-sm text-slate-500">{t('personal.overview.noEvents', 'No events today')}</p>
           <button
             onClick={onViewAll}
-            className="flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 text-[11px] md:text-xs font-bold text-bridge-secondary bg-bridge-secondary/10 hover:bg-bridge-secondary/20 rounded-xl transition-all"
+            className="flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 text-[11px] md:text-xs font-bold text-bridge-secondary bg-bridge-secondary/15 hover:bg-bridge-secondary/25 rounded-xl transition-all"
           >
             <Plus size={14} />
             {t('personal.overview.addSchedule', 'Add a schedule')}
@@ -370,14 +372,14 @@ function TodayScheduleWidget({
         <div className="flex-1 flex flex-col min-h-0">
           {/* ── 캘린더 일정 ── */}
           {calendarEvents.length > 0 && (
-            <div className="pb-1.5 space-y-0.5 border-t border-foreground/[0.06] pt-1.5">
+            <div className="pb-1.5 space-y-0.5 border-t border-foreground/[0.08] pt-1.5">
               {calendarEvents.map((ev) => {
                 const color = ev.color || '#6366F1';
                 return (
                   <button
                     key={ev.id}
                     onClick={onViewAll}
-                    className="w-full flex items-center gap-2 px-2 py-1 rounded-md hover:bg-foreground/[0.04] transition-colors text-left"
+                    className="w-full flex items-center gap-2 px-2 py-1 rounded-md hover:bg-foreground/5 transition-colors text-left"
                   >
                     <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
                     <span className="text-[11px] text-foreground truncate flex-1">{ev.title}</span>
@@ -395,7 +397,7 @@ function TodayScheduleWidget({
 
           {/* ── 타임라인 ── */}
           {allTimedEvents.length > 0 && (
-            <div ref={scrollRef} className="flex-1 overflow-y-auto custom-scrollbar -mx-1 px-1 border-t border-foreground/[0.06] pt-1.5">
+            <div ref={scrollRef} className="flex-1 overflow-y-auto custom-scrollbar -mx-1 px-1 border-t border-foreground/[0.08] pt-1.5">
               <div className="relative" style={{ height: `${totalHeight}px` }}>
                 {/* ── 30분 단위 시간 그리드 ── */}
                 {timeSlots.map((time, idx) => (
@@ -411,7 +413,7 @@ function TodayScheduleWidget({
                         </span>
                       )}
                     </div>
-                    <div className="flex-1 border-l border-foreground/[0.06]" />
+                    <div className="flex-1 border-l border-foreground/[0.08]" />
                   </div>
                 ))}
 
@@ -709,7 +711,7 @@ function UpcomingDeadlinesWidget({
       title={t('personal.overview.upcomingDeadlines', 'Upcoming Deadlines')}
       badge={
         items.length > 0 ? (
-          <span className="text-[10px] font-bold text-bridge-accent bg-bridge-accent/10 px-1.5 py-0.5 rounded-full">
+          <span className="text-[10px] font-bold text-bridge-accent bg-bridge-accent/15 px-1.5 py-0.5 rounded-full">
             {items.length}
           </span>
         ) : null
@@ -719,7 +721,7 @@ function UpcomingDeadlinesWidget({
     >
       {isLoading ? (
         <div className="flex-1 flex items-center justify-center">
-          <Loader2 className="w-5 h-5 animate-spin text-bridge-accent/50" />
+          <Loader2 className="w-5 h-5 animate-spin text-bridge-accent" />
         </div>
       ) : items.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center text-center gap-1.5 md:gap-3">
@@ -727,7 +729,7 @@ function UpcomingDeadlinesWidget({
           <p className="text-xs md:text-sm text-slate-500">{t('personal.overview.noDeadlines', 'No upcoming deadlines')}</p>
           <button
             onClick={onViewAll}
-            className="flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 text-[11px] md:text-xs font-bold text-bridge-accent bg-bridge-accent/10 hover:bg-bridge-accent/20 rounded-xl transition-all"
+            className="flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 text-[11px] md:text-xs font-bold text-bridge-accent bg-bridge-accent/15 hover:bg-bridge-accent/25 rounded-xl transition-all"
           >
             <Plus size={14} />
             {t('personal.overview.addDeadline', 'Add a task')}
@@ -769,7 +771,7 @@ function UpcomingDeadlinesWidget({
                     className="flex-shrink-0 w-[18px] h-[18px] relative overflow-visible"
                   >
                     {isToggling ? (
-                      <Loader2 size={16} className="animate-spin text-bridge-accent/50" />
+                      <Loader2 size={16} className="animate-spin text-bridge-accent" />
                     ) : (
                       <>
                         {/* Empty circle */}
@@ -834,7 +836,7 @@ function UpcomingDeadlinesWidget({
                           animate={{ scale: 1, opacity: 1 }}
                           exit={{ scale: 0.8, opacity: 0 }}
                           transition={{ duration: 0.2 }}
-                          className="text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 text-emerald-400 bg-emerald-400/10"
+                          className="text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 text-emerald-400 bg-emerald-400/15"
                         >
                           {t('personal.overview.done', 'Done')}
                         </motion.span>
@@ -847,13 +849,13 @@ function UpcomingDeadlinesWidget({
                           transition={{ duration: 0.2 }}
                           className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${
                           isOverdue
-                            ? 'text-red-400 bg-red-400/10'
+                            ? 'text-red-400 bg-red-400/15'
                             : dday === 0
                             ? 'text-bridge-secondary bg-bridge-secondary/15 ring-1 ring-bridge-secondary/30'
                             : dday <= 3
-                            ? 'text-amber-400 bg-amber-400/10'
+                            ? 'text-amber-400 bg-amber-400/15'
                             : dday <= 7
-                            ? 'text-blue-400 bg-blue-400/10'
+                            ? 'text-blue-400 bg-blue-400/15'
                             : 'text-slate-400 bg-foreground/5'
                         }`}>
                           {isOverdue
@@ -1103,7 +1105,7 @@ function HabitsTodayWidget({
       title={t('personal.overview.habitsToday', 'Habits Today')}
       badge={
         totalCount > 0 ? (
-          <span className="text-[10px] font-bold text-purple-400 bg-purple-400/10 px-1.5 py-0.5 rounded-full">
+          <span className="text-[10px] font-bold text-purple-400 bg-purple-400/15 px-1.5 py-0.5 rounded-full">
             {completedCount}/{totalCount}
           </span>
         ) : null
@@ -1124,7 +1126,7 @@ function HabitsTodayWidget({
     >
       {isLoading ? (
         <div className="flex-1 flex items-center justify-center">
-          <Loader2 className="w-5 h-5 animate-spin text-bridge-accent/50" />
+          <Loader2 className="w-5 h-5 animate-spin text-bridge-accent" />
         </div>
       ) : allHabits.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center text-center gap-1.5 md:gap-3">
@@ -1132,7 +1134,7 @@ function HabitsTodayWidget({
           <p className="text-xs md:text-sm text-slate-500">{t('personal.overview.noHabits', 'No habits set up yet')}</p>
           <button
             onClick={() => setIsCreateOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 text-[11px] md:text-xs font-bold text-purple-400 bg-purple-400/10 hover:bg-purple-400/20 rounded-xl transition-all"
+            className="flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 text-[11px] md:text-xs font-bold text-purple-400 bg-purple-400/15 hover:bg-purple-400/25 rounded-xl transition-all"
           >
             <Plus size={14} />
             {t('personal.overview.addFirstHabit', 'Add Your First Habit')}
@@ -1160,9 +1162,9 @@ function HabitsTodayWidget({
                   key={habit.id}
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.03 }}
+                  transition={{ delay: idx * 0.04 }}
                   onClick={() => setEditHabit(habit)}
-                  className="rounded-xl border p-3 text-left relative group transition-colors cursor-pointer border-foreground/[0.08] bg-foreground/[0.03] hover:bg-foreground/[0.06]"
+                  className="rounded-xl border p-3 text-left relative group transition-colors cursor-pointer border-foreground/[0.08] bg-foreground/[0.03] hover:bg-foreground/5"
                 >
                   {/* Top progress gauge bar */}
                   <div className="absolute top-0 left-3 right-3 h-[2.5px] rounded-b-full overflow-hidden"
@@ -1455,11 +1457,11 @@ function DiaryWidget({
       title={t('personal.overview.aiDiary', 'AI Diary')}
       badge={
         diaryData && diaryData.status === 'COMPLETED' ? (
-          <span className="text-[10px] font-bold text-bridge-secondary bg-bridge-secondary/10 px-1.5 py-0.5 rounded-full">
+          <span className="text-[10px] font-bold text-bridge-secondary bg-bridge-secondary/15 px-1.5 py-0.5 rounded-full">
             {t('personal.overview.done', 'Done')}
           </span>
         ) : diaryData && diaryData.status === 'CHATTING' ? (
-          <span className="text-[10px] font-bold text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded-full">
+          <span className="text-[10px] font-bold text-amber-400 bg-amber-400/15 px-1.5 py-0.5 rounded-full">
             {t('personal.overview.inProgress', 'In progress')}
           </span>
         ) : null
@@ -1469,7 +1471,7 @@ function DiaryWidget({
     >
       {isLoading ? (
         <div className="flex-1 flex items-center justify-center">
-          <Loader2 className="w-5 h-5 animate-spin text-bridge-accent/50" />
+          <Loader2 className="w-5 h-5 animate-spin text-bridge-accent" />
         </div>
       ) : !diaryData ? (
         <div className="flex-1 flex flex-col items-center justify-center text-center gap-1.5 md:gap-3 px-4">
@@ -1819,9 +1821,9 @@ function MobileQuickHabits({
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1, duration: 0.3 }}
-        className="rounded-2xl border border-foreground/[0.12] overflow-hidden"
+        className="rounded-2xl border border-foreground/[0.08] overflow-hidden"
       >
-        <div className="px-3 py-2 bg-foreground/[0.06] border-b border-foreground/[0.06]">
+        <div className="px-3 py-2 bg-foreground/[0.06] border-b border-foreground/[0.08]">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Flame size={16} className="text-purple-400" />
@@ -1851,7 +1853,7 @@ function MobileQuickHabits({
       className={`rounded-2xl border overflow-hidden relative ${
         allDone
           ? 'border-bridge-secondary/30'
-          : 'border-foreground/[0.12]'
+          : 'border-foreground/[0.08]'
       }`}
     >
       {allDone && (
@@ -1865,7 +1867,7 @@ function MobileQuickHabits({
       <div className={`px-3 py-2 border-b relative z-[2] ${
         allDone
           ? 'bg-bridge-secondary/[0.06] border-bridge-secondary/10'
-          : 'bg-foreground/[0.06] border-foreground/[0.06]'
+          : 'bg-foreground/[0.06] border-foreground/[0.08]'
       }`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -1889,7 +1891,7 @@ function MobileQuickHabits({
                 className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
                   allDone
                     ? 'text-bridge-secondary bg-bridge-secondary/15'
-                    : 'text-purple-400 bg-purple-400/10'
+                    : 'text-purple-400 bg-purple-400/15'
                 }`}
               >
                 {allDone ? '✨ ' : ''}{completedCount}/{totalCount}
@@ -2100,6 +2102,12 @@ export function PersonalOverview({ onNavigateTab, onRefreshTasks }: PersonalOver
             diaryInfo={overviewData ? overviewData.diary_today : undefined}
           />
         </div>
+
+        {/* Celebrations (conditional - only shows when celebrations exist) */}
+        <CelebrationsWidget date={todayDate} />
+
+        {/* Board Tasks */}
+        <BoardTasksWidget date={todayDate} />
       </div>
     </div>
   );
@@ -2184,7 +2192,7 @@ function OverviewCreateHabitModal({
   };
 
   return (
-    <MotionModal open={open} onClose={onClose} className="sm:max-w-md p-0 overflow-hidden border-foreground/[0.12]">
+    <MotionModal open={open} onClose={onClose} className="sm:max-w-md p-0 overflow-hidden border-foreground/[0.08]">
       <div>
         <div className="h-[2px]" style={{ background: `linear-gradient(to right, ${color}88, ${color}44, transparent)` }} />
 
@@ -2197,7 +2205,7 @@ function OverviewCreateHabitModal({
             onChange={(e) => setTitle(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && !e.nativeEvent.isComposing && handleSubmit()}
             placeholder={t('personal.habit.habitPlaceholder', 'e.g. Morning Run, Read 10 pages')}
-            className="flex-1 min-w-0 bg-transparent text-sm font-bold text-foreground placeholder-slate-600 outline-none"
+            className="flex-1 min-w-0 bg-transparent text-sm font-bold text-foreground placeholder-slate-500 outline-none"
             autoFocus
           />
           <button onClick={onClose} className="p-1.5 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5 transition-colors shrink-0">
@@ -2280,7 +2288,7 @@ function OverviewCreateHabitModal({
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder={t('personal.habit.descPlaceholder', 'Why this habit matters to you')}
                   rows={2}
-                  className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg p-3 text-sm text-muted-foreground placeholder-slate-600 outline-none resize-none focus:border-bridge-accent/30 focus:ring-1 focus:ring-bridge-accent/10 transition-all"
+                  className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg p-3 text-sm text-muted-foreground placeholder-slate-500 outline-none resize-none focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
                 />
               </motion.div>
             )}

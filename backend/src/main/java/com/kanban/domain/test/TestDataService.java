@@ -27,6 +27,8 @@ import com.kanban.domain.report.WeeklyReport;
 import com.kanban.domain.schedule.ScheduleBlock;
 import com.kanban.domain.schedule.ScheduleBlockRepository;
 import com.kanban.domain.subscription.BillingCycle;
+import com.kanban.domain.subscription.OrgSubscription;
+import com.kanban.domain.subscription.OrgSubscriptionRepository;
 import com.kanban.domain.subscription.Subscription;
 import com.kanban.domain.subscription.SubscriptionRepository;
 import com.kanban.domain.subscription.SubscriptionStatus;
@@ -36,17 +38,34 @@ import com.kanban.domain.task.Task;
 import com.kanban.domain.task.TaskRepository;
 import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
+import com.kanban.domain.okr.OkrCheckIn;
+import com.kanban.domain.okr.OkrCycle;
+import com.kanban.domain.okr.OkrKeyResult;
+import com.kanban.domain.okr.OkrObjective;
+import com.kanban.domain.okr.repository.OkrCheckInRepository;
+import com.kanban.domain.okr.repository.OkrCycleRepository;
+import com.kanban.domain.okr.repository.OkrKeyResultRepository;
+import com.kanban.domain.okr.repository.OkrObjectiveRepository;
+import com.kanban.domain.organization.*;
+import com.kanban.domain.organization.leave.*;
+import com.kanban.domain.organization.leave.repository.LeaveBalanceRepository;
+import com.kanban.domain.organization.leave.repository.LeavePolicyRepository;
+import com.kanban.domain.organization.leave.repository.LeaveRequestRepository;
+import com.kanban.domain.organization.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
@@ -72,9 +91,44 @@ public class TestDataService {
     private final MeetingRepository meetingRepository;
     private final ReportRepository reportRepository;
 
+    // Organization repositories
+    private final OrganizationRepository organizationRepository;
+    private final OrgMemberRepository orgMemberRepository;
+    private final OrgDepartmentRepository orgDepartmentRepository;
+    private final OrgJobGroupRepository orgJobGroupRepository;
+    private final OrgPositionRepository orgPositionRepository;
+    private final OrgTitleRepository orgTitleRepository;
+    private final OrgGradeRepository orgGradeRepository;
+    private final OrgMemberHistoryRepository orgMemberHistoryRepository;
+    private final OrgMemberConcurrentDeptRepository orgMemberConcurrentDeptRepository;
+    private final LeavePolicyRepository leavePolicyRepository;
+    private final LeaveRequestRepository leaveRequestRepository;
+    private final LeaveBalanceRepository leaveBalanceRepository;
+    private final OrgOnboardingTemplateRepository orgOnboardingTemplateRepository;
+    private final OrgOnboardingInstanceRepository orgOnboardingInstanceRepository;
+    private final OrgOnboardingInstanceItemRepository orgOnboardingInstanceItemRepository;
+    private final OrgOneOnOneRepository orgOneOnOneRepository;
+    private final OrgOneOnOneMeetingRepository orgOneOnOneMeetingRepository;
+    private final OrgOneOnOneActionItemRepository orgOneOnOneActionItemRepository;
+    private final OrgAttendancePolicyRepository orgAttendancePolicyRepository;
+    private final OrgAttendanceRecordRepository orgAttendanceRecordRepository;
+    private final OrgAnniversarySettingRepository orgAnniversarySettingRepository;
+    private final OrgCelebrationMessageRepository orgCelebrationMessageRepository;
+    private final OrgCustomHolidayRepository orgCustomHolidayRepository;
+    private final OrgAnnouncementRepository orgAnnouncementRepository;
+    private final OrgActivityRepository orgActivityRepository;
+    private final OrgSubscriptionRepository orgSubscriptionRepository;
+
+    // OKR repositories
+    private final OkrCycleRepository okrCycleRepository;
+    private final OkrObjectiveRepository okrObjectiveRepository;
+    private final OkrKeyResultRepository okrKeyResultRepository;
+    private final OkrCheckInRepository okrCheckInRepository;
+
     private final Random random = new Random();
 
     private static final String SHARED_TEST_BOARD_NAME = "BRIDGE SPOTS Example";
+    private static final String SHARED_TEST_ORG_NAME = "BRIDGE SPOTS Example Org";
 
     @Transactional
     public TestDataResponse createTestBoard(String userId) {
@@ -1388,5 +1442,1300 @@ public class TestDataService {
         commentRepository.saveAllAndFlush(comments);
         log.info("Created {} comments", comments.size());
         return comments;
+    }
+
+    // ========================================================================
+    // Organization Test Data
+    // ========================================================================
+
+    @Transactional
+    public TestOrgDataResponse createTestOrganization(String userId) {
+        User currentUser = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        Optional<Organization> existingOrg = organizationRepository.findActiveByName(SHARED_TEST_ORG_NAME);
+
+        if (existingOrg.isPresent()) {
+            return joinExistingTestOrganization(existingOrg.get(), currentUser);
+        } else {
+            return createNewTestOrganization(currentUser);
+        }
+    }
+
+    private TestOrgDataResponse joinExistingTestOrganization(Organization org, User user) {
+        boolean isMember = orgMemberRepository.existsByOrganizationIdAndUserId(org.getId(), user.getId());
+
+        if (!isMember) {
+            OrganizationMember newMember = OrganizationMember.builder()
+                    .organization(org)
+                    .user(user)
+                    .role(OrgRole.MEMBER)
+                    .contractType(ContractType.FULL_TIME)
+                    .workStatus(WorkStatus.ACTIVE)
+                    .hireDate(LocalDate.now())
+                    .joinedAt(LocalDateTime.now(ZoneOffset.UTC))
+                    .build();
+            orgMemberRepository.saveAndFlush(newMember);
+            log.info("Added user {} as member to shared test organization {}", user.getId(), org.getId());
+        }
+
+        int memberCount = orgMemberRepository.countByOrganizationId(org.getId());
+
+        String message = isMember
+                ? "이미 테스트 조직의 멤버입니다. 조직 페이지로 이동합니다."
+                : "테스트 조직에 멤버로 추가되었습니다!";
+
+        return TestOrgDataResponse.builder()
+                .organizationId(org.getId())
+                .organizationName(org.getName())
+                .memberCount(memberCount)
+                .message(message)
+                .build();
+    }
+
+    private TestOrgDataResponse createNewTestOrganization(User owner) {
+        // 1. Organization
+        Organization org = Organization.builder()
+                .name(SHARED_TEST_ORG_NAME)
+                .description("팀 구조, HR 기능, 조직도를 테스트하기 위한 공용 조직입니다.")
+                .owner(owner)
+                .build();
+        organizationRepository.saveAndFlush(org);
+        log.info("Created shared test organization: {}", org.getId());
+
+        // 1-1. OrgSubscription (TEAM ACTIVE for testing HR features)
+        OrgSubscription subscription = OrgSubscription.createTrial(org);
+        subscription.activateTeam(BillingCycle.MONTHLY, 10, "test-payment-method");
+        orgSubscriptionRepository.save(subscription);
+
+        // 2. Test users (5 base + 4 org-only = 10 total incl. owner)
+        List<User> users = createTestMembers(owner);
+        List<User> extraUsers = createOrgExtraMembers();
+        users.addAll(extraUsers);
+
+        // 3. Structure
+        List<OrganizationDepartment> departments = createOrgDepartments(org);
+        List<OrganizationJobGroup> jobGroups = createOrgJobGroups(org);
+        List<OrganizationPosition> positions = createOrgPositions(org);
+        List<OrganizationTitle> titles = createOrgTitles(org);
+        List<OrganizationGrade> grades = createOrgGrades(org);
+
+        // 4. Members (10명)
+        List<OrganizationMember> members = createOrgMembers(org, users, departments, jobGroups, positions, titles, grades);
+
+        // 5. Department leaders
+        setOrgDepartmentLeaders(departments, members);
+
+        // 6. Concurrent department
+        createOrgConcurrentDept(org, members, departments, positions);
+
+        // 7. Leave policies & data
+        List<LeavePolicy> leavePolicies = createOrgLeavePolicies(org);
+        createOrgLeaveBalances(org, members, leavePolicies);
+        List<LeaveRequest> leaveRequests = createOrgLeaveRequests(org, members, leavePolicies);
+
+        // 8. Attendance (ACTIVE 멤버만)
+        createOrgAttendancePolicy(org);
+        List<OrganizationMember> activeMembers = members.stream()
+                .filter(m -> m.getWorkStatus() == WorkStatus.ACTIVE)
+                .toList();
+        List<OrgAttendanceRecord> attendanceRecords = createOrgAttendanceRecords(org, activeMembers);
+
+        // 9. Anniversary & Celebrations
+        createOrgAnniversarySetting(org);
+        createOrgCustomHolidays(org);
+        createOrgCelebrationMessages(org, members, users);
+
+        // 10. Onboarding (2 templates, 2 instances)
+        OrgOnboardingTemplate template = createOrgOnboardingTemplate(org);
+        createOrgOnboardingInstance(org, members, template);
+
+        // 11. 1:1 meetings
+        createOrgOneOnOnes(org, members, users);
+
+        // 12. Announcements
+        List<OrgAnnouncement> announcements = createOrgAnnouncements(org, members);
+
+        // 13. Activities
+        List<OrgActivity> activities = createOrgActivities(org, members, announcements, leaveRequests);
+
+        // 14. Member histories
+        List<OrgMemberHistory> histories = createOrgMemberHistories(org, members);
+
+        // 15. Organization Boards (인사이트 데이터 포함)
+        List<Board> orgBoards = createOrgBoards(org, owner, users, members);
+
+        // 16. OKR (1 Cycle, 3 Objectives, 7 Key Results, CheckIns)
+        int[] okrCounts = createOrgOkrData(org, members, departments);
+
+        return TestOrgDataResponse.builder()
+                .organizationId(org.getId())
+                .organizationName(org.getName())
+                .memberCount(members.size())
+                .departmentCount(departments.size())
+                .leavePolicyCount(leavePolicies.size())
+                .leaveRequestCount(leaveRequests.size())
+                .onboardingTemplateCount(1)
+                .attendanceRecordCount(attendanceRecords.size())
+                .announcementCount(announcements.size())
+                .activityCount(activities.size())
+                .okrCycleCount(okrCounts[0])
+                .okrObjectiveCount(okrCounts[1])
+                .okrKeyResultCount(okrCounts[2])
+                .message("공용 테스트 조직이 성공적으로 생성되었습니다! (부서 " + departments.size() + "개, 멤버 " + members.size() + "명, 보드 " + orgBoards.size() + "개, 휴가정책 " + leavePolicies.size() + "개, OKR 사이클 " + okrCounts[0] + "개 포함)")
+                .build();
+    }
+
+    /**
+     * OKR 테스트 데이터 생성 (1 Cycle, 3 Objectives, 7 Key Results, CheckIns)
+     */
+    private int[] createOrgOkrData(Organization org, List<OrganizationMember> members, List<OrganizationDepartment> departments) {
+        // members 배열: [0]=owner, [1~N]=일반 멤버
+        // departments 배열: [0]=경영기획실, [1]=개발팀, [2]=디자인팀, [3]=마케팅팀, [4]=백엔드파트, [5]=프론트엔드파트
+
+        // 1. Cycle 생성
+        OkrCycle cycle = OkrCycle.builder()
+                .organization(org)
+                .name("2026 Q1")
+                .cycleType("QUARTERLY")
+                .startDate(LocalDate.of(2026, 1, 1))
+                .endDate(LocalDate.of(2026, 3, 31))
+                .status("ACTIVE")
+                .createdBy(members.get(0).getUser())
+                .build();
+        okrCycleRepository.saveAndFlush(cycle);
+
+        // 2. Company Objective: 글로벌 MAU 10만 달성
+        OkrObjective companyObj = OkrObjective.builder()
+                .cycle(cycle)
+                .organization(org)
+                .title("글로벌 MAU 10만 달성")
+                .description("사용자 기반을 확대하여 글로벌 MAU 10만을 달성합니다")
+                .level("COMPANY")
+                .owner(members.get(0))
+                .progress(72)
+                .confidence("ON_TRACK")
+                .sortOrder(0)
+                .build();
+        okrObjectiveRepository.saveAndFlush(companyObj);
+
+        // 3. Department Objective: 플랫폼 안정성 확보 (개발팀)
+        OkrObjective devObj = OkrObjective.builder()
+                .cycle(cycle)
+                .organization(org)
+                .title("플랫폼 안정성 확보")
+                .description("서버 가용성과 배포 주기를 개선합니다")
+                .level("DEPARTMENT")
+                .department(departments.size() > 1 ? departments.get(1) : null)
+                .owner(members.size() > 2 ? members.get(2) : members.get(0))
+                .parentObjective(companyObj)
+                .progress(80)
+                .confidence("ON_TRACK")
+                .sortOrder(0)
+                .build();
+        okrObjectiveRepository.saveAndFlush(devObj);
+
+        // 4. Department Objective: 브랜드 인지도 확대 (마케팅팀)
+        OkrObjective mktObj = OkrObjective.builder()
+                .cycle(cycle)
+                .organization(org)
+                .title("브랜드 인지도 확대")
+                .description("광고 효율과 콘텐츠 도달률을 높입니다")
+                .level("DEPARTMENT")
+                .department(departments.size() > 3 ? departments.get(3) : null)
+                .owner(members.size() > 1 ? members.get(1) : members.get(0))
+                .parentObjective(companyObj)
+                .progress(60)
+                .confidence("AT_RISK")
+                .sortOrder(1)
+                .build();
+        okrObjectiveRepository.saveAndFlush(mktObj);
+
+        // 5. Key Results — Company Objective
+        OkrKeyResult kr1 = createOkrKeyResult(companyObj, "신규 가입자 월 2만명 확보", "NUMBER", 0, 20000, 12500, "명", members, 1, 1.0, 0);
+        OkrKeyResult kr2 = createOkrKeyResult(companyObj, "DAU 3만명 유지", "NUMBER", 0, 30000, 28000, "명", members, 2, 1.0, 1);
+        OkrKeyResult kr3 = createOkrKeyResult(companyObj, "이탈률 5% 이하", "PERCENTAGE", 0, 100, 62, "%", members, 3, 1.0, 2);
+
+        // 6. Key Results — Dev Objective
+        OkrKeyResult kr4 = createOkrKeyResult(devObj, "서버 가용성 99.9%", "PERCENTAGE", 0, 100, 95, "%", members, 4, 1.0, 0);
+        OkrKeyResult kr5 = createOkrKeyResult(devObj, "배포 주기 주 2회", "NUMBER", 0, 2.0, 1.5, "회", members, 5, 1.0, 1);
+
+        // 7. Key Results — Marketing Objective
+        OkrKeyResult kr6 = createOkrKeyResult(mktObj, "광고 CTR 3%", "PERCENTAGE", 0, 100, 70, "%", members, 6, 1.0, 0);
+        OkrKeyResult kr7 = createOkrKeyResult(mktObj, "블로그 월 조회수 5만", "NUMBER", 0, 50000, 35000, "", members, 7, 1.0, 1);
+
+        // 8. CheckIns — 각 KR에 2~3개
+        createOkrCheckIns(kr1, members, 1, new double[]{5000, 10000, 12500}, new String[]{"ON_TRACK", "ON_TRACK", "ON_TRACK"},
+                new String[]{"초기 마케팅 캠페인 시작", "소셜 미디어 효과 발생", "캠페인 2차 효과로 가입자 급증"});
+        createOkrCheckIns(kr2, members, 2, new double[]{15000, 25000, 28000}, new String[]{"AT_RISK", "ON_TRACK", "ON_TRACK"},
+                new String[]{"초기 유입 지속", "신규 기능 출시 효과", "안정적 유지 중"});
+        createOkrCheckIns(kr3, members, 3, new double[]{30, 50, 62}, new String[]{"OFF_TRACK", "AT_RISK", "ON_TRACK"},
+                new String[]{"리텐션 분석 시작", "온보딩 개선 진행", "이탈 방지 캠페인 효과"});
+        createOkrCheckIns(kr4, members, 4, new double[]{90, 95}, new String[]{"AT_RISK", "ON_TRACK"},
+                new String[]{"인프라 안정화 작업", "서버 이중화 완료"});
+        createOkrCheckIns(kr5, members, 5, new double[]{1.0, 1.5}, new String[]{"AT_RISK", "ON_TRACK"},
+                new String[]{"CI/CD 파이프라인 개선", "배포 자동화 안정화"});
+        createOkrCheckIns(kr6, members, 6, new double[]{40, 70}, new String[]{"OFF_TRACK", "AT_RISK"},
+                new String[]{"광고 타겟팅 재설정", "A/B 테스트 결과 반영"});
+        createOkrCheckIns(kr7, members, 7, new double[]{15000, 35000}, new String[]{"AT_RISK", "ON_TRACK"},
+                new String[]{"SEO 최적화 시작", "바이럴 콘텐츠 효과"});
+
+        return new int[]{1, 3, 7}; // cycleCount, objectiveCount, keyResultCount
+    }
+
+    private OkrKeyResult createOkrKeyResult(OkrObjective objective, String title, String metricType,
+            double startValue, double targetValue, double currentValue, String unit,
+            List<OrganizationMember> members, int ownerIdx, double weight, int sortOrder) {
+        OkrKeyResult kr = OkrKeyResult.builder()
+                .objective(objective)
+                .title(title)
+                .metricType(metricType)
+                .startValue(startValue)
+                .targetValue(targetValue)
+                .currentValue(currentValue)
+                .unit(unit)
+                .owner(members.size() > ownerIdx ? members.get(ownerIdx) : members.get(0))
+                .weight(weight)
+                .sortOrder(sortOrder)
+                .build();
+        return okrKeyResultRepository.saveAndFlush(kr);
+    }
+
+    private void createOkrCheckIns(OkrKeyResult kr, List<OrganizationMember> members, int authorIdx,
+            double[] values, String[] confidences, String[] notes) {
+        double prevValue = kr.getStartValue();
+        for (int i = 0; i < values.length; i++) {
+            OkrCheckIn checkIn = OkrCheckIn.builder()
+                    .keyResult(kr)
+                    .previousValue(prevValue)
+                    .newValue(values[i])
+                    .confidence(confidences[i])
+                    .note(notes[i])
+                    .author(members.size() > authorIdx ? members.get(authorIdx) : members.get(0))
+                    .build();
+            okrCheckInRepository.saveAndFlush(checkIn);
+            prevValue = values[i];
+        }
+    }
+
+    /**
+     * 조직 전용 추가 유저 4명 생성 (testuser6~9)
+     */
+    private List<User> createOrgExtraMembers() {
+        List<User> extras = new ArrayList<>();
+        String[] names = {"한소희", "윤성민", "강지원", "임하늘"};
+        String[] emails = {"testuser6@bridge.com", "testuser7@bridge.com", "testuser8@bridge.com", "testuser9@bridge.com"};
+
+        for (int i = 0; i < names.length; i++) {
+            User existing = userRepository.findByEmail(emails[i]).orElse(null);
+            if (existing != null) {
+                extras.add(existing);
+            } else {
+                User newUser = User.builder()
+                        .id(UUID.randomUUID().toString())
+                        .email(emails[i])
+                        .name(names[i])
+                        .passwordHash("$2a$10$dummyhashedpassword")
+                        .build();
+                userRepository.saveAndFlush(newUser);
+                extras.add(newUser);
+            }
+        }
+        return extras;
+    }
+
+    // --- Structure helpers ---
+
+    private List<OrganizationDepartment> createOrgDepartments(Organization org) {
+        // [0] 경영기획실 (root)
+        OrganizationDepartment root = OrganizationDepartment.builder()
+                .organization(org).name("경영기획실").displayOrder(0)
+                .description("전사 전략 및 경영 기획").build();
+        orgDepartmentRepository.saveAndFlush(root);
+
+        // [1] 개발팀 (under root)
+        OrganizationDepartment dev = OrganizationDepartment.builder()
+                .organization(org).name("개발팀").displayOrder(1)
+                .parentDepartment(root).description("소프트웨어 개발 총괄").build();
+        orgDepartmentRepository.saveAndFlush(dev);
+
+        // [2] 디자인팀
+        OrganizationDepartment design = OrganizationDepartment.builder()
+                .organization(org).name("디자인팀").displayOrder(2)
+                .parentDepartment(root).description("UI/UX 디자인").build();
+        orgDepartmentRepository.saveAndFlush(design);
+
+        // [3] 마케팅팀
+        OrganizationDepartment marketing = OrganizationDepartment.builder()
+                .organization(org).name("마케팅팀").displayOrder(3)
+                .parentDepartment(root).description("마케팅 및 브랜딩").build();
+        orgDepartmentRepository.saveAndFlush(marketing);
+
+        // [4] 백엔드파트 (under 개발팀)
+        OrganizationDepartment backend = OrganizationDepartment.builder()
+                .organization(org).name("백엔드파트").displayOrder(0)
+                .parentDepartment(dev).description("서버 및 API 개발").build();
+        orgDepartmentRepository.saveAndFlush(backend);
+
+        // [5] 프론트엔드파트 (under 개발팀)
+        OrganizationDepartment frontend = OrganizationDepartment.builder()
+                .organization(org).name("프론트엔드파트").displayOrder(1)
+                .parentDepartment(dev).description("웹/앱 클라이언트 개발").build();
+        orgDepartmentRepository.saveAndFlush(frontend);
+
+        log.info("Created 6 departments for org: {}", org.getId());
+        // [0]=경영기획실, [1]=개발팀, [2]=디자인팀, [3]=마케팅팀, [4]=백엔드파트, [5]=프론트엔드파트
+        return List.of(root, dev, design, marketing, backend, frontend);
+    }
+
+    private List<OrganizationJobGroup> createOrgJobGroups(Organization org) {
+        List<OrganizationJobGroup> groups = new ArrayList<>();
+        String[] names = {"엔지니어링", "디자인", "비즈니스"};
+        for (int i = 0; i < names.length; i++) {
+            OrganizationJobGroup jg = OrganizationJobGroup.builder()
+                    .organization(org).name(names[i]).displayOrder(i).build();
+            groups.add(jg);
+        }
+        orgJobGroupRepository.saveAllAndFlush(groups);
+        log.info("Created {} job groups", groups.size());
+        return groups;
+    }
+
+    private List<OrganizationPosition> createOrgPositions(Organization org) {
+        List<OrganizationPosition> positions = new ArrayList<>();
+        String[] names = {"대표", "팀장", "선임", "주니어"};
+        for (int i = 0; i < names.length; i++) {
+            OrganizationPosition pos = OrganizationPosition.builder()
+                    .organization(org).name(names[i]).displayOrder(i).build();
+            positions.add(pos);
+        }
+        orgPositionRepository.saveAllAndFlush(positions);
+        log.info("Created {} positions", positions.size());
+        return positions;
+    }
+
+    private List<OrganizationTitle> createOrgTitles(Organization org) {
+        List<OrganizationTitle> titles = new ArrayList<>();
+        String[] names = {"이사", "부장", "과장", "사원"};
+        for (int i = 0; i < names.length; i++) {
+            OrganizationTitle title = OrganizationTitle.builder()
+                    .organization(org).name(names[i]).displayOrder(i).build();
+            titles.add(title);
+        }
+        orgTitleRepository.saveAllAndFlush(titles);
+        log.info("Created {} titles", titles.size());
+        return titles;
+    }
+
+    private List<OrganizationGrade> createOrgGrades(Organization org) {
+        List<OrganizationGrade> grades = new ArrayList<>();
+        String[] names = {"G1", "G2", "G3"};
+        for (int i = 0; i < names.length; i++) {
+            OrganizationGrade grade = OrganizationGrade.builder()
+                    .organization(org).name(names[i]).displayOrder(i).build();
+            grades.add(grade);
+        }
+        orgGradeRepository.saveAllAndFlush(grades);
+        log.info("Created {} grades", grades.size());
+        return grades;
+    }
+
+    // --- Members ---
+
+    private List<OrganizationMember> createOrgMembers(
+            Organization org, List<User> users,
+            List<OrganizationDepartment> depts, List<OrganizationJobGroup> jobGroups,
+            List<OrganizationPosition> positions, List<OrganizationTitle> titles,
+            List<OrganizationGrade> grades) {
+
+        LocalDate today = LocalDate.now();
+        int month = today.getMonthValue();
+        List<OrganizationMember> members = new ArrayList<>();
+
+        // depts: [0]=경영기획실, [1]=개발팀, [2]=디자인팀, [3]=마케팅팀, [4]=백엔드파트, [5]=프론트엔드파트
+        // jobGroups: [0]=엔지니어링, [1]=디자인, [2]=비즈니스
+        // positions: [0]=대표, [1]=팀장, [2]=선임, [3]=주니어
+        // titles: [0]=이사, [1]=부장, [2]=과장, [3]=사원
+        // grades: [0]=G1, [1]=G2, [2]=G3
+        // users: [0]=owner, [1]=김철수, [2]=이영희, [3]=박민수, [4]=정다은, [5]=최준혁, [6]=한소희, [7]=윤성민, [8]=강지원, [9]=임하늘
+
+        // [0] Owner (CEO) — 경영기획실
+        OrganizationMember ownerMember = OrganizationMember.builder()
+                .organization(org).user(users.get(0)).role(OrgRole.OWNER)
+                .department(depts.get(0)).position(positions.get(0)).title(titles.get(0)).grade(grades.get(0))
+                .jobTitle("CEO").contractType(ContractType.FULL_TIME).workStatus(WorkStatus.ACTIVE)
+                .employeeId("EMP-001").phone("010-1234-5678")
+                .birthDate(LocalDate.of(1985, month, Math.min(today.getDayOfMonth() + 5, 28)))
+                .hireDate(today.minusDays(730))
+                .joinedAt(LocalDateTime.now(ZoneOffset.UTC)).build();
+        orgMemberRepository.saveAndFlush(ownerMember);
+        members.add(ownerMember);
+
+        // [1] 김철수 (ADMIN, 개발팀장) — 개발팀
+        OrganizationMember member1 = OrganizationMember.builder()
+                .organization(org).user(users.get(1)).role(OrgRole.ADMIN)
+                .department(depts.get(1)).jobGroup(jobGroups.get(0))
+                .position(positions.get(1)).title(titles.get(1)).grade(grades.get(0))
+                .jobTitle("개발팀장").contractType(ContractType.FULL_TIME).workStatus(WorkStatus.ACTIVE)
+                .employeeId("EMP-002").phone("010-2345-6789")
+                .birthDate(LocalDate.of(1990, 7, 20)).hireDate(today.minusDays(500))
+                .manager(ownerMember)
+                .joinedAt(LocalDateTime.now(ZoneOffset.UTC)).build();
+        orgMemberRepository.saveAndFlush(member1);
+        members.add(member1);
+
+        // [2] 이영희 (MEMBER, 디자인팀 리드)
+        OrganizationMember member2 = OrganizationMember.builder()
+                .organization(org).user(users.get(2)).role(OrgRole.MEMBER)
+                .department(depts.get(2)).jobGroup(jobGroups.get(1))
+                .position(positions.get(1)).title(titles.get(2)).grade(grades.get(1))
+                .jobTitle("디자인 리드").contractType(ContractType.FULL_TIME).workStatus(WorkStatus.ACTIVE)
+                .employeeId("EMP-003").phone("010-3456-7890")
+                .birthDate(LocalDate.of(1992, month, Math.min(today.getDayOfMonth() + 2, 28)))
+                .hireDate(today.minusDays(400))
+                .manager(ownerMember)
+                .joinedAt(LocalDateTime.now(ZoneOffset.UTC)).build();
+        orgMemberRepository.saveAndFlush(member2);
+        members.add(member2);
+
+        // [3] 박민수 (MEMBER, 프론트엔드파트 선임)
+        OrganizationMember member3 = OrganizationMember.builder()
+                .organization(org).user(users.get(3)).role(OrgRole.MEMBER)
+                .department(depts.get(5)).jobGroup(jobGroups.get(0))
+                .position(positions.get(2)).title(titles.get(2)).grade(grades.get(1))
+                .jobTitle("프론트엔드 개발자").contractType(ContractType.FULL_TIME).workStatus(WorkStatus.ACTIVE)
+                .employeeId("EMP-004").phone("010-4567-8901")
+                .birthDate(LocalDate.of(1993, 5, 25)).hireDate(today.minusDays(300))
+                .manager(member1)
+                .joinedAt(LocalDateTime.now(ZoneOffset.UTC)).build();
+        orgMemberRepository.saveAndFlush(member3);
+        members.add(member3);
+
+        // [4] 정다은 (MEMBER, 마케팅팀)
+        OrganizationMember member4 = OrganizationMember.builder()
+                .organization(org).user(users.get(4)).role(OrgRole.MEMBER)
+                .department(depts.get(3)).jobGroup(jobGroups.get(2))
+                .position(positions.get(2)).title(titles.get(3)).grade(grades.get(2))
+                .jobTitle("콘텐츠 마케터").contractType(ContractType.FULL_TIME).workStatus(WorkStatus.ACTIVE)
+                .employeeId("EMP-005").phone("010-5678-9012")
+                .birthDate(LocalDate.of(1995, 1, 30)).hireDate(today.minusDays(200))
+                .manager(ownerMember)
+                .joinedAt(LocalDateTime.now(ZoneOffset.UTC)).build();
+        orgMemberRepository.saveAndFlush(member4);
+        members.add(member4);
+
+        // [5] 최준혁 (MEMBER, 백엔드파트 주니어 — 신입)
+        OrganizationMember member5 = OrganizationMember.builder()
+                .organization(org).user(users.get(5)).role(OrgRole.MEMBER)
+                .department(depts.get(4)).jobGroup(jobGroups.get(0))
+                .position(positions.get(3)).title(titles.get(3)).grade(grades.get(2))
+                .jobTitle("백엔드 개발자").contractType(ContractType.FULL_TIME).workStatus(WorkStatus.ACTIVE)
+                .employeeId("EMP-006").phone("010-6789-0123")
+                .birthDate(LocalDate.of(1996, 9, 12)).hireDate(today.minusDays(30))
+                .manager(member1)
+                .joinedAt(LocalDateTime.now(ZoneOffset.UTC)).build();
+        orgMemberRepository.saveAndFlush(member5);
+        members.add(member5);
+
+        // [6] 한소희 (MEMBER, 프론트엔드파트, CONTRACT — 계약직)
+        OrganizationMember member6 = OrganizationMember.builder()
+                .organization(org).user(users.get(6)).role(OrgRole.MEMBER)
+                .department(depts.get(5)).jobGroup(jobGroups.get(0))
+                .position(positions.get(3)).title(titles.get(3)).grade(grades.get(2))
+                .jobTitle("프론트엔드 개발자").contractType(ContractType.CONTRACT).workStatus(WorkStatus.ACTIVE)
+                .employeeId("EMP-007").phone("010-7890-1234")
+                .birthDate(LocalDate.of(1997, month == 12 ? 1 : month + 1, 15))
+                .hireDate(today.minusDays(90))
+                .manager(member1)
+                .joinedAt(LocalDateTime.now(ZoneOffset.UTC)).build();
+        orgMemberRepository.saveAndFlush(member6);
+        members.add(member6);
+
+        // [7] 윤성민 (MEMBER, 백엔드파트, INTERN — 인턴)
+        OrganizationMember member7 = OrganizationMember.builder()
+                .organization(org).user(users.get(7)).role(OrgRole.MEMBER)
+                .department(depts.get(4)).jobGroup(jobGroups.get(0))
+                .position(positions.get(3)).title(titles.get(3)).grade(grades.get(2))
+                .jobTitle("백엔드 인턴").contractType(ContractType.INTERN).workStatus(WorkStatus.ACTIVE)
+                .employeeId("EMP-008").phone("010-8901-2345")
+                .birthDate(LocalDate.of(2000, 4, 8)).hireDate(today.minusDays(14))
+                .manager(member1)
+                .joinedAt(LocalDateTime.now(ZoneOffset.UTC)).build();
+        orgMemberRepository.saveAndFlush(member7);
+        members.add(member7);
+
+        // [8] 강지원 (MEMBER, 마케팅팀, ON_LEAVE — 휴직중)
+        OrganizationMember member8 = OrganizationMember.builder()
+                .organization(org).user(users.get(8)).role(OrgRole.MEMBER)
+                .department(depts.get(3)).jobGroup(jobGroups.get(2))
+                .position(positions.get(2)).title(titles.get(2)).grade(grades.get(1))
+                .jobTitle("퍼포먼스 마케터").contractType(ContractType.FULL_TIME).workStatus(WorkStatus.ON_LEAVE)
+                .employeeId("EMP-009").phone("010-9012-3456")
+                .birthDate(LocalDate.of(1994, 8, 22)).hireDate(today.minusDays(365))
+                .bio("육아 휴직 중 (복귀 예정: 3개월 후)")
+                .manager(ownerMember)
+                .joinedAt(LocalDateTime.now(ZoneOffset.UTC)).build();
+        orgMemberRepository.saveAndFlush(member8);
+        members.add(member8);
+
+        // [9] 임하늘 (MEMBER, 디자인팀, RESIGNED — 퇴사)
+        OrganizationMember member9 = OrganizationMember.builder()
+                .organization(org).user(users.get(9)).role(OrgRole.MEMBER)
+                .department(depts.get(2)).jobGroup(jobGroups.get(1))
+                .position(positions.get(3)).title(titles.get(3)).grade(grades.get(2))
+                .jobTitle("주니어 디자이너").contractType(ContractType.FULL_TIME).workStatus(WorkStatus.RESIGNED)
+                .employeeId("EMP-010").phone("010-0123-4567")
+                .birthDate(LocalDate.of(1998, 6, 3)).hireDate(today.minusDays(180))
+                .manager(member2)
+                .joinedAt(LocalDateTime.now(ZoneOffset.UTC)).build();
+        orgMemberRepository.saveAndFlush(member9);
+        members.add(member9);
+
+        log.info("Created {} organization members", members.size());
+        return members;
+    }
+
+    private void setOrgDepartmentLeaders(List<OrganizationDepartment> depts, List<OrganizationMember> members) {
+        // 개발팀 → 김철수(member[1])
+        depts.get(1).updateLeader(members.get(1));
+        orgDepartmentRepository.saveAndFlush(depts.get(1));
+        // 디자인팀 → 이영희(member[2])
+        depts.get(2).updateLeader(members.get(2));
+        orgDepartmentRepository.saveAndFlush(depts.get(2));
+        // 마케팅팀 → 정다은(member[4])
+        depts.get(3).updateLeader(members.get(4));
+        orgDepartmentRepository.saveAndFlush(depts.get(3));
+        log.info("Set department leaders");
+    }
+
+    private void createOrgConcurrentDept(Organization org, List<OrganizationMember> members,
+                                          List<OrganizationDepartment> depts, List<OrganizationPosition> positions) {
+        // 이영희(member[2]) → 개발팀(dept[1]) 겸직
+        OrganizationMemberConcurrentDept concurrent = OrganizationMemberConcurrentDept.builder()
+                .organization(org)
+                .member(members.get(2))
+                .department(depts.get(1))
+                .position(positions.get(2))
+                .build();
+        orgMemberConcurrentDeptRepository.saveAndFlush(concurrent);
+        log.info("Created concurrent department assignment");
+    }
+
+    // --- Leave ---
+
+    private List<LeavePolicy> createOrgLeavePolicies(Organization org) {
+        List<LeavePolicy> policies = new ArrayList<>();
+
+        policies.add(LeavePolicy.builder()
+                .organization(org).name("연차").leaveCategory(LeaveCategory.ANNUAL)
+                .defaultDays(new BigDecimal("15.0")).isPaid(true).requiresApproval(true)
+                .description("법정 연차 휴가").displayOrder(0).build());
+
+        policies.add(LeavePolicy.builder()
+                .organization(org).name("병가").leaveCategory(LeaveCategory.SICK)
+                .defaultDays(new BigDecimal("3.0")).isPaid(true).requiresApproval(false)
+                .description("유급 병가").displayOrder(1).build());
+
+        policies.add(LeavePolicy.builder()
+                .organization(org).name("리프레시").leaveCategory(LeaveCategory.REFRESH)
+                .defaultDays(new BigDecimal("5.0")).isPaid(true).requiresApproval(true)
+                .description("리프레시 휴가").displayOrder(2).build());
+
+        policies.add(LeavePolicy.builder()
+                .organization(org).name("경조사").leaveCategory(LeaveCategory.OTHER)
+                .defaultDays(new BigDecimal("5.0")).isPaid(true).requiresApproval(true)
+                .description("경조사 휴가").displayOrder(3).build());
+
+        leavePolicyRepository.saveAllAndFlush(policies);
+        log.info("Created {} leave policies", policies.size());
+        return policies;
+    }
+
+    private void createOrgLeaveBalances(Organization org, List<OrganizationMember> members, List<LeavePolicy> policies) {
+        int year = LocalDate.now().getYear();
+        List<LeaveBalance> balances = new ArrayList<>();
+
+        for (LeavePolicy policy : policies) {
+            for (OrganizationMember member : members) {
+                BigDecimal totalDays = policy.getDefaultDays();
+                int maxUsed;
+                switch (policy.getLeaveCategory()) {
+                    case ANNUAL -> maxUsed = 5;   // 0~4일 사용
+                    case SICK -> maxUsed = 2;     // 0~1일 사용
+                    case REFRESH -> maxUsed = 3;  // 0~2일 사용
+                    default -> maxUsed = 2;       // 0~1일 사용
+                }
+                int used = random.nextInt(maxUsed);
+
+                LeaveBalance balance = LeaveBalance.builder()
+                        .organization(org).member(member).policy(policy)
+                        .year(year)
+                        .totalDays(totalDays)
+                        .usedDays(new BigDecimal(used + ".0"))
+                        .build();
+                balances.add(balance);
+            }
+        }
+
+        leaveBalanceRepository.saveAllAndFlush(balances);
+        log.info("Created {} leave balances (all {} policies × {} members)", balances.size(), policies.size(), members.size());
+    }
+
+    private List<LeaveRequest> createOrgLeaveRequests(Organization org, List<OrganizationMember> members, List<LeavePolicy> policies) {
+        LocalDate today = LocalDate.now();
+        List<LeaveRequest> requests = new ArrayList<>();
+
+        // 이영희: 연차 2일 APPROVED
+        LeaveRequest req1 = LeaveRequest.builder()
+                .organization(org).requester(members.get(2)).policy(policies.get(0))
+                .startDate(today.plusDays(5)).endDate(today.plusDays(6))
+                .totalDays(new BigDecimal("2.0")).reason("개인 사유")
+                .build();
+        leaveRequestRepository.saveAndFlush(req1);
+        req1.approve(members.get(0)); // Owner approves
+        leaveRequestRepository.saveAndFlush(req1);
+        requests.add(req1);
+
+        // 박민수: 병가 1일 APPROVED
+        LeaveRequest req2 = LeaveRequest.builder()
+                .organization(org).requester(members.get(3)).policy(policies.get(1))
+                .startDate(today.minusDays(3)).endDate(today.minusDays(3))
+                .totalDays(new BigDecimal("1.0")).reason("감기")
+                .build();
+        leaveRequestRepository.saveAndFlush(req2);
+        req2.approve(members.get(1)); // 김철수 approves
+        leaveRequestRepository.saveAndFlush(req2);
+        requests.add(req2);
+
+        // 정다은: 연차 5일 PENDING
+        LeaveRequest req3 = LeaveRequest.builder()
+                .organization(org).requester(members.get(4)).policy(policies.get(0))
+                .startDate(today.plusDays(10)).endDate(today.plusDays(14))
+                .totalDays(new BigDecimal("5.0")).reason("가족 여행")
+                .build();
+        leaveRequestRepository.saveAndFlush(req3);
+        requests.add(req3);
+
+        // 최준혁: 리프레시 3일 PENDING
+        LeaveRequest req4 = LeaveRequest.builder()
+                .organization(org).requester(members.get(5)).policy(policies.get(2))
+                .startDate(today.plusDays(20)).endDate(today.plusDays(22))
+                .totalDays(new BigDecimal("3.0")).reason("리프레시")
+                .build();
+        leaveRequestRepository.saveAndFlush(req4);
+        requests.add(req4);
+
+        // 강지원(member[8]): 육아휴직 APPROVED (장기)
+        LeaveRequest req5 = LeaveRequest.builder()
+                .organization(org).requester(members.get(8)).policy(policies.get(3))
+                .startDate(today.minusDays(30)).endDate(today.plusDays(60))
+                .totalDays(new BigDecimal("90.0")).reason("육아 휴직")
+                .build();
+        leaveRequestRepository.saveAndFlush(req5);
+        req5.approve(members.get(0)); // Owner approves
+        leaveRequestRepository.saveAndFlush(req5);
+        requests.add(req5);
+
+        // 한소희(member[6]): 반차 APPROVED
+        LeaveRequest req6 = LeaveRequest.builder()
+                .organization(org).requester(members.get(6)).policy(policies.get(0))
+                .startDate(today.plusDays(3)).endDate(today.plusDays(3))
+                .durationType(LeaveDurationType.AM_HALF)
+                .totalDays(new BigDecimal("0.5")).reason("병원 진료")
+                .build();
+        leaveRequestRepository.saveAndFlush(req6);
+        req6.approve(members.get(1)); // 김철수 approves
+        leaveRequestRepository.saveAndFlush(req6);
+        requests.add(req6);
+
+        log.info("Created {} leave requests", requests.size());
+        return requests;
+    }
+
+    // --- Attendance ---
+
+    private void createOrgAttendancePolicy(Organization org) {
+        OrgAttendancePolicy policy = new OrgAttendancePolicy(org);
+        policy.update(
+                new BigDecimal("8.00"),
+                LocalTime.of(10, 0), LocalTime.of(16, 0),
+                LocalTime.of(10, 0),
+                true, LocalTime.of(23, 59), "6,7"
+        );
+        orgAttendancePolicyRepository.saveAndFlush(policy);
+        log.info("Created attendance policy");
+    }
+
+    private List<OrgAttendanceRecord> createOrgAttendanceRecords(Organization org, List<OrganizationMember> members) {
+        List<OrgAttendanceRecord> records = new ArrayList<>();
+        LocalDate today = LocalDate.now();
+
+        for (int dayOffset = 13; dayOffset >= 0; dayOffset--) {
+            LocalDate date = today.minusDays(dayOffset);
+            DayOfWeek dow = date.getDayOfWeek();
+            if (dow == DayOfWeek.SATURDAY || dow == DayOfWeek.SUNDAY) continue;
+
+            for (OrganizationMember member : members) {
+                int minuteOffset = random.nextInt(40); // 0~39분
+                boolean isLate = minuteOffset > 30; // 10:00 이후 = 지각
+                LocalTime clockInTime = LocalTime.of(9, 20 + minuteOffset); // 9:20~9:59
+                LocalTime clockOutTime = LocalTime.of(18, random.nextInt(60)); // 18:00~18:59
+
+                LocalDateTime clockIn = LocalDateTime.of(date, clockInTime);
+                LocalDateTime clockOut = LocalDateTime.of(date, clockOutTime);
+                int workMinutes = (int) java.time.Duration.between(clockIn, clockOut).toMinutes();
+
+                OrgAttendanceRecord record = new OrgAttendanceRecord(
+                        org, member, date, clockIn, AttendanceStatus.PRESENT, isLate
+                );
+                record.clockOut(clockOut);
+                records.add(record);
+            }
+        }
+
+        orgAttendanceRecordRepository.saveAllAndFlush(records);
+        log.info("Created {} attendance records", records.size());
+        return records;
+    }
+
+    // --- Anniversary & Holidays ---
+
+    private void createOrgAnniversarySetting(Organization org) {
+        OrgAnniversarySetting setting = OrgAnniversarySetting.builder()
+                .organization(org)
+                .birthdayEnabled(true)
+                .hireAnniversaryEnabled(true)
+                .build();
+        orgAnniversarySettingRepository.saveAndFlush(setting);
+        log.info("Created anniversary setting");
+    }
+
+    private void createOrgCustomHolidays(Organization org) {
+        LocalDate today = LocalDate.now();
+        List<OrgCustomHoliday> holidays = new ArrayList<>();
+
+        holidays.add(new OrgCustomHoliday(org, today.withMonth(3).withDayOfMonth(1), "회사 창립기념일", true));
+        holidays.add(new OrgCustomHoliday(org, today.plusMonths(2).withDayOfMonth(15), "여름 워크샵", false));
+        holidays.add(new OrgCustomHoliday(org, today.withMonth(12).withDayOfMonth(24), "겨울 휴가", false));
+
+        orgCustomHolidayRepository.saveAllAndFlush(holidays);
+        log.info("Created {} custom holidays", holidays.size());
+    }
+
+    private void createOrgCelebrationMessages(Organization org, List<OrganizationMember> members, List<User> users) {
+        LocalDate today = LocalDate.now();
+
+        // 이영희 생일 축하 (이번 달 생일)
+        OrgCelebrationMessage msg1 = OrgCelebrationMessage.create(
+                org, members.get(2), users.get(0),
+                AnniversaryType.BIRTHDAY, today.plusDays(2),
+                "이영희님 생일 축하합니다! 항상 멋진 디자인 감사합니다 🎂"
+        );
+        orgCelebrationMessageRepository.saveAndFlush(msg1);
+
+        // Owner 입사 기념일 축하
+        OrgCelebrationMessage msg2 = OrgCelebrationMessage.create(
+                org, members.get(0), users.get(1),
+                AnniversaryType.HIRE_ANNIVERSARY, today.plusDays(5),
+                "Admin님 입사 2주년 축하드립니다! 회사를 이끌어 주셔서 감사합니다."
+        );
+        orgCelebrationMessageRepository.saveAndFlush(msg2);
+
+        // 김철수 입사 기념일 축하
+        OrgCelebrationMessage msg3 = OrgCelebrationMessage.create(
+                org, members.get(1), users.get(0),
+                AnniversaryType.HIRE_ANNIVERSARY, today.minusDays(5),
+                "김철수님 입사 기념일을 축하합니다. 개발팀의 든든한 리더!"
+        );
+        orgCelebrationMessageRepository.saveAndFlush(msg3);
+
+        log.info("Created 3 celebration messages");
+    }
+
+    // --- Onboarding ---
+
+    private OrgOnboardingTemplate createOrgOnboardingTemplate(Organization org) {
+        OrgOnboardingTemplate template = OrgOnboardingTemplate.builder()
+                .organization(org)
+                .name("신규 입사자 온보딩")
+                .description("새로운 팀원을 위한 기본 온보딩 체크리스트")
+                .autoAssign(true)
+                .build();
+
+        template.getItems().add(OrgOnboardingTemplateItem.builder()
+                .template(template).title("회사 소개 영상 시청").description("BRIDGE 회사 소개 영상을 시청합니다.")
+                .dueDayOffset(1).assigneeRole(AssigneeRole.SELF).displayOrder(0).build());
+        template.getItems().add(OrgOnboardingTemplateItem.builder()
+                .template(template).title("개발 환경 세팅").description("로컬 개발 환경을 세팅합니다.")
+                .dueDayOffset(3).assigneeRole(AssigneeRole.SELF).displayOrder(1).build());
+        template.getItems().add(OrgOnboardingTemplateItem.builder()
+                .template(template).title("팀원 소개 미팅").description("팀 리드와 1:1 미팅을 진행합니다.")
+                .dueDayOffset(3).assigneeRole(AssigneeRole.MANAGER).displayOrder(2).build());
+        template.getItems().add(OrgOnboardingTemplateItem.builder()
+                .template(template).title("보안 교육 이수").description("정보보안 교육을 이수합니다.")
+                .dueDayOffset(7).assigneeRole(AssigneeRole.SELF).displayOrder(3).build());
+        template.getItems().add(OrgOnboardingTemplateItem.builder()
+                .template(template).title("첫 번째 태스크 할당").description("첫 번째 업무를 할당받습니다.")
+                .dueDayOffset(14).assigneeRole(AssigneeRole.MANAGER).displayOrder(4).build());
+
+        orgOnboardingTemplateRepository.saveAndFlush(template);
+        log.info("Created onboarding template with {} items", template.getItems().size());
+        return template;
+    }
+
+    private void createOrgOnboardingInstance(Organization org, List<OrganizationMember> members, OrgOnboardingTemplate template) {
+        // 최준혁 (members[5]) - 30일 전 입사, 3/5 완료
+        OrganizationMember newbie = members.get(5);
+
+        OrgOnboardingInstance instance = OrgOnboardingInstance.builder()
+                .organization(org).member(newbie).sourceTemplate(template)
+                .templateName(template.getName()).totalItems(5).completedItems(3)
+                .status(OnboardingStatus.IN_PROGRESS)
+                .startedAt(LocalDateTime.now(ZoneOffset.UTC).minusDays(30))
+                .build();
+        orgOnboardingInstanceRepository.saveAndFlush(instance);
+
+        LocalDate startDate = LocalDate.now().minusDays(30);
+        String[] titles = {"회사 소개 영상 시청", "개발 환경 세팅", "팀원 소개 미팅", "보안 교육 이수", "첫 번째 태스크 할당"};
+        int[] dueDayOffsets = {1, 3, 3, 7, 14};
+
+        for (int i = 0; i < titles.length; i++) {
+            OrgOnboardingInstanceItem item = OrgOnboardingInstanceItem.builder()
+                    .instance(instance).title(titles[i])
+                    .dueDate(startDate.plusDays(dueDayOffsets[i]))
+                    .displayOrder(i)
+                    .completed(i < 3) // 처음 3개 완료
+                    .completedAt(i < 3 ? LocalDateTime.now(ZoneOffset.UTC).minusDays(25 - i * 5) : null)
+                    .build();
+            orgOnboardingInstanceItemRepository.saveAndFlush(item);
+        }
+
+        log.info("Created onboarding instance for {}", newbie.getUser().getName());
+
+        // 윤성민 (members[7]) - 인턴, 14일 전 입사, 1/5 완료
+        OrganizationMember intern = members.get(7);
+
+        OrgOnboardingInstance instance2 = OrgOnboardingInstance.builder()
+                .organization(org).member(intern).sourceTemplate(template)
+                .templateName(template.getName()).totalItems(5).completedItems(1)
+                .status(OnboardingStatus.IN_PROGRESS)
+                .startedAt(LocalDateTime.now(ZoneOffset.UTC).minusDays(14))
+                .build();
+        orgOnboardingInstanceRepository.saveAndFlush(instance2);
+
+        LocalDate startDate2 = LocalDate.now().minusDays(14);
+        for (int i = 0; i < titles.length; i++) {
+            OrgOnboardingInstanceItem item2 = OrgOnboardingInstanceItem.builder()
+                    .instance(instance2).title(titles[i])
+                    .dueDate(startDate2.plusDays(dueDayOffsets[i]))
+                    .displayOrder(i)
+                    .completed(i < 1) // 첫 번째만 완료
+                    .completedAt(i < 1 ? LocalDateTime.now(ZoneOffset.UTC).minusDays(12) : null)
+                    .build();
+            orgOnboardingInstanceItemRepository.saveAndFlush(item2);
+        }
+
+        log.info("Created onboarding instance for {}", intern.getUser().getName());
+    }
+
+    // --- 1:1 Meetings ---
+
+    private void createOrgOneOnOnes(Organization org, List<OrganizationMember> members, List<User> users) {
+        LocalDate today = LocalDate.now();
+
+        // Owner <-> 김철수 (BIWEEKLY)
+        OrgOneOnOne ono1 = new OrgOneOnOne(org, members.get(0), members.get(1),
+                OneOnOneRecurrenceType.BIWEEKLY, 3, today.plusDays(7));
+        orgOneOnOneRepository.saveAndFlush(ono1);
+
+        OrgOneOnOneMeeting m1 = new OrgOneOnOneMeeting(ono1, today.minusDays(14),
+                "상반기 목표 리뷰", "개발팀 목표 달성률 80%, Q2 계획 수립 필요", users.get(0));
+        orgOneOnOneMeetingRepository.saveAndFlush(m1);
+
+        orgOneOnOneActionItemRepository.saveAndFlush(
+                new OrgOneOnOneActionItem(m1, "Q2 OKR 초안 작성", members.get(1), 0));
+        orgOneOnOneActionItemRepository.saveAndFlush(
+                new OrgOneOnOneActionItem(m1, "채용 계획 검토", members.get(0), 1));
+
+        OrgOneOnOneMeeting m2 = new OrgOneOnOneMeeting(ono1, today.minusDays(28),
+                "프로젝트 진행 상황", "BRIDGE v2.0 일정 검토 완료", users.get(0));
+        orgOneOnOneMeetingRepository.saveAndFlush(m2);
+
+        orgOneOnOneActionItemRepository.saveAndFlush(
+                new OrgOneOnOneActionItem(m2, "기술 부채 목록 정리", members.get(1), 0));
+        orgOneOnOneActionItemRepository.saveAndFlush(
+                new OrgOneOnOneActionItem(m2, "성능 테스트 일정 확정", members.get(1), 1));
+
+        // 김철수 <-> 박민수 (WEEKLY)
+        OrgOneOnOne ono2 = new OrgOneOnOne(org, members.get(1), members.get(3),
+                OneOnOneRecurrenceType.WEEKLY, 5, today.plusDays(3));
+        orgOneOnOneRepository.saveAndFlush(ono2);
+
+        OrgOneOnOneMeeting m3 = new OrgOneOnOneMeeting(ono2, today.minusDays(7),
+                "프론트엔드 리팩토링 진행", "컴포넌트 구조 개선 방향 합의", users.get(1));
+        orgOneOnOneMeetingRepository.saveAndFlush(m3);
+
+        orgOneOnOneActionItemRepository.saveAndFlush(
+                new OrgOneOnOneActionItem(m3, "컴포넌트 리팩토링 PR 생성", members.get(3), 0));
+        orgOneOnOneActionItemRepository.saveAndFlush(
+                new OrgOneOnOneActionItem(m3, "디자인 시스템 문서 업데이트", members.get(3), 1));
+
+        OrgOneOnOneMeeting m4 = new OrgOneOnOneMeeting(ono2, today.minusDays(14),
+                "스프린트 회고", "지난 스프린트 개선점 논의", users.get(1));
+        orgOneOnOneMeetingRepository.saveAndFlush(m4);
+
+        orgOneOnOneActionItemRepository.saveAndFlush(
+                new OrgOneOnOneActionItem(m4, "테스트 커버리지 개선", members.get(3), 0));
+        orgOneOnOneActionItemRepository.saveAndFlush(
+                new OrgOneOnOneActionItem(m4, "코드 리뷰 가이드 작성", members.get(1), 1));
+
+        // 김철수 <-> 최준혁 (MONTHLY, 신입 멘토링)
+        OrgOneOnOne ono3 = new OrgOneOnOne(org, members.get(1), members.get(5),
+                OneOnOneRecurrenceType.MONTHLY, 1, today.plusDays(14));
+        orgOneOnOneRepository.saveAndFlush(ono3);
+
+        OrgOneOnOneMeeting m5 = new OrgOneOnOneMeeting(ono3, today.minusDays(5),
+                "신입 온보딩 체크인", "온보딩 진행률 60%, 개발 환경 세팅 완료", users.get(1));
+        orgOneOnOneMeetingRepository.saveAndFlush(m5);
+
+        orgOneOnOneActionItemRepository.saveAndFlush(
+                new OrgOneOnOneActionItem(m5, "코드 스타일 가이드 숙지", members.get(5), 0));
+        orgOneOnOneActionItemRepository.saveAndFlush(
+                new OrgOneOnOneActionItem(m5, "첫 PR 생성 및 리뷰", members.get(5), 1));
+
+        log.info("Created 3 one-on-one pairs with 5 meetings and 10 action items");
+    }
+
+    // --- Announcements ---
+
+    private List<OrgAnnouncement> createOrgAnnouncements(Organization org, List<OrganizationMember> members) {
+        List<OrgAnnouncement> announcements = new ArrayList<>();
+
+        OrgAnnouncement a1 = OrgAnnouncement.builder()
+                .organization(org).author(members.get(0))
+                .title("2026년 상반기 전사 목표")
+                .content("안녕하세요, 팀원 여러분.\n\n2026년 상반기 전사 목표를 공유합니다.\n\n1. 사용자 10만 달성\n2. MAU 50% 성장\n3. 엔터프라이즈 고객 5개사 확보\n\n각 팀별 세부 OKR은 팀장을 통해 공유될 예정입니다.")
+                .isPinned(true).build();
+        announcements.add(a1);
+
+        OrgAnnouncement a2 = OrgAnnouncement.builder()
+                .organization(org).author(members.get(1))
+                .title("사내 해커톤 개최 안내")
+                .content("다음 달 첫째 주 금요일에 사내 해커톤을 개최합니다.\n\n주제: AI 활용 업무 자동화\n참가 신청: 이번 주 금요일까지\n\n많은 참여 부탁드립니다!")
+                .build();
+        announcements.add(a2);
+
+        OrgAnnouncement a3 = OrgAnnouncement.builder()
+                .organization(org).author(members.get(0))
+                .title("연말 워크샵 일정 공지")
+                .content("12월 셋째 주 목-금 1박 2일로 연말 워크샵을 진행합니다.\n장소: 제주도\n\n세부 일정은 추후 공지드리겠습니다.")
+                .build();
+        announcements.add(a3);
+
+        orgAnnouncementRepository.saveAllAndFlush(announcements);
+        log.info("Created {} announcements", announcements.size());
+        return announcements;
+    }
+
+    // --- Activities ---
+
+    private List<OrgActivity> createOrgActivities(Organization org, List<OrganizationMember> members,
+                                                   List<OrgAnnouncement> announcements, List<LeaveRequest> leaveRequests) {
+        List<OrgActivity> activities = new ArrayList<>();
+
+        // Member joined activities
+        for (OrganizationMember member : members) {
+            activities.add(OrgActivity.builder()
+                    .organization(org).actorName(member.getUser().getName())
+                    .activityType(OrgActivityType.MEMBER_JOINED)
+                    .targetName(org.getName())
+                    .build());
+        }
+
+        // Announcement posted
+        activities.add(OrgActivity.builder()
+                .organization(org).actorName(members.get(0).getUser().getName())
+                .activityType(OrgActivityType.ANNOUNCEMENT_POSTED)
+                .targetName(announcements.get(0).getTitle())
+                .build());
+
+        // Leave approved
+        activities.add(OrgActivity.builder()
+                .organization(org).actorName(members.get(0).getUser().getName())
+                .activityType(OrgActivityType.LEAVE_APPROVED)
+                .targetName(members.get(2).getUser().getName())
+                .build());
+
+        orgActivityRepository.saveAllAndFlush(activities);
+        log.info("Created {} activities", activities.size());
+        return activities;
+    }
+
+    // --- Member Histories ---
+
+    private List<OrgMemberHistory> createOrgMemberHistories(Organization org, List<OrganizationMember> members) {
+        List<OrgMemberHistory> histories = new ArrayList<>();
+
+        for (OrganizationMember member : members) {
+            OrgMemberHistory history = new OrgMemberHistory(
+                    org, member,
+                    member.getDepartment() != null ? member.getDepartment().getId() : null,
+                    member.getDepartment() != null ? member.getDepartment().getName() : null,
+                    member.getPosition() != null ? member.getPosition().getId() : null,
+                    member.getPosition() != null ? member.getPosition().getName() : null,
+                    member.getTitle() != null ? member.getTitle().getId() : null,
+                    member.getTitle() != null ? member.getTitle().getName() : null,
+                    member.getGrade() != null ? member.getGrade().getId() : null,
+                    member.getGrade() != null ? member.getGrade().getName() : null,
+                    member.getJobGroup() != null ? member.getJobGroup().getId() : null,
+                    member.getJobGroup() != null ? member.getJobGroup().getName() : null,
+                    member.getJobTitle(),
+                    member.getHireDate() != null ? member.getHireDate() : LocalDate.now(),
+                    member.getWorkStatus() == WorkStatus.RESIGNED ? LocalDate.now().minusDays(7) : null,
+                    member.getWorkStatus() == WorkStatus.RESIGNED ? "퇴사" : "입사 시 초기 배치",
+                    null, // createdById
+                    "AUTO"
+            );
+            histories.add(history);
+        }
+
+        // 박민수(member[3]) 추가 이력: 과거 마케팅팀 → 현재 프론트엔드파트 이동
+        OrganizationMember parkMinsu = members.get(3);
+        OrgMemberHistory prevHistory = new OrgMemberHistory(
+                org, parkMinsu,
+                null, "마케팅팀", // 이전 부서
+                null, "주니어",
+                null, "사원",
+                null, "G3",
+                null, "비즈니스",
+                "마케팅 어시스턴트",
+                parkMinsu.getHireDate(), parkMinsu.getHireDate().plusDays(100),
+                "마케팅팀에서 개발팀으로 전환 배치",
+                null, "MANUAL"
+        );
+        histories.add(prevHistory);
+
+        orgMemberHistoryRepository.saveAllAndFlush(histories);
+        log.info("Created {} member histories", histories.size());
+        return histories;
+    }
+
+    // --- Organization Boards ---
+
+    /**
+     * 조직에 연결된 보드 2개 생성 (인사이트 데이터 포함)
+     */
+    private List<Board> createOrgBoards(Organization org, User owner, List<User> users, List<OrganizationMember> members) {
+        List<Board> orgBoards = new ArrayList<>();
+
+        // Board 1: 스프린트 프로젝트 (개발)
+        Board devBoard = Board.builder()
+                .name("스프린트 프로젝트")
+                .description("개발팀 스프린트 보드")
+                .owner(owner)
+                .workHoursPerDay(8)
+                .workStartTime(LocalTime.of(9, 0))
+                .build();
+        boardRepository.saveAndFlush(devBoard);
+        devBoard.setOrganization(org);
+        boardRepository.saveAndFlush(devBoard);
+        createPremiumSubscription(devBoard);
+
+        // Board 2: 마케팅 캠페인
+        Board mktBoard = Board.builder()
+                .name("마케팅 캠페인")
+                .description("마케팅팀 캠페인 관리 보드")
+                .owner(owner)
+                .workHoursPerDay(8)
+                .workStartTime(LocalTime.of(9, 0))
+                .build();
+        boardRepository.saveAndFlush(mktBoard);
+        mktBoard.setOrganization(org);
+        boardRepository.saveAndFlush(mktBoard);
+        createPremiumSubscription(mktBoard);
+
+        // Add org members as board members
+        addOrgMembersToBoardSimple(devBoard, owner, users);
+        addOrgMembersToBoardSimple(mktBoard, owner, users);
+
+        // Create blocks for each board
+        List<Block> devBlocks = createBlocks(devBoard);
+        List<Block> mktBlocks = createBlocks(mktBoard);
+
+        // Create features & tasks for dev board
+        List<Feature> devFeatures = createOrgBoardFeatures(devBoard, owner, users,
+                new String[]{"사용자 인증 모듈", "대시보드 리팩토링", "API 성능 최적화", "모바일 반응형"},
+                new String[]{"JWT 기반 인증 시스템 구현", "대시보드 UI/UX 개선", "API 응답 속도 50% 개선", "모바일 뷰 최적화"},
+                devBlocks);
+
+        List<Feature> mktFeatures = createOrgBoardFeatures(mktBoard, owner, users,
+                new String[]{"SNS 캠페인 기획", "이벤트 페이지 제작", "콘텐츠 전략 수립"},
+                new String[]{"인스타그램/X 통합 캠페인", "프로모션 랜딩 페이지", "분기별 콘텐츠 캘린더 작성"},
+                mktBlocks);
+
+        // Create tasks for each feature
+        List<Task> devTasks = createOrgBoardTasks(devBoard, devFeatures, owner, users, devBlocks);
+        List<Task> mktTasks = createOrgBoardTasks(mktBoard, mktFeatures, owner, users, mktBlocks);
+
+        // Create checklist items for tasks
+        List<ChecklistItem> devChecklist = createOrgBoardChecklistItems(devTasks, users);
+        List<ChecklistItem> mktChecklist = createOrgBoardChecklistItems(mktTasks, users);
+
+        // Create schedule blocks for insights (30 days)
+        createOrgBoardScheduleBlocks(devBoard, devChecklist, users);
+        createOrgBoardScheduleBlocks(mktBoard, mktChecklist, users);
+
+        orgBoards.add(devBoard);
+        orgBoards.add(mktBoard);
+        log.info("Created {} organization boards with insights data", orgBoards.size());
+        return orgBoards;
+    }
+
+    private void addOrgMembersToBoardSimple(Board board, User owner, List<User> users) {
+        // Owner as board owner
+        BoardMember ownerMember = BoardMember.builder()
+                .board(board).user(owner).role(BoardRole.OWNER).build();
+        boardMemberRepository.saveAndFlush(ownerMember);
+
+        // First 5 users as board members (skip duplicates with owner)
+        for (int i = 0; i < Math.min(users.size(), 6); i++) {
+            User user = users.get(i);
+            if (user.getId().equals(owner.getId())) continue;
+            BoardMember bm = BoardMember.builder()
+                    .board(board).user(user)
+                    .role(i == 1 ? BoardRole.ADMIN : BoardRole.MEMBER)
+                    .invitedBy(owner).build();
+            boardMemberRepository.saveAndFlush(bm);
+        }
+    }
+
+    private List<Feature> createOrgBoardFeatures(Board board, User owner, List<User> users,
+                                                   String[] names, String[] descriptions, List<Block> blocks) {
+        List<Feature> features = new ArrayList<>();
+        String[] colors = {"#3b82f6", "#10b981", "#8b5cf6", "#ec4899"};
+
+        for (int i = 0; i < names.length; i++) {
+            Feature feature = Feature.builder()
+                    .board(board)
+                    .title(names[i])
+                    .description(descriptions[i])
+                    .color(colors[i % colors.length])
+                    .assignee(users.get(i % users.size()))
+                    .createdBy(users.get(i % users.size()))
+                    .position(i)
+                    .dueDate(LocalDate.now().plusDays(10 + i * 5))
+                    .build();
+            features.add(feature);
+        }
+        featureRepository.saveAllAndFlush(features);
+        return features;
+    }
+
+    private List<Task> createOrgBoardTasks(Board board, List<Feature> features, User owner, List<User> users, List<Block> blocks) {
+        List<Task> tasks = new ArrayList<>();
+        Block taskBlock = blocks.stream()
+                .filter(b -> b.getFixedType() == FixedBlockType.TASK)
+                .findFirst().orElse(blocks.get(1));
+        Block doneBlock = blocks.stream()
+                .filter(b -> b.getFixedType() == FixedBlockType.DONE)
+                .findFirst().orElse(blocks.get(blocks.size() - 1));
+
+        String[][] taskNames = {
+                {"DB 스키마 설계", "API 엔드포인트 구현", "단위 테스트 작성"},
+                {"와이어프레임 작성", "컴포넌트 개발", "접근성 개선"},
+                {"병목 분석", "쿼리 최적화", "캐시 레이어 추가"},
+                {"반응형 레이아웃", "터치 인터랙션"},
+        };
+
+        for (int fi = 0; fi < features.size(); fi++) {
+            String[] tNames = fi < taskNames.length ? taskNames[fi] : new String[]{"작업 1", "작업 2"};
+            for (int ti = 0; ti < tNames.length; ti++) {
+                boolean isDone = fi == 0 && ti < 2; // 첫 피처의 처음 2개 태스크 완료
+                Task task = Task.builder()
+                        .board(board)
+                        .feature(features.get(fi))
+                        .block(isDone ? doneBlock : taskBlock)
+                        .title(tNames[ti])
+                        .createdBy(users.get((fi + ti) % users.size()))
+                        .position(ti)
+                        .build();
+                tasks.add(task);
+            }
+        }
+        taskRepository.saveAllAndFlush(tasks);
+
+        // Mark done tasks as completed
+        for (Task task : tasks) {
+            if (task.getBlock().isDoneBlock()) {
+                task.complete();
+            }
+        }
+        taskRepository.saveAllAndFlush(tasks);
+
+        return tasks;
+    }
+
+    private List<ChecklistItem> createOrgBoardChecklistItems(List<Task> tasks, List<User> users) {
+        List<ChecklistItem> items = new ArrayList<>();
+        String[] checklistNames = {"설계 검토", "코드 작성", "테스트", "코드 리뷰", "배포 준비"};
+        int boardMemberCount = Math.min(users.size(), 6); // 보드 멤버 범위 내에서만
+
+        for (int ti = 0; ti < tasks.size(); ti++) {
+            Task task = tasks.get(ti);
+            int itemCount = 2 + random.nextInt(3); // 2~4개
+            for (int ci = 0; ci < itemCount; ci++) {
+                ChecklistItem item = ChecklistItem.builder()
+                        .task(task)
+                        .title(checklistNames[ci % checklistNames.length])
+                        .assignee(users.get((ti + ci) % boardMemberCount))
+                        .position(ci)
+                        .isCompleted(ci < itemCount / 2) // 절반 완료
+                        .build();
+                items.add(item);
+            }
+        }
+        checklistItemRepository.saveAllAndFlush(items);
+        return items;
+    }
+
+    /**
+     * 조직 보드용 스케줄 블록 생성 (인사이트 데이터)
+     * 30일치 × 멤버별 2~4개 블록
+     */
+    private void createOrgBoardScheduleBlocks(Board board, List<ChecklistItem> checklistItems, List<User> users) {
+        List<ScheduleBlock> blocks = new ArrayList<>();
+        LocalDate today = LocalDate.now();
+        int memberCount = Math.min(users.size(), 6);
+
+        for (int dayOffset = 30; dayOffset >= 0; dayOffset--) {
+            LocalDate date = today.minusDays(dayOffset);
+            if (date.getDayOfWeek().getValue() > 5) continue; // 주말 스킵
+
+            for (int mi = 0; mi < memberCount; mi++) {
+                User member = users.get(mi);
+                int blocksPerDay = 2 + random.nextInt(3); // 2~4
+                List<LocalTime[]> timeSlots = generateTimeSlots(blocksPerDay);
+
+                for (int i = 0; i < Math.min(blocksPerDay, timeSlots.size()); i++) {
+                    ChecklistItem item = !checklistItems.isEmpty()
+                            ? checklistItems.get(random.nextInt(checklistItems.size()))
+                            : null;
+                    LocalTime[] slot = timeSlots.get(i);
+
+                    ScheduleBlock block = ScheduleBlock.builder()
+                            .board(board)
+                            .checklistItem(item)
+                            .assignee(member)
+                            .scheduledDate(date)
+                            .startTime(slot[0])
+                            .endTime(slot[1])
+                            .build();
+                    blocks.add(block);
+                }
+            }
+        }
+
+        scheduleBlockRepository.saveAllAndFlush(blocks);
+        log.info("Created {} org board schedule blocks for insights (board: {})", blocks.size(), board.getName());
     }
 }

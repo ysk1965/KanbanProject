@@ -77,4 +77,21 @@ public interface NotificationRepository extends JpaRepository<Notification, Stri
     @Modifying
     @Query("DELETE FROM Notification n WHERE n.recipient.id = :userId")
     void deleteByRecipientId(@Param("userId") String userId);
+
+    @Query("SELECT COUNT(n) > 0 FROM Notification n " +
+           "WHERE n.type = :type AND n.senderId = :targetUserId " +
+           "AND n.createdAt >= :since")
+    boolean existsAnniversaryNotification(
+            @Param("type") NotificationType type,
+            @Param("targetUserId") String targetUserId,
+            @Param("since") LocalDateTime since);
+
+    @Query("SELECT COUNT(n) > 0 FROM Notification n " +
+           "WHERE n.type = :type AND n.recipient.id = :recipientUserId " +
+           "AND n.senderId = :targetUserId AND n.createdAt >= :since")
+    boolean existsAnniversaryNotificationForRecipient(
+            @Param("type") NotificationType type,
+            @Param("recipientUserId") String recipientUserId,
+            @Param("targetUserId") String targetUserId,
+            @Param("since") LocalDateTime since);
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronLeft, ChevronRight, CreditCard, Calendar, Folder } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CreditCard, Calendar, Folder, Loader2 } from 'lucide-react';
 import { adminService } from '../../utils/services';
 import { SubscriptionListResponse } from '../../utils/api';
 import { formatDate as dateUtilsFormatDate } from '../../utils/dateUtils';
@@ -90,7 +90,7 @@ export function AdminSubscriptionsTab() {
       {/* Loading State */}
       {isLoading && !error && (
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-bridge-accent" />
+          <Loader2 className="w-8 h-8 animate-spin text-bridge-accent" />
         </div>
       )}
 
@@ -98,15 +98,15 @@ export function AdminSubscriptionsTab() {
       {!isLoading && !error && subscriptions && (
         <>
           {subscriptions.subscriptions.length === 0 ? (
-            <div className="bg-bridge-obsidian rounded-xl border border-bridge-border p-12 text-center">
+            <div className="bg-bridge-obsidian rounded-xl border border-foreground/[0.08] p-12 text-center">
               <CreditCard className="h-12 w-12 text-slate-400 mx-auto mb-4" />
               <p className="text-slate-400">{t('admin.subscriptions.noSubscriptions')}</p>
             </div>
           ) : (
-            <div className="bg-bridge-obsidian rounded-xl border border-bridge-border overflow-x-auto">
+            <div className="bg-bridge-obsidian rounded-xl border border-foreground/[0.08] overflow-x-auto">
               <table className="w-full min-w-[720px]">
                 <thead>
-                  <tr className="border-b border-bridge-border">
+                  <tr className="border-b border-foreground/[0.08]">
                     <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
                       {t('admin.subscriptions.board')}
                     </th>
@@ -131,7 +131,7 @@ export function AdminSubscriptionsTab() {
                   {subscriptions.subscriptions.map((subscription) => (
                     <tr
                       key={subscription.id}
-                      className="border-b border-bridge-border last:border-0 hover:bg-foreground/5 transition-colors"
+                      className="border-b border-foreground/[0.08] last:border-0 hover:bg-foreground/5 transition-colors"
                     >
                       <td className="px-3 py-3 md:px-6 md:py-4">
                         <div className="flex items-center gap-3">
@@ -194,7 +194,7 @@ export function AdminSubscriptionsTab() {
                 <button
                   onClick={() => setPage(Math.max(0, page - 1))}
                   disabled={page === 0}
-                  className="p-2 bg-bridge-obsidian border border-bridge-border rounded-lg
+                  className="p-2 bg-bridge-obsidian border border-foreground/[0.08] rounded-lg
                     text-slate-400 hover:text-foreground hover:bg-foreground/5
                     disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
@@ -206,7 +206,7 @@ export function AdminSubscriptionsTab() {
                 <button
                   onClick={() => setPage(Math.min(Math.ceil(subscriptions.total / subscriptions.size) - 1, page + 1))}
                   disabled={page >= Math.ceil(subscriptions.total / subscriptions.size) - 1}
-                  className="p-2 bg-bridge-obsidian border border-bridge-border rounded-lg
+                  className="p-2 bg-bridge-obsidian border border-foreground/[0.08] rounded-lg
                     text-slate-400 hover:text-foreground hover:bg-foreground/5
                     disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >

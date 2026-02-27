@@ -9,16 +9,16 @@ import { orgActivityService } from '../../utils/services';
 import { formatRelativeTime } from '../../utils/dateUtils';
 import type { OrgActivity, OrgActivityType } from '../../types';
 
-const ACTIVITY_CONFIG: Record<OrgActivityType, { icon: typeof Activity; color: string }> = {
-  MEMBER_JOINED: { icon: UserPlus, color: 'emerald-500' },
-  MEMBER_LEFT: { icon: UserMinus, color: 'rose-500' },
-  MEMBER_ROLE_CHANGED: { icon: ShieldCheck, color: 'amber-500' },
-  BOARD_ADDED: { icon: LayoutGrid, color: 'teal-500' },
-  BOARD_REMOVED: { icon: MinusSquare, color: 'slate-500' },
-  BOARD_CREATED: { icon: Plus, color: 'bridge-secondary' },
-  LEAVE_APPROVED: { icon: CalendarCheck, color: 'blue-500' },
-  LEAVE_REJECTED: { icon: CalendarX, color: 'rose-400' },
-  ANNOUNCEMENT_POSTED: { icon: Megaphone, color: 'bridge-accent' },
+const ACTIVITY_CONFIG: Record<OrgActivityType, { icon: typeof Activity; bgClass: string; textClass: string }> = {
+  MEMBER_JOINED: { icon: UserPlus, bgClass: 'bg-emerald-500/15', textClass: 'text-emerald-500' },
+  MEMBER_LEFT: { icon: UserMinus, bgClass: 'bg-rose-500/15', textClass: 'text-rose-500' },
+  MEMBER_ROLE_CHANGED: { icon: ShieldCheck, bgClass: 'bg-amber-500/15', textClass: 'text-amber-500' },
+  BOARD_ADDED: { icon: LayoutGrid, bgClass: 'bg-teal-500/15', textClass: 'text-teal-500' },
+  BOARD_REMOVED: { icon: MinusSquare, bgClass: 'bg-slate-500/15', textClass: 'text-slate-500' },
+  BOARD_CREATED: { icon: Plus, bgClass: 'bg-bridge-secondary/15', textClass: 'text-bridge-secondary' },
+  LEAVE_APPROVED: { icon: CalendarCheck, bgClass: 'bg-blue-500/15', textClass: 'text-blue-500' },
+  LEAVE_REJECTED: { icon: CalendarX, bgClass: 'bg-rose-400/15', textClass: 'text-rose-400' },
+  ANNOUNCEMENT_POSTED: { icon: Megaphone, bgClass: 'bg-bridge-accent/15', textClass: 'text-bridge-accent' },
 };
 
 function getActivityMessage(a: OrgActivity, t: (key: string, fallback: string, opts?: Record<string, string>) => string): string {
@@ -65,7 +65,7 @@ export function OrgActivitySection({ orgId }: Props) {
   }, [orgId]);
 
   if (loading) {
-    return <div className="h-40 bg-bridge-obsidian rounded-2xl border border-foreground/[0.05] animate-pulse" />;
+    return <div className="h-40 bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] animate-pulse" />;
   }
 
   return (
@@ -78,7 +78,7 @@ export function OrgActivitySection({ orgId }: Props) {
       </div>
 
       {activities.length === 0 ? (
-        <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.05] p-8 text-center">
+        <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-8 text-center">
           <div className="w-12 h-12 rounded-xl bg-bridge-secondary/10 flex items-center justify-center mx-auto mb-3">
             <Activity size={24} className="text-bridge-secondary/60" />
           </div>
@@ -87,21 +87,21 @@ export function OrgActivitySection({ orgId }: Props) {
           </p>
         </div>
       ) : (
-        <div className="bg-bridge-obsidian rounded-xl border border-foreground/[0.05] p-3">
+        <div className="bg-bridge-obsidian rounded-xl border border-foreground/[0.08] p-3">
           <div className="space-y-0">
             {activities.map((a, index) => {
-              const config = ACTIVITY_CONFIG[a.activity_type] || { icon: Activity, color: 'slate-500' };
+              const config = ACTIVITY_CONFIG[a.activity_type] || { icon: Activity, bgClass: 'bg-slate-500/15', textClass: 'text-slate-500' };
               const Icon = config.icon;
               return (
                 <motion.div
                   key={a.id}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  transition={{ delay: index * 0.03 }}
+                  transition={{ delay: index * 0.04 }}
                   className="flex items-start gap-2.5 py-2"
                 >
-                  <div className={`w-5 h-5 rounded-full bg-${config.color}/15 flex items-center justify-center shrink-0 mt-0.5`}>
-                    <Icon size={10} className={`text-${config.color}`} />
+                  <div className={`w-5 h-5 rounded-full ${config.bgClass} flex items-center justify-center shrink-0 mt-0.5`}>
+                    <Icon size={10} className={config.textClass} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs text-foreground/80 leading-relaxed">

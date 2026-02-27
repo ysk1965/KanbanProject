@@ -77,6 +77,8 @@ interface BoardModalManagerProps {
   onOpenSeatManagement?: () => void;
   aiCredits: AiCredits | null;
   onOpenAiCreditPurchase?: () => void;
+  isOrgBoard?: boolean;
+  organizationName?: string | null;
   hideBillingForUser: boolean;
   // Subscription Modal
   isSubscriptionModalOpen: boolean;
@@ -217,6 +219,8 @@ export function BoardModalManager(props: BoardModalManagerProps) {
         onOpenSeatManagement={props.onOpenSeatManagement}
         aiCredits={!props.hideBillingForUser ? props.aiCredits : undefined}
         onOpenAiCreditPurchase={!props.hideBillingForUser ? props.onOpenAiCreditPurchase : undefined}
+        isOrgBoard={props.isOrgBoard}
+        organizationName={props.organizationName}
       />
 
       {!props.hideBillingForUser && (

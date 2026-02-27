@@ -19,4 +19,18 @@ public interface OrgDepartmentRepository extends JpaRepository<OrganizationDepar
     @Query("SELECT CASE WHEN COUNT(d) > 0 THEN true ELSE false END FROM OrganizationDepartment d " +
            "WHERE d.organization.id = :orgId AND d.name = :name")
     boolean existsByOrganizationIdAndName(@Param("orgId") String orgId, @Param("name") String name);
+
+    @Query("SELECT d FROM OrganizationDepartment d " +
+           "LEFT JOIN FETCH d.parentDepartment " +
+           "LEFT JOIN FETCH d.leader l " +
+           "LEFT JOIN FETCH l.user " +
+           "WHERE d.organization.id = :orgId " +
+           "ORDER BY d.displayOrder ASC, d.name ASC")
+    List<OrganizationDepartment> findByOrganizationIdWithLeader(@Param("orgId") String orgId);
+
+    @Query("SELECT d FROM OrganizationDepartment d " +
+           "WHERE d.organization.id = :orgId AND d.parentDepartment.id = :parentId " +
+           "ORDER BY d.displayOrder ASC, d.name ASC")
+    List<OrganizationDepartment> findByOrganizationIdAndParentId(
+            @Param("orgId") String orgId, @Param("parentId") String parentId);
 }

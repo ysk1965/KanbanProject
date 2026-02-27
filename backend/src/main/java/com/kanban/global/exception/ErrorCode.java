@@ -244,6 +244,7 @@ PERSONAL_TAG_NOT_FOUND(HttpStatus.NOT_FOUND, "PT003", "태그를 찾을 수 없�
     BOARD_ALREADY_IN_ORG(HttpStatus.CONFLICT, "O013", "이미 조직에 소속된 보드입니다"),
     BOARD_NOT_IN_ORG(HttpStatus.BAD_REQUEST, "O014", "조직에 소속되지 않은 보드입니다"),
     CANNOT_REMOVE_BOARD_OWNER_FROM_ORG(HttpStatus.BAD_REQUEST, "O015", "조직 보드의 Owner인 구성원은 제거할 수 없습니다. 먼저 보드 Owner를 변경해주세요"),
+    ALREADY_IN_ORGANIZATION(HttpStatus.CONFLICT, "O016", "이미 소속된 조직이 있습니다. 기존 조직을 탈퇴한 후 다시 시도해주세요"),
 
     // Organization - Invite
     ORG_INVITE_NOT_FOUND(HttpStatus.NOT_FOUND, "OI001", "조직 초대 링크를 찾을 수 없습니다"),
@@ -252,12 +253,22 @@ PERSONAL_TAG_NOT_FOUND(HttpStatus.NOT_FOUND, "PT003", "태그를 찾을 수 없�
 
     // Organization - Announcement
     ORG_ANNOUNCEMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "OA001", "공지사항을 찾을 수 없습니다"),
+    ORG_ANNOUNCEMENT_COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "OA002", "공지사항 댓글을 찾을 수 없습니다"),
+    ORG_ANNOUNCEMENT_COMMENT_NOT_AUTHOR(HttpStatus.FORBIDDEN, "OA003", "본인의 댓글만 수정/삭제할 수 있습니다"),
 
     // Organization - Department / Job Group
     ORG_DEPARTMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "OD001", "부서를 찾을 수 없습니다"),
     ORG_DEPARTMENT_ALREADY_EXISTS(HttpStatus.CONFLICT, "OD002", "이미 존재하는 부서명입니다"),
     ORG_JOB_GROUP_NOT_FOUND(HttpStatus.NOT_FOUND, "OJ001", "직무그룹을 찾을 수 없습니다"),
     ORG_JOB_GROUP_ALREADY_EXISTS(HttpStatus.CONFLICT, "OJ002", "이미 존재하는 직무그룹명입니다"),
+
+    ORG_POSITION_NOT_FOUND(HttpStatus.NOT_FOUND, "OP001", "직책을 찾을 수 없습니다"),
+    ORG_POSITION_ALREADY_EXISTS(HttpStatus.CONFLICT, "OP002", "이미 존재하는 직책명입니다"),
+    ORG_TITLE_NOT_FOUND(HttpStatus.NOT_FOUND, "OT001", "직위를 찾을 수 없습니다"),
+    ORG_TITLE_ALREADY_EXISTS(HttpStatus.CONFLICT, "OT002", "이미 존재하는 직위명입니다"),
+    ORG_GRADE_NOT_FOUND(HttpStatus.NOT_FOUND, "OG001", "직급을 찾을 수 없습니다"),
+    ORG_GRADE_ALREADY_EXISTS(HttpStatus.CONFLICT, "OG002", "이미 존재하는 직급명입니다"),
+    ORG_CONCURRENT_DEPT_ALREADY_EXISTS(HttpStatus.CONFLICT, "OC001", "이미 해당 부서에 겸직 등록되어 있습니다"),
 
     // Leave Management
     LEAVE_POLICY_NOT_FOUND(HttpStatus.NOT_FOUND, "L001", "휴가 정책을 찾을 수 없습니다"),
@@ -271,7 +282,58 @@ PERSONAL_TAG_NOT_FOUND(HttpStatus.NOT_FOUND, "PT003", "태그를 찾을 수 없�
     LEAVE_CANNOT_REJECT(HttpStatus.BAD_REQUEST, "L009", "거절할 수 없는 휴가 신청입니다"),
     LEAVE_CANNOT_CANCEL(HttpStatus.BAD_REQUEST, "L010", "취소할 수 없는 휴가 신청입니다"),
     LEAVE_CANCEL_PAST_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "L011", "이미 종료된 휴가는 취소할 수 없습니다"),
-    LEAVE_CANNOT_REOPEN(HttpStatus.BAD_REQUEST, "L012", "다시 신청할 수 없는 휴가입니다");
+    LEAVE_CANNOT_REOPEN(HttpStatus.BAD_REQUEST, "L012", "다시 신청할 수 없는 휴가입니다"),
+    LEAVE_REVOKE_EXCEEDS_REMAINING(HttpStatus.BAD_REQUEST, "L013", "회수할 일수가 잔여일보다 많습니다"),
+
+    // Organization - Anniversary / Celebration
+    CELEBRATION_MESSAGE_ALREADY_EXISTS(HttpStatus.CONFLICT, "CB001", "이미 축하 메시지를 작성하셨습니다"),
+    CELEBRATION_MESSAGE_NOT_FOUND(HttpStatus.NOT_FOUND, "CB002", "축하 메시지를 찾을 수 없습니다"),
+    CELEBRATION_MESSAGE_FORBIDDEN(HttpStatus.FORBIDDEN, "CB003", "본인의 축하 메시지만 수정/삭제할 수 있습니다"),
+
+    // Organization - Onboarding
+    ONBOARDING_TEMPLATE_NOT_FOUND(HttpStatus.NOT_FOUND, "OB001", "온보딩 템플릿을 찾을 수 없습니다"),
+    ONBOARDING_INSTANCE_NOT_FOUND(HttpStatus.NOT_FOUND, "OB002", "온보딩 인스턴스를 찾을 수 없습니다"),
+    ONBOARDING_ITEM_NOT_FOUND(HttpStatus.NOT_FOUND, "OB003", "온보딩 항목을 찾을 수 없습니다"),
+    ONBOARDING_ALREADY_ASSIGNED(HttpStatus.CONFLICT, "OB004", "이미 진행 중인 온보딩이 있습니다"),
+
+    // Organization - Chart / Manager
+    SELF_MANAGER_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "OM001", "자기 자신을 매니저로 지정할 수 없습니다"),
+    CIRCULAR_MANAGER_REFERENCE(HttpStatus.BAD_REQUEST, "OM002", "순환 참조가 발생합니다"),
+    MANAGER_CHAIN_TOO_DEEP(HttpStatus.BAD_REQUEST, "OM003", "매니저 체인이 너무 깁니다"),
+    CIRCULAR_DEPARTMENT_REFERENCE(HttpStatus.BAD_REQUEST, "OD003", "부서 계층에 순환 참조가 발생합니다"),
+
+    // Organization - 1:1 Meeting
+    ONE_ON_ONE_ALREADY_EXISTS(HttpStatus.CONFLICT, "OO001", "이미 해당 멤버와 1:1이 존재합니다"),
+    ONE_ON_ONE_NOT_FOUND(HttpStatus.NOT_FOUND, "OO002", "1:1을 찾을 수 없습니다"),
+    ONE_ON_ONE_MEETING_NOT_FOUND(HttpStatus.NOT_FOUND, "OO003", "1:1 미팅을 찾을 수 없습니다"),
+    ONE_ON_ONE_ACTION_ITEM_NOT_FOUND(HttpStatus.NOT_FOUND, "OO004", "액션 아이템을 찾을 수 없습니다"),
+
+    // Organization - Attendance
+    ALREADY_CLOCKED_IN(HttpStatus.CONFLICT, "AT001", "이미 출근 처리되었습니다"),
+    NOT_CLOCKED_IN(HttpStatus.BAD_REQUEST, "AT002", "출근 기록이 없습니다"),
+    ALREADY_CLOCKED_OUT(HttpStatus.CONFLICT, "AT003", "이미 퇴근 처리되었습니다"),
+    NOT_CLOCKED_OUT(HttpStatus.BAD_REQUEST, "AT007", "퇴근 기록이 없습니다"),
+    ATTENDANCE_RECORD_NOT_FOUND(HttpStatus.NOT_FOUND, "AT004", "근태 기록을 찾을 수 없습니다"),
+    HOLIDAY_ALREADY_EXISTS(HttpStatus.CONFLICT, "AT005", "이미 등록된 공휴일입니다"),
+    HOLIDAY_NOT_FOUND(HttpStatus.NOT_FOUND, "AT006", "공휴일을 찾을 수 없습니다"),
+
+    // Organization - Member History
+    ORG_MEMBER_HISTORY_NOT_FOUND(HttpStatus.NOT_FOUND, "OH001", "인사 이력을 찾을 수 없습니다"),
+
+    // Org Subscription
+    ORG_SUBSCRIPTION_NOT_FOUND(HttpStatus.NOT_FOUND, "OS001", "Org subscription not found"),
+    ORG_TEAM_REQUIRED(HttpStatus.FORBIDDEN, "OS002", "Team plan required"),
+    ORG_SEAT_LIMIT_EXCEEDED(HttpStatus.PAYMENT_REQUIRED, "OS003", "Org seat limit exceeded"),
+    ORG_BOARD_REQUIRES_TEAM(HttpStatus.FORBIDDEN, "OS004", "Org board requires Team plan"),
+    HR_FEATURE_REQUIRES_TEAM(HttpStatus.FORBIDDEN, "OS005", "HR feature requires Team plan"),
+    ORG_TRIAL_ALREADY_USED(HttpStatus.CONFLICT, "OS006", "HR trial already used"),
+
+    // OKR
+    OKR_CYCLE_NOT_FOUND(HttpStatus.NOT_FOUND, "OKR001", "OKR 사이클을 찾을 수 없습니다"),
+    OKR_OBJECTIVE_NOT_FOUND(HttpStatus.NOT_FOUND, "OKR002", "OKR 목표를 찾을 수 없습니다"),
+    OKR_KEY_RESULT_NOT_FOUND(HttpStatus.NOT_FOUND, "OKR003", "OKR 핵심 결과를 찾을 수 없습니다"),
+    OKR_CYCLE_NOT_ACTIVE(HttpStatus.BAD_REQUEST, "OKR004", "활성 상태가 아닌 사이클입니다"),
+    OKR_UNAUTHORIZED(HttpStatus.FORBIDDEN, "OKR005", "OKR 접근 권한이 없습니다");
 
     private final HttpStatus status;
     private final String code;

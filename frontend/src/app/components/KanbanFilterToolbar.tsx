@@ -32,7 +32,7 @@ export function KanbanFilterToolbar({
   const { t } = useTranslation();
 
   return (
-    <div className="px-3 md:px-6 py-2 md:py-3 border-b border-bridge-border flex items-center gap-2 overflow-x-auto md:overflow-x-visible md:flex-wrap shrink-0 kanban-scrollbar">
+    <div className="px-3 md:px-6 py-2 md:py-3 border-b border-bridge-border flex items-center gap-2 overflow-x-auto md:overflow-x-visible md:flex-wrap shrink-0 custom-scrollbar">
       {/* 검색 */}
       <div className="relative w-52 sm:w-80 shrink-0">
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />

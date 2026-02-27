@@ -41,4 +41,20 @@ public interface FeatureRepository extends JpaRepository<Feature, String> {
     @Modifying
     @Query("UPDATE Feature f SET f.createdBy = null WHERE f.createdBy.id = :userId")
     void nullifyCreatedByUserId(@Param("userId") String userId);
+
+    // ==================== Organization Insights Queries ====================
+
+    /**
+     * 특정 보드의 Feature 평균 진행률 조회 (totalTasks 기반)
+     */
+    @Query("SELECT COALESCE(AVG(CASE WHEN f.totalTasks > 0 THEN (f.completedTasks * 100.0 / f.totalTasks) ELSE 0 END), 0) " +
+           "FROM Feature f WHERE f.board.id = :boardId")
+    double findAvgProgressByBoardId(@Param("boardId") String boardId);
+
+    /**
+     * 여러 보드의 Feature 평균 진행률 그룹 조회 (N+1 방지)
+     */
+    @Query("SELECT f.board.id, COALESCE(AVG(CASE WHEN f.totalTasks > 0 THEN (f.completedTasks * 100.0 / f.totalTasks) ELSE 0 END), 0) " +
+           "FROM Feature f WHERE f.board.id IN :boardIds GROUP BY f.board.id")
+    List<Object[]> findAvgProgressByBoardIds(@Param("boardIds") List<String> boardIds);
 }

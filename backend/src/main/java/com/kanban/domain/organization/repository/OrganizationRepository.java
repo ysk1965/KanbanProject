@@ -32,4 +32,7 @@ public interface OrganizationRepository extends JpaRepository<Organization, Stri
 
     @Query("SELECT COUNT(om) FROM OrganizationMember om WHERE om.organization.id = :orgId")
     int countMembersByOrgId(@Param("orgId") String orgId);
+
+    @Query("SELECT o FROM Organization o WHERE o.name = :name AND o.deletedAt IS NULL")
+    Optional<Organization> findActiveByName(@Param("name") String name);
 }

@@ -1,17 +1,18 @@
 import { useState, useEffect, useMemo, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FEATURE_COLORS } from '../../constants';
-import { ChevronLeft, ChevronRight, Plus, Trash2, X, Loader2, Settings, RotateCw, CalendarDays, Clock, CheckCircle2, ListTodo, AlertCircle, Search, Flame, ChevronDown, ChevronUp } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ChevronLeft, ChevronRight, Plus, Trash2, X, Loader2, Settings, RotateCw, CalendarDays, Clock, CheckCircle2, ListTodo, AlertCircle, Search, Flame, ChevronDown, ChevronUp, Layers, LayoutDashboard, Users, ExternalLink } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MotionModal } from '../ui/MotionModal';
 import { TimePicker } from '../ui/TimePicker';
 import { ColorPickerPopover } from '../ui/ColorPickerPopover';
-import { personalEventService, personalTaskService } from '../../utils/services';
-import { personalHabitAPI } from '../../utils/api';
+import { personalEventService, personalTaskService, personalCalendarService } from '../../utils/services';
+import { personalHabitAPI, boardAPI } from '../../utils/api';
 import { CheckInConfirmModal } from './PersonalHabits';
 import { formatDate } from '../../utils/dateUtils';
 import { useHolidays } from '../../hooks/useHolidays';
-import type { PersonalEvent, PersonalTask, PersonalTaskPriority, PersonalHabit, HabitWeeklyRow, HabitFrequency } from '../../types';
+import type { PersonalEvent, PersonalTask, PersonalTaskPriority, PersonalHabit, HabitWeeklyRow, HabitFrequency, UnifiedCalendarEvent, Board } from '../../types';
 import {
   startOfWeek,
   endOfWeek,
@@ -89,6 +90,7 @@ export interface TabSwipeHandle {
    ================================================================ */
 export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSchedule(_props, ref) {
   const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
   const { holidayMap } = useHolidays(i18n.language, new Date().getFullYear());
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState<PersonalEvent[]>([]);
@@ -97,6 +99,25 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
   const [isLoading, setIsLoading] = useState(false);
   const [settings, setSettings] = useState<ScheduleSettings>(loadSettings);
   const [showSettings, setShowSettings] = useState(false);
+
+  // Connected boards
+  const [connectedBoards, setConnectedBoards] = useState<Board[]>([]);
+  const [isBoardsLoading, setIsBoardsLoading] = useState(false);
+  const [showConnectedBoards, setShowConnectedBoards] = useState<boolean>(() => {
+    try {
+      const raw = localStorage.getItem('bridge-personal-schedule-show-connected-boards');
+      return raw !== null ? JSON.parse(raw) : true;
+    } catch { return true; }
+  });
+
+  // Board schedule overlay
+  const [boardBlocks, setBoardBlocks] = useState<UnifiedCalendarEvent[]>([]);
+  const [showBoardSchedules, setShowBoardSchedules] = useState<boolean>(() => {
+    try {
+      const raw = localStorage.getItem('bridge-personal-schedule-show-board');
+      return raw !== null ? JSON.parse(raw) : true;
+    } catch { return true; }
+  });
 
   // View mode: day or week (mobile defaults to day, desktop to week)
   const [viewMode, setViewMode] = useState<'day' | 'week'>(() =>
@@ -201,6 +222,42 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
     loadHabits();
   }, [loadHabits]);
 
+  // ---- Load connected boards ----
+  useEffect(() => {
+    const fetchBoards = async () => {
+      setIsBoardsLoading(true);
+      try {
+        const boards = await boardAPI.getBoards();
+        setConnectedBoards(boards);
+      } catch {
+        setConnectedBoards([]);
+      } finally {
+        setIsBoardsLoading(false);
+      }
+    };
+    fetchBoards();
+  }, []);
+
+  // ---- Load board schedule blocks from unified calendar ----
+  useEffect(() => {
+    if (!showBoardSchedules) {
+      setBoardBlocks([]);
+      return;
+    }
+    const fetchBoardBlocks = async () => {
+      try {
+        const data = await personalCalendarService.getUnifiedCalendar(startDate, endDate);
+        const blocks = (data.board_events || []).filter(
+          (e: UnifiedCalendarEvent) => e.source === 'SCHEDULE_BLOCK' && e.start_time && e.end_time
+        );
+        setBoardBlocks(blocks);
+      } catch {
+        setBoardBlocks([]);
+      }
+    };
+    fetchBoardBlocks();
+  }, [startDate, endDate, showBoardSchedules]);
+
   // Group habit completions by date
   const habitsByDate = useMemo(() => {
     const grouped: Record<string, { habit_id: string; title: string; icon?: string; is_completed: boolean; count: number }[]> = {};
@@ -230,6 +287,13 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
   }, [tasks, startDate, endDate]);
 
   const hasTasksDue = useMemo(() => Object.keys(tasksByDate).length > 0, [tasksByDate]);
+
+  // Group board blocks by date
+  const boardBlocksByDate = useMemo(() => {
+    const grouped: Record<string, UnifiedCalendarEvent[]> = {};
+    boardBlocks.forEach((b) => { (grouped[b.event_date] ??= []).push(b); });
+    return grouped;
+  }, [boardBlocks]);
 
   const handleHabitCheckIn = async (habitId: string, date: string) => {
     // Optimistic update
@@ -893,7 +957,7 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
                 {t('personal.schedule.recurring')}
               </span>
               {recurringEvents.length > 0 && (
-                <span className="text-[10px] font-bold text-purple-400 bg-purple-400/10 px-1.5 py-0.5 rounded">
+                <span className="text-[10px] font-bold text-purple-400 bg-purple-400/15 px-1.5 py-0.5 rounded">
                   {recurringEvents.length}
                 </span>
               )}
@@ -906,7 +970,7 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
                 setCreateInitialRecurrence('WEEKLY');
                 setIsCreateOpen(true);
               }}
-              className="flex items-center gap-1 px-2 py-1 text-[10px] font-bold text-purple-400 bg-purple-400/10 rounded-lg hover:bg-purple-400/20 transition-colors"
+              className="flex items-center gap-1 px-2 py-1 text-[10px] font-bold text-purple-400 bg-purple-400/15 rounded-lg hover:bg-purple-400/25 transition-colors"
             >
               <Plus size={12} />
               {t('personal.schedule.add')}
@@ -936,7 +1000,7 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
                         {e.title}
                       </span>
                       <div className="flex items-center gap-1.5 mt-1">
-                        <span className="text-[10px] font-semibold text-purple-400/80 bg-purple-400/10 px-1.5 py-0.5 rounded">
+                        <span className="text-[10px] font-semibold text-purple-400/80 bg-purple-400/15 px-1.5 py-0.5 rounded">
                           {formatRecurrenceLabel(e)}
                         </span>
                         {e.start_time && (
@@ -954,6 +1018,107 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
             </div>
           )}
         </div>
+
+        {/* Connected Boards */}
+        <div className="px-4 pb-4 flex-shrink-0 border-t border-foreground/[0.08]">
+          <button
+            onClick={() => {
+              const next = !showConnectedBoards;
+              setShowConnectedBoards(next);
+              localStorage.setItem('bridge-personal-schedule-show-connected-boards', JSON.stringify(next));
+            }}
+            className="w-full flex items-center justify-between pt-3 pb-2 group"
+          >
+            <div className="flex items-center gap-2">
+              <LayoutDashboard size={14} className="text-bridge-accent" />
+              <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400 group-hover:text-foreground transition-colors">
+                {t('personal.schedule.connectedBoards', '연결된 보드')}
+              </span>
+              {connectedBoards.length > 0 && (
+                <span className="text-[10px] font-bold text-bridge-accent bg-bridge-accent/15 px-1.5 py-0.5 rounded">
+                  {connectedBoards.length}
+                </span>
+              )}
+            </div>
+            {showConnectedBoards
+              ? <ChevronUp size={14} className="text-slate-500" />
+              : <ChevronDown size={14} className="text-slate-500" />
+            }
+          </button>
+          <AnimatePresence initial={false}>
+            {showConnectedBoards && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-hidden"
+              >
+                {isBoardsLoading ? (
+                  <div className="flex items-center justify-center py-4">
+                    <Loader2 className="w-4 h-4 animate-spin text-bridge-accent" />
+                  </div>
+                ) : connectedBoards.length === 0 ? (
+                  <div className="text-center py-4">
+                    <LayoutDashboard size={20} className="mx-auto text-slate-600 mb-2" />
+                    <p className="text-slate-500 text-xs">{t('personal.schedule.noBoards', '연결된 보드가 없습니다')}</p>
+                    <p className="text-slate-600 text-[10px] mt-1">{t('personal.schedule.noBoardsHint', '보드에 참여하면 협업 일정이 여기에 표시됩니다')}</p>
+                    <button
+                      onClick={() => navigate('/boards')}
+                      className="mt-2 flex items-center gap-1 mx-auto px-3 py-1.5 text-[10px] font-bold text-bridge-accent bg-bridge-accent/15 rounded-lg hover:bg-bridge-accent/25 transition-colors"
+                    >
+                      <Plus size={12} />
+                      {t('personal.schedule.goToBoards', '보드 만들기')}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-1 max-h-[180px] overflow-auto custom-scrollbar">
+                    {connectedBoards.map((board, idx) => (
+                      <motion.button
+                        key={board.id}
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: idx * 0.04 }}
+                        onClick={() => navigate(`/boards/${board.id}`)}
+                        className="w-full text-left p-2.5 rounded-xl transition-all group bg-white/[0.03] border border-foreground/5 hover:bg-white/[0.06] hover:border-bridge-accent/20"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <div
+                            className="w-8 h-8 rounded-lg flex items-center justify-center text-sm flex-shrink-0"
+                            style={{
+                              background: board.background_gradient
+                                ? `linear-gradient(135deg, ${board.background_gradient.split(',')[0] || '#6366F1'}, ${board.background_gradient.split(',')[1] || '#2DD4BF'})`
+                                : 'linear-gradient(135deg, #6366F1, #2DD4BF)',
+                            }}
+                          >
+                            <LayoutDashboard size={14} className="text-white/90" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <span className="text-[13px] font-medium text-foreground truncate block group-hover:text-bridge-accent transition-colors">
+                              {board.name}
+                            </span>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <span className="text-[10px] text-slate-500 flex items-center gap-0.5">
+                                <Users size={8} />
+                                {board.member_count}
+                              </span>
+                              {board.organization_name && (
+                                <span className="text-[10px] font-semibold text-bridge-secondary/80 bg-bridge-secondary/15 px-1.5 py-0.5 rounded truncate max-w-[100px]">
+                                  {board.organization_name}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <ExternalLink size={12} className="text-slate-600 group-hover:text-bridge-accent flex-shrink-0 transition-colors" />
+                        </div>
+                      </motion.button>
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
 
       {/* ======== Main Time Grid ======== */}
@@ -968,7 +1133,7 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
         }}
       >
         {/* ======== Navigation header ======== */}
-        <div className="flex items-center justify-between px-3 md:px-6 py-2 md:py-3 border-b border-white/[0.06] flex-shrink-0">
+        <div className="flex items-center justify-between px-3 md:px-6 py-2 md:py-3 border-b border-foreground/[0.08] flex-shrink-0">
           <div className="flex items-center gap-1.5 md:gap-3">
             <button
               onClick={handlePrev}
@@ -1033,6 +1198,21 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
 
           <div className="flex items-center gap-1.5 md:gap-2">
             <button
+              onClick={() => {
+                const next = !showBoardSchedules;
+                setShowBoardSchedules(next);
+                localStorage.setItem('bridge-personal-schedule-show-board', JSON.stringify(next));
+              }}
+              className={`p-1.5 md:p-2 rounded-xl transition-colors ${
+                showBoardSchedules
+                  ? 'text-bridge-accent bg-bridge-accent/10'
+                  : 'text-slate-400 hover:text-foreground hover:bg-foreground/5'
+              }`}
+              title={t('personal.schedule.boardScheduleToggle', 'Show board schedules')}
+            >
+              <Layers size={16} className="md:w-[18px] md:h-[18px]" />
+            </button>
+            <button
               onClick={() => setShowSettings(true)}
               className="p-1.5 md:p-2 text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded-xl transition-colors"
               title={t('personal.schedule.settings')}
@@ -1046,8 +1226,8 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
         <div ref={animRef} className="flex-1 overflow-auto custom-scrollbar bg-bridge-dark">
           <div className={`${viewMode === 'day' ? '' : 'min-w-[520px] md:min-w-[760px]'} bg-bridge-dark`}>
           {/* ---- Day headers (sticky) ---- */}
-          <div className="flex sticky top-0 bg-bridge-obsidian/95 backdrop-blur-sm z-10 border-b border-white/[0.06]">
-            <div className={`${TIME_COL_W} flex-shrink-0 border-r border-white/[0.06]`} />
+          <div className="flex sticky top-0 bg-bridge-obsidian/95 backdrop-blur-sm z-10 border-b border-foreground/[0.08]">
+            <div className={`${TIME_COL_W} flex-shrink-0 border-r border-foreground/[0.08]`} />
             {weekDays.map((day, idx) => {
               const ds = toDateString(day);
               const isToday = ds === todayStr;
@@ -1055,7 +1235,7 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
               return (
                 <div
                   key={ds}
-                  className={`flex-1 ${COL_MIN_W} p-3 border-r border-white/[0.06] ${
+                  className={`flex-1 ${COL_MIN_W} p-3 border-r border-foreground/[0.08] ${
                     isToday ? 'bg-bridge-accent/5' : ''
                   }`}
                 >
@@ -1084,9 +1264,9 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
 
           {/* ---- All-day events row ---- */}
           {hasAllDay && (
-            <div className="flex border-b border-white/[0.06] bg-white/[0.02]">
+            <div className="flex border-b border-foreground/[0.08] bg-white/[0.02]">
               <div
-                className={`${TIME_COL_W} flex-shrink-0 p-2 text-[10px] text-slate-500 border-r border-white/[0.06] flex items-center justify-center font-bold tracking-wider`}
+                className={`${TIME_COL_W} flex-shrink-0 p-2 text-[10px] text-slate-500 border-r border-foreground/[0.08] flex items-center justify-center font-bold tracking-wider`}
               >
                 {t('personal.schedule.all')}
               </div>
@@ -1096,7 +1276,7 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
                 return (
                   <div
                     key={`ad-${ds}`}
-                    className={`flex-1 ${COL_MIN_W} p-1.5 border-r border-white/[0.06] space-y-1`}
+                    className={`flex-1 ${COL_MIN_W} p-1.5 border-r border-foreground/[0.08] space-y-1`}
                   >
                     {dayEvents.map((ev) => (
                       <div
@@ -1131,9 +1311,9 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
 
           {/* ---- Calendar events row ---- */}
           {hasCalendarEvents && (
-            <div className="flex border-b border-white/[0.06] bg-sky-500/[0.03]">
+            <div className="flex border-b border-foreground/[0.08] bg-sky-500/[0.03]">
               <div
-                className={`${TIME_COL_W} flex-shrink-0 p-2 text-[10px] text-sky-400/70 border-r border-white/[0.06] flex items-center justify-center`}
+                className={`${TIME_COL_W} flex-shrink-0 p-2 text-[10px] text-sky-400/70 border-r border-foreground/[0.08] flex items-center justify-center`}
               >
                 <CalendarDays size={12} />
               </div>
@@ -1143,7 +1323,7 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
                 return (
                   <div
                     key={`cal-${ds}`}
-                    className={`flex-1 ${COL_MIN_W} p-1.5 border-r border-white/[0.06] space-y-1`}
+                    className={`flex-1 ${COL_MIN_W} p-1.5 border-r border-foreground/[0.08] space-y-1`}
                   >
                     {dayCalendarEvents.map((ev) => (
                       <div
@@ -1174,9 +1354,9 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
 
           {/* ---- Task deadlines row ---- */}
           {hasTasksDue && (
-            <div className="flex border-b border-white/[0.06] bg-amber-500/[0.03]">
+            <div className="flex border-b border-foreground/[0.08] bg-amber-500/[0.03]">
               <div
-                className={`${TIME_COL_W} flex-shrink-0 p-2 text-[10px] text-amber-400/70 border-r border-white/[0.06] flex items-center justify-center`}
+                className={`${TIME_COL_W} flex-shrink-0 p-2 text-[10px] text-amber-400/70 border-r border-foreground/[0.08] flex items-center justify-center`}
               >
                 <ListTodo size={12} />
               </div>
@@ -1186,7 +1366,7 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
                 return (
                   <div
                     key={`tk-${ds}`}
-                    className={`flex-1 ${COL_MIN_W} p-1.5 border-r border-white/[0.06] space-y-1`}
+                    className={`flex-1 ${COL_MIN_W} p-1.5 border-r border-foreground/[0.08] space-y-1`}
                   >
                     {dayTasks.map((task) => {
                       const isDone = task.status === 'DONE';
@@ -1230,11 +1410,11 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
           )}
 
           {/* ---- Habits row ---- */}
-          <div className="border-b border-white/[0.06] bg-purple-500/[0.03]">
+          <div className="border-b border-foreground/[0.08] bg-purple-500/[0.03]">
             {habitRows.length > 0 && (
               <div className="flex">
                 <div
-                  className={`${TIME_COL_W} flex-shrink-0 p-2 text-[10px] text-purple-400/70 border-r border-white/[0.06] flex items-center justify-center`}
+                  className={`${TIME_COL_W} flex-shrink-0 p-2 text-[10px] text-purple-400/70 border-r border-foreground/[0.08] flex items-center justify-center`}
                 >
                   <CheckCircle2 size={12} />
                 </div>
@@ -1244,7 +1424,7 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
                   return (
                     <div
                       key={`hb-${ds}`}
-                      className={`flex-1 ${COL_MIN_W} p-1.5 border-r border-white/[0.06] space-y-1`}
+                      className={`flex-1 ${COL_MIN_W} p-1.5 border-r border-foreground/[0.08] space-y-1`}
                     >
                       {dayHabits.map((item) => (
                         <div
@@ -1280,7 +1460,7 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
             )}
             {/* Add Habit button */}
             <div className="flex">
-              <div className={`${TIME_COL_W} flex-shrink-0 border-r border-white/[0.06]`} />
+              <div className={`${TIME_COL_W} flex-shrink-0 border-r border-foreground/[0.08]`} />
               <button
                 onClick={() => setIsCreateHabitOpen(true)}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] text-purple-400/70 hover:text-purple-300 hover:bg-purple-400/5 transition-all rounded-md m-1"
@@ -1301,7 +1481,7 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
               >
                 {/* Time label */}
                 <div
-                  className={`${TIME_COL_W} flex-shrink-0 px-2 text-xs text-slate-500 border-r border-white/[0.06] flex items-start pt-1`}
+                  className={`${TIME_COL_W} flex-shrink-0 px-2 text-xs text-slate-500 border-r border-foreground/[0.08] flex items-start pt-1`}
                 >
                   {time.endsWith(':00') ? time : ''}
                 </div>
@@ -1343,7 +1523,7 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
                 style={{ top: `${currentTimeTop}px` }}
               >
                 <div className={`${TIME_COL_W} flex-shrink-0 flex justify-end pr-1`}>
-                  <span className="text-[10px] font-bold text-red-400 bg-red-500/20 px-1 rounded">
+                  <span className="text-[10px] font-bold text-red-400 bg-red-500/15 px-1 rounded">
                     {now.getHours().toString().padStart(2, '0')}:
                     {now.getMinutes().toString().padStart(2, '0')}
                   </span>
@@ -1365,6 +1545,77 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
                     </div>
                   );
                 })}
+              </div>
+            )}
+
+            {/* ---- Board schedule blocks overlay (behind personal events) ---- */}
+            {showBoardSchedules && boardBlocks.length > 0 && (
+              <div className="absolute top-0 left-12 md:left-16 right-0 pointer-events-none">
+                <div className="flex">
+                  {weekDays.map((day) => {
+                    const ds = toDateString(day);
+                    const dayBlocks = boardBlocksByDate[ds] || [];
+                    return (
+                      <div
+                        key={`bb-${ds}`}
+                        className={`flex-1 ${COL_MIN_W} relative`}
+                        style={{ height: `${timeSlots.length * SLOT_HEIGHT}px` }}
+                      >
+                        {dayBlocks.map((block) => {
+                          if (!block.start_time || !block.end_time) return null;
+
+                          const [sh, sm] = block.start_time.split(':').map(Number);
+                          const [eh, em] = block.end_time.split(':').map(Number);
+                          const startMin = sh * 60 + sm;
+                          let endMin = eh * 60 + em;
+
+                          // Overnight: cap at grid end
+                          if (endMin < startMin) endMin = endHour * 60;
+
+                          const workStartMin = startHour * 60;
+                          const blockTop = ((startMin - workStartMin) / 30) * SLOT_HEIGHT;
+                          const blockHeight = Math.max(((endMin - startMin) / 30) * SLOT_HEIGHT, SLOT_HEIGHT * 0.6);
+
+                          if (blockTop < 0) return null;
+
+                          return (
+                            <div
+                              key={block.schedule_block_id || `bb-${block.title}-${block.start_time}`}
+                              className="absolute left-1 right-1 rounded-md border-l-4 border-dashed px-2 py-1 overflow-hidden opacity-50"
+                              style={{
+                                top: `${blockTop}px`,
+                                height: `${blockHeight}px`,
+                                backgroundColor: `${block.color || '#6366F1'}20`,
+                                borderLeftColor: block.color || '#6366F1',
+                              }}
+                            >
+                              <div className="flex flex-col h-full overflow-hidden">
+                                {block.board_name && (
+                                  <span className="text-[9px] font-bold px-1 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent truncate max-w-[80%] self-start mb-0.5">
+                                    {block.board_name}
+                                  </span>
+                                )}
+                                <span className="text-xs font-medium text-foreground/70 truncate">
+                                  {block.title}
+                                </span>
+                                {blockHeight > 30 && block.task_title && (
+                                  <span className="text-[10px] text-slate-500 truncate">
+                                    {block.task_title}
+                                  </span>
+                                )}
+                                {blockHeight > 45 && (
+                                  <span className="text-[10px] text-slate-500">
+                                    {block.start_time.slice(0, 5)} - {block.end_time.slice(0, 5)}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
 
@@ -1527,7 +1778,7 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
       </div>
 
         {/* ======== Bottom guide + mobile toolbar ======== */}
-        <div className="px-3 md:px-6 py-2 border-t border-white/[0.06] flex-shrink-0 flex items-center justify-between">
+        <div className="px-3 md:px-6 py-2 border-t border-foreground/[0.08] flex-shrink-0 flex items-center justify-between">
           <p className="hidden md:block text-xs text-slate-500">
             {t('personal.schedule.dragToCreateFull')}
           </p>
@@ -1857,7 +2108,7 @@ function CreateEventModal({
   const showForm = mode === 'new' || selectedTask !== null || selectedHabit !== null || selectedEvent !== null;
 
   return (
-    <MotionModal open={open} onClose={onClose} className="sm:max-w-md p-0 overflow-hidden border-foreground/[0.12]">
+    <MotionModal open={open} onClose={onClose} className="sm:max-w-md p-0 overflow-hidden border-foreground/[0.08]">
       <div>
         {/* Top accent line */}
         <div className="h-[2px]" style={{ background: `linear-gradient(to right, ${color}88, ${color}44, transparent)` }} />
@@ -1881,7 +2132,7 @@ function CreateEventModal({
 
         <div className="px-5 pb-5 space-y-4 pt-4">
           {/* Mode toggle */}
-          <div className="flex gap-1 p-1 bg-foreground/5 rounded-xl border border-foreground/[0.06]">
+          <div className="flex gap-1 p-1 bg-foreground/5 rounded-xl border border-foreground/[0.08]">
             <button
               onClick={() => { setMode('new'); setSelectedTask(null); setSelectedHabit(null); setSelectedEvent(null); setTitle(''); setDescription(''); setColor(EVENT_COLORS[0]); }}
               className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-bold rounded-lg transition-all ${
@@ -1910,7 +2161,7 @@ function CreateEventModal({
           {mode === 'task' && !selectedTask && !selectedHabit && !selectedEvent && (
             <div className="space-y-3">
               {/* Sub-tabs: 태스크 / 습관 / 일정 */}
-              <div className="flex gap-1 p-0.5 bg-foreground/[0.04] rounded-lg border border-foreground/[0.06]">
+              <div className="flex gap-1 p-0.5 bg-foreground/[0.04] rounded-lg border border-foreground/[0.08]">
                 {([
                   { key: 'tasks' as const, label: t('personal.schedule.tasksSection'), count: filteredTasks.length },
                   { key: 'habits' as const, label: t('personal.schedule.habitsSection'), count: filteredHabits.length },
@@ -1938,7 +2189,7 @@ function CreateEventModal({
                   value={taskSearch}
                   onChange={(e) => setTaskSearch(e.target.value)}
                   placeholder={t('personal.schedule.searchTasks')}
-                  className="w-full bg-foreground/[0.04] border border-foreground/10 rounded-xl py-2 pl-9 pr-4 text-foreground text-sm placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-bridge-accent/30 focus:border-bridge-accent/40 transition-all"
+                  className="w-full bg-foreground/[0.04] border border-foreground/10 rounded-xl py-2 pl-9 pr-4 text-foreground text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
                   autoFocus
                 />
               </div>
@@ -1972,7 +2223,7 @@ function CreateEventModal({
                           <button
                             key={task.id}
                             onClick={() => handleSelectTask(task)}
-                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-foreground/[0.06] hover:border-foreground/10 transition-all text-left group"
+                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-foreground/[0.08] hover:border-foreground/10 transition-all text-left group"
                           >
                             {task.priority !== 'NONE' && (
                               <div className={`w-2 h-2 rounded-full shrink-0 ${PRIORITY_DOT[task.priority]}`} />
@@ -2004,7 +2255,7 @@ function CreateEventModal({
                           <button
                             key={habit.id}
                             onClick={() => handleSelectHabit(habit)}
-                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-foreground/[0.06] hover:border-foreground/10 transition-all text-left group"
+                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-foreground/[0.08] hover:border-foreground/10 transition-all text-left group"
                           >
                             <span className="text-sm shrink-0">{habit.icon || '🔄'}</span>
                             <div className="flex-1 min-w-0">
@@ -2086,7 +2337,7 @@ function CreateEventModal({
                 onChange={(e) => setTitle(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
                 placeholder={t('personal.schedule.eventTitlePlaceholder')}
-                className="w-full bg-foreground/[0.04] border border-foreground/10 rounded-xl py-2.5 px-4 text-foreground text-sm placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-bridge-accent/30 focus:border-bridge-accent/40 transition-all"
+                className="w-full bg-foreground/[0.04] border border-foreground/10 rounded-xl py-2.5 px-4 text-foreground text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
                 autoFocus={mode === 'new'}
               />
 
@@ -2125,7 +2376,7 @@ function CreateEventModal({
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder={t('personal.schedule.optionalDesc')}
                 rows={2}
-                className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl p-3 text-sm text-muted-foreground placeholder-slate-600 outline-none resize-none focus:border-bridge-accent/30 focus:ring-1 focus:ring-bridge-accent/10 transition-all"
+                className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl p-3 text-sm text-muted-foreground placeholder-slate-500 outline-none resize-none focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
               />
 
               {/* Overlap warning */}
@@ -2163,7 +2414,7 @@ function CreateEventModal({
                       setRecurrenceEndDate('');
                     }
                   }}
-                  className="w-full bg-foreground/[0.04] border border-foreground/10 rounded-xl py-2 px-3 text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-bridge-accent/30 transition-all"
+                  className="w-full bg-foreground/[0.04] border border-foreground/10 rounded-xl py-2 px-3 text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
                 >
                   <option value="" className="bg-bridge-obsidian">{t('personal.schedule.noRepeat')}</option>
                   <option value="DAILY" className="bg-bridge-obsidian">{t('personal.schedule.everyDay')}</option>
@@ -2218,7 +2469,7 @@ function CreateEventModal({
                     value={recurrenceEndDate}
                     onChange={(e) => setRecurrenceEndDate(e.target.value)}
                     min={date}
-                    className="w-full bg-foreground/[0.04] border border-foreground/10 rounded-xl py-2 px-3 text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-bridge-accent/30 transition-all [color-scheme:dark]"
+                    className="w-full bg-foreground/[0.04] border border-foreground/10 rounded-xl py-2 px-3 text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all [color-scheme:dark]"
                   />
                   {!recurrenceEndDate && (
                     <p className="mt-1 text-[10px] text-amber-400">{t('personal.schedule.endDateRequired')}</p>
@@ -2379,7 +2630,7 @@ export function EventDetailModal({
   };
 
   return (
-    <MotionModal open={open} onClose={onClose} className="sm:max-w-md p-0 overflow-hidden border-foreground/[0.12]">
+    <MotionModal open={open} onClose={onClose} className="sm:max-w-md p-0 overflow-hidden border-foreground/[0.08]">
       <div>
         {/* Top accent line */}
         <div className="h-[2px]" style={{ background: `linear-gradient(to right, ${color}88, ${color}44, transparent)` }} />
@@ -2399,7 +2650,7 @@ export function EventDetailModal({
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-            className="flex-1 min-w-0 bg-transparent text-sm font-bold text-foreground outline-none placeholder-slate-600"
+            className="flex-1 min-w-0 bg-transparent text-sm font-bold text-foreground outline-none placeholder-slate-500"
             placeholder={t('personal.schedule.eventTitle')}
             autoFocus
           />
@@ -2492,7 +2743,7 @@ export function EventDetailModal({
             onChange={(e) => setDescription(e.target.value)}
             placeholder={t('personal.schedule.optionalDesc')}
             rows={2}
-            className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl p-3 text-sm text-muted-foreground placeholder-slate-600 outline-none resize-none focus:border-bridge-accent/30 focus:ring-1 focus:ring-bridge-accent/10 transition-all"
+            className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl p-3 text-sm text-muted-foreground placeholder-slate-500 outline-none resize-none focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
           />
 
           {/* Recurrence settings (compact) */}
@@ -2507,7 +2758,7 @@ export function EventDetailModal({
                     setRecurrenceEndDate('');
                   }
                 }}
-                className="w-full bg-foreground/5 border border-foreground/10 rounded-lg py-1.5 px-3 text-foreground text-xs focus:outline-none focus:border-bridge-accent/30 transition-all"
+                className="w-full bg-foreground/5 border border-foreground/10 rounded-lg py-1.5 px-3 text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
               >
                 <option value="" className="bg-bridge-obsidian">{t('personal.schedule.noRepeat')}</option>
                 <option value="DAILY" className="bg-bridge-obsidian">{t('personal.schedule.everyDay')}</option>
@@ -2561,7 +2812,7 @@ export function EventDetailModal({
                     value={recurrenceEndDate}
                     onChange={(e) => setRecurrenceEndDate(e.target.value)}
                     min={event.event_date}
-                    className="w-full bg-foreground/5 border border-foreground/10 rounded-lg py-1.5 px-3 text-foreground text-xs focus:outline-none focus:border-bridge-accent/30 transition-all [color-scheme:dark]"
+                    className="w-full bg-foreground/5 border border-foreground/10 rounded-lg py-1.5 px-3 text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all [color-scheme:dark]"
                   />
                   {!recurrenceEndDate && (
                     <p className="mt-1 text-[10px] text-amber-400">{t('personal.schedule.endDateRequired')}</p>
@@ -2665,7 +2916,7 @@ function ScheduleSettingsModal({
   const fmtHour = (h: number) => `${h.toString().padStart(2, '0')}:00`;
 
   return (
-    <MotionModal open={open} onClose={onClose} className="sm:max-w-sm p-0 overflow-hidden border-foreground/[0.12]">
+    <MotionModal open={open} onClose={onClose} className="sm:max-w-sm p-0 overflow-hidden border-foreground/[0.08]">
       <div>
         <div className="h-[2px] bg-gradient-to-r from-bridge-accent/60 via-bridge-secondary/40 to-transparent" />
 
@@ -2686,7 +2937,7 @@ function ScheduleSettingsModal({
               <select
                 value={sHour}
                 onChange={(e) => setSHour(Number(e.target.value))}
-                className="w-full bg-foreground/5 border border-foreground/10 rounded-lg py-2 px-3 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-bridge-accent/10 focus:border-bridge-accent/30 transition-all appearance-none cursor-pointer"
+                className="w-full bg-foreground/5 border border-foreground/10 rounded-lg py-2 px-3 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all appearance-none cursor-pointer"
               >
                 {HOUR_OPTIONS.filter((h) => h < 24).map((h) => (
                   <option key={h} value={h} className="bg-bridge-obsidian text-foreground">
@@ -2701,7 +2952,7 @@ function ScheduleSettingsModal({
               <select
                 value={eHour}
                 onChange={(e) => setEHour(Number(e.target.value))}
-                className="w-full bg-foreground/5 border border-foreground/10 rounded-lg py-2 px-3 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-bridge-accent/10 focus:border-bridge-accent/30 transition-all appearance-none cursor-pointer"
+                className="w-full bg-foreground/5 border border-foreground/10 rounded-lg py-2 px-3 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all appearance-none cursor-pointer"
               >
                 {HOUR_OPTIONS.filter((h) => h >= 1).map((h) => (
                   <option key={h} value={h} className="bg-bridge-obsidian text-foreground">
@@ -2818,7 +3069,7 @@ function CreateHabitModal({
   };
 
   return (
-    <MotionModal open={open} onClose={onClose} className="sm:max-w-md p-0 overflow-hidden border-foreground/[0.12]">
+    <MotionModal open={open} onClose={onClose} className="sm:max-w-md p-0 overflow-hidden border-foreground/[0.08]">
       <div>
         <div className="h-[2px]" style={{ background: `linear-gradient(to right, ${color}88, ${color}44, transparent)` }} />
 
@@ -2831,7 +3082,7 @@ function CreateHabitModal({
             onChange={(e) => setTitle(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && !e.nativeEvent.isComposing && handleSubmit()}
             placeholder={t('personal.habit.habitPlaceholder')}
-            className="flex-1 min-w-0 bg-transparent text-sm font-bold text-foreground placeholder-slate-600 outline-none"
+            className="flex-1 min-w-0 bg-transparent text-sm font-bold text-foreground placeholder-slate-500 outline-none"
             autoFocus
           />
           <button onClick={onClose} className="p-1.5 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5 transition-colors shrink-0">
@@ -2939,7 +3190,7 @@ function CreateHabitModal({
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder={t('personal.habit.descPlaceholder')}
                   rows={2}
-                  className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg p-3 text-sm text-muted-foreground placeholder-slate-600 outline-none resize-none focus:border-bridge-accent/30 focus:ring-1 focus:ring-bridge-accent/10 transition-all"
+                  className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-lg p-3 text-sm text-muted-foreground placeholder-slate-500 outline-none resize-none focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
                 />
               </motion.div>
             )}

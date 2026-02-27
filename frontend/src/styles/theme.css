@@ -12,6 +12,25 @@
   --bridge-surface-hover: #2a3a58;
   --bridge-border: #384d6e;
 
+  /* Surface Elevation Scale (4-level depth system) */
+  --surface-base: #0F1420;
+  --surface-raised: #151B28;
+  --surface-overlay: #1A2235;
+  --surface-hover: #1E2A42;
+
+  /* Border Scale (4-level semantic borders) */
+  --border-subtle: rgba(255,255,255,0.05);
+  --border-default: rgba(255,255,255,0.08);
+  --border-hover: rgba(255,255,255,0.15);
+  --border-accent: rgba(99,102,241,0.4);
+
+  /* Shadow Tokens */
+  --shadow-card: 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-card-hover: 0 4px 16px rgba(0,0,0,0.3);
+  --shadow-modal: 0 16px 48px rgba(0,0,0,0.5);
+  --shadow-dropdown: 0 8px 24px rgba(0,0,0,0.4);
+  --shadow-glow-accent: 0 0 20px rgba(99,102,241,0.2);
+
   --font-size: 16px;
   --background: #0A0E17;
   --foreground: oklch(0.145 0 0);
@@ -103,6 +122,25 @@
   --bridge-surface: #efe3d2;
   --bridge-surface-hover: #ffffff;
   --bridge-border: #E4DFDA;
+
+  /* Surface Elevation Scale */
+  --surface-base: #FFFCF8;
+  --surface-raised: #F8F2EB;
+  --surface-overlay: #FFFFFF;
+  --surface-hover: #F0E9E0;
+
+  /* Border Scale */
+  --border-subtle: rgba(0,0,0,0.05);
+  --border-default: rgba(0,0,0,0.08);
+  --border-hover: rgba(0,0,0,0.15);
+  --border-accent: rgba(99,102,241,0.4);
+
+  /* Shadow Tokens */
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.06);
+  --shadow-card-hover: 0 8px 24px rgba(0,0,0,0.08);
+  --shadow-modal: 0 16px 48px rgba(0,0,0,0.12);
+  --shadow-dropdown: 0 8px 24px rgba(0,0,0,0.1);
+  --shadow-glow-accent: 0 0 20px rgba(99,102,241,0.12);
 
   /* shadcn/ui Light Colors */
   --background: #FFFDF9;
@@ -245,6 +283,18 @@
   --color-bridge-surface: var(--bridge-surface);
   --color-bridge-surface-hover: var(--bridge-surface-hover);
   --color-bridge-border: var(--bridge-border);
+
+  /* Surface Elevation Utilities */
+  --color-surface-base: var(--surface-base);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-overlay: var(--surface-overlay);
+  --color-surface-hover: var(--surface-hover);
+
+  /* Border Scale Utilities */
+  --color-border-subtle: var(--border-subtle);
+  --color-border-default: var(--border-default);
+  --color-border-hover: var(--border-hover);
+  --color-border-accent: var(--border-accent);
 }
 
 /* ===== Safe Area (Notch) Utilities ===== */
@@ -309,6 +359,57 @@
   background: rgba(255, 255, 255, 0.8);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
+}
+
+/* Shadow Utility Classes (theme-aware via CSS variables) */
+@utility shadow-card {
+  box-shadow: var(--shadow-card);
+}
+@utility shadow-card-hover {
+  box-shadow: var(--shadow-card-hover);
+}
+@utility shadow-modal {
+  box-shadow: var(--shadow-modal);
+}
+@utility shadow-dropdown {
+  box-shadow: var(--shadow-dropdown);
+}
+@utility shadow-glow-accent {
+  box-shadow: var(--shadow-glow-accent);
+}
+
+/* Skeleton Shimmer (Vercel pattern) */
+@keyframes skeleton-shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0.03) 25%,
+    rgba(255,255,255,0.07) 50%,
+    rgba(255,255,255,0.03) 75%
+  );
+  background-size: 800px 100%;
+  animation: skeleton-shimmer 1.5s infinite linear;
+  border-radius: 8px;
+}
+
+.light .skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(0,0,0,0.04) 25%,
+    rgba(0,0,0,0.08) 50%,
+    rgba(0,0,0,0.04) 75%
+  );
+  background-size: 800px 100%;
+}
+
+/* Tabular Nums (Vercel pattern — stable number layout) */
+@utility tabular-nums {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
 }
 
 /* Text shimmer effect - Indigo to Teal gradient */
@@ -377,33 +478,6 @@ html {
   background: rgba(0, 0, 0, 0.1);
 }
 .light .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.18);
-}
-
-/* Kanban Board Styles */
-.kanban-scrollbar::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-.kanban-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.kanban-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-}
-
-.kanban-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
-}
-
-.light .kanban-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.1);
-}
-
-.light .kanban-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 0, 0, 0.18);
 }
 

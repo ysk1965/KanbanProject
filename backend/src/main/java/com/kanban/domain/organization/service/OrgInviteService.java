@@ -1,6 +1,6 @@
 package com.kanban.domain.organization.service;
 
-import com.kanban.domain.leave.service.LeaveService;
+import com.kanban.domain.organization.leave.service.LeaveService;
 import com.kanban.domain.organization.*;
 import com.kanban.domain.organization.dto.OrgInviteRequest;
 import com.kanban.domain.organization.dto.OrgInviteResponse;
@@ -32,6 +32,7 @@ public class OrgInviteService {
     private final UserRepository userRepository;
     private final OrganizationService organizationService;
     private final LeaveService leaveService;
+    private final OrgOnboardingService onboardingService;
 
     @Transactional
     public OrgInviteResponse.Detail createInviteLink(String orgId, String userId, OrgInviteRequest.Create request) {
@@ -119,6 +120,12 @@ public class OrgInviteService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
+        // 1인 1조직 정책: 이미 다른 조직에 소속되어 있는지 확인
+        List<OrganizationMember> existingMemberships = orgMemberRepository.findByUserIdWithOrganization(userId);
+        if (!existingMemberships.isEmpty()) {
+            throw new BusinessException(ErrorCode.ALREADY_IN_ORGANIZATION);
+        }
+
         // Check if already a member
         if (orgMemberRepository.existsByOrganizationIdAndUserId(org.getId(), userId)) {
             throw new BusinessException(ErrorCode.ORG_MEMBER_ALREADY_EXISTS);
@@ -134,6 +141,9 @@ public class OrgInviteService {
 
         // Create leave balances for new member
         leaveService.createBalancesForNewMember(org, newMember);
+
+        // Auto-assign onboarding checklists
+        onboardingService.autoAssignOnboarding(org, newMember);
 
         // Increment used count
         link.incrementUsedCount();

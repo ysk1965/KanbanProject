@@ -48,9 +48,9 @@ export function AddBlockModal({
   };
 
   return (
-    <MotionModal open={open} onClose={onClose} className="sm:max-w-md bg-bridge-dark p-0 overflow-hidden">
+    <MotionModal open={open} onClose={onClose} className="sm:max-w-md bg-bridge-obsidian p-0 overflow-hidden">
         {/* 헤더 */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-foreground/10 bg-white/[0.02]">
+        <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-foreground/[0.08] bg-foreground/[0.03]">
           <h2 className="text-lg font-bold text-foreground">
             {isEdit ? t('block.editTitle') : t('block.addTitle')}
           </h2>
@@ -63,7 +63,7 @@ export function AddBlockModal({
         </div>
 
         {/* 콘텐츠 */}
-        <div className="px-6 py-6 space-y-6">
+        <div className="px-5 pb-5 pt-4 space-y-6">
           <div className="space-y-2">
             <label className="kanban-label block">{t('block.nameLabel')}</label>
             <input
@@ -71,7 +71,7 @@ export function AddBlockModal({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="예: In Progress"
-              className="w-full bg-bridge-obsidian border border-foreground/10 rounded-xl p-3 text-foreground placeholder-slate-400 focus:outline-none focus:border-indigo-500/50 transition-all text-sm"
+              className="w-full bg-bridge-obsidian border border-foreground/10 rounded-xl p-3 text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all text-sm"
               onKeyDown={(e) => {
                 if (e.nativeEvent.isComposing) return;
                 if (e.key === 'Enter') {
@@ -95,7 +95,7 @@ export function AddBlockModal({
         </div>
 
         {/* 푸터 */}
-        <div className="px-6 py-5 border-t border-foreground/10 bg-white/[0.02] flex justify-end items-center gap-4">
+        <div className="px-5 py-3 border-t border-foreground/[0.08] bg-foreground/[0.03] flex justify-end items-center gap-4">
           <button
             onClick={onClose}
             className="text-[11px] font-bold text-slate-400 hover:text-foreground transition-all tracking-wider"
@@ -105,7 +105,7 @@ export function AddBlockModal({
           <button
             onClick={handleSubmit}
             disabled={!name.trim()}
-            className="px-6 py-2.5 bg-white text-black font-black text-[11px] rounded-lg tracking-widest hover:bg-zinc-200 transition-all flex items-center gap-2 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-6 py-2.5 bg-white text-black font-black text-[11px] rounded-lg tracking-widest hover:bg-slate-200 transition-all flex items-center gap-2 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isEdit ? t('common.edit') : t('common.add')}
             <CheckCircle2 size={14} className="text-indigo-600" />

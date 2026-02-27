@@ -116,4 +116,48 @@ public interface ChecklistItemRepository extends JpaRepository<ChecklistItem, St
     @Modifying
     @Query("DELETE FROM ChecklistItem ci WHERE ci.task.feature.id = :featureId")
     void deleteByFeatureId(@Param("featureId") String featureId);
+
+    // ==================== Organization Insights Queries ====================
+
+    /**
+     * 특정 담당자의 조직 보드들에서 기간 내 완료한 체크리스트 수
+     */
+    @Query("SELECT COUNT(ci) FROM ChecklistItem ci JOIN ci.task t WHERE t.board.id IN :boardIds " +
+           "AND ci.assignee.id = :assigneeId AND ci.isCompleted = true " +
+           "AND ci.completedAt BETWEEN :startDateTime AND :endDateTime")
+    long countCompletedByAssigneeAndBoardIds(@Param("assigneeId") String assigneeId,
+                                              @Param("boardIds") List<String> boardIds,
+                                              @Param("startDateTime") LocalDateTime startDateTime,
+                                              @Param("endDateTime") LocalDateTime endDateTime);
+
+    // ==================== Cross-Domain Integration Queries ====================
+
+    /**
+     * 특정 유저의 다중 보드에서 미완료 체크리스트 아이템 조회
+     */
+    @Query("SELECT ci FROM ChecklistItem ci " +
+           "JOIN FETCH ci.task t " +
+           "JOIN FETCH t.board " +
+           "JOIN FETCH t.feature " +
+           "WHERE ci.assignee.id = :assigneeId AND t.board.id IN :boardIds AND ci.isCompleted = false " +
+           "ORDER BY t.board.id, t.id, ci.position")
+    List<ChecklistItem> findByAssigneeIdAndBoardIdInAndNotCompleted(
+            @Param("assigneeId") String assigneeId,
+            @Param("boardIds") List<String> boardIds);
+
+    /**
+     * 특정 유저의 다중 보드에서 특정 날짜 범위에 완료된 체크리스트 아이템 조회
+     */
+    @Query("SELECT ci FROM ChecklistItem ci " +
+           "JOIN FETCH ci.task t " +
+           "JOIN FETCH t.board " +
+           "JOIN FETCH t.feature " +
+           "WHERE ci.assignee.id = :assigneeId AND t.board.id IN :boardIds " +
+           "AND ci.isCompleted = true AND ci.completedAt BETWEEN :startDateTime AND :endDateTime " +
+           "ORDER BY ci.completedAt DESC")
+    List<ChecklistItem> findCompletedByAssigneeAndBoardIdsAndDateRange(
+            @Param("assigneeId") String assigneeId,
+            @Param("boardIds") List<String> boardIds,
+            @Param("startDateTime") LocalDateTime startDateTime,
+            @Param("endDateTime") LocalDateTime endDateTime);
 }

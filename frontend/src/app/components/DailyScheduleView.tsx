@@ -31,6 +31,7 @@ import { BoardWebSocketEvent, ChecklistItem } from '../types';
 interface DailyScheduleViewProps {
   boardId: string;
   boardMembers: BoardMember[];
+  organizationId?: string | null;
   memberColorMap?: Record<string, string | null>;
   onViewFeature?: (featureId: string) => void;
   onViewTask?: (taskId: string) => void;
@@ -75,7 +76,7 @@ const parseHour = (time: string): number => {
 
 type ScheduleViewMode = 'day' | 'week';
 
-export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onViewFeature, onViewTask, refreshTrigger, wsChecklistEvent, currentUserRole, initialSubTab }: DailyScheduleViewProps) {
+export function DailyScheduleView({ boardId, boardMembers, organizationId, memberColorMap, onViewFeature, onViewTask, refreshTrigger, wsChecklistEvent, currentUserRole, initialSubTab }: DailyScheduleViewProps) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { holidayMap } = useHolidays(i18n.language, new Date().getFullYear());
@@ -190,7 +191,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
 
       if (viewMode === 'day') {
         // 통합 API로 스케줄 + 데일리 체크리스트 1회 로드 (기존 2회 → 1회)
-        const response = await scheduleAPI.getDailyFull(boardId, dateStr);
+        const response = await scheduleAPI.getDailyFull(boardId, dateStr, undefined, !!organizationId);
         setColumns(response.columns);
         setSettings(response.settings);
         setDailyChecklists(response.daily_checklists || []);
@@ -200,7 +201,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
         const startDateStr = format(weekDays[0], 'yyyy-MM-dd');
         const endDateStr = format(weekDays[weekDays.length - 1], 'yyyy-MM-dd');
 
-        const response = await scheduleAPI.getWeeklySchedule(boardId, startDateStr, endDateStr);
+        const response = await scheduleAPI.getWeeklySchedule(boardId, startDateStr, endDateStr, undefined, !!organizationId);
 
         const newWeeklyData = new Map<string, ScheduleColumnInfo[]>();
         response.days.forEach(({ date, columns: cols }) => {
@@ -214,7 +215,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
     } finally {
       setIsLoading(false);
     }
-  }, [boardId, selectedDate, viewMode, weekDays]);
+  }, [boardId, selectedDate, viewMode, weekDays, organizationId]);
 
   useEffect(() => {
     loadSchedule();
@@ -288,6 +289,17 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
     const map = new Map<string, ScheduleBlockInfo[]>();
     columns.forEach((col) => {
       map.set(col.user.id, col.blocks);
+    });
+    return map;
+  }, [columns]);
+
+  // 멤버별 조직 크로스보드 블록 매핑 (읽기 전용 오버레이)
+  const orgBlocksByUser = useMemo(() => {
+    const map = new Map<string, ScheduleBlockInfo[]>();
+    columns.forEach((col) => {
+      if (col.org_blocks && col.org_blocks.length > 0) {
+        map.set(col.user.id, col.org_blocks);
+      }
     });
     return map;
   }, [columns]);
@@ -374,7 +386,8 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
     const workStartMin = workStartHour * 60;
 
     for (const col of columns) {
-      for (const block of col.blocks) {
+      const allBlocks = [...col.blocks, ...(col.org_blocks || [])];
+      for (const block of allBlocks) {
         const bStart = timeToMin(block.start_time);
         let bEnd = timeToMin(block.end_time);
         if (bEnd <= bStart) bEnd = workEndHour * 60; // overnight
@@ -1230,6 +1243,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
                 <div className="flex">
                   {activeMembers.map((member) => {
                     const blocks = blocksByUser.get(member.userId) || [];
+                    const orgBlocks = orgBlocksByUser.get(member.userId) || [];
                     return (
                       <div
                         key={member.userId}
@@ -1252,6 +1266,22 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
                             onResize={handleBlockResize}
                             onMove={handleBlockResize}
                             onSplitResize={handleBlockSplitResize}
+                          />
+                        ))}
+                        {/* Cross-board org schedule blocks (read-only overlay) */}
+                        {orgBlocks.map((block) => (
+                          <ScheduleBlock
+                            key={`org-${block.id}`}
+                            block={block}
+                            slotHeight={SLOT_HEIGHT}
+                            workStartHour={workStartHour}
+                            workEndHour={workEndHour}
+                            otherBlocks={blocks}
+                            breakStartTime={settings?.break_start_time}
+                            breakEndTime={settings?.break_end_time}
+                            minutesToPx={minutesToPx}
+                            pxToMinutes={pxToMinutes}
+                            isOrgOverlay={true}
                           />
                         ))}
                       </div>
@@ -1368,6 +1398,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
                   const dayColumns = weeklyData.get(dateStr) || [];
                   const memberColumn = dayColumns.find((col) => col.user.id === member.userId);
                   const blocks = memberColumn?.blocks || [];
+                  const orgBlocks = memberColumn?.org_blocks || [];
 
                   return (
                     <div
@@ -1433,8 +1464,35 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
                           </div>
                           );
                         })}
-                        {blocks.length === 0 && (
-                          <div className="text-xs text-zinc-400 text-center py-4">-</div>
+                        {/* Cross-board org schedule blocks (read-only, weekly view) */}
+                        {orgBlocks.map((block) => {
+                          const blockTitle = block.block_type === 'CUSTOM'
+                            ? (block.title || t('scheduleBlock.custom'))
+                            : block.meeting
+                              ? block.meeting.title
+                              : (block.checklist_item?.title || t('scheduleBlock.unlinked'));
+
+                          return (
+                          <div
+                            key={`org-${block.id}`}
+                            className="p-2 rounded bg-bridge-accent/10 border border-dashed border-bridge-accent/30 opacity-60 pointer-events-none"
+                          >
+                            {block.board_name && (
+                              <span className="text-[9px] font-bold px-1 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent truncate inline-block max-w-full mb-0.5">
+                                {t('scheduleBlock.orgScheduleLabel', { boardName: block.board_name })}
+                              </span>
+                            )}
+                            <div className="text-xs text-foreground font-medium truncate">
+                              {blockTitle}
+                            </div>
+                            <div className="text-xs text-slate-400">
+                              {block.start_time.slice(0, 5)} - {block.end_time.slice(0, 5)}
+                            </div>
+                          </div>
+                          );
+                        })}
+                        {blocks.length === 0 && orgBlocks.length === 0 && (
+                          <div className="text-xs text-slate-400 text-center py-4">-</div>
                         )}
                       </div>
                     </div>
@@ -1443,7 +1501,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
               </div>
             ))}
             {activeMembers.length === 0 && (
-              <div className="p-6 text-zinc-400 text-center">{t('dailySchedule.noMembers')}</div>
+              <div className="p-6 text-slate-400 text-center">{t('dailySchedule.noMembers')}</div>
             )}
           </div>
         )}
@@ -1451,7 +1509,7 @@ export function DailyScheduleView({ boardId, boardMembers, memberColorMap, onVie
 
       {/* 하단 안내 */}
       <div className="px-3 md:px-6 py-2 md:py-3 bg-bridge-surface border-t border-bridge-border">
-        <p className="text-sm text-zinc-400">
+        <p className="text-sm text-slate-400">
           {isViewer
             ? t('dailySchedule.viewerGuide')
             : viewMode === 'day'

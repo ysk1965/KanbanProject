@@ -474,7 +474,7 @@ export function TaskDetailModal({
           <div className="h-[3px] w-full flex-shrink-0 rounded-t-lg" style={{ backgroundColor: task.feature_color }} />
           <div className="flex flex-col md:flex-row flex-1 min-h-0">
           {/* 왼쪽: 기존 태스크 상세 */}
-          <div className="flex-1 overflow-y-auto p-4 md:p-6 pb-10 kanban-scrollbar min-h-0 relative">
+          <div className="flex-1 overflow-y-auto p-4 md:p-6 pb-10 custom-scrollbar min-h-0 relative">
           {/* 모바일 닫기 버튼 */}
           <button
             onClick={handleClose}
@@ -818,7 +818,7 @@ export function TaskDetailModal({
                     <p className="text-xs font-semibold text-foreground/80 mb-1">
                       {t('task.addChecklistHint')}
                     </p>
-                    <p className="text-[11px] text-zinc-500 leading-relaxed">
+                    <p className="text-[11px] text-slate-500 leading-relaxed">
                       {t('task.addChecklistDesc')}
                     </p>
                   </div>
@@ -1005,7 +1005,7 @@ export function TaskDetailModal({
       <MotionModal open={showMoveFeatureDialog} onClose={() => { setShowMoveFeatureDialog(false); setSelectedFeatureId(null); }} className="sm:max-w-sm p-6">
         <h3 className="text-lg font-semibold text-foreground">{t('task.moveFeatureTitle')}</h3>
         <p className="text-sm text-slate-400 mt-1">{t('task.moveFeatureDesc')}</p>
-        <div className="space-y-2 py-4 max-h-[300px] overflow-y-auto kanban-scrollbar">
+        <div className="space-y-2 py-4 max-h-[300px] overflow-y-auto custom-scrollbar">
           {features
             .filter((f) => f.id !== task?.feature_id)
             .map((feature) => (
@@ -1066,7 +1066,7 @@ export function TaskDetailModal({
           placeholder={t('common.search')}
           className="bg-foreground/5 border-foreground/10 text-foreground placeholder:text-slate-500 text-sm mt-3"
         />
-        <div className="space-y-1 py-2 max-h-[250px] overflow-y-auto kanban-scrollbar">
+        <div className="space-y-1 py-2 max-h-[250px] overflow-y-auto custom-scrollbar">
           {allTasks
             .filter((t) => t.id !== task?.id)
             .filter((t) => !checklistMoveSearch || t.title.toLowerCase().includes(checklistMoveSearch.toLowerCase()) || t.feature_title.toLowerCase().includes(checklistMoveSearch.toLowerCase()))
@@ -1839,7 +1839,7 @@ function AddChecklistItemInput({
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={t('task.checklistItemPlaceholder')}
-            className="text-xs h-7 bg-foreground/5 border-foreground/10 text-foreground placeholder:text-slate-400"
+            className="text-xs h-7 bg-foreground/5 border-foreground/10 text-foreground placeholder:text-slate-500"
             autoFocus
           />
 

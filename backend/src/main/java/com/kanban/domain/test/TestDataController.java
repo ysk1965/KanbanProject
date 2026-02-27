@@ -21,4 +21,11 @@ public class TestDataController {
         TestDataResponse response = testDataService.createTestBoard(principal.getUserId());
         return ResponseEntity.ok(response);
     }
+
+    @PostMapping("/create-organization")
+    public ResponseEntity<TestOrgDataResponse> createTestOrganization(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        TestOrgDataResponse response = testDataService.createTestOrganization(principal.getUserId());
+        return ResponseEntity.ok(response);
+    }
 }

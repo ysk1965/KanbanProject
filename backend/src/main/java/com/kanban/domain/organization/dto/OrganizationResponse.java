@@ -23,6 +23,11 @@ public class OrganizationResponse {
         private int memberCount;
         private int boardCount;
         private LocalDateTime createdAt;
+        private String currentPlan;
+        private String subscriptionStatus;
+        private String trialEndsAt;
+        private boolean canCreateOrgBoard;
+        private boolean canAccessHrFeatures;
 
         public static Simple of(Organization org, OrgRole myRole, int memberCount, int boardCount) {
             return Simple.builder()
@@ -34,6 +39,12 @@ public class OrganizationResponse {
                     .memberCount(memberCount)
                     .boardCount(boardCount)
                     .createdAt(org.getCreatedAt())
+                    .currentPlan(org.getCurrentPlan().name())
+                    .subscriptionStatus(org.getSubscription() != null ? org.getSubscription().getStatus().name() : "ACTIVE")
+                    .trialEndsAt(org.getSubscription() != null && org.getSubscription().getTrialEndsAt() != null
+                            ? org.getSubscription().getTrialEndsAt().toString() : null)
+                    .canCreateOrgBoard(org.getSubscription() != null && org.getSubscription().canCreateOrgBoard())
+                    .canAccessHrFeatures(org.getSubscription() != null && org.getSubscription().canAccessHrFeatures())
                     .build();
         }
     }
@@ -52,6 +63,11 @@ public class OrganizationResponse {
         private int boardCount;
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;
+        private String currentPlan;
+        private String subscriptionStatus;
+        private String trialEndsAt;
+        private boolean canCreateOrgBoard;
+        private boolean canAccessHrFeatures;
 
         public static Detail of(Organization org, OrgRole myRole, int memberCount, int boardCount) {
             return Detail.builder()
@@ -65,6 +81,33 @@ public class OrganizationResponse {
                     .boardCount(boardCount)
                     .createdAt(org.getCreatedAt())
                     .updatedAt(org.getUpdatedAt())
+                    .currentPlan(org.getCurrentPlan().name())
+                    .subscriptionStatus(org.getSubscription() != null ? org.getSubscription().getStatus().name() : "ACTIVE")
+                    .trialEndsAt(org.getSubscription() != null && org.getSubscription().getTrialEndsAt() != null
+                            ? org.getSubscription().getTrialEndsAt().toString() : null)
+                    .canCreateOrgBoard(org.getSubscription() != null && org.getSubscription().canCreateOrgBoard())
+                    .canAccessHrFeatures(org.getSubscription() != null && org.getSubscription().canAccessHrFeatures())
+                    .build();
+        }
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class StructureSettings {
+        private Boolean departmentsEnabled;
+        private Boolean jobGroupsEnabled;
+        private Boolean positionsEnabled;
+        private Boolean titlesEnabled;
+        private Boolean gradesEnabled;
+
+        public static StructureSettings of(Organization org) {
+            return StructureSettings.builder()
+                    .departmentsEnabled(org.getDepartmentsEnabled())
+                    .jobGroupsEnabled(org.getJobGroupsEnabled())
+                    .positionsEnabled(org.getPositionsEnabled())
+                    .titlesEnabled(org.getTitlesEnabled())
+                    .gradesEnabled(org.getGradesEnabled())
                     .build();
         }
     }

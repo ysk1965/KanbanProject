@@ -2,6 +2,7 @@ package com.kanban.domain.member.service;
 
 import com.kanban.domain.board.*;
 import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.organization.OrganizationMember;
 import com.kanban.domain.invite.InviteLink;
 import com.kanban.domain.invite.InviteLinkRepository;
 import com.kanban.domain.organization.repository.OrgMemberRepository;
@@ -29,6 +30,7 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -284,5 +286,38 @@ public class MemberService {
         boardMemberRepository.delete(member);
 
         log.info("Member removed: {} from board: {} by user: {}", memberId, boardId, userId);
+    }
+
+    public List<MemberResponse.OrgCandidate> getOrgCandidates(String boardId, String userId, String search) {
+        boardService.checkAdminOrAbove(boardId, userId);
+
+        Board board = boardRepository.findById(boardId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
+
+        if (!board.isOrganizationBoard()) {
+            return List.of();
+        }
+
+        String orgId = board.getOrganization().getId();
+
+        // Get all org members (with JOIN FETCH to avoid N+1)
+        List<OrganizationMember> orgMembers = orgMemberRepository.findByOrganizationId(orgId);
+
+        // Get current board member user IDs
+        Set<String> boardMemberUserIds = boardMemberRepository.findByBoardId(boardId).stream()
+                .map(bm -> bm.getUser().getId())
+                .collect(Collectors.toSet());
+
+        // Filter: not already on board, optionally by search term
+        return orgMembers.stream()
+                .filter(om -> !boardMemberUserIds.contains(om.getUser().getId()))
+                .filter(om -> {
+                    if (search == null || search.isBlank()) return true;
+                    String lowerSearch = search.toLowerCase();
+                    return om.getUser().getName().toLowerCase().contains(lowerSearch)
+                            || om.getUser().getEmail().toLowerCase().contains(lowerSearch);
+                })
+                .map(MemberResponse.OrgCandidate::of)
+                .collect(Collectors.toList());
     }
 }

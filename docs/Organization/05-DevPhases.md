@@ -1,9 +1,9 @@
 # Organization Service - Development Phases
 
-> **Version**: v1.0.0
-> **Date**: 2026-02-25
+> **Version**: v1.2.0
+> **Date**: 2026-02-26
 > **Author**: PM
-> **총 예상 API**: 41개 엔드포인트 | **신규 테이블**: 8개 | **기존 수정**: 3개 서비스
+> **총 예상 API**: 48개 엔드포인트 | **신규 테이블**: 10개 | **기존 수정**: 3개 서비스
 
 ---
 
@@ -520,6 +520,67 @@ cd backend && ./gradlew build --no-daemon
 
 ---
 
+## HR Extension Phases
+
+> HR Extension은 Core Phase 1~6 완료 후 별도 Phase로 진행합니다.
+> 기획서: `docs/Organization/06-HR-Extension.md`
+
+### HR-P1: Anniversary & Celebrations ✅ Implemented
+
+> **목표**: 기념일(생일/입사일) 알림 + 축하 메시지 기능 구현
+> **Flyway**: V65 | **신규 테이블**: 2개 | **신규 API**: 7개
+
+**Backend:**
+| Task | 설명 | 상태 |
+|------|------|------|
+| V65 마이그레이션 | org_anniversary_settings, org_celebration_messages 테이블 + timezone 컬럼 | ✅ |
+| Enum 클래스 | AnniversaryType, NotifyTiming, DashboardRange | ✅ |
+| OrgAnniversarySetting 엔티티 | 1:1 조직 설정 (birthday/hire 토글, notify timing, dashboard range) | ✅ |
+| OrgCelebrationMessage 엔티티 | 축하 메시지 (author → target, UNIQUE 중복 방지) | ✅ |
+| OrgAnniversaryService | upcoming 조회, 메시지 CRUD, 설정 CRUD (7 메서드) | ✅ |
+| OrgAnniversaryController | 7개 REST 엔드포인트 | ✅ |
+| AnniversaryNotificationScheduler | 매 시간 cron, 멤버별 timezone 09:00 체크, 윤년 처리 | ✅ |
+| ErrorCode 추가 | CELEBRATION_MESSAGE_ALREADY_EXISTS (409), NOT_FOUND (404), FORBIDDEN (403) | ✅ |
+| OrgActivityType 확장 | ANNIVERSARY_CELEBRATED 추가 | ✅ |
+
+**Frontend:**
+| Task | 설명 | 상태 |
+|------|------|------|
+| AnniversaryWidget | 대시보드 위젯 (today/week/month 그룹, 범위 드롭다운) | ✅ |
+| CelebrationModal | MotionModal 기반 축하 메시지 작성/조회 (409 중복 핸들링) | ✅ |
+| OrgSettingsTab 확장 | 기념일 설정 섹션 (토글, 라디오 그룹) | ✅ |
+| OrgDashboardTab 통합 | AnniversaryWidget + CelebrationModal 연동 | ✅ |
+| types/index.ts | AnniversaryItem, CelebrationMessage, AnniversarySettings 타입 | ✅ |
+| services.ts + api.ts | anniversaryService / anniversaryAPI (7 메서드) | ✅ |
+| i18n 10개 언어 | org.anniversary.* 키 28개 (ko, en, ja, zh, zh-TW, vi, th, es, pt-BR, hi) | ✅ |
+
+**핵심 구현 사항:**
+- **NotifyTiming 동작**: SAME_DAY=당일만, DAY_BEFORE=전날+당일, THREE_DAYS_BEFORE=3일전~당일 매일
+- **윤년 처리**: 2/29 생일 → 비윤년에는 2/28로 매칭
+- **Timezone 스케줄러**: 매 시간 cron, 각 멤버의 timezone 기준 09:00 체크
+- **Cursor Pagination**: fetch limit+1, nextCursor 방식
+- **축하 메시지 중복 방지**: UNIQUE(author, target, type, date) → 409 에러
+
+---
+
+### HR-P2: Org Chart & Hierarchy (예정)
+
+> **Flyway**: V66 | Phase 2 기획서 참조
+
+### HR-P3: Onboarding (예정)
+
+> **Flyway**: V67~V68 | Phase 3 기획서 참조
+
+### HR-P4: 1:1 Meetings (예정)
+
+> **Flyway**: V69~V70 | Phase 4 기획서 참조
+
+### HR-P5: Attendance (예정)
+
+> **Flyway**: V71 | Phase 5 기획서 참조
+
+---
+
 ## Phase 진행 요약
 
 | Phase | 내용 | Backend API | 누적 API | 핵심 리스크 |
@@ -530,6 +591,7 @@ cd backend && ./gradlew build --no-daemon
 | **4** | 휴가 시스템 | 12개 | 41 | 동시성 제어, 상태 머신, 연쇄 처리 |
 | **5** | 프론트엔드 | - | 41 | 7화면 + 7모달, Bridge 디자인 시스템 |
 | **6** | 통합 & 안정화 | - | 41 | 17개 엣지케이스, 리그레션 방지 |
+| **HR-P1** | Anniversary & Celebrations ✅ | 7개 | 48 | 스케줄러 타임존, 윤년, 중복 방지 |
 
 ---
 

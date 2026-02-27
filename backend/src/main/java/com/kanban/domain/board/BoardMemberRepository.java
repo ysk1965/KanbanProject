@@ -53,4 +53,12 @@ public interface BoardMemberRepository extends JpaRepository<BoardMember, String
     @Modifying
     @Query("UPDATE BoardMember bm SET bm.invitedBy = null WHERE bm.invitedBy.id = :userId")
     void nullifyInvitedByUserId(@Param("userId") String userId);
+
+    // ==================== Cross-Domain Integration Queries ====================
+
+    /**
+     * 유저가 멤버인 모든 보드의 BoardMember 조회 (삭제된 보드 제외)
+     */
+    @Query("SELECT bm FROM BoardMember bm JOIN FETCH bm.board b JOIN FETCH bm.user WHERE bm.user.id = :userId AND b.deletedAt IS NULL")
+    List<BoardMember> findByUserIdWithActiveBoards(@Param("userId") String userId);
 }

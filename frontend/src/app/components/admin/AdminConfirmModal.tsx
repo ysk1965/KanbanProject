@@ -128,7 +128,7 @@ export function PromptModal({
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
             placeholder={placeholder}
-            className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-foreground placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all mb-4"
+            className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all mb-4"
           />
           <div className="flex gap-3">
             <button
@@ -193,7 +193,7 @@ export function SelectModal({
                 className={`w-full text-left p-3 rounded-xl border transition-all ${
                   selectedId === opt.id
                     ? 'border-bridge-accent bg-bridge-accent/10'
-                    : 'border-foreground/5 bg-foreground/5 hover:bg-foreground/10'
+                    : 'border-foreground/[0.08] bg-foreground/5 hover:bg-foreground/10'
                 }`}
               >
                 <p className="text-foreground text-sm font-medium">{opt.label}</p>

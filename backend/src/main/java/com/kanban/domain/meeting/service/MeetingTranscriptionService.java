@@ -280,8 +280,32 @@ public class MeetingTranscriptionService {
     }
 
     private String splitAndTranscribe(MultipartFile audioFile) {
+        // Try FFmpeg first, fallback to byte chunking
+        if (isFFmpegAvailable()) {
+            try {
+                return splitAndTranscribeWithFFmpeg(audioFile);
+            } catch (Exception e) {
+                log.warn("FFmpeg split failed, falling back to byte chunking: {}", e.getMessage());
+            }
+        } else {
+            log.warn("FFmpeg not available at '{}', using byte chunking fallback", ffmpegPath);
+        }
+        return splitAndTranscribeByBytes(audioFile);
+    }
+
+    private boolean isFFmpegAvailable() {
+        try {
+            Process process = new ProcessBuilder(ffmpegPath, "-version")
+                    .redirectErrorStream(true).start();
+            process.getInputStream().readAllBytes();
+            return process.waitFor() == 0;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private String splitAndTranscribeWithFFmpeg(MultipartFile audioFile) {
         Path tempDir = null;
-        Path tempInput = null;
         try {
             tempDir = Files.createTempDirectory("audio_split_");
             String extension = ".webm";
@@ -289,7 +313,7 @@ public class MeetingTranscriptionService {
             if (originalName != null && originalName.contains(".")) {
                 extension = originalName.substring(originalName.lastIndexOf("."));
             }
-            tempInput = tempDir.resolve("input" + extension);
+            Path tempInput = tempDir.resolve("input" + extension);
             audioFile.transferTo(tempInput.toFile());
 
             // FFmpeg로 청크 분할
@@ -306,7 +330,7 @@ public class MeetingTranscriptionService {
 
             if (exitCode != 0) {
                 log.error("FFmpeg split failed (exit {}): {}", exitCode, ffmpegOutput);
-                throw new BusinessException(ErrorCode.TRANSCRIPTION_FAILED);
+                throw new RuntimeException("FFmpeg exit code: " + exitCode);
             }
 
             // 청크 파일 수집 및 순차 전사
@@ -318,21 +342,49 @@ public class MeetingTranscriptionService {
             }
 
             if (chunks.isEmpty()) {
-                throw new BusinessException(ErrorCode.TRANSCRIPTION_FAILED);
+                throw new RuntimeException("FFmpeg produced no chunks");
             }
 
-            log.info("Audio split into {} chunks for transcription", chunks.size());
+            log.info("Audio split into {} chunks via FFmpeg", chunks.size());
+            return transcribeChunks(chunks, extension);
+
+        } catch (Exception e) {
+            throw new RuntimeException("FFmpeg transcription failed: " + e.getMessage(), e);
+        } finally {
+            cleanupTempFiles(tempDir);
+        }
+    }
+
+    /**
+     * FFmpeg 없이 바이트 단위로 분할하여 전사 (fallback)
+     * Whisper API는 불완전한 오디오 컨테이너도 처리 가능
+     */
+    private String splitAndTranscribeByBytes(MultipartFile audioFile) {
+        try {
+            byte[] allBytes = audioFile.getBytes();
+            String extension = ".webm";
+            String originalName = audioFile.getOriginalFilename();
+            if (originalName != null && originalName.contains(".")) {
+                extension = originalName.substring(originalName.lastIndexOf("."));
+            }
+
+            int chunkSize = (int) WHISPER_CHUNK_SIZE;
+            int totalChunks = (int) Math.ceil((double) allBytes.length / chunkSize);
+            log.info("Splitting audio into {} byte chunks ({} bytes total)", totalChunks, allBytes.length);
 
             StringBuilder fullTranscript = new StringBuilder();
-            for (int i = 0; i < chunks.size(); i++) {
-                Path chunk = chunks.get(i);
-                byte[] chunkBytes = Files.readAllBytes(chunk);
+            for (int i = 0; i < totalChunks; i++) {
+                int offset = i * chunkSize;
+                int length = Math.min(chunkSize, allBytes.length - offset);
+                byte[] chunkBytes = Arrays.copyOfRange(allBytes, offset, offset + length);
+
                 String chunkText = callWhisperAPIWithBytes(chunkBytes, "chunk_" + i + extension);
                 if (fullTranscript.length() > 0) {
                     fullTranscript.append(" ");
                 }
                 fullTranscript.append(chunkText);
-                log.info("Chunk {}/{} transcribed ({} chars)", i + 1, chunks.size(), chunkText.length());
+                log.info("Byte chunk {}/{} transcribed ({} bytes, {} chars)",
+                        i + 1, totalChunks, length, chunkText.length());
             }
 
             return fullTranscript.toString();
@@ -340,11 +392,24 @@ public class MeetingTranscriptionService {
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
-            log.error("Audio split and transcribe failed: {}", e.getMessage(), e);
+            log.error("Byte chunk transcription failed: {}", e.getMessage(), e);
             throw new BusinessException(ErrorCode.TRANSCRIPTION_FAILED);
-        } finally {
-            cleanupTempFiles(tempDir);
         }
+    }
+
+    private String transcribeChunks(List<Path> chunks, String extension) throws IOException {
+        StringBuilder fullTranscript = new StringBuilder();
+        for (int i = 0; i < chunks.size(); i++) {
+            Path chunk = chunks.get(i);
+            byte[] chunkBytes = Files.readAllBytes(chunk);
+            String chunkText = callWhisperAPIWithBytes(chunkBytes, "chunk_" + i + extension);
+            if (fullTranscript.length() > 0) {
+                fullTranscript.append(" ");
+            }
+            fullTranscript.append(chunkText);
+            log.info("Chunk {}/{} transcribed ({} chars)", i + 1, chunks.size(), chunkText.length());
+        }
+        return fullTranscript.toString();
     }
 
     private void cleanupTempFiles(Path tempDir) {

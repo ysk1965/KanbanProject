@@ -143,6 +143,7 @@ public class Board extends BaseTimeEntity {
      * readOnly 트랜잭션에서 안전하게 사용 가능
      */
     public boolean isEffectivelyPremium() {
+        if (this.tier == BoardTier.ORG_MANAGED) return true;
         if (this.tier == BoardTier.PREMIUM) return true;
         if (this.tier == BoardTier.TRIAL) {
             return this.trialEndsAt != null &&
@@ -292,6 +293,10 @@ public class Board extends BaseTimeEntity {
 
     public boolean isOrganizationBoard() {
         return this.organization != null;
+    }
+
+    public boolean isOrgManaged() {
+        return tier == BoardTier.ORG_MANAGED && organization != null;
     }
 
     public void softDelete() {

@@ -8,6 +8,7 @@ import {
   Eye,
   EyeOff,
   X,
+  Loader2,
 } from 'lucide-react';
 import { adminService } from '../../utils/services';
 import type { AnnouncementDetail } from '../../utils/api';
@@ -77,7 +78,7 @@ export function AdminAnnouncementsTab() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-bridge-accent" />
+        <Loader2 className="w-8 h-8 animate-spin text-bridge-accent" />
       </div>
     );
   }
@@ -125,14 +126,14 @@ export function AdminAnnouncementsTab() {
       )}
 
       {announcements.length === 0 ? (
-        <div className="bg-bridge-obsidian rounded-2xl border border-foreground/5 p-12 text-center">
+        <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-12 text-center">
           <Megaphone className="h-12 w-12 text-slate-600 mx-auto mb-4" />
           <p className="text-slate-400">{t('admin.announcements.noAnnouncements')}</p>
         </div>
       ) : (
         <div className="space-y-3">
           {announcements.map((ann) => (
-            <div key={ann.id} className="bg-bridge-obsidian rounded-xl border border-foreground/5 p-5">
+            <div key={ann.id} className="bg-bridge-obsidian rounded-xl border border-foreground/[0.08] p-5">
               <div className="flex items-start justify-between">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-2">
@@ -278,7 +279,7 @@ function AnnouncementFormModal({
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-foreground placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+              className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
               placeholder={t('admin.announcements.titlePlaceholder')}
             />
           </div>
@@ -289,7 +290,7 @@ function AnnouncementFormModal({
               value={content}
               onChange={(e) => setContent(e.target.value)}
               rows={4}
-              className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-foreground placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all resize-none"
+              className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all resize-none"
               placeholder={t('admin.announcements.contentPlaceholder')}
             />
           </div>

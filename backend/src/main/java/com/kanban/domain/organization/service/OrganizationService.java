@@ -2,10 +2,12 @@ package com.kanban.domain.organization.service;
 
 import com.kanban.domain.board.Board;
 import com.kanban.domain.board.BoardRepository;
-import com.kanban.domain.leave.service.LeaveService;
+import com.kanban.domain.organization.leave.service.LeaveService;
 import com.kanban.domain.organization.*;
 import com.kanban.domain.organization.dto.*;
 import com.kanban.domain.organization.repository.*;
+import com.kanban.domain.subscription.OrgSubscription;
+import com.kanban.domain.subscription.OrgSubscriptionRepository;
 import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
@@ -18,8 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -32,10 +33,15 @@ public class OrganizationService {
     private final OrgMemberRepository orgMemberRepository;
     private final OrgDepartmentRepository orgDepartmentRepository;
     private final OrgJobGroupRepository orgJobGroupRepository;
+    private final OrgPositionRepository orgPositionRepository;
+    private final OrgTitleRepository orgTitleRepository;
+    private final OrgGradeRepository orgGradeRepository;
+    private final OrgMemberConcurrentDeptRepository orgMemberConcurrentDeptRepository;
     private final OrgInviteLinkRepository orgInviteLinkRepository;
     private final BoardRepository boardRepository;
     private final UserRepository userRepository;
     private final FileUploadService fileUploadService;
+    private final OrgSubscriptionRepository orgSubscriptionRepository;
 
     @org.springframework.beans.factory.annotation.Autowired
     @Lazy
@@ -47,6 +53,12 @@ public class OrganizationService {
     public OrganizationResponse.Detail createOrganization(String userId, OrganizationRequest.Create request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        // 1인 1조직 정책: 이미 소속된 조직이 있는지 확인
+        List<OrganizationMember> existingMemberships = orgMemberRepository.findByUserIdWithOrganization(userId);
+        if (!existingMemberships.isEmpty()) {
+            throw new BusinessException(ErrorCode.ALREADY_IN_ORGANIZATION);
+        }
 
         Organization org = Organization.builder()
                 .name(request.getName())
@@ -66,18 +78,32 @@ public class OrganizationService {
         leaveService.createDefaultPolicies(org);
         leaveService.createBalancesForNewMember(org, ownerMember);
 
+        // Create Trial subscription for new org
+        OrgSubscription trial = OrgSubscription.createTrial(org);
+        orgSubscriptionRepository.save(trial);
+        org.markTrialUsed();
+
         return OrganizationResponse.Detail.of(org, OrgRole.OWNER, 1, 0);
     }
 
     public List<OrganizationResponse.Simple> getMyOrganizations(String userId) {
-        List<Organization> orgs = organizationRepository.findByUserId(userId);
-        return orgs.stream().map(org -> {
-            OrganizationMember member = orgMemberRepository.findByOrganizationIdAndUserId(org.getId(), userId)
-                    .orElse(null);
-            OrgRole myRole = member != null ? member.getRole() : OrgRole.MEMBER;
-            int memberCount = orgMemberRepository.countByOrganizationId(org.getId());
-            int boardCount = boardRepository.findByOrganizationId(org.getId()).size();
-            return OrganizationResponse.Simple.of(org, myRole, memberCount, boardCount);
+        List<OrganizationMember> memberships = orgMemberRepository.findByUserIdWithOrganization(userId);
+        if (memberships.isEmpty()) return Collections.emptyList();
+
+        List<String> orgIds = memberships.stream()
+                .map(m -> m.getOrganization().getId())
+                .collect(Collectors.toList());
+
+        Map<String, Long> memberCountMap = orgMemberRepository.countGroupedByOrgIds(orgIds).stream()
+                .collect(Collectors.toMap(r -> (String) r[0], r -> (Long) r[1]));
+        Map<String, Long> boardCountMap = boardRepository.countGroupedByOrgIds(orgIds).stream()
+                .collect(Collectors.toMap(r -> (String) r[0], r -> (Long) r[1]));
+
+        return memberships.stream().map(m -> {
+            Organization org = m.getOrganization();
+            int memberCount = memberCountMap.getOrDefault(org.getId(), 0L).intValue();
+            int boardCount = boardCountMap.getOrDefault(org.getId(), 0L).intValue();
+            return OrganizationResponse.Simple.of(org, m.getRole(), memberCount, boardCount);
         }).collect(Collectors.toList());
     }
 
@@ -85,7 +111,7 @@ public class OrganizationService {
         Organization org = getActiveOrgOrThrow(orgId);
         OrganizationMember member = getOrgMemberOrThrow(orgId, userId);
         int memberCount = orgMemberRepository.countByOrganizationId(orgId);
-        int boardCount = boardRepository.findByOrganizationId(orgId).size();
+        int boardCount = boardRepository.countByOrganizationId(orgId);
         return OrganizationResponse.Detail.of(org, member.getRole(), memberCount, boardCount);
     }
 
@@ -95,7 +121,7 @@ public class OrganizationService {
         checkAdminOrAbove(orgId, userId);
         org.updateInfo(request.getName(), request.getDescription());
         int memberCount = orgMemberRepository.countByOrganizationId(orgId);
-        int boardCount = boardRepository.findByOrganizationId(orgId).size();
+        int boardCount = boardRepository.countByOrganizationId(orgId);
         OrganizationMember member = getOrgMemberOrThrow(orgId, userId);
         return OrganizationResponse.Detail.of(org, member.getRole(), memberCount, boardCount);
     }
@@ -108,7 +134,7 @@ public class OrganizationService {
         String logoUrl = fileUploadService.uploadDirect(file, key);
         org.updateLogoUrl(logoUrl);
         int memberCount = orgMemberRepository.countByOrganizationId(orgId);
-        int boardCount = boardRepository.findByOrganizationId(orgId).size();
+        int boardCount = boardRepository.countByOrganizationId(orgId);
         OrganizationMember member = getOrgMemberOrThrow(orgId, userId);
         return OrganizationResponse.Detail.of(org, member.getRole(), memberCount, boardCount);
     }
@@ -154,7 +180,7 @@ public class OrganizationService {
         org.transferOwnership(newOwnerMember.getUser());
 
         int memberCount = orgMemberRepository.countByOrganizationId(orgId);
-        int boardCount = boardRepository.findByOrganizationId(orgId).size();
+        int boardCount = boardRepository.countByOrganizationId(orgId);
         return OrganizationResponse.Detail.of(org, OrgRole.ADMIN, memberCount, boardCount);
     }
 
@@ -162,7 +188,7 @@ public class OrganizationService {
 
     public List<OrgDepartmentResponse.Detail> getDepartments(String orgId, String userId) {
         getOrgMemberOrThrow(orgId, userId);
-        return orgDepartmentRepository.findByOrganizationId(orgId).stream()
+        return orgDepartmentRepository.findByOrganizationIdWithLeader(orgId).stream()
                 .map(OrgDepartmentResponse.Detail::of)
                 .collect(Collectors.toList());
     }
@@ -176,10 +202,26 @@ public class OrganizationService {
             throw new BusinessException(ErrorCode.ORG_DEPARTMENT_ALREADY_EXISTS);
         }
 
+        OrganizationDepartment parentDept = null;
+        if (request.getParentDepartmentId() != null) {
+            parentDept = orgDepartmentRepository.findByIdAndOrganizationId(request.getParentDepartmentId(), orgId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.ORG_DEPARTMENT_NOT_FOUND));
+        }
+
+        OrganizationMember leader = null;
+        if (request.getLeaderId() != null) {
+            leader = orgMemberRepository.findById(request.getLeaderId())
+                    .filter(m -> m.getOrganization().getId().equals(orgId))
+                    .orElseThrow(() -> new BusinessException(ErrorCode.ORG_MEMBER_NOT_FOUND));
+        }
+
         OrganizationDepartment dept = OrganizationDepartment.builder()
                 .organization(org)
                 .name(request.getName())
                 .displayOrder(request.getDisplayOrder() != null ? request.getDisplayOrder() : 0)
+                .parentDepartment(parentDept)
+                .leader(leader)
+                .description(request.getDescription())
                 .build();
         orgDepartmentRepository.save(dept);
         return OrgDepartmentResponse.Detail.of(dept);
@@ -203,6 +245,30 @@ public class OrganizationService {
         if (request.getDisplayOrder() != null) {
             dept.updateDisplayOrder(request.getDisplayOrder());
         }
+        if (request.getParentDepartmentId() != null) {
+            if (request.getParentDepartmentId().isEmpty()) {
+                dept.updateParentDepartment(null);
+            } else {
+                OrganizationDepartment parentDept = orgDepartmentRepository.findByIdAndOrganizationId(request.getParentDepartmentId(), orgId)
+                        .orElseThrow(() -> new BusinessException(ErrorCode.ORG_DEPARTMENT_NOT_FOUND));
+                // Circular reference check
+                checkCircularDepartmentReference(deptId, parentDept);
+                dept.updateParentDepartment(parentDept);
+            }
+        }
+        if (request.getLeaderId() != null) {
+            if (request.getLeaderId().isEmpty()) {
+                dept.updateLeader(null);
+            } else {
+                OrganizationMember leader = orgMemberRepository.findById(request.getLeaderId())
+                        .filter(m -> m.getOrganization().getId().equals(orgId))
+                        .orElseThrow(() -> new BusinessException(ErrorCode.ORG_MEMBER_NOT_FOUND));
+                dept.updateLeader(leader);
+            }
+        }
+        if (request.getDescription() != null) {
+            dept.updateDescription(request.getDescription());
+        }
         return OrgDepartmentResponse.Detail.of(dept);
     }
 
@@ -213,6 +279,16 @@ public class OrganizationService {
 
         OrganizationDepartment dept = orgDepartmentRepository.findByIdAndOrganizationId(deptId, orgId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORG_DEPARTMENT_NOT_FOUND));
+
+        // Promote child departments to parent level
+        List<OrganizationDepartment> children = orgDepartmentRepository.findByOrganizationIdAndParentId(orgId, deptId);
+        for (OrganizationDepartment child : children) {
+            child.updateParentDepartment(dept.getParentDepartment());
+        }
+
+        // Clear member references before deletion to avoid FK constraint violation
+        orgMemberRepository.clearDepartmentReference(deptId);
+        orgMemberConcurrentDeptRepository.deleteByDepartmentId(deptId);
 
         orgDepartmentRepository.delete(dept);
     }
@@ -273,7 +349,232 @@ public class OrganizationService {
         OrganizationJobGroup jobGroup = orgJobGroupRepository.findByIdAndOrganizationId(jobGroupId, orgId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORG_JOB_GROUP_NOT_FOUND));
 
+        // Clear member references before deletion to avoid FK constraint violation
+        orgMemberRepository.clearJobGroupReference(jobGroupId);
+
         orgJobGroupRepository.delete(jobGroup);
+    }
+
+    // ==================== Position CRUD ====================
+
+    public List<OrgPositionResponse.Detail> getPositions(String orgId, String userId) {
+        getOrgMemberOrThrow(orgId, userId);
+        return orgPositionRepository.findByOrganizationId(orgId).stream()
+                .map(OrgPositionResponse.Detail::of)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public OrgPositionResponse.Detail createPosition(String orgId, String userId, OrgPositionRequest.Create request) {
+        Organization org = getActiveOrgOrThrow(orgId);
+        checkAdminOrAbove(orgId, userId);
+
+        if (orgPositionRepository.existsByOrganizationIdAndName(orgId, request.getName())) {
+            throw new BusinessException(ErrorCode.ORG_POSITION_ALREADY_EXISTS);
+        }
+
+        OrganizationPosition position = OrganizationPosition.builder()
+                .organization(org)
+                .name(request.getName())
+                .displayOrder(request.getDisplayOrder() != null ? request.getDisplayOrder() : 0)
+                .build();
+        orgPositionRepository.save(position);
+        return OrgPositionResponse.Detail.of(position);
+    }
+
+    @Transactional
+    public OrgPositionResponse.Detail updatePosition(String orgId, String positionId, String userId, OrgPositionRequest.Update request) {
+        getActiveOrgOrThrow(orgId);
+        checkAdminOrAbove(orgId, userId);
+
+        OrganizationPosition position = orgPositionRepository.findByIdAndOrganizationId(positionId, orgId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ORG_POSITION_NOT_FOUND));
+
+        if (request.getName() != null) {
+            if (orgPositionRepository.existsByOrganizationIdAndName(orgId, request.getName())
+                && !position.getName().equals(request.getName())) {
+                throw new BusinessException(ErrorCode.ORG_POSITION_ALREADY_EXISTS);
+            }
+            position.updateName(request.getName());
+        }
+        if (request.getDisplayOrder() != null) {
+            position.updateDisplayOrder(request.getDisplayOrder());
+        }
+        return OrgPositionResponse.Detail.of(position);
+    }
+
+    @Transactional
+    public void deletePosition(String orgId, String positionId, String userId) {
+        getActiveOrgOrThrow(orgId);
+        checkAdminOrAbove(orgId, userId);
+
+        OrganizationPosition position = orgPositionRepository.findByIdAndOrganizationId(positionId, orgId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ORG_POSITION_NOT_FOUND));
+
+        orgMemberRepository.clearPositionReference(positionId);
+        orgMemberConcurrentDeptRepository.clearPositionReference(positionId);
+        orgPositionRepository.delete(position);
+    }
+
+    // ==================== Title CRUD ====================
+
+    public List<OrgTitleResponse.Detail> getTitles(String orgId, String userId) {
+        getOrgMemberOrThrow(orgId, userId);
+        return orgTitleRepository.findByOrganizationId(orgId).stream()
+                .map(OrgTitleResponse.Detail::of)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public OrgTitleResponse.Detail createTitle(String orgId, String userId, OrgTitleRequest.Create request) {
+        Organization org = getActiveOrgOrThrow(orgId);
+        checkAdminOrAbove(orgId, userId);
+
+        if (orgTitleRepository.existsByOrganizationIdAndName(orgId, request.getName())) {
+            throw new BusinessException(ErrorCode.ORG_TITLE_ALREADY_EXISTS);
+        }
+
+        OrganizationTitle title = OrganizationTitle.builder()
+                .organization(org)
+                .name(request.getName())
+                .displayOrder(request.getDisplayOrder() != null ? request.getDisplayOrder() : 0)
+                .build();
+        orgTitleRepository.save(title);
+        return OrgTitleResponse.Detail.of(title);
+    }
+
+    @Transactional
+    public OrgTitleResponse.Detail updateTitle(String orgId, String titleId, String userId, OrgTitleRequest.Update request) {
+        getActiveOrgOrThrow(orgId);
+        checkAdminOrAbove(orgId, userId);
+
+        OrganizationTitle title = orgTitleRepository.findByIdAndOrganizationId(titleId, orgId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ORG_TITLE_NOT_FOUND));
+
+        if (request.getName() != null) {
+            if (orgTitleRepository.existsByOrganizationIdAndName(orgId, request.getName())
+                && !title.getName().equals(request.getName())) {
+                throw new BusinessException(ErrorCode.ORG_TITLE_ALREADY_EXISTS);
+            }
+            title.updateName(request.getName());
+        }
+        if (request.getDisplayOrder() != null) {
+            title.updateDisplayOrder(request.getDisplayOrder());
+        }
+        return OrgTitleResponse.Detail.of(title);
+    }
+
+    @Transactional
+    public void deleteTitle(String orgId, String titleId, String userId) {
+        getActiveOrgOrThrow(orgId);
+        checkAdminOrAbove(orgId, userId);
+
+        OrganizationTitle title = orgTitleRepository.findByIdAndOrganizationId(titleId, orgId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ORG_TITLE_NOT_FOUND));
+
+        orgMemberRepository.clearTitleReference(titleId);
+        orgTitleRepository.delete(title);
+    }
+
+    // ==================== Grade CRUD ====================
+
+    public List<OrgGradeResponse.Detail> getGrades(String orgId, String userId) {
+        getOrgMemberOrThrow(orgId, userId);
+        return orgGradeRepository.findByOrganizationId(orgId).stream()
+                .map(OrgGradeResponse.Detail::of)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public OrgGradeResponse.Detail createGrade(String orgId, String userId, OrgGradeRequest.Create request) {
+        Organization org = getActiveOrgOrThrow(orgId);
+        checkAdminOrAbove(orgId, userId);
+
+        if (orgGradeRepository.existsByOrganizationIdAndName(orgId, request.getName())) {
+            throw new BusinessException(ErrorCode.ORG_GRADE_ALREADY_EXISTS);
+        }
+
+        OrganizationGrade grade = OrganizationGrade.builder()
+                .organization(org)
+                .name(request.getName())
+                .displayOrder(request.getDisplayOrder() != null ? request.getDisplayOrder() : 0)
+                .build();
+        orgGradeRepository.save(grade);
+        return OrgGradeResponse.Detail.of(grade);
+    }
+
+    @Transactional
+    public OrgGradeResponse.Detail updateGrade(String orgId, String gradeId, String userId, OrgGradeRequest.Update request) {
+        getActiveOrgOrThrow(orgId);
+        checkAdminOrAbove(orgId, userId);
+
+        OrganizationGrade grade = orgGradeRepository.findByIdAndOrganizationId(gradeId, orgId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ORG_GRADE_NOT_FOUND));
+
+        if (request.getName() != null) {
+            if (orgGradeRepository.existsByOrganizationIdAndName(orgId, request.getName())
+                && !grade.getName().equals(request.getName())) {
+                throw new BusinessException(ErrorCode.ORG_GRADE_ALREADY_EXISTS);
+            }
+            grade.updateName(request.getName());
+        }
+        if (request.getDisplayOrder() != null) {
+            grade.updateDisplayOrder(request.getDisplayOrder());
+        }
+        return OrgGradeResponse.Detail.of(grade);
+    }
+
+    @Transactional
+    public void deleteGrade(String orgId, String gradeId, String userId) {
+        getActiveOrgOrThrow(orgId);
+        checkAdminOrAbove(orgId, userId);
+
+        OrganizationGrade grade = orgGradeRepository.findByIdAndOrganizationId(gradeId, orgId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ORG_GRADE_NOT_FOUND));
+
+        orgMemberRepository.clearGradeReference(gradeId);
+        orgGradeRepository.delete(grade);
+    }
+
+    // ==================== Private Helpers ====================
+
+    private void checkCircularDepartmentReference(String deptId, OrganizationDepartment parent) {
+        Set<String> visited = new HashSet<>();
+        OrganizationDepartment current = parent;
+        while (current != null) {
+            if (current.getId().equals(deptId)) {
+                throw new BusinessException(ErrorCode.CIRCULAR_DEPARTMENT_REFERENCE);
+            }
+            if (!visited.add(current.getId())) {
+                // Already visited — cycle detected in existing data
+                break;
+            }
+            current = current.getParentDepartment();
+        }
+    }
+
+    // ==================== Structure Settings ====================
+
+    public OrganizationResponse.StructureSettings getStructureSettings(String orgId, String userId) {
+        getOrgMemberOrThrow(orgId, userId);
+        Organization org = getActiveOrgOrThrow(orgId);
+        return OrganizationResponse.StructureSettings.of(org);
+    }
+
+    @Transactional
+    public OrganizationResponse.StructureSettings updateStructureSettings(
+            String orgId, String userId, OrganizationRequest.UpdateStructureSettings request) {
+        checkAdminOrAbove(orgId, userId);
+        Organization org = getActiveOrgOrThrow(orgId);
+        org.updateStructureSettings(
+                request.getDepartmentsEnabled(),
+                request.getJobGroupsEnabled(),
+                request.getPositionsEnabled(),
+                request.getTitlesEnabled(),
+                request.getGradesEnabled()
+        );
+        organizationRepository.save(org);
+        return OrganizationResponse.StructureSettings.of(org);
     }
 
     // ==================== Helper Methods ====================

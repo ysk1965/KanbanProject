@@ -294,12 +294,12 @@ export function DraggableCard({
       data-task-id={task.id}
       data-task-index={index}
       draggable={!shouldDisablePointerEvents}
-      className={`group relative bg-bridge-surface-hover rounded-xl border px-3 py-2.5 hover:border-bridge-secondary/40 hover:shadow-2xl hover:shadow-bridge-secondary/10 transition-all cursor-pointer overflow-hidden kanban-glow select-none ${
+      className={`group relative bg-bridge-surface-hover rounded-xl border px-3 py-2.5 cursor-pointer overflow-hidden select-none ${
         isDragging || isThisCardDragging
-          ? "opacity-30 scale-95 border-2 border-dashed border-bridge-secondary"
+          ? "opacity-30 scale-95 border-2 border-dashed border-bridge-secondary transition-all"
           : justCompleted
-            ? "card-complete-burst border-green-500/60"
-            : "border-bridge-border"
+            ? "card-complete-burst border-green-500/60 shadow-card hover:shadow-card-hover hover:border-foreground/[0.12] hover:-translate-y-0.5 transition-all duration-200 ease-out"
+            : "border-foreground/[0.08] shadow-card hover:shadow-card-hover hover:border-foreground/[0.12] hover:-translate-y-0.5 transition-all duration-200 ease-out"
       } ${task.completed && !justCompleted ? "opacity-60" : ""} ${
         shouldDisablePointerEvents ? "pointer-events-none" : ""
       }`}
@@ -319,6 +319,11 @@ export function DraggableCard({
         e.preventDefault();
       }}
     >
+      {/* Hover accent gradient line */}
+      {!(isDragging || isThisCardDragging) && (
+        <div className="absolute top-0 inset-x-0 h-[1.5px] rounded-t-xl bg-gradient-to-r from-transparent via-bridge-accent/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+      )}
+
       {/* 좌측 컬러 바 */}
       <div
         className="absolute top-0 left-0 bottom-0 w-1.5"
@@ -437,7 +442,7 @@ export function DraggableCard({
       )}
 
       {/* 체크리스트 & 담당자 */}
-      <div className="flex items-center justify-between border-t border-bridge-border pt-2 pl-2.5">
+      <div className="flex items-center justify-between border-t border-foreground/[0.08] pt-2 pl-2.5">
         <div className="flex items-center gap-3">
           {isScheduled && (
             <div
@@ -450,11 +455,11 @@ export function DraggableCard({
           {hasChecklist && boardId && (
             <button
               onClick={handleExpandClick}
-              className="flex items-center gap-2 text-zinc-400 hover:text-foreground transition-colors"
+              className="flex items-center gap-2 text-slate-400 hover:text-foreground transition-colors"
             >
               <CheckSquare size={12} className="text-indigo-400" />
               <div className="flex items-center gap-2">
-                <div className="w-12 h-1 bg-zinc-700 rounded-full overflow-hidden">
+                <div className="w-12 h-1 bg-slate-600 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-indigo-500 rounded-full transition-all duration-300"
                     style={{
@@ -479,9 +484,9 @@ export function DraggableCard({
                 </span>
               </div>
               {isChecklistExpanded ? (
-                <ChevronUp size={12} className="text-zinc-400" />
+                <ChevronUp size={12} className="text-slate-400" />
               ) : (
-                <ChevronDown size={12} className="text-zinc-400" />
+                <ChevronDown size={12} className="text-slate-400" />
               )}
             </button>
           )}
@@ -509,7 +514,7 @@ export function DraggableCard({
               ))}
               {allAssignees.length > 3 && (
                 <div
-                  className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold text-white bg-zinc-600 border-2 border-bridge-surface-hover"
+                  className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold text-white bg-slate-500 border-2 border-bridge-surface-hover"
                   style={{ zIndex: 0 }}
                   title={allAssignees
                     .slice(3)
@@ -521,7 +526,7 @@ export function DraggableCard({
               )}
             </div>
             {allAssignees.length === 1 && (
-              <span className="text-[10px] font-medium text-zinc-400 ml-1.5">
+              <span className="text-[10px] font-medium text-slate-400 ml-1.5">
                 {allAssignees[0].name}
               </span>
             )}
@@ -531,9 +536,9 @@ export function DraggableCard({
 
       {/* 체크리스트 펼침 */}
       {isChecklistExpanded && hasChecklist && boardId && (
-        <div className="mt-2 pt-2 border-t border-bridge-border space-y-1 pl-2.5">
+        <div className="mt-2 pt-2 border-t border-foreground/[0.08] space-y-1 pl-2.5">
           {isLoading ? (
-            <div className="text-xs text-zinc-400">{t("common.loading")}</div>
+            <div className="text-xs text-slate-400">{t("common.loading")}</div>
           ) : (
             checklistItems
               .sort((a, b) => a.position - b.position)
@@ -547,7 +552,7 @@ export function DraggableCard({
                     className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 border transition-colors ${
                       item.completed
                         ? "bg-green-500 border-green-500"
-                        : "bg-transparent border-zinc-500 hover:border-zinc-400"
+                        : "bg-transparent border-slate-500 hover:border-slate-400"
                     }`}
                   >
                     {item.completed && (
@@ -567,7 +572,7 @@ export function DraggableCard({
                   <span
                     className={`text-xs flex-1 ${
                       item.completed
-                        ? "text-zinc-400 line-through"
+                        ? "text-slate-400 line-through"
                         : "text-foreground/80"
                     }`}
                   >
@@ -575,7 +580,7 @@ export function DraggableCard({
                   </span>
                   {item.assignee && (
                     <div
-                      className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0 border border-bridge-border whitespace-nowrap overflow-hidden"
+                      className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0 border border-foreground/[0.08] whitespace-nowrap overflow-hidden"
                       style={{
                         backgroundColor: getAssigneeHex(
                           item.assignee.name,

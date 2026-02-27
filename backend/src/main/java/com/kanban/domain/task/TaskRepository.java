@@ -159,4 +159,25 @@ public interface TaskRepository extends JpaRepository<Task, String> {
     @Modifying
     @Query("UPDATE Task t SET t.block = :targetBlock WHERE t.block.id = :sourceBlockId")
     int moveTasksToBlock(@Param("sourceBlockId") String sourceBlockId, @Param("targetBlock") com.kanban.domain.block.Block targetBlock);
+
+    // ==================== Organization Insights Queries ====================
+
+    /**
+     * 기간 내 조직 보드들에서 완료된 Task 수 조회
+     */
+    @Query("SELECT COUNT(t) FROM Task t WHERE t.board.id IN :boardIds " +
+           "AND t.isCompleted = true AND t.completedAt BETWEEN :startDateTime AND :endDateTime")
+    long countCompletedByBoardIdsAndDateRange(@Param("boardIds") List<String> boardIds,
+                                              @Param("startDateTime") LocalDateTime startDateTime,
+                                              @Param("endDateTime") LocalDateTime endDateTime);
+
+    /**
+     * 보드별 기간 내 완료된 Task 수 그룹 조회 (N+1 방지)
+     */
+    @Query("SELECT t.board.id, COUNT(t) FROM Task t WHERE t.board.id IN :boardIds " +
+           "AND t.isCompleted = true AND t.completedAt BETWEEN :startDateTime AND :endDateTime " +
+           "GROUP BY t.board.id")
+    List<Object[]> countCompletedGroupByBoardAndDateRange(@Param("boardIds") List<String> boardIds,
+                                                          @Param("startDateTime") LocalDateTime startDateTime,
+                                                          @Param("endDateTime") LocalDateTime endDateTime);
 }

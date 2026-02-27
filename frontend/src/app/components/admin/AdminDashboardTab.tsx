@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Users, Folder, CreditCard, TrendingUp, User, BookOpen } from 'lucide-react';
+import { Users, Folder, CreditCard, TrendingUp, User, BookOpen, Loader2 } from 'lucide-react';
 import { adminService } from '../../utils/services';
 import { AdminStatistics } from '../../utils/api';
 
@@ -31,7 +31,7 @@ export function AdminDashboardTab() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-bridge-accent" />
+        <Loader2 className="w-8 h-8 animate-spin text-bridge-accent" />
       </div>
     );
   }
@@ -101,7 +101,7 @@ export function AdminDashboardTab() {
         {statCards.map((card) => (
           <div
             key={card.label}
-            className="bg-bridge-obsidian rounded-xl border border-bridge-border p-4 md:p-6"
+            className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-4 md:p-6"
           >
             <div className="flex items-start justify-between">
               <div>
@@ -120,7 +120,7 @@ export function AdminDashboardTab() {
       </div>
 
       {/* Personal Board Metrics */}
-      <div className="bg-bridge-obsidian rounded-xl border border-bridge-border p-4 md:p-6">
+      <div className="bg-bridge-obsidian rounded-xl border border-foreground/[0.08] p-4 md:p-6">
         <div className="flex items-center gap-2 mb-6">
           <User className="h-5 w-5 text-purple-400" />
           <h3 className="text-lg font-bold text-foreground">{t('admin.dashboard.personalBoardMetrics', 'Personal Board')}</h3>
@@ -182,7 +182,7 @@ export function AdminDashboardTab() {
       </div>
 
       {/* Tier Distribution */}
-      <div className="bg-bridge-obsidian rounded-xl border border-bridge-border p-4 md:p-6">
+      <div className="bg-bridge-obsidian rounded-xl border border-foreground/[0.08] p-4 md:p-6">
         <div className="flex items-center gap-2 mb-6">
           <TrendingUp className="h-5 w-5 text-bridge-accent" />
           <h3 className="text-lg font-bold text-foreground">{t('admin.dashboard.tierDistribution')}</h3>

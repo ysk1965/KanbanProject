@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Search, Plus, Star, LayoutGrid, LogOut, Package2, AlertTriangle, Menu, FlaskConical, CalendarDays, BookHeart, ListTodo, List, Grid3X3, ChevronRight, X, Users, CheckCircle2, Flame, Clock, Sparkles, Circle, Flag } from 'lucide-react';
+import { Search, Plus, Star, LayoutGrid, LogOut, Package2, AlertTriangle, Menu, FlaskConical, CalendarDays, BookHeart, ListTodo, List, Grid3X3, ChevronRight, X, Users, CheckCircle2, Flame, Clock, Sparkles, Circle, Flag, Building2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
 import { Board, PersonalDashboardToday } from '../../types';
@@ -106,6 +106,7 @@ export function Dashboard({
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [editTarget, setEditTarget] = useState<Board | null>(null);
   const [isCreatingTestBoard, setIsCreatingTestBoard] = useState(false);
+  const [isCreatingTestOrg, setIsCreatingTestOrg] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [boardFilter, setBoardFilter] = useState<BoardFilter>('all');
   const [showOnboarding, setShowOnboarding] = useState(
@@ -145,6 +146,20 @@ export function Dashboard({
       console.error('Failed to create/join test board:', error);
     } finally {
       setIsCreatingTestBoard(false);
+    }
+  };
+
+  // 테스트 조직 생성/참여 (개발용)
+  const handleCreateTestOrg = async () => {
+    if (isCreatingTestOrg) return;
+    setIsCreatingTestOrg(true);
+    try {
+      const response = await testDataAPI.createTestOrganization();
+      navigate(`/organizations/${response.organization_id}`);
+    } catch (error) {
+      console.error('Failed to create/join test organization:', error);
+    } finally {
+      setIsCreatingTestOrg(false);
     }
   };
 
@@ -669,20 +684,20 @@ export function Dashboard({
               </section>
             )}
 
-            {/* Main Board Section */}
-            {filteredBoards.length > 0 && (
+            {/* Organization Board Section */}
+            {filteredBoards.filter(b => b.organization_id).length > 0 && (
               <section>
                 <div className="flex items-center gap-2 mb-4">
-                  <LayoutGrid size={14} className="text-bridge-secondary" />
+                  <Building2 size={14} className="text-bridge-accent" />
                   <h2 className="text-[11px] font-bold text-slate-500 uppercase tracking-[0.15em]">
-                    {t('dashboard.workspaceBoards')}
+                    {t('dashboard.orgBoards', 'Organization Boards')}
                   </h2>
-                  <span className="text-[10px] text-slate-600">{filteredBoards.length}</span>
+                  <span className="text-[10px] text-slate-600">{filteredBoards.filter(b => b.organization_id).length}</span>
                 </div>
 
                 {viewMode === 'grid' ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {filteredBoards.map((board) => (
+                    {filteredBoards.filter(b => b.organization_id).map((board) => (
                       <BoardCard
                         key={board.id}
                         board={board}
@@ -692,11 +707,10 @@ export function Dashboard({
                         onEdit={handleEditClick}
                       />
                     ))}
-                    <CreateBoardCard onClick={() => setIsCreateModalOpen(true)} />
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {filteredBoards.map((board) => (
+                    {filteredBoards.filter(b => b.organization_id).map((board) => (
                       <BoardListItem
                         key={board.id}
                         board={board}
@@ -705,20 +719,68 @@ export function Dashboard({
                         onEdit={handleEditClick}
                       />
                     ))}
-                    {/* Create button in list mode */}
-                    <button
-                      onClick={() => setIsCreateModalOpen(true)}
-                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-dashed border-bridge-border hover:border-bridge-secondary/30 hover:bg-foreground/[0.02] transition-all group"
-                    >
-                      <div className="w-8 h-8 rounded-lg bg-foreground/5 group-hover:bg-bridge-secondary/15 flex items-center justify-center transition-colors">
-                        <Plus size={16} className="text-muted-foreground group-hover:text-bridge-secondary transition-colors" />
-                      </div>
-                      <span className="text-xs font-bold text-muted-foreground group-hover:text-foreground uppercase tracking-wider transition-colors">
-                        {t('dashboard.newBoard')}
-                      </span>
-                    </button>
                   </div>
                 )}
+              </section>
+            )}
+
+            {/* Workspace Board Section — always show when there are any boards (for Create card) */}
+            {filteredBoards.length > 0 && (
+              <section>
+                {(() => {
+                  const personalBoards = filteredBoards.filter(b => !b.organization_id);
+                  return (
+                    <>
+                      <div className="flex items-center gap-2 mb-4">
+                        <LayoutGrid size={14} className="text-bridge-secondary" />
+                        <h2 className="text-[11px] font-bold text-slate-500 uppercase tracking-[0.15em]">
+                          {t('dashboard.workspaceBoards')}
+                        </h2>
+                        <span className="text-[10px] text-slate-600">{personalBoards.length}</span>
+                      </div>
+
+                      {viewMode === 'grid' ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                          {personalBoards.map((board) => (
+                            <BoardCard
+                              key={board.id}
+                              board={board}
+                              onToggleStar={onToggleStar}
+                              onClick={handleBoardClick}
+                              onDelete={onDeleteBoard ? handleDeleteClick : undefined}
+                              onEdit={handleEditClick}
+                            />
+                          ))}
+                          <CreateBoardCard onClick={() => setIsCreateModalOpen(true)} />
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {personalBoards.map((board) => (
+                            <BoardListItem
+                              key={board.id}
+                              board={board}
+                              onToggleStar={onToggleStar}
+                              onClick={handleBoardClick}
+                              onEdit={handleEditClick}
+                            />
+                          ))}
+                          {/* Create button in list mode */}
+                          <button
+                            onClick={() => setIsCreateModalOpen(true)}
+                            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-dashed border-bridge-border hover:border-bridge-secondary/30 hover:bg-foreground/[0.02] transition-all group"
+                          >
+                            <div className="w-8 h-8 rounded-lg bg-foreground/5 group-hover:bg-bridge-secondary/15 flex items-center justify-center transition-colors">
+                              <Plus size={16} className="text-muted-foreground group-hover:text-bridge-secondary transition-colors" />
+                            </div>
+                            <span className="text-xs font-bold text-muted-foreground group-hover:text-foreground uppercase tracking-wider transition-colors">
+                              {t('dashboard.newBoard')}
+                            </span>
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </section>
             )}
 
@@ -828,17 +890,28 @@ export function Dashboard({
         </div>
       )}
 
-      {/* Test Board Creation Button (Admin Only) */}
+      {/* Test Data Creation Buttons (Admin Only) */}
       {isAdmin && (
-        <button
-          onClick={handleCreateTestBoard}
-          disabled={isCreatingTestBoard}
-          className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-2.5 bg-amber-500/90 hover:bg-amber-500 text-black font-bold text-xs rounded-xl shadow-lg shadow-amber-500/30 transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-          title={t('board.testBoardTitle')}
-        >
-          <FlaskConical size={16} className={isCreatingTestBoard ? 'animate-pulse' : ''} />
-          <span className="hidden sm:inline">{isCreatingTestBoard ? t('board.creating') : t('dashboard.testBoard')}</span>
-        </button>
+        <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2">
+          <button
+            onClick={handleCreateTestBoard}
+            disabled={isCreatingTestBoard}
+            className="flex items-center gap-2 px-4 py-2.5 bg-amber-500/90 hover:bg-amber-500 text-black font-bold text-xs rounded-xl shadow-lg shadow-amber-500/30 transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            title={t('board.testBoardTitle')}
+          >
+            <FlaskConical size={16} className={isCreatingTestBoard ? 'animate-pulse' : ''} />
+            <span className="hidden sm:inline">{isCreatingTestBoard ? t('board.creating') : t('dashboard.testBoard')}</span>
+          </button>
+          <button
+            onClick={handleCreateTestOrg}
+            disabled={isCreatingTestOrg}
+            className="flex items-center gap-2 px-4 py-2.5 bg-amber-500/90 hover:bg-amber-500 text-black font-bold text-xs rounded-xl shadow-lg shadow-amber-500/30 transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            title={t('dashboard.testOrgTitle', 'Create Test Organization')}
+          >
+            <Building2 size={16} className={isCreatingTestOrg ? 'animate-pulse' : ''} />
+            <span className="hidden sm:inline">{isCreatingTestOrg ? t('board.creating') : t('dashboard.testOrg', 'Test Org')}</span>
+          </button>
+        </div>
       )}
 
       {/* Onboarding Modal */}
@@ -875,6 +948,7 @@ function BoardListItem({ board, onToggleStar, onClick, onEdit }: {
 }) {
   const { t } = useTranslation();
   const isTrial = board.subscription?.status === 'TRIAL' && board.tier !== 'PREMIUM';
+  const isOrgBoard = !!board.organization_id;
   const taskCount = board.task_count ?? 0;
   const completedTasks = board.completed_tasks ?? 0;
   const progress = taskCount > 0 ? Math.round((completedTasks / taskCount) * 100) : 0;
@@ -884,7 +958,7 @@ function BoardListItem({ board, onToggleStar, onClick, onEdit }: {
     <motion.div
       whileHover={{ x: 2 }}
       onClick={() => onClick(board)}
-      className="flex items-center gap-4 px-4 py-3 rounded-xl bg-foreground/[0.02] border border-bridge-border hover:border-foreground/[0.12] hover:bg-foreground/[0.03] cursor-pointer transition-all group"
+      className={`flex items-center gap-4 px-4 py-3 rounded-xl bg-foreground/[0.02] border hover:bg-foreground/[0.03] cursor-pointer transition-all group ${isOrgBoard ? 'border-bridge-accent/20 hover:border-bridge-accent/40' : 'border-bridge-border hover:border-foreground/[0.12]'}`}
     >
       {/* Color indicator */}
       <div className="w-10 h-10 rounded-lg shrink-0 overflow-hidden"
@@ -897,6 +971,12 @@ function BoardListItem({ board, onToggleStar, onClick, onEdit }: {
           <h3 className="text-sm font-bold text-foreground truncate group-hover:text-bridge-secondary transition-colors">
             {board.name}
           </h3>
+          {isOrgBoard && board.organization_name && (
+            <span className="flex items-center gap-1 px-1.5 py-0.5 bg-bridge-accent/15 text-bridge-accent text-[9px] font-bold rounded-full shrink-0">
+              <Building2 size={9} />
+              {board.organization_name}
+            </span>
+          )}
           {isTrial && (
             <span className="px-1.5 py-0.5 bg-bridge-secondary/10 text-bridge-secondary text-[8px] font-bold uppercase tracking-wider rounded shrink-0">
               {t('dashboard.trialPlan')}

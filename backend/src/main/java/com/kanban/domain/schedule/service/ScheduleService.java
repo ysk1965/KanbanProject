@@ -29,6 +29,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -47,7 +48,7 @@ public class ScheduleService {
     private final BoardService boardService;
     private final WebSocketEventService webSocketEventService;
 
-    public ScheduleResponse.DailySchedule getDailySchedule(String boardId, LocalDate date, List<String> assigneeIds, String userId) {
+    public ScheduleResponse.DailySchedule getDailySchedule(String boardId, LocalDate date, List<String> assigneeIds, String userId, boolean includeOrgSchedules) {
         boardService.checkViewerOrAbove(boardId, userId);
 
         Board board = boardRepository.findById(boardId)
@@ -86,6 +87,45 @@ public class ScheduleService {
                     .build());
         }
 
+        // 크로스보드 조직 스케줄 조회
+        if (includeOrgSchedules && board.getOrganization() != null) {
+            String orgId = board.getOrganization().getId();
+            List<String> orgBoardIds = boardRepository.findBoardIdsByOrgId(orgId);
+
+            Set<String> userBoardIds = boardMemberRepository.findByUserIdWithActiveBoards(userId)
+                    .stream().map(bm -> bm.getBoard().getId()).collect(Collectors.toSet());
+
+            List<String> crossBoardIds = orgBoardIds.stream()
+                    .filter(id -> !id.equals(boardId))
+                    .filter(userBoardIds::contains)
+                    .collect(Collectors.toList());
+
+            if (!crossBoardIds.isEmpty()) {
+                List<ScheduleBlock> crossBlocks = scheduleBlockRepository
+                        .findByBoardIdInAndScheduledDateAndAssigneeIdIn(
+                                crossBoardIds, date, targetAssigneeIds);
+
+                Map<String, List<ScheduleBlock>> crossByAssignee = crossBlocks.stream()
+                        .collect(Collectors.groupingBy(b -> b.getAssignee().getId()));
+
+                List<ScheduleResponse.ColumnInfo> updatedColumns = new ArrayList<>();
+                for (ScheduleResponse.ColumnInfo col : columns) {
+                    List<ScheduleBlock> userCrossBlocks =
+                            crossByAssignee.getOrDefault(col.getUser().getId(), List.of());
+                    List<ScheduleResponse.BlockInfo> orgBlockInfos = userCrossBlocks.stream()
+                            .map(ScheduleResponse.BlockInfo::of)
+                            .collect(Collectors.toList());
+
+                    updatedColumns.add(ScheduleResponse.ColumnInfo.builder()
+                            .user(col.getUser())
+                            .blocks(col.getBlocks())
+                            .orgBlocks(orgBlockInfos.isEmpty() ? null : orgBlockInfos)
+                            .build());
+                }
+                columns = updatedColumns;
+            }
+        }
+
         return ScheduleResponse.DailySchedule.builder()
                 .date(date)
                 .settings(ScheduleResponse.SettingsInfo.of(board))
@@ -97,7 +137,7 @@ public class ScheduleService {
      * 주간 스케줄 조회 (7일치 데이터 한 번에)
      * 기존 7개 API 호출 → 1개로 통합하여 86% 감소
      */
-    public ScheduleResponse.WeeklySchedule getWeeklySchedule(String boardId, LocalDate startDate, LocalDate endDate, List<String> assigneeIds, String userId) {
+    public ScheduleResponse.WeeklySchedule getWeeklySchedule(String boardId, LocalDate startDate, LocalDate endDate, List<String> assigneeIds, String userId, boolean includeOrgSchedules) {
         boardService.checkViewerOrAbove(boardId, userId);
 
         Board board = boardRepository.findById(boardId)
@@ -126,12 +166,40 @@ public class ScheduleService {
                         Collectors.groupingBy(b -> b.getAssignee().getId())
                 ));
 
+        // 크로스보드 조직 스케줄 조회
+        Map<LocalDate, Map<String, List<ScheduleBlock>>> crossBlocksByDateAndAssignee = Map.of();
+        if (includeOrgSchedules && board.getOrganization() != null) {
+            String orgId = board.getOrganization().getId();
+            List<String> orgBoardIds = boardRepository.findBoardIdsByOrgId(orgId);
+
+            Set<String> userBoardIds = boardMemberRepository.findByUserIdWithActiveBoards(userId)
+                    .stream().map(bm -> bm.getBoard().getId()).collect(Collectors.toSet());
+
+            List<String> crossBoardIds = orgBoardIds.stream()
+                    .filter(id -> !id.equals(boardId))
+                    .filter(userBoardIds::contains)
+                    .collect(Collectors.toList());
+
+            if (!crossBoardIds.isEmpty()) {
+                List<ScheduleBlock> crossBlocks = scheduleBlockRepository
+                        .findByBoardIdInAndScheduledDateBetweenAndAssigneeIdIn(
+                                crossBoardIds, startDate, endDate, targetAssigneeIds);
+
+                crossBlocksByDateAndAssignee = crossBlocks.stream()
+                        .collect(Collectors.groupingBy(
+                                ScheduleBlock::getScheduledDate,
+                                Collectors.groupingBy(b -> b.getAssignee().getId())
+                        ));
+            }
+        }
+
         // 날짜별 DayData 생성
         List<ScheduleResponse.DayData> days = new ArrayList<>();
         LocalDate current = startDate;
         while (!current.isAfter(endDate)) {
             final LocalDate date = current;
             Map<String, List<ScheduleBlock>> blocksByAssignee = blocksByDateAndAssignee.getOrDefault(date, Map.of());
+            Map<String, List<ScheduleBlock>> crossByAssignee = crossBlocksByDateAndAssignee.getOrDefault(date, Map.of());
 
             List<ScheduleResponse.ColumnInfo> columns = new ArrayList<>();
             for (String assigneeId : targetAssigneeIds) {
@@ -143,9 +211,16 @@ public class ScheduleService {
                         .map(ScheduleResponse.BlockInfo::of)
                         .collect(Collectors.toList());
 
+                // 크로스보드 orgBlocks
+                List<ScheduleBlock> userCrossBlocks = crossByAssignee.getOrDefault(assigneeId, List.of());
+                List<ScheduleResponse.BlockInfo> orgBlockInfos = userCrossBlocks.stream()
+                        .map(ScheduleResponse.BlockInfo::of)
+                        .collect(Collectors.toList());
+
                 columns.add(ScheduleResponse.ColumnInfo.builder()
                         .user(ScheduleResponse.UserInfo.of(user))
                         .blocks(blockInfos)
+                        .orgBlocks(orgBlockInfos.isEmpty() ? null : orgBlockInfos)
                         .build());
             }
 

@@ -171,7 +171,7 @@ export function CreateBoardModal({
                   value={boardName}
                   onChange={(e) => setBoardName(e.target.value)}
                   placeholder={t('createBoard.namePlaceholder')}
-                  className="bg-bridge-dark border-foreground/10 text-foreground placeholder:text-slate-400 focus:border-bridge-accent"
+                  className="bg-bridge-dark border-foreground/10 text-foreground placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
                   onKeyDown={(e) => {
                     if (e.nativeEvent.isComposing) return;
                     if (e.key === 'Enter' && !e.shiftKey) {
@@ -191,7 +191,7 @@ export function CreateBoardModal({
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder={t('createBoard.descriptionPlaceholder')}
-                  className="bg-bridge-dark border-foreground/10 text-foreground placeholder:text-slate-400 focus:border-bridge-accent resize-none"
+                  className="bg-bridge-dark border-foreground/10 text-foreground placeholder:text-slate-500 focus:border-bridge-accent resize-none"
                   rows={3}
                 />
               </div>

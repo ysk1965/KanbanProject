@@ -29,7 +29,7 @@ export function AdminPage() {
   return (
     <div className="min-h-screen bg-bridge-dark">
       {/* Header */}
-      <header className="bg-bridge-obsidian border-b border-foreground/5 px-3 md:px-6 py-3 md:py-4">
+      <header className="bg-bridge-obsidian border-b border-foreground/[0.08] px-3 md:px-6 py-3 md:py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3 md:gap-4">
             <NavLink
@@ -49,7 +49,7 @@ export function AdminPage() {
         <div className="flex flex-col md:flex-row gap-4 md:gap-8">
           {/* Sidebar Navigation - horizontal on mobile, vertical on md+ */}
           <nav className="md:w-56 flex-shrink-0">
-            <div className="bg-bridge-obsidian rounded-xl border border-foreground/5 p-1.5 md:p-2 flex md:flex-col gap-1 overflow-x-auto md:overflow-visible">
+            <div className="bg-bridge-obsidian rounded-xl border border-foreground/[0.08] p-1.5 md:p-2 flex md:flex-col gap-1 overflow-x-auto md:overflow-visible">
               {navItems.map((item) => (
                 <NavLink
                   key={item.path}

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Folder, Users, ListTodo, Calendar, Trash2, Crown, Shield, User as UserIcon, Eye, ArrowRightLeft, CalendarPlus, AlertTriangle, Armchair, ChevronDown, Link2, Copy, Check, Pencil, UserMinus, Sparkles, Plus, BookOpen, CalendarDays, Clock } from 'lucide-react';
+import { X, Folder, Users, ListTodo, Calendar, Trash2, Crown, Shield, User as UserIcon, Eye, ArrowRightLeft, CalendarPlus, AlertTriangle, Armchair, ChevronDown, Link2, Copy, Check, Pencil, UserMinus, Sparkles, Plus, BookOpen, CalendarDays, Clock, Loader2 } from 'lucide-react';
 import { adminService, inviteLinkService } from '../../utils/services';
 import { AdminBoardDetail } from '../../utils/api';
 import { formatDateTime, formatDate } from '../../utils/dateUtils';
@@ -176,8 +176,8 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
     if (!board) return;
 
     setPromptAction({
-      title: '월간 AI 크레딧 설정',
-      message: '월간 무료 AI 크레딧 한도를 입력하세요.',
+      title: t('admin.boardDetail.setMonthlyCredits'),
+      message: t('admin.boardDetail.enterMonthlyCreditsMessage'),
       defaultValue: String(board.monthly_ai_credits ?? 0),
       inputType: 'number',
       required: true,
@@ -185,7 +185,7 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
         setPromptAction(null);
         const credits = parseInt(value, 10);
         if (isNaN(credits) || credits < 0) {
-          setToast({ message: '유효한 크레딧 수를 입력하세요.', type: 'error' });
+          setToast({ message: t('admin.boardDetail.enterValidCredits'), type: 'error' });
           return;
         }
         try {
@@ -193,10 +193,10 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
           const updated = await adminService.adjustAiCredits(boardId, { monthly_ai_credits: credits });
           setBoard(updated);
           onUpdate();
-          setToast({ message: `월간 크레딧이 ${credits}으로 설정되었습니다.`, type: 'success' });
+          setToast({ message: t('admin.boardDetail.monthlyCreditsSet', { credits }), type: 'success' });
         } catch (err) {
           console.error('Failed to set monthly credits:', err);
-          setToast({ message: '크레딧 설정에 실패했습니다.', type: 'error' });
+          setToast({ message: t('admin.boardDetail.creditSetFailed'), type: 'error' });
         } finally {
           setIsUpdating(false);
         }
@@ -208,8 +208,8 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
     if (!board) return;
 
     setPromptAction({
-      title: '구매 크레딧 추가',
-      message: `현재 구매 크레딧: ${board.purchased_credits ?? 0}. 추가할 크레딧 수를 입력하세요.`,
+      title: t('admin.boardDetail.addPurchasedCredits'),
+      message: t('admin.boardDetail.enterPurchasedCreditsMessage', { credits: board.purchased_credits ?? 0 }),
       defaultValue: '100',
       inputType: 'number',
       required: true,
@@ -217,7 +217,7 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
         setPromptAction(null);
         const credits = parseInt(value, 10);
         if (isNaN(credits) || credits < 1) {
-          setToast({ message: '1 이상의 크레딧 수를 입력하세요.', type: 'error' });
+          setToast({ message: t('admin.boardDetail.enterMinOneCredit'), type: 'error' });
           return;
         }
         try {
@@ -225,10 +225,10 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
           const updated = await adminService.adjustAiCredits(boardId, { add_purchased_credits: credits });
           setBoard(updated);
           onUpdate();
-          setToast({ message: `${credits} 크레딧이 추가되었습니다.`, type: 'success' });
+          setToast({ message: t('admin.boardDetail.purchasedCreditsAdded', { credits }), type: 'success' });
         } catch (err) {
           console.error('Failed to add purchased credits:', err);
-          setToast({ message: '크레딧 추가에 실패했습니다.', type: 'error' });
+          setToast({ message: t('admin.boardDetail.creditAddFailed'), type: 'error' });
         } finally {
           setIsUpdating(false);
         }
@@ -303,10 +303,10 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
         expires_in_hours: 168, // 7일
       });
       setInviteCode(link.code);
-      setToast({ message: '초대 링크가 생성되었습니다.', type: 'success' });
+      setToast({ message: t('admin.boardDetail.inviteLinkGenerated'), type: 'success' });
     } catch (err) {
       console.error('Failed to generate invite link:', err);
-      setToast({ message: '초대 링크 생성에 실패했습니다.', type: 'error' });
+      setToast({ message: t('admin.boardDetail.inviteLinkFailed'), type: 'error' });
     } finally {
       setIsGeneratingInvite(false);
     }
@@ -431,7 +431,7 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
     <>
       <MotionModal open={true} onClose={onClose} className="sm:max-w-2xl p-0 overflow-hidden max-h-[90dvh] flex flex-col">
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-bridge-border">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-foreground/[0.08]">
             <h2 className="text-xl font-bold text-foreground">{t('admin.boardDetail.title')}</h2>
             <button
               onClick={onClose}
@@ -445,7 +445,7 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
           <div className="p-6 overflow-y-auto flex-1">
             {isLoading && (
               <div className="flex items-center justify-center h-64">
-                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-bridge-accent" />
+                <Loader2 className="w-8 h-8 animate-spin text-bridge-accent" />
               </div>
             )}
 
@@ -477,7 +477,7 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                           }}
                           autoFocus
                           className="flex-1 bg-foreground/5 border border-foreground/10 rounded-xl py-2 px-3
-                            text-xl font-bold text-foreground placeholder-slate-600
+                            text-xl font-bold text-foreground placeholder-slate-500
                             focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent
                             transition-all"
                         />
@@ -739,13 +739,13 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                 <div className="border-t border-foreground/10 pt-6 space-y-4">
                   <h4 className="text-lg font-bold text-foreground flex items-center gap-2">
                     <Sparkles className="h-5 w-5 text-bridge-accent" />
-                    AI Credits
+                    {t('admin.boardDetail.aiCredits')}
                   </h4>
                   <div className="grid grid-cols-2 gap-4">
                     {/* Monthly Credits */}
                     <div className="bg-foreground/5 rounded-xl p-4">
                       <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-                        월간 크레딧
+                        {t('admin.boardDetail.monthlyCredits')}
                       </p>
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
@@ -757,7 +757,7 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                             disabled={isUpdating}
                             className="text-xs text-bridge-accent hover:text-bridge-accent/80 disabled:opacity-50 transition-colors"
                           >
-                            설정
+                            {t('admin.boardDetail.configure')}
                           </button>
                         </div>
                         <div className="w-full bg-foreground/10 rounded-full h-2">
@@ -774,7 +774,7 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                     {/* Purchased Credits */}
                     <div className="bg-foreground/5 rounded-xl p-4">
                       <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-                        구매 크레딧
+                        {t('admin.boardDetail.purchasedCredits')}
                       </p>
                       <div className="flex items-center justify-between">
                         <span className="text-foreground font-medium">
@@ -786,7 +786,7 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                           className="flex items-center gap-1 text-xs text-bridge-secondary hover:text-bridge-secondary/80 disabled:opacity-50 transition-colors"
                         >
                           <Plus className="h-3 w-3" />
-                          추가
+                          {t('admin.boardDetail.add')}
                         </button>
                       </div>
                     </div>
@@ -795,7 +795,7 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                   {/* Reset Date */}
                   {board.credits_reset_date && (
                     <p className="text-xs text-slate-500">
-                      다음 리셋: {formatDateTime(board.credits_reset_date)}
+                      {t('admin.boardDetail.nextReset')} {formatDateTime(board.credits_reset_date)}
                     </p>
                   )}
                 </div>
@@ -842,7 +842,7 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                 <div className="border-t border-foreground/10 pt-6 space-y-4">
                   <h4 className="text-lg font-bold text-foreground flex items-center gap-2">
                     <Link2 className="h-5 w-5 text-bridge-accent" />
-                    초대 URL 생성
+                    {t('admin.boardDetail.generateInviteUrl')}
                   </h4>
                   <div className="space-y-3">
                     <div className="flex items-center gap-3">
@@ -864,7 +864,7 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                         className="flex items-center gap-2 px-4 py-2 bg-bridge-accent/10 border border-bridge-accent/30 rounded-lg text-bridge-accent hover:bg-bridge-accent/20 transition-colors disabled:opacity-50 text-sm font-medium"
                       >
                         <Link2 className="h-4 w-4" />
-                        {isGeneratingInvite ? '생성 중...' : '링크 생성 (7일)'}
+                        {isGeneratingInvite ? t('admin.boardDetail.generating') : t('admin.boardDetail.generateLink7Days')}
                       </button>
                     </div>
 
@@ -887,7 +887,7 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                             <button
                               onClick={() => handleCopyInviteUrl(domain)}
                               className="shrink-0 p-1.5 rounded-md hover:bg-foreground/10 transition-colors"
-                              title="복사"
+                              title={t('admin.boardDetail.copy')}
                             >
                               {copiedDomain === domain ? (
                                 <Check className="h-4 w-4 text-green-400" />
@@ -904,7 +904,7 @@ export function AdminBoardDetailModal({ boardId, onClose, onUpdate }: AdminBoard
                 )}
 
                 {/* Danger Zone */}
-                <div className="border-t border-bridge-border pt-6">
+                <div className="border-t border-foreground/[0.08] pt-6">
                   <h4 className="text-lg font-bold text-red-400 mb-4">{t('admin.boardDetail.dangerZone')}</h4>
                   <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4">
                     <div className="flex items-center justify-between">

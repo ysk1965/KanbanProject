@@ -22,6 +22,9 @@ public class OrgMemberResponse {
         private OrgRole role;
         private DepartmentInfo department;
         private JobGroupInfo jobGroup;
+        private PositionInfo position;
+        private TitleInfo title;
+        private GradeInfo grade;
         private String jobTitle;
         private ContractType contractType;
         private WorkStatus workStatus;
@@ -35,6 +38,9 @@ public class OrgMemberResponse {
                     .role(member.getRole())
                     .department(member.getDepartment() != null ? DepartmentInfo.of(member.getDepartment()) : null)
                     .jobGroup(member.getJobGroup() != null ? JobGroupInfo.of(member.getJobGroup()) : null)
+                    .position(member.getPosition() != null ? PositionInfo.of(member.getPosition()) : null)
+                    .title(member.getTitle() != null ? TitleInfo.of(member.getTitle()) : null)
+                    .grade(member.getGrade() != null ? GradeInfo.of(member.getGrade()) : null)
                     .jobTitle(member.getJobTitle())
                     .contractType(member.getContractType())
                     .workStatus(member.getWorkStatus())
@@ -53,6 +59,9 @@ public class OrgMemberResponse {
         private OrgRole role;
         private DepartmentInfo department;
         private JobGroupInfo jobGroup;
+        private PositionInfo position;
+        private TitleInfo title;
+        private GradeInfo grade;
         private String jobTitle;
         private ContractType contractType;
         private WorkStatus workStatus;
@@ -63,8 +72,13 @@ public class OrgMemberResponse {
         private String bio;
         private Long tenureMonths;
         private LocalDateTime joinedAt;
+        private List<ConcurrentDeptInfo> concurrentDepts;
 
         public static Detail of(OrganizationMember member) {
+            return of(member, null);
+        }
+
+        public static Detail of(OrganizationMember member, List<ConcurrentDeptInfo> concurrentDepts) {
             Long tenure = null;
             if (member.getHireDate() != null) {
                 tenure = ChronoUnit.MONTHS.between(member.getHireDate(),
@@ -77,6 +91,9 @@ public class OrgMemberResponse {
                     .role(member.getRole())
                     .department(member.getDepartment() != null ? DepartmentInfo.of(member.getDepartment()) : null)
                     .jobGroup(member.getJobGroup() != null ? JobGroupInfo.of(member.getJobGroup()) : null)
+                    .position(member.getPosition() != null ? PositionInfo.of(member.getPosition()) : null)
+                    .title(member.getTitle() != null ? TitleInfo.of(member.getTitle()) : null)
+                    .grade(member.getGrade() != null ? GradeInfo.of(member.getGrade()) : null)
                     .jobTitle(member.getJobTitle())
                     .contractType(member.getContractType())
                     .workStatus(member.getWorkStatus())
@@ -87,6 +104,7 @@ public class OrgMemberResponse {
                     .bio(member.getBio())
                     .tenureMonths(tenure)
                     .joinedAt(member.getJoinedAt())
+                    .concurrentDepts(concurrentDepts)
                     .build();
         }
     }
@@ -170,6 +188,70 @@ public class OrgMemberResponse {
             return JobGroupInfo.builder()
                     .id(jobGroup.getId())
                     .name(jobGroup.getName())
+                    .build();
+        }
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class PositionInfo {
+        private String id;
+        private String name;
+
+        public static PositionInfo of(OrganizationPosition position) {
+            return PositionInfo.builder()
+                    .id(position.getId())
+                    .name(position.getName())
+                    .build();
+        }
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class TitleInfo {
+        private String id;
+        private String name;
+
+        public static TitleInfo of(OrganizationTitle title) {
+            return TitleInfo.builder()
+                    .id(title.getId())
+                    .name(title.getName())
+                    .build();
+        }
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class GradeInfo {
+        private String id;
+        private String name;
+
+        public static GradeInfo of(OrganizationGrade grade) {
+            return GradeInfo.builder()
+                    .id(grade.getId())
+                    .name(grade.getName())
+                    .build();
+        }
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class ConcurrentDeptInfo {
+        private String id;
+        private DepartmentInfo department;
+        private PositionInfo position;
+        private Integer displayOrder;
+
+        public static ConcurrentDeptInfo of(OrganizationMemberConcurrentDept cd) {
+            return ConcurrentDeptInfo.builder()
+                    .id(cd.getId())
+                    .department(DepartmentInfo.of(cd.getDepartment()))
+                    .position(cd.getPosition() != null ? PositionInfo.of(cd.getPosition()) : null)
+                    .displayOrder(cd.getDisplayOrder())
                     .build();
         }
     }

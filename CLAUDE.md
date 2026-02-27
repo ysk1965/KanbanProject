@@ -79,47 +79,126 @@ docker-compose up -d              # PostgreSQL 15 + Redis 7
 
 ---
 
-## BRIDGE 디자인 시스템 (v1.5.0)
+## BRIDGE 디자인 시스템 (v2.0.0 — 통일 토큰)
 
-상세 기획서: `docs/Design/v1.5.0.md`
+상세 기획서: `docs/Design/v1.5.0.md` | 감사 문서: `docs/Design/UI-UX-Audit.md`
 
 ### 컬러 팔레트
 
 | 이름 | 변수 | Dark Mode | Light Mode | 용도 |
 |------|------|-----------|------------|------|
 | Bridge Dark | `bridge-dark` | `#191f2d` | `#fffcf8` | 메인 배경 |
-| Bridge Obsidian | `bridge-obsidian` | `#151B28` | `#efe6d8` | 카드/헤더 배경 |
+| Bridge Obsidian | `bridge-obsidian` | `#151B28` | `#efe6d8` | 카드/헤더/모달 배경 |
 | Bridge Accent | `bridge-accent` | `#6366F1` | `#6366F1` | 주요 액센트 (인디고) |
 | Bridge Secondary | `bridge-secondary` | `#2DD4BF` | `#14B8A6` | 보조 액센트 (틸) |
 | Bridge Surface | `bridge-surface` | `#1e2a42` | `#efe3d2` | 서피스 배경 |
-| Bridge Border | `bridge-border` | `#384d6e` | `#E4DFDA` | 강조 테두리 |
+| Bridge Border | `bridge-border` | `#384d6e` | `#E4DFDA` | 강조 테두리 (Board 블록 등) |
 
 모든 Bridge 테마 변수는 `frontend/src/styles/theme.css`에 정의. `.light` 클래스로 자동 전환.
+
+### 회색톤: `slate-` 통일
+
+**`zinc-` 사용 금지** — 모든 서비스에서 `slate-` 계열만 사용합니다.
+
+| 용도 | 클래스 |
+|------|--------|
+| 보조 텍스트 | `text-slate-400` |
+| 힌트/부제목 | `text-slate-500` |
+| placeholder | `placeholder-slate-500` |
 
 ### 3-Tier 테마 시스템 (다크/라이트 모드)
 
 | Tier | 방식 | `dark:` 필요 | 용도 |
 |------|------|-------------|------|
-| 1 | Bridge Colors (CSS Variables) | **불필요** (자동 전환) | 배경, 액센트, 테두리 |
-| 2 | `dark:` Prefix (Tailwind) | **필요** | 입력 필드, 텍스트, Status 색상 |
+| 1 | Bridge Colors + foreground (CSS Variables) | **불필요** (자동 전환) | 배경, 테두리, 카드, 모달 |
+| 2 | `dark:` Prefix (Tailwind) | **필요** | Status 뱃지 텍스트 색상만 |
 | 3 | BlockNote Colors | **불필요** | 노트 에디터 전용 |
 
 ```tsx
-// Tier 1: Bridge 토큰 - dark: 불필요 (자동 전환)
+// Tier 1: 자동 전환 (모든 서비스 공통)
 <div className="bg-bridge-dark" />              // #191f2d ↔ #fffcf8
 <div className="bg-bridge-obsidian" />          // #151B28 ↔ #efe6d8
 <span className="text-foreground" />            // oklch(0.985) ↔ #3D2E1F
-<div className="border-foreground/10" />        // 자동 대응
+<div className="border-foreground/[0.08]" />    // 카드 기본 테두리
 
-// Tier 2: dark: Prefix - 수동 분기
-<input className="bg-black/5 dark:bg-white/5 text-slate-900 dark:text-white
-  border-black/10 dark:border-white/10" />
-<span className="text-emerald-600 dark:text-emerald-400" />  // Status 뱃지
+// Tier 2: dark: Prefix — Status 뱃지 텍스트에만 사용
+<span className="text-emerald-600 dark:text-emerald-400" />
+```
+
+### 통일 디자인 토큰 (Organization / Board / MySpace 공통)
+
+#### 테두리 (Borders)
+
+| 용도 | 클래스 | 비고 |
+|------|--------|------|
+| 카드/패널 기본 | `border-foreground/[0.08]` | Tier 1 — 양 테마 자동 대응 |
+| 카드 호버 | `hover:border-foreground/[0.12]` | |
+| 인풋 필드 | `border-foreground/10` | |
+| 모달/섹션 구분선 | `border-foreground/[0.08]` | |
+| Board 블록 강조 | `border-bridge-border` | Board 칸반 블록 전용 |
+
+#### 로딩 스피너
+
+```tsx
+// 통일 패턴: Lucide Loader2 아이콘
+import { Loader2 } from 'lucide-react';
+<Loader2 className="w-6 h-6 animate-spin text-bridge-accent" />
+// 작은 사이즈: w-4 h-4 / w-5 h-5
+```
+
+#### 포커스 링
+
+```tsx
+// 모든 인풋/텍스트에어리어에 동일 적용
+"focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
+```
+
+#### 모달 (MotionModal 기반)
+
+```tsx
+// 모달 컨테이너
+<div className="w-full sm:max-w-md bg-bridge-obsidian rounded-t-2xl sm:rounded-2xl
+  border border-foreground/10 shadow-2xl" />
+// Top Accent Line
+<div className="h-[2px] bg-gradient-to-r from-bridge-accent/60 via-bridge-secondary/40 to-transparent" />
+// Header (통일)
+<div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]" />
+// Body (통일)
+<div className="px-5 pb-5 pt-4">{children}</div>
+// Footer (통일)
+<div className="flex items-center justify-between px-5 py-3 border-t border-foreground/[0.08]">
+  <span className="text-[10px] text-slate-600">Esc 닫기</span>
+  <button className="px-4 py-1.5 rounded-lg text-xs font-bold text-white bg-bridge-accent" />
+</div>
+// 스크롤바: custom-scrollbar (kanban-scrollbar 사용 금지)
+```
+
+#### 뱃지
+
+```tsx
+// 기본 뱃지 (통일 패턴)
+<span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-{color}/15 text-{color}" />
+// Bridge 뱃지: bg-bridge-accent/15 text-bridge-accent
+// Status 뱃지: bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 (텍스트만 dark: 분기)
+// ⚠️ 배경 투명도: /15 통일 (/10, /20 사용 금지)
+```
+
+#### 진입 애니메이션
+
+```tsx
+// 카드/위젯 진입 (통일)
+initial={{ opacity: 0, y: 8 }}
+animate={{ opacity: 1, y: 0 }}
+transition={{ delay: index * 0.04 }}
+
+// 페이지 레벨 진입 (EmptyState 등)
+initial={{ opacity: 0, y: 20 }}
+animate={{ opacity: 1, y: 0 }}
 ```
 
 ### 타이포그래피
 
-- **페이지 제목**: `text-2xl font-bold text-foreground tracking-tight`
+- **페이지 제목**: `text-sm md:text-lg font-bold text-foreground tracking-tight`
 - **위젯 제목**: `text-[13px] md:text-sm font-bold text-foreground`
 - **라벨**: `text-[11px] font-bold uppercase tracking-widest text-slate-400`
 - **Subtitle**: `text-[11px] text-slate-500`
@@ -130,39 +209,23 @@ docker-compose up -d              # PostgreSQL 15 + Redis 7
 ### 컴포넌트 스타일
 
 ```tsx
-// 카드 (마이스페이스 - Foreground 기반)
-<div className="bg-bridge-obsidian rounded-xl border border-foreground/5 p-4" />
-
-// 카드 (Organization - dark: 기반)
-<div className="bg-bridge-obsidian rounded-2xl border border-black/5 dark:border-white/5 p-6" />
+// 카드 (전 서비스 통일)
+<div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08]
+  hover:border-foreground/[0.12] p-5 transition-colors" />
 
 // WidgetCard (마이스페이스 위젯)
-<div className="rounded-2xl border border-foreground/[0.12] overflow-hidden">
+<div className="rounded-2xl border border-foreground/[0.08] overflow-hidden">
   <div className="px-3 md:px-5 py-2 md:py-3 bg-foreground/[0.06] border-b border-foreground/[0.06]" />
   <div className="bg-bridge-dark p-3 md:p-5">{children}</div>
 </div>
 
-// MotionModal (마이스페이스 모달)
-// Backdrop: rgba(0,0,0,0.2) + blur(2px)
-<div className="w-full sm:max-w-md bg-bridge-obsidian rounded-t-2xl sm:rounded-2xl
-  border border-foreground/10 shadow-2xl" />
-// 모달 Top Accent Line
-<div className="h-[2px] bg-gradient-to-r from-bridge-accent/60 via-bridge-secondary/40 to-transparent" />
-// 모달 Header
-<div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-foreground/[0.08]" />
-// 모달 Footer
-<div className="flex items-center justify-between pt-3 border-t border-foreground/[0.08]">
-  <span className="text-[10px] text-slate-600">Esc 닫기</span>
-  <button className="px-4 py-1.5 rounded-lg text-xs font-bold text-white bg-bridge-accent" />
-</div>
-
-// Primary 버튼 (페이지)
+// Primary 버튼
 <button className="px-5 py-2.5 bg-bridge-accent text-white rounded-xl font-bold
   hover:bg-bridge-accent/90 hover:shadow-[0_0_30px_rgba(99,102,241,0.3)] transition-all" />
 
-// Secondary 버튼 (dark: 기반)
-<button className="px-5 py-2.5 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10
-  text-slate-900 dark:text-white rounded-xl hover:bg-black/10 dark:hover:bg-white/10 transition-all" />
+// Secondary 버튼
+<button className="px-5 py-2.5 bg-foreground/5 border border-foreground/10
+  text-foreground rounded-xl hover:bg-foreground/10 transition-all" />
 
 // Ghost 버튼
 <button className="text-slate-400 hover:text-foreground hover:bg-foreground/5 transition-colors" />
@@ -171,43 +234,42 @@ docker-compose up -d              # PostgreSQL 15 + Redis 7
 <button className="p-1.5 rounded-lg text-slate-500 hover:text-foreground hover:bg-foreground/5
   transition-colors shrink-0" />
 
-// 입력 필드 (dark: 기반 - Organization 등)
-<input className="w-full bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10
-  rounded-xl py-3 px-4 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-600
+// 입력 필드 (통일)
+<input className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl py-3 px-4
+  text-foreground placeholder-slate-500
   focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all" />
 
-// Textarea (Foreground 기반 - 마이스페이스 모달)
+// Textarea (통일)
 <textarea className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl p-3
-  text-sm text-muted-foreground placeholder-slate-600 outline-none resize-none
-  focus:border-bridge-accent/30 focus:ring-1 focus:ring-bridge-accent/10 transition-all" />
-
-// 뱃지 (공통 패턴)
-<span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-{color}/10 text-{color}" />
-// Bridge 뱃지: bg-bridge-accent/20 text-bridge-accent (dark: 불필요)
-// Status 뱃지: bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 (dark: 필요)
+  text-sm text-foreground placeholder-slate-500 outline-none resize-none
+  focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all" />
 
 // Glass Morphism 헤더
-<header className="bg-bridge-obsidian border-b border-white/5 glass" />
+<header className="bg-bridge-obsidian border-b border-foreground/[0.08] glass" />
 ```
 
 ### 새 컴포넌트 작성 시 규칙
 
-1. **Bridge 컬러 사용**: `#1d2125` 대신 `bridge-dark`, `bridge-obsidian` (자동 테마 전환)
-2. **테두리**: Org = `border-black/5 dark:border-white/5` / 마이스페이스 = `border-foreground/5`
-3. **텍스트**: Org = `text-slate-900 dark:text-white` / 마이스페이스 = `text-foreground`
-4. **호버**: `hover:bg-foreground/5` 또는 `hover:bg-black/10 dark:hover:bg-white/10`
+1. **Bridge 컬러 사용**: 하드코딩 금지 → `bridge-dark`, `bridge-obsidian` (자동 테마 전환)
+2. **테두리**: `border-foreground/[0.08]` (전 서비스 통일, `border-black/5 dark:border-white/5` 사용 금지)
+3. **텍스트**: `text-foreground` (전 서비스 통일, `text-slate-900 dark:text-white` 사용 금지)
+4. **호버**: `hover:bg-foreground/5` (통일)
 5. **라운드**: 카드 `rounded-2xl`, 버튼/인풋 `rounded-xl`, 작은 요소 `rounded-lg`, 뱃지 `rounded-full`
 6. **아이콘**: Lucide React (`import { Plus } from 'lucide-react'`)
-7. **애니메이션**: Framer Motion (`motion.div` with `initial/animate/transition`)
-8. **모달**: `MotionModal` 컴포넌트 사용 (`frontend/src/app/components/ui/MotionModal.tsx`)
-9. **Status 색상**: 뱃지 BG는 `/20` 고정, 텍스트만 `dark:` 분기 (예: `text-amber-600 dark:text-amber-400`)
+7. **애니메이션**: Framer Motion — `y: 8` 통일, delay: `index * 0.04`
+8. **모달**: `MotionModal` 컴포넌트 사용, padding 통일 (header: px-5 pt-4 pb-3, body: px-5 pb-5 pt-4)
+9. **뱃지 BG**: `/15` 통일, Status 텍스트만 `dark:` 분기 (예: `text-amber-600 dark:text-amber-400`)
+10. **로딩**: `<Loader2 className="w-6 h-6 animate-spin text-bridge-accent" />` (커스텀 spinner 금지)
+11. **placeholder**: `placeholder-slate-500` 통일
+12. **포커스**: `focus:outline-none focus:ring-2 focus:ring-bridge-accent/50` 통일
+13. **회색톤**: `slate-` 통일 (`zinc-` 사용 금지)
+14. **스크롤바**: `custom-scrollbar` 통일 (`kanban-scrollbar` 사용 금지)
 
 ### 디자인 참조 파일
 
 - `docs/Design/v1.5.0.md` - **디자인 시스템 전체 기획서**
+- `docs/Design/UI-UX-Audit.md` - **UI/UX 현황 비교 분석 및 통일 방향**
 - `frontend/src/styles/theme.css` - CSS 변수 정의 (Bridge + shadcn + Light Mode)
-- `frontend/src/app/components/personal/` - 마이스페이스 (foreground 기반 패턴)
-- `frontend/src/app/components/organization/tabs/` - 조직 관리 (dark: 기반 패턴)
 - `frontend/src/app/components/ui/MotionModal.tsx` - 모달 컴포넌트
 - `frontend/src/app/components/landing/LandingPage.tsx` - 랜딩 디자인
 
