@@ -43,20 +43,110 @@ public class SchemaMigrationInitializer implements InitializingBean {
 
         log.info("Schema migration: running pre-JPA schema patches for {}", dbProductName);
 
-        // Notes 테이블
+        // ── Users 테이블 (V10, V44, V48, V53) ──
+        addColumnIfNotExists("users", "last_active_at", "TIMESTAMP");
+        addColumnIfNotExists("users", "personal_ai_credits", "INTEGER DEFAULT 30");
+        addColumnIfNotExists("users", "personal_credits_used", "INTEGER DEFAULT 0");
+        addColumnIfNotExists("users", "personal_credits_reset_date", "TIMESTAMP");
+        addColumnIfNotExists("users", "personal_space_enabled", "BOOLEAN NOT NULL DEFAULT false");
+        addColumnIfNotExists("users", "personal_purchased_credits", "INTEGER DEFAULT 0");
+
+        // ── Boards 테이블 (V40, V51, V52, V60) ──
+        addColumnIfNotExists("boards", "board_type", "VARCHAR(20) NOT NULL DEFAULT 'TEAM'");
+        addColumnIfNotExists("boards", "background_gradient", "VARCHAR(255)");
+        addColumnIfNotExists("boards", "deleted_at", "TIMESTAMP");
+        addColumnIfNotExists("boards", "organization_id", "VARCHAR(36)");
+
+        // ── Board Members 테이블 (V6, V28) ──
+        addColumnIfNotExists("board_members", "assignee_color", "VARCHAR(20)");
+        addColumnIfNotExists("board_members", "display_order", "INTEGER");
+
+        // ── Organizations 테이블 (V78, V84) ──
+        addColumnIfNotExists("organizations", "departments_enabled", "BOOLEAN NOT NULL DEFAULT TRUE");
+        addColumnIfNotExists("organizations", "job_groups_enabled", "BOOLEAN NOT NULL DEFAULT TRUE");
+        addColumnIfNotExists("organizations", "positions_enabled", "BOOLEAN NOT NULL DEFAULT TRUE");
+        addColumnIfNotExists("organizations", "titles_enabled", "BOOLEAN NOT NULL DEFAULT TRUE");
+        addColumnIfNotExists("organizations", "grades_enabled", "BOOLEAN NOT NULL DEFAULT TRUE");
+        addColumnIfNotExists("organizations", "trial_used", "BOOLEAN DEFAULT FALSE");
+
+        // ── Organization Members 테이블 (V65, V67, V74) ──
+        addColumnIfNotExists("organization_members", "timezone", "VARCHAR(50) NOT NULL DEFAULT 'Asia/Seoul'");
+        addColumnIfNotExists("organization_members", "manager_id", "VARCHAR(36)");
+        addColumnIfNotExists("organization_members", "position_id", "VARCHAR(36)");
+        addColumnIfNotExists("organization_members", "title_id", "VARCHAR(36)");
+        addColumnIfNotExists("organization_members", "grade_id", "VARCHAR(36)");
+
+        // ── Subscriptions 테이블 (V32, V84) ──
+        addColumnIfNotExists("subscriptions", "monthly_ai_credits", "INTEGER NOT NULL DEFAULT 0");
+        addColumnIfNotExists("subscriptions", "monthly_credits_used", "INTEGER NOT NULL DEFAULT 0");
+        addColumnIfNotExists("subscriptions", "purchased_credits", "INTEGER NOT NULL DEFAULT 0");
+        addColumnIfNotExists("subscriptions", "credits_reset_date", "TIMESTAMP");
+        addColumnIfNotExists("subscriptions", "migrated_to_org", "BOOLEAN DEFAULT FALSE");
+        addColumnIfNotExists("subscriptions", "migrated_to_org_id", "VARCHAR(36)");
+        addColumnIfNotExists("subscriptions", "migrated_at", "TIMESTAMP");
+        addColumnIfNotExists("subscriptions", "billing_paused_for_org", "BOOLEAN DEFAULT FALSE");
+
+        // ── Meetings 테이블 (V22, V29, V38, V39, V58) ──
+        addColumnIfNotExists("meetings", "transcript", "TEXT");
+        addColumnIfNotExists("meetings", "recurrence_rule", "VARCHAR(20)");
+        addColumnIfNotExists("meetings", "recurrence_group_id", "VARCHAR(36)");
+        addColumnIfNotExists("meetings", "recurrence_end_date", "DATE");
+        addColumnIfNotExists("meetings", "recurrence_days_of_week", "VARCHAR(20)");
+        addColumnIfNotExists("meetings", "recurrence_week_of_month", "INTEGER");
+        addColumnIfNotExists("meetings", "diarized_transcript", "TEXT");
+        addColumnIfNotExists("meetings", "speaker_mapping", "TEXT");
+        addColumnIfNotExists("meetings", "ai_suggestions", "TEXT");
+
+        // ── Notes 테이블 (V34) ──
         addColumnIfNotExists("notes", "is_shared", "BOOLEAN NOT NULL DEFAULT FALSE");
         addColumnIfNotExists("notes", "share_token", "VARCHAR(36) UNIQUE");
         addColumnIfNotExists("notes", "ai_suggestions", "TEXT");
         addColumnIfNotExists("notes", "ai_content_snapshot", "TEXT");
 
-        // Personal Events 테이블
+        // ── Notifications 테이블 (V35) ──
+        addColumnIfNotExists("notifications", "note_id", "VARCHAR(36)");
+
+        // ── Notification Preferences 테이블 (V20, V35) ──
+        addColumnIfNotExists("notification_preferences", "meeting_memo_shared_enabled", "BOOLEAN NOT NULL DEFAULT TRUE");
+        addColumnIfNotExists("notification_preferences", "slack_meeting_memo_shared_enabled", "BOOLEAN NOT NULL DEFAULT TRUE");
+        addColumnIfNotExists("notification_preferences", "note_comment_mention_enabled", "BOOLEAN NOT NULL DEFAULT TRUE");
+        addColumnIfNotExists("notification_preferences", "slack_note_comment_mention_enabled", "BOOLEAN NOT NULL DEFAULT TRUE");
+
+        // ── Features 테이블 (V37) ──
+        addColumnIfNotExists("features", "start_date", "DATE");
+
+        // ── Tasks 테이블 (V21) ──
+        addColumnIfNotExists("tasks", "baseline_start_date", "DATE");
+        addColumnIfNotExists("tasks", "baseline_due_date", "DATE");
+
+        // ── Personal Events 테이블 (V41, V54, V57) ──
         addColumnIfNotExists("personal_events", "event_type", "VARCHAR(20) DEFAULT 'SCHEDULE'");
+        addColumnIfNotExists("personal_events", "end_date", "DATE");
+        addColumnIfNotExists("personal_events", "recurrence_rule", "VARCHAR(20)");
+        addColumnIfNotExists("personal_events", "recurrence_group_id", "VARCHAR(36)");
+        addColumnIfNotExists("personal_events", "recurrence_end_date", "DATE");
+        addColumnIfNotExists("personal_events", "recurrence_days_of_week", "VARCHAR(20)");
         fixPersonalEventsEventType();
 
-        // Meetings 테이블 - 화자 분리
-        addColumnIfNotExists("meetings", "diarized_transcript", "TEXT");
-        addColumnIfNotExists("meetings", "speaker_mapping", "TEXT");
-        addColumnIfNotExists("meetings", "ai_suggestions", "TEXT");
+        // ── Personal Habits 테이블 (V50) ──
+        addColumnIfNotExists("personal_habits", "importance", "VARCHAR(10) NOT NULL DEFAULT 'MEDIUM'");
+
+        // ── Schedule Blocks 테이블 (V19, V59) ──
+        addColumnIfNotExists("schedule_blocks", "meeting_id", "VARCHAR(36)");
+        addColumnIfNotExists("schedule_blocks", "block_type", "VARCHAR(20)");
+        addColumnIfNotExists("schedule_blocks", "title", "VARCHAR(100)");
+        addColumnIfNotExists("schedule_blocks", "color", "VARCHAR(7)");
+
+        // ── AI Usage Logs 테이블 (V32) ──
+        addColumnIfNotExists("ai_usage_logs", "credit_source", "VARCHAR(20) DEFAULT 'MONTHLY'");
+        addColumnIfNotExists("ai_usage_logs", "credits_used", "INTEGER DEFAULT 1");
+
+        // ── Inquiries 테이블 (V13) ──
+        addColumnIfNotExists("inquiries", "has_new_reply", "BOOLEAN NOT NULL DEFAULT FALSE");
+
+        // ── Inquiry Replies 테이블 (V12) ──
+        addColumnIfNotExists("inquiry_replies", "user_id", "VARCHAR(36)");
+        addColumnIfNotExists("inquiry_replies", "reply_type", "VARCHAR(10) NOT NULL DEFAULT 'ADMIN'");
 
         // Notifications CHECK 제약조건
         fixNotificationTypeCheck();
@@ -64,7 +154,7 @@ public class SchemaMigrationInitializer implements InitializingBean {
         // S3 직접 URL → CloudFront URL 마이그레이션
         migrateS3UrlsToCloudFront();
 
-        log.info("Schema migration: pre-JPA patches completed");
+        log.info("Schema migration: pre-JPA patches completed ({} tables covered)", 17);
     }
 
     private String detectDatabaseProduct() {
