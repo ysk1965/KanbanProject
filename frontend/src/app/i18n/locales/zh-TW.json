@@ -2542,7 +2542,11 @@
       "overlapWarning": "與{{count}}個日程時間衝突",
       "nextDay": "隔天",
       "prevDay": "前一天起",
-      "boardScheduleToggle": "顯示看板日程"
+      "boardScheduleToggle": "顯示看板日程",
+      "connectedBoards": "關聯看板",
+      "noBoards": "暫無關聯看板",
+      "noBoardsHint": "加入看板後，協作日程將在此顯示",
+      "goToBoards": "建立看板"
     },
     "organization": {
       "list": {

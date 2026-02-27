@@ -2676,7 +2676,11 @@
       "overlapWarning": "ซ้อนทับกับ {{count}} กิจกรรม",
       "nextDay": "วันถัดไป",
       "prevDay": "จากวันก่อน",
-      "boardScheduleToggle": "แสดงตารางบอร์ด"
+      "boardScheduleToggle": "แสดงตารางบอร์ด",
+      "connectedBoards": "บอร์ดที่เชื่อมต่อ",
+      "noBoards": "ไม่มีบอร์ดที่เชื่อมต่อ",
+      "noBoardsHint": "เข้าร่วมบอร์ดเพื่อดูตารางเวลาการทำงานร่วมกันที่นี่",
+      "goToBoards": "สร้างบอร์ด"
     },
     "organization": {
       "list": {

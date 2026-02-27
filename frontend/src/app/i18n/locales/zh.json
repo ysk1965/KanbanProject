@@ -2676,7 +2676,11 @@
       "overlapWarning": "与{{count}}个日程时间冲突",
       "nextDay": "次日",
       "prevDay": "前一天起",
-      "boardScheduleToggle": "显示看板日程"
+      "boardScheduleToggle": "显示看板日程",
+      "connectedBoards": "关联看板",
+      "noBoards": "暂无关联看板",
+      "noBoardsHint": "加入看板后，协作日程将在此显示",
+      "goToBoards": "创建看板"
     },
     "organization": {
       "list": {

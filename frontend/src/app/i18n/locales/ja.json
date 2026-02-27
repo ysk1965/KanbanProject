@@ -2676,7 +2676,11 @@
       "overlapWarning": "{{count}}件のイベントと時間が重複しています",
       "nextDay": "翌日",
       "prevDay": "前日から",
-      "boardScheduleToggle": "ボードスケジュール表示"
+      "boardScheduleToggle": "ボードスケジュール表示",
+      "connectedBoards": "接続ボード",
+      "noBoards": "接続されたボードはありません",
+      "noBoardsHint": "ボードに参加するとコラボレーションスケジュールがここに表示されます",
+      "goToBoards": "ボード作成"
     },
     "organization": {
       "list": {

@@ -2676,7 +2676,11 @@
       "overlapWarning": "{{count}} इवेंट के साथ ओवरलैप",
       "nextDay": "अगला दिन",
       "prevDay": "पिछले दिन से",
-      "boardScheduleToggle": "बोर्ड शेड्यूल दिखाएं"
+      "boardScheduleToggle": "बोर्ड शेड्यूल दिखाएं",
+      "connectedBoards": "जुड़े हुए बोर्ड",
+      "noBoards": "कोई जुड़ा हुआ बोर्ड नहीं",
+      "noBoardsHint": "सहयोग शेड्यूल देखने के लिए बोर्ड में शामिल हों",
+      "goToBoards": "बोर्ड बनाएं"
     }
   },
   "organization": {

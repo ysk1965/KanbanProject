@@ -2676,7 +2676,11 @@
       "overlapWarning": "Trùng lịch với {{count}} sự kiện",
       "nextDay": "ngày hôm sau",
       "prevDay": "từ hôm trước",
-      "boardScheduleToggle": "Hiển thị lịch bảng"
+      "boardScheduleToggle": "Hiển thị lịch bảng",
+      "connectedBoards": "Bảng kết nối",
+      "noBoards": "Không có bảng nào được kết nối",
+      "noBoardsHint": "Tham gia bảng để xem lịch cộng tác tại đây",
+      "goToBoards": "Tạo bảng"
     },
     "organization": {
       "list": {

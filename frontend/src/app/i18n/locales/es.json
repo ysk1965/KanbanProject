@@ -2676,7 +2676,11 @@
       "overlapWarning": "Se superpone con {{count}} evento(s)",
       "nextDay": "día siguiente",
       "prevDay": "del día anterior",
-      "boardScheduleToggle": "Mostrar horarios del tablero"
+      "boardScheduleToggle": "Mostrar horarios del tablero",
+      "connectedBoards": "Tableros conectados",
+      "noBoards": "Sin tableros conectados",
+      "noBoardsHint": "Únete a un tablero para ver horarios de colaboración aquí",
+      "goToBoards": "Crear tablero"
     },
     "organization": {
       "list": {

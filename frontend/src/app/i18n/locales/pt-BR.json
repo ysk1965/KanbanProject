@@ -2676,7 +2676,11 @@
       "overlapWarning": "Sobrepõe {{count}} evento(s)",
       "nextDay": "dia seguinte",
       "prevDay": "do dia anterior",
-      "boardScheduleToggle": "Mostrar agendas do quadro"
+      "boardScheduleToggle": "Mostrar agendas do quadro",
+      "connectedBoards": "Quadros conectados",
+      "noBoards": "Nenhum quadro conectado",
+      "noBoardsHint": "Participe de um quadro para ver agendas de colaboração aqui",
+      "goToBoards": "Criar quadro"
     }
   },
   "organization": {
