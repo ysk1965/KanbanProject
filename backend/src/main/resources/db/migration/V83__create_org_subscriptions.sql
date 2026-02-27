@@ -15,8 +15,8 @@ CREATE TABLE org_subscriptions (
     payment_method_id    VARCHAR(100),
     trial_ends_at TIMESTAMP,
     board_limit INT NOT NULL DEFAULT 0,
-    created_at  TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at  TIMESTAMP NOT NULL DEFAULT NOW(),
+    created_at  TIMESTAMP NOT NULL DEFAULT (NOW() AT TIME ZONE 'UTC'),
+    updated_at  TIMESTAMP NOT NULL DEFAULT (NOW() AT TIME ZONE 'UTC'),
     canceled_at TIMESTAMP
 );
 
@@ -39,7 +39,7 @@ CREATE TABLE org_payment_history (
     period_end   TIMESTAMP NOT NULL,
     member_count INT NOT NULL,
     paid_at    TIMESTAMP,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    created_at TIMESTAMP NOT NULL DEFAULT (NOW() AT TIME ZONE 'UTC')
 );
 
 CREATE INDEX idx_org_pay_sub_id ON org_payment_history(org_subscription_id);

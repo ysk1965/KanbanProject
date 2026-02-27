@@ -9,8 +9,8 @@ CREATE TABLE okr_cycles (
     end_date        DATE NOT NULL,
     status          VARCHAR(20) NOT NULL DEFAULT 'PLANNING',
     created_by      VARCHAR(36) NOT NULL REFERENCES users(id),
-    created_at      TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at      TIMESTAMP NOT NULL DEFAULT NOW()
+    created_at      TIMESTAMP NOT NULL DEFAULT (NOW() AT TIME ZONE 'UTC'),
+    updated_at      TIMESTAMP NOT NULL DEFAULT (NOW() AT TIME ZONE 'UTC')
 );
 
 CREATE TABLE okr_objectives (
@@ -21,13 +21,13 @@ CREATE TABLE okr_objectives (
     description           TEXT,
     level                 VARCHAR(20) NOT NULL DEFAULT 'COMPANY',
     department_id         VARCHAR(36) REFERENCES organization_departments(id),
-    owner_id              VARCHAR(36) REFERENCES org_members(id),
+    owner_id              VARCHAR(36) REFERENCES organization_members(id),
     parent_objective_id   VARCHAR(36) REFERENCES okr_objectives(id) ON DELETE SET NULL,
     progress              INTEGER NOT NULL DEFAULT 0,
     confidence            VARCHAR(20) NOT NULL DEFAULT 'ON_TRACK',
     sort_order            INTEGER NOT NULL DEFAULT 0,
-    created_at            TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at            TIMESTAMP NOT NULL DEFAULT NOW()
+    created_at            TIMESTAMP NOT NULL DEFAULT (NOW() AT TIME ZONE 'UTC'),
+    updated_at            TIMESTAMP NOT NULL DEFAULT (NOW() AT TIME ZONE 'UTC')
 );
 
 CREATE TABLE okr_key_results (
@@ -40,12 +40,12 @@ CREATE TABLE okr_key_results (
     target_value    DOUBLE PRECISION NOT NULL DEFAULT 100,
     current_value   DOUBLE PRECISION NOT NULL DEFAULT 0,
     unit            VARCHAR(20),
-    owner_id        VARCHAR(36) REFERENCES org_members(id),
+    owner_id        VARCHAR(36) REFERENCES organization_members(id),
     weight          DOUBLE PRECISION NOT NULL DEFAULT 1.0,
     linked_board_id VARCHAR(36) REFERENCES boards(id),
     sort_order      INTEGER NOT NULL DEFAULT 0,
-    created_at      TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at      TIMESTAMP NOT NULL DEFAULT NOW()
+    created_at      TIMESTAMP NOT NULL DEFAULT (NOW() AT TIME ZONE 'UTC'),
+    updated_at      TIMESTAMP NOT NULL DEFAULT (NOW() AT TIME ZONE 'UTC')
 );
 
 CREATE TABLE okr_checkins (
@@ -55,8 +55,8 @@ CREATE TABLE okr_checkins (
     new_value       DOUBLE PRECISION NOT NULL,
     confidence      VARCHAR(20) NOT NULL DEFAULT 'ON_TRACK',
     note            TEXT,
-    author_id       VARCHAR(36) NOT NULL REFERENCES org_members(id),
-    created_at      TIMESTAMP NOT NULL DEFAULT NOW()
+    author_id       VARCHAR(36) NOT NULL REFERENCES organization_members(id),
+    created_at      TIMESTAMP NOT NULL DEFAULT (NOW() AT TIME ZONE 'UTC')
 );
 
 CREATE INDEX idx_okr_cycles_org ON okr_cycles(organization_id);

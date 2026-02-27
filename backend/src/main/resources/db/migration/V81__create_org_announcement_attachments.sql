@@ -8,7 +8,7 @@ CREATE TABLE org_announcement_attachments (
     thumbnail_url VARCHAR(500),
     content_type VARCHAR(100) NOT NULL,
     file_size BIGINT NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+    created_at TIMESTAMP NOT NULL DEFAULT (NOW() AT TIME ZONE 'UTC'),
+    updated_at TIMESTAMP NOT NULL DEFAULT (NOW() AT TIME ZONE 'UTC')
 );
 CREATE INDEX idx_org_announcement_attachment_announcement ON org_announcement_attachments(announcement_id);
