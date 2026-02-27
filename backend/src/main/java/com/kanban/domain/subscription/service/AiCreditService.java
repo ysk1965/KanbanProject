@@ -313,7 +313,7 @@ public class AiCreditService {
         return switch (tier) {
             case TRIAL -> 100;
             case STANDARD -> 30;
-            case PREMIUM -> 200 + (seatCount * 50);
+            case PREMIUM, ORG_MANAGED -> 200 + (seatCount * 50);
         };
     }
 }

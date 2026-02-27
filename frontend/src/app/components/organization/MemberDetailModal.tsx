@@ -20,6 +20,7 @@ import type {
   OrgPosition,
   OrgTitle,
   OrgGrade,
+  OrgStructureSettings,
   LeaveBalance,
 } from "../../types";
 
@@ -35,6 +36,7 @@ interface MemberDetailModalProps {
   positions: OrgPosition[];
   titles: OrgTitle[];
   grades: OrgGrade[];
+  structureSettings?: OrgStructureSettings;
   onMemberUpdated: () => void;
 }
 
@@ -75,6 +77,7 @@ export function MemberDetailModal({
   positions,
   titles,
   grades,
+  structureSettings,
   onMemberUpdated,
 }: MemberDetailModalProps) {
   const { t } = useTranslation();
@@ -255,14 +258,14 @@ export function MemberDetailModal({
             {/* Left: Tab Nav + Content */}
             <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
               {/* Tab Navigation */}
-              <div className="flex gap-1 border-b border-foreground/[0.08] px-6 shrink-0">
+              <div className="flex gap-1 border-b border-foreground/[0.08] px-4 sm:px-6 shrink-0 overflow-x-auto">
                 {TABS.map((tab) => {
                   const Icon = tab.icon;
                   return (
                     <button
                       key={tab.key}
                       onClick={() => setActiveTab(tab.key)}
-                      className={`relative px-4 py-2.5 text-sm font-medium transition-colors flex items-center gap-1.5 ${
+                      className={`relative px-3 sm:px-4 py-2.5 text-sm font-medium transition-colors flex items-center gap-1.5 whitespace-nowrap ${
                         activeTab === tab.key
                           ? "text-bridge-accent"
                           : "text-slate-400 hover:text-foreground"
@@ -299,6 +302,7 @@ export function MemberDetailModal({
                     positions={positions}
                     titles={titles}
                     grades={grades}
+                    structureSettings={structureSettings}
                     leaveBalances={leaveBalances}
                     onUpdate={handleMemberUpdate}
                   />
@@ -315,6 +319,7 @@ export function MemberDetailModal({
                     positions={positions}
                     titles={titles}
                     grades={grades}
+                    structureSettings={structureSettings}
                   />
                 )}
                 {activeTab === "boards" && (
@@ -338,7 +343,7 @@ export function MemberDetailModal({
             </div>
 
             {/* Right: Sidebar (desktop only) */}
-            <div className="hidden sm:block">
+            <div className="hidden md:block">
               <MemberSidebar
                 member={member}
                 boards={boards}

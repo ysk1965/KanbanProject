@@ -16,9 +16,11 @@ import {
   Key,
   X,
   ChevronRight,
+  Loader2,
 } from 'lucide-react';
 import { monitoringService } from '../../utils/services';
 import { MonitoringCharts } from './MonitoringCharts';
+import { Toast } from './AdminConfirmModal';
 import type {
   MonitoringDashboard,
   MonitoringAlertConfig,
@@ -42,6 +44,7 @@ export function AdminMonitoringTab() {
   const [isSavingConfig, setIsSavingConfig] = useState(false);
   const [isSendingTest, setIsSendingTest] = useState(false);
   const [showErrorDetail, setShowErrorDetail] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -91,10 +94,10 @@ export function AdminMonitoringTab() {
         enabled: alertEnabled,
       });
       setAlertConfig(updated);
-      alert(t('admin.monitoring.configSaved'));
+      setToast({ message: t('admin.monitoring.configSaved'), type: 'success' });
     } catch (err) {
       console.error('Failed to save config:', err);
-      alert('Failed to save configuration');
+      setToast({ message: t('admin.monitoring.configSaveFailed', 'Failed to save configuration'), type: 'error' });
     } finally {
       setIsSavingConfig(false);
     }
@@ -104,10 +107,10 @@ export function AdminMonitoringTab() {
     try {
       setIsSendingTest(true);
       await monitoringService.sendTestAlert();
-      alert(t('admin.monitoring.testSent'));
+      setToast({ message: t('admin.monitoring.testSent'), type: 'success' });
     } catch (err) {
       console.error('Failed to send test alert:', err);
-      alert('Failed to send test alert');
+      setToast({ message: t('admin.monitoring.testSendFailed', 'Failed to send test alert'), type: 'error' });
     } finally {
       setIsSendingTest(false);
     }
@@ -116,7 +119,7 @@ export function AdminMonitoringTab() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-bridge-accent" />
+        <Loader2 className="w-8 h-8 animate-spin text-bridge-accent" />
       </div>
     );
   }
@@ -170,7 +173,7 @@ export function AdminMonitoringTab() {
       {/* Status Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* JVM Heap */}
-        <div className="bg-bridge-obsidian rounded-2xl border border-foreground/5 p-6">
+        <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-6">
           <div className="flex items-center gap-2 mb-2">
             <Cpu className="h-4 w-4 text-bridge-accent" />
             <p className="text-slate-400 text-sm">{t('admin.monitoring.jvmHeap')}</p>
@@ -190,7 +193,7 @@ export function AdminMonitoringTab() {
         </div>
 
         {/* HikariCP Connections */}
-        <div className="bg-bridge-obsidian rounded-2xl border border-foreground/5 p-6">
+        <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-6">
           <div className="flex items-center gap-2 mb-2">
             <Database className="h-4 w-4 text-bridge-secondary" />
             <p className="text-slate-400 text-sm">{t('admin.monitoring.hikariConnections')}</p>
@@ -212,7 +215,7 @@ export function AdminMonitoringTab() {
         {/* API Error Rate (Clickable) */}
         <button
           onClick={() => setShowErrorDetail(true)}
-          className="bg-bridge-obsidian rounded-2xl border border-foreground/5 p-6 text-left hover:border-amber-400/30 hover:bg-white/[0.02] transition-all group"
+          className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-6 text-left hover:border-amber-400/30 hover:bg-white/[0.02] transition-all group"
         >
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
@@ -230,7 +233,7 @@ export function AdminMonitoringTab() {
         </button>
 
         {/* Total Requests */}
-        <div className="bg-bridge-obsidian rounded-2xl border border-foreground/5 p-6">
+        <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-6">
           <div className="flex items-center gap-2 mb-2">
             <Server className="h-4 w-4 text-emerald-400" />
             <p className="text-slate-400 text-sm">{t('admin.monitoring.totalRequests')}</p>
@@ -249,7 +252,7 @@ export function AdminMonitoringTab() {
 
       {/* OpenAI Account Billing */}
       {openAIBilling && (
-        <div className="bg-bridge-obsidian rounded-2xl border border-foreground/5 p-6">
+        <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-6">
           <div className="flex items-center gap-2 mb-4">
             <CreditCard className="h-5 w-5 text-emerald-400" />
             <h3 className="text-lg font-bold text-foreground">{t('admin.monitoring.openAIBilling')}</h3>
@@ -304,7 +307,7 @@ export function AdminMonitoringTab() {
       {/* AI Usage Cards */}
       {aiUsage && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-bridge-obsidian rounded-2xl border border-foreground/5 p-6">
+          <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-6">
             <div className="flex items-center gap-2 mb-2">
               <Bot className="h-4 w-4 text-purple-400" />
               <p className="text-slate-400 text-sm">{t('admin.monitoring.aiTotalCalls')}</p>
@@ -317,7 +320,7 @@ export function AdminMonitoringTab() {
             </p>
           </div>
 
-          <div className="bg-bridge-obsidian rounded-2xl border border-foreground/5 p-6">
+          <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-6">
             <div className="flex items-center gap-2 mb-2">
               <Activity className="h-4 w-4 text-cyan-400" />
               <p className="text-slate-400 text-sm">{t('admin.monitoring.aiTotalTokens')}</p>
@@ -330,7 +333,7 @@ export function AdminMonitoringTab() {
             </p>
           </div>
 
-          <div className="bg-bridge-obsidian rounded-2xl border border-foreground/5 p-6">
+          <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-6">
             <div className="flex items-center gap-2 mb-2">
               <DollarSign className="h-4 w-4 text-emerald-400" />
               <p className="text-slate-400 text-sm">{t('admin.monitoring.aiEstimatedCost')}</p>
@@ -343,7 +346,7 @@ export function AdminMonitoringTab() {
             </p>
           </div>
 
-          <div className="bg-bridge-obsidian rounded-2xl border border-foreground/5 p-6">
+          <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-6">
             <div className="flex items-center gap-2 mb-2">
               <Activity className="h-4 w-4 text-amber-400" />
               <p className="text-slate-400 text-sm">{t('admin.monitoring.aiAvgTokensPerCall')}</p>
@@ -361,7 +364,7 @@ export function AdminMonitoringTab() {
       )}
 
       {/* Slack Alert Configuration */}
-      <div className="bg-bridge-obsidian rounded-2xl border border-foreground/5 p-6">
+      <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-6">
         <div className="flex items-center gap-2 mb-6">
           <Bell className="h-5 w-5 text-bridge-accent" />
           <h3 className="text-lg font-bold text-foreground">{t('admin.monitoring.slackAlerts')}</h3>
@@ -377,7 +380,7 @@ export function AdminMonitoringTab() {
               value={webhookUrl}
               onChange={(e) => setWebhookUrl(e.target.value)}
               placeholder={t('admin.monitoring.webhookUrlPlaceholder')}
-              className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-foreground placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
+              className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent transition-all"
             />
           </div>
 
@@ -418,6 +421,15 @@ export function AdminMonitoringTab() {
         {t('admin.monitoring.serverTime')}: {dashboard.server_time}
       </div>
 
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          isVisible={!!toast}
+          onClose={() => setToast(null)}
+        />
+      )}
+
       {/* Error Detail Modal */}
       {showErrorDetail && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowErrorDetail(false)}>
@@ -426,7 +438,7 @@ export function AdminMonitoringTab() {
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="flex items-center justify-between p-6 border-b border-foreground/5">
+            <div className="flex items-center justify-between p-6 border-b border-foreground/[0.08]">
               <div className="flex items-center gap-3">
                 <AlertTriangle className="h-5 w-5 text-amber-400" />
                 <div>

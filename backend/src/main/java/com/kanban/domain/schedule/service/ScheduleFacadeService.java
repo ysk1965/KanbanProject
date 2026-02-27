@@ -28,6 +28,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -52,7 +53,7 @@ public class ScheduleFacadeService {
      * Day 모드 통합 조회 (스케줄 + 데일리 체크리스트)
      * 기존 2개 API 호출 → 1개로 통합하여 50% 감소
      */
-    public ScheduleResponse.DailyFull getDailyFull(String boardId, LocalDate date, List<String> assigneeIds, String userId) {
+    public ScheduleResponse.DailyFull getDailyFull(String boardId, LocalDate date, List<String> assigneeIds, String userId, boolean includeOrgSchedules) {
         boardService.checkViewerOrAbove(boardId, userId);
 
         Board board = boardRepository.findById(boardId)
@@ -99,6 +100,49 @@ public class ScheduleFacadeService {
                     .user(ScheduleResponse.UserInfo.of(user))
                     .blocks(blockInfos)
                     .build());
+        }
+
+        // 1.5. 크로스보드 조직 스케줄 조회
+        if (includeOrgSchedules && board.getOrganization() != null) {
+            String orgId = board.getOrganization().getId();
+
+            // 조직 내 모든 보드 ID
+            List<String> orgBoardIds = boardRepository.findBoardIdsByOrgId(orgId);
+
+            // 유저가 멤버인 보드만 필터 (현재 보드 제외)
+            Set<String> userBoardIds = boardMemberRepository.findByUserIdWithActiveBoards(userId)
+                    .stream().map(bm -> bm.getBoard().getId()).collect(Collectors.toSet());
+
+            List<String> crossBoardIds = orgBoardIds.stream()
+                    .filter(id -> !id.equals(boardId))
+                    .filter(userBoardIds::contains)
+                    .collect(Collectors.toList());
+
+            if (!crossBoardIds.isEmpty()) {
+                List<ScheduleBlock> crossBlocks = scheduleBlockRepository
+                        .findByBoardIdInAndScheduledDateAndAssigneeIdIn(
+                                crossBoardIds, date, targetAssigneeIds);
+
+                Map<String, List<ScheduleBlock>> crossByAssignee = crossBlocks.stream()
+                        .collect(Collectors.groupingBy(b -> b.getAssignee().getId()));
+
+                // 각 컬럼에 orgBlocks 추가 (기존 ColumnInfo를 새로 빌드하여 교체)
+                List<ScheduleResponse.ColumnInfo> updatedColumns = new ArrayList<>();
+                for (ScheduleResponse.ColumnInfo col : scheduleColumns) {
+                    List<ScheduleBlock> userCrossBlocks =
+                            crossByAssignee.getOrDefault(col.getUser().getId(), List.of());
+                    List<ScheduleResponse.BlockInfo> orgBlockInfos = userCrossBlocks.stream()
+                            .map(ScheduleResponse.BlockInfo::of)
+                            .collect(Collectors.toList());
+
+                    updatedColumns.add(ScheduleResponse.ColumnInfo.builder()
+                            .user(col.getUser())
+                            .blocks(col.getBlocks())
+                            .orgBlocks(orgBlockInfos.isEmpty() ? null : orgBlockInfos)
+                            .build());
+                }
+                scheduleColumns = updatedColumns;
+            }
         }
 
         // 2. 데일리 체크리스트 조회

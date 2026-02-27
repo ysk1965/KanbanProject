@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, ChevronLeft, ChevronRight, Shield, User as UserIcon, Mail, Calendar, Check, Minus } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Shield, User as UserIcon, Mail, Calendar, Check, Minus, Loader2 } from 'lucide-react';
 import { adminService } from '../../utils/services';
 import { UserListResponse } from '../../utils/api';
 import { AdminUserDetailModal } from './AdminUserDetailModal';
@@ -65,7 +65,7 @@ export function AdminUsersTab() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={t('admin.users.searchPlaceholder')}
-            className="w-full bg-bridge-obsidian border border-bridge-border rounded-xl py-3 pl-12 pr-4
+            className="w-full bg-bridge-obsidian border border-foreground/[0.08] rounded-xl py-3 pl-12 pr-4
               text-foreground placeholder-slate-400
               focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 focus:border-bridge-accent
               transition-all"
@@ -96,17 +96,17 @@ export function AdminUsersTab() {
       {/* Loading State */}
       {isLoading && !error && (
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-bridge-accent" />
+          <Loader2 className="w-8 h-8 animate-spin text-bridge-accent" />
         </div>
       )}
 
       {/* Users Table */}
       {!isLoading && !error && users && (
         <>
-          <div className="bg-bridge-obsidian rounded-xl border border-bridge-border overflow-x-auto">
+          <div className="bg-bridge-obsidian rounded-xl border border-foreground/[0.08] overflow-x-auto">
             <table className="w-full min-w-[640px]">
               <thead>
-                <tr className="border-b border-bridge-border">
+                <tr className="border-b border-foreground/[0.08]">
                   <th className="text-left px-3 py-3 md:px-6 md:py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
                     {t('admin.users.user')}
                   </th>
@@ -132,7 +132,7 @@ export function AdminUsersTab() {
                   <tr
                     key={user.id}
                     onClick={() => setSelectedUserId(user.id)}
-                    className="border-b border-bridge-border last:border-0 hover:bg-foreground/5 cursor-pointer transition-colors"
+                    className="border-b border-foreground/[0.08] last:border-0 hover:bg-foreground/5 cursor-pointer transition-colors"
                   >
                     <td className="px-3 py-3 md:px-6 md:py-4">
                       <div className="flex items-center gap-3">
@@ -212,7 +212,7 @@ export function AdminUsersTab() {
               <button
                 onClick={() => setPage(Math.max(0, page - 1))}
                 disabled={page === 0}
-                className="p-2 bg-bridge-obsidian border border-bridge-border rounded-lg
+                className="p-2 bg-bridge-obsidian border border-foreground/[0.08] rounded-lg
                   text-slate-400 hover:text-foreground hover:bg-foreground/5
                   disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
@@ -224,7 +224,7 @@ export function AdminUsersTab() {
               <button
                 onClick={() => setPage(Math.min(Math.ceil(users.total / users.size) - 1, page + 1))}
                 disabled={page >= Math.ceil(users.total / users.size) - 1}
-                className="p-2 bg-bridge-obsidian border border-bridge-border rounded-lg
+                className="p-2 bg-bridge-obsidian border border-foreground/[0.08] rounded-lg
                   text-slate-400 hover:text-foreground hover:bg-foreground/5
                   disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >

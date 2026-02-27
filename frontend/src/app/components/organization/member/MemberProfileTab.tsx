@@ -14,6 +14,7 @@ import type {
   OrgPosition,
   OrgTitle,
   OrgGrade,
+  OrgStructureSettings,
 } from "../../../types";
 
 interface MemberProfileTabProps {
@@ -26,6 +27,7 @@ interface MemberProfileTabProps {
   positions: OrgPosition[];
   titles: OrgTitle[];
   grades: OrgGrade[];
+  structureSettings?: OrgStructureSettings;
   leaveBalances: LeaveBalance[];
   onUpdate: (updated: OrgMemberDetail) => void;
 }
@@ -74,9 +76,15 @@ export function MemberProfileTab({
   positions,
   titles,
   grades,
+  structureSettings: ss,
   leaveBalances,
   onUpdate,
 }: MemberProfileTabProps) {
+  const deptOn = ss?.departments_enabled !== false;
+  const jgOn = ss?.job_groups_enabled !== false;
+  const posOn = ss?.positions_enabled !== false;
+  const titleOn = ss?.titles_enabled !== false;
+  const gradeOn = ss?.grades_enabled !== false;
   const { t } = useTranslation();
   const isAdmin = myRole === "OWNER" || myRole === "ADMIN";
   const canEditInfo = isAdmin;
@@ -155,16 +163,16 @@ export function MemberProfileTab({
     {
       title: t("organization.members.detail.orgPosition"),
       fields: [
-        {
+        ...(deptOn ? [{
           key: "department",
           label: t("organization.members.detail.department"),
           value: member.department?.name,
-        },
-        {
+        }] : []),
+        ...(posOn ? [{
           key: "position",
           label: t("organization.members.detail.position"),
           value: member.position?.name,
-        },
+        }] : []),
       ],
     },
     {
@@ -175,26 +183,26 @@ export function MemberProfileTab({
           label: t("organization.members.detail.jobTitle"),
           value: member.job_title,
         },
-        {
+        ...(jgOn ? [{
           key: "job_group",
           label: t("organization.members.detail.jobGroup"),
           value: member.job_group?.name,
-        },
+        }] : []),
       ],
     },
     {
       title: t("organization.members.detail.rankInfo"),
       fields: [
-        {
+        ...(titleOn ? [{
           key: "title",
           label: t("organization.members.detail.title"),
           value: member.title?.name,
-        },
-        {
+        }] : []),
+        ...(gradeOn ? [{
           key: "grade",
           label: t("organization.members.detail.grade"),
           value: member.grade?.name,
-        },
+        }] : []),
       ],
     },
     {
@@ -312,24 +320,26 @@ export function MemberProfileTab({
                 </EditRow>
               )}
               {/* Department */}
-              <EditRow label={t("organization.members.detail.department")}>
-                <select
-                  value={form.department_id}
-                  onChange={(e) =>
-                    setForm({ ...form, department_id: e.target.value })
-                  }
-                  className="w-full bg-foreground/[0.03] border border-foreground/10 text-foreground rounded-lg py-1.5 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
-                >
-                  <option value="">—</option>
-                  {departments.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.name}
-                    </option>
-                  ))}
-                </select>
-              </EditRow>
+              {deptOn && (
+                <EditRow label={t("organization.members.detail.department")}>
+                  <select
+                    value={form.department_id}
+                    onChange={(e) =>
+                      setForm({ ...form, department_id: e.target.value })
+                    }
+                    className="w-full bg-foreground/[0.03] border border-foreground/10 text-foreground rounded-lg py-1.5 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
+                  >
+                    <option value="">—</option>
+                    {departments.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.name}
+                      </option>
+                    ))}
+                  </select>
+                </EditRow>
+              )}
               {/* Position */}
-              {isAdmin && (
+              {isAdmin && posOn && (
                 <EditRow label={t("organization.members.detail.position")}>
                   <select
                     value={form.position_id}
@@ -348,22 +358,24 @@ export function MemberProfileTab({
                 </EditRow>
               )}
               {/* Job Group */}
-              <EditRow label={t("organization.members.detail.jobGroup")}>
-                <select
-                  value={form.job_group_id}
-                  onChange={(e) =>
-                    setForm({ ...form, job_group_id: e.target.value })
-                  }
-                  className="w-full bg-foreground/[0.03] border border-foreground/10 text-foreground rounded-lg py-1.5 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
-                >
-                  <option value="">—</option>
-                  {jobGroups.map((jg) => (
-                    <option key={jg.id} value={jg.id}>
-                      {jg.name}
-                    </option>
-                  ))}
-                </select>
-              </EditRow>
+              {jgOn && (
+                <EditRow label={t("organization.members.detail.jobGroup")}>
+                  <select
+                    value={form.job_group_id}
+                    onChange={(e) =>
+                      setForm({ ...form, job_group_id: e.target.value })
+                    }
+                    className="w-full bg-foreground/[0.03] border border-foreground/10 text-foreground rounded-lg py-1.5 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-bridge-accent/50"
+                  >
+                    <option value="">—</option>
+                    {jobGroups.map((jg) => (
+                      <option key={jg.id} value={jg.id}>
+                        {jg.name}
+                      </option>
+                    ))}
+                  </select>
+                </EditRow>
+              )}
               {/* Job Title */}
               <EditRow label={t("organization.members.detail.jobTitle")}>
                 <input
@@ -376,7 +388,7 @@ export function MemberProfileTab({
                 />
               </EditRow>
               {/* Title */}
-              {isAdmin && (
+              {isAdmin && titleOn && (
                 <EditRow label={t("organization.members.detail.title")}>
                   <select
                     value={form.title_id}
@@ -395,7 +407,7 @@ export function MemberProfileTab({
                 </EditRow>
               )}
               {/* Grade */}
-              {isAdmin && (
+              {isAdmin && gradeOn && (
                 <EditRow label={t("organization.members.detail.grade")}>
                   <select
                     value={form.grade_id}
@@ -474,7 +486,7 @@ export function MemberProfileTab({
               exit={{ opacity: 0 }}
               className="space-y-5"
             >
-              {infoSections.map((section) => (
+              {infoSections.filter((s) => s.fields.length > 0).map((section) => (
                 <div key={section.title}>
                   <h4 className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2">
                     {section.title}
@@ -621,11 +633,7 @@ export function MemberProfileTab({
                     </span>
                     <span className="text-xs font-bold text-foreground">
                       {lb.used_days} / {lb.total_days}
-                      {t("organization.members.detail.tenureMonths", {
-                        count: "",
-                      }).includes("월")
-                        ? "일"
-                        : " days"}
+                      {t("organization.leave.days")}
                     </span>
                   </div>
                   <div className="w-full h-2 bg-foreground/[0.03] rounded-full overflow-hidden">

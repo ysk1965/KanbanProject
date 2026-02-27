@@ -25,6 +25,7 @@ import type {
   OrgPosition,
   OrgTitle,
   OrgGrade,
+  OrgStructureSettings,
 } from "../../../types";
 import { MemberDetailModal } from "../MemberDetailModal";
 
@@ -61,6 +62,10 @@ export function OrgChartTab({
   const [positions, setPositions] = useState<OrgPosition[]>([]);
   const [titles, setTitles] = useState<OrgTitle[]>([]);
   const [grades, setGrades] = useState<OrgGrade[]>([]);
+  const [structureSettings, setStructureSettings] = useState<OrgStructureSettings>({
+    departments_enabled: true, job_groups_enabled: true, positions_enabled: true,
+    titles_enabled: true, grades_enabled: true,
+  });
 
   const fetchChart = useCallback(async () => {
     try {
@@ -81,7 +86,7 @@ export function OrgChartTab({
   useEffect(() => {
     const fetchLookups = async () => {
       try {
-        const [jgs, pos, tls, gds] = await Promise.all([
+        const [jgs, pos, tls, gds, ss] = await Promise.all([
           organizationService
             .getJobGroups(orgId)
             .catch(() => [] as OrgJobGroup[]),
@@ -90,11 +95,13 @@ export function OrgChartTab({
             .catch(() => [] as OrgPosition[]),
           organizationService.getTitles(orgId).catch(() => [] as OrgTitle[]),
           organizationService.getGrades(orgId).catch(() => [] as OrgGrade[]),
+          organizationService.getStructureSettings(orgId).catch(() => null as OrgStructureSettings | null),
         ]);
         setJobGroups(jgs);
         setPositions(pos);
         setTitles(tls);
         setGrades(gds);
+        if (ss) setStructureSettings(ss);
       } catch {
         // Lookups are optional
       }
@@ -395,6 +402,7 @@ export function OrgChartTab({
           positions={positions}
           titles={titles}
           grades={grades}
+          structureSettings={structureSettings}
           onMemberUpdated={() => {
             fetchChart();
             setSelectedMemberId(null);
@@ -422,7 +430,7 @@ function DepartmentTreeView({
 
   return (
     <div className="overflow-x-auto pb-4">
-      <div className="flex flex-col items-center min-w-[600px]">
+      <div className="flex flex-col items-center min-w-[400px] md:min-w-0">
         {/* Organization Root */}
         <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] px-6 py-4 text-center shadow-sm">
           <div className="text-sm font-bold text-foreground">
@@ -501,7 +509,7 @@ function DeptChildrenRow({
           <div className="absolute inset-0 bg-foreground/10" />
         </div>
       )}
-      <div className="flex justify-center gap-6">
+      <div className="flex justify-center gap-3 md:gap-6">
         {depts.map((dept) => (
           <DepartmentTreeNode
             key={dept.id}
@@ -514,6 +522,18 @@ function DeptChildrenRow({
       </div>
     </div>
   );
+}
+
+function flattenMemberNodes(
+  members: OrgChartMemberNode[],
+): OrgChartMemberNode[] {
+  const result: OrgChartMemberNode[] = [];
+  const collect = (m: OrgChartMemberNode) => {
+    result.push(m);
+    m.reports.forEach(collect);
+  };
+  members.forEach(collect);
+  return result;
 }
 
 function DepartmentTreeNode({
@@ -529,6 +549,7 @@ function DepartmentTreeNode({
 }) {
   const isCollapsed = collapsedDepts.has(dept.id);
   const hasChildren = dept.children.length > 0;
+  const allMembers = useMemo(() => flattenMemberNodes(dept.members), [dept.members]);
 
   return (
     <div className="flex flex-col items-center">
@@ -538,10 +559,12 @@ function DepartmentTreeNode({
       {/* Department Card */}
       <motion.div
         whileHover={{ scale: 1.02 }}
-        className="relative bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] min-w-[180px] max-w-[220px] shadow-sm cursor-pointer hover:border-foreground/[0.12] transition-colors group"
-        onClick={() => hasChildren && onToggleDept(dept.id)}
+        className="relative bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] min-w-[140px] max-w-[180px] md:min-w-[180px] md:max-w-[220px] shadow-sm hover:border-foreground/[0.12] transition-colors group"
       >
-        <div className="px-4 py-3">
+        <div
+          className={`px-4 py-3 ${hasChildren ? "cursor-pointer" : ""}`}
+          onClick={() => hasChildren && onToggleDept(dept.id)}
+        >
           <div className="flex items-start justify-between gap-2">
             <div className="flex items-center gap-2.5 min-w-0 flex-1">
               {/* Leader avatar or department icon */}
@@ -593,6 +616,46 @@ function DepartmentTreeNode({
           </div>
         </div>
 
+        {/* Member list */}
+        {allMembers.length > 0 && (
+          <div className="px-3 pb-2.5 border-t border-foreground/[0.06]">
+            <div className="pt-1.5 space-y-0.5">
+              {allMembers.map((member) => (
+                <button
+                  key={member.id}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onMemberClick(member.id);
+                  }}
+                  className="w-full flex items-center gap-2 py-1 px-1 rounded-lg hover:bg-foreground/5 transition-colors"
+                >
+                  {member.profile_image_url ? (
+                    <img
+                      src={resolveFileUrl(member.profile_image_url)}
+                      alt={member.user_name}
+                      className="w-5 h-5 rounded-full object-cover shrink-0"
+                    />
+                  ) : (
+                    <div className="w-5 h-5 rounded-full bg-bridge-accent/15 flex items-center justify-center shrink-0">
+                      <span className="text-[8px] font-bold text-bridge-accent">
+                        {member.user_name?.charAt(0)?.toUpperCase() || "?"}
+                      </span>
+                    </div>
+                  )}
+                  <span className="text-[10px] text-foreground truncate">
+                    {member.user_name}
+                  </span>
+                  {member.job_title && (
+                    <span className="text-[9px] text-muted-foreground truncate hidden md:inline">
+                      {member.job_title}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Child dept count badge */}
         {hasChildren && (
           <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 z-10">
@@ -617,13 +680,15 @@ function DepartmentTreeNode({
             transition={{ duration: 0.2 }}
             className="flex flex-col items-center overflow-hidden"
           >
-            <div className="w-px h-6 bg-foreground/10 mt-3" />
-            <DeptChildrenRow
-              depts={dept.children}
-              collapsedDepts={collapsedDepts}
-              onToggleDept={onToggleDept}
-              onMemberClick={onMemberClick}
-            />
+            <div className="flex flex-col items-center pb-4">
+              <div className="w-px h-6 bg-foreground/10 mt-3" />
+              <DeptChildrenRow
+                depts={dept.children}
+                collapsedDepts={collapsedDepts}
+                onToggleDept={onToggleDept}
+                onMemberClick={onMemberClick}
+              />
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

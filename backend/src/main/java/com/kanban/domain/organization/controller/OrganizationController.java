@@ -85,6 +85,27 @@ public class OrganizationController {
         return ResponseEntity.ok(response);
     }
 
+    // ==================== Structure Settings ====================
+
+    @GetMapping("/{orgId}/structure-settings")
+    public ResponseEntity<OrganizationResponse.StructureSettings> getStructureSettings(
+            @PathVariable String orgId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        OrganizationResponse.StructureSettings response = organizationService.getStructureSettings(
+                orgId, principal.getUserId());
+        return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/{orgId}/structure-settings")
+    public ResponseEntity<OrganizationResponse.StructureSettings> updateStructureSettings(
+            @PathVariable String orgId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestBody OrganizationRequest.UpdateStructureSettings request) {
+        OrganizationResponse.StructureSettings response = organizationService.updateStructureSettings(
+                orgId, principal.getUserId(), request);
+        return ResponseEntity.ok(response);
+    }
+
     // ==================== Departments ====================
 
     @GetMapping("/{orgId}/departments")

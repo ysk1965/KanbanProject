@@ -450,6 +450,8 @@ export interface BoardListItem {
   completed_tasks: number;
   members: MemberPreviewResponse[];
   subscription: BoardSubscription;
+  organization_id?: string | null;
+  organization_name?: string | null;
   created_at: string;
 }
 
@@ -1934,6 +1936,11 @@ export const memberAPI = {
       { member_ids: memberIds },
     );
   },
+
+  getOrgCandidates: async (boardId: string, search?: string): Promise<import("../types").OrgBoardCandidate[]> => {
+    const params = search ? `?search=${encodeURIComponent(search)}` : '';
+    return apiClient.get(`/boards/${boardId}/members/org-candidates${params}`);
+  },
 };
 
 // ========================================
@@ -2289,11 +2296,14 @@ export interface ScheduleBlockInfo {
   block_type: string | null;
   title: string | null;
   color: string | null;
+  board_id?: string | null;
+  board_name?: string | null;
 }
 
 export interface ScheduleColumnInfo {
   user: ScheduleUserInfo;
   blocks: ScheduleBlockInfo[];
+  org_blocks?: ScheduleBlockInfo[] | null;
 }
 
 export interface DailyScheduleResponse {
@@ -2394,12 +2404,16 @@ export const scheduleAPI = {
     startDate: string,
     endDate: string,
     assigneeIds?: string[],
+    includeOrgSchedules?: boolean,
   ) => {
     const query = new URLSearchParams();
     query.set("startDate", startDate);
     query.set("endDate", endDate);
     if (assigneeIds && assigneeIds.length > 0) {
       assigneeIds.forEach((id) => query.append("assigneeIds", id));
+    }
+    if (includeOrgSchedules) {
+      query.set("includeOrgSchedules", "true");
     }
     return apiClient.get<WeeklyScheduleResponse>(
       `/boards/${boardId}/schedules/weekly?${query.toString()}`,
@@ -2414,11 +2428,15 @@ export const scheduleAPI = {
     boardId: string,
     date: string,
     assigneeIds?: string[],
+    includeOrgSchedules?: boolean,
   ) => {
     const query = new URLSearchParams();
     query.set("date", date);
     if (assigneeIds && assigneeIds.length > 0) {
       assigneeIds.forEach((id) => query.append("assigneeIds", id));
+    }
+    if (includeOrgSchedules) {
+      query.set("includeOrgSchedules", "true");
     }
     return apiClient.get<DailyFullResponse>(
       `/boards/${boardId}/schedules/daily-full?${query.toString()}`,
@@ -2895,9 +2913,26 @@ export interface TestDataResponse {
   message: string;
 }
 
+export interface TestOrgDataResponse {
+  organization_id: string;
+  organization_name: string;
+  member_count: number;
+  department_count: number;
+  leave_policy_count: number;
+  leave_request_count: number;
+  onboarding_template_count: number;
+  attendance_record_count: number;
+  announcement_count: number;
+  activity_count: number;
+  message: string;
+}
+
 export const testDataAPI = {
   createTestBoard: async () => {
     return apiClient.post<TestDataResponse>("/test/create-board");
+  },
+  createTestOrganization: async () => {
+    return apiClient.post<TestOrgDataResponse>("/test/create-organization");
   },
 };
 
@@ -4725,6 +4760,7 @@ import type {
   AiCredits,
   AiCreditPurchaseRequest,
   AiCreditPurchaseResult,
+  DiaryWorkContextData,
 } from "../types";
 
 // ========================================
@@ -4918,6 +4954,11 @@ export const diaryAPI = {
     data: AiCreditPurchaseRequest,
   ): Promise<AiCreditPurchaseResult> => {
     return apiClient.post("/diary/credits/purchase", data);
+  },
+
+  getWorkContext: async (date?: string): Promise<DiaryWorkContextData> => {
+    const params = date ? `?date=${date}` : "";
+    return apiClient.get(`/personal/diary/work-context${params}`);
   },
 };
 
@@ -5878,6 +5919,11 @@ export const organizationAPI = {
   ): Promise<import("../types").AttendanceTodayStatus> => {
     return apiClient.get(`/organizations/${orgId}/attendance/today`);
   },
+  getAttendanceTodayMembers: async (
+    orgId: string,
+  ): Promise<import("../types").AttendanceTodayMembers> => {
+    return apiClient.get(`/organizations/${orgId}/attendance/today/members`);
+  },
   getAttendanceTeamSummary: async (
     orgId: string,
     params?: { year?: number; month?: number; department_id?: string },
@@ -5956,6 +6002,19 @@ export const organizationAPI = {
     if (!res.ok) throw new Error("Export failed");
     return res.blob();
   },
+
+  // Structure Settings
+  getStructureSettings: async (
+    orgId: string,
+  ): Promise<import("../types").OrgStructureSettings> => {
+    return apiClient.get(`/organizations/${orgId}/structure-settings`);
+  },
+  updateStructureSettings: async (
+    orgId: string,
+    data: Partial<import("../types").OrgStructureSettings>,
+  ): Promise<import("../types").OrgStructureSettings> => {
+    return apiClient.put(`/organizations/${orgId}/structure-settings`, data);
+  },
 };
 
 // ─── Organization Announcement API ───
@@ -5975,14 +6034,14 @@ export const orgAnnouncementAPI = {
   },
   create: async (
     orgId: string,
-    data: { title: string; content?: string; is_pinned?: boolean },
+    data: { title: string; content?: string; is_pinned?: boolean; file_keys?: string[] },
   ): Promise<import("../types").OrgAnnouncement> => {
     return apiClient.post(`/organizations/${orgId}/announcements`, data);
   },
   update: async (
     orgId: string,
     id: string,
-    data: { title: string; content?: string },
+    data: { title: string; content?: string; keep_attachment_ids?: string[]; new_file_keys?: string[] },
   ): Promise<import("../types").OrgAnnouncement> => {
     return apiClient.put(`/organizations/${orgId}/announcements/${id}`, data);
   },
@@ -5994,6 +6053,45 @@ export const orgAnnouncementAPI = {
     id: string,
   ): Promise<import("../types").OrgAnnouncement> => {
     return apiClient.put(`/organizations/${orgId}/announcements/${id}/pin`, {});
+  },
+  // Comments
+  getComments: async (
+    orgId: string,
+    announcementId: string,
+  ): Promise<import("../types").OrgAnnouncementCommentListResponse> => {
+    return apiClient.get(
+      `/organizations/${orgId}/announcements/${announcementId}/comments`,
+    );
+  },
+  addComment: async (
+    orgId: string,
+    announcementId: string,
+    data: { content: string },
+  ): Promise<import("../types").OrgAnnouncementComment> => {
+    return apiClient.post(
+      `/organizations/${orgId}/announcements/${announcementId}/comments`,
+      data,
+    );
+  },
+  updateComment: async (
+    orgId: string,
+    announcementId: string,
+    commentId: string,
+    data: { content: string },
+  ): Promise<import("../types").OrgAnnouncementComment> => {
+    return apiClient.put(
+      `/organizations/${orgId}/announcements/${announcementId}/comments/${commentId}`,
+      data,
+    );
+  },
+  deleteComment: async (
+    orgId: string,
+    announcementId: string,
+    commentId: string,
+  ): Promise<void> => {
+    return apiClient.delete(
+      `/organizations/${orgId}/announcements/${announcementId}/comments/${commentId}`,
+    );
   },
 };
 
@@ -6154,6 +6252,54 @@ export const leaveAPI = {
       {},
     );
   },
+
+  // Balance Adjustments
+  adjustBalance: async (
+    orgId: string,
+    memberId: string,
+    balanceId: string,
+    data: {
+      adjustment_type: string;
+      days: number;
+      reason: string;
+    },
+  ): Promise<import("../types").LeaveBalance> => {
+    return apiClient.post(
+      `/organizations/${orgId}/members/${memberId}/leave-balance/${balanceId}/adjust`,
+      data,
+    );
+  },
+  getMemberAdjustments: async (
+    orgId: string,
+    memberId: string,
+    params?: { page?: number; size?: number },
+  ): Promise<import("../types").LeaveAdjustmentPageResponse> => {
+    const query = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null) query.set(k, String(v));
+      });
+    }
+    const qs = query.toString();
+    return apiClient.get(
+      `/organizations/${orgId}/members/${memberId}/leave-adjustments${qs ? `?${qs}` : ""}`,
+    );
+  },
+  getAdjustments: async (
+    orgId: string,
+    params?: { page?: number; size?: number },
+  ): Promise<import("../types").LeaveAdjustmentPageResponse> => {
+    const query = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null) query.set(k, String(v));
+      });
+    }
+    const qs = query.toString();
+    return apiClient.get(
+      `/organizations/${orgId}/leave-adjustments${qs ? `?${qs}` : ""}`,
+    );
+  },
 };
 
 // ─── Anniversary & Celebrations API ───
@@ -6243,5 +6389,76 @@ export const personalDashboardAPI = {
   ): Promise<import("../types").PersonalOverviewData> => {
     const params = date ? `?date=${date}` : "";
     return apiClient.get(`/personal/dashboard/overview${params}`);
+  },
+  getBoardTasks: async (date?: string): Promise<import("../types").BoardTasksData> => {
+    const params = date ? `?date=${date}` : "";
+    return apiClient.get(`/personal/dashboard/board-tasks${params}`);
+  },
+  getCelebrations: async (date?: string): Promise<import("../types").CelebrationsData> => {
+    const params = date ? `?date=${date}` : "";
+    return apiClient.get(`/personal/dashboard/celebrations${params}`);
+  },
+};
+
+// ─── Personal Calendar API (v10.0) ───
+
+export const personalCalendarAPI = {
+  getUnifiedCalendar: async (startDate: string, endDate: string): Promise<import("../types").UnifiedCalendarData> => {
+    return apiClient.get(`/personal/calendar/unified?start_date=${startDate}&end_date=${endDate}`);
+  },
+};
+
+// ========================================
+// Org Subscription API
+// ========================================
+
+export const orgSubscriptionAPI = {
+  get: async (orgId: string): Promise<import("../types").OrgSubscription> => {
+    return apiClient.get(`/organizations/${orgId}/subscription`);
+  },
+
+  activate: async (
+    orgId: string,
+    data: { billing_cycle: string; seat_count: number; payment_method_id: string },
+  ): Promise<import("../types").OrgSubscription> => {
+    return apiClient.post(`/organizations/${orgId}/subscription/activate`, data);
+  },
+
+  migratePreview: async (
+    orgId: string,
+    data: { billing_cycle: string; board_ids: string[] },
+  ): Promise<import("../types").MigrationPreview> => {
+    return apiClient.post(`/organizations/${orgId}/subscription/migrate/preview`, data);
+  },
+
+  migrate: async (
+    orgId: string,
+    data: { billing_cycle: string; board_ids: string[]; payment_method_id: string },
+  ): Promise<import("../types").OrgSubscription> => {
+    return apiClient.post(`/organizations/${orgId}/subscription/migrate`, data);
+  },
+
+  downgrade: async (orgId: string): Promise<import("../types").OrgSubscription> => {
+    return apiClient.post(`/organizations/${orgId}/subscription/downgrade`);
+  },
+
+  cancel: async (orgId: string): Promise<{ message: string }> => {
+    return apiClient.delete(`/organizations/${orgId}/subscription`);
+  },
+
+  getPayments: async (orgId: string) => {
+    return apiClient.get(`/organizations/${orgId}/subscription/payments`);
+  },
+
+  confirmPayment: async (data: {
+    org_id: string;
+    payment_key: string;
+    order_id: string;
+    amount: number;
+    billing_cycle: string;
+    seat_count: number;
+    payment_method_id: string;
+  }): Promise<import("../types").OrgSubscription> => {
+    return apiClient.post("/payments/confirm/org-subscription", data);
   },
 };

@@ -2,6 +2,7 @@ package com.kanban.domain.organization.leave.service;
 
 import com.kanban.domain.organization.leave.*;
 import com.kanban.domain.organization.leave.dto.LeaveDto;
+import com.kanban.domain.organization.leave.repository.LeaveBalanceAdjustmentRepository;
 import com.kanban.domain.organization.leave.repository.LeaveBalanceRepository;
 import com.kanban.domain.organization.leave.repository.LeavePolicyRepository;
 import com.kanban.domain.organization.leave.repository.LeaveRequestRepository;
@@ -12,6 +13,7 @@ import com.kanban.domain.organization.WorkStatus;
 import com.kanban.domain.organization.repository.OrgMemberRepository;
 import com.kanban.domain.organization.service.OrgActivityService;
 import com.kanban.domain.organization.service.OrganizationService;
+import com.kanban.domain.subscription.service.OrgSubscriptionService;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -38,9 +40,11 @@ public class LeaveService {
     private final LeavePolicyRepository leavePolicyRepository;
     private final LeaveBalanceRepository leaveBalanceRepository;
     private final LeaveRequestRepository leaveRequestRepository;
+    private final LeaveBalanceAdjustmentRepository leaveBalanceAdjustmentRepository;
     private final OrgMemberRepository orgMemberRepository;
     private final OrganizationService organizationService;
     private final OrgActivityService orgActivityService;
+    private final OrgSubscriptionService orgSubscriptionService;
 
     // ==================== Leave Policy ====================
 
@@ -61,6 +65,9 @@ public class LeaveService {
 
     @Transactional
     public LeaveDto.PolicyResponse createPolicy(String orgId, String userId, LeaveDto.CreatePolicy request) {
+        if (!orgSubscriptionService.canAccessHrFeatures(orgId)) {
+            throw new BusinessException(ErrorCode.HR_FEATURE_REQUIRES_TEAM);
+        }
         Organization org = organizationService.getActiveOrgOrThrow(orgId);
         organizationService.checkAdminOrAbove(orgId, userId);
 
@@ -98,6 +105,9 @@ public class LeaveService {
 
     @Transactional
     public LeaveDto.PolicyResponse updatePolicy(String orgId, String policyId, String userId, LeaveDto.UpdatePolicy request) {
+        if (!orgSubscriptionService.canAccessHrFeatures(orgId)) {
+            throw new BusinessException(ErrorCode.HR_FEATURE_REQUIRES_TEAM);
+        }
         organizationService.checkAdminOrAbove(orgId, userId);
 
         LeavePolicy policy = leavePolicyRepository.findByIdAndOrganizationId(policyId, orgId)
@@ -128,6 +138,7 @@ public class LeaveService {
         OrganizationMember member = organizationService.getOrgMemberOrThrow(orgId, userId);
         int year = LocalDate.now(ZoneOffset.UTC).getYear();
         return leaveBalanceRepository.findByOrgIdAndMemberIdAndYear(orgId, member.getId(), year).stream()
+                .filter(b -> Boolean.TRUE.equals(b.getPolicy().getIsActive()))
                 .map(LeaveDto.BalanceResponse::of)
                 .collect(Collectors.toList());
     }
@@ -148,21 +159,148 @@ public class LeaveService {
     @Transactional
     public LeaveDto.BalanceResponse updateMemberBalance(String orgId, String memberId, String balanceId,
             String userId, LeaveDto.UpdateBalance request) {
+        if (!orgSubscriptionService.canAccessHrFeatures(orgId)) {
+            throw new BusinessException(ErrorCode.HR_FEATURE_REQUIRES_TEAM);
+        }
         organizationService.checkAdminOrAbove(orgId, userId);
+        OrganizationMember admin = organizationService.getOrgMemberOrThrow(orgId, userId);
         LeaveBalance balance = leaveBalanceRepository.findById(balanceId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.LEAVE_BALANCE_NOT_FOUND));
         if (!balance.getOrganization().getId().equals(orgId) || !balance.getMember().getId().equals(memberId)) {
             throw new BusinessException(ErrorCode.LEAVE_BALANCE_NOT_FOUND);
         }
+
+        BigDecimal previousTotal = balance.getTotalDays();
         balance.updateTotalDays(request.getTotalDays());
+
+        // Auto-create MANUAL_ADJUST adjustment record
+        BigDecimal daysDiff = request.getTotalDays().subtract(previousTotal);
+        LeaveBalanceAdjustment adjustment = LeaveBalanceAdjustment.builder()
+                .organization(balance.getOrganization())
+                .balance(balance)
+                .member(balance.getMember())
+                .policy(balance.getPolicy())
+                .adjustmentType(LeaveAdjustmentType.MANUAL_ADJUST)
+                .days(daysDiff)
+                .previousTotal(previousTotal)
+                .newTotal(request.getTotalDays())
+                .reason("수동 조정")
+                .grantedBy(admin)
+                .build();
+        leaveBalanceAdjustmentRepository.save(adjustment);
+
         log.info("Leave balance adjusted: balanceId={}, newTotal={}, by={}", balanceId, request.getTotalDays(), userId);
         return LeaveDto.BalanceResponse.of(balance);
+    }
+
+    @Transactional
+    public LeaveDto.BalanceResponse adjustMemberBalance(String orgId, String memberId, String balanceId,
+            String userId, LeaveDto.AdjustBalance request) {
+        if (!orgSubscriptionService.canAccessHrFeatures(orgId)) {
+            throw new BusinessException(ErrorCode.HR_FEATURE_REQUIRES_TEAM);
+        }
+        organizationService.checkAdminOrAbove(orgId, userId);
+        OrganizationMember admin = organizationService.getOrgMemberOrThrow(orgId, userId);
+
+        LeaveBalance balance = leaveBalanceRepository.findById(balanceId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.LEAVE_BALANCE_NOT_FOUND));
+        if (!balance.getOrganization().getId().equals(orgId) || !balance.getMember().getId().equals(memberId)) {
+            throw new BusinessException(ErrorCode.LEAVE_BALANCE_NOT_FOUND);
+        }
+
+        BigDecimal previousTotal = balance.getTotalDays();
+        BigDecimal days = request.getDays();
+        BigDecimal newTotal;
+
+        if (request.getAdjustmentType() == LeaveAdjustmentType.GRANT) {
+            newTotal = previousTotal.add(days);
+            balance.updateTotalDays(newTotal);
+        } else if (request.getAdjustmentType() == LeaveAdjustmentType.REVOKE) {
+            newTotal = previousTotal.subtract(days);
+            // Check that new total doesn't go below used days
+            if (newTotal.compareTo(balance.getUsedDays()) < 0) {
+                throw new BusinessException(ErrorCode.LEAVE_REVOKE_EXCEEDS_REMAINING);
+            }
+            balance.updateTotalDays(newTotal);
+            days = days.negate(); // Store as negative for REVOKE
+        } else {
+            throw new BusinessException(ErrorCode.LEAVE_CANNOT_APPROVE); // Invalid type for this endpoint
+        }
+
+        LeaveBalanceAdjustment adjustment = LeaveBalanceAdjustment.builder()
+                .organization(balance.getOrganization())
+                .balance(balance)
+                .member(balance.getMember())
+                .policy(balance.getPolicy())
+                .adjustmentType(request.getAdjustmentType())
+                .days(days)
+                .previousTotal(previousTotal)
+                .newTotal(newTotal)
+                .reason(request.getReason())
+                .grantedBy(admin)
+                .build();
+        leaveBalanceAdjustmentRepository.save(adjustment);
+
+        log.info("Leave balance {}: balanceId={}, days={}, newTotal={}, by={}",
+                request.getAdjustmentType(), balanceId, request.getDays(), newTotal, userId);
+        return LeaveDto.BalanceResponse.of(balance);
+    }
+
+    public LeaveDto.AdjustmentPageResponse getMemberAdjustments(String orgId, String memberId, String userId,
+            Pageable pageable) {
+        organizationService.checkAdminOrAbove(orgId, userId);
+        OrganizationMember member = orgMemberRepository.findById(memberId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ORG_MEMBER_NOT_FOUND));
+        if (!member.getOrganization().getId().equals(orgId)) {
+            throw new BusinessException(ErrorCode.ORG_MEMBER_NOT_FOUND);
+        }
+
+        List<LeaveBalanceAdjustment> adjustments = leaveBalanceAdjustmentRepository
+                .findByMemberIdOrderByCreatedAtDesc(memberId);
+
+        // Manual pagination from list
+        int start = (int) pageable.getOffset();
+        int end = Math.min(start + pageable.getPageSize(), adjustments.size());
+        List<LeaveDto.AdjustmentResponse> content = adjustments.subList(
+                Math.min(start, adjustments.size()), end).stream()
+                .map(LeaveDto.AdjustmentResponse::of)
+                .collect(Collectors.toList());
+
+        return LeaveDto.AdjustmentPageResponse.builder()
+                .content(content)
+                .totalElements(adjustments.size())
+                .totalPages((int) Math.ceil((double) adjustments.size() / pageable.getPageSize()))
+                .page(pageable.getPageNumber())
+                .size(pageable.getPageSize())
+                .build();
+    }
+
+    public LeaveDto.AdjustmentPageResponse getOrgAdjustments(String orgId, String userId, Pageable pageable) {
+        organizationService.checkAdminOrAbove(orgId, userId);
+
+        Page<LeaveBalanceAdjustment> page = leaveBalanceAdjustmentRepository
+                .findByOrganizationIdOrderByCreatedAtDesc(orgId, pageable);
+
+        List<LeaveDto.AdjustmentResponse> content = page.getContent().stream()
+                .map(LeaveDto.AdjustmentResponse::of)
+                .collect(Collectors.toList());
+
+        return LeaveDto.AdjustmentPageResponse.builder()
+                .content(content)
+                .totalElements(page.getTotalElements())
+                .totalPages(page.getTotalPages())
+                .page(page.getNumber())
+                .size(page.getSize())
+                .build();
     }
 
     // ==================== Leave Requests ====================
 
     @Transactional
     public LeaveDto.LeaveRequestResponse createLeaveRequest(String orgId, String userId, LeaveDto.CreateLeaveRequest request) {
+        if (!orgSubscriptionService.canAccessHrFeatures(orgId)) {
+            throw new BusinessException(ErrorCode.HR_FEATURE_REQUIRES_TEAM);
+        }
         Organization org = organizationService.getActiveOrgOrThrow(orgId);
         OrganizationMember member = organizationService.getOrgMemberOrThrow(orgId, userId);
 
@@ -250,6 +388,9 @@ public class LeaveService {
 
     @Transactional
     public LeaveDto.LeaveRequestResponse approveLeaveRequest(String orgId, String requestId, String userId) {
+        if (!orgSubscriptionService.canAccessHrFeatures(orgId)) {
+            throw new BusinessException(ErrorCode.HR_FEATURE_REQUIRES_TEAM);
+        }
         organizationService.checkAdminOrAbove(orgId, userId);
         OrganizationMember reviewer = organizationService.getOrgMemberOrThrow(orgId, userId);
 
@@ -291,6 +432,9 @@ public class LeaveService {
     @Transactional
     public LeaveDto.LeaveRequestResponse rejectLeaveRequest(String orgId, String requestId, String userId,
             LeaveDto.RejectLeaveRequest request) {
+        if (!orgSubscriptionService.canAccessHrFeatures(orgId)) {
+            throw new BusinessException(ErrorCode.HR_FEATURE_REQUIRES_TEAM);
+        }
         organizationService.checkAdminOrAbove(orgId, userId);
         OrganizationMember reviewer = organizationService.getOrgMemberOrThrow(orgId, userId);
 
@@ -315,6 +459,9 @@ public class LeaveService {
 
     @Transactional
     public LeaveDto.LeaveRequestResponse cancelLeaveRequest(String orgId, String requestId, String userId) {
+        if (!orgSubscriptionService.canAccessHrFeatures(orgId)) {
+            throw new BusinessException(ErrorCode.HR_FEATURE_REQUIRES_TEAM);
+        }
         OrganizationMember member = organizationService.getOrgMemberOrThrow(orgId, userId);
 
         LeaveRequest leaveRequest = leaveRequestRepository.findByIdAndOrganizationId(requestId, orgId)
@@ -354,6 +501,9 @@ public class LeaveService {
 
     @Transactional
     public LeaveDto.LeaveRequestResponse reopenLeaveRequest(String orgId, String requestId, String userId) {
+        if (!orgSubscriptionService.canAccessHrFeatures(orgId)) {
+            throw new BusinessException(ErrorCode.HR_FEATURE_REQUIRES_TEAM);
+        }
         OrganizationMember member = organizationService.getOrgMemberOrThrow(orgId, userId);
 
         LeaveRequest leaveRequest = leaveRequestRepository.findByIdAndOrganizationId(requestId, orgId)
@@ -444,6 +594,22 @@ public class LeaveService {
                         .totalDays(policy.getDefaultDays())
                         .build();
                 leaveBalanceRepository.save(balance);
+
+                // Record ANNUAL_INIT adjustment
+                if (policy.getDefaultDays().compareTo(BigDecimal.ZERO) > 0) {
+                    LeaveBalanceAdjustment adjustment = LeaveBalanceAdjustment.builder()
+                            .organization(org)
+                            .balance(balance)
+                            .member(member)
+                            .policy(policy)
+                            .adjustmentType(LeaveAdjustmentType.ANNUAL_INIT)
+                            .days(policy.getDefaultDays())
+                            .previousTotal(BigDecimal.ZERO)
+                            .newTotal(policy.getDefaultDays())
+                            .reason("연간 기본 배정")
+                            .build();
+                    leaveBalanceAdjustmentRepository.save(adjustment);
+                }
             }
         }
     }

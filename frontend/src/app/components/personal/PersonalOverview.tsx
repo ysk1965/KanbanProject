@@ -15,6 +15,8 @@ import { getTodayDateString } from '../../utils/dateUtils';
 import { PersonalEvent, DiaryDetail, PersonalTask, PersonalHabit, HabitTodayItem, HabitFrequency, HabitWeeklyMatrix, PersonalTaskPriority, PersonalDashboardToday, PersonalOverviewData, DiaryOverviewInfo } from '../../types';
 import { CheckInConfirmModal, TaskCompleteConfirmModal, HabitFormModal, DeleteConfirmModal } from './PersonalHabits';
 import { TaskDetailModal } from './PersonalTaskBoard';
+import { BoardTasksWidget } from './BoardTasksWidget';
+import { CelebrationsWidget } from './CelebrationsWidget';
 import { useAuth } from '../../contexts/AuthContext';
 
 type TabType = 'overview' | 'tasks' | 'schedule' | 'habits' | 'calendar' | 'diary';
@@ -2100,6 +2102,12 @@ export function PersonalOverview({ onNavigateTab, onRefreshTasks }: PersonalOver
             diaryInfo={overviewData ? overviewData.diary_today : undefined}
           />
         </div>
+
+        {/* Celebrations (conditional - only shows when celebrations exist) */}
+        <CelebrationsWidget date={todayDate} />
+
+        {/* Board Tasks */}
+        <BoardTasksWidget date={todayDate} />
       </div>
     </div>
   );

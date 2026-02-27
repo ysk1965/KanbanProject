@@ -4,6 +4,7 @@ import com.kanban.domain.board.Board;
 import com.kanban.domain.subscription.Subscription;
 import com.kanban.domain.subscription.SubscriptionRepository;
 import com.kanban.domain.subscription.service.AiCreditService;
+import com.kanban.domain.subscription.service.OrgSubscriptionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -21,6 +22,7 @@ public class SubscriptionScheduler {
 
     private final SubscriptionRepository subscriptionRepository;
     private final AiCreditService aiCreditService;
+    private final OrgSubscriptionService orgSubscriptionService;
 
     /**
      * Trial 만료 자동 처리: 매시간 실행
@@ -51,6 +53,20 @@ public class SubscriptionScheduler {
             log.info("Trial expiration: {} subscriptions expired and downgraded to STANDARD", count);
         } catch (Exception e) {
             log.error("Failed to process trial expirations: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Org Trial 만료 자동 처리: 매시간 15분에 실행
+     * - 만료된 Org Trial Subscription → FREE 플랜으로 다운그레이드
+     */
+    @Scheduled(cron = "0 15 * * * *")
+    @Transactional
+    public void expireOrgTrials() {
+        try {
+            orgSubscriptionService.expireTrials();
+        } catch (Exception e) {
+            log.error("Failed to process org trial expirations: {}", e.getMessage(), e);
         }
     }
 

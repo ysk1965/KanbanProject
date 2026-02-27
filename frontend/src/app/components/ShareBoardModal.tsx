@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { MotionModal } from './ui/MotionModal';
 import { Input } from './ui/input';
@@ -11,12 +11,13 @@ import {
   SelectValue,
 } from './ui/select';
 import { Badge } from './ui/badge';
-import { X, Link as LinkIcon, Copy, Check, UserPlus, Trash2, Loader2, Pipette, Users, Settings, GripVertical, Sparkles } from 'lucide-react';
+import { X, Link as LinkIcon, Copy, Check, UserPlus, Trash2, Loader2, Pipette, Users, Settings, GripVertical, Sparkles, Building2, Search } from 'lucide-react';
 import { ColorPickerPopover } from './ui/ColorPickerPopover';
 import { InviteLink, slackWebhookAPI, SlackWebhookMemberStatus } from '../utils/api';
-import { AiCredits } from '../types';
+import { AiCredits, OrgBoardCandidate } from '../types';
 import { FEATURE_COLORS } from '../constants';
 import { ASSIGNEE_COLOR_NAMES, getAssigneeClasses, getAssigneeHex, getInitials } from '../utils/assigneeColor';
+import { memberService } from '../utils/services';
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { restrictToVerticalAxis, restrictToParentElement } from '@dnd-kit/modifiers';
 import { arrayMove, SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
@@ -61,6 +62,9 @@ interface ShareBoardModalProps {
   // AI 크레딧 (Owner 전용)
   aiCredits?: AiCredits | null;
   onOpenAiCreditPurchase?: () => void;
+  // 조직 보드 관련
+  isOrgBoard?: boolean;
+  organizationName?: string | null;
 }
 
 const ROLE_LABELS: Record<MemberRole, string> = {
@@ -264,6 +268,9 @@ export function ShareBoardModal({
   onOpenSeatManagement,
   aiCredits,
   onOpenAiCreditPurchase,
+  // 조직 보드
+  isOrgBoard,
+  organizationName,
 }: ShareBoardModalProps) {
   const { t } = useTranslation();
   const [inviteEmail, setInviteEmail] = useState('');
@@ -272,6 +279,13 @@ export function ShareBoardModal({
   const [isCreatingLink, setIsCreatingLink] = useState(false);
   const [copyMessage, setCopyMessage] = useState<string | null>(null);
   const [webhookStatusMap, setWebhookStatusMap] = useState<Record<string, SlackWebhookMemberStatus>>({});
+
+  // 조직 보드: 후보 멤버 관련
+  const [orgCandidates, setOrgCandidates] = useState<OrgBoardCandidate[]>([]);
+  const [orgSearch, setOrgSearch] = useState('');
+  const [orgCandidateRole, setOrgCandidateRole] = useState<MemberRole>('member');
+  const [isLoadingCandidates, setIsLoadingCandidates] = useState(false);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -302,6 +316,42 @@ export function ShareBoardModal({
         });
     }
   }, [open, boardId]);
+
+  // 조직 보드: 후보 멤버 로드
+  const loadOrgCandidates = (search?: string) => {
+    if (!boardId || !isOrgBoard) return;
+    setIsLoadingCandidates(true);
+    memberService.getOrgCandidates(boardId, search || undefined)
+      .then(setOrgCandidates)
+      .catch(() => setOrgCandidates([]))
+      .finally(() => setIsLoadingCandidates(false));
+  };
+
+  useEffect(() => {
+    if (open && boardId && isOrgBoard) {
+      loadOrgCandidates();
+    }
+    if (!open) {
+      setOrgCandidates([]);
+      setOrgSearch('');
+    }
+  }, [open, boardId, isOrgBoard]);
+
+  // 디바운스 검색
+  useEffect(() => {
+    if (!isOrgBoard || !open) return;
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => {
+      loadOrgCandidates(orgSearch);
+    }, 300);
+    return () => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current); };
+  }, [orgSearch]);
+
+  const handleAddOrgMember = (candidate: OrgBoardCandidate) => {
+    onAddMember(candidate.email, orgCandidateRole);
+    // 후보 목록에서 즉시 제거 (optimistic)
+    setOrgCandidates((prev) => prev.filter((c) => c.user_id !== candidate.user_id));
+  };
 
   const handleInvite = () => {
     if (inviteEmail.trim()) {
@@ -358,12 +408,25 @@ export function ShareBoardModal({
   return (
     <MotionModal open={open} onClose={onClose} className="sm:max-w-2xl max-h-[85dvh] overflow-hidden flex flex-col">
         <div className="px-5 pt-4 pb-3">
-          <h2 className="text-lg font-semibold text-foreground">{t('share.title')}</h2>
+          <div className="flex items-center gap-2.5">
+            <h2 className="text-lg font-semibold text-foreground">
+              {isOrgBoard ? t('share.orgBoardTitle') : t('share.title')}
+            </h2>
+            {isOrgBoard && organizationName && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-bridge-secondary/15 text-bridge-secondary">
+                <Building2 className="h-3 w-3" />
+                {organizationName}
+              </span>
+            )}
+          </div>
+          {isOrgBoard && (
+            <p className="text-xs text-slate-500 mt-1">{t('share.orgBoardDesc')}</p>
+          )}
         </div>
 
         <div className="flex-1 overflow-y-auto space-y-5 px-5 pb-2 custom-scrollbar">
           {/* 초대 섹션 - ADMIN+ 전용 */}
-          {isCurrentUserAdmin && (
+          {isCurrentUserAdmin && !isOrgBoard && (
           <div className="space-y-3">
             <div className="flex gap-2">
               <Input
@@ -434,6 +497,87 @@ export function ShareBoardModal({
               </button>
             </div>
           </div>
+          )}
+
+          {/* 조직 보드: 조직 구성원 추가 섹션 - ADMIN+ 전용 */}
+          {isCurrentUserAdmin && isOrgBoard && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-muted-foreground">{t('share.addOrgMember')}</h3>
+                <Select
+                  value={orgCandidateRole}
+                  onValueChange={(value) => setOrgCandidateRole(value as MemberRole)}
+                >
+                  <SelectTrigger className="w-[120px] bg-foreground/[0.08] border-foreground/10 rounded-lg text-foreground text-xs h-7">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="member">Member</SelectItem>
+                    <SelectItem value="viewer">Viewer</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* 검색 */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                <Input
+                  value={orgSearch}
+                  onChange={(e) => setOrgSearch(e.target.value)}
+                  placeholder={t('share.searchOrgMembers')}
+                  className="pl-9 bg-foreground/[0.08] border-foreground/10 rounded-xl text-foreground placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+                />
+              </div>
+
+              {/* 후보 목록 */}
+              <div className="rounded-xl border border-foreground/10 bg-foreground/[0.02] overflow-hidden max-h-[200px] overflow-y-auto custom-scrollbar">
+                {isLoadingCandidates ? (
+                  <div className="flex items-center justify-center py-6">
+                    <Loader2 className="w-5 h-5 animate-spin text-bridge-accent" />
+                  </div>
+                ) : orgCandidates.length === 0 ? (
+                  <div className="py-6 text-center">
+                    <p className="text-sm text-slate-500">
+                      {orgSearch ? t('share.noOrgCandidates') : t('share.allOrgMembersAdded')}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-foreground/[0.06]">
+                    {orgCandidates.map((candidate) => (
+                      <div
+                        key={candidate.user_id}
+                        className="flex items-center justify-between py-2 px-3.5 hover:bg-foreground/[0.04] transition-all duration-150"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-7 h-7 rounded-full bg-bridge-accent/15 flex items-center justify-center text-bridge-accent text-xs font-semibold shrink-0">
+                            {getInitials(candidate.name)}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-sm font-medium text-foreground">{candidate.name}</span>
+                              <span className="text-xs text-slate-500 truncate">{candidate.email}</span>
+                            </div>
+                            {(candidate.department || candidate.position) && (
+                              <p className="text-[11px] text-slate-500">
+                                {[candidate.department, candidate.position].filter(Boolean).join(' · ')}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleAddOrgMember(candidate)}
+                          className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-bridge-accent bg-bridge-accent/10 hover:bg-bridge-accent/20 transition-all shrink-0"
+                        >
+                          <UserPlus className="h-3 w-3" />
+                          {t('share.invite')}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           )}
 
           {/* Owner 전용: 시트 & 크레딧 관리 섹션 */}

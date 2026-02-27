@@ -19,6 +19,7 @@ import type {
   OrgPosition,
   OrgTitle,
   OrgGrade,
+  OrgStructureSettings,
 } from '../../../types';
 
 interface MemberHistoryTabProps {
@@ -32,6 +33,7 @@ interface MemberHistoryTabProps {
   positions: OrgPosition[];
   titles: OrgTitle[];
   grades: OrgGrade[];
+  structureSettings?: OrgStructureSettings;
 }
 
 function formatHistoryDate(dateStr: string): string {
@@ -69,8 +71,14 @@ export function MemberHistoryTab({
   positions,
   titles,
   grades,
+  structureSettings: ss,
 }: MemberHistoryTabProps) {
   const { t } = useTranslation();
+  const deptOn = ss?.departments_enabled !== false;
+  const jgOn = ss?.job_groups_enabled !== false;
+  const posOn = ss?.positions_enabled !== false;
+  const titleOn = ss?.titles_enabled !== false;
+  const gradeOn = ss?.grades_enabled !== false;
 
   const [history, setHistory] = useState<OrgMemberHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -236,6 +244,7 @@ export function MemberHistoryTab({
               </div>
 
               {/* Department */}
+              {deptOn && (
               <div className="flex items-center gap-3">
                 <label className="text-[11px] font-medium text-slate-500 w-16 shrink-0">
                   {t('organization.members.detail.history.department', '부서')}
@@ -257,9 +266,12 @@ export function MemberHistoryTab({
                   ))}
                 </select>
               </div>
+              )}
 
               {/* Position + Title row */}
+              {(posOn || titleOn) && (
               <div className="grid grid-cols-2 gap-3">
+                {posOn && (
                 <div className="flex items-center gap-2">
                   <label className="text-[11px] font-medium text-slate-500 w-16 shrink-0">
                     {t('organization.members.detail.history.position', '직책')}
@@ -281,6 +293,8 @@ export function MemberHistoryTab({
                     ))}
                   </select>
                 </div>
+                )}
+                {titleOn && (
                 <div className="flex items-center gap-2">
                   <label className="text-[11px] font-medium text-slate-500 w-16 shrink-0">
                     {t('organization.members.detail.history.titleLabel', '직위')}
@@ -302,10 +316,14 @@ export function MemberHistoryTab({
                     ))}
                   </select>
                 </div>
+                )}
               </div>
+              )}
 
               {/* Grade + JobGroup row */}
+              {(gradeOn || jgOn) && (
               <div className="grid grid-cols-2 gap-3">
+                {gradeOn && (
                 <div className="flex items-center gap-2">
                   <label className="text-[11px] font-medium text-slate-500 w-16 shrink-0">
                     {t('organization.members.detail.history.grade', '직급')}
@@ -327,6 +345,8 @@ export function MemberHistoryTab({
                     ))}
                   </select>
                 </div>
+                )}
+                {jgOn && (
                 <div className="flex items-center gap-2">
                   <label className="text-[11px] font-medium text-slate-500 w-16 shrink-0">
                     {t('organization.members.detail.history.jobGroup', '직군')}
@@ -348,7 +368,9 @@ export function MemberHistoryTab({
                     ))}
                   </select>
                 </div>
+                )}
               </div>
+              )}
 
               {/* Job Title */}
               <div className="flex items-center gap-3">
@@ -448,10 +470,10 @@ export function MemberHistoryTab({
 
             // Build subtitle parts
             const subtitleParts: string[] = [];
-            if (item.position_name) subtitleParts.push(item.position_name);
-            if (item.title_name) subtitleParts.push(item.title_name);
+            if (posOn && item.position_name) subtitleParts.push(item.position_name);
+            if (titleOn && item.title_name) subtitleParts.push(item.title_name);
             if (item.job_title) subtitleParts.push(item.job_title);
-            if (item.job_group_name) subtitleParts.push(item.job_group_name);
+            if (jgOn && item.job_group_name) subtitleParts.push(item.job_group_name);
 
             const rangeLabel = item.effective_end_date
               ? `${formatHistoryDate(item.effective_start_date)} ~ ${formatHistoryDate(item.effective_end_date)}`
@@ -484,12 +506,12 @@ export function MemberHistoryTab({
                 >
                   {/* Department + Grade badge */}
                   <div className="flex items-center gap-2 flex-wrap mb-1">
-                    {item.department_name && (
+                    {deptOn && item.department_name && (
                       <span className="text-sm font-bold text-slate-900 dark:text-white">
                         {item.department_name}
                       </span>
                     )}
-                    {item.grade_name && (
+                    {gradeOn && item.grade_name && (
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-bridge-accent/20 text-bridge-accent">
                         {item.grade_name}
                       </span>

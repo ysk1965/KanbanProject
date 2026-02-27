@@ -17,7 +17,7 @@ public interface BoardRepository extends JpaRepository<Board, String> {
     @Query("SELECT b FROM Board b WHERE b.owner.id = :userId AND b.deletedAt IS NULL")
     List<Board> findByOwnerId(@Param("userId") String userId);
 
-    @Query("SELECT b FROM Board b JOIN BoardMember bm ON b.id = bm.board.id WHERE bm.user.id = :userId AND b.deletedAt IS NULL")
+    @Query("SELECT b FROM Board b LEFT JOIN FETCH b.organization JOIN BoardMember bm ON b.id = bm.board.id WHERE bm.user.id = :userId AND b.deletedAt IS NULL")
     List<Board> findByMemberId(@Param("userId") String userId);
 
     @Query("SELECT b FROM Board b WHERE b.name = :name AND b.deletedAt IS NULL")

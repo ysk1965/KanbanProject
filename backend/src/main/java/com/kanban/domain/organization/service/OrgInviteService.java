@@ -120,6 +120,12 @@ public class OrgInviteService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
+        // 1인 1조직 정책: 이미 다른 조직에 소속되어 있는지 확인
+        List<OrganizationMember> existingMemberships = orgMemberRepository.findByUserIdWithOrganization(userId);
+        if (!existingMemberships.isEmpty()) {
+            throw new BusinessException(ErrorCode.ALREADY_IN_ORGANIZATION);
+        }
+
         // Check if already a member
         if (orgMemberRepository.existsByOrganizationIdAndUserId(org.getId(), userId)) {
             throw new BusinessException(ErrorCode.ORG_MEMBER_ALREADY_EXISTS);

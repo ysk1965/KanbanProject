@@ -2,6 +2,7 @@ package com.kanban.domain.organization.leave.dto;
 
 import com.kanban.domain.organization.leave.*;
 import com.kanban.domain.organization.OrganizationMember;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
@@ -68,6 +69,18 @@ public class LeaveDto {
         private String comment;
     }
 
+    @Getter
+    @NoArgsConstructor
+    public static class AdjustBalance {
+        @NotNull(message = "조정 유형은 필수입니다")
+        private LeaveAdjustmentType adjustmentType;
+        @NotNull(message = "조정 일수는 필수입니다")
+        @DecimalMin(value = "0.5", message = "최소 0.5일 이상이어야 합니다")
+        private BigDecimal days;
+        @NotBlank(message = "사유는 필수입니다")
+        private String reason;
+    }
+
     // ==================== Response DTOs ====================
 
     @Getter
@@ -113,6 +126,7 @@ public class LeaveDto {
         private BigDecimal totalDays;
         private BigDecimal usedDays;
         private BigDecimal remaining;
+        private Boolean isActive;
 
         public static BalanceResponse of(LeaveBalance balance) {
             return BalanceResponse.builder()
@@ -124,6 +138,7 @@ public class LeaveDto {
                     .totalDays(balance.getTotalDays())
                     .usedDays(balance.getUsedDays())
                     .remaining(balance.getRemaining())
+                    .isActive(balance.getPolicy().getIsActive())
                     .build();
         }
     }
@@ -221,6 +236,54 @@ public class LeaveDto {
     @AllArgsConstructor
     public static class LeaveRequestPageResponse {
         private List<LeaveRequestResponse> content;
+        private long totalElements;
+        private int totalPages;
+        private int page;
+        private int size;
+    }
+
+    // ==================== Adjustment DTOs ====================
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class AdjustmentResponse {
+        private String id;
+        private String memberName;
+        private String memberEmail;
+        private String policyName;
+        private LeaveCategory leaveCategory;
+        private LeaveAdjustmentType adjustmentType;
+        private BigDecimal days;
+        private BigDecimal previousTotal;
+        private BigDecimal newTotal;
+        private String reason;
+        private String grantedByName;
+        private LocalDateTime createdAt;
+
+        public static AdjustmentResponse of(LeaveBalanceAdjustment adj) {
+            return AdjustmentResponse.builder()
+                    .id(adj.getId())
+                    .memberName(adj.getMember() != null ? adj.getMember().getUser().getName() : null)
+                    .memberEmail(adj.getMember() != null ? adj.getMember().getUser().getEmail() : null)
+                    .policyName(adj.getPolicy().getName())
+                    .leaveCategory(adj.getPolicy().getLeaveCategory())
+                    .adjustmentType(adj.getAdjustmentType())
+                    .days(adj.getDays())
+                    .previousTotal(adj.getPreviousTotal())
+                    .newTotal(adj.getNewTotal())
+                    .reason(adj.getReason())
+                    .grantedByName(adj.getGrantedBy() != null ? adj.getGrantedBy().getUser().getName() : null)
+                    .createdAt(adj.getCreatedAt())
+                    .build();
+        }
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class AdjustmentPageResponse {
+        private List<AdjustmentResponse> content;
         private long totalElements;
         private int totalPages;
         private int page;

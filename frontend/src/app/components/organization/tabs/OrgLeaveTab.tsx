@@ -1,13 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, ChevronLeft, ChevronRight, Check, X, Clock, CalendarOff, Palmtree, RotateCcw } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Check, X, Clock, CalendarOff, Palmtree, RotateCcw, Scale, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { leaveService } from '../../../utils/services';
+import { leaveAPI, organizationAPI } from '../../../utils/api';
 import { getTodayDateString } from '../../../utils/dateUtils';
 import { MotionModal } from '../../ui/MotionModal';
 import type {
-  LeaveBalance, LeavePolicy, LeaveRequestResponse, LeaveRequestPageResponse,
+  LeaveBalance, LeavePolicy, LeaveRequestResponse,
+  LeaveBalanceAdjustmentResponse,
   OrgRole, LeaveStatus, LeaveDurationType,
 } from '../../../types';
 
@@ -54,6 +56,27 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
   });
   const [submitting, setSubmitting] = useState(false);
 
+  // Adjustment Modal
+  const [showAdjustModal, setShowAdjustModal] = useState(false);
+  const [adjustForm, setAdjustForm] = useState({
+    member_id: '',
+    balance_id: '',
+    adjustment_type: 'GRANT' as 'GRANT' | 'REVOKE',
+    days: 0.5,
+    reason: '',
+  });
+  const [adjusting, setAdjusting] = useState(false);
+  const [memberBalances, setMemberBalances] = useState<LeaveBalance[]>([]);
+  const [members, setMembers] = useState<Array<{ id: string; name: string; email: string }>>([]);
+  const [loadingMembers, setLoadingMembers] = useState(false);
+
+  // Adjustment History
+  const [showHistory, setShowHistory] = useState(false);
+  const [adjustments, setAdjustments] = useState<LeaveBalanceAdjustmentResponse[]>([]);
+  const [adjustmentPage, setAdjustmentPage] = useState(0);
+  const [adjustmentTotal, setAdjustmentTotal] = useState(0);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
@@ -83,6 +106,69 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  const fetchMembers = async () => {
+    try {
+      setLoadingMembers(true);
+      const data = await organizationAPI.getMembers(orgId, { size: 200 });
+      setMembers(data.content.map((m) => ({ id: m.id, name: m.user.name, email: m.user.email })));
+    } catch (error) {
+      console.warn('Failed to fetch members:', error);
+    } finally {
+      setLoadingMembers(false);
+    }
+  };
+
+  const fetchMemberBalances = async (memberId: string) => {
+    try {
+      const data = await leaveAPI.getMemberBalance(orgId, memberId);
+      setMemberBalances(data);
+    } catch (error) {
+      console.warn('Failed to fetch member balances:', error);
+    }
+  };
+
+  const handleAdjust = async () => {
+    if (!adjustForm.balance_id || !adjustForm.reason.trim() || adjustForm.days <= 0) return;
+    try {
+      setAdjusting(true);
+      await leaveAPI.adjustBalance(orgId, adjustForm.member_id, adjustForm.balance_id, {
+        adjustment_type: adjustForm.adjustment_type,
+        days: adjustForm.days,
+        reason: adjustForm.reason,
+      });
+      setShowAdjustModal(false);
+      setAdjustForm({ member_id: '', balance_id: '', adjustment_type: 'GRANT', days: 0.5, reason: '' });
+      setMemberBalances([]);
+      fetchData();
+      if (showHistory) fetchAdjustments();
+      toast.success(adjustForm.adjustment_type === 'GRANT' ? '휴가가 부여되었습니다' : '휴가가 회수되었습니다');
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || '조정에 실패했습니다';
+      toast.error(msg);
+    } finally {
+      setAdjusting(false);
+    }
+  };
+
+  const fetchAdjustments = async () => {
+    try {
+      setLoadingHistory(true);
+      const data = await leaveAPI.getAdjustments(orgId, { page: adjustmentPage, size: 20 });
+      setAdjustments(data.content);
+      setAdjustmentTotal(data.total_elements);
+    } catch (error) {
+      console.warn('Failed to fetch adjustments:', error);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  useEffect(() => {
+    if (showHistory && isAdmin) {
+      fetchAdjustments();
+    }
+  }, [showHistory, adjustmentPage]);
 
   const handleSubmitRequest = async () => {
     if (!requestForm.policy_id || !requestForm.start_date || !requestForm.end_date) return;
@@ -262,13 +348,27 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
             <option value="CANCELED">{t('organization.leave.canceled', 'Canceled')}</option>
           </select>
         </div>
-        <button
-          onClick={() => setShowRequestModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-bridge-accent text-white rounded-xl font-bold text-sm hover:bg-bridge-accent/90 transition-all"
-        >
-          <Plus size={16} />
-          {t('organization.leave.request', 'Request Leave')}
-        </button>
+        <div className="flex items-center gap-2">
+          {isAdmin && (
+            <button
+              onClick={() => {
+                setShowAdjustModal(true);
+                if (members.length === 0) fetchMembers();
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-foreground/5 border border-foreground/10 text-foreground rounded-xl font-bold text-sm hover:bg-foreground/10 transition-all"
+            >
+              <Scale size={16} />
+              잔여 조정
+            </button>
+          )}
+          <button
+            onClick={() => setShowRequestModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-bridge-accent text-white rounded-xl font-bold text-sm hover:bg-bridge-accent/90 transition-all"
+          >
+            <Plus size={16} />
+            {t('organization.leave.request', 'Request Leave')}
+          </button>
+        </div>
       </div>
 
       {/* Leave Requests List */}
@@ -397,6 +497,120 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
         </div>
       )}
 
+      {/* Adjustment History (Admin Only) */}
+      {isAdmin && (
+        <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] overflow-hidden">
+          <button
+            onClick={() => setShowHistory(!showHistory)}
+            className="w-full flex items-center justify-between px-5 py-3 hover:bg-foreground/[0.03] transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <Scale size={14} className="text-bridge-accent" />
+              <span className="text-[13px] font-bold text-foreground">조정 이력</span>
+              {adjustmentTotal > 0 && (
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent">
+                  {adjustmentTotal}
+                </span>
+              )}
+            </div>
+            {showHistory ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
+          </button>
+          {showHistory && (
+            <div className="border-t border-foreground/[0.08] px-5 py-4">
+              {loadingHistory ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="w-5 h-5 animate-spin text-bridge-accent" />
+                </div>
+              ) : adjustments.length === 0 ? (
+                <p className="text-sm text-slate-400 text-center py-6">조정 이력이 없습니다</p>
+              ) : (
+                <div className="space-y-2">
+                  {adjustments.map((adj, index) => {
+                    const typeStyles: Record<string, string> = {
+                      GRANT: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
+                      REVOKE: 'bg-red-500/15 text-red-600 dark:text-red-400',
+                      MANUAL_ADJUST: 'bg-blue-500/15 text-blue-600 dark:text-blue-400',
+                      ANNUAL_INIT: 'bg-slate-500/15 text-slate-600 dark:text-slate-400',
+                    };
+                    const typeLabels: Record<string, string> = {
+                      GRANT: '부여',
+                      REVOKE: '회수',
+                      MANUAL_ADJUST: '수동 조정',
+                      ANNUAL_INIT: '연간 배정',
+                    };
+                    return (
+                      <motion.div
+                        key={adj.id}
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.04 }}
+                        className="flex items-center justify-between py-2.5 px-3 bg-foreground/[0.02] rounded-xl border border-foreground/[0.06]"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full shrink-0 ${typeStyles[adj.adjustment_type] || ''}`}>
+                            {typeLabels[adj.adjustment_type] || adj.adjustment_type}
+                          </span>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-sm text-foreground font-medium truncate">{adj.member_name}</span>
+                              <span className="text-[10px] text-slate-400">&middot;</span>
+                              <span className="text-[10px] text-slate-400">{adj.policy_name}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <span className={`text-xs font-bold ${adj.days > 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                                {adj.days > 0 ? '+' : ''}{adj.days}일
+                              </span>
+                              <span className="text-[10px] text-slate-500">
+                                ({adj.previous_total} &rarr; {adj.new_total})
+                              </span>
+                              {adj.reason && adj.reason !== '수동 조정' && adj.reason !== '연간 기본 배정' && (
+                                <>
+                                  <span className="text-[10px] text-slate-400">&middot;</span>
+                                  <span className="text-[10px] text-slate-400 truncate max-w-[200px]">{adj.reason}</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0 ml-3">
+                          {adj.granted_by_name && (
+                            <span className="text-[10px] text-slate-400 block">{adj.granted_by_name}</span>
+                          )}
+                          <span className="text-[10px] text-slate-500">
+                            {new Date(adj.created_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                  {adjustmentTotal > 20 && (
+                    <div className="flex items-center justify-center gap-2 pt-2">
+                      <button
+                        onClick={() => setAdjustmentPage(Math.max(0, adjustmentPage - 1))}
+                        disabled={adjustmentPage === 0}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 disabled:opacity-50 transition-colors"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </button>
+                      <span className="text-[10px] text-slate-400">
+                        {adjustmentPage + 1} / {Math.ceil(adjustmentTotal / 20)}
+                      </span>
+                      <button
+                        onClick={() => setAdjustmentPage(Math.min(Math.ceil(adjustmentTotal / 20) - 1, adjustmentPage + 1))}
+                        disabled={adjustmentPage >= Math.ceil(adjustmentTotal / 20) - 1}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-foreground hover:bg-foreground/5 disabled:opacity-50 transition-colors"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Leave Request Modal */}
       <MotionModal open={showRequestModal} onClose={() => setShowRequestModal(false)}>
         <div className="h-1 bg-gradient-to-r from-bridge-accent to-bridge-secondary rounded-t-2xl" />
@@ -505,6 +719,152 @@ export function OrgLeaveTab({ orgId, myRole }: OrgLeaveTabProps) {
               className="px-4 py-1.5 rounded-lg text-xs font-bold bg-bridge-accent text-white hover:bg-bridge-accent/90 hover:shadow-[0_0_20px_rgba(99,102,241,0.3)] transition-all disabled:opacity-50"
             >
               {submitting ? t('common.submitting', 'Submitting...') : t('organization.leave.submit', 'Submit Request')}
+            </button>
+          </div>
+        </div>
+      </MotionModal>
+
+      {/* Adjustment Modal (Admin Only) */}
+      <MotionModal open={showAdjustModal} onClose={() => setShowAdjustModal(false)}>
+        <div className="h-1 bg-gradient-to-r from-bridge-accent to-bridge-secondary rounded-t-2xl" />
+        <div className="px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
+          <h2 className="text-lg font-bold text-foreground">휴가 잔여 조정</h2>
+        </div>
+        <div className="px-5 pb-5 pt-4 space-y-4">
+          {/* Member Select */}
+          <div>
+            <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">대상 멤버</label>
+            <select
+              value={adjustForm.member_id}
+              onChange={(e) => {
+                const memberId = e.target.value;
+                setAdjustForm({ ...adjustForm, member_id: memberId, balance_id: '' });
+                if (memberId) fetchMemberBalances(memberId);
+                else setMemberBalances([]);
+              }}
+              className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl py-3 px-4 text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+            >
+              <option value="">멤버 선택</option>
+              {loadingMembers ? (
+                <option disabled>로딩 중...</option>
+              ) : (
+                members.map((m) => (
+                  <option key={m.id} value={m.id}>{m.name} ({m.email})</option>
+                ))
+              )}
+            </select>
+          </div>
+
+          {/* Balance Select */}
+          {adjustForm.member_id && (
+            <div>
+              <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">대상 정책</label>
+              <select
+                value={adjustForm.balance_id}
+                onChange={(e) => setAdjustForm({ ...adjustForm, balance_id: e.target.value })}
+                className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl py-3 px-4 text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+              >
+                <option value="">정책 선택</option>
+                {memberBalances.map((b) => (
+                  <option key={b.id} value={b.id}>{b.policy_name} (잔여: {b.remaining}/{b.total_days})</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Current Balance Info */}
+          {adjustForm.balance_id && (() => {
+            const selectedBalance = memberBalances.find(b => b.id === adjustForm.balance_id);
+            if (!selectedBalance) return null;
+            const preview = adjustForm.adjustment_type === 'GRANT'
+              ? selectedBalance.total_days + adjustForm.days
+              : selectedBalance.total_days - adjustForm.days;
+            return (
+              <div className="p-3 bg-foreground/[0.03] rounded-xl border border-foreground/[0.06]">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-slate-400">현재 총 일수</span>
+                  <span className="text-foreground font-medium">{selectedBalance.total_days}일</span>
+                </div>
+                <div className="flex items-center justify-between text-sm mt-1">
+                  <span className="text-slate-400">사용</span>
+                  <span className="text-foreground">{selectedBalance.used_days}일</span>
+                </div>
+                <div className="flex items-center justify-between text-sm mt-1">
+                  <span className="text-slate-400">잔여</span>
+                  <span className="text-bridge-secondary font-bold">{selectedBalance.remaining}일</span>
+                </div>
+                <div className="border-t border-foreground/[0.06] mt-2 pt-2 flex items-center justify-between text-sm">
+                  <span className="text-slate-400">변경 후</span>
+                  <span className={`font-bold ${adjustForm.adjustment_type === 'GRANT' ? 'text-emerald-500' : 'text-red-500'}`}>
+                    {selectedBalance.total_days} &rarr; {preview.toFixed(1)} ({adjustForm.adjustment_type === 'GRANT' ? '+' : '-'}{adjustForm.days})
+                  </span>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Adjustment Type */}
+          <div>
+            <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">조정 유형</label>
+            <div className="flex gap-2">
+              {(['GRANT', 'REVOKE'] as const).map((type) => (
+                <button
+                  key={type}
+                  onClick={() => setAdjustForm({ ...adjustForm, adjustment_type: type })}
+                  className={`flex-1 py-2 px-3 rounded-xl text-sm font-medium transition-colors border ${
+                    adjustForm.adjustment_type === type
+                      ? type === 'GRANT'
+                        ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
+                        : 'bg-red-500/15 text-red-600 dark:text-red-400 border-red-500/30'
+                      : 'bg-foreground/[0.03] text-slate-400 border-foreground/[0.08] hover:bg-foreground/[0.06]'
+                  }`}
+                >
+                  {type === 'GRANT' ? '부여 (+)' : '회수 (-)'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Days Input */}
+          <div>
+            <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">일수</label>
+            <input
+              type="number"
+              min="0.5"
+              step="0.5"
+              value={adjustForm.days}
+              onChange={(e) => setAdjustForm({ ...adjustForm, days: parseFloat(e.target.value) || 0.5 })}
+              className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl py-3 px-4 text-foreground focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+            />
+          </div>
+
+          {/* Reason */}
+          <div>
+            <label className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block">사유 (필수)</label>
+            <textarea
+              value={adjustForm.reason}
+              onChange={(e) => setAdjustForm({ ...adjustForm, reason: e.target.value })}
+              rows={2}
+              placeholder="예: 근속 5년 기념 리프레시 휴가"
+              className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl p-3 text-sm text-foreground placeholder-slate-500 outline-none resize-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+            />
+          </div>
+        </div>
+        <div className="px-5 py-3 border-t border-foreground/[0.08] flex items-center justify-between">
+          <span className="text-[10px] text-slate-600">ESC 닫기</span>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowAdjustModal(false)}
+              className="px-4 py-1.5 rounded-lg text-xs font-bold bg-foreground/[0.06] text-foreground hover:bg-foreground/10 transition-colors"
+            >
+              취소
+            </button>
+            <button
+              onClick={handleAdjust}
+              disabled={!adjustForm.balance_id || !adjustForm.reason.trim() || adjustForm.days <= 0 || adjusting}
+              className="px-4 py-1.5 rounded-lg text-xs font-bold bg-bridge-accent text-white hover:bg-bridge-accent/90 transition-all disabled:opacity-50"
+            >
+              {adjusting ? '처리 중...' : '조정'}
             </button>
           </div>
         </div>

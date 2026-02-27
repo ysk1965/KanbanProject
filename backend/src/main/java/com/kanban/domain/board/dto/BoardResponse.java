@@ -43,6 +43,8 @@ public class BoardResponse {
         private int completedTasks;
         private List<MemberPreview> members;
         private SubscriptionInfo subscription;
+        private String organizationId;
+        private String organizationName;
         private LocalDateTime createdAt;
 
         public static Simple of(Board board, BoardRole role, boolean isStarred, int memberCount,
@@ -61,6 +63,8 @@ public class BoardResponse {
                     .completedTasks(completedTasks)
                     .members(members)
                     .subscription(subscription != null ? SubscriptionInfo.of(subscription) : null)
+                    .organizationId(board.getOrganization() != null ? board.getOrganization().getId() : null)
+                    .organizationName(board.getOrganization() != null ? board.getOrganization().getName() : null)
                     .createdAt(board.getCreatedAt())
                     .build();
         }
@@ -246,6 +250,10 @@ public class BoardResponse {
         private String selectedMilestoneId;
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;
+
+        // 조직 정보
+        private String organizationId;
+        private String organizationName;
 
         // 통합 데이터
         private List<BlockResponse.Detail> blocks;

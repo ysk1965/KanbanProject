@@ -3,7 +3,11 @@ package com.kanban.domain.organization.service;
 import com.kanban.domain.organization.*;
 import com.kanban.domain.organization.dto.AttendanceRequest;
 import com.kanban.domain.organization.dto.AttendanceResponse;
+import com.kanban.domain.organization.leave.LeaveDurationType;
+import com.kanban.domain.organization.leave.LeaveRequest;
+import com.kanban.domain.organization.leave.repository.LeaveRequestRepository;
 import com.kanban.domain.organization.repository.*;
+import com.kanban.domain.subscription.service.OrgSubscriptionService;
 import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
@@ -28,11 +32,16 @@ public class OrgAttendanceService {
     private final OrgCustomHolidayRepository holidayRepository;
     private final OrgMemberRepository memberRepository;
     private final UserRepository userRepository;
+    private final LeaveRequestRepository leaveRequestRepository;
+    private final OrgSubscriptionService orgSubscriptionService;
 
     // ─── Clock In / Out ───
 
     @Transactional
     public AttendanceResponse.RecordDetail clockIn(String orgId, String userId) {
+        if (!orgSubscriptionService.canAccessHrFeatures(orgId)) {
+            throw new BusinessException(ErrorCode.HR_FEATURE_REQUIRES_TEAM);
+        }
         OrganizationMember me = memberRepository.findByOrganizationIdAndUserId(orgId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORG_MEMBER_NOT_FOUND));
 
@@ -79,6 +88,9 @@ public class OrgAttendanceService {
 
     @Transactional
     public AttendanceResponse.RecordDetail clockOut(String orgId, String userId) {
+        if (!orgSubscriptionService.canAccessHrFeatures(orgId)) {
+            throw new BusinessException(ErrorCode.HR_FEATURE_REQUIRES_TEAM);
+        }
         OrganizationMember me = memberRepository.findByOrganizationIdAndUserId(orgId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORG_MEMBER_NOT_FOUND));
 
@@ -102,6 +114,9 @@ public class OrgAttendanceService {
 
     @Transactional
     public AttendanceResponse.RecordDetail cancelClockOut(String orgId, String userId) {
+        if (!orgSubscriptionService.canAccessHrFeatures(orgId)) {
+            throw new BusinessException(ErrorCode.HR_FEATURE_REQUIRES_TEAM);
+        }
         OrganizationMember me = memberRepository.findByOrganizationIdAndUserId(orgId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORG_MEMBER_NOT_FOUND));
 
@@ -200,6 +215,17 @@ public class OrgAttendanceService {
             if (r.getStatus() == AttendanceStatus.ON_LEAVE) onLeave++;
         }
 
+        // Leave breakdown by duration type
+        List<LeaveRequest> approvedLeaves = leaveRequestRepository.findApprovedOnDate(orgId, myToday);
+        int fullDayLeave = 0, amHalfLeave = 0, pmHalfLeave = 0;
+        for (LeaveRequest lr : approvedLeaves) {
+            switch (lr.getDurationType()) {
+                case FULL_DAY -> fullDayLeave++;
+                case AM_HALF -> amHalfLeave++;
+                case PM_HALF -> pmHalfLeave++;
+            }
+        }
+
         // My record (uses my timezone - this is correct per user)
         AttendanceResponse.MyTodayRecord myRecord = null;
         OrgAttendanceRecord myRec = recordRepository.findByMemberAndDate(orgId, me.getId(), myToday).orElse(null);
@@ -221,8 +247,93 @@ public class OrgAttendanceService {
                 .presentCount(present)
                 .absentCount(totalActive - present - onLeave)
                 .onLeaveCount(onLeave)
+                .fullDayLeaveCount(fullDayLeave)
+                .amHalfLeaveCount(amHalfLeave)
+                .pmHalfLeaveCount(pmHalfLeave)
                 .totalActiveMembers(totalActive)
                 .myRecord(myRecord)
+                .build();
+    }
+
+    // ─── Today Members (per-member detail) ───
+
+    public AttendanceResponse.TodayMembersResponse getTodayMembers(String orgId, String userId) {
+        OrganizationMember me = memberRepository.findByOrganizationIdAndUserId(orgId, userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ORG_MEMBER_NOT_FOUND));
+
+        LocalDateTime nowUtc = LocalDateTime.now(ZoneOffset.UTC);
+        ZoneId memberZone = ZoneId.of(me.getTimezone() != null ? me.getTimezone() : "Asia/Seoul");
+        LocalDate myToday = nowUtc.atOffset(ZoneOffset.UTC).atZoneSameInstant(memberZone).toLocalDate();
+
+        // Same ±1 day range + dedup strategy as getTodayStatus
+        List<OrgAttendanceRecord> rangeRecords = recordRepository.findByOrgAndDateRange(
+                orgId, myToday.minusDays(1), myToday.plusDays(1));
+
+        Map<String, OrgAttendanceRecord> latestByMember = new LinkedHashMap<>();
+        for (OrgAttendanceRecord r : rangeRecords) {
+            latestByMember.merge(r.getMember().getId(), r, (a, b) ->
+                    a.getRecordDate().isAfter(b.getRecordDate()) ? a : b);
+        }
+
+        // Present members (PRESENT or HALF_DAY status)
+        Set<String> presentMemberIds = new HashSet<>();
+        List<AttendanceResponse.PresentMemberInfo> presentMembers = new ArrayList<>();
+        for (OrgAttendanceRecord r : latestByMember.values()) {
+            if (r.getStatus() == AttendanceStatus.PRESENT || r.getStatus() == AttendanceStatus.HALF_DAY) {
+                OrganizationMember m = r.getMember();
+                presentMemberIds.add(m.getId());
+                Integer elapsed = null;
+                if (r.getClockIn() != null && r.getClockOut() == null) {
+                    elapsed = (int) ChronoUnit.MINUTES.between(r.getClockIn(), nowUtc);
+                }
+                presentMembers.add(AttendanceResponse.PresentMemberInfo.builder()
+                        .memberId(m.getId())
+                        .name(m.getUser().getName())
+                        .profileImage(m.getUser().getProfileImage())
+                        .departmentName(m.getDepartment() != null ? m.getDepartment().getName() : null)
+                        .clockIn(r.getClockIn())
+                        .clockOut(r.getClockOut())
+                        .elapsedMinutes(elapsed)
+                        .late(r.isLate())
+                        .build());
+            }
+        }
+
+        // Leave members
+        List<LeaveRequest> approvedLeaves = leaveRequestRepository.findApprovedOnDate(orgId, myToday);
+        Set<String> leaveMemberIds = new HashSet<>();
+        List<AttendanceResponse.LeaveMemberInfo> leaveMembers = new ArrayList<>();
+        for (LeaveRequest lr : approvedLeaves) {
+            OrganizationMember m = lr.getRequester();
+            leaveMemberIds.add(m.getId());
+            leaveMembers.add(AttendanceResponse.LeaveMemberInfo.builder()
+                    .memberId(m.getId())
+                    .name(m.getUser().getName())
+                    .profileImage(m.getUser().getProfileImage())
+                    .departmentName(m.getDepartment() != null ? m.getDepartment().getName() : null)
+                    .durationType(lr.getDurationType().name())
+                    .build());
+        }
+
+        // Absent = all active minus present minus leave
+        List<OrganizationMember> allActive = memberRepository.findActiveMembers(
+                orgId, List.of(WorkStatus.ACTIVE, WorkStatus.ON_LEAVE));
+        List<AttendanceResponse.AbsentMemberInfo> absentMembers = new ArrayList<>();
+        for (OrganizationMember m : allActive) {
+            if (!presentMemberIds.contains(m.getId()) && !leaveMemberIds.contains(m.getId())) {
+                absentMembers.add(AttendanceResponse.AbsentMemberInfo.builder()
+                        .memberId(m.getId())
+                        .name(m.getUser().getName())
+                        .profileImage(m.getUser().getProfileImage())
+                        .departmentName(m.getDepartment() != null ? m.getDepartment().getName() : null)
+                        .build());
+            }
+        }
+
+        return AttendanceResponse.TodayMembersResponse.builder()
+                .presentMembers(presentMembers)
+                .absentMembers(absentMembers)
+                .leaveMembers(leaveMembers)
                 .build();
     }
 
@@ -295,6 +406,9 @@ public class OrgAttendanceService {
     @Transactional
     public AttendanceResponse.RecordDetail adminModify(String orgId, String userId,
                                                         String recordId, AttendanceRequest.AdminModify request) {
+        if (!orgSubscriptionService.canAccessHrFeatures(orgId)) {
+            throw new BusinessException(ErrorCode.HR_FEATURE_REQUIRES_TEAM);
+        }
         OrganizationMember me = memberRepository.findByOrganizationIdAndUserId(orgId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORG_MEMBER_NOT_FOUND));
         if (!me.isAdminOrAbove()) {
@@ -342,6 +456,9 @@ public class OrgAttendanceService {
     @Transactional
     public AttendanceResponse.PolicyResponse updatePolicy(String orgId, String userId,
                                                            AttendanceRequest.UpdatePolicy request) {
+        if (!orgSubscriptionService.canAccessHrFeatures(orgId)) {
+            throw new BusinessException(ErrorCode.HR_FEATURE_REQUIRES_TEAM);
+        }
         OrganizationMember me = memberRepository.findByOrganizationIdAndUserId(orgId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORG_MEMBER_NOT_FOUND));
         if (!me.isAdminOrAbove()) {
@@ -382,6 +499,9 @@ public class OrgAttendanceService {
     @Transactional
     public AttendanceResponse.HolidayResponse createHoliday(String orgId, String userId,
                                                               AttendanceRequest.CreateHoliday request) {
+        if (!orgSubscriptionService.canAccessHrFeatures(orgId)) {
+            throw new BusinessException(ErrorCode.HR_FEATURE_REQUIRES_TEAM);
+        }
         OrganizationMember me = memberRepository.findByOrganizationIdAndUserId(orgId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORG_MEMBER_NOT_FOUND));
         if (!me.isAdminOrAbove()) {
@@ -406,6 +526,9 @@ public class OrgAttendanceService {
 
     @Transactional
     public void deleteHoliday(String orgId, String userId, String holidayId) {
+        if (!orgSubscriptionService.canAccessHrFeatures(orgId)) {
+            throw new BusinessException(ErrorCode.HR_FEATURE_REQUIRES_TEAM);
+        }
         OrganizationMember me = memberRepository.findByOrganizationIdAndUserId(orgId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORG_MEMBER_NOT_FOUND));
         if (!me.isAdminOrAbove()) {

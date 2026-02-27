@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Shield, AlertTriangle, Clock, RefreshCw, Play, StopCircle, Timer } from 'lucide-react';
+import { Shield, AlertTriangle, Clock, RefreshCw, Play, StopCircle, Timer, Loader2 } from 'lucide-react';
 import { adminService } from '../../utils/services';
 import type { MaintenanceStatus } from '../../utils/api';
 import { formatDateTime, toDateTimeLocalValue, fromDateTimeLocalValue } from '../../utils/dateUtils';
@@ -135,7 +135,7 @@ export function AdminSystemTab() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-bridge-accent" />
+        <Loader2 className="w-8 h-8 animate-spin text-bridge-accent" />
       </div>
     );
   }
@@ -220,7 +220,7 @@ export function AdminSystemTab() {
 
       {/* 점검 중이 아닐 때: 점검 시작 폼 */}
       {!isActive && (
-        <div className="bg-bridge-obsidian rounded-2xl border border-foreground/5 p-4 md:p-6">
+        <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-4 md:p-6">
           <div className="flex items-center gap-2 mb-6">
             <Play className="h-5 w-5 text-bridge-accent" />
             <h3 className="text-lg font-bold text-foreground">{t('admin.system.startMaintenance')}</h3>
@@ -236,7 +236,7 @@ export function AdminSystemTab() {
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 rows={2}
-                className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-foreground placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all resize-none"
+                className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all resize-none"
                 placeholder={t('admin.system.maintenancePlaceholder')}
               />
             </div>
@@ -270,7 +270,7 @@ export function AdminSystemTab() {
 
       {/* 점검 중일 때: 관리 패널 */}
       {isActive && (
-        <div className="bg-bridge-obsidian rounded-2xl border border-foreground/5 p-4 md:p-6">
+        <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-4 md:p-6">
           <div className="flex items-center gap-2 mb-6">
             <Timer className="h-5 w-5 text-orange-400" />
             <h3 className="text-lg font-bold text-foreground">{t('admin.system.manageMaintenance')}</h3>
@@ -322,7 +322,7 @@ export function AdminSystemTab() {
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 rows={2}
-                className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-foreground placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all resize-none"
+                className="w-full bg-foreground/5 border border-foreground/10 rounded-xl py-3 px-4 text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all resize-none"
                 placeholder={t('admin.system.maintenancePlaceholder')}
               />
             </div>

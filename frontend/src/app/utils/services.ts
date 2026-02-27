@@ -26,6 +26,8 @@ import {
   orgActivityAPI,
   leaveAPI,
   anniversaryAPI,
+  personalCalendarAPI,
+  orgSubscriptionAPI,
 } from "./api";
 import {
   mockBoards,
@@ -63,6 +65,11 @@ import type {
   StatisticsFilter,
   ManagementStatistics,
   MilestoneAllocation,
+  OkrCycle,
+  OkrObjective,
+  OkrKeyResult,
+  OkrCheckIn,
+  OkrTreeData,
 } from "../types";
 
 // API 호출 실패 시 목업 데이터 사용
@@ -1115,6 +1122,8 @@ export const memberService = {
   reorderMembers: async (boardId: string, memberIds: string[]) => {
     return memberAPI.reorderMembers(boardId, memberIds);
   },
+
+  getOrgCandidates: memberAPI.getOrgCandidates,
 
   removeMember: async (boardId: string, memberId: string): Promise<void> => {
     try {
@@ -3027,6 +3036,8 @@ export const diaryService = {
   ): Promise<AiCreditPurchaseResult> => {
     return diaryAPI.purchasePersonalCredits(data);
   },
+
+  getWorkContext: diaryAPI.getWorkContext,
 };
 
 // ─── Personal Task Service (v9.0) ───
@@ -3057,6 +3068,13 @@ export const personalHabitService = {
 
 export const personalDashboardService = {
   getToday: personalDashboardAPI.getToday,
+  getOverview: personalDashboardAPI.getOverview,
+  getBoardTasks: personalDashboardAPI.getBoardTasks,
+  getCelebrations: personalDashboardAPI.getCelebrations,
+};
+
+export const personalCalendarService = {
+  getUnifiedCalendar: personalCalendarAPI.getUnifiedCalendar,
 };
 
 // ─── Organization Service ───
@@ -3173,6 +3191,7 @@ export const organizationService = {
   cancelClockOut: organizationAPI.cancelClockOut,
   getMyAttendanceRecords: organizationAPI.getMyAttendanceRecords,
   getAttendanceToday: organizationAPI.getAttendanceToday,
+  getAttendanceTodayMembers: organizationAPI.getAttendanceTodayMembers,
   getAttendanceTeamSummary: organizationAPI.getAttendanceTeamSummary,
   adminModifyAttendance: organizationAPI.adminModifyAttendance,
   getAttendancePolicy: organizationAPI.getAttendancePolicy,
@@ -3181,6 +3200,10 @@ export const organizationService = {
   createAttendanceHoliday: organizationAPI.createAttendanceHoliday,
   deleteAttendanceHoliday: organizationAPI.deleteAttendanceHoliday,
   exportAttendanceCsv: organizationAPI.exportAttendanceCsv,
+
+  // Structure Settings
+  getStructureSettings: organizationAPI.getStructureSettings,
+  updateStructureSettings: organizationAPI.updateStructureSettings,
 };
 
 // ─── Organization Announcement Service ───
@@ -3191,6 +3214,10 @@ export const orgAnnouncementService = {
   update: orgAnnouncementAPI.update,
   delete: orgAnnouncementAPI.delete,
   togglePin: orgAnnouncementAPI.togglePin,
+  getComments: orgAnnouncementAPI.getComments,
+  addComment: orgAnnouncementAPI.addComment,
+  updateComment: orgAnnouncementAPI.updateComment,
+  deleteComment: orgAnnouncementAPI.deleteComment,
 };
 
 // ─── Organization Activity Service ───
@@ -3229,4 +3256,73 @@ export const anniversaryService = {
   deleteMessage: anniversaryAPI.deleteMessage,
   getSettings: anniversaryAPI.getSettings,
   updateSettings: anniversaryAPI.updateSettings,
+};
+
+// ─── OKR Service ───
+
+export const okrService = {
+  // Cycles
+  getCycles: (orgId: string) =>
+    apiClient.get<OkrCycle[]>(`/organizations/${orgId}/okr/cycles`),
+  createCycle: (orgId: string, data: { name: string; cycle_type: string; start_date: string; end_date: string }) =>
+    apiClient.post<OkrCycle>(`/organizations/${orgId}/okr/cycles`, data),
+  updateCycle: (orgId: string, cycleId: string, data: { name?: string; cycle_type?: string; start_date?: string; end_date?: string; status?: string }) =>
+    apiClient.put<OkrCycle>(`/organizations/${orgId}/okr/cycles/${cycleId}`, data),
+  deleteCycle: (orgId: string, cycleId: string) =>
+    apiClient.delete<void>(`/organizations/${orgId}/okr/cycles/${cycleId}`),
+
+  // Tree (full tree query)
+  getTree: (orgId: string, cycleId: string) =>
+    apiClient.get<OkrTreeData>(`/organizations/${orgId}/okr/cycles/${cycleId}/tree`),
+
+  // Objectives
+  createObjective: (orgId: string, cycleId: string, data: {
+    title: string; description?: string; level: string;
+    department_id?: string; owner_id?: string; parent_objective_id?: string;
+  }) =>
+    apiClient.post<OkrObjective>(`/organizations/${orgId}/okr/cycles/${cycleId}/objectives`, data),
+  updateObjective: (orgId: string, objectiveId: string, data: {
+    title?: string; description?: string; level?: string;
+    department_id?: string; owner_id?: string; parent_objective_id?: string;
+  }) =>
+    apiClient.put<OkrObjective>(`/organizations/${orgId}/okr/objectives/${objectiveId}`, data),
+  deleteObjective: (orgId: string, objectiveId: string) =>
+    apiClient.delete<void>(`/organizations/${orgId}/okr/objectives/${objectiveId}`),
+
+  // Key Results
+  createKeyResult: (orgId: string, objectiveId: string, data: {
+    title: string; description?: string; metric_type: string;
+    start_value: number; target_value: number; current_value?: number;
+    unit?: string; owner_id?: string; weight?: number; linked_board_id?: string;
+  }) =>
+    apiClient.post<OkrKeyResult>(`/organizations/${orgId}/okr/objectives/${objectiveId}/key-results`, data),
+  updateKeyResult: (orgId: string, krId: string, data: {
+    title?: string; description?: string; metric_type?: string;
+    start_value?: number; target_value?: number; unit?: string;
+    owner_id?: string; weight?: number; linked_board_id?: string;
+  }) =>
+    apiClient.put<OkrKeyResult>(`/organizations/${orgId}/okr/key-results/${krId}`, data),
+  deleteKeyResult: (orgId: string, krId: string) =>
+    apiClient.delete<void>(`/organizations/${orgId}/okr/key-results/${krId}`),
+
+  // Check-ins
+  getCheckIns: (orgId: string, krId: string) =>
+    apiClient.get<OkrCheckIn[]>(`/organizations/${orgId}/okr/key-results/${krId}/checkins`),
+  createCheckIn: (orgId: string, krId: string, data: {
+    new_value: number; confidence: string; note?: string;
+  }) =>
+    apiClient.post<OkrCheckIn>(`/organizations/${orgId}/okr/key-results/${krId}/checkins`, data),
+};
+
+// ─── Org Subscription Service ───
+
+export const orgSubscriptionService = {
+  get: orgSubscriptionAPI.get,
+  activate: orgSubscriptionAPI.activate,
+  migratePreview: orgSubscriptionAPI.migratePreview,
+  migrate: orgSubscriptionAPI.migrate,
+  downgrade: orgSubscriptionAPI.downgrade,
+  cancel: orgSubscriptionAPI.cancel,
+  getPayments: orgSubscriptionAPI.getPayments,
+  confirmPayment: orgSubscriptionAPI.confirmPayment,
 };

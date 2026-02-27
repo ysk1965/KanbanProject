@@ -116,4 +116,21 @@ public interface DailyChecklistRepository extends JpaRepository<DailyChecklist, 
     @Modifying
     @Query("DELETE FROM DailyChecklist dc WHERE dc.assignee.id = :userId")
     void deleteByAssigneeId(@Param("userId") String userId);
+
+    // ==================== Cross-Domain Integration Queries ====================
+
+    /**
+     * 특정 유저의 다중 보드 일일 체크리스트 조회 (날짜 지정)
+     */
+    @Query("SELECT dc FROM DailyChecklist dc " +
+           "LEFT JOIN FETCH dc.checklistItem ci " +
+           "LEFT JOIN FETCH ci.task t " +
+           "LEFT JOIN FETCH t.feature " +
+           "JOIN FETCH dc.assignee " +
+           "WHERE dc.assignee.id = :assigneeId AND dc.board.id IN :boardIds AND dc.assignedDate = :date " +
+           "ORDER BY dc.board.id, dc.position ASC")
+    List<DailyChecklist> findByAssigneeIdAndBoardIdInAndAssignedDate(
+            @Param("assigneeId") String assigneeId,
+            @Param("boardIds") List<String> boardIds,
+            @Param("date") LocalDate date);
 }

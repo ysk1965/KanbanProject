@@ -32,4 +32,14 @@ public class OrganizationRequest {
         @NotBlank(message = "새 소유자 멤버 ID는 필수입니다")
         private String memberId;
     }
+
+    @Getter
+    @NoArgsConstructor
+    public static class UpdateStructureSettings {
+        private Boolean departmentsEnabled;
+        private Boolean jobGroupsEnabled;
+        private Boolean positionsEnabled;
+        private Boolean titlesEnabled;
+        private Boolean gradesEnabled;
+    }
 }

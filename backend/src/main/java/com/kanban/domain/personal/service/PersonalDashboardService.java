@@ -1,15 +1,25 @@
 package com.kanban.domain.personal.service;
 
+import com.kanban.domain.board.Board;
+import com.kanban.domain.board.BoardMember;
+import com.kanban.domain.board.BoardMemberRepository;
+import com.kanban.domain.checklist.ChecklistItem;
+import com.kanban.domain.checklist.ChecklistItemRepository;
+import com.kanban.domain.dailychecklist.DailyChecklist;
+import com.kanban.domain.dailychecklist.DailyChecklistRepository;
 import com.kanban.domain.diary.DiaryEntry;
 import com.kanban.domain.diary.DiaryEntryRepository;
+import com.kanban.domain.meeting.Meeting;
+import com.kanban.domain.meeting.MeetingRepository;
+import com.kanban.domain.organization.*;
+import com.kanban.domain.organization.repository.OrgAnniversarySettingRepository;
+import com.kanban.domain.organization.repository.OrgCelebrationMessageRepository;
+import com.kanban.domain.organization.repository.OrgMemberRepository;
 import com.kanban.domain.personal.*;
 import com.kanban.domain.diary.DiaryMessage;
-import com.kanban.domain.personal.dto.PersonalDashboardResponse;
-import com.kanban.domain.personal.dto.PersonalEventResponse;
-import com.kanban.domain.personal.dto.PersonalHabitResponse;
-import com.kanban.domain.personal.dto.PersonalOverviewResponse;
-import com.kanban.domain.personal.dto.PersonalTaskResponse;
+import com.kanban.domain.personal.dto.*;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,11 +28,10 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.temporal.TemporalAdjusters;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -34,6 +43,15 @@ public class PersonalDashboardService {
     private final PersonalEventRepository personalEventRepository;
     private final PersonalHabitService personalHabitService;
     private final DiaryEntryRepository diaryEntryRepository;
+
+    // Cross-Domain Integration dependencies
+    private final BoardMemberRepository boardMemberRepository;
+    private final ChecklistItemRepository checklistItemRepository;
+    private final DailyChecklistRepository dailyChecklistRepository;
+    private final MeetingRepository meetingRepository;
+    private final OrgMemberRepository orgMemberRepository;
+    private final OrgAnniversarySettingRepository orgAnniversarySettingRepository;
+    private final OrgCelebrationMessageRepository orgCelebrationMessageRepository;
 
     public PersonalDashboardResponse getTodayDashboard(String userId, LocalDate date) {
         LocalDate today = (date != null) ? date : LocalDate.now(ZoneOffset.UTC);
@@ -179,5 +197,246 @@ public class PersonalDashboardService {
                 .completedTodayCount(dashboard.getCompletedTodayCount())
                 .diaryToday(diaryToday)
                 .build();
+    }
+
+    // ==================== Cross-Domain Integration: Board Tasks ====================
+
+    public BoardTasksResponse getBoardTasks(String userId, LocalDate date) {
+        LocalDate today = (date != null) ? date : LocalDate.now(ZoneOffset.UTC);
+
+        // 1. Get user's active boards
+        List<BoardMember> boardMembers = boardMemberRepository.findByUserIdWithActiveBoards(userId);
+        if (boardMembers.isEmpty()) {
+            return BoardTasksResponse.builder()
+                    .boards(Collections.emptyList())
+                    .totalPending(0)
+                    .totalCompletedToday(0)
+                    .build();
+        }
+
+        List<String> boardIds = boardMembers.stream()
+                .map(bm -> bm.getBoard().getId())
+                .toList();
+
+        // 2. Fetch cross-board data
+        List<ChecklistItem> pendingChecklists = checklistItemRepository
+                .findByAssigneeIdAndBoardIdInAndNotCompleted(userId, boardIds);
+
+        List<DailyChecklist> dailyChecklists = dailyChecklistRepository
+                .findByAssigneeIdAndBoardIdInAndAssignedDate(userId, boardIds, today);
+
+        List<Meeting> meetings = meetingRepository
+                .findByBoardIdInAndMeetingDateBetween(boardIds, today, today);
+
+        // 3. Fetch today's completed checklists for count
+        LocalDateTime dayStart = today.atStartOfDay();
+        LocalDateTime dayEnd = today.plusDays(1).atStartOfDay();
+        List<ChecklistItem> completedToday = checklistItemRepository
+                .findCompletedByAssigneeAndBoardIdsAndDateRange(userId, boardIds, dayStart, dayEnd);
+
+        // 4. Group by board
+        Map<String, Board> boardMap = boardMembers.stream()
+                .collect(Collectors.toMap(bm -> bm.getBoard().getId(), BoardMember::getBoard, (a, b) -> a));
+
+        Map<String, List<ChecklistItem>> pendingByBoard = pendingChecklists.stream()
+                .collect(Collectors.groupingBy(ci -> ci.getTask().getBoard().getId()));
+
+        Map<String, List<DailyChecklist>> dailyByBoard = dailyChecklists.stream()
+                .collect(Collectors.groupingBy(dc -> dc.getBoard().getId()));
+
+        Map<String, List<Meeting>> meetingsByBoard = meetings.stream()
+                .collect(Collectors.groupingBy(m -> m.getBoard().getId()));
+
+        Map<String, List<ChecklistItem>> completedByBoard = completedToday.stream()
+                .collect(Collectors.groupingBy(ci -> ci.getTask().getBoard().getId()));
+
+        int totalPending = 0;
+        int totalCompletedToday = 0;
+
+        List<BoardTasksResponse.BoardGroup> boardGroups = new ArrayList<>();
+        for (String boardId : boardIds) {
+            Board board = boardMap.get(boardId);
+            if (board == null) continue;
+
+            List<BoardTasksResponse.BoardItem> items = new ArrayList<>();
+
+            // Add pending checklists
+            List<ChecklistItem> boardPending = pendingByBoard.getOrDefault(boardId, Collections.emptyList());
+            for (ChecklistItem ci : boardPending) {
+                items.add(BoardTasksResponse.BoardItem.builder()
+                        .type("CHECKLIST")
+                        .checklistItemId(ci.getId())
+                        .title(ci.getTitle())
+                        .taskTitle(ci.getTask().getTitle())
+                        .featureTitle(ci.getTask().getFeature().getTitle())
+                        .featureColor(ci.getTask().getFeature().getColor())
+                        .dueDate(ci.getDueDate())
+                        .isCompleted(false)
+                        .build());
+            }
+
+            // Add daily checklists
+            List<DailyChecklist> boardDaily = dailyByBoard.getOrDefault(boardId, Collections.emptyList());
+            for (DailyChecklist dc : boardDaily) {
+                boolean isCompleted = dc.getChecklistItem() != null && dc.getChecklistItem().getIsCompleted();
+                items.add(BoardTasksResponse.BoardItem.builder()
+                        .type("DAILY_CHECKLIST")
+                        .dailyChecklistId(dc.getId())
+                        .title(dc.getTitle())
+                        .isCompleted(isCompleted)
+                        .build());
+            }
+
+            // Add meetings
+            List<Meeting> boardMeetings = meetingsByBoard.getOrDefault(boardId, Collections.emptyList());
+            for (Meeting m : boardMeetings) {
+                items.add(BoardTasksResponse.BoardItem.builder()
+                        .type("MEETING")
+                        .meetingId(m.getId())
+                        .title(m.getTitle())
+                        .startTime(m.getStartTime())
+                        .endTime(m.getEndTime())
+                        .build());
+            }
+
+            // Skip boards with no items
+            if (items.isEmpty()) continue;
+
+            int pendingCount = boardPending.size() + (int) boardDaily.stream()
+                    .filter(dc -> dc.getChecklistItem() == null || !dc.getChecklistItem().getIsCompleted())
+                    .count();
+            int completedTodayCount = completedByBoard.getOrDefault(boardId, Collections.emptyList()).size();
+
+            totalPending += pendingCount;
+            totalCompletedToday += completedTodayCount;
+
+            boardGroups.add(BoardTasksResponse.BoardGroup.builder()
+                    .boardId(boardId)
+                    .boardName(board.getName())
+                    .backgroundGradient(board.getBackgroundGradient())
+                    .items(items)
+                    .pendingCount(pendingCount)
+                    .completedTodayCount(completedTodayCount)
+                    .build());
+        }
+
+        return BoardTasksResponse.builder()
+                .boards(boardGroups)
+                .totalPending(totalPending)
+                .totalCompletedToday(totalCompletedToday)
+                .build();
+    }
+
+    // ==================== Cross-Domain Integration: Celebrations ====================
+
+    public CelebrationsResponse getCelebrations(String userId, LocalDate date) {
+        LocalDate today = (date != null) ? date : LocalDate.now(ZoneOffset.UTC);
+
+        // 1. Get user's organizations
+        List<OrganizationMember> orgMemberships = orgMemberRepository.findByUserIdWithOrganization(userId);
+        if (orgMemberships.isEmpty()) {
+            return CelebrationsResponse.builder()
+                    .celebrations(Collections.emptyList())
+                    .build();
+        }
+
+        List<CelebrationsResponse.CelebrationItem> celebrations = new ArrayList<>();
+
+        for (OrganizationMember membership : orgMemberships) {
+            Organization org = membership.getOrganization();
+            if (org.isDeleted()) continue;
+
+            // 2. Check anniversary settings
+            Optional<OrgAnniversarySetting> settingOpt = orgAnniversarySettingRepository
+                    .findByOrganizationId(org.getId());
+            if (settingOpt.isEmpty()) continue;
+
+            OrgAnniversarySetting settings = settingOpt.get();
+            boolean birthdayEnabled = settings.getBirthdayEnabled();
+            boolean hireEnabled = settings.getHireAnniversaryEnabled();
+            if (!birthdayEnabled && !hireEnabled) continue;
+
+            // 3. Get active members of the organization
+            List<OrganizationMember> activeMembers = orgMemberRepository.findActiveMembers(
+                    org.getId(), List.of(WorkStatus.ACTIVE, WorkStatus.ON_LEAVE));
+
+            for (OrganizationMember member : activeMembers) {
+                // Skip self
+                if (member.getUser().getId().equals(userId)) continue;
+
+                // Birthday check
+                if (birthdayEnabled && member.getBirthDate() != null) {
+                    LocalDate birthdayThisYear = getAnniversaryDateThisYear(member.getBirthDate(), today);
+                    if (birthdayThisYear != null && birthdayThisYear.isEqual(today)) {
+                        boolean alreadySent = orgCelebrationMessageRepository
+                                .existsByTargetMemberIdAndAuthorIdAndAnniversaryTypeAndAnniversaryDate(
+                                        member.getId(), userId, AnniversaryType.BIRTHDAY, today);
+
+                        celebrations.add(CelebrationsResponse.CelebrationItem.builder()
+                                .orgId(org.getId())
+                                .orgName(org.getName())
+                                .memberUserId(member.getUser().getId())
+                                .memberName(member.getUser().getName())
+                                .memberProfileImage(member.getUser().getProfileImage())
+                                .type(AnniversaryType.BIRTHDAY.name())
+                                .messageTemplate("\uD83C\uDF82 " + member.getUser().getName() + "님의 생일을 축하합니다!")
+                                .canSendMessage(true)
+                                .alreadySent(alreadySent)
+                                .build());
+                    }
+                }
+
+                // Hire anniversary check
+                if (hireEnabled && member.getHireDate() != null) {
+                    LocalDate hireAnniversary = getAnniversaryDateThisYear(member.getHireDate(), today);
+                    if (hireAnniversary != null && hireAnniversary.isEqual(today)) {
+                        int years = today.getYear() - member.getHireDate().getYear();
+                        if (years <= 0) continue;
+
+                        boolean alreadySent = orgCelebrationMessageRepository
+                                .existsByTargetMemberIdAndAuthorIdAndAnniversaryTypeAndAnniversaryDate(
+                                        member.getId(), userId, AnniversaryType.HIRE_ANNIVERSARY, today);
+
+                        celebrations.add(CelebrationsResponse.CelebrationItem.builder()
+                                .orgId(org.getId())
+                                .orgName(org.getName())
+                                .memberUserId(member.getUser().getId())
+                                .memberName(member.getUser().getName())
+                                .memberProfileImage(member.getUser().getProfileImage())
+                                .type(AnniversaryType.HIRE_ANNIVERSARY.name())
+                                .messageTemplate("\uD83C\uDF89 " + member.getUser().getName() + "님의 입사 " + years + "주년을 축하합니다!")
+                                .canSendMessage(true)
+                                .alreadySent(alreadySent)
+                                .build());
+                    }
+                }
+            }
+        }
+
+        return CelebrationsResponse.builder()
+                .celebrations(celebrations)
+                .build();
+    }
+
+    // ==================== Helper Methods ====================
+
+    /**
+     * Get the anniversary date for the current year, handling leap year for Feb 29.
+     */
+    private LocalDate getAnniversaryDateThisYear(LocalDate originalDate, LocalDate today) {
+        int month = originalDate.getMonthValue();
+        int day = originalDate.getDayOfMonth();
+        int currentYear = today.getYear();
+
+        if (month == 2 && day == 29 && !today.isLeapYear()) {
+            return LocalDate.of(currentYear, 2, 28);
+        }
+
+        try {
+            return LocalDate.of(currentYear, month, day);
+        } catch (Exception e) {
+            log.warn("Failed to calculate anniversary date for {} in year {}", originalDate, currentYear);
+            return null;
+        }
     }
 }

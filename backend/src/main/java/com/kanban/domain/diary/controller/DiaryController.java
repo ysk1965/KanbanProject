@@ -3,8 +3,10 @@ package com.kanban.domain.diary.controller;
 import com.kanban.domain.diary.DiaryVoiceSettings;
 import com.kanban.domain.diary.dto.DiaryRequest;
 import com.kanban.domain.diary.dto.DiaryResponse;
+import com.kanban.domain.diary.dto.DiaryWorkContextResponse;
 import com.kanban.domain.diary.service.DiaryService;
 import com.kanban.domain.diary.service.DiaryVoiceService;
+import com.kanban.domain.diary.service.DiaryWorkContextService;
 import com.kanban.domain.subscription.dto.AiCreditRequest;
 import com.kanban.domain.subscription.dto.AiCreditResponse;
 import com.kanban.domain.subscription.service.AiCreditService;
@@ -31,6 +33,7 @@ public class DiaryController {
     private final DiaryService diaryService;
     private final DiaryVoiceService diaryVoiceService;
     private final AiCreditService aiCreditService;
+    private final DiaryWorkContextService diaryWorkContextService;
 
     @GetMapping("/credits")
     public ResponseEntity<AiCreditResponse.CreditInfo> getPersonalCredits(
@@ -129,6 +132,17 @@ public class DiaryController {
             @PathVariable String diaryId) {
         diaryService.deleteDiary(principal.getUserId(), diaryId);
         return ResponseEntity.ok(Map.of("message", "일기가 삭제되었습니다"));
+    }
+
+    // ============================
+    // Work Context Endpoint
+    // ============================
+
+    @GetMapping("/work-context")
+    public ResponseEntity<DiaryWorkContextResponse> getWorkContext(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(value = "date", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        return ResponseEntity.ok(diaryWorkContextService.getWorkContext(principal.getUserId(), date));
     }
 
     // ============================

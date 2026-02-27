@@ -1,17 +1,17 @@
 import { useState, useEffect, useMemo, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FEATURE_COLORS } from '../../constants';
-import { ChevronLeft, ChevronRight, Plus, Trash2, X, Loader2, Settings, RotateCw, CalendarDays, Clock, CheckCircle2, ListTodo, AlertCircle, Search, Flame, ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Trash2, X, Loader2, Settings, RotateCw, CalendarDays, Clock, CheckCircle2, ListTodo, AlertCircle, Search, Flame, ChevronDown, ChevronUp, Layers } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MotionModal } from '../ui/MotionModal';
 import { TimePicker } from '../ui/TimePicker';
 import { ColorPickerPopover } from '../ui/ColorPickerPopover';
-import { personalEventService, personalTaskService } from '../../utils/services';
+import { personalEventService, personalTaskService, personalCalendarService } from '../../utils/services';
 import { personalHabitAPI } from '../../utils/api';
 import { CheckInConfirmModal } from './PersonalHabits';
 import { formatDate } from '../../utils/dateUtils';
 import { useHolidays } from '../../hooks/useHolidays';
-import type { PersonalEvent, PersonalTask, PersonalTaskPriority, PersonalHabit, HabitWeeklyRow, HabitFrequency } from '../../types';
+import type { PersonalEvent, PersonalTask, PersonalTaskPriority, PersonalHabit, HabitWeeklyRow, HabitFrequency, UnifiedCalendarEvent } from '../../types';
 import {
   startOfWeek,
   endOfWeek,
@@ -97,6 +97,15 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
   const [isLoading, setIsLoading] = useState(false);
   const [settings, setSettings] = useState<ScheduleSettings>(loadSettings);
   const [showSettings, setShowSettings] = useState(false);
+
+  // Board schedule overlay
+  const [boardBlocks, setBoardBlocks] = useState<UnifiedCalendarEvent[]>([]);
+  const [showBoardSchedules, setShowBoardSchedules] = useState<boolean>(() => {
+    try {
+      const raw = localStorage.getItem('bridge-personal-schedule-show-board');
+      return raw !== null ? JSON.parse(raw) : true;
+    } catch { return true; }
+  });
 
   // View mode: day or week (mobile defaults to day, desktop to week)
   const [viewMode, setViewMode] = useState<'day' | 'week'>(() =>
@@ -201,6 +210,26 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
     loadHabits();
   }, [loadHabits]);
 
+  // ---- Load board schedule blocks from unified calendar ----
+  useEffect(() => {
+    if (!showBoardSchedules) {
+      setBoardBlocks([]);
+      return;
+    }
+    const fetchBoardBlocks = async () => {
+      try {
+        const data = await personalCalendarService.getUnifiedCalendar(startDate, endDate);
+        const blocks = (data.board_events || []).filter(
+          (e: UnifiedCalendarEvent) => e.source === 'SCHEDULE_BLOCK' && e.start_time && e.end_time
+        );
+        setBoardBlocks(blocks);
+      } catch {
+        setBoardBlocks([]);
+      }
+    };
+    fetchBoardBlocks();
+  }, [startDate, endDate, showBoardSchedules]);
+
   // Group habit completions by date
   const habitsByDate = useMemo(() => {
     const grouped: Record<string, { habit_id: string; title: string; icon?: string; is_completed: boolean; count: number }[]> = {};
@@ -230,6 +259,13 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
   }, [tasks, startDate, endDate]);
 
   const hasTasksDue = useMemo(() => Object.keys(tasksByDate).length > 0, [tasksByDate]);
+
+  // Group board blocks by date
+  const boardBlocksByDate = useMemo(() => {
+    const grouped: Record<string, UnifiedCalendarEvent[]> = {};
+    boardBlocks.forEach((b) => { (grouped[b.event_date] ??= []).push(b); });
+    return grouped;
+  }, [boardBlocks]);
 
   const handleHabitCheckIn = async (habitId: string, date: string) => {
     // Optimistic update
@@ -1033,6 +1069,21 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
 
           <div className="flex items-center gap-1.5 md:gap-2">
             <button
+              onClick={() => {
+                const next = !showBoardSchedules;
+                setShowBoardSchedules(next);
+                localStorage.setItem('bridge-personal-schedule-show-board', JSON.stringify(next));
+              }}
+              className={`p-1.5 md:p-2 rounded-xl transition-colors ${
+                showBoardSchedules
+                  ? 'text-bridge-accent bg-bridge-accent/10'
+                  : 'text-slate-400 hover:text-foreground hover:bg-foreground/5'
+              }`}
+              title={t('personal.schedule.boardScheduleToggle', 'Show board schedules')}
+            >
+              <Layers size={16} className="md:w-[18px] md:h-[18px]" />
+            </button>
+            <button
               onClick={() => setShowSettings(true)}
               className="p-1.5 md:p-2 text-slate-400 hover:text-foreground hover:bg-foreground/5 rounded-xl transition-colors"
               title={t('personal.schedule.settings')}
@@ -1365,6 +1416,77 @@ export const PersonalSchedule = forwardRef<TabSwipeHandle>(function PersonalSche
                     </div>
                   );
                 })}
+              </div>
+            )}
+
+            {/* ---- Board schedule blocks overlay (behind personal events) ---- */}
+            {showBoardSchedules && boardBlocks.length > 0 && (
+              <div className="absolute top-0 left-12 md:left-16 right-0 pointer-events-none">
+                <div className="flex">
+                  {weekDays.map((day) => {
+                    const ds = toDateString(day);
+                    const dayBlocks = boardBlocksByDate[ds] || [];
+                    return (
+                      <div
+                        key={`bb-${ds}`}
+                        className={`flex-1 ${COL_MIN_W} relative`}
+                        style={{ height: `${timeSlots.length * SLOT_HEIGHT}px` }}
+                      >
+                        {dayBlocks.map((block) => {
+                          if (!block.start_time || !block.end_time) return null;
+
+                          const [sh, sm] = block.start_time.split(':').map(Number);
+                          const [eh, em] = block.end_time.split(':').map(Number);
+                          const startMin = sh * 60 + sm;
+                          let endMin = eh * 60 + em;
+
+                          // Overnight: cap at grid end
+                          if (endMin < startMin) endMin = endHour * 60;
+
+                          const workStartMin = startHour * 60;
+                          const blockTop = ((startMin - workStartMin) / 30) * SLOT_HEIGHT;
+                          const blockHeight = Math.max(((endMin - startMin) / 30) * SLOT_HEIGHT, SLOT_HEIGHT * 0.6);
+
+                          if (blockTop < 0) return null;
+
+                          return (
+                            <div
+                              key={block.schedule_block_id || `bb-${block.title}-${block.start_time}`}
+                              className="absolute left-1 right-1 rounded-md border-l-4 border-dashed px-2 py-1 overflow-hidden opacity-50"
+                              style={{
+                                top: `${blockTop}px`,
+                                height: `${blockHeight}px`,
+                                backgroundColor: `${block.color || '#6366F1'}20`,
+                                borderLeftColor: block.color || '#6366F1',
+                              }}
+                            >
+                              <div className="flex flex-col h-full overflow-hidden">
+                                {block.board_name && (
+                                  <span className="text-[9px] font-bold px-1 py-0.5 rounded-full bg-bridge-accent/15 text-bridge-accent truncate max-w-[80%] self-start mb-0.5">
+                                    {block.board_name}
+                                  </span>
+                                )}
+                                <span className="text-xs font-medium text-foreground/70 truncate">
+                                  {block.title}
+                                </span>
+                                {blockHeight > 30 && block.task_title && (
+                                  <span className="text-[10px] text-slate-500 truncate">
+                                    {block.task_title}
+                                  </span>
+                                )}
+                                {blockHeight > 45 && (
+                                  <span className="text-[10px] text-slate-500">
+                                    {block.start_time.slice(0, 5)} - {block.end_time.slice(0, 5)}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
 

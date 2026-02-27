@@ -10,6 +10,7 @@ import type {
   OrgMemberSimple, OrgMemberPageResponse, OrgDepartment, OrgJobGroup,
   OrgPosition, OrgTitle, OrgGrade,
   OrgRole, ContractType, WorkStatus, OrgMemberInviteResult,
+  OrgStructureSettings,
 } from '../../../types';
 
 interface OrgMembersTabProps {
@@ -59,6 +60,10 @@ export function OrgMembersTab({ orgId, myRole, myUserId }: OrgMembersTabProps) {
   const [inviteForm, setInviteForm] = useState({ email: '', role: 'MEMBER', department_id: '', job_title: '' });
   const [inviting, setInviting] = useState(false);
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
+  const [structureSettings, setStructureSettings] = useState<OrgStructureSettings>({
+    departments_enabled: true, job_groups_enabled: true, positions_enabled: true,
+    titles_enabled: true, grades_enabled: true,
+  });
 
   // Filters
   const [search, setSearch] = useState('');
@@ -96,18 +101,20 @@ export function OrgMembersTab({ orgId, myRole, myUserId }: OrgMembersTabProps) {
   useEffect(() => {
     const fetchFilters = async () => {
       try {
-        const [depts, jgs, pos, tls, gds] = await Promise.all([
+        const [depts, jgs, pos, tls, gds, ss] = await Promise.all([
           organizationService.getDepartments(orgId),
           organizationService.getJobGroups(orgId),
           organizationService.getPositions(orgId).catch(() => [] as OrgPosition[]),
           organizationService.getTitles(orgId).catch(() => [] as OrgTitle[]),
           organizationService.getGrades(orgId).catch(() => [] as OrgGrade[]),
+          organizationService.getStructureSettings(orgId).catch(() => null as OrgStructureSettings | null),
         ]);
         setDepartments(depts);
         setJobGroups(jgs);
         setPositions(pos);
         setTitles(tls);
         setGrades(gds);
+        if (ss) setStructureSettings(ss);
       } catch {
         // Filters are optional
       }
@@ -152,7 +159,7 @@ export function OrgMembersTab({ orgId, myRole, myUserId }: OrgMembersTabProps) {
           />
         </div>
 
-        {departments.length > 0 && (
+        {structureSettings.departments_enabled && departments.length > 0 && (
           <select
             value={departmentFilter}
             onChange={(e) => { setDepartmentFilter(e.target.value); setPage(0); }}
@@ -250,20 +257,20 @@ export function OrgMembersTab({ orgId, myRole, myUserId }: OrgMembersTabProps) {
                     <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${CONTRACT_BADGE[member.contract_type]}`}>
                       {t(CONTRACT_LABEL_KEYS[member.contract_type])}
                     </span>
-                    {member.position?.name && (
+                    {structureSettings.positions_enabled && member.position?.name && (
                       <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-sky-500/15 text-sky-600 dark:text-sky-400">
                         {member.position.name}
                       </span>
                     )}
-                    {member.grade?.name && (
+                    {structureSettings.grades_enabled && member.grade?.name && (
                       <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-slate-500/15 text-slate-600 dark:text-slate-300">
                         {member.grade.name}
                       </span>
                     )}
                   </div>
                   <div className="text-xs text-muted-foreground truncate mt-0.5">
-                    {member.department?.name && <span>{member.department.name}</span>}
-                    {member.department?.name && member.job_title && <span> · </span>}
+                    {structureSettings.departments_enabled && member.department?.name && <span>{member.department.name}</span>}
+                    {structureSettings.departments_enabled && member.department?.name && member.job_title && <span> · </span>}
                     {member.job_title && <span>{member.job_title}</span>}
                   </div>
                 </div>
@@ -317,6 +324,7 @@ export function OrgMembersTab({ orgId, myRole, myUserId }: OrgMembersTabProps) {
         positions={positions}
         titles={titles}
         grades={grades}
+        structureSettings={structureSettings}
         onMemberUpdated={fetchMembers}
       />
 
@@ -353,7 +361,7 @@ export function OrgMembersTab({ orgId, myRole, myUserId }: OrgMembersTabProps) {
               <option value="ADMIN">{t('organization.members.roleAdmin', 'Admin')}</option>
             </select>
           </div>
-          {departments.length > 0 && (
+          {structureSettings.departments_enabled && departments.length > 0 && (
             <div>
               <label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">
                 {t('organization.members.department', 'Department')}

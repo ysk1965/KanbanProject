@@ -1,5 +1,7 @@
 package com.kanban.domain.organization;
 
+import com.kanban.domain.subscription.OrgPlan;
+import com.kanban.domain.subscription.OrgSubscription;
 import com.kanban.domain.user.User;
 import jakarta.persistence.*;
 import lombok.*;
@@ -36,6 +38,34 @@ public class Organization {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "owner_id", nullable = false)
     private User owner;
+
+    // ── Structure Section Toggles ──
+    @Builder.Default
+    @Column(name = "departments_enabled", nullable = false)
+    private Boolean departmentsEnabled = true;
+
+    @Builder.Default
+    @Column(name = "job_groups_enabled", nullable = false)
+    private Boolean jobGroupsEnabled = true;
+
+    @Builder.Default
+    @Column(name = "positions_enabled", nullable = false)
+    private Boolean positionsEnabled = true;
+
+    @Builder.Default
+    @Column(name = "titles_enabled", nullable = false)
+    private Boolean titlesEnabled = true;
+
+    @Builder.Default
+    @Column(name = "grades_enabled", nullable = false)
+    private Boolean gradesEnabled = true;
+
+    @OneToOne(mappedBy = "organization", fetch = FetchType.LAZY)
+    private OrgSubscription subscription;
+
+    @Builder.Default
+    @Column(name = "trial_used")
+    private Boolean trialUsed = false;
 
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
@@ -78,5 +108,30 @@ public class Organization {
 
     public void transferOwnership(User newOwner) {
         this.owner = newOwner;
+    }
+
+    public void updateStructureSettings(Boolean departmentsEnabled, Boolean jobGroupsEnabled,
+                                         Boolean positionsEnabled, Boolean titlesEnabled, Boolean gradesEnabled) {
+        if (departmentsEnabled != null) this.departmentsEnabled = departmentsEnabled;
+        if (jobGroupsEnabled != null) this.jobGroupsEnabled = jobGroupsEnabled;
+        if (positionsEnabled != null) this.positionsEnabled = positionsEnabled;
+        if (titlesEnabled != null) this.titlesEnabled = titlesEnabled;
+        if (gradesEnabled != null) this.gradesEnabled = gradesEnabled;
+    }
+
+    public boolean hasActiveSubscription() {
+        return subscription != null && (subscription.isActive() || subscription.isTrialActive());
+    }
+
+    public OrgPlan getCurrentPlan() {
+        return subscription != null ? subscription.getPlan() : OrgPlan.FREE;
+    }
+
+    public boolean isTrialAvailable() {
+        return !Boolean.TRUE.equals(trialUsed);
+    }
+
+    public void markTrialUsed() {
+        this.trialUsed = true;
     }
 }

@@ -62,7 +62,7 @@ export function OrgDangerZoneSection({
     if (deleteConfirm !== org.name) return;
     try {
       await organizationService.delete(orgId);
-      navigate("/organizations");
+      navigate("/boards");
     } catch (error) {
       console.warn("Failed to delete organization:", error);
     }

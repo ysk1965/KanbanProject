@@ -81,4 +81,23 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Stri
            "AND lr.status = 'APPROVED' " +
            "AND lr.startDate <= :date AND lr.endDate >= :date")
     int countApprovedOnDate(@Param("orgId") String orgId, @Param("date") LocalDate date);
+
+    // ==================== Cross-Domain Integration Queries ====================
+
+    /**
+     * 다중 조직의 승인된 휴가를 날짜 범위로 조회
+     */
+    @Query("SELECT lr FROM LeaveRequest lr " +
+           "JOIN FETCH lr.requester req " +
+           "JOIN FETCH req.user " +
+           "LEFT JOIN FETCH req.department " +
+           "JOIN FETCH lr.policy " +
+           "WHERE lr.organization.id IN :orgIds " +
+           "AND lr.status = 'APPROVED' " +
+           "AND lr.startDate <= :endDate AND lr.endDate >= :startDate " +
+           "ORDER BY lr.startDate")
+    List<LeaveRequest> findApprovedByOrgIdInAndDateRange(
+            @Param("orgIds") List<String> orgIds,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
 }

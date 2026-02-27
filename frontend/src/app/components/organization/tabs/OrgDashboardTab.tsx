@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { Users, LayoutGrid, CalendarOff, ChevronRight } from "lucide-react";
 import { motion } from "framer-motion";
-import { organizationService, leaveService } from "../../../utils/services";
+import { organizationService, leaveService, orgSubscriptionService } from "../../../utils/services";
 import { getTodayDateString } from "../../../utils/dateUtils";
 import type {
   OrgBoardSimple,
@@ -11,14 +11,15 @@ import type {
   OrgRole,
   OrgAnnouncement,
   AnniversaryType,
+  OrgSubscription,
 } from "../../../types";
-import { OrgAnnouncementSection } from "../OrgAnnouncementSection";
+import { OrgSubscriptionBadge } from "../subscription/OrgSubscriptionBadge";
 import { OrgAnnouncementModal } from "../OrgAnnouncementModal";
 import { OrgAnnouncementListModal } from "../OrgAnnouncementListModal";
-import { AnniversaryWidget } from "../AnniversaryWidget";
-import { OnboardingWidget } from "../OnboardingWidget";
 import { AttendanceWidget } from "../AttendanceWidget";
 import { CelebrationModal } from "../CelebrationModal";
+import { OrgFeedSection } from "../OrgFeedSection";
+import { OkrDashboardWidget } from "../okr/OkrDashboardWidget";
 
 interface OrgDashboardTabProps {
   orgId: string;
@@ -27,11 +28,12 @@ interface OrgDashboardTabProps {
 
 export function OrgDashboardTab({ orgId, role }: OrgDashboardTabProps) {
   const { t } = useTranslation();
-  const navigate = useNavigate();
+  const [, setSearchParams] = useSearchParams();
   const [boards, setBoards] = useState<OrgBoardSimple[]>([]);
   const [todayLeaves, setTodayLeaves] = useState<LeaveRequestResponse[]>([]);
   const [memberCount, setMemberCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [subscription, setSubscription] = useState<OrgSubscription | null>(null);
 
   // Announcement modals
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -58,6 +60,14 @@ export function OrgDashboardTab({ orgId, role }: OrgDashboardTabProps) {
         ]);
         setBoards(boardsData);
         setMemberCount(orgData.member_count);
+
+        // Fetch subscription data
+        try {
+          const subData = await orgSubscriptionService.get(orgId);
+          setSubscription(subData);
+        } catch {
+          // Subscription data is optional
+        }
 
         // Fetch today's approved leaves
         const today = getTodayDateString();
@@ -100,8 +110,22 @@ export function OrgDashboardTab({ orgId, role }: OrgDashboardTabProps) {
 
   return (
     <div className="space-y-6">
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {/* 1. Stats Cards — compact single row */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex items-center bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] overflow-hidden relative"
+      >
+        {subscription && (
+          <div className="absolute top-2 right-3 z-10">
+            <OrgSubscriptionBadge
+              plan={subscription.plan}
+              status={subscription.status}
+              trialEndsAt={subscription.trial_ends_at}
+              size="sm"
+            />
+          </div>
+        )}
         {[
           {
             icon: Users,
@@ -109,6 +133,7 @@ export function OrgDashboardTab({ orgId, role }: OrgDashboardTabProps) {
             textClass: "text-bridge-accent",
             label: t("organization.dashboard.members", "Members"),
             value: memberCount,
+            tab: "members" as const,
           },
           {
             icon: LayoutGrid,
@@ -116,6 +141,7 @@ export function OrgDashboardTab({ orgId, role }: OrgDashboardTabProps) {
             textClass: "text-bridge-secondary",
             label: t("organization.dashboard.boards", "Boards"),
             value: boards.length,
+            tab: "boards" as const,
           },
           {
             icon: CalendarOff,
@@ -123,190 +149,61 @@ export function OrgDashboardTab({ orgId, role }: OrgDashboardTabProps) {
             textClass: "text-amber-500",
             label: t("organization.dashboard.todayLeaves", "Today's Leaves"),
             value: todayLeaves.length,
+            tab: "leaves" as const,
           },
-        ].map((stat, index) => (
-          <motion.div
+        ].map((stat, index, arr) => (
+          <div
             key={stat.label}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.04 }}
-            className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-5"
+            onClick={() => setSearchParams({ tab: stat.tab })}
+            className={`flex-1 flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-foreground/5 transition-colors group ${
+              index < arr.length - 1 ? "border-r border-foreground/[0.08]" : ""
+            }`}
           >
-            <div className="flex items-center gap-3 mb-2">
-              <div
-                className={`w-8 h-8 rounded-lg ${stat.bgClass} flex items-center justify-center`}
-              >
-                <stat.icon size={16} className={stat.textClass} />
-              </div>
-              <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
-                {stat.label}
-              </span>
+            <div
+              className={`w-7 h-7 rounded-lg ${stat.bgClass} flex items-center justify-center shrink-0`}
+            >
+              <stat.icon size={14} className={stat.textClass} />
             </div>
-            <span className="text-2xl font-bold text-foreground">
+            <span className="text-[11px] text-slate-400 truncate">
+              {stat.label}
+            </span>
+            <span className="text-lg font-bold text-foreground ml-auto">
               {stat.value}
             </span>
-          </motion.div>
+            <ChevronRight size={12} className="text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+          </div>
         ))}
-      </div>
+      </motion.div>
 
-      {/* Anniversary Widget */}
-      <AnniversaryWidget
+      {/* 2. Attendance Widget */}
+      <AttendanceWidget orgId={orgId} />
+
+      {/* 3. OKR + Onboarding Widget */}
+      <OkrDashboardWidget
         orgId={orgId}
+        onNavigateOkr={() => setSearchParams({ tab: "okr" })}
+        onNavigateOnboarding={() => setSearchParams({ tab: "settings", subtab: "onboarding" })}
+      />
+
+      {/* 4. Feed — Anniversaries + Announcements (Shorts-style swipe) */}
+      <OrgFeedSection
+        key={refreshKey}
+        orgId={orgId}
+        role={role}
+        refreshKey={refreshKey}
         onOpenCelebration={(memberId, memberName, type, date) => {
           setCelebrationTarget({ memberId, memberName, type, date });
         }}
+        onCreateAnnouncement={() => {
+          setEditingAnnouncement(null);
+          setShowCreateModal(true);
+        }}
+        onEditAnnouncement={(a) => {
+          setEditingAnnouncement(a);
+          setShowCreateModal(true);
+        }}
+        onViewAllAnnouncements={() => setShowListModal(true)}
       />
-
-      {/* Onboarding Widget */}
-      <OnboardingWidget orgId={orgId} />
-
-      {/* Attendance Widget */}
-      <AttendanceWidget orgId={orgId} />
-
-      {/* Announcements Feed */}
-      <div key={refreshKey}>
-        <OrgAnnouncementSection
-          orgId={orgId}
-          role={role}
-          onCreateClick={() => {
-            setEditingAnnouncement(null);
-            setShowCreateModal(true);
-          }}
-          onEditClick={(a) => {
-            setEditingAnnouncement(a);
-            setShowCreateModal(true);
-          }}
-          onViewAllClick={() => setShowListModal(true)}
-        />
-      </div>
-
-      {/* Connected Boards */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <LayoutGrid size={14} className="text-bridge-secondary" />
-            <h3 className="text-sm font-bold text-foreground">
-              {t("organization.dashboard.connectedBoards", "Connected Boards")}
-            </h3>
-            <span className="text-[10px] font-bold text-bridge-secondary bg-bridge-secondary/15 px-1.5 py-0.5 rounded-full">
-              {boards.length}
-            </span>
-          </div>
-        </div>
-        {boards.length === 0 ? (
-          <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-8 text-center">
-            <div className="w-12 h-12 rounded-xl bg-bridge-secondary/15 flex items-center justify-center mx-auto mb-3">
-              <LayoutGrid size={24} className="text-bridge-secondary/60" />
-            </div>
-            <p className="text-sm text-muted-foreground">
-              {t("organization.dashboard.noBoards", "No boards connected yet")}
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {boards.map((board, index) => (
-              <motion.div
-                key={board.id}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.04 }}
-                onClick={() => navigate(`/boards/${board.id}`)}
-                className="group bg-bridge-obsidian rounded-xl border border-foreground/[0.08] p-4 flex items-center justify-between cursor-pointer hover:border-foreground/[0.12] transition-all"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-bridge-secondary/15 flex items-center justify-center">
-                    <LayoutGrid size={14} className="text-bridge-secondary" />
-                  </div>
-                  <div>
-                    <span className="text-foreground font-medium text-sm group-hover:text-bridge-accent transition-colors">
-                      {board.name}
-                    </span>
-                    <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
-                      <span>{board.owner.name}</span>
-                      <span>
-                        {t(
-                          "organization.boards.memberCount",
-                          "{{count}} members",
-                          { count: board.member_count },
-                        )}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <ChevronRight
-                  size={16}
-                  className="text-muted-foreground group-hover:text-bridge-accent group-hover:translate-x-0.5 transition-all"
-                />
-              </motion.div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Today's Leaves */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <CalendarOff
-              size={14}
-              className="text-amber-500 dark:text-amber-400"
-            />
-            <h3 className="text-sm font-bold text-foreground">
-              {t("organization.dashboard.onLeaveToday", "On Leave Today")}
-            </h3>
-            <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/15 px-1.5 py-0.5 rounded-full">
-              {todayLeaves.length}
-            </span>
-          </div>
-        </div>
-        {todayLeaves.length === 0 ? (
-          <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-8 text-center">
-            <div className="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center mx-auto mb-3">
-              <CalendarOff size={24} className="text-emerald-500/60" />
-            </div>
-            <p className="text-sm text-muted-foreground">
-              {t("organization.dashboard.noLeaves", "No one is on leave today")}
-            </p>
-          </div>
-        ) : (
-          <div className="bg-bridge-obsidian rounded-xl border border-foreground/[0.08] divide-y divide-foreground/[0.08]">
-            {todayLeaves.map((leave, index) => (
-              <motion.div
-                key={leave.id}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: index * 0.04 }}
-                className="p-3 flex items-center justify-between"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-bridge-accent/15 flex items-center justify-center text-xs text-bridge-accent font-bold">
-                    {leave.requester?.name?.charAt(0) || "?"}
-                  </div>
-                  <div>
-                    <span className="text-sm text-foreground font-medium">
-                      {leave.requester?.name}
-                    </span>
-                    {leave.requester?.department_name && (
-                      <span className="text-xs text-muted-foreground ml-2">
-                        {leave.requester.department_name}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <span className="text-xs text-muted-foreground px-2 py-1 bg-foreground/[0.03] rounded-lg">
-                  {leave.policy?.name} (
-                  {leave.duration_type === "FULL_DAY"
-                    ? t("organization.leave.fullDay", "Full Day")
-                    : leave.duration_type === "AM_HALF"
-                      ? t("organization.leave.amHalf", "AM Half")
-                      : t("organization.leave.pmHalf", "PM Half")}
-                  )
-                </span>
-              </motion.div>
-            ))}
-          </div>
-        )}
-      </div>
 
       {/* Modals */}
       <OrgAnnouncementModal

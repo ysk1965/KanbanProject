@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Star, Users, MoreHorizontal, ShieldCheck, Pencil, Trash2 } from 'lucide-react';
+import { Star, Users, MoreHorizontal, ShieldCheck, Pencil, Trash2, Building2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { Board } from '../../types';
@@ -46,6 +46,7 @@ export function BoardCard({ board, onToggleStar, onClick, onDelete, onEdit }: Bo
   const menuRef = useRef<HTMLDivElement>(null);
 
   const isTrial = board.subscription?.status === 'TRIAL' && board.tier !== 'PREMIUM';
+  const isOrgBoard = !!board.organization_id;
   const taskCount = board.task_count ?? 0;
   const completedTasks = board.completed_tasks ?? 0;
   const progress = taskCount > 0 ? Math.round((completedTasks / taskCount) * 100) : 0;
@@ -74,7 +75,7 @@ export function BoardCard({ board, onToggleStar, onClick, onDelete, onEdit }: Bo
   return (
     <motion.div
       whileHover={{ y: -4, transition: { duration: 0.2 } }}
-      className={`relative flex flex-col h-[13rem] w-full bg-bridge-obsidian/60 backdrop-blur-sm rounded-2xl group border border-bridge-border hover:border-foreground/[0.15] transition-all shadow-lg hover:shadow-xl hover:shadow-bridge-accent/5 cursor-pointer ${isMenuOpen ? 'z-50' : ''}`}
+      className={`relative flex flex-col h-[14rem] min-h-0 w-full bg-bridge-obsidian/60 backdrop-blur-sm rounded-2xl group border transition-all shadow-lg hover:shadow-xl cursor-pointer ${isOrgBoard ? 'border-bridge-accent/20 hover:border-bridge-accent/40 hover:shadow-bridge-accent/10' : 'border-bridge-border hover:border-foreground/[0.15] hover:shadow-bridge-accent/5'} ${isMenuOpen ? 'z-50' : ''}`}
       onClick={() => onClick(board)}
     >
       {/* Dynamic Background Header - Compact */}
@@ -158,9 +159,9 @@ export function BoardCard({ board, onToggleStar, onClick, onDelete, onEdit }: Bo
       </div>
 
       {/* Card Body */}
-      <div className="p-4 flex flex-col flex-1 min-h-0">
+      <div className="px-4 py-3 flex flex-col flex-1 min-h-0 overflow-hidden">
         {/* Title Row */}
-        <div className="flex items-start gap-2 mb-1">
+        <div className="flex items-start gap-2 mb-0.5 shrink-0">
           <h3 className="text-[15px] font-bold text-foreground group-hover:text-bridge-secondary transition-colors truncate flex-1">
             {board.name}
           </h3>
@@ -174,13 +175,28 @@ export function BoardCard({ board, onToggleStar, onClick, onDelete, onEdit }: Bo
           </div>
         </div>
 
-        {/* Description */}
-        <p className="text-[11px] text-slate-500 line-clamp-1 mb-auto">
-          {board.description || t('dashboard.noDescription')}
-        </p>
+        {/* Organization Badge */}
+        {isOrgBoard && board.organization_name && (
+          <div className="flex items-center gap-1 mb-0.5 shrink-0">
+            <Building2 size={10} className="text-bridge-accent shrink-0" />
+            <span className="text-[10px] font-medium text-bridge-accent truncate">
+              {board.organization_name}
+            </span>
+          </div>
+        )}
 
-        {/* Progress Section */}
-        <div className="mt-3 space-y-2">
+        {/* Description — hide for org cards to save space */}
+        {!isOrgBoard && (
+          <p className="text-[11px] text-slate-500 line-clamp-1 shrink-0">
+            {board.description || t('dashboard.noDescription')}
+          </p>
+        )}
+
+        {/* Spacer — pushes bottom content down */}
+        <div className="flex-1 min-h-0" />
+
+        {/* Progress Section — pinned to bottom */}
+        <div className="shrink-0">
           <div className="flex items-center gap-3">
             {/* Mini circular progress */}
             <div className="relative w-8 h-8 shrink-0">
@@ -224,7 +240,7 @@ export function BoardCard({ board, onToggleStar, onClick, onDelete, onEdit }: Bo
         </div>
 
         {/* Bottom: Members */}
-        <div className="flex justify-between items-center mt-3 pt-3 border-t border-foreground/[0.06]">
+        <div className="flex justify-between items-center mt-2 pt-2 border-t border-foreground/[0.06] shrink-0">
           <div className="flex items-center gap-1.5 text-muted-foreground">
             <Users size={11} />
             <span className="text-[10px] font-medium">{t('dashboard.memberCount', { count: board.member_count })}</span>
@@ -274,7 +290,7 @@ export function CreateBoardCard({ onClick }: { onClick: () => void }) {
       whileHover={{ scale: 1.02, y: -2 }}
       whileTap={{ scale: 0.98 }}
       onClick={onClick}
-      className="h-[13rem] flex flex-col items-center justify-center bg-foreground/[0.02] backdrop-blur-sm border-2 border-dashed border-bridge-border rounded-2xl cursor-pointer hover:border-bridge-secondary/30 hover:bg-foreground/[0.03] transition-all group"
+      className="h-[14rem] flex flex-col items-center justify-center bg-foreground/[0.02] backdrop-blur-sm border-2 border-dashed border-bridge-border rounded-2xl cursor-pointer hover:border-bridge-secondary/30 hover:bg-foreground/[0.03] transition-all group"
     >
       <div className="w-11 h-11 rounded-xl bg-foreground/5 flex items-center justify-center mb-3 group-hover:bg-bridge-secondary/15 group-hover:scale-110 transition-all">
         <svg

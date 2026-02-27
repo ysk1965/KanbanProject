@@ -6,6 +6,8 @@ import com.kanban.domain.organization.leave.service.LeaveService;
 import com.kanban.domain.organization.*;
 import com.kanban.domain.organization.dto.*;
 import com.kanban.domain.organization.repository.*;
+import com.kanban.domain.subscription.OrgSubscription;
+import com.kanban.domain.subscription.OrgSubscriptionRepository;
 import com.kanban.domain.user.User;
 import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
@@ -39,6 +41,7 @@ public class OrganizationService {
     private final BoardRepository boardRepository;
     private final UserRepository userRepository;
     private final FileUploadService fileUploadService;
+    private final OrgSubscriptionRepository orgSubscriptionRepository;
 
     @org.springframework.beans.factory.annotation.Autowired
     @Lazy
@@ -50,6 +53,12 @@ public class OrganizationService {
     public OrganizationResponse.Detail createOrganization(String userId, OrganizationRequest.Create request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        // 1인 1조직 정책: 이미 소속된 조직이 있는지 확인
+        List<OrganizationMember> existingMemberships = orgMemberRepository.findByUserIdWithOrganization(userId);
+        if (!existingMemberships.isEmpty()) {
+            throw new BusinessException(ErrorCode.ALREADY_IN_ORGANIZATION);
+        }
 
         Organization org = Organization.builder()
                 .name(request.getName())
@@ -68,6 +77,11 @@ public class OrganizationService {
         // Create default leave policies and balance for owner
         leaveService.createDefaultPolicies(org);
         leaveService.createBalancesForNewMember(org, ownerMember);
+
+        // Create Trial subscription for new org
+        OrgSubscription trial = OrgSubscription.createTrial(org);
+        orgSubscriptionRepository.save(trial);
+        org.markTrialUsed();
 
         return OrganizationResponse.Detail.of(org, OrgRole.OWNER, 1, 0);
     }
@@ -537,6 +551,30 @@ public class OrganizationService {
             }
             current = current.getParentDepartment();
         }
+    }
+
+    // ==================== Structure Settings ====================
+
+    public OrganizationResponse.StructureSettings getStructureSettings(String orgId, String userId) {
+        getOrgMemberOrThrow(orgId, userId);
+        Organization org = getActiveOrgOrThrow(orgId);
+        return OrganizationResponse.StructureSettings.of(org);
+    }
+
+    @Transactional
+    public OrganizationResponse.StructureSettings updateStructureSettings(
+            String orgId, String userId, OrganizationRequest.UpdateStructureSettings request) {
+        checkAdminOrAbove(orgId, userId);
+        Organization org = getActiveOrgOrThrow(orgId);
+        org.updateStructureSettings(
+                request.getDepartmentsEnabled(),
+                request.getJobGroupsEnabled(),
+                request.getPositionsEnabled(),
+                request.getTitlesEnabled(),
+                request.getGradesEnabled()
+        );
+        organizationRepository.save(org);
+        return OrganizationResponse.StructureSettings.of(org);
     }
 
     // ==================== Helper Methods ====================

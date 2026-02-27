@@ -1,5 +1,6 @@
 package com.kanban.domain.organization.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -17,6 +18,7 @@ public class OneOnOneRequest {
     @NoArgsConstructor
     public static class Create {
         @NotBlank
+        @JsonProperty("member_b_id")
         private String memberBId;
         private String recurrenceType;
         private Integer recurrenceDay;

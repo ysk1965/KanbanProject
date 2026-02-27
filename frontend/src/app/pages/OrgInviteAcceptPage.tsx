@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Building2, Users, Check, AlertCircle } from 'lucide-react';
+import { Building2, Users, Check, AlertCircle, Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { organizationService } from '../utils/services';
 import type { OrgInvitePublicInfo } from '../types';
@@ -43,7 +43,11 @@ export function OrgInviteAcceptPage() {
         navigate(`/organizations/${result.organization_id}`);
       }, 1500);
     } catch (err: any) {
-      setError(err?.message || t('organization.invite.acceptFailed', 'Failed to accept invite.'));
+      if (err?.code === 'O016' || err?.code === 'ALREADY_IN_ORGANIZATION') {
+        setError(t('organization.invite.alreadyInOrg', '이미 소속된 조직이 있습니다. 기존 조직을 탈퇴한 후 다시 시도해주세요.'));
+      } else {
+        setError(err?.message || t('organization.invite.acceptFailed', 'Failed to accept invite.'));
+      }
     } finally {
       setAccepting(false);
     }
@@ -52,7 +56,7 @@ export function OrgInviteAcceptPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-bridge-dark flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-bridge-accent border-t-transparent rounded-full animate-spin" />
+        <Loader2 className="w-6 h-6 animate-spin text-bridge-accent" />
       </div>
     );
   }
