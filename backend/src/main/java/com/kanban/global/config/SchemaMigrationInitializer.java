@@ -51,11 +51,19 @@ public class SchemaMigrationInitializer implements InitializingBean {
         addColumnIfNotExists("users", "personal_space_enabled", "BOOLEAN NOT NULL DEFAULT false");
         addColumnIfNotExists("users", "personal_purchased_credits", "INTEGER DEFAULT 0");
 
-        // ── Boards 테이블 (V40, V51, V52, V60) ──
+        // ── Boards 테이블 (V40, V51, V52, V60, schedule/tier) ──
         addColumnIfNotExists("boards", "board_type", "VARCHAR(20) NOT NULL DEFAULT 'TEAM'");
         addColumnIfNotExists("boards", "background_gradient", "VARCHAR(255)");
         addColumnIfNotExists("boards", "deleted_at", "TIMESTAMP");
         addColumnIfNotExists("boards", "organization_id", "VARCHAR(36)");
+        addColumnIfNotExists("boards", "work_hours_per_day", "INTEGER DEFAULT 10");
+        addColumnIfNotExists("boards", "work_start_time", "TIME DEFAULT '09:00'");
+        addColumnIfNotExists("boards", "schedule_display_mode", "VARCHAR(10) DEFAULT 'TIME'");
+        addColumnIfNotExists("boards", "break_start_time", "TIME");
+        addColumnIfNotExists("boards", "break_end_time", "TIME");
+        addColumnIfNotExists("boards", "selected_milestone_id", "VARCHAR(36)");
+        addColumnIfNotExists("boards", "tier", "VARCHAR(20) DEFAULT 'TRIAL'");
+        addColumnIfNotExists("boards", "trial_ends_at", "TIMESTAMP");
 
         // ── Board Members 테이블 (V6, V28) ──
         addColumnIfNotExists("board_members", "assignee_color", "VARCHAR(20)");
