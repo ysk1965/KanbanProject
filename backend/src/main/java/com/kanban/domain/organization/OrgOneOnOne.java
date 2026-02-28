@@ -63,8 +63,14 @@ public class OrgOneOnOne {
                        OneOnOneRecurrenceType recurrenceType, Integer recurrenceDay, LocalDate nextMeetingDate) {
         this.id = UUID.randomUUID().toString();
         this.organization = organization;
-        this.memberA = memberA;
-        this.memberB = memberB;
+        // DB CHECK constraint: member_a_id < member_b_id (알파벳순 정렬)
+        if (memberA.getId().compareTo(memberB.getId()) < 0) {
+            this.memberA = memberA;
+            this.memberB = memberB;
+        } else {
+            this.memberA = memberB;
+            this.memberB = memberA;
+        }
         this.recurrenceType = recurrenceType;
         this.recurrenceDay = recurrenceDay;
         this.nextMeetingDate = nextMeetingDate;

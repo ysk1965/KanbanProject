@@ -26,6 +26,7 @@ public interface OrgOneOnOneRepository extends JpaRepository<OrgOneOnOne, String
     List<OrgOneOnOne> findByOrgIdAndMemberId(@Param("orgId") String orgId, @Param("memberId") String memberId);
 
     @Query("SELECT o FROM OrgOneOnOne o " +
+           "JOIN FETCH o.organization " +
            "JOIN FETCH o.memberA ma JOIN FETCH ma.user " +
            "JOIN FETCH o.memberB mb JOIN FETCH mb.user " +
            "WHERE o.id = :id AND o.deletedAt IS NULL")
