@@ -17,6 +17,12 @@ interface OrgMembersTabProps {
   orgId: string;
   myRole: OrgRole;
   myUserId: string;
+  departments: OrgDepartment[];
+  jobGroups: OrgJobGroup[];
+  positions: OrgPosition[];
+  titles: OrgTitle[];
+  grades: OrgGrade[];
+  structureSettings: OrgStructureSettings;
 }
 
 const CONTRACT_BADGE: Record<ContractType, string> = {
@@ -45,25 +51,16 @@ const STATUS_LABEL_KEYS: Record<WorkStatus, string> = {
   RESIGNED: 'organization.members.statusResigned',
 };
 
-export function OrgMembersTab({ orgId, myRole, myUserId }: OrgMembersTabProps) {
+export function OrgMembersTab({ orgId, myRole, myUserId, departments, jobGroups, positions, titles, grades, structureSettings }: OrgMembersTabProps) {
   const { t } = useTranslation();
   const isAdmin = myRole === 'OWNER' || myRole === 'ADMIN';
   const [members, setMembers] = useState<OrgMemberSimple[]>([]);
   const [totalElements, setTotalElements] = useState(0);
-  const [departments, setDepartments] = useState<OrgDepartment[]>([]);
-  const [jobGroups, setJobGroups] = useState<OrgJobGroup[]>([]);
-  const [positions, setPositions] = useState<OrgPosition[]>([]);
-  const [titles, setTitles] = useState<OrgTitle[]>([]);
-  const [grades, setGrades] = useState<OrgGrade[]>([]);
   const [loading, setLoading] = useState(true);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteForm, setInviteForm] = useState({ email: '', role: 'MEMBER', department_id: '', job_title: '' });
   const [inviting, setInviting] = useState(false);
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
-  const [structureSettings, setStructureSettings] = useState<OrgStructureSettings>({
-    departments_enabled: true, job_groups_enabled: true, positions_enabled: true,
-    titles_enabled: true, grades_enabled: true,
-  });
 
   // Filters
   const [search, setSearch] = useState('');
@@ -97,30 +94,6 @@ export function OrgMembersTab({ orgId, myRole, myUserId }: OrgMembersTabProps) {
   useEffect(() => {
     fetchMembers();
   }, [fetchMembers]);
-
-  useEffect(() => {
-    const fetchFilters = async () => {
-      try {
-        const [depts, jgs, pos, tls, gds, ss] = await Promise.all([
-          organizationService.getDepartments(orgId),
-          organizationService.getJobGroups(orgId),
-          organizationService.getPositions(orgId).catch(() => [] as OrgPosition[]),
-          organizationService.getTitles(orgId).catch(() => [] as OrgTitle[]),
-          organizationService.getGrades(orgId).catch(() => [] as OrgGrade[]),
-          organizationService.getStructureSettings(orgId).catch(() => null as OrgStructureSettings | null),
-        ]);
-        setDepartments(depts);
-        setJobGroups(jgs);
-        setPositions(pos);
-        setTitles(tls);
-        setGrades(gds);
-        if (ss) setStructureSettings(ss);
-      } catch {
-        // Filters are optional
-      }
-    };
-    fetchFilters();
-  }, [orgId]);
 
   const handleInvite = async () => {
     if (!inviteForm.email.trim()) return;

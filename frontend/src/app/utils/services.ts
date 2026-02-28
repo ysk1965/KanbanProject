@@ -3088,6 +3088,9 @@ export const organizationService = {
   delete: organizationAPI.delete,
   transferOwnership: organizationAPI.transferOwnership,
 
+  // Structure Data (combined)
+  getStructureData: organizationAPI.getStructureData,
+
   // Departments
   getDepartments: organizationAPI.getDepartments,
   createDepartment: organizationAPI.createDepartment,

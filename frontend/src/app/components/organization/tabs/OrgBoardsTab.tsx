@@ -4,9 +4,10 @@ import { useNavigate } from 'react-router-dom';
 import { Plus, LayoutGrid, X, AlertTriangle, Check, ChevronRight, Link, Clock, Shield } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
-import { organizationService, boardService, orgSubscriptionService } from '../../../utils/services';
+import { organizationService, boardService } from '../../../utils/services';
+import { useOrgData } from '../../../contexts/OrgDataContext';
 import { MotionModal } from '../../ui/MotionModal';
-import type { OrgBoardSimple, OrgBoardEligibilityCheck, OrgRole, Board, OrgSubscription } from '../../../types';
+import type { OrgBoardSimple, OrgBoardEligibilityCheck, OrgRole, Board } from '../../../types';
 
 type AddModalTab = 'create' | 'link';
 
@@ -149,6 +150,7 @@ function WeeklyChart({ weeks }: { weeks: Array<{ week_start: string; minutes: nu
 export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { subscription, loadSubscription } = useOrgData();
   const isAdmin = myRole === 'OWNER' || myRole === 'ADMIN';
   const [boards, setBoards] = useState<OrgBoardSimple[]>([]);
   const [loading, setLoading] = useState(true);
@@ -162,23 +164,19 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
   const [newBoardName, setNewBoardName] = useState('');
   const [newBoardDescription, setNewBoardDescription] = useState('');
   const [creating, setCreating] = useState(false);
-  const [subscription, setSubscription] = useState<OrgSubscription | null>(null);
 
   const fetchBoards = useCallback(async () => {
     try {
       setLoading(true);
-      const [data, subData] = await Promise.all([
-        organizationService.getBoards(orgId),
-        orgSubscriptionService.get(orgId).catch(() => null),
-      ]);
+      const data = await organizationService.getBoards(orgId);
       setBoards(data);
-      if (subData) setSubscription(subData);
+      loadSubscription();
     } catch (error) {
       console.warn('Failed to fetch boards:', error);
     } finally {
       setLoading(false);
     }
-  }, [orgId]);
+  }, [orgId, loadSubscription]);
 
   useEffect(() => {
     fetchBoards();

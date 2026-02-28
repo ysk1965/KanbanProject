@@ -36,6 +36,11 @@ interface OrgChartTabProps {
   myRole: OrgRole;
   departments: OrgDepartment[];
   myUserId: string;
+  jobGroups: OrgJobGroup[];
+  positions: OrgPosition[];
+  titles: OrgTitle[];
+  grades: OrgGrade[];
+  structureSettings: OrgStructureSettings;
 }
 
 export function OrgChartTab({
@@ -43,6 +48,11 @@ export function OrgChartTab({
   myRole,
   departments,
   myUserId,
+  jobGroups,
+  positions,
+  titles,
+  grades,
+  structureSettings,
 }: OrgChartTabProps) {
   const { t } = useTranslation();
   const isAdmin = myRole === "OWNER" || myRole === "ADMIN";
@@ -58,14 +68,6 @@ export function OrgChartTab({
   );
   const [managerSearch, setManagerSearch] = useState("");
   const [updatingManager, setUpdatingManager] = useState(false);
-  const [jobGroups, setJobGroups] = useState<OrgJobGroup[]>([]);
-  const [positions, setPositions] = useState<OrgPosition[]>([]);
-  const [titles, setTitles] = useState<OrgTitle[]>([]);
-  const [grades, setGrades] = useState<OrgGrade[]>([]);
-  const [structureSettings, setStructureSettings] = useState<OrgStructureSettings>({
-    departments_enabled: true, job_groups_enabled: true, positions_enabled: true,
-    titles_enabled: true, grades_enabled: true,
-  });
 
   const fetchChart = useCallback(async () => {
     try {
@@ -82,32 +84,6 @@ export function OrgChartTab({
   useEffect(() => {
     fetchChart();
   }, [fetchChart]);
-
-  useEffect(() => {
-    const fetchLookups = async () => {
-      try {
-        const [jgs, pos, tls, gds, ss] = await Promise.all([
-          organizationService
-            .getJobGroups(orgId)
-            .catch(() => [] as OrgJobGroup[]),
-          organizationService
-            .getPositions(orgId)
-            .catch(() => [] as OrgPosition[]),
-          organizationService.getTitles(orgId).catch(() => [] as OrgTitle[]),
-          organizationService.getGrades(orgId).catch(() => [] as OrgGrade[]),
-          organizationService.getStructureSettings(orgId).catch(() => null as OrgStructureSettings | null),
-        ]);
-        setJobGroups(jgs);
-        setPositions(pos);
-        setTitles(tls);
-        setGrades(gds);
-        if (ss) setStructureSettings(ss);
-      } catch {
-        // Lookups are optional
-      }
-    };
-    fetchLookups();
-  }, [orgId]);
 
   // Flatten all members for manager dropdown
   const allMembers = useMemo(() => {

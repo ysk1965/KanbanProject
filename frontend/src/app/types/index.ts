@@ -2087,6 +2087,7 @@ export interface OrganizationSimple {
 
 export interface OrganizationDetail extends OrganizationSimple {
   updated_at?: string;
+  my_member_id?: string;
 }
 
 export interface OrgDepartment {
@@ -2135,6 +2136,15 @@ export interface OrgStructureSettings {
   positions_enabled: boolean;
   titles_enabled: boolean;
   grades_enabled: boolean;
+}
+
+export interface OrgStructureData {
+  settings: OrgStructureSettings;
+  departments: OrgDepartment[];
+  job_groups: OrgJobGroup[];
+  positions: OrgPosition[];
+  titles: OrgTitle[];
+  grades: OrgGrade[];
 }
 
 export interface OrgMemberUserInfo {

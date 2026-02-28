@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
@@ -9,25 +9,12 @@ import {
   Settings,
   CalendarOff,
   BarChart3,
-  TrendingUp,
-  Network,
-  Clock,
   Loader2,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { useAuth } from "../contexts/AuthContext";
-import { organizationService, leaveService } from "../utils/services";
-import type {
-  OrganizationDetail,
-  OrgRole,
-  LeaveBalance,
-  OrgDepartment,
-  OrgJobGroup,
-  OrgPosition,
-  OrgTitle,
-  OrgGrade,
-  OrgStructureSettings,
-} from "../types";
+import { OrgDataProvider, useOrgData } from "../contexts/OrgDataContext";
+import type { OrgRole } from "../types";
 import {
   Tooltip,
   TooltipTrigger,
@@ -137,37 +124,56 @@ const TAB_GROUPS: TabGroup[] = [
 
 export function OrganizationDetailPage() {
   const { orgId } = useParams<{ orgId: string }>();
+
+  if (!orgId) return null;
+
+  return (
+    <OrgDataProvider orgId={orgId}>
+      <OrgDetailPageContent />
+    </OrgDataProvider>
+  );
+}
+
+function OrgDetailPageContent() {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { currentUser } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const [org, setOrg] = useState<OrganizationDetail | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [myRole, setMyRole] = useState<OrgRole>("MEMBER");
-  const [myLeaveBalances, setMyLeaveBalances] = useState<LeaveBalance[]>([]);
-  const [myMemberId, setMyMemberId] = useState<string>("");
-  const [departments, setDepartments] = useState<OrgDepartment[]>([]);
-  const [jobGroups, setJobGroups] = useState<OrgJobGroup[]>([]);
-  const [positions, setPositions] = useState<OrgPosition[]>([]);
-  const [titles, setTitles] = useState<OrgTitle[]>([]);
-  const [grades, setGrades] = useState<OrgGrade[]>([]);
+  const {
+    orgId,
+    org,
+    myRole,
+    myMemberId,
+    isAdmin,
+    departments,
+    jobGroups,
+    positions,
+    titles,
+    grades,
+    structureSettings,
+    myLeaveBalances,
+    loading,
+    refreshOrg,
+    refreshLeaveBalances,
+  } = useOrgData();
+
   const [showProfileModal, setShowProfileModal] = useState(false);
-  const [structureSettings, setStructureSettings] = useState<OrgStructureSettings>({
-    departments_enabled: true, job_groups_enabled: true, positions_enabled: true,
-    titles_enabled: true, grades_enabled: true,
-  });
 
+  // ─── Tab state with visited-tab persistence ───
   const activeTab = (searchParams.get("tab") as TabKey) || "dashboard";
+  const [visitedTabs, setVisitedTabs] = useState<Set<TabKey>>(new Set([activeTab]));
 
-  const setActiveTab = (tab: TabKey) => {
+  const setActiveTab = useCallback((tab: TabKey) => {
+    setVisitedTabs((prev) => {
+      if (prev.has(tab)) return prev;
+      return new Set([...prev, tab]);
+    });
     setSearchParams({ tab });
-  };
+  }, [setSearchParams]);
 
-  const isAdmin = myRole === "OWNER" || myRole === "ADMIN";
   const visibleGroups = TAB_GROUPS.filter((g) => !g.adminOnly || isAdmin);
 
-  // Compute active group from active tab
   const activeGroup = useMemo(() => {
     return (
       TAB_GROUPS.find(
@@ -195,71 +201,6 @@ export function OrganizationDetailPage() {
       labels: order.map((c) => i18nKeys[c]),
     };
   }, [myLeaveBalances]);
-
-  const fetchOrg = useCallback(async () => {
-    if (!orgId) return;
-    try {
-      setLoading(true);
-      const data = await organizationService.get(orgId);
-      setOrg(data);
-      setMyRole(data.my_role);
-      const [balances, membersData, depts, jgs, pos, tls, gds, ss] =
-        await Promise.all([
-          leaveService.getMyBalance(orgId).catch(() => [] as LeaveBalance[]),
-          organizationService
-            .getMembers(orgId, { size: 200 })
-            .catch(() => null),
-          organizationService
-            .getDepartments(orgId)
-            .catch(() => [] as OrgDepartment[]),
-          organizationService
-            .getJobGroups(orgId)
-            .catch(() => [] as OrgJobGroup[]),
-          organizationService
-            .getPositions(orgId)
-            .catch(() => [] as OrgPosition[]),
-          organizationService
-            .getTitles(orgId)
-            .catch(() => [] as OrgTitle[]),
-          organizationService
-            .getGrades(orgId)
-            .catch(() => [] as OrgGrade[]),
-          organizationService
-            .getStructureSettings(orgId)
-            .catch(() => null as OrgStructureSettings | null),
-        ]);
-      setMyLeaveBalances(balances);
-      setDepartments(depts);
-      setJobGroups(jgs);
-      setPositions(pos);
-      setTitles(tls);
-      setGrades(gds);
-      if (ss) setStructureSettings(ss);
-      if (membersData && currentUser) {
-        const me = membersData.content.find(
-          (m) => m.user.id === currentUser.id,
-        );
-        if (me) setMyMemberId(me.id);
-      }
-    } catch (error) {
-      console.warn("Failed to fetch organization:", error);
-      navigate("/boards");
-    } finally {
-      setLoading(false);
-    }
-  }, [orgId, navigate, currentUser]);
-
-  const refreshLeaveBalances = useCallback(async () => {
-    if (!orgId) return;
-    try {
-      const balances = await leaveService.getMyBalance(orgId);
-      setMyLeaveBalances(balances);
-    } catch { /* ignore */ }
-  }, [orgId]);
-
-  useEffect(() => {
-    fetchOrg();
-  }, [fetchOrg]);
 
   if (loading || !org) {
     return (
@@ -298,6 +239,27 @@ export function OrganizationDetailPage() {
       })}
     </nav>
   );
+
+  // ─── Tab rendering helper: visited tabs stay mounted, hidden when inactive ───
+  const renderTab = (key: TabKey, component: React.ReactNode, adminRequired = false) => {
+    if (adminRequired && !isAdmin) return null;
+    if (!visitedTabs.has(key)) return null;
+    return (
+      <div key={key} className={activeTab === key ? undefined : "hidden"}>
+        {activeTab === key ? (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.15 }}
+          >
+            {component}
+          </motion.div>
+        ) : (
+          component
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-bridge-dark flex flex-col">
@@ -435,81 +397,84 @@ export function OrganizationDetailPage() {
         </div>
       )}
 
-      {/* Content */}
+      {/* Content — visited tabs stay mounted (hidden when inactive) */}
       <div className="flex-1">
         <div className="max-w-6xl mx-auto px-4 py-4 md:px-6 md:py-6">
-
-          {/* Tab Content */}
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={activeTab}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.15 }}
-            >
-              {activeTab === "dashboard" && (
-                <OrgDashboardTab orgId={orgId!} role={myRole} />
-              )}
-              {activeTab === "members" && (
-                <OrgMembersTab
-                  orgId={orgId!}
-                  myRole={myRole}
-                  myUserId={currentUser?.id || ""}
-                />
-              )}
-              {activeTab === "chart" && (
-                <OrgChartTab
-                  orgId={orgId!}
-                  myRole={myRole}
-                  departments={departments}
-                  myUserId={currentUser?.id || ""}
-                />
-              )}
-              {activeTab === "boards" && (
-                <OrgBoardsTab orgId={orgId!} myRole={myRole} />
-              )}
-              {activeTab === "leaves" && (
-                <OrgLeaveTab orgId={orgId!} myRole={myRole} />
-              )}
-              {activeTab === "attendance" && (
-                <OrgAttendanceTab
-                  orgId={orgId!}
-                  myRole={myRole}
-                  departments={departments}
-                />
-              )}
-              {activeTab === "insights" && (
-                <OrgInsightsTab
-                  orgId={orgId!}
-                  myRole={myRole}
-                  departments={departments}
-                  jobGroups={jobGroups}
-                  structureSettings={structureSettings}
-                />
-              )}
-              {activeTab === "okr" && (
-                <OrgOkrTab orgId={orgId!} myRole={myRole} />
-              )}
-              {activeTab === "settings" && isAdmin && (
-                <OrgSettingsGeneralSubTab
-                  orgId={orgId!}
-                  org={org}
-                  myRole={myRole}
-                  onUpdate={fetchOrg}
-                />
-              )}
-              {activeTab === "settings_structure" && isAdmin && (
-                <OrgSettingsStructureSubTab orgId={orgId!} />
-              )}
-              {activeTab === "settings_attendance" && isAdmin && (
-                <OrgSettingsAttendanceSubTab orgId={orgId!} onLeaveBalanceChange={refreshLeaveBalances} />
-              )}
-              {activeTab === "settings_onboarding" && isAdmin && (
-                <OrgSettingsOnboardingSubTab orgId={orgId!} />
-              )}
-            </motion.div>
-          </AnimatePresence>
+          {renderTab("dashboard",
+            <OrgDashboardTab orgId={orgId} role={myRole} />
+          )}
+          {renderTab("members",
+            <OrgMembersTab
+              orgId={orgId}
+              myRole={myRole}
+              myUserId={currentUser?.id || ""}
+              departments={departments}
+              jobGroups={jobGroups}
+              positions={positions}
+              titles={titles}
+              grades={grades}
+              structureSettings={structureSettings}
+            />
+          )}
+          {renderTab("chart",
+            <OrgChartTab
+              orgId={orgId}
+              myRole={myRole}
+              departments={departments}
+              myUserId={currentUser?.id || ""}
+              jobGroups={jobGroups}
+              positions={positions}
+              titles={titles}
+              grades={grades}
+              structureSettings={structureSettings}
+            />
+          )}
+          {renderTab("boards",
+            <OrgBoardsTab orgId={orgId} myRole={myRole} />
+          )}
+          {renderTab("leaves",
+            <OrgLeaveTab orgId={orgId} myRole={myRole} />
+          )}
+          {renderTab("attendance",
+            <OrgAttendanceTab
+              orgId={orgId}
+              myRole={myRole}
+              departments={departments}
+            />
+          )}
+          {renderTab("insights",
+            <OrgInsightsTab
+              orgId={orgId}
+              myRole={myRole}
+              departments={departments}
+              jobGroups={jobGroups}
+              structureSettings={structureSettings}
+            />
+          )}
+          {renderTab("okr",
+            <OrgOkrTab orgId={orgId} myRole={myRole} />
+          )}
+          {renderTab("settings",
+            <OrgSettingsGeneralSubTab
+              orgId={orgId}
+              org={org}
+              myRole={myRole}
+              onUpdate={refreshOrg}
+            />,
+            true,
+          )}
+          {renderTab("settings_structure",
+            <OrgSettingsStructureSubTab orgId={orgId} />,
+            true,
+          )}
+          {renderTab("settings_attendance",
+            <OrgSettingsAttendanceSubTab orgId={orgId} onLeaveBalanceChange={refreshLeaveBalances} />,
+            true,
+          )}
+          {renderTab("settings_onboarding",
+            <OrgSettingsOnboardingSubTab orgId={orgId} />,
+            true,
+          )}
         </div>
       </div>
 
@@ -517,7 +482,7 @@ export function OrganizationDetailPage() {
         <MemberDetailModal
           open={showProfileModal}
           onClose={() => setShowProfileModal(false)}
-          orgId={orgId!}
+          orgId={orgId}
           memberId={myMemberId}
           myRole={myRole}
           myUserId={currentUser?.id || ""}
@@ -527,7 +492,7 @@ export function OrganizationDetailPage() {
           titles={titles}
           grades={grades}
           structureSettings={structureSettings}
-          onMemberUpdated={fetchOrg}
+          onMemberUpdated={refreshOrg}
         />
       )}
     </div>
