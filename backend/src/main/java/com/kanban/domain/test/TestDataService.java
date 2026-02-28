@@ -1466,6 +1466,14 @@ public class TestDataService {
         boolean isMember = orgMemberRepository.existsByOrganizationIdAndUserId(org.getId(), user.getId());
 
         if (!isMember) {
+            // 1인 1조직 정책: 이미 다른 조직에 소속되어 있으면 해당 멤버십 제거
+            List<OrganizationMember> existingMemberships = orgMemberRepository.findByUserIdWithOrganization(user.getId());
+            if (!existingMemberships.isEmpty()) {
+                orgMemberRepository.deleteAll(existingMemberships);
+                orgMemberRepository.flush();
+                log.info("Removed user {} from {} existing org(s) to join test org", user.getId(), existingMemberships.size());
+            }
+
             OrganizationMember newMember = OrganizationMember.builder()
                     .organization(org)
                     .user(user)
@@ -1851,6 +1859,14 @@ public class TestDataService {
         LocalDate today = LocalDate.now();
         int month = today.getMonthValue();
         List<OrganizationMember> members = new ArrayList<>();
+
+        // 1인 1조직 정책: owner가 이미 다른 조직에 소속되어 있으면 기존 멤버십 제거
+        List<OrganizationMember> ownerExisting = orgMemberRepository.findByUserIdWithOrganization(users.get(0).getId());
+        if (!ownerExisting.isEmpty()) {
+            orgMemberRepository.deleteAll(ownerExisting);
+            orgMemberRepository.flush();
+            log.info("Removed owner from {} existing org(s) for test org creation", ownerExisting.size());
+        }
 
         // depts: [0]=경영기획실, [1]=개발팀, [2]=디자인팀, [3]=마케팅팀, [4]=백엔드파트, [5]=프론트엔드파트
         // jobGroups: [0]=엔지니어링, [1]=디자인, [2]=비즈니스
