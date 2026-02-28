@@ -47,7 +47,7 @@ CREATE INDEX idx_org_pay_status ON org_payment_history(status);
 
 -- 3. 기존 Organization에 FREE 구독 자동 생성
 INSERT INTO org_subscriptions (id, organization_id, plan, status, board_limit, created_at, updated_at)
-SELECT gen_random_uuid()::VARCHAR, o.id, 'FREE', 'ACTIVE', 0, NOW(), NOW()
+SELECT gen_random_uuid()::VARCHAR, o.id, 'FREE', 'ACTIVE', 0, NOW() AT TIME ZONE 'UTC', NOW() AT TIME ZONE 'UTC'
 FROM organizations o
 WHERE o.deleted_at IS NULL
   AND NOT EXISTS (SELECT 1 FROM org_subscriptions os WHERE os.organization_id = o.id);

@@ -213,6 +213,9 @@ spring:
   jpa:
     database-platform: org.hibernate.dialect.H2Dialect
 
+  flyway:
+    enabled: false
+
   # Local에서는 Simple 캐시 사용 (Redis 불필요)
   cache:
     type: simple
@@ -236,6 +239,12 @@ spring:
   jpa:
     defer-datasource-initialization: false
     database-platform: org.hibernate.dialect.PostgreSQLDialect
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    baseline-version: 86
 
   datasource:
     url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/kanban_dev}
@@ -274,6 +283,12 @@ spring:
     hibernate:
       ddl-auto: validate
     show-sql: false
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    baseline-version: 86
 
   datasource:
     url: ${DATABASE_URL}
