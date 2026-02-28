@@ -13,6 +13,7 @@ import com.kanban.domain.user.UserRepository;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import com.kanban.global.service.FileUploadService;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Lazy;
@@ -631,11 +632,12 @@ public class OrganizationService {
      * @return int[]{memberCount, boardCount}
      */
     private int[] getOrgCounts(String orgId) {
-        Object[] result = organizationRepository.countMemberAndBoardByOrgId(orgId);
-        if (result == null) return new int[]{0, 0};
+        List<Object[]> results = organizationRepository.countMemberAndBoardByOrgId(orgId);
+        if (results == null || results.isEmpty()) return new int[]{0, 0};
+        Object[] row = results.get(0);
         return new int[]{
-                ((Number) result[0]).intValue(),
-                ((Number) result[1]).intValue()
+                ((Number) row[0]).intValue(),
+                ((Number) row[1]).intValue()
         };
     }
 }

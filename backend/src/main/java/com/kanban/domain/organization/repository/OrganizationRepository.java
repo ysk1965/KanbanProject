@@ -40,5 +40,5 @@ public interface OrganizationRepository extends JpaRepository<Organization, Stri
            "(SELECT COUNT(om) FROM OrganizationMember om WHERE om.organization.id = :orgId), " +
            "(SELECT COUNT(b) FROM Board b WHERE b.organization.id = :orgId AND b.deletedAt IS NULL) " +
            "FROM Organization o WHERE o.id = :orgId AND o.deletedAt IS NULL")
-    Object[] countMemberAndBoardByOrgId(@Param("orgId") String orgId);
+    List<Object[]> countMemberAndBoardByOrgId(@Param("orgId") String orgId);
 }
