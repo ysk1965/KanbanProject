@@ -400,8 +400,15 @@ Controller → Service (비즈니스 로직) → Repository (JPA)
 | Cache | Simple | Redis | Redis (ElastiCache) |
 | Storage | Local filesystem | S3 + CloudFront | S3 + CloudFront |
 | JPA ddl-auto | update | update | validate |
-| Flyway | off | on | on |
+| Flyway | off (`enabled: false`) | on (baseline V86) | on (baseline V86) |
 | Push | disabled | FCM | FCM |
+
+#### Flyway 마이그레이션
+- 의존성: `flyway-core` + `flyway-database-postgresql` (Spring Boot BOM 관리)
+- 마이그레이션 위치: `backend/src/main/resources/db/migration/` (V5~V86)
+- 기존 DB baseline: V86 (`baseline-on-migrate: true`)
+- 신규 마이그레이션: V87부터 추가 (`V87__description.sql`)
+- `SchemaMigrationInitializer`: 레거시 패치 (멱등, Flyway와 공존)
 
 ---
 
