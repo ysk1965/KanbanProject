@@ -83,7 +83,7 @@ public class OrganizationService {
         orgSubscriptionRepository.save(trial);
         org.markTrialUsed();
 
-        return OrganizationResponse.Detail.of(org, OrgRole.OWNER, 1, 0);
+        return OrganizationResponse.Detail.of(org, OrgRole.OWNER, ownerMember.getId(), 1, 0);
     }
 
     public List<OrganizationResponse.Simple> getMyOrganizations(String userId) {
@@ -112,7 +112,7 @@ public class OrganizationService {
         OrganizationMember member = getOrgMemberOrThrow(orgId, userId);
         int memberCount = orgMemberRepository.countByOrganizationId(orgId);
         int boardCount = boardRepository.countByOrganizationId(orgId);
-        return OrganizationResponse.Detail.of(org, member.getRole(), memberCount, boardCount);
+        return OrganizationResponse.Detail.of(org, member.getRole(), member.getId(), memberCount, boardCount);
     }
 
     @Transactional
@@ -123,7 +123,7 @@ public class OrganizationService {
         int memberCount = orgMemberRepository.countByOrganizationId(orgId);
         int boardCount = boardRepository.countByOrganizationId(orgId);
         OrganizationMember member = getOrgMemberOrThrow(orgId, userId);
-        return OrganizationResponse.Detail.of(org, member.getRole(), memberCount, boardCount);
+        return OrganizationResponse.Detail.of(org, member.getRole(), member.getId(), memberCount, boardCount);
     }
 
     @Transactional
@@ -136,7 +136,7 @@ public class OrganizationService {
         int memberCount = orgMemberRepository.countByOrganizationId(orgId);
         int boardCount = boardRepository.countByOrganizationId(orgId);
         OrganizationMember member = getOrgMemberOrThrow(orgId, userId);
-        return OrganizationResponse.Detail.of(org, member.getRole(), memberCount, boardCount);
+        return OrganizationResponse.Detail.of(org, member.getRole(), member.getId(), memberCount, boardCount);
     }
 
     @Transactional
@@ -181,7 +181,7 @@ public class OrganizationService {
 
         int memberCount = orgMemberRepository.countByOrganizationId(orgId);
         int boardCount = boardRepository.countByOrganizationId(orgId);
-        return OrganizationResponse.Detail.of(org, OrgRole.ADMIN, memberCount, boardCount);
+        return OrganizationResponse.Detail.of(org, OrgRole.ADMIN, currentOwner.getId(), memberCount, boardCount);
     }
 
     // ==================== Department CRUD ====================
@@ -551,6 +551,33 @@ public class OrganizationService {
             }
             current = current.getParentDepartment();
         }
+    }
+
+    // ==================== Structure Data (Combined) ====================
+
+    public OrganizationResponse.StructureData getStructureData(String orgId, String userId) {
+        getOrgMemberOrThrow(orgId, userId);
+        Organization org = getActiveOrgOrThrow(orgId);
+
+        List<OrgDepartmentResponse.Detail> departments = orgDepartmentRepository.findByOrganizationIdWithLeader(orgId).stream()
+                .map(OrgDepartmentResponse.Detail::of).collect(Collectors.toList());
+        List<OrgJobGroupResponse.Detail> jobGroups = orgJobGroupRepository.findByOrganizationId(orgId).stream()
+                .map(OrgJobGroupResponse.Detail::of).collect(Collectors.toList());
+        List<OrgPositionResponse.Detail> positions = orgPositionRepository.findByOrganizationId(orgId).stream()
+                .map(OrgPositionResponse.Detail::of).collect(Collectors.toList());
+        List<OrgTitleResponse.Detail> titles = orgTitleRepository.findByOrganizationId(orgId).stream()
+                .map(OrgTitleResponse.Detail::of).collect(Collectors.toList());
+        List<OrgGradeResponse.Detail> grades = orgGradeRepository.findByOrganizationId(orgId).stream()
+                .map(OrgGradeResponse.Detail::of).collect(Collectors.toList());
+
+        return OrganizationResponse.StructureData.builder()
+                .settings(OrganizationResponse.StructureSettings.of(org))
+                .departments(departments)
+                .jobGroups(jobGroups)
+                .positions(positions)
+                .titles(titles)
+                .grades(grades)
+                .build();
     }
 
     // ==================== Structure Settings ====================

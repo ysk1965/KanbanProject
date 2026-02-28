@@ -85,6 +85,17 @@ public class OrganizationController {
         return ResponseEntity.ok(response);
     }
 
+    // ==================== Structure Data (Combined) ====================
+
+    @GetMapping("/{orgId}/structure-data")
+    public ResponseEntity<OrganizationResponse.StructureData> getStructureData(
+            @PathVariable String orgId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        OrganizationResponse.StructureData response = organizationService.getStructureData(
+                orgId, principal.getUserId());
+        return ResponseEntity.ok(response);
+    }
+
     // ==================== Structure Settings ====================
 
     @GetMapping("/{orgId}/structure-settings")

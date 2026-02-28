@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import {
@@ -8,14 +8,13 @@ import {
   Rocket,
   CreditCard,
 } from "lucide-react";
-import { Loader2 } from "lucide-react";
 import { OrgSettingsGeneralSubTab } from "../settings/OrgSettingsGeneralSubTab";
 import { OrgSettingsStructureSubTab } from "../settings/OrgSettingsStructureSubTab";
 import { OrgSettingsAttendanceSubTab } from "../settings/OrgSettingsAttendanceSubTab";
 import { OrgSettingsOnboardingSubTab } from "../settings/OrgSettingsOnboardingSubTab";
 import { OrgBillingSection } from "../subscription/OrgBillingSection";
-import { orgSubscriptionService } from "../../../utils/services";
-import type { OrganizationDetail, OrgRole, OrgSubscription } from "../../../types";
+import { useOrgData } from "../../../contexts/OrgDataContext";
+import type { OrganizationDetail, OrgRole } from "../../../types";
 
 interface OrgSettingsTabProps {
   orgId: string;
@@ -33,27 +32,14 @@ export function OrgSettingsTab({
   onUpdate,
 }: OrgSettingsTabProps) {
   const { t } = useTranslation();
+  const { subscription, loadSubscription, refreshSubscription } = useOrgData();
   const [activeSubTab, setActiveSubTab] = useState<SettingsSubTab>("general");
-  const [subscription, setSubscription] = useState<OrgSubscription | null>(null);
-  const [subscriptionLoading, setSubscriptionLoading] = useState(false);
-
-  const fetchSubscription = useCallback(async () => {
-    try {
-      setSubscriptionLoading(true);
-      const data = await orgSubscriptionService.get(orgId);
-      setSubscription(data);
-    } catch (error) {
-      console.warn("Failed to fetch subscription:", error);
-    } finally {
-      setSubscriptionLoading(false);
-    }
-  }, [orgId]);
 
   useEffect(() => {
-    if (activeSubTab === "subscription" && !subscription) {
-      fetchSubscription();
+    if (activeSubTab === "subscription") {
+      loadSubscription();
     }
-  }, [activeSubTab, subscription, fetchSubscription]);
+  }, [activeSubTab, loadSubscription]);
 
   const subTabs: { key: SettingsSubTab; label: string; icon: React.ReactNode }[] = [
     {
@@ -128,18 +114,11 @@ export function OrgSettingsTab({
           <OrgSettingsOnboardingSubTab orgId={orgId} />
         )}
         {activeSubTab === "subscription" && (
-          subscriptionLoading ? (
-            <div className="flex justify-center py-12">
-              <Loader2 className="w-6 h-6 animate-spin text-bridge-accent" />
-            </div>
-          ) : subscription ? (
+          subscription ? (
             <OrgBillingSection
               orgId={orgId}
               subscription={subscription}
-              onUpdate={() => {
-                setSubscription(null);
-                fetchSubscription();
-              }}
+              onUpdate={refreshSubscription}
             />
           ) : (
             <div className="text-center py-12 text-sm text-slate-500">

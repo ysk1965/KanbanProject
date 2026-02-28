@@ -8,6 +8,7 @@ import lombok.Builder;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public class OrganizationResponse {
 
@@ -59,6 +60,7 @@ public class OrganizationResponse {
         private String logoUrl;
         private OwnerInfo owner;
         private OrgRole myRole;
+        private String myMemberId;
         private int memberCount;
         private int boardCount;
         private LocalDateTime createdAt;
@@ -69,7 +71,7 @@ public class OrganizationResponse {
         private boolean canCreateOrgBoard;
         private boolean canAccessHrFeatures;
 
-        public static Detail of(Organization org, OrgRole myRole, int memberCount, int boardCount) {
+        public static Detail of(Organization org, OrgRole myRole, String myMemberId, int memberCount, int boardCount) {
             return Detail.builder()
                     .id(org.getId())
                     .name(org.getName())
@@ -77,6 +79,7 @@ public class OrganizationResponse {
                     .logoUrl(org.getLogoUrl())
                     .owner(OwnerInfo.of(org))
                     .myRole(myRole)
+                    .myMemberId(myMemberId)
                     .memberCount(memberCount)
                     .boardCount(boardCount)
                     .createdAt(org.getCreatedAt())
@@ -110,6 +113,18 @@ public class OrganizationResponse {
                     .gradesEnabled(org.getGradesEnabled())
                     .build();
         }
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class StructureData {
+        private StructureSettings settings;
+        private List<OrgDepartmentResponse.Detail> departments;
+        private List<OrgJobGroupResponse.Detail> jobGroups;
+        private List<OrgPositionResponse.Detail> positions;
+        private List<OrgTitleResponse.Detail> titles;
+        private List<OrgGradeResponse.Detail> grades;
     }
 
     @Getter

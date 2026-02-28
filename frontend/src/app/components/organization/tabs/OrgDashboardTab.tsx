@@ -3,7 +3,8 @@ import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 import { Users, LayoutGrid, CalendarOff, ChevronRight } from "lucide-react";
 import { motion } from "framer-motion";
-import { organizationService, leaveService, orgSubscriptionService } from "../../../utils/services";
+import { organizationService, leaveService } from "../../../utils/services";
+import { useOrgData } from "../../../contexts/OrgDataContext";
 import { getTodayDateString } from "../../../utils/dateUtils";
 import type {
   OrgBoardSimple,
@@ -11,7 +12,6 @@ import type {
   OrgRole,
   OrgAnnouncement,
   AnniversaryType,
-  OrgSubscription,
 } from "../../../types";
 import { OrgSubscriptionBadge } from "../subscription/OrgSubscriptionBadge";
 import { OrgAnnouncementModal } from "../OrgAnnouncementModal";
@@ -29,11 +29,10 @@ interface OrgDashboardTabProps {
 export function OrgDashboardTab({ orgId, role }: OrgDashboardTabProps) {
   const { t } = useTranslation();
   const [, setSearchParams] = useSearchParams();
+  const { org, subscription, loadSubscription } = useOrgData();
   const [boards, setBoards] = useState<OrgBoardSimple[]>([]);
   const [todayLeaves, setTodayLeaves] = useState<LeaveRequestResponse[]>([]);
-  const [memberCount, setMemberCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [subscription, setSubscription] = useState<OrgSubscription | null>(null);
 
   // Announcement modals
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -54,20 +53,11 @@ export function OrgDashboardTab({ orgId, role }: OrgDashboardTabProps) {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [boardsData, orgData] = await Promise.all([
-          organizationService.getBoards(orgId),
-          organizationService.get(orgId),
-        ]);
+        const boardsData = await organizationService.getBoards(orgId);
         setBoards(boardsData);
-        setMemberCount(orgData.member_count);
 
-        // Fetch subscription data
-        try {
-          const subData = await orgSubscriptionService.get(orgId);
-          setSubscription(subData);
-        } catch {
-          // Subscription data is optional
-        }
+        // Load subscription via shared context (no duplicate call)
+        loadSubscription();
 
         // Fetch today's approved leaves
         const today = getTodayDateString();
@@ -89,7 +79,7 @@ export function OrgDashboardTab({ orgId, role }: OrgDashboardTabProps) {
       }
     };
     fetchData();
-  }, [orgId]);
+  }, [orgId, loadSubscription]);
 
   const handleAnnouncementSaved = useCallback(() => {
     setRefreshKey((prev) => prev + 1);
@@ -132,7 +122,7 @@ export function OrgDashboardTab({ orgId, role }: OrgDashboardTabProps) {
             bgClass: "bg-bridge-accent/15",
             textClass: "text-bridge-accent",
             label: t("organization.dashboard.members", "Members"),
-            value: memberCount,
+            value: org?.member_count ?? 0,
             tab: "members" as const,
           },
           {

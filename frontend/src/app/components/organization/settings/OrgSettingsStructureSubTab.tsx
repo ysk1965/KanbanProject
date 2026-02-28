@@ -154,21 +154,14 @@ export function OrgSettingsStructureSubTab({
 
   const fetchData = useCallback(async () => {
     try {
-      const [depts, jgs, pos, ttls, grds, structSettings] = await Promise.all([
-        organizationService.getDepartments(orgId),
-        organizationService.getJobGroups(orgId),
-        organizationService.getPositions(orgId).catch(() => []),
-        organizationService.getTitles(orgId).catch(() => []),
-        organizationService.getGrades(orgId).catch(() => []),
-        organizationService.getStructureSettings(orgId).catch(() => null),
-      ]);
-      setDepartments(depts);
-      setJobGroups(jgs);
-      setPositions(pos);
-      setTitles(ttls);
-      setGrades(grds);
-      if (structSettings) {
-        setSettings(structSettings);
+      const data = await organizationService.getStructureData(orgId);
+      setDepartments(data.departments);
+      setJobGroups(data.job_groups);
+      setPositions(data.positions);
+      setTitles(data.titles);
+      setGrades(data.grades);
+      if (data.settings) {
+        setSettings(data.settings);
       }
     } catch (error) {
       console.warn("Failed to fetch structure data:", error);

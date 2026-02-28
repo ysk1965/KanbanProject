@@ -5255,6 +5255,13 @@ export const organizationAPI = {
     return apiClient.put(`/organizations/${orgId}/transfer-ownership`, data);
   },
 
+  // Structure Data (combined)
+  getStructureData: async (
+    orgId: string,
+  ): Promise<import("../types").OrgStructureData> => {
+    return apiClient.get(`/organizations/${orgId}/structure-data`);
+  },
+
   // Departments
   getDepartments: async (
     orgId: string,
