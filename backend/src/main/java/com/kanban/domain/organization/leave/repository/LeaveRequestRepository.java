@@ -24,9 +24,9 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Stri
            "JOIN FETCH lr.policy " +
            "WHERE lr.organization.id = :orgId " +
            "AND (:status IS NULL OR lr.status = :status) " +
-           "AND (:requesterId IS NULL OR lr.requester.id = :requesterId) " +
-           "AND (:startDate IS NULL OR lr.endDate >= :startDate) " +
-           "AND (:endDate IS NULL OR lr.startDate <= :endDate) " +
+           "AND (:requesterId IS NULL OR req.id = :requesterId) " +
+           "AND (CAST(:startDate AS date) IS NULL OR lr.endDate >= :startDate) " +
+           "AND (CAST(:endDate AS date) IS NULL OR lr.startDate <= :endDate) " +
            "ORDER BY lr.createdAt DESC")
     Page<LeaveRequest> findByOrgIdWithFilters(
             @Param("orgId") String orgId,
