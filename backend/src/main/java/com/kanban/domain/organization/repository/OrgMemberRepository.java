@@ -91,6 +91,7 @@ public interface OrgMemberRepository extends JpaRepository<OrganizationMember, S
 
     @Query("SELECT om FROM OrganizationMember om " +
            "JOIN FETCH om.organization o " +
+           "LEFT JOIN FETCH o.subscription " +
            "WHERE om.user.id = :userId AND o.deletedAt IS NULL")
     List<OrganizationMember> findByUserIdWithOrganization(@Param("userId") String userId);
 

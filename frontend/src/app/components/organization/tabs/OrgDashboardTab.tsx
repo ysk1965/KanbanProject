@@ -3,11 +3,10 @@ import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 import { Users, LayoutGrid, CalendarOff, ChevronRight } from "lucide-react";
 import { motion } from "framer-motion";
-import { organizationService, leaveService } from "../../../utils/services";
+import { leaveService } from "../../../utils/services";
 import { useOrgData } from "../../../contexts/OrgDataContext";
 import { getTodayDateString } from "../../../utils/dateUtils";
 import type {
-  OrgBoardSimple,
   LeaveRequestResponse,
   OrgRole,
   OrgAnnouncement,
@@ -30,7 +29,6 @@ export function OrgDashboardTab({ orgId, role }: OrgDashboardTabProps) {
   const { t } = useTranslation();
   const [, setSearchParams] = useSearchParams();
   const { org, subscription, loadSubscription } = useOrgData();
-  const [boards, setBoards] = useState<OrgBoardSimple[]>([]);
   const [todayLeaves, setTodayLeaves] = useState<LeaveRequestResponse[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -53,8 +51,6 @@ export function OrgDashboardTab({ orgId, role }: OrgDashboardTabProps) {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const boardsData = await organizationService.getBoards(orgId);
-        setBoards(boardsData);
 
         // Load subscription via shared context (no duplicate call)
         loadSubscription();
@@ -130,7 +126,7 @@ export function OrgDashboardTab({ orgId, role }: OrgDashboardTabProps) {
             bgClass: "bg-bridge-secondary/15",
             textClass: "text-bridge-secondary",
             label: t("organization.dashboard.boards", "Boards"),
-            value: boards.length,
+            value: org?.board_count ?? 0,
             tab: "boards" as const,
           },
           {

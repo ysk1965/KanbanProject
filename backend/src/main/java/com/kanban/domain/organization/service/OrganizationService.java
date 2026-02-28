@@ -110,9 +110,8 @@ public class OrganizationService {
     public OrganizationResponse.Detail getOrganization(String orgId, String userId) {
         Organization org = getActiveOrgOrThrow(orgId);
         OrganizationMember member = getOrgMemberOrThrow(orgId, userId);
-        int memberCount = orgMemberRepository.countByOrganizationId(orgId);
-        int boardCount = boardRepository.countByOrganizationId(orgId);
-        return OrganizationResponse.Detail.of(org, member.getRole(), member.getId(), memberCount, boardCount);
+        int[] counts = getOrgCounts(orgId);
+        return OrganizationResponse.Detail.of(org, member.getRole(), member.getId(), counts[0], counts[1]);
     }
 
     @Transactional
@@ -120,10 +119,9 @@ public class OrganizationService {
         Organization org = getActiveOrgOrThrow(orgId);
         checkAdminOrAbove(orgId, userId);
         org.updateInfo(request.getName(), request.getDescription());
-        int memberCount = orgMemberRepository.countByOrganizationId(orgId);
-        int boardCount = boardRepository.countByOrganizationId(orgId);
+        int[] counts = getOrgCounts(orgId);
         OrganizationMember member = getOrgMemberOrThrow(orgId, userId);
-        return OrganizationResponse.Detail.of(org, member.getRole(), member.getId(), memberCount, boardCount);
+        return OrganizationResponse.Detail.of(org, member.getRole(), member.getId(), counts[0], counts[1]);
     }
 
     @Transactional
@@ -133,10 +131,9 @@ public class OrganizationService {
         String key = "organizations/" + orgId + "/logo/" + UUID.randomUUID() + "_" + file.getOriginalFilename();
         String logoUrl = fileUploadService.uploadDirect(file, key);
         org.updateLogoUrl(logoUrl);
-        int memberCount = orgMemberRepository.countByOrganizationId(orgId);
-        int boardCount = boardRepository.countByOrganizationId(orgId);
+        int[] counts = getOrgCounts(orgId);
         OrganizationMember member = getOrgMemberOrThrow(orgId, userId);
-        return OrganizationResponse.Detail.of(org, member.getRole(), member.getId(), memberCount, boardCount);
+        return OrganizationResponse.Detail.of(org, member.getRole(), member.getId(), counts[0], counts[1]);
     }
 
     @Transactional
@@ -179,9 +176,8 @@ public class OrganizationService {
         newOwnerMember.updateRole(OrgRole.OWNER);
         org.transferOwnership(newOwnerMember.getUser());
 
-        int memberCount = orgMemberRepository.countByOrganizationId(orgId);
-        int boardCount = boardRepository.countByOrganizationId(orgId);
-        return OrganizationResponse.Detail.of(org, OrgRole.ADMIN, currentOwner.getId(), memberCount, boardCount);
+        int[] counts = getOrgCounts(orgId);
+        return OrganizationResponse.Detail.of(org, OrgRole.ADMIN, currentOwner.getId(), counts[0], counts[1]);
     }
 
     // ==================== Department CRUD ====================
@@ -628,5 +624,18 @@ public class OrganizationService {
         if (!member.isOwner()) {
             throw new BusinessException(ErrorCode.ORG_OWNER_REQUIRED);
         }
+    }
+
+    /**
+     * Fetch member count and board count in a single DB query.
+     * @return int[]{memberCount, boardCount}
+     */
+    private int[] getOrgCounts(String orgId) {
+        Object[] result = organizationRepository.countMemberAndBoardByOrgId(orgId);
+        if (result == null) return new int[]{0, 0};
+        return new int[]{
+                ((Number) result[0]).intValue(),
+                ((Number) result[1]).intValue()
+        };
     }
 }
