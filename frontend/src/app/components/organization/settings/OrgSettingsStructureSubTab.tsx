@@ -11,14 +11,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { organizationService } from "../../../utils/services";
-import type {
-  OrgDepartment,
-  OrgJobGroup,
-  OrgPosition,
-  OrgTitle,
-  OrgGrade,
-  OrgStructureSettings,
-} from "../../../types";
+import { useOrgData } from "../../../contexts/OrgDataContext";
+import type { OrgStructureSettings } from "../../../types";
 
 interface OrgSettingsStructureSubTabProps {
   orgId: string;
@@ -131,12 +125,10 @@ export function OrgSettingsStructureSubTab({
   orgId,
 }: OrgSettingsStructureSubTabProps) {
   const { t } = useTranslation();
-
-  const [departments, setDepartments] = useState<OrgDepartment[]>([]);
-  const [jobGroups, setJobGroups] = useState<OrgJobGroup[]>([]);
-  const [positions, setPositions] = useState<OrgPosition[]>([]);
-  const [titles, setTitles] = useState<OrgTitle[]>([]);
-  const [grades, setGrades] = useState<OrgGrade[]>([]);
+  const {
+    departments, jobGroups, positions, titles, grades,
+    structureSettings, refreshStructureData,
+  } = useOrgData();
 
   const [newDeptName, setNewDeptName] = useState("");
   const [newJobGroupName, setNewJobGroupName] = useState("");
@@ -144,33 +136,12 @@ export function OrgSettingsStructureSubTab({
   const [newTitleName, setNewTitleName] = useState("");
   const [newGradeName, setNewGradeName] = useState("");
 
-  const [settings, setSettings] = useState<OrgStructureSettings>({
-    departments_enabled: true,
-    job_groups_enabled: true,
-    positions_enabled: true,
-    titles_enabled: true,
-    grades_enabled: true,
-  });
-
-  const fetchData = useCallback(async () => {
-    try {
-      const data = await organizationService.getStructureData(orgId);
-      setDepartments(data.departments);
-      setJobGroups(data.job_groups);
-      setPositions(data.positions);
-      setTitles(data.titles);
-      setGrades(data.grades);
-      if (data.settings) {
-        setSettings(data.settings);
-      }
-    } catch (error) {
-      console.warn("Failed to fetch structure data:", error);
-    }
-  }, [orgId]);
+  // Local copy for optimistic toggle updates
+  const [settings, setSettings] = useState<OrgStructureSettings>(structureSettings);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    setSettings(structureSettings);
+  }, [structureSettings]);
 
   const handleToggle = useCallback(
     async (key: SettingsKey) => {
@@ -201,7 +172,7 @@ export function OrgSettingsStructureSubTab({
     try {
       await service(orgId, { name });
       clearName();
-      fetchData();
+      refreshStructureData();
     } catch (error) {
       console.warn("Failed to add:", error);
     }
@@ -215,7 +186,7 @@ export function OrgSettingsStructureSubTab({
     if (!confirm(confirmMsg)) return;
     try {
       await service(orgId, id);
-      fetchData();
+      refreshStructureData();
     } catch (error) {
       console.warn("Failed to delete:", error);
       toast.error(errorMsg);

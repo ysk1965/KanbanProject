@@ -12,7 +12,7 @@ import java.util.Optional;
 
 public interface OrganizationRepository extends JpaRepository<Organization, String> {
 
-    @Query("SELECT o FROM Organization o WHERE o.id = :id AND o.deletedAt IS NULL")
+    @Query("SELECT o FROM Organization o LEFT JOIN FETCH o.subscription WHERE o.id = :id AND o.deletedAt IS NULL")
     Optional<Organization> findActiveById(@Param("id") String id);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
@@ -35,4 +35,10 @@ public interface OrganizationRepository extends JpaRepository<Organization, Stri
 
     @Query("SELECT o FROM Organization o WHERE o.name = :name AND o.deletedAt IS NULL")
     Optional<Organization> findActiveByName(@Param("name") String name);
+
+    @Query("SELECT " +
+           "(SELECT COUNT(om) FROM OrganizationMember om WHERE om.organization.id = :orgId), " +
+           "(SELECT COUNT(b) FROM Board b WHERE b.organization.id = :orgId AND b.deletedAt IS NULL) " +
+           "FROM Organization o WHERE o.id = :orgId AND o.deletedAt IS NULL")
+    Object[] countMemberAndBoardByOrgId(@Param("orgId") String orgId);
 }
