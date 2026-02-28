@@ -11,10 +11,12 @@ import java.util.List;
 import java.util.Optional;
 
 public interface OrgSubscriptionRepository extends JpaRepository<OrgSubscription, String> {
-    Optional<OrgSubscription> findByOrganizationId(String organizationId);
+
+    @Query("SELECT os FROM OrgSubscription os JOIN FETCH os.organization WHERE os.organization.id = :orgId")
+    Optional<OrgSubscription> findByOrganizationId(@Param("orgId") String orgId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT os FROM OrgSubscription os WHERE os.organization.id = :orgId")
+    @Query("SELECT os FROM OrgSubscription os JOIN FETCH os.organization WHERE os.organization.id = :orgId")
     Optional<OrgSubscription> findByOrganizationIdForUpdate(@Param("orgId") String orgId);
 
     List<OrgSubscription> findByStatusAndTrialEndsAtBefore(SubscriptionStatus status, LocalDateTime now);
