@@ -3328,4 +3328,5 @@ export const orgSubscriptionService = {
   cancel: orgSubscriptionAPI.cancel,
   getPayments: orgSubscriptionAPI.getPayments,
   confirmPayment: orgSubscriptionAPI.confirmPayment,
+  purchaseSeats: orgSubscriptionAPI.purchaseSeats,
 };

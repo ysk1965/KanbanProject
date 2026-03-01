@@ -6468,4 +6468,13 @@ export const orgSubscriptionAPI = {
   }): Promise<import("../types").OrgSubscription> => {
     return apiClient.post("/payments/confirm/org-subscription", data);
   },
+
+  purchaseSeats: async (
+    orgId: string,
+    additionalSeats: number,
+  ): Promise<import("../types").OrgSubscription> => {
+    return apiClient.post(`/organizations/${orgId}/subscription/seats`, {
+      additional_seats: additionalSeats,
+    });
+  },
 };

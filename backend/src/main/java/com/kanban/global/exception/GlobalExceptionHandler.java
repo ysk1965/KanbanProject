@@ -19,6 +19,32 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(OrgSeatLimitException.class)
+    public ResponseEntity<ErrorResponse> handleOrgSeatLimitException(OrgSeatLimitException e) {
+        log.warn("Org seat limit exceeded: orgId={}, seats={}, active={}",
+                e.getOrgId(), e.getSeatCount(), e.getActiveMemberCount());
+        ErrorCode errorCode = e.getErrorCode();
+
+        Map<String, String> seatInfo = new HashMap<>();
+        seatInfo.put("org_id", e.getOrgId());
+        seatInfo.put("seat_count", String.valueOf(e.getSeatCount()));
+        seatInfo.put("active_member_count", String.valueOf(e.getActiveMemberCount()));
+        seatInfo.put("monthly_price_per_seat", String.valueOf(e.getMonthlyPricePerSeat()));
+        seatInfo.put("yearly_price_per_seat", String.valueOf(e.getYearlyPricePerSeat()));
+        seatInfo.put("is_org_admin", String.valueOf(e.isOrgAdmin()));
+
+        Sentry.withScope(scope -> {
+            scope.setLevel(SentryLevel.WARNING);
+            scope.setTag("error.code", errorCode.getCode());
+            scope.setTag("error.type", "org_seat_limit");
+            Sentry.captureException(e);
+        });
+
+        return ResponseEntity
+                .status(errorCode.getStatus())
+                .body(ErrorResponse.of(errorCode, seatInfo));
+    }
+
     @ExceptionHandler(SeatLimitException.class)
     public ResponseEntity<ErrorResponse> handleSeatLimitException(SeatLimitException e) {
         log.warn("Seat limit exceeded: seats={}, billable={}", e.getSeatCount(), e.getBillableMemberCount());

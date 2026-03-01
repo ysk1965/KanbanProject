@@ -2534,6 +2534,23 @@
     "title": "अतिरिक्त सीट खरीदें",
     "year": "वर्ष"
   },
+  "orgSeatLimit": {
+    "title": "संगठन सीट सीमा",
+    "subtitle": "संगठन की सभी सीटें उपयोग में हैं",
+    "currentSeats": "वर्तमान सीट उपयोग",
+    "pendingInvite": "{{email}} को आमंत्रित करने के लिए अतिरिक्त संगठन सीट आवश्यक हैं।",
+    "pendingRoleChange": "सदस्य की भूमिका बदलने के लिए अतिरिक्त संगठन सीट आवश्यक हैं।",
+    "additionalSeats": "अतिरिक्त सीटें",
+    "month": "माह",
+    "year": "वर्ष",
+    "purchaseAndContinue": "खरीदें और आमंत्रित करें",
+    "purchaseAndPromote": "खरीदें और भूमिका बदलें",
+    "nonAdminTitle": "अपर्याप्त सीटें",
+    "nonAdminMessage": "कृपया अधिक सीट जोड़ने के लिए संगठन व्यवस्थापक से संपर्क करें।",
+    "confirm": "ठीक है",
+    "close": "बंद करें",
+    "purchaseFailed": "सीट खरीदने में विफल।"
+  },
   "ai_credits": {
     "title": "AI क्रेडिट",
     "remaining": "शेष क्रेडिट",

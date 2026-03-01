@@ -2534,6 +2534,23 @@
     "title": "追加シートの購入",
     "year": "年"
   },
+  "orgSeatLimit": {
+    "title": "組織シート不足",
+    "subtitle": "組織のシートがすべて使用中です",
+    "currentSeats": "現在のシート使用量",
+    "pendingInvite": "{{email}}を招待するには、組織のシートが必要です。",
+    "pendingRoleChange": "メンバーの役割を変更するには、組織のシートが必要です。",
+    "additionalSeats": "追加シート数",
+    "month": "月",
+    "year": "年",
+    "purchaseAndContinue": "購入して招待",
+    "purchaseAndPromote": "購入して役割変更",
+    "nonAdminTitle": "シートが不足しています",
+    "nonAdminMessage": "組織の管理者にシートの追加を依頼してください。",
+    "confirm": "OK",
+    "close": "閉じる",
+    "purchaseFailed": "シートの購入に失敗しました。"
+  },
   "ai_credits": {
     "title": "AIクレジット",
     "remaining": "残りクレジット",
