@@ -485,6 +485,23 @@
     "purchaseAndPromote": "Purchase & Change Role",
     "pendingRoleChange": "Additional seats are required to change the member's role."
   },
+  "orgSeatLimit": {
+    "title": "Organization Seat Limit",
+    "subtitle": "All organization seats are in use",
+    "currentSeats": "Current Seat Usage",
+    "pendingInvite": "To invite {{email}}, additional organization seats are needed.",
+    "pendingRoleChange": "Additional organization seats are required to change the member's role.",
+    "additionalSeats": "Additional Seats",
+    "month": "mo",
+    "year": "yr",
+    "purchaseAndContinue": "Purchase & Invite",
+    "purchaseAndPromote": "Purchase & Change Role",
+    "nonAdminTitle": "Not enough seats",
+    "nonAdminMessage": "Please ask the organization admin to add more seats.",
+    "confirm": "OK",
+    "close": "Close",
+    "purchaseFailed": "Failed to purchase seats."
+  },
   "premiumBenefits": {
     "heroTitle": "Unlock Premium Features",
     "heroSubtitle": "Your trial has ended. See what Premium can do for your team.",

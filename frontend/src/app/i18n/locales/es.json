@@ -2534,6 +2534,23 @@
     "title": "Comprar puestos adicionales",
     "year": "año"
   },
+  "orgSeatLimit": {
+    "title": "Límite de puestos de la organización",
+    "subtitle": "Todos los puestos de la organización están en uso",
+    "currentSeats": "Uso actual de puestos",
+    "pendingInvite": "Se necesitan puestos adicionales de la organización para invitar a {{email}}.",
+    "pendingRoleChange": "Se necesitan puestos adicionales de la organización para cambiar el rol del miembro.",
+    "additionalSeats": "Puestos adicionales",
+    "month": "mes",
+    "year": "año",
+    "purchaseAndContinue": "Comprar e invitar",
+    "purchaseAndPromote": "Comprar y cambiar rol",
+    "nonAdminTitle": "Puestos insuficientes",
+    "nonAdminMessage": "Por favor, contacte al administrador de la organización para agregar más puestos.",
+    "confirm": "OK",
+    "close": "Cerrar",
+    "purchaseFailed": "Error al comprar puestos."
+  },
   "ai_credits": {
     "title": "Créditos de IA",
     "remaining": "Créditos restantes",

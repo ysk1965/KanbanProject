@@ -2400,6 +2400,23 @@
     "editThisOnly": "僅編輯此會議",
     "editThisAndFuture": "編輯此會議及未來會議"
   },
+  "orgSeatLimit": {
+    "title": "組織席位不足",
+    "subtitle": "組織的所有席位已被使用",
+    "currentSeats": "目前席位使用量",
+    "pendingInvite": "邀請 {{email}} 需要額外的組織席位。",
+    "pendingRoleChange": "變更成員角色需要額外的組織席位。",
+    "additionalSeats": "額外席位數",
+    "month": "月",
+    "year": "年",
+    "purchaseAndContinue": "購買並邀請",
+    "purchaseAndPromote": "購買並變更角色",
+    "nonAdminTitle": "席位不足",
+    "nonAdminMessage": "請聯繫組織管理員新增更多席位。",
+    "confirm": "確定",
+    "close": "關閉",
+    "purchaseFailed": "購買席位失敗。"
+  },
   "ai_credits": {
     "title": "AI積分",
     "remaining": "剩餘積分",

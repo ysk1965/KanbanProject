@@ -100,18 +100,8 @@ export function OrgDashboardTab({ orgId, role }: OrgDashboardTabProps) {
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex items-center bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] overflow-hidden relative"
+        className="flex items-center bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] overflow-hidden"
       >
-        {subscription && (
-          <div className="absolute top-2 right-3 z-10">
-            <OrgSubscriptionBadge
-              plan={subscription.plan}
-              status={subscription.status}
-              trialEndsAt={subscription.trial_ends_at}
-              size="sm"
-            />
-          </div>
-        )}
         {[
           {
             icon: Users,
@@ -159,6 +149,16 @@ export function OrgDashboardTab({ orgId, role }: OrgDashboardTabProps) {
             <ChevronRight size={12} className="text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
           </div>
         ))}
+        {subscription && (
+          <div className="flex items-center justify-center px-4 py-3 border-l border-foreground/[0.08]">
+            <OrgSubscriptionBadge
+              plan={subscription.plan}
+              status={subscription.status}
+              trialEndsAt={subscription.trial_ends_at}
+              size="sm"
+            />
+          </div>
+        )}
       </motion.div>
 
       {/* 2. Attendance Widget */}

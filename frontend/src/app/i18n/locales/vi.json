@@ -2534,6 +2534,23 @@
     "title": "Mua thêm chỗ",
     "year": "năm"
   },
+  "orgSeatLimit": {
+    "title": "Hết chỗ tổ chức",
+    "subtitle": "Tất cả chỗ của tổ chức đã được sử dụng",
+    "currentSeats": "Sử dụng chỗ hiện tại",
+    "pendingInvite": "Để mời {{email}}, cần thêm chỗ tổ chức.",
+    "pendingRoleChange": "Cần thêm chỗ tổ chức để thay đổi vai trò thành viên.",
+    "additionalSeats": "Số chỗ thêm",
+    "month": "tháng",
+    "year": "năm",
+    "purchaseAndContinue": "Mua & Mời",
+    "purchaseAndPromote": "Mua & Đổi vai trò",
+    "nonAdminTitle": "Không đủ chỗ",
+    "nonAdminMessage": "Vui lòng liên hệ quản trị viên tổ chức để thêm chỗ.",
+    "confirm": "OK",
+    "close": "Đóng",
+    "purchaseFailed": "Mua chỗ thất bại."
+  },
   "ai_credits": {
     "title": "Tín chỉ AI",
     "remaining": "Tín chỉ còn lại",

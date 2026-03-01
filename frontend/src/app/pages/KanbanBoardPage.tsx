@@ -116,6 +116,7 @@ import {
   memberService,
   inviteLinkService,
   subscriptionService,
+  orgSubscriptionService,
   activityService,
   milestoneService,
   checklistService,
@@ -343,6 +344,18 @@ export function KanbanBoardPage() {
     open: boolean;
     seatCount: number;
     billableMemberCount: number;
+    pendingEmail: string;
+    pendingRole: MemberRole;
+    pendingMemberId?: string;
+  } | null>(null);
+  const [orgSeatLimitModal, setOrgSeatLimitModal] = useState<{
+    open: boolean;
+    orgId: string;
+    seatCount: number;
+    activeMemberCount: number;
+    monthlyPricePerSeat: number;
+    yearlyPricePerSeat: number;
+    isOrgAdmin: boolean;
     pendingEmail: string;
     pendingRole: MemberRole;
     pendingMemberId?: string;
@@ -984,6 +997,28 @@ export function KanbanBoardPage() {
     }
   };
 
+  // 조직 시트 구매 후 자동 재초대/역할변경 핸들러
+  const handleOrgPurchaseSeatsAndRetry = async (additionalSeats: number) => {
+    if (!orgSeatLimitModal) return;
+
+    const { orgId, pendingEmail, pendingRole, pendingMemberId } = orgSeatLimitModal;
+
+    try {
+      await orgSubscriptionService.purchaseSeats(orgId, additionalSeats);
+      setOrgSeatLimitModal(null);
+
+      // 시트 구매 성공 후 재시도
+      if (pendingMemberId) {
+        await handleUpdateMemberRole(pendingMemberId, pendingRole);
+      } else if (pendingEmail) {
+        await handleAddMember(pendingEmail, pendingRole);
+      }
+    } catch (error: any) {
+      console.error("Failed to purchase org seats:", error);
+      alert(error?.message || t("orgSeatLimit.purchaseFailed"));
+    }
+  };
+
   // 칸반 뷰 마일스톤 선택 핸들러
   const handleKanbanMilestoneSelect = async (milestoneId: string) => {
     setKanbanSelectedMilestoneId(milestoneId);
@@ -1044,6 +1079,20 @@ export function KanbanBoardPage() {
       }
     } catch (error: any) {
       console.error("Failed to invite member:", error);
+      if (error?.code === "OS003" && error?.errors) {
+        setOrgSeatLimitModal({
+          open: true,
+          orgId: error.errors.org_id,
+          seatCount: parseInt(error.errors.seat_count),
+          activeMemberCount: parseInt(error.errors.active_member_count),
+          monthlyPricePerSeat: parseInt(error.errors.monthly_price_per_seat),
+          yearlyPricePerSeat: parseInt(error.errors.yearly_price_per_seat),
+          isOrgAdmin: error.errors.is_org_admin === "true",
+          pendingEmail: email,
+          pendingRole: role,
+        });
+        return;
+      }
       if (error?.code === "S005" && error?.errors) {
         setSeatPurchaseModal({
           open: true,
@@ -1077,6 +1126,21 @@ export function KanbanBoardPage() {
     } catch (error: any) {
       console.error("Failed to update member role:", error);
       setBoardMembersData(prevMembers);
+      if (error?.code === "OS003" && error?.errors) {
+        setOrgSeatLimitModal({
+          open: true,
+          orgId: error.errors.org_id,
+          seatCount: parseInt(error.errors.seat_count),
+          activeMemberCount: parseInt(error.errors.active_member_count),
+          monthlyPricePerSeat: parseInt(error.errors.monthly_price_per_seat),
+          yearlyPricePerSeat: parseInt(error.errors.yearly_price_per_seat),
+          isOrgAdmin: error.errors.is_org_admin === "true",
+          pendingEmail: "",
+          pendingRole: role,
+          pendingMemberId: memberId,
+        });
+        return;
+      }
       if (error?.code === "S005" && error?.errors) {
         setSeatPurchaseModal({
           open: true,
@@ -3154,6 +3218,10 @@ export function KanbanBoardPage() {
           onCloseSeatPurchase={() => setSeatPurchaseModal(null)}
           billingCycle={subscription?.billing_cycle || "MONTHLY"}
           onPurchaseSeatsAndRetry={handlePurchaseSeatsAndRetry}
+          // Org Seat Limit Modal
+          orgSeatLimitModal={orgSeatLimitModal}
+          onCloseOrgSeatLimit={() => setOrgSeatLimitModal(null)}
+          onOrgPurchaseSeatsAndRetry={handleOrgPurchaseSeatsAndRetry}
           // Alert Modal
           alertModal={alertModal}
           onCloseAlert={() => setAlertModal({ ...alertModal, open: false })}

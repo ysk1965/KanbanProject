@@ -32,6 +32,7 @@ public class OrgSubscriptionController {
     public record MigrateRequest(BillingCycle billingCycle, List<String> boardIds, String paymentMethodId) {}
     public record OrgPaymentConfirmRequest(String orgId, String paymentKey, String orderId,
             int amount, BillingCycle billingCycle, int seatCount, String paymentMethodId) {}
+    public record PurchaseSeatsRequest(int additionalSeats) {}
 
     // === Endpoints ===
 
@@ -87,6 +88,17 @@ public class OrgSubscriptionController {
         organizationService.checkAdminOrAbove(orgId, principal.getUserId());
         orgSubscriptionService.downgradeToFree(orgId);
         OrgSubscription sub = orgSubscriptionService.getSubscription(orgId);
+        int boardCount = boardRepository.countByOrganizationId(orgId);
+        return ResponseEntity.ok(OrgSubscriptionResponse.from(sub, boardCount));
+    }
+
+    @PostMapping("/api/v1/organizations/{orgId}/subscription/seats")
+    public ResponseEntity<OrgSubscriptionResponse> purchaseSeats(
+            @PathVariable String orgId,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestBody PurchaseSeatsRequest request) {
+        organizationService.checkAdminOrAbove(orgId, principal.getUserId());
+        OrgSubscription sub = orgSubscriptionService.purchaseAdditionalSeats(orgId, request.additionalSeats());
         int boardCount = boardRepository.countByOrganizationId(orgId);
         return ResponseEntity.ok(OrgSubscriptionResponse.from(sub, boardCount));
     }

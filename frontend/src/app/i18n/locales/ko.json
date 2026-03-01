@@ -485,6 +485,23 @@
     "purchaseAndPromote": "구매 후 역할 변경",
     "pendingRoleChange": "멤버 역할을 변경하려면 추가 시트가 필요합니다."
   },
+  "orgSeatLimit": {
+    "title": "조직 시트 부족",
+    "subtitle": "조직의 시트가 모두 사용 중입니다",
+    "currentSeats": "현재 시트 사용량",
+    "pendingInvite": "{{email}}을(를) 초대하려면 조직 시트가 필요합니다.",
+    "pendingRoleChange": "멤버 역할을 변경하려면 조직 시트가 필요합니다.",
+    "additionalSeats": "추가 시트 수",
+    "month": "월",
+    "year": "년",
+    "purchaseAndContinue": "구매 후 초대",
+    "purchaseAndPromote": "구매 후 역할 변경",
+    "nonAdminTitle": "시트가 부족합니다",
+    "nonAdminMessage": "조직 관리자에게 시트 추가를 요청해 주세요.",
+    "confirm": "확인",
+    "close": "닫기",
+    "purchaseFailed": "시트 구매에 실패했습니다."
+  },
   "premiumBenefits": {
     "heroTitle": "Premium 기능을 만나보세요",
     "heroSubtitle": "체험 기간이 종료되었습니다. Premium으로 팀의 생산성을 높여보세요.",

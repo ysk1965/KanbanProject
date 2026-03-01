@@ -8,6 +8,8 @@ import com.kanban.domain.invite.InviteLinkRepository;
 import com.kanban.domain.organization.repository.OrgMemberRepository;
 import com.kanban.domain.member.dto.MemberRequest;
 import com.kanban.domain.member.dto.MemberResponse;
+import com.kanban.domain.subscription.OrgSubscription;
+import com.kanban.domain.subscription.OrgSubscriptionRepository;
 import com.kanban.domain.subscription.Subscription;
 import com.kanban.domain.subscription.SubscriptionRepository;
 import com.kanban.domain.user.User;
@@ -15,6 +17,7 @@ import com.kanban.domain.user.UserRepository;
 import com.kanban.global.email.EmailService;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
+import com.kanban.global.exception.OrgSeatLimitException;
 import com.kanban.global.exception.SeatLimitException;
 import com.kanban.global.websocket.WebSocketEventService;
 import com.kanban.global.websocket.dto.BoardEventType;
@@ -43,6 +46,7 @@ public class MemberService {
     private final BoardRepository boardRepository;
     private final UserRepository userRepository;
     private final SubscriptionRepository subscriptionRepository;
+    private final OrgSubscriptionRepository orgSubscriptionRepository;
     private final InviteLinkRepository inviteLinkRepository;
     private final BoardService boardService;
     private final EmailService emailService;
@@ -106,16 +110,20 @@ public class MemberService {
 
         // 멤버 수 제한 확인 (billable 멤버 기준) - Lock 획득 후 체크하여 동시성 안전
         if (role != BoardRole.VIEWER) {
-            Subscription subscription = subscriptionRepository.findByBoardId(boardId).orElse(null);
-            if (subscription != null) {
-                int currentBillable = boardMemberRepository.countBillableMembers(boardId);
-                if (currentBillable >= subscription.getMemberLimit()) {
-                    if (subscription.isActive()) {
-                        throw new SeatLimitException(
-                                subscription.getSeatCount(), currentBillable,
-                                Subscription.MONTHLY_PRICE_PER_SEAT, Subscription.YEARLY_PRICE_PER_SEAT);
+            if (board.isOrgManaged()) {
+                checkOrgSeatLimit(board, inviter.getId());
+            } else {
+                Subscription subscription = subscriptionRepository.findByBoardId(boardId).orElse(null);
+                if (subscription != null) {
+                    int currentBillable = boardMemberRepository.countBillableMembers(boardId);
+                    if (currentBillable >= subscription.getMemberLimit()) {
+                        if (subscription.isActive()) {
+                            throw new SeatLimitException(
+                                    subscription.getSeatCount(), currentBillable,
+                                    Subscription.MONTHLY_PRICE_PER_SEAT, Subscription.YEARLY_PRICE_PER_SEAT);
+                        }
+                        throw new BusinessException(ErrorCode.MEMBER_LIMIT_EXCEEDED);
                     }
-                    throw new BusinessException(ErrorCode.MEMBER_LIMIT_EXCEEDED);
                 }
             }
         }
@@ -189,16 +197,21 @@ public class MemberService {
 
         // Viewer에서 다른 역할로 변경 시 멤버 수 제한 확인 - Lock 획득 후 체크
         if (member.getRole() == BoardRole.VIEWER && request.getRole() != BoardRole.VIEWER) {
-            Subscription subscription = subscriptionRepository.findByBoardId(boardId).orElse(null);
-            if (subscription != null) {
-                int currentBillable = boardMemberRepository.countBillableMembers(boardId);
-                if (currentBillable >= subscription.getMemberLimit()) {
-                    if (subscription.isActive()) {
-                        throw new SeatLimitException(
-                                subscription.getSeatCount(), currentBillable,
-                                Subscription.MONTHLY_PRICE_PER_SEAT, Subscription.YEARLY_PRICE_PER_SEAT);
+            Board board = member.getBoard();
+            if (board.isOrgManaged()) {
+                checkOrgSeatLimit(board, userId);
+            } else {
+                Subscription subscription = subscriptionRepository.findByBoardId(boardId).orElse(null);
+                if (subscription != null) {
+                    int currentBillable = boardMemberRepository.countBillableMembers(boardId);
+                    if (currentBillable >= subscription.getMemberLimit()) {
+                        if (subscription.isActive()) {
+                            throw new SeatLimitException(
+                                    subscription.getSeatCount(), currentBillable,
+                                    Subscription.MONTHLY_PRICE_PER_SEAT, Subscription.YEARLY_PRICE_PER_SEAT);
+                        }
+                        throw new BusinessException(ErrorCode.MEMBER_LIMIT_EXCEEDED);
                     }
-                    throw new BusinessException(ErrorCode.MEMBER_LIMIT_EXCEEDED);
                 }
             }
         }
@@ -286,6 +299,20 @@ public class MemberService {
         boardMemberRepository.delete(member);
 
         log.info("Member removed: {} from board: {} by user: {}", memberId, boardId, userId);
+    }
+
+    private void checkOrgSeatLimit(Board board, String userId) {
+        String orgId = board.getOrganization().getId();
+        OrgSubscription orgSub = orgSubscriptionRepository.findByOrganizationId(orgId).orElse(null);
+        if (orgSub != null && !orgSub.canInviteMember()) {
+            boolean isOrgAdmin = orgMemberRepository.findByOrganizationIdAndUserId(orgId, userId)
+                    .map(OrganizationMember::isAdminOrAbove)
+                    .orElse(false);
+            throw new OrgSeatLimitException(
+                    orgId, orgSub.getSeatCount(), orgSub.getActiveMemberCount(),
+                    OrgSubscription.MONTHLY_PRICE_PER_SEAT, OrgSubscription.YEARLY_PRICE_PER_SEAT,
+                    isOrgAdmin);
+        }
     }
 
     public List<MemberResponse.OrgCandidate> getOrgCandidates(String boardId, String userId, String search) {

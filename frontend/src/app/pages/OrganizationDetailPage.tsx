@@ -264,7 +264,7 @@ function OrgDetailPageContent() {
   return (
     <div className="min-h-screen bg-bridge-dark flex flex-col">
       {/* Header Bar (full-width, matching MySpace) */}
-      <header className="border-b border-foreground/[0.08] bg-bridge-dark/80 backdrop-blur-xl sticky top-0 z-30 shrink-0">
+      <header className="border-b border-foreground/[0.08] bg-bridge-dark/80 backdrop-blur-xl sticky top-0 z-30 shrink-0 safe-top">
         {/* Desktop: 3-column header */}
         <div className="relative flex items-center justify-between h-14 md:h-16 px-3 md:px-6 gap-3">
           {/* Left: Back + Org Info */}
@@ -367,35 +367,30 @@ function OrgDetailPageContent() {
           </div>
         </div>
 
-        {/* Mobile: Tabs row */}
-        <div className="md:hidden pb-3 px-3">
-          <div className="overflow-x-auto -mx-1">{tabNav}</div>
-        </div>
-      </header>
-
-      {/* Sub-tab bar (pill style, matching Board) */}
-      {activeGroup.subTabs && (
-        <div className="flex items-center justify-center py-1.5 border-b border-foreground/5">
-          <div className="flex items-center gap-1 bg-foreground/5 rounded-lg p-0.5">
-            {activeGroup.subTabs.map((sub) => (
-              <button
-                key={sub.key}
-                onClick={() => setActiveTab(sub.key)}
-                className={`px-3 py-1 rounded-md text-xs font-medium transition-all whitespace-nowrap ${
-                  activeTab === sub.key
-                    ? "bg-foreground/10 text-foreground"
-                    : "text-slate-400 hover:text-foreground"
-                }`}
-              >
-                {t(
-                  sub.labelKey,
-                  sub.key.charAt(0).toUpperCase() + sub.key.slice(1),
-                )}
-              </button>
-            ))}
+        {/* Sub-tab bar (pill style, matching Board) */}
+        {activeGroup.subTabs && (
+          <div className="flex items-center justify-center py-1.5 border-t border-foreground/5">
+            <div className="flex items-center gap-1 bg-foreground/5 rounded-lg p-0.5">
+              {activeGroup.subTabs.map((sub) => (
+                <button
+                  key={sub.key}
+                  onClick={() => setActiveTab(sub.key)}
+                  className={`px-3 py-1 rounded-md text-xs font-medium transition-all whitespace-nowrap ${
+                    activeTab === sub.key
+                      ? "bg-foreground/10 text-foreground"
+                      : "text-slate-400 hover:text-foreground"
+                  }`}
+                >
+                  {t(
+                    sub.labelKey,
+                    sub.key.charAt(0).toUpperCase() + sub.key.slice(1),
+                  )}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </header>
 
       {/* Content — visited tabs stay mounted (hidden when inactive) */}
       <div className="flex-1">
@@ -476,7 +471,63 @@ function OrgDetailPageContent() {
             true,
           )}
         </div>
+
+        {/* Bottom spacer for mobile tab bar */}
+        <div className="shrink-0 md:hidden" style={{ height: 'calc(3.5rem + env(safe-area-inset-bottom, 0px))' }} />
       </div>
+
+      {/* ─── Mobile Bottom Tab Bar (MySpace style) ─── */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-bridge-obsidian/95 backdrop-blur-xl border-t border-foreground/10"
+           style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        <div className="flex items-center justify-around px-1 pt-2 pb-1.5">
+          {visibleGroups.map((group) => {
+            const Icon = group.icon;
+            const isActive = activeGroup.key === group.key;
+            return (
+              <button
+                key={group.key}
+                onClick={() => setActiveTab(group.defaultTab)}
+                className="relative flex flex-col items-center gap-0.5 py-1 px-2 min-w-0"
+              >
+                {isActive && (
+                  <motion.div
+                    layoutId="org-tab-indicator"
+                    className="absolute -top-2 w-8 h-[3px] rounded-full bg-bridge-secondary"
+                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                  />
+                )}
+                {isActive && (
+                  <motion.div
+                    layoutId="org-tab-glow"
+                    className="absolute inset-0 rounded-xl bg-bridge-secondary/8"
+                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                  />
+                )}
+                <motion.div
+                  animate={isActive ? { scale: 1.15, y: -2 } : { scale: 1, y: 0 }}
+                  transition={{ type: "spring", stiffness: 500, damping: 25 }}
+                >
+                  <Icon
+                    size={20}
+                    className={`transition-colors duration-200 ${
+                      isActive ? "text-bridge-secondary" : "text-slate-500"
+                    }`}
+                  />
+                </motion.div>
+                <motion.span
+                  className={`text-[10px] font-medium transition-colors duration-200 ${
+                    isActive ? "text-bridge-secondary" : "text-slate-500"
+                  }`}
+                  animate={isActive ? { opacity: 1, y: 0 } : { opacity: 0.7, y: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  {t(group.labelKey, group.key.charAt(0).toUpperCase() + group.key.slice(1))}
+                </motion.span>
+              </button>
+            );
+          })}
+        </div>
+      </nav>
 
       {myMemberId && (
         <MemberDetailModal

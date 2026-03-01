@@ -2534,6 +2534,23 @@
     "title": "Comprar vagas adicionais",
     "year": "ano"
   },
+  "orgSeatLimit": {
+    "title": "Limite de vagas da organização",
+    "subtitle": "Todas as vagas da organização estão em uso",
+    "currentSeats": "Uso atual de vagas",
+    "pendingInvite": "São necessárias vagas adicionais da organização para convidar {{email}}.",
+    "pendingRoleChange": "São necessárias vagas adicionais da organização para alterar o papel do membro.",
+    "additionalSeats": "Vagas adicionais",
+    "month": "mês",
+    "year": "ano",
+    "purchaseAndContinue": "Comprar e convidar",
+    "purchaseAndPromote": "Comprar e alterar papel",
+    "nonAdminTitle": "Vagas insuficientes",
+    "nonAdminMessage": "Entre em contato com o administrador da organização para adicionar mais vagas.",
+    "confirm": "OK",
+    "close": "Fechar",
+    "purchaseFailed": "Falha ao comprar vagas."
+  },
   "ai_credits": {
     "title": "Créditos de IA",
     "remaining": "Créditos restantes",

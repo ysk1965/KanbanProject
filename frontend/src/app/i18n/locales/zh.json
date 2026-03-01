@@ -2534,6 +2534,23 @@
     "title": "购买额外座位",
     "year": "年"
   },
+  "orgSeatLimit": {
+    "title": "组织席位不足",
+    "subtitle": "组织的所有席位已被使用",
+    "currentSeats": "当前席位使用量",
+    "pendingInvite": "邀请 {{email}} 需要额外的组织席位。",
+    "pendingRoleChange": "更改成员角色需要额外的组织席位。",
+    "additionalSeats": "额外席位数",
+    "month": "月",
+    "year": "年",
+    "purchaseAndContinue": "购买并邀请",
+    "purchaseAndPromote": "购买并更改角色",
+    "nonAdminTitle": "席位不足",
+    "nonAdminMessage": "请联系组织管理员添加更多席位。",
+    "confirm": "确定",
+    "close": "关闭",
+    "purchaseFailed": "购买席位失败。"
+  },
   "ai_credits": {
     "title": "AI积分",
     "remaining": "剩余积分",
