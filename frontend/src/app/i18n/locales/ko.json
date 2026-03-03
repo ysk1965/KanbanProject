@@ -203,14 +203,14 @@
       }
     },
     "pricing": {
-      "badge": "PREMIUM 3 DAYS FREE TRIAL",
-      "trialBadge": "PREMIUM 3 DAYS FREE TRIAL",
+      "badge": "PREMIUM 7 DAYS FREE TRIAL",
+      "trialBadge": "PREMIUM 7 DAYS FREE TRIAL",
       "title": "Price.\nReinvented",
       "titleLine1": "Price.",
       "titleLine2": "Reinvented",
       "momentum": "Continuous Momentum.",
-      "momentumText": "3일 후 결제를 원하지 않으셔도 <1>무제한 무료 보드(Basic)</1>로 자동 전환되어 데이터와 협업 흐름은 영구적으로 안전하게 보존됩니다.",
-      "momentumDesc": "3일 후 결제를 원하지 않으셔도 무제한 무료 보드(Basic)로 자동 전환되어 데이터와 협업 흐름은 영구적으로 안전하게 보존됩니다.",
+      "momentumText": "7일 후 결제를 원하지 않으셔도 <1>무제한 무료 보드(Basic)</1>로 자동 전환되어 데이터와 협업 흐름은 영구적으로 안전하게 보존됩니다.",
+      "momentumDesc": "7일 후 결제를 원하지 않으셔도 무제한 무료 보드(Basic)로 자동 전환되어 데이터와 협업 흐름은 영구적으로 안전하게 보존됩니다.",
       "basic": {
         "name": "Basic Spots",
         "price": "Free",
@@ -236,6 +236,21 @@
         "feature6": "실시간 보드 동기화 (새로고침 없이 즉시 반영)",
         "feature7": "음성 지원 AI 대화형 다이어리",
         "cta": "START TRIAL"
+      },
+      "organization": {
+        "name": "Organization",
+        "subtitle": "per user / month (Annual $150)",
+        "tagline": "per user / month (Annual $150)",
+        "includes": "Premium의 모든 기능 포함:",
+        "feature1": "조직 전체 보드 통합 관리",
+        "feature2": "OKR 목표 & 핵심 결과 추적",
+        "feature3": "보드 기반 성과 평가 시스템",
+        "feature4": "부서 & 팀 계층 구조 관리",
+        "feature5": "리뷰 사이클 & 동료 피드백",
+        "feature6": "조직 분석 & 인사이트 대시보드",
+        "feature7": "중앙 집중형 멤버 & 역할 관리",
+        "feature8": "크로스보드 리소스 오케스트레이션",
+        "cta": "CONTACT SALES"
       }
     },
     "cta": {
@@ -3527,7 +3542,18 @@
       "createButton": "보드 만들기",
       "noAvailable": "추가 가능한 보드가 없습니다",
       "nonOrgMembers": "비조직원",
-      "addButton": "보드 추가"
+      "addButton": "보드 추가",
+      "upgradeTitle": "시트 구매가 필요합니다",
+      "upgradeDesc": "조직의 시트를 구매하면 자유롭게 보드를 생성하고 구성원들이 함께 사용할 수 있습니다.",
+      "upgradeLinkDesc": "시트를 구매하면 기존 보드를 조직에 연결하여 중앙에서 관리할 수 있습니다.",
+      "upgradeBenefit1": "보드 무제한 생성",
+      "upgradeBenefit1Desc": "팀에 필요한 만큼 보드를 자유롭게 생성하세요",
+      "upgradeBenefit2": "팀 협업",
+      "upgradeBenefit2Desc": "조직 구성원 모두가 보드에 접근하고 협업할 수 있습니다",
+      "upgradeBenefit3": "프리미엄 기능 포함",
+      "upgradeBenefit3Desc": "AI, 분석, 모든 프리미엄 기능을 사용할 수 있습니다",
+      "purchaseSeats": "시트 구매하기",
+      "trialBoardHint": "보드 목록에서 일반 보드는 자유롭게 만들 수 있습니다. 조직 관리 보드만 시트 구매가 필요합니다."
     },
     "leave": {
       "myBalance": "내 휴가 잔여",

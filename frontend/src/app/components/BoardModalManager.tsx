@@ -57,6 +57,10 @@ interface BoardModalManagerProps {
   isAddBlockModalOpen: boolean;
   onCloseAddBlock: () => void;
   onAddBlock: (name: string, color: string) => void;
+  // EditBlock Modal
+  editingBlock: Block | null;
+  onCloseEditBlock: () => void;
+  onEditBlock: (name: string, color: string) => void;
   // AddFeature Modal
   isAddFeatureModalOpen: boolean;
   onCloseAddFeature: () => void;
@@ -332,6 +336,15 @@ export function BoardModalManager(props: BoardModalManagerProps) {
         open={props.isAddBlockModalOpen}
         onClose={props.onCloseAddBlock}
         onAdd={props.onAddBlock}
+      />
+
+      <AddBlockModal
+        open={!!props.editingBlock}
+        onClose={props.onCloseEditBlock}
+        onAdd={props.onEditBlock}
+        isEdit={true}
+        initialName={props.editingBlock?.name || ''}
+        initialColor={props.editingBlock?.color || '#3B82F6'}
       />
 
       <AddFeatureModal

@@ -71,7 +71,7 @@ export function MotionModal({
         <motion.div
           className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4"
           initial={{ backgroundColor: 'rgba(0,0,0,0)', backdropFilter: 'blur(0px)' }}
-          animate={{ backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(12px)' }}
+          animate={{ backgroundColor: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(4px)' }}
           exit={{ backgroundColor: 'rgba(0,0,0,0)', backdropFilter: 'blur(0px)' }}
           transition={{ duration: 0.3 }}
           onMouseDown={() => { mouseDownInsideRef.current = false; }}

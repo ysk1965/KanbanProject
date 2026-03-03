@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, CheckCircle2 } from 'lucide-react';
 import { MotionModal } from './ui/MotionModal';
@@ -38,11 +38,20 @@ export function AddBlockModal({
   const [name, setName] = useState(initialName);
   const [selectedColor, setSelectedColor] = useState(initialColor);
 
+  useEffect(() => {
+    if (open) {
+      setName(initialName);
+      setSelectedColor(initialColor);
+    }
+  }, [open, initialName, initialColor]);
+
   const handleSubmit = () => {
     if (name.trim()) {
       onAdd(name.trim(), selectedColor);
-      setName('');
-      setSelectedColor('#3B82F6');
+      if (!isEdit) {
+        setName('');
+        setSelectedColor('#3B82F6');
+      }
       onClose();
     }
   };
