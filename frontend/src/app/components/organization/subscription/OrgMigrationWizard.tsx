@@ -95,7 +95,6 @@ export function OrgMigrationWizard({
       await orgSubscriptionService.migrate(orgId, {
         billing_cycle: billingCycle,
         board_ids: selectedBoardIds,
-        payment_method_id: 'default',
       });
       toast.success(t('orgSubscription.migration.success', 'Migration completed'));
       onComplete();

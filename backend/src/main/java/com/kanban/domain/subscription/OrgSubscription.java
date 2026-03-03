@@ -170,7 +170,7 @@ public class OrgSubscription {
     }
 
     public boolean canCreateOrgBoard() {
-        return plan == OrgPlan.TEAM && (isActive() || isTrialActive());
+        return plan == OrgPlan.TEAM && isActive();
     }
 
     // ── Seat Methods ──

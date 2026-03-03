@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
-import { Plus, LayoutGrid, X, AlertTriangle, Check, ChevronRight, Link, Clock, Shield } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Plus, LayoutGrid, X, AlertTriangle, Check, ChevronRight, Link, Clock, Shield, CreditCard, Users, Zap } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { organizationService, boardService } from '../../../utils/services';
@@ -150,6 +150,7 @@ function WeeklyChart({ weeks }: { weeks: Array<{ week_start: string; minutes: nu
 export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [, setSearchParams] = useSearchParams();
   const { subscription, loadSubscription } = useOrgData();
   const isAdmin = myRole === 'OWNER' || myRole === 'ADMIN';
   const [boards, setBoards] = useState<OrgBoardSimple[]>([]);
@@ -491,119 +492,240 @@ export function OrgBoardsTab({ orgId, myRole }: OrgBoardsTabProps) {
 
         {/* Create New Board Tab */}
         {addModalTab === 'create' && (
-          <>
-            <div className="px-5 pb-5 pt-4 space-y-3">
-              {subscription && !subscription.can_create_org_board && (
-                <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
-                  <AlertTriangle size={14} className="text-amber-600 dark:text-amber-400 shrink-0" />
-                  <span className="text-[12px] text-amber-600 dark:text-amber-400">
-                    {t('orgSubscription.boards.teamPlanRequired', 'Team plan is required to create org-managed boards')}
-                  </span>
+          subscription && !subscription.can_create_org_board ? (
+            <>
+              <div className="px-5 pb-5 pt-4">
+                <div className="flex flex-col items-center text-center py-4">
+                  <div className="w-14 h-14 rounded-2xl bg-bridge-accent/15 flex items-center justify-center mb-4">
+                    <CreditCard size={28} className="text-bridge-accent" />
+                  </div>
+                  <h3 className="text-base font-bold text-foreground mb-2">
+                    {t('organization.boards.upgradeTitle', 'Seat purchase required')}
+                  </h3>
+                  <p className="text-sm text-slate-400 mb-5 max-w-xs leading-relaxed">
+                    {t('organization.boards.upgradeDesc', 'Purchase seats for your organization to freely create boards and collaborate with your team members.')}
+                  </p>
+                  <div className="w-full space-y-2.5 mb-5">
+                    <div className="flex items-center gap-3 p-3 rounded-xl bg-foreground/[0.03] border border-foreground/[0.08]">
+                      <div className="w-8 h-8 rounded-lg bg-bridge-accent/15 flex items-center justify-center shrink-0">
+                        <LayoutGrid size={14} className="text-bridge-accent" />
+                      </div>
+                      <div className="text-left">
+                        <span className="text-[12px] font-bold text-foreground">
+                          {t('organization.boards.upgradeBenefit1', 'Unlimited board creation')}
+                        </span>
+                        <p className="text-[11px] text-slate-500">
+                          {t('organization.boards.upgradeBenefit1Desc', 'Create as many boards as your team needs')}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 p-3 rounded-xl bg-foreground/[0.03] border border-foreground/[0.08]">
+                      <div className="w-8 h-8 rounded-lg bg-bridge-secondary/15 flex items-center justify-center shrink-0">
+                        <Users size={14} className="text-bridge-secondary" />
+                      </div>
+                      <div className="text-left">
+                        <span className="text-[12px] font-bold text-foreground">
+                          {t('organization.boards.upgradeBenefit2', 'Team collaboration')}
+                        </span>
+                        <p className="text-[11px] text-slate-500">
+                          {t('organization.boards.upgradeBenefit2Desc', 'All organization members can access and collaborate')}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 p-3 rounded-xl bg-foreground/[0.03] border border-foreground/[0.08]">
+                      <div className="w-8 h-8 rounded-lg bg-amber-500/15 flex items-center justify-center shrink-0">
+                        <Zap size={14} className="text-amber-500" />
+                      </div>
+                      <div className="text-left">
+                        <span className="text-[12px] font-bold text-foreground">
+                          {t('organization.boards.upgradeBenefit3', 'Premium features included')}
+                        </span>
+                        <p className="text-[11px] text-slate-500">
+                          {t('organization.boards.upgradeBenefit3Desc', 'AI, analytics, and all premium features')}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 p-3 rounded-xl bg-foreground/[0.03] border border-foreground/[0.06]">
+                    <AlertTriangle size={13} className="text-slate-400 shrink-0" />
+                    <span className="text-[11px] text-slate-500 leading-relaxed">
+                      {t('organization.boards.trialBoardHint', 'You can still create regular boards from the board list. Organization-managed boards require a seat purchase.')}
+                    </span>
+                  </div>
                 </div>
-              )}
-              <input
-                type="text"
-                value={newBoardName}
-                onChange={(e) => setNewBoardName(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && !creating && newBoardName.trim() && handleCreateBoard()}
-                placeholder={t('organization.boards.boardNamePlaceholder', 'Board name')}
-                maxLength={100}
-                autoFocus
-                className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl py-3 px-4 text-sm text-foreground placeholder-slate-500 outline-none focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
-              />
-              <textarea
-                value={newBoardDescription}
-                onChange={(e) => setNewBoardDescription(e.target.value)}
-                placeholder={t('organization.boards.boardDescPlaceholder', 'Description (optional)')}
-                rows={2}
-                maxLength={500}
-                className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl p-3 text-sm text-foreground placeholder-slate-500 outline-none resize-none focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
-              />
-            </div>
-            <div className="px-5 py-3 border-t border-foreground/[0.08] flex items-center justify-between">
-              <span className="text-[10px] text-muted-foreground">ESC</span>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setShowAddModal(false)}
-                  className="px-4 py-1.5 rounded-lg text-xs font-bold bg-foreground/[0.06] text-foreground hover:bg-foreground/10 transition-colors"
-                >
-                  {t('common.cancel', 'Cancel')}
-                </button>
-                <button
-                  onClick={handleCreateBoard}
-                  disabled={!newBoardName.trim() || creating}
-                  className="px-4 py-1.5 rounded-lg text-xs font-bold bg-bridge-accent text-white hover:bg-bridge-accent/90 hover:shadow-[0_0_20px_rgba(99,102,241,0.3)] transition-all disabled:opacity-50"
-                >
-                  {creating
-                    ? t('common.creating', 'Creating...')
-                    : t('organization.boards.createButton', 'Create Board')}
-                </button>
               </div>
-            </div>
-          </>
+              <div className="px-5 py-3 border-t border-foreground/[0.08] flex items-center justify-between">
+                <span className="text-[10px] text-muted-foreground">ESC</span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setShowAddModal(false)}
+                    className="px-4 py-1.5 rounded-lg text-xs font-bold bg-foreground/[0.06] text-foreground hover:bg-foreground/10 transition-colors"
+                  >
+                    {t('common.cancel', 'Cancel')}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowAddModal(false);
+                      setSearchParams({ tab: 'settings', subtab: 'subscription' });
+                    }}
+                    className="px-4 py-1.5 rounded-lg text-xs font-bold bg-bridge-accent text-white hover:bg-bridge-accent/90 hover:shadow-[0_0_20px_rgba(99,102,241,0.3)] transition-all"
+                  >
+                    {t('organization.boards.purchaseSeats', 'Purchase Seats')}
+                  </button>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="px-5 pb-5 pt-4 space-y-3">
+                <input
+                  type="text"
+                  value={newBoardName}
+                  onChange={(e) => setNewBoardName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && !creating && newBoardName.trim() && handleCreateBoard()}
+                  placeholder={t('organization.boards.boardNamePlaceholder', 'Board name')}
+                  maxLength={100}
+                  autoFocus
+                  className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl py-3 px-4 text-sm text-foreground placeholder-slate-500 outline-none focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+                />
+                <textarea
+                  value={newBoardDescription}
+                  onChange={(e) => setNewBoardDescription(e.target.value)}
+                  placeholder={t('organization.boards.boardDescPlaceholder', 'Description (optional)')}
+                  rows={2}
+                  maxLength={500}
+                  className="w-full bg-foreground/[0.03] border border-foreground/10 rounded-xl p-3 text-sm text-foreground placeholder-slate-500 outline-none resize-none focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+                />
+              </div>
+              <div className="px-5 py-3 border-t border-foreground/[0.08] flex items-center justify-between">
+                <span className="text-[10px] text-muted-foreground">ESC</span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setShowAddModal(false)}
+                    className="px-4 py-1.5 rounded-lg text-xs font-bold bg-foreground/[0.06] text-foreground hover:bg-foreground/10 transition-colors"
+                  >
+                    {t('common.cancel', 'Cancel')}
+                  </button>
+                  <button
+                    onClick={handleCreateBoard}
+                    disabled={!newBoardName.trim() || creating}
+                    className="px-4 py-1.5 rounded-lg text-xs font-bold bg-bridge-accent text-white hover:bg-bridge-accent/90 hover:shadow-[0_0_20px_rgba(99,102,241,0.3)] transition-all disabled:opacity-50"
+                  >
+                    {creating
+                      ? t('common.creating', 'Creating...')
+                      : t('organization.boards.createButton', 'Create Board')}
+                  </button>
+                </div>
+              </div>
+            </>
+          )
         )}
 
         {/* Link Existing Board Tab */}
         {addModalTab === 'link' && (
-          <>
-            <div className="px-5 pb-5 pt-4 space-y-2 max-h-[60vh] overflow-y-auto custom-scrollbar">
-              {myBoards.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-4 text-center">
-                  {t('organization.boards.noAvailable', 'No available boards to add')}
-                </p>
-              ) : (
-                myBoards.map((board) => {
-                  const check = eligibility[board.id];
-                  const isEligible = check?.is_eligible;
-                  return (
-                    <div
-                      key={board.id}
-                      onClick={() => isEligible && setSelectedBoardId(board.id)}
-                      className={`p-3 rounded-xl border transition-colors ${
-                        selectedBoardId === board.id
-                          ? 'border-bridge-accent bg-bridge-accent/10'
-                          : isEligible
-                          ? 'border-foreground/[0.08] hover:border-foreground/[0.12] cursor-pointer'
-                          : 'border-foreground/[0.08] opacity-60'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-foreground text-sm font-medium">{board.name}</span>
-                        {isEligible ? (
-                          <Check size={14} className="text-emerald-600 dark:text-emerald-400" />
-                        ) : check ? (
-                          <AlertTriangle size={14} className="text-amber-600 dark:text-amber-400" />
-                        ) : null}
-                      </div>
-                      {check && !isEligible && check.non_org_members.length > 0 && (
-                        <div className="mt-2 text-xs text-amber-600 dark:text-amber-400">
-                          {t('organization.boards.nonOrgMembers', 'Non-org members')}: {check.non_org_members.map((m) => m.name).join(', ')}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })
-              )}
-            </div>
-            <div className="px-5 py-3 border-t border-foreground/[0.08] flex items-center justify-between">
-              <span className="text-[10px] text-muted-foreground">ESC</span>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setShowAddModal(false)}
-                  className="px-4 py-1.5 rounded-lg text-xs font-bold bg-foreground/[0.06] text-foreground hover:bg-foreground/10 transition-colors"
-                >
-                  {t('common.cancel', 'Cancel')}
-                </button>
-                <button
-                  onClick={handleAddBoard}
-                  disabled={!selectedBoardId || adding}
-                  className="px-4 py-1.5 rounded-lg text-xs font-bold bg-bridge-accent text-white hover:bg-bridge-accent/90 hover:shadow-[0_0_20px_rgba(99,102,241,0.3)] transition-all disabled:opacity-50"
-                >
-                  {adding ? t('common.adding', 'Adding...') : t('organization.boards.addButton', 'Add Board')}
-                </button>
+          subscription && !subscription.can_create_org_board ? (
+            <>
+              <div className="px-5 pb-5 pt-4">
+                <div className="flex flex-col items-center text-center py-4">
+                  <div className="w-14 h-14 rounded-2xl bg-bridge-accent/15 flex items-center justify-center mb-4">
+                    <CreditCard size={28} className="text-bridge-accent" />
+                  </div>
+                  <h3 className="text-base font-bold text-foreground mb-2">
+                    {t('organization.boards.upgradeTitle', 'Seat purchase required')}
+                  </h3>
+                  <p className="text-sm text-slate-400 mb-5 max-w-xs leading-relaxed">
+                    {t('organization.boards.upgradeLinkDesc', 'Purchase seats to link existing boards to your organization and manage them centrally.')}
+                  </p>
+                  <div className="flex items-center gap-2 p-3 rounded-xl bg-foreground/[0.03] border border-foreground/[0.06] w-full">
+                    <AlertTriangle size={13} className="text-slate-400 shrink-0" />
+                    <span className="text-[11px] text-slate-500 leading-relaxed text-left">
+                      {t('organization.boards.trialBoardHint', 'You can still create regular boards from the board list. Organization-managed boards require a seat purchase.')}
+                    </span>
+                  </div>
+                </div>
               </div>
-            </div>
-          </>
+              <div className="px-5 py-3 border-t border-foreground/[0.08] flex items-center justify-between">
+                <span className="text-[10px] text-muted-foreground">ESC</span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setShowAddModal(false)}
+                    className="px-4 py-1.5 rounded-lg text-xs font-bold bg-foreground/[0.06] text-foreground hover:bg-foreground/10 transition-colors"
+                  >
+                    {t('common.cancel', 'Cancel')}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowAddModal(false);
+                      setSearchParams({ tab: 'settings', subtab: 'subscription' });
+                    }}
+                    className="px-4 py-1.5 rounded-lg text-xs font-bold bg-bridge-accent text-white hover:bg-bridge-accent/90 hover:shadow-[0_0_20px_rgba(99,102,241,0.3)] transition-all"
+                  >
+                    {t('organization.boards.purchaseSeats', 'Purchase Seats')}
+                  </button>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="px-5 pb-5 pt-4 space-y-2 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                {myBoards.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-4 text-center">
+                    {t('organization.boards.noAvailable', 'No available boards to add')}
+                  </p>
+                ) : (
+                  myBoards.map((board) => {
+                    const check = eligibility[board.id];
+                    const isEligible = check?.is_eligible;
+                    return (
+                      <div
+                        key={board.id}
+                        onClick={() => isEligible && setSelectedBoardId(board.id)}
+                        className={`p-3 rounded-xl border transition-colors ${
+                          selectedBoardId === board.id
+                            ? 'border-bridge-accent bg-bridge-accent/10'
+                            : isEligible
+                            ? 'border-foreground/[0.08] hover:border-foreground/[0.12] cursor-pointer'
+                            : 'border-foreground/[0.08] opacity-60'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-foreground text-sm font-medium">{board.name}</span>
+                          {isEligible ? (
+                            <Check size={14} className="text-emerald-600 dark:text-emerald-400" />
+                          ) : check ? (
+                            <AlertTriangle size={14} className="text-amber-600 dark:text-amber-400" />
+                          ) : null}
+                        </div>
+                        {check && !isEligible && check.non_org_members.length > 0 && (
+                          <div className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+                            {t('organization.boards.nonOrgMembers', 'Non-org members')}: {check.non_org_members.map((m) => m.name).join(', ')}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+              <div className="px-5 py-3 border-t border-foreground/[0.08] flex items-center justify-between">
+                <span className="text-[10px] text-muted-foreground">ESC</span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setShowAddModal(false)}
+                    className="px-4 py-1.5 rounded-lg text-xs font-bold bg-foreground/[0.06] text-foreground hover:bg-foreground/10 transition-colors"
+                  >
+                    {t('common.cancel', 'Cancel')}
+                  </button>
+                  <button
+                    onClick={handleAddBoard}
+                    disabled={!selectedBoardId || adding}
+                    className="px-4 py-1.5 rounded-lg text-xs font-bold bg-bridge-accent text-white hover:bg-bridge-accent/90 hover:shadow-[0_0_20px_rgba(99,102,241,0.3)] transition-all disabled:opacity-50"
+                  >
+                    {adding ? t('common.adding', 'Adding...') : t('organization.boards.addButton', 'Add Board')}
+                  </button>
+                </div>
+              </div>
+            </>
+          )
         )}
       </MotionModal>
     </div>

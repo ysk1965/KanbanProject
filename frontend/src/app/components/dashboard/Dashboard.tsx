@@ -5,7 +5,7 @@ import { Search, Plus, Star, LayoutGrid, LogOut, Package2, AlertTriangle, Menu, 
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
 import { Board, PersonalDashboardToday } from '../../types';
-import { testDataAPI, personalDashboardAPI, personalSpaceAPI, resolveFileUrl } from '../../utils/api';
+import { testDataAPI, personalDashboardAPI, resolveFileUrl } from '../../utils/api';
 import { getTodayDateString } from '../../utils/dateUtils';
 import { boardService } from '../../utils/services';
 import { getInitials } from '../../utils/assigneeColor';
@@ -226,16 +226,6 @@ export function Dashboard({
     : 0;
 
   const hasPersonalSpace = currentUser?.personal_space_enabled ?? false;
-
-  const handleActivatePersonalSpace = async () => {
-    try {
-      await personalSpaceAPI.activate();
-      updateCurrentUser({ personal_space_enabled: true });
-      navigate('/my-board');
-    } catch (error) {
-      console.error('Failed to activate personal space:', error);
-    }
-  };
 
   return (
     <div className="fixed inset-0 flex text-foreground overflow-hidden selection:bg-bridge-secondary/30 bg-bridge-dark" style={{ background: 'radial-gradient(ellipse at 20% 0%, var(--bridge-dark) 0%, var(--bridge-dark) 50%, var(--bridge-dark) 100%)' }}>
@@ -793,8 +783,6 @@ export function Dashboard({
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onCreate={onCreateBoard}
-        hasPersonalSpace={hasPersonalSpace}
-        onActivatePersonalSpace={handleActivatePersonalSpace}
       />
 
       {/* Edit Board Modal */}

@@ -1809,10 +1809,8 @@ export interface AiCredits {
 }
 
 export interface AiCreditPurchaseRequest {
-  credit_amount: number; // 100 단위
-  payment_key?: string;
-  order_id?: string;
-  amount: number; // 결제 금액 (원)
+  credit_amount: number;
+  amount: number;
 }
 
 export interface AiCreditPurchaseResult {

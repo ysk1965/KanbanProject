@@ -142,12 +142,20 @@ app.version:
   commit: '@git.commit@'
   build-time: '@build.time@'
 
-# Toss Payments
-toss:
-  payments:
-    client-key: ${TOSS_CLIENT_KEY:}
-    secret-key: ${TOSS_SECRET_KEY:}
-    confirm-url: https://api.tosspayments.com/v1/payments/confirm
+# Polar.sh (Merchant of Record)
+polar:
+  api-key: ${POLAR_API_KEY:}
+  webhook-secret: ${POLAR_WEBHOOK_SECRET:}
+  organization-id: ${POLAR_ORG_ID:}
+  base-url: https://api.polar.sh
+  products:
+    board-monthly: ${POLAR_PRODUCT_BOARD_MONTHLY:}
+    board-yearly: ${POLAR_PRODUCT_BOARD_YEARLY:}
+    org-monthly: ${POLAR_PRODUCT_ORG_MONTHLY:}
+    org-yearly: ${POLAR_PRODUCT_ORG_YEARLY:}
+    credit-100: ${POLAR_PRODUCT_CREDIT_100:}
+    credit-500: ${POLAR_PRODUCT_CREDIT_500:}
+    credit-1000: ${POLAR_PRODUCT_CREDIT_1000:}
 
 # Firebase (FCM Push Notifications)
 firebase:

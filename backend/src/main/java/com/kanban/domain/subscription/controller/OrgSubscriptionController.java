@@ -4,11 +4,14 @@ import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.subscription.BillingCycle;
 import com.kanban.domain.subscription.OrgPaymentHistory;
 import com.kanban.domain.subscription.OrgSubscription;
+import com.kanban.domain.subscription.dto.CheckoutResponse;
 import com.kanban.domain.subscription.dto.MigrationPreviewResponse;
 import com.kanban.domain.subscription.dto.OrgSubscriptionResponse;
+import com.kanban.domain.subscription.dto.PolarCheckoutRequest;
 import com.kanban.domain.subscription.service.OrgSubscriptionService;
 import com.kanban.domain.organization.service.OrganizationService;
 import com.kanban.global.security.UserPrincipal;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -30,8 +33,6 @@ public class OrgSubscriptionController {
     public record ActivateRequest(BillingCycle billingCycle, int seatCount, String paymentMethodId) {}
     public record MigratePreviewRequest(BillingCycle billingCycle, List<String> boardIds) {}
     public record MigrateRequest(BillingCycle billingCycle, List<String> boardIds, String paymentMethodId) {}
-    public record OrgPaymentConfirmRequest(String orgId, String paymentKey, String orderId,
-            int amount, BillingCycle billingCycle, int seatCount, String paymentMethodId) {}
     public record PurchaseSeatsRequest(int additionalSeats) {}
 
     // === Endpoints ===
@@ -121,14 +122,14 @@ public class OrgSubscriptionController {
         return ResponseEntity.ok(history);
     }
 
-    @PostMapping("/api/v1/payments/confirm/org-subscription")
-    public ResponseEntity<OrgSubscriptionResponse> confirmPayment(
+    // Polar Checkout - Organization Subscription
+    @PostMapping("/api/v1/checkout/org-subscription")
+    public ResponseEntity<CheckoutResponse> checkoutOrgSubscription(
             @AuthenticationPrincipal UserPrincipal principal,
-            @RequestBody OrgPaymentConfirmRequest request) {
-        OrgSubscription sub = orgSubscriptionService.confirmAndActivateTeam(
-            principal.getUserId(), request.orgId(), request.paymentKey(), request.orderId(),
-            request.amount(), request.billingCycle(), request.seatCount(), request.paymentMethodId());
-        int boardCount = boardRepository.countByOrganizationId(request.orgId());
-        return ResponseEntity.ok(OrgSubscriptionResponse.from(sub, boardCount));
+            @Valid @RequestBody PolarCheckoutRequest.OrgSubscriptionCheckout request) {
+        organizationService.checkAdminOrAbove(request.getOrgId(), principal.getUserId());
+        CheckoutResponse response = orgSubscriptionService.createOrgSubscriptionCheckout(
+                request.getOrgId(), request.getBillingCycle(), request.getSeatCount(), principal.getUserId());
+        return ResponseEntity.ok(response);
     }
 }

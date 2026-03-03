@@ -121,6 +121,7 @@ public enum ErrorCode {
     SEAT_LIMIT_EXCEEDED(HttpStatus.PAYMENT_REQUIRED, "S005", "시트 수가 부족합니다. 추가 시트를 구매해주세요"),
     PAYMENT_CONFIRM_FAILED(HttpStatus.BAD_GATEWAY, "S006", "결제 승인에 실패했습니다"),
     PAYMENT_AMOUNT_MISMATCH(HttpStatus.BAD_REQUEST, "S007", "결제 금액이 일치하지 않습니다"),
+    INVALID_WEBHOOK_SIGNATURE(HttpStatus.UNAUTHORIZED, "S008", "유효하지 않은 Webhook 서명입니다"),
 
     // Milestone
     MILESTONE_NOT_FOUND(HttpStatus.NOT_FOUND, "MS001", "마일스톤을 찾을 수 없습니다"),
