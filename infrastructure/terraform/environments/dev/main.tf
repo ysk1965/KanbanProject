@@ -321,13 +321,13 @@ resource "aws_s3_bucket_lifecycle_configuration" "attachments" {
   }
 }
 
-# Intelligent-Tiering: Archive Instant Access까지만 (즉시 접근 보장)
+# Intelligent-Tiering: 90일 후 Archive Access (비용 절감, 복원 3-5시간)
 resource "aws_s3_bucket_intelligent_tiering_configuration" "attachments" {
   bucket = data.aws_s3_bucket.attachments.id
   name   = "attachments-tiering"
 
   tiering {
-    access_tier = "ARCHIVE_INSTANT_ACCESS"
+    access_tier = "ARCHIVE_ACCESS"
     days        = 90
   }
 }
