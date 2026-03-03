@@ -159,3 +159,66 @@ variable "cloudfront_domain" {
   type        = string
   default     = ""
 }
+
+# Polar.sh Payment
+variable "polar_api_key" {
+  description = "Polar.sh API key"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "polar_webhook_secret" {
+  description = "Polar.sh webhook signing secret"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "polar_org_id" {
+  description = "Polar.sh organization ID"
+  type        = string
+  default     = ""
+}
+
+variable "polar_product_board_monthly" {
+  description = "Polar.sh product ID for Board Monthly subscription"
+  type        = string
+  default     = ""
+}
+
+variable "polar_product_board_yearly" {
+  description = "Polar.sh product ID for Board Yearly subscription"
+  type        = string
+  default     = ""
+}
+
+variable "polar_product_org_monthly" {
+  description = "Polar.sh product ID for Org Monthly subscription"
+  type        = string
+  default     = ""
+}
+
+variable "polar_product_org_yearly" {
+  description = "Polar.sh product ID for Org Yearly subscription"
+  type        = string
+  default     = ""
+}
+
+variable "polar_product_credit_100" {
+  description = "Polar.sh product ID for AI Credits 100 pack"
+  type        = string
+  default     = ""
+}
+
+variable "polar_product_credit_500" {
+  description = "Polar.sh product ID for AI Credits 500 pack"
+  type        = string
+  default     = ""
+}
+
+variable "polar_product_credit_1000" {
+  description = "Polar.sh product ID for AI Credits 1000 pack"
+  type        = string
+  default     = ""
+}

@@ -1458,6 +1458,78 @@
       "restoreSuccess": "El tablero ha sido restaurado",
       "restoreFailed": "Error al restaurar el tablero"
     },
+    "organizations": {
+      "title": "Gestión de organizaciones",
+      "search": "Buscar por nombre o email del propietario...",
+      "filter": {
+        "all": "Todos",
+        "free": "Free",
+        "team": "Team",
+        "trial": "Trial"
+      },
+      "table": {
+        "name": "Nombre",
+        "owner": "Propietario",
+        "plan": "Plan",
+        "members": "Miembros",
+        "boards": "Tableros",
+        "status": "Estado",
+        "created": "Creado",
+        "actions": "Acciones"
+      },
+      "detail": {
+        "title": "Detalles de la organización",
+        "info": "Información básica",
+        "subscription": "Suscripción",
+        "members": "Lista de miembros",
+        "boards": "Lista de tableros",
+        "structure": "Configuración de estructura",
+        "plan": "Plan",
+        "status": "Estado",
+        "billingCycle": "Ciclo de facturación",
+        "seatCount": "Asientos",
+        "activeMembers": "Miembros activos",
+        "pricePerSeat": "Precio por asiento",
+        "totalPrice": "Precio total",
+        "trialEndsAt": "Fin de prueba",
+        "currentPeriodEnd": "Fin del período",
+        "trialUsed": "Prueba utilizada",
+        "noSubscription": "Sin suscripción",
+        "monthly": "Mensual",
+        "yearly": "Anual"
+      },
+      "actions": {
+        "edit": "Editar información",
+        "delete": "Eliminar",
+        "restore": "Restaurar",
+        "permanentDelete": "Eliminar permanentemente",
+        "transferOwnership": "Transferir propiedad",
+        "updateSubscription": "Actualizar suscripción",
+        "extendTrial": "Extender prueba"
+      },
+      "confirm": {
+        "delete": "¿Estás seguro de que deseas eliminar esta organización?",
+        "restore": "¿Estás seguro de que deseas restaurar esta organización?",
+        "permanentDelete": "¿Estás seguro de que deseas eliminar permanentemente esta organización? Esta acción no se puede deshacer.",
+        "transferOwnership": "¿Estás seguro de que deseas transferir la propiedad?"
+      },
+      "deleted": {
+        "title": "Organizaciones eliminadas",
+        "empty": "No hay organizaciones eliminadas",
+        "deletedAt": "Fecha de eliminación"
+      },
+      "empty": "No se encontraron organizaciones",
+      "stats": {
+        "title": "Estadísticas de organizaciones",
+        "total": "Total de organizaciones",
+        "active": "Organizaciones activas",
+        "free": "Organizaciones Free",
+        "team": "Organizaciones Team",
+        "trial": "Organizaciones Trial",
+        "activeSubs": "Suscripciones activas",
+        "totalMembers": "Total de miembros"
+      }
+    },
     "boardDetail": {
       "title": "Detalle del tablero",
       "loadFailed": "Error al cargar los detalles del tablero",

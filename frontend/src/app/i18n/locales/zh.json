@@ -1458,6 +1458,78 @@
       "restoreSuccess": "看板已恢复",
       "restoreFailed": "看板恢复失败"
     },
+    "organizations": {
+      "title": "组织管理",
+      "search": "按组织名称或所有者邮箱搜索...",
+      "filter": {
+        "all": "全部",
+        "free": "Free",
+        "team": "Team",
+        "trial": "Trial"
+      },
+      "table": {
+        "name": "组织名",
+        "owner": "所有者",
+        "plan": "方案",
+        "members": "成员",
+        "boards": "看板",
+        "status": "状态",
+        "created": "创建日期",
+        "actions": "操作"
+      },
+      "detail": {
+        "title": "组织详情",
+        "info": "基本信息",
+        "subscription": "订阅信息",
+        "members": "成员列表",
+        "boards": "看板列表",
+        "structure": "结构设置",
+        "plan": "方案",
+        "status": "状态",
+        "billingCycle": "计费周期",
+        "seatCount": "席位数",
+        "activeMembers": "活跃成员",
+        "pricePerSeat": "每席价格",
+        "totalPrice": "总价",
+        "trialEndsAt": "试用结束",
+        "currentPeriodEnd": "当前期限结束",
+        "trialUsed": "试用已使用",
+        "noSubscription": "无订阅",
+        "monthly": "月付",
+        "yearly": "年付"
+      },
+      "actions": {
+        "edit": "编辑信息",
+        "delete": "删除",
+        "restore": "恢复",
+        "permanentDelete": "永久删除",
+        "transferOwnership": "转让所有权",
+        "updateSubscription": "修改订阅",
+        "extendTrial": "延长试用"
+      },
+      "confirm": {
+        "delete": "确定要删除此组织吗？",
+        "restore": "确定要恢复此组织吗？",
+        "permanentDelete": "确定要永久删除此组织吗？此操作无法撤销。",
+        "transferOwnership": "确定要转让所有权吗？"
+      },
+      "deleted": {
+        "title": "已删除的组织",
+        "empty": "没有已删除的组织",
+        "deletedAt": "删除日期"
+      },
+      "empty": "没有组织",
+      "stats": {
+        "title": "组织统计",
+        "total": "全部组织",
+        "active": "活跃组织",
+        "free": "Free组织",
+        "team": "Team组织",
+        "trial": "Trial组织",
+        "activeSubs": "活跃订阅",
+        "totalMembers": "全部成员"
+      }
+    },
     "boardDetail": {
       "title": "看板详情",
       "loadFailed": "加载看板详情失败",

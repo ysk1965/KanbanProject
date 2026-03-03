@@ -106,6 +106,10 @@ public class Organization {
         return this.deletedAt != null;
     }
 
+    public void restore() {
+        this.deletedAt = null;
+    }
+
     public void transferOwnership(User newOwner) {
         this.owner = newOwner;
     }

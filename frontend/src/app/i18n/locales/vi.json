@@ -1458,6 +1458,78 @@
       "restoreSuccess": "Bảng đã được khôi phục",
       "restoreFailed": "Khôi phục bảng thất bại"
     },
+    "organizations": {
+      "title": "Quản lý tổ chức",
+      "search": "Tìm theo tên tổ chức hoặc email chủ sở hữu...",
+      "filter": {
+        "all": "Tất cả",
+        "free": "Free",
+        "team": "Team",
+        "trial": "Trial"
+      },
+      "table": {
+        "name": "Tên tổ chức",
+        "owner": "Chủ sở hữu",
+        "plan": "Gói",
+        "members": "Thành viên",
+        "boards": "Bảng",
+        "status": "Trạng thái",
+        "created": "Ngày tạo",
+        "actions": "Thao tác"
+      },
+      "detail": {
+        "title": "Chi tiết tổ chức",
+        "info": "Thông tin cơ bản",
+        "subscription": "Thông tin đăng ký",
+        "members": "Danh sách thành viên",
+        "boards": "Danh sách bảng",
+        "structure": "Cài đặt cấu trúc",
+        "plan": "Gói",
+        "status": "Trạng thái",
+        "billingCycle": "Chu kỳ thanh toán",
+        "seatCount": "Số ghế",
+        "activeMembers": "Thành viên hoạt động",
+        "pricePerSeat": "Giá mỗi ghế",
+        "totalPrice": "Tổng giá",
+        "trialEndsAt": "Kết thúc dùng thử",
+        "currentPeriodEnd": "Kết thúc kỳ hiện tại",
+        "trialUsed": "Đã dùng thử",
+        "noSubscription": "Chưa đăng ký",
+        "monthly": "Hàng tháng",
+        "yearly": "Hàng năm"
+      },
+      "actions": {
+        "edit": "Chỉnh sửa thông tin",
+        "delete": "Xóa",
+        "restore": "Khôi phục",
+        "permanentDelete": "Xóa vĩnh viễn",
+        "transferOwnership": "Chuyển quyền sở hữu",
+        "updateSubscription": "Cập nhật đăng ký",
+        "extendTrial": "Gia hạn dùng thử"
+      },
+      "confirm": {
+        "delete": "Bạn có chắc muốn xóa tổ chức này?",
+        "restore": "Bạn có chắc muốn khôi phục tổ chức này?",
+        "permanentDelete": "Bạn có chắc muốn xóa vĩnh viễn tổ chức này? Hành động này không thể hoàn tác.",
+        "transferOwnership": "Bạn có chắc muốn chuyển quyền sở hữu?"
+      },
+      "deleted": {
+        "title": "Tổ chức đã xóa",
+        "empty": "Không có tổ chức đã xóa",
+        "deletedAt": "Ngày xóa"
+      },
+      "empty": "Không có tổ chức nào",
+      "stats": {
+        "title": "Thống kê tổ chức",
+        "total": "Tổng tổ chức",
+        "active": "Tổ chức hoạt động",
+        "free": "Tổ chức Free",
+        "team": "Tổ chức Team",
+        "trial": "Tổ chức Trial",
+        "activeSubs": "Đăng ký hoạt động",
+        "totalMembers": "Tổng thành viên"
+      }
+    },
     "boardDetail": {
       "title": "Chi tiet bang",
       "loadFailed": "Khong the tai chi tiet bang",

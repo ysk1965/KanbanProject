@@ -1738,6 +1738,7 @@ export interface MonitoringAlertConfig {
   slack_webhook_url: string;
   enabled: boolean;
   thresholds: Record<string, number>;
+  alert_email_recipients: string[];
 }
 
 export interface MonitoringAiUsageByBoard {

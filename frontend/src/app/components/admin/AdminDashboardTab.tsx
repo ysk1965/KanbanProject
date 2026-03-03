@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Users, Folder, CreditCard, TrendingUp, User, BookOpen, Loader2 } from 'lucide-react';
+import { Users, Folder, CreditCard, TrendingUp, User, BookOpen, Building2, Loader2 } from 'lucide-react';
 import { adminService } from '../../utils/services';
-import { AdminStatistics } from '../../utils/api';
+import { AdminStatistics, AdminOrgStatistics } from '../../utils/api';
 
 export function AdminDashboardTab() {
   const { t } = useTranslation();
   const [statistics, setStatistics] = useState<AdminStatistics | null>(null);
+  const [orgStats, setOrgStats] = useState<AdminOrgStatistics | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -20,6 +21,12 @@ export function AdminDashboardTab() {
       setError(null);
       const data = await adminService.getStatistics();
       setStatistics(data);
+      try {
+        const orgData = await adminService.getOrgStatistics();
+        setOrgStats(orgData);
+      } catch (orgErr) {
+        console.warn('Failed to load org statistics:', orgErr);
+      }
     } catch (err) {
       console.error('Failed to load statistics:', err);
       setError(t('admin.dashboard.loadFailed'));
@@ -180,6 +187,71 @@ export function AdminDashboardTab() {
           );
         })()}
       </div>
+
+      {/* Organization Metrics */}
+      {orgStats && (
+        <div className="bg-bridge-obsidian rounded-xl border border-foreground/[0.08] p-4 md:p-6">
+          <div className="flex items-center gap-2 mb-6">
+            <Building2 className="h-5 w-5 text-bridge-accent" />
+            <h3 className="text-lg font-bold text-foreground">{t('admin.organizations.stats.title')}</h3>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-foreground/5 rounded-xl p-4">
+              <p className="text-slate-400 text-xs mb-1">{t('admin.organizations.stats.total')}</p>
+              <p className="text-2xl font-bold text-foreground">{orgStats.total_organizations.toLocaleString()}</p>
+            </div>
+            <div className="bg-foreground/5 rounded-xl p-4">
+              <p className="text-slate-400 text-xs mb-1">{t('admin.organizations.stats.active')}</p>
+              <p className="text-2xl font-bold text-foreground">{orgStats.active_organizations.toLocaleString()}</p>
+            </div>
+            <div className="bg-foreground/5 rounded-xl p-4">
+              <p className="text-slate-400 text-xs mb-1">{t('admin.organizations.stats.team')}</p>
+              <p className="text-2xl font-bold text-bridge-accent">{orgStats.team_orgs.toLocaleString()}</p>
+            </div>
+            <div className="bg-foreground/5 rounded-xl p-4">
+              <p className="text-slate-400 text-xs mb-1">{t('admin.organizations.stats.trial')}</p>
+              <p className="text-2xl font-bold text-amber-400">{orgStats.trial_orgs.toLocaleString()}</p>
+            </div>
+            <div className="bg-foreground/5 rounded-xl p-4">
+              <p className="text-slate-400 text-xs mb-1">{t('admin.organizations.stats.free')}</p>
+              <p className="text-2xl font-bold text-foreground">{orgStats.free_orgs.toLocaleString()}</p>
+            </div>
+            <div className="bg-foreground/5 rounded-xl p-4">
+              <p className="text-slate-400 text-xs mb-1">{t('admin.organizations.stats.activeSubs')}</p>
+              <p className="text-2xl font-bold text-emerald-400">{orgStats.active_org_subscriptions.toLocaleString()}</p>
+            </div>
+            <div className="bg-foreground/5 rounded-xl p-4">
+              <p className="text-slate-400 text-xs mb-1">{t('admin.organizations.stats.totalMembers')}</p>
+              <p className="text-2xl font-bold text-foreground">{orgStats.total_org_members.toLocaleString()}</p>
+            </div>
+          </div>
+
+          {/* Org Plan Distribution */}
+          {orgStats.total_organizations > 0 && (() => {
+            const freePct = (orgStats.free_orgs / orgStats.total_organizations) * 100;
+            const teamPct = (orgStats.team_orgs / orgStats.total_organizations) * 100;
+            const trialPct = (orgStats.trial_orgs / orgStats.total_organizations) * 100;
+            return (
+              <div className="mt-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-slate-400 text-sm">Plan Distribution</span>
+                </div>
+                <div className="h-3 bg-foreground/5 rounded-full overflow-hidden flex">
+                  <div className="h-full bg-slate-500 transition-all duration-500" style={{ width: `${freePct}%` }} title={`Free: ${orgStats.free_orgs}`} />
+                  <div className="h-full bg-bridge-accent transition-all duration-500" style={{ width: `${teamPct}%` }} title={`Team: ${orgStats.team_orgs}`} />
+                  <div className="h-full bg-amber-500 transition-all duration-500" style={{ width: `${trialPct}%` }} title={`Trial: ${orgStats.trial_orgs}`} />
+                </div>
+                <div className="flex items-center gap-4 mt-2 text-xs">
+                  <span className="flex items-center gap-1 text-slate-400"><span className="w-2 h-2 rounded-full bg-slate-500" />Free {orgStats.free_orgs}</span>
+                  <span className="flex items-center gap-1 text-bridge-accent"><span className="w-2 h-2 rounded-full bg-bridge-accent" />Team {orgStats.team_orgs}</span>
+                  <span className="flex items-center gap-1 text-amber-400"><span className="w-2 h-2 rounded-full bg-amber-500" />Trial {orgStats.trial_orgs}</span>
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+      )}
 
       {/* Tier Distribution */}
       <div className="bg-bridge-obsidian rounded-xl border border-foreground/[0.08] p-4 md:p-6">

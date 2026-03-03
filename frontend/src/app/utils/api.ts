@@ -3697,6 +3697,76 @@ export interface SubscriptionListResponse {
   size: number;
 }
 
+// ==================== Admin Organization Types ====================
+
+export interface AdminOrgSummary {
+  id: string;
+  name: string;
+  description?: string | null;
+  logo_url?: string | null;
+  owner: {
+    id: string;
+    name: string;
+    email: string;
+    profile_image?: string | null;
+  };
+  plan: "FREE" | "TEAM";
+  subscription_status: "TRIAL" | "ACTIVE" | "PAST_DUE" | "SUSPENDED" | "CANCELED" | null;
+  member_count: number;
+  board_count: number;
+  seat_count: number;
+  trial_ends_at?: string | null;
+  created_at: string;
+  deleted_at?: string | null;
+}
+
+export interface AdminOrgDetail extends AdminOrgSummary {
+  billing_cycle?: "MONTHLY" | "YEARLY" | null;
+  active_member_count: number;
+  price_per_seat?: number | null;
+  total_price?: number | null;
+  current_period_end?: string | null;
+  trial_used?: boolean;
+  departments_enabled?: boolean;
+  job_groups_enabled?: boolean;
+  positions_enabled?: boolean;
+  titles_enabled?: boolean;
+  grades_enabled?: boolean;
+  members: {
+    id: string;
+    user_id: string;
+    name: string;
+    email: string;
+    profile_image?: string | null;
+    role: "OWNER" | "ADMIN" | "MEMBER";
+    department_name?: string | null;
+    position_name?: string | null;
+    title_name?: string | null;
+    contract_type?: string | null;
+    work_status?: string | null;
+    joined_at: string;
+  }[];
+  boards: AdminBoardSummary[];
+  updated_at?: string;
+}
+
+export interface OrgListResponse {
+  organizations: AdminOrgSummary[];
+  total: number;
+  page: number;
+  size: number;
+}
+
+export interface AdminOrgStatistics {
+  total_organizations: number;
+  active_organizations: number;
+  free_orgs: number;
+  team_orgs: number;
+  trial_orgs: number;
+  active_org_subscriptions: number;
+  total_org_members: number;
+}
+
 export const adminAPI = {
   // 사용자 목록 조회
   getUsers: async (params: {
@@ -3921,6 +3991,118 @@ export const adminAPI = {
     return apiClient.patch<AdminBoardDetail>(
       `/admin/boards/${boardId}/ai-credits`,
       data,
+    );
+  },
+
+  // ==================== Organizations ====================
+
+  // 조직 목록 조회
+  getOrganizations: async (params: {
+    page?: number;
+    size?: number;
+    search?: string;
+  }) => {
+    const searchParams = new URLSearchParams();
+    if (params.page !== undefined)
+      searchParams.append("page", params.page.toString());
+    if (params.size !== undefined)
+      searchParams.append("size", params.size.toString());
+    if (params.search) searchParams.append("search", params.search);
+    return apiClient.get<OrgListResponse>(
+      `/admin/organizations?${searchParams.toString()}`,
+    );
+  },
+
+  // 삭제된 조직 목록 조회
+  getDeletedOrganizations: async (params: {
+    page?: number;
+    size?: number;
+    search?: string;
+  }) => {
+    const searchParams = new URLSearchParams();
+    if (params.page !== undefined)
+      searchParams.append("page", params.page.toString());
+    if (params.size !== undefined)
+      searchParams.append("size", params.size.toString());
+    if (params.search) searchParams.append("search", params.search);
+    return apiClient.get<OrgListResponse>(
+      `/admin/organizations/deleted?${searchParams.toString()}`,
+    );
+  },
+
+  // 조직 상세 조회
+  getOrganization: async (orgId: string) => {
+    return apiClient.get<AdminOrgDetail>(`/admin/organizations/${orgId}`);
+  },
+
+  // 조직 정보 수정
+  updateOrganization: async (
+    orgId: string,
+    data: { name?: string; description?: string },
+  ) => {
+    return apiClient.patch<AdminOrgDetail>(
+      `/admin/organizations/${orgId}`,
+      data,
+    );
+  },
+
+  // 조직 삭제 (소프트)
+  deleteOrganization: async (orgId: string) => {
+    return apiClient.delete<{ message: string }>(
+      `/admin/organizations/${orgId}`,
+    );
+  },
+
+  // 조직 복구
+  restoreOrganization: async (orgId: string) => {
+    return apiClient.post<{ message: string }>(
+      `/admin/organizations/${orgId}/restore`,
+    );
+  },
+
+  // 조직 영구 삭제
+  permanentlyDeleteOrganization: async (orgId: string) => {
+    return apiClient.delete<{ message: string }>(
+      `/admin/organizations/${orgId}/permanent`,
+    );
+  },
+
+  // 소유권 이전
+  transferOrgOwnership: async (orgId: string, newOwnerMemberId: string) => {
+    return apiClient.post<AdminOrgDetail>(
+      `/admin/organizations/${orgId}/transfer-ownership`,
+      { new_owner_member_id: newOwnerMemberId },
+    );
+  },
+
+  // 구독 수정
+  updateOrgSubscription: async (
+    orgId: string,
+    data: {
+      plan?: string;
+      status?: string;
+      billing_cycle?: string;
+      seat_count?: number;
+    },
+  ) => {
+    return apiClient.patch<AdminOrgDetail>(
+      `/admin/organizations/${orgId}/subscription`,
+      data,
+    );
+  },
+
+  // Trial 연장
+  extendOrgTrial: async (orgId: string, extendDays: number) => {
+    return apiClient.patch<AdminOrgDetail>(
+      `/admin/organizations/${orgId}/extend-trial`,
+      { extend_days: extendDays },
+    );
+  },
+
+  // 조직 통계
+  getOrgStatistics: async () => {
+    return apiClient.get<AdminOrgStatistics>(
+      "/admin/organizations/statistics",
     );
   },
 

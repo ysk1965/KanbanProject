@@ -80,6 +80,16 @@ jobs:
           TF_VAR_mail_password: ${{ secrets.MAIL_PASSWORD }}
           TF_VAR_google_client_id: ${{ secrets.GOOGLE_CLIENT_ID }}
           TF_VAR_domain_name: ${{ vars.DOMAIN_NAME }}
+          TF_VAR_polar_api_key: ${{ secrets.POLAR_API_KEY }}
+          TF_VAR_polar_webhook_secret: ${{ secrets.POLAR_WEBHOOK_SECRET }}
+          TF_VAR_polar_org_id: ${{ secrets.POLAR_ORG_ID }}
+          TF_VAR_polar_product_board_monthly: ${{ secrets.POLAR_PRODUCT_BOARD_MONTHLY }}
+          TF_VAR_polar_product_board_yearly: ${{ secrets.POLAR_PRODUCT_BOARD_YEARLY }}
+          TF_VAR_polar_product_org_monthly: ${{ secrets.POLAR_PRODUCT_ORG_MONTHLY }}
+          TF_VAR_polar_product_org_yearly: ${{ secrets.POLAR_PRODUCT_ORG_YEARLY }}
+          TF_VAR_polar_product_credit_100: ${{ secrets.POLAR_PRODUCT_CREDIT_100 }}
+          TF_VAR_polar_product_credit_500: ${{ secrets.POLAR_PRODUCT_CREDIT_500 }}
+          TF_VAR_polar_product_credit_1000: ${{ secrets.POLAR_PRODUCT_CREDIT_1000 }}
 
   # Terraform Apply (Manual or on main branch)
   terraform-apply:
@@ -123,6 +133,16 @@ jobs:
           TF_VAR_mail_password: ${{ secrets.MAIL_PASSWORD }}
           TF_VAR_google_client_id: ${{ secrets.GOOGLE_CLIENT_ID }}
           TF_VAR_domain_name: ${{ vars.DOMAIN_NAME }}
+          TF_VAR_polar_api_key: ${{ secrets.POLAR_API_KEY }}
+          TF_VAR_polar_webhook_secret: ${{ secrets.POLAR_WEBHOOK_SECRET }}
+          TF_VAR_polar_org_id: ${{ secrets.POLAR_ORG_ID }}
+          TF_VAR_polar_product_board_monthly: ${{ secrets.POLAR_PRODUCT_BOARD_MONTHLY }}
+          TF_VAR_polar_product_board_yearly: ${{ secrets.POLAR_PRODUCT_BOARD_YEARLY }}
+          TF_VAR_polar_product_org_monthly: ${{ secrets.POLAR_PRODUCT_ORG_MONTHLY }}
+          TF_VAR_polar_product_org_yearly: ${{ secrets.POLAR_PRODUCT_ORG_YEARLY }}
+          TF_VAR_polar_product_credit_100: ${{ secrets.POLAR_PRODUCT_CREDIT_100 }}
+          TF_VAR_polar_product_credit_500: ${{ secrets.POLAR_PRODUCT_CREDIT_500 }}
+          TF_VAR_polar_product_credit_1000: ${{ secrets.POLAR_PRODUCT_CREDIT_1000 }}
 
       - name: Output Terraform Values
         working-directory: infrastructure/terraform/environments/${{ github.event.inputs.environment || 'dev' }}

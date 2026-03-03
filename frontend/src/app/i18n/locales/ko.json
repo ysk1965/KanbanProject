@@ -2100,6 +2100,78 @@
       "restoreSuccess": "보드가 복구되었습니다",
       "restoreFailed": "보드 복구에 실패했습니다"
     },
+    "organizations": {
+      "title": "조직 관리",
+      "search": "조직 이름 또는 소유자 이메일로 검색...",
+      "filter": {
+        "all": "전체",
+        "free": "Free",
+        "team": "Team",
+        "trial": "Trial"
+      },
+      "table": {
+        "name": "조직명",
+        "owner": "소유자",
+        "plan": "플랜",
+        "members": "멤버",
+        "boards": "보드",
+        "status": "상태",
+        "created": "생성일",
+        "actions": "관리"
+      },
+      "detail": {
+        "title": "조직 상세",
+        "info": "기본 정보",
+        "subscription": "구독 정보",
+        "members": "멤버 목록",
+        "boards": "보드 목록",
+        "structure": "구조 설정",
+        "plan": "플랜",
+        "status": "상태",
+        "billingCycle": "결제 주기",
+        "seatCount": "시트 수",
+        "activeMembers": "활성 멤버",
+        "pricePerSeat": "시트당 가격",
+        "totalPrice": "총 가격",
+        "trialEndsAt": "트라이얼 종료",
+        "currentPeriodEnd": "현재 기간 종료",
+        "trialUsed": "트라이얼 사용 여부",
+        "noSubscription": "구독 없음",
+        "monthly": "월간",
+        "yearly": "연간"
+      },
+      "actions": {
+        "edit": "정보 수정",
+        "delete": "삭제",
+        "restore": "복구",
+        "permanentDelete": "영구 삭제",
+        "transferOwnership": "소유권 이전",
+        "updateSubscription": "구독 수정",
+        "extendTrial": "트라이얼 연장"
+      },
+      "confirm": {
+        "delete": "이 조직을 삭제하시겠습니까?",
+        "restore": "이 조직을 복구하시겠습니까?",
+        "permanentDelete": "이 조직을 영구 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.",
+        "transferOwnership": "소유권을 이전하시겠습니까?"
+      },
+      "deleted": {
+        "title": "삭제된 조직",
+        "empty": "삭제된 조직이 없습니다",
+        "deletedAt": "삭제일"
+      },
+      "empty": "조직이 없습니다",
+      "stats": {
+        "title": "조직 통계",
+        "total": "전체 조직",
+        "active": "활성 조직",
+        "free": "Free 조직",
+        "team": "Team 조직",
+        "trial": "Trial 조직",
+        "activeSubs": "활성 구독",
+        "totalMembers": "전체 멤버"
+      }
+    },
     "boardDetail": {
       "title": "보드 상세",
       "loadFailed": "보드 정보를 불러오는데 실패했습니다",

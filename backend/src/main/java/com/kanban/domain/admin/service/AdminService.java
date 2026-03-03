@@ -9,6 +9,15 @@ import com.kanban.domain.announcement.AnnouncementType;
 import com.kanban.domain.auth.service.AuthService;
 import com.kanban.domain.board.*;
 import com.kanban.domain.board.service.BoardService;
+import com.kanban.domain.organization.Organization;
+import com.kanban.domain.organization.OrganizationMember;
+import com.kanban.domain.organization.repository.OrganizationRepository;
+import com.kanban.domain.organization.repository.OrgMemberRepository;
+import com.kanban.domain.subscription.OrgPlan;
+import com.kanban.domain.subscription.OrgSubscription;
+import com.kanban.domain.subscription.OrgSubscriptionRepository;
+import com.kanban.domain.diary.DiaryEntryRepository;
+import com.kanban.domain.diary.DiaryStatus;
 import com.kanban.domain.user.service.UserService;
 import com.kanban.domain.subscription.Subscription;
 import com.kanban.domain.subscription.SubscriptionRepository;
@@ -56,8 +65,12 @@ public class AdminService {
     private final UserService userService;
     private final AnnouncementRepository announcementRepository;
     private final SystemConfigRepository systemConfigRepository;
+    private final DiaryEntryRepository diaryEntryRepository;
     private final ObjectMapper objectMapper;
     private final WebSocketAuthInterceptor webSocketAuthInterceptor;
+    private final OrganizationRepository organizationRepository;
+    private final OrgMemberRepository orgMemberRepository;
+    private final OrgSubscriptionRepository orgSubscriptionRepository;
 
     // ==================== Users ====================
 
@@ -528,6 +541,239 @@ public class AdminService {
         return getBoard(boardId);
     }
 
+    // ==================== Organizations ====================
+
+    public AdminResponse.OrgList getOrganizations(int page, int size, String search) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Page<Organization> orgPage = organizationRepository.findAllForAdmin(search, pageable);
+
+        List<String> orgIds = orgPage.getContent().stream().map(Organization::getId).collect(Collectors.toList());
+
+        Map<String, Integer> memberCountMap = Collections.emptyMap();
+        Map<String, Integer> boardCountMap = Collections.emptyMap();
+        if (!orgIds.isEmpty()) {
+            memberCountMap = orgMemberRepository.countGroupedByOrgIds(orgIds).stream()
+                    .collect(Collectors.toMap(row -> (String) row[0], row -> ((Number) row[1]).intValue()));
+            boardCountMap = boardRepository.countGroupedByOrgIds(orgIds).stream()
+                    .collect(Collectors.toMap(row -> (String) row[0], row -> ((Number) row[1]).intValue()));
+        }
+
+        Map<String, Integer> finalMemberCountMap = memberCountMap;
+        Map<String, Integer> finalBoardCountMap = boardCountMap;
+        List<AdminResponse.OrgSummary> orgs = orgPage.getContent().stream()
+                .map(org -> AdminResponse.OrgSummary.of(
+                        org,
+                        finalMemberCountMap.getOrDefault(org.getId(), 0),
+                        finalBoardCountMap.getOrDefault(org.getId(), 0),
+                        org.getSubscription()))
+                .collect(Collectors.toList());
+
+        return AdminResponse.OrgList.builder()
+                .organizations(orgs)
+                .total(orgPage.getTotalElements())
+                .page(page)
+                .size(size)
+                .build();
+    }
+
+    public AdminResponse.OrgDetail getOrganization(String orgId) {
+        Organization org = organizationRepository.findByIdForAdmin(orgId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ORGANIZATION_NOT_FOUND));
+
+        OrgSubscription sub = org.getSubscription();
+        int memberCount = orgMemberRepository.countByOrganizationId(orgId);
+        int boardCount = boardRepository.countByOrganizationId(orgId);
+
+        List<OrganizationMember> orgMembers = orgMemberRepository.findByOrganizationId(orgId);
+        List<AdminResponse.OrgMemberInfo> members = orgMembers.stream()
+                .map(AdminResponse.OrgMemberInfo::of)
+                .collect(Collectors.toList());
+
+        List<Board> orgBoards = boardRepository.findByOrganizationId(orgId);
+        List<AdminResponse.BoardSummary> boards = toBoardSummaries(orgBoards);
+
+        return AdminResponse.OrgDetail.of(org, sub, members, boards, memberCount, boardCount);
+    }
+
+    @Transactional
+    public AdminResponse.OrgDetail updateOrganization(String orgId, AdminRequest.UpdateOrganization request) {
+        Organization org = organizationRepository.findByIdForAdmin(orgId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ORGANIZATION_NOT_FOUND));
+
+        org.updateInfo(request.getName(), request.getDescription());
+        log.info("Organization updated by admin: orgId={}", orgId);
+
+        return getOrganization(orgId);
+    }
+
+    @Transactional
+    public void deleteOrganization(String orgId) {
+        Organization org = organizationRepository.findByIdForAdmin(orgId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ORGANIZATION_NOT_FOUND));
+
+        if (org.isDeleted()) {
+            throw new BusinessException(ErrorCode.ORGANIZATION_ALREADY_DELETED);
+        }
+
+        org.softDelete();
+        log.info("Organization soft-deleted by admin: orgId={}", orgId);
+    }
+
+    @Transactional
+    public void restoreOrganization(String orgId) {
+        Organization org = organizationRepository.findByIdForAdmin(orgId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ORGANIZATION_NOT_FOUND));
+
+        if (!org.isDeleted()) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
+        }
+
+        org.restore();
+        log.info("Organization restored by admin: orgId={}", orgId);
+    }
+
+    @Transactional
+    public void permanentlyDeleteOrganization(String orgId) {
+        Organization org = organizationRepository.findByIdForAdmin(orgId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ORGANIZATION_NOT_FOUND));
+
+        orgMemberRepository.deleteByOrganizationId(orgId);
+        orgSubscriptionRepository.findByOrganizationId(orgId)
+                .ifPresent(orgSubscriptionRepository::delete);
+        organizationRepository.delete(org);
+        log.info("Organization permanently deleted by admin: orgId={}", orgId);
+    }
+
+    @Transactional
+    public AdminResponse.OrgDetail transferOrgOwnership(String orgId, AdminRequest.TransferOrgOwnership request) {
+        Organization org = organizationRepository.findByIdForAdmin(orgId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ORGANIZATION_NOT_FOUND));
+
+        OrganizationMember newOwnerMember = orgMemberRepository.findByIdWithDetails(request.getNewOwnerMemberId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+
+        if (org.getOwner().getId().equals(newOwnerMember.getUser().getId())) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
+        }
+
+        // Update old owner's role to ADMIN
+        orgMemberRepository.findByOrganizationIdAndUserId(orgId, org.getOwner().getId())
+                .ifPresent(member -> member.updateRole(com.kanban.domain.organization.OrgRole.ADMIN));
+
+        // Update new owner's role to OWNER
+        newOwnerMember.updateRole(com.kanban.domain.organization.OrgRole.OWNER);
+
+        // Transfer ownership on entity
+        org.transferOwnership(newOwnerMember.getUser());
+
+        log.info("Organization ownership transferred by admin: orgId={}, newOwnerId={}",
+                orgId, newOwnerMember.getUser().getId());
+
+        return getOrganization(orgId);
+    }
+
+    @Transactional
+    public AdminResponse.OrgDetail updateOrgSubscription(String orgId, AdminRequest.UpdateOrgSubscription request) {
+        organizationRepository.findByIdForAdmin(orgId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ORGANIZATION_NOT_FOUND));
+
+        OrgSubscription sub = orgSubscriptionRepository.findByOrganizationId(orgId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SUBSCRIPTION_NOT_FOUND));
+
+        if (request.getPlan() != null) {
+            sub.setPlan(OrgPlan.valueOf(request.getPlan()));
+        }
+        if (request.getStatus() != null) {
+            sub.setStatus(SubscriptionStatus.valueOf(request.getStatus()));
+        }
+        if (request.getBillingCycle() != null) {
+            sub.setBillingCycle(request.getBillingCycle());
+        }
+        if (request.getSeatCount() != null) {
+            sub.updateSeatCount(request.getSeatCount());
+        }
+
+        log.info("Organization subscription updated by admin: orgId={}", orgId);
+
+        return getOrganization(orgId);
+    }
+
+    @Transactional
+    public AdminResponse.OrgDetail extendOrgTrial(String orgId, AdminRequest.ExtendOrgTrial request) {
+        organizationRepository.findByIdForAdmin(orgId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ORGANIZATION_NOT_FOUND));
+
+        OrgSubscription sub = orgSubscriptionRepository.findByOrganizationId(orgId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SUBSCRIPTION_NOT_FOUND));
+
+        LocalDateTime current = sub.getTrialEndsAt() != null
+                ? sub.getTrialEndsAt()
+                : LocalDateTime.now(ZoneOffset.UTC);
+        sub.setTrialEndsAt(current.plusDays(request.getExtendDays()));
+
+        if (sub.getStatus() != SubscriptionStatus.TRIAL) {
+            sub.setStatus(SubscriptionStatus.TRIAL);
+            sub.setPlan(OrgPlan.TEAM);
+        }
+
+        log.info("Organization trial extended by admin: orgId={}, extendDays={}", orgId, request.getExtendDays());
+
+        return getOrganization(orgId);
+    }
+
+    public AdminResponse.OrgList getDeletedOrganizations(int page, int size, String search) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("deletedAt").descending());
+        Page<Organization> orgPage = organizationRepository.findDeletedForAdmin(search, pageable);
+
+        List<String> orgIds = orgPage.getContent().stream().map(Organization::getId).collect(Collectors.toList());
+
+        Map<String, Integer> memberCountMap = Collections.emptyMap();
+        Map<String, Integer> boardCountMap = Collections.emptyMap();
+        if (!orgIds.isEmpty()) {
+            memberCountMap = orgMemberRepository.countGroupedByOrgIds(orgIds).stream()
+                    .collect(Collectors.toMap(row -> (String) row[0], row -> ((Number) row[1]).intValue()));
+            boardCountMap = boardRepository.countGroupedByOrgIds(orgIds).stream()
+                    .collect(Collectors.toMap(row -> (String) row[0], row -> ((Number) row[1]).intValue()));
+        }
+
+        Map<String, Integer> finalMemberCountMap = memberCountMap;
+        Map<String, Integer> finalBoardCountMap = boardCountMap;
+        List<AdminResponse.OrgSummary> orgs = orgPage.getContent().stream()
+                .map(org -> AdminResponse.OrgSummary.of(
+                        org,
+                        finalMemberCountMap.getOrDefault(org.getId(), 0),
+                        finalBoardCountMap.getOrDefault(org.getId(), 0),
+                        org.getSubscription()))
+                .collect(Collectors.toList());
+
+        return AdminResponse.OrgList.builder()
+                .organizations(orgs)
+                .total(orgPage.getTotalElements())
+                .page(page)
+                .size(size)
+                .build();
+    }
+
+    public AdminResponse.OrgStatistics getOrgStatistics() {
+        long totalOrgs = organizationRepository.count();
+        long activeOrgs = organizationRepository.countActive();
+        long freeOrgs = organizationRepository.countFreeOrgs();
+        long teamOrgs = organizationRepository.countTeamOrgs();
+        long trialOrgs = organizationRepository.countTrialOrgs();
+        long activeOrgSubs = organizationRepository.countActiveSubscriptions();
+        long totalOrgMembers = orgMemberRepository.count();
+
+        return AdminResponse.OrgStatistics.builder()
+                .totalOrganizations(totalOrgs)
+                .activeOrganizations(activeOrgs)
+                .freeOrgs(freeOrgs)
+                .teamOrgs(teamOrgs)
+                .trialOrgs(trialOrgs)
+                .activeOrgSubscriptions(activeOrgSubs)
+                .totalOrgMembers(totalOrgMembers)
+                .build();
+    }
+
     // ==================== Helper Methods ====================
 
     /**
@@ -688,6 +934,59 @@ public class AdminService {
                 .conversionRate(Math.round(conversionRate * 10.0) / 10.0)
                 .trialInProgress(trialInProgress)
                 .trialExpiredNotConverted(trialExpiredNotConverted)
+                .trend(trend)
+                .build();
+    }
+
+    public AdminResponse.DiaryStats getDiaryStats(int days) {
+        LocalDateTime startDate = LocalDateTime.now(ZoneOffset.UTC).minusDays(days);
+
+        long totalEntries = diaryEntryRepository.count();
+        long completedEntries = diaryEntryRepository.countByStatus(DiaryStatus.COMPLETED);
+        double completionRate = totalEntries > 0
+                ? Math.round((double) completedEntries / totalEntries * 1000.0) / 10.0
+                : 0.0;
+        long activeUsers = diaryEntryRepository.countActiveDiaryUsers(startDate);
+
+        List<Object[]> rows = diaryEntryRepository.getDiaryTrend(startDate);
+        List<AdminResponse.DiaryStats.DailyCount> trend = new java.util.ArrayList<>();
+        for (Object[] row : rows) {
+            trend.add(AdminResponse.DiaryStats.DailyCount.builder()
+                    .date(row[0].toString())
+                    .count(((Number) row[1]).longValue())
+                    .build());
+        }
+
+        return AdminResponse.DiaryStats.builder()
+                .totalEntries(totalEntries)
+                .completionRate(completionRate)
+                .activeUsers(activeUsers)
+                .trend(trend)
+                .build();
+    }
+
+    public AdminResponse.PersonalConversionStats getPersonalConversionStats(int days) {
+        LocalDateTime startDate = LocalDateTime.now(ZoneOffset.UTC).minusDays(days);
+
+        long personalOnly = boardRepository.countPersonalOnlyUsers(BoardType.PERSONAL, BoardType.TEAM);
+        long both = boardRepository.countPersonalAndTeamUsers(BoardType.PERSONAL, BoardType.TEAM);
+        double conversionRate = (personalOnly + both) > 0
+                ? Math.round((double) both / (personalOnly + both) * 1000.0) / 10.0
+                : 0.0;
+
+        List<Object[]> rows = boardRepository.getPersonalToTeamConversionTrend(startDate);
+        List<AdminResponse.PersonalConversionStats.DailyCount> trend = new java.util.ArrayList<>();
+        for (Object[] row : rows) {
+            trend.add(AdminResponse.PersonalConversionStats.DailyCount.builder()
+                    .date(row[0].toString())
+                    .count(((Number) row[1]).longValue())
+                    .build());
+        }
+
+        return AdminResponse.PersonalConversionStats.builder()
+                .personalOnly(personalOnly)
+                .both(both)
+                .conversionRate(conversionRate)
                 .trend(trend)
                 .build();
     }

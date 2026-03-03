@@ -3,6 +3,7 @@ package com.kanban.domain.admin.dto;
 import com.kanban.domain.announcement.AnnouncementType;
 import com.kanban.domain.board.BoardRole;
 import com.kanban.domain.board.BoardTier;
+import com.kanban.domain.subscription.BillingCycle;
 import com.kanban.domain.user.SystemRole;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -119,5 +120,41 @@ public class AdminRequest {
     public static class AdjustPersonalAiCredits {
         private Integer personalAiCredits;
         private Integer addBonusCredits;
+    }
+
+    // ==================== Organizations ====================
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class UpdateOrganization {
+        private String name;
+        private String description;
+    }
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class TransferOrgOwnership {
+        @NotBlank(message = "새 소유자 멤버 ID는 필수입니다")
+        private String newOwnerMemberId;
+    }
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class UpdateOrgSubscription {
+        private String plan;
+        private String status;
+        private BillingCycle billingCycle;
+        private Integer seatCount;
+    }
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ExtendOrgTrial {
+        @Min(value = 1, message = "연장 일수는 최소 1일 이상이어야 합니다")
+        private Integer extendDays;
     }
 }
