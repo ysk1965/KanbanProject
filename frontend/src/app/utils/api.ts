@@ -2018,38 +2018,6 @@ export const subscriptionAPI = {
     );
   },
 
-  startSubscription: async (
-    boardId: string,
-    data: {
-      plan_id: string;
-      billing_cycle: "MONTHLY" | "YEARLY";
-      payment_method_id: string;
-    },
-  ) => {
-    return apiClient.post<SubscriptionResponse>(
-      `/boards/${boardId}/subscription/start`,
-      data,
-    );
-  },
-
-  // Seat 기반 구독 시작
-  startSeatSubscription: async (
-    boardId: string,
-    data: {
-      billing_cycle: "MONTHLY" | "YEARLY";
-      seat_count: number;
-      payment_method_id?: string;
-    },
-  ) => {
-    return apiClient.post<SubscriptionResponse>(
-      `/boards/${boardId}/subscription/start`,
-      {
-        ...data,
-        plan_id: "PREMIUM",
-      },
-    );
-  },
-
   // Seat 가격 조회
   getSeatPricing: async (boardId: string) => {
     return apiClient.get<SeatPricingResponse>(
@@ -2083,31 +2051,48 @@ export const subscriptionAPI = {
     );
   },
 
-  // Toss Payments 결제 승인 - 구독 시작
-  confirmSubscriptionPayment: async (data: {
-    payment_key: string;
-    order_id: string;
-    amount: number;
+  // Polar Checkout - 보드 구독 시작
+  createBoardCheckout: async (data: {
     board_id: string;
     billing_cycle: "MONTHLY" | "YEARLY";
     seat_count: number;
   }) => {
-    return apiClient.post<SubscriptionResponse>(
-      "/payments/confirm/subscription",
+    return apiClient.post<{ checkout_url: string }>(
+      "/checkout/board-subscription",
       data,
     );
   },
 
-  // Toss Payments 결제 승인 - 시트 추가 구매
-  confirmSeatPurchasePayment: async (data: {
-    payment_key: string;
-    order_id: string;
-    amount: number;
+  // Polar Checkout - 조직 구독
+  createOrgCheckout: async (data: {
+    org_id: string;
+    billing_cycle: "MONTHLY" | "YEARLY";
+    seat_count: number;
+  }) => {
+    return apiClient.post<{ checkout_url: string }>(
+      "/checkout/org-subscription",
+      data,
+    );
+  },
+
+  // Polar Checkout - 시트 추가 구매
+  createSeatCheckout: async (data: {
     board_id: string;
     additional_seats: number;
   }) => {
-    return apiClient.post<SubscriptionResponse>(
-      "/payments/confirm/seats",
+    return apiClient.post<{ checkout_url: string }>(
+      "/checkout/seats",
+      data,
+    );
+  },
+
+  // Polar Checkout - AI 크레딧 구매
+  createCreditCheckout: async (data: {
+    board_id: string;
+    credit_amount: number;
+  }) => {
+    return apiClient.post<{ checkout_url: string }>(
+      "/checkout/ai-credits",
       data,
     );
   },
@@ -6426,7 +6411,7 @@ export const orgSubscriptionAPI = {
 
   activate: async (
     orgId: string,
-    data: { billing_cycle: string; seat_count: number; payment_method_id: string },
+    data: { billing_cycle: string; seat_count: number },
   ): Promise<import("../types").OrgSubscription> => {
     return apiClient.post(`/organizations/${orgId}/subscription/activate`, data);
   },
@@ -6440,7 +6425,7 @@ export const orgSubscriptionAPI = {
 
   migrate: async (
     orgId: string,
-    data: { billing_cycle: string; board_ids: string[]; payment_method_id: string },
+    data: { billing_cycle: string; board_ids: string[] },
   ): Promise<import("../types").OrgSubscription> => {
     return apiClient.post(`/organizations/${orgId}/subscription/migrate`, data);
   },
@@ -6455,18 +6440,6 @@ export const orgSubscriptionAPI = {
 
   getPayments: async (orgId: string) => {
     return apiClient.get(`/organizations/${orgId}/subscription/payments`);
-  },
-
-  confirmPayment: async (data: {
-    org_id: string;
-    payment_key: string;
-    order_id: string;
-    amount: number;
-    billing_cycle: string;
-    seat_count: number;
-    payment_method_id: string;
-  }): Promise<import("../types").OrgSubscription> => {
-    return apiClient.post("/payments/confirm/org-subscription", data);
   },
 
   purchaseSeats: async (

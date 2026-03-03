@@ -5,20 +5,21 @@ import com.kanban.domain.board.BoardMemberRepository;
 import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.board.BoardTier;
 import com.kanban.domain.subscription.*;
+import com.kanban.domain.subscription.config.PolarConfig;
+import com.kanban.domain.subscription.dto.CheckoutResponse;
 import com.kanban.domain.subscription.dto.MigrationPreviewResponse;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 @Slf4j
 @Service
@@ -31,7 +32,11 @@ public class OrgSubscriptionService {
     private final SubscriptionRepository subscriptionRepository;
     private final BoardRepository boardRepository;
     private final BoardMemberRepository boardMemberRepository;
-    private final TossPaymentsService tossPaymentsService;
+    private final PolarApiClient polarApiClient;
+    private final PolarConfig polarConfig;
+
+    @Value("${app.frontend-url:https://bridgespots.com}")
+    private String frontendUrl;
 
     // === Query ===
 
@@ -151,39 +156,29 @@ public class OrgSubscriptionService {
         return orgSub;
     }
 
-    // === Toss Payments Confirmation ===
+    // === Polar Checkout ===
 
-    public OrgSubscription confirmAndActivateTeam(String userId, String orgId,
-            String paymentKey, String orderId, int amount, BillingCycle cycle,
-            int seatCount, String paymentMethodId) {
-        // 1. Validate amount
-        int pricePerSeat = (cycle == BillingCycle.YEARLY)
-            ? OrgSubscription.YEARLY_PRICE_PER_SEAT
-            : OrgSubscription.MONTHLY_PRICE_PER_SEAT;
-        int expectedAmount = seatCount * pricePerSeat;
-        if (expectedAmount != amount) {
-            throw new BusinessException(ErrorCode.PAYMENT_AMOUNT_MISMATCH);
-        }
+    public CheckoutResponse createOrgSubscriptionCheckout(String orgId, BillingCycle billingCycle, int seatCount, String userId) {
+        String productId = billingCycle == BillingCycle.YEARLY
+                ? polarConfig.getProducts().getOrgYearly()
+                : polarConfig.getProducts().getOrgMonthly();
 
-        // 2. Confirm with Toss
-        tossPaymentsService.confirmPayment(paymentKey, orderId, amount);
+        Map<String, String> metadata = new HashMap<>();
+        metadata.put("bridge_type", "org_subscription");
+        metadata.put("org_id", orgId);
+        metadata.put("user_id", userId);
+        metadata.put("billing_cycle", billingCycle.name());
+        metadata.put("seat_count", String.valueOf(seatCount));
 
-        // 3. Activate
-        OrgSubscription sub = activateTeam(orgId, cycle, seatCount, paymentMethodId);
+        String successUrl = frontendUrl + "/organizations/" + orgId + "?checkout=success";
+        String cancelUrl = frontendUrl + "/organizations/" + orgId + "?checkout=cancel";
 
-        // 4. Payment history
-        OrgPaymentHistory history = OrgPaymentHistory.create(
-            sub, amount, 0, OrgPaymentType.SUBSCRIPTION);
-        history.setStatus(PaymentStatus.PAID);
-        history.setPaidAt(LocalDateTime.now(ZoneOffset.UTC));
-        history.setPgProvider("TOSSPAYMENTS");
-        history.setPgTransactionId(paymentKey);
-        orgPaymentHistoryRepository.save(history);
+        String checkoutUrl = polarApiClient.createCheckout(productId, seatCount, metadata, successUrl, cancelUrl);
 
-        log.info("Org subscription activated via Toss: orgId={}, plan=TEAM, seats={}, amount={}",
-            orgId, seatCount, amount);
+        log.info("Org subscription checkout created: orgId={}, billingCycle={}, seats={}, userId={}",
+                orgId, billingCycle, seatCount, userId);
 
-        return sub;
+        return new CheckoutResponse(checkoutUrl);
     }
 
     // === Seat Management ===

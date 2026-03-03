@@ -6,20 +6,24 @@ import com.kanban.domain.board.BoardRepository;
 import com.kanban.domain.board.BoardTier;
 import com.kanban.domain.board.service.BoardService;
 import com.kanban.domain.subscription.*;
+import com.kanban.domain.subscription.config.PolarConfig;
+import com.kanban.domain.subscription.dto.CheckoutResponse;
 import com.kanban.domain.subscription.dto.SubscriptionRequest;
 import com.kanban.domain.subscription.dto.SubscriptionResponse;
-import com.kanban.domain.subscription.dto.TossPaymentResponse;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import com.kanban.global.security.WebSocketAuthInterceptor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Slf4j
@@ -34,8 +38,12 @@ public class SubscriptionService {
     private final BoardMemberRepository boardMemberRepository;
     private final BoardRepository boardRepository;
     private final BoardService boardService;
-    private final TossPaymentsService tossPaymentsService;
+    private final PolarApiClient polarApiClient;
+    private final PolarConfig polarConfig;
     private final WebSocketAuthInterceptor webSocketAuthInterceptor;
+
+    @Value("${app.frontend-url:https://bridgespots.com}")
+    private String frontendUrl;
 
     public SubscriptionResponse.PricingListResponse getPricingPlans() {
         List<PricingPlan> plans = pricingPlanRepository.findByIsActiveTrueOrderByMinMembersAsc();
@@ -167,63 +175,57 @@ public class SubscriptionService {
         log.info("Subscription canceled for board: {} by user: {}", boardId, userId);
     }
 
-    @Transactional
-    public SubscriptionResponse.Detail confirmAndStartSubscription(
-            String userId, SubscriptionRequest.ConfirmSubscription request) {
+    // === Polar Checkout Methods ===
 
-        String boardId = request.getBoardId();
+    public CheckoutResponse createBoardSubscriptionCheckout(String boardId, BillingCycle billingCycle, int seatCount, String userId) {
         boardService.checkOwner(boardId, userId);
 
-        Subscription subscription = subscriptionRepository.findByBoardId(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.SUBSCRIPTION_NOT_FOUND));
+        String productId = billingCycle == BillingCycle.YEARLY
+                ? polarConfig.getProducts().getBoardYearly()
+                : polarConfig.getProducts().getBoardMonthly();
 
-        // 1. 금액 검증
-        int currentBillable = boardMemberRepository.countBillableMembers(boardId);
-        int seatCount = Math.max(request.getSeatCount(), currentBillable);
-        int pricePerSeat = request.getBillingCycle() == BillingCycle.YEARLY
-                ? Subscription.YEARLY_PRICE_PER_SEAT
-                : Subscription.MONTHLY_PRICE_PER_SEAT;
-        int expectedAmount = pricePerSeat * seatCount;
+        Map<String, String> metadata = new HashMap<>();
+        metadata.put("bridge_type", "board_subscription");
+        metadata.put("board_id", boardId);
+        metadata.put("user_id", userId);
+        metadata.put("billing_cycle", billingCycle.name());
+        metadata.put("seat_count", String.valueOf(seatCount));
 
-        if (!request.getAmount().equals(expectedAmount)) {
-            log.error("Payment amount mismatch: expected={}, actual={}, boardId={}",
-                    expectedAmount, request.getAmount(), boardId);
-            throw new BusinessException(ErrorCode.PAYMENT_AMOUNT_MISMATCH);
-        }
+        String successUrl = frontendUrl + "/boards/" + boardId + "?checkout=success";
+        String cancelUrl = frontendUrl + "/boards/" + boardId + "?checkout=cancel";
 
-        // 2. Toss 결제 승인
-        TossPaymentResponse tossResponse = tossPaymentsService.confirmPayment(
-                request.getPaymentKey(), request.getOrderId(), request.getAmount());
+        String checkoutUrl = polarApiClient.createCheckout(productId, seatCount, metadata, successUrl, cancelUrl);
 
-        // 3. 구독 활성화
-        subscription.activateSeatSubscription(
-                request.getBillingCycle(), seatCount, request.getPaymentKey());
-        subscription.updateBillableMemberCount(currentBillable);
+        log.info("Board subscription checkout created: boardId={}, billingCycle={}, seats={}, userId={}",
+                boardId, billingCycle, seatCount, userId);
 
-        // 4. Board tier를 PREMIUM으로 전환
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
-        board.upgradeToPremium();
-        webSocketAuthInterceptor.evictTierCache(boardId);
-
-        // 5. Initialize AI credits for the new tier
-        int monthlyCredits = AiCreditService.getMonthlyCreditsForTier(BoardTier.PREMIUM, seatCount);
-        subscription.initializeCredits(monthlyCredits);
-
-        // 6. 결제 이력 생성 (실제 PG 정보)
-        createTossPayment(subscription, request.getAmount(), seatCount, request.getPaymentKey());
-
-        log.info("Toss subscription confirmed for board: {} by user: {}. Seats: {}, Cycle: {}, PaymentKey: {}",
-                boardId, userId, seatCount, request.getBillingCycle(), request.getPaymentKey());
-
-        return SubscriptionResponse.Detail.of(subscription);
+        return new CheckoutResponse(checkoutUrl);
     }
 
-    @Transactional
-    public SubscriptionResponse.Detail confirmAndPurchaseSeats(
-            String userId, SubscriptionRequest.ConfirmSeatPurchase request) {
+    public CheckoutResponse createAiCreditCheckout(String boardId, int creditAmount, String userId) {
+        boardService.checkOwner(boardId, userId);
 
-        String boardId = request.getBoardId();
+        // Select product based on credit amount
+        String productId = resolveAiCreditProductId(creditAmount);
+
+        Map<String, String> metadata = new HashMap<>();
+        metadata.put("bridge_type", "ai_credit");
+        metadata.put("board_id", boardId);
+        metadata.put("user_id", userId);
+        metadata.put("credit_amount", String.valueOf(creditAmount));
+
+        String successUrl = frontendUrl + "/boards/" + boardId + "?checkout=success&type=credits";
+        String cancelUrl = frontendUrl + "/boards/" + boardId + "?checkout=cancel";
+
+        String checkoutUrl = polarApiClient.createCheckout(productId, 1, metadata, successUrl, cancelUrl);
+
+        log.info("AI credit checkout created: boardId={}, creditAmount={}, userId={}",
+                boardId, creditAmount, userId);
+
+        return new CheckoutResponse(checkoutUrl);
+    }
+
+    public CheckoutResponse createSeatCheckout(String boardId, int additionalSeats, String userId) {
         boardService.checkOwner(boardId, userId);
 
         Subscription subscription = subscriptionRepository.findByBoardId(boardId)
@@ -233,54 +235,35 @@ public class SubscriptionService {
             throw new BusinessException(ErrorCode.SUBSCRIPTION_NOT_FOUND);
         }
 
-        // 1. 금액 검증
-        int additionalSeats = request.getAdditionalSeats();
-        int expectedAmount = additionalSeats * subscription.getPricePerSeat();
+        String productId = subscription.getBillingCycle() == BillingCycle.YEARLY
+                ? polarConfig.getProducts().getBoardYearly()
+                : polarConfig.getProducts().getBoardMonthly();
 
-        if (!request.getAmount().equals(expectedAmount)) {
-            log.error("Seat purchase amount mismatch: expected={}, actual={}, boardId={}",
-                    expectedAmount, request.getAmount(), boardId);
-            throw new BusinessException(ErrorCode.PAYMENT_AMOUNT_MISMATCH);
-        }
+        Map<String, String> metadata = new HashMap<>();
+        metadata.put("bridge_type", "seat_purchase");
+        metadata.put("board_id", boardId);
+        metadata.put("user_id", userId);
+        metadata.put("additional_seats", String.valueOf(additionalSeats));
 
-        // 2. Toss 결제 승인
-        TossPaymentResponse tossResponse = tossPaymentsService.confirmPayment(
-                request.getPaymentKey(), request.getOrderId(), request.getAmount());
+        String successUrl = frontendUrl + "/boards/" + boardId + "?checkout=success&type=seats";
+        String cancelUrl = frontendUrl + "/boards/" + boardId + "?checkout=cancel";
 
-        // 3. 시트 수 업데이트
-        int newSeatCount = subscription.getSeatCount() + additionalSeats;
-        subscription.updateSeatCount(newSeatCount);
+        String checkoutUrl = polarApiClient.createCheckout(productId, additionalSeats, metadata, successUrl, cancelUrl);
 
-        int currentBillable = boardMemberRepository.countBillableMembers(boardId);
-        subscription.updateBillableMemberCount(currentBillable);
+        log.info("Seat checkout created: boardId={}, additionalSeats={}, userId={}",
+                boardId, additionalSeats, userId);
 
-        // 4. 결제 이력 생성
-        createTossPayment(subscription, request.getAmount(), newSeatCount, request.getPaymentKey());
-
-        log.info("Toss seat purchase confirmed for board: {} by user: {}. Additional: {}, New total: {}, PaymentKey: {}",
-                boardId, userId, additionalSeats, newSeatCount, request.getPaymentKey());
-
-        return SubscriptionResponse.Detail.of(subscription);
+        return new CheckoutResponse(checkoutUrl);
     }
 
-    private void createTossPayment(Subscription subscription, int amount, int memberCount, String paymentKey) {
-        PaymentHistory payment = PaymentHistory.builder()
-                .subscription(subscription)
-                .amount(amount)
-                .billingCycle(subscription.getBillingCycle())
-                .status(PaymentStatus.PAID)
-                .pgProvider("TOSSPAYMENTS")
-                .pgTransactionId(paymentKey)
-                .periodStart(subscription.getCurrentPeriodStart() != null
-                        ? subscription.getCurrentPeriodStart()
-                        : LocalDateTime.now(ZoneOffset.UTC))
-                .periodEnd(subscription.getCurrentPeriodEnd() != null
-                        ? subscription.getCurrentPeriodEnd()
-                        : LocalDateTime.now(ZoneOffset.UTC).plusMonths(1))
-                .memberCount(memberCount)
-                .paidAt(LocalDateTime.now(ZoneOffset.UTC))
-                .build();
-        paymentHistoryRepository.save(payment);
+    private String resolveAiCreditProductId(int creditAmount) {
+        if (creditAmount >= 1000) {
+            return polarConfig.getProducts().getCredit1000();
+        } else if (creditAmount >= 500) {
+            return polarConfig.getProducts().getCredit500();
+        } else {
+            return polarConfig.getProducts().getCredit100();
+        }
     }
 
     private void createMockPayment(Subscription subscription, int amount, int memberCount) {
@@ -289,8 +272,8 @@ public class SubscriptionService {
                 .amount(amount)
                 .billingCycle(subscription.getBillingCycle())
                 .status(PaymentStatus.PAID)
-                .pgProvider("MOCK")
-                .pgTransactionId("mock_" + UUID.randomUUID().toString().substring(0, 8))
+                .pgProvider("POLAR")
+                .pgTransactionId("local_" + UUID.randomUUID().toString().substring(0, 8))
                 .periodStart(subscription.getCurrentPeriodStart() != null
                         ? subscription.getCurrentPeriodStart()
                         : LocalDateTime.now(ZoneOffset.UTC))

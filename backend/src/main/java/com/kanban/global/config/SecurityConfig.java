@@ -73,6 +73,8 @@ public class SecurityConfig {
                         // /api/v1/files/** 는 anyRequest().authenticated()에 의해 보호됨
                         // H2 Console
                         .requestMatchers("/h2-console/**").permitAll()
+                        // Polar webhook endpoint (signature verified in service)
+                        .requestMatchers("/api/v1/webhooks/polar").permitAll()
                         // WebSocket endpoints
                         .requestMatchers("/ws/**").permitAll()
                         .requestMatchers("/ws-collab/**").permitAll()

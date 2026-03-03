@@ -300,6 +300,7 @@ export function KanbanBoardPage() {
   const [meetingRefreshKey, setMeetingRefreshKey] = useState(0);
   const [managementRefreshKey, setManagementRefreshKey] = useState(0);
   const [isAddBlockModalOpen, setIsAddBlockModalOpen] = useState(false);
+  const [editingBlock, setEditingBlock] = useState<Block | null>(null);
   const [isAddFeatureModalOpen, setIsAddFeatureModalOpen] = useState(false);
   const [isShareBoardModalOpen, setIsShareBoardModalOpen] = useState(false);
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
@@ -798,9 +799,9 @@ export function KanbanBoardPage() {
 
   // 결제 완료 후 pending action 처리
   useEffect(() => {
-    const pendingSeatAction = localStorage.getItem("pending_seat_action");
+    const pendingSeatAction = localStorage.getItem("pending_payment_action");
     if (pendingSeatAction && boardId && !isLoading) {
-      localStorage.removeItem("pending_seat_action");
+      localStorage.removeItem("pending_payment_action");
       try {
         const action = JSON.parse(pendingSeatAction);
         if (action.type === "roleChange" && action.pendingMemberId) {
@@ -935,7 +936,7 @@ export function KanbanBoardPage() {
     setIsMilestoneModalOpen(true);
   };
 
-  // Seat 기반 업그레이드 핸들러 (Toss 결제창 리다이렉트)
+  // Seat 기반 업그레이드 핸들러 (Polar Checkout 리다이렉트)
   const handleSeatUpgrade = async (
     billingCycle: "MONTHLY" | "YEARLY",
     seatCount: number,
@@ -946,13 +947,8 @@ export function KanbanBoardPage() {
         billing_cycle: billingCycle,
         seat_count: seatCount,
       });
+      // Polar checkout 리다이렉트가 발생하므로 여기까지 도달하지 않음
     } catch (error: any) {
-      if (
-        error?.code === "PAY_PROCESS_CANCELED" ||
-        error?.code === "USER_CANCEL"
-      ) {
-        return;
-      }
       console.error("Failed to upgrade:", error);
       throw error;
     }
@@ -969,29 +965,15 @@ export function KanbanBoardPage() {
       pendingRole,
       pendingMemberId,
     });
+    localStorage.setItem("pending_checkout_board_id", boardId);
     localStorage.setItem("pending_payment_action", pendingAction);
     setSeatPurchaseModal(null);
 
-    const currentBillingCycle = subscription?.billing_cycle || "MONTHLY";
-    const pricePerSeat =
-      subscription?.price_per_seat ||
-      (currentBillingCycle === "YEARLY" ? 5000 : 500);
-
     try {
-      await subscriptionService.purchaseSeats(
-        boardId,
-        additionalSeats,
-        currentBillingCycle,
-        pricePerSeat,
-      );
+      await subscriptionService.purchaseSeats(boardId, additionalSeats);
+      // Polar checkout 리다이렉트가 발생하므로 여기까지 도달하지 않음
     } catch (error: any) {
-      if (
-        error?.code === "PAY_PROCESS_CANCELED" ||
-        error?.code === "USER_CANCEL"
-      ) {
-        localStorage.removeItem("pending_payment_action");
-        return;
-      }
+      localStorage.removeItem("pending_checkout_board_id");
       localStorage.removeItem("pending_payment_action");
       throw error;
     }
@@ -1261,24 +1243,12 @@ export function KanbanBoardPage() {
 
   const handleSubscriptionPurchaseSeats = async (additionalSeats: number) => {
     if (!boardId) return;
-    const currentBillingCycle = subscription?.billing_cycle || "MONTHLY";
-    const pricePerSeat =
-      subscription?.price_per_seat ||
-      (currentBillingCycle === "YEARLY" ? 5000 : 500);
+    localStorage.setItem("pending_checkout_board_id", boardId);
     try {
-      await subscriptionService.purchaseSeats(
-        boardId,
-        additionalSeats,
-        currentBillingCycle,
-        pricePerSeat,
-      );
+      await subscriptionService.purchaseSeats(boardId, additionalSeats);
+      // Polar checkout 리다이렉트가 발생하므로 여기까지 도달하지 않음
     } catch (error: any) {
-      if (
-        error?.code === "PAY_PROCESS_CANCELED" ||
-        error?.code === "USER_CANCEL"
-      ) {
-        return;
-      }
+      localStorage.removeItem("pending_checkout_board_id");
       throw error;
     }
   };
@@ -1312,6 +1282,20 @@ export function KanbanBoardPage() {
       setBlocks(blocksData);
     } catch (error) {
       console.error("Failed to create block:", error);
+    }
+  };
+
+  const handleEditBlock = async (blockId: string, name: string, color: string) => {
+    if (!boardId) return;
+    const previousBlocks = blocks;
+    setBlocks((prev) =>
+      prev.map((b) => (b.id === blockId ? { ...b, name, color } : b)),
+    );
+    try {
+      await blockService.updateBlock(boardId, blockId, { name, color });
+    } catch (error) {
+      console.error("Failed to update block:", error);
+      setBlocks(previousBlocks);
     }
   };
 
@@ -2698,7 +2682,9 @@ export function KanbanBoardPage() {
                                 onMoveTask={handleMoveTask}
                                 onReorderTask={handleReorderTask}
                                 onEditBlock={
-                                  block.type === "CUSTOM" ? () => {} : undefined
+                                  block.type === "CUSTOM"
+                                    ? () => setEditingBlock(block)
+                                    : undefined
                                 }
                                 onDeleteBlock={
                                   block.type === "CUSTOM"
@@ -3113,6 +3099,15 @@ export function KanbanBoardPage() {
           isAddBlockModalOpen={isAddBlockModalOpen}
           onCloseAddBlock={() => setIsAddBlockModalOpen(false)}
           onAddBlock={handleAddBlock}
+          // EditBlock Modal
+          editingBlock={editingBlock}
+          onCloseEditBlock={() => setEditingBlock(null)}
+          onEditBlock={(name: string, color: string) => {
+            if (editingBlock) {
+              handleEditBlock(editingBlock.id, name, color);
+              setEditingBlock(null);
+            }
+          }}
           // AddFeature Modal
           isAddFeatureModalOpen={isAddFeatureModalOpen}
           onCloseAddFeature={() => setIsAddFeatureModalOpen(false)}

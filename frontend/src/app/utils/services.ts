@@ -1464,26 +1464,6 @@ export const subscriptionService = {
     }
   },
 
-  startSubscription: async (
-    boardId: string,
-    data: {
-      plan_id: string;
-      billing_cycle: "MONTHLY" | "YEARLY";
-      payment_method_id: string;
-    },
-  ): Promise<Subscription> => {
-    try {
-      const subscription = await subscriptionAPI.startSubscription(
-        boardId,
-        data,
-      );
-      return subscription;
-    } catch (error) {
-      console.warn("API failed for start subscription", error);
-      throw error;
-    }
-  },
-
   changePlan: async (
     boardId: string,
     billingCycle: "MONTHLY" | "YEARLY",
@@ -1532,75 +1512,47 @@ export const subscriptionService = {
     }
   },
 
-  // Seat 기반 구독 시작 (Toss Payments 결제창 호출)
+  // Seat 기반 구독 시작 (Polar Checkout 리다이렉트)
   startSeatSubscription: async (
     boardId: string,
     data: {
       billing_cycle: "MONTHLY" | "YEARLY";
       seat_count: number;
-      payment_method_id?: string;
     },
   ): Promise<void> => {
-    const { loadTossPayments, ANONYMOUS } =
-      await import("@tosspayments/tosspayments-sdk");
-    const clientKey = import.meta.env.VITE_TOSS_CLIENT_KEY;
-    const tossPayments = await loadTossPayments(clientKey);
-    const payment = tossPayments.payment({ customerKey: ANONYMOUS });
-
-    const pricePerSeat = data.billing_cycle === "YEARLY" ? 5000 : 500;
-    const amount = pricePerSeat * data.seat_count;
-    const timestamp = Date.now();
-    const orderId = `BRIDGE_${boardId}_${data.billing_cycle}_${data.seat_count}_${timestamp}`;
-
-    await payment.requestPayment({
-      method: "CARD",
-      amount: { value: amount, currency: "KRW" },
-      orderId,
-      orderName: `BRIDGE Premium - ${data.seat_count} seats (${data.billing_cycle})`,
-      successUrl: `${window.location.origin}/payment/success?type=subscription`,
-      failUrl: `${window.location.origin}/payment/fail`,
-      card: {
-        useEscrow: false,
-        flowMode: "DEFAULT",
-        useCardPoint: false,
-        useAppCardOnly: false,
-      },
+    const response = await subscriptionAPI.createBoardCheckout({
+      board_id: boardId,
+      billing_cycle: data.billing_cycle,
+      seat_count: data.seat_count,
     });
+    // Redirect to Polar checkout
+    window.location.href = response.data.checkout_url;
   },
 
-  // 추가 시트 구매 (Toss Payments 결제창 호출)
+  // 추가 시트 구매 (Polar Checkout 리다이렉트)
   purchaseSeats: async (
     boardId: string,
     additionalSeats: number,
-    billingCycle?: "MONTHLY" | "YEARLY",
-    pricePerSeat?: number,
   ): Promise<void> => {
-    const { loadTossPayments, ANONYMOUS } =
-      await import("@tosspayments/tosspayments-sdk");
-    const clientKey = import.meta.env.VITE_TOSS_CLIENT_KEY;
-    const tossPayments = await loadTossPayments(clientKey);
-    const payment = tossPayments.payment({ customerKey: ANONYMOUS });
-
-    const effectivePricePerSeat =
-      pricePerSeat || (billingCycle === "YEARLY" ? 5000 : 500);
-    const amount = additionalSeats * effectivePricePerSeat;
-    const timestamp = Date.now();
-    const orderId = `SEATS_${boardId}_${additionalSeats}_${timestamp}`;
-
-    await payment.requestPayment({
-      method: "CARD",
-      amount: { value: amount, currency: "KRW" },
-      orderId,
-      orderName: `BRIDGE Additional Seats - ${additionalSeats} seats`,
-      successUrl: `${window.location.origin}/payment/success?type=seats`,
-      failUrl: `${window.location.origin}/payment/fail`,
-      card: {
-        useEscrow: false,
-        flowMode: "DEFAULT",
-        useCardPoint: false,
-        useAppCardOnly: false,
-      },
+    const response = await subscriptionAPI.createSeatCheckout({
+      board_id: boardId,
+      additional_seats: additionalSeats,
     });
+    // Redirect to Polar checkout
+    window.location.href = response.data.checkout_url;
+  },
+
+  // AI 크레딧 구매 (Polar Checkout 리다이렉트)
+  purchaseCredits: async (
+    boardId: string,
+    creditAmount: number,
+  ): Promise<void> => {
+    const response = await subscriptionAPI.createCreditCheckout({
+      board_id: boardId,
+      credit_amount: creditAmount,
+    });
+    // Redirect to Polar checkout
+    window.location.href = response.data.checkout_url;
   },
 };
 
@@ -3327,6 +3279,5 @@ export const orgSubscriptionService = {
   downgrade: orgSubscriptionAPI.downgrade,
   cancel: orgSubscriptionAPI.cancel,
   getPayments: orgSubscriptionAPI.getPayments,
-  confirmPayment: orgSubscriptionAPI.confirmPayment,
   purchaseSeats: orgSubscriptionAPI.purchaseSeats,
 };

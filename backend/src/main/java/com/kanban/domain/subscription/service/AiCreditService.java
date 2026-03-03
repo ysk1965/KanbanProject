@@ -30,7 +30,6 @@ public class AiCreditService {
 
     private final SubscriptionRepository subscriptionRepository;
     private final AiCreditPurchaseRepository aiCreditPurchaseRepository;
-    private final TossPaymentsService tossPaymentsService;
     private final AiUsageLogRepository aiUsageLogRepository;
     private final UserRepository userRepository;
 
@@ -117,17 +116,12 @@ public class AiCreditService {
         }
 
         try {
-            // 2. Confirm Toss Payments (if paymentKey is provided)
-            if (request.getPaymentKey() != null) {
-                tossPaymentsService.confirmPayment(request.getPaymentKey(), request.getOrderId(), request.getAmount());
-            }
-
-            // 3. Add credits with pessimistic lock
+            // 2. Add credits with pessimistic lock (payment confirmed via Polar webhook)
             User user = userRepository.findByIdForUpdate(userId)
                     .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
             user.addPersonalPurchasedCredits(creditAmount);
 
-            // 4. Save purchase history
+            // 3. Save purchase history
             AiCreditPurchase purchase = AiCreditPurchase.builder()
                     .boardId(null)  // personal purchase, no board
                     .userId(userId)
@@ -143,7 +137,7 @@ public class AiCreditService {
             log.info("Personal AI credits purchased - user: {}, credits: {}, amount: {}",
                     userId, creditAmount, request.getAmount());
 
-            // 5. Return result
+            // 4. Return result
             return AiCreditResponse.PurchaseResult.builder()
                     .purchaseId(purchase.getId())
                     .creditAmount(creditAmount)
@@ -205,17 +199,12 @@ public class AiCreditService {
         }
 
         try {
-            // 2. Confirm Toss Payments (if paymentKey is provided)
-            if (request.getPaymentKey() != null) {
-                tossPaymentsService.confirmPayment(request.getPaymentKey(), request.getOrderId(), request.getAmount());
-            }
-
-            // 3. Add credits with pessimistic lock
+            // 2. Add credits with pessimistic lock (payment confirmed via Polar webhook)
             Subscription subscription = subscriptionRepository.findByBoardIdForUpdate(boardId)
                     .orElseThrow(() -> new BusinessException(ErrorCode.SUBSCRIPTION_NOT_FOUND));
             subscription.addPurchasedCredits(creditAmount);
 
-            // 4. Save purchase history
+            // 3. Save purchase history
             AiCreditPurchase purchase = AiCreditPurchase.builder()
                     .boardId(boardId)
                     .userId(userId)
@@ -231,7 +220,7 @@ public class AiCreditService {
             log.info("AI credits purchased - board: {}, user: {}, credits: {}, amount: {}",
                     boardId, userId, creditAmount, request.getAmount());
 
-            // 5. Return result
+            // 4. Return result
             return AiCreditResponse.PurchaseResult.builder()
                     .purchaseId(purchase.getId())
                     .creditAmount(creditAmount)
