@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
@@ -202,6 +202,59 @@ function OrgDetailPageContent() {
     };
   }, [myLeaveBalances]);
 
+  // ─── Sub-tab swipe navigation (mobile) ───
+  const touchStartRef = useRef<{ x: number; y: number; target: EventTarget | null } | null>(null);
+  const slideAnimRef = useRef<HTMLDivElement>(null);
+  const activeTabRef = useRef(activeTab);
+  activeTabRef.current = activeTab;
+
+  const triggerSlide = useCallback((dir: number) => {
+    const el = slideAnimRef.current;
+    if (!el) return;
+    el.style.transition = "none";
+    el.style.transform = `translateX(${dir * 60}px)`;
+    el.style.opacity = "0";
+    el.offsetHeight; // force reflow
+    el.style.transition = "transform 0.2s ease-out, opacity 0.2s ease-out";
+    el.style.transform = "translateX(0)";
+    el.style.opacity = "1";
+  }, []);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, target: e.target };
+  }, []);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (!touchStartRef.current) return;
+    const deltaX = e.changedTouches[0].clientX - touchStartRef.current.x;
+    const deltaY = e.changedTouches[0].clientY - touchStartRef.current.y;
+    const target = touchStartRef.current.target;
+    touchStartRef.current = null;
+
+    if (Math.abs(deltaX) < 50 || Math.abs(deltaX) < Math.abs(deltaY)) return;
+
+    // 가로 스크롤 가능한 컨테이너 내부에서 시작된 스와이프는 무시
+    let el = target as HTMLElement | null;
+    while (el && el !== e.currentTarget) {
+      if (el.scrollWidth > el.clientWidth + 1) return;
+      el = el.parentElement;
+    }
+
+    const currentGroup = TAB_GROUPS.find(
+      (g) => g.defaultTab === activeTabRef.current || g.subTabs?.some((s) => s.key === activeTabRef.current),
+    );
+    if (!currentGroup?.subTabs) return;
+
+    const currentIdx = currentGroup.subTabs.findIndex((s) => s.key === activeTabRef.current);
+    if (currentIdx === -1) return;
+
+    const nextIdx = deltaX < 0 ? currentIdx + 1 : currentIdx - 1;
+    if (nextIdx < 0 || nextIdx >= currentGroup.subTabs.length) return;
+
+    triggerSlide(deltaX < 0 ? -1 : 1);
+    setActiveTab(currentGroup.subTabs[nextIdx].key);
+  }, [setActiveTab, triggerSlide]);
+
   if (loading || !org) {
     return (
       <div className="min-h-screen bg-bridge-dark flex items-center justify-center">
@@ -393,8 +446,8 @@ function OrgDetailPageContent() {
       </header>
 
       {/* Content — visited tabs stay mounted (hidden when inactive) */}
-      <div className="flex-1">
-        <div className="max-w-6xl mx-auto px-4 py-4 md:px-6 md:py-6">
+      <div className="flex-1" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+        <div ref={slideAnimRef} className="max-w-6xl mx-auto px-4 py-4 md:px-6 md:py-6">
           {renderTab("dashboard",
             <OrgDashboardTab orgId={orgId} role={myRole} />
           )}
