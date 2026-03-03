@@ -400,6 +400,67 @@ resource "aws_elastic_beanstalk_environment" "main" {
     }
   }
 
+  # Polar.sh Payment
+  setting {
+    namespace = "aws:elasticbeanstalk:application:environment"
+    name      = "POLAR_API_KEY"
+    value     = var.polar_api_key
+  }
+
+  setting {
+    namespace = "aws:elasticbeanstalk:application:environment"
+    name      = "POLAR_WEBHOOK_SECRET"
+    value     = var.polar_webhook_secret
+  }
+
+  setting {
+    namespace = "aws:elasticbeanstalk:application:environment"
+    name      = "POLAR_ORG_ID"
+    value     = var.polar_org_id
+  }
+
+  setting {
+    namespace = "aws:elasticbeanstalk:application:environment"
+    name      = "POLAR_PRODUCT_BOARD_MONTHLY"
+    value     = var.polar_product_board_monthly
+  }
+
+  setting {
+    namespace = "aws:elasticbeanstalk:application:environment"
+    name      = "POLAR_PRODUCT_BOARD_YEARLY"
+    value     = var.polar_product_board_yearly
+  }
+
+  setting {
+    namespace = "aws:elasticbeanstalk:application:environment"
+    name      = "POLAR_PRODUCT_ORG_MONTHLY"
+    value     = var.polar_product_org_monthly
+  }
+
+  setting {
+    namespace = "aws:elasticbeanstalk:application:environment"
+    name      = "POLAR_PRODUCT_ORG_YEARLY"
+    value     = var.polar_product_org_yearly
+  }
+
+  setting {
+    namespace = "aws:elasticbeanstalk:application:environment"
+    name      = "POLAR_PRODUCT_CREDIT_100"
+    value     = var.polar_product_credit_100
+  }
+
+  setting {
+    namespace = "aws:elasticbeanstalk:application:environment"
+    name      = "POLAR_PRODUCT_CREDIT_500"
+    value     = var.polar_product_credit_500
+  }
+
+  setting {
+    namespace = "aws:elasticbeanstalk:application:environment"
+    name      = "POLAR_PRODUCT_CREDIT_1000"
+    value     = var.polar_product_credit_1000
+  }
+
   tags = {
     Name        = "${var.project_name}-${var.environment}-env"
     Environment = var.environment
