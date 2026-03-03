@@ -1458,6 +1458,78 @@
       "restoreSuccess": "बोर्ड पुनर्स्थापित किया गया",
       "restoreFailed": "बोर्ड पुनर्स्थापित करने में विफल"
     },
+    "organizations": {
+      "title": "संगठन प्रबंधन",
+      "search": "संगठन नाम या स्वामी ईमेल से खोजें...",
+      "filter": {
+        "all": "सभी",
+        "free": "Free",
+        "team": "Team",
+        "trial": "Trial"
+      },
+      "table": {
+        "name": "संगठन नाम",
+        "owner": "स्वामी",
+        "plan": "प्लान",
+        "members": "सदस्य",
+        "boards": "बोर्ड",
+        "status": "स्थिति",
+        "created": "निर्माण तिथि",
+        "actions": "कार्रवाई"
+      },
+      "detail": {
+        "title": "संगठन विवरण",
+        "info": "मूल जानकारी",
+        "subscription": "सदस्यता जानकारी",
+        "members": "सदस्य सूची",
+        "boards": "बोर्ड सूची",
+        "structure": "संरचना सेटिंग्स",
+        "plan": "प्लान",
+        "status": "स्थिति",
+        "billingCycle": "बिलिंग चक्र",
+        "seatCount": "सीटों की संख्या",
+        "activeMembers": "सक्रिय सदस्य",
+        "pricePerSeat": "प्रति सीट मूल्य",
+        "totalPrice": "कुल मूल्य",
+        "trialEndsAt": "ट्रायल समाप्ति",
+        "currentPeriodEnd": "वर्तमान अवधि समाप्ति",
+        "trialUsed": "ट्रायल उपयोग किया गया",
+        "noSubscription": "कोई सदस्यता नहीं",
+        "monthly": "मासिक",
+        "yearly": "वार्षिक"
+      },
+      "actions": {
+        "edit": "जानकारी संपादित करें",
+        "delete": "हटाएं",
+        "restore": "पुनर्स्थापित करें",
+        "permanentDelete": "स्थायी रूप से हटाएं",
+        "transferOwnership": "स्वामित्व हस्तांतरित करें",
+        "updateSubscription": "सदस्यता अपडेट करें",
+        "extendTrial": "ट्रायल बढ़ाएं"
+      },
+      "confirm": {
+        "delete": "क्या आप वाकई इस संगठन को हटाना चाहते हैं?",
+        "restore": "क्या आप वाकई इस संगठन को पुनर्स्थापित करना चाहते हैं?",
+        "permanentDelete": "क्या आप वाकई इस संगठन को स्थायी रूप से हटाना चाहते हैं? यह क्रिया पूर्ववत नहीं की जा सकती।",
+        "transferOwnership": "क्या आप वाकई स्वामित्व हस्तांतरित करना चाहते हैं?"
+      },
+      "deleted": {
+        "title": "हटाए गए संगठन",
+        "empty": "कोई हटाया गया संगठन नहीं",
+        "deletedAt": "हटाने की तिथि"
+      },
+      "empty": "कोई संगठन नहीं मिला",
+      "stats": {
+        "title": "संगठन आँकड़े",
+        "total": "कुल संगठन",
+        "active": "सक्रिय संगठन",
+        "free": "Free संगठन",
+        "team": "Team संगठन",
+        "trial": "Trial संगठन",
+        "activeSubs": "सक्रिय सदस्यताएं",
+        "totalMembers": "कुल सदस्य"
+      }
+    },
     "boardDetail": {
       "title": "बोर्ड विवरण",
       "loadFailed": "बोर्ड विवरण लोड करने में विफल",

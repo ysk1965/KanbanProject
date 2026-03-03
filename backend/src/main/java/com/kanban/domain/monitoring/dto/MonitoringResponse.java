@@ -104,11 +104,12 @@ public class MonitoringResponse {
         String serverTime
     ) {}
 
-    // Slack 알림 설정
+    // 알림 설정 (Slack + Email)
     public record AlertConfig(
         String slackWebhookUrl,
         boolean enabled,
-        Map<String, Double> thresholds
+        Map<String, Double> thresholds,
+        List<String> alertEmailRecipients
     ) {}
 
     // AI 사용량 메트릭

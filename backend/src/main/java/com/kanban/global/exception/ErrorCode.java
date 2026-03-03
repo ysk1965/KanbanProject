@@ -228,6 +228,8 @@ PERSONAL_TAG_NOT_FOUND(HttpStatus.NOT_FOUND, "PT003", "태그를 찾을 수 없�
     CUSTOMICON_STYLE_ANALYSIS_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "CI004", "스타일 분석에 실패했습니다"),
 
     // Organization
+    ORGANIZATION_NOT_FOUND(HttpStatus.NOT_FOUND, "O017", "조직을 찾을 수 없습니다"),
+    ORGANIZATION_ALREADY_DELETED(HttpStatus.CONFLICT, "O018", "이미 삭제된 조직입니다"),
     ORG_NOT_FOUND(HttpStatus.NOT_FOUND, "O001", "조직을 찾을 수 없습니다"),
     ORG_ACCESS_DENIED(HttpStatus.FORBIDDEN, "O002", "조직에 접근 권한이 없습니다"),
     ORG_ADMIN_REQUIRED(HttpStatus.FORBIDDEN, "O003", "조직 관리자 권한이 필요합니다"),

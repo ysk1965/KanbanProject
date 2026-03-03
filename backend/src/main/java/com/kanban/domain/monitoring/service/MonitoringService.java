@@ -12,6 +12,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -48,6 +49,11 @@ public class MonitoringService {
     @Value("${app.monitoring.enabled:true}")
     private boolean monitoringEnabled;
 
+    @Value("${app.monitoring.alert-email-recipients:}")
+    private String alertEmailRecipientsConfig;
+
+    private List<String> alertEmailRecipients;
+
     @Value("${app.monitoring.thresholds.cpu-percent:80}")
     private double cpuThreshold;
 
@@ -65,6 +71,18 @@ public class MonitoringService {
 
     @Value("${app.monitoring.ec2-instance-id:#{null}}")
     private String ec2InstanceId;
+
+    @PostConstruct
+    void initAlertEmailRecipients() {
+        if (alertEmailRecipientsConfig != null && !alertEmailRecipientsConfig.isBlank()) {
+            alertEmailRecipients = Arrays.stream(alertEmailRecipientsConfig.split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .collect(Collectors.toList());
+        } else {
+            alertEmailRecipients = new ArrayList<>();
+        }
+    }
 
     @Value("${app.monitoring.rds-instance-id:#{null}}")
     private String rdsInstanceId;
@@ -178,6 +196,18 @@ public class MonitoringService {
         log.info("Cleaned up API metric snapshots older than {} days", dataRetentionDays);
     }
 
+    public String getSlackWebhookUrl() {
+        return slackWebhookUrl;
+    }
+
+    public boolean isMonitoringEnabled() {
+        return monitoringEnabled;
+    }
+
+    public List<String> getAlertEmailRecipients() {
+        return alertEmailRecipients;
+    }
+
     /**
      * Returns the current alert configuration.
      */
@@ -192,7 +222,8 @@ public class MonitoringService {
         return new MonitoringResponse.AlertConfig(
                 slackWebhookUrl,
                 monitoringEnabled,
-                thresholds
+                thresholds,
+                alertEmailRecipients
         );
     }
 
@@ -200,12 +231,16 @@ public class MonitoringService {
      * Updates the alert configuration (webhook URL and enabled flag).
      */
     @Transactional
-    public MonitoringResponse.AlertConfig updateAlertConfig(String webhookUrl, boolean enabled) {
-        // In-memory update only (config values are @Value-injected; for persistent config, use system_config table)
+    public MonitoringResponse.AlertConfig updateAlertConfig(String webhookUrl, boolean enabled, List<String> emailRecipients) {
         this.slackWebhookUrl = webhookUrl;
         this.monitoringEnabled = enabled;
-        log.info("Updated alert config: enabled={}, webhookUrl={}", enabled,
-                webhookUrl != null && !webhookUrl.isEmpty() ? "***" : "(empty)");
+        if (emailRecipients != null) {
+            this.alertEmailRecipients = new ArrayList<>(emailRecipients);
+        }
+        log.info("Updated alert config: enabled={}, webhookUrl={}, emailRecipients={}",
+                enabled,
+                webhookUrl != null && !webhookUrl.isEmpty() ? "***" : "(empty)",
+                alertEmailRecipients.size());
         return getAlertConfig();
     }
 

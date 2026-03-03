@@ -2099,6 +2099,78 @@
       "restoreSuccess": "Board has been restored",
       "restoreFailed": "Failed to restore board"
     },
+    "organizations": {
+      "title": "Organizations",
+      "search": "Search by name or owner email...",
+      "filter": {
+        "all": "All",
+        "free": "Free",
+        "team": "Team",
+        "trial": "Trial"
+      },
+      "table": {
+        "name": "Name",
+        "owner": "Owner",
+        "plan": "Plan",
+        "members": "Members",
+        "boards": "Boards",
+        "status": "Status",
+        "created": "Created",
+        "actions": "Actions"
+      },
+      "detail": {
+        "title": "Organization Details",
+        "info": "Basic Info",
+        "subscription": "Subscription",
+        "members": "Members",
+        "boards": "Boards",
+        "structure": "Structure Settings",
+        "plan": "Plan",
+        "status": "Status",
+        "billingCycle": "Billing Cycle",
+        "seatCount": "Seats",
+        "activeMembers": "Active Members",
+        "pricePerSeat": "Price per Seat",
+        "totalPrice": "Total Price",
+        "trialEndsAt": "Trial Ends",
+        "currentPeriodEnd": "Period End",
+        "trialUsed": "Trial Used",
+        "noSubscription": "No subscription",
+        "monthly": "Monthly",
+        "yearly": "Yearly"
+      },
+      "actions": {
+        "edit": "Edit Info",
+        "delete": "Delete",
+        "restore": "Restore",
+        "permanentDelete": "Permanently Delete",
+        "transferOwnership": "Transfer Ownership",
+        "updateSubscription": "Update Subscription",
+        "extendTrial": "Extend Trial"
+      },
+      "confirm": {
+        "delete": "Are you sure you want to delete this organization?",
+        "restore": "Are you sure you want to restore this organization?",
+        "permanentDelete": "Are you sure you want to permanently delete this organization? This action cannot be undone.",
+        "transferOwnership": "Are you sure you want to transfer ownership?"
+      },
+      "deleted": {
+        "title": "Deleted Organizations",
+        "empty": "No deleted organizations",
+        "deletedAt": "Deleted at"
+      },
+      "empty": "No organizations found",
+      "stats": {
+        "title": "Organization Statistics",
+        "total": "Total Organizations",
+        "active": "Active Organizations",
+        "free": "Free Organizations",
+        "team": "Team Organizations",
+        "trial": "Trial Organizations",
+        "activeSubs": "Active Subscriptions",
+        "totalMembers": "Total Members"
+      }
+    },
     "boardDetail": {
       "title": "Board Detail",
       "loadFailed": "Failed to load board details",

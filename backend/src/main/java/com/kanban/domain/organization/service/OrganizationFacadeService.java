@@ -16,6 +16,7 @@ import com.kanban.domain.organization.dto.OrgBoardResponse;
 import com.kanban.domain.organization.repository.OrgMemberRepository;
 import com.kanban.domain.organization.repository.OrganizationRepository;
 import com.kanban.domain.schedule.ScheduleBlockRepository;
+import com.kanban.domain.subscription.SubscriptionRepository;
 import com.kanban.domain.subscription.service.OrgSubscriptionService;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
@@ -48,6 +49,7 @@ public class OrganizationFacadeService {
     private final OrganizationService organizationService;
     private final OrgActivityService orgActivityService;
     private final BoardService boardService;
+    private final SubscriptionRepository subscriptionRepository;
     private final OrgSubscriptionService orgSubscriptionService;
 
     public List<OrgBoardResponse.Simple> getOrgBoards(String orgId, String userId) {
@@ -269,6 +271,10 @@ public class OrganizationFacadeService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
         board.setOrganization(org);
         board.updateTier(BoardTier.ORG_MANAGED);
+
+        // Mark subscription as managed by org (pause individual billing)
+        subscriptionRepository.findByBoardId(board.getId())
+                .ifPresent(sub -> sub.markMigratedToOrg(orgId));
 
         List<BoardMember> boardMembers = boardMemberRepository.findByBoardId(board.getId());
         List<OrgBoardResponse.MemberPreview> members = boardMembers.stream()

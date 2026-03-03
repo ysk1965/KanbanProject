@@ -17,6 +17,8 @@ import {
   X,
   ChevronRight,
   Loader2,
+  Mail,
+  Plus,
 } from 'lucide-react';
 import { monitoringService } from '../../utils/services';
 import { MonitoringCharts } from './MonitoringCharts';
@@ -45,6 +47,8 @@ export function AdminMonitoringTab() {
   const [isSendingTest, setIsSendingTest] = useState(false);
   const [showErrorDetail, setShowErrorDetail] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [emailRecipients, setEmailRecipients] = useState<string[]>([]);
+  const [newEmail, setNewEmail] = useState('');
 
   const loadData = useCallback(async () => {
     try {
@@ -63,6 +67,7 @@ export function AdminMonitoringTab() {
       setOpenAIBilling(billingData);
       setWebhookUrl(configData.slack_webhook_url || '');
       setAlertEnabled(configData.enabled);
+      setEmailRecipients(configData.alert_email_recipients || []);
     } catch (err) {
       console.error('Failed to load monitoring data:', err);
       setError(t('admin.monitoring.loadFailed'));
@@ -92,6 +97,7 @@ export function AdminMonitoringTab() {
       const updated = await monitoringService.updateAlertConfig({
         slack_webhook_url: webhookUrl,
         enabled: alertEnabled,
+        alert_email_recipients: emailRecipients,
       });
       setAlertConfig(updated);
       setToast({ message: t('admin.monitoring.configSaved'), type: 'success' });
@@ -363,14 +369,15 @@ export function AdminMonitoringTab() {
         </div>
       )}
 
-      {/* Slack Alert Configuration */}
+      {/* Alert Configuration (Slack + Email) */}
       <div className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-6">
         <div className="flex items-center gap-2 mb-6">
           <Bell className="h-5 w-5 text-bridge-accent" />
           <h3 className="text-lg font-bold text-foreground">{t('admin.monitoring.slackAlerts')}</h3>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-5">
+          {/* Slack Webhook */}
           <div>
             <label className="block text-sm text-slate-400 mb-2">
               {t('admin.monitoring.webhookUrl')}
@@ -384,6 +391,68 @@ export function AdminMonitoringTab() {
             />
           </div>
 
+          {/* Email Recipients */}
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <Mail className="h-4 w-4 text-slate-400" />
+              <label className="text-sm text-slate-400">
+                {t('admin.monitoring.emailRecipients', 'CRITICAL 에러 이메일 수신자')}
+              </label>
+            </div>
+            <div className="flex gap-2 mb-2">
+              <input
+                type="email"
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && newEmail.trim() && newEmail.includes('@')) {
+                    e.preventDefault();
+                    if (!emailRecipients.includes(newEmail.trim())) {
+                      setEmailRecipients([...emailRecipients, newEmail.trim()]);
+                    }
+                    setNewEmail('');
+                  }
+                }}
+                placeholder="admin@example.com"
+                className="flex-1 bg-foreground/5 border border-foreground/10 rounded-xl py-2.5 px-4 text-sm text-foreground placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-bridge-accent/50 transition-all"
+              />
+              <button
+                onClick={() => {
+                  if (newEmail.trim() && newEmail.includes('@') && !emailRecipients.includes(newEmail.trim())) {
+                    setEmailRecipients([...emailRecipients, newEmail.trim()]);
+                    setNewEmail('');
+                  }
+                }}
+                disabled={!newEmail.trim() || !newEmail.includes('@')}
+                className="px-3 py-2.5 bg-foreground/5 border border-foreground/10 text-slate-400 rounded-xl hover:bg-foreground/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
+            </div>
+            {emailRecipients.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {emailRecipients.map((email) => (
+                  <span
+                    key={email}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 bg-bridge-accent/15 text-bridge-accent text-xs font-medium rounded-full"
+                  >
+                    {email}
+                    <button
+                      onClick={() => setEmailRecipients(emailRecipients.filter((e) => e !== email))}
+                      className="hover:text-red-400 transition-colors"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            {emailRecipients.length === 0 && (
+              <p className="text-xs text-slate-600">{t('admin.monitoring.emailRecipientsHint', '500 에러 발생 시 이메일로도 알림을 받을 수 있습니다')}</p>
+            )}
+          </div>
+
+          {/* Enable + Actions */}
           <div className="flex items-center justify-between">
             <label className="flex items-center gap-2 text-sm text-slate-400 cursor-pointer">
               <input

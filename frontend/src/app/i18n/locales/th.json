@@ -1458,6 +1458,78 @@
       "restoreSuccess": "กู้คืนบอร์ดแล้ว",
       "restoreFailed": "กู้คืนบอร์ดไม่สำเร็จ"
     },
+    "organizations": {
+      "title": "จัดการองค์กร",
+      "search": "ค้นหาตามชื่อองค์กรหรืออีเมลเจ้าของ...",
+      "filter": {
+        "all": "ทั้งหมด",
+        "free": "Free",
+        "team": "Team",
+        "trial": "Trial"
+      },
+      "table": {
+        "name": "ชื่อองค์กร",
+        "owner": "เจ้าของ",
+        "plan": "แผน",
+        "members": "สมาชิก",
+        "boards": "บอร์ด",
+        "status": "สถานะ",
+        "created": "วันที่สร้าง",
+        "actions": "จัดการ"
+      },
+      "detail": {
+        "title": "รายละเอียดองค์กร",
+        "info": "ข้อมูลพื้นฐาน",
+        "subscription": "ข้อมูลการสมัครสมาชิก",
+        "members": "รายชื่อสมาชิก",
+        "boards": "รายการบอร์ด",
+        "structure": "การตั้งค่าโครงสร้าง",
+        "plan": "แผน",
+        "status": "สถานะ",
+        "billingCycle": "รอบการเรียกเก็บเงิน",
+        "seatCount": "จำนวนที่นั่ง",
+        "activeMembers": "สมาชิกที่ใช้งาน",
+        "pricePerSeat": "ราคาต่อที่นั่ง",
+        "totalPrice": "ราคารวม",
+        "trialEndsAt": "สิ้นสุดทดลองใช้",
+        "currentPeriodEnd": "สิ้นสุดรอบปัจจุบัน",
+        "trialUsed": "ใช้ทดลองแล้ว",
+        "noSubscription": "ไม่มีการสมัครสมาชิก",
+        "monthly": "รายเดือน",
+        "yearly": "รายปี"
+      },
+      "actions": {
+        "edit": "แก้ไขข้อมูล",
+        "delete": "ลบ",
+        "restore": "กู้คืน",
+        "permanentDelete": "ลบถาวร",
+        "transferOwnership": "โอนความเป็นเจ้าของ",
+        "updateSubscription": "แก้ไขการสมัครสมาชิก",
+        "extendTrial": "ขยายการทดลองใช้"
+      },
+      "confirm": {
+        "delete": "คุณแน่ใจหรือไม่ที่จะลบองค์กรนี้?",
+        "restore": "คุณแน่ใจหรือไม่ที่จะกู้คืนองค์กรนี้?",
+        "permanentDelete": "คุณแน่ใจหรือไม่ที่จะลบองค์กรนี้ถาวร? การดำเนินการนี้ไม่สามารถเลิกทำได้",
+        "transferOwnership": "คุณแน่ใจหรือไม่ที่จะโอนความเป็นเจ้าของ?"
+      },
+      "deleted": {
+        "title": "องค์กรที่ถูกลบ",
+        "empty": "ไม่มีองค์กรที่ถูกลบ",
+        "deletedAt": "วันที่ลบ"
+      },
+      "empty": "ไม่มีองค์กร",
+      "stats": {
+        "title": "สถิติองค์กร",
+        "total": "องค์กรทั้งหมด",
+        "active": "องค์กรที่ใช้งาน",
+        "free": "องค์กร Free",
+        "team": "องค์กร Team",
+        "trial": "องค์กร Trial",
+        "activeSubs": "การสมัครสมาชิกที่ใช้งาน",
+        "totalMembers": "สมาชิกทั้งหมด"
+      }
+    },
     "boardDetail": {
       "title": "รายละเอียดบอร์ด",
       "loadFailed": "โหลดรายละเอียดบอร์ดไม่สำเร็จ",

@@ -2177,6 +2177,10 @@ import {
   AdminBoardDetail,
   AdminStatistics,
   AdminSubscriptionSummary,
+  AdminOrgSummary,
+  AdminOrgDetail,
+  OrgListResponse,
+  AdminOrgStatistics,
   UserListResponse,
   BoardListResponse,
   SubscriptionListResponse,
@@ -2457,6 +2461,88 @@ export const adminService = {
     return await adminAPI.bulkCreatePersonalBoards();
   },
 
+  // ==================== Organizations ====================
+
+  // 조직 목록 조회
+  getOrganizations: async (params: {
+    page?: number;
+    size?: number;
+    search?: string;
+  }): Promise<OrgListResponse> => {
+    return adminAPI.getOrganizations(params);
+  },
+
+  // 삭제된 조직 목록 조회
+  getDeletedOrganizations: async (params: {
+    page?: number;
+    size?: number;
+    search?: string;
+  }): Promise<OrgListResponse> => {
+    return adminAPI.getDeletedOrganizations(params);
+  },
+
+  // 조직 상세 조회
+  getOrganization: async (orgId: string): Promise<AdminOrgDetail> => {
+    return adminAPI.getOrganization(orgId);
+  },
+
+  // 조직 정보 수정
+  updateOrganization: async (
+    orgId: string,
+    data: { name?: string; description?: string },
+  ): Promise<AdminOrgDetail> => {
+    return adminAPI.updateOrganization(orgId, data);
+  },
+
+  // 조직 삭제 (소프트)
+  deleteOrganization: async (orgId: string): Promise<void> => {
+    await adminAPI.deleteOrganization(orgId);
+  },
+
+  // 조직 복구
+  restoreOrganization: async (orgId: string): Promise<void> => {
+    await adminAPI.restoreOrganization(orgId);
+  },
+
+  // 조직 영구 삭제
+  permanentlyDeleteOrganization: async (orgId: string): Promise<void> => {
+    await adminAPI.permanentlyDeleteOrganization(orgId);
+  },
+
+  // 소유권 이전
+  transferOrgOwnership: async (
+    orgId: string,
+    newOwnerMemberId: string,
+  ): Promise<AdminOrgDetail> => {
+    return adminAPI.transferOrgOwnership(orgId, newOwnerMemberId);
+  },
+
+  // 구독 수정
+  updateOrgSubscription: async (
+    orgId: string,
+    data: {
+      plan?: string;
+      status?: string;
+      billing_cycle?: string;
+      seat_count?: number;
+    },
+  ): Promise<AdminOrgDetail> => {
+    return adminAPI.updateOrgSubscription(orgId, data);
+  },
+
+  // Trial 연장
+  extendOrgTrial: async (
+    orgId: string,
+    extendDays: number,
+  ): Promise<AdminOrgDetail> => {
+    return adminAPI.extendOrgTrial(orgId, extendDays);
+  },
+
+  // 조직 통계
+  getOrgStatistics: async (): Promise<AdminOrgStatistics> => {
+    return adminAPI.getOrgStatistics();
+  },
+
   // 점검 모드
   getMaintenanceStatus: async (): Promise<MaintenanceStatus> => {
     return await adminAPI.getMaintenanceStatus();
@@ -2723,6 +2809,7 @@ export const monitoringService = {
   updateAlertConfig: async (config: {
     slack_webhook_url: string;
     enabled: boolean;
+    alert_email_recipients?: string[];
   }) => {
     const response = await apiClient.put(
       "/admin/monitoring/alert-config",

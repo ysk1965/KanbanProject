@@ -1458,6 +1458,78 @@
       "restoreSuccess": "Board foi restaurado",
       "restoreFailed": "Falha ao restaurar o board"
     },
+    "organizations": {
+      "title": "Gerenciamento de organizações",
+      "search": "Buscar por nome ou e-mail do proprietário...",
+      "filter": {
+        "all": "Todos",
+        "free": "Free",
+        "team": "Team",
+        "trial": "Trial"
+      },
+      "table": {
+        "name": "Nome",
+        "owner": "Proprietário",
+        "plan": "Plano",
+        "members": "Membros",
+        "boards": "Boards",
+        "status": "Status",
+        "created": "Criado em",
+        "actions": "Ações"
+      },
+      "detail": {
+        "title": "Detalhes da organização",
+        "info": "Informações básicas",
+        "subscription": "Assinatura",
+        "members": "Lista de membros",
+        "boards": "Lista de boards",
+        "structure": "Configurações de estrutura",
+        "plan": "Plano",
+        "status": "Status",
+        "billingCycle": "Ciclo de cobrança",
+        "seatCount": "Assentos",
+        "activeMembers": "Membros ativos",
+        "pricePerSeat": "Preço por assento",
+        "totalPrice": "Preço total",
+        "trialEndsAt": "Fim do teste",
+        "currentPeriodEnd": "Fim do período",
+        "trialUsed": "Teste utilizado",
+        "noSubscription": "Sem assinatura",
+        "monthly": "Mensal",
+        "yearly": "Anual"
+      },
+      "actions": {
+        "edit": "Editar informações",
+        "delete": "Excluir",
+        "restore": "Restaurar",
+        "permanentDelete": "Excluir permanentemente",
+        "transferOwnership": "Transferir propriedade",
+        "updateSubscription": "Atualizar assinatura",
+        "extendTrial": "Estender teste"
+      },
+      "confirm": {
+        "delete": "Tem certeza de que deseja excluir esta organização?",
+        "restore": "Tem certeza de que deseja restaurar esta organização?",
+        "permanentDelete": "Tem certeza de que deseja excluir permanentemente esta organização? Esta ação não pode ser desfeita.",
+        "transferOwnership": "Tem certeza de que deseja transferir a propriedade?"
+      },
+      "deleted": {
+        "title": "Organizações excluídas",
+        "empty": "Nenhuma organização excluída",
+        "deletedAt": "Data de exclusão"
+      },
+      "empty": "Nenhuma organização encontrada",
+      "stats": {
+        "title": "Estatísticas de organizações",
+        "total": "Total de organizações",
+        "active": "Organizações ativas",
+        "free": "Organizações Free",
+        "team": "Organizações Team",
+        "trial": "Organizações Trial",
+        "activeSubs": "Assinaturas ativas",
+        "totalMembers": "Total de membros"
+      }
+    },
     "boardDetail": {
       "title": "Detalhes do Board",
       "loadFailed": "Falha ao carregar detalhes do board",

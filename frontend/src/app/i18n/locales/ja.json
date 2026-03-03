@@ -1458,6 +1458,78 @@
       "restoreSuccess": "ボードが復元されました",
       "restoreFailed": "ボードの復元に失敗しました"
     },
+    "organizations": {
+      "title": "組織管理",
+      "search": "組織名またはオーナーのメールで検索...",
+      "filter": {
+        "all": "すべて",
+        "free": "Free",
+        "team": "Team",
+        "trial": "Trial"
+      },
+      "table": {
+        "name": "組織名",
+        "owner": "オーナー",
+        "plan": "プラン",
+        "members": "メンバー",
+        "boards": "ボード",
+        "status": "ステータス",
+        "created": "作成日",
+        "actions": "管理"
+      },
+      "detail": {
+        "title": "組織詳細",
+        "info": "基本情報",
+        "subscription": "サブスクリプション",
+        "members": "メンバー一覧",
+        "boards": "ボード一覧",
+        "structure": "構造設定",
+        "plan": "プラン",
+        "status": "ステータス",
+        "billingCycle": "請求サイクル",
+        "seatCount": "シート数",
+        "activeMembers": "アクティブメンバー",
+        "pricePerSeat": "シート単価",
+        "totalPrice": "合計金額",
+        "trialEndsAt": "トライアル終了",
+        "currentPeriodEnd": "現在の期間終了",
+        "trialUsed": "トライアル使用済み",
+        "noSubscription": "サブスクリプションなし",
+        "monthly": "月額",
+        "yearly": "年額"
+      },
+      "actions": {
+        "edit": "情報編集",
+        "delete": "削除",
+        "restore": "復元",
+        "permanentDelete": "完全削除",
+        "transferOwnership": "オーナー移譲",
+        "updateSubscription": "サブスクリプション変更",
+        "extendTrial": "トライアル延長"
+      },
+      "confirm": {
+        "delete": "この組織を削除しますか？",
+        "restore": "この組織を復元しますか？",
+        "permanentDelete": "この組織を完全に削除しますか？この操作は元に戻せません。",
+        "transferOwnership": "オーナーを移譲しますか？"
+      },
+      "deleted": {
+        "title": "削除された組織",
+        "empty": "削除された組織はありません",
+        "deletedAt": "削除日"
+      },
+      "empty": "組織がありません",
+      "stats": {
+        "title": "組織統計",
+        "total": "全組織",
+        "active": "アクティブ組織",
+        "free": "Free組織",
+        "team": "Team組織",
+        "trial": "Trial組織",
+        "activeSubs": "アクティブサブスクリプション",
+        "totalMembers": "全メンバー"
+      }
+    },
     "boardDetail": {
       "title": "ボード詳細",
       "loadFailed": "ボード詳細の読み込みに失敗しました",

@@ -1,5 +1,5 @@
 import { Routes, Route, NavLink, Navigate } from 'react-router-dom';
-import { LayoutDashboard, Users, Folder, CreditCard, BarChart3, Megaphone, Shield, ArrowLeft, MessageSquare, Activity } from 'lucide-react';
+import { LayoutDashboard, Users, Folder, CreditCard, BarChart3, Megaphone, Shield, ArrowLeft, MessageSquare, Activity, Building2 } from 'lucide-react';
 import ErrorBoundary from '../components/ErrorBoundary';
 import { useTranslation } from 'react-i18next';
 import { AdminDashboardTab } from '../components/admin/AdminDashboardTab';
@@ -11,12 +11,14 @@ import { AdminAnnouncementsTab } from '../components/admin/AdminAnnouncementsTab
 import { AdminSystemTab } from '../components/admin/AdminSystemTab';
 import { AdminInquiriesTab } from '../components/admin/AdminInquiriesTab';
 import { AdminMonitoringTab } from '../components/admin/AdminMonitoringTab';
+import { AdminOrganizationsTab } from '../components/admin/AdminOrganizationsTab';
 
 const navItems = [
   { path: 'dashboard', labelKey: 'admin.dashboard.title', icon: LayoutDashboard },
   { path: 'analytics', labelKey: 'admin.analytics.title', icon: BarChart3 },
   { path: 'users', labelKey: 'admin.users.title', icon: Users },
   { path: 'boards', labelKey: 'admin.boards.title', icon: Folder },
+  { path: 'organizations', labelKey: 'admin.organizations.title', icon: Building2 },
   { path: 'subscriptions', labelKey: 'admin.subscriptions.title', icon: CreditCard },
   { path: 'announcements', labelKey: 'admin.announcements.title', icon: Megaphone },
   { path: 'system', labelKey: 'admin.system.title', icon: Shield },
@@ -78,6 +80,7 @@ export function AdminPage() {
                 <Route path="analytics" element={<AdminAnalyticsTab />} />
                 <Route path="users" element={<AdminUsersTab />} />
                 <Route path="boards" element={<AdminBoardsTab />} />
+                <Route path="organizations" element={<AdminOrganizationsTab />} />
                 <Route path="subscriptions" element={<AdminSubscriptionsTab />} />
                 <Route path="announcements" element={<AdminAnnouncementsTab />} />
                 <Route path="system" element={<AdminSystemTab />} />
