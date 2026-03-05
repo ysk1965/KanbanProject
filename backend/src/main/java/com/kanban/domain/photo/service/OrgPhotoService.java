@@ -167,10 +167,14 @@ public class OrgPhotoService {
         long totalCount;
 
         if (tabId != null && !tabId.isEmpty()) {
-            photos = orgPhotoRepository.findByTabIdWithCursor(tabId, cursorDateTime, pageable);
+            photos = cursorDateTime != null
+                    ? orgPhotoRepository.findByTabIdAndCreatedAtBefore(tabId, cursorDateTime, pageable)
+                    : orgPhotoRepository.findByTabIdOrderByCreatedAtDesc(tabId, pageable);
             totalCount = orgPhotoRepository.countByTabId(tabId);
         } else {
-            photos = orgPhotoRepository.findByOrganizationIdWithCursor(orgId, cursorDateTime, pageable);
+            photos = cursorDateTime != null
+                    ? orgPhotoRepository.findByOrgIdAndCreatedAtBefore(orgId, cursorDateTime, pageable)
+                    : orgPhotoRepository.findByOrgIdOrderByCreatedAtDesc(orgId, pageable);
             totalCount = orgPhotoRepository.countByOrganizationId(orgId);
         }
 
@@ -402,7 +406,9 @@ public class OrgPhotoService {
         }
 
         Pageable pageable = PageRequest.of(0, size + 1);
-        List<OrgPhoto> photos = orgPhotoRepository.findByTabIdWithCursor(tab.getId(), cursorDateTime, pageable);
+        List<OrgPhoto> photos = cursorDateTime != null
+                ? orgPhotoRepository.findByTabIdAndCreatedAtBefore(tab.getId(), cursorDateTime, pageable)
+                : orgPhotoRepository.findByTabIdOrderByCreatedAtDesc(tab.getId(), pageable);
 
         boolean hasNext = photos.size() > size;
         if (hasNext) {
@@ -498,7 +504,9 @@ public class OrgPhotoService {
         }
 
         Pageable pageable = PageRequest.of(0, size + 1);
-        List<OrgPhoto> photos = orgPhotoRepository.findByTabIdWithCursor(tab.getId(), cursorDateTime, pageable);
+        List<OrgPhoto> photos = cursorDateTime != null
+                ? orgPhotoRepository.findByTabIdAndCreatedAtBefore(tab.getId(), cursorDateTime, pageable)
+                : orgPhotoRepository.findByTabIdOrderByCreatedAtDesc(tab.getId(), pageable);
 
         boolean hasNext = photos.size() > size;
         if (hasNext) {
