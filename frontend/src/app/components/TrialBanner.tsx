@@ -1,19 +1,22 @@
 import { useTranslation } from 'react-i18next';
 import { SubscriptionStatus, BoardTier } from '../types';
 import { Button } from './ui/button';
-import { Crown, Sparkles } from 'lucide-react';
+import { AlertTriangle, Crown, Sparkles } from 'lucide-react';
 
 interface TrialBannerProps {
   status: SubscriptionStatus;
   onOpenSubscription?: () => void;
   onOpenPremiumBenefits?: () => void;
   onTrialEnding?: () => void;
+  onUpdatePayment?: () => void;
   tier?: BoardTier;
   trialEndsAt?: string | null;
+  daysPastDue?: number | null;
+  daysUntilSuspension?: number | null;
   hideBilling?: boolean;
 }
 
-export function TrialBanner({ status, onOpenSubscription, onOpenPremiumBenefits, onTrialEnding, tier, trialEndsAt, hideBilling }: TrialBannerProps) {
+export function TrialBanner({ status, onOpenSubscription, onOpenPremiumBenefits, onTrialEnding, onUpdatePayment, tier, trialEndsAt, daysPastDue, daysUntilSuspension, hideBilling }: TrialBannerProps) {
   const { t } = useTranslation();
 
   // TESTER/ADMIN 사용자 또는 milkyway.pe.kr 도메인은 과금 배너 숨김
@@ -101,6 +104,37 @@ export function TrialBanner({ status, onOpenSubscription, onOpenPremiumBenefits,
   }
 
   if (status === 'ACTIVE' || tier === 'PREMIUM') return null;
+
+  // PAST_DUE 상태: 단계별 경고 배너 (기능은 유지)
+  if (status === 'PAST_DUE') {
+    const days = daysPastDue ?? 0;
+    const remaining = daysUntilSuspension ?? Math.max(0, 7 - days);
+    const isUrgent = days >= 4; // Day 4-6: 긴급 경고
+
+    return (
+      <div className={`${isUrgent ? 'bg-red-900/80 border-b border-red-800' : 'bg-amber-900/80 border-b border-amber-800'} px-6 py-2.5`}>
+        <div className="flex items-center justify-between max-w-7xl mx-auto">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className={`h-4 w-4 ${isUrgent ? 'text-red-400' : 'text-amber-400'}`} />
+            <span className={`text-sm font-semibold ${isUrgent ? 'text-red-200' : 'text-amber-200'}`}>
+              {isUrgent
+                ? t('subscription.pastDueUrgent', { days: remaining })
+                : t('subscription.pastDueWarning')}
+            </span>
+          </div>
+          <Button
+            size="sm"
+            className={`h-7 text-xs ${isUrgent ? 'bg-red-500 hover:bg-red-600' : 'bg-amber-500 hover:bg-amber-600 text-slate-900'}`}
+            onClick={onUpdatePayment || onOpenSubscription}
+          >
+            {isUrgent
+              ? t('subscription.updatePaymentNow')
+              : t('subscription.updatePayment')}
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   if (status === 'SUSPENDED') {
     return (

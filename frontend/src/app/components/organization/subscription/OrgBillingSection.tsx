@@ -10,6 +10,11 @@ import {
   AlertTriangle,
   ChevronDown,
   ChevronUp,
+  Clock,
+  Undo2,
+  X,
+  BarChart3,
+  Briefcase,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { orgSubscriptionService } from '../../../utils/services';
@@ -98,6 +103,22 @@ export function OrgBillingSection({
     }
   };
 
+  const handleUndoCancel = async () => {
+    try {
+      setActionLoading(true);
+      await orgSubscriptionService.undoCancel(orgId);
+      toast.success(t('orgSubscription.billing.undoCancelSuccess', 'Cancellation undone'));
+      onUpdate();
+    } catch (error) {
+      console.warn('Undo cancel failed:', error);
+      toast.error(t('orgSubscription.billing.undoCancelError', 'Failed to undo cancellation'));
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const isCancellationPending = !!subscription.cancel_requested_at;
+
   const handlePlanSelect = (plan: 'FREE' | 'TEAM') => {
     setShowPlanModal(false);
     if (plan === 'TEAM' && subscription.plan === 'FREE') {
@@ -107,8 +128,8 @@ export function OrgBillingSection({
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return `$${amount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+  const formatCurrency = (amountInCents: number) => {
+    return `$${(amountInCents / 100).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
   };
 
   const statusColor = (status: string) => {
@@ -210,6 +231,40 @@ export function OrgBillingSection({
           )}
         </div>
       </motion.div>
+
+      {/* Cancellation Pending Banner */}
+      {isCancellationPending && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.02 }}
+          className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-5"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <Clock size={16} className="text-amber-400" />
+                <h3 className="text-sm font-bold text-amber-400">
+                  {t('orgSubscription.billing.cancelPendingTitle', 'Cancellation Scheduled')}
+                </h3>
+              </div>
+              <p className="text-[11px] text-slate-400">
+                {t('orgSubscription.billing.cancelPendingDesc', 'Your subscription will end on {{date}}. Premium features remain active until then.', {
+                  date: subscription.current_period_end ? formatDate(subscription.current_period_end) : '-',
+                })}
+              </p>
+            </div>
+            <button
+              onClick={handleUndoCancel}
+              disabled={actionLoading}
+              className="flex items-center gap-1.5 px-4 py-2 bg-bridge-accent text-white rounded-xl text-xs font-bold hover:bg-bridge-accent/90 transition-all disabled:opacity-50 shrink-0 ml-4"
+            >
+              <Undo2 size={14} />
+              {actionLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : t('orgSubscription.billing.undoCancellation', 'Undo Cancellation')}
+            </button>
+          </div>
+        </motion.div>
+      )}
 
       {/* Seat Management */}
       <motion.div
@@ -383,7 +438,7 @@ export function OrgBillingSection({
       </motion.div>
 
       {/* Danger Zone */}
-      {subscription.plan === 'TEAM' && (
+      {subscription.plan === 'TEAM' && !isCancellationPending && (
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -507,42 +562,71 @@ export function OrgBillingSection({
         </div>
       </MotionModal>
 
-      {/* Cancel Confirmation Modal */}
+      {/* Cancel Confirmation Modal (Enhanced) */}
       <MotionModal
         open={showCancelConfirm}
         onClose={() => setShowCancelConfirm(false)}
-        className="sm:max-w-sm"
+        className="sm:max-w-md"
       >
         <div className="h-1 bg-gradient-to-r from-red-500 to-red-700 rounded-t-2xl" />
         <div className="px-5 pt-4 pb-3 border-b border-foreground/[0.08]">
           <div className="flex items-center gap-3">
             <AlertTriangle size={20} className="text-red-600 dark:text-red-400" />
             <h2 className="text-lg font-bold text-foreground">
-              {t('orgSubscription.billing.cancelTitle', 'Cancel Subscription?')}
+              {t('orgSubscription.billing.cancelTitle', 'Cancel Organization Subscription?')}
             </h2>
           </div>
         </div>
-        <div className="px-5 pb-5 pt-4">
-          <p className="text-sm text-slate-400 leading-relaxed">
-            {t(
-              'orgSubscription.billing.cancelWarning',
-              'Your subscription will be cancelled. You will retain access until the end of the current billing period.',
+        <div className="px-5 pb-5 pt-4 space-y-3">
+          {/* Impact summary */}
+          <div className="space-y-2">
+            {subscription.current_period_end && (
+              <div className="flex items-center gap-2 text-sm">
+                <Calendar size={14} className="text-slate-400 shrink-0" />
+                <span className="text-foreground">
+                  {t('orgSubscription.billing.cancelActiveUntil', 'Active until: {{date}}', {
+                    date: formatDate(subscription.current_period_end),
+                  })}
+                </span>
+              </div>
             )}
-          </p>
+            <div className="flex items-center gap-2 text-sm">
+              <CreditCard size={14} className="text-slate-400 shrink-0" />
+              <span className="text-slate-400">
+                {t('orgSubscription.billing.cancelBoardsAffected', '{{count}} boards will lose Premium features', {
+                  count: subscription.board_count,
+                })}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <Users size={14} className="text-slate-400 shrink-0" />
+              <span className="text-slate-400">
+                {t('orgSubscription.billing.cancelMembersAffected', '{{count}} members will be affected', {
+                  count: subscription.active_member_count,
+                })}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <Briefcase size={14} className="text-slate-400 shrink-0" />
+              <span className="text-slate-400">
+                {t('orgSubscription.billing.cancelHrReadOnly', 'HR features will become read-only')}
+              </span>
+            </div>
+          </div>
         </div>
         <div className="px-5 py-3 border-t border-foreground/[0.08] flex items-center justify-between">
           <span className="text-[10px] text-slate-600">ESC</span>
           <div className="flex gap-2">
             <button
               onClick={() => setShowCancelConfirm(false)}
-              className="px-4 py-1.5 rounded-lg text-xs font-bold bg-foreground/[0.06] text-foreground hover:bg-foreground/10 transition-colors"
+              className="px-4 py-2 rounded-lg text-xs font-bold bg-bridge-accent text-white hover:bg-bridge-accent/90 transition-colors"
             >
-              {t('common.cancel', 'Cancel')}
+              {t('orgSubscription.billing.keepSubscription', 'Keep Subscription')}
             </button>
             <button
               onClick={handleCancel}
               disabled={actionLoading}
-              className="px-4 py-1.5 rounded-lg text-xs font-bold bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30 hover:bg-red-500/30 transition-colors disabled:opacity-50"
+              className="px-4 py-2 rounded-lg text-xs font-bold text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
             >
               {actionLoading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />

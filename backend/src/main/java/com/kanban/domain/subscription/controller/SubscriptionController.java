@@ -94,11 +94,28 @@ public class SubscriptionController {
         return ResponseEntity.ok(response);
     }
 
+    // Billing Portal - Polar Customer Portal redirect
+    @GetMapping("/api/v1/boards/{boardId}/subscription/billing-portal")
+    public ResponseEntity<Map<String, String>> getBillingPortalUrl(
+            @PathVariable String boardId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        String portalUrl = subscriptionService.getBillingPortalUrl(boardId, principal.getUserId());
+        return ResponseEntity.ok(Map.of("url", portalUrl));
+    }
+
     @DeleteMapping("/api/v1/boards/{boardId}/subscription")
     public ResponseEntity<Map<String, String>> cancelSubscription(
             @PathVariable String boardId,
             @AuthenticationPrincipal UserPrincipal principal) {
         subscriptionService.cancelSubscription(boardId, principal.getUserId());
         return ResponseEntity.ok(Map.of("message", "구독이 취소되었습니다"));
+    }
+
+    @PostMapping("/api/v1/boards/{boardId}/subscription/undo-cancel")
+    public ResponseEntity<Map<String, String>> undoCancellation(
+            @PathVariable String boardId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        subscriptionService.undoCancellation(boardId, principal.getUserId());
+        return ResponseEntity.ok(Map.of("message", "구독 취소가 철회되었습니다"));
     }
 }

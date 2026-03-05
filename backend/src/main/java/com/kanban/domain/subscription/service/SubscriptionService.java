@@ -164,15 +164,42 @@ public class SubscriptionService {
         Subscription subscription = subscriptionRepository.findByBoardId(boardId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SUBSCRIPTION_NOT_FOUND));
 
-        subscription.cancel();
+        // Grace period: 취소 예약만 하고, currentPeriodEnd까지 Premium 유지
+        subscription.requestCancellation();
 
-        // Board tier도 함께 다운그레이드
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.BOARD_NOT_FOUND));
-        board.downgradeToStandard();
-        webSocketAuthInterceptor.evictTierCache(boardId);
+        log.info("Subscription cancellation requested for board: {} by user: {}. Active until: {}",
+                boardId, userId, subscription.getCurrentPeriodEnd());
+    }
 
-        log.info("Subscription canceled for board: {} by user: {}", boardId, userId);
+    @Transactional
+    public void undoCancellation(String boardId, String userId) {
+        boardService.checkOwner(boardId, userId);
+
+        Subscription subscription = subscriptionRepository.findByBoardId(boardId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SUBSCRIPTION_NOT_FOUND));
+
+        if (!subscription.isCancellationRequested()) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
+        }
+
+        subscription.undoCancellation();
+        log.info("Subscription cancellation undone for board: {} by user: {}", boardId, userId);
+    }
+
+    /**
+     * Polar Customer Portal URL 반환 (결제 수단 관리)
+     */
+    public String getBillingPortalUrl(String boardId, String userId) {
+        boardService.checkOwner(boardId, userId);
+
+        subscriptionRepository.findByBoardId(boardId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SUBSCRIPTION_NOT_FOUND));
+
+        // Polar customer portal URL
+        String baseUrl = polarConfig.getBaseUrl() != null
+                ? polarConfig.getBaseUrl()
+                : "https://polar.sh";
+        return baseUrl + "/" + polarConfig.getOrganizationId() + "/portal";
     }
 
     // === Polar Checkout Methods ===

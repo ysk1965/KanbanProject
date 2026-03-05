@@ -17,9 +17,9 @@ import java.util.UUID;
 @Builder
 public class OrgSubscription {
 
-    // Seat 기반 가격 상수 (KRW 단위)
-    public static final int MONTHLY_PRICE_PER_SEAT = 1500;
-    public static final int YEARLY_PRICE_PER_SEAT = 15000;
+    // Seat 기반 가격 상수 (USD cents)
+    public static final int MONTHLY_PRICE_PER_SEAT = 1500;   // $15.00
+    public static final int YEARLY_PRICE_PER_SEAT = 15000;   // $150.00
     public static final int TRIAL_DAYS = 7;
 
     @Id
@@ -88,6 +88,12 @@ public class OrgSubscription {
     @Column(name = "canceled_at")
     private LocalDateTime canceledAt;
 
+    @Column(name = "cancel_requested_at")
+    private LocalDateTime cancelRequestedAt;
+
+    @Column(name = "past_due_since")
+    private LocalDateTime pastDueSince;
+
     @PrePersist
     public void prePersist() {
         if (this.id == null) {
@@ -134,6 +140,7 @@ public class OrgSubscription {
     public void activateTeam(BillingCycle cycle, int seats, String paymentMethodId) {
         this.plan = OrgPlan.TEAM;
         this.status = SubscriptionStatus.ACTIVE;
+        this.pastDueSince = null;
         this.billingCycle = cycle;
         this.seatCount = seats;
         this.pricePerSeat = cycle == BillingCycle.YEARLY
@@ -209,10 +216,35 @@ public class OrgSubscription {
     public void cancel() {
         this.status = SubscriptionStatus.CANCELED;
         this.canceledAt = LocalDateTime.now(ZoneOffset.UTC);
+        this.cancelRequestedAt = null;
+    }
+
+    public void requestCancellation() {
+        this.cancelRequestedAt = LocalDateTime.now(ZoneOffset.UTC);
+    }
+
+    public boolean isCancellationRequested() {
+        return this.cancelRequestedAt != null;
+    }
+
+    public void undoCancellation() {
+        this.cancelRequestedAt = null;
+    }
+
+    public void markPastDue() {
+        this.status = SubscriptionStatus.PAST_DUE;
+        if (this.pastDueSince == null) {
+            this.pastDueSince = LocalDateTime.now(ZoneOffset.UTC);
+        }
+    }
+
+    public boolean isPastDue() {
+        return this.status == SubscriptionStatus.PAST_DUE;
     }
 
     public void suspend() {
         this.status = SubscriptionStatus.SUSPENDED;
+        this.pastDueSince = null;
     }
 
     // ── Limit Methods ──

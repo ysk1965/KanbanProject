@@ -22,4 +22,10 @@ public interface OrgSubscriptionRepository extends JpaRepository<OrgSubscription
     List<OrgSubscription> findByStatusAndTrialEndsAtBefore(SubscriptionStatus status, LocalDateTime now);
 
     List<OrgSubscription> findByStatusAndNextPaymentAtBefore(SubscriptionStatus status, LocalDateTime now);
+
+    @Query("SELECT os FROM OrgSubscription os JOIN FETCH os.organization WHERE os.cancelRequestedAt IS NOT NULL AND os.currentPeriodEnd < :now AND os.status = 'ACTIVE'")
+    List<OrgSubscription> findPendingCancellations(@Param("now") LocalDateTime now);
+
+    @Query("SELECT os FROM OrgSubscription os JOIN FETCH os.organization WHERE os.status = 'PAST_DUE' AND os.pastDueSince < :threshold")
+    List<OrgSubscription> findByStatusPastDueAndPastDueSinceBefore(@Param("threshold") LocalDateTime threshold);
 }

@@ -2051,6 +2051,18 @@ export const subscriptionAPI = {
     );
   },
 
+  undoCancellation: async (boardId: string) => {
+    return apiClient.post<{ message: string }>(
+      `/boards/${boardId}/subscription/undo-cancel`,
+    );
+  },
+
+  getBillingPortalUrl: async (boardId: string) => {
+    return apiClient.get<{ url: string }>(
+      `/boards/${boardId}/subscription/billing-portal`,
+    );
+  },
+
   // Polar Checkout - 보드 구독 시작
   createBoardCheckout: async (data: {
     board_id: string;
@@ -6620,6 +6632,10 @@ export const orgSubscriptionAPI = {
     return apiClient.delete(`/organizations/${orgId}/subscription`);
   },
 
+  undoCancel: async (orgId: string): Promise<{ message: string }> => {
+    return apiClient.post(`/organizations/${orgId}/subscription/undo-cancel`);
+  },
+
   getPayments: async (orgId: string) => {
     return apiClient.get(`/organizations/${orgId}/subscription/payments`);
   },
@@ -6631,5 +6647,162 @@ export const orgSubscriptionAPI = {
     return apiClient.post(`/organizations/${orgId}/subscription/seats`, {
       additional_seats: additionalSeats,
     });
+  },
+};
+
+// ─── Org Photo Gallery API ───
+
+export const orgPhotoAPI = {
+  // Tab CRUD
+  getTabs: (orgId: string): Promise<import("../types").OrgPhotoTab[]> =>
+    apiClient.get(`/organizations/${orgId}/photos/tabs`),
+
+  createTab: (
+    orgId: string,
+    data: { name: string; description?: string },
+  ): Promise<import("../types").OrgPhotoTab> =>
+    apiClient.post(`/organizations/${orgId}/photos/tabs`, data),
+
+  updateTab: (
+    orgId: string,
+    tabId: string,
+    data: { name: string; description?: string; cover_photo_id?: string },
+  ): Promise<import("../types").OrgPhotoTab> =>
+    apiClient.put(`/organizations/${orgId}/photos/tabs/${tabId}`, data),
+
+  deleteTab: (orgId: string, tabId: string): Promise<void> =>
+    apiClient.delete(`/organizations/${orgId}/photos/tabs/${tabId}`),
+
+  reorderTabs: (orgId: string, tabIds: string[]): Promise<void> =>
+    apiClient.put(`/organizations/${orgId}/photos/tabs/reorder`, {
+      tab_ids: tabIds,
+    }),
+
+  // Sharing
+  enableShare: (
+    orgId: string,
+    tabId: string,
+  ): Promise<import("../types").OrgPhotoTab> =>
+    apiClient.post(`/organizations/${orgId}/photos/tabs/${tabId}/share`),
+
+  disableShare: (
+    orgId: string,
+    tabId: string,
+  ): Promise<import("../types").OrgPhotoTab> =>
+    apiClient.delete(`/organizations/${orgId}/photos/tabs/${tabId}/share`),
+
+  // Gallery-level sharing
+  enableGalleryShare: (
+    orgId: string,
+  ): Promise<{ share_token: string }> =>
+    apiClient.post(`/organizations/${orgId}/photos/gallery-share`),
+
+  disableGalleryShare: (
+    orgId: string,
+  ): Promise<void> =>
+    apiClient.delete(`/organizations/${orgId}/photos/gallery-share`),
+
+  getGalleryShareStatus: (
+    orgId: string,
+  ): Promise<{ enabled: boolean; share_token: string }> =>
+    apiClient.get(`/organizations/${orgId}/photos/gallery-share`),
+
+  // Photo CRUD
+  getPhotos: (
+    orgId: string,
+    params: { tab_id?: string; cursor?: string; size?: number },
+  ): Promise<import("../types").OrgPhotoPage> => {
+    const query = new URLSearchParams();
+    if (params.tab_id) query.set("tab_id", params.tab_id);
+    if (params.cursor) query.set("cursor", params.cursor);
+    if (params.size) query.set("size", String(params.size));
+    return apiClient.get(`/organizations/${orgId}/photos?${query.toString()}`);
+  },
+
+  uploadPhotos: async (
+    orgId: string,
+    tabId: string,
+    files: File[],
+  ): Promise<import("../types").OrgPhoto[]> => {
+    const formData = new FormData();
+    files.forEach((f) => formData.append("files", f));
+    // NOTE: Do NOT set Content-Type — browser sets multipart boundary automatically
+    const response = await authenticatedFetch(
+      `${API_BASE_URL}/organizations/${orgId}/photos/upload?tabId=${tabId}`,
+      {
+        method: "POST",
+        body: formData,
+      },
+    );
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ message: "Upload failed" }));
+      throw err;
+    }
+    return response.json();
+  },
+
+  updatePhoto: (
+    orgId: string,
+    photoId: string,
+    data: { caption: string },
+  ): Promise<import("../types").OrgPhoto> =>
+    apiClient.put(`/organizations/${orgId}/photos/${photoId}`, data),
+
+  deletePhotos: (orgId: string, photoIds: string[]): Promise<void> =>
+    apiClient.delete(`/organizations/${orgId}/photos/batch`, {
+      photo_ids: photoIds,
+    }),
+
+  // Download
+  downloadPhoto: (orgId: string, photoId: string) =>
+    apiClient.get(`/organizations/${orgId}/photos/${photoId}/download`),
+
+  downloadPhotos: (orgId: string, photoIds: string[]) =>
+    apiClient.post(`/organizations/${orgId}/photos/batch-download`, {
+      photo_ids: photoIds,
+    }),
+};
+
+// ─── Public Gallery API (no auth) ───
+
+export const publicGalleryAPI = {
+  getSharedGallery: (
+    shareToken: string,
+  ): Promise<import("../types").SharedGalleryInfo> =>
+    apiClient.get(`/public/gallery/${shareToken}`),
+
+  getSharedGalleryPhotos: (
+    shareToken: string,
+    albumId: string,
+    params?: { cursor?: string; size?: number },
+  ): Promise<import("../types").SharedPhotoPage> => {
+    const query = new URLSearchParams();
+    if (params?.cursor) query.set("cursor", params.cursor);
+    if (params?.size) query.set("size", String(params.size));
+    const qs = query.toString();
+    return apiClient.get(
+      `/public/gallery/${shareToken}/albums/${albumId}/photos${qs ? `?${qs}` : ""}`,
+    );
+  },
+};
+
+/** @deprecated kept for per-album share backward compat */
+export const publicAlbumAPI = {
+  getSharedAlbum: (
+    shareToken: string,
+  ): Promise<import("../types").SharedAlbumInfo> =>
+    apiClient.get(`/public/albums/${shareToken}`),
+
+  getSharedAlbumPhotos: (
+    shareToken: string,
+    params?: { cursor?: string; size?: number },
+  ): Promise<import("../types").SharedPhotoPage> => {
+    const query = new URLSearchParams();
+    if (params?.cursor) query.set("cursor", params.cursor);
+    if (params?.size) query.set("size", String(params.size));
+    const qs = query.toString();
+    return apiClient.get(
+      `/public/albums/${shareToken}/photos${qs ? `?${qs}` : ""}`,
+    );
   },
 };

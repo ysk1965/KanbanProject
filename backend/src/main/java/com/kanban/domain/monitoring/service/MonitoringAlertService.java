@@ -3,11 +3,13 @@ package com.kanban.domain.monitoring.service;
 import com.kanban.domain.monitoring.dto.MonitoringResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.env.Environment;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -25,6 +27,7 @@ public class MonitoringAlertService {
     private final RestTemplate restTemplate;
     private final MonitoringService monitoringService;
     private final JavaMailSender mailSender;
+    private final Environment environment;
 
     private static final long ALERT_COOLDOWN_MS = 10 * 60 * 1000; // 10 minutes
     private final ConcurrentHashMap<String, Long> lastAlertTimeMap = new ConcurrentHashMap<>();
@@ -64,20 +67,30 @@ public class MonitoringAlertService {
 
     /**
      * Sends Slack + Email alert for unexpected server errors (500).
-     * Uses 10-minute cooldown per exception class to prevent alert flooding.
+     * Uses 10-minute cooldown per endpoint+exception to prevent alert flooding.
+     * Runs async to avoid delaying the error response.
      */
-    public void sendUnexpectedErrorAlert(Exception e) {
-        String alertKey = "unexpected_error:" + e.getClass().getSimpleName();
+    @Async
+    public void sendUnexpectedErrorAlert(Exception e, String requestInfo, String userInfo) {
+        // Cooldown key includes endpoint for per-endpoint tracking
+        String endpoint = requestInfo.split("\\?")[0]; // strip query string for cooldown grouping
+        String alertKey = "unexpected_error:" + endpoint + ":" + e.getClass().getSimpleName();
         String stackTrace = getCompactStackTrace(e);
+        String rootCause = getRootCauseMessage(e);
+        String env = getActiveProfile();
 
         String title = "예상치 못한 서버 에러 (500)";
-        String slackMessage = String.format("*Exception*: `%s`\n*Message*: %s\n*Stack Trace*:\n```%s```",
+        String slackMessage = String.format(
+                "*Environment*: `%s`\n*Endpoint*: `%s`\n*User*: %s\n*Exception*: `%s`\n*Root Cause*: %s\n*Stack Trace*:\n```%s```",
+                env, requestInfo, userInfo,
                 e.getClass().getSimpleName(),
-                truncate(e.getMessage(), 200),
+                truncate(rootCause, 200),
                 stackTrace);
 
         if (sendAlertIfNotCoolingDown(alertKey, "CRITICAL", title, slackMessage)) {
-            sendEmailAlert(title, e.getClass().getSimpleName(), truncate(e.getMessage(), 500), stackTrace);
+            sendEmailAlert(title, env, requestInfo, userInfo,
+                    e.getClass().getSimpleName(), truncate(e.getMessage(), 500),
+                    rootCause, stackTrace);
         }
     }
 
@@ -101,6 +114,21 @@ public class MonitoringAlertService {
             sb.append(elements.length > 0 ? elements[0].toString() : "no stack trace");
         }
         return sb.toString().trim();
+    }
+
+    private String getRootCauseMessage(Throwable e) {
+        Throwable root = e;
+        while (root.getCause() != null && root.getCause() != root) {
+            root = root.getCause();
+        }
+        String msg = root.getMessage();
+        if (root == e || msg == null) return msg != null ? msg : "null";
+        return root.getClass().getSimpleName() + ": " + msg;
+    }
+
+    private String getActiveProfile() {
+        String[] profiles = environment.getActiveProfiles();
+        return profiles.length > 0 ? String.join(",", profiles) : "default";
     }
 
     private String truncate(String text, int maxLength) {
@@ -210,7 +238,8 @@ public class MonitoringAlertService {
         }
     }
 
-    private void sendEmailAlert(String title, String exceptionName, String errorMessage, String stackTrace) {
+    private void sendEmailAlert(String title, String env, String requestInfo, String userInfo,
+                                String exceptionName, String errorMessage, String rootCause, String stackTrace) {
         List<String> recipients = monitoringService.getAlertEmailRecipients();
         if (recipients == null || recipients.isEmpty()) {
             return;
@@ -219,21 +248,38 @@ public class MonitoringAlertService {
         String timestamp = LocalDateTime.now(ZoneOffset.UTC)
                 .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) + " UTC";
 
-        String subject = "[BRIDGE CRITICAL] " + title;
+        String envBadgeColor = "prod".equals(env) ? "#DC2626" : "#F59E0B";
+        String envLabel = env.toUpperCase();
+
+        String subject = "[BRIDGE " + envLabel + "] " + title;
         String htmlBody = String.format("""
                 <div style="font-family: -apple-system, sans-serif; max-width: 600px; margin: 0 auto;">
-                  <div style="background: #DC2626; color: white; padding: 16px 24px; border-radius: 8px 8px 0 0;">
-                    <h2 style="margin: 0; font-size: 18px;">BRIDGE 서버 에러 알림</h2>
+                  <div style="background: %s; color: white; padding: 16px 24px; border-radius: 8px 8px 0 0;">
+                    <h2 style="margin: 0; font-size: 18px;">BRIDGE 서버 에러 알림
+                      <span style="font-size: 12px; background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 4px; margin-left: 8px;">%s</span>
+                    </h2>
                   </div>
                   <div style="border: 1px solid #E5E7EB; border-top: none; padding: 24px; border-radius: 0 0 8px 8px;">
                     <table style="width: 100%%; border-collapse: collapse; font-size: 14px;">
                       <tr>
-                        <td style="padding: 8px 0; color: #6B7280; width: 120px;">Exception</td>
+                        <td style="padding: 8px 0; color: #6B7280; width: 120px;">Endpoint</td>
+                        <td style="padding: 8px 0; font-weight: 600; font-family: monospace;">%s</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; color: #6B7280;">User</td>
+                        <td style="padding: 8px 0;">%s</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; color: #6B7280;">Exception</td>
                         <td style="padding: 8px 0; font-weight: 600;">%s</td>
                       </tr>
                       <tr>
                         <td style="padding: 8px 0; color: #6B7280;">Message</td>
                         <td style="padding: 8px 0;">%s</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0; color: #6B7280;">Root Cause</td>
+                        <td style="padding: 8px 0; color: #DC2626; font-family: monospace; font-size: 13px;">%s</td>
                       </tr>
                       <tr>
                         <td style="padding: 8px 0; color: #6B7280;">Time (UTC)</td>
@@ -246,7 +292,8 @@ public class MonitoringAlertService {
                     </div>
                   </div>
                 </div>
-                """, exceptionName, errorMessage, timestamp, stackTrace);
+                """, envBadgeColor, envLabel, requestInfo, userInfo,
+                exceptionName, errorMessage, truncate(rootCause, 300), timestamp, stackTrace);
 
         for (String recipient : recipients) {
             try {

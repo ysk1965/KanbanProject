@@ -14,4 +14,6 @@ public interface PaymentHistoryRepository extends JpaRepository<PaymentHistory, 
     @Modifying
     @Query("DELETE FROM PaymentHistory ph WHERE ph.subscription.board.id = :boardId")
     void deleteByBoardId(@Param("boardId") String boardId);
+
+    java.util.Optional<PaymentHistory> findByPgTransactionId(String pgTransactionId);
 }

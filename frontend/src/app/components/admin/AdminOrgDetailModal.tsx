@@ -368,13 +368,13 @@ export function AdminOrgDetailModal({ orgId, onClose, onUpdate }: AdminOrgDetail
                       {org.price_per_seat != null && org.price_per_seat > 0 && (
                         <div>
                           <p className="text-[10px] text-slate-400 mb-0.5">{t('admin.organizations.detail.pricePerSeat')}</p>
-                          <p className="text-sm text-foreground">{org.price_per_seat.toLocaleString()}원</p>
+                          <p className="text-sm text-foreground">${(org.price_per_seat / 100).toLocaleString()}</p>
                         </div>
                       )}
                       {org.total_price != null && org.total_price > 0 && (
                         <div>
                           <p className="text-[10px] text-slate-400 mb-0.5">{t('admin.organizations.detail.totalPrice')}</p>
-                          <p className="text-sm font-bold text-foreground">{org.total_price.toLocaleString()}원</p>
+                          <p className="text-sm font-bold text-foreground">${(org.total_price / 100).toLocaleString()}</p>
                         </div>
                       )}
                     </div>

@@ -9,7 +9,9 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.time.Duration;
@@ -27,7 +29,7 @@ public class LocalFileUploadService implements FileUploadService {
 
     private final VideoThumbnailService videoThumbnailService;
 
-    @Value("${app.file.max-size:5242880}")
+    @Value("${app.file.max-size:31457280}")
     private long maxFileSize;
 
     @Value("${app.file.video.max-size:52428800}")
@@ -113,6 +115,36 @@ public class LocalFileUploadService implements FileUploadService {
             return String.format("/uploads/%s", key);
         } catch (IOException e) {
             log.error("Failed to upload file directly: {}", key, e);
+            throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @Override
+    public String uploadDirect(byte[] data, String key, String contentType) {
+        try {
+            Path filePath = Paths.get(localDir, key);
+            Files.createDirectories(filePath.getParent());
+            Files.write(filePath, data);
+            log.info("Byte array uploaded directly to local: {} ({} bytes)", filePath, data.length);
+            return String.format("/uploads/%s", key);
+        } catch (IOException e) {
+            log.error("Failed to upload byte array directly: {}", key, e);
+            throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @Override
+    public InputStream getAsStream(String key) {
+        try {
+            Path filePath = Paths.get(localDir, key);
+            if (!Files.exists(filePath)) {
+                throw new BusinessException(ErrorCode.ATTACHMENT_NOT_FOUND);
+            }
+            return new FileInputStream(filePath.toFile());
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Failed to get stream from local: {}", key, e);
             throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
         }
     }

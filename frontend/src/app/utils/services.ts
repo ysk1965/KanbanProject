@@ -28,6 +28,7 @@ import {
   anniversaryAPI,
   personalCalendarAPI,
   orgSubscriptionAPI,
+  orgPhotoAPI,
 } from "./api";
 import {
   mockBoards,
@@ -1486,6 +1487,20 @@ export const subscriptionService = {
       console.warn("API failed for cancel subscription", error);
       throw error;
     }
+  },
+
+  undoCancellation: async (boardId: string): Promise<void> => {
+    try {
+      await subscriptionAPI.undoCancellation(boardId);
+    } catch (error) {
+      console.warn("API failed for undo cancellation", error);
+      throw error;
+    }
+  },
+
+  getBillingPortalUrl: async (boardId: string): Promise<string> => {
+    const response = await subscriptionAPI.getBillingPortalUrl(boardId);
+    return response.url;
   },
 
   // Seat 기반 가격 조회
@@ -3365,6 +3380,37 @@ export const orgSubscriptionService = {
   migrate: orgSubscriptionAPI.migrate,
   downgrade: orgSubscriptionAPI.downgrade,
   cancel: orgSubscriptionAPI.cancel,
+  undoCancel: orgSubscriptionAPI.undoCancel,
   getPayments: orgSubscriptionAPI.getPayments,
   purchaseSeats: orgSubscriptionAPI.purchaseSeats,
+};
+
+// ─── Org Photo Gallery Service ───
+
+export const orgPhotoService = {
+  // Tab CRUD
+  getTabs: orgPhotoAPI.getTabs,
+  createTab: orgPhotoAPI.createTab,
+  updateTab: orgPhotoAPI.updateTab,
+  deleteTab: orgPhotoAPI.deleteTab,
+  reorderTabs: orgPhotoAPI.reorderTabs,
+
+  // Per-album sharing
+  enableShare: orgPhotoAPI.enableShare,
+  disableShare: orgPhotoAPI.disableShare,
+
+  // Gallery-level sharing
+  enableGalleryShare: orgPhotoAPI.enableGalleryShare,
+  disableGalleryShare: orgPhotoAPI.disableGalleryShare,
+  getGalleryShareStatus: orgPhotoAPI.getGalleryShareStatus,
+
+  // Photo CRUD
+  getPhotos: orgPhotoAPI.getPhotos,
+  uploadPhotos: orgPhotoAPI.uploadPhotos,
+  updatePhoto: orgPhotoAPI.updatePhoto,
+  deletePhotos: orgPhotoAPI.deletePhotos,
+
+  // Download
+  downloadPhoto: orgPhotoAPI.downloadPhoto,
+  downloadPhotos: orgPhotoAPI.downloadPhotos,
 };

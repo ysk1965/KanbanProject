@@ -67,6 +67,9 @@ public class Organization {
     @Column(name = "trial_used")
     private Boolean trialUsed = false;
 
+    @Column(name = "photo_share_token", unique = true, length = 36)
+    private String photoShareToken;
+
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
@@ -137,5 +140,19 @@ public class Organization {
 
     public void markTrialUsed() {
         this.trialUsed = true;
+    }
+
+    public void enableGalleryShare() {
+        if (this.photoShareToken == null) {
+            this.photoShareToken = UUID.randomUUID().toString();
+        }
+    }
+
+    public void disableGalleryShare() {
+        this.photoShareToken = null;
+    }
+
+    public boolean isGalleryShared() {
+        return this.photoShareToken != null;
     }
 }

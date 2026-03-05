@@ -9,6 +9,7 @@ import {
   Settings,
   CalendarOff,
   BarChart3,
+  Camera,
   Loader2,
 } from "lucide-react";
 import { motion } from "framer-motion";
@@ -32,6 +33,7 @@ import { OrgInsightsTab } from "../components/organization/tabs/OrgInsightsTab";
 import { OrgAttendanceTab } from "../components/organization/tabs/OrgAttendanceTab";
 import { OrgChartTab } from "../components/organization/tabs/OrgChartTab";
 import { OrgOkrTab } from "../components/organization/tabs/OrgOkrTab";
+import { OrgPhotoGalleryTab } from "../components/organization/tabs/OrgPhotoGalleryTab";
 import { MemberDetailModal } from "../components/organization/MemberDetailModal";
 
 // ─── Tab types ───
@@ -45,12 +47,13 @@ type TabKey =
   | "attendance"
   | "insights"
   | "okr"
+  | "photos"
   | "settings"
   | "settings_structure"
   | "settings_attendance"
   | "settings_onboarding";
 
-type GroupKey = "dashboard" | "people" | "leave" | "workspace" | "settings";
+type GroupKey = "dashboard" | "people" | "leave" | "workspace" | "photos" | "settings";
 
 interface TabGroup {
   key: GroupKey;
@@ -106,6 +109,12 @@ const TAB_GROUPS: TabGroup[] = [
       { key: "insights", labelKey: "organization.tabs.insights" },
       { key: "okr", labelKey: "organization.tabs.okr" },
     ],
+  },
+  {
+    key: "photos",
+    labelKey: "organization.tabs.photos",
+    icon: Camera,
+    defaultTab: "photos",
   },
   {
     key: "settings",
@@ -501,6 +510,9 @@ function OrgDetailPageContent() {
           )}
           {renderTab("okr",
             <OrgOkrTab orgId={orgId} myRole={myRole} />
+          )}
+          {renderTab("photos",
+            <OrgPhotoGalleryTab orgId={orgId} myRole={myRole} />
           )}
           {renderTab("settings",
             <OrgSettingsGeneralSubTab
