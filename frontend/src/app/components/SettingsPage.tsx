@@ -122,7 +122,7 @@ export function SettingsPage() {
       setImageError(t('settings.imageTypeError'));
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
+    if (file.size > 30 * 1024 * 1024) {
       setImageError(t('settings.imageSizeError'));
       return;
     }

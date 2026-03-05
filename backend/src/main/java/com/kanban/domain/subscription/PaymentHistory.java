@@ -74,4 +74,8 @@ public class PaymentHistory {
     public void markAsFailed() {
         this.status = PaymentStatus.FAILED;
     }
+
+    public void updateStatus(PaymentStatus status) {
+        this.status = status;
+    }
 }

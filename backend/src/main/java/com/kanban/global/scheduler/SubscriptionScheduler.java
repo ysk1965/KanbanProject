@@ -1,10 +1,12 @@
 package com.kanban.global.scheduler;
 
 import com.kanban.domain.board.Board;
-import com.kanban.domain.subscription.Subscription;
-import com.kanban.domain.subscription.SubscriptionRepository;
+import com.kanban.domain.board.BoardRepository;
+import com.kanban.domain.board.BoardTier;
+import com.kanban.domain.subscription.*;
 import com.kanban.domain.subscription.service.AiCreditService;
 import com.kanban.domain.subscription.service.OrgSubscriptionService;
+import com.kanban.global.security.WebSocketAuthInterceptor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -21,8 +23,11 @@ import java.util.List;
 public class SubscriptionScheduler {
 
     private final SubscriptionRepository subscriptionRepository;
+    private final OrgSubscriptionRepository orgSubscriptionRepository;
+    private final BoardRepository boardRepository;
     private final AiCreditService aiCreditService;
     private final OrgSubscriptionService orgSubscriptionService;
+    private final WebSocketAuthInterceptor webSocketAuthInterceptor;
 
     /**
      * Trial 만료 자동 처리: 매시간 실행
@@ -67,6 +72,93 @@ public class SubscriptionScheduler {
             orgSubscriptionService.expireTrials();
         } catch (Exception e) {
             log.error("Failed to process org trial expirations: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 취소 예약 구독 처리: 매시간 20분에 실행
+     * - cancelRequestedAt이 설정되고 currentPeriodEnd가 지난 Board 구독 → CANCELED + STANDARD 다운그레이드
+     * - cancelRequestedAt이 설정되고 currentPeriodEnd가 지난 Org 구독 → CANCELED + 보드 복원
+     */
+    @Scheduled(cron = "0 20 * * * *")
+    @Transactional
+    public void processCancellationRequests() {
+        try {
+            LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+
+            // Board subscriptions
+            List<Subscription> pendingBoardCancels = subscriptionRepository.findPendingCancellations(now);
+            int boardCount = 0;
+            for (Subscription sub : pendingBoardCancels) {
+                sub.cancel();
+                Board board = sub.getBoard();
+                if (board != null) {
+                    board.downgradeToStandard();
+                    webSocketAuthInterceptor.evictTierCache(board.getId());
+                }
+                boardCount++;
+            }
+
+            // Org subscriptions
+            List<OrgSubscription> pendingOrgCancels = orgSubscriptionRepository.findPendingCancellations(now);
+            int orgCount = 0;
+            for (OrgSubscription orgSub : pendingOrgCancels) {
+                orgSub.cancel();
+                String orgId = orgSub.getOrganization().getId();
+                boardRepository.findByOrganizationId(orgId).forEach(board -> {
+                    board.updateTier(BoardTier.STANDARD);
+                    subscriptionRepository.findByBoardId(board.getId())
+                        .ifPresent(Subscription::restoreFromOrg);
+                });
+                orgCount++;
+            }
+
+            if (boardCount > 0 || orgCount > 0) {
+                log.info("Cancellation requests processed: {} board, {} org subscriptions canceled", boardCount, orgCount);
+            }
+        } catch (Exception e) {
+            log.error("Failed to process cancellation requests: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * PAST_DUE 구독 에스컬레이션: 매시간 25분에 실행
+     * - pastDueSince가 7일 이상 경과한 Board/Org 구독 → SUSPENDED 전환
+     */
+    @Scheduled(cron = "0 25 * * * *")
+    @Transactional
+    public void escalatePastDueSubscriptions() {
+        try {
+            LocalDateTime threshold = LocalDateTime.now(ZoneOffset.UTC).minusDays(7);
+
+            // Board subscriptions
+            List<Subscription> pastDueBoards = subscriptionRepository
+                    .findByStatusPastDueAndPastDueSinceBefore(threshold);
+            int boardCount = 0;
+            for (Subscription sub : pastDueBoards) {
+                sub.suspend();
+                Board board = sub.getBoard();
+                if (board != null) {
+                    webSocketAuthInterceptor.evictTierCache(board.getId());
+                }
+                boardCount++;
+            }
+
+            // Org subscriptions
+            List<OrgSubscription> pastDueOrgs = orgSubscriptionRepository
+                    .findByStatusPastDueAndPastDueSinceBefore(threshold);
+            int orgCount = 0;
+            for (OrgSubscription orgSub : pastDueOrgs) {
+                orgSub.suspend();
+                orgCount++;
+            }
+
+            if (boardCount > 0 || orgCount > 0) {
+                log.info("Past-due escalation: {} board, {} org subscriptions escalated to SUSPENDED",
+                        boardCount, orgCount);
+            }
+        } catch (Exception e) {
+            log.error("Failed to escalate past-due subscriptions: {}", e.getMessage(), e);
         }
     }
 

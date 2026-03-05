@@ -106,8 +106,8 @@ export function OrgMigrationWizard({
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return `$${amount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+  const formatCurrency = (amountInCents: number) => {
+    return `$${(amountInCents / 100).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
   };
 
   return (

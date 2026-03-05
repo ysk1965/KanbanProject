@@ -4,6 +4,8 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.InputStream;
+
 /**
  * 파일 업로드 서비스 인터페이스
  * S3FileUploadService / LocalFileUploadService가 구현
@@ -23,6 +25,12 @@ public interface FileUploadService {
 
     /** 지정된 key 경로에 직접 업로드 (temp 단계 없음) */
     String uploadDirect(MultipartFile file, String key);
+
+    /** byte 배열을 지정된 key 경로에 직접 업로드 (썸네일 등) */
+    String uploadDirect(byte[] data, String key, String contentType);
+
+    /** S3 key로부터 InputStream 반환 (ZIP 다운로드 등) */
+    InputStream getAsStream(String key);
 
     /** 임시 파일 → 영구 경로 이동 + 썸네일 생성 */
     PermanentResult moveToPermanent(String tempKey, String boardId, String commentId);

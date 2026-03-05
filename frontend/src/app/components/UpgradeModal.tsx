@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Check, Rocket, Calendar, BarChart3, Target, MessageSquare, Minus, Plus, Users } from 'lucide-react';
+import { toast } from 'sonner';
 import { MotionModal } from './ui/MotionModal';
 
 export type UpgradeTrigger =
@@ -54,16 +55,16 @@ export function UpgradeModal({
       // Polar checkout 리다이렉트가 발생하므로 여기까지 도달하지 않음
     } catch (error: any) {
       console.error('Upgrade failed:', error);
-      alert(t('upgrade.upgradeFailed'));
+      toast.error(t('upgrade.upgradeFailed'));
     } finally {
       setIsProcessing(false);
     }
   };
 
   return (
-    <MotionModal open={open} onClose={onClose} className="sm:max-w-lg p-0 overflow-hidden">
+    <MotionModal open={open} onClose={onClose} className="sm:max-w-lg p-0">
         {/* Header */}
-        <div className="relative px-6 pt-6 pb-4">
+        <div className="relative px-4 sm:px-6 pt-6 pb-4">
           <button
             onClick={onClose}
             className="absolute right-4 top-4 text-slate-400 hover:text-foreground transition-colors"
@@ -86,7 +87,7 @@ export function UpgradeModal({
         </div>
 
         {/* Features */}
-        <div className="px-6 pb-4">
+        <div className="px-4 sm:px-6 pb-4">
           <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">
             {t('upgrade.premiumBenefits')}
           </p>
@@ -103,7 +104,7 @@ export function UpgradeModal({
         </div>
 
         {/* Seat Count Selector */}
-        <div className="px-6 pb-4">
+        <div className="px-4 sm:px-6 pb-4">
           <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">
             {t('upgrade.seatSelection')}
           </p>
@@ -143,11 +144,11 @@ export function UpgradeModal({
         </div>
 
         {/* Pricing */}
-        <div className="px-6 pb-4">
+        <div className="px-4 sm:px-6 pb-4">
           <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">
             {t('upgrade.selectPlan')}
           </p>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {/* Monthly */}
             <button
               onClick={() => setBillingCycle('MONTHLY')}
@@ -159,7 +160,7 @@ export function UpgradeModal({
             >
               <div className="text-left">
                 <p className="text-slate-400 text-xs mb-1">{t('upgrade.monthly')}</p>
-                <p className="text-foreground text-xl font-bold">${PRICE_PER_SEAT.monthly * seatCount}</p>
+                <p className="text-foreground text-lg sm:text-xl font-bold">${PRICE_PER_SEAT.monthly * seatCount}</p>
                 <p className="text-slate-400 text-xs">/month</p>
               </div>
               {billingCycle === 'MONTHLY' && (
@@ -185,7 +186,7 @@ export function UpgradeModal({
               </div>
               <div className="text-left">
                 <p className="text-slate-400 text-xs mb-1">{t('upgrade.yearly')}</p>
-                <p className="text-foreground text-xl font-bold">${PRICE_PER_SEAT.yearly * seatCount}</p>
+                <p className="text-foreground text-lg sm:text-xl font-bold">${PRICE_PER_SEAT.yearly * seatCount}</p>
                 <p className="text-slate-400 text-xs">/year (${((PRICE_PER_SEAT.yearly * seatCount) / 12).toFixed(2)}/mo)</p>
               </div>
               {billingCycle === 'YEARLY' && (
@@ -207,17 +208,17 @@ export function UpgradeModal({
         </div>
 
         {/* Actions */}
-        <div className="px-6 pb-6 flex gap-3">
+        <div className="px-4 sm:px-6 pb-6 flex gap-3">
           <button
             onClick={onClose}
-            className="flex-1 px-4 py-3 bg-foreground/5 border border-foreground/10 text-foreground rounded-xl font-medium hover:bg-foreground/10 transition-all"
+            className="flex-1 px-4 py-3 min-h-[44px] bg-foreground/5 border border-foreground/10 text-foreground rounded-xl font-medium hover:bg-foreground/10 transition-all"
           >
             {t('common.later')}
           </button>
           <button
             onClick={handleUpgrade}
             disabled={isProcessing}
-            className="flex-1 px-4 py-3 bg-bridge-accent text-white rounded-xl font-bold hover:bg-bridge-accent/90 hover:shadow-[0_0_30px_rgba(99,102,241,0.3)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 px-4 py-3 min-h-[44px] bg-bridge-accent text-white rounded-xl font-bold hover:bg-bridge-accent/90 hover:shadow-[0_0_30px_rgba(99,102,241,0.3)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isProcessing ? t('common.processing') : t('upgrade.startPremium')}
           </button>

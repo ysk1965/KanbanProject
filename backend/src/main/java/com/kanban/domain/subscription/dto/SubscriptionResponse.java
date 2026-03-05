@@ -6,6 +6,8 @@ import lombok.Builder;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 public class SubscriptionResponse {
@@ -34,8 +36,24 @@ public class SubscriptionResponse {
         private Integer totalAvailableCredits;
         private LocalDateTime creditsResetDate;
         private String creditWarningLevel;
+        private LocalDateTime cancelRequestedAt;
+        private LocalDateTime pastDueSince;
+        private Integer daysPastDue;
+        private Integer daysUntilSuspension;
+        @Builder.Default
+        private String currency = "USD";
 
         public static Detail of(Subscription subscription) {
+            Integer daysPastDue = null;
+            Integer daysUntilSuspension = null;
+            if (subscription.getPastDueSince() != null
+                    && subscription.getStatus() == SubscriptionStatus.PAST_DUE) {
+                long days = ChronoUnit.DAYS.between(subscription.getPastDueSince(),
+                        LocalDateTime.now(ZoneOffset.UTC));
+                daysPastDue = (int) days;
+                daysUntilSuspension = Math.max(0, 7 - daysPastDue);
+            }
+
             return Detail.builder()
                     .id(subscription.getId())
                     .status(subscription.getStatus())
@@ -57,6 +75,10 @@ public class SubscriptionResponse {
                     .totalAvailableCredits(subscription.getTotalAvailableCredits())
                     .creditsResetDate(subscription.getCreditsResetDate())
                     .creditWarningLevel(subscription.getWarningLevel())
+                    .cancelRequestedAt(subscription.getCancelRequestedAt())
+                    .pastDueSince(subscription.getPastDueSince())
+                    .daysPastDue(daysPastDue)
+                    .daysUntilSuspension(daysUntilSuspension)
                     .build();
         }
     }
@@ -99,7 +121,7 @@ public class SubscriptionResponse {
         public static PricingListResponse of(List<PricingPlan> plans) {
             return PricingListResponse.builder()
                     .plans(plans.stream().map(PricingInfo::of).toList())
-                    .currency("KRW")
+                    .currency("USD")
                     .trialDays("7")
                     .build();
         }

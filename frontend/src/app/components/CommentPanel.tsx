@@ -16,7 +16,7 @@ const VideoLightbox = lazyWithRetry(() => import('./VideoLightbox').then(m => ({
 // ========== 상수 & 유틸 ==========
 
 const MAX_FILES = 5;
-const MAX_FILE_SIZE_IMAGE = 5 * 1024 * 1024;      // 5MB
+const MAX_FILE_SIZE_IMAGE = 30 * 1024 * 1024;     // 30MB
 const MAX_FILE_SIZE_VIDEO = 50 * 1024 * 1024;      // 50MB
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime'];
@@ -65,13 +65,24 @@ function renderTextWithLinks(text: string, keyPrefix: string) {
   });
 }
 
+function cleanMarkdownArtifacts(text: string): string {
+  return text
+    .replace(/\\\n/g, '\n')
+    .replace(/\\$/gm, '')
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)/g, '$1')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/`([^`]+)`/g, '$1');
+}
+
 function renderContent(content: string, boardMembers: BoardMember[]) {
+  const cleaned = cleanMarkdownArtifacts(content);
   const memberNames = boardMembers.map(m => m.name);
   const mentionPattern = memberNames.length > 0
     ? new RegExp(`(@(?:${memberNames.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')}))(?=\\s|$)`, 'g')
     : null;
-  if (!mentionPattern) return renderTextWithLinks(content, 'root');
-  const parts = content.split(mentionPattern);
+  if (!mentionPattern) return renderTextWithLinks(cleaned, 'root');
+  const parts = cleaned.split(mentionPattern);
   return parts.map((part, i) => {
     if (part.startsWith('@')) {
       const name = part.slice(1);

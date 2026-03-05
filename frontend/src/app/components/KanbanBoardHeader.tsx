@@ -60,6 +60,7 @@ interface KanbanBoardHeaderProps {
   onOpenInquiry: () => void;
   onOpenPremiumBenefits: () => void;
   onOpenUpgradeModal: (trigger: UpgradeTrigger) => void;
+  onUpdatePayment?: () => void;
   // User
   currentUser: { id: string; name: string; email: string; role?: string } | null;
   onLogout: () => void;
@@ -76,7 +77,7 @@ export function KanbanBoardHeader({
   unreadNotificationCount, onUnreadCountChange, unreadInquiryCount, activities, hasMoreActivities, onLoadMoreActivities, onNotificationClick,
   canEdit, canAccessSchedule, canAccessMilestone, canAccessStatistics, canAccessSlack, canViewStatistics, isAdminOrOwner, isViewer, hideBilling, hideBillingForUser,
   subscription, tierInfo,
-  onSaveBoardName, onOpenShareBoard, onOpenSubscription, onOpenInquiry, onOpenPremiumBenefits, onOpenUpgradeModal,
+  onSaveBoardName, onOpenShareBoard, onOpenSubscription, onOpenInquiry, onOpenPremiumBenefits, onOpenUpgradeModal, onUpdatePayment,
   currentUser, onLogout, isTester,
   getScheduleSubMode, getAISubMode,
 }: KanbanBoardHeaderProps) {
@@ -113,6 +114,9 @@ export function KanbanBoardHeader({
         onOpenSubscription={onOpenSubscription}
         onOpenPremiumBenefits={onOpenPremiumBenefits}
         onTrialEnding={() => onOpenUpgradeModal('trial_ending')}
+        onUpdatePayment={onUpdatePayment}
+        daysPastDue={subscription?.days_past_due}
+        daysUntilSuspension={subscription?.days_until_suspension}
         hideBilling={hideBillingForUser}
       />
 

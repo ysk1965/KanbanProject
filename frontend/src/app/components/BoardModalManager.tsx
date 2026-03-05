@@ -96,6 +96,7 @@ interface BoardModalManagerProps {
   onChangeBillingCycle: (cycle: 'MONTHLY' | 'YEARLY') => void;
   onPurchaseSeats: (seats: number) => void;
   onCancelSubscription: () => void;
+  onUndoCancellation?: () => Promise<void>;
   // Inquiry Modal
   isInquiryModalOpen: boolean;
   onCloseInquiry: () => void;
@@ -384,9 +385,11 @@ export function BoardModalManager(props: BoardModalManagerProps) {
           onClose={props.onCloseSubscription}
           subscription={props.subscription}
           currentBillableMembers={props.currentBillableMembers}
+          boardId={props.boardId}
           onChangeBillingCycle={props.onChangeBillingCycle}
           onPurchaseSeats={props.onPurchaseSeats}
           onCancelSubscription={props.onCancelSubscription}
+          onUndoCancellation={props.onUndoCancellation}
         />
       )}
 

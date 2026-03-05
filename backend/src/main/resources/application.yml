@@ -170,7 +170,7 @@ app:
       slow-api-ms: 3000
   file:
     s3-enabled: ${S3_ENABLED:false}
-    max-size: 5242880
+    max-size: 31457280
     max-count: 5
     allowed-types: image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,video/quicktime
     s3-bucket: ${S3_BUCKET:bridge-kanban-attachments}

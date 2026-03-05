@@ -46,17 +46,25 @@ public interface OrganizationRepository extends JpaRepository<Organization, Stri
 
     // ==================== Admin ====================
 
-    @Query("SELECT o FROM Organization o " +
+    @Query(value = "SELECT o FROM Organization o " +
            "LEFT JOIN FETCH o.owner " +
            "LEFT JOIN FETCH o.subscription " +
+           "WHERE (:search IS NULL OR LOWER(o.name) LIKE LOWER(CONCAT('%', :search, '%')) " +
+           "OR LOWER(o.owner.email) LIKE LOWER(CONCAT('%', :search, '%'))) " +
+           "AND o.deletedAt IS NULL",
+           countQuery = "SELECT COUNT(o) FROM Organization o LEFT JOIN o.owner " +
            "WHERE (:search IS NULL OR LOWER(o.name) LIKE LOWER(CONCAT('%', :search, '%')) " +
            "OR LOWER(o.owner.email) LIKE LOWER(CONCAT('%', :search, '%'))) " +
            "AND o.deletedAt IS NULL")
     Page<Organization> findAllForAdmin(@Param("search") String search, Pageable pageable);
 
-    @Query("SELECT o FROM Organization o " +
+    @Query(value = "SELECT o FROM Organization o " +
            "LEFT JOIN FETCH o.owner " +
            "LEFT JOIN FETCH o.subscription " +
+           "WHERE (:search IS NULL OR LOWER(o.name) LIKE LOWER(CONCAT('%', :search, '%')) " +
+           "OR LOWER(o.owner.email) LIKE LOWER(CONCAT('%', :search, '%'))) " +
+           "AND o.deletedAt IS NOT NULL",
+           countQuery = "SELECT COUNT(o) FROM Organization o LEFT JOIN o.owner " +
            "WHERE (:search IS NULL OR LOWER(o.name) LIKE LOWER(CONCAT('%', :search, '%')) " +
            "OR LOWER(o.owner.email) LIKE LOWER(CONCAT('%', :search, '%'))) " +
            "AND o.deletedAt IS NOT NULL")
@@ -90,4 +98,7 @@ public interface OrganizationRepository extends JpaRepository<Organization, Stri
            "LEFT JOIN o.subscription s " +
            "WHERE o.deletedAt IS NULL AND s.status = com.kanban.domain.subscription.SubscriptionStatus.ACTIVE")
     long countActiveSubscriptions();
+
+    @Query("SELECT o FROM Organization o WHERE o.photoShareToken = :token AND o.deletedAt IS NULL")
+    Optional<Organization> findByPhotoShareToken(@Param("token") String token);
 }

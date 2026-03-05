@@ -1260,6 +1260,13 @@ export function KanbanBoardPage() {
     setSubscription(subscriptionData);
   };
 
+  const handleUndoCancellation = async () => {
+    if (!boardId) return;
+    await subscriptionService.undoCancellation(boardId);
+    const subscriptionData = await subscriptionService.getSubscription(boardId);
+    setSubscription(subscriptionData);
+  };
+
   // 활동 로그 핸들러
   const handleLoadMoreActivity = async () => {
     if (!hasMoreActivity || !activityCursor || !boardId) return;
@@ -2270,6 +2277,15 @@ export function KanbanBoardPage() {
           onOpenShareBoard={() => setIsShareBoardModalOpen(true)}
           onOpenSubscription={() => setIsSubscriptionModalOpen(true)}
           onOpenPremiumBenefits={() => setIsPremiumBenefitsModalOpen(true)}
+          onUpdatePayment={async () => {
+            if (!boardId) return;
+            try {
+              const url = await subscriptionService.getBillingPortalUrl(boardId);
+              window.open(url, '_blank');
+            } catch (e) {
+              console.error('Failed to get billing portal URL', e);
+            }
+          }}
           currentUser={currentUser}
           memberColorMap={memberColorMap}
           onLogout={logout}
@@ -3167,6 +3183,7 @@ export function KanbanBoardPage() {
           onChangeBillingCycle={handleChangeBillingCycle}
           onPurchaseSeats={handleSubscriptionPurchaseSeats}
           onCancelSubscription={handleCancelSubscription}
+          onUndoCancellation={handleUndoCancellation}
           // Inquiry Modal
           isInquiryModalOpen={isInquiryModalOpen}
           onCloseInquiry={() => setIsInquiryModalOpen(false)}

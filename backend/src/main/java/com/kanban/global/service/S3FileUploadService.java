@@ -17,6 +17,7 @@ import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequ
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -31,7 +32,7 @@ public class S3FileUploadService implements FileUploadService {
     private final S3Presigner s3Presigner;
     private final VideoThumbnailService videoThumbnailService;
 
-    @Value("${app.file.max-size:5242880}")
+    @Value("${app.file.max-size:31457280}")
     private long maxFileSize;
 
     @Value("${app.file.video.max-size:52428800}")
@@ -136,6 +137,37 @@ public class S3FileUploadService implements FileUploadService {
             return buildUrl(key);
         } catch (IOException e) {
             log.error("Failed to upload file directly: {}", key, e);
+            throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @Override
+    public String uploadDirect(byte[] data, String key, String contentType) {
+        try {
+            PutObjectRequest putRequest = PutObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(key)
+                    .contentType(contentType)
+                    .contentLength((long) data.length)
+                    .build();
+            s3Client.putObject(putRequest, RequestBody.fromBytes(data));
+            log.info("Byte array uploaded directly to S3: {} ({} bytes)", key, data.length);
+            return buildUrl(key);
+        } catch (Exception e) {
+            log.error("Failed to upload byte array directly: {}", key, e);
+            throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @Override
+    public InputStream getAsStream(String key) {
+        try {
+            return s3Client.getObject(GetObjectRequest.builder()
+                    .bucket(bucketName).key(key).build());
+        } catch (NoSuchKeyException e) {
+            throw new BusinessException(ErrorCode.ATTACHMENT_NOT_FOUND);
+        } catch (Exception e) {
+            log.error("Failed to get stream from S3: {}", key, e);
             throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
         }
     }

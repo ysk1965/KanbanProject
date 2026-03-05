@@ -128,7 +128,7 @@ export type BoardType = "TEAM" | "PERSONAL";
 // 구독 관련 타입
 // ========================================
 
-export type SubscriptionStatus = "TRIAL" | "ACTIVE" | "SUSPENDED" | "CANCELED";
+export type SubscriptionStatus = "TRIAL" | "ACTIVE" | "PAST_DUE" | "SUSPENDED" | "CANCELED";
 
 export interface Subscription {
   id?: string;
@@ -145,6 +145,10 @@ export interface Subscription {
   member_limit?: number;
   next_payment_at?: string | null;
   created_at?: string;
+  cancel_requested_at?: string | null;
+  past_due_since?: string | null;
+  days_past_due?: number | null;
+  days_until_suspension?: number | null;
 }
 
 // ========================================
@@ -3139,6 +3143,7 @@ export interface OrgSubscription {
   active_member_count: number;
   price_per_seat: number;
   total_price: number;
+  currency: string;
   current_period_start: string | null;
   current_period_end: string | null;
   next_payment_at: string | null;
@@ -3151,6 +3156,7 @@ export interface OrgSubscription {
   can_read_hr_data: boolean;
   can_create_org_board: boolean;
   trial_used: boolean;
+  cancel_requested_at?: string | null;
 }
 
 export interface MigrationPreview {
@@ -3159,4 +3165,97 @@ export interface MigrationPreview {
   credit_from_existing: number;
   first_payment: number;
   unique_members: number;
+}
+
+// ===== Photo Gallery (v14.0) =====
+export interface OrgPhotoTab {
+  id: string;
+  name: string;
+  description: string | null;
+  photo_count: number;
+  cover_photo_url: string | null;
+  sort_order: number;
+  is_shared: boolean;
+  share_token: string | null;
+  created_by: {
+    id: string;
+    name: string;
+    email: string;
+    profile_image_url: string | null;
+  };
+  created_at: string;
+}
+
+export interface OrgPhoto {
+  id: string;
+  tab_id: string;
+  s3_key: string;
+  thumbnail_key: string | null;
+  url: string;
+  thumbnail_url: string | null;
+  original_filename: string;
+  file_size: number;
+  content_type: string;
+  width: number | null;
+  height: number | null;
+  caption: string | null;
+  uploaded_by: {
+    id: string;
+    name: string;
+    email: string;
+    profile_image_url: string | null;
+  };
+  created_at: string;
+}
+
+export interface OrgPhotoPage {
+  photos: OrgPhoto[];
+  next_cursor: string | null;
+  has_next: boolean;
+  total_count: number;
+}
+
+export interface SharedGalleryInfo {
+  organization_name: string;
+  organization_logo_url: string | null;
+  albums: SharedAlbumSummary[];
+  total_photo_count: number;
+}
+
+export interface SharedAlbumSummary {
+  id: string;
+  name: string;
+  description: string | null;
+  photo_count: number;
+  cover_photo_url: string | null;
+}
+
+/** @deprecated kept for per-album share backward compat */
+export interface SharedAlbumInfo {
+  album_name: string;
+  album_description: string | null;
+  photo_count: number;
+  cover_photo_url: string | null;
+  organization_name: string;
+  organization_logo_url: string | null;
+}
+
+export interface SharedPhotoItem {
+  id: string;
+  url: string;
+  thumbnail_url: string | null;
+  original_filename: string;
+  file_size: number;
+  content_type: string;
+  width: number | null;
+  height: number | null;
+  caption: string | null;
+  created_at: string;
+}
+
+export interface SharedPhotoPage {
+  photos: SharedPhotoItem[];
+  next_cursor: string | null;
+  has_next: boolean;
+  total_count: number;
 }

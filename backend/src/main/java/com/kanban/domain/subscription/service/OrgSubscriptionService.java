@@ -201,16 +201,24 @@ public class OrgSubscriptionService {
     public void cancel(String orgId) {
         OrgSubscription orgSub = orgSubscriptionRepository.findByOrganizationIdForUpdate(orgId)
             .orElseThrow(() -> new BusinessException(ErrorCode.ORG_SUBSCRIPTION_NOT_FOUND));
-        orgSub.cancel();
 
-        // Restore boards
-        boardRepository.findByOrganizationId(orgId).forEach(board -> {
-            board.updateTier(BoardTier.STANDARD);
-            subscriptionRepository.findByBoardId(board.getId())
-                .ifPresent(Subscription::restoreFromOrg);
-        });
+        // Grace period: 취소 예약만 하고, currentPeriodEnd까지 TEAM 유지
+        orgSub.requestCancellation();
 
-        log.info("Org subscription canceled: orgId={}", orgId);
+        log.info("Org subscription cancellation requested: orgId={}, activeUntil={}",
+            orgId, orgSub.getCurrentPeriodEnd());
+    }
+
+    public void undoCancellation(String orgId) {
+        OrgSubscription orgSub = orgSubscriptionRepository.findByOrganizationIdForUpdate(orgId)
+            .orElseThrow(() -> new BusinessException(ErrorCode.ORG_SUBSCRIPTION_NOT_FOUND));
+
+        if (!orgSub.isCancellationRequested()) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
+        }
+
+        orgSub.undoCancellation();
+        log.info("Org subscription cancellation undone: orgId={}", orgId);
     }
 
     public void downgradeToFree(String orgId) {

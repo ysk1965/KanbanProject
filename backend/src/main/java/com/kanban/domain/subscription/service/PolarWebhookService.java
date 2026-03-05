@@ -8,6 +8,7 @@ import com.kanban.domain.board.BoardTier;
 import com.kanban.domain.subscription.*;
 import com.kanban.domain.subscription.config.PolarConfig;
 import com.kanban.domain.subscription.dto.PolarWebhookEvent;
+import com.kanban.domain.notification.service.NotificationService;
 import com.kanban.global.exception.BusinessException;
 import com.kanban.global.exception.ErrorCode;
 import com.kanban.global.security.WebSocketAuthInterceptor;
@@ -47,6 +48,7 @@ public class PolarWebhookService {
     private final BoardRepository boardRepository;
     private final BoardMemberRepository boardMemberRepository;
     private final WebSocketAuthInterceptor webSocketAuthInterceptor;
+    private final NotificationService notificationService;
 
     /**
      * Main entry point for webhook processing.
@@ -75,6 +77,7 @@ public class PolarWebhookService {
             case "subscription.updated" -> handleSubscriptionUpdated(event);
             case "subscription.canceled" -> handleSubscriptionCanceled(event);
             case "order.created" -> handleOrderCreated(event);
+            case "refund.created" -> handleRefundCreated(event);
             default -> log.warn("Unhandled Polar webhook event type: {}", event.type());
         }
     }
@@ -354,8 +357,14 @@ public class PolarWebhookService {
                     log.info("Board subscription renewed: boardId={}", boardId);
                 }
                 case PAST_DUE -> {
-                    subscription.suspend();
-                    log.info("Board subscription past_due: boardId={}", boardId);
+                    subscription.markPastDue();
+                    // Send payment failed notification to board owner
+                    Board board = subscription.getBoard();
+                    if (board != null && board.getOwner() != null) {
+                        notificationService.createPaymentFailedNotification(
+                                board.getOwner().getId(), boardId, board.getName());
+                    }
+                    log.info("Board subscription past_due (grace period started): boardId={}", boardId);
                 }
                 case SUSPENDED -> {
                     subscription.suspend();
@@ -393,9 +402,13 @@ public class PolarWebhookService {
         if (newStatus != null && newStatus != orgSub.getStatus()) {
             switch (newStatus) {
                 case ACTIVE -> log.info("Org subscription renewed: orgId={}", orgId);
-                case PAST_DUE, SUSPENDED -> {
+                case PAST_DUE -> {
+                    orgSub.markPastDue();
+                    log.info("Org subscription past_due (grace period started): orgId={}", orgId);
+                }
+                case SUSPENDED -> {
                     orgSub.suspend();
-                    log.info("Org subscription suspended/past_due: orgId={}", orgId);
+                    log.info("Org subscription suspended: orgId={}", orgId);
                 }
                 case CANCELED -> {
                     orgSub.cancel();
@@ -545,6 +558,23 @@ public class PolarWebhookService {
 
         log.info("Seats added via Polar webhook: boardId={}, additionalSeats={}, newTotal={}, userId={}",
                 boardId, additionalSeats, newSeatCount, userId);
+    }
+
+    // === Refund Handler ===
+
+    private void handleRefundCreated(PolarWebhookEvent event) {
+        Map<String, String> metadata = event.extractMetadata();
+        String orderId = metadata.get("order_id");
+
+        if (orderId != null) {
+            paymentHistoryRepository.findByPgTransactionId(orderId)
+                .ifPresent(ph -> {
+                    ph.updateStatus(PaymentStatus.REFUNDED);
+                    log.info("Payment marked as refunded: orderId={}", orderId);
+                });
+        }
+
+        log.info("Refund processed via Polar webhook: metadata={}", metadata);
     }
 
     // === Utility Methods ===

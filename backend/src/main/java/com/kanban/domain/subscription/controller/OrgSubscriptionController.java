@@ -113,6 +113,15 @@ public class OrgSubscriptionController {
         return ResponseEntity.ok(Map.of("message", "Organization subscription canceled"));
     }
 
+    @PostMapping("/api/v1/organizations/{orgId}/subscription/undo-cancel")
+    public ResponseEntity<Map<String, String>> undoCancellation(
+            @PathVariable String orgId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        organizationService.checkAdminOrAbove(orgId, principal.getUserId());
+        orgSubscriptionService.undoCancellation(orgId);
+        return ResponseEntity.ok(Map.of("message", "Organization subscription cancellation undone"));
+    }
+
     @GetMapping("/api/v1/organizations/{orgId}/subscription/payments")
     public ResponseEntity<List<OrgPaymentHistory>> getPaymentHistory(
             @PathVariable String orgId,

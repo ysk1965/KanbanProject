@@ -27,6 +27,26 @@ import { NoteShareButton } from './NoteShareButton';
 import { NoteBottomComments } from './NoteBottomComments';
 import type { CollaborationState } from '../../hooks/useCollaboration';
 
+function cleanMarkdownForPlainText(md: string): string {
+  return md
+    .replace(/\\\n/g, '\n')
+    .replace(/\\$/gm, '')
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)/g, '$1')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/^>\s+/gm, '')
+    .replace(/`([^`]+)`/g, '$1');
+}
+
+function handleEditorCopy(e: React.ClipboardEvent) {
+  const plain = e.clipboardData.getData('text/plain');
+  if (!plain) return;
+  const cleaned = cleanMarkdownForPlainText(plain);
+  if (cleaned !== plain) {
+    e.clipboardData.setData('text/plain', cleaned);
+  }
+}
+
 const schema = BlockNoteSchema.create({
   blockSpecs: {
     ...defaultBlockSpecs,
@@ -589,6 +609,7 @@ function CollabNoteEditor({
             hoveredBlockIdRef.current = null;
             setHoveredBlock(null);
           }}
+          onCopy={handleEditorCopy}
         >
           <BlockNoteView
             editor={editor}
@@ -913,7 +934,7 @@ function FallbackNoteEditor({ boardId, note, tags, canEdit, onSave, onTagsChange
         </div>
       </div>
       <div className="flex-1 overflow-y-auto p-4">
-        <div className="min-h-[60vh] bg-bridge-obsidian rounded-2xl border border-foreground/5">
+        <div className="min-h-[60vh] bg-bridge-obsidian rounded-2xl border border-foreground/5" onCopy={handleEditorCopy}>
           <BlockNoteView editor={editor} theme={isDark ? "dark" : "light"} editable={canEdit} onChange={() => { setHasChanges(true); setAutoSaved(false); }}>
             <SuggestionMenuController triggerCharacter="/" getItems={async (query) => filterSuggestionItems(slashMenuItems, query)} />
             <SuggestionMenuController triggerCharacter="@" getItems={getMentionItems} />

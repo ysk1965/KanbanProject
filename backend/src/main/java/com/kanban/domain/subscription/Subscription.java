@@ -103,6 +103,12 @@ public class Subscription {
     @Column(name = "billing_paused_for_org")
     private Boolean billingPausedForOrg = false;
 
+    @Column(name = "cancel_requested_at")
+    private LocalDateTime cancelRequestedAt;
+
+    @Column(name = "past_due_since")
+    private LocalDateTime pastDueSince;
+
     @PrePersist
     public void prePersist() {
         if (this.id == null) {
@@ -174,6 +180,7 @@ public class Subscription {
 
     public void activateSubscription(String plan, BillingCycle billingCycle, Integer price, String paymentMethodId) {
         this.status = SubscriptionStatus.ACTIVE;
+        this.pastDueSince = null;
         this.plan = plan;
         this.billingCycle = billingCycle;
         this.price = price;
@@ -190,6 +197,7 @@ public class Subscription {
      */
     public void activateSeatSubscription(BillingCycle billingCycle, int seatCount, String paymentMethodId) {
         this.status = SubscriptionStatus.ACTIVE;
+        this.pastDueSince = null;
         this.plan = "PREMIUM";
         this.billingCycle = billingCycle;
         this.seatCount = seatCount;
@@ -223,12 +231,37 @@ public class Subscription {
         this.price = calculateTotalPrice();
     }
 
+    public void markPastDue() {
+        this.status = SubscriptionStatus.PAST_DUE;
+        if (this.pastDueSince == null) {
+            this.pastDueSince = LocalDateTime.now(ZoneOffset.UTC);
+        }
+    }
+
+    public boolean isPastDue() {
+        return this.status == SubscriptionStatus.PAST_DUE;
+    }
+
     public void suspend() {
         this.status = SubscriptionStatus.SUSPENDED;
+        this.pastDueSince = null;
     }
 
     public void cancel() {
         this.status = SubscriptionStatus.CANCELED;
+        this.cancelRequestedAt = null;
+    }
+
+    public void requestCancellation() {
+        this.cancelRequestedAt = LocalDateTime.now(ZoneOffset.UTC);
+    }
+
+    public boolean isCancellationRequested() {
+        return this.cancelRequestedAt != null;
+    }
+
+    public void undoCancellation() {
+        this.cancelRequestedAt = null;
     }
 
     public void updateBillableMemberCount(int count) {
