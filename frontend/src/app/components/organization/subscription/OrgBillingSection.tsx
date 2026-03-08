@@ -15,6 +15,7 @@ import {
   X,
   BarChart3,
   Briefcase,
+  Sparkles,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { orgSubscriptionService } from '../../../utils/services';
@@ -363,6 +364,88 @@ export function OrgBillingSection({
           </span>
         </div>
       </motion.div>
+
+      {/* AI Credit Pool */}
+      {subscription.plan === 'TEAM' && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="bg-bridge-obsidian rounded-2xl border border-foreground/[0.08] p-5"
+        >
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-xl bg-bridge-secondary/15 flex items-center justify-center">
+              <Sparkles size={18} className="text-bridge-secondary" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-foreground">
+                {t('orgSubscription.billing.aiCredits', 'AI Credits')}
+              </h3>
+              <p className="text-[11px] text-slate-500">
+                {t('orgSubscription.billing.aiCreditsDesc', 'Shared across all organization boards')}
+              </p>
+            </div>
+          </div>
+
+          {(() => {
+            const monthly = subscription.monthly_ai_credits ?? 0;
+            const used = subscription.monthly_credits_used ?? 0;
+            const available = subscription.total_available_credits ?? (monthly - used);
+            const usagePercent = monthly > 0 ? Math.min((used / monthly) * 100, 100) : 0;
+            const warning = subscription.credit_warning_level;
+
+            const barColor = warning === 'EXHAUSTED' || warning === 'CRITICAL'
+              ? 'bg-red-500'
+              : warning === 'LOW'
+                ? 'bg-yellow-500'
+                : 'bg-bridge-secondary';
+
+            return (
+              <>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[12px] text-slate-400">
+                    {t('orgSubscription.billing.aiCreditsUsage', 'Monthly Usage')}
+                  </span>
+                  <span className="text-sm font-bold text-foreground">
+                    {used}
+                    <span className="text-slate-400 font-normal"> / {monthly}</span>
+                  </span>
+                </div>
+                <div className="h-2 bg-foreground/[0.06] rounded-full overflow-hidden mb-3">
+                  <div
+                    className={`h-full ${barColor} rounded-full transition-all`}
+                    style={{ width: `${usagePercent}%` }}
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] text-slate-500">
+                    {t('orgSubscription.billing.aiCreditsAvailable', 'Available')}
+                  </span>
+                  <span className={`text-sm font-bold ${
+                    warning === 'EXHAUSTED' || warning === 'CRITICAL'
+                      ? 'text-red-400'
+                      : warning === 'LOW'
+                        ? 'text-yellow-400'
+                        : 'text-bridge-secondary'
+                  }`}>
+                    {available}
+                  </span>
+                </div>
+                {subscription.credits_reset_date && (
+                  <div className="flex items-center justify-between mt-1">
+                    <span className="text-[11px] text-slate-500">
+                      {t('orgSubscription.billing.aiCreditsReset', 'Resets')}
+                    </span>
+                    <span className="text-[11px] text-slate-400">
+                      {formatDate(subscription.credits_reset_date)}
+                    </span>
+                  </div>
+                )}
+              </>
+            );
+          })()}
+        </motion.div>
+      )}
 
       {/* Payment History */}
       <motion.div

@@ -94,6 +94,19 @@ public class OrgSubscription {
     @Column(name = "past_due_since")
     private LocalDateTime pastDueSince;
 
+    // ── AI Credit Pool (Organization 레벨 공유 크레딧) ──
+
+    @Column(name = "monthly_ai_credits")
+    @Builder.Default
+    private Integer monthlyAiCredits = 0;
+
+    @Column(name = "monthly_credits_used")
+    @Builder.Default
+    private Integer monthlyCreditsUsed = 0;
+
+    @Column(name = "credits_reset_date")
+    private LocalDateTime creditsResetDate;
+
     @PrePersist
     public void prePersist() {
         if (this.id == null) {
@@ -132,6 +145,9 @@ public class OrgSubscription {
                 .status(SubscriptionStatus.TRIAL)
                 .trialEndsAt(now.plusDays(TRIAL_DAYS))
                 .boardLimit(Integer.MAX_VALUE)
+                .monthlyAiCredits(ORG_MONTHLY_CREDITS)
+                .monthlyCreditsUsed(0)
+                .creditsResetDate(now.plusMonths(1))
                 .build();
     }
 
@@ -151,6 +167,7 @@ public class OrgSubscription {
         this.boardLimit = Integer.MAX_VALUE;
         this.trialEndsAt = null;
         initializePeriod();
+        initializeCredits(ORG_MONTHLY_CREDITS);
     }
 
     public void expireTrialToFree() {
@@ -257,6 +274,45 @@ public class OrgSubscription {
         if (plan != OrgPlan.TEAM) return 0;
         if (!isActive() && !isTrialActive()) return 0;
         return Integer.MAX_VALUE;
+    }
+
+    // ── AI Credit Methods ──
+
+    public static final int ORG_MONTHLY_CREDITS = 200;
+
+    public int getTotalAvailableCredits() {
+        return Math.max(0, safeCredits(monthlyAiCredits) - safeCredits(monthlyCreditsUsed));
+    }
+
+    public boolean hasEnoughCredits(int required) {
+        return getTotalAvailableCredits() >= required;
+    }
+
+    public void consumeCredits(int amount) {
+        this.monthlyCreditsUsed = safeCredits(this.monthlyCreditsUsed) + amount;
+    }
+
+    public void resetMonthlyCredits() {
+        this.monthlyCreditsUsed = 0;
+        this.creditsResetDate = LocalDateTime.now(ZoneOffset.UTC).plusMonths(1);
+    }
+
+    public void initializeCredits(int monthlyAmount) {
+        this.monthlyAiCredits = monthlyAmount;
+        this.monthlyCreditsUsed = 0;
+        this.creditsResetDate = LocalDateTime.now(ZoneOffset.UTC).plusMonths(1);
+    }
+
+    public String getWarningLevel() {
+        int available = getTotalAvailableCredits();
+        if (available <= 0) return "EXHAUSTED";
+        if (available <= 3) return "CRITICAL";
+        if (available <= 10) return "LOW";
+        return null;
+    }
+
+    private int safeCredits(Integer value) {
+        return value != null ? value : 0;
     }
 
     // ── Private ──

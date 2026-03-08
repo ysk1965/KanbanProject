@@ -580,8 +580,8 @@ export function ShareBoardModal({
             </div>
           )}
 
-          {/* Owner 전용: 시트 & 크레딧 관리 섹션 */}
-          {currentUser?.role === 'owner' && (seatInfo || aiCredits) && (
+          {/* Owner 전용: 시트 & 크레딧 관리 섹션 (ORG_MANAGED 보드는 조직에서 관리) */}
+          {currentUser?.role === 'owner' && !isOrgBoard && (seatInfo || aiCredits) && (
             <div className="space-y-2">
               {/* 시트 사용 현황 */}
               {seatInfo && onOpenSeatManagement && (

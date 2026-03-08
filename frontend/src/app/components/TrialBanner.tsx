@@ -22,6 +22,9 @@ export function TrialBanner({ status, onOpenSubscription, onOpenPremiumBenefits,
   // TESTER/ADMIN 사용자 또는 milkyway.pe.kr 도메인은 과금 배너 숨김
   if (hideBilling) return null;
 
+  // ORG_MANAGED 보드는 Organization 구독으로 관리 → Board 단위 배너 불필요
+  if (tier === 'ORG_MANAGED') return null;
+
   // TRIAL 상태: 남은 일수 카운트다운 배너
   if (status === 'TRIAL' && tier !== 'PREMIUM') {
     const daysRemaining = trialEndsAt

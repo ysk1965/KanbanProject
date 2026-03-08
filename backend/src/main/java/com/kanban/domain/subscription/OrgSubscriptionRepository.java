@@ -28,4 +28,7 @@ public interface OrgSubscriptionRepository extends JpaRepository<OrgSubscription
 
     @Query("SELECT os FROM OrgSubscription os JOIN FETCH os.organization WHERE os.status = 'PAST_DUE' AND os.pastDueSince < :threshold")
     List<OrgSubscription> findByStatusPastDueAndPastDueSinceBefore(@Param("threshold") LocalDateTime threshold);
+
+    @Query("SELECT os FROM OrgSubscription os WHERE os.creditsResetDate IS NOT NULL AND os.creditsResetDate <= :now")
+    List<OrgSubscription> findDueForCreditReset(@Param("now") LocalDateTime now);
 }
