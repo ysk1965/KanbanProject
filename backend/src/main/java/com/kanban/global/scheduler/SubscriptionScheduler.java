@@ -197,6 +197,39 @@ public class SubscriptionScheduler {
     }
 
     /**
+     * Org AI 크레딧 월간 리셋: 매시간 8분에 실행
+     * - creditsResetDate가 현재 시각 이전인 OrgSubscription의 월간 크레딧을 리셋
+     */
+    @Scheduled(cron = "0 8 * * * *")
+    public void resetOrgMonthlyAiCredits() {
+        try {
+            List<String> orgSubIds = aiCreditService.findOrgSubscriptionIdsDueForReset();
+
+            if (orgSubIds.isEmpty()) {
+                return;
+            }
+
+            int success = 0;
+            int failed = 0;
+
+            for (String orgSubId : orgSubIds) {
+                try {
+                    aiCreditService.resetSingleOrgSubscriptionCredits(orgSubId);
+                    success++;
+                } catch (Exception e) {
+                    failed++;
+                    log.error("Failed to reset org credits for orgSubscription {}: {}", orgSubId, e.getMessage());
+                }
+            }
+
+            log.info("Org AI credits reset completed: {} success, {} failed out of {} total",
+                    success, failed, orgSubIds.size());
+        } catch (Exception e) {
+            log.error("Failed to fetch org subscriptions for credit reset: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
      * 유저 개인 AI 크레딧 월간 리셋: 매시간 10분에 실행
      * - personalCreditsResetDate가 현재 시각 이전인 유저의 개인 크레딧을 리셋
      */

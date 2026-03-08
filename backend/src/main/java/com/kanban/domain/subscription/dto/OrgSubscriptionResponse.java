@@ -33,7 +33,13 @@ public record OrgSubscriptionResponse(
     String cancelRequestedAt,
     String pastDueSince,
     Integer daysPastDue,
-    Integer daysUntilSuspension
+    Integer daysUntilSuspension,
+    // AI Credit Pool
+    int monthlyAiCredits,
+    int monthlyCreditsUsed,
+    int totalAvailableCredits,
+    String creditsResetDate,
+    String creditWarningLevel
 ) {
     public static OrgSubscriptionResponse from(OrgSubscription sub, int boardCount) {
         Integer daysPastDue = null;
@@ -72,7 +78,12 @@ public record OrgSubscriptionResponse(
             sub.getCancelRequestedAt() != null ? sub.getCancelRequestedAt().toString() : null,
             sub.getPastDueSince() != null ? sub.getPastDueSince().toString() : null,
             daysPastDue,
-            daysUntilSuspension
+            daysUntilSuspension,
+            sub.getMonthlyAiCredits() != null ? sub.getMonthlyAiCredits() : 0,
+            sub.getMonthlyCreditsUsed() != null ? sub.getMonthlyCreditsUsed() : 0,
+            sub.getTotalAvailableCredits(),
+            sub.getCreditsResetDate() != null ? sub.getCreditsResetDate().toString() : null,
+            sub.getWarningLevel()
         );
     }
 }

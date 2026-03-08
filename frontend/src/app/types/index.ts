@@ -3157,6 +3157,12 @@ export interface OrgSubscription {
   can_create_org_board: boolean;
   trial_used: boolean;
   cancel_requested_at?: string | null;
+  // AI Credit Pool
+  monthly_ai_credits?: number;
+  monthly_credits_used?: number;
+  total_available_credits?: number;
+  credits_reset_date?: string | null;
+  credit_warning_level?: 'LOW' | 'CRITICAL' | 'EXHAUSTED' | null;
 }
 
 export interface MigrationPreview {
